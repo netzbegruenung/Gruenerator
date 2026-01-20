@@ -551,13 +551,14 @@ export class QdrantService {
     );
   }
 
-  async indexGrundsatzChunks(documentId: string, chunks: GrundsatzChunk[]): Promise<{ success: boolean; chunks: number }> {
+  async indexGrundsatzChunks(documentId: string, chunks: GrundsatzChunk[], sourceUrl?: string): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
     return indexGrundsatz(
       this.client!,
       this.collections.grundsatz_documents,
       documentId,
-      chunks
+      chunks,
+      sourceUrl
     );
   }
 

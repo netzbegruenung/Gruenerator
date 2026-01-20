@@ -698,7 +698,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                     ref={videoRef}
                     className="subtitle-editor-preview-video"
                     controls
-                    crossOrigin="anonymous"
+                    crossOrigin="use-credentials"
                     src={videoUrl}
                     onLoadedMetadata={handleVideoLoadedMetadata}
                     onTimeUpdate={handleVideoTimeUpdate}

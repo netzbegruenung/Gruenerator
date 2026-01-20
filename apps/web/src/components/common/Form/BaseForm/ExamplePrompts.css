@@ -74,20 +74,10 @@
   }
 }
 
-/* Start mode: left-aligned the prompts between description and card */
+/* Start mode: prompts are now inside the card */
 .form-section--start-mode .example-prompts {
   justify-content: flex-start;
   margin-top: 0;
-  margin-bottom: var(--spacing-medium);
-}
-
-/* Desktop: dynamic flex layout for platform tags */
-@media (min-width: 769px) {
-  .form-section--start-mode .example-prompts {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: var(--spacing-small);
-  }
+  margin-bottom: 0;
 }
 

@@ -24,6 +24,8 @@ export interface ContentPath {
   paginationPattern?: string;
   maxPages?: number;
   isPdfArchive?: boolean;
+  sitemapUrls?: string[];  // Optional: fetch URLs from sitemaps instead of pagination
+  sitemapFilter?: string;  // Optional: filter sitemap URLs (e.g., '/presse/')
 }
 
 export interface ContentSelectors {
@@ -44,6 +46,8 @@ export interface LandesverbandSource {
   contentPaths: ContentPath[];
   contentSelectors: ContentSelectors;
   excludePatterns: string[];
+  qdrantCollection?: string;  // Optional: custom collection name (default: landesverbaende_documents)
+  maxAgeYears?: number;       // Optional: max age of content in years (default: 10)
 }
 
 export interface LandesverbaendeConfig {
@@ -179,6 +183,64 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
                 author: ['.author-name', '.byline']
             },
             excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:']
+        },
+
+        // ═══════════════════════════════════════════════════════════════════
+        // HAMBURG
+        // ═══════════════════════════════════════════════════════════════════
+        {
+            id: 'hamburg-lv-beschluesse',
+            name: 'Grüne Hamburg Beschlüsse',
+            shortName: 'HH',
+            type: 'landesverband',
+            baseUrl: 'https://beschluss.gruene-hamburg.de',
+            cms: 'wordpress',
+            contentPaths: [
+                {
+                    type: 'beschluss',
+                    path: '/',
+                    listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
+                    paginationPattern: '?paged={page}',
+                    maxPages: 50
+                }
+            ],
+            contentSelectors: {
+                title: ['h1.entry-title', 'h1', '.post-title'],
+                date: ['time[datetime]', '.entry-date', '.post-date'],
+                content: ['.entry-content', '.post-content', 'article .content'],
+                categories: ['a[rel="category tag"]', '.cat-links a'],
+                author: ['.author-name', '.byline']
+            },
+            excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:', '.pdf']
+        },
+        {
+            id: 'hamburg-lv-presse',
+            name: 'Grüne Hamburg Presse',
+            shortName: 'HH',
+            type: 'landesverband',
+            baseUrl: 'https://www.gruene-hamburg.de',
+            cms: 'wordpress',
+            maxAgeYears: 5,
+            contentPaths: [
+                {
+                    type: 'presse',
+                    path: '/presse/',
+                    listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
+                    sitemapUrls: [
+                        'https://www.gruene-hamburg.de/wp-sitemap-posts-post-1.xml',
+                        'https://www.gruene-hamburg.de/wp-sitemap-posts-post-2.xml'
+                    ],
+                    sitemapFilter: '/presse/'
+                }
+            ],
+            contentSelectors: {
+                title: ['h1', '.entry-title', '.post-title'],
+                date: ['time[datetime]', '.entry-date', '.published'],
+                content: ['.entry-content', '.post-content', 'article'],
+                categories: ['.category', 'a[rel="category tag"]'],
+                author: ['.author', '.byline']
+            },
+            excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:']
         }
     ]
 };

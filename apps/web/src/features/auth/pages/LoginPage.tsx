@@ -1,6 +1,5 @@
 import { JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import { getIntendedRedirect, getCurrentPath, isMobileAppContext, clearRedirectState } from '../../../utils/authRedirect';
 
@@ -18,17 +17,33 @@ const LOGIN_PROVIDERS = {
   gruenerator: { enabled: false }
 };
 
+// Page name mapping for context display
+const PAGE_NAMES: Record<string, string> = {
+  sharepic: 'Sharepic Grünerator',
+  universal: 'Universal Generator',
+  presse: 'Presse Generator',
+  'gruene-jugend': 'Grüne Jugend Generator',
+  subtitler: 'Untertitel Generator',
+  voice: 'Sprach-zu-Text',
+  chat: 'KI-Chat',
+  profile: 'Profil',
+  groups: 'Gruppen',
+  campaigns: 'Kampagnen',
+  search: 'Suche',
+  documents: 'Dokumente',
+  notebook: 'Fragen & Antworten',
+  generators: 'Generatoren',
+  you: 'Grüne Ideen für dich',
+  imagine: 'Grünerator Imagine',
+};
+
 // Helper function to extract page name from pathname for context
-const getPageName = (pathname: string, t: (key: string) => string): string => {
+const getPageName = (pathname: string): string => {
   const pathSegments = pathname.split('/').filter(Boolean);
-  if (pathSegments.length === 0) return t('pages.this_page');
+  if (pathSegments.length === 0) return 'Diese Seite';
 
   const mainPath = pathSegments[0];
-  const pageKey = `pages.${mainPath.replace('-', '_')}`;
-
-  // Try to get translation, fallback to this_page if not found
-  const translatedName = t(pageKey);
-  return translatedName !== pageKey ? translatedName : t('pages.this_page');
+  return PAGE_NAMES[mainPath] || 'Diese Seite';
 };
 
 interface LoginPageProps {
@@ -44,7 +59,6 @@ const LoginPage = ({ mode = 'standalone',
   onClose }: LoginPageProps): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useTranslation();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
@@ -61,7 +75,7 @@ const LoginPage = ({ mode = 'standalone',
   const successMessage = location.state?.message;
 
   // Auto-detect page name if not provided and in required mode
-  const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname, t) : undefined);
+  const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname) : undefined);
 
   // Handle modal close
   const handleClose = useCallback(() => {
@@ -159,10 +173,10 @@ const LoginPage = ({ mode = 'standalone',
           <h1 className="gradient-title">{displayPageName}</h1>
           <p className="auth-subtitle">
             {customMessage || (isMobileApp
-              ? t('login.mobile_app_subtitle', { pageName: displayPageName || 'App' })
-              : displayPageName === t('pages.this_page')
-                ? t('login.subtitle')
-                : t('login.subtitle_with_page', { pageName: displayPageName })
+              ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
+              : displayPageName === 'Diese Seite'
+                ? 'Melde dich an, um fortzufahren'
+                : `Melde dich an, um ${displayPageName} zu nutzen`
             )}
           </p>
         </div>
@@ -171,7 +185,7 @@ const LoginPage = ({ mode = 'standalone',
 
     return (
       <div className="auth-header">
-        <h1 className="gradient-title">{isMobileApp ? t('login.mobile_welcome') : t('welcome_back')}</h1>
+        <h1 className="gradient-title">{isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}</h1>
       </div>
     );
   };
@@ -195,9 +209,9 @@ const LoginPage = ({ mode = 'standalone',
               loading="eager"
             />
             <div className="login-text-content">
-              <h3 className="login-title">{t('login.sources.gruenes_netz.title')}</h3>
+              <h3 className="login-title">Grünes Netz Login</h3>
               <p className="login-description">
-                {t('login.sources.gruenes_netz.description')}
+                Mit deinem Grünes Netz Account anmelden
               </p>
             </div>
           </div>
@@ -220,9 +234,9 @@ const LoginPage = ({ mode = 'standalone',
               loading="eager"
             />
             <div className="login-text-content">
-              <h3 className="login-title">{t('login.sources.gruene_oesterreich.title')}</h3>
+              <h3 className="login-title">Die Grünen – Die Grüne Alternative</h3>
               <p className="login-description">
-                {t('login.sources.gruene_oesterreich.description')}
+                Mit deinem Die Grünen Account anmelden
               </p>
             </div>
           </div>
@@ -245,9 +259,9 @@ const LoginPage = ({ mode = 'standalone',
               loading="eager"
             />
             <div className="login-text-content">
-              <h3 className="login-title">{t('login.sources.netzbegruenung.title')}</h3>
+              <h3 className="login-title">Netzbegrünung Login</h3>
               <p className="login-description">
-                {t('login.sources.netzbegruenung.description')}
+                Mit deinem Netzbegrünung Account anmelden
               </p>
             </div>
           </div>

@@ -138,6 +138,7 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }: Projec
                         src={`${baseURL}/subtitler/projects/${project.id}/thumbnail`}
                         alt={project.title}
                         loading="lazy"
+                        crossOrigin="use-credentials"
                         className={imageLoaded ? 'loaded' : 'loading'}
                         onLoad={() => setImageLoaded(true)}
                         onError={(e) => {

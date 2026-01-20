@@ -1,11 +1,11 @@
-import ReactMarkdown from 'react-markdown';
+import { Markdown } from '../../common/Markdown';
 import changelogContent from '../../../../../../CHANGELOG.md?raw';
 import '../../../assets/styles/pages/Impressum_datenschutz.css';
 
 const Changelog = () => {
   return (
     <div className="page-container">
-      <ReactMarkdown>{changelogContent}</ReactMarkdown>
+      <Markdown>{changelogContent}</Markdown>
     </div>
   );
 };

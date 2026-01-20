@@ -61,7 +61,8 @@
     "docQnA": true,
     "urlCrawl": true,
     "examples": true,
-    "examplesPlatforms": ["instagram", "facebook"]
+    "examplesPlatforms": ["instagram", "facebook"],
+    "notebookEnrich": false
   },
   "requestFields": ["inhalt", "platforms", "was", "wie", "zitatgeber"],
   "requestTemplate": "{{inhalt}}\n\nPlattformen: {{platforms}}\n{{#if pressemitteilung}}\n{{#if was}}Was: {{was}}{{/if}}\n{{#if wie}}Wie: {{wie}}{{/if}}\n{{#if zitatgeber}}Zitat von: {{zitatgeber}}{{/if}}\n{{/if}}",

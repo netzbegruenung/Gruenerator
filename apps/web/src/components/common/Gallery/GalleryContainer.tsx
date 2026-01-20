@@ -42,6 +42,7 @@ const GalleryContainer = ({ initialContentType,
   const handleOpenPreview = useCallback((template: GalleryItem) => setPreviewTemplate(template), []);
   const handleClosePreview = useCallback(() => setPreviewTemplate(null), []);
 
+  const controller = useGalleryController({ contentType, availableContentTypeIds: typeOrder });
   const {
     config,
     items,
@@ -58,7 +59,7 @@ const GalleryContainer = ({ initialContentType,
     typeOptions,
     refetch,
     handleTagClick
-  } = useGalleryController({ contentType, availableContentTypeIds: typeOrder });
+  } = controller;
 
   const activeConfig = config || GALLERY_CONTENT_TYPES[contentType] || GALLERY_CONTENT_TYPES[DEFAULT_GALLERY_TYPE];
 
@@ -152,6 +153,9 @@ const GalleryContainer = ({ initialContentType,
             onCategoryChange={(id: string) => setSelectedCategory(id)}
             showCategoryFilter={showCategoryFilter}
             onRefresh={refetch}
+            searchModes={activeConfig.searchModes}
+            selectedSearchMode={searchMode}
+            onSearchModeChange={(mode: string) => setSearchMode(mode)}
           />
         </div>
       </div>

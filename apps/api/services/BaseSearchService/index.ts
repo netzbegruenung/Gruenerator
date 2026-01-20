@@ -49,7 +49,9 @@ export {
   needsLeadingEllipsis,
   needsTrailingEllipsis,
   extractMatchedExcerpt,
-  extractSimpleExcerpt
+  extractSimpleExcerpt,
+  deduplicateParagraphs,
+  deduplicateChunkTexts
 } from './textUtils.js';
 
 // Scoring utilities for subclasses

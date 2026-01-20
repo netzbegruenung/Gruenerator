@@ -9,6 +9,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-small);
+  position: relative;
+  padding-top: var(--spacing-large);
 }
 
 .qa-mobile-result-content .display-section {
@@ -25,24 +27,24 @@
   padding: 0;
 }
 
-.qa-mobile-result-content .action-buttons {
-  margin-top: var(--spacing-small);
-  justify-content: flex-start;
+.qa-mobile-result-content .action-buttons,
+.qa-message-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
+  display: flex;
   gap: var(--spacing-xsmall);
+  justify-content: flex-end;
+  width: auto;
 }
 
 .qa-mobile-citation-sources {
   margin-top: var(--spacing-small);
   padding-top: var(--spacing-small);
   border-top: 1px solid var(--border-color);
-}
-
-.qa-message-actions {
-  margin-top: var(--spacing-small);
-  padding-top: var(--spacing-small);
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  gap: var(--spacing-xsmall);
 }
 
 @media (max-width: 768px) {

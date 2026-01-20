@@ -11,6 +11,7 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useProfileStore } from '../../stores/profileStore';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { hashContent } from '../../utils/contentHash';
+import { extractTitleFromContent } from '../../utils/titleExtractor';
 
 interface GeneratedContentObject {
   content?: string;
@@ -182,7 +183,7 @@ const ActionButtons = ({ onEdit,
       // Use the same content extraction for saving
       await autoSaveToLibrary(
         contentForHash,
-        title || 'Auto-gespeichert: Kopieren',
+        title || extractTitleFromContent(contentForHash) || 'Auto-gespeichert',
         contentType
       );
 

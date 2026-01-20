@@ -1,12 +1,11 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOparlSearch } from '../hooks/useOparlSearch';
 import SearchBar from '../../search/components/SearchBar';
+import { Markdown } from '../../../components/common/Markdown';
 import '../../search/styles/SearchBarStyles.css';
 import '../styles/oparl.css';
 import '../../../assets/styles/common/markdown-styles.css';
 import type { OparlPaper } from '../types';
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
 
 const exampleQuestions = [
   { icon: '🚲', text: 'Radverkehr Fahrrad' },
@@ -111,9 +110,7 @@ const OparlPage = () => {
 
           {selectedPaper.fullText && (
             <div className="oparl-detail-content markdown-content">
-              <Suspense fallback={<div>Lade Inhalt...</div>}>
-                <ReactMarkdown>{selectedPaper.fullText}</ReactMarkdown>
-              </Suspense>
+              <Markdown fallback={<div>Lade Inhalt...</div>}>{selectedPaper.fullText}</Markdown>
             </div>
           )}
 

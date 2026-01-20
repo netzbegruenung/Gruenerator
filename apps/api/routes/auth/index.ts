@@ -9,6 +9,7 @@ import express, { Router } from 'express';
 import authCoreRouter from './authCore.js';
 import userProfileRouter from './userProfile.js';
 import userCustomGeneratorsRouter from './userCustomGenerators.js';
+import userCustomPromptsRouter from './userCustomPrompts.js';
 
 // Subdirectory routers
 import contentRouter from './content/index.js';
@@ -21,6 +22,7 @@ const router: Router = express.Router();
 router.use(authCoreRouter);
 router.use(userProfileRouter);
 router.use(userCustomGeneratorsRouter);
+router.use(userCustomPromptsRouter);
 
 // Mount subdirectory routers
 router.use(contentRouter);
@@ -34,6 +36,7 @@ export {
   authCoreRouter,
   userProfileRouter,
   userCustomGeneratorsRouter,
+  userCustomPromptsRouter,
   contentRouter,
   templatesRouter,
   groupsRouter

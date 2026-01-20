@@ -1,0 +1,84 @@
+/* ========================================
+   Status Badge Component
+   Reusable badge for feature status indicators
+   ======================================== */
+
+/* Base styles */
+.status-badge {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* ----------------------------------------
+   Badge Types - Color schemes
+   ---------------------------------------- */
+
+/* Early Access - Gradient (klee to sonne) */
+.status-badge--early-access {
+  background: linear-gradient(135deg, var(--klee) 0%, var(--sonne) 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Beta - Primary color */
+.status-badge--beta {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Coming Soon - Dark translucent */
+.status-badge--coming-soon {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+}
+
+/* ----------------------------------------
+   Badge Variants - Positioning & sizing
+   ---------------------------------------- */
+
+/* Card variant - Absolute positioned in top-right corner */
+.status-badge--card {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: var(--font-size-xxs);
+}
+
+/* Inline variant - Flow with text */
+.status-badge--inline {
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: var(--font-size-xxs);
+}
+
+/* Sidebar variant - Compact for navigation */
+.status-badge--sidebar {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.6rem;
+  letter-spacing: 0.3px;
+}
+
+/* ----------------------------------------
+   Responsive Adjustments
+   ---------------------------------------- */
+
+@media (max-width: 768px) {
+  .status-badge--inline {
+    font-size: var(--font-size-xxs);
+    padding: 3px 10px;
+  }
+
+  .status-badge--sidebar {
+    font-size: 0.55rem;
+    padding: 2px 6px;
+  }
+}

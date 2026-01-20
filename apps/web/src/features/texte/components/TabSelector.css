@@ -1,18 +1,41 @@
 /* Wrapper for entire Texte Generator */
 .texte-generator-wrapper {
   width: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-top: var(--spacing-xxlarge);
+}
+
+@media (min-width: 1024px) {
+  .texte-generator-wrapper {
+    padding-top: calc(var(--spacing-xxlarge) * 2);
+  }
 }
 
 /* Header section with title and tabs */
 .texte-generator-header {
   width: 100%;
+  max-width: 800px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--spacing-medium);
   padding: 0 var(--spacing-medium) var(--spacing-large);
+}
+
+@media (min-width: 1280px) {
+  .texte-generator-header {
+    max-width: 1000px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .texte-generator-header {
+    max-width: 1100px;
+  }
 }
 
 .texte-generator-title {
@@ -29,16 +52,54 @@
   gap: 0;
 }
 
-/* Tab content area */
+/* Tab content area - CSS grid stacks all tabs, visibility controls which is shown */
 .texte-generator-content {
   width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+@media (min-width: 1280px) {
+  .texte-generator-content {
+    max-width: 1000px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .texte-generator-content {
+    max-width: 1100px;
+  }
+}
+
+/* Full width content when generated */
+.texte-generator-wrapper.has-content .texte-generator-content {
+  max-width: 100%;
+  padding: 0 var(--spacing-large);
+}
+
+/* All tab panels occupy same grid cell (stacked) */
+.texte-generator-content > .tab-panel {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+}
+
+/* Hidden tabs - visibility keeps layout, pointer-events prevents interaction */
+.texte-generator-content > .tab-panel[data-active="false"] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Minimal tab selector */
 .texte-tab-selector {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: var(--spacing-small);
-  width: fit-content;
+  width: 100%;
 }
 
 .texte-tab-button {
@@ -77,12 +138,72 @@
   outline-offset: 2px;
 }
 
+.texte-tab-button.has-dropdown {
+  padding-right: var(--spacing-small);
+}
+
+.texte-tab-dropdown-icon {
+  margin-left: var(--spacing-xxsmall);
+  transition: transform 0.2s ease;
+}
+
+.texte-tab-button.has-dropdown:hover .texte-tab-dropdown-icon,
+.texte-tab-dropdown-container:has(.menu-dropdown-content[style*="opacity: 1"]) .texte-tab-dropdown-icon {
+  transform: rotate(180deg);
+}
+
+.texte-tab-button.active .texte-tab-dropdown-icon {
+  filter: brightness(0) invert(1);
+}
+
+.texte-tab-dropdown-menu {
+  padding: var(--spacing-xxsmall) 0;
+  min-width: 180px;
+}
+
+.texte-tab-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  width: 100%;
+  padding: var(--spacing-small) var(--spacing-medium);
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.texte-tab-dropdown-item:hover {
+  background: var(--hover-color-alt);
+}
+
+.texte-tab-dropdown-item:focus-visible {
+  outline: 2px solid var(--himmel);
+  outline-offset: -2px;
+}
+
 .texte-tab-icon {
   flex-shrink: 0;
 }
 
 .texte-tab-button.active .texte-tab-icon {
   filter: brightness(0) invert(1);
+}
+
+/* Lock icon for protected tabs */
+.texte-tab-lock-icon {
+  flex-shrink: 0;
+  opacity: 0.6;
+  color: var(--font-color-secondary);
+}
+
+.texte-tab-button.active .texte-tab-lock-icon {
+  filter: brightness(0) invert(1);
+  opacity: 0.8;
 }
 
 .texte-tab-label-short {
@@ -164,21 +285,14 @@ body:has(.base-container.edit-mode-active) .texte-generator-wrapper {
   }
 
   .texte-tab-selector {
-    gap: var(--spacing-xxsmall);
+    gap: var(--spacing-xsmall);
   }
 
   .texte-tab-button {
-    padding: var(--spacing-xsmall) var(--spacing-xsmall);
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .texte-tab-icon {
-    width: 18px;
-    height: 18px;
+    padding: var(--spacing-xsmall) var(--spacing-small);
   }
 
   .texte-tab-label-short {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
 }

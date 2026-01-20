@@ -80,8 +80,8 @@
 /* Large screens */
 @media (min-width: 1920px) {
   .sidebar-toggle {
-    left: 12px;
-    top: 12px;
+    left: 6px;
+    top: 6px;
     width: 44px;
     height: 44px;
   }

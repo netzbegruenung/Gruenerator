@@ -1,17 +1,16 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo, RefObject, memo } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useCallback, useRef, useEffect, useMemo, RefObject, memo, useState, ChangeEvent } from 'react';
 import BaseForm from '../../../components/common/BaseForm';
-import PlatformSelector from '../../../components/common/PlatformSelector';
-import Icon from '../../../components/common/Icon';
+import TextInput from '../../../components/common/Form/Input/TextInput';
 import RedeForm from '../universal/RedeForm';
 import WahlprogrammForm from '../universal/WahlprogrammForm';
 import BuergeranfragenForm from '../universal/BuergeranfragenForm';
-import UniversalForm from '../universal/UniversalForm';
 import LeichteSpracheForm from '../accessibility/components/LeichteSpracheForm';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
+import { type UniversalSubType } from '../types';
+import { FORM_LABELS } from '../../../components/utils/constants';
 
 interface FormRef {
   getFormData: () => Record<string, unknown>;
@@ -20,85 +19,67 @@ interface FormRef {
 
 interface UniversalTabProps {
   isActive: boolean;
+  selectedType: UniversalSubType;
 }
 
-export const TEXT_TYPES = {
+const TEXT_TYPES = {
   REDE: 'rede',
   WAHLPROGRAMM: 'wahlprogramm',
   BUERGERANFRAGEN: 'buergeranfragen',
-  LEICHTE_SPRACHE: 'leichte_sprache',
-  UNIVERSAL: 'universal'
+  LEICHTE_SPRACHE: 'leichte_sprache'
 } as const;
 
-export const TEXT_TYPE_LABELS = {
-  [TEXT_TYPES.REDE]: 'Rede',
-  [TEXT_TYPES.WAHLPROGRAMM]: 'Wahlprogramm',
-  [TEXT_TYPES.BUERGERANFRAGEN]: 'Bürger*innenanfragen',
-  [TEXT_TYPES.LEICHTE_SPRACHE]: 'Leichte Sprache',
-  [TEXT_TYPES.UNIVERSAL]: 'Universal'
-};
-
-export const TEXT_TYPE_TITLES = {
+const TEXT_TYPE_TITLES: Record<UniversalSubType, string> = {
   [TEXT_TYPES.REDE]: 'Welche Rede willst du heute grünerieren?',
   [TEXT_TYPES.WAHLPROGRAMM]: 'Welches Wahlprogramm-Kapitel willst du heute grünerieren?',
   [TEXT_TYPES.BUERGERANFRAGEN]: 'Welche Bürger*innenanfrage willst du heute grünerieren?',
-  [TEXT_TYPES.LEICHTE_SPRACHE]: 'Welchen Text willst du in Leichte Sprache übersetzen?',
-  [TEXT_TYPES.UNIVERSAL]: 'Welchen Text willst du heute grünerieren?'
+  [TEXT_TYPES.LEICHTE_SPRACHE]: 'Welchen Text willst du in Leichte Sprache übersetzen?'
 };
 
-const RedeIcon = memo(() => <Icon category="textTypes" name="rede" size={16} />);
-RedeIcon.displayName = 'RedeIcon';
-
-const WahlprogrammIcon = memo(() => <Icon category="textTypes" name="wahlprogramm" size={16} />);
-WahlprogrammIcon.displayName = 'WahlprogrammIcon';
-
-const BuergeranfragenIcon = memo(() => <Icon category="textTypes" name="buergeranfragen" size={16} />);
-BuergeranfragenIcon.displayName = 'BuergeranfragenIcon';
-
-const LeichteSpracheIcon = memo(() => <Icon category="accessibility" name="leichteSprache" size={16} />);
-LeichteSpracheIcon.displayName = 'LeichteSpracheIcon';
-
-const UniversalIcon = memo(() => <Icon category="textTypes" name="universal" size={16} />);
-UniversalIcon.displayName = 'UniversalIcon';
-
-const TEXT_TYPE_ICONS: Record<string, () => React.ReactNode> = {
-  [TEXT_TYPES.REDE]: () => <RedeIcon />,
-  [TEXT_TYPES.WAHLPROGRAMM]: () => <WahlprogrammIcon />,
-  [TEXT_TYPES.BUERGERANFRAGEN]: () => <BuergeranfragenIcon />,
-  [TEXT_TYPES.LEICHTE_SPRACHE]: () => <LeichteSpracheIcon />,
-  [TEXT_TYPES.UNIVERSAL]: () => <UniversalIcon />
-};
-
-const API_ENDPOINTS = {
+const API_ENDPOINTS: Record<UniversalSubType, string> = {
   [TEXT_TYPES.REDE]: '/claude_rede',
   [TEXT_TYPES.WAHLPROGRAMM]: '/claude_wahlprogramm',
   [TEXT_TYPES.BUERGERANFRAGEN]: '/claude_buergeranfragen',
-  [TEXT_TYPES.LEICHTE_SPRACHE]: '/claude_leichte_sprache',
-  [TEXT_TYPES.UNIVERSAL]: '/claude_universal'
+  [TEXT_TYPES.LEICHTE_SPRACHE]: '/claude_leichte_sprache'
 };
 
-const getInitialTextType = (pathname: string): string => {
-  if (pathname === '/rede') return TEXT_TYPES.REDE;
-  if (pathname === '/buergerinnenanfragen') return TEXT_TYPES.BUERGERANFRAGEN;
-  if (pathname === '/wahlprogramm') return TEXT_TYPES.WAHLPROGRAMM;
-  return TEXT_TYPES.UNIVERSAL;
+interface ExtrasInputConfig {
+  id: string;
+  label: string;
+  placeholder: string;
+  helpText: string;
+  min: number;
+  max: number;
+}
+
+const EXTRAS_CONFIG: Partial<Record<UniversalSubType, ExtrasInputConfig>> = {
+  [TEXT_TYPES.REDE]: {
+    id: 'redezeit',
+    label: 'Redezeit (Minuten)',
+    placeholder: '1-5',
+    helpText: 'Maximal 5 Minuten möglich',
+    min: 1,
+    max: 5
+  },
+  [TEXT_TYPES.WAHLPROGRAMM]: {
+    id: 'zeichenanzahl',
+    label: FORM_LABELS.CHARACTER_COUNT,
+    placeholder: '1000-3500',
+    helpText: 'Zwischen 1.000 und 3.500 Zeichen möglich',
+    min: 1000,
+    max: 3500
+  }
 };
 
-const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
+const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType }) => {
   const componentName = 'universal-text';
-  const location = useLocation();
-
-  const [selectedType, setSelectedType] = useState(() => {
-    const initialType = getInitialTextType(location.pathname);
-    return initialType;
-  });
-  const [isLoading, setIsLoading] = useState(false);
 
   const redeFormRef = useRef<FormRef>(null);
   const wahlprogrammFormRef = useRef<FormRef>(null);
   const buergeranfragenFormRef = useRef<FormRef>(null);
   const leichteSpracheFormRef = useRef<FormRef>(null);
-  const universalFormRef = useRef<FormRef>(null);
+
+  const [extrasValue, setExtrasValue] = useState<string>('');
 
   const getCurrentFormRef = (): RefObject<FormRef | null> | null => {
     switch (selectedType) {
@@ -110,8 +91,6 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
         return buergeranfragenFormRef;
       case TEXT_TYPES.LEICHTE_SPRACHE:
         return leichteSpracheFormRef;
-      case TEXT_TYPES.UNIVERSAL:
-        return universalFormRef;
       default:
         return null;
     }
@@ -121,7 +100,7 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
 
   useOptimizedAuth();
 
-  const getInstructionType = (textType: string) => {
+  const getInstructionType = (textType: UniversalSubType) => {
     switch (textType) {
       case TEXT_TYPES.REDE:
         return 'rede' as const;
@@ -129,8 +108,6 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
         return 'buergeranfragen' as const;
       case TEXT_TYPES.LEICHTE_SPRACHE:
         return 'leichte_sprache' as const;
-      case TEXT_TYPES.UNIVERSAL:
-        return 'universal' as const;
       case TEXT_TYPES.WAHLPROGRAMM:
         return 'universal' as const;
       default:
@@ -146,29 +123,26 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
   });
 
   useEffect(() => {
-    const newType = getInitialTextType(location.pathname);
-    if (newType !== selectedType) {
-      setSelectedType(newType);
-    }
-  }, [location.pathname]);
-
-  useEffect(() => {
     if (currentFormRef?.current?.resetForm) {
       currentFormRef.current.resetForm();
     }
+    setExtrasValue('');
   }, [selectedType, currentFormRef]);
 
+  const handleExtrasValueChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setExtrasValue(e.target.value);
+  }, []);
+
   const helpContent = useMemo(() => {
-    const title = TEXT_TYPE_TITLES[selectedType as keyof typeof TEXT_TYPE_TITLES] || TEXT_TYPE_TITLES[TEXT_TYPES.UNIVERSAL];
+    const title = TEXT_TYPE_TITLES[selectedType];
     return {
-      content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten.",
+      content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen.",
       title: title || 'Universal Text Grünerator',
       tips: [
-        "Wähle zunächst den passenden Texttyp aus",
         "Reden: Perfekt für Veranstaltungen und öffentliche Auftritte",
         "Wahlprogramme: Strukturierte politische Inhalte",
         "Bürger*innenanfragen: Professionelle Antworten auf Anfragen von Bürger*innen",
-        "Universal: Für alle anderen Textarten geeignet",
+        "Leichte Sprache: Texte in einfacher, verständlicher Sprache",
         "Gib spezifische Details für bessere Ergebnisse an"
       ]
     };
@@ -210,14 +184,17 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
       return;
     }
 
-    const formDataToSubmit = builder.buildSubmissionData(formData);
+    const extrasConfig = EXTRAS_CONFIG[selectedType];
+    const dataWithExtras = extrasConfig
+      ? { ...formData, [extrasConfig.id]: extrasValue }
+      : formData;
 
-    setIsLoading(true);
+    const formDataToSubmit = builder.buildSubmissionData(dataWithExtras);
 
     try {
       const { default: apiClient } = await import('../../../components/utils/apiClient');
 
-      const endpoint = API_ENDPOINTS[selectedType as keyof typeof API_ENDPOINTS] || API_ENDPOINTS[TEXT_TYPES.UNIVERSAL];
+      const endpoint = API_ENDPOINTS[selectedType];
       const response = await apiClient.post(endpoint, formDataToSubmit);
       const responseData = response.data || response;
 
@@ -233,10 +210,8 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
       } else {
         form.handleSubmitError(new Error(String(error)));
       }
-    } finally {
-      setIsLoading(false);
     }
-  }, [selectedType, form, currentFormRef, builder]);
+  }, [selectedType, form, currentFormRef, builder, extrasValue]);
 
   const renderForm = () => {
     const rawTabIndex = form.generator?.tabIndex;
@@ -250,45 +225,34 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
         return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={buergeranfragenFormRef} tabIndex={tabIndexValue} />;
       case TEXT_TYPES.LEICHTE_SPRACHE:
         return <LeichteSpracheForm key={`leichte-sprache-${selectedType}`} ref={leichteSpracheFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
-      case TEXT_TYPES.UNIVERSAL:
-        return <UniversalForm key={`universal-${selectedType}`} ref={universalFormRef} tabIndex={tabIndexValue} />;
       default:
         return null;
     }
   };
 
-  const textTypeOptions = useMemo(() => Object.entries(TEXT_TYPE_LABELS).map(([value, label]) => ({
-    value,
-    label,
-    icon: TEXT_TYPE_ICONS[value]
-  })), []);
-
-  const handleTypeChange = useCallback((value: string | number | (string | number)[] | null) => {
-    if (typeof value === 'string') {
-      setSelectedType(value);
-    }
-  }, []);
-
-  const renderTextTypeSection = useCallback(() => (
-    <PlatformSelector
-      name="textType"
-      options={textTypeOptions}
-      value={selectedType}
-      onChange={handleTypeChange}
-      label="Art des Textes"
-      placeholder="Textart auswählen..."
-      isMulti={false}
-      enableIcons={true}
-      enableSubtitles={false}
-      isSearchable={false}
-      required={true}
-    />
-  ), [textTypeOptions, selectedType, handleTypeChange]);
-
   const baseFormProps = form.generator?.baseFormProps;
   const { platformOptions: _platformOptions, componentName: _componentName, ...restBaseFormProps } = baseFormProps || {};
 
-  if (!isActive) return null;
+  const renderExtrasInput = useCallback(() => {
+    const config = EXTRAS_CONFIG[selectedType];
+    if (!config) return null;
+
+    return (
+      <TextInput
+        id={config.id}
+        type="number"
+        label={config.label}
+        value={extrasValue}
+        onChange={handleExtrasValueChange}
+        placeholder={config.placeholder}
+        helpText={config.helpText}
+        inputProps={{
+          min: config.min,
+          max: config.max
+        }}
+      />
+    );
+  }, [selectedType, extrasValue, handleExtrasValueChange]);
 
   return (
     <>
@@ -299,8 +263,7 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive }) => {
           componentName={componentName}
           enableEditMode={true}
           onSubmit={handleSubmit}
-          loading={isLoading}
-          firstExtrasChildren={renderTextTypeSection()}
+          firstExtrasChildren={renderExtrasInput()}
         >
           {renderForm()}
         </BaseForm>

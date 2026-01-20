@@ -1,5 +1,4 @@
-import { lazy } from 'react';
-const ReactMarkdown = lazy(() => import('react-markdown'));
+import { Markdown } from '../../../components/common/Markdown';
 import '../../../assets/styles/components/AntragDetailView.css';
 
 interface Antrag {
@@ -131,7 +130,7 @@ const AntragDetailView = ({ antrag, onClose }: AntragDetailViewProps) => {
         {antrag.description && (
           <div className="antrag-detail-description">
             <h3>Beschreibung:</h3>
-             <ReactMarkdown>{antrag.description}</ReactMarkdown>
+            <Markdown>{antrag.description}</Markdown>
           </div>
         )}
 
@@ -139,11 +138,10 @@ const AntragDetailView = ({ antrag, onClose }: AntragDetailViewProps) => {
         <h3>Antragstext:</h3>
         <div className="markdown-content">
           {antrag.antragstext ? (
-             <ReactMarkdown>{antrag.antragstext}</ReactMarkdown>
-           ) : (
-             <p><em>Kein Text vorhanden.</em></p>
-           )
-          }
+            <Markdown>{antrag.antragstext}</Markdown>
+          ) : (
+            <p><em>Kein Text vorhanden.</em></p>
+          )}
         </div>
 
         {/* Close Button (remains the same) */}

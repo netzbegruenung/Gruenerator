@@ -6,6 +6,11 @@
   gap: 0.5rem;
 }
 
+.presence-avatars-stack {
+  display: flex;
+  align-items: center;
+}
+
 .presence-avatar {
   width: 32px;
   height: 32px;
@@ -18,10 +23,48 @@
   font-size: 0.875rem;
   border: 2px solid var(--card-background);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-left: -8px;
+  flex-shrink: 0;
+}
+
+.presence-avatar:first-child {
+  margin-left: 0;
+}
+
+.presence-avatar--overflow {
+  background-color: var(--grey-500);
+  font-size: 0.75rem;
 }
 
 .collaborator-count {
   font-size: 0.875rem;
   color: var(--font-color-secondary);
   white-space: nowrap;
+}
+
+/* Compact mode for mobile */
+.presence-avatars--compact {
+  gap: 0.25rem;
+}
+
+.presence-avatars--compact .presence-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 0.75rem;
+  margin-left: -6px;
+}
+
+.presence-avatars--compact .presence-avatar:first-child {
+  margin-left: 0;
+}
+
+.presence-avatars--compact .presence-avatar--overflow {
+  font-size: 0.625rem;
+}
+
+/* Hide count text on smaller screens */
+@media (max-width: 768px) {
+  .collaborator-count {
+    display: none;
+  }
 }

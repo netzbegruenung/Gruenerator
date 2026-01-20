@@ -12,7 +12,6 @@ import { routes } from './config/routes';
 import { useFirstRun } from './features/desktop/hooks/useFirstRun';
 import { useAuthStore } from './stores/authStore';
 import { initializeApiClient } from './api/lazyApiClient';
-import { initializeI18n } from './i18n/lazyI18n';
 import './App.css';
 
 // Lazy-load FirstRunWizard (desktop-only component)
@@ -75,12 +74,9 @@ function App() {
   const { login } = useAuthStore();
   const [appReady, setAppReady] = useState(false);
 
-  // Initialize API client and i18n after React mounts (deferred from index.tsx)
+  // Initialize API client after React mounts (deferred from index.tsx)
   useEffect(() => {
-    Promise.all([
-      initializeApiClient(),
-      initializeI18n()
-    ])
+    initializeApiClient()
       .then(() => {
         setAppReady(true);
       })
@@ -110,7 +106,7 @@ function App() {
     });
   }, []);
 
-  // Show minimal loading state while API and i18n initialize (typically <100ms)
+  // Show minimal loading state while API client initializes (typically <100ms)
   if (!appReady) {
     return (
       <div className="app-loading">

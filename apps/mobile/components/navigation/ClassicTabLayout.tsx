@@ -82,6 +82,16 @@ export function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="(docs)"
+        options={{
+          title: 'Docs',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="documents" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           href: null,

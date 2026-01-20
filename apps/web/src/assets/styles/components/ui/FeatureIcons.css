@@ -335,6 +335,15 @@
   background-color: var(--secondary-600);
 }
 
+.balanced-dropdown-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.balanced-dropdown-item.disabled:hover {
+  background-color: transparent;
+}
+
 /* Content Mode Dropdown (Attachment + Knowledge) */
 .content-mode-container {
   position: relative;

@@ -32,7 +32,7 @@ interface ModificationData {
   image?: Blob | File | string;
 }
 
-type CanvasType = 'dreizeilen' | 'quote' | 'quote_pure' | 'info';
+export type CanvasType = 'dreizeilen' | 'quote' | 'quote_pure' | 'info';
 
 export const prepareDataForCanvas = (
   formData: FormDataInput,
@@ -76,7 +76,7 @@ export const prepareDataForCanvas = (
     formDataToSend.append('sunflower_offset_y', sunflowerOffset[1].toString());
   }
 
-  const colorScheme = modificationData.colorScheme ?? formData.colorScheme ?? DEFAULT_COLORS;
+  const colorScheme = modificationData.colorScheme ?? formData.colorScheme ?? (DEFAULT_COLORS as ColorSchemeItem[]);
 
   if (type === 'quote') {
     formDataToSend.append('background_color', colorScheme[0].background);
@@ -90,7 +90,7 @@ export const prepareDataForCanvas = (
 
   const imageToUse = modificationData.image || formData.uploadedImage || formData.image;
 
-  if (imageToUse instanceof Blob || imageToUse instanceof File) {
+  if (imageToUse && typeof imageToUse !== 'string') {
     const imageFile = imageToUse instanceof File
       ? imageToUse
       : new File([imageToUse], 'image.jpg', { type: imageToUse.type });

@@ -238,3 +238,125 @@ export function extractSimpleExcerpt(text: string | null | undefined, maxLength 
 
   return truncated + '...';
 }
+
+/**
+ * Deduplicate paragraphs in combined chunk text
+ *
+ * When multiple overlapping chunks are combined (due to 400-char chunk overlap),
+ * the same paragraphs may appear multiple times. This function removes duplicates
+ * while preserving the natural reading order.
+ *
+ * The algorithm uses a fingerprint approach:
+ * - Normalizes whitespace and compares first 100 chars of each paragraph
+ * - Preserves the first occurrence of each paragraph
+ * - Handles chunks separated by --- markers
+ *
+ * @param text - Combined text from multiple chunks (joined with \n\n---\n\n)
+ * @param options - Configuration options
+ * @returns Deduplicated text with preserved structure
+ */
+export function deduplicateParagraphs(
+  text: string | null | undefined,
+  options: { fingerprintLength?: number; preserveSeparators?: boolean } = {}
+): string {
+  if (!text) return '';
+
+  const { fingerprintLength = 100, preserveSeparators = true } = options;
+
+  // Split into chunk sections (separated by ---)
+  const chunks = text.split(/\n*---\n*/);
+
+  // Track seen paragraph fingerprints
+  const seenFingerprints = new Set<string>();
+
+  // Process each chunk
+  const deduplicatedChunks: string[] = [];
+
+  for (const chunk of chunks) {
+    if (!chunk.trim()) continue;
+
+    // Split chunk into paragraphs (double newline or single newline for headers)
+    const paragraphs = chunk.split(/\n\n+/);
+    const uniqueParagraphs: string[] = [];
+
+    for (const paragraph of paragraphs) {
+      const trimmed = paragraph.trim();
+      if (!trimmed) continue;
+
+      // Create fingerprint: normalize whitespace and take first N chars
+      const normalized = trimmed.replace(/\s+/g, ' ').toLowerCase();
+      const fingerprint = normalized.substring(0, fingerprintLength);
+
+      // Skip if we've seen this fingerprint before
+      if (seenFingerprints.has(fingerprint)) {
+        continue;
+      }
+
+      seenFingerprints.add(fingerprint);
+      uniqueParagraphs.push(trimmed);
+    }
+
+    if (uniqueParagraphs.length > 0) {
+      deduplicatedChunks.push(uniqueParagraphs.join('\n\n'));
+    }
+  }
+
+  // Rejoin chunks with separators
+  if (preserveSeparators && deduplicatedChunks.length > 1) {
+    return deduplicatedChunks.join('\n\n---\n\n');
+  }
+
+  return deduplicatedChunks.join('\n\n');
+}
+
+/**
+ * Deduplicate paragraphs across an array of chunk texts
+ *
+ * Similar to deduplicateParagraphs but works on individual chunks before combining.
+ * Useful when you have separate chunk objects and want to combine them without duplicates.
+ *
+ * @param chunks - Array of chunk text strings
+ * @param options - Configuration options
+ * @returns Combined, deduplicated text
+ */
+export function deduplicateChunkTexts(
+  chunks: (string | null | undefined)[],
+  options: { fingerprintLength?: number; separator?: string } = {}
+): string {
+  if (!chunks || chunks.length === 0) return '';
+
+  const { fingerprintLength = 100, separator = '\n\n---\n\n' } = options;
+
+  const seenFingerprints = new Set<string>();
+  const uniqueTexts: string[] = [];
+
+  for (const chunk of chunks) {
+    if (!chunk?.trim()) continue;
+
+    // Split into paragraphs
+    const paragraphs = chunk.split(/\n\n+/);
+    const uniqueParagraphs: string[] = [];
+
+    for (const paragraph of paragraphs) {
+      const trimmed = paragraph.trim();
+      if (!trimmed) continue;
+
+      // Create fingerprint
+      const normalized = trimmed.replace(/\s+/g, ' ').toLowerCase();
+      const fingerprint = normalized.substring(0, fingerprintLength);
+
+      if (seenFingerprints.has(fingerprint)) {
+        continue;
+      }
+
+      seenFingerprints.add(fingerprint);
+      uniqueParagraphs.push(trimmed);
+    }
+
+    if (uniqueParagraphs.length > 0) {
+      uniqueTexts.push(uniqueParagraphs.join('\n\n'));
+    }
+  }
+
+  return uniqueTexts.join(separator);
+}

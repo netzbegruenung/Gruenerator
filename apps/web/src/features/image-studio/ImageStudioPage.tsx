@@ -33,7 +33,7 @@ import {
   UrlTypeMapKey
 } from './types/componentTypes';
 
-import '../../assets/styles/components/sharepic/sharepic-type-selector.css';
+import './image-studio-shared.css';
 import '../../assets/styles/components/form/form-inputs.css';
 import '../../assets/styles/components/baseform/form-layout.css';
 

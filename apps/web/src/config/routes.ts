@@ -104,6 +104,7 @@ const NotebookPage = lazy(() => import('../features/notebook/components/Notebook
 const BundestagsfraktionNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('bundestagsfraktion') })));
 const GrueneratorNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('gruenerator') })));
 const OesterreichGrueneNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('oesterreich') })));
+const HamburgNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('hamburg') })));
 const NotebooksGalleryPage = lazy(() => import('../features/notebook/pages/NotebooksGalleryPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
@@ -147,6 +148,9 @@ const DynamicPageView = lazy(() => import('../features/pages/components/DynamicP
 const StructuredExamplePage = lazy(() => import('../features/pages/ExamplePage').then(module => ({ default: module.StructuredExamplePage })));
 const CustomExamplePage = lazy(() => import('../features/pages/ExamplePage').then(module => ({ default: module.CustomExamplePage })));
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
+const PromptPage = lazy(() => import('../features/prompts/PromptPage'));
+const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
+const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -165,6 +169,7 @@ export const GrueneratorenBundle = {
   BundestagsfraktionNotebook: BundestagsfraktionNotebookPage,
   GrueneratorNotebook: GrueneratorNotebookPage,
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
+  HamburgNotebook: HamburgNotebookPage,
   NotebooksGallery: NotebooksGalleryPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
@@ -178,7 +183,8 @@ export const GrueneratorenBundle = {
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
   TextEditor: TextEditorPage,
-  MobileEditor: MobileEditorPage
+  MobileEditor: MobileEditorPage,
+  DatabaseIndex: DatabaseIndexPage
 } as const;
 
 // Route Konfigurationen
@@ -201,9 +207,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/leichte-sprache', component: LeichteSpracheRedirect },
   { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
+  { path: '/datenbank', component: GrueneratorenBundle.DatabaseIndex },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
+  { path: '/datenbank/prompts', component: PromptsGalleryPage },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
@@ -211,6 +219,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/gruene-bundestag', component: GrueneratorenBundle.BundestagsfraktionNotebook, withForm: true },
   { path: '/gruenerator-notebook', component: GrueneratorenBundle.GrueneratorNotebook, withForm: true },
   { path: '/gruene-oesterreich', component: GrueneratorenBundle.OesterreichGrueneNotebook, withForm: true },
+  { path: '/gruene-hamburg', component: GrueneratorenBundle.HamburgNotebook, withForm: true },
   { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
@@ -219,6 +228,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
+  { path: '/prompt/:slug', component: PromptPage, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '/support', component: Support },

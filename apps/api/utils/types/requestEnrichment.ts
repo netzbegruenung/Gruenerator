@@ -28,6 +28,8 @@ export interface EnrichmentOptions {
   provider?: string;
   aiWorkerPool?: any;
   req?: any;
+  enableNotebookEnrich?: boolean;
+  notebookEnrichPrompt?: string;
 }
 
 export interface Document {
@@ -100,6 +102,9 @@ export interface EnrichmentMetadata {
   documentsPreProcessed?: boolean;
   documentsReferences?: DocumentReference[];
   textsReferences?: TextReference[];
+  notebookEnrichUsed?: boolean;
+  notebookEnrichLength?: number;
+  notebookEnrichTimeMs?: number;
   [key: string]: unknown;
 }
 

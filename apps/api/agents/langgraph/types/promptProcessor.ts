@@ -68,6 +68,7 @@ export interface PromptConfig {
     urlCrawl?: boolean;
     docQnA?: boolean;
     customPromptFromDb?: boolean;
+    notebookEnrich?: boolean;
   };
   platforms?: Record<string, {
     style?: string;

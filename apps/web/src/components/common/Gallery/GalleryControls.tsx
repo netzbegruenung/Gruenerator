@@ -11,6 +11,11 @@ interface CategoryItem {
   label: string;
 }
 
+interface SearchModeItem {
+  value: string;
+  label: string;
+}
+
 interface GalleryControlsProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
@@ -26,6 +31,9 @@ interface GalleryControlsProps {
   onCategoryChange?: (id: string) => void;
   showCategoryFilter?: boolean;
   onRefresh?: () => void;
+  searchModes?: SearchModeItem[];
+  selectedSearchMode?: string;
+  onSearchModeChange?: (mode: string) => void;
 }
 
 const GalleryControls = ({ searchTerm,
@@ -38,12 +46,33 @@ const GalleryControls = ({ searchTerm,
   selectedCategory,
   onCategoryChange,
   showCategoryFilter,
-  onRefresh }: GalleryControlsProps): JSX.Element => {
+  onRefresh,
+  searchModes,
+  selectedSearchMode,
+  onSearchModeChange }: GalleryControlsProps): JSX.Element => {
   const [showAddModal, setShowAddModal] = useState(false);
 
   const handleTemplateAdded = () => {
     onRefresh?.();
   };
+
+  const searchModeContent = Array.isArray(searchModes) && searchModes.length > 1 ? (
+    <div className="gallery-settings-search-mode">
+      <label>Suchmodus</label>
+      <div className="category-chips">
+        {searchModes.map((mode) => (
+          <button
+            key={mode.value}
+            type="button"
+            className={`category-chip ${selectedSearchMode === mode.value ? 'active' : ''}`}
+            onClick={() => onSearchModeChange?.(mode.value)}
+          >
+            {mode.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
 
   const categorySettingsContent = showCategoryFilter && Array.isArray(categories) && categories.length > 0 ? (
     <div className="gallery-settings-categories">
@@ -63,6 +92,13 @@ const GalleryControls = ({ searchTerm,
     </div>
   ) : null;
 
+  const settingsContent = (searchModeContent || categorySettingsContent) ? (
+    <>
+      {searchModeContent}
+      {categorySettingsContent}
+    </>
+  ) : null;
+
   return (
     <div className="gallery-controls">
       <div className="gallery-controls-row">
@@ -73,7 +109,7 @@ const GalleryControls = ({ searchTerm,
           placeholder={placeholder}
           hideExamples
           hideDisclaimer
-          settingsContent={categorySettingsContent}
+          settingsContent={settingsContent}
         />
 
         {activeContentType === 'vorlagen' && (

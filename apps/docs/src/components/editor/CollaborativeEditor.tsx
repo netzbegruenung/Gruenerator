@@ -220,15 +220,20 @@ export const CollaborativeEditor = ({
         upload: handleImageUpload,
         onError: (error) => console.error('Upload failed:', error),
       }),
-      // Add collaboration extensions only if ydoc is provided
+      // Add Collaboration extension only if ydoc is provided
       ...(ydoc
         ? [
             Collaboration.configure({
               document: ydoc,
             }),
+          ]
+        : []),
+      // Add CollaborationCursor only if provider with awareness is available
+      ...(provider?.awareness
+        ? [
             CollaborationCursor.configure({
-              provider: provider || undefined,
-              user: provider?.awareness?.getLocalState()?.user || {
+              provider: provider,
+              user: provider.awareness.getLocalState()?.user || {
                 name: 'Anonymous',
                 color: '#808080',
               },

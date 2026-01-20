@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 
 export type TabId = 'texte' | 'presse-social' | 'antrag' | 'universal' | 'barrierefreiheit' | 'texteditor' | 'eigene';
 
+export type UniversalSubType = 'rede' | 'wahlprogramm' | 'buergeranfragen' | 'leichte_sprache';
+
 export type InstructionType = 'social' | 'antrag' | 'universal' | 'rede' | 'buergeranfragen' | 'leichte_sprache' | 'texteditor';
 
 export type FeatureType = 'webSearch' | 'privacyMode' | 'proMode';
@@ -55,7 +57,7 @@ export const TAB_CONFIGS: TabConfig[] = [
   {
     id: 'presse-social',
     label: 'Presse & Social',
-    shortLabel: 'Presse',
+    shortLabel: 'Presse & Social',
     subtitle: 'Erstelle Social Media Posts und Pressemitteilungen',
     instructionType: 'social',
     features: ['webSearch', 'privacyMode', 'proMode'],
@@ -119,4 +121,5 @@ export const getTabConfig = (tabId: TabId): TabConfig | undefined => {
   return TAB_CONFIGS.find(config => config.id === tabId);
 };
 
-export const DEFAULT_TAB: TabId = 'texte';
+// Default to 'presse-social' which is the only public tab (accessible without login)
+export const DEFAULT_TAB: TabId = 'presse-social';

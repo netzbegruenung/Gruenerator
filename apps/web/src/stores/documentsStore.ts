@@ -150,7 +150,9 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
       });
 
       try {
-        const response = await apiClient.get('/documents/user');
+        const response = await apiClient.get('/documents/user', {
+          skipAuthRedirect: true
+        } as any);
         const result = response.data;
 
         if (result.success) {
@@ -179,7 +181,9 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
       });
 
       try {
-        const response = await apiClient.get('/documents/combined-content');
+        const response = await apiClient.get('/documents/combined-content', {
+          skipAuthRedirect: true
+        } as any);
         const result = response.data;
 
         if (result.success) {

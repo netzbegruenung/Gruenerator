@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
-import { prepareDataForCanvas } from '../utils/sharepicDataPreparation';
+import { prepareDataForCanvas, type CanvasType } from '../utils/sharepicDataPreparation';
 import { ERROR_MESSAGES } from '../components/utils/constants';
 import apiClient from '../components/utils/apiClient';
 
@@ -70,8 +70,8 @@ const useSharepicModification = (): UseSharepicModificationReturn => {
   };
 
   // Helper function to map frontend types to data preparation types
-  const mapTypeForDataPreparation = (type: string): string => {
-    const typeMap: Record<string, string> = {
+  const mapTypeForDataPreparation = (type: string): CanvasType => {
+    const typeMap: Record<string, CanvasType> = {
       'Dreizeilen': 'dreizeilen',
       'Zitat': 'quote',
       'Zitat_Pure': 'quote_pure',

@@ -1,7 +1,7 @@
-import { JSX, lazy, Suspense, useRef, useEffect, useMemo, FormEvent, ReactNode } from 'react';
+import { JSX, useRef, useEffect, useMemo, FormEvent, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import './ChatUI.css';
-const ReactMarkdown = lazy(() => import('react-markdown'));
+import { Markdown } from '../Markdown';
 import TypingIndicator from '../UI/TypingIndicator';
 import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
@@ -193,15 +193,7 @@ const ChatUI = ({ messages = [],
           </div>
         )}
 
-        <Suspense fallback={<div>Loading...</div>}><ReactMarkdown
-          components={{
-            a: ({ ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-              <a {...props} target="_blank" rel="noopener noreferrer" />
-            )
-          }}
-        >
-          {msg.content}
-        </ReactMarkdown></Suspense>
+        <Markdown>{msg.content}</Markdown>
 
         {msg.attachments && msg.attachments.length > 0 && (
           <div className="chat-message-attachments">

@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, ReactNode, ReactElement } from 'react';
 import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
 
-const ReactMarkdown = lazy(() => import('react-markdown'));
+import { Markdown } from '../../Markdown';
 const FinetuneEditor = lazy(() => import('../EditMode/FinetuneEditor'));
 
 import { isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags, stripWrappingCodeFence } from '../utils/contentUtils';
@@ -322,11 +322,9 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       return (
         <div className="generated-content-wrapper">
           <div className="content-display markdown-content">
-            <Suspense fallback={<div>Loading...</div>}>
-              <ReactMarkdown components={customComponents as Record<string, unknown>}>
-                {contentToRender as string}
-              </ReactMarkdown>
-            </Suspense>
+            <Markdown components={customComponents as Record<string, unknown>}>
+              {contentToRender as string}
+            </Markdown>
           </div>
         </div>
       );
@@ -334,11 +332,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       return (
         <div className="generated-content-wrapper">
           <div className="content-display markdown-content">
-            <Suspense fallback={<div>Loading...</div>}>
-              <ReactMarkdown>
-                {contentToRender as string}
-              </ReactMarkdown>
-            </Suspense>
+            <Markdown>{contentToRender as string}</Markdown>
           </div>
         </div>
       );

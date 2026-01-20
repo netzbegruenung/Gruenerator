@@ -1,0 +1,105 @@
+# Gruenerator Test Docker Compose
+# Uses locally built images for testing
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up -d
+#   docker compose -f docker-compose.test.yml logs -f
+#   docker compose -f docker-compose.test.yml down
+
+services:
+  web:
+    image: gruenerator-web:test
+    restart: unless-stopped
+    networks:
+      - gruenerator
+
+  api:
+    image: gruenerator-api:test
+    restart: unless-stopped
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/gruenerator
+      - REDIS_URL=redis://host.docker.internal:6379
+    volumes:
+      - api-uploads:/app/apps/api/uploads
+      - api-logs:/app/apps/api/logs
+    networks:
+      - gruenerator
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  docs:
+    image: gruenerator-docs:test
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    networks:
+      - gruenerator
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  mcp:
+    image: gruenerator-mcp:test
+    restart: unless-stopped
+    environment:
+      - PORT=3004
+      - NODE_ENV=production
+    networks:
+      - gruenerator
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  doku:
+    image: gruenerator-doku:test
+    restart: unless-stopped
+    networks:
+      - gruenerator
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - api
+      - docs
+      - mcp
+      - doku
+    networks:
+      - gruenerator
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  api-uploads:
+  api-logs:
+
+networks:
+  gruenerator:
+    driver: bridge

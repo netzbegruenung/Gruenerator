@@ -31,7 +31,8 @@ interface CardAdapterResult {
 }
 
 export interface GalleryItem {
-  id: string;
+  id?: string;
+  prompt_id?: string;
   title?: string;
   name?: string;
   description?: string;
@@ -42,6 +43,9 @@ export interface GalleryItem {
   template_type?: string;
   thumbnail_url?: string;
   external_url?: string;
+  prompt?: string;
+  prompt_preview?: string;
+  owner_first_name?: string;
   content_data?: {
     content?: string;
     caption?: string;
@@ -137,6 +141,26 @@ export const cardAdapters: Record<string, CardAdapter> = {
         className: 'vorlagen-card',
         authorName,
         authorEmail
+      }
+    };
+  },
+  prompts: (item) => {
+    const promptText = item.prompt_preview || item.prompt || '';
+    const preview = String(promptText).length > 150
+      ? String(promptText).substring(0, 150) + '...'
+      : String(promptText);
+
+    return {
+      key: String(item.prompt_id || item.id),
+      props: {
+        title: item.name || '',
+        description: preview,
+        meta: item.owner_first_name ? `von ${item.owner_first_name}` : 'System-Prompt',
+        onClick: () => {
+          if (typeof window === 'undefined') return;
+          window.location.href = `/prompt/${item.slug}`;
+        },
+        className: 'prompt-card'
       }
     };
   },

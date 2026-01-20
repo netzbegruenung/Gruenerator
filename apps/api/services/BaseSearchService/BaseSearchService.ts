@@ -20,7 +20,8 @@ import {
   looksLikeTOC,
   extractMatchedExcerpt,
   needsTrailingEllipsis,
-  trimToSentenceBoundary
+  trimToSentenceBoundary,
+  deduplicateParagraphs
 } from './textUtils.js';
 
 import {
@@ -396,12 +397,15 @@ export class BaseSearchService {
         }
       }
 
-      // Create combined relevant text
-      const relevantContent = topChunks
+      // Create combined relevant text with paragraph deduplication
+      // This removes duplicate paragraphs that appear due to 400-char chunk overlap
+      const rawContent = topChunks
         .map(chunk => (normQuery && chunk.has_term)
           ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
           : this.extractRelevantExcerpt(chunk.text))
         .join('\n\n---\n\n');
+
+      const relevantContent = deduplicateParagraphs(rawContent);
 
       return {
         document_id: doc.document_id,
@@ -768,11 +772,15 @@ export class BaseSearchService {
         }
       }
 
-      const relevantContent = topChunks
+      // Create combined relevant text with paragraph deduplication
+      // This removes duplicate paragraphs that appear due to 400-char chunk overlap
+      const rawContent = topChunks
         .map(chunk => (normQuery && chunk.has_term)
           ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
           : this.extractRelevantExcerpt(chunk.text))
         .join('\n\n---\n\n');
+
+      const relevantContent = deduplicateParagraphs(rawContent);
 
       const searchMethods = Array.from(doc.hybridMetadata?.searchMethods || []);
       const hybridInfo = this.buildHybridRelevanceInfo(doc, enhancedScore, searchMethods);
@@ -998,9 +1006,11 @@ export class BaseSearchService {
       const enhancedScore = calculateStaticDocumentScore(doc.chunks);
       const topChunks = doc.chunks.slice(0, 3);
 
-      const relevantContent = topChunks
+      // Apply paragraph deduplication to remove overlap duplicates
+      const rawContent = topChunks
         .map(chunk => BaseSearchService.extractExcerpt(chunk.text, 300))
         .join('\n\n---\n\n');
+      const relevantContent = deduplicateParagraphs(rawContent);
 
       return {
         document_id: doc.document_id,

@@ -9,6 +9,7 @@ import { useLazyAuth } from '../../hooks/useAuth';
 import useApiSubmit from '../hooks/useApiSubmit';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { extractPlainText, extractFormattedText } from '../utils/contentExtractor';
+import { extractTitleFromContent } from '../../utils/titleExtractor';
 import { copyFormattedContent } from '../utils/commonFunctions';
 import { NextcloudShareManager, ShareLink } from '../../utils/nextcloudShareManager';
 import { canShare, shareContent } from '../../utils/shareUtils';
@@ -135,7 +136,7 @@ const ExportDropdown = ({ content,
 
         await autoSaveToLibrary(
           content,
-          title || `Auto-gespeichert: ${exportName}`,
+          title || extractTitleFromContent(content) || `Auto-gespeichert: ${exportName}`,
           contentType
         );
 
@@ -550,6 +551,7 @@ const ExportDropdown = ({ content,
                 </div>
               </button>
 
+              {/* Docs export temporarily disabled
               <button
                 className="format-option"
                 onClick={handleDocsExport}
@@ -567,6 +569,7 @@ const ExportDropdown = ({ content,
                   </div>
                 </div>
               </button>
+              */}
 
               {isAuthenticated && onSaveToLibrary && (
                 <button

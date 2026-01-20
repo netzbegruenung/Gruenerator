@@ -1,6 +1,6 @@
 import { JSX, useState, useRef, useMemo, useCallback } from 'react';
 import '../../assets/styles/components/ui/FeatureIcons.css';
-import { HiGlobeAlt, HiPaperClip, HiLightningBolt, HiPlusCircle, HiClipboardList, HiAnnotation, HiDocument, HiX } from 'react-icons/hi';
+import { HiGlobeAlt, HiPaperClip, HiLightningBolt, HiPlusCircle, HiClipboardList, HiAnnotation, HiDocument, HiX, HiLightBulb } from 'react-icons/hi';
 import { HiRocketLaunch, HiSparkles } from 'react-icons/hi2';
 import GrueneratorGPTIcon from './GrueneratorGPTIcon';
 import AttachedFilesList from './AttachedFilesList';
@@ -76,6 +76,8 @@ const FeatureIcons = ({
   const toggleWebSearch = useGeneratorSelectionStore(state => state.toggleWebSearch);
   const togglePrivacyMode = useGeneratorSelectionStore(state => state.togglePrivacyMode);
   const toggleProMode = useGeneratorSelectionStore(state => state.toggleProMode);
+  const useNotebookEnrich = useGeneratorSelectionStore(state => state.useNotebookEnrich);
+  const toggleNotebookEnrich = useGeneratorSelectionStore(state => state.toggleNotebookEnrich);
   const [clickedIcon, setClickedIcon] = useState<string | null>(null);
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -467,6 +469,20 @@ const FeatureIcons = ({
           </div>
         </button>
 
+        <button
+          className={`balanced-dropdown-item ${useNotebookEnrich ? 'active' : ''}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            handleIconClick(event, 'notebookEnrich', toggleNotebookEnrich);
+          }}
+          type="button"
+        >
+          <HiLightBulb className="balanced-dropdown-icon" />
+          <div className="balanced-dropdown-content">
+            <span className="balanced-dropdown-title">Vorarbeit</span>
+            <span className="balanced-dropdown-desc">Schneller Vorentwurf als Ausgangspunkt.</span>
+          </div>
+        </button>
 
       </DropdownPortal>
 

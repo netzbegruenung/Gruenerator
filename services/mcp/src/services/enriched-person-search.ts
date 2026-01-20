@@ -9,12 +9,15 @@ import { getQdrantClient } from '../qdrant/client.ts';
 import { generateEmbedding } from '../embeddings.ts';
 
 class EnrichedPersonSearch {
+    private personDetection: ReturnType<typeof getPersonDetectionService>;
+    private mcpClient: ReturnType<typeof getBundestagMCPClient>;
+
     constructor() {
         this.personDetection = getPersonDetectionService();
         this.mcpClient = getBundestagMCPClient();
     }
 
-    async search(query, options = {}) {
+    async search(query: string, options: Record<string, unknown> = {}) {
         const detection = await this.personDetection.detectPerson(query);
 
         if (!detection.detected) {
@@ -29,9 +32,9 @@ class EnrichedPersonSearch {
         const startTime = Date.now();
         const [personDetails, contentMentions, drucksachen, aktivitaeten] = await Promise.all([
             this._fetchPersonDetails(person.id),
-            this._searchBundestagContent(personName, options.contentLimit || 15),
-            this._searchDrucksachen(personName, options.drucksachenLimit || 20),
-            this._searchAktivitaeten(person.id, options.aktivitaetenLimit || 30)
+            this._searchBundestagContent(personName, Number(options.contentLimit) || 15),
+            this._searchDrucksachen(personName, Number(options.drucksachenLimit) || 20),
+            this._searchAktivitaeten(person.id, Number(options.aktivitaetenLimit) || 30)
         ]);
 
         const elapsed = Date.now() - startTime;

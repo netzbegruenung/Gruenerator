@@ -1,11 +1,10 @@
-import { JSX, useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { JSX, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AssistantIcon } from '../../../config/icons';
 import TypingIndicator from '../UI/TypingIndicator';
 import ChatActionButtons from './ChatActionButtons';
+import { Markdown } from '../Markdown';
 import './FloatingAssistantBubble.css';
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
 
 const AUTO_DISMISS_TIMEOUT = 8000;
 const PREVIEW_LENGTH = 50;
@@ -139,17 +138,7 @@ const FloatingAssistantBubble = ({ message,
               animate={{ opacity: 1, height: 'auto' }}
               transition={{ duration: 0.25 }}
             >
-              <Suspense fallback={<div>Loading...</div>}>
-                <ReactMarkdown
-                  components={{
-                    a: ({ node, ...props }) => (
-                      <a {...props} target="_blank" rel="noopener noreferrer" />
-                    )
-                  }}
-                >
-                  {message.content}
-                </ReactMarkdown>
-              </Suspense>
+              <Markdown>{message.content || ''}</Markdown>
 
               {message.actions && message.actions.length > 0 && (
                 <ChatActionButtons

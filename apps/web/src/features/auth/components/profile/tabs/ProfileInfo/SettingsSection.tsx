@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { GiHedgehog } from 'react-icons/gi';
 import { IconType } from 'react-icons';
-import { NotebookIcon, getIcon } from '../../../../../../config/icons';
+import { getIcon } from '../../../../../../config/icons';
 import FeatureToggle from '../../../../../../components/common/FeatureToggle';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import { useAuthStore, SupportedLocale } from '../../../../../../stores/authStore';
@@ -69,7 +69,6 @@ const LocaleSelector: React.FC = () => {
 const BETA_VIEWS = {
     DATABASE: 'database',
     COLLAB: 'collab',
-    NOTEBOOK: 'notebook',
     CANVA: 'canva',
     AUTO_SAVE_EXPORT: 'autoSaveOnExport',
     CHAT: 'chat',
@@ -118,16 +117,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                     featureName: 'Kollaborative Bearbeitung',
                     checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
                     icon: HiOutlineUsers
-                };
-            case BETA_VIEWS.NOTEBOOK:
-                return {
-                    title: 'Notebooks',
-                    description: 'KI-Fragen basierend auf Dokumenten',
-                    checked: getBetaFeatureState('notebook'),
-                    setter: (value: boolean) => updateUserBetaFeatures('notebook', value),
-                    featureName: 'Notebooks',
-                    checkboxLabel: 'Notebooks aktivieren',
-                    icon: NotebookIcon
                 };
             case BETA_VIEWS.CANVA:
                 return {

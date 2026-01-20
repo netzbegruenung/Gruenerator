@@ -10,7 +10,7 @@
   flex-direction: column;
   align-items: center;
   min-height: 50vh;
-  padding: clamp(40px, 4vw, 60px) var(--spacing-responsive-xxlarge) var(--spacing-responsive-xlarge);
+  padding: clamp(20px, 2vw, 32px) var(--spacing-responsive-xxlarge) var(--spacing-responsive-xlarge);
   max-width: 1200px;
   margin: 0 auto;
   background-color: var(--background-color);
@@ -495,7 +495,7 @@
 /* Tablet landscape */
 @media (max-width: 1024px) {
   .top-section {
-    padding: 70px 1.25rem 2.5rem;
+    padding: 24px 1.25rem 2.5rem;
   }
 
   .link-buttons a,
@@ -532,7 +532,7 @@
 /* Tablet portrait */
 @media (max-width: 834px) {
   .top-section {
-    padding: 65px 1.25rem 2.5rem;
+    padding: 20px 1.25rem 2.5rem;
   }
 
   .feature-cards {
@@ -570,7 +570,7 @@
   .mobile-only { display: flex !important; }
 
   .top-section {
-    padding: 60px 1.25rem 2rem;
+    padding: 16px 1.25rem 2rem;
   }
 
   .animated-heading .typing-text,

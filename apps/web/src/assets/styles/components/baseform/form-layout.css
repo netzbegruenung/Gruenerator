@@ -90,7 +90,14 @@
 }
 
 .form-card--large {
-  padding: var(--spacing-responsive-xlarge);
+  padding: var(--spacing-responsive-large);
+}
+
+/* FormSection Wrapper - Container Query Context */
+.form-section-wrapper {
+  container-type: inline-size;
+  container-name: form-section;
+  position: relative;
 }
 
 /* FormSection Modern Layout */
@@ -274,6 +281,65 @@
   gap: var(--spacing-xxsmall);
 }
 
+/* =============================================================================
+   Container Query Responsive Design
+   These rules respond to the CONTAINER width, not viewport width.
+   This allows FormSection to adapt when placed in narrow containers (split views,
+   modals, sidebars) even on large screens.
+   ============================================================================= */
+
+@container form-section (max-width: 768px) {
+  /* Split Layout - Stack vertically when container is narrow */
+  .form-section__container {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .form-section__extras {
+    align-self: stretch;
+  }
+
+  .form-inputs__buttons {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+
+  .form-inputs__back-button,
+  .form-inputs__submit {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Legacy buttons for compatibility */
+  .form-section__buttons {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+
+  .form-section__back-button,
+  .form-section__submit {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Show mobile-first extras in container query context too */
+@container form-section (max-width: 768px) {
+  .form-section__mobile-first-extras {
+    display: block;
+    margin-bottom: var(--spacing-large);
+  }
+
+  .form-section__mobile-first-extras > *:not(:last-child) {
+    margin-bottom: var(--spacing-medium);
+  }
+}
+
+/* =============================================================================
+   Media Query Fallback (for browsers without container query support)
+   These rules respond to VIEWPORT width and serve as fallback for older browsers.
+   ============================================================================= */
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .form-card {
@@ -294,12 +360,12 @@
     min-height: 300px;
     margin-top: var(--spacing-medium);
   }
-  
+
   .form-card__header {
     margin: calc(-1 * var(--spacing-small)) calc(-1 * var(--spacing-medium)) 0;
     padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-medium);
   }
-  
+
   /* Split Layout Mobile */
   .form-section__container {
     flex-direction: column;
@@ -314,19 +380,19 @@
     flex-direction: column;
     gap: var(--spacing-small);
   }
-  
+
   .form-inputs__back-button,
   .form-inputs__submit {
     width: 100%;
     text-align: center;
   }
-  
+
   /* Legacy buttons for compatibility */
   .form-section__buttons {
     flex-direction: column;
     gap: var(--spacing-small);
   }
-  
+
   .form-section__back-button,
   .form-section__submit {
     width: 100%;
@@ -555,7 +621,7 @@
 /* Large Display Form Enhancements */
 @media (min-width: 1280px) {
   .form-card--large {
-    padding: calc(var(--spacing-responsive-xlarge) * 1.1);
+    padding: var(--spacing-responsive-large);
   }
 
   .form-section {
@@ -593,7 +659,7 @@
 
 @media (min-width: 1440px) {
   .form-card--large {
-    padding: calc(var(--spacing-responsive-xlarge) * 1.15);
+    padding: var(--spacing-responsive-large);
   }
   
   .form-section {
@@ -616,7 +682,7 @@
 
 @media (min-width: 1920px) {
   .form-card--large {
-    padding: calc(var(--spacing-responsive-xlarge) * 1.25);
+    padding: var(--spacing-responsive-large);
   }
 
   .form-section {
@@ -660,7 +726,7 @@
 
 @media (min-width: 2560px) {
   .form-card--large {
-    padding: calc(var(--spacing-responsive-xlarge) * 1.4);
+    padding: var(--spacing-responsive-large);
   }
   
   .form-section {

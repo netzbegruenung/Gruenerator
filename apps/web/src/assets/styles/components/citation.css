@@ -199,7 +199,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--overlay-dark-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -210,19 +210,21 @@
 .citation-modal {
   background-color: var(--card-background);
   border-radius: var(--card-border-radius-medium);
-  box-shadow: var(--card-shadow-elevated);
+  box-shadow: var(--card-shadow-floating);
   border: var(--card-border);
-  max-width: 600px;
-  width: 100%;
-  max-height: 80vh;
-  overflow-y: auto;
+  width: 90%;
+  max-width: 800px;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: modalSlideIn 0.2s ease-out;
 }
 
 @keyframes modalSlideIn {
   from {
     opacity: 0;
-    transform: translateY(-20px) scale(0.95);
+    transform: translateY(-10px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -234,32 +236,34 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-large);
+  padding: var(--spacing-large) var(--spacing-xlarge);
   border-bottom: 1px solid var(--card-border-color);
+  flex-shrink: 0;
 }
 
 .citation-modal-header h4 {
   margin: 0;
   color: var(--font-color-h);
-  font-size: 1.2rem;
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
   font-weight: 600;
 }
 
 .citation-modal-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   color: var(--font-color);
   cursor: pointer;
   padding: var(--spacing-xsmall);
   border-radius: var(--card-border-radius-small);
   transition: var(--input-transition);
   line-height: 1;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .citation-modal-close:hover {
@@ -267,67 +271,223 @@
   color: var(--interactive-accent-color);
 }
 
+.citation-modal-close:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
 .citation-modal-content {
-  padding: var(--spacing-large);
+  padding: var(--spacing-medium) var(--spacing-xlarge);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.citation-modal-footer {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--spacing-medium);
+  padding: var(--spacing-small) var(--spacing-xlarge);
+  border-top: 1px solid var(--card-border-color);
+  background-color: var(--background-color-alt);
+  flex-shrink: 0;
+}
+
+.citation-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  flex: 1;
+  min-width: 0;
 }
 
 .citation-text {
   color: var(--font-color);
   font-style: italic;
-  line-height: 1.4;
-  padding: var(--spacing-small);
+  line-height: 1.6;
+  padding: var(--spacing-medium);
   border-radius: var(--card-border-radius-small);
-  font-size: 0.85rem;
+  background-color: var(--background-color-alt);
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
 }
 
-.citation-source,
+.citation-source {
+  color: var(--font-color-h);
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .citation-relevance {
-  color: var(--font-color);
-  font-size: 0.95rem;
-}
-
-.citation-actions {
-  margin-top: var(--spacing-small);
+  color: var(--font-color-disabled);
+  font-size: 0.8rem;
+  background-color: var(--card-background);
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 
 .citation-view-document {
-  background-color: var(--interactive-accent-color);
-  color: var(--button-text-color);
+  background-color: var(--secondary-600);
+  color: var(--white);
   border: none;
-  padding: var(--spacing-small) var(--spacing-medium);
+  padding: var(--spacing-xsmall) var(--spacing-medium);
   border-radius: var(--card-border-radius-small);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: var(--input-transition);
   font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .citation-view-document:hover {
-  background-color: var(--link-color);
+  background-color: var(--secondary-700);
   transform: scale(1.01);
 }
 
-/* Mobile responsiveness for modal */
-@media (max-width: 768px) {
+.citation-view-document:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+/* Desktop large screens (1024px+) */
+@media (min-width: 1024px) {
+  .citation-modal-overlay {
+    padding: var(--spacing-xlarge);
+  }
+
+  .citation-modal {
+    width: 70%;
+    max-width: 900px;
+  }
+
+  .citation-modal-header {
+    padding: var(--spacing-medium) var(--spacing-xxlarge);
+  }
+
+  .citation-modal-content {
+    padding: var(--spacing-large) var(--spacing-xxlarge);
+  }
+
+  .citation-modal-footer {
+    padding: var(--spacing-small) var(--spacing-xxlarge);
+  }
+}
+
+/* Extra large screens (1440px+) */
+@media (min-width: 1440px) {
+  .citation-modal {
+    width: 65%;
+    max-width: 1000px;
+  }
+}
+
+/* Tablet screens (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .citation-modal-overlay {
+    padding: var(--spacing-large);
+  }
+
+  .citation-modal {
+    width: 85%;
+    max-width: 700px;
+  }
+}
+
+/* Mobile screens (<768px) */
+@media (max-width: 767px) {
   .citation-modal-overlay {
     padding: var(--spacing-small);
+    align-items: flex-end;
   }
-  
+
   .citation-modal {
-    max-height: 90vh;
+    width: 100%;
+    max-width: none;
+    max-height: 92vh;
+    border-radius: var(--card-border-radius-large) var(--card-border-radius-large) 0 0;
+    margin-bottom: 0;
   }
-  
-  .citation-modal-header,
+
+  .citation-modal-header {
+    padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-medium) var(--spacing-large);
+  }
+
+  .citation-modal-header h4 {
+    font-size: 1.1rem;
+  }
+
+  .citation-modal-close {
+    width: 48px;
+    height: 48px;
+    font-size: 2rem;
+  }
+
   .citation-modal-content {
-    padding: var(--spacing-medium);
+    padding: var(--spacing-medium) var(--spacing-large);
   }
-  
+
+  .citation-modal-footer {
+    padding: var(--spacing-small) var(--spacing-medium);
+    gap: var(--spacing-small);
+  }
+
   .citation-text {
-    padding: var(--spacing-small);
-    font-size: 0.95rem;
+    padding: var(--spacing-medium);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .citation-source {
+    font-size: 0.85rem;
+  }
+
+  .citation-relevance {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+  }
+
+  .citation-view-document {
+    padding: var(--spacing-xsmall) var(--spacing-small);
+    font-size: 0.8rem;
+  }
+}
+
+/* Small mobile screens (<400px) */
+@media (max-width: 399px) {
+  .citation-modal-overlay {
+    padding: 0;
+  }
+
+  .citation-modal {
+    max-height: 95vh;
+    border-radius: var(--card-border-radius-medium) var(--card-border-radius-medium) 0 0;
+  }
+
+  .citation-modal-header {
+    padding: var(--spacing-small) var(--spacing-small) var(--spacing-small) var(--spacing-medium);
+  }
+
+  .citation-modal-content {
+    padding: var(--spacing-small) var(--spacing-medium);
+  }
+
+  .citation-modal-footer {
+    padding: var(--spacing-xsmall) var(--spacing-small);
+    flex-wrap: wrap;
+  }
+
+  .citation-meta {
+    flex: 1 1 100%;
+  }
+
+  .citation-view-document {
+    flex: 1 1 100%;
+    text-align: center;
   }
 }
 
@@ -958,4 +1118,154 @@
   line-height: 1.4;
   margin: 0;
   opacity: 0.85;
+}
+
+/* Clickable Citations */
+.ask-citation-inline.clickable {
+  cursor: pointer;
+  transition: var(--input-transition);
+  border-radius: var(--card-border-radius-small);
+}
+
+.ask-citation-inline.clickable:hover {
+  background-color: var(--background-color-alt);
+}
+
+.ask-citation-inline.clickable:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+.ask-citation-inline.clickable:active {
+  transform: scale(0.99);
+}
+
+/* Context View in Modal */
+.citation-context-view {
+  background-color: transparent;
+  border: 1px solid var(--card-border-color);
+  border-radius: var(--card-border-radius-small);
+  padding: var(--spacing-medium);
+  line-height: 1.7;
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
+  color: var(--font-color);
+  max-height: clamp(200px, 40vh, 400px);
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for context view */
+.citation-context-view::-webkit-scrollbar {
+  width: 8px;
+}
+
+.citation-context-view::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-color);
+  border-radius: 4px;
+}
+
+.citation-context-view::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-color);
+  border-radius: 4px;
+}
+
+.citation-context-view::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover-color);
+}
+
+.citation-context-chunk {
+  color: var(--font-color);
+  opacity: 0.7;
+}
+
+.citation-highlight {
+  background-color: var(--primary-100);
+  border-left: 3px solid var(--interactive-accent-color);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  margin: var(--spacing-xxsmall) -2px;
+  color: var(--font-color);
+  font-weight: 500;
+  display: inline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+[data-theme="dark"] .citation-highlight {
+  background-color: var(--primary-900);
+  border-left-color: var(--primary-400);
+}
+
+/* Markdown within citation context */
+.citation-context-view strong,
+.citation-highlight strong {
+  font-weight: 700;
+  color: var(--font-color-h);
+}
+
+.citation-context-view em,
+.citation-highlight em {
+  font-style: italic;
+}
+
+/* Context view responsive adjustments */
+@media (min-width: 1024px) {
+  .citation-context-view {
+    padding: var(--spacing-large);
+    max-height: clamp(250px, 45vh, 450px);
+  }
+}
+
+@media (max-width: 767px) {
+  .citation-context-view {
+    padding: var(--spacing-medium);
+    max-height: clamp(180px, 35vh, 300px);
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  .citation-highlight {
+    padding: var(--spacing-xsmall) var(--spacing-xsmall);
+  }
+}
+
+/* Loading State */
+.citation-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-large);
+  color: var(--font-color-disabled);
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
+  min-height: 100px;
+}
+
+.citation-loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--card-border-color);
+  border-top-color: var(--interactive-accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile loading state */
+@media (max-width: 767px) {
+  .citation-loading {
+    padding: var(--spacing-xlarge);
+    font-size: 1rem;
+  }
+
+  .citation-loading-spinner {
+    width: 24px;
+    height: 24px;
+    border-width: 3px;
+  }
 }

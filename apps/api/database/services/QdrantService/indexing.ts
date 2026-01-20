@@ -27,6 +27,8 @@ export interface GrundsatzChunk extends ChunkData {
         page_number?: number;
         title?: string;
         filename?: string;
+        source_url?: string;
+        primary_category?: string;
         [key: string]: unknown;
     };
 }
@@ -117,7 +119,8 @@ export async function indexGrundsatzChunks(
     client: QdrantClient,
     collectionName: string,
     documentId: string,
-    chunks: GrundsatzChunk[]
+    chunks: GrundsatzChunk[],
+    sourceUrl?: string
 ): Promise<IndexResult> {
     try {
         const points = chunks.map((chunk, index) => {
@@ -135,9 +138,11 @@ export async function indexGrundsatzChunks(
                         : (index + 1),
                     title: chunk.metadata?.title || 'Grundsatzprogramm',
                     filename: chunk.metadata?.filename || '',
+                    source_url: sourceUrl || chunk.metadata?.source_url || null,
+                    primary_category: chunk.metadata?.primary_category || null,
                     metadata: chunk.metadata || {},
                     document_type: 'grundsatz',
-                    created_at: new Date().toISOString()
+                    indexed_at: new Date().toISOString()
                 }
             };
         });

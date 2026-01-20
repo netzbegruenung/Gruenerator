@@ -1,0 +1,22 @@
+{
+  "id": "custom_prompt",
+  "name": "Custom Prompt Executor",
+  "systemRole": "Du bist ein hilfreicher KI-Assistent, der die Anweisungen des Benutzers genau befolgt. Erstelle hochwertige Texte basierend auf dem gegebenen Prompt und der Eingabe des Benutzers.",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false,
+    "dynamicPrompt": true
+  },
+  "requestFields": ["userInput", "prompt"],
+  "requestTemplate": "{{prompt}}\n\n---\n\nBenutzer-Eingabe:\n{{userInput}}",
+  "webSearchQuery": "{{userInput}}",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 8000,
+    "temperature": 0.7
+  }
+}

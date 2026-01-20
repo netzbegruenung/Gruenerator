@@ -14,8 +14,10 @@ import {
     FORM_STEPS
 } from '../utils/typeConfig';
 import { TypeConfig } from '../utils/typeConfig/types';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 
-import '../../../assets/styles/components/sharepic/sharepic-type-selector.css';
+import '../image-studio-shared.css';
+import './ImageStudioTypeSelector.css';
 
 const ImageStudioTypeSelector: React.FC = () => {
     const navigate = useNavigate();
@@ -90,7 +92,7 @@ const ImageStudioTypeSelector: React.FC = () => {
                     <div className="type-selector-header-wrapper">
                         <h1>
                             Wie soll dein Sharepic aussehen?
-                            <span className="early-access-badge-inline">Early Access</span>
+                            <StatusBadge type="early-access" variant="inline" />
                         </h1>
                     </div>
                     <div className="type-options-grid type-options-grid--three">

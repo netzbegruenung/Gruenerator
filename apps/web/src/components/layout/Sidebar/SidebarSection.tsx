@@ -2,6 +2,7 @@ import { memo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import Icon from '../../common/Icon';
+import { StatusBadge } from '../../common/StatusBadge';
 import type { MenuItemType } from '../Header/menuData';
 
 interface SidebarSectionProps {
@@ -10,16 +11,21 @@ interface SidebarSectionProps {
   items: MenuItemType[];
   isOpen: boolean;
   onToggle: () => void;
-  onLinkClick: (path: string) => void;
+  onLinkClick: (path: string, title?: string) => void;
+  isDesktop?: boolean;
+  isActive?: (path: string) => boolean;
+  sidebarExpanded?: boolean;
 }
 
 interface SidebarMenuItemProps {
   item: MenuItemType;
-  onLinkClick: (path: string) => void;
+  onLinkClick: (path: string, title?: string) => void;
   isSubmenu?: boolean;
+  isDesktop?: boolean;
+  isActive?: (path: string) => boolean;
 }
 
-const SidebarMenuItem = memo(({ item, onLinkClick, isSubmenu = false }: SidebarMenuItemProps) => {
+const SidebarMenuItem = memo(({ item, onLinkClick, isSubmenu = false, isDesktop = false, isActive }: SidebarMenuItemProps) => {
   const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
 
   const handleSubmenuToggle = useCallback(() => {
@@ -37,6 +43,7 @@ const SidebarMenuItem = memo(({ item, onLinkClick, isSubmenu = false }: SidebarM
         >
           {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
           <span className="sidebar-item-title">{item.title}</span>
+          {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
           <Icon
             category="ui"
             name={isSubmenuOpen ? 'caretUp' : 'caretDown'}
@@ -59,11 +66,32 @@ const SidebarMenuItem = memo(({ item, onLinkClick, isSubmenu = false }: SidebarM
                   item={subItem}
                   onLinkClick={onLinkClick}
                   isSubmenu={true}
+                  isDesktop={isDesktop}
+                  isActive={isActive}
                 />
               ))}
             </motion.ul>
           )}
         </AnimatePresence>
+      </li>
+    );
+  }
+
+  const active = isActive?.(item.path) ?? false;
+
+  if (isDesktop) {
+    return (
+      <li className={isSubmenu ? 'sidebar-submenu-item' : ''}>
+        <button
+          type="button"
+          className={`sidebar-menu-link ${active ? 'sidebar-menu-link--active' : ''}`}
+          onClick={() => onLinkClick(item.path, item.title)}
+          aria-current={active ? 'page' : undefined}
+        >
+          {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
+          <span className="sidebar-item-title">{item.title}</span>
+          {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
+        </button>
       </li>
     );
   }
@@ -75,11 +103,12 @@ const SidebarMenuItem = memo(({ item, onLinkClick, isSubmenu = false }: SidebarM
         className="sidebar-menu-link"
         onClick={(e) => {
           e.preventDefault();
-          onLinkClick(item.path);
+          onLinkClick(item.path, item.title);
         }}
       >
         {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
         <span className="sidebar-item-title">{item.title}</span>
+        {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
       </Link>
     </li>
   );
@@ -93,8 +122,33 @@ const SidebarSection = memo(({
   items,
   isOpen,
   onToggle,
-  onLinkClick
+  onLinkClick,
+  isDesktop = false,
+  isActive,
+  sidebarExpanded = false
 }: SidebarSectionProps) => {
+  // For desktop: show all items without accordion behavior
+  if (isDesktop) {
+    return (
+      <div className="sidebar-section">
+        {sidebarExpanded && (
+          <span className="sidebar-section-title-static">{title}</span>
+        )}
+        <ul className="sidebar-section-content sidebar-section-content--static">
+          {items.map((item) => (
+            <SidebarMenuItem
+              key={item.id}
+              item={item}
+              onLinkClick={onLinkClick}
+              isDesktop={isDesktop}
+              isActive={isActive}
+            />
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <div className="sidebar-section">
       <button

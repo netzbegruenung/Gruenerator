@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense, ChangeEvent } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { FaArrowLeft, FaEdit } from 'react-icons/fa';
@@ -21,6 +21,7 @@ import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import { DreizeilenCanvas } from '../canvas-editor';
 import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
 import { useAiEditorHistory } from '../hooks/useAiEditorHistory';
+import { Markdown } from '../../../components/common/Markdown';
 import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
 import type { TemplateResultStepProps, SloganAlternativeWithIndex, SloganAlternative, VeranstaltungFieldFontSizes } from '../types/templateResultTypes';
 
@@ -31,8 +32,6 @@ const CANVAS_SUPPORTED_TYPES = [
   IMAGE_STUDIO_TYPES.INFO,
   IMAGE_STUDIO_TYPES.VERANSTALTUNG
 ] as const;
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
 
 import './TemplateResultStep.css';
 
@@ -531,9 +530,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
                 <motion.div className="social-text-result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                   <h3>Dein Instagram Post:</h3>
                   <div className="markdown-content">
-                    <Suspense fallback={<div>Laden...</div>}>
-                      <ReactMarkdown>{generatedPosts.instagram}</ReactMarkdown>
-                    </Suspense>
+                    <Markdown fallback={<div>Laden...</div>}>{generatedPosts.instagram}</Markdown>
                   </div>
                 </motion.div>
               )}

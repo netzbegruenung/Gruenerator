@@ -11,8 +11,10 @@ import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, getTypeConfig } from '../u
 import type { TypeConfig } from '../utils/typeConfig/types';
 import { StartOption } from '../types/componentTypes';
 import { PromptInput, PromptExample } from '../../../components/common/PromptInput';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 
-import '../../../assets/styles/components/sharepic/sharepic-type-selector.css';
+import '../image-studio-shared.css';
+import './ImageStudioCategorySelector.css';
 
 const EXAMPLE_PROMPTS: PromptExample[] = [
     { label: 'Zitat', text: 'Erstelle ein Zitat zum Thema Klimaschutz' },
@@ -189,61 +191,122 @@ const ImageStudioCategorySelector: React.FC = () => {
                     submitLabel="Sharepic generieren"
                 />
 
-                {/* Recent Gallery Items - Editable saved sharepics */}
-                {showGallerySection && (
-                    <div className="image-studio-recent-section">
-                        <h3 className="image-studio-section-title">Zuletzt erstellt</h3>
-                        <div className="image-studio-recent-grid image-studio-gallery-grid">
-                            {recentGalleryItems.map(item => {
-                                const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
-                                const thumbnailUrl = item.thumbnailPath
-                                    ? `${baseURL}/share/${item.shareToken}/thumbnail`
-                                    : `${baseURL}/share/${item.shareToken}/preview`;
-                                return (
-                                    <div
-                                        key={item.shareToken}
-                                        className="image-studio-recent-card image-studio-gallery-card"
-                                        onClick={() => handleGalleryItemEdit(item)}
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleGalleryItemEdit(item)}
-                                    >
-                                        <img src={thumbnailUrl} alt={item.title || 'Sharepic'} />
-                                        <span>{item.title || 'Sharepic'}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* Recent Template Types - Quick access to template types */}
-                {showRecentTypesSection && (
-                    <div className="image-studio-recent-section">
-                        <h3 className="image-studio-section-title">Zuletzt verwendete Vorlagen</h3>
-                        <div className="image-studio-recent-grid">
-                            {recentTypeConfigs.map(config => (
-                                <div
-                                    key={config.id}
-                                    className="image-studio-recent-card"
-                                    onClick={() => handleCategorySelect(config.category, null, config.id)}
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleCategorySelect(config.category, null, config.id)}
-                                >
-                                    {config.previewImage && (
-                                        <img src={config.previewImage} alt={config.label} />
-                                    )}
-                                    <span>{config.label}</span>
+                {/* Recent Sections - Side by side when both exist */}
+                {(showGallerySection || showRecentTypesSection) && (
+                    showGallerySection && showRecentTypesSection ? (
+                        <div className="image-studio-recent-sections-row">
+                            {/* Recent Gallery Items - Editable saved sharepics */}
+                            <div className="image-studio-recent-section">
+                                <h3 className="image-studio-section-title">Zuletzt erstellt</h3>
+                                <p className="image-studio-section-subtitle">Deine gespeicherten Sharepics</p>
+                                <div className="image-studio-recent-grid image-studio-gallery-grid">
+                                    {recentGalleryItems.map(item => {
+                                        const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+                                        const thumbnailUrl = item.thumbnailPath
+                                            ? `${baseURL}/share/${item.shareToken}/thumbnail`
+                                            : `${baseURL}/share/${item.shareToken}/preview`;
+                                        return (
+                                            <div
+                                                key={item.shareToken}
+                                                className="image-studio-recent-card image-studio-gallery-card"
+                                                onClick={() => handleGalleryItemEdit(item)}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleGalleryItemEdit(item)}
+                                            >
+                                                <img src={thumbnailUrl} alt={item.title || 'Sharepic'} />
+                                                <span>{item.title || 'Sharepic'}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* Recent Template Types - Quick access to template types */}
+                            <div className="image-studio-recent-section">
+                                <h3 className="image-studio-section-title">Zuletzt verwendete Vorlagen</h3>
+                                <p className="image-studio-section-subtitle">Schnellzugriff auf deine Favoriten</p>
+                                <div className="image-studio-recent-grid">
+                                    {recentTypeConfigs.map(config => (
+                                        <div
+                                            key={config.id}
+                                            className="image-studio-recent-card"
+                                            onClick={() => handleCategorySelect(config.category, null, config.id)}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleCategorySelect(config.category, null, config.id)}
+                                        >
+                                            {config.previewImage && (
+                                                <img src={config.previewImage} alt={config.label} />
+                                            )}
+                                            <span>{config.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            {/* Single section display - full width */}
+                            {showGallerySection && (
+                                <div className="image-studio-recent-section">
+                                    <h3 className="image-studio-section-title">Zuletzt erstellt</h3>
+                                    <p className="image-studio-section-subtitle">Deine gespeicherten Sharepics</p>
+                                    <div className="image-studio-recent-grid image-studio-gallery-grid">
+                                        {recentGalleryItems.map(item => {
+                                            const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+                                            const thumbnailUrl = item.thumbnailPath
+                                                ? `${baseURL}/share/${item.shareToken}/thumbnail`
+                                                : `${baseURL}/share/${item.shareToken}/preview`;
+                                            return (
+                                                <div
+                                                    key={item.shareToken}
+                                                    className="image-studio-recent-card image-studio-gallery-card"
+                                                    onClick={() => handleGalleryItemEdit(item)}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleGalleryItemEdit(item)}
+                                                >
+                                                    <img src={thumbnailUrl} alt={item.title || 'Sharepic'} />
+                                                    <span>{item.title || 'Sharepic'}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {showRecentTypesSection && (
+                                <div className="image-studio-recent-section">
+                                    <h3 className="image-studio-section-title">Zuletzt verwendete Vorlagen</h3>
+                                    <p className="image-studio-section-subtitle">Schnellzugriff auf deine Favoriten</p>
+                                    <div className="image-studio-recent-grid">
+                                        {recentTypeConfigs.map(config => (
+                                            <div
+                                                key={config.id}
+                                                className="image-studio-recent-card"
+                                                onClick={() => handleCategorySelect(config.category, null, config.id)}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleCategorySelect(config.category, null, config.id)}
+                                            >
+                                                {config.previewImage && (
+                                                    <img src={config.previewImage} alt={config.label} />
+                                                )}
+                                                <span>{config.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )
                 )}
 
-                {/* Section Divider */}
-                <div className="image-studio-divider">
-                    <span>Oder starte mit einer Vorlage</span>
+                {/* Templates Section Header */}
+                <div className="image-studio-recent-section image-studio-templates-section">
+                    <h3 className="image-studio-section-title">Oder starte mit einer Vorlage</h3>
+                    <p className="image-studio-section-subtitle">Wähle aus verschiedenen Formaten</p>
                 </div>
 
                 {/* Existing Category Cards */}
@@ -257,8 +320,8 @@ const ImageStudioCategorySelector: React.FC = () => {
                             tabIndex={option.isComingSoon ? -1 : 0}
                             onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && !option.isComingSoon && (option.isEarlyAccess ? navigate('/datenbank/vorlagen') : handleCategorySelect(option.category, option.subcategory, option.directType))}
                         >
-                            {option.isComingSoon && <span className="coming-soon-badge">Coming Soon</span>}
-                            {option.isEarlyAccess && <span className="early-access-badge">Early Access</span>}
+                            {option.isComingSoon && <StatusBadge type="coming-soon" variant="card" />}
+                            {option.isEarlyAccess && <StatusBadge type="early-access" variant="card" />}
                             {option.previewImage ? (
                                 <>
                                     <img src={option.previewImage} alt={option.label} className="type-card__image" />

@@ -1,0 +1,115 @@
+# Gruenerator API Backend Dockerfile
+# Multi-stage: builder validates TS, production runs with tsx
+
+# =============================================================================
+# Stage 1: Builder - Install deps and compile TypeScript
+# =============================================================================
+FROM node:20-slim AS builder
+
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
+    libpixman-1-dev \
+    pkg-config \
+    libvips-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+WORKDIR /app
+
+# Copy workspace config
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/api/package.json ./apps/api/
+
+# Install dependencies
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+# Copy source and compile
+COPY packages/shared ./packages/shared
+COPY apps/api ./apps/api
+
+WORKDIR /app/apps/api
+RUN pnpm exec tsc --project tsconfig.json
+
+# =============================================================================
+# Stage 2: Production - Fresh install of prod deps only
+# =============================================================================
+FROM node:20-slim AS production
+
+LABEL org.opencontainers.image.title="Gruenerator API"
+LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
+
+# Runtime dependencies + build tools for native modules
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    ffmpeg \
+    libcairo2 libcairo2-dev \
+    libpango-1.0-0 libpango1.0-dev \
+    libpangocairo-1.0-0 \
+    libjpeg62-turbo libjpeg-dev \
+    libgif7 libgif-dev \
+    librsvg2-2 librsvg2-dev \
+    libvips42 libvips-dev \
+    libpixman-1-dev \
+    pkg-config \
+    curl \
+    fontconfig \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 1001 gruenerator && \
+    useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+WORKDIR /app
+
+# Copy workspace config and lockfile for pnpm
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+
+# Copy package.json files for workspace structure
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+
+# Install all dependencies (tsx is needed to run TypeScript)
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/api...
+
+# Copy shared package source (needed for workspace resolution at runtime)
+COPY --from=builder /app/packages/shared ./packages/shared
+
+# Copy API source (tsx runs TypeScript directly)
+COPY --from=builder /app/apps/api ./apps/api
+
+# Set working directory to API
+WORKDIR /app/apps/api
+
+# Create runtime directories
+RUN mkdir -p uploads logs && chown -R gruenerator:gruenerator /app
+
+ENV NODE_ENV=production
+ENV PORT=3001
+
+USER gruenerator
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3001/health || exit 1
+
+CMD ["pnpm", "exec", "tsx", "server.ts"]

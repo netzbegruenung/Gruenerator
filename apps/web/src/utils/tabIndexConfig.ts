@@ -109,6 +109,25 @@ export const TAB_INDEX_CONFIG = {
     submit: 900
   },
 
+  // Texte Generator
+  TEXTE: {
+    // Form fields (100-399)
+    inhalt: 100,
+
+    // Feature icons (400-499)
+    webSearch: 400,
+    privacyMode: 410,
+    attachment: 420,
+
+    // Selectors (500-699)
+    platformSelector: 500,
+    knowledgeSourceSelector: 510,
+    knowledgeSelector: 520,
+
+    // Actions (900-999)
+    submit: 900
+  },
+
   // Alt-Text Generator
   ALT_TEXT: {
     // Form fields (100-399)
@@ -409,6 +428,7 @@ export const {
   ANTRAG,
   GRUENE_JUGEND,
   UNIVERSAL,
+  TEXTE,
   ALT_TEXT,
   LEICHTE_SPRACHE,
   PROFILE,

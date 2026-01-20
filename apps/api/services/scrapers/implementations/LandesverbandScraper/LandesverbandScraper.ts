@@ -112,6 +112,7 @@ export class LandesverbandScraper extends BaseScraper {
     options: LandesverbandScrapeOptions = {}
   ): Promise<ContentPathResult> {
     const { forceUpdate = false, maxDocuments = null } = options;
+    const targetCollection = source.qdrantCollection || this.config.collectionName;
     const result: ContentPathResult = {
       contentType: contentPath.type,
       stored: 0,
@@ -160,7 +161,7 @@ export class LandesverbandScraper extends BaseScraper {
           if (!forceUpdate) {
             const points = await scrollDocuments(
               this.qdrantClient,
-              this.config.collectionName,
+              targetCollection,
               { must: [{ key: 'source_url', match: { value: pdf.url } }] },
               { limit: 1, withPayload: false, withVector: false }
             );
@@ -202,7 +203,7 @@ export class LandesverbandScraper extends BaseScraper {
             text,
             publishedAt: pdf.dateInfo.dateString,
             categories: [],
-          });
+          }, targetCollection, source.maxAgeYears);
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;
@@ -222,8 +223,19 @@ export class LandesverbandScraper extends BaseScraper {
         }
       }
     } else {
-      // HTML article processing
-      const articleLinks = await this.linkExtractor.extractArticleLinks(source, contentPath, this.log.bind(this));
+      // HTML article processing - use sitemap if available, otherwise pagination
+      let articleLinks: string[];
+
+      if (contentPath.sitemapUrls && contentPath.sitemapUrls.length > 0) {
+        this.log(`Using sitemap extraction for ${contentPath.type}`);
+        articleLinks = await this.linkExtractor.extractLinksFromSitemaps(
+          contentPath.sitemapUrls,
+          contentPath.sitemapFilter,
+          this.log.bind(this)
+        );
+      } else {
+        articleLinks = await this.linkExtractor.extractArticleLinks(source, contentPath, this.log.bind(this));
+      }
       this.log(`Found ${articleLinks.length} article links`);
 
       const toProcess = maxDocuments ? articleLinks.slice(0, maxDocuments) : articleLinks;
@@ -234,7 +246,7 @@ export class LandesverbandScraper extends BaseScraper {
           if (!forceUpdate) {
             const points = await scrollDocuments(
               this.qdrantClient,
-              this.config.collectionName,
+              targetCollection,
               { must: [{ key: 'source_url', match: { value: url } }] },
               { limit: 1, withPayload: false, withVector: false }
             );
@@ -245,7 +257,7 @@ export class LandesverbandScraper extends BaseScraper {
           }
 
           const content = await ContentExtractor.extractPageContent(url, source, this.#fetchUrl.bind(this));
-          const storeResult = await this.documentProcessor.processAndStoreDocument(source, contentPath.type, url, content);
+          const storeResult = await this.documentProcessor.processAndStoreDocument(source, contentPath.type, url, content, targetCollection, source.maxAgeYears);
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;

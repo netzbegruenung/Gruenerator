@@ -1,63 +1,26 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { ComponentType } from 'react';
+import type { IconType } from 'react-icons';
 import { useAuthStore } from '../../../stores/authStore';
-import { getIcon, IconCategory } from '../../../config/icons';
-import { HiChat } from 'react-icons/hi';
+import { useBetaFeaturesStore } from '../../../stores/betaFeaturesStore';
+import { getDirectMenuItems, type MenuItemType } from '../../layout/Header/menuData';
 import './desktop-home.css';
 
-interface FeatureItem {
-  title: string;
-  route: string;
-  icon: string;
-  iconCategory: IconCategory | 'custom';
-}
-
-interface FeatureCategory {
-  title: string;
-  items: FeatureItem[];
-}
-
-const featureCategories: FeatureCategory[] = [
-  {
-    title: 'Texte',
-    items: [
-      { title: 'Presse & Social Media', route: '/presse-social', icon: 'presse-social', iconCategory: 'navigation' },
-      { title: 'Anträge & Anfragen', route: '/antrag', icon: 'antrag', iconCategory: 'navigation' },
-      { title: 'Universal', route: '/universal', icon: 'universal', iconCategory: 'navigation' },
-    ]
-  },
-  {
-    title: 'Bild und Video',
-    items: [
-      { title: 'Reel', route: '/reel', icon: 'reel', iconCategory: 'navigation' },
-      { title: 'Image Studio', route: '/image-studio', icon: 'sharepic', iconCategory: 'navigation' },
-    ]
-  },
-  {
-    title: 'Tools',
-    items: [
-      { title: 'Suche', route: '/suche', icon: 'suche', iconCategory: 'navigation' },
-      { title: 'Chat', route: '/chat', icon: 'chat', iconCategory: 'custom' },
-      { title: 'Barrierefreiheit', route: '/barrierefreiheit', icon: 'barrierefreiheit', iconCategory: 'navigation' },
-      { title: 'Text Editor', route: '/texteditor', icon: 'edit', iconCategory: 'actions' },
-    ]
-  }
-];
-
-interface FeatureCardProps extends FeatureItem {
+interface FeatureCardProps {
+  item: MenuItemType;
   onClick: () => void;
 }
 
-const FeatureCard = ({ title, route, icon, iconCategory, onClick }: FeatureCardProps) => {
-  const IconComponent = iconCategory === 'custom'
-    ? HiChat
-    : getIcon(iconCategory, icon);
+const FeatureCard = ({ item, onClick }: FeatureCardProps) => {
+  const IconComponent = item.icon as ComponentType | IconType | null;
 
   return (
     <button className="desktop-home-card" onClick={onClick}>
       <div className="desktop-home-card-icon">
         {IconComponent && <IconComponent />}
       </div>
-      <span className="desktop-home-card-title">{title}</span>
+      <span className="desktop-home-card-title">{item.title}</span>
     </button>
   );
 };
@@ -66,6 +29,15 @@ const DesktopHome = () => {
   const displayName = useAuthStore(state => state.user?.display_name);
   const firstName = displayName?.split(' ')[0];
   const navigate = useNavigate();
+  const betaFeatures = useBetaFeaturesStore(state => state.betaFeatures);
+
+  const menuItems = useMemo(() => {
+    const items = getDirectMenuItems({
+      chatBetaEnabled: betaFeatures.chat
+    });
+
+    return Object.values(items).filter(item => item.id !== 'home');
+  }, [betaFeatures.chat]);
 
   return (
     <div className="desktop-home">
@@ -74,20 +46,15 @@ const DesktopHome = () => {
           Willkommen{firstName ? `, ${firstName}` : ''}!
         </h1>
 
-        {featureCategories.map(category => (
-          <div key={category.title} className="desktop-home-category">
-            <h2 className="desktop-home-category-title">{category.title}</h2>
-            <div className="desktop-home-grid">
-              {category.items.map(feature => (
-                <FeatureCard
-                  key={feature.title}
-                  {...feature}
-                  onClick={() => navigate(feature.route)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
+        <div className="desktop-home-grid">
+          {menuItems.map(item => (
+            <FeatureCard
+              key={item.id}
+              item={item}
+              onClick={() => navigate(item.path)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

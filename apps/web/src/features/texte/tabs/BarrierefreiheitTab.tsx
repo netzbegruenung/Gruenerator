@@ -277,8 +277,6 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
 
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
 
-  if (!isActive) return null;
-
   return (
     <BaseForm
       {...form.generator?.baseFormProps}

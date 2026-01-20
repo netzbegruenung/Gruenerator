@@ -1,0 +1,110 @@
+@import '../../../web/src/assets/styles/common/variables.css';
+
+.home-page {
+  min-height: 100vh;
+  background-color: var(--background-color);
+}
+
+.home-page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-medium);
+}
+
+/* Mobile-first header - stacks on small screens */
+.home-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  margin-bottom: var(--spacing-large);
+  padding-bottom: var(--spacing-medium);
+  border-bottom: 1px solid var(--grey-200);
+}
+
+.home-page-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0;
+}
+
+.home-page-user-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-small);
+}
+
+.home-page-user-name {
+  font-size: 0.875rem;
+  color: var(--font-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.home-page-logout-button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--spacing-medium);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--font-color);
+  background-color: transparent;
+  border: 1px solid var(--grey-200);
+  border-radius: var(--card-border-radius-small);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-page-logout-button:hover {
+  background-color: var(--hover-color-alt);
+}
+
+.home-page-logout-button:active {
+  transform: scale(0.98);
+}
+
+/* Tablet and up - horizontal header layout */
+@media (min-width: 481px) {
+  .home-page-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .home-page-title {
+    font-size: 1.5rem;
+  }
+
+  .home-page-user-section {
+    justify-content: flex-end;
+  }
+
+  .home-page-user-name {
+    flex: none;
+    max-width: 200px;
+  }
+}
+
+/* Desktop - more spacing */
+@media (min-width: 769px) {
+  .home-page-container {
+    padding: var(--spacing-xlarge);
+  }
+
+  .home-page-header {
+    margin-bottom: var(--spacing-xlarge);
+    padding-bottom: var(--spacing-large);
+  }
+
+  .home-page-logout-button {
+    min-height: 40px;
+    padding: 0.5rem 1rem;
+  }
+}

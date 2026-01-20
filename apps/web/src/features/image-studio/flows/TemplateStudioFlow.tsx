@@ -11,6 +11,7 @@ import {
 import StepFlow from '../components/StepFlow';
 import TemplateResultStep from '../steps/TemplateResultStep';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 
 import './TemplateStudioFlow.css';
 
@@ -178,7 +179,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
               <div className="template-studio-flow-header">
                 <h1>
                   {flowTitle}
-                  <span className="early-access-badge-inline">Early Access</span>
+                  <StatusBadge type="early-access" variant="inline" />
                 </h1>
                 {flowSubtitle && (
                   <p className="flow-subtitle">{flowSubtitle}</p>

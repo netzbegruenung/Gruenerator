@@ -89,6 +89,43 @@ export class LinkExtractor {
   }
 
   /**
+   * Extract links from XML sitemaps
+   * Fetches multiple sitemaps and filters URLs
+   */
+  async extractLinksFromSitemaps(
+    sitemapUrls: string[],
+    filter?: string,
+    log?: (msg: string) => void
+  ): Promise<string[]> {
+    const links = new Set<string>();
+
+    for (const sitemapUrl of sitemapUrls) {
+      try {
+        const response = await this.fetchUrl(sitemapUrl);
+        const xml = await response.text();
+        const $ = cheerio.load(xml, { xmlMode: true });
+
+        $('url > loc').each((_, el) => {
+          const url = $(el).text().trim();
+          if (url) {
+            // Apply filter if specified
+            if (filter && !url.includes(filter)) return;
+            links.add(url);
+          }
+        });
+
+        log?.(`Sitemap ${sitemapUrl}: found ${links.size} URLs${filter ? ` (filtered by '${filter}')` : ''}`);
+        await this.delay(300);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.warn(`[LinkExtractor] Failed to fetch sitemap ${sitemapUrl}: ${errorMessage}`);
+      }
+    }
+
+    return Array.from(links);
+  }
+
+  /**
    * Extract PDF links from archive page
    * Returns links with title and context for date extraction
    */

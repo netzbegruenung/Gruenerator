@@ -12,17 +12,29 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding-top: 8vh;
+    padding-top: 0;
     gap: var(--spacing-large);
     max-width: 100%;
     margin: 0 auto;
 }
 
 .base-container--start-mode .form-section-motion-wrapper {
-    max-width: 720px;
+    max-width: 800px;
     width: 100%;
     flex: none;
     transition: all 0.4s ease-out;
+}
+
+@media (min-width: 1280px) {
+  .base-container--start-mode .form-section-motion-wrapper {
+    max-width: 900px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .base-container--start-mode .form-section-motion-wrapper {
+    max-width: 1000px;
+  }
 }
 
 /* ===========================================
@@ -75,8 +87,8 @@
 
 /* Start mode extras - unified flexbox layout for desktop and mobile */
 .form-section__extras--start-mode {
-  padding: 0;
-  margin-top: var(--spacing-small);
+  padding: var(--spacing-small) 0 0 0;
+  margin-top: 0;
   width: 100%;
 }
 
@@ -84,18 +96,38 @@
   width: 100%;
 }
 
-/* Unified row: Icons (left), Platform + Submit (right) */
+/* Unified row: Icons (left), Submit (right) */
 .form-section__extras--start-mode .form-extras__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   gap: var(--spacing-small);
+  padding: 0 var(--spacing-small);
 }
 
 .form-section__extras--start-mode .form-extras__left {
-  flex-shrink: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  flex: 1;
   min-width: 0;
+}
+
+/* Inline example prompts */
+.form-section__extras--start-mode .form-extras__examples {
+  display: flex;
+  align-items: center;
+}
+
+.form-section__extras--start-mode .form-extras__examples .example-prompts {
+  margin: 0;
+  gap: var(--spacing-xsmall);
+}
+
+.form-section__extras--start-mode .form-extras__examples .example-prompts__button {
+  padding: 6px 12px;
+  font-size: 0.85rem;
 }
 
 .form-section__extras--start-mode .form-extras__right {
@@ -105,9 +137,25 @@
   flex-shrink: 0;
 }
 
-/* Platform selector needs minimum width for label visibility */
-.form-section__extras--start-mode .form-extras__right .platform-selector {
-  min-width: 140px;
+/* Circular submit button for start mode */
+.form-section__extras--start-mode .form-extras__submit-button {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-section__extras--start-mode .form-extras__submit-button .btn-icon {
+  margin: 0;
+}
+
+.form-section__extras--start-mode .form-extras__submit-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* ===========================================
@@ -137,15 +185,16 @@
    Textarea Styles
    =========================================== */
 
-/* Start mode input styling - compact, ChatGPT-like textarea */
+/* Start mode input styling - ChatGPT-like textarea */
 .form-section--start-mode textarea {
   display: block;
   font-size: 1.1rem;
   line-height: 1.6;
-  padding: 0 var(--spacing-medium);
+  padding: var(--spacing-small) var(--spacing-medium);
   overflow-y: hidden;
   border: none;
   background: transparent;
+  min-height: 150px !important;
 }
 
 .form-section--start-mode textarea:focus {
@@ -168,24 +217,26 @@
     max-width: 100%;
   }
 
-  /* Card mobile adjustments - fixed to bottom for easier typing */
+  /* Card mobile adjustments */
   .form-card--start-mode {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-radius: 20px 20px 0 0;
     padding: var(--spacing-small);
-    border: var(--border-subtle);
-    border-bottom: none;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-    z-index: 100;
   }
 
   /* Textarea mobile adjustments */
   .form-section--start-mode textarea {
     font-size: 1rem;
     padding: var(--spacing-small);
+    min-height: 100px !important;
+  }
+
+  /* Extras row mobile adjustments */
+  .form-section__extras--start-mode .form-extras__row {
+    padding: 0 var(--spacing-xsmall);
+  }
+
+  /* Hide example prompts on mobile to save space */
+  .form-section__extras--start-mode .form-extras__examples {
+    display: none;
   }
 }
 

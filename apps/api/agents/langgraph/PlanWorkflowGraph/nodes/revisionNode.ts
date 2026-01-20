@@ -81,6 +81,7 @@ export async function revisionNode(state: PlanWorkflowState): Promise<RevisionNo
     // Build prompt context
     const promptContext = {
       systemRole: promptConfigData.systemPrompt,
+      taskInstructions: promptConfigData.generationPrompt,
       request: {
         inhalt: input.inhalt,
         gliederung: input.gliederung,

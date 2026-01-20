@@ -141,6 +141,18 @@ const fetchVorlagen = async ({ searchTerm, searchMode, selectedCategory, tags, s
   return Array.isArray(data?.vorlagen) ? data.vorlagen : [];
 };
 
+const fetchPublicPrompts = async ({ searchTerm, searchMode, signal }: FetchOptions) => {
+  const params: Record<string, unknown> = { limit: 50 };
+  if (searchTerm) {
+    params.searchTerm = searchTerm;
+    if (searchMode) params.searchMode = searchMode;
+  }
+
+  const response = await apiClient.get('/auth/public_prompts', { params, signal });
+  const data = response.data;
+  return Array.isArray(data?.results) ? data.results : [];
+};
+
 const categoryQueryOptions = {
   antraege: {
     queryKey: ['antraegeCategories'],
@@ -166,7 +178,8 @@ const fetcherMap = {
   fetchAntraege: fetchAntraege,
   fetchGenerators: fetchGenerators,
   fetchUnified: fetchUnified,
-  fetchVorlagen: fetchVorlagen
+  fetchVorlagen: fetchVorlagen,
+  fetchPublicPrompts: fetchPublicPrompts
 };
 
 interface UseGalleryControllerProps {

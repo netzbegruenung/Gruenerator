@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, lazy, FC, ChangeEvent } from 'react';
+import React, { useState, useEffect, useRef, FC, ChangeEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
-const ReactMarkdown = lazy(() => import('react-markdown'));
+import { Markdown } from '../../../components/common/Markdown';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import apiClient from '../../../components/utils/apiClient';
 
@@ -248,11 +248,11 @@ const AntragDetailPage: FC = () => {
             <section className="antrag-detail-page-content">
               {/* <h2>Antragstext</h2> */}
               <div className="markdown-content">
-                 {antrag.antragstext ? (
-                   <ReactMarkdown>{antrag.antragstext}</ReactMarkdown>
-                 ) : (
-                   <p><em>Kein Antragstext vorhanden.</em></p>
-                 )}
+                {antrag.antragstext ? (
+                  <Markdown>{antrag.antragstext}</Markdown>
+                ) : (
+                  <p><em>Kein Antragstext vorhanden.</em></p>
+                )}
               </div>
             </section>
           </>

@@ -1,0 +1,108 @@
+/* ========================================
+   ImageStudioTypeSelector Component Styles
+   Type selection grids for KI and Templates categories
+   ======================================== */
+
+.type-section-header {
+  font-size: var(--font-size-xl);
+  color: var(--font-color-h);
+  text-align: center;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.type-section-header:first-of-type {
+  margin-top: 0.5rem;
+}
+
+/* Beta badge for experimental features */
+.beta-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: linear-gradient(135deg, var(--himmel) 0%, var(--klee) 100%);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: var(--font-size-xxs);
+  font-weight: 600;
+  text-transform: uppercase;
+  z-index: 2;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 5-column flex layout for KI types */
+.type-options-grid--five {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.type-options-grid--five .type-card--image {
+  flex: 1;
+  aspect-ratio: 3/4;
+}
+
+@media (max-width: 1024px) {
+  .type-options-grid--five {
+    flex-wrap: wrap;
+  }
+
+  .type-options-grid--five .type-card--image {
+    flex: 0 0 calc(33.333% - 1rem);
+  }
+}
+
+@media (max-width: 768px) {
+  .type-options-grid--five {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .type-options-grid--five .type-card--image {
+    flex: none;
+    width: 100%;
+    aspect-ratio: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .type-options-grid--five {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3-column grid layout for sharepic templates */
+.type-options-grid--three {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.type-options-grid--three .type-card--image {
+  aspect-ratio: 3/4;
+}
+
+@media (max-width: 1024px) {
+  .type-options-grid--three {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .type-options-grid--three {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .type-options-grid--three {
+    grid-template-columns: 1fr;
+  }
+}

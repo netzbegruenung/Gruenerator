@@ -50,6 +50,18 @@ if (cluster.isPrimary) {
   const workerCount = parseInt(process.env.WORKER_COUNT || '2', 10);
   log.info(`Master ${process.pid} starting ${workerCount} workers`);
 
+  // Attach error handler to each worker when forked
+  cluster.on('fork', (worker) => {
+    worker.on('error', (error) => {
+      // Handle IPC disconnection errors gracefully
+      if ((error as NodeJS.ErrnoException).code === 'ERR_IPC_DISCONNECTED') {
+        log.debug(`Worker ${worker.process.pid} IPC disconnected (expected during shutdown)`);
+      } else {
+        log.warn(`Worker ${worker.process.pid} error: ${error.message}`);
+      }
+    });
+  });
+
   for (let i = 0; i < workerCount; i++) {
     cluster.fork();
   }
@@ -121,7 +133,7 @@ if (cluster.isPrimary) {
 
   cluster.on('exit', (worker, code, signal) => {
     log.warn(`Worker ${worker.process.pid} died (code: ${code}, signal: ${signal})`);
-    if (!worker.exitedAfterDisconnect) {
+    if (!worker.exitedAfterDisconnect && !isShuttingDown) {
       log.info('Starting replacement worker');
       cluster.fork();
     }

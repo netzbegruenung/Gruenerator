@@ -217,8 +217,6 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
     ? storeGeneratedText
     : (storeGeneratedText ? String(storeGeneratedText) : improvedContent);
 
-  if (!isActive) return null;
-
   return (
     <BaseForm
       {...baseFormProps}

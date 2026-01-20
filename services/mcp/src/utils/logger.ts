@@ -39,9 +39,9 @@ function getTimestamp() {
 /**
  * Log at DEBUG level
  */
-export function debug(category, message, data = null) {
+export function debug(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.DEBUG) {
-    const log = { timestamp: getTimestamp(), level: 'DEBUG', category, message };
+    const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'DEBUG', category, message };
     if (data) log.data = data;
     console.error(JSON.stringify(log));
   }
@@ -50,9 +50,9 @@ export function debug(category, message, data = null) {
 /**
  * Log at INFO level
  */
-export function info(category, message, data = null) {
+export function info(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.INFO) {
-    const log = { timestamp: getTimestamp(), level: 'INFO', category, message };
+    const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'INFO', category, message };
     if (data) log.data = data;
     console.error(JSON.stringify(log));
   }
@@ -61,9 +61,9 @@ export function info(category, message, data = null) {
 /**
  * Log at WARN level
  */
-export function warn(category, message, data = null) {
+export function warn(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.WARN) {
-    const log = { timestamp: getTimestamp(), level: 'WARN', category, message };
+    const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'WARN', category, message };
     if (data) log.data = data;
     console.error(JSON.stringify(log));
   }
@@ -72,9 +72,9 @@ export function warn(category, message, data = null) {
 /**
  * Log at ERROR level
  */
-export function error(category, message, data = null) {
+export function error(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.ERROR) {
-    const log = { timestamp: getTimestamp(), level: 'ERROR', category, message };
+    const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'ERROR', category, message };
     if (data) log.data = data;
     console.error(JSON.stringify(log));
     stats.errors++;

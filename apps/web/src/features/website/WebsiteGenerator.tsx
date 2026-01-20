@@ -180,8 +180,10 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
         submitButtonText="JSON generieren"
         isSubmitDisabled={false}
         useFeatureIcons={true}
-        usePrivacyModeToggle={true}
-        useProModeToggle={true}
+        features={{
+          privacyMode: { enabled: true },
+          proMode: { enabled: true }
+        }}
         customRenderer={customRenderer}
         customExportOptions={customExportOptions}
         hideDefaultExportOptions={true}

@@ -30,7 +30,7 @@ export async function getQdrantClient() {
 
   const url = new URL(config.qdrant.url);
 
-  const clientConfig = {
+  const clientConfig: Record<string, unknown> = {
     host: url.hostname,
     port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
     https: url.protocol === 'https:',
@@ -78,10 +78,10 @@ function mergeFilters(baseFilter, additionalFilter) {
 /**
  * Vector similarity search
  */
-export async function searchCollection(collectionName, embedding, limit = 5, filter = null) {
+export async function searchCollection(collectionName: string, embedding: number[], limit = 5, filter: Record<string, unknown> | null = null) {
   const qdrant = await getQdrantClient();
 
-  const searchParams = {
+  const searchParams: Record<string, unknown> = {
     vector: embedding,
     limit: limit,
     with_payload: true
@@ -234,14 +234,14 @@ function applyQualityGateLocal(results, hasTextMatches) {
 /**
  * Hybrid search combining vector and text search
  */
-export async function hybridSearchCollection(collectionName, embedding, query, limit = 5, options = {}) {
+export async function hybridSearchCollection(collectionName: string, embedding: number[], query: string, limit = 5, options: Record<string, unknown> = {}) {
   const {
     vectorWeight = 0.7,
     textWeight = 0.3,
     useRRF = true,
     rrfK = 60,
     filter = null
-  } = options;
+  } = options as { vectorWeight?: number; textWeight?: number; useRRF?: boolean; rrfK?: number; filter?: Record<string, unknown> | null };
 
   const qdrant = await getQdrantClient();
 
@@ -261,7 +261,7 @@ export async function hybridSearchCollection(collectionName, embedding, query, l
 
   // Vector search
   const vectorLimit = limit * 6;
-  const vectorSearchParams = {
+  const vectorSearchParams: Record<string, unknown> = {
     vector: embedding,
     limit: vectorLimit,
     score_threshold: threshold,
@@ -315,14 +315,14 @@ export async function hybridSearchCollection(collectionName, embedding, query, l
 
   // Apply quality-weighted scoring
   const finalResults = combinedResults.slice(0, limit).map(result => {
-    const qualityScore = result.qualityScore ?? result.payload?.quality_score ?? 1.0;
+    const qualityScore = Number(result.qualityScore ?? result.payload?.quality_score ?? 1.0);
     const qualityBoost = 1 + ((qualityScore - 0.5) * 0.4);
 
     return {
       score: result.score * qualityBoost,
       title: result.title || result.payload?.title || 'Unbekannt',
       text: result.text || result.payload?.chunk_text || '',
-      url: result.url || result.payload?.url || result.payload?.source_url || result.payload?.metadata?.url || null,
+      url: result.url || result.payload?.url || result.payload?.source_url || (result.payload?.metadata as Record<string, unknown>)?.url || null,
       documentId: result.documentId || result.payload?.document_id,
       filename: result.filename || result.payload?.filename,
       searchMethod: result.searchMethod,
@@ -429,7 +429,7 @@ export async function getFieldValueCounts(collectionName, fieldName, maxValues =
     const maxIterations = 100;
 
     while (iterations < maxIterations) {
-      const scrollOptions = {
+      const scrollOptions: Record<string, unknown> = {
         limit: 100,
         offset: offset,
         with_payload: { include: [fieldName] },

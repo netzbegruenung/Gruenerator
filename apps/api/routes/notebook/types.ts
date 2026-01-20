@@ -50,6 +50,7 @@ export interface AskQuestionBody {
     question: string;
     filters?: Record<string, any>;
     collectionIds?: string[];
+    fastMode?: boolean;
 }
 
 // =============================================================================

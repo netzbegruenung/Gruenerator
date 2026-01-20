@@ -126,7 +126,10 @@ export function useFeatureConfigs(params: UseFeatureConfigsParams) {
   ): ResolvedFeatureConfig => {
     // Emit deprecation warning in dev mode
     if (process.env.NODE_ENV === 'development') {
-      if (legacyToggle !== undefined || legacyEnabled !== undefined || legacyConfig !== undefined) {
+      const hasLegacyProps = legacyToggle !== undefined || legacyEnabled !== undefined || legacyConfig !== undefined;
+      const hasNewConfig = newConfig !== undefined;
+
+      if (hasLegacyProps && !hasNewConfig) {
         console.warn(
           `[BaseForm] Deprecated: Use features.${featureName} instead of individual ${featureName} props.`,
           `\nSee: https://docs.example.com/migrations/baseform-props`

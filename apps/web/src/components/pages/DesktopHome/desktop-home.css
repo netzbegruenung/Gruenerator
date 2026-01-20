@@ -22,24 +22,6 @@
   letter-spacing: -0.02em;
 }
 
-.desktop-home-category {
-  margin-bottom: var(--spacing-large);
-}
-
-.desktop-home-category-title {
-  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--grey-500);
-  margin-bottom: var(--spacing-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-[data-theme="dark"] .desktop-home-category-title {
-  color: var(--grey-400);
-}
-
 .desktop-home-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

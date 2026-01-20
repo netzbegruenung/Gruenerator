@@ -4,10 +4,10 @@
   justify-content: center;
   align-items: center;
   min-height: 400px;
-  color: var(--font-color-secondary);
+  color: var(--grey-500);
 }
 
-/* Login Prompt - Card style like FormCard */
+/* Login Prompt */
 .eigene-login-prompt {
   display: flex;
   flex-direction: column;
@@ -20,8 +20,8 @@
   color: var(--font-color);
   max-width: 600px;
   margin: 0 auto;
-  background-color: var(--card-background, var(--background-color-alt));
-  border: 1px solid var(--card-border, var(--border-subtle));
+  background: var(--card-background);
+  border: var(--card-border);
   border-radius: var(--card-border-radius-medium);
   box-shadow: var(--shadow-sm);
 }
@@ -30,17 +30,52 @@
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--font-color);
 }
 
 .eigene-login-prompt p {
   margin: 0;
-  color: var(--font-color-secondary);
+  color: var(--grey-500);
   max-width: 400px;
   line-height: 1.5;
 }
 
-/* Responsive adjustments */
+/* Container */
+.eigene-container {
+  width: 100%;
+  text-align: center;
+}
+
+/* Subtabs */
+.eigene-subtabs {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-small);
+  margin-bottom: var(--spacing-medium);
+}
+
+.eigene-subtab {
+  padding: var(--spacing-small) var(--spacing-medium);
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--grey-500);
+  cursor: pointer;
+  border-radius: 50px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.eigene-subtab:hover:not(.active) {
+  color: var(--font-color);
+}
+
+.eigene-subtab.active {
+  background: var(--secondary);
+  color: var(--white);
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .eigene-login-prompt {
     border: none;
@@ -55,7 +90,6 @@
   }
 }
 
-/* High contrast mode support */
 @media (forced-colors: active) {
   .eigene-login-prompt {
     border: 1px solid ButtonText;

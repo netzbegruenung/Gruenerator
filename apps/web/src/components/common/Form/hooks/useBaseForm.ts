@@ -330,7 +330,7 @@ const useBaseForm = ({
     setGlobalError('');
   }, []);
 
-  // Initialize knowledge system (UI config + data fetching)
+  // Initialize knowledge system (UI config only - data fetching is deferred)
   // Hook must be called unconditionally, condition goes inside
   useEffect(() => {
     if (generatorType && !disableKnowledgeSystem) {
@@ -342,10 +342,30 @@ const useBaseForm = ({
         enableSourceSelection: true
       });
 
-      // Fetch documents and texts from backend
-      fetchCombinedContent().catch((error: unknown) => {
-        console.error('[useBaseForm] Failed to fetch combined content:', error);
-      });
+      // PERFORMANCE: Defer fetchCombinedContent to idle time using requestIdleCallback
+      // This prevents blocking initial render for a simple textarea input
+      const idleCallbackId = 'requestIdleCallback' in window
+        ? window.requestIdleCallback(
+            () => {
+              fetchCombinedContent().catch((error: unknown) => {
+                console.error('[useBaseForm] Failed to fetch combined content:', error);
+              });
+            },
+            { timeout: 2000 } // Ensure it runs within 2 seconds even if browser is busy
+          )
+        : setTimeout(() => {
+            fetchCombinedContent().catch((error: unknown) => {
+              console.error('[useBaseForm] Failed to fetch combined content:', error);
+            });
+          }, 100); // Fallback for browsers without requestIdleCallback
+
+      return () => {
+        if ('requestIdleCallback' in window && typeof idleCallbackId === 'number') {
+          window.cancelIdleCallback(idleCallbackId);
+        } else {
+          clearTimeout(idleCallbackId as unknown as number);
+        }
+      };
     }
   }, [generatorType, disableKnowledgeSystem, setUIConfig, fetchCombinedContent]);
 
@@ -459,7 +479,8 @@ const useBaseForm = ({
           usePrivacyMode: rhfData.usePrivacyMode,
           useProMode: rhfData.useProMode,
           useBedrock: false,
-          attachments: processedAttachments
+          attachments: processedAttachments,
+          useNotebookEnrich: selectionStore.useNotebookEnrich
         };
 
         // Extract search query from form data for intelligent document content
@@ -551,12 +572,11 @@ const useBaseForm = ({
       platformOptions,
       helpContent,
       componentName: componentName ?? '',
-      webSearchFeatureToggle: features.includes('webSearch') ? webSearchFeatureToggle : undefined,
-      useWebSearchFeatureToggle: features.includes('webSearch'),
-      privacyModeToggle: features.includes('privacyMode') ? privacyModeToggle : undefined,
-      usePrivacyModeToggle: features.includes('privacyMode'),
-      proModeToggle: features.includes('proMode') ? proModeToggle : undefined,
-      useProModeToggle: features.includes('proMode'),
+      features: {
+        webSearch: features.includes('webSearch') ? { enabled: true, toggle: webSearchFeatureToggle ?? undefined } : undefined,
+        privacyMode: features.includes('privacyMode') ? { enabled: true, toggle: privacyModeToggle ?? undefined } : undefined,
+        proMode: features.includes('proMode') ? { enabled: true, toggle: proModeToggle ?? undefined } : undefined
+      },
       useFeatureIcons,
       onAttachmentClick: handleAttachmentClick,
       onRemoveFile: handleRemoveFile,

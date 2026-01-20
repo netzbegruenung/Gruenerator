@@ -2,26 +2,18 @@ import React, { useState, useCallback } from 'react';
 import { useRecentTexts, type SavedText } from '../../../hooks/useRecentTexts';
 import RecentTextCard from './RecentTextCard';
 import LoadTextConfirmModal from '../Modals/LoadTextConfirmModal';
-import { HiFolder, HiRefresh } from 'react-icons/hi';
+import '../../../assets/styles/components/common/recent-texts.css';
 
 export interface RecentTextsSectionProps {
   generatorType: string;
-  componentName: string;
   onTextLoad: (content: string, metadata: unknown) => void;
-  className?: string;
 }
 
-/**
- * Section displaying recent texts for a generator type
- * Includes loading state, empty state, and error handling
- */
 const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({
   generatorType,
-  componentName,
-  onTextLoad,
-  className = ''
+  onTextLoad
 }) => {
-  const { texts, isLoading, error, refetch, deleteText } = useRecentTexts({
+  const { texts, isLoading, error, deleteText } = useRecentTexts({
     generatorType,
     limit: 3,
     enabled: true
@@ -37,13 +29,11 @@ const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({
 
   const handleConfirmLoad = useCallback(() => {
     if (selectedText) {
-      const metadata = {
+      onTextLoad(selectedText.content, {
         title: selectedText.title,
         contentType: selectedText.type,
         wordCount: selectedText.word_count
-      };
-
-      onTextLoad(selectedText.content, metadata);
+      });
       setIsModalOpen(false);
       setSelectedText(null);
     }
@@ -54,51 +44,26 @@ const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({
     setSelectedText(null);
   }, []);
 
-  // Don't render if no texts and not loading
   if (!isLoading && texts.length === 0 && !error) {
     return null;
   }
 
   return (
-    <section className={`recent-texts-section ${className}`} aria-labelledby="recent-texts-title">
-      <div className="recent-texts-header">
-        <h3 id="recent-texts-title" className="recent-texts-title">
-          <HiFolder size={20} aria-hidden="true" />
-          Zuletzt erstellt
-        </h3>
-        {!isLoading && texts.length > 0 && (
-          <button
-            className="recent-texts-refresh"
-            onClick={() => refetch()}
-            aria-label="Aktualisieren"
-            title="Aktualisieren"
-          >
-            <HiRefresh size={18} />
-          </button>
-        )}
-      </div>
-
-      {error && (
-        <div className="recent-texts-error" role="alert">
-          <p>Fehler beim Laden der Texte: {error}</p>
-          <button className="button button--sm" onClick={() => refetch()}>
-            Erneut versuchen
-          </button>
-        </div>
-      )}
+    <section className="recent-texts" aria-labelledby="recent-texts-heading">
+      <h3 id="recent-texts-heading" className="recent-texts__heading">
+        Zuletzt erstellt
+      </h3>
 
       {isLoading && (
-        <div className="recent-texts-loading" aria-live="polite" aria-busy="true">
-          <div className="recent-texts-skeleton">
-            <div className="skeleton-card" />
-            <div className="skeleton-card" />
-            <div className="skeleton-card" />
-          </div>
+        <div className="recent-texts__grid">
+          <div className="recent-card recent-card--skeleton" />
+          <div className="recent-card recent-card--skeleton" />
+          <div className="recent-card recent-card--skeleton" />
         </div>
       )}
 
       {!isLoading && !error && texts.length > 0 && (
-        <div className="recent-texts-grid">
+        <div className="recent-texts__grid">
           {texts.map((text) => (
             <RecentTextCard
               key={text.id}
@@ -110,13 +75,8 @@ const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({
         </div>
       )}
 
-      {!isLoading && !error && texts.length === 0 && (
-        <div className="recent-texts-empty">
-          <p>Noch keine gespeicherten Texte vorhanden.</p>
-          <p className="recent-texts-empty-hint">
-            Generierte Texte werden automatisch gespeichert.
-          </p>
-        </div>
+      {error && (
+        <p className="recent-texts__error">Fehler beim Laden</p>
       )}
 
       <LoadTextConfirmModal

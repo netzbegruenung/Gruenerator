@@ -4,63 +4,91 @@
   width: 100%;
 }
 
+/* Mobile-first: Full-width create button */
 .create-document-button {
-  padding: 0.75rem 1.5rem;
+  width: 100%;
+  min-height: 52px;
+  padding: var(--spacing-medium) var(--spacing-large);
   font-size: 1rem;
   font-weight: 600;
   color: white;
   background-color: var(--primary-600);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--card-border-radius-small);
   cursor: pointer;
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-large);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xsmall);
 }
 
 .create-document-button:hover {
   background-color: var(--primary-700);
 }
 
+.create-document-button:active {
+  transform: scale(0.98);
+}
+
 .document-list-loading,
 .document-list-error,
 .document-list-empty {
   text-align: center;
-  padding: 3rem;
+  padding: var(--spacing-xxlarge) var(--spacing-medium);
   color: var(--font-color-secondary);
 }
 
 .document-list-error {
-  color: var(--error-color, #dc2626);
+  color: var(--error-red);
 }
 
+.document-list-empty {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* Mobile: Single column list layout */
 .document-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
 }
 
 .document-card {
   background-color: var(--card-background);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem;
+  border: 1px solid var(--grey-200);
+  border-radius: var(--card-border-radius-small);
+  padding: var(--spacing-medium);
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: background-color 0.15s ease-out;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
 }
 
 .document-card:hover {
-  transform: scale(1.01);
-  box-shadow: var(--shadow-md);
+  background-color: var(--hover-color-alt);
+}
+
+.document-card:active {
+  background-color: var(--grey-100);
+}
+
+.document-card-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .document-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.5rem;
+  align-items: center;
+  gap: var(--spacing-small);
 }
 
 .document-card-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--font-color);
   margin: 0;
@@ -70,28 +98,105 @@
   white-space: nowrap;
 }
 
+/* Touch-friendly delete button - 44x44px target */
 .document-card-delete {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   color: var(--font-color-secondary);
   cursor: pointer;
   padding: 0;
-  width: 24px;
-  height: 24px;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--card-border-radius-small);
   flex-shrink: 0;
+  margin: calc(-1 * var(--spacing-small));
+  margin-left: 0;
 }
 
 .document-card-delete:hover {
-  background-color: var(--background-hover, rgba(0, 0, 0, 0.05));
-  color: var(--error-color, #dc2626);
+  background-color: rgba(220, 38, 38, 0.1);
+  color: var(--error-red);
+}
+
+.document-card-delete:active {
+  background-color: rgba(220, 38, 38, 0.2);
 }
 
 .document-card-meta {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--font-color-secondary);
+  margin-top: var(--spacing-xxsmall);
+}
+
+/* Tablet: 2-column grid */
+@media (min-width: 481px) {
+  .create-document-button {
+    width: auto;
+    padding: var(--spacing-small) var(--spacing-large);
+    min-height: 44px;
+  }
+
+  .document-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-medium);
+  }
+
+  .document-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--spacing-large);
+  }
+
+  .document-card-delete {
+    margin: 0;
+    margin-right: calc(-1 * var(--spacing-xsmall));
+    margin-top: calc(-1 * var(--spacing-xsmall));
+  }
+}
+
+/* Desktop: 3-4 column grid with hover effects */
+@media (min-width: 769px) {
+  .create-document-button {
+    margin-bottom: var(--spacing-xlarge);
+  }
+
+  .document-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-large);
+  }
+
+  .document-card {
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+  }
+
+  .document-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    background-color: var(--card-background);
+  }
+
+  .document-card-title {
+    font-size: 1.1rem;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1024px) {
+  .document-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .document-card:active {
+  background-color: var(--grey-700);
+}
+
+[data-theme="dark"] .document-card-delete:hover {
+  background-color: rgba(220, 38, 38, 0.2);
 }

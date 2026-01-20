@@ -99,8 +99,18 @@ export function selectProviderAndModel({
   }
 
   // Type-based defaults (preserve existing special cases)
+  // Notebook enrichment - fetch context from notebook - use fast model
+  if (type === 'notebook_enrich') {
+    provider = 'mistral';
+    model = options.model || 'mistral-medium-latest';
+  }
+  // Fast mode QA draft - use faster model, no citations
+  else if (type === 'qa_draft_fast') {
+    provider = 'mistral';
+    model = options.model || 'mistral-medium-latest';
+  }
   // QA draft (final answer) uses magistral for higher quality
-  if (type === 'qa_draft') {
+  else if (type === 'qa_draft') {
     provider = 'mistral';
     model = options.model || 'magistral-medium-latest';
   }

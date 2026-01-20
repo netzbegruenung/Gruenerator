@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle, lazy } from 'react';
+import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { HiOutlineDocumentAdd, HiOutlineTrash, HiRefresh, HiDocumentText, HiClock, HiCheckCircle, HiExclamationCircle, HiEye, HiX, HiOutlineLink, HiOutlineCloudDownload } from 'react-icons/hi';
-const ReactMarkdown = lazy(() => import('react-markdown'));
+import { Markdown } from './Markdown';
 import { useDocumentsStore } from '../../stores/documentsStore';
 import { useWolkeStore } from '../../stores/wolkeStore';
 import { useOptimizedAuth } from '../../hooks/useAuth';
@@ -132,7 +132,7 @@ const DocumentPreview = ({ document }: DocumentPreviewProps) => {
                 </div>
               ) : (
                 <div className="preview-text">
-                  <ReactMarkdown>{previewText}</ReactMarkdown>
+                  <Markdown>{previewText}</Markdown>
                 </div>
               )}
             </div>

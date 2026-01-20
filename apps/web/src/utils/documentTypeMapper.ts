@@ -4,6 +4,9 @@
  */
 
 export const DOCUMENT_TYPE_MAP: Record<string, string> = {
+  // Texte tab (main generator) - uses 'text' to match existing saved data
+  'texte-generator': 'text',
+
   // Universal generators
   'universal-text': 'universal',
   'rede': 'rede',

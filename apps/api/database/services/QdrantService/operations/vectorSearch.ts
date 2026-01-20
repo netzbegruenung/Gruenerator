@@ -35,9 +35,24 @@ export async function vectorSearch(
     } = options;
 
     try {
+        // ROBUST FIX: In Qdrant, if ONLY `should` clauses exist (no `must`), at least one must match.
+        // This causes 0 results when fields like content_type aren't indexed.
+        // Solution: Strip `should` when there's no `must`, making them truly optional.
+        let sanitizedFilter = filter;
+        const hasMust = Array.isArray(filter.must) && filter.must.length > 0;
+        const hasShould = Array.isArray(filter.should) && filter.should.length > 0;
+        const hasMustNot = Array.isArray(filter.must_not) && filter.must_not.length > 0;
+
+        if (hasShould && !hasMust && !hasMustNot) {
+            // Only `should` exists - this would require at least one match, which breaks
+            // searches on collections without the indexed fields. Remove `should` entirely.
+            logger.debug(`Removing standalone 'should' clauses to prevent 0-result issue`);
+            sanitizedFilter = {};
+        }
+
         const searchOptions = {
             vector: queryVector,
-            filter: Object.keys(filter).length > 0 ? filter : undefined,
+            filter: Object.keys(sanitizedFilter).length > 0 ? sanitizedFilter : undefined,
             limit: limit,
             score_threshold: threshold,
             with_payload: withPayload,
@@ -45,7 +60,25 @@ export async function vectorSearch(
             params: ef && ef > 0 ? { ef } : undefined
         };
 
+        logger.info(`DEBUG - collection: ${collection}, vectorLen: ${queryVector?.length}, threshold: ${threshold}, limit: ${limit}`);
+        logger.info(`DEBUG - filter: ${JSON.stringify(sanitizedFilter)}`);
+
         const results = await client.search(collection, searchOptions);
+
+        // If no results, try without threshold to see if it's a threshold issue
+        if (results.length === 0) {
+            const noThresholdResults = await client.search(collection, {
+                ...searchOptions,
+                score_threshold: 0.0,
+                limit: 3
+            });
+            if (noThresholdResults.length > 0) {
+                logger.warn(`DEBUG - Found ${noThresholdResults.length} results WITHOUT threshold! Top scores: ${noThresholdResults.map(r => r.score.toFixed(4)).join(', ')}`);
+                logger.warn(`DEBUG - Threshold ${threshold} is filtering out all results!`);
+            } else {
+                logger.warn(`DEBUG - No results even without threshold - possible embedding mismatch or empty collection`);
+            }
+        }
 
         logger.info(`Vector search: ${results.length} results, top score: ${results[0]?.score.toFixed(3) || 'none'}`);
 

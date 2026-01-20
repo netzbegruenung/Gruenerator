@@ -76,6 +76,16 @@ export const NOTEBOOK_CONFIGS = {
                 externalUrl: 'https://www.boell.de',
                 linkType: 'url',
                 locale: 'de-DE'
+            },
+            {
+                id: 'hamburg-system',
+                name: 'Grüne Hamburg',
+                icon: HiDocumentText,
+                description: 'Beschlüsse und Pressemitteilungen',
+                documentCount: 'Archiv',
+                externalUrl: 'https://www.gruene-hamburg.de',
+                linkType: 'url',
+                locale: 'de-DE'
             }
         ],
         startPageTitle: 'Was möchtest du wissen?',
@@ -180,6 +190,37 @@ export const NOTEBOOK_CONFIGS = {
             { title: 'Nationalratswahl-Programm', detail: '112 Seiten' }
         ],
         sources: [{ name: 'Die Grünen Österreich', count: '3 Programme' }],
+        persistMessages: true,
+        useSystemUserId: true,
+        systemUserId: SYSTEM_USER_ID
+    },
+
+    hamburg: {
+        id: 'hamburg',
+        title: 'Frag Grüne Hamburg',
+        authTitle: 'Frag Grüne Hamburg',
+        collectionType: 'single',
+        collections: [
+            {
+                id: 'hamburg-system',
+                name: 'Grüne Hamburg'
+            }
+        ],
+        startPageTitle: 'Was möchtest du über die Grünen Hamburg wissen?',
+        placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Hamburg...',
+        infoPanelDescription: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
+        headerIcon: HiInformationCircle,
+        exampleQuestions: [
+            { icon: '🌍', text: 'Was sagen die Grünen Hamburg zum Klimaschutz?' },
+            { icon: '🚲', text: 'Welche Positionen gibt es zur Mobilitätswende?' },
+            { icon: '🏙️', text: 'Was sind die Beschlüsse zur Stadtentwicklung?' }
+        ],
+        documents: [
+            { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
+            { title: 'Pressemitteilungen', detail: 'Aktuelle Positionen' }
+        ],
+        externalUrl: 'https://www.gruene-hamburg.de',
+        sources: [{ name: 'Grüne Hamburg', count: 'Archiv' }],
         persistMessages: true,
         useSystemUserId: true,
         systemUserId: SYSTEM_USER_ID

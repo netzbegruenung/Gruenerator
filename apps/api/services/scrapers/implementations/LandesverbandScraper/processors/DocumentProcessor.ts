@@ -28,24 +28,30 @@ export class DocumentProcessor {
   /**
    * Process and store document in Qdrant
    * Full pipeline: validate → deduplicate → chunk → embed → store
+   * @param collectionOverride - Optional collection name override (uses default if not provided)
+   * @param maxAgeYears - Optional max age in years (default: 10)
    */
   async processAndStoreDocument(
     source: any,
     contentType: string,
     url: string,
-    content: ExtractedContent
+    content: ExtractedContent,
+    collectionOverride?: string,
+    maxAgeYears?: number
   ): Promise<ProcessResult> {
     const { title, text, publishedAt, categories } = content;
+    const targetCollection = collectionOverride || this.collectionName;
+    const ageLimit = maxAgeYears ?? 10;
 
     // STEP 1: Validation - minimum length check
     if (!text || text.length < 100) {
       return { stored: false, reason: 'too_short' };
     }
 
-    // STEP 2: Age filter - skip content older than 10 years
+    // STEP 2: Age filter - skip content older than configured years
     if (publishedAt) {
       const pubDate = new Date(publishedAt);
-      if (DateExtractor.isDateTooOld(pubDate, 10)) {
+      if (DateExtractor.isDateTooOld(pubDate, ageLimit)) {
         return { stored: false, reason: 'too_old' };
       }
     }
@@ -54,7 +60,7 @@ export class DocumentProcessor {
     const contentHash = this.generateHash(text);
     const existingPoints = await scrollDocuments(
       this.qdrantClient,
-      this.collectionName,
+      targetCollection,
       {
         must: [{ key: 'source_url', match: { value: url } }],
       },
@@ -78,7 +84,7 @@ export class DocumentProcessor {
     if (existing) {
       await batchDelete(
         this.qdrantClient,
-        this.collectionName,
+        targetCollection,
         {
           must: [{ key: 'source_url', match: { value: url } }],
         }
@@ -134,7 +140,7 @@ export class DocumentProcessor {
     const batchSize = this.config.batchSize;
     for (let i = 0; i < points.length; i += batchSize) {
       const batch = points.slice(i, i + batchSize);
-      await batchUpsert(this.qdrantClient, this.collectionName, batch);
+      await batchUpsert(this.qdrantClient, targetCollection, batch);
     }
 
     return {

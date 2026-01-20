@@ -3,11 +3,12 @@ import { FiSend } from 'react-icons/fi';
 import FeatureToggle from '../../FeatureToggle';
 import FeatureIcons from '../../FeatureIcons';
 import SubmitButton from '../../SubmitButton';
+import ExamplePrompts from './ExamplePrompts';
 import useResponsive from '../hooks/useResponsive';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useFormStateSelector } from '../FormStateProvider';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
-import type { FormExtrasSectionProps, FeatureToggle as FeatureToggleType, TabIndexConfig } from '@/types/baseform';
+import type { FormExtrasSectionProps, FeatureToggle as FeatureToggleType, TabIndexConfig, ExamplePrompt } from '@/types/baseform';
 import '../../../../assets/styles/components/ui/FormExtras.css';
 
 import type { AttachedFile } from '../../ContentSelector';
@@ -47,7 +48,10 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
   hide = false,
   attachedFiles = [],
   usePrivacyMode = false,
-  isStartMode = false
+  isStartMode = false,
+  examplePrompts = [],
+  onExamplePromptClick = null,
+  selectedPlatforms = []
 }) => {
   const { isMobileView } = useResponsive();
 
@@ -128,18 +132,26 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                     hideLoginPrompt={true}
                   />
                 )}
+                {examplePrompts.length > 0 && (
+                  <div className="form-extras__examples">
+                    <ExamplePrompts
+                      prompts={examplePrompts}
+                      onPromptClick={onExamplePromptClick}
+                      selectedPlatforms={selectedPlatforms}
+                    />
+                  </div>
+                )}
               </div>
               <div className="form-extras__right">
-                {firstExtrasChildren}
                 {showSubmitButton && (
                   <SubmitButton
                     onClick={(e: React.MouseEvent) => { e.preventDefault(); onSubmit?.(); }}
                     loading={loading}
                     success={success}
                     text={isMultiStep ? (nextButtonText || 'Weiter') : ((submitButtonProps as Record<string, string>)?.defaultText || "Grünerieren")}
-                    icon={isMobileView ? <FiSend /> : null}
-                    iconOnly={isMobileView}
-                    className={`form-extras__submit-button ${isMobileView ? 'btn-icon btn-primary' : 'button-primary'}`}
+                    icon={<FiSend />}
+                    iconOnly={true}
+                    className="form-extras__submit-button btn-icon btn-primary"
                     ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
                     type="submit"
                     tabIndex={submitButtonTabIndex}

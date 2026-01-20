@@ -1,11 +1,18 @@
-import React, { useEffect, Suspense, lazy, useMemo, memo, useCallback } from 'react';
+import React, { useEffect, Suspense, lazy, useMemo, memo, useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import TabSelector from './components/TabSelector';
 import { useTabPersistence } from './hooks/useTabPersistence';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { type TabId } from './types';
+import { useProfileData } from '../../stores/profileStore';
+import { useAuthStore } from '../../stores/authStore';
+import { useOptimizedAuth } from '../../hooks/useAuth';
+import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
+import { type TabId, type UniversalSubType } from './types';
 import './components/TabSelector.css';
+
+// Tabs that are accessible without login (for testing/demo purposes)
+const PUBLIC_TABS: TabId[] = ['presse-social'];
 
 const TexteTab = lazy(() => import('./tabs/TexteTab'));
 const PresseSocialTab = lazy(() => import('./tabs/PresseSocialTab'));
@@ -60,6 +67,24 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
   const navigate = useNavigate();
   const { activeTab, setActiveTab } = useTabPersistence();
   const generatedTexts = useGeneratedTextStore((state) => state.generatedTexts);
+  const profile = useProfileData();
+  const user = useAuthStore((state) => state.user);
+  const [universalSubType, setUniversalSubType] = useState<UniversalSubType>('rede');
+
+  // Auth check for protected tabs
+  const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
+
+  // Show login screen when user is on a protected tab and not authenticated
+  const requiresAuth = !PUBLIC_TABS.includes(activeTab);
+  const showLoginRequired = requiresAuth && !isAuthenticated && !authLoading;
+
+
+  const firstName = useMemo(() => {
+    if (profile?.first_name) return profile.first_name;
+    if (user?.display_name) return user.display_name.split(' ')[0];
+    if (user?.name) return user.name.split(' ')[0];
+    return null;
+  }, [profile?.first_name, user?.display_name, user?.name]);
 
   const hasGeneratedContent = useMemo(() => {
     return Object.values(TAB_COMPONENT_NAMES).some((componentName) => {
@@ -81,6 +106,10 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
     setActiveTab(tab);
   }, [setActiveTab]);
 
+  const handleUniversalSubTypeChange = useCallback((subType: UniversalSubType) => {
+    setUniversalSubType(subType);
+  }, []);
+
   const wrapperClassName = useMemo(
     () => `texte-generator-wrapper ${hasGeneratedContent ? 'has-content' : ''}`,
     [hasGeneratedContent]
@@ -96,23 +125,50 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
       <div className={wrapperClassName}>
         <header className={headerClassName}>
           {!hasGeneratedContent && (
-            <h1 className="texte-generator-title">Was möchtest du heute grünerieren?</h1>
+            <h1 className="texte-generator-title">
+              Was möchtest du heute grünerieren{firstName ? `, ${firstName}` : ''}?
+            </h1>
           )}
           <TabSelector
             activeTab={activeTab}
             onTabChange={handleTabChange}
+            onUniversalSubTypeChange={handleUniversalSubTypeChange}
+            isAuthenticated={isAuthenticated}
           />
         </header>
         <div className="texte-generator-content">
-          <Suspense fallback={<LoadingFallback />}>
-            <TexteTab isActive={activeTab === 'texte'} />
-            <PresseSocialTab isActive={activeTab === 'presse-social'} />
-            <AntragTab isActive={activeTab === 'antrag'} />
-            <UniversalTab isActive={activeTab === 'universal'} />
-            <BarrierefreiheitTab isActive={activeTab === 'barrierefreiheit'} />
-            <TextEditorTab isActive={activeTab === 'texteditor'} />
-            <EigeneTab isActive={activeTab === 'eigene'} />
-          </Suspense>
+          {showLoginRequired ? (
+            <LoginRequired
+              variant="fullpage"
+              title="Anmeldung erforderlich"
+              message="Melde dich an, um diese Funktion zu nutzen. Der Presse & Social Tab ist auch ohne Anmeldung verfügbar."
+              onClose={() => setActiveTab('presse-social')}
+            />
+          ) : (
+            <Suspense fallback={<LoadingFallback />}>
+              <div className="tab-panel" data-active={activeTab === 'texte'}>
+                <TexteTab isActive={activeTab === 'texte'} />
+              </div>
+              <div className="tab-panel" data-active={activeTab === 'presse-social'}>
+                <PresseSocialTab isActive={activeTab === 'presse-social'} />
+              </div>
+              <div className="tab-panel" data-active={activeTab === 'antrag'}>
+                <AntragTab isActive={activeTab === 'antrag'} />
+              </div>
+              <div className="tab-panel" data-active={activeTab === 'universal'}>
+                <UniversalTab isActive={activeTab === 'universal'} selectedType={universalSubType} />
+              </div>
+              <div className="tab-panel" data-active={activeTab === 'barrierefreiheit'}>
+                <BarrierefreiheitTab isActive={activeTab === 'barrierefreiheit'} />
+              </div>
+              <div className="tab-panel" data-active={activeTab === 'texteditor'}>
+                <TextEditorTab isActive={activeTab === 'texteditor'} />
+              </div>
+              <div className="tab-panel" data-active={activeTab === 'eigene'}>
+                <EigeneTab isActive={activeTab === 'eigene'} />
+              </div>
+            </Suspense>
+          )}
         </div>
       </div>
     </ErrorBoundary>

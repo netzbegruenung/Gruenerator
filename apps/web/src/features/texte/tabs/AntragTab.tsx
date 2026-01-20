@@ -465,8 +465,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     </>
   ), [renderRequestTypeSection, usePlanMode, handlePlanModeToggle, isPlanModeActive]);
 
-  if (!isActive) return null;
-
   return (
     <BaseForm
       {...form.generator?.baseFormProps}

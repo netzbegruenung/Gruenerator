@@ -227,15 +227,6 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
           </div>
         )}
 
-        {/* Example Prompts / Platform Tags - shown between description and card in start mode */}
-        {isStartMode && examplePrompts.length > 0 && (
-          <ExamplePrompts
-            prompts={examplePrompts}
-            onPromptClick={onExamplePromptClick}
-            selectedPlatforms={selectedPlatforms}
-          />
-        )}
-
         <FormCard
           className={useEditMode ? 'form-card--editmode' : ''}
           variant="elevated"
@@ -336,6 +327,9 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
                   attachedFiles={attachedFiles}
                   usePrivacyMode={usePrivacyMode}
                   isStartMode={isStartMode}
+                  examplePrompts={isStartMode ? examplePrompts : []}
+                  onExamplePromptClick={onExamplePromptClick}
+                  selectedPlatforms={selectedPlatforms}
                 >
                   {extrasChildren}
                 </FormExtrasSection>

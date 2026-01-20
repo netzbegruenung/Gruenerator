@@ -206,6 +206,69 @@ class RequestEnricher {
   }
 
   /**
+   * Generate a fast preliminary answer using a quick model
+   * Used to provide initial context/draft for the main generation
+   * Runs in parallel with other enrichments (no context dependencies)
+   * @param {Object} requestData - Original request data
+   * @param {Partial<EnrichmentOptions>} options - Enrichment options
+   * @returns {Object|null} { preAnswer: string, timeMs: number } or null if disabled/failed
+   */
+  async generateNotebookEnrich(
+    requestData: any,
+    options: Partial<EnrichmentOptions>
+  ): Promise<{ preAnswer: string; timeMs: number } | null> {
+    if (!options.enableNotebookEnrich || !options.aiWorkerPool) {
+      return null;
+    }
+
+    const startTime = Date.now();
+
+    // Build minimal context from request
+    const theme = requestData.thema || requestData.theme || requestData.details || requestData.inhalt || '';
+    const platforms = requestData.platforms?.join(', ') || '';
+    const requestType = requestData.requestType || options.type || '';
+
+    if (!theme.trim()) {
+      console.log('🎯 [NotebookEnrich] Skipped: no theme/content found in request');
+      return null;
+    }
+
+    const systemPrompt = `Du bist ein schneller Entwurfsassistent. Erstelle eine kurze, prägnante Vorlage als Ausgangspunkt für einen längeren Text. Fokussiere dich auf die Kernaussage und Struktur.`;
+
+    const userPrompt = options.notebookEnrichPrompt ||
+      `Thema: ${theme}\n${platforms ? `Plattformen: ${platforms}\n` : ''}${requestType ? `Texttyp: ${requestType}\n` : ''}Erstelle einen kurzen Entwurf (max 200 Wörter) als Grundlage für eine ausführlichere Ausarbeitung.`;
+
+    try {
+      console.log(`🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`);
+
+      const result = await options.aiWorkerPool.processRequest({
+        type: 'notebook_enrich',
+        messages: [{ role: 'user', content: userPrompt }],
+        systemPrompt,
+        options: { max_tokens: 500, temperature: 0.4, top_p: 0.9 }
+      });
+
+      const content = result.content || '';
+      if (!content || content.length < 20) {
+        console.log('🎯 [NotebookEnrich] Result too short or empty, skipping');
+        return null;
+      }
+
+      const timeMs = Date.now() - startTime;
+      console.log(`🎯 [NotebookEnrich] Generated (${timeMs}ms, ${content.length} chars)`);
+
+      return {
+        preAnswer: content,
+        timeMs
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[NotebookEnrich] Failed:', errorMessage);
+      return null;
+    }
+  }
+
+  /**
    * Main enrichment method that orchestrates all content enrichment
    * @param {Object} requestBody - Original request from route
    * @param {Object} options - Enrichment options
@@ -233,7 +296,10 @@ class RequestEnricher {
       selectedDocumentIds = [],
       selectedTextIds = [],
       searchQuery = null,
-      useAutomaticSearch = false
+      useAutomaticSearch = false,
+      // Fast mode pre-answer options
+      enableNotebookEnrich = false,
+      notebookEnrichPrompt = undefined
     } = options;
 
     // Extract user locale for localization
@@ -373,6 +439,23 @@ class RequestEnricher {
       console.log('🎯 [RequestEnricher] Automatic search skipped: manual selections take priority');
     }
 
+    // Fast mode pre-answer (if enabled) - generates quick preliminary draft
+    // Runs in parallel with other enrichments since it doesn't need their context
+    if (enableNotebookEnrich && !usePrivacyMode) {
+      enrichmentTasks.push(
+        this.generateNotebookEnrich(requestBody, options)
+          .then(result => ({
+            type: 'notebook_enrich',
+            preAnswer: result?.preAnswer || null,
+            timeMs: result?.timeMs || 0
+          }))
+          .catch(error => {
+            console.log('🎯 [RequestEnricher] Fast pre-answer failed:', error.message);
+            return { type: 'notebook_enrich', preAnswer: null, timeMs: 0 };
+          })
+      );
+    }
+
     // Execute all enrichment tasks in parallel
     let enrichmentResults = [];
     if (enrichmentTasks.length > 0) {
@@ -387,6 +470,7 @@ class RequestEnricher {
     let totalDocuments = 0;
     let webSearchSources = null;
     let autoSearchMetadata = null;
+    let notebookEnrichMetadata: { preAnswer: string; timeMs: number } | null = null;
     let allDocumentReferences: import('./types/requestEnrichment.js').DocumentReference[] = [];
     let allTextReferences: import('./types/requestEnrichment.js').TextReference[] = [];
 
@@ -434,6 +518,17 @@ class RequestEnricher {
             console.log(`   - Auto-selected: ${autoSearchMetadata.autoSelectedDocuments.map(d => d.title).join(', ')}`);
           }
         }
+      } else if (result.type === 'notebook_enrich') {
+        if (result.preAnswer) {
+          // Inject fast pre-answer as first knowledge entry (before other context)
+          state.knowledge.unshift(`<vorarbeit>\nSCHNELLER VORENTWURF:\n${result.preAnswer}\n</vorarbeit>`);
+          notebookEnrichMetadata = {
+            preAnswer: result.preAnswer,
+            timeMs: result.timeMs
+          };
+          console.log(`🎯 [RequestEnricher] Added fast pre-answer (${result.timeMs}ms, ${result.preAnswer.length} chars)`);
+          state.toolInstructions.push('Hinweis: Ein schneller Vorentwurf wurde als Ausgangspunkt bereitgestellt. Du kannst diesen verfeinern, erweitern oder komplett neu formulieren.');
+        }
       }
     }
 
@@ -446,7 +541,10 @@ class RequestEnricher {
       autoSearchUsed: useAutomaticSearch && autoSearchMetadata !== null,
       autoSelectedDocuments: autoSearchMetadata?.autoSelectedDocuments || [],
       documentsReferences: allDocumentReferences.length > 0 ? allDocumentReferences : undefined,
-      textsReferences: allTextReferences.length > 0 ? allTextReferences : undefined
+      textsReferences: allTextReferences.length > 0 ? allTextReferences : undefined,
+      notebookEnrichUsed: !!notebookEnrichMetadata,
+      notebookEnrichLength: notebookEnrichMetadata?.preAnswer?.length || 0,
+      notebookEnrichTimeMs: notebookEnrichMetadata?.timeMs || 0
     };
 
     console.log(`🎯 [RequestEnricher] Enrichment complete (documents=${state.documents.length}, knowledge=${state.knowledge.length})`);

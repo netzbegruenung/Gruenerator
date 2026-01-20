@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { Tooltip } from 'react-tooltip';
+import React, { useEffect, useRef, useState, useCallback, useMemo, ReactNode, lazy, Suspense } from 'react';
 import type {
   BaseFormProps,
   FeatureToggle,
@@ -38,6 +37,7 @@ import '../../../../assets/styles/components/baseform/form-toggle-fab.css';
 import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
 import '../../../../assets/styles/components/help-tooltip.css';
 import '../../../../assets/styles/pages/baseform.css';
+import '../../../../assets/styles/components/baseform/start-page.css';
 
 // Importiere die Komponenten
 import FormSection from './FormSection';
@@ -64,6 +64,9 @@ import { FormToggleButtonFAB } from './FormToggleButtonFAB';
 import { useTextAutoSave } from '../../../../hooks/useTextAutoSave';
 import RecentTextsSection from '../../RecentTexts/RecentTextsSection';
 import { getDocumentType } from '../../../../utils/documentTypeMapper';
+
+// Lazy load react-tooltip (only used on desktop, ~15KB)
+const Tooltip = lazy(() => import('react-tooltip').then(mod => ({ default: mod.Tooltip })));
 
 /**
  * Internal BaseForm component that uses the FormStateProvider context
@@ -660,15 +663,16 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         )}
 
         {!isMobileView && (
-          <Tooltip id="action-tooltip" place="bottom" />
+          <Suspense fallback={null}>
+            <Tooltip id="action-tooltip" place="bottom" />
+          </Suspense>
         )}
       </motion.div>
 
-      {/* Recent texts section - below entire BaseForm container */}
-      {!isStartMode && (
+      {/* Recent texts section - only for TexteTab (useStartPageLayout), renders in any mode */}
+      {useStartPageLayout && (
         <RecentTextsSection
           generatorType={getDocumentType(componentName)}
-          componentName={componentName}
           onTextLoad={handleLoadRecentText}
         />
       )}

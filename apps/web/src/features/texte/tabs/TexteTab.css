@@ -4,16 +4,3 @@
   flex-direction: column;
   align-items: center;
 }
-
-.texte-tab-prompt-section {
-  width: 100%;
-  max-width: 700px;
-  margin: 0 auto;
-  padding: var(--spacing-large) var(--spacing-medium);
-}
-
-@media (max-width: 640px) {
-  .texte-tab-prompt-section {
-    padding: var(--spacing-medium) var(--spacing-small);
-  }
-}

@@ -1,6 +1,7 @@
 import type { JSX, ComponentType } from 'react';
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 import type { IconType } from 'react-icons';
+import type { BadgeType } from '../../common/StatusBadge';
 
 // Beta features interface
 export interface BetaFeatures {
@@ -9,7 +10,6 @@ export interface BetaFeatures {
   chatBetaEnabled?: boolean;
   igelModeEnabled?: boolean;
   websiteBetaEnabled?: boolean;
-  notebookBetaEnabled?: boolean;
   isAustrian?: boolean;
 }
 
@@ -22,6 +22,7 @@ export interface MenuItemType {
   icon?: IconType | ComponentType | null;
   hasSubmenu?: boolean;
   items?: MenuItemType[];
+  badge?: BadgeType;
 }
 
 // Menu section type definition
@@ -70,7 +71,8 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       path: '/image-studio',
       title: 'Bilder',
       description: 'Sharepics & KI-Bildgenerierung',
-      icon: getIcon('navigation', 'sharepic')
+      icon: getIcon('navigation', 'sharepic'),
+      badge: 'early-access'
     },
     suche: {
       id: 'suche',
@@ -78,6 +80,21 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       title: 'Suche',
       description: 'Webrecherche für aktuelle Informationen',
       icon: getIcon('navigation', 'suche')
+    },
+    notebooks: {
+      id: 'notebooks',
+      path: '/notebooks',
+      title: 'Notebooks',
+      description: 'Wissenssammlungen durchsuchen',
+      icon: getIcon('ui', 'notebook'),
+      badge: 'early-access'
+    },
+    datenbank: {
+      id: 'datenbank',
+      path: '/datenbank',
+      title: 'Datenbank',
+      description: 'Vorlagen, Prompts und Anträge',
+      icon: getIcon('navigation', 'datenbank')
     }
   };
 
@@ -89,17 +106,6 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       title: 'Chat',
       description: 'KI-Assistent für alle Textarten',
       icon: getIcon('ui', 'assistant')
-    };
-  }
-
-  // Add notebooks if beta feature is enabled
-  if (betaFeatures.notebookBetaEnabled) {
-    items.notebooks = {
-      id: 'notebooks',
-      path: '/notebooks',
-      title: 'Notebooks',
-      description: 'Wissenssammlungen durchsuchen',
-      icon: getIcon('ui', 'notebook')
     };
   }
 

@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useRef, useEffect, lazy } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from "motion/react";
-const ReactMarkdown = lazy(() => import('react-markdown'));
+import { Markdown } from '../../../components/common/Markdown';
 import {
   HiDocumentText,
   HiCollection,
@@ -636,9 +636,7 @@ const SharedContentSelector = ({
                 </div>
               ) : selectedItem.markdown_content ? (
                 <div className="markdown-content">
-                  <ReactMarkdown>
-                    {selectedItem.markdown_content}
-                  </ReactMarkdown>
+                  <Markdown>{selectedItem.markdown_content}</Markdown>
                 </div>
               ) : (
                 <div className="document-preview-plain-text">

@@ -36,7 +36,7 @@ import {
   getSearchParams,
   buildSubcategoryFilter
 } from '../../config/systemCollectionsConfig.js';
-import { buildDraftPromptGrundsatz, buildDraftPromptGeneral } from '../../agents/langgraph/prompts.js';
+import { buildDraftPromptGrundsatz, buildDraftPromptGeneral, buildFastModePrompt } from '../../agents/langgraph/prompts.js';
 import { createLogger } from '../../utils/logger.js';
 import type {
   QAMultiCollectionParams,
@@ -63,7 +63,7 @@ export class NotebookQAService {
    * @param params - Multi-collection query parameters
    * @returns QA response with answer, citations, sources
    */
-  async askMultiCollection({ question, collectionIds, requestFilters, aiWorkerPool }: QAMultiCollectionParams): Promise<QAResponse> {
+  async askMultiCollection({ question, collectionIds, requestFilters, aiWorkerPool, fastMode }: QAMultiCollectionParams): Promise<QAResponse> {
     const startTime = Date.now();
     const trimmedQuestion = (question || '').trim();
 
@@ -107,7 +107,21 @@ export class NotebookQAService {
         sources: [],
         allSources: [],
         sourcesByCollection: {},
-        metadata: this._buildMetadata(startTime, effectiveCollectionIds, documentScope, effectiveFilters, 0, 0)
+        metadata: this._buildMetadata(startTime, effectiveCollectionIds, documentScope, effectiveFilters, 0, 0, fastMode)
+      };
+    }
+
+    // Fast mode: skip citation processing entirely
+    if (fastMode) {
+      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sortedResults, aiWorkerPool);
+      return {
+        success: true,
+        answer: fastAnswer,
+        citations: [],
+        sources: [],
+        allSources: [],
+        sourcesByCollection: {},
+        metadata: this._buildMetadata(startTime, effectiveCollectionIds, documentScope, effectiveFilters, sortedResults.length, 0, fastMode)
       };
     }
 
@@ -134,7 +148,7 @@ export class NotebookQAService {
       sources,
       allSources: sortedResults.slice(citations.length, citations.length + 10),
       sourcesByCollection,
-      metadata: this._buildMetadata(startTime, effectiveCollectionIds, documentScope, effectiveFilters, sortedResults.length, citations.length)
+      metadata: this._buildMetadata(startTime, effectiveCollectionIds, documentScope, effectiveFilters, sortedResults.length, citations.length, fastMode)
     };
   }
 
@@ -143,7 +157,7 @@ export class NotebookQAService {
    * @param params - Single collection query parameters
    * @returns QA response
    */
-  async askSingleCollection({ collectionId, question, userId, requestFilters, aiWorkerPool, getCollectionFn, getDocumentIdsFn }: QASingleCollectionParams): Promise<QAResponse> {
+  async askSingleCollection({ collectionId, question, userId, requestFilters, aiWorkerPool, getCollectionFn, getDocumentIdsFn, fastMode }: QASingleCollectionParams): Promise<QAResponse> {
     const startTime = Date.now();
     const trimmedQuestion = (question || '').trim();
 
@@ -151,8 +165,8 @@ export class NotebookQAService {
       throw new Error('Question is required');
     }
 
-    // Try enriched person search for bundestagsfraktion collection
-    if (collectionId === 'bundestagsfraktion-system') {
+    // Try enriched person search for bundestagsfraktion collection (skip in fast mode)
+    if (collectionId === 'bundestagsfraktion-system' && !fastMode) {
       const personResult = await this._tryEnrichedPersonSearch(trimmedQuestion, aiWorkerPool, startTime);
       if (personResult) {
         const extractedName = 'extractedName' in personResult.metadata ? personResult.metadata.extractedName : 'unknown';
@@ -220,7 +234,20 @@ export class NotebookQAService {
         citations: [],
         sources: [],
         allSources: [],
-        metadata: this._buildSingleMetadata(startTime, collectionId, collection.name, effectiveFilters, 0, 0)
+        metadata: this._buildSingleMetadata(startTime, collectionId, collection.name, effectiveFilters, 0, 0, fastMode)
+      };
+    }
+
+    // Fast mode: skip citation processing entirely
+    if (fastMode) {
+      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sorted, aiWorkerPool);
+      return {
+        success: true,
+        answer: fastAnswer,
+        citations: [],
+        sources: [],
+        allSources: [],
+        metadata: this._buildSingleMetadata(startTime, collectionId, collection.name, effectiveFilters, sorted.length, 0, fastMode)
       };
     }
 
@@ -241,7 +268,7 @@ export class NotebookQAService {
       citations,
       sources,
       allSources,
-      metadata: this._buildSingleMetadata(startTime, collectionId, collection.name, effectiveFilters, sorted.length, citations.length)
+      metadata: this._buildSingleMetadata(startTime, collectionId, collection.name, effectiveFilters, sorted.length, citations.length, fastMode)
     };
   }
 
@@ -340,9 +367,35 @@ export class NotebookQAService {
   }
 
   /**
+   * Generate fast mode draft without citations
+   * Uses simpler prompt and faster model
+   */
+  private async _generateFastDraft(question: string, results: ExpandedChunkResult[], aiWorkerPool: any): Promise<string> {
+    const context = results.slice(0, 15).map(r => {
+      const snippet = r.snippet.slice(0, 300).replace(/\s+/g, ' ').trim();
+      const collectionTag = r.collection_name ? `[${r.collection_name}] ` : '';
+      return `${collectionTag}${r.title}: "${snippet}"`;
+    }).join('\n\n');
+
+    const { system: systemPrompt } = buildFastModePrompt();
+    const userPrompt = `Frage: ${question}\n\nKontext:\n${context}`;
+
+    const aiResult = await aiWorkerPool.processRequest({
+      type: 'qa_draft_fast',
+      messages: [{ role: 'user', content: userPrompt }],
+      systemPrompt,
+      options: { max_tokens: 2000, temperature: 0.3, top_p: 0.9 }
+    });
+
+    return aiResult.content || (Array.isArray(aiResult.raw_content_blocks)
+      ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
+      : '');
+  }
+
+  /**
    * Build metadata for multi-collection response
    */
-  private _buildMetadata(startTime: number, collectionIds: string[], documentScope: DocumentScope, filters: RequestFilters, totalResults: number, citationsCount: number): MultiCollectionMetadata {
+  private _buildMetadata(startTime: number, collectionIds: string[], documentScope: DocumentScope, filters: RequestFilters, totalResults: number, citationsCount: number, fastMode?: boolean): MultiCollectionMetadata {
     return {
       response_time_ms: Date.now() - startTime,
       collections_queried: collectionIds,
@@ -350,21 +403,23 @@ export class NotebookQAService {
       document_title_filter: documentScope.documentTitleFilter || null,
       subcategory_filters_applied: Object.keys(filters).length > 0 ? filters : null,
       total_results: totalResults,
-      citations_count: citationsCount
+      citations_count: citationsCount,
+      fast_mode: fastMode || false
     };
   }
 
   /**
    * Build metadata for single collection response
    */
-  private _buildSingleMetadata(startTime: number, collectionId: string, collectionName: string, filters: RequestFilters, totalResults: number, citationsCount: number): SingleCollectionMetadata {
+  private _buildSingleMetadata(startTime: number, collectionId: string, collectionName: string, filters: RequestFilters, totalResults: number, citationsCount: number, fastMode?: boolean): SingleCollectionMetadata {
     return {
       collection_id: collectionId,
       collection_name: collectionName,
       response_time_ms: Date.now() - startTime,
       sources_count: totalResults,
       citations_count: citationsCount,
-      subcategory_filters_applied: Object.keys(filters).length > 0 ? filters : null
+      subcategory_filters_applied: Object.keys(filters).length > 0 ? filters : null,
+      fast_mode: fastMode || false
     };
   }
 

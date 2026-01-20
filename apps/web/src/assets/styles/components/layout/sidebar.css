@@ -156,6 +156,17 @@
   transform: translateX(0);
 }
 
+/* Status Badge - Hidden when collapsed, shown on expand */
+.sidebar-menu-link .status-badge {
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar--open .sidebar-menu-link .status-badge {
+  opacity: 1;
+}
+
 /* Section Headers */
 .sidebar-section {
   margin-bottom: var(--spacing-xsmall);
@@ -421,6 +432,96 @@
   }
 
   .sidebar-menu-link {
-    padding: var(--spacing-small) var(--spacing-medium);
+    padding-left: 6px;
   }
+}
+
+/* Desktop App Sidebar Adjustments */
+.sidebar--desktop {
+  top: 48px;
+  height: calc(100vh - 48px);
+  background-color: var(--bar-background);
+  width: 64px;
+}
+
+.sidebar--desktop.sidebar--open {
+  width: 220px;
+}
+
+.sidebar--desktop .sidebar-nav {
+  padding-top: 12px;
+}
+
+/* Logo button - desktop only */
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  width: 100%;
+  border-bottom: var(--border-subtle);
+}
+
+.sidebar-logo:hover {
+  background-color: var(--hover-color-alt);
+}
+
+.sidebar-logo-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.sidebar-logo-text {
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  color: var(--primary-600);
+}
+
+/* Active state for menu links */
+.sidebar-menu-link--active {
+  background-color: var(--primary-100);
+  color: var(--primary-700);
+}
+
+[data-theme="dark"] .sidebar-menu-link--active {
+  background-color: var(--primary-950);
+  color: var(--primary-200);
+}
+
+/* Static section title for desktop (no accordion) */
+.sidebar-section-title-static {
+  display: block;
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--grey-500);
+  white-space: nowrap;
+}
+
+/* Static section content (always visible in desktop) */
+.sidebar-section-content--static {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Desktop sidebar text visibility */
+.sidebar--desktop .sidebar-item-title {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+
+.sidebar--desktop.sidebar--open .sidebar-item-title {
+  opacity: 1;
+  transform: translateX(0);
 }

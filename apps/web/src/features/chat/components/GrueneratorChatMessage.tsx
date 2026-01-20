@@ -1,16 +1,15 @@
-import React, { lazy, Suspense, useMemo, memo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { motion } from 'motion/react';
 import ActionButtons from '../../../components/common/ActionButtons';
 import ImageDisplay, { type SharepicDataItem } from '../../../components/common/ImageDisplay';
 import AssistantAvatar from '../../../components/common/Chat/AssistantAvatar';
+import { Markdown } from '../../../components/common/Markdown';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
-import { MESSAGE_MOTION_PROPS, MARKDOWN_COMPONENTS } from '../../../components/common/Chat/utils/chatMessageUtils';
+import { MESSAGE_MOTION_PROPS } from '../../../components/common/Chat/utils/chatMessageUtils';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import '../../../assets/styles/components/chat/gruenerator-message.css';
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
 
 interface ProfileData {
   avatar_robot_id?: number | string;
@@ -100,11 +99,7 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
               />
             </div>
           )}
-          <Suspense fallback={<span>{displayText}</span>}>
-            <ReactMarkdown components={MARKDOWN_COMPONENTS}>
-              {displayText}
-            </ReactMarkdown>
-          </Suspense>
+          <Markdown fallback={<span>{displayText}</span>}>{displayText}</Markdown>
           <ActionButtons
             generatedContent={displayText}
             showEditMode={true}
@@ -118,11 +113,7 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
         </div>
       ) : (
         <div className="chat-message-content">
-          <Suspense fallback={<span>{msg.content}</span>}>
-            <ReactMarkdown components={MARKDOWN_COMPONENTS}>
-              {msg.content}
-            </ReactMarkdown>
-          </Suspense>
+          <Markdown fallback={<span>{msg.content}</span>}>{msg.content}</Markdown>
         </div>
       )}
     </motion.div>

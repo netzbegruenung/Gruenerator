@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { debounce } from 'lodash-es';
+import debounce from 'lodash/debounce';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useAutoSaveStore } from './useAutoSaveStore';
 import { useShareStore } from '@gruenerator/shared/share';

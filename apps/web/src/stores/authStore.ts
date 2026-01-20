@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { fetchWithDedup } from '../utils/requestDeduplication';
-import { setLocale } from '../i18n';
 import { isDesktopApp } from '../utils/platform';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import apiClient from '../components/utils/apiClient';
@@ -259,9 +258,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setAuthState: (data: AuthStateData) => {
     const userLocale: SupportedLocale = (data.user?.locale as SupportedLocale) || 'de-DE';
 
-    // Update i18n language when user authenticates
-    setLocale(userLocale);
-
     set({
       user: data.user,
       isAuthenticated: data.isAuthenticated,
@@ -319,9 +315,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       supabaseSession: null,
       _supabaseAuthCleanup: null,
     });
-
-    // Reset i18n to default German when logging out
-    setLocale('de-DE');
   },
 
   // Supabase session management
@@ -709,7 +702,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // Deprecated method
   },
 
-  // Locale management
+  // Locale management (for backend communication - AI prompts, subtitler, etc.)
   updateLocale: async (newLocale: SupportedLocale): Promise<boolean> => {
     // Validate locale
     if (!['de-DE', 'de-AT'].includes(newLocale)) {
@@ -723,9 +716,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (state.isAuthenticated) {
         await apiClient.put('/auth/locale', { locale: newLocale });
       }
-
-      // Update i18n
-      setLocale(newLocale);
 
       // Update store
       set({ locale: newLocale });

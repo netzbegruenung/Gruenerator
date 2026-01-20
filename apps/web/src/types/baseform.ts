@@ -374,6 +374,9 @@ export interface FormExtrasSectionProps {
   documentSelectorTabIndex?: number;
   showProfileSelector?: boolean;
   enableKnowledgeSelector?: boolean;
+  examplePrompts?: ExamplePrompt[];
+  onExamplePromptClick?: ((prompt: ExamplePrompt) => void) | null;
+  selectedPlatforms?: string[];
 }
 
 // =============================================================================

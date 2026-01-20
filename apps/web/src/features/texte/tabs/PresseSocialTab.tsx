@@ -641,8 +641,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     ]
   }), []);
 
-  if (!isActive) return null;
-
   return (
     <>
       <BaseForm

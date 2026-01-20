@@ -73,6 +73,7 @@ export async function correctionNode(state: PlanWorkflowState): Promise<Correcti
 
     const promptContext = {
       systemRole: promptConfigData.systemPrompt,
+      taskInstructions: promptConfigData.generationPrompt,
       request: {
         inhalt: input.inhalt,
         gliederung: input.gliederung,

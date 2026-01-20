@@ -143,7 +143,7 @@ export async function findSimilarChunks(
     qdrantAvailable: boolean,
     params: FindSimilarChunksParams
 ): Promise<DocumentTransformedChunk[]> {
-    const { embedding, userId, filters, limit, threshold, query, qualityMin } = params;
+    const { embedding, userId, filters, limit, threshold, query } = params;
 
     if (!qdrantAvailable || !qdrantOps) {
         console.warn('[SearchOperations] Skipping vector search: Qdrant unavailable');
@@ -152,6 +152,8 @@ export async function findSimilarChunks(
 
     const searchCollection = filters.searchCollection || 'documents';
     console.log(`[SearchOperations] Vector searching collection: ${searchCollection}`);
+    console.log(`[SearchOperations] DEBUG - embedding length: ${embedding?.length}, threshold: ${threshold}, limit: ${limit}`);
+    console.log(`[SearchOperations] DEBUG - userId: ${userId}, filters:`, JSON.stringify(filters, null, 2));
 
     const filter: QdrantFilter = { must: [] };
 
@@ -184,9 +186,12 @@ export async function findSimilarChunks(
         filter.must!.push(...filters.additionalFilter.must);
     }
 
-    if (typeof qualityMin === 'number') {
-        filter.must!.push({ key: 'quality_score', range: { gte: qualityMin } });
-    }
+    // Note: quality_score filter is NOT applied here because most system collections
+    // were indexed without this field. Quality filtering is handled post-search
+    // in searchWithQuality() which gracefully handles missing quality_score values.
+    // If collections are re-indexed with quality_score, this can be re-enabled.
+
+    console.log(`[SearchOperations] DEBUG - Final filter:`, JSON.stringify(filter, null, 2));
 
     let results: QdrantSearchResult[];
     try {
@@ -345,8 +350,7 @@ export async function searchBundestagContent(
         const {
             section = null,
             limit = 10,
-            threshold = 0.3,
-            hybridMode = true
+            threshold = 0.3
         } = options;
 
         const queryVector = await mistralEmbeddingService.generateEmbedding(query);

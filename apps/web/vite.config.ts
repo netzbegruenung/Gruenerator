@@ -124,7 +124,6 @@ export default defineConfig(({ command }) => ({
 
           // NEW: Additional vendor chunks for better code splitting
           'shared-vendor': ['@gruenerator/shared'],
-          'i18n-vendor': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
           'canvas-vendor': ['konva', 'react-konva', 'use-image'],
           'ai-vendor': ['onnxruntime-web', '@imgly/background-removal'],
           'editor-vendor': ['@mdxeditor/editor', 'marked', 'react-markdown']

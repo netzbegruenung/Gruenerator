@@ -65,6 +65,7 @@ interface FeatureState {
   useUltraMode: boolean;
   useAutomaticSearch: boolean;
   useBedrock: boolean;
+  useNotebookEnrich: boolean;
 }
 
 // Selected IDs
@@ -95,6 +96,7 @@ interface GeneratorSelectionState {
   useProMode: boolean;
   useUltraMode: boolean;
   useAutomaticSearch: boolean;
+  useNotebookEnrich: boolean;
 }
 
 // Store actions interface
@@ -129,6 +131,8 @@ interface GeneratorSelectionActions {
   toggleUltraMode: () => void;
   setAutomaticSearch: (enabled: boolean) => void;
   toggleAutomaticSearch: () => void;
+  setNotebookEnrich: (enabled: boolean) => void;
+  toggleNotebookEnrich: () => void;
   getFeatureState: () => FeatureState;
   resetFeatures: () => void;
   reset: () => void;
@@ -170,6 +174,7 @@ const initialState: GeneratorSelectionState = {
   useProMode: false,
   useUltraMode: false,
   useAutomaticSearch: false,
+  useNotebookEnrich: false,
 };
 
 /**
@@ -204,6 +209,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       state.useProMode = false;
       state.useUltraMode = false;
       state.useAutomaticSearch = false;
+      state.useNotebookEnrich = false;
     }),
 
     setInstructions: (instructions) => set((state) => {
@@ -357,6 +363,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
           state.usePrivacyMode = false;
           state.useProMode = false;
           state.useUltraMode = false;
+          state.useNotebookEnrich = false;
 
           if (modeToApply === 'ultra') {
             state.useUltraMode = true;
@@ -444,6 +451,14 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       });
     },
 
+    setNotebookEnrich: (enabled) => set((state) => {
+      state.useNotebookEnrich = enabled;
+    }),
+
+    toggleNotebookEnrich: () => set((state) => {
+      state.useNotebookEnrich = !state.useNotebookEnrich;
+    }),
+
     getFeatureState: () => {
       const state = get();
       return {
@@ -453,6 +468,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         useUltraMode: state.useUltraMode,
         useAutomaticSearch: state.useAutomaticSearch,
         useBedrock: state.useUltraMode,
+        useNotebookEnrich: state.useNotebookEnrich,
       };
     },
 
@@ -462,6 +478,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       state.useProMode = false;
       state.useUltraMode = false;
       state.useAutomaticSearch = false;
+      state.useNotebookEnrich = false;
     }),
 
     reset: () => {

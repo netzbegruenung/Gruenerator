@@ -133,7 +133,7 @@ router.get('/collections/:id/filters', async (req: Request, res: Response) => {
  */
 router.post('/multi/ask', requireAuth, async (req: NotebookRequest, res: Response) => {
     try {
-        const { question, collectionIds, filters } = req.body as AskQuestionBody;
+        const { question, collectionIds, filters, fastMode } = req.body as AskQuestionBody;
 
         if (!question || !question.trim()) {
             return res.status(400).json({ error: 'Question is required' });
@@ -143,7 +143,8 @@ router.post('/multi/ask', requireAuth, async (req: NotebookRequest, res: Respons
             question,
             collectionIds: collectionIds || getDefaultMultiCollectionIds(),
             requestFilters: filters,
-            aiWorkerPool: req.app.locals.aiWorkerPool
+            aiWorkerPool: req.app.locals.aiWorkerPool,
+            fastMode: fastMode || false
         });
 
         res.json(result);
@@ -168,7 +169,7 @@ router.post('/:id/ask', requireAuth, async (req: NotebookRequest, res: Response)
     try {
         const userId = req.user!.id;
         const collectionId = req.params.id;
-        const { question, filters } = req.body as AskQuestionBody;
+        const { question, filters, fastMode } = req.body as AskQuestionBody;
 
         if (!question || !question.trim()) {
             return res.status(400).json({ error: 'Question is required' });
@@ -188,7 +189,8 @@ router.post('/:id/ask', requireAuth, async (req: NotebookRequest, res: Response)
             getDocumentIdsFn: async (id: string) => {
                 const docs = await notebookHelper.getCollectionDocuments(id);
                 return docs.map(d => d.document_id);
-            }
+            },
+            fastMode: fastMode || false
         });
 
         try {
@@ -264,7 +266,7 @@ router.post('/public/:token/ask', async (req: Request, res: Response) => {
 
     try {
         const accessToken = req.params.token;
-        const { question, filters } = req.body as AskQuestionBody;
+        const { question, filters, fastMode } = req.body as AskQuestionBody;
 
         if (!question || !question.trim()) {
             return res.status(400).json({ error: 'Question is required' });
@@ -300,7 +302,8 @@ router.post('/public/:token/ask', async (req: Request, res: Response) => {
             getDocumentIdsFn: async (id: string) => {
                 const docs = await notebookHelper.getCollectionDocuments(id);
                 return docs.map(d => d.document_id);
-            }
+            },
+            fastMode: fastMode || false
         });
 
         try {

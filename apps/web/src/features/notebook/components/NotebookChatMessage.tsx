@@ -1,22 +1,15 @@
-import React, { lazy, Suspense, memo, useMemo, useCallback } from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { HiChip } from 'react-icons/hi';
 import { FaFileWord } from 'react-icons/fa';
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
 import ActionButtons from '../../../components/common/ActionButtons';
-import { MESSAGE_MOTION_PROPS, MARKDOWN_COMPONENTS } from '../../../components/common/Chat/utils/chatMessageUtils';
+import { Markdown } from '../../../components/common/Markdown';
+import { MESSAGE_MOTION_PROPS } from '../../../components/common/Chat/utils/chatMessageUtils';
 import { useExportStore } from '../../../stores/core/exportStore';
-import '../../../assets/styles/features/notebook/notebook-mobile-message.css';
+import type { LinkConfig } from '../../../stores/citationStore';
+import '../../../assets/styles/features/qa/qa-mobile-message.css';
 import '../../../assets/styles/common/markdown-styles.css';
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
-
-interface LinkConfig {
-  type: 'none' | 'vectorDocument' | 'external';
-  linkKey?: string;
-  titleKey?: string;
-  urlKey?: string;
-}
 
 interface NotebookResultData {
   sources?: Array<{ url?: string; title?: string }>;
@@ -85,6 +78,7 @@ const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: numb
             text={msg.content}
             citations={msg.resultData?.citations}
             className="qa-mobile-message-text"
+            linkConfig={msg.resultData?.linkConfig}
           />
           {hasSources && (
             <CitationSourcesDisplay
@@ -108,11 +102,7 @@ const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: numb
         </div>
       ) : (
         <div className="chat-message-content">
-          <Suspense fallback={<span>{msg.content}</span>}>
-            <ReactMarkdown components={MARKDOWN_COMPONENTS}>
-              {msg.content}
-            </ReactMarkdown>
-          </Suspense>
+          <Markdown fallback={<span>{msg.content}</span>}>{msg.content}</Markdown>
         </div>
       )}
     </motion.div>

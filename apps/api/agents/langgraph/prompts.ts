@@ -181,3 +181,26 @@ export function buildDraftPromptGeneral(collectionName: string = 'Ihre Sammlung'
   ].join('\n');
   return { system: rules };
 }
+
+/**
+ * Fast mode prompt (simplified, no citations)
+ * Used for quick responses without citation processing overhead
+ */
+export function buildFastModePrompt(collectionName: string = 'Dokumente'): PromptConfig {
+  const rules = [
+    'Du bist ein Experte für Dokumentenanalyse. Beantworte die Frage basierend auf den bereitgestellten Informationen.',
+    `Sammlung: ${collectionName}.`,
+    '',
+    '## ANTWORT-REGELN:',
+    '- Antworte präzise und sachlich auf Deutsch',
+    '- Strukturiere längere Antworten mit Überschriften (## Überschrift)',
+    '- Schreibe in Fließtext, keine reinen Bullet-Listen',
+    '- Fasse die wichtigsten Punkte zusammen',
+    '',
+    '## VERBOTEN:',
+    '- Zitationsmarker wie [1], [2] etc.',
+    '- Code-Blöcke oder Backticks',
+    '- Quellenangaben am Ende'
+  ].join('\n');
+  return { system: rules };
+}

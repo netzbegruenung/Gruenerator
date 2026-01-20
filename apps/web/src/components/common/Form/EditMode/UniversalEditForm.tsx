@@ -1,8 +1,9 @@
 import { JSX, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { motion, HTMLMotionProps } from 'motion/react';
+import { motion } from 'motion/react';
 import ChatUI from '../../Chat/ChatUI';
 import ChatWorkbenchLayout from '../../Chat/ChatWorkbenchLayout';
-import { MESSAGE_MOTION_PROPS, MARKDOWN_COMPONENTS } from '../../Chat/utils/chatMessageUtils';
+import { MESSAGE_MOTION_PROPS } from '../../Chat/utils/chatMessageUtils';
+import { Markdown } from '../../Markdown';
 import apiClient from '../../../utils/apiClient';
 import useTextEditActions from '../../../../stores/hooks/useTextEditActions';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
@@ -14,7 +15,6 @@ import useResponsive from '../hooks/useResponsive';
 import useKeyboardFocus from '../../../../hooks/useKeyboardFocus';
 import useScrollSync from '../../../../hooks/useScrollSync';
 import ActionButtons from '../../ActionButtons';
-import ReactMarkdown from 'react-markdown';
 import { IoClose } from 'react-icons/io5';
 import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
 
@@ -219,9 +219,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
           />
           <div className="edit-result-content">
             <div className="edit-result-text">
-              <ReactMarkdown components={MARKDOWN_COMPONENTS}>
-                {msg.content}
-              </ReactMarkdown>
+              <Markdown>{msg.content}</Markdown>
             </div>
           </div>
         </motion.div>
@@ -239,9 +237,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
         transition={{ type: "tween", ease: "easeOut", duration: 0.35 }}
       >
         <div className="chat-message-content">
-          <ReactMarkdown components={MARKDOWN_COMPONENTS}>
-            {msg.content}
-          </ReactMarkdown>
+          <Markdown>{msg.content}</Markdown>
         </div>
       </motion.div>
     );

@@ -1,0 +1,115 @@
+name: Deploy to Production
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to deploy (default: latest)'
+        required: false
+        default: 'latest'
+
+env:
+  DEPLOY_HOST: gruenerator.netzbegruenung.verdigado.net
+  DEPLOY_PATH: /opt/gruenerator
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Set image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.inputs.tag || 'latest' }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Production Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Deploying tag: ${{ steps.tag.outputs.tag }} ==="
+
+            echo "=== Updating Salt configuration ==="
+            sudo salt-call state.apply gruenerator-docker
+
+            echo "=== Setting image tag ==="
+            cd ${{ env.DEPLOY_PATH }}
+            export TAG="${{ steps.tag.outputs.tag }}"
+
+            echo "=== Pulling images ==="
+            docker compose pull
+
+            echo "=== Creating backup of current state ==="
+            docker compose ps > /tmp/gruenerator-pre-deploy-$(date +%Y%m%d-%H%M%S).txt || true
+
+            echo "=== Deploying containers ==="
+            docker compose up -d --remove-orphans
+
+            echo "=== Waiting for services to start ==="
+            sleep 15
+
+            echo "=== Container status ==="
+            docker compose ps
+
+      - name: Verify Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "=== Running production health checks ==="
+            cd ${{ env.DEPLOY_PATH }}
+
+            # Check all services are running
+            RUNNING=$(docker compose ps --format json | jq -r 'select(.State == "running") | .Service' | wc -l)
+            TOTAL=$(docker compose ps --format json | jq -r '.Service' | wc -l)
+
+            echo "Running: $RUNNING / $TOTAL services"
+
+            if [ "$RUNNING" -lt "$TOTAL" ]; then
+              echo "ERROR: Not all services are running!"
+              docker compose ps
+              exit 1
+            fi
+
+            # Verify external accessibility
+            echo "=== Checking external endpoints ==="
+            curl -sf https://gruenerator.eu/health && echo "Frontend: OK" || echo "Frontend: FAILED"
+            curl -sf https://gruenerator.eu/api/health && echo "API: OK" || echo "API: FAILED"
+
+            echo "=== Production deployment successful ==="
+
+      - name: Rollback on Failure
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "=== Deployment failed - attempting rollback ==="
+            cd ${{ env.DEPLOY_PATH }}
+
+            echo "=== Gathering failure logs ==="
+            docker compose logs --tail=100
+
+            echo "=== Manual intervention may be required ==="
+            echo "Previous state backups available in /tmp/gruenerator-pre-deploy-*.txt"
+
+      - name: Create deployment record
+        if: success()
+        run: |
+          echo "Deployment to production completed successfully"
+          echo "Tag: ${{ steps.tag.outputs.tag }}"
+          echo "Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"

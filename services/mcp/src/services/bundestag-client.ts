@@ -7,11 +7,13 @@ const BUNDESTAG_MCP_URL = process.env.BUNDESTAG_MCP_URL || 'https://bundestagapi
 const REQUEST_TIMEOUT = 30000;
 
 class BundestagMCPClient {
+    private baseUrl: string;
+
     constructor(baseUrl = BUNDESTAG_MCP_URL) {
         this.baseUrl = baseUrl;
     }
 
-    async _callTool(toolName, args = {}) {
+    async _callTool(toolName: string, args: Record<string, unknown> = {}) {
         const url = `${this.baseUrl}/mcp`;
 
         const body = {
@@ -69,7 +71,7 @@ class BundestagMCPClient {
         }
     }
 
-    async searchPersonen(params = {}) {
+    async searchPersonen(params: Record<string, unknown> = {}) {
         return this._callTool('bundestag_search_personen', {
             query: params.query,
             fraktion: params.fraktion,
@@ -82,7 +84,7 @@ class BundestagMCPClient {
         return this._callTool('bundestag_get_person', { id: String(id) });
     }
 
-    async searchDrucksachen(params = {}) {
+    async searchDrucksachen(params: Record<string, unknown> = {}) {
         return this._callTool('bundestag_search_drucksachen', {
             query: params.query,
             urheber: params.urheber,
@@ -92,7 +94,7 @@ class BundestagMCPClient {
         });
     }
 
-    async searchAktivitaeten(params = {}) {
+    async searchAktivitaeten(params: Record<string, unknown> = {}) {
         return this._callTool('bundestag_search_aktivitaeten', {
             person_id: params.person_id ? String(params.person_id) : undefined,
             aktivitaetsart: params.aktivitaetsart,

@@ -68,6 +68,23 @@ import * as scoring from './scoring.js';
  * Provides comprehensive document search and management functionality
  * with support for vector, text, and hybrid search modes.
  */
+// System collection mapping - maps collection IDs to Qdrant collection names
+const SYSTEM_COLLECTION_MAP: Record<string, string> = {
+    'grundsatz-system': 'grundsatz_documents',
+    'bundestagsfraktion-system': 'bundestag_content',
+    'gruene-de-system': 'gruene_de_documents',
+    'oesterreich-gruene-system': 'oesterreich_gruene_documents',
+    'kommunalwiki-system': 'kommunalwiki_documents',
+    'gruene-at-system': 'gruene_at_documents',
+    'boell-stiftung-system': 'boell_stiftung_documents',
+    'satzungen-system': 'satzungen_documents',
+    'wahlprogramm': 'wahlprogramm_documents',
+    // Fallback shortened names
+    'grundsatz': 'grundsatz_documents',
+    'bundestag': 'bundestag_content',
+    'gruene_de': 'gruene_de_documents'
+};
+
 export class DocumentSearchService extends BaseSearchService {
     private qdrant: QdrantService;
     private qdrantOps: QdrantOperations | null;
@@ -122,18 +139,19 @@ export class DocumentSearchService extends BaseSearchService {
     validateSearchParams(params: any): DocumentSearchParams {
         if (params && (params.userId || params.filters || params.options)) {
             const query = InputValidator.validateSearchQuery(params.query);
-            const isSystemSearch = isSystemQdrantCollection(params.filters?.searchCollection);
+            const searchCollection = params.filters?.searchCollection || params.options?.searchCollection;
+            const isSystemSearch = isSystemQdrantCollection(searchCollection);
             const userId = isSystemSearch && (params.userId === null || params.userId === undefined)
                 ? null
                 : InputValidator.validateUserId(params.userId);
 
-            const documentIds = params.filters?.documentIds
-                ? InputValidator.validateDocumentIds(params.filters.documentIds)
+            const documentIds = params.filters?.documentIds || params.options?.documentIds
+                ? InputValidator.validateDocumentIds(params.filters?.documentIds || params.options?.documentIds)
                 : undefined;
             const sourceType = params.filters?.sourceType;
             const group_id = params.filters?.group_id;
-            const searchCollection = params.filters?.searchCollection;
-            const titleFilter = params.filters?.titleFilter;
+            const titleFilter = params.filters?.titleFilter || params.options?.titleFilter;
+            const additionalFilter = params.filters?.additionalFilter || params.options?.additionalFilter;
 
             const limit = InputValidator.validateNumber(
                 params.options?.limit || this.defaultLimit,
@@ -160,7 +178,7 @@ export class DocumentSearchService extends BaseSearchService {
             return {
                 query,
                 userId,
-                filters: { documentIds, sourceType, group_id, searchCollection, titleFilter },
+                filters: { documentIds, sourceType, group_id, searchCollection, titleFilter, additionalFilter },
                 options
             };
         }
@@ -437,6 +455,232 @@ export class DocumentSearchService extends BaseSearchService {
             throw new Error('Qdrant not available');
         }
         return await docRetrieval.getDocumentFirstChunks(this.qdrantOps, userId, documentIds);
+    }
+
+    /**
+     * Get a chunk with surrounding context for citation display
+     *
+     * @param userId - User ID
+     * @param documentId - Document ID
+     * @param chunkIndex - Target chunk index
+     * @param options - Context options (window size)
+     * @returns Context chunks with center chunk highlighted
+     */
+    async getChunkWithContext(
+        userId: string,
+        documentId: string,
+        chunkIndex: number,
+        options: { window?: number } = {}
+    ): Promise<{
+        success: boolean;
+        centerChunk?: { text: string; chunkIndex: number };
+        contextChunks?: Array<{ text: string; chunkIndex: number; isCenter: boolean }>;
+        error?: string;
+    }> {
+        await this.ensureInitialized();
+        if (!this.qdrantOps) {
+            return { success: false, error: 'Qdrant not available' };
+        }
+
+        const collectionName = `user_${userId}_documents`;
+        const windowSize = options.window ?? 2;
+
+        try {
+            // First, find the point by document_id and chunk_index
+            const filter = {
+                must: [
+                    { key: 'document_id', match: { value: documentId } },
+                    { key: 'chunk_index', match: { value: chunkIndex } }
+                ]
+            };
+
+            const scrollResult = await this.qdrantOps.scrollDocuments(collectionName, filter, {
+                limit: 1,
+                withPayload: true
+            });
+
+            if (!scrollResult || scrollResult.length === 0) {
+                return { success: false, error: 'Chunk not found' };
+            }
+
+            const centerPoint = scrollResult[0];
+
+            // Get context using existing method
+            const contextResult = await this.qdrantOps.getChunkWithContext(
+                collectionName,
+                { id: centerPoint.id, payload: centerPoint.payload },
+                { window: windowSize }
+            );
+
+            if (!contextResult.center) {
+                return { success: false, error: 'Failed to retrieve context' };
+            }
+
+            // Format the response
+            const centerChunk = {
+                text: (contextResult.center.payload.chunk_text as string) || '',
+                chunkIndex: (contextResult.center.payload.chunk_index as number) ?? chunkIndex
+            };
+
+            const contextChunks = contextResult.context.map(chunk => ({
+                text: (chunk.payload.chunk_text as string) || '',
+                chunkIndex: (chunk.payload.chunk_index as number) ?? 0,
+                isCenter: chunk.id === contextResult.center?.id
+            }));
+
+            return {
+                success: true,
+                centerChunk,
+                contextChunks
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`[DocumentSearchService] getChunkWithContext error: ${message}`);
+            return { success: false, error: message };
+        }
+    }
+
+    /**
+     * Get a chunk with surrounding context for system documents (grundsatz, bundestag, etc.)
+     *
+     * @param collectionType - Collection type: 'grundsatz', 'bundestag', 'gruene_de', etc.
+     * @param documentId - Document ID or title in the collection
+     * @param chunkIndex - Target chunk index
+     * @param options - Context options (window size)
+     * @returns Context chunks with center chunk highlighted
+     */
+    async getSystemChunkWithContext(
+        collectionType: string,
+        documentId: string,
+        chunkIndex: number,
+        options: { window?: number } = {}
+    ): Promise<{
+        success: boolean;
+        centerChunk?: { text: string; chunkIndex: number };
+        contextChunks?: Array<{ text: string; chunkIndex: number; isCenter: boolean }>;
+        error?: string;
+    }> {
+        await this.ensureInitialized();
+        if (!this.qdrantOps) {
+            return { success: false, error: 'Qdrant not available' };
+        }
+
+        const collectionName = SYSTEM_COLLECTION_MAP[collectionType] || `${collectionType}_documents`;
+        const windowSize = options.window ?? 2;
+
+        try {
+            // Find the point by document_id (or title for some collections) and chunk_index
+            const filter = {
+                must: [
+                    { key: 'document_id', match: { value: documentId } },
+                    { key: 'chunk_index', match: { value: chunkIndex } }
+                ]
+            };
+
+            let scrollResult = await this.qdrantOps.scrollDocuments(collectionName, filter, {
+                limit: 1,
+                withPayload: true
+            });
+
+            // If not found by document_id, try with title field
+            if (!scrollResult || scrollResult.length === 0) {
+                const titleFilter = {
+                    must: [
+                        { key: 'title', match: { value: documentId } },
+                        { key: 'chunk_index', match: { value: chunkIndex } }
+                    ]
+                };
+
+                scrollResult = await this.qdrantOps.scrollDocuments(collectionName, titleFilter, {
+                    limit: 1,
+                    withPayload: true
+                });
+
+                if (!scrollResult || scrollResult.length === 0) {
+                    return { success: false, error: 'Chunk not found in collection' };
+                }
+            }
+
+            const centerPoint = scrollResult[0];
+
+            // Get context using existing method
+            const contextResult = await this.qdrantOps.getChunkWithContext(
+                collectionName,
+                { id: centerPoint.id, payload: centerPoint.payload },
+                { window: windowSize }
+            );
+
+            if (!contextResult.center) {
+                return { success: false, error: 'Failed to retrieve context' };
+            }
+
+            const centerChunk = {
+                text: (contextResult.center.payload.chunk_text as string) || '',
+                chunkIndex: (contextResult.center.payload.chunk_index as number) ?? chunkIndex
+            };
+
+            const contextChunks = contextResult.context.map(chunk => ({
+                text: (chunk.payload.chunk_text as string) || '',
+                chunkIndex: (chunk.payload.chunk_index as number) ?? 0,
+                isCenter: chunk.id === contextResult.center?.id
+            }));
+
+            return {
+                success: true,
+                centerChunk,
+                contextChunks
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`[DocumentSearchService] getSystemChunkWithContext error: ${message}`);
+            return { success: false, error: message };
+        }
+    }
+
+    /**
+     * Detect which system collection contains a document by ID
+     * Scans known system collections to find where the document exists
+     */
+    async detectSystemCollectionForDocument(documentId: string): Promise<string> {
+        await this.ensureInitialized();
+        if (!this.qdrantOps) {
+            return 'user';
+        }
+
+        // Get unique collection names from the map (filter out shorthand duplicates)
+        const seenCollections = new Set<string>();
+        const systemCollections: Array<{ type: string; collection: string }> = [];
+        for (const [type, collection] of Object.entries(SYSTEM_COLLECTION_MAP)) {
+            if (!seenCollections.has(collection)) {
+                seenCollections.add(collection);
+                systemCollections.push({ type, collection });
+            }
+        }
+
+        for (const { type, collection } of systemCollections) {
+            try {
+                const filter = {
+                    should: [
+                        { key: 'document_id', match: { value: documentId } },
+                        { key: 'title', match: { value: documentId } }
+                    ]
+                };
+
+                const result = await this.qdrantOps.scrollDocuments(collection, filter, {
+                    limit: 1,
+                    withPayload: false
+                });
+
+                if (result && result.length > 0) {
+                    console.log(`[DocumentSearchService] Found document '${documentId}' in collection '${collection}'`);
+                    return type;
+                }
+            } catch {
+                // Collection might not exist, continue to next
+            }
+        }
+
+        return 'user';
     }
 
     // ========== Bundestag Search ==========

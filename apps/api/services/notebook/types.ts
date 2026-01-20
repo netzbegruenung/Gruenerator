@@ -50,6 +50,7 @@ export interface MultiCollectionMetadata {
   subcategory_filters_applied: Record<string, any> | null;
   total_results: number;
   citations_count: number;
+  fast_mode?: boolean;
 }
 
 /**
@@ -62,6 +63,7 @@ export interface SingleCollectionMetadata {
   sources_count: number;
   citations_count: number;
   subcategory_filters_applied: Record<string, any> | null;
+  fast_mode?: boolean;
 }
 
 /**
@@ -109,6 +111,7 @@ export interface QAMultiCollectionParams {
   collectionIds?: string[];
   requestFilters?: RequestFilters;
   aiWorkerPool: any;
+  fastMode?: boolean;
 }
 
 /**
@@ -122,6 +125,7 @@ export interface QASingleCollectionParams {
   aiWorkerPool: any;
   getCollectionFn?: (collectionId: string) => Promise<any>;
   getDocumentIdsFn?: (collectionId: string) => Promise<string[]>;
+  fastMode?: boolean;
 }
 
 /**

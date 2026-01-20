@@ -478,7 +478,8 @@ app.get('/info', (req, res) => {
 
 // MCP POST Endpoint (Hauptkommunikation)
 app.post('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'];
+  const sessionIdHeader = req.headers['mcp-session-id'];
+  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
   let transport;
 
   if (sessionId && transports[sessionId]) {
@@ -519,8 +520,9 @@ app.post('/mcp', async (req, res) => {
 
 // MCP GET Endpoint (SSE Stream)
 app.get('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'];
-  const transport = transports[sessionId];
+  const sessionIdHeader = req.headers['mcp-session-id'];
+  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
+  const transport = sessionId ? transports[sessionId] : undefined;
 
   if (transport) {
     await transport.handleRequest(req, res);
@@ -531,8 +533,9 @@ app.get('/mcp', async (req, res) => {
 
 // MCP DELETE Endpoint (Session beenden)
 app.delete('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'];
-  const transport = transports[sessionId];
+  const sessionIdHeader = req.headers['mcp-session-id'];
+  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
+  const transport = sessionId ? transports[sessionId] : undefined;
 
   if (transport) {
     await transport.handleRequest(req, res);

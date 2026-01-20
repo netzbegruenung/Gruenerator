@@ -1,15 +1,16 @@
-import { JSX, useEffect, Suspense, lazy, useState, ReactNode } from 'react';
+import { JSX, useEffect, Suspense, lazy, useState, ReactNode, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../layout/Sidebar';
 import SidebarToggle from '../../layout/SidebarToggle';
 import ProfileButton from '../../layout/Header/ProfileButton';
 import { isDesktopApp } from '../../../utils/platform';
 import useSidebarStore from '../../../stores/sidebarStore';
+import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 import '../../../assets/styles/components/layout/header.css';
 
 const Footer = lazy(() => import('../../layout/Footer/Footer'));
 
 const DesktopTitlebar = lazy(() => import('../../layout/DesktopTitlebar/DesktopTitlebar'));
-const DesktopSidebar = lazy(() => import('../../layout/DesktopSidebar/DesktopSidebar'));
 const UpdateNotification = lazy(() => import('../../desktop/UpdateNotification/UpdateNotification'));
 
 interface PageLayoutProps {
@@ -23,6 +24,8 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
   const [showFooter, setShowFooter] = useState(false);
   const sidebarOpen = useSidebarStore((state) => state.isOpen);
   const hideAppSidebar = useSidebarStore((state) => state.hideAppSidebar);
+  const navigate = useNavigate();
+  const { createTab, tabs, activeTabId } = useDesktopTabsStore();
 
   useEffect(() => {
   }, [showHeaderFooter, darkMode, children]);
@@ -34,6 +37,14 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
 
     return () => clearTimeout(footerTimeout);
   }, []);
+
+  const handleDesktopNavigation = useCallback((path: string, title: string) => {
+    const activeTab = tabs.find(t => t.id === activeTabId);
+    if (activeTab?.route !== path) {
+      createTab(path, title);
+      navigate(path);
+    }
+  }, [tabs, activeTabId, createTab, navigate]);
 
   if (!showHeaderFooter) {
     return <main className="content-wrapper no-header-footer">{children}</main>;
@@ -51,9 +62,7 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
           <UpdateNotification />
         </Suspense>
         <div className="desktop-content-area">
-          <Suspense fallback={null}>
-            <DesktopSidebar />
-          </Suspense>
+          <Sidebar isDesktop={true} onNavigate={handleDesktopNavigation} />
           <main className="content-wrapper desktop-main">{children}</main>
         </div>
       </div>

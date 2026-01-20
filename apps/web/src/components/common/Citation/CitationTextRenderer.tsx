@@ -1,23 +1,21 @@
-import { JSX, lazy, Suspense } from 'react';
+import { JSX } from 'react';
 import CitationBadge, { CitationData } from './CitationBadge';
+import { Markdown } from '../Markdown';
+import type { LinkConfig } from '../../../stores/citationStore';
 
-const ReactMarkdown = lazy(() => import('react-markdown'));
-
-/**
- * CitationTextRenderer component - renders text with citation markers as interactive badges
- * @param {Object} props - Component props
- * @param {string} props.text - Text containing citation markers (⚡CITE1⚡, ⚡CITE2⚡, etc.)
- * @param {Array} props.citations - Array of citation objects
- * @param {string} props.className - Additional CSS class
- * @returns {JSX.Element} Rendered text with interactive citations
- */
 interface CitationTextRendererProps {
   text?: string;
   citations?: CitationData[];
   className?: string;
+  linkConfig?: LinkConfig;
 }
 
-const CitationTextRenderer = ({ text, citations = [], className = "" }: CitationTextRendererProps): JSX.Element => {
+const CitationTextRenderer = ({
+  text,
+  citations = [],
+  className = "",
+  linkConfig
+}: CitationTextRendererProps): JSX.Element => {
   if (!text || typeof text !== 'string') {
     return <span className={className}>{text}</span>;
   }
@@ -80,17 +78,9 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }: Citation
   // If no citations were found, return the original text with markdown
   if (parts.length === 0) {
     return (
-      <span className={className}>
-        <Suspense fallback={<span>{text}</span>}>
-          <ReactMarkdown
-            components={{
-              a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />
-            }}
-          >
-            {text}
-          </ReactMarkdown>
-        </Suspense>
-      </span>
+      <Markdown className={className} inline>
+        {text}
+      </Markdown>
     );
   }
 
@@ -103,22 +93,18 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }: Citation
               key={part.key}
               citationIndex={part.citationIndex || ''}
               citation={part.citation}
+              linkConfig={linkConfig}
             />
           );
         }
-        // If it's text, render it with markdown support
-        // Use custom components to ensure inline rendering with citations
         return (
-          <Suspense key={index} fallback={<span>{part.content}</span>}>
-            <ReactMarkdown
-              components={{
-                a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-                p: ({ node, children }) => <span className="citation-text-segment">{children}</span>
-              }}
-            >
-              {part.content}
-            </ReactMarkdown>
-          </Suspense>
+          <Markdown
+            key={index}
+            className="citation-text-segment"
+            inline
+          >
+            {part.content || ''}
+          </Markdown>
         );
       })}
     </span>

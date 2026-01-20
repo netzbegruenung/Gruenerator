@@ -18,6 +18,11 @@ export interface FilterableField {
     type: 'keyword';
 }
 
+export interface DefaultFilter {
+    field: string;
+    value: string | string[];
+}
+
 export interface SystemCollectionConfig {
     id: string;
     qdrantCollection: string;
@@ -26,6 +31,7 @@ export interface SystemCollectionConfig {
     minQuality: number;
     recallLimit: number;
     filterableFields: FilterableField[];
+    defaultFilter?: DefaultFilter;  // Auto-applied filter for this collection view
 }
 
 export interface SearchParams {
@@ -173,6 +179,19 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
             { field: 'landesverband', label: 'Landesverband', type: 'keyword' },
             { field: 'gremium', label: 'Gremium', type: 'keyword' }
         ]
+    },
+    'hamburg-system': {
+        id: 'hamburg-system',
+        qdrantCollection: 'landesverbaende_documents',
+        name: 'Grüne Hamburg',
+        description: 'Beschlüsse und Pressemitteilungen der Grünen Hamburg',
+        minQuality: 0.3,
+        recallLimit: 60,
+        filterableFields: [
+            { field: 'content_type', label: 'Typ', type: 'keyword' },
+            { field: 'primary_category', label: 'Kategorie', type: 'keyword' }
+        ],
+        defaultFilter: { field: 'landesverband', value: 'HH' }
     }
 };
 
@@ -264,6 +283,13 @@ export function getSearchParams(id: string): SearchParams {
 }
 
 /**
+ * Get the default filter for a system collection (if any)
+ */
+export function getCollectionDefaultFilter(id: string): DefaultFilter | undefined {
+    return SYSTEM_COLLECTIONS[id]?.defaultFilter;
+}
+
+/**
  * Build Qdrant filter from subcategory filters
  * Supports both single values (string) and multi-select (array)
  * Uses unified field names: primary_category, content_type, subcategories, country, region
@@ -303,6 +329,35 @@ export function buildSubcategoryFilter(subcategoryFilters: SubcategoryFilters | 
     return must.length > 0 ? { must: must as QdrantFilter['must'] } : undefined;
 }
 
+/**
+ * Apply a system collection's default filter to an existing filter
+ * Merges the default filter with any user-specified filters
+ */
+export function applyDefaultFilter(
+    collectionId: string,
+    existingFilter?: QdrantFilter
+): QdrantFilter | undefined {
+    const defaultFilter = getCollectionDefaultFilter(collectionId);
+    if (!defaultFilter) return existingFilter;
+
+    const defaultMust: { key: string; match: { value?: string; any?: string[] } } = {
+        key: defaultFilter.field,
+        match: Array.isArray(defaultFilter.value)
+            ? { any: defaultFilter.value }
+            : { value: defaultFilter.value }
+    };
+
+    if (!existingFilter) {
+        return { must: [defaultMust] as QdrantFilter['must'] };
+    }
+
+    const existingMust = existingFilter.must || [];
+    return {
+        ...existingFilter,
+        must: [...existingMust, defaultMust] as QdrantFilter['must']
+    };
+}
+
 // =============================================================================
 // Default Export
 // =============================================================================
@@ -319,5 +374,7 @@ export default {
     getDefaultMultiCollectionIds,
     getCollectionFilterableFields,
     getSearchParams,
-    buildSubcategoryFilter
+    getCollectionDefaultFilter,
+    buildSubcategoryFilter,
+    applyDefaultFilter
 };

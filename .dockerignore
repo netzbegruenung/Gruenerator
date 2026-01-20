@@ -1,21 +1,142 @@
-# Build artifacts
-**/dist/
+# =============================================================================
+# Docker Build Context Exclusions
+# Reduces context from ~25GB to ~50MB for faster builds
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Large directories to ALWAYS exclude
+# -----------------------------------------------------------------------------
+# Desktop app (Tauri/Rust) - ~13GB of build artifacts
+apps/desktop/
+
+# Mobile app - ~4GB of build artifacts
+apps/mobile/
+
+# AWS infrastructure code - not needed in containers
+aws/
+
+# Old documentation site (separate from apps/docs)
+documentation/
+
+# Root node_modules (we install fresh in container)
+node_modules/
+
+# All nested node_modules
 **/node_modules/
 
-# Development files
-**/.env
-**/.env.local
-**/*.log
+# Large runtime data directories (not needed for builds)
+**/uploads/
+**/fastembed_cache/
+**/cache/
 
-# Git
+# -----------------------------------------------------------------------------
+# Build artifacts and caches
+# -----------------------------------------------------------------------------
+**/dist/
+**/.next/
+**/build/
+**/.turbo/
+**/.cache/
+**/.parcel-cache/
+**/.vite/
+**/coverage/
+**/.nyc_output/
+**/target/
+**/*.tsbuildinfo
+
+# -----------------------------------------------------------------------------
+# Development and test files
+# -----------------------------------------------------------------------------
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/__tests__/
+**/__mocks__/
+**/tests/
+**/test/
+**/*.stories.tsx
+**/*.stories.ts
+**/storybook-static/
+**/.storybook/
+
+# -----------------------------------------------------------------------------
+# Environment and secrets
+# -----------------------------------------------------------------------------
+**/.env
+**/.env.*
+!**/.env.example
+**/secrets/
+**/*.pem
+**/*.key
+
+# -----------------------------------------------------------------------------
+# Git and version control
+# -----------------------------------------------------------------------------
 .git/
 .gitignore
+.gitattributes
+**/.gitkeep
 
-# IDE
+# -----------------------------------------------------------------------------
+# IDE and editor files
+# -----------------------------------------------------------------------------
 .vscode/
 .idea/
+**/*.swp
+**/*.swo
+**/.*~
 
-# Misc
+# -----------------------------------------------------------------------------
+# Documentation (not needed in runtime)
+# -----------------------------------------------------------------------------
 *.md
 !README.md
 docs/
+**/CHANGELOG*
+**/LICENSE*
+**/CONTRIBUTING*
+
+# -----------------------------------------------------------------------------
+# Logs and temporary files
+# -----------------------------------------------------------------------------
+**/*.log
+**/logs/
+**/tmp/
+**/temp/
+**/.tmp/
+
+# -----------------------------------------------------------------------------
+# OS files
+# -----------------------------------------------------------------------------
+**/.DS_Store
+**/Thumbs.db
+
+# -----------------------------------------------------------------------------
+# Docker files (prevent recursive issues)
+# -----------------------------------------------------------------------------
+**/Dockerfile*
+**/docker-compose*
+**/.docker/
+
+# -----------------------------------------------------------------------------
+# CI/CD configuration
+# -----------------------------------------------------------------------------
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+.circleci/
+
+# -----------------------------------------------------------------------------
+# Misc development files
+# -----------------------------------------------------------------------------
+**/data/
+**/*.sql
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/playwright-report/
+**/test-results/
+**/.playwright/
+**/cypress/

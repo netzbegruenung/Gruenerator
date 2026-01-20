@@ -53,6 +53,8 @@ const KNOWN_GREEN_MPS = [
 ];
 
 class PersonDetectionService {
+    private mcpClient: ReturnType<typeof getBundestagMCPClient>;
+
     constructor() {
         this.mcpClient = getBundestagMCPClient();
     }

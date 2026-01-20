@@ -130,7 +130,7 @@ export type ActionIconName =
  */
 export type UIIconName =
   | 'user' | 'file' | 'fileAlt' | 'fileTextAlt' | 'image' | 'video'
-  | 'search' | 'caretDown' | 'caretUp' | 'assistant' | 'brain';
+  | 'search' | 'caretDown' | 'caretUp' | 'assistant' | 'brain' | 'notebook';
 
 /**
  * Icon registry structure
@@ -231,7 +231,8 @@ export const ICONS: IconRegistry = {
     caretDown: PiCaretDown,
     caretUp: PiCaretUp,
     assistant: RiRobot3Line,
-    brain: PiBrain
+    brain: PiBrain,
+    notebook: FaBook
   },
 
   accessibility: {

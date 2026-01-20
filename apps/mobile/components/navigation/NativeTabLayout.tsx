@@ -45,6 +45,13 @@ export function NativeTabLayout() {
         })}
         <Label>Fragen</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(docs)">
+        {Platform.select({
+          ios: <Icon sf={{ default: 'doc.on.doc', selected: 'doc.on.doc.fill' }} />,
+          android: <Icon src={<VectorIcon family={Ionicons} name="documents" />} />,
+        })}
+        <Label>Docs</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>
   );

@@ -10,7 +10,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies (including devDependencies needed for build)
-RUN npm ci --silent
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -20,6 +20,9 @@ RUN npm run build
 
 # Production stage - minimal nginx image
 FROM nginx:alpine
+
+# Install curl for healthcheck
+RUN apk add --no-cache curl
 
 # Clean nginx directory to remove old files
 RUN rm -rf /usr/share/nginx/html/*

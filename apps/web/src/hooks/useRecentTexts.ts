@@ -89,10 +89,11 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
           type: generatorType,
           limit,
           page: 1
-        }
-      });
+        },
+        skipAuthRedirect: true
+      } as any);
 
-      const fetchedTexts = response.data.texts || [];
+      const fetchedTexts = response.data.data || [];
 
       if (isMountedRef.current) {
         setTexts(fetchedTexts);

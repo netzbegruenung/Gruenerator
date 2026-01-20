@@ -116,6 +116,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
   const { default: customGeneratorRoute } = await import('./routes/custom_generators/custom_generator.js');
   const { default: generatorConfiguratorRoute } = await import('./routes/custom_generators/generator_configurator.js');
+  const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { collectionsRouter: notebookCollectionsRouter, interactionRouter: notebookInteractionRouter } = await import('./routes/notebook/index.js');
   const { default: canvaAuthRouter } = await import('./routes/canva/canvaAuth.js');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
@@ -216,6 +217,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/custom_generator', customGeneratorRoute);
   app.use('/api/auth/custom_generator', customGeneratorRoute);
   app.use('/api/generate_generator_config', generatorConfiguratorRoute);
+  app.use('/api/custom_prompt', customPromptRoute);
+  app.use('/api/auth/custom_prompt', customPromptRoute);
   app.use('/api/claude/generate-short-subtitles', claudeSubtitlesRoute);
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);

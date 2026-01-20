@@ -119,7 +119,7 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
       }
 
       let results;
-      let metadata = {};
+      let metadata: Record<string, unknown> = {};
 
       console.error(`[Search] Mode: ${searchMode}, Query: "${query.substring(0, 50)}..."`);
       if (filters) {
@@ -127,7 +127,7 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
       }
 
       // Build Qdrant filter from metadata filters
-      const qdrantFilter = buildQdrantFilter(filters);
+      const qdrantFilter = buildQdrantFilter(filters) as Record<string, unknown> | null;
 
       if (searchMode === 'text') {
         console.error(`[Search] Performing text-only search in ${collectionConfig.name}`);

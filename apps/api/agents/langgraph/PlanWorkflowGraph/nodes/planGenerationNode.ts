@@ -39,6 +39,7 @@ export async function planGenerationNode(state: PlanWorkflowState): Promise<Plan
 
     const promptContext = {
       systemRole: promptConfigData.systemPrompt,
+      taskInstructions: promptConfigData.generationPrompt,
       request: {
         inhalt: input.inhalt,
         gliederung: input.gliederung,

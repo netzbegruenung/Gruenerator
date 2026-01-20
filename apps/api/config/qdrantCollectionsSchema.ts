@@ -181,6 +181,17 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
         hnsw: null,
         indexes: []
     },
+    custom_prompts: {
+        name: 'custom_prompts',
+        optimizer: 'small',
+        hnsw: 'standard',
+        indexes: [
+            { field: 'user_id', type: 'keywordTenant' },
+            { field: 'is_public', type: 'keyword' },
+            { field: 'name', type: 'text' },
+            { field: 'created_at', type: 'datetime' }
+        ]
+    },
     content_examples: {
         name: 'content_examples',
         optimizer: 'tiny',
@@ -329,6 +340,20 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
             { field: 'landesverband', type: 'keyword' },
             { field: 'gremium', type: 'keyword' },
             { field: 'city', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
+    },
+    hamburg_documents: {
+        name: 'hamburg_documents',
+        optimizer: 'medium',
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'content_type', type: 'keyword' },
+            { field: 'primary_category', type: 'keyword' },
+            { field: 'landesverband', type: 'keyword' },
+            { field: 'published_at', type: 'keyword' },
             { field: 'indexed_at', type: 'keyword' },
             { field: 'chunk_text', type: 'text' }
         ]

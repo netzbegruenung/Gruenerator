@@ -141,7 +141,22 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
     },
     cardRenderer: 'vorlagen',
     allowCategoryFilter: true
+  },
+  prompts: {
+    id: 'prompts',
+    label: 'Prompts',
+    title: 'Prompt-Datenbank',
+    intro: 'Entdecke öffentliche Prompts der Community',
+    searchModes: [
+      { value: 'title', label: 'Titel' },
+      { value: 'fulltext', label: 'Volltext' },
+      { value: 'semantic', label: 'Semantisch' }
+    ],
+    defaultSearchMode: 'title',
+    fetcher: 'fetchPublicPrompts',
+    cardRenderer: 'prompts',
+    allowCategoryFilter: false
   }
 };
 
-export const ORDERED_CONTENT_TYPE_IDS = ['antraege', 'generators', 'pr', 'vorlagen', 'all'];
+export const ORDERED_CONTENT_TYPE_IDS = ['antraege', 'generators', 'pr', 'vorlagen', 'prompts', 'all'];

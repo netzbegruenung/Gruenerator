@@ -92,21 +92,26 @@ class QueryIntentService {
    * Create Qdrant filters based on intent
    * @param intent - Detected intent result
    * @returns Qdrant filter structure
+   *
+   * NOTE: These `should` clauses are handled safely by vectorSearch.ts which
+   * strips standalone `should` when no `must` exists, preventing 0-result issues.
+   * When combined with a `must` filter (e.g., user_id), these act as boosts.
    */
   generateSearchFilters(intent: IntentDetectionResult): QdrantFilter {
     const prefs = this.getContentPreferences(intent?.type || 'general');
     const filter: QdrantFilter = { must: [], should: [] };
 
-    // Prefer content types via should clauses; keep must minimal to avoid zero results
+    // Prefer content types via should clauses; vectorSearch.ts ensures these
+    // are safely stripped when they would be the only filter criteria
     if (prefs.preferredTypes?.length) {
       filter.should = prefs.preferredTypes.map(t => ({ key: 'content_type', match: { value: t } }));
     }
 
     // Language hint (heuristic); only apply as should
     if (intent?.language === 'de') {
-      filter.should.push({ key: 'lang', match: { value: 'de' } });
+      filter.should!.push({ key: 'lang', match: { value: 'de' } });
     } else if (intent?.language === 'en') {
-      filter.should.push({ key: 'lang', match: { value: 'en' } });
+      filter.should!.push({ key: 'lang', match: { value: 'en' } });
     }
 
     return filter;

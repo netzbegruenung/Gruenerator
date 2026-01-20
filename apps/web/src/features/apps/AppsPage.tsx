@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaWindows, FaApple, FaLinux } from 'react-icons/fa';
 import { HiDownload, HiRefresh } from 'react-icons/hi';
-import ReactMarkdown from 'react-markdown';
+import { Markdown } from '../../components/common/Markdown';
 import '../../assets/styles/pages/Impressum_datenschutz.css';
 import '../../assets/styles/components/ui/button.css';
 import './AppsPage.css';
@@ -337,7 +337,7 @@ const AppsPage = () => {
       {release.body && (
         <div className="apps-release-notes">
           <h2>Änderungen in dieser Version</h2>
-          <ReactMarkdown>{release.body}</ReactMarkdown>
+          <Markdown>{release.body}</Markdown>
         </div>
       )}
     </div>

@@ -60,14 +60,14 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
       const embedding = await generateEmbedding(query);
 
       // Build filter using shared utility
-      const filterParams = {};
+      const filterParams: Record<string, string> = {};
       if (platform !== 'all') filterParams.platform = platform;
       if (country !== 'all') filterParams.country = country;
 
       const filter = buildQdrantFilter(filterParams);
 
       // Search in Qdrant
-      const searchParams = {
+      const searchParams: Record<string, unknown> = {
         vector: embedding,
         limit: limit,
         with_payload: true,

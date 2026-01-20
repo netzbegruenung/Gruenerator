@@ -1,11 +1,16 @@
-import React, { useState, useCallback, useMemo, memo, FormEvent } from 'react';
+import React, { useState, useCallback, useMemo, useRef, memo } from 'react';
 import BaseForm from '../../../components/common/BaseForm';
-import PromptInput, { type PromptExample } from '../../../components/common/PromptInput/PromptInput';
+import TexteForm from '../texte/TexteForm';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import type { ExamplePrompt } from '@/types/baseform';
 import './TexteTab.css';
+
+interface FormRef {
+  getFormData: () => Record<string, unknown>;
+  resetForm: (data?: Record<string, unknown>) => void;
+}
 
 interface TexteTabProps {
   isActive: boolean;
@@ -13,19 +18,15 @@ interface TexteTabProps {
 
 const COMPONENT_NAME = 'texte-generator';
 
-const EXAMPLE_PROMPTS: PromptExample[] = [
+const EXAMPLE_PROMPTS: ExamplePrompt[] = [
   { label: 'Social Post', text: 'Erstelle einen Social Media Post über ' },
   { label: 'E-Mail', text: 'Schreibe eine professionelle E-Mail zu ' },
   { label: 'Zusammenfassung', text: 'Fasse folgenden Text zusammen: ' },
-  { label: 'Nachricht', text: 'Formuliere eine kurze Nachricht für ' },
 ];
 
 const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
-  const [promptInput, setPromptInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const { getGeneratedText, setGeneratedText } = useGeneratedTextStore();
+  const texteFormRef = useRef<FormRef>(null);
 
   const setup = useGeneratorSetup({
     instructionType: 'universal',
@@ -43,7 +44,7 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
   }), []);
 
   const form = useBaseForm({
-    defaultValues: { prompt: '' },
+    defaultValues: { inhalt: '' },
     generatorType: 'texte-generator',
     componentName: COMPONENT_NAME,
     endpoint: '/texte/smart',
@@ -65,81 +66,72 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
     searchQueryFields: ['inhalt'] as const
   });
 
-  const handlePromptSubmit = useCallback(async (e?: FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSubmit = useCallback(async () => {
+    if (!texteFormRef.current?.getFormData) {
+      console.error('[TexteTab] Form ref not ready or getFormData not available');
+      return;
+    }
 
-    const trimmedPrompt = promptInput.trim();
-    if (!trimmedPrompt || isLoading) return;
+    const formData = texteFormRef.current.getFormData();
+
+    if (!formData || !formData.inhalt) {
+      console.error('[TexteTab] No form data returned or inhalt is empty');
+      return;
+    }
 
     setIsLoading(true);
-    setError(null);
 
     try {
-      const formData = builder.buildSubmissionData({
-        inhalt: trimmedPrompt
-      });
+      const formDataToSubmit = builder.buildSubmissionData(formData);
 
       const { default: apiClient } = await import('../../../components/utils/apiClient');
-      const response = await apiClient.post('/texte/smart', formData);
+      const response = await apiClient.post('/texte/smart', formDataToSubmit);
       const responseData = response.data || response;
 
       const content = typeof responseData === 'string' ? responseData : responseData.content;
 
       if (content && form.generator) {
         form.generator.handleGeneratedContentChange(content);
-        setGeneratedText(COMPONENT_NAME, content, {});
       }
-    } catch (err) {
-      console.error('[TexteTab] Error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
-      setError(errorMessage);
-      form.handleSubmitError(err instanceof Error ? err : new Error(errorMessage));
+    } catch (error) {
+      console.error('[TexteTab] Error submitting form:', error);
+      if (error instanceof Error) {
+        form.handleSubmitError(error);
+      } else {
+        form.handleSubmitError(new Error(String(error)));
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [promptInput, isLoading, builder, form, setGeneratedText]);
+  }, [form, builder]);
 
-  const handleBaseFormSubmit = useCallback(async (data?: Record<string, unknown>) => {
-    await handlePromptSubmit();
-  }, [handlePromptSubmit]);
-
-  const hasGeneratedContent = useMemo(() => {
-    const content = getGeneratedText(COMPONENT_NAME);
-    if (!content) return false;
-    if (typeof content === 'string') return content.trim().length > 0;
-    return Object.keys(content).length > 0;
-  }, [getGeneratedText]);
+  const handleExamplePromptClick = useCallback((prompt: ExamplePrompt) => {
+    if (texteFormRef.current?.resetForm && prompt.text) {
+      texteFormRef.current.resetForm({ inhalt: prompt.text });
+    }
+  }, []);
 
   const baseFormProps = form.generator?.baseFormProps;
   const { platformOptions: _platformOptions, componentName: _componentName, ...restBaseFormProps } = baseFormProps || {};
 
-  if (!isActive) return null;
+  const rawTabIndex = form.generator?.tabIndex;
+  const tabIndexValue = (rawTabIndex || {}) as { formType?: number; hauptfeld?: number; [key: string]: number | undefined };
 
   return (
     <div className="texte-tab">
-      {!hasGeneratedContent ? (
-        <div className="texte-tab-prompt-section">
-          <PromptInput
-            value={promptInput}
-            onChange={setPromptInput}
-            onSubmit={handlePromptSubmit}
-            placeholder="Was möchtest du schreiben? Beschreibe deinen Text..."
-            isLoading={isLoading}
-            error={error}
-            examples={EXAMPLE_PROMPTS}
-            submitLabel="Text generieren"
-          />
-        </div>
-      ) : (
-        form.generator && (
-          <BaseForm
-            {...restBaseFormProps}
-            componentName={COMPONENT_NAME}
-            enableEditMode={true}
-            onSubmit={handleBaseFormSubmit}
-            loading={isLoading}
-          />
-        )
+      {form.generator && (
+        <BaseForm
+          {...restBaseFormProps}
+          componentName={COMPONENT_NAME}
+          enableEditMode={true}
+          onSubmit={handleSubmit}
+          loading={isLoading}
+          useStartPageLayout={true}
+          examplePrompts={EXAMPLE_PROMPTS}
+          onExamplePromptClick={handleExamplePromptClick}
+        >
+          <TexteForm ref={texteFormRef} tabIndex={tabIndexValue} />
+        </BaseForm>
       )}
     </div>
   );

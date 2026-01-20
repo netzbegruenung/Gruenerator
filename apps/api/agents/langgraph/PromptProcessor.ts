@@ -574,7 +574,8 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       selectedDocumentIds,
       selectedTextIds,
       searchQuery,
-      useAutomaticSearch
+      useAutomaticSearch,
+      useNotebookEnrich
     } = requestData;
 
     // Handle structured customPrompt from frontend
@@ -679,7 +680,8 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       examples: [], // TODO: Implement examples from config
       provider,
       aiWorkerPool: req.app.locals.aiWorkerPool,
-      req
+      req,
+      enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false
     });
 
     // Update request content in enriched state (preserve original request with platforms)
@@ -794,6 +796,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false,
       autoSearchUsed: enrichedState.enrichmentMetadata?.autoSearchUsed || false,
       autoSelectedDocuments: enrichedState.enrichmentMetadata?.autoSelectedDocuments || [],
+      notebookEnrichUsed: enrichedState.enrichmentMetadata?.notebookEnrichUsed || false,
       sources: [
         ...((enrichedState.enrichmentMetadata?.urlsProcessed || []).map((url: string) => ({
           type: 'url',

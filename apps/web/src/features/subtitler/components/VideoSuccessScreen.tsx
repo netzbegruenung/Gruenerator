@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes, FaDownload, FaFileAlt } from 'react-icons/fa';
 import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
+import { Markdown } from '../../../components/common/Markdown';
 import apiClient from '../../../components/utils/apiClient';
 import '../../../assets/styles/components/ui/button.css';
 import '../styles/VideoSuccessScreen.css';
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
 
 interface VideoSuccessScreenProps {
   onReset: () => void;
@@ -277,9 +276,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
           <div className="video-social-text-result">
             <h3>Dein Instagram Reel Text:</h3>
             <div className="markdown-content">
-              <Suspense fallback={<div>Loading...</div>}>
-                <ReactMarkdown>{socialText}</ReactMarkdown>
-              </Suspense>
+              <Markdown fallback={<div>Loading...</div>}>{socialText}</Markdown>
             </div>
             <CopyButton content={socialText} />
           </div>

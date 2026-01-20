@@ -1,12 +1,10 @@
-import React, { lazy, Suspense } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
 import { formatDate } from '../utils/documentOverviewUtils';
+import { Markdown } from './Markdown';
 
-// Import markdown styles for consistent rendering
 import '../../assets/styles/pages/AntragDetailPage.css';
 import '../../assets/styles/common/markdown-styles.css';
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
 
 interface DocumentItem {
   title?: string;
@@ -102,9 +100,7 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
           </div>
           <div className={isMarkdownContent ? "markdown-content" : "document-preview-text"}>
             {isMarkdownContent ? (
-              <Suspense fallback={<div>Loading markdown...</div>}>
-                <ReactMarkdown>{previewContent}</ReactMarkdown>
-              </Suspense>
+              <Markdown fallback={<div>Loading markdown...</div>}>{previewContent}</Markdown>
             ) : (
               <div className="plain-text-content" style={{ whiteSpace: 'pre-wrap' }}>
                 {previewContent}
