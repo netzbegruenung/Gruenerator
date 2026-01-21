@@ -94,6 +94,7 @@ node_modules/
 !README.md
 docs/
 **/CHANGELOG*
+!CHANGELOG.md
 **/LICENSE*
 **/CONTRIBUTING*
 
@@ -132,6 +133,7 @@ Jenkinsfile
 # Misc development files
 # -----------------------------------------------------------------------------
 **/data/
+!apps/web/src/**/data/
 **/*.sql
 **/*.sqlite
 **/*.sqlite3

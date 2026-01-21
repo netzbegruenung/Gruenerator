@@ -4,23 +4,27 @@
 # Stage 1: Build the sites app
 FROM node:22-alpine AS builder
 
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
 WORKDIR /app
 
-# Copy root package files
-COPY package*.json ./
+# Copy workspace config
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/sites/package.json ./apps/sites/
 
-# Copy sites app package files
-COPY apps/sites/package*.json ./apps/sites/
+# Install dependencies
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @gruenerator/sites...
 
-# Install dependencies (monorepo-aware)
-RUN npm ci --workspace=@gruenerator/sites || npm install
-
-# Copy sites source code
+# Copy source code
+COPY packages/shared ./packages/shared
 COPY apps/sites ./apps/sites
 
 # Build the app
 WORKDIR /app/apps/sites
-RUN npm run build
+RUN pnpm build
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine

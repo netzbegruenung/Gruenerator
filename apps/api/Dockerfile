@@ -34,7 +34,7 @@ COPY apps/api/package.json ./apps/api/
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @gruenerator/api...
 
-# Copy source and compile
+# Copy source and compile (validates TypeScript)
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 
@@ -42,7 +42,7 @@ WORKDIR /app/apps/api
 RUN pnpm exec tsc --project tsconfig.json
 
 # =============================================================================
-# Stage 2: Production - Fresh install of prod deps only
+# Stage 2: Production - Fresh install with pnpm
 # =============================================================================
 FROM node:20-slim AS production
 
@@ -88,7 +88,7 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 
 # Install all dependencies (tsx is needed to run TypeScript)
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/api...
+    pnpm install --frozen-lockfile --filter @gruenerator/api...
 
 # Copy shared package source (needed for workspace resolution at runtime)
 COPY --from=builder /app/packages/shared ./packages/shared
