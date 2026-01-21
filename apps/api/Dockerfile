@@ -44,15 +44,11 @@ FROM node:20-slim AS production
 LABEL org.opencontainers.image.title="Gruenerator API"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
 
-# Runtime dependencies + build tools for native modules
-# Note: @napi-rs/canvas uses pre-built binaries, no Cairo/Pango needed
+# Runtime dependencies only - NO build tools needed
+# @napi-rs/canvas and sharp both use pre-built binaries
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    make \
-    g++ \
     ffmpeg \
-    libvips42 libvips-dev \
-    pkg-config \
+    libvips42 \
     curl \
     fontconfig \
     fonts-dejavu-core \
@@ -76,12 +72,9 @@ COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 
 # Install all dependencies (tsx is needed to run TypeScript)
+# sharp and @napi-rs/canvas use pre-built binaries - no rebuild needed
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @gruenerator/api...
-
-# Force rebuild sharp native module for linux-x64
-RUN cd /app/node_modules/.pnpm/sharp@*/node_modules/sharp && \
-    npm rebuild --platform=linux --arch=x64
 
 # Copy shared package source (needed for workspace resolution at runtime)
 COPY --from=builder /app/packages/shared ./packages/shared
