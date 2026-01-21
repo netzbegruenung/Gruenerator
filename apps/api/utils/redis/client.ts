@@ -37,10 +37,25 @@ client.on('error', (err) => console.error('Redis Client Fehler:', err.message));
 client.on('connect', () => console.log('Erfolgreich mit Redis verbunden'));
 client.on('reconnecting', (attempt) => console.log(`Verbinde neu mit Redis... Versuch ${attempt}`));
 
-// Verbindungsversuch beim Start (asynchron)
-client.connect().catch(err => {
-  console.error(`Fehler beim initialen Verbinden mit Redis (${maskedUrl}):`, err.message);
-});
+// Connection promise for awaitable connection
+let connectPromise: Promise<void> | null = null;
+
+export function ensureConnected(): Promise<void> {
+  if (client.isOpen) {
+    return Promise.resolve();
+  }
+  if (!connectPromise) {
+    connectPromise = client.connect().catch(err => {
+      console.error(`Redis connection failed (${maskedUrl}):`, err.message);
+      connectPromise = null;
+      throw err;
+    });
+  }
+  return connectPromise;
+}
+
+// Start connection immediately
+ensureConnected().catch(() => {});
 
 // Exportiere den verbundenen Client für andere Module
 export default client;

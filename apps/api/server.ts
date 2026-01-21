@@ -32,7 +32,7 @@ import { createMasterShutdownHandler, createWorkerShutdownHandler } from './util
 import passport from './config/passportSetup.js';
 import { setupRoutes } from './routes.js';
 import AIWorkerPool from './workers/aiWorkerPool.js';
-import redisClient from './utils/redis/client.js';
+import redisClient, { ensureConnected } from './utils/redis/client.js';
 import { tusServer } from './services/subtitler/tusService.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { spawn } from 'child_process';
@@ -293,6 +293,14 @@ async function startWorker(): Promise<void> {
     crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
   }));
+
+  // Ensure Redis is connected before session middleware
+  try {
+    await ensureConnected();
+    log.info('Redis connected');
+  } catch (err) {
+    log.error('Redis connection failed, sessions may not persist');
+  }
 
   // Session configuration
   const sessionSecret = process.env.SESSION_SECRET || 'temporary-fallback-secret-for-mobile-only';
