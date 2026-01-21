@@ -9,6 +9,27 @@
  * the existing frontend editor infrastructure.
  */
 
+const MAX_HTML_LENGTH = 1024 * 1024;
+
+function stripTags(html: string): string {
+  if (html.length > MAX_HTML_LENGTH) {
+    html = html.slice(0, MAX_HTML_LENGTH);
+  }
+  let result = '';
+  let inTag = false;
+  for (let i = 0; i < html.length; i++) {
+    const char = html[i];
+    if (char === '<') {
+      inTag = true;
+    } else if (char === '>') {
+      inTag = false;
+    } else if (!inTag) {
+      result += char;
+    }
+  }
+  return result;
+}
+
 /**
  * Validates and sanitizes HTML content for storage
  * @param html - HTML string to validate
@@ -24,9 +45,8 @@ export function validateAndSanitizeHtml(html: string): string {
     throw new Error('HTML content cannot be empty');
   }
 
-  // Check content size (1MB limit)
   const sizeInBytes = new Blob([trimmed]).size;
-  const maxSizeBytes = 1 * 1024 * 1024; // 1MB
+  const maxSizeBytes = 1 * 1024 * 1024;
   if (sizeInBytes > maxSizeBytes) {
     throw new Error(`Content too large: ${(sizeInBytes / 1024 / 1024).toFixed(2)}MB (max 1MB)`);
   }
@@ -40,17 +60,18 @@ export function validateAndSanitizeHtml(html: string): string {
  * @returns Extracted title
  */
 export function extractTitleFromHtml(html: string): string {
-  // Try to extract first heading
-  const headingMatch = html.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i);
+  if (html.length > MAX_HTML_LENGTH) {
+    html = html.slice(0, MAX_HTML_LENGTH);
+  }
+  const headingMatch = html.match(/<h[1-6][^>]{0,100}>([\s\S]{0,500}?)<\/h[1-6]>/i);
   if (headingMatch && headingMatch[1]) {
-    const title = headingMatch[1].replace(/<[^>]*>/g, '').trim();
+    const title = stripTags(headingMatch[1]).trim();
     if (title.length > 0) {
       return title.length > 100 ? title.substring(0, 97) + '...' : title;
     }
   }
 
-  // Fallback: extract first 50 characters of text content
-  const textContent = html.replace(/<[^>]*>/g, '').trim();
+  const textContent = stripTags(html).trim();
   if (textContent.length > 0) {
     return textContent.length > 50 ? textContent.substring(0, 47) + '...' : textContent;
   }
@@ -64,5 +85,5 @@ export function extractTitleFromHtml(html: string): string {
  * @returns Plain text
  */
 export function stripHtmlTags(html: string): string {
-  return html.replace(/<[^>]*>/g, '').trim();
+  return stripTags(html).trim();
 }

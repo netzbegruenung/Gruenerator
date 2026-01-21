@@ -126,7 +126,7 @@ router.get('/endpoints', (_req: AuthenticatedRequest, res: Response<EndpointsRes
  */
 router.get('/search-city', (req: AuthenticatedRequest, res: Response<SearchCityResponse>): void => {
   try {
-    const { q } = req.query as SearchCityQuery;
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
 
     if (!q || q.length < 2) {
       res.status(400).json({

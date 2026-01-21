@@ -6,11 +6,26 @@
 import { URL } from 'url';
 import type { ValidationResult } from '../types.js';
 
+const MAX_URL_LENGTH = 8192;
+const MAX_SANITIZATION_ITERATIONS = 20;
+
+function countChar(str: string, char: string): number {
+  let count = 0;
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === char) count++;
+  }
+  return count;
+}
+
 export class UrlValidator {
   /**
    * Validates if a URL is valid and accessible
    */
   static async validateUrl(url: string): Promise<ValidationResult> {
+    if (!url || url.length > MAX_URL_LENGTH) {
+      return { isValid: false, error: 'URL is empty or too long' };
+    }
+
     try {
       const urlObj = new URL(url);
 
@@ -21,7 +36,6 @@ export class UrlValidator {
         };
       }
 
-      // Check for localhost or private IP addresses in production
       if (process.env.NODE_ENV === 'production') {
         const hostname = urlObj.hostname.toLowerCase();
         if (
@@ -39,7 +53,7 @@ export class UrlValidator {
       }
 
       return { isValid: true };
-    } catch (error) {
+    } catch {
       return {
         isValid: false,
         error: 'Invalid URL format',
@@ -54,18 +68,22 @@ export class UrlValidator {
   static sanitizeUrl(url: string): string {
     if (!url) return url;
 
+    if (url.length > MAX_URL_LENGTH) {
+      return url.slice(0, MAX_URL_LENGTH);
+    }
+
     let sanitized = url.trim();
     const originalUrl = sanitized;
+    const trailingPunctuation = ['}', ',', ';', ':', "'", '"'];
 
-    // Loop until no more changes - handles mixed cases like "url),"
+    let iterations = 0;
     let changed = true;
-    while (changed) {
+    while (changed && iterations < MAX_SANITIZATION_ITERATIONS) {
       changed = false;
-      const beforeLoop = sanitized;
+      iterations++;
 
-      // Handle unbalanced parentheses - Wikipedia URLs legitimately use balanced parens
-      const openParens = (sanitized.match(/\(/g) || []).length;
-      const closeParens = (sanitized.match(/\)/g) || []).length;
+      const openParens = countChar(sanitized, '(');
+      const closeParens = countChar(sanitized, ')');
 
       if (closeParens > openParens && sanitized.endsWith(')')) {
         sanitized = sanitized.slice(0, -1);
@@ -73,9 +91,8 @@ export class UrlValidator {
         continue;
       }
 
-      // Handle unbalanced square brackets
-      const openBrackets = (sanitized.match(/\[/g) || []).length;
-      const closeBrackets = (sanitized.match(/\]/g) || []).length;
+      const openBrackets = countChar(sanitized, '[');
+      const closeBrackets = countChar(sanitized, ']');
 
       if (closeBrackets > openBrackets && sanitized.endsWith(']')) {
         sanitized = sanitized.slice(0, -1);
@@ -83,15 +100,15 @@ export class UrlValidator {
         continue;
       }
 
-      // Strip other trailing punctuation
-      const stripped = sanitized.replace(/[},;:'"]+$/, '');
-      if (stripped !== sanitized) {
-        sanitized = stripped;
-        changed = true;
+      for (const punct of trailingPunctuation) {
+        if (sanitized.endsWith(punct)) {
+          sanitized = sanitized.slice(0, -1);
+          changed = true;
+          break;
+        }
       }
     }
 
-    // Log if sanitization changed the URL
     if (sanitized !== originalUrl) {
       console.log(`[UrlValidator] Sanitized URL: "${originalUrl}" -> "${sanitized}"`);
     }
