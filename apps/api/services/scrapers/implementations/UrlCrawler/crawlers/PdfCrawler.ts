@@ -5,6 +5,7 @@
 
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { CrawlerConfig, PdfExtractionResult } from '../types.js';
+import { validateUrlForFetch } from '../../../../../utils/validation/urlSecurity.js';
 
 export class PdfCrawler {
   constructor(private config: CrawlerConfig) {}
@@ -13,6 +14,11 @@ export class PdfCrawler {
    * Crawls PDF documents and extracts text content
    */
   async crawlPdf(url: string): Promise<PdfExtractionResult> {
+    const urlValidation = await validateUrlForFetch(url);
+    if (!urlValidation.isValid) {
+      throw new Error(`URL validation failed: ${urlValidation.error}`);
+    }
+
     console.log(`[PdfCrawler] Fetching PDF: ${url}`);
 
     const controller = new AbortController();

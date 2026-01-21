@@ -8,6 +8,13 @@ import * as path from 'path';
 import * as fs from 'fs';
 import type { PathSanitizationOptions } from './types.js';
 
+const MAX_PATH_LENGTH = 4096;
+
+function containsDangerousChars(input: string): boolean {
+  const dangerousChars = ['..', ';', '&', '|', '`', '$', '(', ')', '<', '>', ':', '"', '?', '*'];
+  return dangerousChars.some(char => input.includes(char));
+}
+
 /**
  * Sanitize and validate a path to prevent directory traversal attacks
  */
@@ -24,6 +31,10 @@ export function sanitizePath(
     throw new Error('Invalid base directory: must be a non-empty string');
   }
 
+  if (userInput.length > MAX_PATH_LENGTH) {
+    throw new Error('Invalid path: path too long');
+  }
+
   if (userInput.includes('\0')) {
     throw new Error('Invalid path: contains null bytes');
   }
@@ -36,18 +47,8 @@ export function sanitizePath(
     throw new Error(`Path traversal detected: path must be within ${resolvedBase}`);
   }
 
-  const dangerousPatterns = [
-    /\.\./,
-    /[;&|`$()]/,
-    /\s*>/,
-    /\s*</,
-    /[<>:"|?*]/,
-  ];
-
-  for (const pattern of dangerousPatterns) {
-    if (pattern.test(userInput)) {
-      throw new Error('Invalid path: contains dangerous characters or patterns');
-    }
+  if (containsDangerousChars(userInput)) {
+    throw new Error('Invalid path: contains dangerous characters or patterns');
   }
 
   if (options.createDir) {

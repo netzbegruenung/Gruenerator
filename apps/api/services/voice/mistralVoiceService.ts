@@ -1,5 +1,6 @@
 import mistralClient from '../../workers/mistralClient.js';
 import { createLogger } from '../../utils/logger.js';
+import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 const log = createLogger('mistralVoice');
 
@@ -75,6 +76,11 @@ class MistralVoiceService {
       const { language, timestamp_granularities } = options;
 
       log.debug('[Mistral Voice] Starting URL transcription for:', audioUrl);
+
+      const urlValidation = await validateUrlForFetch(audioUrl);
+      if (!urlValidation.isValid) {
+        throw new Error(`Invalid audio URL: ${urlValidation.error}`);
+      }
 
       const response = await fetch(audioUrl);
       if (!response.ok) {

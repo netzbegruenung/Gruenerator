@@ -4,6 +4,25 @@ interface TemplateData {
   [key: string]: unknown;
 }
 
+const MAX_TEMPLATE_LENGTH = 50000;
+
+function parseConditional(text: string, startTag: string, elseTag: string, endTag: string): { fullMatch: string; trueBranch: string; falseBranch: string } | null {
+  const startIdx = text.indexOf(startTag);
+  if (startIdx === -1) return null;
+
+  const elseIdx = text.indexOf(elseTag, startIdx + startTag.length);
+  if (elseIdx === -1) return null;
+
+  const endIdx = text.indexOf(endTag, elseIdx + elseTag.length);
+  if (endIdx === -1) return null;
+
+  return {
+    fullMatch: text.slice(startIdx, endIdx + endTag.length),
+    trueBranch: text.slice(startIdx + startTag.length, elseIdx),
+    falseBranch: text.slice(elseIdx + elseTag.length, endIdx),
+  };
+}
+
 /**
  * Replace placeholders in template strings with data values
  * Supports conditionals like {{#if preserveName}}...{{else}}...{{/if}}
@@ -13,26 +32,26 @@ export function replaceTemplate(template: string | null | undefined, data: Templ
     return template ?? '';
   }
 
-  let result = template;
-
-  if (result.includes('{{#if preserveName}}')) {
-    const preserveNameRegex = /\{\{#if preserveName\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/;
-    const match = result.match(preserveNameRegex);
-    if (match) {
-      const preserveBranch = match[1];
-      const nonPreserveBranch = match[2];
-      result = result.replace(match[0], data.preserveName ? preserveBranch : nonPreserveBranch);
-    }
+  if (template.length > MAX_TEMPLATE_LENGTH) {
+    return template.slice(0, MAX_TEMPLATE_LENGTH);
   }
 
-  if (result.includes('{{#if thema}}')) {
-    const themaRegex = /\{\{#if thema\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/;
-    const match = result.match(themaRegex);
-    if (match) {
-      const themaBranch = match[1];
-      const fallbackBranch = match[2];
-      result = result.replace(match[0], data.thema ? themaBranch : fallbackBranch);
-    }
+  let result = template;
+
+  const preserveNameConditional = parseConditional(result, '{{#if preserveName}}', '{{else}}', '{{/if}}');
+  if (preserveNameConditional) {
+    result = result.replace(
+      preserveNameConditional.fullMatch,
+      data.preserveName ? preserveNameConditional.trueBranch : preserveNameConditional.falseBranch
+    );
+  }
+
+  const themaConditional = parseConditional(result, '{{#if thema}}', '{{else}}', '{{/if}}');
+  if (themaConditional) {
+    result = result.replace(
+      themaConditional.fullMatch,
+      data.thema ? themaConditional.trueBranch : themaConditional.falseBranch
+    );
   }
 
   result = result.replace(/\{\{([^#/}][^}]*)\}\}/g, (match, key) => {
