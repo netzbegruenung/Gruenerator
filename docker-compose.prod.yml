@@ -71,7 +71,7 @@ services:
     environment:
       - PORT=3004
       - NODE_ENV=production
-      - PUBLIC_URL=${MCP_PUBLIC_URL:-https://${DOMAIN:-localhost}/mcp-server}
+      - PUBLIC_URL=${MCP_PUBLIC_URL}
       - LOG_LEVEL=${MCP_LOG_LEVEL:-INFO}
     networks:
       - gruenerator
