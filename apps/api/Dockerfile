@@ -88,7 +88,8 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 
 # Install all dependencies (tsx is needed to run TypeScript)
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @gruenerator/api...
+    pnpm install --frozen-lockfile --filter @gruenerator/api... && \
+    pnpm rebuild sharp
 
 # Copy shared package source (needed for workspace resolution at runtime)
 COPY --from=builder /app/packages/shared ./packages/shared

@@ -83,10 +83,11 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 # Copy only package.json files for production install
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/docs/package.json ./apps/docs/
+COPY apps/api/package.json ./apps/api/
 
-# Install production dependencies only (--ignore-scripts skips husky)
+# Install production dependencies (include api for hocuspocus service)
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --ignore-scripts --filter @gruenerator/docs
+    pnpm install --prod --frozen-lockfile --ignore-scripts --filter @gruenerator/docs --filter @gruenerator/api
 
 # Copy built assets and server
 COPY --from=builder /app/apps/docs/dist ./apps/docs/dist
