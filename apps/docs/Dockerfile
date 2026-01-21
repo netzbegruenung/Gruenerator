@@ -94,9 +94,10 @@ COPY --from=builder /app/apps/docs/dist ./apps/docs/dist
 COPY --from=builder /app/apps/docs/server.ts ./apps/docs/
 COPY --from=builder /app/apps/docs/tsconfig.json ./apps/docs/
 COPY --from=builder /app/packages/shared ./packages/shared
-# Copy API's hocuspocus service and dependencies (docs server imports from it)
+# Copy API's hocuspocus service and all its dependencies
 COPY --from=builder /app/apps/api/services ./apps/api/services
 COPY --from=builder /app/apps/api/utils ./apps/api/utils
+COPY --from=builder /app/apps/api/database ./apps/api/database
 
 RUN chown -R gruenerator:gruenerator /app
 
