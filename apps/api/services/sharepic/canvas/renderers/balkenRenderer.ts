@@ -4,7 +4,7 @@
  * Based on dreizeilen_canvas.ts lines 226-249 and balkenMath.ts
  */
 
-import type { CanvasRenderingContext2D } from 'canvas';
+import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 import type { BalkenLayer } from '../types/freeCanvasTypes.js';
 import {
   calculateParallelogramPoints,

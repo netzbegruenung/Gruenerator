@@ -4,7 +4,7 @@
  * Extracted from simple_canvas.ts lines 124-150 and campaign_canvas.ts
  */
 
-import { loadImage, type CanvasRenderingContext2D, type Image } from 'canvas';
+import { loadImage, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
 import type { BackgroundConfig } from '../types/freeCanvasTypes.js';
 
 /**

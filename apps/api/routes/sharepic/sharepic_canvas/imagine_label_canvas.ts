@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { createCanvas, loadImage, type Canvas, type CanvasRenderingContext2D } from 'canvas';
+import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';

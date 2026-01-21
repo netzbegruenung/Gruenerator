@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, Canvas, CanvasRenderingContext2D, Image } from 'canvas';
+import { createCanvas, loadImage, Canvas, SKRSContext2D as CanvasRenderingContext2D, Image } from '@napi-rs/canvas';
 import { checkFiles, registerFonts } from '../sharepic/canvas/fileManagement.js';
 import { COLORS } from '../sharepic/canvas/config.js';
 import { createLogger } from '../../utils/logger.js';

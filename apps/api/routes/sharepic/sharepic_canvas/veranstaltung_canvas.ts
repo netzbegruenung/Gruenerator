@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, type Canvas, type CanvasRenderingContext2D, type Image } from 'canvas';
+import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';

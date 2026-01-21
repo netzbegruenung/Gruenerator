@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { createCanvas, loadImage, registerFont, type Canvas, type CanvasRenderingContext2D, type Image } from 'canvas';
+import { createCanvas, loadImage, GlobalFonts, type Canvas, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
 import path from 'path';
 import fs from 'fs';
 import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } from '../../../services/sharepic/canvas/config.js';
@@ -14,12 +14,12 @@ const __dirname = dirname(__filename);
 const log = createLogger('campaign_canvas');
 const router: Router = Router();
 
-registerFont(FONT_PATH, { family: 'GrueneTypeNeue' });
+GlobalFonts.registerFromPath(FONT_PATH, 'GrueneTypeNeue');
 if (fs.existsSync(PTSANS_REGULAR_PATH)) {
-  registerFont(PTSANS_REGULAR_PATH, { family: 'PTSans-Regular' });
+  GlobalFonts.registerFromPath(PTSANS_REGULAR_PATH, 'PTSans-Regular');
 }
 if (fs.existsSync(PTSANS_BOLD_PATH)) {
-  registerFont(PTSANS_BOLD_PATH, { family: 'PTSans-Bold' });
+  GlobalFonts.registerFromPath(PTSANS_BOLD_PATH, 'PTSans-Bold');
 }
 
 interface TextLineConfig {

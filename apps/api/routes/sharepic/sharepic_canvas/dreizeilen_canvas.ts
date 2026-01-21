@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { createCanvas, loadImage, type Canvas, type CanvasRenderingContext2D, type Image } from 'canvas';
+import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
 import fs from 'fs/promises';
 import { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } from '../../../services/sharepic/canvas/config.js';
 import { isValidHexColor, getDefaultColor } from '../../../services/sharepic/canvas/utils.js';

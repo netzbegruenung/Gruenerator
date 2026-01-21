@@ -4,7 +4,7 @@
  * Supports multiple icon libraries via dynamic imports
  */
 
-import { loadImage, type CanvasRenderingContext2D, type Image } from 'canvas';
+import { loadImage, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 import type { IconLayer } from '../types/freeCanvasTypes.js';

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import multer from 'multer';
-import { createCanvas, loadImage, type Canvas, type CanvasRenderingContext2D } from 'canvas';
+import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 import fs from 'fs/promises';
 import path from 'path';
 import { COLORS } from '../../../services/sharepic/canvas/config.js';

@@ -7,16 +7,11 @@
 FROM node:20-slim AS builder
 
 # Install build dependencies for native modules
+# Note: @napi-rs/canvas uses pre-built binaries, no Cairo/Pango needed
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
-    libcairo2-dev \
-    libpango1.0-dev \
-    libjpeg-dev \
-    libgif-dev \
-    librsvg2-dev \
-    libpixman-1-dev \
     pkg-config \
     libvips-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -50,19 +45,13 @@ LABEL org.opencontainers.image.title="Gruenerator API"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
 
 # Runtime dependencies + build tools for native modules
+# Note: @napi-rs/canvas uses pre-built binaries, no Cairo/Pango needed
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
     ffmpeg \
-    libcairo2 libcairo2-dev \
-    libpango-1.0-0 libpango1.0-dev \
-    libpangocairo-1.0-0 \
-    libjpeg62-turbo libjpeg-dev \
-    libgif7 libgif-dev \
-    librsvg2-2 librsvg2-dev \
     libvips42 libvips-dev \
-    libpixman-1-dev \
     pkg-config \
     curl \
     fontconfig \

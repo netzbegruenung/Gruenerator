@@ -4,7 +4,7 @@
  * Extracted from simple_canvas.ts and extended for Free Canvas API
  */
 
-import type { CanvasRenderingContext2D } from 'canvas';
+import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 import type { TextLayer } from '../types/freeCanvasTypes.js';
 
 /**

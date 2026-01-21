@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import { registerFont } from 'canvas';
+import { GlobalFonts } from '@napi-rs/canvas';
 import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH } from './config.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -49,7 +49,7 @@ export function registerFonts(): void {
 
   for (const font of fonts) {
     try {
-      registerFont(font.path, { family: font.family });
+      GlobalFonts.registerFromPath(font.path, font.family);
     } catch (err) {
       log.error(`Fehler beim Registrieren der ${font.name} Schriftart:`, err);
       throw err;

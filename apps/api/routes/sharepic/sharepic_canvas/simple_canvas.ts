@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createCanvas, type Canvas, type CanvasRenderingContext2D } from 'canvas';
+import { createCanvas, type Canvas, type SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 import { registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { validateFreeCanvasRequest } from '../../../services/sharepic/canvas/utils/layerValidator.js';
