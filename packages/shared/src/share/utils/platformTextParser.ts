@@ -45,27 +45,38 @@ export function parsePlatformSections(
     return {};
   }
 
+  const MAX_CONTENT_LENGTH = 100000;
+  const safeContent = content.length > MAX_CONTENT_LENGTH ? content.slice(0, MAX_CONTENT_LENGTH) : content;
+
   const sections: PlatformSections = {};
+  const platformNames = ['Instagram', 'Facebook', 'Twitter', 'LinkedIn', 'Pressemitteilung', 'X', 'Mastodon', 'Bsky', 'Bluesky'];
+  const headerRegex = /^##\s*(Instagram|Facebook|Twitter|LinkedIn|Pressemitteilung|X,?\s*Mastodon|Bsky|Bluesky)[^\n]*/gim;
 
-  // Match platform headers like "## Instagram" or "## Twitter/X"
-  const platformRegex = /##\s*(Instagram|Facebook|Twitter|LinkedIn|Pressemitteilung|X,?\s*Mastodon|Bsky|Bluesky)[^\n]*\n([\s\S]*?)(?=##\s|$)/gi;
+  const headers: { index: number; platform: string }[] = [];
+  let headerMatch;
+  while ((headerMatch = headerRegex.exec(safeContent)) !== null) {
+    const platformName = headerMatch[1];
+    if (platformNames.some(p => platformName.toLowerCase().includes(p.toLowerCase()))) {
+      headers.push({ index: headerMatch.index, platform: platformName });
+    }
+  }
 
-  let match;
-  while ((match = platformRegex.exec(content)) !== null) {
-    const platformName = match[1];
-    const text = match[2].trim();
-    const normalizedId = normalizePlatformId(platformName) as SharePlatform;
+  for (let i = 0; i < headers.length; i++) {
+    const startIdx = safeContent.indexOf('\n', headers[i].index);
+    if (startIdx === -1) continue;
 
-    // Only include if allowed (or if no filter specified)
+    const endIdx = i < headers.length - 1 ? headers[i + 1].index : safeContent.length;
+    const text = safeContent.slice(startIdx + 1, endIdx).trim();
+    const normalizedId = normalizePlatformId(headers[i].platform) as SharePlatform;
+
     if (allowedPlatforms.length === 0 || allowedPlatforms.includes(normalizedId)) {
       sections[normalizedId] = text;
     }
   }
 
-  // If no sections found but content exists, use entire content for first allowed platform
-  if (Object.keys(sections).length === 0 && content.trim()) {
+  if (Object.keys(sections).length === 0 && safeContent.trim()) {
     const firstPlatform = allowedPlatforms[0] || 'instagram';
-    sections[firstPlatform] = content.trim();
+    sections[firstPlatform] = safeContent.trim();
   }
 
   return sections;

@@ -211,30 +211,33 @@ class OparlApiClient {
 
       console.log(`[OParlAPI] Fetching organizations from: ${organizationUrl}`);
 
-      // Try with limit=200 first to get more results
       let response;
       try {
         const urlWithLimit = organizationUrl.includes('?')
           ? `${organizationUrl}&limit=200`
           : `${organizationUrl}?limit=200`;
-        response = await this.client.get<OparlOrganization[] | { data: OparlOrganization[] }>(urlWithLimit);
+        response = await this.client.get<unknown>(urlWithLimit);
       } catch (err) {
         const axiosErr = err as AxiosError;
-        // If 400 error, API doesn't support limit param - try without
         if (axiosErr.response?.status === 400) {
           console.log(`[OParlAPI] Retrying organizations without limit param`);
           const cleanUrl = organizationUrl.split('?')[0];
-          response = await this.client.get<OparlOrganization[] | { data: OparlOrganization[] }>(cleanUrl);
+          response = await this.client.get<unknown>(cleanUrl);
         } else {
           throw err;
         }
       }
 
-      if (Array.isArray(response.data)) {
-        return response.data;
+      const data = response.data;
+      if (Array.isArray(data)) {
+        return data.filter((item): item is OparlOrganization =>
+          typeof item === 'object' && item !== null && typeof (item as OparlOrganization).id === 'string'
+        );
       }
-      if ((response.data as { data: OparlOrganization[] }).data) {
-        return (response.data as { data: OparlOrganization[] }).data;
+      if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as Record<string, unknown>).data)) {
+        return ((data as Record<string, unknown>).data as unknown[]).filter((item): item is OparlOrganization =>
+          typeof item === 'object' && item !== null && typeof (item as OparlOrganization).id === 'string'
+        );
       }
       return [];
     } catch (error) {

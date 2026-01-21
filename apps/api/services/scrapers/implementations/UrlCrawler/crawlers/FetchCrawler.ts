@@ -5,6 +5,7 @@
 
 import type { CrawlerConfig, RawCrawlResult, CrawlOptions } from '../types.js';
 import { PdfCrawler } from './PdfCrawler.js';
+import { validateUrlForFetch } from '../../../../../utils/validation/urlSecurity.js';
 
 export class FetchCrawler {
   private pdfCrawler: PdfCrawler;
@@ -17,6 +18,11 @@ export class FetchCrawler {
    * Fallback crawling using native fetch
    */
   async crawlWithFetch(url: string, options: CrawlOptions = {}): Promise<RawCrawlResult> {
+    const urlValidation = await validateUrlForFetch(url);
+    if (!urlValidation.isValid) {
+      throw new Error(`URL validation failed: ${urlValidation.error}`);
+    }
+
     const fetchOptions = {
       ...this.config,
       ...options,

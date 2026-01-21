@@ -18,6 +18,41 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
 
+const MAX_CONTENT_LENGTH = 1024 * 1024;
+
+function stripHtmlTags(html: string): string {
+  if (!html) return '';
+  const safeHtml = html.length > MAX_CONTENT_LENGTH ? html.slice(0, MAX_CONTENT_LENGTH) : html;
+  let result = '';
+  let inTag = false;
+  for (let i = 0; i < safeHtml.length; i++) {
+    const char = safeHtml[i];
+    if (char === '<') {
+      inTag = true;
+    } else if (char === '>') {
+      inTag = false;
+    } else if (!inTag) {
+      result += char;
+    }
+  }
+  return result;
+}
+
+function extractHeading(html: string, tag: string): string | null {
+  const openTag = `<${tag}`;
+  const closeTag = `</${tag}>`;
+  const startIdx = html.toLowerCase().indexOf(openTag);
+  if (startIdx === -1) return null;
+
+  const tagEndIdx = html.indexOf('>', startIdx);
+  if (tagEndIdx === -1) return null;
+
+  const closeIdx = html.toLowerCase().indexOf(closeTag, tagEndIdx);
+  if (closeIdx === -1) return null;
+
+  return html.slice(tagEndIdx + 1, closeIdx);
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -27,46 +62,44 @@ function extractTitleFromContent(content: string): string | null {
     return null;
   }
 
-  const h2Match = content.match(/<h2[^>]*>(.*?)<\/h2>/i);
-  if (h2Match && h2Match[1]) {
-    return cleanTitle(h2Match[1]);
-  }
+  const safeContent = content.length > MAX_CONTENT_LENGTH ? content.slice(0, MAX_CONTENT_LENGTH) : content;
 
-  const h1Match = content.match(/<h1[^>]*>(.*?)<\/h1>/i);
-  if (h1Match && h1Match[1]) {
-    return cleanTitle(h1Match[1]);
-  }
-
-  const h3Match = content.match(/<h3[^>]*>(.*?)<\/h3>/i);
-  if (h3Match && h3Match[1]) {
-    return cleanTitle(h3Match[1]);
+  for (const tag of ['h2', 'h1', 'h3']) {
+    const heading = extractHeading(safeContent, tag);
+    if (heading) {
+      const cleaned = cleanTitle(heading);
+      if (cleaned) return cleaned;
+    }
   }
 
   const socialPlatforms = ['Twitter', 'Facebook', 'Instagram', 'LinkedIn', 'TikTok'];
+  const lowerContent = safeContent.toLowerCase();
   for (const platform of socialPlatforms) {
-    if (content.toLowerCase().includes(platform.toLowerCase())) {
+    if (lowerContent.includes(platform.toLowerCase())) {
       return `${platform}-Beitrag`;
     }
   }
 
-  const contentTypes = [
-    { pattern: /tweet|twitter/i, title: 'Twitter-Beitrag' },
-    { pattern: /facebook/i, title: 'Facebook-Beitrag' },
-    { pattern: /instagram/i, title: 'Instagram-Beitrag' },
-    { pattern: /linkedin/i, title: 'LinkedIn-Beitrag' },
-    { pattern: /antrag/i, title: 'Antrag' },
-    { pattern: /pressemitteilung|presse/i, title: 'Pressemitteilung' },
-    { pattern: /rede/i, title: 'Rede' },
-    { pattern: /wahlprogramm/i, title: 'Wahlprogramm' }
+  const contentKeywords = [
+    { keyword: 'tweet', title: 'Twitter-Beitrag' },
+    { keyword: 'twitter', title: 'Twitter-Beitrag' },
+    { keyword: 'facebook', title: 'Facebook-Beitrag' },
+    { keyword: 'instagram', title: 'Instagram-Beitrag' },
+    { keyword: 'linkedin', title: 'LinkedIn-Beitrag' },
+    { keyword: 'antrag', title: 'Antrag' },
+    { keyword: 'pressemitteilung', title: 'Pressemitteilung' },
+    { keyword: 'presse', title: 'Pressemitteilung' },
+    { keyword: 'rede', title: 'Rede' },
+    { keyword: 'wahlprogramm', title: 'Wahlprogramm' }
   ];
 
-  for (const type of contentTypes) {
-    if (type.pattern.test(content)) {
+  for (const type of contentKeywords) {
+    if (lowerContent.includes(type.keyword)) {
       return type.title;
     }
   }
 
-  const textContent = content.replace(/<[^>]*>/g, '').trim();
+  const textContent = stripHtmlTags(safeContent).trim();
   const sentences = textContent.split(/[.!?]/);
   if (sentences.length > 0) {
     const firstSentence = sentences[0].trim();
@@ -86,11 +119,9 @@ function extractTitleFromContent(content: string): string | null {
 function cleanTitle(title: string): string | null {
   if (!title) return null;
 
-  return title
-    .replace(/<[^>]*>/g, '')
-    .replace(/&[a-zA-Z0-9#]+;/g, '')
-    .trim()
-    .substring(0, 200);
+  let cleaned = stripHtmlTags(title);
+  cleaned = cleaned.replace(/&[a-zA-Z0-9#]+;/g, '');
+  return cleaned.trim().substring(0, 200) || null;
 }
 
 const VALID_TYPES = [
@@ -142,7 +173,7 @@ router.post('/save-to-library', ensureAuthenticated as any, async (req: AuthRequ
 
     const documentId = uuidv4();
 
-    const plainTextContent = content.replace(/<[^>]*>/g, '').trim();
+    const plainTextContent = stripHtmlTags(content).trim();
     const wordCount = plainTextContent.split(/\s+/).filter((word: string) => word.length > 0).length;
     const characterCount = plainTextContent.length;
 
@@ -165,7 +196,7 @@ router.post('/save-to-library', ensureAuthenticated as any, async (req: AuthRequ
         await mistralEmbeddingService.init();
 
         if (qdrant.isAvailable()) {
-          const textForEmbedding = content.replace(/<[^>]*>/g, '').trim();
+          const textForEmbedding = stripHtmlTags(content).trim();
 
           if (textForEmbedding.length === 0) return;
 
@@ -282,7 +313,7 @@ router.get('/saved-texts', ensureAuthenticated as any, async (req: AuthRequest, 
     const data = await postgres.query(query, params, { table: 'user_documents' });
 
     const transformedData = data?.map((item: any) => {
-      const plainText = (item.content || '').replace(/<[^>]*>/g, '').trim();
+      const plainText = stripHtmlTags(item.content || '').trim();
       const wordCount = plainText.split(/\s+/).filter((word: string) => word.length > 0).length;
       const characterCount = plainText.length;
 
@@ -462,7 +493,7 @@ router.put('/saved-texts/:id/content', ensureAuthenticated as any, async (req: A
 
     await postgres.update('user_documents', updateData, { id, user_id: userId });
 
-    const plainTextContent = content.replace(/<[^>]*>/g, '').trim();
+    const plainTextContent = stripHtmlTags(content).trim();
     const wordCount = plainTextContent.split(/\s+/).filter((word: string) => word.length > 0).length;
     const characterCount = plainTextContent.length;
 
@@ -476,7 +507,7 @@ router.put('/saved-texts/:id/content', ensureAuthenticated as any, async (req: A
         if (qdrant.isAvailable()) {
           await qdrant.deleteDocument(id, 'user_texts');
 
-          const textForEmbedding = content.replace(/<[^>]*>/g, '').trim();
+          const textForEmbedding = stripHtmlTags(content).trim();
           if (textForEmbedding.length === 0) return;
 
           let chunks;
@@ -732,7 +763,7 @@ router.post('/search-saved-texts', ensureAuthenticated as any, async (req: AuthR
 
     const finalResults = documents
       .map((doc: any) => {
-        const plainText = (doc.content || '').replace(/<[^>]*>/g, '').trim();
+        const plainText = stripHtmlTags(doc.content || '').trim();
         const wordCount = plainText.split(/\s+/).filter((word: string) => word.length > 0).length;
         const characterCount = plainText.length;
 

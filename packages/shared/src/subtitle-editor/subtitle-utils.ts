@@ -5,6 +5,26 @@
 
 import type { SubtitleSegment } from './subtitle-types.js';
 
+const MAX_SUBTITLE_TEXT_LENGTH = 500000;
+
+function parseTimestamp(timeStr: string): { min: number; sec: number; frac: number } | null {
+  const parts = timeStr.split(':');
+  if (parts.length !== 2) return null;
+
+  const minStr = parts[0];
+  const secParts = parts[1].split('.');
+  if (secParts.length !== 2) return null;
+
+  const min = parseInt(minStr, 10);
+  const sec = parseInt(secParts[0], 10);
+  const frac = parseInt(secParts[1], 10);
+
+  if (isNaN(min) || isNaN(sec) || isNaN(frac)) return null;
+  if (sec < 0 || sec > 59 || frac < 0 || frac > 9) return null;
+
+  return { min, sec, frac };
+}
+
 /**
  * Parse subtitle text format into segment array
  * Format: "MM:SS.F - MM:SS.F\nText\n\nMM:SS.F - MM:SS.F\nText..."
@@ -17,29 +37,25 @@ export function parseSubtitlesText(text: string | null | undefined): SubtitleSeg
     return [];
   }
 
+  const safeText = text.length > MAX_SUBTITLE_TEXT_LENGTH ? text.slice(0, MAX_SUBTITLE_TEXT_LENGTH) : text;
   const segments: SubtitleSegment[] = [];
-
-  const blocks = text.split('\n\n').filter((block) => block.trim() !== '');
+  const blocks = safeText.split('\n\n').filter((block) => block.trim() !== '');
 
   blocks.forEach((block, index) => {
     const lines = block.split('\n');
     const timeLine = lines[0];
     const textLines = lines.slice(1);
 
-    const timeMatch = timeLine.match(/(\d+):(\d{2})\.(\d) - (\d+):(\d{2})\.(\d)/);
-    if (!timeMatch) {
-      return;
-    }
+    const timeParts = timeLine.split(' - ');
+    if (timeParts.length !== 2) return;
 
-    const startMin = parseInt(timeMatch[1], 10);
-    const startSec = parseInt(timeMatch[2], 10);
-    const startFrac = parseInt(timeMatch[3], 10);
-    const endMin = parseInt(timeMatch[4], 10);
-    const endSec = parseInt(timeMatch[5], 10);
-    const endFrac = parseInt(timeMatch[6], 10);
+    const startParsed = parseTimestamp(timeParts[0].trim());
+    const endParsed = parseTimestamp(timeParts[1].trim());
 
-    const startTime = startMin * 60 + startSec + startFrac / 10;
-    const endTime = endMin * 60 + endSec + endFrac / 10;
+    if (!startParsed || !endParsed) return;
+
+    const startTime = startParsed.min * 60 + startParsed.sec + startParsed.frac / 10;
+    const endTime = endParsed.min * 60 + endParsed.sec + endParsed.frac / 10;
 
     segments.push({
       id: index,
