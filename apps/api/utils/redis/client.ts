@@ -45,7 +45,7 @@ export function ensureConnected(): Promise<void> {
     return Promise.resolve();
   }
   if (!connectPromise) {
-    connectPromise = client.connect().catch(err => {
+    connectPromise = client.connect().then(() => {}).catch(err => {
       console.error(`Redis connection failed (${maskedUrl}):`, err.message);
       connectPromise = null;
       throw err;
