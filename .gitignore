@@ -7,8 +7,9 @@ package-lock.json
 # Testing
 coverage
 
-# Production
-build
+# Production build outputs
+build/
+dist/
 
 # Miscellaneous
 .DS_Store
