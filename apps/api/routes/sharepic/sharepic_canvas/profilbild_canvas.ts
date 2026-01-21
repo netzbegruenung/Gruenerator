@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import sharp from 'sharp';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -23,15 +23,6 @@ function isValidHexColor(color: string): boolean {
   return /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : { r: 0, g: 85, b: 56 }; // Default to TANNE
-}
-
 router.post('/', upload.single('image'), async (req: MulterRequest, res: Response) => {
   try {
     const imageBuffer = req.file?.buffer;
@@ -46,12 +37,11 @@ router.post('/', upload.single('image'), async (req: MulterRequest, res: Respons
       ? body.backgroundColor
       : COLORS.TANNE;
 
-    log.info('Creating profilbild with sharp', { backgroundColor });
+    log.info('Creating profilbild with canvas', { backgroundColor });
 
-    const personImage = sharp(imageBuffer);
-    const metadata = await personImage.metadata();
-    const origWidth = metadata.width || PROFILBILD_SIZE;
-    const origHeight = metadata.height || PROFILBILD_SIZE;
+    const personImage = await loadImage(imageBuffer);
+    const origWidth = personImage.width;
+    const origHeight = personImage.height;
 
     const aspectRatio = origWidth / origHeight;
     let scaledWidth: number;
@@ -68,27 +58,15 @@ router.post('/', upload.single('image'), async (req: MulterRequest, res: Respons
     const x = Math.round((PROFILBILD_SIZE - scaledWidth) / 2);
     const y = PROFILBILD_SIZE - scaledHeight; // Anchor to bottom
 
-    const resizedPerson = await personImage
-      .resize(scaledWidth, scaledHeight, { fit: 'fill' })
-      .toBuffer();
+    const canvas = createCanvas(PROFILBILD_SIZE, PROFILBILD_SIZE);
+    const ctx = canvas.getContext('2d');
 
-    const rgb = hexToRgb(backgroundColor);
-    const result = await sharp({
-      create: {
-        width: PROFILBILD_SIZE,
-        height: PROFILBILD_SIZE,
-        channels: 3,
-        background: rgb
-      }
-    })
-      .composite([{
-        input: resizedPerson,
-        left: x,
-        top: y
-      }])
-      .png({ quality: 90 })
-      .toBuffer();
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, PROFILBILD_SIZE, PROFILBILD_SIZE);
 
+    ctx.drawImage(personImage, x, y, scaledWidth, scaledHeight);
+
+    const result = canvas.toBuffer('image/png');
     const base64Image = `data:image/png;base64,${result.toString('base64')}`;
 
     log.info('Profilbild completed');

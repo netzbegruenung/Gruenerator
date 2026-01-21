@@ -12,8 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
-    pkg-config \
-    libvips-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10 --activate
@@ -45,10 +43,9 @@ LABEL org.opencontainers.image.title="Gruenerator API"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
 
 # Runtime dependencies only - NO build tools needed
-# @napi-rs/canvas and sharp both use pre-built binaries
+# @napi-rs/canvas uses pre-built binaries with embedded dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    libvips42 \
     curl \
     fontconfig \
     fonts-dejavu-core \
@@ -72,7 +69,7 @@ COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 
 # Install all dependencies (tsx is needed to run TypeScript)
-# sharp and @napi-rs/canvas use pre-built binaries - no rebuild needed
+# @napi-rs/canvas uses pre-built binaries - no rebuild needed
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @gruenerator/api...
 

@@ -1,25 +1,10 @@
-import sharp from 'sharp';
 import type { ImageFormat, ImageOptimizationOptions } from './types.js';
 
 export async function optimizeCanvasBuffer(
   canvasBuffer: Buffer,
-  options: ImageOptimizationOptions = {}
+  _options: ImageOptimizationOptions = {}
 ): Promise<Buffer> {
-  const {
-    format = 'png',
-    quality = 85,
-    compressionLevel = 9
-  } = options;
-
-  if (format === 'webp') {
-    return sharp(canvasBuffer)
-      .webp({ quality })
-      .toBuffer();
-  }
-
-  return sharp(canvasBuffer)
-    .png({ compressionLevel })
-    .toBuffer();
+  return canvasBuffer;
 }
 
 export function bufferToBase64(buffer: Buffer, format: ImageFormat = 'png'): string {
