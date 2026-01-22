@@ -46,7 +46,7 @@ router.post('/to-html', async (req: Request<{}, MarkdownResponse, ContentRequest
 
         const html = markdownToHtml(content);
 
-        res.json({
+        return res.json({
             success: true,
             html,
             isMarkdown: isMarkdownContent(content)
@@ -54,7 +54,7 @@ router.post('/to-html', async (req: Request<{}, MarkdownResponse, ContentRequest
     } catch (error) {
         const err = error as Error;
         log.error('[markdown] to-html error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to convert markdown to HTML',
             error: err.message
@@ -79,7 +79,7 @@ router.post('/to-plain-text', async (req: Request<{}, MarkdownResponse, ContentR
 
         const plainText = markdownToPlainText(content);
 
-        res.json({
+        return res.json({
             success: true,
             plainText,
             isMarkdown: isMarkdownContent(content)
@@ -87,7 +87,7 @@ router.post('/to-plain-text', async (req: Request<{}, MarkdownResponse, ContentR
     } catch (error) {
         const err = error as Error;
         log.error('[markdown] to-plain-text error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to convert markdown to plain text',
             error: err.message
@@ -112,7 +112,7 @@ router.post('/for-export', async (req: Request<{}, MarkdownResponse, ContentRequ
 
         const exportHtml = markdownForExport(content);
 
-        res.json({
+        return res.json({
             success: true,
             html: exportHtml,
             isMarkdown: isMarkdownContent(content)
@@ -120,7 +120,7 @@ router.post('/for-export', async (req: Request<{}, MarkdownResponse, ContentRequ
     } catch (error) {
         const err = error as Error;
         log.error('[markdown] for-export error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to format markdown for export',
             error: err.message
@@ -145,14 +145,14 @@ router.post('/check', async (req: Request<{}, MarkdownResponse, ContentRequest>,
 
         const isMarkdown = isMarkdownContent(content);
 
-        res.json({
+        return res.json({
             success: true,
             isMarkdown
         });
     } catch (error) {
         const err = error as Error;
         log.error('[markdown] check error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to check markdown content',
             error: err.message

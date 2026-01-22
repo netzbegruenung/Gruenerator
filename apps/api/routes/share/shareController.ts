@@ -299,7 +299,7 @@ router.post('/image', requireAuth, async (req: ImageShareRequest, res: Response<
 
     log.info(`Image share created: ${share.shareToken} by user ${userId}${originalImage ? ' (with original)' : ''}`);
 
-    res.json({
+    return res.json({
       success: true,
       share: {
         shareToken: share.shareToken,
@@ -312,7 +312,7 @@ router.post('/image', requireAuth, async (req: ImageShareRequest, res: Response<
 
   } catch (error) {
     log.error('Failed to create image share:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Bild konnte nicht geteilt werden'
     });
@@ -373,7 +373,7 @@ router.post('/video', requireAuth, async (req: VideoShareRequest, res: Response<
 
     log.info(`Video share created: ${share.shareToken} by user ${userId}`);
 
-    res.json({
+    return res.json({
       success: true,
       share: {
         shareToken: share.shareToken,
@@ -386,7 +386,7 @@ router.post('/video', requireAuth, async (req: VideoShareRequest, res: Response<
 
   } catch (error) {
     log.error('Failed to create video share:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Video konnte nicht geteilt werden'
     });
@@ -513,7 +513,7 @@ router.post('/video/from-project', requireAuth, async (req: VideoFromProjectRequ
 
     log.info(`Video share created from project: ${share.shareToken} for project ${projectId} by user ${userId}`);
 
-    res.json({
+    return res.json({
       success: true,
       share: {
         shareToken: share.shareToken,
@@ -526,7 +526,7 @@ router.post('/video/from-project', requireAuth, async (req: VideoFromProjectRequ
 
   } catch (error) {
     log.error('Failed to create video share from project:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Video konnte nicht geteilt werden'
     });
@@ -669,11 +669,11 @@ router.get('/:shareToken', async (req: Request<ShareTokenParams>, res: Response<
       };
     }
 
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     log.error('Failed to get share info:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Fehler beim Laden des geteilten Mediums'
     });
@@ -694,14 +694,14 @@ router.get('/:shareToken/thumbnail', async (req: Request<ShareTokenParams>, res:
 
     try {
       await fsPromises.access(thumbnailPath);
-      res.sendFile(thumbnailPath);
+      return res.sendFile(thumbnailPath);
     } catch {
-      res.status(404).json({ error: 'Thumbnail-Datei nicht gefunden' });
+      return res.status(404).json({ error: 'Thumbnail-Datei nicht gefunden' });
     }
 
   } catch (error) {
     log.error('Failed to get thumbnail:', error);
-    res.status(500).json({ error: 'Fehler beim Laden des Thumbnails' });
+    return res.status(500).json({ error: 'Fehler beim Laden des Thumbnails' });
   }
 });
 
@@ -736,14 +736,14 @@ router.get('/:shareToken/original', requireAuth, async (req: Request<ShareTokenP
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Cache-Control', 'private, max-age=3600');
 
-      fs.createReadStream(originalPath).pipe(res);
+      return fs.createReadStream(originalPath).pipe(res);
     } catch {
-      res.status(404).json({ error: 'Originalbild-Datei nicht gefunden' });
+      return res.status(404).json({ error: 'Originalbild-Datei nicht gefunden' });
     }
 
   } catch (error) {
     log.error('Failed to get original image:', error);
-    res.status(500).json({ error: 'Fehler beim Laden des Originalbildes' });
+    return res.status(500).json({ error: 'Fehler beim Laden des Originalbildes' });
   }
 });
 
@@ -799,7 +799,7 @@ router.put('/:shareToken/image', requireAuth, async (req: Request<ShareTokenPara
 
     log.info(`Image share updated: ${shareToken} by user ${userId}`);
 
-    res.json({
+    return res.json({
       success: true,
       share: {
         shareToken: result.shareToken,
@@ -812,7 +812,7 @@ router.put('/:shareToken/image', requireAuth, async (req: Request<ShareTokenPara
 
   } catch (error) {
     log.error('Failed to update image share:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Bild konnte nicht aktualisiert werden'
     });
@@ -867,31 +867,31 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
           });
 
           const stream = fs.createReadStream(mediaPath, { start, end });
-          stream.pipe(res);
+          return stream.pipe(res);
         } else {
           res.writeHead(200, {
             'Content-Length': fileSize,
             'Content-Type': 'video/mp4'
           });
-          fs.createReadStream(mediaPath).pipe(res);
+          return fs.createReadStream(mediaPath).pipe(res);
         }
       } else {
         res.setHeader('Content-Type', share.mime_type || 'image/png');
         res.setHeader('Content-Length', fileSize);
         res.setHeader('Cache-Control', 'public, max-age=31536000');
-        fs.createReadStream(mediaPath).pipe(res);
+        return fs.createReadStream(mediaPath).pipe(res);
       }
     } catch {
-      res.status(404).json({ error: 'Datei nicht gefunden' });
+      return res.status(404).json({ error: 'Datei nicht gefunden' });
     }
 
   } catch (error) {
     log.error('Failed to serve preview:', error);
-    res.status(500).json({ error: 'Fehler beim Laden der Vorschau' });
+    return res.status(500).json({ error: 'Fehler beim Laden der Vorschau' });
   }
 });
 
-router.get('/:shareToken/download', requireAuth, async (req: Request<ShareTokenParams> & AuthenticatedRequest, res: Response) => {
+router.get('/:shareToken/download', requireAuth, async (req: Request<ShareTokenParams> & AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { shareToken } = req.params;
     const userId = req.user!.id;
@@ -901,32 +901,36 @@ router.get('/:shareToken/download', requireAuth, async (req: Request<ShareTokenP
     const share = await service.getShareByToken(shareToken);
 
     if (!share) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Geteiltes Medium nicht gefunden'
       });
+      return;
     }
 
     if (share.status === 'processing') {
-      return res.status(202).json({
+      res.status(202).json({
         success: false,
         status: 'processing',
         error: 'Medium wird noch verarbeitet. Bitte warte einen Moment.'
       });
+      return;
     }
 
     if (share.status === 'failed') {
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: 'Verarbeitung fehlgeschlagen'
       });
+      return;
     }
 
     if (!share.file_path) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Datei nicht verfügbar'
       });
+      return;
     }
 
     const ipAddress = req.ip || (req as any).connection?.remoteAddress || 'unknown';
@@ -954,18 +958,21 @@ router.get('/:shareToken/download', requireAuth, async (req: Request<ShareTokenP
       const fileStream = fs.createReadStream(mediaPath);
       fileStream.pipe(res);
 
-      fileStream.on('error', (streamError) => {
+      fileStream.on('error', (streamError): void => {
         log.error(`Stream error for ${shareToken}: ${streamError.message}`);
         if (!res.headersSent) {
           res.status(500).json({ error: 'Fehler beim Download' });
         }
       });
 
+      return;
+
     } catch {
       res.status(404).json({
         success: false,
         error: 'Datei nicht gefunden'
       });
+      return;
     }
 
   } catch (error) {
@@ -976,6 +983,7 @@ router.get('/:shareToken/download', requireAuth, async (req: Request<ShareTokenP
         error: 'Fehler beim Download'
       });
     }
+    return;
   }
 });
 
@@ -1046,7 +1054,7 @@ router.post('/:shareToken/save-as-template', requireAuth, async (req: Request<Sh
 
     log.info(`Share ${shareToken} marked as template with visibility: ${visibility} by user ${userId}`);
 
-    res.json({
+    return res.json({
       success: true,
       templateUrl,
       shareToken,
@@ -1057,17 +1065,17 @@ router.post('/:shareToken/save-as-template', requireAuth, async (req: Request<Sh
     log.error('Failed to save as template:', error);
     const errorMessage = (error as Error).message;
     if (errorMessage.includes('not found')) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         error: 'Share not found'
       });
     } else if (errorMessage.includes('Not authorized')) {
-      res.status(403).json({
+      return res.status(403).json({
         success: false,
         error: 'Not authorized to mark this as template'
       });
     } else {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: 'Failed to save as template'
       });

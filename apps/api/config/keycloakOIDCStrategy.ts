@@ -77,7 +77,7 @@ declare module 'express-session' {
  * Custom Keycloak OIDC Strategy using openid-client v6
  */
 class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
-  name: string;
+  override name: string;
   options: KeycloakOIDCOptions;
   verify: VerifyFunction;
   config: Config | null;
@@ -90,7 +90,7 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
     this.config = null;
   }
 
-  async authenticate(req: Request, options: any = {}): Promise<void> {
+  override async authenticate(req: Request, options: any = {}): Promise<void> {
     try {
       if (!this.config) {
         await this.initialize();
