@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { config } from '../config.ts';
 
 export const clientConfigTool = {
   name: 'get_client_config',
@@ -84,7 +83,7 @@ export const clientConfigTool = {
   }
 };
 
-export function generateClientConfigs(baseUrl) {
+function _generateClientConfigs(baseUrl: string) {
   return {
     claude: clientConfigTool.handler({ client: 'claude' }, baseUrl),
     cursor: clientConfigTool.handler({ client: 'cursor' }, baseUrl),

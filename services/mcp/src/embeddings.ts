@@ -34,7 +34,7 @@ export async function generateEmbedding(text) {
   return data.data[0].embedding;
 }
 
-export async function generateEmbeddings(texts) {
+async function _generateEmbeddings(texts: string[]) {
   if (!config.mistral?.apiKey) {
     throw new Error('MISTRAL_API_KEY nicht konfiguriert');
   }

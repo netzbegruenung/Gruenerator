@@ -161,7 +161,7 @@ export function getCacheStats() {
 /**
  * Clear all caches
  */
-export function clearCaches() {
+function _clearCaches() {
   embeddingCache.clear();
   searchCache.clear();
   stats.embeddingHits = 0;
