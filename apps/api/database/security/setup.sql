@@ -52,8 +52,11 @@ BEGIN
         SELECT 1 FROM pg_policies 
         WHERE tablename = 'profiles' AND policyname = 'users_own_profile'
     ) THEN
-        -- For now, allow all access - can be restricted later with current_user functions
-        CREATE POLICY users_own_profile ON profiles FOR ALL TO gruenerator_app USING (true);
+        -- Restrict access so users can only access their own profile, based on current_user
+        CREATE POLICY users_own_profile ON profiles
+            FOR ALL
+            TO gruenerator_app
+            USING (user_id::text = current_user);
         RAISE NOTICE 'Created RLS policy for profiles table';
     END IF;
 END $$;
