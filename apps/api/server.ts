@@ -32,7 +32,7 @@ import { createMasterShutdownHandler, createWorkerShutdownHandler } from './util
 import passport from './config/passportSetup.js';
 import { setupRoutes } from './routes.js';
 import AIWorkerPool from './workers/aiWorkerPool.js';
-import redisClient, { ensureConnected } from './utils/redis/client.js';
+import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
 import { tusServer } from './services/subtitler/tusService.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { spawn } from 'child_process';
@@ -343,12 +343,17 @@ async function startWorker(): Promise<void> {
   app.use(cacheMiddleware);
 
   // Health check endpoint
-  app.get('/health', (req: Request, res: Response) => {
-    res.status(200).json({
-      status: 'healthy',
+  app.get('/health', async (req: Request, res: Response) => {
+    const redisHealth = await checkRedisHealth();
+
+    res.status(redisHealth.connected ? 200 : 503).json({
+      status: redisHealth.connected ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       worker: process.pid,
-      uptime: process.uptime()
+      uptime: process.uptime(),
+      services: {
+        redis: redisHealth
+      }
     });
   });
 
