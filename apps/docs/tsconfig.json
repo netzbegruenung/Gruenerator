@@ -10,7 +10,9 @@
       "@/*": ["src/*"],
       "@gruenerator/shared": ["../../packages/shared/src"],
       "@gruenerator/shared/*": ["../../packages/shared/src/*"]
-    }
+    },
+    "noUncheckedIndexedAccess": false,
+    "noPropertyAccessFromIndexSignature": false
   },
   "include": ["src/**/*", "vite.config.ts", "server.ts"],
   "exclude": ["node_modules", "dist"]

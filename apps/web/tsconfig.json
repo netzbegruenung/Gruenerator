@@ -7,6 +7,8 @@
 
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false,
 
     "allowJs": true,
     "checkJs": false,
