@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.0.0",
   "pnpm": {
+    "neverBuiltDependencies": ["canvas"],
     "overrides": {
       "react": "19.1.0",
       "react-dom": "19.1.0",
@@ -42,8 +43,7 @@
   },
   "scripts": {
     "knip": "knip",
-    "prepare": "husky",
-    "postinstall": "npm rebuild canvas",
+    "prepare": "husky || true",
     "release": "semantic-release",
     "build": "turbo run build",
     "lint": "turbo run lint",

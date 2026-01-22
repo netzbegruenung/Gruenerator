@@ -24,9 +24,6 @@ FROM node:22-alpine AS backend-builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev
-
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -43,13 +40,8 @@ FROM node:22-alpine AS production
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache \
-    ffmpeg \
-    cairo \
-    pango \
-    libjpeg-turbo \
-    giflib \
+# Install runtime dependencies and create user
+RUN apk add --no-cache ffmpeg \
     && addgroup -g 1001 -S gruenerator \
     && adduser -S gruenerator -u 1001 -G gruenerator
 
