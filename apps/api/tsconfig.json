@@ -1,6 +1,6 @@
 {
+  "extends": "../../tsconfig.strict-migration.json",
   "compilerOptions": {
-    "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
@@ -8,15 +8,8 @@
     "declaration": false,
     "declarationMap": false,
     "sourceMap": true,
-    "esModuleInterop": true,
     "allowJs": true,
-    "checkJs": false,
-    "strict": false,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": false,
-    "forceConsistentCasingInFileNames": true
+    "checkJs": false
   },
   "include": [
     "**/*.ts",

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "apps/web": {
+      "entry": ["src/main.tsx", "vite.config.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/api": {
+      "entry": ["server.ts"],
+      "project": ["**/*.{ts,js,mts,mjs}"],
+      "ignore": ["test/**", "tests/**", "scripts/**"]
+    },
+    "apps/docs": {
+      "entry": ["src/main.tsx", "server.ts", "vite.config.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/sites": {
+      "entry": ["src/main.tsx", "vite.config.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/mobile": {
+      "entry": ["app/**/*.tsx"],
+      "project": ["**/*.{ts,tsx}"],
+      "ignore": [".expo/**", "android/**", "ios/**"]
+    },
+    "packages/shared": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/eslint-config": {
+      "entry": ["base.js", "react.js", "node.js"],
+      "project": ["*.js"]
+    },
+    "services/mcp": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "documentation": {
+      "entry": ["docusaurus.config.ts", "sidebars.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  },
+  "ignoreDependencies": [
+    "@commitlint/cli",
+    "@commitlint/config-conventional",
+    "@semantic-release/*",
+    "semantic-release",
+    "husky",
+    "lint-staged",
+    "cross-env"
+  ],
+  "ignoreWorkspaces": ["apps/desktop"]
+}

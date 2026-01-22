@@ -1,20 +1,13 @@
 {
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "allowJs": true,
-    "esModuleInterop": true,
-    "jsx": "react-native",
-    "lib": [
-      "DOM",
-      "ESNext"
-    ],
-    "module": "ESNext",
-    "moduleDetection": "force",
-    "moduleResolution": "bundler",
-    "noEmit": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "target": "ESNext",
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
     "baseUrl": ".",
     "paths": {
       "react-native-gifted-chat": [
@@ -47,10 +40,10 @@
     "config/**/*.ts",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
+    "eslint.config.js",
     "../../packages/shared/src/**/*.ts"
   ],
   "exclude": [
     "**/node_modules/**"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }

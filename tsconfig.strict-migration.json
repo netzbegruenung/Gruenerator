@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Gruenerator Strict Migration (temporary)",
+  "extends": "./tsconfig.base.json",
+  "_comment": "Use this config for workspaces migrating to strict mode. Remove once migration is complete.",
+  "compilerOptions": {
+    "noImplicitAny": false,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noUncheckedIndexedAccess": false,
+    "noPropertyAccessFromIndexSignature": false
+  }
+}

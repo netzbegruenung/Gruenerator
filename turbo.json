@@ -11,7 +11,21 @@
                 "build/**"
             ]
         },
-        "lint": {},
+        "typecheck": {
+            "dependsOn": [
+                "^typecheck"
+            ]
+        },
+        "lint": {
+            "dependsOn": [
+                "^typecheck"
+            ]
+        },
+        "lint:fix": {
+            "dependsOn": [
+                "^typecheck"
+            ]
+        },
         "test": {
             "dependsOn": [
                 "build"
