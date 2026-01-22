@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useWolkeSync } from '../hooks/useWolkeSync';
 import { NextcloudShareManager } from '../../../utils/nextcloudShareManager';
 import './WolkeFolderBrowser.css';
@@ -31,7 +31,6 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }: WolkeFo
     const [expandedShares, setExpandedShares] = useState<Set<string>>(new Set());
 
     const {
-        syncStatuses,
         syncFolder,
         setAutoSync,
         getSyncStatus,
@@ -39,7 +38,7 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }: WolkeFo
     } = useWolkeSync();
 
     useEffect(() => {
-        loadShareLinks();
+        void loadShareLinks();
     }, []);
 
     const loadShareLinks = async () => {
@@ -88,14 +87,11 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }: WolkeFo
             const result = await setAutoSync(shareId, folderPath, enabled);
 
             // If auto-sync was successfully enabled, immediately trigger a sync
-            if (result && result.success && (result as any).autoSyncEnabled && enabled) {
-                console.log('[WolkeFolderBrowser] Auto-sync enabled, triggering immediate sync...');
+            if (result && result.success && (result as { autoSyncEnabled?: boolean }).autoSyncEnabled && enabled) {
                 try {
                     await syncFolder(shareId, folderPath);
-                    console.log('[WolkeFolderBrowser] Auto-sync initial sync completed');
                 } catch (syncError) {
                     console.error('[WolkeFolderBrowser] Auto-sync initial sync failed:', syncError);
-                    // Don't throw here - auto-sync setting was still successful
                 }
             }
         } catch (error) {

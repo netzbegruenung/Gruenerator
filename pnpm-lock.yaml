@@ -848,9 +848,6 @@ importers:
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5
-      framer-motion:
-        specifier: ^12.23.26
-        version: 12.23.26(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       immer:
         specifier: ^10.1.1
         version: 10.2.0
@@ -864,7 +861,7 @@ importers:
         specifier: ^15.0.12
         version: 15.0.12
       motion:
-        specifier: ^12.23.12
+        specifier: ^12.23.26
         version: 12.23.26(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       onnxruntime-web:
         specifier: 1.21.0-dev.20250206-d981b153d3
