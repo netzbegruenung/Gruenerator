@@ -24,6 +24,7 @@ const FirstRunWizard = lazy(() =>
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
+const PopupWartung = lazy(() => import('./components/Popups/popup_wartung'));
 // const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
 // const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
 
@@ -112,6 +113,23 @@ function App() {
       <div className="app-loading">
         <div className="app-loading-text">Lädt...</div>
       </div>
+    );
+  }
+
+  // Maintenance mode blocks entire app
+  const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE !== 'false';
+
+  if (isMaintenanceMode) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="app-loading">
+            <div className="app-loading-text">Lädt...</div>
+          </div>
+        }>
+          <PopupWartung />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
