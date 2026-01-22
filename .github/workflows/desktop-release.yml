@@ -107,16 +107,6 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri -> target
 
-      - name: Install canvas build dependencies (macOS)
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'macos-latest'
-        run: |
-          brew install pkg-config cairo pango libpng jpeg giflib librsvg python-setuptools
-
-      - name: Install canvas build dependencies (Linux)
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
-
       - name: Install dependencies
         if: steps.check.outputs.should_run == 'true'
         run: pnpm install

@@ -28,7 +28,6 @@ const ROUTE_TITLES: Record<string, string> = {
   '/datenschutz': 'Datenschutz',
   '/impressum': 'Impressum',
   '/support': 'Support',
-  '/changelog': 'Changelog',
   '/notebook': 'Notebook',
   '/notebooks': 'Notebooks',
   '/survey': 'Umfragen',
