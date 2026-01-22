@@ -185,7 +185,7 @@ router.post('/', async (req: SearchRequest, res: Response) => {
       response.answers = finalResults.answers;
     }
 
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
@@ -204,7 +204,7 @@ router.post('/', async (req: SearchRequest, res: Response) => {
       userError = 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: userError,
       metadata: {
@@ -253,7 +253,7 @@ router.post('/clear-cache', async (req: Request, res: Response) => {
   try {
     await searxngWebSearchService.clearCache();
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Cache erfolgreich geleert',
       timestamp: new Date().toISOString()
@@ -261,7 +261,7 @@ router.post('/clear-cache', async (req: Request, res: Response) => {
   } catch (error) {
     log.error('[web-search] Cache clear failed:', error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Fehler beim Leeren des Caches',
       details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined

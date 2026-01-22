@@ -136,7 +136,7 @@ export class DocumentSearchService extends BaseSearchService {
      * @param params - Raw search parameters
      * @returns Validated and normalized parameters
      */
-    validateSearchParams(params: any): DocumentSearchParams {
+    override validateSearchParams(params: any): DocumentSearchParams {
         if (params && (params.userId || params.filters || params.options)) {
             const query = InputValidator.validateSearchQuery(params.query);
             const searchCollection = params.filters?.searchCollection || params.options?.searchCollection;
@@ -283,7 +283,7 @@ export class DocumentSearchService extends BaseSearchService {
      * @param searchParams - Search parameters
      * @returns Search response with ranked results
      */
-    async search(searchParams: SearchParams): Promise<SearchResponse> {
+    override async search(searchParams: SearchParams): Promise<SearchResponse> {
         try {
             await this.ensureInitialized();
 
@@ -692,15 +692,15 @@ export class DocumentSearchService extends BaseSearchService {
 
     // ========== BaseSearchService Abstract Method Implementations ==========
 
-    async findSimilarChunks(params: FindSimilarChunksParams): Promise<DocumentTransformedChunk[]> {
+    override async findSimilarChunks(params: FindSimilarChunksParams): Promise<DocumentTransformedChunk[]> {
         return await searchOps.findSimilarChunks(this.qdrantOps, this.qdrantAvailable, params);
     }
 
-    async findHybridChunks(params: FindHybridChunksParams): Promise<DocumentTransformedChunk[]> {
+    override async findHybridChunks(params: FindHybridChunksParams): Promise<DocumentTransformedChunk[]> {
         return await searchOps.findHybridChunks(this.qdrantOps, this.qdrantAvailable, params);
     }
 
-    extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
+    override extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
         return scoring.extractChunkData(chunk);
     }
 
@@ -712,11 +712,11 @@ export class DocumentSearchService extends BaseSearchService {
         return scoring.calculateHybridDocumentScore(chunks, hybridMetadata);
     }
 
-    buildRelevanceInfo(doc: any, enhancedScore: DocumentEnhancedScore): string {
+    override buildRelevanceInfo(doc: any, enhancedScore: DocumentEnhancedScore): string {
         return scoring.buildRelevanceInfo(doc, enhancedScore);
     }
 
-    getSearchType(): string {
+    override getSearchType(): string {
         return 'document_vector';
     }
 

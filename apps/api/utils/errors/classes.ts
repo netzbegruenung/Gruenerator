@@ -70,7 +70,7 @@ export class ValidationError extends VectorBackendError {
     this.value = value;
   }
 
-  toAPIResponse(): APIErrorResponse {
+  override toAPIResponse(): APIErrorResponse {
     return {
       ...super.toAPIResponse(),
       field: this.field,

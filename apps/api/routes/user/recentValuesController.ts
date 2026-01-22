@@ -31,14 +31,14 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
 
     const result = await saveRecentValue(userId, fieldType, fieldValue, formName);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: result,
       message: 'Recent value saved successfully'
     });
   } catch (error) {
     log.error('[RecentValues API] Error saving recent value:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: (error as Error).message || 'Failed to save recent value'
     });
   }
@@ -58,7 +58,7 @@ router.get('/:fieldType', requireAuth, async (req: AuthenticatedRequest, res: Re
 
     const values = await getRecentValues(userId, fieldType, limit ? parseInt(limit as string, 10) : undefined);
 
-    res.json({
+    return res.json({
       success: true,
       data: values,
       fieldType,
@@ -66,7 +66,7 @@ router.get('/:fieldType', requireAuth, async (req: AuthenticatedRequest, res: Re
     });
   } catch (error) {
     log.error('[RecentValues API] Error retrieving recent values:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: (error as Error).message || 'Failed to retrieve recent values'
     });
   }
@@ -85,14 +85,14 @@ router.delete('/:fieldType', requireAuth, async (req: AuthenticatedRequest, res:
 
     const deletedCount = await clearRecentValues(userId, fieldType);
 
-    res.json({
+    return res.json({
       success: true,
       message: `Cleared ${deletedCount} recent values for ${fieldType}`,
       deletedCount
     });
   } catch (error) {
     log.error('[RecentValues API] Error clearing recent values:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: (error as Error).message || 'Failed to clear recent values'
     });
   }

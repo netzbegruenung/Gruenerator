@@ -109,10 +109,10 @@ router.post('/initiate', async (req: AuthenticatedRequest, res: Response) => {
       }
     };
 
-    res.json(response);
+    return res.json(response);
   } catch (error: any) {
     console.error('[PlanMode] Initiate error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || 'Failed to execute workflow',
       code: 'AI_ERROR'
     } as PlanModeError);
@@ -153,7 +153,7 @@ router.post('/resume', async (req: Request, res: Response) => {
       } as PlanModeError);
     }
 
-    res.json({
+    return res.json({
       success: true,
       workflow_id: finalState.workflowId,
       revised_plan: finalState.revisedPlanData?.revisedPlan,
@@ -166,7 +166,7 @@ router.post('/resume', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('[PlanMode] Resume error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || 'Failed to resume workflow',
       code: 'AI_ERROR'
     } as PlanModeError);
@@ -217,7 +217,7 @@ router.post('/correct', async (req: Request, res: Response) => {
       } as PlanModeError);
     }
 
-    res.json({
+    return res.json({
       success: true,
       workflow_id: finalState.workflowId,
       corrected_plan: finalState.correctedPlanData?.correctedPlan,
@@ -231,7 +231,7 @@ router.post('/correct', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('[PlanMode] Correct error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || 'Failed to apply corrections',
       code: 'AI_ERROR'
     } as PlanModeError);
@@ -277,7 +277,7 @@ router.post('/generate-production', async (req: Request, res: Response) => {
       } as PlanModeError);
     }
 
-    res.json({
+    return res.json({
       success: true,
       workflow_id: finalState.workflowId,
       production_data: finalState.productionData,
@@ -289,7 +289,7 @@ router.post('/generate-production', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('[PlanMode] Generate production error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || 'Failed to generate production',
       code: 'AI_ERROR'
     } as PlanModeError);
@@ -311,7 +311,7 @@ router.get('/workflow/:workflowId', async (req: AuthenticatedRequest, res: Respo
       } as PlanModeError);
     }
 
-    res.json({
+    return res.json({
       workflow_id: workflowId,
       current_phase: state.currentPhase,
       phases_executed: state.phasesExecuted,
@@ -326,7 +326,7 @@ router.get('/workflow/:workflowId', async (req: AuthenticatedRequest, res: Respo
     });
   } catch (error: any) {
     console.error('[PlanMode] Get workflow error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: error.message || 'Failed to get workflow status',
       code: 'INTERNAL_ERROR'
     } as PlanModeError);

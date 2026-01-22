@@ -179,6 +179,8 @@ router.get('/download/:platform', (req: Request, res: Response) => {
       res.status(500).json({ error: 'Error streaming file' });
     }
   });
+
+  return;
 });
 
 // GET /api/releases/download/:platform/signature - Get signature for platform
@@ -199,7 +201,7 @@ router.get('/download/:platform/signature', (req: Request, res: Response) => {
     return res.type('text/plain').send(signature);
   }
 
-  res.type('text/plain').sendFile(filePath);
+  return res.type('text/plain').sendFile(filePath);
 });
 
 // GET /api/releases/info - Get release directory info (for debugging)
