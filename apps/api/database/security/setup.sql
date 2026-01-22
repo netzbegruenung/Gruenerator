@@ -67,7 +67,9 @@ BEGIN
         SELECT 1 FROM pg_policies 
         WHERE tablename = 'documents' AND policyname = 'users_own_documents'
     ) THEN
-        CREATE POLICY users_own_documents ON documents FOR ALL TO gruenerator_app USING (true);
+        CREATE POLICY users_own_documents ON documents
+            FOR ALL TO gruenerator_app
+            USING (user_id = current_setting('app.current_user_id', true)::uuid);
         RAISE NOTICE 'Created RLS policy for documents table';
     END IF;
 END $$;
