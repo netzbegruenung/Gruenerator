@@ -18,6 +18,13 @@
   gap: var(--spacing-small);
 }
 
+/* Mobile: scroll with content for more reading space */
+@media (max-width: 768px) {
+  .header-actions {
+    position: absolute;
+  }
+}
+
 .profile-label-button {
   border: var(--border-subtle);
   border-radius: 50%;
