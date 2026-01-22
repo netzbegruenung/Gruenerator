@@ -1,5 +1,5 @@
-import dotenv from 'dotenv';
 import { COLLECTIONS, COLLECTION_KEYS } from '@gruenerator/shared/search/collections';
+import dotenv from 'dotenv';
 
 dotenv.config();
 

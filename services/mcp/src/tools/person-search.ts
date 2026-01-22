@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+
 import { getEnrichedPersonSearch } from '../services/enriched-person-search.ts';
 
 export const personSearchTool = {
