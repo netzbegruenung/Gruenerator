@@ -150,6 +150,9 @@ async function startWorker(): Promise<void> {
   const config = getServerConfig();
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
+  // Trust proxy for secure cookies behind nginx/load balancer
+  app.set('trust proxy', 1);
+
   // CORS configuration
   const allowedOrigins = getCorsOrigins(isDevelopment);
   const corsOptions = createCorsOptions(allowedOrigins);
