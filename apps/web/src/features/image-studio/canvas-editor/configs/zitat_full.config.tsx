@@ -36,6 +36,8 @@ export interface ZitatFullState {
     nameOpacity?: number;
     quoteColor?: string;
     nameColor?: string;
+    backgroundImageOpacity?: number;
+    quoteMarkOpacity?: number;
     isDesktop: boolean;
     alternatives: string[];
     // Icons & Shapes
@@ -216,6 +218,8 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             lockedKey: 'isBackgroundLocked',
             draggable: true,
             transformable: true,
+            opacity: (state: ZitatFullState) => state.backgroundImageOpacity ?? 1,
+            opacityStateKey: 'backgroundImageOpacity',
         },
         // Gradient overlay
         {
@@ -254,6 +258,8 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             listening: true,
             draggable: true,
             offsetKey: 'quoteMarkOffset',
+            opacity: (state: ZitatFullState) => state.quoteMarkOpacity ?? 1,
+            opacityStateKey: 'quoteMarkOpacity',
         },
         // Quote text
         {
@@ -338,6 +344,8 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         assetInstances: (props.assetInstances as AssetInstance[] | undefined) ?? [],
         quoteOpacity: (props.quoteOpacity as number | undefined) ?? 1,
         nameOpacity: (props.nameOpacity as number | undefined) ?? 1,
+        backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+        quoteMarkOpacity: (props.quoteMarkOpacity as number | undefined) ?? 1,
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
         alternatives: (props.alternatives as string[] | undefined) ?? [],
         selectedIcons: (props.selectedIcons as string[] | undefined) ?? [],

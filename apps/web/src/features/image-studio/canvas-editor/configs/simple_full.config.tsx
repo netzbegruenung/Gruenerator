@@ -36,6 +36,7 @@ export interface SimpleFullState {
     subtextOpacity?: number;
     headlineColor?: string;
     subtextColor?: string;
+    backgroundImageOpacity?: number;
     assetInstances: AssetInstance[];
     isDesktop: boolean;
     alternatives: string[];
@@ -224,6 +225,8 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             scaleKey: 'imageScale',
             draggable: true,
             transformable: true,
+            opacity: (state: SimpleFullState) => state.backgroundImageOpacity ?? 1,
+            opacityStateKey: 'backgroundImageOpacity',
         },
         // Gradient overlay (using rect with opacity)
         {
@@ -315,6 +318,7 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         customSubtextFontSize: null,
         headlineOpacity: 1,
         subtextOpacity: 1,
+        backgroundImageOpacity: 1,
         assetInstances: [],
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
         alternatives: (props.alternatives as string[] | undefined) ?? [],

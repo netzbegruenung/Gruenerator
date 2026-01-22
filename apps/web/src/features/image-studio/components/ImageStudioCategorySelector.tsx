@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HiSparkles } from 'react-icons/hi';
+import { HiSparkles, HiBeaker } from 'react-icons/hi';
 import { PiFolder, PiLayout, PiUser } from 'react-icons/pi';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import useImageStudioStore from '../../../stores/imageStudioStore';
@@ -165,8 +165,8 @@ const ImageStudioCategorySelector: React.FC = () => {
     const startOptions: StartOption[] = [
         { id: 'sharepics', category: IMAGE_STUDIO_CATEGORIES.TEMPLATES, subcategory: null, label: 'Sharepics', description: 'Erstelle Sharepics mit vorgefertigten Designs', Icon: PiLayout, previewImage: '/imagine/previews/dreizeilen-preview.png' },
         { id: 'imagine', category: IMAGE_STUDIO_CATEGORIES.KI, subcategory: null, label: 'Imagine (KI)', description: 'Erstelle oder bearbeite Bilder mit KI', Icon: HiSparkles, previewImage: '/imagine/variants-pure/soft-illustration.png' },
-        { id: 'profilbild', category: IMAGE_STUDIO_CATEGORIES.TEMPLATES, subcategory: null, label: 'Profilbild', description: 'Erstelle ein Porträt mit grünem Hintergrund', Icon: PiUser, previewImage: '/imagine/previews/profilbild-preview.png', directType: IMAGE_STUDIO_TYPES.PROFILBILD },
-        { id: 'vorlagen', category: null, subcategory: null, label: 'Vorlagen', description: 'Durchsuche vorgefertigte Vorlagen', Icon: PiFolder, previewImage: '/imagine/previews/vorlagen-preview.jpg', isEarlyAccess: true }
+        { id: 'vorlagen', category: null, subcategory: null, label: 'Vorlagen', description: 'Durchsuche vorgefertigte Vorlagen', Icon: PiFolder, previewImage: '/imagine/previews/vorlagen-preview.jpg', isEarlyAccess: true },
+        { id: 'profilbild', category: IMAGE_STUDIO_CATEGORIES.TEMPLATES, subcategory: null, label: 'Profilbild', description: 'Erstelle ein Porträt mit grünem Hintergrund', Icon: PiUser, previewImage: '/imagine/previews/profilbild-preview.png', directType: IMAGE_STUDIO_TYPES.PROFILBILD, isComingSoon: true }
     ];
 
     return (
@@ -177,6 +177,22 @@ const ImageStudioCategorySelector: React.FC = () => {
                     <button className="btn-secondary" onClick={() => navigate('/image-studio/gallery')} style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-small)' }}>
                         <PiFolder /> Meine Bilder
                     </button>
+                </div>
+
+                {/* Early Access Feedback Banner */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-medium)', padding: 'var(--spacing-medium) var(--spacing-large)', background: 'linear-gradient(135deg, rgba(0, 92, 65, 0.1) 0%, rgba(255, 241, 122, 0.15) 100%)', border: '1px solid var(--klee)', borderRadius: 'var(--card-border-radius-small)', marginBottom: 'var(--spacing-large)' }}>
+                    <HiBeaker style={{ fontSize: '1.5rem', color: 'var(--klee)', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                        <p style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--font-color)', margin: '0 0 var(--spacing-xxsmall) 0', display: 'flex', alignItems: 'center', gap: 'var(--spacing-small)' }}>
+                            Early Access <StatusBadge type="early-access" variant="inline" />
+                        </p>
+                        <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--font-color-secondary)', margin: 0 }}>
+                            Diese Funktion befindet sich noch in der Testphase. Es kann zu Fehlern kommen.
+                        </p>
+                    </div>
+                    <a href="https://tally.so/r/kdGVxr" target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, padding: 'var(--spacing-small) var(--spacing-medium)', background: 'var(--klee)', color: 'var(--white)', borderRadius: 'var(--button-border-radius)', fontSize: 'var(--font-size-xs)', fontWeight: 600, textDecoration: 'none' }}>
+                        Feedback geben
+                    </a>
                 </div>
 
                 {/* AI Prompt Input Section */}

@@ -260,6 +260,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             draggable: true,
             transformable: true,
             visible: (state: DreizeilenFullState) => state.hasBackgroundImage,
+            opacity: (state: DreizeilenFullState) => state.backgroundImageOpacity ?? 1,
+            opacityStateKey: 'backgroundImageOpacity',
         },
 
         // Sunflower
@@ -340,6 +342,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
         hasBackgroundImage: !!props.currentImageSrc,
         bgImageDimensions: (props.bgImageDimensions as { width: number; height: number } | null | undefined) ?? null,
+        backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
 
         // Icons & Shapes
         selectedIcons: (props.selectedIcons as string[] | undefined) ?? [],

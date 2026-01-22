@@ -234,6 +234,19 @@ export const FloatingToolbar = memo(({
                             )}
                         </>
                     )}
+
+                    {activeFloatingModule.type === 'balken' && !shouldHideOtherControls && (
+                        <FloatingOpacityControl
+                            opacity={activeFloatingModule.data.opacity ?? 1}
+                            onOpacityChange={(val) =>
+                                handlers.handleOpacityChange(
+                                    activeFloatingModule.data.id,
+                                    val,
+                                    'balken'
+                                )
+                            }
+                        />
+                    )}
                 </>
             )}
         </FloatingTapBar>
