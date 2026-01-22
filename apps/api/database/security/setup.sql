@@ -21,16 +21,16 @@ BEGIN
         GRANT USAGE ON SCHEMA public TO gruenerator_app;
         GRANT CREATE ON SCHEMA public TO gruenerator_app;
         
-        -- Grant table permissions
-        GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gruenerator_app;
-        GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gruenerator_app;
+        -- Grant table permissions (limit to required DML operations)
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gruenerator_app;
+        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO gruenerator_app;
         
-        -- Grant permissions for future tables
+        -- Grant permissions for future tables and sequences (principle of least privilege)
         ALTER DEFAULT PRIVILEGES IN SCHEMA public 
-        GRANT ALL PRIVILEGES ON TABLES TO gruenerator_app;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gruenerator_app;
         
         ALTER DEFAULT PRIVILEGES IN SCHEMA public 
-        GRANT ALL PRIVILEGES ON SEQUENCES TO gruenerator_app;
+        GRANT USAGE, SELECT ON SEQUENCES TO gruenerator_app;
         
         RAISE NOTICE 'Created gruenerator_app user successfully';
         RAISE NOTICE 'IMPORTANT: Change the default password immediately!';
