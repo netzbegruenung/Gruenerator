@@ -113,7 +113,7 @@
 @media (max-width: 768px) {
   .gallery-layout {
     margin-top: 0;
-    padding: 80px 1rem 1rem 1rem;
+    padding: var(--spacing-large) var(--spacing-medium) var(--spacing-medium);
   }
 
   .gallery-header h1 {
