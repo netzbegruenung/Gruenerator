@@ -1,17 +1,25 @@
-import { JSX, useState, useEffect, useRef, ReactNode, MouseEvent, createElement } from 'react';
-import { IoCopyOutline, IoCheckmarkOutline, IoCloseOutline, IoRefreshOutline } from "react-icons/io5";
-import { HiCog, HiPencil, HiSave } from "react-icons/hi";
+import { type JSX, useState, useEffect, useRef, type ReactNode, useCallback } from 'react';
+import { HiCog, HiPencil, HiSave } from 'react-icons/hi';
+import {
+  IoCopyOutline,
+  IoCheckmarkOutline,
+  IoCloseOutline,
+  IoRefreshOutline,
+  IoArrowUndoOutline,
+  IoArrowRedoOutline,
+} from 'react-icons/io5';
 import '../../assets/styles/components/actions/action-buttons.css';
-import { IoArrowUndoOutline, IoArrowRedoOutline } from "react-icons/io5";
-import { copyFormattedContent } from '../utils/commonFunctions';
-import ExportDropdown from './ExportDropdown';
+
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
+import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useProfileStore } from '../../stores/profileStore';
-import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { hashContent } from '../../utils/contentHash';
 import { extractTitleFromContent } from '../../utils/titleExtractor';
+import { copyFormattedContent } from '../utils/commonFunctions';
+
+import ExportDropdown from './ExportDropdown';
 
 interface GeneratedContentObject {
   content?: string;
@@ -61,15 +69,16 @@ interface ActionButtonsProps {
     subtitle?: string;
     icon?: ReactNode;
     onClick: (event: React.MouseEvent) => void;
-    disabled?: boolean
+    disabled?: boolean;
   }[];
   hideDefaultExportOptions?: boolean;
 }
 
-const ActionButtons = ({ onEdit,
-  isEditing,
-  allowEditing = true,
-  hideEditButton = false,
+const ActionButtons = ({
+  onEdit: _onEdit,
+  isEditing: _isEditing,
+  allowEditing: _allowEditing = true,
+  hideEditButton: _hideEditButton = false,
   className = 'display-actions',
   showExport = false,
   showDownload = true,
@@ -93,21 +102,24 @@ const ActionButtons = ({ onEdit,
   regenerateLoading = false,
   saveLoading = false,
   saveToLibraryLoading = false,
-  exportableContent,
+  exportableContent: _exportableContent,
   generatedPost,
   generatedContent,
   title,
   componentName = 'default',
   customExportOptions = [],
-  hideDefaultExportOptions = false }: ActionButtonsProps): JSX.Element => {
+  hideDefaultExportOptions = false,
+}: ActionButtonsProps): JSX.Element => {
   const { isAuthenticated } = useLazyAuth();
   const { getBetaFeatureState } = useBetaFeatures();
-  const getGeneratedText = useGeneratedTextStore(state => state.getGeneratedText);
-  const getGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata);
+  const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
+  const getGeneratedTextMetadata = useGeneratedTextStore((state) => state.getGeneratedTextMetadata);
   const generatedText = getGeneratedText(componentName);
-  const generatedTextMetadata = getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
-  const undo = useGeneratedTextStore(state => state.undo);
-  const redo = useGeneratedTextStore(state => state.redo);
+  const generatedTextMetadata = getGeneratedTextMetadata(componentName) as {
+    contentType?: string;
+  } | null;
+  const undo = useGeneratedTextStore((state) => state.undo);
+  const redo = useGeneratedTextStore((state) => state.redo);
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
   const [saveIcon, setSaveIcon] = useState(<HiSave size={16} />);
 
@@ -116,15 +128,19 @@ const ActionButtons = ({ onEdit,
   const exportedContentHashesRef = useRef(new Set());
 
   // Directly compute undo/redo availability from store without local state
-  const canUndoState = useGeneratedTextStore(state => {
+  const canUndoState = useGeneratedTextStore((state) => {
     const currentHistory = state.history[componentName];
     const currentIndex = state.historyIndex[componentName] ?? 0;
     return !!(currentHistory && currentHistory.length > 1 && currentIndex > 0);
   });
-  const canRedoState = useGeneratedTextStore(state => {
+  const canRedoState = useGeneratedTextStore((state) => {
     const currentHistory = state.history[componentName];
     const currentIndex = state.historyIndex[componentName] ?? 0;
-    return !!(currentHistory && currentHistory.length > 1 && currentIndex < currentHistory.length - 1);
+    return !!(
+      currentHistory &&
+      currentHistory.length > 1 &&
+      currentIndex < currentHistory.length - 1
+    );
   });
 
   const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
@@ -153,13 +169,13 @@ const ActionButtons = ({ onEdit,
           setCopyIcon(<IoCopyOutline size={16} />);
         }, 2000);
       },
-      () => { }
+      () => {}
     );
 
     console.log('[ActionButtons] Auto-save check', {
       enabled: profile?.auto_save_on_export,
       authenticated: isAuthenticated,
-      hasContent: !!activeContent
+      hasContent: !!activeContent,
     });
 
     // Then check if auto-save is enabled
@@ -203,8 +219,10 @@ const ActionButtons = ({ onEdit,
     const contentObj = content as GeneratedContentObject;
     // Check if we have sharepic but no social content
     const hasSharepic = contentObj.sharepic && Object.keys(contentObj.sharepic).length > 0;
-    const hasSocialContent = !!(contentObj.social?.content ||
-      (contentObj.content && !contentObj.sharepic));
+    const hasSocialContent = !!(
+      contentObj.social?.content ||
+      (contentObj.content && !contentObj.sharepic)
+    );
 
     return !!(hasSharepic && !hasSocialContent);
   };
@@ -226,7 +244,7 @@ const ActionButtons = ({ onEdit,
     }
   };
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (canUndoState) {
       if (onUndo) {
         onUndo();
@@ -234,9 +252,9 @@ const ActionButtons = ({ onEdit,
         undo(componentName);
       }
     }
-  };
+  }, [canUndoState, onUndo, undo, componentName]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (canRedoState) {
       if (onRedo) {
         onRedo();
@@ -244,7 +262,7 @@ const ActionButtons = ({ onEdit,
         redo(componentName);
       }
     }
-  };
+  }, [canRedoState, onRedo, redo, componentName]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -252,8 +270,10 @@ const ActionButtons = ({ onEdit,
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
         e.preventDefault();
         handleUndo();
-      } else if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') ||
-        ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') ||
+        ((e.ctrlKey || e.metaKey) && e.key === 'y')
+      ) {
         e.preventDefault();
         handleRedo();
       }
@@ -263,7 +283,7 @@ const ActionButtons = ({ onEdit,
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
-  }, [canUndoState, canRedoState, activeContent, shouldHideButtons]);
+  }, [activeContent, shouldHideButtons, handleUndo, handleRedo]);
 
   // Button definitions for easy reordering
   const renderButton = (type: string) => {
@@ -273,7 +293,7 @@ const ActionButtons = ({ onEdit,
       onSaveToLibrary: showSaveToLibrary && isAuthenticated ? onSaveToLibrary : null,
       saveToLibraryLoading,
       customExportOptions,
-      hideDefaultOptions: hideDefaultExportOptions
+      hideDefaultOptions: hideDefaultExportOptions,
     };
 
     const buttons = {
@@ -284,14 +304,14 @@ const ActionButtons = ({ onEdit,
           className="action-button"
           aria-label="Kopieren"
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': "Kopieren"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Kopieren',
           })}
         >
           {copyIcon}
         </button>
       ),
-      share: (showExport || showDownload || showExportDropdown) && (
+      share: (showExport || showDownload || showExportDropdown) && isAuthenticated && (
         <ExportDropdown
           key="share"
           {...exportDropdownProps}
@@ -307,8 +327,8 @@ const ActionButtons = ({ onEdit,
           aria-label="Rückgängig (Strg+Z)"
           disabled={!canUndoState}
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': "Rückgängig (Strg+Z)"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Rückgängig (Strg+Z)',
           })}
         >
           <IoArrowUndoOutline size={16} />
@@ -322,8 +342,8 @@ const ActionButtons = ({ onEdit,
           aria-label="Wiederholen (Strg+Y)"
           disabled={!canRedoState}
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': "Wiederholen (Strg+Y)"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Wiederholen (Strg+Y)',
           })}
         >
           <IoArrowRedoOutline size={16} />
@@ -337,8 +357,8 @@ const ActionButtons = ({ onEdit,
           aria-label="Regenerieren"
           disabled={regenerateLoading}
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': "Regenerieren"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Regenerieren',
           })}
         >
           <HiCog size={16} />
@@ -352,8 +372,8 @@ const ActionButtons = ({ onEdit,
           aria-label="In Supabase speichern"
           disabled={saveLoading}
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': "In Supabase speichern"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'In Supabase speichern',
           })}
         >
           {saveIcon}
@@ -366,8 +386,8 @@ const ActionButtons = ({ onEdit,
           className="action-button"
           aria-label="Zurücksetzen"
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': "Zurücksetzen"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Zurücksetzen',
           })}
         >
           <IoRefreshOutline size={16} />
@@ -384,23 +404,23 @@ const ActionButtons = ({ onEdit,
             }
           }}
           className={`action-button ${isEditModeActive ? 'active' : ''}`}
-          aria-label={isEditModeActive ? "Edit Mode schließen" : "Edit Mode umschalten"}
+          aria-label={isEditModeActive ? 'Edit Mode schließen' : 'Edit Mode umschalten'}
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': isEditModeActive ? "Schließen" : "Edit Mode"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': isEditModeActive ? 'Schließen' : 'Edit Mode',
           })}
         >
           {isEditModeActive ? <IoCloseOutline size={16} /> : <HiPencil size={16} />}
         </button>
       ),
-      more: (showExport || showDownload || showExportDropdown) && (
+      more: (showExport || showDownload || showExportDropdown) && isAuthenticated && (
         <ExportDropdown
           key="more"
           {...exportDropdownProps}
           showShareButton={false}
           showMoreMenu={true}
         />
-      )
+      ),
     };
 
     return buttons[type as keyof typeof buttons];
@@ -411,11 +431,7 @@ const ActionButtons = ({ onEdit,
 
   return (
     <div className={className}>
-      {activeContent && !shouldHideButtons && (
-        <>
-          {buttonOrder.map(type => renderButton(type))}
-        </>
-      )}
+      {activeContent && !shouldHideButtons && <>{buttonOrder.map((type) => renderButton(type))}</>}
     </div>
   );
 };
