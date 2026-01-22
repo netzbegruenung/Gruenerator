@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
+
+import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
 import IndexCard from '../../../components/common/IndexCard';
-import { getOrderedNotebooks } from '../config/notebooksConfig';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { getOrderedNotebooks } from '../config/notebooksConfig';
 import '../../../assets/styles/components/gallery-layout.css';
 import '../../../assets/styles/components/gallery-content-type.css';
 
@@ -16,10 +18,12 @@ const NotebooksGalleryPage = () => {
         <div className="gallery-header">
           <h1>Notebooks</h1>
           <p>
-            Durchsuche grüne Dokumente und Programme mit KI-gestützten Fragen.
-            Wähle ein Notebook und stelle deine Fragen zu grüner Politik.
+            Durchsuche grüne Dokumente und Programme mit KI-gestützten Fragen. Wähle ein Notebook
+            und stelle deine Fragen zu grüner Politik.
           </p>
         </div>
+
+        <EarlyAccessBanner feedbackUrl="https://tally.so/r/kdN6MZ" />
 
         <div className="gallery-grid">
           {notebooks.map((notebook) => (
@@ -40,5 +44,5 @@ const NotebooksGalleryPage = () => {
 };
 
 export default withAuthRequired(NotebooksGalleryPage, {
-  title: 'Notebooks'
+  title: 'Notebooks',
 });
