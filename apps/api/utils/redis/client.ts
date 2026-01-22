@@ -57,6 +57,25 @@ export function ensureConnected(): Promise<void> {
 // Start connection immediately
 ensureConnected().catch(() => {});
 
+/**
+ * Check Redis health status
+ * Returns connection status and any error message
+ */
+export async function checkRedisHealth(): Promise<{ connected: boolean; error?: string }> {
+  try {
+    if (!client.isOpen) {
+      await ensureConnected();
+    }
+    await client.ping();
+    return { connected: true };
+  } catch (error) {
+    return {
+      connected: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
 // Exportiere den verbundenen Client für andere Module
 export default client;
 
