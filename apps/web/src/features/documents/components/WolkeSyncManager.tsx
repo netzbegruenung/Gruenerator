@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { getIcon } from '../../../config/icons';
 import { useWolkeSync } from '../hooks/useWolkeSync';
 import './WolkeSyncManager.css';
-import { getIcon, IconType } from '../../../config/icons';
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
 interface AutoSyncResult {
@@ -42,7 +42,6 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
         loading,
         error,
         syncFolder,
-        setAutoSync,
         initialized,
         refresh: refreshSyncStatuses
     } = useWolkeSync();
@@ -57,28 +56,12 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
 
             // When share links are loaded, ensure sync statuses are also loaded
             if (wolkeShareLinks.length > 0 && (!syncStatuses || syncStatuses.length === 0)) {
-                console.log('[WolkeSyncManager] Share links loaded, ensuring sync statuses are fetched...');
-                refreshSyncStatuses().catch(error => {
-                    console.error('[WolkeSyncManager] Failed to refresh sync statuses:', error);
+                void refreshSyncStatuses().catch(err => {
+                    console.error('[WolkeSyncManager] Failed to refresh sync statuses:', err);
                 });
             }
         }
     }, [wolkeShareLinks, syncStatuses, refreshSyncStatuses]);
-
-    console.log('[WolkeSyncManager] State check:', {
-        hasWolkeFolders,
-        hasShareLinks,
-        shareLinksCount: wolkeShareLinks?.length || 0,
-        syncStatusesCount: syncStatuses.length,
-        shareLinksLoading,
-        initialized,
-        loading
-    });
-
-    const handleFolderSelect = (folder: FolderSelection) => {
-        setSelectedFolder(folder);
-        setShowBrowser(false);
-    };
 
     const handleBackToBrowser = () => {
         setShowBrowser(true);
@@ -140,7 +123,6 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
                             <button
                                 className="pabtn pabtn--secondary pabtn--s"
                                 onClick={() => {
-                                    console.log('[WolkeSyncManager] Refresh button clicked');
                                     setShareLinksLoading(true);
                                     if (onRefreshShareLinks) {
                                         onRefreshShareLinks(true);
@@ -270,19 +252,6 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
         return syncStatus ? syncStatus : null;
     };
 
-    // Debug logging for checkbox state
-    useEffect(() => {
-        if (shareLinks.length > 0 && syncStatuses.length > 0) {
-            console.log('[ShareLinksWithSync] Sync status check:', {
-                shareLinksCount: shareLinks.length,
-                syncStatusesCount: syncStatuses.length,
-                syncStatuses: syncStatuses.map(status => ({
-                    shareLink: status.share_link_id,
-                    autoSync: status.auto_sync_enabled
-                }))
-            });
-        }
-    }, [shareLinks, syncStatuses]);
 
     const getSimpleStatus = (status: string | undefined) => {
         switch (status) {
@@ -301,16 +270,6 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                 const isSyncEnabled = Boolean(syncStatus?.auto_sync_enabled);
                 const isCurrentlySyncing = syncingFolders.has(`${shareLink.id}-`) || syncStatus?.sync_status === 'syncing';
 
-                // Debug log for each checkbox
-                if (process.env.NODE_ENV === 'development') {
-                    console.log(`[ShareLinksWithSync] Checkbox state for ${shareLink.id}:`, {
-                        syncStatus: syncStatus,
-                        autoSyncEnabled: syncStatus?.auto_sync_enabled,
-                        isSyncEnabled: isSyncEnabled,
-                        rawValue: syncStatus?.auto_sync_enabled
-                    });
-                }
-
                 return (
                     <div key={shareLink.id} className="wolke-share-link-card">
                         <div className="share-link-info">
@@ -320,11 +279,9 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                                     checked={isSyncEnabled}
                                     onChange={async (e) => {
                                         const newCheckedState = e.target.checked;
-                                        console.log(`[ShareLinksWithSync] Toggling auto-sync for ${shareLink.id} to:`, newCheckedState);
 
                                         try {
                                             const result = await setAutoSync(shareLink.id, '', newCheckedState) as AutoSyncResult;
-                                            console.log(`[ShareLinksWithSync] Auto-sync toggle result:`, result);
 
                                             setTimeout(async () => {
                                                 try {
@@ -336,18 +293,14 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                                             }, 100);
 
                                             if (result?.success && result?.autoSyncEnabled && newCheckedState) {
-                                                console.log('[WolkeSyncManager] Auto-sync enabled, triggering immediate sync...');
                                                 try {
                                                     await handleSyncFolder(shareLink.id, '');
-                                                    console.log('[WolkeSyncManager] Auto-sync initial sync completed');
                                                 } catch (syncError) {
                                                     console.error('[WolkeSyncManager] Auto-sync initial sync failed:', syncError);
                                                 }
                                             }
-                                        } catch (error) {
-                                            console.error('Failed to toggle sync:', error);
-                                            // Optionally revert the checkbox state if the operation failed
-                                            // The checkbox will revert automatically on next render due to state
+                                        } catch (err) {
+                                            console.error('Failed to toggle sync:', err);
                                         }
                                     }}
                                     className="sync-enable-checkbox"

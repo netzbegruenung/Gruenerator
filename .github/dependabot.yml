@@ -94,7 +94,6 @@ updates:
       # Animation libraries
       animation:
         patterns:
-          - "framer-motion"
           - "motion"
       # i18n libraries
       i18n:
@@ -131,7 +130,6 @@ updates:
           - "remotion"
           - "@remotion/*"
           - "@tanstack/*"
-          - "framer-motion"
           - "motion"
           - "i18next*"
           - "react-i18next"

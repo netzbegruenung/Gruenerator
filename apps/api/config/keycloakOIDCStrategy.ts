@@ -137,6 +137,10 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
     try {
       const correlationId = `auth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+      // Debug: Log session info at initiation
+      console.log(`[KeycloakOIDC:${correlationId}] Session ID at init: ${req.sessionID}`);
+      console.log(`[KeycloakOIDC:${correlationId}] Cookie header at init: ${!!req.headers.cookie}`);
+
       const state = randomState();
 
       const storedOriginDomain = req.session.originDomain || null;
@@ -216,13 +220,27 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
     }
   }
 
-  async handleCallback(req: Request, options: any): Promise<void> {
+  async handleCallback(req: Request, _options: any): Promise<void> {
     try {
+      // Debug: Log incoming request details
+      const cookieHeader = req.headers.cookie;
+      const sessionId = req.sessionID;
+      console.log(`[KeycloakOIDC:callback] Cookie header present: ${!!cookieHeader}`);
+      console.log(`[KeycloakOIDC:callback] Session ID: ${sessionId}`);
+      console.log(`[KeycloakOIDC:callback] Session exists: ${!!req.session}`);
+      console.log(`[KeycloakOIDC:callback] Session keys: ${req.session ? Object.keys(req.session).join(', ') : 'none'}`);
+      if (cookieHeader) {
+        // Check if our session cookie is in the header
+        const hasOurCookie = cookieHeader.includes('gruenerator.sid');
+        console.log(`[KeycloakOIDC:callback] gruenerator.sid cookie present: ${hasOurCookie}`);
+      }
+
       const sessionData = req.session['oidc:keycloak'];
       const correlationId = sessionData?.correlationId || 'unknown';
 
       if (!sessionData) {
         console.error(`[KeycloakOIDC:${correlationId}] No session data found - possible session loss`);
+        console.error(`[KeycloakOIDC:${correlationId}] Full session object: ${JSON.stringify(req.session)}`);
         return this.redirect(`/auth/error?message=session_not_found&retry=true`);
       }
 
