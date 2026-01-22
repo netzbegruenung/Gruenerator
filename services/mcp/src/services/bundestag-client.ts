@@ -113,4 +113,4 @@ function getBundestagMCPClient() {
     return clientInstance;
 }
 
-export { BundestagMCPClient, getBundestagMCPClient };
+export { getBundestagMCPClient };
