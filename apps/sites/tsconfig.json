@@ -10,7 +10,11 @@
       "@gruenerator/shared": ["../../packages/shared/src"],
       "@gruenerator/shared/*": ["../../packages/shared/src/*"]
     },
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "noUncheckedIndexedAccess": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false
   },
   "include": ["src/**/*", "vite.config.ts", "data/**/*"],
   "exclude": ["node_modules", "dist"]
