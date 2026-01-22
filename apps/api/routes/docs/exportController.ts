@@ -3,16 +3,42 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 import * as Y from 'yjs';
 import { gunzipSync } from 'zlib';
 
+/**
+ * Permission entry for a user on a document
+ */
+interface PermissionEntry {
+  level: 'owner' | 'editor' | 'viewer';
+  granted_at: string;
+  granted_by?: string;
+}
+
+/**
+ * Permissions object mapping user IDs to their permission entries
+ */
+interface DocumentPermissions {
+  [userId: string]: PermissionEntry;
+}
+
+/**
+ * Document row with permissions for export
+ */
+interface DocumentWithPermissions {
+  id: string;
+  title: string;
+  permissions: DocumentPermissions | null;
+  [key: string]: unknown;
+}
+
+/**
+ * Y.js document snapshot row
+ */
+interface YjsSnapshotRow {
+  snapshot_data: Buffer;
+  [key: string]: unknown;
+}
+
 const router = Router();
 const db = getPostgresInstance();
-
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email?: string;
-    display_name?: string;
-  };
-}
 
 /**
  * Convert HTML to Markdown
@@ -89,7 +115,7 @@ function htmlToMarkdown(html: string): string {
  * @desc    Export document as HTML
  * @access  Private
  */
-router.get('/:id/export/html', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id/export/html', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -104,7 +130,7 @@ router.get('/:id/export/html', async (req: AuthenticatedRequest, res: Response) 
        FROM collaborative_documents
        WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
       [id]
-    );
+    ) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -125,12 +151,12 @@ router.get('/:id/export/html', async (req: AuthenticatedRequest, res: Response) 
        ORDER BY version DESC
        LIMIT 1`,
       [id]
-    );
+    ) as YjsSnapshotRow[];
 
     let content = '<p>Empty document</p>';
 
     if (snapshotResult.length > 0) {
-      const decompressed = gunzipSync(snapshotResult[0].snapshot_data as Buffer);
+      const decompressed = gunzipSync(snapshotResult[0].snapshot_data);
       const ydoc = new Y.Doc();
       Y.applyUpdate(ydoc, decompressed);
 
@@ -208,7 +234,7 @@ router.get('/:id/export/html', async (req: AuthenticatedRequest, res: Response) 
  * @desc    Export document as Markdown
  * @access  Private
  */
-router.get('/:id/export/markdown', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id/export/markdown', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -223,7 +249,7 @@ router.get('/:id/export/markdown', async (req: AuthenticatedRequest, res: Respon
        FROM collaborative_documents
        WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
       [id]
-    );
+    ) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -244,12 +270,12 @@ router.get('/:id/export/markdown', async (req: AuthenticatedRequest, res: Respon
        ORDER BY version DESC
        LIMIT 1`,
       [id]
-    );
+    ) as YjsSnapshotRow[];
 
     let content = 'Empty document';
 
     if (snapshotResult.length > 0) {
-      const decompressed = gunzipSync(snapshotResult[0].snapshot_data as Buffer);
+      const decompressed = gunzipSync(snapshotResult[0].snapshot_data);
       const ydoc = new Y.Doc();
       Y.applyUpdate(ydoc, decompressed);
 
@@ -277,7 +303,7 @@ router.get('/:id/export/markdown', async (req: AuthenticatedRequest, res: Respon
  * @desc    Export document as plain text
  * @access  Private
  */
-router.get('/:id/export/text', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id/export/text', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -292,7 +318,7 @@ router.get('/:id/export/text', async (req: AuthenticatedRequest, res: Response) 
        FROM collaborative_documents
        WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
       [id]
-    );
+    ) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -313,12 +339,12 @@ router.get('/:id/export/text', async (req: AuthenticatedRequest, res: Response) 
        ORDER BY version DESC
        LIMIT 1`,
       [id]
-    );
+    ) as YjsSnapshotRow[];
 
     let content = 'Empty document';
 
     if (snapshotResult.length > 0) {
-      const decompressed = gunzipSync(snapshotResult[0].snapshot_data as Buffer);
+      const decompressed = gunzipSync(snapshotResult[0].snapshot_data);
       const ydoc = new Y.Doc();
       Y.applyUpdate(ydoc, decompressed);
 

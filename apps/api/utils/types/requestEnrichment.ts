@@ -205,3 +205,16 @@ export interface AutoSearchOptions {
   usePrivacyMode?: boolean;
   useProMode?: boolean;
 }
+
+/**
+ * Union type for all enrichment task results
+ * Used to properly type the enrichmentTasks array
+ */
+export type EnrichmentTaskResult =
+  | { type: 'urls'; documents: Document[] }
+  | { type: 'websearch'; knowledge: string[]; sources: WebSearchSource[] | null }
+  | { type: 'vectorsearch'; knowledge: string[]; documentReferences: DocumentReference[] }
+  | { type: 'texts'; knowledge: string[]; textReferences: TextReference[] }
+  | { type: 'knowledge'; knowledge: string[] }
+  | { type: 'autovectorsearch'; knowledge: string[]; metadata: any }
+  | { type: 'notebook_enrich'; preAnswer: string | null; timeMs: number };

@@ -154,7 +154,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
     return {
       content: textualContent,
-      stop_reason: response.stop_reason,
+      stop_reason: response.stop_reason ?? undefined,
       tool_calls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
       raw_content_blocks: rawContentBlocks,
       success: true,

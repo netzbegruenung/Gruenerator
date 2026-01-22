@@ -72,7 +72,13 @@ export class NotebookQAService {
     }
 
     // Detect document scope and subcategory filters from natural language
-    const documentScope: DocumentScope = queryIntentService.detectDocumentScope(trimmedQuestion);
+    const detectedScope = queryIntentService.detectDocumentScope(trimmedQuestion);
+    const documentScope: DocumentScope = {
+      collections: detectedScope.collections,
+      subcategoryFilters: detectedScope.subcategoryFilters,
+      detectedPhrase: detectedScope.detectedPhrase ?? undefined,
+      documentTitleFilter: detectedScope.documentTitleFilter ?? undefined
+    };
     const effectiveCollectionIds = documentScope.detectedPhrase
       ? documentScope.collections.filter(c => (collectionIds || getDefaultMultiCollectionIds()).includes(c))
       : (collectionIds || getDefaultMultiCollectionIds());
@@ -199,7 +205,13 @@ export class NotebookQAService {
     }
 
     // Detect filters
-    const documentScope: DocumentScope = queryIntentService.detectDocumentScope(trimmedQuestion);
+    const detectedScopeSingle = queryIntentService.detectDocumentScope(trimmedQuestion);
+    const documentScope: DocumentScope = {
+      collections: detectedScopeSingle.collections,
+      subcategoryFilters: detectedScopeSingle.subcategoryFilters,
+      detectedPhrase: detectedScopeSingle.detectedPhrase ?? undefined,
+      documentTitleFilter: detectedScopeSingle.documentTitleFilter ?? undefined
+    };
     const effectiveFilters: RequestFilters = {
       ...documentScope.subcategoryFilters,
       ...requestFilters
@@ -304,7 +316,7 @@ export class NotebookQAService {
         }
       });
 
-      return expandResultsToChunks(resp.results || [], collectionId, config.name);
+      return expandResultsToChunks(resp.results as unknown as Parameters<typeof expandResultsToChunks>[0] || [], collectionId, config.name);
     } catch (error: any) {
       log.error(`[QA] Search error for ${collectionId}:`, error);
       return [];
@@ -317,7 +329,7 @@ export class NotebookQAService {
   private async _performSearch({ query, searchCollection, userId, documentIds, titleFilter, additionalFilter, searchParams }: InternalSearchOptions): Promise<any[]> {
     const resp = await documentSearchService.search({
       query,
-      userId,
+      userId: userId ?? undefined,
       options: {
         documentIds,
         limit: searchParams.limit,

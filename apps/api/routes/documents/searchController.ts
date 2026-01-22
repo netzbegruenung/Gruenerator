@@ -92,10 +92,10 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
     // Transform results for backward compatibility
     const compatibleResults: SearchResultCompatible[] = safeResults.map(doc => ({
       id: doc.document_id,
-      title: doc.title,
-      filename: doc.filename,
+      title: doc.title || '',
+      filename: doc.filename || '',
       relevantText: doc.relevant_content,
-      created_at: doc.created_at,
+      created_at: doc.created_at || '',
       similarity_score: doc.similarity_score,
       relevance_info: doc.relevance_info,
       search_type: searchResult.searchType

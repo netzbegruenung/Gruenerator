@@ -294,7 +294,7 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
     res.status(202).json({ status: 'exporting', exportToken });
 
     const exportSegments = segments.map((s: any) => ({ text: s.text, start: s.startTime, end: s.endTime }));
-    const exportMetadata = { width: metadata.width, height: metadata.height, duration: metadata.duration };
+    const exportMetadata = { width: metadata.width, height: metadata.height, duration: metadata.duration ?? '' };
     processVideoExportInBackground({ inputPath, outputPath, segments: exportSegments, metadata: exportMetadata, fileStats: { size: fileStats.size }, exportToken, subtitlePreference, stylePreference, heightPreference, locale, maxResolution, finalFontSize, uploadId: uploadId || '', originalFilename, assFilePath, tempFontPath, projectId, userId, textOverlays }).catch(e => log.error(`Background export failed: ${e.message}`));
   } catch (e: any) {
     if (!res.headersSent) res.status(500).json({ error: e.message });
@@ -374,7 +374,7 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
         let projectId: string | null = null;
         if (userId) {
           try {
-            const r = await autoSaveProject({ userId, outputPath: result.outputPath, originalVideoPath: videoPath, uploadId, originalFilename, segments: result.subtitles || '', metadata: result.metadata || {}, fileStats: null, stylePreference: 'shadow', heightPreference: 'tief', subtitlePreference: 'manual', exportToken: result.autoProcessToken });
+            const r = await autoSaveProject({ userId, outputPath: result.outputPath, originalVideoPath: videoPath, uploadId, originalFilename, segments: result.subtitles || '', metadata: result.metadata || {}, fileStats: undefined, stylePreference: 'shadow', heightPreference: 'tief', subtitlePreference: 'manual', exportToken: result.autoProcessToken });
             projectId = r.projectId;
           } catch {}
         }

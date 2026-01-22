@@ -120,16 +120,16 @@ export async function handleSimpleRequest(
         options: requestOptions
       }, req);
 
-      if (!result.success) {
-        const isThrottling = isThrottlingError(result.error);
+      if (!result || !result.success) {
+        const isThrottling = isThrottlingError(result?.error);
         if (!isThrottling) {
           attempts++;
         }
 
-        log.error(`[sharepic_simple] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+        log.error(`[sharepic_simple] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result?.error);
 
         if (attempts === maxAttempts) {
-          res.status(500).json({ success: false, error: result.error } as SimpleResponse);
+          res.status(500).json({ success: false, error: result?.error } as SimpleResponse);
           return;
         }
         continue;

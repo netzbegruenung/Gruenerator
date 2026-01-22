@@ -4,16 +4,6 @@ import { getSharedMediaService } from '../../services/sharedMediaService.js';
 
 import type { AllowedMimeType, SharedMediaRow } from '../../types/media.js';
 
-interface AuthenticatedUser {
-    id: string;
-    email?: string;
-    name?: string;
-}
-
-interface AuthRequest extends Request {
-    user?: AuthenticatedUser;
-}
-
 interface MediaListQuery {
     type?: 'image' | 'video' | 'all';
     search?: string;
@@ -90,7 +80,7 @@ function transformMediaItem(item: SharedMediaRow) {
  * List user's media library with optional filters
  * Query params: type, search, limit, offset, sort
  */
-router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/', async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -134,7 +124,7 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
  * Search media by title or alt text
  * Note: This route must be defined BEFORE /:id to prevent conflicts
  */
-router.get('/search', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/search', async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -183,7 +173,7 @@ router.get('/search', async (req: AuthRequest, res: Response): Promise<void> => 
  * GET /api/media/:id
  * Get single media item by ID
  */
-router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -218,7 +208,7 @@ router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
  * POST /api/media/upload
  * Upload new media file
  */
-router.post('/upload', upload.single('file'), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/upload', upload.single('file'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -265,7 +255,7 @@ router.post('/upload', upload.single('file'), async (req: AuthRequest, res: Resp
  * PUT /api/media/:id
  * Update media metadata (title, alt text)
  */
-router.put('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -312,7 +302,7 @@ router.put('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
  * DELETE /api/media/:id
  * Delete media item
  */
-router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {

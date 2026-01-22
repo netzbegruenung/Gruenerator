@@ -224,7 +224,7 @@ export function checkForMissingInformation(
         field: fieldConfig.field,
         fieldKey: fieldKey,
         displayName: fieldConfig.displayName,
-        questions: fieldConfig.questions,
+        questions: fieldConfig.questions ?? [],
         extractionPattern: fieldConfig.extractionPattern
       };
     }

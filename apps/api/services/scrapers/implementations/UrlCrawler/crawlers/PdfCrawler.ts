@@ -93,7 +93,7 @@ export class PdfCrawler {
       console.log(`[PdfCrawler] PDF has ${numPages} pages`);
 
       // Extract text from all pages
-      const textPromises = [];
+      const textPromises: Promise<string>[] = [];
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         textPromises.push(
           pdfDocument.getPage(pageNum).then(async (page) => {

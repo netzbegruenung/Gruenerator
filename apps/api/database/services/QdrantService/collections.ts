@@ -175,12 +175,16 @@ export async function getCollectionStats(
         const info = await client.getCollection(collectionName);
         // Cast info to access potentially renamed/optional properties
         const infoData = info as Record<string, unknown>;
+        const vectorsCount = (infoData.vectors_count ?? infoData.points_count) as number | null | undefined;
+        const indexedVectorsCount = info.indexed_vectors_count as number | null | undefined;
+        const pointsCount = info.points_count as number | null | undefined;
+        const segmentsCount = info.segments_count as number | null | undefined;
         return {
             name: collectionName,
-            vectors_count: (infoData.vectors_count ?? infoData.points_count) as number | undefined,
-            indexed_vectors_count: info.indexed_vectors_count,
-            points_count: info.points_count,
-            segments_count: info.segments_count,
+            vectors_count: vectorsCount ?? undefined,
+            indexed_vectors_count: indexedVectorsCount ?? undefined,
+            points_count: pointsCount ?? undefined,
+            segments_count: segmentsCount ?? undefined,
             status: info.status,
             optimizer_status: typeof info.optimizer_status === 'object'
                 ? JSON.stringify(info.optimizer_status)

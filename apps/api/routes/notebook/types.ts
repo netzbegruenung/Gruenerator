@@ -237,7 +237,7 @@ export interface PublicAccessRecord {
 export interface NotebookRequest extends AuthenticatedRequest {
     app: {
         locals: {
-            aiWorkerPool: any;
+            aiWorkerPool?: any;
         };
     } & AuthenticatedRequest['app'];
 }

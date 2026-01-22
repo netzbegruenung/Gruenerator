@@ -45,10 +45,9 @@ export async function generatePlatformContent(
       systemRole,
       constraints,
       request: requestContent,
-      taskInstructions: SimpleTemplateEngine.render(
-        socialConfig.taskInstructions,
-        { platforms: platform }
-      )
+      taskInstructions: socialConfig.taskInstructions
+        ? SimpleTemplateEngine.render(socialConfig.taskInstructions, { platforms: platform })
+        : null
     });
 
     const aiResult = await req.app.locals.aiWorkerPool.processRequest({

@@ -199,3 +199,25 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
     }
   }) as T;
 }
+
+/**
+ * Safely extract error message from unknown catch variable
+ * Use this in catch blocks when useUnknownInCatchVariables is enabled
+ */
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String(error.message);
+  }
+  return 'Unknown error';
+}
+
+/**
+ * Safely get the full error object if it's an Error, otherwise wrap it
+ */
+export function toError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  if (typeof error === 'string') return new Error(error);
+  return new Error(getErrorMessage(error));
+}

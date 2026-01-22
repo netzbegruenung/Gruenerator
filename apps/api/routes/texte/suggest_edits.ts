@@ -255,7 +255,7 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
 
     let parsed: EditSuggestionResult | null = null;
     if (result.tool_calls && result.tool_calls.length > 0) {
-      const toolCall = result.tool_calls.find(tc => tc.name === 'suggest_edits');
+      const toolCall = result.tool_calls.find((tc: { name: string; input?: unknown }) => tc.name === 'suggest_edits');
       if (toolCall && toolCall.input) {
         parsed = toolCall.input as EditSuggestionResult;
       }

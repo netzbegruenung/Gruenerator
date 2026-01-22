@@ -172,6 +172,10 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
     await checkFont();
     const metadata = await getVideoMetadata(inputPath);
 
+    if (!metadata) {
+      throw new Error('Video-Metadaten konnten nicht gelesen werden');
+    }
+
     const fileStats = await fsPromises.stat(inputPath);
     log.debug('Export-Info:', {
       uploadId,
@@ -190,7 +194,18 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
     outputPath = path.join(outputDir, `subtitled_${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
     log.debug('Ausgabepfad:', outputPath);
 
-    await processVideoWithSubtitles(inputPath, outputPath, subtitles, metadata, subtitlePreference, stylePreference, heightPreference, exportToken);
+    const localMetadata: VideoMetadata = {
+      width: metadata.width,
+      height: metadata.height,
+      duration: metadata.duration ?? 0,
+      rotation: metadata.rotation,
+      originalFormat: metadata.originalFormat ? {
+        codec: metadata.originalFormat.codec,
+        audioCodec: metadata.originalFormat.audioCodec ?? undefined,
+        audioBitrate: metadata.originalFormat.audioBitrate ?? undefined
+      } : undefined
+    };
+    await processVideoWithSubtitles(inputPath, outputPath, subtitles, localMetadata, subtitlePreference, stylePreference, heightPreference, exportToken);
 
     await streamVideoFile(outputPath, originalFilename, uploadId, res);
 
