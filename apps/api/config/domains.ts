@@ -7,7 +7,7 @@
  * 3. Update Keycloak & nginx (external configs)
  */
 
-export const PRIMARY_DOMAIN = process.env.PRIMARY_DOMAIN || 'gruenerator.de';
+export const PRIMARY_DOMAIN = process.env.PRIMARY_DOMAIN || 'gruenerator.eu';
 export const PRIMARY_URL = `https://${PRIMARY_DOMAIN}`;
 
 export const ALLOWED_DOMAINS: string[] = [
@@ -22,13 +22,10 @@ export const ALLOWED_DOMAINS: string[] = [
   'gruenerator.eu',
   'www.gruenerator.eu',
   'localhost',
-  '127.0.0.1'
+  '127.0.0.1',
 ];
 
-export const DEV_DOMAINS: string[] = [
-  'localhost',
-  '127.0.0.1'
-];
+export const DEV_DOMAINS: string[] = ['localhost', '127.0.0.1'];
 
 export interface BrandInfo {
   name: string;
@@ -59,14 +56,16 @@ export const URLS: UrlConfig = {
 export function isAllowedDomain(domain: string | undefined): boolean {
   if (!domain) return false;
   const domainWithoutPort = domain.split(':')[0];
-  const allDomains = [...ALLOWED_DOMAINS, ...(process.env.NODE_ENV !== 'production' ? DEV_DOMAINS : [])];
-  return allDomains.some(allowed =>
-    domainWithoutPort === allowed ||
-    domainWithoutPort.endsWith('.' + allowed)
+  const allDomains = [
+    ...ALLOWED_DOMAINS,
+    ...(process.env.NODE_ENV !== 'production' ? DEV_DOMAINS : []),
+  ];
+  return allDomains.some(
+    (allowed) => domainWithoutPort === allowed || domainWithoutPort.endsWith('.' + allowed)
   );
 }
 
 export function buildUrl(path = ''): string {
-  const normalizedPath = path.startsWith('/') ? path : (path ? '/' + path : '');
+  const normalizedPath = path.startsWith('/') ? path : path ? '/' + path : '';
   return `${PRIMARY_URL}${normalizedPath}`;
 }
