@@ -1,4 +1,0 @@
-
-> @gruenerator/api@1.0.0 typecheck /home/morit/gruenerator/apps/api
-> tsc --noEmit
-
