@@ -474,7 +474,13 @@ async function startWorker(): Promise<void> {
   });
 
   // Error handler
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+    // Prevent "Cannot set headers after they are sent" errors
+    if (res.headersSent) {
+      log.warn(`Error after headers sent: ${err.message}`);
+      return;
+    }
+
     const isDev = process.env.NODE_ENV === 'development';
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = 500;
