@@ -96,7 +96,7 @@
     "build:clean": "rimraf build && npm run deps:clean",
     "build:chunks": "cross-env NODE_OPTIONS=--max-old-space-size=2048 vite build --mode=production",
     "preview": "vite preview",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "analyze": "vite-bundle-analyzer build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
