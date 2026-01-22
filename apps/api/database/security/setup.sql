@@ -11,8 +11,10 @@ DO $$
 BEGIN
     -- Check if user exists
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'gruenerator_app') THEN
-        -- Create user with strong password (change this!)
-        CREATE USER gruenerator_app WITH PASSWORD 'CHANGE_THIS_PASSWORD_IMMEDIATELY';
+        -- Create user with strong password.
+        -- NOTE: Supply GRUENERATOR_APP_PASSWORD via psql, e.g.:
+        --   psql -v GRUENERATOR_APP_PASSWORD='your-strong-password' -f setup.sql
+        CREATE USER gruenerator_app WITH PASSWORD :'GRUENERATOR_APP_PASSWORD';
         
         -- Grant basic database connection
         GRANT CONNECT ON DATABASE gruenerator TO gruenerator_app;
