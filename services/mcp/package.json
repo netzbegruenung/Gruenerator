@@ -12,6 +12,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "tsx --test src/**/*.test.ts"
   },
   "keywords": [
@@ -35,9 +37,11 @@
     "zod": "^4.3.3"
   },
   "devDependencies": {
+    "@gruenerator/eslint-config": "workspace:*",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
+    "eslint": "^9.23.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   },

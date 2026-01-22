@@ -59,6 +59,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",
+    "@gruenerator/eslint-config": "workspace:*",
     "@tanstack/react-query-devtools": "^5.75.2",
     "@testing-library/react": "^16.2.0",
     "@types/lodash": "^4.17.21",
@@ -70,7 +71,6 @@
     "babel-jest": "^29.7.0",
     "cross-env": "^7.0.3",
     "eslint": "^9.23.0",
-    "eslint-plugin-react": "^7.37.4",
     "rimraf": "^6.0.1",
     "terser": "^5.43.1",
     "typescript": "^5.9.3",
@@ -99,16 +99,11 @@
     "test": "jest",
     "analyze": "vite-bundle-analyzer build",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "build:analyze": "npm run build && npm run analyze",
     "deps:check": "npx depcheck",
     "deps:clean": "npm prune && npm dedupe"
-  },
-  "eslintConfig": {
-    "extends": [
-      "eslint:recommended",
-      "plugin:react/recommended",
-      "plugin:react/jsx-runtime"
-    ]
   },
   "browserslist": {
     "production": [
