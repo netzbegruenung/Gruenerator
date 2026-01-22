@@ -13,6 +13,7 @@ WORKDIR /app
 
 # Copy workspace configuration first (for better caching)
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy all workspace packages that web depends on
 COPY packages/ ./packages/

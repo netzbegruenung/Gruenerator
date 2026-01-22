@@ -1,12 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
-import type { User } from '../../types/auth.js';
-
-interface AuthenticatedRequest extends Request {
-  user?: User;
-}
-
 const log = createLogger('claude_alttext');
 const router: Router = createAuthenticatedRouter();
 
@@ -32,7 +26,7 @@ interface TextContentBlock {
 
 type ContentBlock = ImageContentBlock | TextContentBlock;
 
-router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/', async (req: Request, res: Response): Promise<void> => {
   const { imageBase64, imageDescription, usePrivacyMode } = req.body as AlttextRequestBody;
 
   log.debug('[claude_alttext] Request received:', {

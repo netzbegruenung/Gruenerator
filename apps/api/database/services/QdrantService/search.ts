@@ -266,15 +266,18 @@ export async function searchDocuments(
             with_payload: true
         });
 
-        const results: SearchResult[] = searchResult.map((hit: SearchHit) => ({
-            id: hit.id,
-            score: hit.score,
-            document_id: hit.payload.document_id as string,
-            chunk_text: hit.payload.chunk_text as string,
-            chunk_index: hit.payload.chunk_index as number,
-            metadata: (hit.payload.metadata as Record<string, unknown>) || {},
-            user_id: hit.payload.user_id as string
-        }));
+        const results: SearchResult[] = searchResult.map((hit) => {
+            const payload = hit.payload ?? {};
+            return {
+                id: hit.id,
+                score: hit.score,
+                document_id: payload.document_id as string,
+                chunk_text: payload.chunk_text as string,
+                chunk_index: payload.chunk_index as number,
+                metadata: (payload.metadata as Record<string, unknown>) || {},
+                user_id: payload.user_id as string
+            };
+        });
 
         return {
             success: true,
@@ -401,20 +404,23 @@ export async function searchContentExamples(
             }
         });
 
-        const results: ContentExampleResult[] = searchResult.map((hit: SearchHit) => ({
-            id: hit.payload.example_id as string,
-            score: hit.score,
-            title: hit.payload.title as string | undefined,
-            content: hit.payload.content as string | undefined,
-            type: hit.payload.type as string | undefined,
-            categories: hit.payload.categories as string[] | undefined,
-            tags: hit.payload.tags as string[] | undefined,
-            description: hit.payload.description as string | undefined,
-            content_data: hit.payload.content_data as Record<string, unknown> | undefined,
-            metadata: hit.payload.metadata as Record<string, unknown> | undefined,
-            created_at: hit.payload.created_at as string | undefined,
-            similarity_score: hit.score
-        }));
+        const results: ContentExampleResult[] = searchResult.map((hit) => {
+            const payload = hit.payload ?? {};
+            return {
+                id: payload.example_id as string,
+                score: hit.score,
+                title: payload.title as string | undefined,
+                content: payload.content as string | undefined,
+                type: payload.type as string | undefined,
+                categories: payload.categories as string[] | undefined,
+                tags: payload.tags as string[] | undefined,
+                description: payload.description as string | undefined,
+                content_data: payload.content_data as Record<string, unknown> | undefined,
+                metadata: payload.metadata as Record<string, unknown> | undefined,
+                created_at: payload.created_at as string | undefined,
+                similarity_score: hit.score
+            };
+        });
 
         return {
             success: true,
@@ -461,16 +467,19 @@ export async function searchSocialMediaExamples(
             }
         });
 
-        const results: SocialMediaResult[] = searchResult.map((hit: SearchHit) => ({
-            id: (hit.payload.example_id as string | number) || hit.id,
-            score: hit.score,
-            content: extractMultiFieldContent(hit.payload),
-            platform: hit.payload.platform as string | undefined,
-            country: (hit.payload.country as string) || null,
-            source_account: (hit.payload.source_account as string) || null,
-            created_at: hit.payload.created_at as string | undefined,
-            _debug_payload: hit.payload
-        }));
+        const results: SocialMediaResult[] = searchResult.map((hit) => {
+            const payload = hit.payload ?? {};
+            return {
+                id: (payload.example_id as string | number) || hit.id,
+                score: hit.score,
+                content: extractMultiFieldContent(payload),
+                platform: payload.platform as string | undefined,
+                country: (payload.country as string) || null,
+                source_account: (payload.source_account as string) || null,
+                created_at: payload.created_at as string | undefined,
+                _debug_payload: payload
+            };
+        });
 
         return {
             success: true,

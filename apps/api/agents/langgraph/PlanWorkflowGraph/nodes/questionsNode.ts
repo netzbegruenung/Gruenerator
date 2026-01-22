@@ -132,7 +132,7 @@ export async function questionsNode(state: PlanWorkflowState): Promise<Questions
     }, input.req);
 
     const questionsGenerationTimeMs = Date.now() - startTime;
-    const parsed = parseQuestionsResponse(aiResponse.content);
+    const parsed = parseQuestionsResponse(aiResponse.content ?? '');
     let questions = mapToGeneratedQuestions(parsed.questions);
 
     // Fallback: If AI didn't produce questions, extract from plan patterns

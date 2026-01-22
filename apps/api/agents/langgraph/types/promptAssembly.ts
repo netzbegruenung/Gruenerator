@@ -62,19 +62,19 @@ export interface PromptAssemblyState {
   locale?: Locale;
 
   // Content inputs
-  request?: string | RequestObject;
-  requestFormatted?: string;
+  request?: string | RequestObject | null;
+  requestFormatted?: string | null;
   documents?: ClaudeDocument[];
   knowledge?: string[];
   examples?: ContentExample[];
 
-  // Instructions and configuration
-  instructions?: string;
+  // Instructions and configuration (allow null for compatibility with EnrichedState)
+  instructions?: string | null;
   toolInstructions?: string[];
-  constraints?: string;
-  formatting?: string;
-  taskInstructions?: string;
-  outputFormat?: string;
+  constraints?: string | null;
+  formatting?: string | null;
+  taskInstructions?: string | null;
+  outputFormat?: string | null;
 
   // Tools
   tools?: ClaudeTool[];

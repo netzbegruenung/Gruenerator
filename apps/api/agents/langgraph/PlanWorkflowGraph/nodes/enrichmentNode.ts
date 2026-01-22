@@ -24,7 +24,6 @@ export async function enrichmentNode(state: PlanWorkflowState): Promise<Enrichme
       type: state.generatorType === 'pr' ? 'social' : state.generatorType,
       enableWebSearch: promptConfig.enableWebSearch && input.useWebSearch,
       enableDocQnA: promptConfig.enableDocuments && (input.selectedDocumentIds?.length || 0) > 0,
-      enableKnowledgeBase: promptConfig.enableKnowledge,
       searchQuery: input.inhalt,
       selectedDocumentIds: input.selectedDocumentIds,
       selectedTextIds: input.selectedTextIds,

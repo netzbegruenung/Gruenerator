@@ -270,9 +270,7 @@ export async function processProductionGeneration(
       selectedDocumentIds: [],
       searchQuery: inputData.inhalt,
       useAutomaticSearch: false,
-      req,
-      // Inject approved strategy into context
-      additionalContext: `\n\n# Genehmigte Strategie\n\n${strategyData.framing}`
+      req
     });
 
     // 3. PARALLEL: Generate selected platforms

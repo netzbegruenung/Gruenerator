@@ -157,7 +157,7 @@ class RateLimiter {
 
       // Don't increment if unlimited
       if (status.unlimited) {
-        return { success: true, unlimited: true, ...status };
+        return { success: true, ...status };
       }
 
       // Don't increment if limit reached

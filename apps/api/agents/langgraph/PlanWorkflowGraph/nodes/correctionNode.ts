@@ -99,7 +99,7 @@ export async function correctionNode(state: PlanWorkflowState): Promise<Correcti
       }
     }, input.req);
 
-    const correctedPlan = aiResponse.content;
+    const correctedPlan = aiResponse.content ?? '';
     const correctionSummary = extractCorrectionSummary(correctedPlan, currentPlan);
     const correctionTimeMs = Date.now() - startTime;
 

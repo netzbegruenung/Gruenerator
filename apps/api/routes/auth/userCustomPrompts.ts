@@ -438,8 +438,8 @@ router.post('/custom_prompts/search', ensureAuthenticated as any, async (req: Au
     });
 
     res.json({
-      success: true,
-      ...searchResult
+      ...searchResult,
+      success: true
     });
 
   } catch (error) {
@@ -467,8 +467,8 @@ router.get('/public_prompts', ensureAuthenticated as any, async (req: AuthReques
         userId
       );
       res.json({
-        success: true,
-        ...searchResult
+        ...searchResult,
+        success: true
       });
       return;
     }
@@ -506,8 +506,8 @@ router.get('/public_prompts', ensureAuthenticated as any, async (req: AuthReques
 
     const result = await promptVectorService.getPublicPrompts(limit, userId);
     res.json({
-      success: true,
-      ...result
+      ...result,
+      success: true
     });
 
   } catch (error) {
@@ -541,8 +541,8 @@ router.post('/public_prompts/search', ensureAuthenticated as any, async (req: Au
     );
 
     res.json({
-      success: true,
-      ...searchResult
+      ...searchResult,
+      success: true
     });
 
   } catch (error) {

@@ -102,7 +102,7 @@ async function generateImagineForChat(
     hasTitle: !!requestBody.title
   });
 
-  const limitStatus = await imageCounter.checkLimit(userId);
+  const limitStatus = await imageCounter.checkLimit(userId ?? '');
   if (!limitStatus.canGenerate) {
     log.debug('[ImagineGeneration] Rate limit reached for user:', userId);
     return {
@@ -156,7 +156,7 @@ async function generatePureImage(
 
   const { prompt, dimensions } = buildFluxPrompt({
     variant: pureVariant,
-    subject: subject
+    subject: subject ?? ''
   });
 
   log.debug('[ImagineGeneration] Built prompt:', { prompt: prompt.substring(0, 100), dimensions });
@@ -174,7 +174,7 @@ async function generatePureImage(
 
   await saveGeneratedImage(labeledBuffer, 'pure');
 
-  const usageStatus = await imageCounter.incrementCount(userId);
+  const usageStatus = await imageCounter.incrementCount(userId ?? '');
 
   const base64 = `data:image/png;base64,${labeledBuffer.toString('base64')}`;
   const variantConfig = VARIANTS[pureVariant as keyof typeof VARIANTS];
@@ -224,7 +224,7 @@ async function generateSharepicImage(
 
   const { prompt } = buildFluxPrompt({
     variant: sharepicVariant,
-    subject: subject
+    subject: subject ?? ''
   });
 
   const flux = await getFluxImageService();
@@ -238,7 +238,7 @@ async function generateSharepicImage(
   const fluxImageBuffer = fs.readFileSync(stored.filePath);
 
   const composedBuffer = await composeImagineCreate(fluxImageBuffer, {
-    title: title,
+    title: title ?? '',
     variant: sharepicVariant
   });
 
@@ -246,7 +246,7 @@ async function generateSharepicImage(
 
   await saveGeneratedImage(labeledBuffer, 'sharepic');
 
-  const usageStatus = await imageCounter.incrementCount(userId);
+  const usageStatus = await imageCounter.incrementCount(userId ?? '');
 
   const base64 = `data:image/png;base64,${labeledBuffer.toString('base64')}`;
 
@@ -335,7 +335,7 @@ async function generateEditImage(
 
   await saveGeneratedImage(labeledBuffer, 'edit');
 
-  const usageStatus = await imageCounter.incrementCount(userId);
+  const usageStatus = await imageCounter.incrementCount(userId ?? '');
 
   const base64 = `data:image/png;base64,${labeledBuffer.toString('base64')}`;
 

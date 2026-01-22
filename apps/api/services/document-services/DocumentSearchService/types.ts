@@ -348,7 +348,8 @@ export interface DocumentRawChunk extends RawChunk {
  * Extended chunk data with quality information
  */
 export interface DocumentChunkData extends ChunkData {
-    quality_score?: number | null;
+    /** Override to allow null in addition to undefined */
+    quality_score?: number;
     url?: string;
 }
 

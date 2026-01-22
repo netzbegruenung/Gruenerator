@@ -117,7 +117,7 @@ export class DocumentSearchService extends BaseSearchService {
             await this.qdrant.init();
             this.qdrantAvailable = !!this.qdrant?.client && !!this.qdrant?.isConnected;
 
-            if (this.qdrantAvailable) {
+            if (this.qdrantAvailable && this.qdrant.client) {
                 this.qdrantOps = new QdrantOperations(this.qdrant.client);
             } else {
                 console.warn('[DocumentSearchService] Qdrant not available; vector searches will be skipped');
@@ -165,7 +165,7 @@ export class DocumentSearchService extends BaseSearchService {
             );
 
             const options = {
-                limit,
+                limit: limit ?? this.defaultLimit,
                 threshold: threshold ?? this.defaultThreshold,
                 useCache: params.options?.useCache !== false,
                 vectorWeight: params.options?.vectorWeight,
@@ -223,12 +223,12 @@ export class DocumentSearchService extends BaseSearchService {
                     additionalFilter: params.additionalFilter
                 },
                 options: {
-                    limit,
+                    limit: limit ?? this.defaultLimit,
                     threshold: threshold ?? this.defaultThreshold,
                     useCache: true,
                     mode: params.mode,
-                    ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
-                    ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
+                    ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt ?? undefined } : {}),
+                    ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt ?? undefined } : {}),
                     ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
                     ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {})
                 }
@@ -264,8 +264,8 @@ export class DocumentSearchService extends BaseSearchService {
                 threshold: validated.threshold ?? this.defaultThreshold,
                 useCache: true,
                 mode: validated.mode,
-                ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
-                ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
+                ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt ?? undefined } : {}),
+                ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt ?? undefined } : {}),
                 ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
                 ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {})
             }
@@ -292,10 +292,10 @@ export class DocumentSearchService extends BaseSearchService {
 
             if (mode === 'hybrid') {
                 console.log('[DocumentSearchService] Executing hybrid search mode');
-                return await this.performHybridSearch(validated);
+                return await this.performHybridSearch(validated as unknown as SearchParams);
             }
 
-            return await this.performSimilaritySearch(validated);
+            return await this.performSimilaritySearch(validated as unknown as SearchParams);
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';

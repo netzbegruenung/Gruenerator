@@ -170,7 +170,7 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
     // Check if user has access
     const isOwner = document.created_by === userId;
     const isPublic = document.is_public;
-    const permissions = document.permissions || {};
+    const permissions = (document.permissions || {}) as Record<string, { level?: string } | undefined>;
     const userPermission = permissions[userId];
 
     log.info(`[Auth] isOwner: ${isOwner}`);
@@ -238,10 +238,10 @@ export async function canEditDocument(documentId: string, userId: string): Promi
 
     const document = result[0];
     const isOwner = document.created_by === userId;
-    const permissions = document.permissions || {};
+    const permissions = (document.permissions || {}) as Record<string, { level?: string } | undefined>;
     const userPermission = permissions[userId];
 
-    return isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+    return isOwner || !!(userPermission && userPermission.level !== undefined && ['owner', 'editor'].includes(userPermission.level));
   } catch (error) {
     log.error(`[CanEdit] Error checking edit permission: ${error}`);
     return false;

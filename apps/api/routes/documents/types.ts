@@ -4,16 +4,12 @@
 
 import type { Request } from 'express';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { User } from '../../types/auth.js';
 
-// Extended request type with proper user typing
-// Using type intersection to properly extend Request
-export type DocumentRequest = Request & {
-  user?: User;
-};
+// Use Express.Request directly - it already has user?: Express.User with proper type augmentation
+export type DocumentRequest = Request;
 
 // Re-export for convenience
-export type { AuthenticatedRequest, User };
+export type { AuthenticatedRequest };
 
 // ============================================================================
 // Request Body Types

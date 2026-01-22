@@ -70,7 +70,7 @@ export function formatStrategyApprovalResponse(
   // Add metadata footer
   if (metadata.documentsCount || metadata.webSourcesCount) {
     content += `\n\n---\n\n*Recherche-Quellen: `;
-    const sources = [];
+    const sources: string[] = [];
     if (metadata.documentsCount) sources.push(`${metadata.documentsCount} Dokumente`);
     if (metadata.webSourcesCount) sources.push(`${metadata.webSourcesCount} Web-Quellen`);
     content += sources.join(', ') + '*';
