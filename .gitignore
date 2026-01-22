@@ -134,3 +134,6 @@ typecheck_output.txt
 # Turbo
 .turbo/
 **/.turbo/
+
+# Windows Zone.Identifier metadata files
+*:Zone.Identifier
