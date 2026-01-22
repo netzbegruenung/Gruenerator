@@ -28,8 +28,10 @@ RUN pnpm install --frozen-lockfile
 # Build environment variables (can be overridden at build time)
 ARG VITE_API_BASE_URL=/api
 ARG VITE_APP_ENV=production
+ARG VITE_MAINTENANCE_MODE=false
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_APP_ENV=$VITE_APP_ENV
+ENV VITE_MAINTENANCE_MODE=$VITE_MAINTENANCE_MODE
 
 # Build the frontend
 RUN pnpm --filter @gruenerator/web build
