@@ -126,7 +126,7 @@ function calculateTrimPoints(silenceData: SilenceData): TrimPoints {
 
 async function getVideoDuration(inputPath: string): Promise<{ duration: number }> {
   const metadata = await ffprobe(inputPath);
-  const duration = parseFloat(metadata.format.duration) || 0;
+  const duration = parseFloat(metadata.format.duration ?? '0') || 0;
   return { duration };
 }
 

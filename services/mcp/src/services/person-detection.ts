@@ -3,13 +3,14 @@
  * Detects when a query is about a specific German MP (Abgeordneter)
  */
 
-import { getBundestagMCPClient } from './bundestag-client.ts';
 import {
     normalizeForNameMatch,
     calculateNameSimilarity as sharedCalculateNameSimilarity
 } from '@gruenerator/shared/utils';
 
-let mpCache = new Map();
+import { getBundestagMCPClient } from './bundestag-client.ts';
+
+const mpCache = new Map();
 let cacheLastUpdated = 0;
 const CACHE_TTL = 24 * 60 * 60 * 1000;
 
@@ -285,4 +286,4 @@ function getPersonDetectionService() {
     return serviceInstance;
 }
 
-export { PersonDetectionService, getPersonDetectionService };
+export { getPersonDetectionService };

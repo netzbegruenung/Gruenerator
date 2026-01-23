@@ -3,10 +3,11 @@
  * Orchestrates multi-source search when a person (Abgeordneter) is detected
  */
 
-import { getPersonDetectionService } from './person-detection.ts';
-import { getBundestagMCPClient } from './bundestag-client.ts';
-import { getQdrantClient } from '../qdrant/client.ts';
 import { generateEmbedding } from '../embeddings.ts';
+import { getQdrantClient } from '../qdrant/client.ts';
+
+import { getBundestagMCPClient } from './bundestag-client.ts';
+import { getPersonDetectionService } from './person-detection.ts';
 
 class EnrichedPersonSearch {
     private personDetection: ReturnType<typeof getPersonDetectionService>;
@@ -268,4 +269,4 @@ function getEnrichedPersonSearch() {
     return serviceInstance;
 }
 
-export { EnrichedPersonSearch, getEnrichedPersonSearch };
+export { getEnrichedPersonSearch };

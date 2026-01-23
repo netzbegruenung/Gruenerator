@@ -22,7 +22,7 @@ export class SimpleMessageDetector {
     if (this.configCache) return this.configCache;
 
     const configPath = join(__dirname, '../../../prompts/simpleMessages.json');
-    this.configCache = JSON.parse(readFileSync(configPath, 'utf-8'));
+    this.configCache = JSON.parse(readFileSync(configPath, 'utf-8')) as SimpleMessagesConfig;
     return this.configCache;
   }
 

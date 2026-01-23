@@ -3,11 +3,12 @@
  * Searches for social media examples (Instagram, Facebook) from Green Party
  */
 
-import { z } from 'zod';
-import { getQdrantClient } from '../qdrant/client.ts';
-import { generateEmbedding } from '../embeddings.ts';
 import { getQdrantCollectionName } from '@gruenerator/shared/search/collections';
 import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
+import { z } from 'zod';
+
+import { generateEmbedding } from '../embeddings.ts';
+import { getQdrantClient } from '../qdrant/client.ts';
 
 const COLLECTION_NAME = getQdrantCollectionName('examples') || 'social_media_examples';
 const DEFAULT_THRESHOLD = 0.15;

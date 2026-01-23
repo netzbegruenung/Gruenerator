@@ -13,6 +13,22 @@
 #   - nginx: Internal reverse proxy
 
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - gruenerator
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "com.gruenerator.service=redis"
+
   web:
     image: ghcr.io/netzbegruenung/gruenerator-web:${TAG:-latest}
     restart: unless-stopped
@@ -24,6 +40,9 @@ services:
   api:
     image: ghcr.io/netzbegruenung/gruenerator-api:${TAG:-latest}
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     env_file: .env
     environment:
       - PORT=3001
@@ -123,6 +142,7 @@ services:
       retries: 3
 
 volumes:
+  redis-data:
   api-uploads:
   api-logs:
 

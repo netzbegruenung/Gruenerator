@@ -39,7 +39,7 @@ export function isNewSentenceStart(afterPunctuation: string): boolean {
  * Returns true if the next character is lowercase (likely continuation)
  */
 export function isContinuation(afterPunctuation: string): boolean {
-  return afterPunctuation && /^[a-zäöüß]/.test(afterPunctuation);
+  return !!afterPunctuation && /^[a-zäöüß]/.test(afterPunctuation);
 }
 
 /**

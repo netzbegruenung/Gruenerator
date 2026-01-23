@@ -5,25 +5,26 @@ console.log(`[Boot] Node.js ${process.version}`);
 console.log(`[Boot] Environment: ${process.env.NODE_ENV || 'development'}`);
 
 console.log('[Boot] Loading dependencies...');
-import express from 'express';
-import cors from 'cors';
 import { randomUUID } from 'node:crypto';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import cors from 'cors';
+import express from 'express';
 console.log('[Boot] Dependencies loaded');
 
 console.log('[Boot] Loading config...');
-import { config, validateConfig } from './config.ts';
-import { searchTool, cacheStatsTool } from './tools/search.ts';
 import { clientConfigTool } from './clients/config.ts';
+import { config, validateConfig } from './config.ts';
+import { getCollectionResources, getCollectionResource, readServerInfoResource } from './resources/collections.ts';
+import { getSystemPromptResource } from './resources/system-prompt.ts';
+import { examplesSearchTool } from './tools/examples-search.ts';
 import { filtersTool } from './tools/filters.ts';
 import { personSearchTool } from './tools/person-search.ts';
-import { examplesSearchTool } from './tools/examples-search.ts';
+import { searchTool, cacheStatsTool } from './tools/search.ts';
 import { getCacheStats } from './utils/cache.ts';
 import { info, error, logSearch, getStats } from './utils/logger.ts';
-import { getCollectionResources, getCollectionResource, getServerInfoResource, readServerInfoResource } from './resources/collections.ts';
-import { getSystemPromptResource } from './resources/system-prompt.ts';
 console.log('[Boot] Config loaded');
 
 // Konfiguration validieren

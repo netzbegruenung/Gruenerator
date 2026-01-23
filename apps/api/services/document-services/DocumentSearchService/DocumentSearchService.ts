@@ -117,7 +117,7 @@ export class DocumentSearchService extends BaseSearchService {
             await this.qdrant.init();
             this.qdrantAvailable = !!this.qdrant?.client && !!this.qdrant?.isConnected;
 
-            if (this.qdrantAvailable) {
+            if (this.qdrantAvailable && this.qdrant.client) {
                 this.qdrantOps = new QdrantOperations(this.qdrant.client);
             } else {
                 console.warn('[DocumentSearchService] Qdrant not available; vector searches will be skipped');
@@ -136,7 +136,7 @@ export class DocumentSearchService extends BaseSearchService {
      * @param params - Raw search parameters
      * @returns Validated and normalized parameters
      */
-    validateSearchParams(params: any): DocumentSearchParams {
+    override validateSearchParams(params: any): DocumentSearchParams {
         if (params && (params.userId || params.filters || params.options)) {
             const query = InputValidator.validateSearchQuery(params.query);
             const searchCollection = params.filters?.searchCollection || params.options?.searchCollection;
@@ -165,7 +165,7 @@ export class DocumentSearchService extends BaseSearchService {
             );
 
             const options = {
-                limit,
+                limit: limit ?? this.defaultLimit,
                 threshold: threshold ?? this.defaultThreshold,
                 useCache: params.options?.useCache !== false,
                 vectorWeight: params.options?.vectorWeight,
@@ -223,12 +223,12 @@ export class DocumentSearchService extends BaseSearchService {
                     additionalFilter: params.additionalFilter
                 },
                 options: {
-                    limit,
+                    limit: limit ?? this.defaultLimit,
                     threshold: threshold ?? this.defaultThreshold,
                     useCache: true,
                     mode: params.mode,
-                    ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
-                    ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
+                    ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt ?? undefined } : {}),
+                    ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt ?? undefined } : {}),
                     ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
                     ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {})
                 }
@@ -264,8 +264,8 @@ export class DocumentSearchService extends BaseSearchService {
                 threshold: validated.threshold ?? this.defaultThreshold,
                 useCache: true,
                 mode: validated.mode,
-                ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
-                ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
+                ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt ?? undefined } : {}),
+                ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt ?? undefined } : {}),
                 ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
                 ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {})
             }
@@ -283,7 +283,7 @@ export class DocumentSearchService extends BaseSearchService {
      * @param searchParams - Search parameters
      * @returns Search response with ranked results
      */
-    async search(searchParams: SearchParams): Promise<SearchResponse> {
+    override async search(searchParams: SearchParams): Promise<SearchResponse> {
         try {
             await this.ensureInitialized();
 
@@ -292,10 +292,10 @@ export class DocumentSearchService extends BaseSearchService {
 
             if (mode === 'hybrid') {
                 console.log('[DocumentSearchService] Executing hybrid search mode');
-                return await this.performHybridSearch(validated);
+                return await this.performHybridSearch(validated as unknown as SearchParams);
             }
 
-            return await this.performSimilaritySearch(validated);
+            return await this.performSimilaritySearch(validated as unknown as SearchParams);
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -692,15 +692,15 @@ export class DocumentSearchService extends BaseSearchService {
 
     // ========== BaseSearchService Abstract Method Implementations ==========
 
-    async findSimilarChunks(params: FindSimilarChunksParams): Promise<DocumentTransformedChunk[]> {
+    override async findSimilarChunks(params: FindSimilarChunksParams): Promise<DocumentTransformedChunk[]> {
         return await searchOps.findSimilarChunks(this.qdrantOps, this.qdrantAvailable, params);
     }
 
-    async findHybridChunks(params: FindHybridChunksParams): Promise<DocumentTransformedChunk[]> {
+    override async findHybridChunks(params: FindHybridChunksParams): Promise<DocumentTransformedChunk[]> {
         return await searchOps.findHybridChunks(this.qdrantOps, this.qdrantAvailable, params);
     }
 
-    extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
+    override extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
         return scoring.extractChunkData(chunk);
     }
 
@@ -712,11 +712,11 @@ export class DocumentSearchService extends BaseSearchService {
         return scoring.calculateHybridDocumentScore(chunks, hybridMetadata);
     }
 
-    buildRelevanceInfo(doc: any, enhancedScore: DocumentEnhancedScore): string {
+    override buildRelevanceInfo(doc: any, enhancedScore: DocumentEnhancedScore): string {
         return scoring.buildRelevanceInfo(doc, enhancedScore);
     }
 
-    getSearchType(): string {
+    override getSearchType(): string {
         return 'document_vector';
     }
 

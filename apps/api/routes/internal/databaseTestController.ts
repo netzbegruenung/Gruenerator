@@ -163,11 +163,11 @@ router.get('/test', async (req: Request, res: Response) => {
     };
 
     log.debug('[DatabaseTest] Test completed successfully');
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     log.error('[DatabaseTest] Error during database test:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: (error as Error).message,
       type: 'DatabaseTestError',

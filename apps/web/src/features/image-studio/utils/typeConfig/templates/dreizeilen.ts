@@ -2,7 +2,9 @@
  * Dreizeilen (Standard-Sharepic) type configuration
  */
 import { PiTextT } from 'react-icons/pi';
+
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../constants';
+
 import type { TemplateTypeConfig, TemplateFieldConfig } from '../types';
 
 export const dreizeilenTypeConfig: TemplateTypeConfig = {
@@ -20,11 +22,11 @@ export const dreizeilenTypeConfig: TemplateTypeConfig = {
   parallelPreload: true,
   endpoints: {
     text: '/dreizeilen_claude',
-    canvas: '/dreizeilen_canvas'
+    canvas: '/dreizeilen_canvas',
   },
   formComponent: 'DreizeilenForm',
   steps: [FORM_STEPS.INPUT, FORM_STEPS.PREVIEW, FORM_STEPS.RESULT],
-  legacyType: 'Dreizeilen'
+  legacyType: 'Dreizeilen',
 };
 
 interface DreizeilenSlogan {
@@ -53,25 +55,26 @@ export const dreizeilenFieldConfig: TemplateFieldConfig = {
       subtitle: 'Beschreibe dein Thema für die Texterstellung durch KI',
       placeholder: 'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
       required: true,
-      minLength: 3
-    }
+      minLength: 3,
+    },
   ],
   previewFields: [
     { name: 'line1', type: 'text', label: 'Zeile 1' },
     { name: 'line2', type: 'text', label: 'Zeile 2' },
-    { name: 'line3', type: 'text', label: 'Zeile 3' }
+    { name: 'line3', type: 'text', label: 'Zeile 3' },
   ],
   resultFields: ['line1', 'line2', 'line3'],
   responseMapping: (result: DreizeilenResult) => ({
     line1: result.mainSlogan?.line1 || '',
     line2: result.mainSlogan?.line2 || '',
     line3: result.mainSlogan?.line3 || '',
-    searchTerms: result.searchTerms || []
+    searchTerms: result.searchTerms || [],
   }),
-  alternativesMapping: (alt: DreizeilenAlternative) => ({
+  alternativesMapping: (alt: DreizeilenAlternative, index?: number) => ({
+    id: `alt-${index ?? Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     line1: alt.line1 || '',
     line2: alt.line2 || '',
-    line3: alt.line3 || ''
+    line3: alt.line3 || '',
   }),
   showImageUpload: true,
   showColorControls: true,
@@ -82,5 +85,5 @@ export const dreizeilenFieldConfig: TemplateFieldConfig = {
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Anderer Slogan'
+  alternativesButtonText: 'Anderer Slogan',
 };

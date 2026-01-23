@@ -70,7 +70,7 @@ export async function planGenerationNode(state: PlanWorkflowState): Promise<Plan
       }
     }, input.req);
 
-    const planText = aiResponse.content;
+    const planText = aiResponse.content ?? '';
     const planSummary = extractPlanSummary(planText);
     const planGenerationTimeMs = Date.now() - startTime;
 

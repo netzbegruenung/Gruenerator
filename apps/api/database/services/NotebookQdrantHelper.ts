@@ -657,6 +657,7 @@ class NotebookQdrantHelper {
         await this.ensureInitialized();
 
         const config = getSystemCollectionConfig('grundsatz-system');
+        if (!config) throw new Error('System collection config not found for grundsatz-system');
         const systemCollectionId = config.id;
 
         try {

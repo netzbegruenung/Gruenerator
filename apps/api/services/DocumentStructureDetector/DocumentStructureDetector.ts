@@ -53,8 +53,8 @@ export class DocumentStructureDetector {
       }
     };
 
-    let currentChapter = null;
-    let currentSection = null;
+    let currentChapter: typeof structure.chapters[number] | null = null;
+    let currentSection: typeof structure.sections[number] | null = null;
     let lineIndex = 0;
 
     for (const line of lines) {

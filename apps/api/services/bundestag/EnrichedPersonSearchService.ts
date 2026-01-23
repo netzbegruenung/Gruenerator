@@ -129,15 +129,15 @@ export class EnrichedPersonSearchService {
       }
 
       // Hybrid search in bundestag_content
-      const searchResults: QdrantSearchResult[] = await this.qdrant.client.search('bundestag_content', {
+      const searchResults: QdrantSearchResult[] = (await this.qdrant.client?.search('bundestag_content', {
         vector: embedding,
         limit: limit * 2,
         with_payload: true,
         score_threshold: 0.3
-      });
+      }) ?? []) as QdrantSearchResult[];
 
       // Also do text search for exact name matches
-      const textResults: QdrantScrollResult = await this.qdrant.client.scroll('bundestag_content', {
+      const textResults: QdrantScrollResult = (await this.qdrant.client?.scroll('bundestag_content', {
         filter: {
           must: [
             { key: 'chunk_text', match: { text: personName } }
@@ -145,7 +145,7 @@ export class EnrichedPersonSearchService {
         },
         limit: limit,
         with_payload: true
-      });
+      }) ?? { points: [] }) as QdrantScrollResult;
 
       // Merge and deduplicate results
       const seen = new Set<string | number>();

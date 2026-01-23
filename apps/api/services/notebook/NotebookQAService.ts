@@ -14,10 +14,24 @@
  * - AI worker pool for draft generation
  */
 
+import {
+  buildDraftPromptGrundsatz,
+  buildDraftPromptGeneral,
+  buildFastModePrompt,
+} from '../../agents/langgraph/prompts.js';
+import {
+  SYSTEM_COLLECTIONS,
+  getSystemCollectionConfig,
+  buildSystemCollectionObject,
+  getDefaultMultiCollectionIds,
+  getSearchParams,
+  buildSubcategoryFilter,
+  applyDefaultFilter,
+} from '../../config/systemCollectionsConfig.js';
+import { createLogger } from '../../utils/logger.js';
+import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
 import { queryIntentService } from '../QueryIntentService/QueryIntentService.js';
-import { getEnrichedPersonSearchService } from '../bundestag/index.js';
-import type { EnrichedPersonSearchResult, PersonProfile, ContentMention, FormattedDrucksache, FormattedAktivitaet } from '../bundestag/types.js';
 import {
   expandResultsToChunks,
   deduplicateResults,
@@ -25,34 +39,28 @@ import {
   validateAndInjectCitations,
   renumberCitationsInOrder,
   filterAndSortResults,
-  groupSourcesByCollection
+  groupSourcesByCollection,
 } from '../search/index.js';
-import {
-  SYSTEM_COLLECTIONS,
-  isSystemCollectionId,
-  getSystemCollectionConfig,
-  buildSystemCollectionObject,
-  getDefaultMultiCollectionIds,
-  getSearchParams,
-  buildSubcategoryFilter
-} from '../../config/systemCollectionsConfig.js';
-import { buildDraftPromptGrundsatz, buildDraftPromptGeneral, buildFastModePrompt } from '../../agents/langgraph/prompts.js';
-import { createLogger } from '../../utils/logger.js';
+
 import type {
   QAMultiCollectionParams,
   QASingleCollectionParams,
   QAResponse,
   Citation,
-  SearchParams,
   InternalSearchOptions,
   DocumentScope,
   MultiCollectionMetadata,
   SingleCollectionMetadata,
   PersonQueryMetadata,
   RequestFilters,
-  PersonInfo
 } from './types.js';
-import type { ExpandedChunkResult, SourcesByCollection as SearchSourcesByCollection } from '../search/types.js';
+import type {
+  EnrichedPersonSearchResult,
+  ContentMention,
+  FormattedDrucksache,
+  FormattedAktivitaet,
+} from '../bundestag/types.js';
+import type { ExpandedChunkResult } from '../search/types.js';
 
 const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();
@@ -63,7 +71,13 @@ export class NotebookQAService {
    * @param params - Multi-collection query parameters
    * @returns QA response with answer, citations, sources
    */
-  async askMultiCollection({ question, collectionIds, requestFilters, aiWorkerPool, fastMode }: QAMultiCollectionParams): Promise<QAResponse> {
+  async askMultiCollection({
+    question,
+    collectionIds,
+    requestFilters,
+    aiWorkerPool,
+    fastMode,
+  }: QAMultiCollectionParams): Promise<QAResponse> {
     const startTime = Date.now();
     const trimmedQuestion = (question || '').trim();
 
@@ -72,15 +86,23 @@ export class NotebookQAService {
     }
 
     // Detect document scope and subcategory filters from natural language
-    const documentScope: DocumentScope = queryIntentService.detectDocumentScope(trimmedQuestion);
+    const detectedScope = queryIntentService.detectDocumentScope(trimmedQuestion);
+    const documentScope: DocumentScope = {
+      collections: detectedScope.collections,
+      subcategoryFilters: detectedScope.subcategoryFilters,
+      detectedPhrase: detectedScope.detectedPhrase ?? undefined,
+      documentTitleFilter: detectedScope.documentTitleFilter ?? undefined,
+    };
     const effectiveCollectionIds = documentScope.detectedPhrase
-      ? documentScope.collections.filter(c => (collectionIds || getDefaultMultiCollectionIds()).includes(c))
-      : (collectionIds || getDefaultMultiCollectionIds());
+      ? documentScope.collections.filter((c) =>
+          (collectionIds || getDefaultMultiCollectionIds()).includes(c)
+        )
+      : collectionIds || getDefaultMultiCollectionIds();
 
     // Merge request filters with detected filters
     const effectiveFilters: RequestFilters = {
       ...documentScope.subcategoryFilters,
-      ...requestFilters
+      ...requestFilters,
     };
 
     if (Object.keys(effectiveFilters).length > 0) {
@@ -88,12 +110,12 @@ export class NotebookQAService {
     }
 
     // Search all system collections in parallel
-    const searchPromises = effectiveCollectionIds.map(collectionId =>
+    const searchPromises = effectiveCollectionIds.map((collectionId) =>
       this._searchCollection(collectionId, trimmedQuestion, documentScope, effectiveFilters)
     );
 
     const searchResultsArrays = await Promise.all(searchPromises);
-    let allResults = searchResultsArrays.flat();
+    const allResults = searchResultsArrays.flat();
 
     // Deduplicate and filter
     const dedupedResults = deduplicateResults(allResults, true);
@@ -102,18 +124,31 @@ export class NotebookQAService {
     if (sortedResults.length === 0) {
       return {
         success: true,
-        answer: 'Leider konnte ich in den verfügbaren Quellen keine passenden Informationen zu Ihrer Frage finden.',
+        answer:
+          'Leider konnte ich in den verfügbaren Quellen keine passenden Informationen zu Ihrer Frage finden.',
         citations: [],
         sources: [],
         allSources: [],
         sourcesByCollection: {},
-        metadata: this._buildMetadata(startTime, effectiveCollectionIds, documentScope, effectiveFilters, 0, 0, fastMode)
+        metadata: this._buildMetadata(
+          startTime,
+          effectiveCollectionIds,
+          documentScope,
+          effectiveFilters,
+          0,
+          0,
+          fastMode
+        ),
       };
     }
 
     // Fast mode: skip citation processing entirely
     if (fastMode) {
-      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sortedResults, aiWorkerPool);
+      const fastAnswer = await this._generateFastDraft(
+        trimmedQuestion,
+        sortedResults,
+        aiWorkerPool
+      );
       return {
         success: true,
         answer: fastAnswer,
@@ -121,7 +156,15 @@ export class NotebookQAService {
         sources: [],
         allSources: [],
         sourcesByCollection: {},
-        metadata: this._buildMetadata(startTime, effectiveCollectionIds, documentScope, effectiveFilters, sortedResults.length, 0, fastMode)
+        metadata: this._buildMetadata(
+          startTime,
+          effectiveCollectionIds,
+          documentScope,
+          effectiveFilters,
+          sortedResults.length,
+          0,
+          fastMode
+        ),
       };
     }
 
@@ -131,7 +174,10 @@ export class NotebookQAService {
 
     // Process citations
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
-    const { cleanDraft, citations, sources } = validateAndInjectCitations(renumberedDraft, newReferencesMap);
+    const { cleanDraft, citations, sources } = validateAndInjectCitations(
+      renumberedDraft,
+      newReferencesMap
+    );
 
     // Group sources by collection
     const collectionsConfig: Record<string, any> = {};
@@ -139,7 +185,11 @@ export class NotebookQAService {
       const config = SYSTEM_COLLECTIONS[id];
       if (config) collectionsConfig[id] = config;
     }
-    const sourcesByCollection = groupSourcesByCollection(citations, sortedResults, collectionsConfig);
+    const sourcesByCollection = groupSourcesByCollection(
+      citations,
+      sortedResults,
+      collectionsConfig
+    );
 
     return {
       success: true,
@@ -148,7 +198,15 @@ export class NotebookQAService {
       sources,
       allSources: sortedResults.slice(citations.length, citations.length + 10),
       sourcesByCollection,
-      metadata: this._buildMetadata(startTime, effectiveCollectionIds, documentScope, effectiveFilters, sortedResults.length, citations.length, fastMode)
+      metadata: this._buildMetadata(
+        startTime,
+        effectiveCollectionIds,
+        documentScope,
+        effectiveFilters,
+        sortedResults.length,
+        citations.length,
+        fastMode
+      ),
     };
   }
 
@@ -157,7 +215,16 @@ export class NotebookQAService {
    * @param params - Single collection query parameters
    * @returns QA response
    */
-  async askSingleCollection({ collectionId, question, userId, requestFilters, aiWorkerPool, getCollectionFn, getDocumentIdsFn, fastMode }: QASingleCollectionParams): Promise<QAResponse> {
+  async askSingleCollection({
+    collectionId,
+    question,
+    userId,
+    requestFilters,
+    aiWorkerPool,
+    getCollectionFn,
+    getDocumentIdsFn,
+    fastMode,
+  }: QASingleCollectionParams): Promise<QAResponse> {
     const startTime = Date.now();
     const trimmedQuestion = (question || '').trim();
 
@@ -167,10 +234,19 @@ export class NotebookQAService {
 
     // Try enriched person search for bundestagsfraktion collection (skip in fast mode)
     if (collectionId === 'bundestagsfraktion-system' && !fastMode) {
-      const personResult = await this._tryEnrichedPersonSearch(trimmedQuestion, aiWorkerPool, startTime);
+      const personResult = await this._tryEnrichedPersonSearch(
+        trimmedQuestion,
+        aiWorkerPool,
+        startTime
+      );
       if (personResult) {
-        const extractedName = 'extractedName' in personResult.metadata ? personResult.metadata.extractedName : 'unknown';
-        log.info(`[QA Single] Returning enriched person search result for: ${extractedName || 'unknown'}`);
+        const extractedName =
+          'extractedName' in personResult.metadata
+            ? personResult.metadata.extractedName
+            : 'unknown';
+        log.info(
+          `[QA Single] Returning enriched person search result for: ${extractedName || 'unknown'}`
+        );
         return personResult;
       }
     }
@@ -199,10 +275,16 @@ export class NotebookQAService {
     }
 
     // Detect filters
-    const documentScope: DocumentScope = queryIntentService.detectDocumentScope(trimmedQuestion);
+    const detectedScopeSingle = queryIntentService.detectDocumentScope(trimmedQuestion);
+    const documentScope: DocumentScope = {
+      collections: detectedScopeSingle.collections,
+      subcategoryFilters: detectedScopeSingle.subcategoryFilters,
+      detectedPhrase: detectedScopeSingle.detectedPhrase ?? undefined,
+      documentTitleFilter: detectedScopeSingle.documentTitleFilter ?? undefined,
+    };
     const effectiveFilters: RequestFilters = {
       ...documentScope.subcategoryFilters,
-      ...requestFilters
+      ...requestFilters,
     };
 
     if (Object.keys(effectiveFilters).length > 0) {
@@ -211,16 +293,22 @@ export class NotebookQAService {
 
     // Search
     const searchParams = getSearchParams(collectionId);
-    const additionalFilter = buildSubcategoryFilter(effectiveFilters);
+    const subcategoryFilter = buildSubcategoryFilter(effectiveFilters);
+    const additionalFilter = isSystem
+      ? applyDefaultFilter(collectionId, subcategoryFilter)
+      : subcategoryFilter;
 
     const searchResults = await this._performSearch({
       query: trimmedQuestion,
       searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
       userId: isSystem ? null : userId,
       documentIds: isSystem ? undefined : documentIds,
-      titleFilter: isSystem && collectionId === 'grundsatz-system' ? documentScope.documentTitleFilter : undefined,
+      titleFilter:
+        isSystem && collectionId === 'grundsatz-system'
+          ? documentScope.documentTitleFilter
+          : undefined,
       additionalFilter,
-      searchParams
+      searchParams,
     });
 
     const expanded = expandResultsToChunks(searchResults);
@@ -234,7 +322,15 @@ export class NotebookQAService {
         citations: [],
         sources: [],
         allSources: [],
-        metadata: this._buildSingleMetadata(startTime, collectionId, collection.name, effectiveFilters, 0, 0, fastMode)
+        metadata: this._buildSingleMetadata(
+          startTime,
+          collectionId,
+          collection.name,
+          effectiveFilters,
+          0,
+          0,
+          fastMode
+        ),
       };
     }
 
@@ -247,7 +343,15 @@ export class NotebookQAService {
         citations: [],
         sources: [],
         allSources: [],
-        metadata: this._buildSingleMetadata(startTime, collectionId, collection.name, effectiveFilters, sorted.length, 0, fastMode)
+        metadata: this._buildSingleMetadata(
+          startTime,
+          collectionId,
+          collection.name,
+          effectiveFilters,
+          sorted.length,
+          0,
+          fastMode
+        ),
       };
     }
 
@@ -256,10 +360,13 @@ export class NotebookQAService {
     const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiWorkerPool, isSystem);
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
-    const { cleanDraft, citations, sources } = validateAndInjectCitations(renumberedDraft, newReferencesMap);
+    const { cleanDraft, citations, sources } = validateAndInjectCitations(
+      renumberedDraft,
+      newReferencesMap
+    );
 
     const allSources = sorted
-      .filter((_, i) => !citations.some(c => c.index === String(i + 1)))
+      .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
       .slice(0, 10);
 
     return {
@@ -268,14 +375,27 @@ export class NotebookQAService {
       citations,
       sources,
       allSources,
-      metadata: this._buildSingleMetadata(startTime, collectionId, collection.name, effectiveFilters, sorted.length, citations.length, fastMode)
+      metadata: this._buildSingleMetadata(
+        startTime,
+        collectionId,
+        collection.name,
+        effectiveFilters,
+        sorted.length,
+        citations.length,
+        fastMode
+      ),
     };
   }
 
   /**
    * Search a single collection
    */
-  private async _searchCollection(collectionId: string, question: string, documentScope: DocumentScope, filters: RequestFilters): Promise<ExpandedChunkResult[]> {
+  private async _searchCollection(
+    collectionId: string,
+    question: string,
+    documentScope: DocumentScope,
+    filters: RequestFilters
+  ): Promise<ExpandedChunkResult[]> {
     const config = SYSTEM_COLLECTIONS[collectionId];
     if (!config) {
       log.warn(`[QA] Unknown collection: ${collectionId}`);
@@ -283,8 +403,10 @@ export class NotebookQAService {
     }
 
     const searchParams = getSearchParams(collectionId);
-    const titleFilter = collectionId === 'grundsatz-system' ? documentScope.documentTitleFilter : undefined;
-    const additionalFilter = buildSubcategoryFilter(filters);
+    const titleFilter =
+      collectionId === 'grundsatz-system' ? documentScope.documentTitleFilter : undefined;
+    const subcategoryFilter = buildSubcategoryFilter(filters);
+    const additionalFilter = applyDefaultFilter(collectionId, subcategoryFilter);
 
     try {
       const resp = await documentSearchService.search({
@@ -300,11 +422,15 @@ export class NotebookQAService {
           recallLimit: searchParams.recallLimit,
           qualityMin: searchParams.qualityMin,
           titleFilter,
-          additionalFilter
-        }
+          additionalFilter,
+        },
       });
 
-      return expandResultsToChunks(resp.results || [], collectionId, config.name);
+      return expandResultsToChunks(
+        (resp.results as unknown as Parameters<typeof expandResultsToChunks>[0]) || [],
+        collectionId,
+        config.name
+      );
     } catch (error: any) {
       log.error(`[QA] Search error for ${collectionId}:`, error);
       return [];
@@ -314,10 +440,18 @@ export class NotebookQAService {
   /**
    * Perform a search with given parameters
    */
-  private async _performSearch({ query, searchCollection, userId, documentIds, titleFilter, additionalFilter, searchParams }: InternalSearchOptions): Promise<any[]> {
+  private async _performSearch({
+    query,
+    searchCollection,
+    userId,
+    documentIds,
+    titleFilter,
+    additionalFilter,
+    searchParams,
+  }: InternalSearchOptions): Promise<any[]> {
     const resp = await documentSearchService.search({
       query,
-      userId,
+      userId: userId ?? undefined,
       options: {
         documentIds,
         limit: searchParams.limit,
@@ -329,8 +463,8 @@ export class NotebookQAService {
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         titleFilter,
-        additionalFilter
-      }
+        additionalFilter,
+      },
     });
 
     return resp.results || [];
@@ -339,14 +473,21 @@ export class NotebookQAService {
   /**
    * Generate AI draft with citations
    */
-  private async _generateDraft(question: string, referencesMap: Record<string, any>, aiWorkerPool: any, isSystemCollection: boolean): Promise<string> {
-    const refsSummary = Object.keys(referencesMap).map(id => {
-      const ref = referencesMap[id];
-      const snippet = ref.snippets[0]?.[0] || '';
-      const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
-      const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-      return `${id}. ${collectionTag}${ref.title} — "${short}"`;
-    }).join('\n');
+  private async _generateDraft(
+    question: string,
+    referencesMap: Record<string, any>,
+    aiWorkerPool: any,
+    isSystemCollection: boolean
+  ): Promise<string> {
+    const refsSummary = Object.keys(referencesMap)
+      .map((id) => {
+        const ref = referencesMap[id];
+        const snippet = ref.snippets[0]?.[0] || '';
+        const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
+        const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
+        return `${id}. ${collectionTag}${ref.title} — "${short}"`;
+      })
+      .join('\n');
 
     const { system: systemPrompt } = isSystemCollection
       ? buildDraftPromptGrundsatz('Grüne Dokumente')
@@ -358,24 +499,34 @@ export class NotebookQAService {
       type: 'qa_draft',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
-      options: { max_tokens: 2500, temperature: 0.2, top_p: 0.8 }
+      options: { max_tokens: 2500, temperature: 0.2, top_p: 0.8 },
     });
 
-    return aiResult.content || (Array.isArray(aiResult.raw_content_blocks)
-      ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
-      : '');
+    return (
+      aiResult.content ||
+      (Array.isArray(aiResult.raw_content_blocks)
+        ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
+        : '')
+    );
   }
 
   /**
    * Generate fast mode draft without citations
    * Uses simpler prompt and faster model
    */
-  private async _generateFastDraft(question: string, results: ExpandedChunkResult[], aiWorkerPool: any): Promise<string> {
-    const context = results.slice(0, 15).map(r => {
-      const snippet = r.snippet.slice(0, 300).replace(/\s+/g, ' ').trim();
-      const collectionTag = r.collection_name ? `[${r.collection_name}] ` : '';
-      return `${collectionTag}${r.title}: "${snippet}"`;
-    }).join('\n\n');
+  private async _generateFastDraft(
+    question: string,
+    results: ExpandedChunkResult[],
+    aiWorkerPool: any
+  ): Promise<string> {
+    const context = results
+      .slice(0, 15)
+      .map((r) => {
+        const snippet = r.snippet.slice(0, 300).replace(/\s+/g, ' ').trim();
+        const collectionTag = r.collection_name ? `[${r.collection_name}] ` : '';
+        return `${collectionTag}${r.title}: "${snippet}"`;
+      })
+      .join('\n\n');
 
     const { system: systemPrompt } = buildFastModePrompt();
     const userPrompt = `Frage: ${question}\n\nKontext:\n${context}`;
@@ -384,18 +535,29 @@ export class NotebookQAService {
       type: 'qa_draft_fast',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
-      options: { max_tokens: 2000, temperature: 0.3, top_p: 0.9 }
+      options: { max_tokens: 2000, temperature: 0.3, top_p: 0.9 },
     });
 
-    return aiResult.content || (Array.isArray(aiResult.raw_content_blocks)
-      ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
-      : '');
+    return (
+      aiResult.content ||
+      (Array.isArray(aiResult.raw_content_blocks)
+        ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
+        : '')
+    );
   }
 
   /**
    * Build metadata for multi-collection response
    */
-  private _buildMetadata(startTime: number, collectionIds: string[], documentScope: DocumentScope, filters: RequestFilters, totalResults: number, citationsCount: number, fastMode?: boolean): MultiCollectionMetadata {
+  private _buildMetadata(
+    startTime: number,
+    collectionIds: string[],
+    documentScope: DocumentScope,
+    filters: RequestFilters,
+    totalResults: number,
+    citationsCount: number,
+    fastMode?: boolean
+  ): MultiCollectionMetadata {
     return {
       response_time_ms: Date.now() - startTime,
       collections_queried: collectionIds,
@@ -404,14 +566,22 @@ export class NotebookQAService {
       subcategory_filters_applied: Object.keys(filters).length > 0 ? filters : null,
       total_results: totalResults,
       citations_count: citationsCount,
-      fast_mode: fastMode || false
+      fast_mode: fastMode || false,
     };
   }
 
   /**
    * Build metadata for single collection response
    */
-  private _buildSingleMetadata(startTime: number, collectionId: string, collectionName: string, filters: RequestFilters, totalResults: number, citationsCount: number, fastMode?: boolean): SingleCollectionMetadata {
+  private _buildSingleMetadata(
+    startTime: number,
+    collectionId: string,
+    collectionName: string,
+    filters: RequestFilters,
+    totalResults: number,
+    citationsCount: number,
+    fastMode?: boolean
+  ): SingleCollectionMetadata {
     return {
       collection_id: collectionId,
       collection_name: collectionName,
@@ -419,7 +589,7 @@ export class NotebookQAService {
       sources_count: totalResults,
       citations_count: citationsCount,
       subcategory_filters_applied: Object.keys(filters).length > 0 ? filters : null,
-      fast_mode: fastMode || false
+      fast_mode: fastMode || false,
     };
   }
 
@@ -427,7 +597,11 @@ export class NotebookQAService {
    * Try enriched person search for MP-related queries
    * Returns formatted QA response if person detected, null otherwise
    */
-  private async _tryEnrichedPersonSearch(question: string, aiWorkerPool: any, startTime: number): Promise<QAResponse | null> {
+  private async _tryEnrichedPersonSearch(
+    question: string,
+    aiWorkerPool: any,
+    startTime: number
+  ): Promise<QAResponse | null> {
     try {
       const enrichedService = getEnrichedPersonSearchService();
       const result: EnrichedPersonSearchResult = await enrichedService.search(question);
@@ -436,7 +610,13 @@ export class NotebookQAService {
         return null;
       }
 
-      const { person, contentMentions = [], drucksachen = [], aktivitaeten = [], metadata } = result;
+      const {
+        person,
+        contentMentions = [],
+        drucksachen = [],
+        aktivitaeten = [],
+        metadata,
+      } = result;
 
       // Generate AI summary using the enriched data
       const contextSummary = enrichedService.generateActivitySummary(result);
@@ -457,7 +637,7 @@ export class NotebookQAService {
         detectionSource: metadata?.detectionSource,
         contentMentionsCount: metadata?.contentMentionsCount || 0,
         drucksachenCount: metadata?.drucksachenCount || 0,
-        aktivitaetenCount: metadata?.aktivitaetenCount || 0
+        aktivitaetenCount: metadata?.aktivitaetenCount || 0,
       };
 
       return {
@@ -471,9 +651,9 @@ export class NotebookQAService {
           name: person.name,
           fraktion: person.fraktion,
           wahlkreis: person.wahlkreis,
-          biografie: person.biografie
+          biografie: person.biografie,
         },
-        metadata: personMetadata
+        metadata: personMetadata,
       };
     } catch (error: any) {
       log.error('[QA] Enriched person search failed:', error);
@@ -484,7 +664,11 @@ export class NotebookQAService {
   /**
    * Generate AI answer for person query using enriched context
    */
-  private async _generatePersonAnswer(question: string, contextSummary: string, aiWorkerPool: any): Promise<string> {
+  private async _generatePersonAnswer(
+    question: string,
+    contextSummary: string,
+    aiWorkerPool: any
+  ): Promise<string> {
     const systemPrompt = `Du bist ein Experte für die Grüne Bundestagsfraktion. Beantworte Fragen über Abgeordnete basierend auf den bereitgestellten Informationen. Antworte auf Deutsch, präzise und sachlich. Wenn du Informationen aus den Quellen verwendest, zitiere sie mit [1], [2] etc.`;
 
     const userPrompt = `Frage: ${question}\n\nKontext über die Person:\n${contextSummary}`;
@@ -493,18 +677,25 @@ export class NotebookQAService {
       type: 'qa_draft',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
-      options: { max_tokens: 2000, temperature: 0.3, top_p: 0.9 }
+      options: { max_tokens: 2000, temperature: 0.3, top_p: 0.9 },
     });
 
-    return aiResult.content || (Array.isArray(aiResult.raw_content_blocks)
-      ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
-      : '');
+    return (
+      aiResult.content ||
+      (Array.isArray(aiResult.raw_content_blocks)
+        ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
+        : '')
+    );
   }
 
   /**
    * Build citations from enriched person search results
    */
-  private _buildPersonCitations(contentMentions: ContentMention[], drucksachen: FormattedDrucksache[], aktivitaeten: FormattedAktivitaet[]): Citation[] {
+  private _buildPersonCitations(
+    contentMentions: ContentMention[],
+    drucksachen: FormattedDrucksache[],
+    aktivitaeten: FormattedAktivitaet[]
+  ): Citation[] {
     const citations: Citation[] = [];
     let index = 1;
 
@@ -516,7 +707,7 @@ export class NotebookQAService {
         url: mention.url,
         snippet: mention.snippet,
         source: 'gruene-bundestag.de',
-        type: 'content_mention'
+        type: 'content_mention',
       });
     }
 
@@ -528,7 +719,7 @@ export class NotebookQAService {
         url: `https://dip.bundestag.de/drucksache/${drucksache.dokumentnummer}`,
         snippet: `${drucksache.drucksachetyp} ${drucksache.dokumentnummer} vom ${drucksache.datum}`,
         source: 'DIP Bundestag',
-        type: 'drucksache'
+        type: 'drucksache',
       });
     }
 
@@ -540,7 +731,7 @@ export class NotebookQAService {
         url: null,
         snippet: `${aktivitaet.aktivitaetsart} vom ${aktivitaet.datum}`,
         source: 'DIP Bundestag',
-        type: 'aktivitaet'
+        type: 'aktivitaet',
       });
     }
 

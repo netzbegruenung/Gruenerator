@@ -194,19 +194,22 @@ export async function getRandomContentExamples(
         const shuffledPoints = shuffleAndLimit(points, limit);
 
         // Transform to result format
-        const results: ContentExampleResult[] = shuffledPoints.map(point => ({
-            id: point.payload.example_id as string || String(point.id),
-            score: 1.0, // Random sampling has no score
-            title: point.payload.title as string | undefined,
-            content: point.payload.content as string | undefined,
-            type: point.payload.type as string | undefined,
-            categories: point.payload.categories as string[] | undefined,
-            tags: point.payload.tags as string[] | undefined,
-            description: point.payload.description as string | undefined,
-            content_data: point.payload.content_data as Record<string, unknown> | undefined,
-            metadata: point.payload.metadata as Record<string, unknown> | undefined,
-            created_at: point.payload.created_at as string | undefined
-        }));
+        const results: ContentExampleResult[] = shuffledPoints.map(point => {
+            const payload = point.payload ?? {};
+            return {
+                id: payload.example_id as string || String(point.id),
+                score: 1.0, // Random sampling has no score
+                title: payload.title as string | undefined,
+                content: payload.content as string | undefined,
+                type: payload.type as string | undefined,
+                categories: payload.categories as string[] | undefined,
+                tags: payload.tags as string[] | undefined,
+                description: payload.description as string | undefined,
+                content_data: payload.content_data as Record<string, unknown> | undefined,
+                metadata: payload.metadata as Record<string, unknown> | undefined,
+                created_at: payload.created_at as string | undefined
+            };
+        });
 
         log.debug(`Returning ${results.length} random content examples`);
         return results;
@@ -279,16 +282,19 @@ export async function getRandomSocialMediaExamples(
         const shuffledPoints = shuffleAndLimit(points, limit);
 
         // Transform to result format
-        const results: SocialMediaResult[] = shuffledPoints.map(point => ({
-            id: point.payload.example_id as string | number || point.id,
-            score: 1.0, // Random sampling has no score
-            content: extractMultiFieldContent(point.payload),
-            platform: point.payload.platform as string | undefined,
-            country: (point.payload.country as string) || null,
-            source_account: (point.payload.source_account as string) || null,
-            created_at: point.payload.created_at as string | undefined,
-            _debug_payload: point.payload
-        }));
+        const results: SocialMediaResult[] = shuffledPoints.map(point => {
+            const payload = point.payload ?? {};
+            return {
+                id: payload.example_id as string | number || point.id,
+                score: 1.0, // Random sampling has no score
+                content: extractMultiFieldContent(payload as Record<string, unknown>),
+                platform: payload.platform as string | undefined,
+                country: (payload.country as string) || null,
+                source_account: (payload.source_account as string) || null,
+                created_at: payload.created_at as string | undefined,
+                _debug_payload: payload as Record<string, unknown>
+            };
+        });
 
         log.debug(`Returning ${results.length} random social media examples`);
         return results;

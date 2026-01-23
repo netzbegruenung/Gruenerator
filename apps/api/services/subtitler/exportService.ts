@@ -231,7 +231,17 @@ async function processProjectExport(project: Project, projService: ProjectServic
     const useHwAccel = await hwaccel.detectVaapi();
 
     const { outputOptions, inputOptions } = buildFFmpegOutputOptions({
-      metadata,
+      metadata: {
+        width: metadata.width,
+        height: metadata.height,
+        rotation: metadata.rotation,
+        originalFormat: metadata.originalFormat ? {
+          codec: metadata.originalFormat.codec,
+          videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
+          audioCodec: metadata.originalFormat.audioCodec,
+          audioBitrate: metadata.originalFormat.audioBitrate ?? undefined
+        } : undefined
+      },
       fileStats,
       useHwAccel,
       includeTune: true

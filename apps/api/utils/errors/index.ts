@@ -37,7 +37,9 @@ export {
 export {
   ErrorHandler,
   createErrorHandler,
-  withErrorHandling
+  withErrorHandling,
+  getErrorMessage,
+  toError
 } from './handlers.js';
 
 // ============================================================================

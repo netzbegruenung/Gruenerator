@@ -127,7 +127,7 @@ export async function getCollectionResource(uri) {
 /**
  * Get server info as a resource
  */
-export function getServerInfoResource() {
+function _getServerInfoResource() {
   return {
     uri: 'gruenerator://info',
     name: 'Gruenerator MCP Server Info',

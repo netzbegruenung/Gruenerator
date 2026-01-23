@@ -296,8 +296,8 @@ async function executeSearchTool(
     }
 
     const formattedResults: SearchResult[] = (searchResults.results || []).map((result) => {
-      const title = result.title || result.document_title;
-      const content = result.relevant_content || result.chunk_text;
+      const title = result.title || '';
+      const content = result.relevant_content || '';
 
       return {
         document_id: result.document_id,

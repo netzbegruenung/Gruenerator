@@ -1,7 +1,10 @@
+import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
 import { z } from 'zod';
+
 import { config, COLLECTION_KEYS } from '../config.ts';
-import { searchCollection, hybridSearchCollection, textSearchCollection } from '../qdrant/client.ts';
 import { generateEmbedding } from '../embeddings.ts';
+import { searchCollection, hybridSearchCollection, textSearchCollection } from '../qdrant/client.ts';
+import { getEnrichedPersonSearch } from '../services/enriched-person-search.ts';
 import {
   getCachedEmbedding,
   cacheEmbedding,
@@ -9,8 +12,6 @@ import {
   cacheSearch,
   getCacheStats
 } from '../utils/cache.ts';
-import { getEnrichedPersonSearch } from '../services/enriched-person-search.ts';
-import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
 
 export const searchTool = {
   name: 'gruenerator_search',

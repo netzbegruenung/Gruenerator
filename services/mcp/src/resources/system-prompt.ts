@@ -1,5 +1,3 @@
-import { config } from '../config.ts';
-
 /**
  * Generate a comprehensive system prompt that explains how to use the MCP tools
  * This resource should be read by AI systems to understand the search capabilities

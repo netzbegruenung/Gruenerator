@@ -150,8 +150,8 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
     );
 
     res.json({
-      success: true,
-      ...searchResult
+      ...searchResult,
+      success: true
     });
 
   } catch (error) {

@@ -1,13 +1,9 @@
 import type { Request, Response } from 'express';
 
-export interface User {
-  id: string;
-  email?: string;
-  locale?: string;
-}
+// Note: User type is provided by Express.User through global type augmentation in types/express.d.ts
+// The Request.user property is already defined there with the proper UserProfileShape
 
 export interface SharepicRequest extends Request {
-  user?: User;
   app: Request['app'] & {
     locals: {
       aiWorkerPool?: {

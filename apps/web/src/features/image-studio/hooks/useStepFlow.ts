@@ -1,11 +1,21 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import useImageStudioStore from '../../../stores/imageStudioStore';
-import type { SloganAlternative } from '../types/storeTypes';
-import { usePreloadStore } from './usePreloadStore';
-import { useImageGeneration } from './useImageGeneration';
-import { getTypeConfig, getTemplateFieldConfig, FORM_STEPS, TypeConfig, IMAGE_STUDIO_TYPES, InputField } from '../utils/typeConfig';
+
 import apiClient from '../../../components/utils/apiClient';
 import { removeBackground } from '../../../services/backgroundRemoval';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import {
+  getTypeConfig,
+  getTemplateFieldConfig,
+  FORM_STEPS,
+  type TypeConfig,
+  IMAGE_STUDIO_TYPES,
+  type InputField,
+} from '../utils/typeConfig';
+
+import { useImageGeneration } from './useImageGeneration';
+import { usePreloadStore } from './usePreloadStore';
+
+import type { SloganAlternative } from '../types/storeTypes';
 
 // ... (interfaces)
 
@@ -66,7 +76,9 @@ interface UseStepFlowReturn {
   goBackToCanvas: () => void;
 }
 
-export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = {}): UseStepFlowReturn => {
+export const useStepFlow = ({
+  startAtCanvasEdit = false,
+}: UseStepFlowOptions = {}): UseStepFlowReturn => {
   const [stepIndex, setStepIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -77,10 +89,15 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     type,
     thema,
     name,
-    line1, line2, line3,
+    line1,
+    line2,
+    line3,
     quote,
-    header, subheader, body,
-    headline, subtext,
+    header,
+    subheader,
+    body,
+    headline,
+    subtext,
     uploadedImage,
     selectedImage,
     fontSize,
@@ -111,12 +128,13 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     setFlowTitle,
     setFlowSubtitle,
     transparentImage,
-    setTransparentImage
+    setTransparentImage,
   } = useImageStudioStore();
 
   const { setPreloadedImageResult, setSlogansReady } = usePreloadStore();
 
-  const { generateText, generateImage, fetchAlternativesInBackground, loading, error, setError } = useImageGeneration();
+  const { generateText, generateImage, fetchAlternativesInBackground, loading, error, setError } =
+    useImageGeneration();
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type || ''), [type]);
@@ -130,17 +148,20 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     if (inputBeforeImage && fieldConfig.inputFields?.length > 0) {
       fieldConfig.inputFields.forEach((field: InputField, index: number) => {
         const isLastInput = index === fieldConfig.inputFields.length - 1;
-        const afterComplete = isLastInput && typeConfig?.parallelPreload
-          ? 'parallelPreload'
-          : null;
+        const afterComplete = isLastInput && typeConfig?.parallelPreload ? 'parallelPreload' : null;
 
         steps.push({
           id: field.name,
           type: 'input',
-          field: { name: field.name, label: field.label, subtitle: field.subtitle, helpText: field.helpText },
+          field: {
+            name: field.name,
+            label: field.label,
+            subtitle: field.subtitle,
+            helpText: field.helpText,
+          },
           stepTitle: field.label,
           stepSubtitle: field.subtitle || field.helpText || null,
-          afterComplete
+          afterComplete,
         });
       });
     }
@@ -153,9 +174,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         imageUploadAfterComplete = 'generateText';
       }
 
-      const stepTitle = typeConfig?.hasBackgroundRemoval
-        ? 'Foto auswählen'
-        : 'Bild auswählen';
+      const stepTitle = typeConfig?.hasBackgroundRemoval ? 'Foto auswählen' : 'Bild auswählen';
       const stepSubtitle = typeConfig?.hasBackgroundRemoval
         ? 'Wähle ein Porträtfoto aus'
         : 'Ziehe ein Bild hierher oder klicke zum Auswählen (JPG, PNG, WebP)';
@@ -165,7 +184,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         type: 'image_upload',
         stepTitle,
         stepSubtitle,
-        afterComplete: imageUploadAfterComplete
+        afterComplete: imageUploadAfterComplete,
       });
 
       if (typeConfig?.hasBackgroundRemoval) {
@@ -174,10 +193,9 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
           type: 'canvas_edit',
           stepTitle: 'Position anpassen',
           stepSubtitle: 'Ziehe und skaliere dein Bild',
-          afterComplete: null
+          afterComplete: null,
         });
       }
-
     }
 
     if (!inputBeforeImage && fieldConfig.inputFields?.length > 0) {
@@ -189,19 +207,25 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
           if (typeConfig?.hasTextCanvasEdit) {
             afterComplete = 'generateText';
           } else {
-            afterComplete = fieldConfig.afterLastInputTrigger !== undefined
-              ? fieldConfig.afterLastInputTrigger as string | null
-              : 'generateImage';
+            afterComplete =
+              fieldConfig.afterLastInputTrigger !== undefined
+                ? (fieldConfig.afterLastInputTrigger as string | null)
+                : 'generateImage';
           }
         }
 
         steps.push({
           id: field.name,
           type: 'input',
-          field: { name: field.name, label: field.label, subtitle: field.subtitle, helpText: field.helpText },
+          field: {
+            name: field.name,
+            label: field.label,
+            subtitle: field.subtitle,
+            helpText: field.helpText,
+          },
           stepTitle: field.label,
           stepSubtitle: field.subtitle || field.helpText || null,
-          afterComplete
+          afterComplete,
         });
       });
     }
@@ -217,7 +241,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         type: 'image_size_select',
         stepTitle: 'Bildgröße auswählen',
         stepSubtitle: 'Wähle das passende Format für deine Social-Media-Plattform',
-        afterComplete
+        afterComplete,
       });
     }
 
@@ -227,7 +251,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         type: 'canvas_edit',
         stepTitle: null,
         stepSubtitle: null,
-        afterComplete: null
+        afterComplete: null,
       });
     }
 
@@ -244,7 +268,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
 
   useEffect(() => {
     if (startAtCanvasEdit && !hasInitializedCanvasEditRef.current && flowSteps.length > 0) {
-      const canvasEditIndex = flowSteps.findIndex(step => step.type === 'canvas_edit');
+      const canvasEditIndex = flowSteps.findIndex((step) => step.type === 'canvas_edit');
       if (canvasEditIndex >= 0) {
         setStepIndex(canvasEditIndex);
         setDirection(1);
@@ -268,22 +292,30 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       const result = await generateText(type!, formData);
 
       if (result && fieldConfig?.responseMapping) {
-        const mappedData = fieldConfig.responseMapping(result as unknown as Record<string, unknown>);
+        const mappedData = fieldConfig.responseMapping(
+          result as unknown as Record<string, unknown>
+        );
         updateFormData(mappedData as Record<string, unknown>);
 
-        // Store original as first alternative
+        // Store original as first alternative (index 0)
         const originalAlternative: SloganAlternative = fieldConfig.alternativesMapping
-          ? fieldConfig.alternativesMapping(mappedData as Record<string, unknown>)
+          ? fieldConfig.alternativesMapping(mappedData as Record<string, unknown>, 0)
           : (mappedData as SloganAlternative);
         setSloganAlternatives([originalAlternative]);
 
         setTimeout(() => {
-          fetchAlternativesInBackground(
+          void fetchAlternativesInBackground(
             type!,
             formData,
             (alternatives) => {
+              // Map each alternative through alternativesMapping to add ids (index starts at 1)
+              const mappedAlternatives = fieldConfig.alternativesMapping
+                ? alternatives.map((alt, idx) =>
+                    fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
+                  )
+                : alternatives;
               // Prepend original to alternatives list
-              setSloganAlternatives([originalAlternative, ...alternatives]);
+              setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
             },
             (error) => {
               console.error('[StepFlow] Alternatives error:', error);
@@ -298,7 +330,17 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     } finally {
       setIsProcessing(false);
     }
-  }, [type, thema, name, fieldConfig, generateText, fetchAlternativesInBackground, updateFormData, setSloganAlternatives, setError]);
+  }, [
+    type,
+    thema,
+    name,
+    fieldConfig,
+    generateText,
+    fetchAlternativesInBackground,
+    updateFormData,
+    setSloganAlternatives,
+    setError,
+  ]);
 
   const executeTemplateImageGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
@@ -307,8 +349,13 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     try {
       // Validate that we have text content for text-based types
       if (typeConfig?.hasTextGeneration) {
-        const hasText = line1?.trim() || line2?.trim() || line3?.trim() ||
-                       quote?.trim() || header?.trim() || headline?.trim();
+        const hasText =
+          line1?.trim() ||
+          line2?.trim() ||
+          line3?.trim() ||
+          quote?.trim() ||
+          header?.trim() ||
+          headline?.trim();
 
         if (!hasText) {
           setError('Kein Text generiert. Bitte starte die Generierung erneut.');
@@ -318,11 +365,16 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
 
       const formData = {
         type: typeConfig?.legacyType || type,
-        line1, line2, line3,
+        line1,
+        line2,
+        line3,
         quote,
         name,
-        header, subheader, body,
-        headline, subtext,
+        header,
+        subheader,
+        body,
+        headline,
+        subtext,
         uploadedImage: (uploadedImage || selectedImage) as File | Blob | null,
         fontSize,
         colorScheme,
@@ -336,7 +388,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         date,
         time,
         locationName,
-        address
+        address,
       };
 
       const image = await generateImage(type!, formData);
@@ -349,15 +401,36 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       setIsProcessing(false);
     }
   }, [
-    type, typeConfig,
-    line1, line2, line3, quote, name,
-    header, subheader, body,
-    headline, subtext,
-    uploadedImage, selectedImage,
-    fontSize, colorScheme, balkenOffset,
-    balkenGruppenOffset, sunflowerOffset, credit,
-    eventTitle, beschreibung, weekday, date, time, locationName, address,
-    generateImage, setGeneratedImage, setError
+    type,
+    typeConfig,
+    line1,
+    line2,
+    line3,
+    quote,
+    name,
+    header,
+    subheader,
+    body,
+    headline,
+    subtext,
+    uploadedImage,
+    selectedImage,
+    fontSize,
+    colorScheme,
+    balkenOffset,
+    balkenGruppenOffset,
+    sunflowerOffset,
+    credit,
+    eventTitle,
+    beschreibung,
+    weekday,
+    date,
+    time,
+    locationName,
+    address,
+    generateImage,
+    setGeneratedImage,
+    setError,
   ]);
 
   const executeKiImageGeneration = useCallback(async (): Promise<boolean> => {
@@ -374,7 +447,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         precisionMode: typeConfig?.alwaysPrecision || precisionMode,
         precisionInstruction,
         selectedInfrastructure,
-        allyPlacement
+        allyPlacement,
       };
 
       const image = await generateImage(type!, formData);
@@ -394,17 +467,30 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       setIsProcessing(false);
     }
   }, [
-    type, typeConfig,
-    purePrompt, sharepicPrompt, imagineTitle, variant,
-    uploadedImage, precisionMode, precisionInstruction,
-    selectedInfrastructure, allyPlacement,
-    generateImage, setGeneratedImage, setError
+    type,
+    typeConfig,
+    purePrompt,
+    sharepicPrompt,
+    imagineTitle,
+    variant,
+    uploadedImage,
+    precisionMode,
+    precisionInstruction,
+    selectedInfrastructure,
+    allyPlacement,
+    generateImage,
+    setGeneratedImage,
+    setError,
   ]);
 
   const executeBackgroundRemoval = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
-    setBgRemovalProgress({ phase: 'processing', progress: 0, message: 'Hintergrund wird entfernt...' });
+    setBgRemovalProgress({
+      phase: 'processing',
+      progress: 0,
+      message: 'Hintergrund wird entfernt...',
+    });
 
     try {
       const currentImage = useImageStudioStore.getState().uploadedImage;
@@ -429,38 +515,47 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     }
   }, [setError, setTransparentImage]);
 
-  const handleCanvasExport = useCallback((dataUrl: string) => {
-    setGeneratedImage(dataUrl);
-    setCurrentStep(FORM_STEPS.RESULT);
-  }, [setGeneratedImage, setCurrentStep]);
+  const handleCanvasExport = useCallback(
+    (dataUrl: string) => {
+      setGeneratedImage(dataUrl);
+      setCurrentStep(FORM_STEPS.RESULT);
+    },
+    [setGeneratedImage, setCurrentStep]
+  );
 
-  const handleCanvasSave = useCallback((dataUrl: string) => {
-    // Just update the image, don't change step
-    // This triggers useTemplateResultAutoSave or useTemplateResultActions logic
-    setGeneratedImage(dataUrl);
-  }, [setGeneratedImage]);
+  const handleCanvasSave = useCallback(
+    (dataUrl: string) => {
+      // Just update the image, don't change step
+      // This triggers useTemplateResultAutoSave or useTemplateResultActions logic
+      setGeneratedImage(dataUrl);
+    },
+    [setGeneratedImage]
+  );
 
   const goBackToCanvas = useCallback(() => {
     setCurrentStep(FORM_STEPS.CANVAS_EDIT);
   }, [setCurrentStep]);
 
-  const fetchAiImageSuggestion = useCallback(async (text: string): Promise<AiImageSuggestionResult | null> => {
-    try {
-      const response = await apiClient.post('/image-picker/select', {
-        text,
-        type: 'sharepic'
-      });
-      if (response.data.success) {
-        return {
-          image: response.data.selectedImage,
-          category: response.data.selectedImage.category
-        };
+  const fetchAiImageSuggestion = useCallback(
+    async (text: string): Promise<AiImageSuggestionResult | null> => {
+      try {
+        const response = await apiClient.post('/image-picker/select', {
+          text,
+          type: 'sharepic',
+        });
+        if (response.data.success) {
+          return {
+            image: response.data.selectedImage,
+            category: response.data.selectedImage.category,
+          };
+        }
+      } catch (error) {
+        console.error('[useStepFlow] AI image suggestion failed:', error);
       }
-    } catch (error) {
-      console.error('[useStepFlow] AI image suggestion failed:', error);
-    }
-    return null;
-  }, []);
+      return null;
+    },
+    []
+  );
 
   const executeParallelPreload = useCallback(async (): Promise<boolean> => {
     setError('');
@@ -481,22 +576,30 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
           const result = await generateText(type!, formData);
 
           if (result && fieldConfig?.responseMapping) {
-            const mappedData = fieldConfig.responseMapping(result as unknown as Record<string, unknown>);
+            const mappedData = fieldConfig.responseMapping(
+              result as unknown as Record<string, unknown>
+            );
             updateFormData(mappedData as Record<string, unknown>);
 
-            // Store original as first alternative
+            // Store original as first alternative (index 0)
             const originalAlternative: SloganAlternative = fieldConfig.alternativesMapping
-              ? fieldConfig.alternativesMapping(mappedData as Record<string, unknown>)
+              ? fieldConfig.alternativesMapping(mappedData as Record<string, unknown>, 0)
               : (mappedData as SloganAlternative);
             setSloganAlternatives([originalAlternative]);
 
             setTimeout(() => {
-              fetchAlternativesInBackground(
+              void fetchAlternativesInBackground(
                 type!,
                 formData,
                 (alternatives) => {
+                  // Map each alternative through alternativesMapping to add ids (index starts at 1)
+                  const mappedAlternatives = fieldConfig.alternativesMapping
+                    ? alternatives.map((alt, idx) =>
+                        fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
+                      )
+                    : alternatives;
                   // Prepend original to alternatives list
-                  setSloganAlternatives([originalAlternative, ...alternatives]);
+                  setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
                 },
                 (error) => {
                   console.error('[ParallelPreload] Alternatives error:', error);
@@ -533,10 +636,18 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       setIsProcessing(false);
     }
   }, [
-    thema, name, type, fieldConfig,
-    fetchAiImageSuggestion, generateText, fetchAlternativesInBackground, updateFormData,
-    setSloganAlternatives, setError,
-    setPreloadedImageResult, setSlogansReady
+    thema,
+    name,
+    type,
+    fieldConfig,
+    fetchAiImageSuggestion,
+    generateText,
+    fetchAlternativesInBackground,
+    updateFormData,
+    setSloganAlternatives,
+    setError,
+    setPreloadedImageResult,
+    setSlogansReady,
   ]);
 
   const goNext = useCallback(async (): Promise<boolean> => {
@@ -575,21 +686,29 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
 
     if (stepIndex < flowSteps.length - 1) {
       setDirection(1);
-      setStepIndex(prev => prev + 1);
+      setStepIndex((prev) => prev + 1);
       return true;
     }
 
     return false;
   }, [
-    currentStep, stepIndex, flowSteps.length, isProcessing, typeConfig,
-    executeTextGeneration, executeTemplateImageGeneration, executeKiImageGeneration,
-    executeBackgroundRemoval, executeParallelPreload, setCurrentStep
+    currentStep,
+    stepIndex,
+    flowSteps.length,
+    isProcessing,
+    typeConfig,
+    executeTextGeneration,
+    executeTemplateImageGeneration,
+    executeKiImageGeneration,
+    executeBackgroundRemoval,
+    executeParallelPreload,
+    setCurrentStep,
   ]);
 
   const goBack = useCallback((): boolean => {
     if (stepIndex > 0) {
       setDirection(-1);
-      setStepIndex(prev => prev - 1);
+      setStepIndex((prev) => prev - 1);
       return true;
     }
     return false;
@@ -601,15 +720,61 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     setIsProcessing(false);
   }, []);
 
-  const getFieldValue = useCallback((fieldName: string): string => {
-    const values: Record<string, string> = {
-      thema, name, line1, line2, line3, quote, header, subheader, body,
-      headline, subtext,
-      eventTitle, beschreibung, weekday, date, time, locationName, address,
-      purePrompt, sharepicPrompt, imagineTitle, precisionInstruction, allyPlacement: allyPlacement || ''
-    };
-    return values[fieldName] || '';
-  }, [thema, name, line1, line2, line3, quote, header, subheader, body, headline, subtext, eventTitle, beschreibung, weekday, date, time, locationName, address, purePrompt, sharepicPrompt, imagineTitle, precisionInstruction, allyPlacement]);
+  const getFieldValue = useCallback(
+    (fieldName: string): string => {
+      const values: Record<string, string> = {
+        thema,
+        name,
+        line1,
+        line2,
+        line3,
+        quote,
+        header,
+        subheader,
+        body,
+        headline,
+        subtext,
+        eventTitle,
+        beschreibung,
+        weekday,
+        date,
+        time,
+        locationName,
+        address,
+        purePrompt,
+        sharepicPrompt,
+        imagineTitle,
+        precisionInstruction,
+        allyPlacement: allyPlacement || '',
+      };
+      return values[fieldName] || '';
+    },
+    [
+      thema,
+      name,
+      line1,
+      line2,
+      line3,
+      quote,
+      header,
+      subheader,
+      body,
+      headline,
+      subtext,
+      eventTitle,
+      beschreibung,
+      weekday,
+      date,
+      time,
+      locationName,
+      address,
+      purePrompt,
+      sharepicPrompt,
+      imagineTitle,
+      precisionInstruction,
+      allyPlacement,
+    ]
+  );
 
   return {
     stepIndex,
@@ -632,7 +797,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     setError,
     handleCanvasExport,
     handleCanvasSave,
-    goBackToCanvas
+    goBackToCanvas,
   };
 };
 

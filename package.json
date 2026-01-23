@@ -2,9 +2,12 @@
   "name": "gruenerator",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.0.0",
   "pnpm": {
-    "neverBuiltDependencies": ["canvas"],
+    "neverBuiltDependencies": [
+      "canvas"
+    ],
     "overrides": {
       "react": "19.1.0",
       "react-dom": "19.1.0",
@@ -37,6 +40,8 @@
     "cross-env": "^7.0.3",
     "husky": "^9.1.7",
     "knip": "^5.63.1",
+    "lint-staged": "^15.4.0",
+    "prettier": "^3.4.0",
     "semantic-release": "^25.0.2",
     "turbo": "^2.7.2",
     "typescript": "^5.9.2"
@@ -46,7 +51,12 @@
     "prepare": "husky || true",
     "release": "semantic-release",
     "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
+    "ci": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "test": "turbo run test",
     "dev": "turbo run dev",
     "dev:web": "turbo run dev --filter=@gruenerator/web",

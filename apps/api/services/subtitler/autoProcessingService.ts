@@ -61,6 +61,7 @@ interface VideoMetadata {
     codec?: string;
     audioCodec?: string;
     audioBitrate: number | null;
+    videoBitrate?: number | null;
   };
 }
 
@@ -287,7 +288,7 @@ async function processVideoAutomatically(
 
     try {
       const [transcriptionResult, scaledPath] = await Promise.all([
-        transcribeVideo(inputPath, 'manual', null, 'de'),
+        transcribeVideo(inputPath, 'manual', undefined, 'de'),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null)
@@ -299,7 +300,10 @@ async function processVideoAutomatically(
       if (scaledPath) {
         workingVideoPath = scaledPath;
         preScaledTempPath = scaledPath;
-        metadata = await getVideoMetadata(workingVideoPath);
+        const newMetadata = await getVideoMetadata(workingVideoPath);
+        if (newMetadata) {
+          metadata = newMetadata;
+        }
         log.info(`Pre-scaled video ready: ${metadata.width}x${metadata.height}`);
       }
     } catch (transcriptionError: any) {
@@ -464,10 +468,21 @@ async function exportWithEnhancements(
 
   const useHwAccel = await hwaccel.detectVaapi();
   const hasAudio = metadata.originalFormat?.audioCodec != null;
-  const scaleFilter = calculateScaleFilter(metadata, maxResolution);
+  const compatibleMetadata = {
+    width: metadata.width,
+    height: metadata.height,
+    rotation: metadata.rotation,
+    originalFormat: metadata.originalFormat ? {
+      codec: metadata.originalFormat.codec,
+      videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
+      audioCodec: metadata.originalFormat.audioCodec,
+      audioBitrate: metadata.originalFormat.audioBitrate ?? undefined
+    } : undefined
+  };
+  const scaleFilter = calculateScaleFilter(compatibleMetadata, maxResolution);
 
   const { outputOptions: baseOutputOptions, inputOptions } = buildFFmpegOutputOptions({
-    metadata,
+    metadata: compatibleMetadata,
     fileStats,
     useHwAccel,
     includeTune: false

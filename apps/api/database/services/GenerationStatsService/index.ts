@@ -35,6 +35,7 @@ export class GenerationStatsService {
         VALUES ($1, $2, $3, $4, $5)
       `;
 
+      if (!postgres.pool) throw new Error('Database pool not initialized');
       await postgres.pool.query(sql, [
         userId || null,
         generationType,
@@ -70,6 +71,7 @@ export class GenerationStatsService {
         LIMIT $2
       `;
 
+      if (!postgres.pool) throw new Error('Database pool not initialized');
       const result = await postgres.pool.query(sql, [days, limit]);
       return result.rows as GenerationStatsRow[];
     } catch (error) {
@@ -96,6 +98,7 @@ export class GenerationStatsService {
         ORDER BY count DESC
       `;
 
+      if (!postgres.pool) throw new Error('Database pool not initialized');
       const result = await postgres.pool.query(sql, [days]);
       return result.rows as GenerationStatsByTypeRow[];
     } catch (error) {
@@ -133,6 +136,7 @@ export class GenerationStatsService {
         ORDER BY date DESC
       `;
 
+      if (!postgres.pool) throw new Error('Database pool not initialized');
       const result = await postgres.pool.query(sql, params);
       return result.rows as TimelineRow[];
     } catch (error) {
@@ -155,6 +159,7 @@ export class GenerationStatsService {
         FROM generation_logs
       `;
 
+      if (!postgres.pool) throw new Error('Database pool not initialized');
       const result = await postgres.pool.query(sql);
       return result.rows[0] as TotalStatsRow;
     } catch (error) {

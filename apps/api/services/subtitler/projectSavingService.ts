@@ -157,7 +157,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     );
 
     log.info(`Updated existing project ${existingProject.id} for export ${exportToken}`);
-    return { projectId: existingProject.id, ...result, isNew: false };
+    return { ...result, isNew: false };
   }
 
   const projectTitle = originalFilename.replace(/\.[^/.]+$/, '') || 'Untertiteltes Video';
@@ -178,7 +178,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
   const result = await saveSubtitledVideo(userId, newProject.id, outputPath, null);
 
   log.info(`Auto-created project ${newProject.id} for export ${exportToken}`);
-  return { projectId: newProject.id, ...result, isNew: true };
+  return { ...result, isNew: true };
 }
 
 async function saveOrUpdateProject(

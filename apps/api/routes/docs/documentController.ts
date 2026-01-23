@@ -1,23 +1,52 @@
 import { Router, Request, Response } from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
+/**
+ * Permission entry for a user on a document
+ */
+interface PermissionEntry {
+  level: 'owner' | 'editor' | 'viewer';
+  granted_at: string;
+  granted_by?: string;
+}
+
+/**
+ * Permissions object mapping user IDs to their permission entries
+ */
+interface DocumentPermissions {
+  [userId: string]: PermissionEntry;
+}
+
+/**
+ * Collaborative document row from database
+ */
+interface CollaborativeDocument {
+  id: string;
+  title: string;
+  content?: string;
+  created_by: string;
+  last_edited_by: string;
+  document_subtype: string;
+  folder_id: string | null;
+  permissions: DocumentPermissions | null;
+  is_public: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  creator_name?: string;
+  last_editor_name?: string;
+  [key: string]: unknown;
+}
+
 const router = Router();
 const db = getPostgresInstance();
-
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email?: string;
-    display_name?: string;
-  };
-}
 
 /**
  * @route   POST /api/docs
  * @desc    Create a new collaborative document
  * @access  Private
  */
-router.post('/', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { title = 'Untitled Document', folder_id = null } = req.body;
     const userId = req.user?.id;
@@ -37,7 +66,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
         folder_id,
         JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } })
       ]
-    );
+    ) as CollaborativeDocument[];
 
     return res.status(201).json(result[0]);
   } catch (error: any) {
@@ -51,7 +80,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
  * @desc    List all documents user has access to
  * @access  Private
  */
-router.get('/', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
 
@@ -77,7 +106,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
         )
        ORDER BY cd.updated_at DESC`,
       [userId]
-    );
+    ) as CollaborativeDocument[];
 
     return res.json(result);
   } catch (error: any) {
@@ -91,7 +120,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
  * @desc    Get a specific document's metadata
  * @access  Private
  */
-router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -113,7 +142,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
         AND cd.document_subtype = 'docs'
         AND cd.is_deleted = false`,
       [id]
-    );
+    ) as CollaborativeDocument[];
 
     if (result.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -142,7 +171,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
  * @desc    Update document metadata (title, folder)
  * @access  Private
  */
-router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { title, folder_id, content } = req.body;
@@ -155,7 +184,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     const checkResult = await db.query(
       'SELECT permissions, created_by FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    );
+    ) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -171,7 +200,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const updates: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramIndex = 1;
 
     if (title !== undefined) {
@@ -201,7 +230,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
        WHERE id = $${paramIndex}
        RETURNING *`,
       values
-    );
+    ) as CollaborativeDocument[];
 
     return res.json(result[0]);
   } catch (error: any) {
@@ -215,7 +244,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
  * @desc    Soft delete a document
  * @access  Private (Owner only)
  */
-router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -227,7 +256,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
     const checkResult = await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    );
+    ) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -258,7 +287,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
  * @desc    Duplicate a document
  * @access  Private
  */
-router.post('/:id/duplicate', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:id/duplicate', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -270,7 +299,7 @@ router.post('/:id/duplicate', async (req: AuthenticatedRequest, res: Response) =
     const checkResult = await db.query(
       'SELECT * FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    );
+    ) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -299,7 +328,7 @@ router.post('/:id/duplicate', async (req: AuthenticatedRequest, res: Response) =
         JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
         original.content || ''
       ]
-    );
+    ) as CollaborativeDocument[];
 
     return res.status(201).json(newDoc[0]);
   } catch (error: any) {

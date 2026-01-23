@@ -149,7 +149,7 @@ export class OparlScraper extends BaseScraper {
     this.log('═══════════════════════════════════════');
 
     const result: CityScrapeResult = {
-      city: endpoint.city,
+      city: endpoint.city ?? 'unknown',
       url: endpoint.url,
       stored: 0,
       skipped: 0,
@@ -223,7 +223,7 @@ export class OparlScraper extends BaseScraper {
             const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
             // Store immediately (in small batches of 5 points)
-            const points = this.#createPoints(endpoint.city, paper, fullText, chunks, embeddings);
+            const points = this.#createPoints(endpoint.city ?? 'unknown', paper, fullText, chunks, embeddings);
             for (let j = 0; j < points.length; j += 5) {
               const pointBatch = points.slice(j, j + 5);
               await this.qdrant.client.upsert(this.config.collectionName, { points: pointBatch });
@@ -481,7 +481,7 @@ export class OparlScraper extends BaseScraper {
       let offset: string | number | null = null;
 
       do {
-        const result = await this.qdrant.client.scroll(this.config.collectionName, {
+        const result: { points: Array<{ payload: { city?: string } }>; next_page_offset?: string | number | null } = await this.qdrant.client.scroll(this.config.collectionName, {
           limit: 100,
           offset: offset,
           with_payload: ['city'],
@@ -494,7 +494,7 @@ export class OparlScraper extends BaseScraper {
           }
         }
 
-        offset = result.next_page_offset;
+        offset = result.next_page_offset ?? null;
       } while (offset);
 
       return Array.from(cities).sort();

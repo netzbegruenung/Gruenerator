@@ -73,7 +73,7 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated as any, 
       { table: 'group_memberships' }
     );
 
-    const groupIds = memberships?.map((m: { group_id: string }) => m.group_id) || [];
+    const groupIds = (memberships as { group_id: string }[] | undefined)?.map(m => m.group_id) || [];
     let groupsWithInstructions: string[] = [];
 
     const groupFieldMapping: Record<string, string[]> = {

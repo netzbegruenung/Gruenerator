@@ -80,6 +80,7 @@ export interface CategorizedSources {
   news?: SearchResult[];
   academic?: SearchResult[];
   other?: SearchResult[];
+  [key: string]: SearchResult[] | undefined;
 }
 
 /**

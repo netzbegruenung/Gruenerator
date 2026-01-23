@@ -3,12 +3,6 @@ import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import type { WebsiteContent } from '../../types/routes.js';
-import type { User } from '../../types/auth.js';
-
-interface AuthenticatedRequest extends Request {
-  user?: User;
-}
-
 const log = createLogger('claude_website');
 const router: Router = createAuthenticatedRouter();
 
@@ -19,7 +13,7 @@ interface WebsiteRequestBody {
   useProMode?: boolean;
 }
 
-router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/', async (req: Request, res: Response): Promise<void> => {
   const { description, email, usePrivacyMode, useProMode } = req.body as WebsiteRequestBody;
 
   log.debug('[claude_website] Request received:', {
@@ -151,7 +145,7 @@ ${description}`;
     jsonContent = jsonContent.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
     jsonContent = jsonContent.trim();
 
-    jsonContent = jsonContent.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
+    jsonContent = jsonContent.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match: string) => {
       return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
     });
 

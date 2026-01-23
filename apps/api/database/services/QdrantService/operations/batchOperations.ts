@@ -157,11 +157,14 @@ export async function getCollectionStats(
         const info = await client.getCollection(collection);
         const infoData = info as Record<string, unknown>;
 
+        const vectorsCount = (infoData.vectors_count ?? infoData.points_count) as number | null | undefined;
+        const indexedVectorsCount = info.indexed_vectors_count as number | null | undefined;
+        const pointsCount = info.points_count as number | null | undefined;
         return {
             name: collection,
-            vectors_count: (infoData.vectors_count ?? infoData.points_count) as number | undefined,
-            indexed_vectors_count: info.indexed_vectors_count,
-            points_count: info.points_count,
+            vectors_count: vectorsCount ?? undefined,
+            indexed_vectors_count: indexedVectorsCount ?? undefined,
+            points_count: pointsCount ?? undefined,
             status: info.status
         };
     } catch (error) {
