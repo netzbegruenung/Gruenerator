@@ -117,8 +117,13 @@ export interface KiTypeConfig extends TypeConfigBase {
 
 export type TypeConfig = TemplateTypeConfig | KiTypeConfig;
 
-export type ResponseMapper<T = Record<string, unknown>> = (result: T) => Record<string, string | string[]>;
-export type AlternativesMapper<T = Record<string, unknown>> = (alt: T) => Record<string, string>;
+export type ResponseMapper<T = Record<string, unknown>> = (
+  result: T
+) => Record<string, string | string[]>;
+export type AlternativesMapper<T = Record<string, unknown>> = (
+  alt: T,
+  index?: number
+) => Record<string, string>;
 
 export interface TemplateFieldConfig {
   inputFields: InputField[];
