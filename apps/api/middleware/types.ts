@@ -80,15 +80,33 @@ export interface RateLimitStatus {
 
 /**
  * User site data for subdomain handler
+ * Matches the UserSite type from routes/sites/types.ts
  */
 export interface UserSiteData {
   id: string;
+  user_id: string;
   subdomain: string;
-  name: string;
-  settings: Record<string, unknown>;
+  site_title: string;
+  tagline?: string;
+  bio?: string;
+  contact_email?: string;
+  social_links?: Record<string, string>;
+  accent_color?: string;
+  theme?: string;
+  profile_image?: string;
+  background_image?: string;
+  sections?: Array<{
+    type: 'text' | 'contact' | string;
+    title?: string;
+    content?: string;
+  }>;
+  meta_description?: string;
+  meta_keywords?: string[];
   is_published: boolean;
-  visit_count: number;
-  [key: string]: any;
+  last_published?: string;
+  visit_count?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /**

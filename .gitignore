@@ -128,7 +128,12 @@ Cargo.lock
 # Typecheck outputs
 apps/web/typecheck_output.txt
 apps/web/typecheck_output_full.txt
+*_typecheck_output*.txt
+typecheck_output.txt
 
 # Turbo
 .turbo/
 **/.turbo/
+
+# Windows Zone.Identifier metadata files
+*:Zone.Identifier

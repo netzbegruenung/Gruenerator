@@ -75,7 +75,7 @@ router.post('/', withErrorHandler(async (req, res) => {
 
     // Check for simple messages (instant response)
     const simpleCheck = detectSimpleMessage(message);
-    if (simpleCheck.isSimple) {
+    if (simpleCheck.isSimple && simpleCheck.category) {
       const locale = user?.locale || 'de-DE';
       const response = generateSimpleResponse(simpleCheck.category, locale);
 
@@ -308,7 +308,7 @@ async function processAttachments(
  */
 async function checkPendingRequests(userId: string): Promise<any> {
   const lockAcquired = await chatMemory.acquirePendingLock(userId);
-  let pendingRequest = null;
+  let pendingRequest: any = null;
 
   if (lockAcquired) {
     try {

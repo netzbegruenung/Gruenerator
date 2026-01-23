@@ -187,11 +187,12 @@ router.get('/status', (_req: Request, res: Response<StatusResponse>) => {
 // Configuration validation middleware for all other routes
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (!CanvaTokenManager.validateConfiguration()) {
-    return res.status(503).json({
+    res.status(503).json({
       success: false,
       error: 'Canva integration not configured',
       details: 'Canva API features require CANVA_CLIENT_ID, CANVA_CLIENT_SECRET, and CANVA_REDIRECT_URI to be configured on the server'
     });
+    return;
   }
   next();
 });
@@ -336,14 +337,14 @@ router.post('/designs', ensureAuthenticated, requireCanvaConnection, async (req:
 
     const design = await canvaReq.canvaClient!.createDesign(designData);
 
-    res.json({
+    return res.json({
       success: true,
       design,
       message: 'Design created successfully'
     });
   } catch (error) {
     log.error('[Canva API] Error creating design:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create design',
       details: (error as Error).message
@@ -441,14 +442,14 @@ router.post('/assets/upload', ensureAuthenticated, requireCanvaConnection, async
 
     const uploadJob = await canvaReq.canvaClient!.uploadAsset(assetData);
 
-    res.json({
+    return res.json({
       success: true,
       upload_job: uploadJob,
       message: 'Asset upload initiated successfully'
     });
   } catch (error) {
     log.error('[Canva API] Error uploading asset:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to upload asset',
       details: (error as Error).message
@@ -512,7 +513,7 @@ router.post('/create-from-content', ensureAuthenticated, requireCanvaConnection,
 
     const design = await canvaReq.canvaClient!.createDesign(designData);
 
-    res.json({
+    return res.json({
       success: true,
       design,
       message: 'Design created successfully from Grünerator content',
@@ -521,7 +522,7 @@ router.post('/create-from-content', ensureAuthenticated, requireCanvaConnection,
     });
   } catch (error) {
     log.error('[Canva API] Error creating design from content:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create design from content',
       details: (error as Error).message

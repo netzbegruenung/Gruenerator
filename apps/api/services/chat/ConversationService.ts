@@ -84,7 +84,7 @@ export async function processConversationRequest(params: {
   log.debug('[ConversationService] Processing conversation request:', {
     subIntent,
     messageLength: message?.length,
-    hasHistory: messageHistory?.length > 0
+    hasHistory: (messageHistory?.length ?? 0) > 0
   });
 
   try {

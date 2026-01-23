@@ -64,6 +64,7 @@
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .sidebar-toggle {
+    position: absolute;
     left: 6px;
     top: 6px;
     width: 38px;

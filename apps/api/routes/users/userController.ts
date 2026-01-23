@@ -4,20 +4,12 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 const router = Router();
 const db = getPostgresInstance();
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email?: string;
-    display_name?: string;
-  };
-}
-
 /**
  * @route   GET /api/users/search
  * @desc    Search for users by name or email
  * @access  Private
  */
-router.get('/search', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/search', async (req: Request, res: Response) => {
   try {
     const { q } = req.query;
     const userId = req.user?.id;

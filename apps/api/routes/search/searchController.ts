@@ -317,7 +317,7 @@ router.post('/', async (req: SearchRequest, res: Response<NormalSearchResponse |
       response.sources = searchResults.citationSources;
     }
 
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
@@ -325,7 +325,7 @@ router.post('/', async (req: SearchRequest, res: Response<NormalSearchResponse |
 
     const userError = mapErrorToUserMessage(error as Error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: userError,
       metadata: {
@@ -451,13 +451,13 @@ router.post('/deep-research', async (req: DeepResearchRequest, res: Response<Dee
       }
     };
 
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
     log.error(`[Search] Deep research error (${processingTime}ms):`, error);
 
-    res.status(500).json({
+    return res.status(500).json({
       status: 'error',
       dossier: null,
       researchQuestions: [],
@@ -553,7 +553,7 @@ Format deiner Antwort:
 
     const { mainText, sourceRecommendations, usedSourceTitles } = parseAnalysisResponse(result.content);
 
-    res.json({
+    return res.json({
       status: 'success',
       analysis: mainText,
       sourceRecommendations,
@@ -563,7 +563,7 @@ Format deiner Antwort:
 
   } catch (error) {
     log.error('[Search] Analysis error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       status: 'error',
       error: 'Fehler bei der Analyse der Suchergebnisse',
       details: (error as Error).message
@@ -620,7 +620,7 @@ router.post('/clear-cache', async (req: AuthenticatedRequest, res: Response<Clea
     const { searxngService } = await import('../../services/search/index.js');
     await searxngService.clearCache();
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Cache erfolgreich geleert',
       timestamp: new Date().toISOString()
@@ -628,7 +628,7 @@ router.post('/clear-cache', async (req: AuthenticatedRequest, res: Response<Clea
   } catch (error) {
     log.error('[Search] Cache clear failed:', error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Fehler beim Leeren des Caches',
       timestamp: new Date().toISOString()

@@ -71,10 +71,10 @@ router.post('/', upload.single('image'), async (req: MulterRequest, res: Respons
 
     log.info('Profilbild completed');
 
-    res.json({ image: base64Image });
+    return res.json({ image: base64Image });
   } catch (error) {
     log.error('Profilbild error:', error);
-    res.status(500).json({ error: 'Fehler beim Erstellen des Profilbilds' });
+    return res.status(500).json({ error: 'Fehler beim Erstellen des Profilbilds' });
   }
 });
 

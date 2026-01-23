@@ -5,6 +5,12 @@
   flex-direction: column;
 }
 
+@media (max-width: 768px) {
+  .content-wrapper {
+    margin-top: var(--spacing-large);
+  }
+}
+
 .content-wrapper.full-height {
   min-height: calc(100vh - 160px);
 }

@@ -1,20 +1,8 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "allowJs": false,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
@@ -22,7 +10,11 @@
       "@gruenerator/shared": ["../../packages/shared/src"],
       "@gruenerator/shared/*": ["../../packages/shared/src/*"]
     },
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "noUncheckedIndexedAccess": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false
   },
   "include": ["src/**/*", "vite.config.ts", "data/**/*"],
   "exclude": ["node_modules", "dist"]

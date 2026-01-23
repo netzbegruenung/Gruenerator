@@ -3,8 +3,9 @@
  * Shared between API and MCP for consistent embedding generation
  */
 
-import type { EmbeddingOptions, BatchEmbeddingOptions } from './types.js';
 import { EMBEDDING_DEFAULTS } from './constants.js';
+
+import type { BatchEmbeddingOptions } from './types.js';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/embeddings';
 
@@ -14,6 +15,10 @@ export interface MistralClient {
       data: Array<{ embedding: number[] }>;
     }>;
   };
+}
+
+interface MistralAPIResponse {
+  data: Array<{ embedding: number[] }>;
 }
 
 /**
@@ -75,7 +80,8 @@ export class EmbeddingService {
 
     const maxBatchSize = options.maxBatchSize || EMBEDDING_DEFAULTS.maxBatchSize;
     const maxTokensPerBatch = options.maxTokensPerBatch || EMBEDDING_DEFAULTS.maxTokensPerBatch;
-    const delayBetweenBatches = options.delayBetweenBatches || EMBEDDING_DEFAULTS.delayBetweenBatches;
+    const delayBetweenBatches =
+      options.delayBetweenBatches || EMBEDDING_DEFAULTS.delayBetweenBatches;
 
     // If batch is small enough, process directly
     if (texts.length <= maxBatchSize && this.estimateTotalTokens(texts) <= maxTokensPerBatch) {
@@ -100,7 +106,9 @@ export class EmbeddingService {
               const embedding = await this.generateEmbedding(text);
               allEmbeddings.push(embedding);
             } catch (individualError) {
-              throw new Error(`Failed to generate embedding: ${(individualError as Error).message}`);
+              throw new Error(
+                `Failed to generate embedding: ${(individualError as Error).message}`
+              );
             }
           }
         } else {
@@ -159,7 +167,7 @@ export class EmbeddingService {
       throw new Error(`Mistral API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as MistralAPIResponse;
 
     if (!data.data || !data.data[0] || !data.data[0].embedding) {
       throw new Error('No embedding in response');
@@ -189,8 +197,8 @@ export class EmbeddingService {
       throw new Error(`Mistral API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
-    return data.data.map((d: { embedding: number[] }) => d.embedding);
+    const data = (await response.json()) as MistralAPIResponse;
+    return data.data.map((d) => d.embedding);
   }
 
   /**
@@ -198,7 +206,7 @@ export class EmbeddingService {
    */
   private async retryWithBackoff<T>(
     operation: () => Promise<T>,
-    operationName: string
+    _operationName: string
   ): Promise<T> {
     let lastError: Error | undefined;
 
@@ -230,7 +238,8 @@ export class EmbeddingService {
     if (!error) return false;
 
     const errorMessage = error.message || '';
-    const statusCode = (error as { statusCode?: number; status?: number }).statusCode ||
+    const statusCode =
+      (error as { statusCode?: number; status?: number }).statusCode ||
       (error as { status?: number }).status;
 
     // Retryable conditions: rate limiting, server errors
@@ -239,17 +248,21 @@ export class EmbeddingService {
     }
 
     // Don't retry on batch size errors
-    if (errorMessage.includes('Batch size too large') ||
-        errorMessage.includes('Too many tokens overall')) {
+    if (
+      errorMessage.includes('Batch size too large') ||
+      errorMessage.includes('Too many tokens overall')
+    ) {
       return false;
     }
 
     // Retry on network errors
-    if (errorMessage.includes('network') ||
-        errorMessage.includes('timeout') ||
-        errorMessage.includes('connection') ||
-        errorMessage.includes('ECONNRESET') ||
-        errorMessage.includes('ETIMEDOUT')) {
+    if (
+      errorMessage.includes('network') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('ECONNRESET') ||
+      errorMessage.includes('ETIMEDOUT')
+    ) {
       return true;
     }
 
@@ -285,8 +298,10 @@ export class EmbeddingService {
     for (const text of texts) {
       const textTokens = this.estimateTokens(text);
 
-      if (currentBatch.length >= maxBatchSize ||
-          (currentBatch.length > 0 && currentTokenCount + textTokens > maxTokensPerBatch)) {
+      if (
+        currentBatch.length >= maxBatchSize ||
+        (currentBatch.length > 0 && currentTokenCount + textTokens > maxTokensPerBatch)
+      ) {
         if (currentBatch.length > 0) {
           batches.push(currentBatch);
           currentBatch = [];

@@ -27,6 +27,7 @@ WORKDIR /app
 
 # Copy lockfile and workspace config first (better layer caching)
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy only package.json files first for dependency caching
 COPY packages/shared/package.json ./packages/shared/

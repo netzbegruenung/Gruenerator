@@ -193,7 +193,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
         return null;
       }
 
-      canvasConfig = JSON.parse(JSON.stringify(campaign.defaultCanvas));
+      canvasConfig = JSON.parse(JSON.stringify(campaign.defaultCanvas)) as CanvasConfig;
 
       if (canvasConfig.textLines) {
         canvasConfig.textLines = canvasConfig.textLines.map(line => ({
@@ -282,7 +282,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
           location: thema,
           details: details
         };
-        validateCampaignInputsOrThrow(inputs, fullCampaign);
+        validateCampaignInputsOrThrow(inputs, fullCampaign as any);
       } catch (validationError) {
         if (validationError instanceof ValidationError) {
           log.warn(`[Campaign Generate] Validation failed for ${validationError.field}:`, validationError.message);
@@ -426,7 +426,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         const textMatch = aiResult.content.match(/---TEXT---\s*([\s\S]+?)(?:\n---|\n*$)/);
         if (textMatch) {
           campaignText = textMatch[1].trim();
-          log.debug(`[Campaign Generate] Extracted campaign text (${campaignText.length} chars)`);
+          log.debug(`[Campaign Generate] Extracted campaign text (${campaignText!.length} chars)`);
           contentForParsing = aiResult.content.replace(/---TEXT---[\s\S]+$/, '').trim();
         } else {
           log.warn('[Campaign Generate] Campaign text requested but not found in AI response');

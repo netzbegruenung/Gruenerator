@@ -136,8 +136,8 @@ router.post('/from-project', requireAuth, async (req: AuthenticatedRequest, res:
 
     let thumbnailPath: string | null = null;
     if (project.thumbnail_path) {
-      thumbnailPath = projService.getThumbnailPath(project.thumbnail_path);
-      try { await fsPromises.access(thumbnailPath); } catch { thumbnailPath = null; }
+      const tempThumbnailPath = projService.getThumbnailPath(project.thumbnail_path);
+      try { await fsPromises.access(tempThumbnailPath); thumbnailPath = tempThumbnailPath; } catch { thumbnailPath = null; }
     }
 
     const service = await getShareService();

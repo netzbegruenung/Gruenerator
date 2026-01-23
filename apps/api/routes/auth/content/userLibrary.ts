@@ -195,7 +195,7 @@ router.post('/save-to-library', ensureAuthenticated as any, async (req: AuthRequ
         const qdrant = getQdrantInstance();
         await mistralEmbeddingService.init();
 
-        if (qdrant.isAvailable()) {
+        if (await qdrant.isAvailable()) {
           const textForEmbedding = stripHtmlTags(content).trim();
 
           if (textForEmbedding.length === 0) return;
@@ -369,7 +369,7 @@ router.delete('/saved-texts/:id', ensureAuthenticated as any, async (req: AuthRe
     setImmediate(async () => {
       try {
         const qdrant = getQdrantInstance();
-        if (qdrant.isAvailable()) {
+        if (await qdrant.isAvailable()) {
           await qdrant.deleteDocument(id, 'user_texts');
           log.debug(`[Vector Cleanup] Removed vectors for document ${id}`);
         }
@@ -504,7 +504,7 @@ router.put('/saved-texts/:id/content', ensureAuthenticated as any, async (req: A
         const qdrant = getQdrantInstance();
         await mistralEmbeddingService.init();
 
-        if (qdrant.isAvailable()) {
+        if (await qdrant.isAvailable()) {
           await qdrant.deleteDocument(id, 'user_texts');
 
           const textForEmbedding = stripHtmlTags(content).trim();
@@ -640,7 +640,7 @@ router.delete('/saved-texts/bulk', ensureAuthenticated as any, async (req: AuthR
       setImmediate(async () => {
         try {
           const qdrant = getQdrantInstance();
-          if (qdrant.isAvailable()) {
+          if (await qdrant.isAvailable()) {
             const cleanupPromises = deletedIds.map(async (docId: string) => {
               try {
                 await qdrant.deleteDocument(docId, 'user_texts');
@@ -724,6 +724,7 @@ router.post('/search-saved-texts', ensureAuthenticated as any, async (req: AuthR
 
     for (const result of searchResults.results) {
       const docId = result.document_id;
+      if (!docId) continue;
 
       if (!documentScores.has(docId)) {
         documentScores.set(docId, result.score);

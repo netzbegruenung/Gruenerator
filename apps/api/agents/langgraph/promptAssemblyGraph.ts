@@ -276,8 +276,8 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
 
   // Only include examples for Facebook and Instagram platforms
   const reqPlatforms =
-    state && typeof state.request === 'object' && Array.isArray(state.request.platforms)
-      ? state.request.platforms.map((p) => String(p || '').toLowerCase())
+    state && state.request && typeof state.request === 'object' && Array.isArray((state.request as RequestObject).platforms)
+      ? (state.request as RequestObject).platforms!.map((p) => String(p || '').toLowerCase())
       : [];
   const useExamples = reqPlatforms.some((p) => EXAMPLES_ALLOWED_PLATFORMS.has(p));
   console.log(
@@ -366,7 +366,7 @@ async function uploadDocAndGetUrl(doc: DocumentBlock): Promise<string | null> {
 function deriveDocQnAQuestions(state: PromptAssemblyState): string[] {
   const req = state.request;
   const theme =
-    typeof req === 'object' ? (req.thema || req.theme || req.details || '') : String(req || '');
+    req && typeof req === 'object' ? ((req as RequestObject).thema || (req as RequestObject).theme || (req as RequestObject).details || '') : String(req || '');
   const base = theme ? String(theme).substring(0, 200) : '';
   const routeType = state.type || 'social';
 
@@ -579,8 +579,8 @@ async function assemblePromptGraphAsync(
 
   // Only include examples for Facebook and Instagram platforms
   const reqPlatforms =
-    enrichedState && typeof enrichedState.request === 'object' && Array.isArray(enrichedState.request.platforms)
-      ? enrichedState.request.platforms.map((p) => String(p || '').toLowerCase())
+    enrichedState && enrichedState.request && typeof enrichedState.request === 'object' && Array.isArray((enrichedState.request as RequestObject).platforms)
+      ? (enrichedState.request as RequestObject).platforms!.map((p) => String(p || '').toLowerCase())
       : [];
   const useExamples = reqPlatforms.some((p) => EXAMPLES_ALLOWED_PLATFORMS.has(p));
   console.log(
@@ -597,8 +597,8 @@ async function assemblePromptGraphAsync(
 
     // Get theme/topic for example search
     const searchQuery =
-      (typeof enrichedState.request === 'object'
-        ? enrichedState.request.thema || enrichedState.request.details || enrichedState.request.theme
+      (enrichedState.request && typeof enrichedState.request === 'object'
+        ? (enrichedState.request as RequestObject).thema || (enrichedState.request as RequestObject).details || (enrichedState.request as RequestObject).theme
         : null) || '';
 
     // Fetch examples for each platform

@@ -10,8 +10,8 @@ on:
       - 'services/**'
       - 'packages/**'
       - 'documentation/**'
-      - 'Dockerfile'
-      - 'docker-compose*.yml'
+      - 'nginx.conf'
+      - 'docker-compose.prod.yml'
       - '.github/workflows/build-images.yml'
   workflow_dispatch:
     inputs:

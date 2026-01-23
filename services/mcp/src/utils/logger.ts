@@ -39,7 +39,7 @@ function getTimestamp() {
 /**
  * Log at DEBUG level
  */
-export function debug(category: string, message: string, data: unknown = null) {
+function _debug(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.DEBUG) {
     const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'DEBUG', category, message };
     if (data) log.data = data;
@@ -61,7 +61,7 @@ export function info(category: string, message: string, data: unknown = null) {
 /**
  * Log at WARN level
  */
-export function warn(category: string, message: string, data: unknown = null) {
+function _warn(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.WARN) {
     const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'WARN', category, message };
     if (data) log.data = data;
@@ -146,7 +146,7 @@ export function getStats() {
 /**
  * Reset statistics (for testing)
  */
-export function resetStats() {
+function _resetStats() {
   stats.totalRequests = 0;
   stats.searchRequests = 0;
   stats.cacheHits = 0;

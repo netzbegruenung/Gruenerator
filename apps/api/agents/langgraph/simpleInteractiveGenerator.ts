@@ -452,7 +452,7 @@ async function generateFinalResult({
   // Apply document enrichment
   // Note: enrichRequest returns EnrichedState which has a different document format,
   // but we only use the knowledge array from it, so the cast is safe
-  const enrichedContext = await enrichRequest(enrichmentRequest, userId) as unknown as EnrichedContext;
+  const enrichedContext = await enrichRequest(enrichmentRequest, {}) as unknown as EnrichedContext;
 
   // Build knowledge array
   const knowledgeItems: string[] = [];
@@ -461,12 +461,12 @@ async function generateFinalResult({
     knowledgeItems.push(formattedQA);
   }
 
-  if (enrichedContext?.knowledge?.length > 0) {
-    knowledgeItems.push(...enrichedContext.knowledge);
+  if ((enrichedContext?.knowledge?.length ?? 0) > 0) {
+    knowledgeItems.push(...(enrichedContext.knowledge ?? []));
   }
 
-  if (searchResults?.sources?.length > 0) {
-    knowledgeItems.push(...searchResults.sources.map(s => `${s.title}: ${s.snippet}`).slice(0, 5));
+  if ((searchResults?.sources?.length ?? 0) > 0) {
+    knowledgeItems.push(...(searchResults?.sources ?? []).map(s => `${s.title}: ${s.snippet}`).slice(0, 5));
   }
 
   console.log(`[SimpleInteractiveGenerator] Knowledge items: ${knowledgeItems.length}`);

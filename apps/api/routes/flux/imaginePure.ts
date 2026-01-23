@@ -200,7 +200,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
 
     const base64Output = `data:image/png;base64,${labeledBuffer.toString('base64')}`;
 
-    res.json({
+    return res.json({
       success: true,
       image: {
         base64: base64Output,
@@ -233,7 +233,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
                        error.type === 'billing' ? 402 :
                        error.retryable === false ? 400 : 500;
 
-    res.status(statusCode).json({
+    return res.status(statusCode).json({
       success: false,
       error: error.message || 'Failed to create image',
       type: error.type || 'unknown',

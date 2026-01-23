@@ -55,6 +55,7 @@ export interface ZitatPureFullState {
     nameOpacity?: number;
     quoteColor?: string;
     nameColor?: string;
+    quoteMarkOpacity?: number;
     alternatives: string[];
     isDesktop: boolean;
     // Icons & Shapes
@@ -267,6 +268,8 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             visible: (state) => state.quoteMarkVisible,
             draggable: true,
             offsetKey: 'quoteMarkOffset',
+            opacity: (state: ZitatPureFullState) => state.quoteMarkOpacity ?? 1,
+            opacityStateKey: 'quoteMarkOpacity',
         },
         // Quote text
         {
@@ -331,6 +334,7 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
         sunflowerColor: '#FFFFFF',
         quoteOpacity: 1,
         nameOpacity: 1,
+        quoteMarkOpacity: 1,
         alternatives: (props.alternatives as string[] | undefined) ?? [],
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
         selectedIcons: [],

@@ -53,10 +53,10 @@ router.post('/create', async (req: Request, res: Response<CreatePadResponse | Er
       documentType
     });
 
-    res.json({ padURL: result.padUrl });
+    return res.json({ padURL: result.padUrl });
   } catch (error) {
     log.error('Fehler beim Erstellen des Etherpads:', error);
-    res.status(500).json({ error: 'Interner Serverfehler beim Erstellen des Etherpads' });
+    return res.status(500).json({ error: 'Interner Serverfehler beim Erstellen des Etherpads' });
   }
 });
 

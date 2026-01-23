@@ -89,7 +89,9 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.0",
@@ -110,7 +112,9 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@gruenerator/eslint-config": "workspace:*",
     "@types/react": "^19.0.0",
+    "eslint": "^9.23.0",
     "typescript": "^5.9.2"
   },
   "peerDependencies": {

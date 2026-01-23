@@ -164,10 +164,8 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
                         debouncedSaveToHistory(next);
                     }
                 }
-            } else {
-                const balkenInstances = getStateArray<{ id: string }>(state, 'balkenInstances');
-                const isBalken = balkenInstances.some((b) => b.id === id);
-                if (isBalken && actions.updateBalken) {
+            } else if (type === 'balken') {
+                if (actions.updateBalken) {
                     actions.updateBalken(id, { opacity });
                 }
             }

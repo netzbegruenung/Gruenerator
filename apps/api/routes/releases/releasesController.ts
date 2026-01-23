@@ -1,8 +1,10 @@
-import express, { Request, Response, Router } from 'express';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import path from 'path';
 import fs from 'fs';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import express, { type Request, type Response, type Router } from 'express';
+
+import { PRIMARY_URL } from '../../config/domains.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,26 +46,26 @@ interface ReleaseInfo {
 // This serves the latest.json format required by @tauri-apps/plugin-updater
 const UPDATER_CONFIG: UpdaterConfig = {
   version: '1.0.0',
-  notes: 'See release notes at https://gruenerator.de/releases',
+  notes: `See release notes at ${PRIMARY_URL}/releases`,
   pub_date: '2024-12-31T12:00:00Z',
   platforms: {
     'linux-x86_64': {
       signature: '',
-      url: 'https://gruenerator.de/api/releases/download/linux-x86_64'
+      url: `${PRIMARY_URL}/api/releases/download/linux-x86_64`,
     },
     'darwin-x86_64': {
       signature: '',
-      url: 'https://gruenerator.de/api/releases/download/darwin-x86_64'
+      url: `${PRIMARY_URL}/api/releases/download/darwin-x86_64`,
     },
     'darwin-aarch64': {
       signature: '',
-      url: 'https://gruenerator.de/api/releases/download/darwin-aarch64'
+      url: `${PRIMARY_URL}/api/releases/download/darwin-aarch64`,
     },
     'windows-x86_64': {
       signature: '',
-      url: 'https://gruenerator.de/api/releases/download/windows-x86_64'
-    }
-  }
+      url: `${PRIMARY_URL}/api/releases/download/windows-x86_64`,
+    },
+  },
 };
 
 // Platform to filename mapping
@@ -71,7 +73,7 @@ const PLATFORM_FILES: Record<string, (v: string) => string> = {
   'linux-x86_64': (v) => `gruenerator_${v}_amd64.AppImage.tar.gz`,
   'darwin-x86_64': (v) => `Gruenerator_${v}_x64.app.tar.gz`,
   'darwin-aarch64': (v) => `Gruenerator_${v}_aarch64.app.tar.gz`,
-  'windows-x86_64': (v) => `Gruenerator_${v}_x64-setup.nsis.zip`
+  'windows-x86_64': (v) => `Gruenerator_${v}_x64-setup.nsis.zip`,
 };
 
 // Release configuration - update this when publishing new releases
@@ -97,34 +99,39 @@ Die Grünerator Desktop-App ist da! Mit dieser Version kannst du den Grünerator
     {
       id: 1,
       name: 'Gruenerator_1.0.0_x64-setup.exe',
-      browser_download_url: 'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64-setup.exe',
-      size: 45000000
+      browser_download_url:
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64-setup.exe',
+      size: 45000000,
     },
     {
       id: 2,
       name: 'Gruenerator_1.0.0_x64_en-US.msi',
-      browser_download_url: 'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64_en-US.msi',
-      size: 42000000
+      browser_download_url:
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64_en-US.msi',
+      size: 42000000,
     },
     {
       id: 3,
       name: 'Gruenerator_1.0.0_x64.dmg',
-      browser_download_url: 'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64.dmg',
-      size: 48000000
+      browser_download_url:
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64.dmg',
+      size: 48000000,
     },
     {
       id: 4,
       name: 'Gruenerator_1.0.0_amd64.AppImage',
-      browser_download_url: 'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_amd64.AppImage',
-      size: 85000000
+      browser_download_url:
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_amd64.AppImage',
+      size: 85000000,
     },
     {
       id: 5,
       name: 'Gruenerator_1.0.0_amd64.deb',
-      browser_download_url: 'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_amd64.deb',
-      size: 44000000
-    }
-  ]
+      browser_download_url:
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_amd64.deb',
+      size: 44000000,
+    },
+  ],
 };
 
 // GET /api/releases/latest - Get latest release info (for frontend download page)
@@ -149,7 +156,8 @@ router.get('/download/:platform', (req: Request, res: Response) => {
 
   const fileNameFn = PLATFORM_FILES[platform];
   if (!fileNameFn) {
-    return res.status(404).json({ error: 'Platform not found' });
+    res.status(404).json({ error: 'Platform not found' });
+    return;
   }
 
   const fileName = fileNameFn(version);
@@ -157,11 +165,12 @@ router.get('/download/:platform', (req: Request, res: Response) => {
 
   if (!fs.existsSync(filePath)) {
     console.error(`[Releases] File not found: ${filePath}`);
-    return res.status(404).json({
+    res.status(404).json({
       error: 'Release file not found',
       expected: filePath,
-      hint: `Upload the file to: ${RELEASES_DIR}/desktop/v${version}/${fileName}`
+      hint: `Upload the file to: ${RELEASES_DIR}/desktop/v${version}/${fileName}`,
     });
+    return;
   }
 
   const stats = fs.statSync(filePath);
@@ -199,7 +208,7 @@ router.get('/download/:platform/signature', (req: Request, res: Response) => {
     return res.type('text/plain').send(signature);
   }
 
-  res.type('text/plain').sendFile(filePath);
+  return res.type('text/plain').sendFile(filePath);
 });
 
 // GET /api/releases/info - Get release directory info (for debugging)
@@ -219,8 +228,8 @@ router.get('/info', (_req: Request, res: Response) => {
     files,
     expectedFiles: Object.entries(PLATFORM_FILES).map(([platform, fn]) => ({
       platform,
-      fileName: fn(version)
-    }))
+      fileName: fn(version),
+    })),
   });
 });
 

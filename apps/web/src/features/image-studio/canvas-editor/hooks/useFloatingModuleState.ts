@@ -14,7 +14,7 @@ import { resolveValue } from '../utils/canvasValueResolver';
  */
 
 export interface FloatingModuleState {
-    type: 'text' | 'image' | 'shape' | 'icon' | 'illustration' | 'asset' | 'background';
+    type: 'text' | 'image' | 'shape' | 'icon' | 'illustration' | 'asset' | 'background' | 'balken';
     data: {
         id: string;
         fontSize?: number;
@@ -196,7 +196,7 @@ export function useFloatingModuleState<TState extends Record<string, unknown>, T
         const balken = balkenInstances.find((b) => b.id === selectedElement);
         if (balken) {
             return {
-                type: 'text' as const,
+                type: 'balken' as const,
                 data: {
                     id: selectedElement,
                     opacity: balken.opacity ?? 1,

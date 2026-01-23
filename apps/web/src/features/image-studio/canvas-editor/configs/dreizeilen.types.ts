@@ -53,6 +53,7 @@ export interface DreizeilenFullState {
   imageAttribution?: StockImageAttribution | null;
   hasBackgroundImage: boolean;
   bgImageDimensions: { width: number; height: number } | null;
+  backgroundImageOpacity?: number;
 
   // === Icons & Shapes ===
   selectedIcons: string[];

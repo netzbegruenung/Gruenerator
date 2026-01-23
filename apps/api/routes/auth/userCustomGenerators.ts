@@ -53,7 +53,7 @@ async function generateUniqueSlug(baseSlug: string): Promise<string> {
     return slugBase;
   }
 
-  const slugSet = new Set(existingSlugs.map((r: { slug: string }) => r.slug));
+  const slugSet = new Set((existingSlugs as { slug: string }[]).map(r => r.slug));
   if (!slugSet.has(slugBase)) {
     return slugBase;
   }

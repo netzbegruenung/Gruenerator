@@ -111,14 +111,14 @@ router.post('/dry-run', requireAdmin as any, async (req: AdminRequest, res: Resp
         const results: Array<{
             grueneNetUser: {
                 id: string;
-                username: string;
-                email: string;
-                sherpa_id: string;
+                username: string | undefined;
+                email: string | undefined;
+                sherpa_id: string | undefined;
             };
             grueneratorUser: {
                 id: string;
-                email: string;
-                username: string;
+                email: string | undefined;
+                username: string | undefined;
             } | null;
             action: string;
         }> = [];

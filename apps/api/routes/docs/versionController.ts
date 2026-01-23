@@ -1,26 +1,57 @@
 import { Router, Request, Response } from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { PostgresPersistence } from '../../services/hocuspocus/persistence.js';
-import * as Y from 'yjs';
+
+/**
+ * Permission entry for a user on a document
+ */
+interface PermissionEntry {
+  level: 'owner' | 'editor' | 'viewer';
+  granted_at: string;
+  granted_by?: string;
+}
+
+/**
+ * Permissions object mapping user IDs to their permission entries
+ */
+interface DocumentPermissions {
+  [userId: string]: PermissionEntry;
+}
+
+/**
+ * Document row with permissions
+ */
+interface DocumentWithPermissions {
+  id: string;
+  created_by: string;
+  permissions: DocumentPermissions | null;
+  [key: string]: unknown;
+}
+
+/**
+ * Version row from yjs_document_snapshots
+ */
+interface VersionRow {
+  id: string;
+  version: number;
+  label: string | null;
+  is_auto_save: boolean;
+  created_at: string;
+  created_by: string;
+  created_by_name?: string;
+  [key: string]: unknown;
+}
 
 const router = Router();
 const db = getPostgresInstance();
 const persistence = new PostgresPersistence();
-
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email?: string;
-    display_name?: string;
-  };
-}
 
 /**
  * @route   GET /api/docs/:id/versions
  * @desc    List all versions for a document
  * @access  Private
  */
-router.get('/:id/versions', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id/versions', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -33,7 +64,7 @@ router.get('/:id/versions', async (req: AuthenticatedRequest, res: Response) => 
     const docResult = await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    );
+    ) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -63,7 +94,7 @@ router.get('/:id/versions', async (req: AuthenticatedRequest, res: Response) => 
        WHERE v.document_id = $1
        ORDER BY v.version DESC`,
       [id]
-    );
+    ) as VersionRow[];
 
     return res.json(versions);
   } catch (error: any) {
@@ -77,7 +108,7 @@ router.get('/:id/versions', async (req: AuthenticatedRequest, res: Response) => 
  * @desc    Create a manual snapshot/version
  * @access  Private
  */
-router.post('/:id/versions', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:id/versions', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { label } = req.body;
@@ -91,7 +122,7 @@ router.post('/:id/versions', async (req: AuthenticatedRequest, res: Response) =>
     const docResult = await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    );
+    ) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -137,7 +168,7 @@ router.post('/:id/versions', async (req: AuthenticatedRequest, res: Response) =>
  * @desc    Restore document to a specific version
  * @access  Private (owner/editor only)
  */
-router.post('/:id/versions/:versionNumber/restore', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:id/versions/:versionNumber/restore', async (req: Request, res: Response) => {
   try {
     const { id, versionNumber } = req.params;
     const userId = req.user?.id;
@@ -150,7 +181,7 @@ router.post('/:id/versions/:versionNumber/restore', async (req: AuthenticatedReq
     const docResult = await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    );
+    ) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -201,7 +232,7 @@ router.post('/:id/versions/:versionNumber/restore', async (req: AuthenticatedReq
  * @desc    Delete a specific version
  * @access  Private (owner only)
  */
-router.delete('/:id/versions/:versionNumber', async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id/versions/:versionNumber', async (req: Request, res: Response) => {
   try {
     const { id, versionNumber } = req.params;
     const userId = req.user?.id;
@@ -214,7 +245,7 @@ router.delete('/:id/versions/:versionNumber', async (req: AuthenticatedRequest, 
     const docResult = await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    );
+    ) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -232,7 +263,7 @@ router.delete('/:id/versions/:versionNumber', async (req: AuthenticatedRequest, 
     const result = await db.query(
       'DELETE FROM yjs_document_snapshots WHERE document_id = $1 AND version = $2 RETURNING id',
       [id, parseInt(versionNumber, 10)]
-    );
+    ) as Array<{ id: string }>;
 
     if (result.length === 0) {
       return res.status(404).json({ error: 'Version not found' });

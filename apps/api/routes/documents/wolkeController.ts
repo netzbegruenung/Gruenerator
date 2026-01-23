@@ -133,8 +133,8 @@ router.post('/auto-sync', async (req: DocumentRequest, res: Response): Promise<v
     const result = await wolkeSyncService.setAutoSync(userId, shareLinkId, folderPath, enabled);
 
     res.json({
-      success: true,
-      ...result
+      ...result,
+      success: true
     });
   } catch (error) {
     log.error('[POST /auto-sync] Error:', error);

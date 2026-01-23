@@ -104,7 +104,7 @@ try {
 }
 
 // Serialize user for session
-passport.serializeUser((user: UserWithSession, done) => {
+passport.serializeUser((user: Express.User, done) => {
   done(null, user);
 });
 
@@ -147,7 +147,7 @@ passport.deserializeUser(async (userData: any, done) => {
     }
 
     const user = await getUserById(userData);
-    done(null, user);
+    done(null, user as unknown as Express.User | null);
   } catch (error) {
     console.error('[Passport] Error deserializing user:', error);
     done(error as Error, null);
@@ -293,14 +293,14 @@ async function createProfileUser(profileData: ProfileData): Promise<UserWithSess
       keycloak_id: profileData.keycloak_id,
       username: profileData.username,
       display_name: profileData.name,
-      email: profileData.email || null,
+      email: profileData.email ?? undefined,
       locale: profileData.locale || 'de-DE',
       last_login: profileData.last_login,
       beta_features: {}
     };
 
     const profileService = getProfileService();
-    const profile = await profileService.createProfile(newProfileData);
+    const profile = await profileService.createProfile(newProfileData as Parameters<typeof profileService.createProfile>[0]);
 
     return profile as unknown as UserWithSession;
   } catch (error) {
@@ -322,7 +322,12 @@ async function updateUser(
     }
 
     const profileService = getProfileService();
-    const profile = await profileService.updateProfile(userId, updates);
+    // Convert null to undefined for email field to match ProfileUpdateData
+    const profileUpdates = {
+      ...updates,
+      email: updates.email ?? undefined
+    };
+    const profile = await profileService.updateProfile(userId, profileUpdates);
 
     return profile as unknown as UserWithSession;
   } catch (error) {
@@ -344,7 +349,12 @@ async function linkUser(
     }
 
     const profileService = getProfileService();
-    const profile = await profileService.updateProfile(userId, updates);
+    // Convert null to undefined for email field to match ProfileUpdateData
+    const profileUpdates = {
+      ...updates,
+      email: updates.email ?? undefined
+    };
+    const profile = await profileService.updateProfile(userId, profileUpdates);
 
     return profile as unknown as UserWithSession;
   } catch (error) {

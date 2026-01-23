@@ -1,5 +1,5 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
@@ -87,10 +87,10 @@ const config: Config = {
 
   themes: [
     [
-      require.resolve("@easyops-cn/docusaurus-search-local"),
+      require.resolve('@easyops-cn/docusaurus-search-local'),
       {
         hashed: true,
-        language: ["en", "de"],
+        language: ['en', 'de'],
         searchResultLimits: 5,
         searchResultContextMaxLength: 30,
         searchBarShortcutHint: false,
@@ -228,7 +228,7 @@ const config: Config = {
           items: [
             {
               label: 'Zum Grünerator',
-              href: 'https://gruenerator.de',
+              href: 'https://gruenerator.eu',
             },
             {
               label: 'GitHub',

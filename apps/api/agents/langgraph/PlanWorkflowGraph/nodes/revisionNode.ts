@@ -109,7 +109,7 @@ export async function revisionNode(state: PlanWorkflowState): Promise<RevisionNo
       }
     }, input.req);
 
-    const revisedPlan = aiResponse.content;
+    const revisedPlan = aiResponse.content ?? '';
     const changes = calculateDiff(planData.originalPlan, revisedPlan);
     const revisionTimeMs = Date.now() - startTime;
 

@@ -1,0 +1,70 @@
+.early-access-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-medium) var(--spacing-large);
+  background: linear-gradient(135deg, rgba(0, 92, 65, 0.1) 0%, rgba(255, 241, 122, 0.15) 100%);
+  border: 1px solid var(--klee);
+  border-radius: var(--card-border-radius-small);
+  margin-bottom: var(--spacing-large);
+}
+
+.early-access-banner__icon {
+  font-size: 1.5rem;
+  color: var(--klee);
+  flex-shrink: 0;
+}
+
+.early-access-banner__content {
+  flex: 1;
+}
+
+.early-access-banner__title {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--font-color);
+  margin: 0 0 var(--spacing-xxsmall) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+}
+
+.early-access-banner__text {
+  font-size: var(--font-size-xs);
+  color: var(--font-color-secondary);
+  margin: 0;
+}
+
+.early-access-banner__link {
+  flex-shrink: 0;
+  padding: var(--spacing-small) var(--spacing-medium);
+  background: var(--klee);
+  color: var(--white);
+  border-radius: var(--button-border-radius);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.early-access-banner__link:hover {
+  background: var(--primary-700);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .early-access-banner {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-small);
+  }
+
+  .early-access-banner__title {
+    justify-content: center;
+  }
+
+  .early-access-banner__link {
+    width: 100%;
+    text-align: center;
+  }
+}

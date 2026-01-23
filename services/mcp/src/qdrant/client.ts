@@ -1,16 +1,16 @@
-import { QdrantClient } from '@qdrant/js-client-rest';
-import { config } from '../config.ts';
-import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerator/shared/utils';
-
-// Import shared search algorithms
 import {
   applyReciprocalRankFusion,
   applyWeightedCombination,
   applyQualityGate,
-  calculateDynamicThreshold,
   calculateTextSearchScore,
   DEFAULT_HYBRID_CONFIG,
 } from '@gruenerator/shared/search/vector';
+import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerator/shared/utils';
+import { QdrantClient } from '@qdrant/js-client-rest';
+
+import { config } from '../config.ts';
+
+// Import shared search algorithms
 
 let client = null;
 
@@ -383,7 +383,7 @@ export async function getCollectionInfo(collectionName) {
  * Get unique values for a specific field in a collection
  * Used for filter discovery - returns all distinct values for a given field
  */
-export async function getUniqueFieldValues(collectionName, fieldName, limit = 100) {
+async function _getUniqueFieldValues(collectionName: string, fieldName: string, limit = 100) {
   const qdrant = await getQdrantClient();
 
   try {

@@ -184,7 +184,7 @@ export class MistralEmbeddingClient {
     // - Server errors (5xx)
     // - Temporary API errors
     // - Network errors
-    if (statusCode === 429 || (statusCode >= 500 && statusCode < 600)) {
+    if (statusCode !== undefined && (statusCode === 429 || (statusCode >= 500 && statusCode < 600))) {
       return true;
     }
 

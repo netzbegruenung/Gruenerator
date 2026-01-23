@@ -168,7 +168,9 @@ const RESPONSE_PARSERS = {
         'alternatives' in response &&
         Array.isArray((response as Record<string, unknown>).alternatives)) ||
         ('mainInfo' in response && 'alternatives' in response) ||
-        ('quote' in response)),
+        'mainSimple' in response ||
+        'mainEvent' in response ||
+        'quote' in response),
     extract: (response: Record<string, unknown>) => ({
       content: JSON.stringify(response),
       metadata: response,
@@ -249,8 +251,7 @@ const RESPONSE_PARSERS = {
       typeof response === 'object' &&
       response !== null &&
       'hasCorrections' in response &&
-      typeof (response as Record<string, unknown>).hasCorrections ===
-        'boolean',
+      typeof (response as Record<string, unknown>).hasCorrections === 'boolean',
     extract: (response: SubtitlesResponse) => ({
       content: JSON.stringify(response),
       metadata: response,
@@ -263,11 +264,7 @@ const RESPONSE_PARSERS = {
    */
   'text-adjustment': {
     validate: (response: unknown): response is TextAdjustmentResponse => {
-      if (
-        typeof response !== 'object' ||
-        response === null ||
-        !('suggestions' in response)
-      ) {
+      if (typeof response !== 'object' || response === null || !('suggestions' in response)) {
         return false;
       }
       const suggestions = (response as Record<string, unknown>).suggestions;
@@ -363,12 +360,8 @@ const RESPONSE_PARSERS = {
           typeof (field as Record<string, unknown>).required === 'boolean' &&
           ((field as Record<string, unknown>).type !== 'select' ||
             (Array.isArray((field as Record<string, unknown>).options) &&
-              (
-                (field as Record<string, unknown>).options as unknown[]
-              ).length > 0 &&
-              (
-                (field as Record<string, unknown>).options as unknown[]
-              ).every(
+              ((field as Record<string, unknown>).options as unknown[]).length > 0 &&
+              ((field as Record<string, unknown>).options as unknown[]).every(
                 (opt: unknown) =>
                   opt &&
                   typeof opt === 'object' &&
@@ -399,15 +392,11 @@ const RESPONSE_PARSERS = {
         const responseObj = response as Record<string, unknown>;
 
         // Try to extract content field
-        if (
-          'content' in responseObj &&
-          typeof responseObj.content === 'string'
-        ) {
+        if ('content' in responseObj && typeof responseObj.content === 'string') {
           return {
             content: responseObj.content,
             metadata:
-              'metadata' in responseObj &&
-              typeof responseObj.metadata === 'object'
+              'metadata' in responseObj && typeof responseObj.metadata === 'object'
                 ? (responseObj.metadata as Record<string, unknown>)
                 : undefined,
           };
@@ -472,9 +461,19 @@ const ENDPOINT_CATEGORIES: Record<string, EndpointCategory> = {
   '/dreizeilen_claude': 'claude-structured',
   dreizeilen_claude: 'claude-structured',
   info_claude: 'claude-structured',
+  '/info_claude': 'claude-structured',
   headline_claude: 'claude-structured',
+  '/headline_claude': 'claude-structured',
+  simple_claude: 'claude-structured',
+  '/simple_claude': 'claude-structured',
+  veranstaltung_claude: 'claude-structured',
+  '/veranstaltung_claude': 'claude-structured',
   zitat_claude: 'claude-structured',
+  '/zitat_claude': 'claude-structured',
+  zitat_pure_claude: 'claude-structured',
+  '/zitat_pure_claude': 'claude-structured',
   zitat_abyssale: 'claude-structured',
+  '/zitat_abyssale': 'claude-structured',
 
   // Etherpad
   etherpad: 'etherpad',
@@ -516,10 +515,7 @@ const ENDPOINT_CATEGORIES: Record<string, EndpointCategory> = {
  * }
  * ```
  */
-export function parseEndpointResponse(
-  response: unknown,
-  endpoint: string
-): ParsedResponse {
+export function parseEndpointResponse(response: unknown, endpoint: string): ParsedResponse {
   // Handle null/undefined response
   if (response === null || response === undefined) {
     return {
@@ -576,9 +572,10 @@ export function parseEndpointResponse(
       category,
       responseKeys: typeof response === 'object' ? Object.keys(response as object) : 'not-object',
       contentType: typeof responseObj?.content,
-      contentValue: typeof responseObj?.content === 'string'
-        ? responseObj.content.substring(0, 100) + '...'
-        : responseObj?.content,
+      contentValue:
+        typeof responseObj?.content === 'string'
+          ? responseObj.content.substring(0, 100) + '...'
+          : responseObj?.content,
     });
   }
 

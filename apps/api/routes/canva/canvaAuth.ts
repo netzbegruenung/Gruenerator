@@ -146,10 +146,11 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
 
 router.use('/authorize', (req: Request, res: Response, next: NextFunction) => {
   if (!CanvaTokenManager.validateConfiguration()) {
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Canva integration not properly configured'
     });
+    return;
   }
   next();
 });

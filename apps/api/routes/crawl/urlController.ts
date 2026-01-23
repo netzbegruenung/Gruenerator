@@ -121,7 +121,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response<CrawlResponse>)
 
         log.debug(`[crawl-url] Successfully crawled ${url}: ${result.data.wordCount} words, ${Date.now() - startTime}ms`);
 
-        res.json({
+        return res.json({
             success: true,
             attachment: crawledAttachment
         });
@@ -144,7 +144,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response<CrawlResponse>)
             userError = 'Nicht unterstützter Inhaltstyp. Nur HTML-Seiten werden unterstützt.';
         }
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             error: userError,
             details: process.env.NODE_ENV === 'development' ? err.message : undefined

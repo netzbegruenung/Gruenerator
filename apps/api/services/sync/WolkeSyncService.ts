@@ -169,13 +169,14 @@ export class WolkeSyncService {
       }
 
       // Filter for supported file types
-      const supportedFiles = shareInfo.files.filter((file: NextcloudFile) => {
+      const files = shareInfo.files ?? [];
+      const supportedFiles = files.filter((file) => {
         const fileExtension = path.extname(file.name.toLowerCase());
         return this.supportedFileTypes.includes(fileExtension);
       });
 
       console.log(`[WolkeSyncService] Found ${supportedFiles.length} supported files in folder`);
-      return supportedFiles;
+      return supportedFiles as NextcloudFile[];
     } catch (error: any) {
       console.error('[WolkeSyncService] Error listing folder contents:', error);
       throw error;

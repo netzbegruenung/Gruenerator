@@ -19,23 +19,32 @@ const maskedUrl = redisUrl?.replace(/:\/\/(.*:)?(.*)@/, '://<user>:<password>@')
 console.log(`Versuche Verbindung mit Redis: ${maskedUrl}`);
 
 // createClient verwendet automatisch TLS, wenn die URL mit rediss:// beginnt
+// IMPORTANT: Never return an Error from reconnectStrategy - this permanently closes the client.
+// Instead, always return a delay to keep reconnecting indefinitely.
 const client: RedisClient = createClient({
   url: redisUrl,
   socket: {
+    // TCP keep-alive prevents idle connections from being dropped by Docker/NAT
+    keepAlive: true,
+    connectTimeout: 10000, // 10 second connection timeout
     reconnectStrategy: (retries: number) => {
-      if (retries > 5) {
-        console.log('Maximale Anzahl an Redis-Wiederverbindungsversuchen erreicht. Stoppe Versuche.');
-        return new Error('Zu viele Wiederverbindungsversuche.');
+      // Log reconnection attempts, but less frequently after initial failures
+      if (retries <= 10 || retries % 10 === 0) {
+        console.log(`Redis reconnection attempt ${retries}...`);
       }
-      // Exponential backoff: wait 100ms, 200ms, 400ms, 800ms, 1600ms
-      return Math.min(retries * 100, 2000);
+      // Exponential backoff capped at 30 seconds to avoid overwhelming the server
+      // while still allowing recovery from extended outages
+      const delay = Math.min(retries * 500, 30000);
+      return delay;
     }
   }
 });
 
 client.on('error', (err) => console.error('Redis Client Fehler:', err.message));
 client.on('connect', () => console.log('Erfolgreich mit Redis verbunden'));
-client.on('reconnecting', (attempt) => console.log(`Verbinde neu mit Redis... Versuch ${attempt}`));
+client.on('reconnecting', () => console.log('Verbinde neu mit Redis...'));
+client.on('end', () => console.warn('Redis connection closed'));
+client.on('ready', () => console.log('Redis client ready'));
 
 // Connection promise for awaitable connection
 let connectPromise: Promise<void> | null = null;
@@ -56,6 +65,25 @@ export function ensureConnected(): Promise<void> {
 
 // Start connection immediately
 ensureConnected().catch(() => {});
+
+/**
+ * Check Redis health status
+ * Returns connection status and any error message
+ */
+export async function checkRedisHealth(): Promise<{ connected: boolean; error?: string }> {
+  try {
+    if (!client.isOpen) {
+      await ensureConnected();
+    }
+    await client.ping();
+    return { connected: true };
+  } catch (error) {
+    return {
+      connected: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
 
 // Exportiere den verbundenen Client für andere Module
 export default client;

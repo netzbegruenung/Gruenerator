@@ -172,14 +172,17 @@ router.post('/generate-from-prompt', requireAuth, async (req: AuthenticatedReque
       return;
     }
 
+    // Use type assertion to help TypeScript with closure-captured mutable variables
+    const response = capturedResponse as Record<string, unknown>;
+
     // Check for error status
-    if (capturedResponse._statusCode && capturedResponse._statusCode !== 200) {
-      res.status(capturedResponse._statusCode as number).json(capturedResponse);
+    if (response._statusCode && response._statusCode !== 200) {
+      res.status(response._statusCode as number).json(response);
       return;
     }
 
     // Transform the response based on type
-    const responseData = transformResponse(type, capturedResponse, userName);
+    const responseData = transformResponse(type, response, userName);
 
     // Auto-select image for types that require one
     let selectedImage: SelectedImage | null = null;

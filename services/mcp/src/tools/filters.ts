@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { config } from '../config.ts';
 import { getFieldValueCounts } from '../qdrant/client.ts';
 

@@ -86,8 +86,8 @@ router.get('/collections/:id/filters', async (req: Request, res: Response) => {
                     filters[field.field] = {
                         label: field.label,
                         type: fieldType,
-                        min,
-                        max
+                        min: min ?? undefined,
+                        max: max ?? undefined
                     };
                 } else {
                     const valuesWithCounts = await qdrant.getFieldValueCounts(
@@ -112,14 +112,14 @@ router.get('/collections/:id/filters', async (req: Request, res: Response) => {
             }
         }
 
-        res.json({
+        return res.json({
             collectionId,
             collectionName: systemConfig.name,
             filters
         });
     } catch (error) {
         log.error('[QA Filters] Error getting collection filters:', error);
-        res.status(500).json({ error: 'Failed to get collection filters' });
+        return res.status(500).json({ error: 'Failed to get collection filters' });
     }
 });
 
@@ -147,11 +147,11 @@ router.post('/multi/ask', requireAuth, async (req: NotebookRequest, res: Respons
             fastMode: fastMode || false
         });
 
-        res.json(result);
+        return res.json(result);
     } catch (error) {
         log.error('[QA Multi] Error:', error);
         const err = error as Error;
-        res.status(500).json({ error: err.message || 'Internal server error' });
+        return res.status(500).json({ error: err.message || 'Internal server error' });
     }
 });
 
@@ -205,11 +205,11 @@ router.post('/:id/ask', requireAuth, async (req: NotebookRequest, res: Response)
             log.error('[QA Interaction] Error logging usage:', logError);
         }
 
-        res.json(result);
+        return res.json(result);
     } catch (error) {
         log.error('[QA Interaction] Error in POST /:id/ask:', error);
         const err = error as Error;
-        res.status(500).json({ error: err.message || 'Internal server error' });
+        return res.status(500).json({ error: err.message || 'Internal server error' });
     }
 });
 
@@ -243,7 +243,7 @@ router.get('/public/:token', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Notebook collection not found' });
         }
 
-        res.json({
+        return res.json({
             collection: {
                 id: collection.id,
                 name: collection.name,
@@ -253,7 +253,7 @@ router.get('/public/:token', async (req: Request, res: Response) => {
         });
     } catch (error) {
         log.error('[QA Public] Error in GET /public/:token:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -318,7 +318,7 @@ router.post('/public/:token/ask', async (req: Request, res: Response) => {
             log.error('[QA Public] Error logging usage:', logError);
         }
 
-        res.json({
+        return res.json({
             ...result,
             metadata: {
                 ...result.metadata,
@@ -328,7 +328,7 @@ router.post('/public/:token/ask', async (req: Request, res: Response) => {
     } catch (error) {
         log.error('[QA Public] Error in POST /public/:token/ask:', error);
         const err = error as Error;
-        res.status(500).json({ error: err.message || 'Internal server error' });
+        return res.status(500).json({ error: err.message || 'Internal server error' });
     }
 });
 

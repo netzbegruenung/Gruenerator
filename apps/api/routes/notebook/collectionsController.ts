@@ -139,13 +139,13 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
 
         log.debug('[Notebook Collections] GET / - Transformed data:', transformedData);
 
-        res.json({
+        return res.json({
             success: true,
             collections: transformedData
         });
     } catch (error) {
         log.error('[Notebook Collections] Error in GET /:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -232,7 +232,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
             return res.status(500).json({ error: 'Failed to add documents to collection' });
         }
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             collection: {
                 id: collectionId,
@@ -246,7 +246,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         });
     } catch (error) {
         log.error('[Notebook Collections] Error in POST /:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -344,7 +344,7 @@ router.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response)
 
         await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
 
-        res.json({
+        return res.json({
             success: true,
             message: `Notebook collection updated successfully with ${allDocumentIds.length} document(s)`,
             documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
@@ -352,7 +352,7 @@ router.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response)
         });
     } catch (error) {
         log.error('[Notebook Collections] Error in PUT /:id:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -421,7 +421,7 @@ router.post('/:id/sync', requireAuth, async (req: AuthenticatedRequest, res: Res
         });
     } catch (error) {
         log.error('[Notebook Collections] Error in POST /:id/sync:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -441,13 +441,13 @@ router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Respon
 
         await notebookHelper.deleteNotebookCollection(collectionId);
 
-        res.json({
+        return res.json({
             success: true,
             message: 'Notebook collection deleted successfully'
         });
     } catch (error) {
         log.error('[Notebook Collections] Error in DELETE /:id:', error);
-        res.status(500).json({ error: 'Failed to delete Notebook collection' });
+        return res.status(500).json({ error: 'Failed to delete Notebook collection' });
     }
 });
 
@@ -468,7 +468,7 @@ router.post('/:id/share', requireAuth, async (req: AuthenticatedRequest, res: Re
         const result = await notebookHelper.createPublicAccess(collectionId, userId);
         const publicUrl = `${process.env.BASE_URL}/notebook/public/${result.access_token}`;
 
-        res.json({
+        return res.json({
             success: true,
             public_url: publicUrl,
             access_token: result.access_token,
@@ -476,7 +476,7 @@ router.post('/:id/share', requireAuth, async (req: AuthenticatedRequest, res: Re
         });
     } catch (error) {
         log.error('[Notebook Collections] Error in POST /:id/share:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -496,13 +496,13 @@ router.delete('/:id/share', requireAuth, async (req: AuthenticatedRequest, res: 
 
         await notebookHelper.revokePublicAccess(collectionId);
 
-        res.json({
+        return res.json({
             success: true,
             message: 'Public access revoked successfully'
         });
     } catch (error) {
         log.error('[Notebook Collections] Error in DELETE /:id/share:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -538,7 +538,7 @@ router.delete('/bulk', requireAuth, async (req: AuthenticatedRequest, res: Respo
 
         log.debug(`[Notebook Collections] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
 
-        res.json({
+        return res.json({
             success: true,
             message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} Notebook collections deleted successfully`,
             deleted_count: deletedIds.length,
@@ -549,7 +549,7 @@ router.delete('/bulk', requireAuth, async (req: AuthenticatedRequest, res: Respo
     } catch (error) {
         log.error('[Notebook Collections] Error in bulk delete:', error);
         const err = error as Error;
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: err.message || 'Failed to perform bulk delete of Notebook collections'
         });

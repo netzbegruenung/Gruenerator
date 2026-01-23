@@ -223,11 +223,11 @@ export async function processEditIntent(
 ): Promise<EditResponse> {
   log.debug('[EditIntentService] Processing edit intent for user:', userId);
 
-  let context = editContext;
+  let context: EditContext | undefined = editContext;
 
   if (!context || !context.sourceText || !context.instruction) {
     log.debug('[EditIntentService] No editContext provided, extracting with AI');
-    context = await extractEditPartsWithAI(message, aiWorkerPool);
+    context = (await extractEditPartsWithAI(message, aiWorkerPool)) ?? undefined;
   }
 
   if (!context) {

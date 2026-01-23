@@ -377,7 +377,7 @@ export function buildRequestContent(config: PromptConfig, requestData: any, gene
   if (config.types) {
     const type = requestData.type || requestData.sharepicType || 'dreizeilen';
     const typeConfig = config.types[type];
-    if (typeConfig) {
+    if (typeConfig?.requestTemplate) {
       return SimpleTemplateEngine.render(typeConfig.requestTemplate, {
         ...requestData,
         config
@@ -386,6 +386,9 @@ export function buildRequestContent(config: PromptConfig, requestData: any, gene
   }
 
   // Standard template rendering
+  if (!config.requestTemplate) {
+    return requestData;
+  }
   return SimpleTemplateEngine.render(config.requestTemplate, {
     ...requestData,
     config
@@ -399,7 +402,7 @@ export function buildRequestContent(config: PromptConfig, requestData: any, gene
  * @returns Web search query or null
  */
 export function buildWebSearchQuery(config: PromptConfig, requestData: any): string | null {
-  if (!config.features?.webSearch || !requestData.useWebSearchTool) {
+  if (!config.features?.webSearch || !requestData.useWebSearchTool || !config.webSearchQuery) {
     return null;
   }
 
@@ -630,10 +633,10 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     await applyProfileDefaults(requestData, req, routeType);
 
     // Handle custom_generator special case
-    let generatorData = null;
+    let generatorData: any = null;
     if (config.features?.customPromptFromDb) {
       generatorData = await loadCustomGeneratorPrompt(requestData.slug);
-      console.log(`[promptProcessor] Loaded generator: ${generatorData.name}`);
+      console.log(`[promptProcessor] Loaded generator: ${generatorData?.name ?? 'unknown'}`);
     }
 
     // Build system role
@@ -772,7 +775,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
             })) || [],
             docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
             vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
-            webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false
+            webSearchUsed: (enrichedState.enrichmentMetadata?.webSearchSources?.length ?? 0) > 0
           },
           timestamp: Date.now()
         };
@@ -793,7 +796,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       documentsProcessed: enrichedState.documents?.length || 0,
       docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
       vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
-      webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false,
+      webSearchUsed: (enrichedState.enrichmentMetadata?.webSearchSources?.length ?? 0) > 0,
       autoSearchUsed: enrichedState.enrichmentMetadata?.autoSearchUsed || false,
       autoSelectedDocuments: enrichedState.enrichmentMetadata?.autoSelectedDocuments || [],
       notebookEnrichUsed: enrichedState.enrichmentMetadata?.notebookEnrichUsed || false,
