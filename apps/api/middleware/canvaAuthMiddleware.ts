@@ -14,7 +14,11 @@ import { CanvaRequest, CanvaRateLimitOptions } from './types.js';
  * Middleware to ensure user has a valid Canva connection
  * Automatically handles token refresh if needed
  */
-async function requireCanvaConnection(req: CanvaRequest, res: Response, next: NextFunction): Promise<void> {
+async function requireCanvaConnection(
+  req: CanvaRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     console.log(`[CanvaAuthMiddleware] Checking Canva connection for user: ${req.user?.id}`);
 
@@ -23,7 +27,7 @@ async function requireCanvaConnection(req: CanvaRequest, res: Response, next: Ne
       res.status(401).json({
         success: false,
         error: 'User authentication required',
-        message: 'Please log in to access Canva features'
+        message: 'Please log in to access Canva features',
       });
       return;
     }
@@ -38,7 +42,7 @@ async function requireCanvaConnection(req: CanvaRequest, res: Response, next: Ne
         error: 'Canva account not connected',
         message: 'Please connect your Canva account to use this feature',
         reconnect_required: true,
-        auth_url: '/api/canva/auth/authorize'
+        auth_url: '/api/canva/auth/authorize',
       });
       return;
     }
@@ -49,14 +53,13 @@ async function requireCanvaConnection(req: CanvaRequest, res: Response, next: Ne
 
     console.log(`[CanvaAuthMiddleware] Canva connection validated for user: ${req.user.id}`);
     next();
-
   } catch (error) {
     console.error('[CanvaAuthMiddleware] Error checking Canva connection:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to verify Canva connection',
       details: (error as Error).message,
-      reconnect_required: true
+      reconnect_required: true,
     });
   }
 }
@@ -65,7 +68,11 @@ async function requireCanvaConnection(req: CanvaRequest, res: Response, next: Ne
  * Middleware to check if user has Canva connection (non-blocking)
  * Sets req.hasCanvaConnection flag without blocking the request
  */
-async function checkCanvaConnection(req: CanvaRequest, res: Response, next: NextFunction): Promise<void> {
+async function checkCanvaConnection(
+  req: CanvaRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     if (!req.user || !req.user.id) {
       req.hasCanvaConnection = false;
@@ -73,7 +80,9 @@ async function checkCanvaConnection(req: CanvaRequest, res: Response, next: Next
       return next();
     }
 
-    console.log(`[CanvaAuthMiddleware] Checking optional Canva connection for user: ${req.user.id}`);
+    console.log(
+      `[CanvaAuthMiddleware] Checking optional Canva connection for user: ${req.user.id}`
+    );
 
     const accessToken = await CanvaTokenManager.getValidAccessToken(req.user.id);
 
@@ -81,7 +90,9 @@ async function checkCanvaConnection(req: CanvaRequest, res: Response, next: Next
       req.hasCanvaConnection = true;
       req.canvaClient = CanvaApiClient.forUser(accessToken);
       req.canvaAccessToken = accessToken;
-      console.log(`[CanvaAuthMiddleware] Optional Canva connection available for user: ${req.user.id}`);
+      console.log(
+        `[CanvaAuthMiddleware] Optional Canva connection available for user: ${req.user.id}`
+      );
     } else {
       req.hasCanvaConnection = false;
       req.canvaClient = null;
@@ -89,7 +100,6 @@ async function checkCanvaConnection(req: CanvaRequest, res: Response, next: Next
     }
 
     next();
-
   } catch (error) {
     console.error('[CanvaAuthMiddleware] Error in optional Canva check:', error);
     // Don't block the request for optional checks
@@ -106,7 +116,10 @@ async function checkCanvaConnection(req: CanvaRequest, res: Response, next: Next
 function requireCanvaScopes(requiredScopes: string[]) {
   return async (req: CanvaRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      console.log(`[CanvaAuthMiddleware] Checking scopes for user: ${req.user?.id}`, requiredScopes);
+      console.log(
+        `[CanvaAuthMiddleware] Checking scopes for user: ${req.user?.id}`,
+        requiredScopes
+      );
 
       // Ensure user has Canva connection first
       if (!req.canvaClient) {
@@ -114,7 +127,7 @@ function requireCanvaScopes(requiredScopes: string[]) {
           success: false,
           error: 'Canva account not connected',
           message: 'Please connect your Canva account first',
-          reconnect_required: true
+          reconnect_required: true,
         });
         return;
       }
@@ -129,30 +142,33 @@ function requireCanvaScopes(requiredScopes: string[]) {
       }
 
       const userScopes = ((profile as any).canva_scopes as string[]) || [];
-      const missingScopes = requiredScopes.filter(scope => !userScopes.includes(scope));
+      const missingScopes = requiredScopes.filter((scope) => !userScopes.includes(scope));
 
       if (missingScopes.length > 0) {
-        console.log(`[CanvaAuthMiddleware] Missing scopes for user ${req.user!.id}:`, missingScopes);
+        console.log(
+          `[CanvaAuthMiddleware] Missing scopes for user ${req.user!.id}:`,
+          missingScopes
+        );
         res.status(403).json({
           success: false,
           error: 'Insufficient Canva permissions',
-          message: 'Your Canva connection does not have the required permissions for this operation',
+          message:
+            'Your Canva connection does not have the required permissions for this operation',
           missing_scopes: missingScopes,
           reconnect_required: true,
-          reconnect_message: 'Please reconnect your Canva account with additional permissions'
+          reconnect_message: 'Please reconnect your Canva account with additional permissions',
         });
         return;
       }
 
       console.log(`[CanvaAuthMiddleware] All required scopes available for user: ${req.user!.id}`);
       next();
-
     } catch (error) {
       console.error('[CanvaAuthMiddleware] Error checking scopes:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to verify Canva permissions',
-        details: (error as Error).message
+        details: (error as Error).message,
       });
     }
   };
@@ -164,7 +180,7 @@ function requireCanvaScopes(requiredScopes: string[]) {
 function handleCanvaErrors(req: CanvaRequest, res: Response, next: NextFunction): void {
   const originalSend = res.send.bind(res);
 
-  res.send = function(data: any) {
+  res.send = function (data: any) {
     // Parse response if it's JSON
     let responseData: any;
     try {
@@ -177,16 +193,18 @@ function handleCanvaErrors(req: CanvaRequest, res: Response, next: NextFunction)
     if (responseData && responseData.error) {
       const errorMessage = responseData.error.toLowerCase();
 
-      if (errorMessage.includes('unauthorized') ||
-          errorMessage.includes('invalid_token') ||
-          errorMessage.includes('token_expired')) {
-
+      if (
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('invalid_token') ||
+        errorMessage.includes('token_expired')
+      ) {
         console.log(`[CanvaAuthMiddleware] Detected token error for user: ${req.user?.id}`);
 
         // Clear invalid tokens in background
         if (req.user?.id) {
-          CanvaTokenManager.clearTokens(req.user.id)
-            .catch(error => console.error('[CanvaAuthMiddleware] Error clearing invalid tokens:', error));
+          CanvaTokenManager.clearTokens(req.user.id).catch((error) =>
+            console.error('[CanvaAuthMiddleware] Error clearing invalid tokens:', error)
+          );
         }
 
         // Modify response to indicate reconnection needed
@@ -216,11 +234,11 @@ async function addCanvaStatus(req: CanvaRequest, res: Response, next: NextFuncti
 
       // Add to API responses
       const originalJson = res.json.bind(res);
-      res.json = function(data: any) {
+      res.json = function (data: any) {
         if (data && typeof data === 'object') {
           data.canva_status = {
             connected: hasConnection,
-            features_available: hasConnection
+            features_available: hasConnection,
           };
         }
         return originalJson(data);
@@ -228,7 +246,6 @@ async function addCanvaStatus(req: CanvaRequest, res: Response, next: NextFuncti
     }
 
     next();
-
   } catch (error) {
     console.error('[CanvaAuthMiddleware] Error adding Canva status:', error);
     // Don't block request for status addition errors
@@ -244,7 +261,7 @@ function canvaRateLimit(options: CanvaRateLimitOptions = {}) {
   const {
     maxRequests = 100,
     windowMs = 60000, // 1 minute
-    skipSuccessfulGets = true
+    skipSuccessfulGets = true,
   } = options;
 
   const userRequests = new Map<string, number[]>();
@@ -264,7 +281,7 @@ function canvaRateLimit(options: CanvaRateLimitOptions = {}) {
     }
 
     const requests = userRequests.get(userId)!;
-    const recentRequests = requests.filter(timestamp => timestamp > windowStart);
+    const recentRequests = requests.filter((timestamp) => timestamp > windowStart);
 
     // Skip rate limiting for successful GET requests if configured
     if (skipSuccessfulGets && req.method === 'GET') {
@@ -279,7 +296,7 @@ function canvaRateLimit(options: CanvaRateLimitOptions = {}) {
         success: false,
         error: 'Rate limit exceeded',
         message: 'Too many Canva API requests. Please try again later.',
-        retry_after: Math.ceil(windowMs / 1000)
+        retry_after: Math.ceil(windowMs / 1000),
       });
       return;
     }
@@ -291,4 +308,11 @@ function canvaRateLimit(options: CanvaRateLimitOptions = {}) {
   };
 }
 
-export { requireCanvaConnection, checkCanvaConnection, requireCanvaScopes, handleCanvaErrors, addCanvaStatus, canvaRateLimit };
+export {
+  requireCanvaConnection,
+  checkCanvaConnection,
+  requireCanvaScopes,
+  handleCanvaErrors,
+  addCanvaStatus,
+  canvaRateLimit,
+};

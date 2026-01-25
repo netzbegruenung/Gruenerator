@@ -34,9 +34,7 @@ export function ColorOptionGrid<T extends string = string>({
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
 
       <View style={styles.optionsRow}>
         {options.map((option) => {

@@ -10,7 +10,7 @@ import type {
   UnsplashParsedFilename,
   UnsplashUrls,
   UnsplashAttribution,
-  ImageWithAttribution
+  ImageWithAttribution,
 } from './types.js';
 import { buildUnsplashUrls as buildUrlsWithUTM } from '../../utils/unsplashUtils.js';
 
@@ -101,7 +101,7 @@ export class UnsplashAttributionService {
       profileUrl: urls.profileUrl,
       photoUrl: urls.photoUrl,
       license: 'Unsplash License',
-      downloadLocation: `https://api.unsplash.com/photos/${photoId}/download?client_id=${process.env.UNSPLASH_ACCESS_KEY || 'demo'}`
+      downloadLocation: `https://api.unsplash.com/photos/${photoId}/download?client_id=${process.env.UNSPLASH_ACCESS_KEY || 'demo'}`,
     };
   }
 
@@ -117,8 +117,8 @@ export class UnsplashAttributionService {
       path: `/api/image-picker/stock-image/${image.filename}`,
       attribution: attribution || {
         photographer: 'Unknown',
-        license: 'Unknown'
-      }
+        license: 'Unknown',
+      },
     };
   }
 }

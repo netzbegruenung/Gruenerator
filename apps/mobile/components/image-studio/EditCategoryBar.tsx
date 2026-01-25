@@ -12,10 +12,7 @@ interface EditCategoryBarProps {
   onSelectCategory: (category: EditCategory) => void;
 }
 
-export function EditCategoryBar({
-  categories,
-  onSelectCategory,
-}: EditCategoryBarProps) {
+export function EditCategoryBar({ categories, onSelectCategory }: EditCategoryBarProps) {
   // Convert editSheetConfig CategoryConfig to shared CategoryConfig
   const sharedCategories: SharedCategoryConfig<EditCategory>[] = categories.map((c) => ({
     id: c.id,
@@ -23,10 +20,5 @@ export function EditCategoryBar({
     icon: c.icon as SharedCategoryConfig<EditCategory>['icon'],
   }));
 
-  return (
-    <CategoryBar
-      categories={sharedCategories}
-      onSelectCategory={onSelectCategory}
-    />
-  );
+  return <CategoryBar categories={sharedCategories} onSelectCategory={onSelectCategory} />;
 }

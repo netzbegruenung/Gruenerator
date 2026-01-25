@@ -73,7 +73,7 @@ export function useFormStateSyncing(params: UseFormStateSyncingParams): void {
     setStoreAttachedFiles,
     setStoreUploadedImage,
     handleFormError,
-    setError
+    setError,
   } = params;
 
   // Sync loading
@@ -102,14 +102,20 @@ export function useFormStateSyncing(params: UseFormStateSyncingParams): void {
 
   // Sync web search toggle
   useEffect(() => {
-    if (useWebSearchFeatureToggle !== undefined && useWebSearchFeatureToggle !== storeWebSearchConfig.enabled) {
+    if (
+      useWebSearchFeatureToggle !== undefined &&
+      useWebSearchFeatureToggle !== storeWebSearchConfig.enabled
+    ) {
       setStoreWebSearchEnabled(useWebSearchFeatureToggle);
     }
   }, [useWebSearchFeatureToggle, storeWebSearchConfig.enabled, setStoreWebSearchEnabled]);
 
   // Sync privacy mode toggle
   useEffect(() => {
-    if (usePrivacyModeToggle !== undefined && usePrivacyModeToggle !== storePrivacyModeConfig.enabled) {
+    if (
+      usePrivacyModeToggle !== undefined &&
+      usePrivacyModeToggle !== storePrivacyModeConfig.enabled
+    ) {
       setStorePrivacyModeEnabled(usePrivacyModeToggle);
     }
   }, [usePrivacyModeToggle, storePrivacyModeConfig.enabled, setStorePrivacyModeEnabled]);

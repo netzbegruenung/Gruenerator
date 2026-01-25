@@ -1,5 +1,5 @@
-import React from 'react';
 import { motion } from 'motion/react';
+import React from 'react';
 import { HiPencil } from 'react-icons/hi';
 
 interface FormToggleButtonFABProps {
@@ -15,7 +15,7 @@ export const FormToggleButtonFAB = React.memo<FormToggleButtonFABProps>(({ onCli
     exit={{ scale: 0, y: 50, opacity: 0 }}
     whileHover={{ scale: 1.1, backgroundColor: 'var(--klee)' }}
     whileTap={{ scale: 0.95 }}
-    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
     aria-label="Formular anzeigen"
   >
     <HiPencil size="24" />

@@ -1,13 +1,13 @@
 // browser-image-compression will be dynamically imported when needed
 
 const COMPRESSION_OPTIONS = {
-  maxSizeMB: 0.8,              // Slightly more aggressive compression
-  maxWidthOrHeight: 1920,      // maximale Breite/Höhe
-  useWebWorker: true,          // nutzt Web Worker für bessere Performance
-  preserveExif: false,         // Remove EXIF for smaller files (was true)
-  initialQuality: 0.85,        // Slightly higher quality
+  maxSizeMB: 0.8, // Slightly more aggressive compression
+  maxWidthOrHeight: 1920, // maximale Breite/Höhe
+  useWebWorker: true, // nutzt Web Worker für bessere Performance
+  preserveExif: false, // Remove EXIF for smaller files (was true)
+  initialQuality: 0.85, // Slightly higher quality
   alwaysKeepResolution: false, // erlaubt Größenänderung wenn nötig
-  fileType: 'image/webp'       // Use WebP format for better compression
+  fileType: 'image/webp', // Use WebP format for better compression
 };
 
 /**
@@ -58,7 +58,7 @@ export const compressImage = async (imageFile: File, customOptions: CompressionO
 
     console.log('Starte Bildkomprimierung:', {
       originalSize: `${(imageFile.size / (1024 * 1024)).toFixed(2)}MB`,
-      type: imageFile.type
+      type: imageFile.type,
     });
 
     // Use WebP if supported, otherwise fall back to original format
@@ -66,7 +66,7 @@ export const compressImage = async (imageFile: File, customOptions: CompressionO
     const options = {
       ...COMPRESSION_OPTIONS,
       ...(useWebP ? {} : { fileType: imageFile.type }), // Keep original format if WebP not supported
-      ...customOptions
+      ...customOptions,
     };
 
     const imageCompression = (await import('browser-image-compression')).default;
@@ -76,7 +76,7 @@ export const compressImage = async (imageFile: File, customOptions: CompressionO
       originalSize: `${(imageFile.size / (1024 * 1024)).toFixed(2)}MB`,
       compressedSize: `${(compressedFile.size / (1024 * 1024)).toFixed(2)}MB`,
       compressionRatio: `${((1 - compressedFile.size / imageFile.size) * 100).toFixed(1)}%`,
-      format: compressedFile.type
+      format: compressedFile.type,
     });
 
     return compressedFile;

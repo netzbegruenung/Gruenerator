@@ -1,6 +1,7 @@
 import React from 'react';
-import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
+
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
+import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 
 interface UniversalEditFormProps {
@@ -9,10 +10,7 @@ interface UniversalEditFormProps {
 }
 
 const UniversalEditForm = ({ loading = false, formErrors = {} }: UniversalEditFormProps) => {
-  const {
-    precisionInstruction,
-    setPrecisionInstruction
-  } = useImageStudioStore();
+  const { precisionInstruction, setPrecisionInstruction } = useImageStudioStore();
 
   const hasError = formErrors.precisionInstruction;
 
@@ -27,7 +25,9 @@ const UniversalEditForm = ({ loading = false, formErrors = {} }: UniversalEditFo
         <TextAreaInput
           id="universal-instruction"
           value={precisionInstruction}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPrecisionInstruction(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setPrecisionInstruction(e.target.value)
+          }
           placeholder="z.B.: 'Ersetze den Himmel durch einen Sonnenuntergang, füge Wolken hinzu, mache das Gras grüner...'"
           rows={6}
           maxLength={500}
@@ -35,17 +35,17 @@ const UniversalEditForm = ({ loading = false, formErrors = {} }: UniversalEditFo
           className={hasError ? 'error-input' : ''}
         />
       </FormFieldWrapper>
-      {hasError && (
-        <span className="error-message">{formErrors.precisionInstruction}</span>
-      )}
+      {hasError && <span className="error-message">{formErrors.precisionInstruction}</span>}
       {!hasError && precisionInstruction.length >= 450 && (
-        <div style={{
-          fontSize: 'var(--font-size-small)',
-          color: 'var(--font-color)',
-          opacity: 0.6,
-          textAlign: 'right',
-          marginTop: 'var(--spacing-xsmall)'
-        }}>
+        <div
+          style={{
+            fontSize: 'var(--font-size-small)',
+            color: 'var(--font-color)',
+            opacity: 0.6,
+            textAlign: 'right',
+            marginTop: 'var(--spacing-xsmall)',
+          }}
+        >
           {precisionInstruction.length}/500 Zeichen
         </div>
       )}

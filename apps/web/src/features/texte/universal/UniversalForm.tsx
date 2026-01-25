@@ -1,7 +1,8 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { useForm, Control } from 'react-hook-form';
-import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
+import { useForm, type Control } from 'react-hook-form';
+
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
+import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 
 interface UniversalFormProps {
   tabIndex?: {
@@ -17,21 +18,17 @@ interface UniversalFormRef {
 }
 
 const UniversalForm = forwardRef<UniversalFormRef, UniversalFormProps>(({ tabIndex = {} }, ref) => {
-  const {
-    control,
-    getValues,
-    reset
-  } = useForm({
+  const { control, getValues, reset } = useForm({
     defaultValues: {
       textForm: '',
       inhalt: '',
-      usePrivacyMode: false
-    }
+      usePrivacyMode: false,
+    },
   });
 
   useImperativeHandle(ref, () => ({
     getFormData: () => getValues(),
-    resetForm: (data) => reset(data)
+    resetForm: (data) => reset(data),
   }));
 
   return (

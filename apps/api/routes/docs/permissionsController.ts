@@ -57,10 +57,10 @@ router.get('/:id/permissions', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const docResult = await db.query(
+    const docResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -69,8 +69,7 @@ router.get('/:id/permissions', async (req: Request, res: Response) => {
     const document = docResult[0];
 
     const hasAccess =
-      document.created_by === userId ||
-      (document.permissions && document.permissions[userId]);
+      document.created_by === userId || (document.permissions && document.permissions[userId]);
 
     if (!hasAccess) {
       return res.status(403).json({ error: 'Access denied' });
@@ -83,12 +82,12 @@ router.get('/:id/permissions', async (req: Request, res: Response) => {
       return res.json([]);
     }
 
-    const profilesResult = await db.query(
+    const profilesResult = (await db.query(
       'SELECT id, display_name, email, avatar_url FROM profiles WHERE id = ANY($1)',
       [userIds]
-    ) as ProfileRow[];
+    )) as ProfileRow[];
 
-    const permissionsList = profilesResult.map(profile => {
+    const permissionsList = profilesResult.map((profile) => {
       const odId = profile.id;
       return {
         user_id: profile.id,
@@ -127,13 +126,15 @@ router.post('/:id/permissions', async (req: Request, res: Response) => {
     }
 
     if (!['owner', 'editor', 'viewer'].includes(permission_level)) {
-      return res.status(400).json({ error: 'Invalid permission level. Must be owner, editor, or viewer' });
+      return res
+        .status(400)
+        .json({ error: 'Invalid permission level. Must be owner, editor, or viewer' });
     }
 
-    const docResult = await db.query(
+    const docResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -141,13 +142,16 @@ router.post('/:id/permissions', async (req: Request, res: Response) => {
 
     const document = docResult[0];
     const userPermission = document.permissions?.[userId];
-    const isOwner = document.created_by === userId || (userPermission && userPermission.level === 'owner');
+    const isOwner =
+      document.created_by === userId || (userPermission && userPermission.level === 'owner');
 
     if (!isOwner) {
       return res.status(403).json({ error: 'Only owners can manage permissions' });
     }
 
-    const userExists = await db.query('SELECT id FROM profiles WHERE id = $1', [user_id]) as ProfileRow[];
+    const userExists = (await db.query('SELECT id FROM profiles WHERE id = $1', [
+      user_id,
+    ])) as ProfileRow[];
     if (userExists.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -156,7 +160,7 @@ router.post('/:id/permissions', async (req: Request, res: Response) => {
     permissions[user_id] = {
       level: permission_level,
       granted_at: new Date().toISOString(),
-      granted_by: userId
+      granted_by: userId,
     };
 
     await db.query(
@@ -167,7 +171,7 @@ router.post('/:id/permissions', async (req: Request, res: Response) => {
     return res.json({
       message: 'Permission granted successfully',
       user_id,
-      permission_level
+      permission_level,
     });
   } catch (error: any) {
     console.error('[Docs] Error granting permission:', error);
@@ -198,10 +202,10 @@ router.put('/:id/permissions/:targetUserId', async (req: Request, res: Response)
       return res.status(400).json({ error: 'Invalid permission level' });
     }
 
-    const docResult = await db.query(
+    const docResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -209,7 +213,8 @@ router.put('/:id/permissions/:targetUserId', async (req: Request, res: Response)
 
     const document = docResult[0];
     const userPermission = document.permissions?.[userId];
-    const isOwner = document.created_by === userId || (userPermission && userPermission.level === 'owner');
+    const isOwner =
+      document.created_by === userId || (userPermission && userPermission.level === 'owner');
 
     if (!isOwner) {
       return res.status(403).json({ error: 'Only owners can manage permissions' });
@@ -225,7 +230,7 @@ router.put('/:id/permissions/:targetUserId', async (req: Request, res: Response)
       ...permissions[targetUserId],
       level: permission_level,
       updated_at: new Date().toISOString(),
-      updated_by: userId
+      updated_by: userId,
     };
 
     await db.query(
@@ -236,7 +241,7 @@ router.put('/:id/permissions/:targetUserId', async (req: Request, res: Response)
     return res.json({
       message: 'Permission updated successfully',
       user_id: targetUserId,
-      permission_level
+      permission_level,
     });
   } catch (error: any) {
     console.error('[Docs] Error updating permission:', error);
@@ -258,10 +263,10 @@ router.delete('/:id/permissions/:targetUserId', async (req: Request, res: Respon
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const docResult = await db.query(
+    const docResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -269,7 +274,8 @@ router.delete('/:id/permissions/:targetUserId', async (req: Request, res: Respon
 
     const document = docResult[0];
     const userPermission = document.permissions?.[userId];
-    const isOwner = document.created_by === userId || (userPermission && userPermission.level === 'owner');
+    const isOwner =
+      document.created_by === userId || (userPermission && userPermission.level === 'owner');
 
     if (!isOwner) {
       return res.status(403).json({ error: 'Only owners can manage permissions' });

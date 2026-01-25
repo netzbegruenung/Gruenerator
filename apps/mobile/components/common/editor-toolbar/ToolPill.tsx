@@ -77,17 +77,8 @@ export function ToolPill({
       onPressOut={handlePressOut}
       disabled={disabled}
     >
-      <Ionicons
-        name={icon}
-        size={18}
-        color={isActive ? colors.primary[700] : colors.grey[600]}
-      />
-      <Text
-        style={[
-          styles.label,
-          { color: isActive ? colors.primary[700] : colors.grey[600] },
-        ]}
-      >
+      <Ionicons name={icon} size={18} color={isActive ? colors.primary[700] : colors.grey[600]} />
+      <Text style={[styles.label, { color: isActive ? colors.primary[700] : colors.grey[600] }]}>
         {label}
       </Text>
       {badge !== undefined && badge > 0 && (

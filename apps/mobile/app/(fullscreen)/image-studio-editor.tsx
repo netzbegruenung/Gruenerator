@@ -25,7 +25,10 @@ import {
   EditCategoryModal,
   type EditCategoryModalRef,
 } from '../../components/image-studio/EditCategoryModal';
-import { InlineEditBar, type InlineEditCategory } from '../../components/image-studio/InlineEditBar';
+import {
+  InlineEditBar,
+  type InlineEditCategory,
+} from '../../components/image-studio/InlineEditBar';
 import { useImageStudioStore } from '../../stores/imageStudioStore';
 import { useEditRegeneration } from '../../hooks/useEditRegeneration';
 import {
@@ -121,11 +124,7 @@ export default function FullscreenImageStudioEditor() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: imageUri }}
-          style={styles.image}
-          resizeMode="contain"
-        />
+        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="contain" />
         {isRegenerating && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={colors.white} />
@@ -148,10 +147,7 @@ export default function FullscreenImageStudioEditor() {
           disabled={isRegenerating}
         />
       ) : (
-        <EditCategoryBar
-          categories={categories}
-          onSelectCategory={handleSelectCategory}
-        />
+        <EditCategoryBar categories={categories} onSelectCategory={handleSelectCategory} />
       )}
 
       <EditCategoryModal

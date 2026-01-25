@@ -1,8 +1,10 @@
-import { JSX, useState, useRef, useEffect, useCallback, CSSProperties } from 'react';
+import { type JSX, useState, useRef, useEffect, useCallback, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
 import { HiChevronDown, HiGlobe } from 'react-icons/hi';
+import { Link } from 'react-router-dom';
+
 import { NotebookIcon } from '../../config/icons';
+
 import GrueneratorGPTIcon from './GrueneratorGPTIcon';
 import '../../assets/styles/components/ui/dropdown-button.css';
 
@@ -23,7 +25,7 @@ const DropdownButton = ({
   showNotebook = false,
   showSite = false,
   className = 'groups-action-button create-new-group-button',
-  variant = 'navigation'
+  variant = 'navigation',
 }: DropdownButtonProps): JSX.Element => {
   const [isOpen, setIsOpen] = useState(false);
   const [style, setStyle] = useState<CSSProperties>({ opacity: 0 });
@@ -74,7 +76,7 @@ const DropdownButton = ({
 
   const handleToggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsOpen(prev => !prev);
+    setIsOpen((prev) => !prev);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -139,7 +141,7 @@ const DropdownButton = ({
         window.removeEventListener('resize', handleResize);
       };
     } else {
-      setStyle(prev => ({ ...prev, opacity: 0 }));
+      setStyle((prev) => ({ ...prev, opacity: 0 }));
     }
   }, [isOpen, updatePosition, handleClose]);
 
@@ -152,9 +154,7 @@ const DropdownButton = ({
           onClick={() => onCreateCustomGenerator && onCreateCustomGenerator()}
           aria-label="Neuen Custom Grünerator erstellen"
         >
-          <span>
-            Neu erstellen
-          </span>
+          <span>Neu erstellen</span>
         </button>
       </div>
     );
@@ -175,64 +175,66 @@ const DropdownButton = ({
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
-        <span>
-          Neu erstellen
-        </span>
+        <span>Neu erstellen</span>
         <HiChevronDown className={`dropdown-chevron ${isOpen ? 'open' : ''}`} />
       </button>
 
-      {isOpen && createPortal(
-        <div
-          ref={dropdownRef}
-          className="dropdown-button-content"
-          style={style}
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          role="menu"
-        >
-          <button
-            className="dropdown-button-option"
-            onClick={() => { onCreateCustomGenerator && onCreateCustomGenerator(); handleClose(); }}
-            aria-label="Neuen Custom Grünerator erstellen"
-            role="menuitem"
+      {isOpen &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="dropdown-button-content"
+            style={style}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            role="menu"
           >
-            <GrueneratorGPTIcon />
-            <span>Custom Grünerator</span>
-          </button>
-
-          {showNotebook && (
             <button
               className="dropdown-button-option"
               onClick={() => {
-                onCreateNotebook?.();
+                onCreateCustomGenerator && onCreateCustomGenerator();
                 handleClose();
               }}
-              aria-label="Neues Notebook erstellen"
+              aria-label="Neuen Custom Grünerator erstellen"
               role="menuitem"
             >
-              <NotebookIcon />
-              <span>Notebook</span>
+              <GrueneratorGPTIcon />
+              <span>Custom Grünerator</span>
             </button>
-          )}
 
-          {showSite && (
-            <button
-              className="dropdown-button-option"
-              onClick={() => {
-                onCreateSite?.();
-                handleClose();
-              }}
-              aria-label="Neue Site erstellen"
-              role="menuitem"
-            >
-              <HiGlobe />
-              <span>Site</span>
-            </button>
-          )}
-        </div>,
-        document.body
-      )}
+            {showNotebook && (
+              <button
+                className="dropdown-button-option"
+                onClick={() => {
+                  onCreateNotebook?.();
+                  handleClose();
+                }}
+                aria-label="Neues Notebook erstellen"
+                role="menuitem"
+              >
+                <NotebookIcon />
+                <span>Notebook</span>
+              </button>
+            )}
+
+            {showSite && (
+              <button
+                className="dropdown-button-option"
+                onClick={() => {
+                  onCreateSite?.();
+                  handleClose();
+                }}
+                aria-label="Neue Site erstellen"
+                role="menuitem"
+              >
+                <HiGlobe />
+                <span>Site</span>
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

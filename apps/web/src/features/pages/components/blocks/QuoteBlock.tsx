@@ -1,25 +1,23 @@
 interface QuoteBlockProps {
-    text: string;
-    author?: string;
-    title?: string;
-    className?: string;
+  text: string;
+  author?: string;
+  title?: string;
+  className?: string;
 }
 
 const QuoteBlock = ({ text, author, title, className = '' }: QuoteBlockProps) => {
-    return (
-        <blockquote className={`quote-block ${className}`}>
-            <p className="quote-block__text">
-                {text}
-            </p>
-            {(author || title) && (
-                <footer className="quote-block__attribution">
-                    {author && <cite className="quote-block__author">{author}</cite>}
-                    {author && title && ', '}
-                    {title && <span className="quote-block__title">{title}</span>}
-                </footer>
-            )}
-        </blockquote>
-    );
+  return (
+    <blockquote className={`quote-block ${className}`}>
+      <p className="quote-block__text">{text}</p>
+      {(author || title) && (
+        <footer className="quote-block__attribution">
+          {author && <cite className="quote-block__author">{author}</cite>}
+          {author && title && ', '}
+          {title && <span className="quote-block__title">{title}</span>}
+        </footer>
+      )}
+    </blockquote>
+  );
 };
 
 export default QuoteBlock;

@@ -5,7 +5,7 @@ dotenv.config();
 
 export const config = {
   server: {
-    publicUrl: process.env.PUBLIC_URL || null
+    publicUrl: process.env.PUBLIC_URL || null,
   },
 
   qdrant: {
@@ -13,16 +13,16 @@ export const config = {
     apiKey: process.env.QDRANT_API_KEY,
     basicAuth: {
       username: process.env.QDRANT_BASIC_AUTH_USERNAME,
-      password: process.env.QDRANT_BASIC_AUTH_PASSWORD
-    }
+      password: process.env.QDRANT_BASIC_AUTH_PASSWORD,
+    },
   },
 
   mistral: {
-    apiKey: process.env.MISTRAL_API_KEY
+    apiKey: process.env.MISTRAL_API_KEY,
   },
 
   // Use shared collection configurations from @gruenerator/shared
-  collections: COLLECTIONS
+  collections: COLLECTIONS,
 };
 
 // Export collection keys for validation
@@ -37,7 +37,9 @@ export function validateConfig() {
   const hasBasicAuth = config.qdrant.basicAuth.username && config.qdrant.basicAuth.password;
 
   if (!hasApiKey && !hasBasicAuth) {
-    throw new Error('Qdrant Auth fehlt: Setze QDRANT_API_KEY oder QDRANT_BASIC_AUTH_USERNAME + QDRANT_BASIC_AUTH_PASSWORD');
+    throw new Error(
+      'Qdrant Auth fehlt: Setze QDRANT_API_KEY oder QDRANT_BASIC_AUTH_USERNAME + QDRANT_BASIC_AUTH_PASSWORD'
+    );
   }
 
   if (!config.mistral.apiKey) {

@@ -83,13 +83,9 @@ export function IncrementControl({
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
       {description && (
-        <Text style={[styles.description, { color: theme.textSecondary }]}>
-          {description}
-        </Text>
+        <Text style={[styles.description, { color: theme.textSecondary }]}>{description}</Text>
       )}
 
       <View style={[styles.controls, isHorizontal && styles.controlsHorizontal]}>
@@ -100,9 +96,7 @@ export function IncrementControl({
         />
 
         <View style={[styles.valueDisplay, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.valueText, { color: theme.text }]}>
-            {formatValue(value)}
-          </Text>
+          <Text style={[styles.valueText, { color: theme.text }]}>{formatValue(value)}</Text>
         </View>
 
         <Button

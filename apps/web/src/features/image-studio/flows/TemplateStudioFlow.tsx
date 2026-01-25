@@ -1,17 +1,15 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
-import useImageStudioStore from '../../../stores/imageStudioStore';
-import { useImageGeneration } from '../hooks/useImageGeneration';
-import useImageGenerationLimit from '../../../hooks/useImageGenerationLimit';
-import {
-  FORM_STEPS,
-  getTypeConfig,
-  getTemplateFieldConfig
-} from '../utils/typeConfig';
-import StepFlow from '../components/StepFlow';
-import TemplateResultStep from '../steps/TemplateResultStep';
-import ErrorBoundary from '../../../components/ErrorBoundary';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+
 import { StatusBadge } from '../../../components/common/StatusBadge';
+import ErrorBoundary from '../../../components/ErrorBoundary';
+import useImageGenerationLimit from '../../../hooks/useImageGenerationLimit';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import StepFlow from '../components/StepFlow';
+import { useFontPreload } from '../hooks/useFontPreload';
+import { useImageGeneration } from '../hooks/useImageGeneration';
+import TemplateResultStep from '../steps/TemplateResultStep';
+import { FORM_STEPS, getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
 
 import './TemplateStudioFlow.css';
 
@@ -34,9 +32,14 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     flowTitle,
     flowSubtitle,
     // Template fields
-    line1, line2, line3,
-    quote, name,
-    header, subheader, body,
+    line1,
+    line2,
+    line3,
+    quote,
+    name,
+    header,
+    subheader,
+    body,
     uploadedImage,
     selectedImage,
     fontSize,
@@ -54,12 +57,16 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     precisionMode,
     selectedInfrastructure,
     allyPlacement,
-    setGeneratedImage
+    setGeneratedImage,
   } = useImageStudioStore();
+
+  // Preload fonts early - as soon as we know the type
+  useFontPreload(type);
 
   const shouldReduceMotion = useReducedMotion();
   const isGoingBack = navigationDirection === 'back';
-  const isUploadToInput = previousStep === FORM_STEPS.IMAGE_UPLOAD && currentStep === FORM_STEPS.INPUT;
+  const isUploadToInput =
+    previousStep === FORM_STEPS.IMAGE_UPLOAD && currentStep === FORM_STEPS.INPUT;
 
   const [isWideStep, setIsWideStep] = useState(false);
 
@@ -78,12 +85,17 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   const stepVariants = {
     enter: { opacity: isGoingBack ? 1 : 0, scale: isUploadToInput ? 0.98 : 1 },
     center: { opacity: 1, scale: 1 },
-    exit: { opacity: isGoingBack ? 1 : 0, scale: isUploadToInput ? 0.98 : 1 }
+    exit: { opacity: isGoingBack ? 1 : 0, scale: isUploadToInput ? 0.98 : 1 },
   };
 
-  const stepTransition = (shouldReduceMotion || isGoingBack)
-    ? { duration: 0 }
-    : { type: 'tween' as const, ease: 'easeOut' as const, duration: isUploadToInput ? 0.4 : 0.25 };
+  const stepTransition =
+    shouldReduceMotion || isGoingBack
+      ? { duration: 0 }
+      : {
+          type: 'tween' as const,
+          ease: 'easeOut' as const,
+          duration: isUploadToInput ? 0.4 : 0.25,
+        };
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type || ''), [type]);
@@ -112,7 +124,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
           precisionMode: typeConfig?.alwaysPrecision || precisionMode,
           precisionInstruction,
           selectedInfrastructure,
-          allyPlacement
+          allyPlacement,
         };
 
         image = await generateImage(type!, formData);
@@ -121,17 +133,21 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
         // Template regeneration
         const formData: Record<string, unknown> = {
           type: typeConfig?.legacyType || type,
-          line1, line2, line3,
+          line1,
+          line2,
+          line3,
           quote,
           name,
-          header, subheader, body,
+          header,
+          subheader,
+          body,
           uploadedImage: uploadedImage || selectedImage,
           fontSize,
           colorScheme,
           balkenOffset,
           balkenGruppenOffset,
           sunflowerOffset,
-          credit
+          credit,
         };
 
         image = await generateImage(type!, formData);
@@ -153,17 +169,38 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
       console.error('[TemplateStudioFlow] Image regeneration error:', err);
     }
   }, [
-    type, typeConfig,
+    type,
+    typeConfig,
     // Template deps
-    line1, line2, line3, quote, name,
-    header, subheader, body,
-    uploadedImage, selectedImage,
-    fontSize, colorScheme, balkenOffset,
-    balkenGruppenOffset, sunflowerOffset, credit,
+    line1,
+    line2,
+    line3,
+    quote,
+    name,
+    header,
+    subheader,
+    body,
+    uploadedImage,
+    selectedImage,
+    fontSize,
+    colorScheme,
+    balkenOffset,
+    balkenGruppenOffset,
+    sunflowerOffset,
+    credit,
     // KI deps
-    purePrompt, sharepicPrompt, imagineTitle, variant,
-    precisionMode, precisionInstruction, selectedInfrastructure, allyPlacement,
-    generateImage, setGeneratedImage, setError, refetchImageLimit
+    purePrompt,
+    sharepicPrompt,
+    imagineTitle,
+    variant,
+    precisionMode,
+    precisionInstruction,
+    selectedInfrastructure,
+    allyPlacement,
+    generateImage,
+    setGeneratedImage,
+    setError,
+    refetchImageLimit,
   ]);
 
   if (!fieldConfig) {
@@ -181,13 +218,13 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                   {flowTitle}
                   <StatusBadge type="early-access" variant="inline" />
                 </h1>
-                {flowSubtitle && (
-                  <p className="flow-subtitle">{flowSubtitle}</p>
-                )}
+                {flowSubtitle && <p className="flow-subtitle">{flowSubtitle}</p>}
               </div>
             )}
 
-            <div className={`template-studio-flow${isWideStep ? ' template-studio-flow--wide' : ''}`}>
+            <div
+              className={`template-studio-flow${isWideStep ? ' template-studio-flow--wide' : ''}`}
+            >
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentStep}
@@ -201,10 +238,11 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                   onAnimationComplete={handleAnimationComplete}
                 >
                   {(() => {
-                    const shouldRenderStepFlow = currentStep === FORM_STEPS.IMAGE_UPLOAD ||
-                                                  currentStep === FORM_STEPS.INPUT ||
-                                                  currentStep === FORM_STEPS.IMAGE_SIZE_SELECT ||
-                                                  currentStep === FORM_STEPS.CANVAS_EDIT;
+                    const shouldRenderStepFlow =
+                      currentStep === FORM_STEPS.IMAGE_UPLOAD ||
+                      currentStep === FORM_STEPS.INPUT ||
+                      currentStep === FORM_STEPS.IMAGE_SIZE_SELECT ||
+                      currentStep === FORM_STEPS.CANVAS_EDIT;
                     return shouldRenderStepFlow ? (
                       <StepFlow
                         onBack={onBack}
@@ -220,7 +258,9 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                     <TemplateResultStep
                       onRegenerate={handleImageRegenerate}
                       loading={loading}
-                      onGoBackToCanvas={typeConfig?.hasBackgroundRemoval ? handleGoBackToCanvas : undefined}
+                      onGoBackToCanvas={
+                        typeConfig?.hasBackgroundRemoval ? handleGoBackToCanvas : undefined
+                      }
                     />
                   )}
                 </motion.div>

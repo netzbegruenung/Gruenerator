@@ -1,7 +1,8 @@
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useBetaFeatures } from '../../hooks/useBetaFeatures';
+
 import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 
 interface BetaFeatureWrapperProps {
   children: ReactNode;
@@ -9,7 +10,11 @@ interface BetaFeatureWrapperProps {
   fallbackPath?: string;
 }
 
-const BetaFeatureWrapper = ({ children, featureKey, fallbackPath = '/profile' }: BetaFeatureWrapperProps) => {
+const BetaFeatureWrapper = ({
+  children,
+  featureKey,
+  fallbackPath = '/profile',
+}: BetaFeatureWrapperProps) => {
   const { user, isAuthenticated } = useOptimizedAuth();
   const { canAccessBetaFeature, isLoading } = useBetaFeatures();
 

@@ -15,12 +15,7 @@ interface ShareLinkDisplayProps {
   copied: boolean;
 }
 
-export function ShareLinkDisplay({
-  shareUrl,
-  onCopy,
-  onShare,
-  copied,
-}: ShareLinkDisplayProps) {
+export function ShareLinkDisplay({ shareUrl, onCopy, onShare, copied }: ShareLinkDisplayProps) {
   return (
     <View style={styles.container}>
       <View style={styles.qrContainer}>
@@ -42,10 +37,7 @@ export function ShareLinkDisplay({
         <View style={styles.actions}>
           <Pressable
             onPress={onCopy}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.iconButtonPressed,
-            ]}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
           >
             <Ionicons
               name={copied ? 'checkmark' : 'copy-outline'}
@@ -56,19 +48,14 @@ export function ShareLinkDisplay({
 
           <Pressable
             onPress={onShare}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.iconButtonPressed,
-            ]}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
           >
             <Ionicons name="share-outline" size={20} color={colors.grey[600]} />
           </Pressable>
         </View>
       </View>
 
-      {copied && (
-        <Text style={styles.copiedText}>Link kopiert!</Text>
-      )}
+      {copied && <Text style={styles.copiedText}>Link kopiert!</Text>}
     </View>
   );
 }

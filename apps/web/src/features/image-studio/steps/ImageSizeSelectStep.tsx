@@ -1,10 +1,18 @@
-import React from 'react';
 import { motion } from 'motion/react';
-import { HiArrowLeft, HiArrowRight } from 'react-icons/hi';
-import { FaInstagram, FaFacebookF, FaTwitter, FaLinkedinIn, FaPinterestP, FaTiktok } from 'react-icons/fa';
+import React from 'react';
 import { BsSquareFill } from 'react-icons/bs';
-import useImageStudioStore from '../../../stores/imageStudioStore';
+import {
+  FaInstagram,
+  FaFacebookF,
+  FaTwitter,
+  FaLinkedinIn,
+  FaPinterestP,
+  FaTiktok,
+} from 'react-icons/fa';
+import { HiArrowLeft, HiArrowRight } from 'react-icons/hi';
+
 import Button from '../../../components/common/SubmitButton';
+import useImageStudioStore from '../../../stores/imageStudioStore';
 import { slideVariants } from '../components/StepFlow';
 import './ImageSizeSelectStep.css';
 
@@ -17,32 +25,67 @@ interface ImageSizeSelectStepProps {
 
 const IMAGE_SIZES = [
   {
-    width: 1088, height: 1360, label: 'Instagram Post', aspectRatio: '4:5',
-    platform: 'Instagram', icon: FaInstagram, color: '#E4405F'
+    width: 1088,
+    height: 1360,
+    label: 'Instagram Post',
+    aspectRatio: '4:5',
+    platform: 'Instagram',
+    icon: FaInstagram,
+    color: '#E4405F',
   },
   {
-    width: 1088, height: 1920, label: 'Instagram Story', aspectRatio: '9:16',
-    platform: 'Instagram/TikTok', icon: FaInstagram, color: '#E4405F'
+    width: 1088,
+    height: 1920,
+    label: 'Instagram Story',
+    aspectRatio: '9:16',
+    platform: 'Instagram/TikTok',
+    icon: FaInstagram,
+    color: '#E4405F',
   },
   {
-    width: 1200, height: 624, label: 'Facebook Post', aspectRatio: '1.91:1',
-    platform: 'Facebook', icon: FaFacebookF, color: '#1877F2'
+    width: 1200,
+    height: 624,
+    label: 'Facebook Post',
+    aspectRatio: '1.91:1',
+    platform: 'Facebook',
+    icon: FaFacebookF,
+    color: '#1877F2',
   },
   {
-    width: 1200, height: 672, label: 'Twitter/X Post', aspectRatio: '16:9',
-    platform: 'Twitter', icon: FaTwitter, color: '#1DA1F2'
+    width: 1200,
+    height: 672,
+    label: 'Twitter/X Post',
+    aspectRatio: '16:9',
+    platform: 'Twitter',
+    icon: FaTwitter,
+    color: '#1DA1F2',
   },
   {
-    width: 1216, height: 640, label: 'LinkedIn Post', aspectRatio: '1.9:1',
-    platform: 'LinkedIn', icon: FaLinkedinIn, color: '#0A66C2'
+    width: 1216,
+    height: 640,
+    label: 'LinkedIn Post',
+    aspectRatio: '1.9:1',
+    platform: 'LinkedIn',
+    icon: FaLinkedinIn,
+    color: '#0A66C2',
   },
   {
-    width: 1008, height: 1504, label: 'Pinterest Pin', aspectRatio: '2:3',
-    platform: 'Pinterest', icon: FaPinterestP, color: '#E60023'
+    width: 1008,
+    height: 1504,
+    label: 'Pinterest Pin',
+    aspectRatio: '2:3',
+    platform: 'Pinterest',
+    icon: FaPinterestP,
+    color: '#E60023',
   },
   {
-    width: 1088, height: 1088, label: 'Quadrat', aspectRatio: '1:1',
-    platform: 'Universal', icon: BsSquareFill, color: '#52907A'
+    width: 1088,
+    height: 1088,
+    label: 'Quadrat',
+    aspectRatio: '1:1',
+    platform: 'Universal',
+    icon: BsSquareFill,
+    color: '#52907A',
   },
 ];
 
@@ -50,13 +93,13 @@ const ImageSizeSelectStep: React.FC<ImageSizeSelectStepProps> = ({
   onNext,
   onBack,
   direction,
-  loading
+  loading,
 }) => {
   const { selectedImageSize, updateFormData } = useImageStudioStore();
 
   console.log('[ImageSizeSelectStep] Rendering with selectedImageSize:', selectedImageSize);
 
-  const handleSizeSelect = (size: typeof IMAGE_SIZES[0]) => {
+  const handleSizeSelect = (size: (typeof IMAGE_SIZES)[0]) => {
     console.log('[ImageSizeSelectStep] Size selected:', size);
     updateFormData({ selectedImageSize: size });
   };
@@ -114,18 +157,20 @@ const ImageSizeSelectStep: React.FC<ImageSizeSelectStepProps> = ({
         </div>
 
         {!selectedImageSize && (
-          <p style={{ textAlign: 'center', color: 'var(--font-color-secondary)', marginTop: '1rem', fontSize: '0.9rem' }}>
+          <p
+            style={{
+              textAlign: 'center',
+              color: 'var(--font-color-secondary)',
+              marginTop: '1rem',
+              fontSize: '0.9rem',
+            }}
+          >
             👆 Wähle eine Bildgröße aus, um fortzufahren
           </p>
         )}
 
         <div className="typeform-step__actions">
-          <Button
-            onClick={onBack}
-            text="Zurück"
-            icon={<HiArrowLeft />}
-            disabled={loading}
-          />
+          <Button onClick={onBack} text="Zurück" icon={<HiArrowLeft />} disabled={loading} />
           <Button
             onClick={handleNext}
             text="Weiter"

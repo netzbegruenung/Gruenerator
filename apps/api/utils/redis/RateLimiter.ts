@@ -19,7 +19,14 @@
  * }
  */
 
-import type { RedisClient, RateLimiterConfig, RateLimitStatus, RateLimitIncrementResult, RequestWithUser, ResourceLimitConfig } from './types.js';
+import type {
+  RedisClient,
+  RateLimiterConfig,
+  RateLimitStatus,
+  RateLimitIncrementResult,
+  RequestWithUser,
+  ResourceLimitConfig,
+} from './types.js';
 
 class RateLimiter {
   private redis: RedisClient;
@@ -81,7 +88,11 @@ class RateLimiter {
   /**
    * Check current rate limit status for a resource
    */
-  async checkLimit(resourceType: string, identifier: string, userType: string = 'anonymous'): Promise<RateLimitStatus> {
+  async checkLimit(
+    resourceType: string,
+    identifier: string,
+    userType: string = 'anonymous'
+  ): Promise<RateLimitStatus> {
     // Development override: disable rate limits
     if (process.env.NODE_ENV === 'development' && !this.config.development.enabled) {
       return { canGenerate: true, unlimited: true, development: true };
@@ -92,7 +103,9 @@ class RateLimiter {
 
       // If no config exists for this resource, allow unlimited
       if (!limitConfig) {
-        console.warn(`[RateLimiter] No limit config found for ${resourceType}:${userType}, allowing unlimited`);
+        console.warn(
+          `[RateLimiter] No limit config found for ${resourceType}:${userType}, allowing unlimited`
+        );
         return { canGenerate: true, unlimited: true, resourceType, userType };
       }
 
@@ -105,19 +118,20 @@ class RateLimiter {
           unlimited: true,
           resourceType,
           userType,
-          window
+          window,
         };
       }
 
       // Apply development multiplier if configured
-      const effectiveLimit = process.env.NODE_ENV === 'development'
-        ? limit * (this.config.development.multiplier || 1)
-        : limit;
+      const effectiveLimit =
+        process.env.NODE_ENV === 'development'
+          ? limit * (this.config.development.multiplier || 1)
+          : limit;
 
       // Get current count from Redis
       const redisKey = this.buildRedisKey(resourceType, identifier, window);
       const countStr = await this.redis.get(redisKey);
-      const count = (countStr && typeof countStr === 'string') ? parseInt(countStr) || 0 : 0;
+      const count = countStr && typeof countStr === 'string' ? parseInt(countStr) || 0 : 0;
 
       const remaining = Math.max(0, effectiveLimit - count);
       const canGenerate = count < effectiveLimit;
@@ -131,7 +145,7 @@ class RateLimiter {
         resourceType,
         userType,
         window,
-        identifier
+        identifier,
       };
     } catch (error) {
       console.error('[RateLimiter] Error checking limit:', error);
@@ -150,7 +164,11 @@ class RateLimiter {
   /**
    * Increment counter after successful resource generation
    */
-  async incrementCount(resourceType: string, identifier: string, userType: string = 'anonymous'): Promise<RateLimitIncrementResult> {
+  async incrementCount(
+    resourceType: string,
+    identifier: string,
+    userType: string = 'anonymous'
+  ): Promise<RateLimitIncrementResult> {
     try {
       // Check limit first
       const status = await this.checkLimit(resourceType, identifier, userType);
@@ -162,7 +180,9 @@ class RateLimiter {
 
       // Don't increment if limit reached
       if (!status.canGenerate) {
-        console.log(`[RateLimiter] Increment blocked: ${resourceType} limit reached for ${userType} ${identifier}`);
+        console.log(
+          `[RateLimiter] Increment blocked: ${resourceType} limit reached for ${userType} ${identifier}`
+        );
         return { success: false, limitReached: true, ...status };
       }
 
@@ -180,7 +200,9 @@ class RateLimiter {
       const remaining = Math.max(0, status.limit! - newCount);
       const canGenerate = newCount < status.limit!;
 
-      console.log(`[RateLimiter] ${resourceType} generation #${newCount}/${status.limit} for ${userType} ${identifier}, remaining: ${remaining}`);
+      console.log(
+        `[RateLimiter] ${resourceType} generation #${newCount}/${status.limit} for ${userType} ${identifier}, remaining: ${remaining}`
+      );
 
       // Optional: Track analytics
       if (this.config.enableAnalytics) {
@@ -195,7 +217,7 @@ class RateLimiter {
         canGenerate,
         resourceType,
         userType,
-        window: status.window
+        window: status.window,
       };
     } catch (error) {
       console.error('[RateLimiter] Error incrementing count:', error);
@@ -281,7 +303,11 @@ class RateLimiter {
   /**
    * Track usage for analytics (optional)
    */
-  private async trackUsage(resourceType: string, userType: string, identifier: string): Promise<void> {
+  private async trackUsage(
+    resourceType: string,
+    userType: string,
+    identifier: string
+  ): Promise<void> {
     try {
       const analyticsKey = `${this.config.redisKeyPrefix}:analytics:${resourceType}:${userType}:${this.getDateStringForWindow('daily')}`;
       await this.redis.incr(analyticsKey);
@@ -295,7 +321,11 @@ class RateLimiter {
   /**
    * Reset counter for a user (admin/testing)
    */
-  async resetUserCounter(resourceType: string, identifier: string, window: string = 'daily'): Promise<boolean> {
+  async resetUserCounter(
+    resourceType: string,
+    identifier: string,
+    window: string = 'daily'
+  ): Promise<boolean> {
     try {
       const redisKey = this.buildRedisKey(resourceType, identifier, window);
       await this.redis.del(redisKey);
@@ -310,7 +340,11 @@ class RateLimiter {
   /**
    * Get remaining generations for display
    */
-  async getRemainingGenerations(resourceType: string, identifier: string, userType: string = 'anonymous'): Promise<number> {
+  async getRemainingGenerations(
+    resourceType: string,
+    identifier: string,
+    userType: string = 'anonymous'
+  ): Promise<number> {
     const status = await this.checkLimit(resourceType, identifier, userType);
     return status.unlimited ? Infinity : status.remaining || 0;
   }

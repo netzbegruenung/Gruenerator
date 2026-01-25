@@ -14,7 +14,7 @@ export type {
   MediaItemResponse,
   MediaUploadResponse,
   MediaUpdateResponse,
-  MediaDeleteResponse
+  MediaDeleteResponse,
 } from '@gruenerator/shared';
 
 /**

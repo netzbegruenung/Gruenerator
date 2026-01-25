@@ -35,13 +35,13 @@ router.get('/', async (req: DocumentRequest, res: Response): Promise<void> => {
 
     res.json({
       success: true,
-      mode
+      mode,
     });
   } catch (error) {
     log.error('[GET /] Error getting document mode:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to get document mode'
+      message: (error as Error).message || 'Failed to get document mode',
     });
   }
 });
@@ -63,7 +63,7 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
     if (!mode || !['manual', 'wolke'].includes(mode)) {
       res.status(400).json({
         success: false,
-        message: 'Invalid mode. Must be "manual" or "wolke"'
+        message: 'Invalid mode. Must be "manual" or "wolke"',
       });
       return;
     }
@@ -72,13 +72,13 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
 
     res.json({
       success: true,
-      mode: result.mode
+      mode: result.mode,
     });
   } catch (error) {
     log.error('[POST /] Error setting document mode:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to set document mode'
+      message: (error as Error).message || 'Failed to set document mode',
     });
   }
 });

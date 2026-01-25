@@ -18,7 +18,7 @@ export {
   normalizeSearchResult,
   dedupeAndDiversify,
   summarizeReferencesForPrompt,
-  parseAIJsonResponse
+  parseAIJsonResponse,
 } from './SearchResultProcessor.js';
 
 // Export all types
@@ -44,5 +44,5 @@ export type {
   DedupeOptions,
   CollectionConfig,
   CollectionSources,
-  SourcesByCollection
+  SourcesByCollection,
 } from './types.js';

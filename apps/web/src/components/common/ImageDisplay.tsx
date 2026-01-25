@@ -1,13 +1,15 @@
-import React, { useState, useEffect, JSX } from 'react';
+import React, { useState, useEffect, type JSX } from 'react';
 import { HiDownload } from 'react-icons/hi';
+
 import '../../assets/styles/components/common/image-display.css';
+import { useAltTextStore } from '../../features/image-studio/hooks/useAltText';
+import useAltTextGeneration from '../hooks/useAltTextGeneration';
+import { ProfileIconButton, ProfileActionButton } from '../profile/actions/ProfileActionButton';
+import apiClient from '../utils/apiClient';
+
+import CanvaTemplateModal from './CanvaTemplateModal';
 import CopyButton from './CopyButton';
 import HelpTooltip from './HelpTooltip';
-import { ProfileIconButton, ProfileActionButton } from '../profile/actions/ProfileActionButton';
-import useAltTextGeneration from '../hooks/useAltTextGeneration';
-import { useAltTextStore } from '../../features/image-studio/hooks/useAltText';
-import apiClient from '../utils/apiClient';
-import CanvaTemplateModal from './CanvaTemplateModal';
 import SharepicShareModal from './SharepicShareModal';
 
 /**
@@ -55,11 +57,12 @@ interface ImageDisplayProps {
   fullscreenMode?: boolean;
 }
 
-const ImageDisplay = ({ sharepicData,
+const ImageDisplay = ({
+  sharepicData,
   onEdit,
   showEditButton = true,
-  title = "Generiertes Bild",
-  downloadButtonText = "Bild herunterladen",
+  title = 'Generiertes Bild',
+  downloadButtonText = 'Bild herunterladen',
   downloadFilename,
   enableKiLabel = false,
   enableCanvaEdit = false,
@@ -70,7 +73,8 @@ const ImageDisplay = ({ sharepicData,
   editMode,
   socialContent,
   selectedPlatforms = [],
-  fullscreenMode = false }: ImageDisplayProps): JSX.Element | null => {
+  fullscreenMode = false,
+}: ImageDisplayProps): JSX.Element | null => {
   // Determine if we have multiple sharepics
   const isMultiple = Array.isArray(sharepicData);
   const sharepicItems = isMultiple ? sharepicData.filter(Boolean) : [sharepicData];
@@ -90,7 +94,8 @@ const ImageDisplay = ({ sharepicData,
 
   // Resolve Canva template URL (prop > sharepicData > null)
   const resolvedCanvaUrl = canvaTemplateUrl || currentSharepic?.canvaTemplateUrl || null;
-  const resolvedCanvaPreview = currentSharepic?.canvaPreviewImage || currentSharepic?.previewImage || null;
+  const resolvedCanvaPreview =
+    currentSharepic?.canvaPreviewImage || currentSharepic?.previewImage || null;
   const showCanvaButton = enableCanvaEdit && !!resolvedCanvaUrl;
 
   // Alt text functionality
@@ -103,10 +108,10 @@ const ImageDisplay = ({ sharepicData,
     setAltText,
     setAltTextLoading,
     setAltTextError,
-    setShowAltText
+    setShowAltText,
   } = useAltTextStore();
 
-  if (!sharepicItems.length || !sharepicItems.some(item => item?.image)) {
+  if (!sharepicItems.length || !sharepicItems.some((item) => item?.image)) {
     return null;
   }
 
@@ -153,7 +158,12 @@ const ImageDisplay = ({ sharepicData,
       const textInput = typeof currentSharepic.text === 'string' ? currentSharepic.text : null;
       const response = await generateAltTextForImage(imageBase64, textInput);
 
-      if (response && typeof response === 'object' && 'altText' in response && typeof response.altText === 'string') {
+      if (
+        response &&
+        typeof response === 'object' &&
+        'altText' in response &&
+        typeof response.altText === 'string'
+      ) {
         setAltText(response.altText);
         setShowAltText(true);
       } else {
@@ -161,7 +171,8 @@ const ImageDisplay = ({ sharepicData,
       }
     } catch (error) {
       console.error('[ImageDisplay] Alt text generation failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Fehler bei der Alt-Text-Generierung';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Fehler bei der Alt-Text-Generierung';
       setAltTextError(errorMessage);
     } finally {
       setAltTextLoading(false);
@@ -196,8 +207,8 @@ const ImageDisplay = ({ sharepicData,
             imageData: currentSharepic.image,
             metadata: {
               type: currentSharepic.type,
-              timestamp: Date.now()
-            }
+              timestamp: Date.now(),
+            },
           });
 
           // Handle Axios response wrapper - extract data
@@ -215,27 +226,33 @@ const ImageDisplay = ({ sharepicData,
         type: currentSharepic.type,
         slogans: currentSharepic.slogans,
         hasImage: !!currentSharepic.image,
-        imageSessionId: imageSessionId // Store session ID instead of image
+        imageSessionId: imageSessionId, // Store session ID instead of image
       };
 
-      sessionStorage.setItem(editingSessionId, JSON.stringify({
-        source: 'presseSocial',
-        data: sessionData,
-        timestamp: Date.now()
-      }));
+      sessionStorage.setItem(
+        editingSessionId,
+        JSON.stringify({
+          source: 'presseSocial',
+          data: sessionData,
+          timestamp: Date.now(),
+        })
+      );
     } catch (error) {
       console.error('[ImageDisplay] Error preparing edit session:', error);
       // Fallback: store without image
-      sessionStorage.setItem(editingSessionId, JSON.stringify({
-        source: 'presseSocial',
-        data: {
-          text: currentSharepic.text,
-          type: currentSharepic.type,
-          slogans: currentSharepic.slogans,
-          hasImage: false
-        },
-        timestamp: Date.now()
-      }));
+      sessionStorage.setItem(
+        editingSessionId,
+        JSON.stringify({
+          source: 'presseSocial',
+          data: {
+            text: currentSharepic.text,
+            type: currentSharepic.type,
+            slogans: currentSharepic.slogans,
+            hasImage: false,
+          },
+          timestamp: Date.now(),
+        })
+      );
     }
 
     // Open Image Studio in new tab with editing session
@@ -272,7 +289,7 @@ const ImageDisplay = ({ sharepicData,
       formData.append('image', blob, `imagine-sharepic.${extension}`);
 
       const labelResponse = await apiClient.post('/imagine_label_canvas', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       const labeledImage = labelResponse?.data?.image;
@@ -294,7 +311,8 @@ const ImageDisplay = ({ sharepicData,
       resetAltTextState();
     } catch (error) {
       console.error('[ImageDisplay] KI label generation failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Hinzufügen des KI-Labels';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Fehler beim Hinzufügen des KI-Labels';
       setKiLabelError(errorMessage);
     } finally {
       setIsKiLabelLoading(false);
@@ -304,23 +322,27 @@ const ImageDisplay = ({ sharepicData,
   const effectiveDownloadText = minimal ? 'Herunterladen' : downloadButtonText;
   const effectiveDownloadFilename = downloadFilename || 'sharepic.png';
 
-  const handleDownload = React.useCallback((imageIndex: number | null = null) => {
-    try {
-      const targetSharepic = imageIndex !== null ? sharepicItems[imageIndex] : currentSharepic;
-      const targetFilename = imageIndex !== null
-        ? `${effectiveDownloadFilename.replace(/\.([^.]+)$/, '')}-${imageIndex + 1}.$1`
-        : effectiveDownloadFilename;
+  const handleDownload = React.useCallback(
+    (imageIndex: number | null = null) => {
+      try {
+        const targetSharepic = imageIndex !== null ? sharepicItems[imageIndex] : currentSharepic;
+        const targetFilename =
+          imageIndex !== null
+            ? `${effectiveDownloadFilename.replace(/\.([^.]+)$/, '')}-${imageIndex + 1}.$1`
+            : effectiveDownloadFilename;
 
-      const link = document.createElement('a');
-      link.href = targetSharepic.image || '';
-      link.download = targetFilename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('[ImageDisplay] Download failed:', error);
-    }
-  }, [sharepicItems, currentSharepic, effectiveDownloadFilename]);
+        const link = document.createElement('a');
+        link.href = targetSharepic.image || '';
+        link.download = targetFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (error) {
+        console.error('[ImageDisplay] Download failed:', error);
+      }
+    },
+    [sharepicItems, currentSharepic, effectiveDownloadFilename]
+  );
 
   const handleDownloadAll = React.useCallback(() => {
     sharepicItems.forEach((item, index) => {
@@ -332,7 +354,9 @@ const ImageDisplay = ({ sharepicData,
 
   return (
     <>
-      <div className={`image-display ${isMultiple ? 'multiple-images' : ''} ${fullscreenMode ? 'image-display--fullscreen' : ''}`}>
+      <div
+        className={`image-display ${isMultiple ? 'multiple-images' : ''} ${fullscreenMode ? 'image-display--fullscreen' : ''}`}
+      >
         {!minimal && (
           <div className="image-display__header">
             <h4 className="image-display__title">
@@ -440,13 +464,15 @@ const ImageDisplay = ({ sharepicData,
               <h3>Alt-Text für Barrierefreiheit</h3>
               <HelpTooltip>
                 <p>
-                  Alt-Text beschreibt Bilder für Menschen mit Sehbehinderung.
-                  Er wird von Screenreadern vorgelesen und macht Inhalte barrierefrei.
+                  Alt-Text beschreibt Bilder für Menschen mit Sehbehinderung. Er wird von
+                  Screenreadern vorgelesen und macht Inhalte barrierefrei.
                 </p>
                 <p>
-                  <a href="https://www.dbsv.org/bildbeschreibung-4-regeln.html"
+                  <a
+                    href="https://www.dbsv.org/bildbeschreibung-4-regeln.html"
                     target="_blank"
-                    rel="noopener noreferrer">
+                    rel="noopener noreferrer"
+                  >
                     DBSV-Richtlinien für Bildbeschreibungen →
                   </a>
                 </p>
@@ -474,11 +500,7 @@ const ImageDisplay = ({ sharepicData,
               </div>
             )}
 
-            {altText && !isAltTextLoading && (
-              <div className="alt-text-content">
-                {altText}
-              </div>
-            )}
+            {altText && !isAltTextLoading && <div className="alt-text-content">{altText}</div>}
           </div>
         )}
       </div>
@@ -493,7 +515,7 @@ const ImageDisplay = ({ sharepicData,
             line2: currentSharepic?.line2,
             line3: currentSharepic?.line3,
             line4: currentSharepic?.line4,
-            line5: currentSharepic?.line5
+            line5: currentSharepic?.line5,
           }}
           onClose={() => setIsCanvaModalOpen(false)}
         />
@@ -525,7 +547,9 @@ const ImageDisplay = ({ sharepicData,
                   className="lightbox-nav lightbox-prev"
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
-                    setActiveImageIndex(prev => (prev - 1 + sharepicItems.length) % sharepicItems.length);
+                    setActiveImageIndex(
+                      (prev) => (prev - 1 + sharepicItems.length) % sharepicItems.length
+                    );
                   }}
                   title="Vorheriges Bild"
                 >
@@ -535,7 +559,7 @@ const ImageDisplay = ({ sharepicData,
                   className="lightbox-nav lightbox-next"
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
-                    setActiveImageIndex(prev => (prev + 1) % sharepicItems.length);
+                    setActiveImageIndex((prev) => (prev + 1) % sharepicItems.length);
                   }}
                   title="Nächstes Bild"
                 >
@@ -550,8 +574,12 @@ const ImageDisplay = ({ sharepicData,
             />
             {isMultiple && (
               <div className="lightbox-info">
-                <span>{activeImageIndex + 1} / {sharepicItems.length}</span>
-                {currentSharepic.type && <span className="lightbox-type">({currentSharepic.type})</span>}
+                <span>
+                  {activeImageIndex + 1} / {sharepicItems.length}
+                </span>
+                {currentSharepic.type && (
+                  <span className="lightbox-type">({currentSharepic.type})</span>
+                )}
               </div>
             )}
           </div>

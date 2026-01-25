@@ -23,7 +23,7 @@ export {
   getLegacyType,
   getTypeFromLegacy,
   getTemplateFieldConfig,
-  URL_TYPE_MAP
+  URL_TYPE_MAP,
 } from './utils/typeConfig';
 
 // Forms

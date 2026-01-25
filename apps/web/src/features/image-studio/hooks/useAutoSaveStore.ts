@@ -25,11 +25,12 @@ export const useAutoSaveStore = create<AutoSaveStore>((set) => ({
   setAutoSaveStatus: (status) => set({ autoSaveStatus: status }),
   setAutoSavedShareToken: (token) => set({ autoSavedShareToken: token }),
   setLastAutoSavedImageSrc: (src) => set({ lastAutoSavedImageSrc: src }),
-  clearAutoSaveState: () => set({
-    autoSaveStatus: 'idle',
-    autoSavedShareToken: null,
-    lastAutoSavedImageSrc: null
-  })
+  clearAutoSaveState: () =>
+    set({
+      autoSaveStatus: 'idle',
+      autoSavedShareToken: null,
+      lastAutoSavedImageSrc: null,
+    }),
 }));
 
 export default useAutoSaveStore;

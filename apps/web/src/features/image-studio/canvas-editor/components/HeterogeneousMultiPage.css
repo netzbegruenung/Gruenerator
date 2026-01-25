@@ -1,0 +1,168 @@
+/**
+ * HeterogeneousMultiPage - Shared Sidebar Multi-Page Layout Styles
+ *
+ * Architecture: Pages are displayed vertically, click to select.
+ * Sidebar updates dynamically based on selected page's template.
+ */
+
+/* Override layout to use natural page scroll instead of nested scroll */
+.canvas-editor-layout:has(.heterogeneous-multipage__pages-container) {
+  height: auto;
+  min-height: 100vh;
+}
+
+.canvas-editor-layout__main:has(.heterogeneous-multipage__pages-container) {
+  overflow: visible;
+}
+
+.canvas-editor-layout__canvas:has(.heterogeneous-multipage__pages-container) {
+  flex: none;
+  overflow: visible;
+}
+
+/* Container for all pages */
+.heterogeneous-multipage__pages-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-medium, 16px);
+  padding: var(--spacing-small, 8px);
+  padding-bottom: var(--spacing-large, 32px);
+  width: 100%;
+}
+
+/* Individual page wrapper - clickable selection area */
+.heterogeneous-multipage__page-wrapper {
+  position: relative;
+  border: 2px solid transparent;
+  border-radius: 2px;
+  transition: border-color 0.15s ease;
+  cursor: pointer;
+  overflow: hidden;
+  /* Shrink to fit the canvas content */
+  width: fit-content;
+
+  /* Performance: content-visibility for off-screen pages (Rule 6.2) */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* Remove ZoomableViewport padding, border, and width:100% when inside multipage */
+.heterogeneous-multipage__page-wrapper .zoomable-viewport-wrapper {
+  width: fit-content;
+}
+
+.heterogeneous-multipage__page-wrapper .zoomable-viewport-container {
+  padding: 0;
+}
+
+.heterogeneous-multipage__page-wrapper .zoomable-viewport-content::after {
+  display: none;
+}
+
+/* Hover state for non-active pages */
+.heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) {
+  border-color: var(--border-color-hover, rgba(0, 0, 0, 0.15));
+}
+
+/* Active page indicator - subtle border */
+.heterogeneous-multipage__page-wrapper--active {
+  border-color: var(--tanne, #0a2b1e);
+}
+
+/* Focus visible for keyboard navigation */
+.heterogeneous-multipage__page-wrapper:focus-visible {
+  outline: 2px solid var(--tanne, #0a2b1e);
+  outline-offset: 1px;
+}
+
+/* Delete button */
+.heterogeneous-multipage__delete-btn {
+  position: absolute;
+  top: var(--spacing-small, 8px);
+  right: var(--spacing-small, 8px);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-primary, #fff);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--font-color-secondary, #666);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Show delete button on hover */
+.heterogeneous-multipage__page-wrapper:hover .heterogeneous-multipage__delete-btn {
+  opacity: 1;
+}
+
+/* Delete button hover state */
+.heterogeneous-multipage__delete-btn:hover {
+  background: var(--error-100, #fee2e2);
+  color: var(--error-600, #dc2626);
+}
+
+/* Delete button focus */
+.heterogeneous-multipage__delete-btn:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--error-600, #dc2626);
+  outline-offset: 2px;
+}
+
+/* Add page section */
+.heterogeneous-multipage__add-page {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-medium, 16px) var(--spacing-small, 8px);
+  margin-top: var(--spacing-small, 8px);
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .heterogeneous-multipage__page-wrapper--active {
+  border-color: var(--tanne-light, #1a5c40);
+}
+
+[data-theme="dark"] .heterogeneous-multipage__delete-btn {
+  background: var(--bg-primary-dark, #1a1a1a);
+  color: var(--font-color-secondary-dark, #aaa);
+}
+
+[data-theme="dark"] .heterogeneous-multipage__delete-btn:hover {
+  background: var(--error-900, #7f1d1d);
+  color: var(--error-300, #fca5a5);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 900px) {
+  .heterogeneous-multipage__pages-container {
+    gap: var(--spacing-small, 8px);
+    padding: var(--spacing-xsmall, 4px);
+  }
+
+  .heterogeneous-multipage__delete-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    top: var(--spacing-xsmall, 4px);
+    right: var(--spacing-xsmall, 4px);
+    /* Always show on mobile since no hover */
+    opacity: 1;
+  }
+
+  .heterogeneous-multipage__add-page {
+    padding: var(--spacing-small, 8px) var(--spacing-xsmall, 4px);
+    margin-top: var(--spacing-xsmall, 4px);
+  }
+}

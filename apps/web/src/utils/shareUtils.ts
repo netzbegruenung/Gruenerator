@@ -81,7 +81,9 @@ export const isMobileDevice = (): boolean => {
   if (typeof navigator === 'undefined') return false;
 
   const userAgent = navigator.userAgent || '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    userAgent
+  );
   const hasTouchAndSmallScreen = navigator.maxTouchPoints > 0 && window.innerWidth <= 768;
 
   return isMobileUA || hasTouchAndSmallScreen;
@@ -146,13 +148,9 @@ export const copyImageToClipboard = async (base64Image: string): Promise<boolean
     const response = await fetch(base64Image);
     const blob = await response.blob();
 
-    const pngBlob: Blob = blob.type === 'image/png'
-      ? blob
-      : await convertToPng(blob);
+    const pngBlob: Blob = blob.type === 'image/png' ? blob : await convertToPng(blob);
 
-    await navigator.clipboard.write([
-      new ClipboardItem({ 'image/png': pngBlob })
-    ]);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
     return true;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);

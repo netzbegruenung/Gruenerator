@@ -48,15 +48,11 @@ export function buildSegmentFilterComplex(segments: Segment[]): FilterComplexRes
   const concatInputs = segments.map((_, i) => `[v${i}][a${i}]`).join('');
   const concatFilter = `${concatInputs}concat=n=${segments.length}:v=1:a=1[outv][outa]`;
 
-  const filterComplex = [
-    ...videoFilters,
-    ...audioFilters,
-    concatFilter
-  ].join(';');
+  const filterComplex = [...videoFilters, ...audioFilters, concatFilter].join(';');
 
   return {
     filterComplex,
-    outputStreams: ['[outv]', '[outa]']
+    outputStreams: ['[outv]', '[outa]'],
   };
 }
 
@@ -76,21 +72,21 @@ export function buildVideoOnlyFilterComplex(segments: Segment[]): FilterComplexR
   const concatInputs = segments.map((_, i) => `[v${i}]`).join('');
   const concatFilter = `${concatInputs}concat=n=${segments.length}:v=1:a=0[outv]`;
 
-  const filterComplex = [
-    ...videoFilters,
-    concatFilter
-  ].join(';');
+  const filterComplex = [...videoFilters, concatFilter].join(';');
 
   return {
     filterComplex,
-    outputStreams: ['[outv]']
+    outputStreams: ['[outv]'],
   };
 }
 
 /**
  * Build FFmpeg filter_complex for multi-clip segment trim and concat
  */
-export function buildMultiClipFilterComplex(clips: Clip[], segments: Segment[]): FilterComplexResult {
+export function buildMultiClipFilterComplex(
+  clips: Clip[],
+  segments: Segment[]
+): FilterComplexResult {
   const clipInputMap: Record<string, number> = {};
   clips.forEach((clip, index) => {
     clipInputMap[clip.clipId] = index;
@@ -121,23 +117,22 @@ export function buildMultiClipFilterComplex(clips: Clip[], segments: Segment[]):
   const concatInputs = segments.map((_, i) => `[v${i}][a${i}]`).join('');
   const concatFilter = `${concatInputs}concat=n=${segments.length}:v=1:a=1[outv][outa]`;
 
-  const filterComplex = [
-    ...videoFilters,
-    ...audioFilters,
-    concatFilter
-  ].join(';');
+  const filterComplex = [...videoFilters, ...audioFilters, concatFilter].join(';');
 
   return {
     filterComplex,
     outputStreams: ['[outv]', '[outa]'],
-    clipInputMap
+    clipInputMap,
   };
 }
 
 /**
  * Build FFmpeg filter_complex for multi-clip video-only (no audio)
  */
-export function buildMultiClipVideoOnlyFilterComplex(clips: Clip[], segments: Segment[]): FilterComplexResult {
+export function buildMultiClipVideoOnlyFilterComplex(
+  clips: Clip[],
+  segments: Segment[]
+): FilterComplexResult {
   const clipInputMap: Record<string, number> = {};
   clips.forEach((clip, index) => {
     clipInputMap[clip.clipId] = index;
@@ -158,15 +153,12 @@ export function buildMultiClipVideoOnlyFilterComplex(clips: Clip[], segments: Se
   const concatInputs = segments.map((_, i) => `[v${i}]`).join('');
   const concatFilter = `${concatInputs}concat=n=${segments.length}:v=1:a=0[outv]`;
 
-  const filterComplex = [
-    ...videoFilters,
-    concatFilter
-  ].join(';');
+  const filterComplex = [...videoFilters, concatFilter].join(';');
 
   return {
     filterComplex,
     outputStreams: ['[outv]'],
-    clipInputMap
+    clipInputMap,
   };
 }
 
@@ -182,7 +174,7 @@ export function calculateTotalDuration(segments: Segment[]): number {
  */
 export function isMultiClipExport(segments: Segment[]): boolean {
   if (!segments || segments.length === 0) return false;
-  const clipIds = new Set(segments.map(s => s.clipId).filter(Boolean));
+  const clipIds = new Set(segments.map((s) => s.clipId).filter(Boolean));
   return clipIds.size > 1;
 }
 
@@ -193,9 +185,11 @@ export function getUniqueClipsFromSegments<T extends { clipId?: string }>(
   segments: Segment[],
   clipRegistry: Record<string, T>
 ): (T & { clipId: string })[] {
-  const clipIds = [...new Set(segments.map(s => s.clipId).filter(Boolean))] as string[];
-  return clipIds.map(clipId => ({
-    clipId,
-    ...clipRegistry[clipId]
-  })).filter(c => c.clipId) as (T & { clipId: string })[];
+  const clipIds = [...new Set(segments.map((s) => s.clipId).filter(Boolean))] as string[];
+  return clipIds
+    .map((clipId) => ({
+      clipId,
+      ...clipRegistry[clipId],
+    }))
+    .filter((c) => c.clipId) as (T & { clipId: string })[];
 }

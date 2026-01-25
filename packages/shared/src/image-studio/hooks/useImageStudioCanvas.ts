@@ -6,10 +6,7 @@
 import { useState, useCallback } from 'react';
 import { getGlobalApiClient } from '../../api/client.js';
 import { isMobile } from '../../platform/index.js';
-import type {
-  ImageStudioTemplateType,
-  CanvasGenerationRequest,
-} from '../types.js';
+import type { ImageStudioTemplateType, CanvasGenerationRequest } from '../types.js';
 import { getTypeConfig, getCanvasEndpoint } from '../constants.js';
 import {
   validateCanvasInput,
@@ -175,10 +172,7 @@ export function useImageStudioCanvas(
   );
 
   const generateCanvas = useCallback(
-    async (
-      type: ImageStudioTemplateType,
-      request: CanvasGenerationRequest
-    ): Promise<string> => {
+    async (type: ImageStudioTemplateType, request: CanvasGenerationRequest): Promise<string> => {
       setLoading(true);
       setError(null);
 

@@ -1,7 +1,9 @@
 import { useEffect, useCallback, useMemo } from 'react';
+
+import type { GeneratedContent } from '@/types/baseform';
+
 import useGeneratedTextStore from '@/stores/core/generatedTextStore';
 import { extractEditableText, type Content } from '@/stores/hooks/useTextEditActions';
-import type { GeneratedContent } from '@/types/baseform';
 
 interface UseContentManagementParams {
   componentName: string;
@@ -12,10 +14,10 @@ interface UseContentManagementParams {
 export function useContentManagement(params: UseContentManagementParams) {
   const { componentName, generatedContent, initialContent } = params;
 
-  const value = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  const isStreaming = useGeneratedTextStore(state => state.isStreaming);
-  const setGeneratedText = useGeneratedTextStore(state => state.setGeneratedText);
-  const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
+  const value = useGeneratedTextStore((state) => state.getGeneratedText(componentName));
+  const isStreaming = useGeneratedTextStore((state) => state.isStreaming);
+  const setGeneratedText = useGeneratedTextStore((state) => state.setGeneratedText);
+  const pushToHistory = useGeneratedTextStore((state) => state.pushToHistory);
 
   const editableSource = useMemo(
     () => (generatedContent !== undefined && generatedContent !== null ? generatedContent : value),
@@ -49,14 +51,19 @@ export function useContentManagement(params: UseContentManagementParams) {
   // Update store when generatedContent changes
   useEffect(() => {
     if (generatedContent) {
-      const isMixedContent = typeof generatedContent === 'object' &&
+      const isMixedContent =
+        typeof generatedContent === 'object' &&
         generatedContent !== null &&
         ('sharepic' in generatedContent || 'social' in generatedContent);
 
       if (isMixedContent) {
         // Store mixed content as-is (object), not stringified
         setGeneratedText(componentName, generatedContent, generatedContent);
-      } else if (typeof generatedContent === 'object' && generatedContent !== null && 'content' in generatedContent) {
+      } else if (
+        typeof generatedContent === 'object' &&
+        generatedContent !== null &&
+        'content' in generatedContent
+      ) {
         const contentObj = generatedContent as { content?: string; metadata?: unknown };
         setGeneratedText(componentName, contentObj.content || '', contentObj.metadata);
       } else if (typeof generatedContent === 'string') {
@@ -68,10 +75,13 @@ export function useContentManagement(params: UseContentManagementParams) {
     }
   }, [generatedContent, setGeneratedText, componentName]);
 
-  const handleLoadRecentText = useCallback((content: string, metadata: unknown) => {
-    setGeneratedText(componentName, content, metadata);
-    pushToHistory(componentName);
-  }, [componentName, setGeneratedText, pushToHistory]);
+  const handleLoadRecentText = useCallback(
+    (content: string, metadata: unknown) => {
+      setGeneratedText(componentName, content, metadata);
+      pushToHistory(componentName);
+    },
+    [componentName, setGeneratedText, pushToHistory]
+  );
 
   return {
     value,
@@ -81,6 +91,6 @@ export function useContentManagement(params: UseContentManagementParams) {
     hasAnyContent,
     setGeneratedText,
     pushToHistory,
-    handleLoadRecentText
+    handleLoadRecentText,
   };
 }

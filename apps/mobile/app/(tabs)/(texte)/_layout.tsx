@@ -43,18 +43,9 @@ export default function TexteLayout() {
           lazy: true,
         }}
       >
-        <MaterialTopTabs.Screen
-          name="presse"
-          options={{ title: 'Presse & Social' }}
-        />
-        <MaterialTopTabs.Screen
-          name="antrag"
-          options={{ title: 'Anträge' }}
-        />
-        <MaterialTopTabs.Screen
-          name="universal"
-          options={{ title: 'Universal' }}
-        />
+        <MaterialTopTabs.Screen name="presse" options={{ title: 'Presse & Social' }} />
+        <MaterialTopTabs.Screen name="antrag" options={{ title: 'Anträge' }} />
+        <MaterialTopTabs.Screen name="universal" options={{ title: 'Universal' }} />
       </MaterialTopTabs>
     </SafeAreaView>
   );

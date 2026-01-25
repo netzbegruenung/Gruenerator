@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PiQuestion } from 'react-icons/pi';
+
 import type { HelpContent } from '@/types/baseform';
 import './HelpIconPopover.css';
 

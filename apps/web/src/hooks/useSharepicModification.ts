@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
-import { prepareDataForCanvas, type CanvasType } from '../utils/sharepicDataPreparation';
-import { ERROR_MESSAGES } from '../components/utils/constants';
+import { useState, useCallback, useMemo } from 'react';
+
 import apiClient from '../components/utils/apiClient';
+import { ERROR_MESSAGES } from '../components/utils/constants';
+import { prepareDataForCanvas, type CanvasType } from '../utils/sharepicDataPreparation';
 
 /** Type for sharepic form data */
 interface SharepicFormData {
@@ -40,8 +41,14 @@ interface ModifySharepicResult {
 
 /** Return type for the hook */
 interface UseSharepicModificationReturn {
-  modifySharepic: (formData: SharepicFormData, modificationData: SharepicModificationData) => Promise<ModifySharepicResult>;
-  debouncedModifySharepic: (formData: SharepicFormData, modificationData: SharepicModificationData) => void;
+  modifySharepic: (
+    formData: SharepicFormData,
+    modificationData: SharepicModificationData
+  ) => Promise<ModifySharepicResult>;
+  debouncedModifySharepic: (
+    formData: SharepicFormData,
+    modificationData: SharepicModificationData
+  ) => void;
   loading: boolean;
   error: string | null;
   setError: (error: string | null) => void;
@@ -61,10 +68,10 @@ const useSharepicModification = (): UseSharepicModificationReturn => {
   // Helper function to get the correct API endpoint based on sharepic type
   const getEndpointForType = (type: string): string => {
     const endpoints: Record<string, string> = {
-      'Dreizeilen': '/dreizeilen_canvas',
-      'Zitat': '/zitat_canvas',
-      'Zitat_Pure': '/zitat_pure_canvas',
-      'Info': '/info_canvas'
+      Dreizeilen: '/dreizeilen_canvas',
+      Zitat: '/zitat_canvas',
+      Zitat_Pure: '/zitat_pure_canvas',
+      Info: '/info_canvas',
     };
     return endpoints[type] || '/dreizeilen_canvas';
   };
@@ -72,81 +79,96 @@ const useSharepicModification = (): UseSharepicModificationReturn => {
   // Helper function to map frontend types to data preparation types
   const mapTypeForDataPreparation = (type: string): CanvasType => {
     const typeMap: Record<string, CanvasType> = {
-      'Dreizeilen': 'dreizeilen',
-      'Zitat': 'quote',
-      'Zitat_Pure': 'quote_pure',
-      'Info': 'info'
+      Dreizeilen: 'dreizeilen',
+      Zitat: 'quote',
+      Zitat_Pure: 'quote_pure',
+      Info: 'info',
     };
     return typeMap[type] || 'dreizeilen';
   };
 
-  const modifySharepic = useCallback(async (formData: SharepicFormData, modificationData: SharepicModificationData): Promise<ModifySharepicResult> => {
-    setLoading(true);
-    setError(null);
+  const modifySharepic = useCallback(
+    async (
+      formData: SharepicFormData,
+      modificationData: SharepicModificationData
+    ): Promise<ModifySharepicResult> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      console.log('Modifying image with data:', { formData, modificationData });
+      try {
+        console.log('Modifying image with data:', { formData, modificationData });
 
-      // Determine the sharepic type from formData
-      const sharepicType = formData.type || 'Dreizeilen';
-      const dataPreparationType = mapTypeForDataPreparation(sharepicType);
+        // Determine the sharepic type from formData
+        const sharepicType = formData.type || 'Dreizeilen';
+        const dataPreparationType = mapTypeForDataPreparation(sharepicType);
 
-      console.log(`Processing ${sharepicType} sharepic (${dataPreparationType} data preparation)`);
+        console.log(
+          `Processing ${sharepicType} sharepic (${dataPreparationType} data preparation)`
+        );
 
-      // Prepare the form data for the API call based on type
-      let formDataToSend;
-      if (dataPreparationType === 'info') {
-        // Info sharepics have different data structure
-        formDataToSend = prepareDataForInfoCanvas(formData, modificationData);
-      } else if (dataPreparationType === 'quote_pure') {
-        // Text-only sharepics don't need image data
-        formDataToSend = prepareDataForTextOnlyCanvas(formData, modificationData, dataPreparationType);
-      } else {
-        // Ensure image is available in modificationData if present in formData
-        const imageData = formData.uploadedImage || formData.image || formData.file;
-        if (imageData && !modificationData.image) {
-          modificationData.image = imageData;
+        // Prepare the form data for the API call based on type
+        let formDataToSend;
+        if (dataPreparationType === 'info') {
+          // Info sharepics have different data structure
+          formDataToSend = prepareDataForInfoCanvas(formData, modificationData);
+        } else if (dataPreparationType === 'quote_pure') {
+          // Text-only sharepics don't need image data
+          formDataToSend = prepareDataForTextOnlyCanvas(
+            formData,
+            modificationData,
+            dataPreparationType
+          );
+        } else {
+          // Ensure image is available in modificationData if present in formData
+          const imageData = formData.uploadedImage || formData.image || formData.file;
+          if (imageData && !modificationData.image) {
+            modificationData.image = imageData;
+          }
+          // Use existing unified preparation for dreizeilen and quote types
+          formDataToSend = prepareDataForCanvas(formData, modificationData, dataPreparationType);
         }
-        // Use existing unified preparation for dreizeilen and quote types
-        formDataToSend = prepareDataForCanvas(formData, modificationData, dataPreparationType);
+
+        // Make the API call to the appropriate endpoint using apiClient
+        const endpoint = getEndpointForType(sharepicType);
+        const response = await apiClient.post(endpoint, formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        // Handle Axios response wrapper - extract data
+        const result = response.data || response;
+        if (!result.image) {
+          throw new Error(ERROR_MESSAGES.NO_IMAGE_DATA);
+        }
+
+        console.log(`${sharepicType} image successfully modified`);
+        return {
+          image: result.image,
+          modificationData: {
+            fontSize: modificationData.fontSize,
+            balkenOffset: modificationData.balkenOffset,
+            colorScheme: modificationData.colorScheme,
+            credit: modificationData.credit,
+          },
+        };
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        console.error('Error in modifySharepic:', err);
+        setError(errorMessage);
+        throw err;
+      } finally {
+        setLoading(false);
       }
-
-      // Make the API call to the appropriate endpoint using apiClient
-      const endpoint = getEndpointForType(sharepicType);
-      const response = await apiClient.post(endpoint, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      // Handle Axios response wrapper - extract data
-      const result = response.data || response;
-      if (!result.image) {
-        throw new Error(ERROR_MESSAGES.NO_IMAGE_DATA);
-      }
-
-      console.log(`${sharepicType} image successfully modified`);
-      return {
-        image: result.image,
-        modificationData: {
-          fontSize: modificationData.fontSize,
-          balkenOffset: modificationData.balkenOffset,
-          colorScheme: modificationData.colorScheme,
-          credit: modificationData.credit,
-        }
-      };
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      console.error('Error in modifySharepic:', err);
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   // Helper function to prepare data for Info sharepics
-  const prepareDataForInfoCanvas = (formData: SharepicFormData, modificationData: SharepicModificationData): FormData => {
+  const prepareDataForInfoCanvas = (
+    formData: SharepicFormData,
+    modificationData: SharepicModificationData
+  ): FormData => {
     const formDataToSend = new FormData();
 
     formDataToSend.append('header', String(formData.header || ''));
@@ -160,7 +182,11 @@ const useSharepicModification = (): UseSharepicModificationReturn => {
   };
 
   // Helper function to prepare data for text-only sharepics (Zitat_Pure)
-  const prepareDataForTextOnlyCanvas = (formData: SharepicFormData, modificationData: SharepicModificationData, type: string): FormData => {
+  const prepareDataForTextOnlyCanvas = (
+    formData: SharepicFormData,
+    modificationData: SharepicModificationData,
+    type: string
+  ): FormData => {
     const formDataToSend = new FormData();
 
     if (type === 'quote_pure') {
@@ -168,16 +194,16 @@ const useSharepicModification = (): UseSharepicModificationReturn => {
       formDataToSend.append('name', formData.name || '');
     }
 
-    formDataToSend.append('fontSize', String(modificationData.fontSize || formData.fontSize || '85'));
+    formDataToSend.append(
+      'fontSize',
+      String(modificationData.fontSize || formData.fontSize || '85')
+    );
 
     return formDataToSend;
   };
 
   // Create debounced version for UI responsiveness
-  const debouncedModifySharepic = useMemo(
-    () => debounce(modifySharepic, 300),
-    [modifySharepic]
-  );
+  const debouncedModifySharepic = useMemo(() => debounce(modifySharepic, 300), [modifySharepic]);
 
   // Clear error state
   const clearError = useCallback(() => {
@@ -190,7 +216,7 @@ const useSharepicModification = (): UseSharepicModificationReturn => {
     loading,
     error,
     setError,
-    clearError
+    clearError,
   };
 };
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FiTrash2, FiCheck } from 'react-icons/fi';
+
 import useVideoEditorStore from '../../../../stores/videoEditorStore';
 import './TextOverlay.css';
 
@@ -18,13 +19,9 @@ const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({ overlayId, onClose 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [localText, setLocalText] = useState('');
 
-  const {
-    textOverlays,
-    updateTextOverlay,
-    removeTextOverlay
-  } = useVideoEditorStore();
+  const { textOverlays, updateTextOverlay, removeTextOverlay } = useVideoEditorStore();
 
-  const overlay = textOverlays.find(o => o.id === overlayId);
+  const overlay = textOverlays.find((o) => o.id === overlayId);
 
   useEffect(() => {
     if (overlay) {
@@ -50,12 +47,15 @@ const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({ overlayId, onClose 
     }
   }, [overlayId, localText, overlay?.text, updateTextOverlay]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape') {
-      setLocalText(overlay?.text || '');
-      inputRef.current?.blur();
-    }
-  }, [overlay?.text]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Escape') {
+        setLocalText(overlay?.text || '');
+        inputRef.current?.blur();
+      }
+    },
+    [overlay?.text]
+  );
 
   const handleDelete = useCallback(() => {
     if (overlayId) {
@@ -79,11 +79,7 @@ const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({ overlayId, onClose 
         <span className="text-overlay-panel__duration">
           {formatTime(overlay.startTime)} - {formatTime(overlay.endTime)}
         </span>
-        <button
-          className="text-overlay-panel__close"
-          onClick={handleClose}
-          aria-label="Schließen"
-        >
+        <button className="text-overlay-panel__close" onClick={handleClose} aria-label="Schließen">
           ×
         </button>
       </div>

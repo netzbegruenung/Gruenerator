@@ -8,18 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### ⚠️ Breaking Changes
+
 - Database migrated from Supabase to local PostgreSQL
 - Domain configuration centralized in `domainUtils.js`
 
 ### ✨ Added
 
 **Chat & UI**
+
 - ChatGPT-like start page layout with centered input experience
 - Mobile chat experience with full text messages in edit mode
 - Edit mode pencil on mobile with simplified MDX editor
 - Sharepic sharing modal with file sharing and clipboard utilities
 
 **Video & Media**
+
 - Video editor with auto-processing and Remotion integration
 - New subtitler editor with project management
 - Two download buttons for subtitler (Instagram/Full quality)
@@ -29,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Floating play/pause button for mobile subtitle editor
 
 **Features**
+
 - Multi-domain support for .de, .at, .eu domains
 - OParl API integration and Website generator
 - Gladia transcription service
@@ -38,12 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Christmas campaign popup and /weihnachten route
 
 **Developer Experience**
+
 - Reusable drag-drop hook (`useDragDropFiles`) with overlay styles
 - Autocomplete and platform detection hooks
 - Qdrant collections schema configuration
 - Inline ghost text tag autocomplete for template modals
 
 ### ♻️ Changed
+
 - ContentSelector simplified to popup-based selection
 - FeatureIcons simplified with ValidationBanner removed
 - BaseForm components updated with simplified layout styles
@@ -64,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Fixed
 
 **Authentication & Backend**
+
 - Auth: Graceful fallback for database errors during login
 - AI: Fallback chain reordered to prioritize Mistral after LiteLLM
 - AI worker: Fallback for empty AI responses
@@ -71,12 +78,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ES module imports in route files
 
 **Mobile & UI**
+
 - Mobile start page layout, hidden edit button, improved touch targets
 - Mobile styling for ActionButtons, MDXEditor toolbar, and forms
 - Mobile popups full height like Instagram stories
 - Login modal layout and mobile padding
 
 **Subtitler**
+
 - CSS naming conflicts, pixelated subtitles, race condition
 - Subtitle font sizes for HD+ resolutions
 - Subtitle line breaking (balanced 50/50 split, max 4 words)
@@ -85,6 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Font family names in ASS subtitle generation
 
 **General**
+
 - Edit mode z-index stacking and platform selector overlap
 - Form validation mode changed to onSubmit
 - Store reads latest value in getEditableText
@@ -99,6 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - URL sanitization for unbalanced trailing punctuation
 
 ### ⚡ Performance
+
 - Subtitler style optimizations
 - Form layout optimizations
 - FFmpeg encoding with VAAPI hardware acceleration
@@ -107,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Subtitle export with faster preset and ASS caching
 
 ### 🗑️ Removed
+
 - E-Learning feature
 - You feature
 - Bundestag feature
@@ -119,6 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.5.0] - 2025-12-03
 
 ### ✨ Added
+
 - Chat persistence for QA pages with conversation history
 - ChatGPT-style start page with suggestion chips
 - Matomo analytics integration for usage tracking
@@ -126,12 +139,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Notebooks feature enabled for all users
 
 ### ♻️ Changed
+
 - Theme toggle moved from Header to Footer
 - GrueneratorChatStartPage merged into ChatStartPage with variant prop
 - Voice recording and file upload logic consolidated in chat
 - h4 font size reduced for better heading hierarchy
 
 ### 🐛 Fixed
+
 - Dark mode background-color-alt alignment with prefers-color-scheme
 - Citation number white color preserved in fullscreen chat
 - Citation display with smaller text and badge styling
@@ -143,10 +158,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Social prompt constrained to generate only requested content
 
 ### ⚡ Performance
+
 - Optimized QA graph and embedding cache
 - Optimized AI generation latency with parallel processing
 
 ### 🗑️ Removed
+
 - AI shortener service from sharepic generation
 - Brackets from citation numbers
 
@@ -155,6 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.4.0] - 2025-11-25
 
 ### ✨ Added
+
 - FLUX.2 Pro API migration with JSON structured prompts
 - Custom Grueneratoren system (Open Beta)
 - Modular campaign system with JSON-driven configs
@@ -170,6 +188,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Login requirement for QA, notebook, SearchPage, and KampagnenGenerator
 
 ### ♻️ Changed
+
 - GrueneType font replaced with GrueneTypeNeue
 - Daily image generation limit increased from 5 to 10
 - Browser tab title updated to "Grünerator - Grüne KI"
@@ -179,6 +198,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Popup system simplified with auth protection
 
 ### 🐛 Fixed
+
 - Custom generator form field deletion not updating UI
 - Chat input contrast in dark mode
 - KI-Sharepic hidden in production settings
@@ -189,6 +209,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User's robot avatar shown in typing indicator
 
 ### 🔒 Security
+
 - Removed hardcoded Qdrant credentials from codebase
 
 ---
@@ -196,6 +217,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.3.0] - 2025-11-15
 
 ### ✨ Added
+
 - Beta features system with defaultEnabled support
 - Auto-save on export feature in Labor tab
 - Configurable login provider system to LoginPage
@@ -206,6 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reusable IndexPage/IndexCard components
 
 ### ♻️ Changed
+
 - Footer layout and styling redesigned
 - ContentManagement tabs reordered with SettingsSection added
 - Intelligence tab removed, Anweisungen section added
@@ -214,6 +237,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive Antrag expanded to 5 questions with AI-driven gap analysis
 
 ### 🐛 Fixed
+
 - Unwanted fade-in animation when opening generators
 - Zustand store subscriptions and missing import for file attachments
 - Batch processing for Qdrant vector uploads to prevent payload size errors
@@ -224,12 +248,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MinWidth constraint from balanced mode dropdown
 
 ### 🔒 Security
+
 - Fixed critical path traversal vulnerabilities with centralized path sanitization
 
 ### ⚡ Performance
+
 - FeatureIcons re-render performance optimized by 80-90%
 
 ### 🗑️ Removed
+
 - Deprecated selectedKnowledgeIds from backend
 - LoggedOutPage component
 
@@ -238,6 +265,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.2.0] - 2025-11-01
 
 ### ✨ Added
+
 - Interactive Antrag feature with LangChain integration
 - Route usage analytics and text editing enhancements
 - Automatic SearXNG to Mistral fallback for web search
@@ -246,11 +274,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generate 4 different poems in single AI call
 
 ### ♻️ Changed
+
 - React Portal implementation for FeatureIcons dropdowns
 - Interactive Antrag made beta feature with full gating
 - Spacing behavior improved for feature-icons dropdown
 
 ### 🐛 Fixed
+
 - ToolHandler support for both OpenAI and Claude tool formats
 - Removed (optional) designation from Imagine form input fields
 - Aligned Bürgeranfragen form fields with backend validation
@@ -260,6 +290,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Qdrant validation error when scrolling with limit=0
 
 ### ⚡ Performance
+
 - Default AI worker count increased from 6 to 7
 
 ---
@@ -267,16 +298,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2025-10-18
 
 ### ✨ Added
+
 - Universal text generator with submit and loading states
 - Missing prompt configuration files for text generators
 - Pro Mode migration from Bedrock to Magistral
 
 ### ♻️ Changed
+
 - All backend dependencies updated to latest stable versions
 - LangChain packages updated to v1.0.x for compatibility
 - Notebooks and Chat features temporarily hidden in LaborTab
 
 ### 🐛 Fixed
+
 - Authentication blocking issue on first visit to production
 - Custom generator form data transmission to backend
 - Reel-Grünerator reference to AssemblyAI instead of OpenAI
@@ -288,6 +322,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2025-02-26
 
 ### ✨ Added
+
 - Subtitler feature for video subtitle generation
 - Enhanced search functionality with navigation integration
 - Improved export functionality
@@ -296,6 +331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - White text class for improved contrast
 
 ### ♻️ Changed
+
 - Major menu structure improvements
 - Header design modifications with mobile search enhancements
 - Navigation menu simplified with extracted MenuItem component
@@ -304,6 +340,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wahlprüfstein BTW renamed to BTW Programm-Kompass
 
 ### 🐛 Fixed
+
 - Toggle button functionality
 - Mobile layout and button styles for sharepic
 - Slogans for quote route
@@ -315,6 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2025-01-13
 
 ### ✨ Added
+
 - Quote generator (Sharepic) feature
 - Grüne Jugend generator with dedicated routes
 - BTW-Kompass with help text improvements
@@ -323,6 +361,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - White text color for help-text class
 
 ### ♻️ Changed
+
 - Feature-based file organization structure
 - Verify feature improved with cleanup
 - Advanced editing section layout improvements
@@ -331,6 +370,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSS improvements across sharepic generator
 
 ### 🐛 Fixed
+
 - Allow generation with open slogan selection
 - Sunflower position optimization for 2-bar layout
 - Contributor name correction (Stefan Ossenberg)
@@ -343,6 +383,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-12-24
 
 ### ✨ Added
+
 - Initial release of Grünerator
 - AI-powered text generation with Claude AI
 - Progressive Web App (PWA) functionality
@@ -356,6 +397,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark/light mode theming
 
 ### 🔒 Security
+
 - Secure API endpoints implementation
 - Privacy-compliant processing without cookie usage
 - Upload limit increased to 32MB with domain umlaut support

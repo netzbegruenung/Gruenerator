@@ -1,4 +1,3 @@
-import React, { useCallback, useRef, useEffect, useMemo, useState } from 'react';
 import {
   MDXEditor,
   headingsPlugin,
@@ -8,20 +7,25 @@ import {
   toolbarPlugin,
   BoldItalicUnderlineToggles,
   BlockTypeSelect,
-  MDXEditorMethods
+  type MDXEditorMethods,
 } from '@mdxeditor/editor';
+import React, { useCallback, useRef, useEffect, useMemo, useState } from 'react';
+
 import '@mdxeditor/editor/style.css';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
 import '../../../../assets/styles/components/edit-mode/finetune-editor.css';
 
-const updateContentWithText = (originalContent: unknown, newText: string): string | Record<string, unknown> => {
+const updateContentWithText = (
+  originalContent: unknown,
+  newText: string
+): string | Record<string, unknown> => {
   if (typeof originalContent === 'string') {
     return newText;
   }
 
   if (typeof originalContent === 'object' && originalContent !== null) {
-    const updated = { ...originalContent as Record<string, unknown> };
+    const updated = { ...(originalContent as Record<string, unknown>) };
 
     const social = updated.social as Record<string, unknown> | undefined;
     if (social && typeof social === 'object' && typeof social.content === 'string') {
@@ -47,9 +51,9 @@ interface FinetuneEditorProps {
 }
 
 const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps) => {
-  const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
-  const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
-  const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
+  const storeContent = useGeneratedTextStore((state) => state.generatedTexts[componentName] || '');
+  const setTextWithHistory = useGeneratedTextStore((state) => state.setTextWithHistory);
+  const pushToHistory = useGeneratedTextStore((state) => state.pushToHistory);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -66,7 +70,7 @@ const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps
       componentName,
       length: extracted.length,
       preview: extracted.substring(0, 200),
-      hasContent: extracted.length > 0
+      hasContent: extracted.length > 0,
     });
     return extracted;
   }, [storeContent, componentName]);
@@ -85,7 +89,7 @@ const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps
       componentName,
       length: text.length,
       preview: text.substring(0, 200),
-      isEmpty: text.length === 0
+      isEmpty: text.length === 0,
     });
     return text;
   }, [textContent, componentName]);
@@ -97,7 +101,7 @@ const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps
       lastSavedContent.current = textContent;
       console.log('[FinetuneEditor] Initialized with content:', {
         componentName,
-        length: textContent.length
+        length: textContent.length,
       });
     }
   }, [textContent, componentName]);
@@ -115,7 +119,7 @@ const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps
       componentName,
       hasRef: !!editorRef.current,
       isInitialized: isInitialized.current,
-      storeContentLength: typeof storeContent === 'string' ? storeContent.length : 0
+      storeContentLength: typeof storeContent === 'string' ? storeContent.length : 0,
     });
 
     if (!editorRef.current || !isInitialized.current) return;
@@ -126,14 +130,14 @@ const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps
       componentName,
       newLength: newText.length,
       oldLength: lastSavedContent.current.length,
-      isDifferent: newText !== lastSavedContent.current
+      isDifferent: newText !== lastSavedContent.current,
     });
 
     if (newText !== lastSavedContent.current) {
       console.log('[FinetuneEditor] Updating markdown:', {
         componentName,
         contentLength: newText.length,
-        preview: newText.substring(0, 100)
+        preview: newText.substring(0, 100),
       });
       isExternalUpdate.current = true;
       editorRef.current.setMarkdown(newText);
@@ -144,44 +148,51 @@ const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps
     }
   }, [storeContent, componentName]);
 
-  const handleChange = useCallback((markdown: string) => {
-    if (isExternalUpdate.current) {
-      return;
-    }
+  const handleChange = useCallback(
+    (markdown: string) => {
+      if (isExternalUpdate.current) {
+        return;
+      }
 
-    if (markdown === lastSavedContent.current) {
-      return;
-    }
+      if (markdown === lastSavedContent.current) {
+        return;
+      }
 
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
 
-    debounceTimer.current = setTimeout(() => {
-      const currentStoreContent = useGeneratedTextStore.getState().generatedTexts[componentName] || '';
+      debounceTimer.current = setTimeout(() => {
+        const currentStoreContent =
+          useGeneratedTextStore.getState().generatedTexts[componentName] || '';
 
-      pushToHistory(componentName);
+        pushToHistory(componentName);
 
-      const updatedContent = updateContentWithText(currentStoreContent, markdown);
-      setTextWithHistory(componentName, updatedContent);
-      lastSavedContent.current = markdown;
-    }, 300);
-  }, [componentName, pushToHistory, setTextWithHistory]);
+        const updatedContent = updateContentWithText(currentStoreContent, markdown);
+        setTextWithHistory(componentName, updatedContent);
+        lastSavedContent.current = markdown;
+      }, 300);
+    },
+    [componentName, pushToHistory, setTextWithHistory]
+  );
 
-  const plugins = useMemo(() => [
-    headingsPlugin(),
-    listsPlugin(),
-    linkPlugin(),
-    linkDialogPlugin(),
-    toolbarPlugin({
-      toolbarContents: () => (
-        <>
-          {!isMobile && <BlockTypeSelect />}
-          <BoldItalicUnderlineToggles />
-        </>
-      )
-    })
-  ], [isMobile]);
+  const plugins = useMemo(
+    () => [
+      headingsPlugin(),
+      listsPlugin(),
+      linkPlugin(),
+      linkDialogPlugin(),
+      toolbarPlugin({
+        toolbarContents: () => (
+          <>
+            {!isMobile && <BlockTypeSelect />}
+            <BoldItalicUnderlineToggles />
+          </>
+        ),
+      }),
+    ],
+    [isMobile]
+  );
 
   // All hooks are above - now we can safely return early
   // Don't render MDXEditor if there's no text content

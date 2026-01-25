@@ -12,7 +12,7 @@ export const INSTRUCTION_TYPES = [
   { key: 'socialPrompt', title: 'Presse & Social Media' },
 ] as const;
 
-export type InstructionKey = typeof INSTRUCTION_TYPES[number]['key'];
+export type InstructionKey = (typeof INSTRUCTION_TYPES)[number]['key'];
 
 interface InstructionsState {
   instructions: Record<InstructionKey, string>;

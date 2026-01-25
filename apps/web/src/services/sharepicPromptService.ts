@@ -28,7 +28,13 @@ interface SharepicGeneratedData {
   theme?: string;
 }
 
-export type SharepicType = 'dreizeilen' | 'zitat-pure' | 'info' | 'veranstaltung' | 'simple' | 'pure-create';
+export type SharepicType =
+  | 'dreizeilen'
+  | 'zitat-pure'
+  | 'info'
+  | 'veranstaltung'
+  | 'simple'
+  | 'pure-create';
 
 export interface SelectedImage {
   filename: string;
@@ -61,10 +67,12 @@ interface AxiosError extends Error {
  * Generate sharepic content from a natural language prompt.
  * Uses the dedicated prompt route for direct classification and generation.
  */
-export async function generateSharepicFromPrompt(prompt: string): Promise<SharepicFromPromptResult> {
+export async function generateSharepicFromPrompt(
+  prompt: string
+): Promise<SharepicFromPromptResult> {
   try {
     const response = await apiClient.post('/sharepic/generate-from-prompt', {
-      prompt
+      prompt,
     });
 
     const responseData = response.data;
@@ -74,7 +82,7 @@ export async function generateSharepicFromPrompt(prompt: string): Promise<Sharep
         success: false,
         type: 'dreizeilen',
         data: {},
-        error: responseData.error || 'Unbekannter Fehler'
+        error: responseData.error || 'Unbekannter Fehler',
       };
     }
 
@@ -85,7 +93,7 @@ export async function generateSharepicFromPrompt(prompt: string): Promise<Sharep
         type: responseData.type as SharepicType,
         data: responseData.data || {},
         isKiType: true,
-        message: responseData.message
+        message: responseData.message,
       };
     }
 
@@ -95,9 +103,8 @@ export async function generateSharepicFromPrompt(prompt: string): Promise<Sharep
       type: responseData.type as SharepicType,
       data: responseData.data || {},
       selectedImage: responseData.selectedImage || null,
-      isKiType: false
+      isKiType: false,
     };
-
   } catch (error: unknown) {
     console.error('[SharepicPromptService] Error generating sharepic from prompt:', error);
 
@@ -111,7 +118,7 @@ export async function generateSharepicFromPrompt(prompt: string): Promise<Sharep
       success: false,
       type: 'dreizeilen',
       data: {},
-      error: errorMessage
+      error: errorMessage,
     };
   }
 }

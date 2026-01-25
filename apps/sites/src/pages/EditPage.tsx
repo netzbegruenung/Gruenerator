@@ -1,21 +1,39 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiLogOut, FiExternalLink, FiEye } from 'react-icons/fi';
-import { useAuth } from '../hooks/useAuth';
-import { useSite, type GeneratedSiteData } from '../hooks/useSite';
-import { EditorLayout, EditorSidebar, InteractivePreview, SectionNavigation } from '../components/editor';
+
 import { CandidatePage } from '../CandidatePage';
-import { useToast } from '../hooks/useToast';
-import { useLoadingProgress } from '../hooks/useLoadingProgress';
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
+import {
+  EditorLayout,
+  EditorSidebar,
+  InteractivePreview,
+  SectionNavigation,
+} from '../components/editor';
+import { useAuth } from '../hooks/useAuth';
+import { useLoadingProgress } from '../hooks/useLoadingProgress';
+import { useSite, type GeneratedSiteData } from '../hooks/useSite';
+import { useToast } from '../hooks/useToast';
 import { handleApiError } from '../utils/errorHandler';
-import { validators } from '../utils/validation';
 import { sanitizeSubdomain } from '../utils/sanitization';
+import { validators } from '../utils/validation';
+
 import type { CandidateData } from '../types/candidate';
 import '../styles/preview.css';
 
 export function EditPage() {
   const { user, logout } = useAuth();
-  const { site, isLoading, createSite, updateSite, togglePublish, generateSite, isCreating, isUpdating, isPublishing, isGenerating } = useSite();
+  const {
+    site,
+    isLoading,
+    createSite,
+    updateSite,
+    togglePublish,
+    generateSite,
+    isCreating,
+    isUpdating,
+    isPublishing,
+    isGenerating,
+  } = useSite();
   const toast = useToast();
   const generationProgress = useLoadingProgress(isGenerating, 30000);
 
@@ -29,9 +47,9 @@ export function EditPage() {
   // Preview state (before creating site)
   const [previewData, setPreviewData] = useState<GeneratedSiteData | null>(null);
 
-  // Regenerate state
+  // Regenerate state (temporarily unused - feature in progress)
   const [regenerateDescription, setRegenerateDescription] = useState('');
-  const [showRegenerateForm, setShowRegenerateForm] = useState(false);
+  const [_showRegenerateForm, _setShowRegenerateForm] = useState(false);
 
   // Fullscreen preview mode
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -107,7 +125,7 @@ export function EditPage() {
     try {
       const generated = await generateSite({
         description,
-        email: contactEmail || undefined
+        email: contactEmail || undefined,
       });
       setPreviewData(generated);
       toast.success('Seite generiert', 'Deine Seite wurde erfolgreich generiert');
@@ -143,7 +161,7 @@ export function EditPage() {
   };
 
   const handleUpdateCandidateData = useCallback((updates: Partial<CandidateData>) => {
-    setCandidateData((prev) => prev ? { ...prev, ...updates } : null);
+    setCandidateData((prev) => (prev ? { ...prev, ...updates } : null));
   }, []);
 
   const handleSave = async () => {
@@ -151,9 +169,7 @@ export function EditPage() {
 
     try {
       const socialLinks = Object.fromEntries(
-        Object.entries(candidateData.hero.socialLinks).filter(
-          ([_, value]) => value !== undefined
-        )
+        Object.entries(candidateData.hero.socialLinks).filter(([_, value]) => value !== undefined)
       ) as Record<string, string>;
 
       await updateSite({
@@ -198,7 +214,7 @@ export function EditPage() {
     }
   };
 
-  const handleRegenerate = async () => {
+  const _handleRegenerate = async () => {
     if (!site) return;
     if (!regenerateDescription.trim()) {
       toast.error('Beschreibung fehlt', 'Bitte gib eine Beschreibung ein.');
@@ -214,7 +230,7 @@ export function EditPage() {
     try {
       const generated = await generateSite({
         description: regenerateDescription,
-        email: site.contact_email || undefined
+        email: site.contact_email || undefined,
       });
 
       await updateSite({
@@ -228,7 +244,7 @@ export function EditPage() {
         },
       });
 
-      setShowRegenerateForm(false);
+      _setShowRegenerateForm(false);
       setRegenerateDescription('');
       toast.success('Seite neu generiert', 'Deine Seite wurde erfolgreich neu generiert');
     } catch (err) {
@@ -249,43 +265,55 @@ export function EditPage() {
   }
 
   // Build preview data for generation flow
-  const previewCandidateData: CandidateData = previewData ? {
-    id: 'preview',
-    slug: subdomain || 'vorschau',
-    hero: {
-      imageUrl: '',
-      name: previewData.site_title,
-      tagline: previewData.tagline,
-      socialLinks: {},
-    },
-    about: {
-      title: 'Wer ich bin',
-      content: previewData.bio,
-    },
-    heroImage: previewData.sections.heroImage,
-    themes: {
-      title: 'Meine Themen',
-      themes: previewData.sections.themes,
-    },
-    actions: {
-      actions: previewData.sections.actions,
-    },
-    contact: {
-      title: previewData.sections.contact?.title || 'Kontakt',
-      backgroundImageUrl: previewData.sections.contact?.backgroundImageUrl || '',
-      email: previewData.contact_email || contactEmail,
-      socialMedia: [],
-    },
-  } : {
-    id: 'placeholder',
-    slug: subdomain || 'dein-name',
-    hero: { imageUrl: '', name: 'Dein Name', tagline: 'Dein Slogan wird hier erscheinen', socialLinks: {} },
-    about: { title: 'Wer ich bin', content: 'Deine Biografie wird hier erscheinen...' },
-    heroImage: { imageUrl: '', title: 'Deine Hauptbotschaft', subtitle: '' },
-    themes: { title: 'Meine Themen', themes: [] },
-    actions: { actions: [] },
-    contact: { title: 'Kontakt', backgroundImageUrl: '', email: contactEmail || 'deine@email.de', socialMedia: [] },
-  };
+  const previewCandidateData: CandidateData = previewData
+    ? {
+        id: 'preview',
+        slug: subdomain || 'vorschau',
+        hero: {
+          imageUrl: '',
+          name: previewData.site_title,
+          tagline: previewData.tagline,
+          socialLinks: {},
+        },
+        about: {
+          title: 'Wer ich bin',
+          content: previewData.bio,
+        },
+        heroImage: previewData.sections.heroImage,
+        themes: {
+          title: 'Meine Themen',
+          themes: previewData.sections.themes,
+        },
+        actions: {
+          actions: previewData.sections.actions,
+        },
+        contact: {
+          title: previewData.sections.contact?.title || 'Kontakt',
+          backgroundImageUrl: previewData.sections.contact?.backgroundImageUrl || '',
+          email: previewData.contact_email || contactEmail,
+          socialMedia: [],
+        },
+      }
+    : {
+        id: 'placeholder',
+        slug: subdomain || 'dein-name',
+        hero: {
+          imageUrl: '',
+          name: 'Dein Name',
+          tagline: 'Dein Slogan wird hier erscheinen',
+          socialLinks: {},
+        },
+        about: { title: 'Wer ich bin', content: 'Deine Biografie wird hier erscheinen...' },
+        heroImage: { imageUrl: '', title: 'Deine Hauptbotschaft', subtitle: '' },
+        themes: { title: 'Meine Themen', themes: [] },
+        actions: { actions: [] },
+        contact: {
+          title: 'Kontakt',
+          backgroundImageUrl: '',
+          email: contactEmail || 'deine@email.de',
+          socialMedia: [],
+        },
+      };
 
   const isProcessing = isGenerating || isCreating;
 
@@ -309,11 +337,7 @@ export function EditPage() {
               <FiEye />
               <span className="header-button-text">Vorschau</span>
             </button>
-            <button
-              className="header-button"
-              onClick={handlePublish}
-              disabled={isPublishing}
-            >
+            <button className="header-button" onClick={handlePublish} disabled={isPublishing}>
               {isPublishing ? '...' : site.is_published ? 'Depublizieren' : 'Veröffentlichen'}
             </button>
             {site.is_published && (
@@ -327,11 +351,7 @@ export function EditPage() {
                 <FiExternalLink />
               </a>
             )}
-            <button
-              className="header-icon-button"
-              onClick={logout}
-              title="Abmelden"
-            >
+            <button className="header-icon-button" onClick={logout} title="Abmelden">
               <FiLogOut />
             </button>
           </div>
@@ -348,10 +368,7 @@ export function EditPage() {
             />
           }
           preview={
-            <InteractivePreview
-              candidateData={candidateData}
-              containerRef={previewScrollRef}
-            />
+            <InteractivePreview candidateData={candidateData} containerRef={previewScrollRef} />
           }
         />
 
@@ -387,9 +404,7 @@ export function EditPage() {
                 </button>
               </div>
               <div className="preview-toolbar-right">
-                <button onClick={() => setIsPreviewMode(false)}>
-                  Schließen
-                </button>
+                <button onClick={() => setIsPreviewMode(false)}>Schließen</button>
               </div>
             </div>
             <div className="preview-fullscreen-content">
@@ -425,7 +440,8 @@ export function EditPage() {
             <>
               <h2>Vorschau</h2>
               <p className="sidebar-intro">
-                So wird deine Seite aussehen. Prüfe die Inhalte und erstelle die Seite oder generiere neu.
+                So wird deine Seite aussehen. Prüfe die Inhalte und erstelle die Seite oder
+                generiere neu.
               </p>
               <p className="sidebar-intro">
                 <strong>{subdomain}.grsites.de</strong>
@@ -442,7 +458,9 @@ export function EditPage() {
                 </div>
                 <div className="preview-field">
                   <span className="preview-label">Themen:</span>
-                  <span className="preview-value">{previewData.sections.themes.map(t => t.title).join(', ')}</span>
+                  <span className="preview-value">
+                    {previewData.sections.themes.map((t) => t.title).join(', ')}
+                  </span>
                 </div>
               </div>
 
@@ -484,7 +502,8 @@ export function EditPage() {
             <>
               <h2>Neue Seite erstellen</h2>
               <p className="sidebar-intro">
-                Beschreibe dich und deine politischen Ziele. Die KI erstellt automatisch eine professionelle Kandidat*innen-Seite für dich.
+                Beschreibe dich und deine politischen Ziele. Die KI erstellt automatisch eine
+                professionelle Kandidat*innen-Seite für dich.
               </p>
 
               <div className="form-group">
@@ -570,8 +589,8 @@ export function EditPage() {
           generationProgress < 30
             ? 'Analysiere deine Beschreibung...'
             : generationProgress < 60
-            ? 'Erstelle Inhalte...'
-            : 'Fast fertig...'
+              ? 'Erstelle Inhalte...'
+              : 'Fast fertig...'
         }
       />
     </div>

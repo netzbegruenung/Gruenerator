@@ -14,7 +14,7 @@ export {
   getPartyName,
   extractLocaleFromRequest,
   PARTY_NAMES,
-  LOCALE_MAPPINGS
+  LOCALE_MAPPINGS,
 } from './LocalizationService.js';
 
 // Type exports

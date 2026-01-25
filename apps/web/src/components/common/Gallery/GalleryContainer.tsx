@@ -1,14 +1,13 @@
-import { JSX, useMemo, useState, useCallback } from 'react';
-import GalleryControls from './GalleryControls';
+import { type JSX, useMemo, useState, useCallback } from 'react';
+
 import IndexCard from '../IndexCard';
-import { GallerySkeleton, cardAdapters, type GalleryItem } from './cards';
-import {
-  DEFAULT_GALLERY_TYPE,
-  GALLERY_CONTENT_TYPES,
-  ORDERED_CONTENT_TYPE_IDS
-} from './config';
-import { useGalleryController } from './useGalleryController';
 import TemplatePreviewModal from '../TemplatePreviewModal';
+
+import { GallerySkeleton, cardAdapters, type GalleryItem } from './cards';
+import { DEFAULT_GALLERY_TYPE, GALLERY_CONTENT_TYPES, ORDERED_CONTENT_TYPE_IDS } from './config';
+import GalleryControls from './GalleryControls';
+import { useGalleryController } from './useGalleryController';
+
 
 import '../../../assets/styles/components/gallery-layout.css';
 import '../../../assets/styles/components/gallery-content-type.css';
@@ -24,8 +23,10 @@ interface GalleryContainerProps {
   availableContentTypes?: string[];
 }
 
-const GalleryContainer = ({ initialContentType,
-  availableContentTypes }: GalleryContainerProps): JSX.Element => {
+const GalleryContainer = ({
+  initialContentType,
+  availableContentTypes,
+}: GalleryContainerProps): JSX.Element => {
   const typeOrder = useMemo(() => {
     if (Array.isArray(availableContentTypes) && availableContentTypes.length > 0) {
       return availableContentTypes;
@@ -35,11 +36,16 @@ const GalleryContainer = ({ initialContentType,
 
   const firstAvailableType = typeOrder.find((id) => GALLERY_CONTENT_TYPES[id]);
   const [contentType, setContentType] = useState(
-    (initialContentType && GALLERY_CONTENT_TYPES[initialContentType]) ? initialContentType : (firstAvailableType || DEFAULT_GALLERY_TYPE)
+    initialContentType && GALLERY_CONTENT_TYPES[initialContentType]
+      ? initialContentType
+      : firstAvailableType || DEFAULT_GALLERY_TYPE
   );
   const [previewTemplate, setPreviewTemplate] = useState<GalleryItem | null>(null);
 
-  const handleOpenPreview = useCallback((template: GalleryItem) => setPreviewTemplate(template), []);
+  const handleOpenPreview = useCallback(
+    (template: GalleryItem) => setPreviewTemplate(template),
+    []
+  );
   const handleClosePreview = useCallback(() => setPreviewTemplate(null), []);
 
   const controller = useGalleryController({ contentType, availableContentTypeIds: typeOrder });
@@ -58,13 +64,17 @@ const GalleryContainer = ({ initialContentType,
     categories,
     typeOptions,
     refetch,
-    handleTagClick
+    handleTagClick,
   } = controller;
 
-  const activeConfig = config || GALLERY_CONTENT_TYPES[contentType] || GALLERY_CONTENT_TYPES[DEFAULT_GALLERY_TYPE];
+  const activeConfig =
+    config || GALLERY_CONTENT_TYPES[contentType] || GALLERY_CONTENT_TYPES[DEFAULT_GALLERY_TYPE];
 
   const placeholder = 'Durchsuchen...';
-  const showCategoryFilter = activeConfig.allowCategoryFilter !== false && Array.isArray(categories) && categories.length > 0;
+  const showCategoryFilter =
+    activeConfig.allowCategoryFilter !== false &&
+    Array.isArray(categories) &&
+    categories.length > 0;
 
   const handleContentTypeChange = (nextType: string) => {
     if (!GALLERY_CONTENT_TYPES[nextType]) return;
@@ -74,9 +84,10 @@ const GalleryContainer = ({ initialContentType,
   const renderList = (list: GalleryItem[], rendererId: string): React.ReactNode[] | null => {
     if (!Array.isArray(list) || list.length === 0) return null;
     const adapter = cardAdapters[rendererId as keyof typeof cardAdapters] || cardAdapters.default;
-    const adapterOptions = rendererId === 'vorlagen'
-      ? { onTagClick: handleTagClick, onOpenPreview: handleOpenPreview }
-      : {};
+    const adapterOptions =
+      rendererId === 'vorlagen'
+        ? { onTagClick: handleTagClick, onOpenPreview: handleOpenPreview }
+        : {};
 
     return list.map((item) => {
       const result = adapter(item, adapterOptions);
@@ -112,7 +123,9 @@ const GalleryContainer = ({ initialContentType,
             if (!list.length) return null;
             return (
               <div className="content-section" key={sectionIdStr}>
-                <h2 className="content-section-title">{activeConfig.sectionLabels?.[sectionIdStr] || sectionIdStr}</h2>
+                <h2 className="content-section-title">
+                  {activeConfig.sectionLabels?.[sectionIdStr] || sectionIdStr}
+                </h2>
                 <div className="content-section-grid">
                   {renderList(list, activeConfig.cardRenderer || sectionIdStr)}
                 </div>
@@ -160,9 +173,7 @@ const GalleryContainer = ({ initialContentType,
         </div>
       </div>
 
-      <div className="gallery-grid">
-        {renderContent()}
-      </div>
+      <div className="gallery-grid">{renderContent()}</div>
 
       {previewTemplate && (
         <TemplatePreviewModal

@@ -20,17 +20,24 @@ export class ContentExtractor {
    * Extracts clean text content from HTML using Cheerio
    */
   extractContent(html: string, url: string, enhancedMetadata: boolean = false): ContentData {
-    console.log(`[ContentExtractor] Extracting content from HTML (${html.length} characters), enhanced: ${enhancedMetadata}`);
+    console.log(
+      `[ContentExtractor] Extracting content from HTML (${html.length} characters), enhanced: ${enhancedMetadata}`
+    );
 
     const $ = cheerio.load(html);
 
     // Remove unwanted elements (be more selective to preserve content)
     $('script, style, noscript, iframe').remove();
-    $('.ads, .advertisement, .cookie-notice, .cookie-banner, .popup, .modal, .overlay, .social-share').remove();
+    $(
+      '.ads, .advertisement, .cookie-notice, .cookie-banner, .popup, .modal, .overlay, .social-share'
+    ).remove();
 
     // Extract metadata
     const title = $('title').text().trim() || $('h1').first().text().trim() || 'Untitled';
-    const metaDescription = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
+    const metaDescription =
+      $('meta[name="description"]').attr('content') ||
+      $('meta[property="og:description"]').attr('content') ||
+      '';
     const canonical = $('link[rel="canonical"]').attr('href') || url;
 
     // Extract enhanced metadata if requested
@@ -85,7 +92,9 @@ export class ContentExtractor {
     if (!extractedContent || extractedContent.trim().length < 100) {
       // Try removing only navigation elements while keeping main content
       const bodyClone = $('body').clone();
-      bodyClone.find('nav, header[role="banner"], footer[role="contentinfo"], .navigation, .sidebar').remove();
+      bodyClone
+        .find('nav, header[role="banner"], footer[role="contentinfo"], .navigation, .sidebar')
+        .remove();
 
       const fallbackContent = bodyClone.text().trim();
       if (fallbackContent.length > extractedContent.length) {

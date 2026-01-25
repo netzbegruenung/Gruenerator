@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
+
 import Icon from '../Icon';
 import './base-popup.css';
 
@@ -27,7 +28,8 @@ const BasePopup = ({
 }: BasePopupProps) => {
   const location = useLocation();
   const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');
-  const isAuthRoute = location.pathname.startsWith('/profile') || location.pathname.startsWith('/login');
+  const isAuthRoute =
+    location.pathname.startsWith('/profile') || location.pathname.startsWith('/login');
 
   const [isVisible, setIsVisible] = useState(() => {
     if (isNoHeaderFooterRoute || isAuthRoute) return false;
@@ -62,7 +64,12 @@ const BasePopup = ({
 
   if (!isVisible) return null;
 
-  const variantClass = variant === 'slider' ? 'base-popup--slider' : variant === 'single' ? 'base-popup--single' : 'base-popup--default';
+  const variantClass =
+    variant === 'slider'
+      ? 'base-popup--slider'
+      : variant === 'single'
+        ? 'base-popup--single'
+        : 'base-popup--default';
 
   return (
     <AnimatePresence>
@@ -82,19 +89,12 @@ const BasePopup = ({
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           {showCloseButton && (
-            <button
-              className="base-popup-close"
-              onClick={handleClose}
-              aria-label="Popup schließen"
-            >
+            <button className="base-popup-close" onClick={handleClose} aria-label="Popup schließen">
               <Icon category="actions" name="close" />
             </button>
           )}
 
-          {typeof children === 'function'
-            ? children({ onClose: handleClose })
-            : children
-          }
+          {typeof children === 'function' ? children({ onClose: handleClose }) : children}
         </motion.div>
       </motion.div>
     </AnimatePresence>

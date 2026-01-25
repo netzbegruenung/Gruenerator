@@ -4,7 +4,11 @@
  * Supports: OpenDoodles, Undraw (Kawaii is phase 2 - requires React SSR)
  */
 
-import { loadImage, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
+import {
+  loadImage,
+  type SKRSContext2D as CanvasRenderingContext2D,
+  type Image,
+} from '@napi-rs/canvas';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';

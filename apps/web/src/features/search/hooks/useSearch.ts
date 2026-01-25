@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
@@ -8,30 +9,33 @@ interface Source {
   content_snippets?: string;
 }
 
-const findUsedSources = (sources: Source[], analysisText: string, claudeSourceTitles: string[]): Source[] => {
+const findUsedSources = (
+  sources: Source[],
+  analysisText: string,
+  claudeSourceTitles: string[]
+): Source[] => {
   // Extrahiere URLs und Titel aus der Analyse
   const urlRegex = /(https?:\/\/[^\s)]+)/g;
   const usedUrls = [...new Set(analysisText.match(urlRegex) || [])];
-  
+
   // Finde Quellen, die entweder durch URL, Titel oder von Claude genannt wurden
-  return sources.filter(source => {
+  return sources.filter((source) => {
     // URL-Match
-    const urlMatch = usedUrls.some(url => 
-      source.url.includes(url) || url.includes(source.url)
-    );
-    
+    const urlMatch = usedUrls.some((url) => source.url.includes(url) || url.includes(source.url));
+
     // Titel-Match (berücksichtigt auch Teilübereinstimmungen)
     const title = source.title;
-    const titleMatch = title && (
-      analysisText.toLowerCase().includes(
-        title.toLowerCase().substring(0, Math.min(title.length, 40))
-      ) ||
-      claudeSourceTitles.some(claudeTitle =>
-        claudeTitle.toLowerCase().includes(title.toLowerCase()) ||
-        title.toLowerCase().includes(claudeTitle.toLowerCase())
-      )
-    );
-    
+    const titleMatch =
+      title &&
+      (analysisText
+        .toLowerCase()
+        .includes(title.toLowerCase().substring(0, Math.min(title.length, 40))) ||
+        claudeSourceTitles.some(
+          (claudeTitle) =>
+            claudeTitle.toLowerCase().includes(title.toLowerCase()) ||
+            title.toLowerCase().includes(claudeTitle.toLowerCase())
+        ));
+
     return urlMatch || titleMatch;
   });
 };
@@ -39,16 +43,18 @@ const findUsedSources = (sources: Source[], analysisText: string, claudeSourceTi
 const formatAnalysisText = (text: string): string => {
   // Teile den Text in Absätze
   const paragraphs = text.split('\n\n');
-  
+
   // Füge Absätze nur für Text ohne HTML-Tags hinzu
-  return paragraphs.map(paragraph => {
-    // Wenn der Paragraph bereits HTML-Tags enthält, gib ihn unverändert zurück
-    if (paragraph.includes('<')) {
-      return paragraph;
-    }
-    // Ansonsten wickle ihn in p-Tags
-    return `<p>${paragraph}</p>`;
-  }).join('');
+  return paragraphs
+    .map((paragraph) => {
+      // Wenn der Paragraph bereits HTML-Tags enthält, gib ihn unverändert zurück
+      if (paragraph.includes('<')) {
+        return paragraph;
+      }
+      // Ansonsten wickle ihn in p-Tags
+      return `<p>${paragraph}</p>`;
+    })
+    .join('');
 };
 
 interface Citation {
@@ -117,11 +123,12 @@ const useSearch = () => {
   const [citationSources, setCitationSources] = useState<Source[]>([]);
 
   // Get store function to save citations for ContentRenderer
-  const setGeneratedTextMetadata = useGeneratedTextStore(state => state.setGeneratedTextMetadata);
+  const setGeneratedTextMetadata = useGeneratedTextStore((state) => state.setGeneratedTextMetadata);
 
   const { submitForm: submitSearch, loading: searchLoading } = useApiSubmit('search');
   const { submitForm: submitAnalysis, loading: analysisLoading } = useApiSubmit('analyze');
-  const { submitForm: submitDeepSearch, loading: deepSearchLoading } = useApiSubmit('search/deep-research');
+  const { submitForm: submitDeepSearch, loading: deepSearchLoading } =
+    useApiSubmit('search/deep-research');
   const { submitForm: submitWebSearch, loading: webSearchLoading } = useApiSubmit('web-search');
 
   const clearAllResults = () => {
@@ -141,121 +148,134 @@ const useSearch = () => {
     setCitationSources([]);
   };
 
-  const search = useCallback(async (query: string) => {
-    clearAllResults();
+  const search = useCallback(
+    async (query: string) => {
+      clearAllResults();
 
-    try {
-      const searchData = await submitSearch({
-        query,
-        options: {
-          search_depth: 'advanced',
-          max_results: 10,
-          include_raw_content: true
+      try {
+        const searchData = (await submitSearch({
+          query,
+          options: {
+            search_depth: 'advanced',
+            max_results: 10,
+            include_raw_content: true,
+          },
+        })) as unknown as SearchApiResponse;
+
+        if (searchData.status === 'success' && Array.isArray(searchData.results)) {
+          setResults(searchData.results);
+
+          try {
+            const analysisResult = (await submitAnalysis({
+              contents: searchData.results.slice(0, 6),
+            })) as unknown as AnalysisApiResponse;
+            setAnalysis(formatAnalysisText(analysisResult.analysis));
+            setSourceRecommendations(analysisResult.sourceRecommendations || []);
+
+            const usedSourcesList = findUsedSources(
+              searchData.results.slice(0, 6),
+              analysisResult.analysis,
+              analysisResult.claudeSourceTitles
+            );
+            setUsedSources(usedSourcesList);
+          } catch (analysisError) {
+            console.error('Analyse fehlgeschlagen:', analysisError);
+            setError(
+              'Die Analyse konnte nicht durchgeführt werden, aber hier sind die Suchergebnisse.'
+            );
+          }
+        } else {
+          throw new Error('Ungültiges Antwortformat vom Server');
         }
-      }) as unknown as SearchApiResponse;
-
-      if (searchData.status === 'success' && Array.isArray(searchData.results)) {
-        setResults(searchData.results);
-
-        try {
-          const analysisResult = await submitAnalysis({
-            contents: searchData.results.slice(0, 6)
-          }) as unknown as AnalysisApiResponse;
-          setAnalysis(formatAnalysisText(analysisResult.analysis));
-          setSourceRecommendations(analysisResult.sourceRecommendations || []);
-
-          const usedSourcesList = findUsedSources(
-            searchData.results.slice(0, 6),
-            analysisResult.analysis,
-            analysisResult.claudeSourceTitles
-          );
-          setUsedSources(usedSourcesList);
-        } catch (analysisError) {
-          console.error('Analyse fehlgeschlagen:', analysisError);
-          setError('Die Analyse konnte nicht durchgeführt werden, aber hier sind die Suchergebnisse.');
-        }
-      } else {
-        throw new Error('Ungültiges Antwortformat vom Server');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setResults([]);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setResults([]);
-    }
-  }, [submitSearch, submitAnalysis]);
+    },
+    [submitSearch, submitAnalysis]
+  );
 
-  const deepSearch = useCallback(async (query: string) => {
-    clearAllResults();
+  const deepSearch = useCallback(
+    async (query: string) => {
+      clearAllResults();
 
-    try {
-      console.log('[useSearch] Starting deep search for:', query);
+      try {
+        console.log('[useSearch] Starting deep search for:', query);
 
-      const deepSearchData = await submitDeepSearch({ query }) as unknown as DeepSearchApiResponse;
+        const deepSearchData = (await submitDeepSearch({
+          query,
+        })) as unknown as DeepSearchApiResponse;
 
-      if (deepSearchData.status === 'success') {
-        console.log('[useSearch] Deep search successful:', deepSearchData);
+        if (deepSearchData.status === 'success') {
+          console.log('[useSearch] Deep search successful:', deepSearchData);
 
-        setDossier(deepSearchData.dossier ?? null);
-        setCategorizedSources(deepSearchData.categorizedSources || {});
-        setResearchQuestions(deepSearchData.researchQuestions || []);
-        setResults(deepSearchData.sources || []);
+          setDossier(deepSearchData.dossier ?? null);
+          setCategorizedSources(deepSearchData.categorizedSources || {});
+          setResearchQuestions(deepSearchData.researchQuestions || []);
+          setResults(deepSearchData.sources || []);
 
-        if (deepSearchData.citations) {
-          setCitations(deepSearchData.citations);
-          setGeneratedTextMetadata('deep-research-dossier', {
-            citations: deepSearchData.citations,
-            citationSources: deepSearchData.citationSources || []
-          });
+          if (deepSearchData.citations) {
+            setCitations(deepSearchData.citations);
+            setGeneratedTextMetadata('deep-research-dossier', {
+              citations: deepSearchData.citations,
+              citationSources: deepSearchData.citationSources || [],
+            });
+          }
+          if (deepSearchData.citationSources) {
+            setCitationSources(deepSearchData.citationSources);
+          }
+        } else {
+          throw new Error('Ungültiges Antwortformat vom Server');
         }
-        if (deepSearchData.citationSources) {
-          setCitationSources(deepSearchData.citationSources);
-        }
-      } else {
-        throw new Error('Ungültiges Antwortformat vom Server');
+      } catch (err) {
+        console.error('[useSearch] Deep search error:', err);
+        setError(err instanceof Error ? err.message : String(err));
+        setResults([]);
       }
-    } catch (err) {
-      console.error('[useSearch] Deep search error:', err);
-      setError(err instanceof Error ? err.message : String(err));
-      setResults([]);
-    }
-  }, [submitDeepSearch, setGeneratedTextMetadata]);
+    },
+    [submitDeepSearch, setGeneratedTextMetadata]
+  );
 
-  const webSearch = useCallback(async (query: string) => {
-    clearAllResults();
+  const webSearch = useCallback(
+    async (query: string) => {
+      clearAllResults();
 
-    try {
-      console.log('[useSearch] Starting web search for:', query);
+      try {
+        console.log('[useSearch] Starting web search for:', query);
 
-      const webSearchData = await submitWebSearch({
-        query,
-        searchType: 'general',
-        includeSummary: true,
-        maxResults: 10,
-        language: 'de-DE'
-      }) as unknown as WebSearchApiResponse & WebResults;
+        const webSearchData = (await submitWebSearch({
+          query,
+          searchType: 'general',
+          includeSummary: true,
+          maxResults: 10,
+          language: 'de-DE',
+        })) as unknown as WebSearchApiResponse & WebResults;
 
-      if (webSearchData.success) {
-        console.log('[useSearch] Web search successful:', webSearchData);
-        setWebResults(webSearchData);
+        if (webSearchData.success) {
+          console.log('[useSearch] Web search successful:', webSearchData);
+          setWebResults(webSearchData);
 
-        if (webSearchData.citations) {
-          setCitations(webSearchData.citations);
-          setGeneratedTextMetadata('web-search-summary', {
-            citations: webSearchData.citations,
-            citationSources: webSearchData.sources || []
-          });
+          if (webSearchData.citations) {
+            setCitations(webSearchData.citations);
+            setGeneratedTextMetadata('web-search-summary', {
+              citations: webSearchData.citations,
+              citationSources: webSearchData.sources || [],
+            });
+          }
+          if (webSearchData.sources) {
+            setCitationSources(webSearchData.sources);
+          }
+        } else {
+          throw new Error(webSearchData.error || 'Web search failed');
         }
-        if (webSearchData.sources) {
-          setCitationSources(webSearchData.sources);
-        }
-      } else {
-        throw new Error(webSearchData.error || 'Web search failed');
+      } catch (err) {
+        console.error('[useSearch] Web search error:', err);
+        setError(err instanceof Error ? err.message : String(err));
+        setWebResults(null);
       }
-    } catch (err) {
-      console.error('[useSearch] Web search error:', err);
-      setError(err instanceof Error ? err.message : String(err));
-      setWebResults(null);
-    }
-  }, [submitWebSearch, setGeneratedTextMetadata]);
+    },
+    [submitWebSearch, setGeneratedTextMetadata]
+  );
 
   return {
     results,
@@ -275,8 +295,8 @@ const useSearch = () => {
     webResults,
     // Citation support
     citations,
-    citationSources
+    citationSources,
   };
 };
 
-export default useSearch; 
+export default useSearch;

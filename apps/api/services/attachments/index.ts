@@ -17,7 +17,7 @@ export {
   processAttachmentsForRoute,
   buildDocumentsForPromptBuilder,
   logAttachmentProcessing,
-  processAndBuildAttachments
+  processAndBuildAttachments,
 } from './AttachmentProcessor.js';
 
 // Named function exports from CanvasAdapter (backward compatibility)
@@ -26,7 +26,7 @@ export {
   convertToBuffer,
   convertToTempFile,
   validateImageAttachment,
-  getFileExtension
+  getFileExtension,
 } from './CanvasAdapter.js';
 
 // Type exports
@@ -44,7 +44,7 @@ export type {
   ClaudeMessage,
   ClaudeDocument,
   MulterMemoryFile,
-  MulterDiskFile
+  MulterDiskFile,
 } from './types.js';
 
 // Constant exports
@@ -54,5 +54,5 @@ export {
   MAX_FILE_SIZE,
   MAX_TOTAL_SIZE,
   MAX_IMAGE_SIZE,
-  MIME_TO_EXTENSION
+  MIME_TO_EXTENSION,
 } from './constants.js';

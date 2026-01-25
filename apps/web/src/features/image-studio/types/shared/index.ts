@@ -4,13 +4,6 @@
  * Export all shared types for easy importing
  */
 
-export type {
-  ColorScheme,
-  ColorSchemeItem,
-  ColorSchemeArray
-} from './colorScheme';
+export type { ColorScheme, ColorSchemeItem, ColorSchemeArray } from './colorScheme';
 
-export {
-  isColorScheme,
-  isColorSchemeItem
-} from './colorScheme';
+export { isColorScheme, isColorSchemeItem } from './colorScheme';

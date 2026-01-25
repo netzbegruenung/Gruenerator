@@ -19,17 +19,13 @@ export function findUsedSources(
   const usedUrls = Array.from(new Set(matches));
 
   return sources.filter((source) => {
-    const urlMatch = usedUrls.some(
-      (url) => source.url.includes(url) || url.includes(source.url)
-    );
+    const urlMatch = usedUrls.some((url) => source.url.includes(url) || url.includes(source.url));
 
     const titleMatch =
       source.title &&
       (analysisText
         .toLowerCase()
-        .includes(
-          source.title.toLowerCase().substring(0, Math.min(source.title.length, 40))
-        ) ||
+        .includes(source.title.toLowerCase().substring(0, Math.min(source.title.length, 40))) ||
         claudeSourceTitles.some(
           (claudeTitle) =>
             claudeTitle.toLowerCase().includes(source.title.toLowerCase()) ||

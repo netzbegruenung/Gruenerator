@@ -1,5 +1,11 @@
 import { create, StateCreator } from 'zustand';
-import type { Project, ProjectsState, ProjectsActions, SaveProjectData, UpdateProjectData } from '../projects/types.js';
+import type {
+  Project,
+  ProjectsState,
+  ProjectsActions,
+  SaveProjectData,
+  UpdateProjectData,
+} from '../projects/types.js';
 import * as projectsApi from '../projects/api.js';
 
 const DEFAULT_PROJECTS_STATE: ProjectsState = {
@@ -28,7 +34,8 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
         initialFetchComplete: true,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Projekte konnten nicht geladen werden';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Projekte konnten nicht geladen werden';
       console.error('[ProjectsStore] Failed to fetch projects:', error);
       set({
         error: errorMessage,
@@ -49,7 +56,8 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
       });
       return project;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Projekt konnte nicht geladen werden';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Projekt konnte nicht geladen werden';
       console.error('[ProjectsStore] Failed to load project:', error);
       set({
         error: errorMessage,
@@ -78,7 +86,8 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
 
       return newProject;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Projekt konnte nicht gespeichert werden';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Projekt konnte nicht gespeichert werden';
       console.error('[ProjectsStore] Failed to save project:', error);
       set({
         error: errorMessage,
@@ -107,7 +116,8 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
 
       return updatedProject;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Projekt konnte nicht aktualisiert werden';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Projekt konnte nicht aktualisiert werden';
       console.error('[ProjectsStore] Failed to update project:', error);
       set({
         error: errorMessage,
@@ -126,7 +136,8 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
         currentProject: state.currentProject?.id === projectId ? null : state.currentProject,
       }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Projekt konnte nicht gelöscht werden';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Projekt konnte nicht gelöscht werden';
       console.error('[ProjectsStore] Failed to delete project:', error);
       set({ error: errorMessage });
       throw error;
@@ -153,6 +164,22 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
 export const useProjectsStore = create<ProjectsStore>()(createProjectsStoreSlice);
 
 export const getProjectsState = (): ProjectsState => {
-  const { projects, currentProject, isLoading, isSaving, error, saveSuccess, initialFetchComplete } = useProjectsStore.getState();
-  return { projects, currentProject, isLoading, isSaving, error, saveSuccess, initialFetchComplete };
+  const {
+    projects,
+    currentProject,
+    isLoading,
+    isSaving,
+    error,
+    saveSuccess,
+    initialFetchComplete,
+  } = useProjectsStore.getState();
+  return {
+    projects,
+    currentProject,
+    isLoading,
+    isSaving,
+    error,
+    saveSuccess,
+    initialFetchComplete,
+  };
 };

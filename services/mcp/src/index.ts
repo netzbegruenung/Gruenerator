@@ -17,7 +17,11 @@ console.log('[Boot] Dependencies loaded');
 console.log('[Boot] Loading config...');
 import { clientConfigTool } from './clients/config.ts';
 import { config, validateConfig } from './config.ts';
-import { getCollectionResources, getCollectionResource, readServerInfoResource } from './resources/collections.ts';
+import {
+  getCollectionResources,
+  getCollectionResource,
+  readServerInfoResource,
+} from './resources/collections.ts';
 import { getSystemPromptResource } from './resources/system-prompt.ts';
 import { examplesSearchTool } from './tools/examples-search.ts';
 import { filtersTool } from './tools/filters.ts';
@@ -41,12 +45,14 @@ try {
 console.log('[Boot] Setting up Express...');
 const app = express();
 app.use(express.json());
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'mcp-session-id'],
-  exposedHeaders: ['Mcp-Session-Id'],
-}));
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'mcp-session-id'],
+    exposedHeaders: ['Mcp-Session-Id'],
+  })
+);
 console.log('[Boot] Express configured');
 
 // Helper: Base URL ermitteln
@@ -61,32 +67,28 @@ const transports = {};
 function createMcpServer(baseUrl) {
   const server = new McpServer({
     name: 'gruenerator-mcp',
-    version: '1.0.0'
+    version: '1.0.0',
   });
 
   // === MCP RESOURCES ===
 
   // List available resources
-  server.resource(
-    'gruenerator://collections',
-    'Verfügbare Dokumentsammlungen',
-    async () => {
-      const resources = await getCollectionResources();
-      return {
-        contents: [{
+  server.resource('gruenerator://collections', 'Verfügbare Dokumentsammlungen', async () => {
+    const resources = await getCollectionResources();
+    return {
+      contents: [
+        {
           uri: 'gruenerator://collections',
           mimeType: 'application/json',
-          text: JSON.stringify({ collections: resources }, null, 2)
-        }]
-      };
-    }
-  );
+          text: JSON.stringify({ collections: resources }, null, 2),
+        },
+      ],
+    };
+  });
 
   // Server info resource
-  server.resource(
-    'gruenerator://info',
-    'Server-Informationen und Fähigkeiten',
-    () => readServerInfoResource()
+  server.resource('gruenerator://info', 'Server-Informationen und Fähigkeiten', () =>
+    readServerInfoResource()
   );
 
   // System prompt resource - AI systems should read this first
@@ -103,13 +105,17 @@ function createMcpServer(baseUrl) {
       `${col.displayName}: ${col.description}`,
       async () => {
         const resource = await getCollectionResource(`gruenerator://collections/${key}`);
-        return resource || {
-          contents: [{
-            uri: `gruenerator://collections/${key}`,
-            mimeType: 'application/json',
-            text: JSON.stringify({ error: 'Collection not found' })
-          }]
-        };
+        return (
+          resource || {
+            contents: [
+              {
+                uri: `gruenerator://collections/${key}`,
+                mimeType: 'application/json',
+                text: JSON.stringify({ error: 'Collection not found' }),
+              },
+            ],
+          }
+        );
       }
     );
   }
@@ -124,7 +130,14 @@ function createMcpServer(baseUrl) {
       const startTime = Date.now();
 
       try {
-        const result = await searchTool.handler({ query, collection, searchMode, limit, filters, useCache });
+        const result = await searchTool.handler({
+          query,
+          collection,
+          searchMode,
+          limit,
+          filters,
+          useCache,
+        });
         const responseTime = Date.now() - startTime;
 
         // Log the search
@@ -138,135 +151,140 @@ function createMcpServer(baseUrl) {
         );
 
         return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }],
-          isError: !!result.error
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+          isError: !!result.error,
         };
       } catch (err) {
         error('Search', `Search failed: ${err.message}`);
         return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify({ error: true, message: err.message })
-          }],
-          isError: true
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: true, message: err.message }),
+            },
+          ],
+          isError: true,
         };
       }
     }
   );
 
   // Cache Stats Tool
-  server.tool(
-    cacheStatsTool.name,
-    cacheStatsTool.inputSchema,
-    async () => {
-      const result = await cacheStatsTool.handler();
-      return {
-        content: [{
+  server.tool(cacheStatsTool.name, cacheStatsTool.inputSchema, async () => {
+    const result = await cacheStatsTool.handler();
+    return {
+      content: [
+        {
           type: 'text',
-          text: JSON.stringify(result, null, 2)
-        }]
-      };
-    }
-  );
+          text: JSON.stringify(result, null, 2),
+        },
+      ],
+    };
+  });
 
   // Client Config Tool
-  server.tool(
-    clientConfigTool.name,
-    clientConfigTool.inputSchema,
-    async ({ client }) => {
-      const result = clientConfigTool.handler({ client }, baseUrl);
-      return {
-        content: [{
+  server.tool(clientConfigTool.name, clientConfigTool.inputSchema, async ({ client }) => {
+    const result = clientConfigTool.handler({ client }, baseUrl);
+    return {
+      content: [
+        {
           type: 'text',
-          text: JSON.stringify(result, null, 2)
-        }]
-      };
-    }
-  );
+          text: JSON.stringify(result, null, 2),
+        },
+      ],
+    };
+  });
 
   // Filters Tool
-  server.tool(
-    filtersTool.name,
-    filtersTool.inputSchema,
-    async ({ collection }) => {
-      try {
-        const result = await filtersTool.handler({ collection });
-        return {
-          content: [{
+  server.tool(filtersTool.name, filtersTool.inputSchema, async ({ collection }) => {
+    try {
+      const result = await filtersTool.handler({ collection });
+      return {
+        content: [
+          {
             type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }],
-          isError: !!result.error
-        };
-      } catch (err) {
-        error('Filters', `Filter fetch failed: ${err.message}`);
-        return {
-          content: [{
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+        isError: !!result.error,
+      };
+    } catch (err) {
+      error('Filters', `Filter fetch failed: ${err.message}`);
+      return {
+        content: [
+          {
             type: 'text',
-            text: JSON.stringify({ error: true, message: err.message })
-          }],
-          isError: true
-        };
-      }
+            text: JSON.stringify({ error: true, message: err.message }),
+          },
+        ],
+        isError: true,
+      };
     }
-  );
+  });
 
   // Person Search Tool
-  server.tool(
-    personSearchTool.name,
-    personSearchTool.inputSchema,
-    async (params) => {
-      try {
-        const result = await personSearchTool.handler(params);
-        return {
-          content: [{
+  server.tool(personSearchTool.name, personSearchTool.inputSchema, async (params) => {
+    try {
+      const result = await personSearchTool.handler(params);
+      return {
+        content: [
+          {
             type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }],
-          isError: !!result.error
-        };
-      } catch (err) {
-        error('PersonSearch', `Person search failed: ${err.message}`);
-        return {
-          content: [{
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+        isError: !!result.error,
+      };
+    } catch (err) {
+      error('PersonSearch', `Person search failed: ${err.message}`);
+      return {
+        content: [
+          {
             type: 'text',
-            text: JSON.stringify({ error: true, message: err.message, isPersonQuery: false })
-          }],
-          isError: true
-        };
-      }
+            text: JSON.stringify({ error: true, message: err.message, isPersonQuery: false }),
+          },
+        ],
+        isError: true,
+      };
     }
-  );
+  });
 
   // Examples Search Tool
-  server.tool(
-    examplesSearchTool.name,
-    examplesSearchTool.inputSchema,
-    async (params) => {
-      try {
-        const result = await examplesSearchTool.handler(params);
-        return {
-          content: [{
+  server.tool(examplesSearchTool.name, examplesSearchTool.inputSchema, async (params) => {
+    try {
+      const result = await examplesSearchTool.handler(params);
+      return {
+        content: [
+          {
             type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }],
-          isError: !!result.error
-        };
-      } catch (err) {
-        error('ExamplesSearch', `Examples search failed: ${err.message}`);
-        return {
-          content: [{
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+        isError: !!result.error,
+      };
+    } catch (err) {
+      error('ExamplesSearch', `Examples search failed: ${err.message}`);
+      return {
+        content: [
+          {
             type: 'text',
-            text: JSON.stringify({ error: true, message: err.message, resultsCount: 0, examples: [] })
-          }],
-          isError: true
-        };
-      }
+            text: JSON.stringify({
+              error: true,
+              message: err.message,
+              resultsCount: 0,
+              examples: [],
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
-  );
+  });
 
   return server;
 }
@@ -286,10 +304,10 @@ app.get('/health', (req, res) => {
       embeddingHitRate: cacheStats.embeddings.hitRate,
       searchHitRate: cacheStats.search.hitRate,
       embeddingEntries: cacheStats.embeddings.entries,
-      searchEntries: cacheStats.search.entries
+      searchEntries: cacheStats.search.entries,
     },
     requests: serverStats.requests,
-    performance: serverStats.performance
+    performance: serverStats.performance,
   });
 });
 
@@ -303,7 +321,7 @@ app.get('/metrics', (req, res) => {
       name: 'gruenerator-mcp',
       version: '1.0.0',
       nodeVersion: process.version,
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
     },
     uptime: serverStats.uptime,
     requests: serverStats.requests,
@@ -313,8 +331,8 @@ app.get('/metrics', (req, res) => {
     memory: {
       heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
       heapTotalMB: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-      rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024)
-    }
+      rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    },
   });
 });
 
@@ -332,49 +350,53 @@ app.get('/.well-known/mcp.json', (req, res) => {
       {
         name: 'gruenerator_search',
         description: 'Durchsucht Grüne Parteiprogramme mit hybrid/vector/text Suche',
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'gruenerator_get_filters',
         description: 'Gibt verfügbare Filterwerte für eine Sammlung zurück',
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'gruenerator_cache_stats',
         description: 'Zeigt Cache-Statistiken für die Suche',
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'get_client_config',
         description: 'Generiert fertige MCP-Client-Konfigurationen',
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'gruenerator_person_search',
         description: 'Sucht nach Grünen-Abgeordneten mit angereicherten Daten aus der DIP-API',
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'gruenerator_examples_search',
         description: 'Sucht nach Social-Media-Beispielen der Grünen (Instagram, Facebook)',
-        annotations: { readOnlyHint: true, idempotentHint: true }
-      }
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
     ],
     resources: [
-      { uri: 'gruenerator://system-prompt', name: 'Anleitung für AI-Assistenten', priority: 'high' },
+      {
+        uri: 'gruenerator://system-prompt',
+        name: 'Anleitung für AI-Assistenten',
+        priority: 'high',
+      },
       { uri: 'gruenerator://info', name: 'Server Info' },
       { uri: 'gruenerator://collections', name: 'Alle Sammlungen' },
       ...Object.entries(config.collections).map(([key, col]) => ({
         uri: `gruenerator://collections/${key}`,
-        name: col.displayName
-      }))
+        name: col.displayName,
+      })),
     ],
     collections: Object.entries(config.collections).map(([key, col]) => ({
       id: key,
       name: col.displayName,
-      description: col.description
+      description: col.description,
     })),
-    supported_clients: ['claude', 'cursor', 'vscode', 'chatgpt']
+    supported_clients: ['claude', 'cursor', 'vscode', 'chatgpt'],
   });
 });
 
@@ -388,7 +410,7 @@ app.get('/config/:client', (req, res) => {
     return res.status(404).json({
       error: 'Unbekannter Client',
       message: `Unterstützte Clients: ${validClients.join(', ')}`,
-      available: validClients
+      available: validClients,
     });
   }
 
@@ -406,7 +428,7 @@ app.get('/info', (req, res) => {
       name: 'gruenerator-mcp',
       version: '1.0.0',
       description: 'MCP Server für Grüne Parteiprogramme (Deutschland & Österreich)',
-      uptime: serverStats.uptime
+      uptime: serverStats.uptime,
     },
     endpoints: {
       mcp: `${baseUrl}/mcp`,
@@ -414,7 +436,7 @@ app.get('/info', (req, res) => {
       metrics: `${baseUrl}/metrics`,
       discovery: `${baseUrl}/.well-known/mcp.json`,
       config: `${baseUrl}/config/:client`,
-      info: `${baseUrl}/info`
+      info: `${baseUrl}/info`,
     },
     tools: [
       {
@@ -423,57 +445,60 @@ app.get('/info', (req, res) => {
         collections: Object.keys(config.collections),
         searchModes: ['hybrid', 'vector', 'text'],
         features: ['caching', 'metadata-filtering', 'german-optimization'],
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'gruenerator_get_filters',
         description: 'Gibt verfügbare Filterwerte für eine Sammlung zurück',
         collections: Object.keys(config.collections),
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'gruenerator_cache_stats',
         description: 'Zeigt Cache-Statistiken für Embeddings und Suche',
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'get_client_config',
         description: 'Generiert MCP-Client-Konfigurationen',
         clients: ['claude', 'cursor', 'vscode'],
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'gruenerator_person_search',
         description: 'Sucht nach Grünen-Abgeordneten mit angereicherten Daten aus der DIP-API',
         features: ['Personenprofil', 'Drucksachen', 'Aktivitäten', 'Erwähnungen'],
-        annotations: { readOnlyHint: true, idempotentHint: true }
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'gruenerator_examples_search',
         description: 'Sucht nach Social-Media-Beispielen der Grünen',
         platforms: ['instagram', 'facebook'],
         countries: ['DE', 'AT'],
-        annotations: { readOnlyHint: true, idempotentHint: true }
-      }
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
     ],
     resources: [
-      { uri: 'gruenerator://system-prompt', description: 'Anleitung für AI-Assistenten (zuerst lesen!)' },
+      {
+        uri: 'gruenerator://system-prompt',
+        description: 'Anleitung für AI-Assistenten (zuerst lesen!)',
+      },
       { uri: 'gruenerator://info', description: 'Server-Informationen' },
       { uri: 'gruenerator://collections', description: 'Alle verfügbaren Sammlungen' },
       ...Object.entries(config.collections).map(([key, col]) => ({
         uri: `gruenerator://collections/${key}`,
-        description: col.description
-      }))
+        description: col.description,
+      })),
     ],
     collections: Object.entries(config.collections).map(([key, col]) => ({
       id: key,
       name: col.displayName,
-      description: col.description
+      description: col.description,
     })),
     links: {
       github: 'https://github.com/Movm/Gruenerator-MCP',
-      documentation: 'https://github.com/Movm/Gruenerator-MCP#readme'
-    }
+      documentation: 'https://github.com/Movm/Gruenerator-MCP#readme',
+    },
   });
 });
 
@@ -495,7 +520,7 @@ app.post('/mcp', async (req, res) => {
       onsessionclosed: (id) => {
         delete transports[id];
         info('Session', `Session closed: ${id}`);
-      }
+      },
     });
 
     transport.onclose = () => {
@@ -511,7 +536,7 @@ app.post('/mcp', async (req, res) => {
     res.status(400).json({
       jsonrpc: '2.0',
       error: { code: -32000, message: 'Ungültige Session' },
-      id: null
+      id: null,
     });
     return;
   }
@@ -575,7 +600,7 @@ app.listen(PORT, () => {
   console.log('  gruenerator://system-prompt  <-- AI should read this first');
   console.log('  gruenerator://info');
   console.log('  gruenerator://collections');
-  Object.keys(config.collections).forEach(key => {
+  Object.keys(config.collections).forEach((key) => {
     console.log(`  gruenerator://collections/${key}`);
   });
   console.log('='.repeat(50));

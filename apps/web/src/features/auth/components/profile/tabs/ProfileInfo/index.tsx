@@ -1,11 +1,21 @@
-import React, { useState, useEffect, useCallback, useRef, Suspense, lazy, FormEvent } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { profileApiService, getAvatarDisplayProps, initializeProfileFormFields, ProfileUpdateData, Profile, AvatarDisplay, ProfileFormFields } from '../../../../services/profileApiService';
-import { useAutosave } from '../../../../../../hooks/useAutosave';
-import { useProfile } from '../../../../hooks/useProfileData';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy, type FormEvent } from 'react';
+
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
-import { useProfileStore } from '../../../../../../stores/profileStore';
+import { useAutosave } from '../../../../../../hooks/useAutosave';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
+import { useProfileStore } from '../../../../../../stores/profileStore';
+import { useProfile } from '../../../../hooks/useProfileData';
+import {
+  profileApiService,
+  getAvatarDisplayProps,
+  initializeProfileFormFields,
+  type ProfileUpdateData,
+  type Profile,
+  type AvatarDisplay,
+  type ProfileFormFields,
+} from '../../../../services/profileApiService';
+
 import ProfileView from './ProfileView';
 
 const AvatarSelectionModal = lazy(() => import('../../AvatarSelectionModal'));
@@ -30,14 +40,19 @@ const ProfileInfoTabContainer = ({
   onSuccessMessage,
   onErrorProfileMessage,
   deleteAccount,
-  canManageAccount
+  canManageAccount,
 }: ProfileInfoTabContainerProps) => {
   const { user: authUser } = useOptimizedAuth();
   const user = userProp || authUser;
 
   // Move all hooks before conditional returns to avoid React hooks violation
   const queryClient = useQueryClient();
-  const { data: profileData, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
+  const {
+    data: profileData,
+    isLoading: isLoadingProfile,
+    isError: isErrorProfileQuery,
+    error: errorProfileQuery,
+  } = useProfile(user?.id);
   const profile = profileData as Profile | undefined;
   const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
   const syncProfile = useProfileStore((s) => s.syncProfile);
@@ -45,7 +60,7 @@ const ProfileInfoTabContainer = ({
   const {
     getBetaFeatureState,
     updateUserBetaFeatures,
-    isUpdating: isBetaFeaturesUpdating
+    isUpdating: isBetaFeaturesUpdating,
   } = useBetaFeatures();
 
   const igelActive = getBetaFeatureState('igel');
@@ -63,8 +78,6 @@ const ProfileInfoTabContainer = ({
     );
   }
 
-
-
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData: ProfileUpdateData) => {
       if (!user) throw new Error('Nicht angemeldet');
@@ -73,7 +86,10 @@ const ProfileInfoTabContainer = ({
     onSuccess: (updatedProfile: Profile) => {
       console.log('[ProfileInfo] Update success, updatedProfile:', updatedProfile);
       if (user?.id && updatedProfile) {
-        const newProfileData = (oldData: Profile | undefined) => ({ ...oldData, ...updatedProfile });
+        const newProfileData = (oldData: Profile | undefined) => ({
+          ...oldData,
+          ...updatedProfile,
+        });
         queryClient.setQueryData(['profileData', user.id], newProfileData);
         // Manually sync to profileStore for components not using useProfile
         const currentData = queryClient.getQueryData<Profile>(['profileData', user.id]);
@@ -99,7 +115,9 @@ const ProfileInfoTabContainer = ({
       await queryClient.cancelQueries({ queryKey: ['profileData', user?.id] });
       const previousProfile = queryClient.getQueryData<Profile>(['profileData', user?.id]);
       queryClient.setQueryData<Profile>(['profileData', user?.id], (oldData) =>
-        oldData ? { ...oldData, avatar_robot_id: avatarRobotId } : { avatar_robot_id: avatarRobotId }
+        oldData
+          ? { ...oldData, avatar_robot_id: avatarRobotId }
+          : { avatar_robot_id: avatarRobotId }
       );
       return { previousProfile, avatarRobotId };
     },
@@ -110,7 +128,10 @@ const ProfileInfoTabContainer = ({
           ...updatedProfile,
           avatar_robot_id: avatarRobotId,
         }));
-        queryClient.setQueryDefaults(['profileData', user.id], { staleTime: 60 * 60 * 1000, gcTime: 60 * 60 * 1000 });
+        queryClient.setQueryDefaults(['profileData', user.id], {
+          staleTime: 60 * 60 * 1000,
+          gcTime: 60 * 60 * 1000,
+        });
       }
     },
     onError: (error, avatarRobotId, context) => {
@@ -142,21 +163,26 @@ const ProfileInfoTabContainer = ({
 
   useEffect(() => {
     if (profile && isInitialized.current) {
-      console.log(`[Avatar State] profile.avatar_robot_id=${profile?.avatar_robot_id}, computed=${avatarRobotId}`);
+      console.log(
+        `[Avatar State] profile.avatar_robot_id=${profile?.avatar_robot_id}, computed=${avatarRobotId}`
+      );
     }
   }, [profile?.avatar_robot_id, avatarRobotId]);
 
   const stateBasedSave = useCallback(async () => {
     if (!profile || !isInitialized.current) return;
-    const fullDisplayName = displayName || email || (user?.username as string | undefined) || 'Benutzer';
+    const fullDisplayName =
+      displayName || email || (user?.username as string | undefined) || 'Benutzer';
     const profileUpdateData: ProfileUpdateData = {
       display_name: fullDisplayName,
       username: username || null,
       email: email?.trim() || null,
-      custom_prompt: customPrompt || null
+      custom_prompt: customPrompt || null,
     };
     try {
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Save timeout')), 10000));
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Save timeout')), 10000)
+      );
       await Promise.race([updateProfile(profileUpdateData), timeoutPromise]);
       setErrorProfile('');
     } catch (error) {
@@ -167,11 +193,27 @@ const ProfileInfoTabContainer = ({
         onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
       }
     }
-  }, [displayName, username, email, customPrompt, user?.username, profile, updateProfile, onErrorProfileMessage]);
+  }, [
+    displayName,
+    username,
+    email,
+    customPrompt,
+    user?.username,
+    profile,
+    updateProfile,
+    onErrorProfileMessage,
+  ]);
 
   const { resetTracking } = useAutosave({
-    saveFunction: async () => { await stateBasedSave(); },
-    formRef: { getValues: () => ({ displayName, username, email, customPrompt }), watch: (callback: (value: Record<string, unknown>, { name }: { name?: string }) => void) => ({ unsubscribe: () => { } }) },
+    saveFunction: async () => {
+      await stateBasedSave();
+    },
+    formRef: {
+      getValues: () => ({ displayName, username, email, customPrompt }),
+      watch: (callback: (value: Record<string, unknown>, { name }: { name?: string }) => void) => ({
+        unsubscribe: () => {},
+      }),
+    },
     enabled: profile && isInitialized.current,
     debounceMs: 2000,
     getFieldsToTrack: () => ['displayName', 'username', 'email', 'customPrompt'],
@@ -220,11 +262,14 @@ const ProfileInfoTabContainer = ({
         updateAvatarOptimistic(String(robotId)).catch(() => {
           console.debug('[ProfileInfo] ProfileStore sync after avatar update completed');
         });
-        window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: { avatarRobotId: robotId } }));
+        window.dispatchEvent(
+          new CustomEvent('avatarUpdated', { detail: { avatarRobotId: robotId } })
+        );
       }, 100);
     } catch (error) {
       console.error('[Avatar] update failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Aktualisieren des Avatars.';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Fehler beim Aktualisieren des Avatars.';
       onErrorProfileMessage(errorMessage);
     }
   };
@@ -292,7 +337,9 @@ const ProfileInfoTabContainer = ({
         errorProfile={errorProfile}
         isErrorProfileQuery={isErrorProfileQuery}
         errorProfileQueryMessage={errorProfileQuery?.message}
-        onRetryProfileRefetch={() => queryClient.refetchQueries({ queryKey: ['profileData', user?.id] })}
+        onRetryProfileRefetch={() =>
+          queryClient.refetchQueries({ queryKey: ['profileData', user?.id] })
+        }
         onOpenAvatarModal={() => setShowAvatarModal(true)}
         canManageCurrentAccount={canManageCurrentAccount}
         showDeleteAccountForm={showDeleteAccountForm}
@@ -312,7 +359,9 @@ const ProfileInfoTabContainer = ({
         <Suspense fallback={<div>Lade Avatare…</div>}>
           <AvatarSelectionModal
             isOpen={showAvatarModal}
-            currentAvatarId={typeof avatarRobotId === 'number' ? avatarRobotId : Number(avatarRobotId)}
+            currentAvatarId={
+              typeof avatarRobotId === 'number' ? avatarRobotId : Number(avatarRobotId)
+            }
             onSelect={handleAvatarSelect}
             onClose={() => setShowAvatarModal(false)}
           />

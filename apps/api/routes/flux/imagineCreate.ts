@@ -6,7 +6,11 @@ import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
-import { composeImagineCreate, FLUX_WIDTH, FLUX_HEIGHT } from '../../services/image/ImagineCanvasRenderer.js';
+import {
+  composeImagineCreate,
+  FLUX_WIDTH,
+  FLUX_HEIGHT,
+} from '../../services/image/ImagineCanvasRenderer.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
@@ -61,7 +65,7 @@ interface FluxGenerationResult {
 function buildCreatePrompt(userPrompt: string, variant: ImageVariant = 'light-top'): any {
   return buildFluxPrompt({
     variant,
-    subject: userPrompt
+    subject: userPrompt,
   });
 }
 
@@ -93,39 +97,31 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         success: false,
         error: 'Daily image generation limit reached',
         data: limitStatus,
-        message: `You have reached your daily limit of ${limitStatus.limit} image generations. Try again tomorrow.`
+        message: `You have reached your daily limit of ${limitStatus.limit} image generations. Try again tomorrow.`,
       });
     }
 
     const body = req.body as ImagineCreateRequestBody;
-    const {
-      prompt,
-      title,
-      titleColor,
-      variant = 'light-top',
-      seed,
-      width,
-      height
-    } = body;
+    const { prompt, title, titleColor, variant = 'light-top', seed, width, height } = body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 5) {
       return res.status(400).json({
         success: false,
-        error: 'A prompt of at least 5 characters is required'
+        error: 'A prompt of at least 5 characters is required',
       });
     }
 
     if (!title || typeof title !== 'string' || title.trim().length < 1) {
       return res.status(400).json({
         success: false,
-        error: 'A title is required'
+        error: 'A title is required',
       });
     }
 
     if (titleColor && !isValidHexColor(titleColor)) {
       return res.status(400).json({
         success: false,
-        error: 'titleColor must be a valid hex color (e.g., #FFFFFF)'
+        error: 'titleColor must be a valid hex color (e.g., #FFFFFF)',
       });
     }
 
@@ -134,19 +130,19 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       if (width < 64 || height < 64) {
         return res.status(400).json({
           success: false,
-          error: 'Dimensions must be at least 64x64'
+          error: 'Dimensions must be at least 64x64',
         });
       }
       if (width % 16 !== 0 || height % 16 !== 0) {
         return res.status(400).json({
           success: false,
-          error: 'Dimensions must be multiples of 16'
+          error: 'Dimensions must be multiples of 16',
         });
       }
       if (width * height > 4_000_000) {
         return res.status(400).json({
           success: false,
-          error: 'Image size cannot exceed 4 megapixels'
+          error: 'Image size cannot exceed 4 megapixels',
         });
       }
     }
@@ -154,16 +150,19 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     const validVariants: ImageVariant[] = ['light-top', 'realistic-top', 'pixel-top', 'editorial'];
     const selectedVariant: ImageVariant = validVariants.includes(variant) ? variant : 'light-top';
 
-    log.debug(`[ImagineCreate] Starting generation for user ${userId}, variant: ${selectedVariant}, prompt: "${prompt.substring(0, 50)}..."`);
+    log.debug(
+      `[ImagineCreate] Starting generation for user ${userId}, variant: ${selectedVariant}, prompt: "${prompt.substring(0, 50)}..."`
+    );
 
     const fluxPrompt = buildCreatePrompt(prompt.trim(), selectedVariant);
 
     // Use custom dimensions if provided, otherwise use constants
-    const dimensions = (width && height)
-      ? { width, height }
-      : { width: FLUX_WIDTH, height: FLUX_HEIGHT };
+    const dimensions =
+      width && height ? { width, height } : { width: FLUX_WIDTH, height: FLUX_HEIGHT };
 
-    log.debug(`[ImagineCreate] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${(width && height) ? ' (custom)' : ' (default)'}`);
+    log.debug(
+      `[ImagineCreate] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${width && height ? ' (custom)' : ' (default)'}`
+    );
 
     const flux = new FluxImageService();
     const fluxOptions: {
@@ -176,14 +175,17 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       width: dimensions.width,
       height: dimensions.height,
       output_format: 'jpeg' as const,
-      safety_tolerance: 2
+      safety_tolerance: 2,
     };
 
     if (seed && Number.isInteger(seed)) {
       fluxOptions.seed = seed;
     }
 
-    const { stored: fluxResult } = await flux.generateFromPrompt(fluxPrompt, fluxOptions) as FluxGenerationResult;
+    const { stored: fluxResult } = (await flux.generateFromPrompt(
+      fluxPrompt,
+      fluxOptions
+    )) as FluxGenerationResult;
 
     log.debug(`[ImagineCreate] FLUX image generated, size: ${fluxResult.size} bytes`);
 
@@ -194,13 +196,17 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     const composedBuffer = await composeImagineCreate(fluxImageBuffer, {
       title: title.trim(),
       titleColor,
-      variant: selectedVariant === 'editorial' || selectedVariant === 'realistic-top' || selectedVariant === 'pixel-top'
-        ? 'light-top'
-        : selectedVariant as 'light-top' | 'green-bottom',
-      ...(width && height && {
-        outputWidth: width,
-        outputHeight: height
-      })
+      variant:
+        selectedVariant === 'editorial' ||
+        selectedVariant === 'realistic-top' ||
+        selectedVariant === 'pixel-top'
+          ? 'light-top'
+          : (selectedVariant as 'light-top' | 'green-bottom'),
+      ...(width &&
+        height && {
+          outputWidth: width,
+          outputHeight: height,
+        }),
     });
 
     log.debug(`[ImagineCreate] Canvas composed, size: ${composedBuffer.length} bytes`);
@@ -224,7 +230,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     await imageCounter.incrementCount(userId);
     const updatedLimitStatus = await imageCounter.checkLimit(userId);
 
-    log.debug(`[ImagineCreate] Image saved to ${filePath}, updated usage: ${updatedLimitStatus.count}/${updatedLimitStatus.limit}`);
+    log.debug(
+      `[ImagineCreate] Image saved to ${filePath}, updated usage: ${updatedLimitStatus.count}/${updatedLimitStatus.limit}`
+    );
 
     const base64Output = `data:image/png;base64,${labeledBuffer.toString('base64')}`;
 
@@ -235,21 +243,20 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         path: filePath,
         relativePath: path.join('uploads', 'imagine', 'create', today, filename),
         filename,
-        size: labeledBuffer.length
+        size: labeledBuffer.length,
       },
       metadata: {
         fluxImageDimensions: { width: FLUX_WIDTH, height: FLUX_HEIGHT },
         outputDimensions: { width: 1080, height: 1350 },
         prompt: fluxPrompt,
-        timestamp: now.toISOString()
+        timestamp: now.toISOString(),
       },
       usage: {
         count: updatedLimitStatus.count,
         remaining: updatedLimitStatus.limit - updatedLimitStatus.count,
-        limit: updatedLimitStatus.limit
-      }
+        limit: updatedLimitStatus.limit,
+      },
     });
-
   } catch (error: any) {
     log.error('[ImagineCreate] Error during image creation:', error.message);
 
@@ -257,18 +264,27 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       log.error('[ImagineCreate] API response status:', error.response.status);
     }
 
-    const statusCode = error.type === 'validation' ? 400 :
-                       error.type === 'billing' ? 402 :
-                       error.retryable === false ? 400 : 500;
+    const statusCode =
+      error.type === 'validation'
+        ? 400
+        : error.type === 'billing'
+          ? 402
+          : error.retryable === false
+            ? 400
+            : 500;
 
     return res.status(statusCode).json({
       success: false,
       error: error.message || 'Failed to create image',
       type: error.type || 'unknown',
       retryable: error.retryable ?? true,
-      ...(error.type === 'network' && { hint: 'Please check your internet connection and try again' }),
+      ...(error.type === 'network' && {
+        hint: 'Please check your internet connection and try again',
+      }),
       ...(error.type === 'billing' && { hint: 'Please add credits to your BFL account' }),
-      ...(error.type === 'server' && { hint: 'The service is temporarily unavailable. Please try again in a few minutes' })
+      ...(error.type === 'server' && {
+        hint: 'The service is temporarily unavailable. Please try again in a few minutes',
+      }),
     });
   }
 });

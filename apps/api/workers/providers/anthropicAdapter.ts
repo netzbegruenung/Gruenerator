@@ -4,7 +4,10 @@ import config from '../worker.config.js';
 import { mergeMetadata } from './adapterUtils.js';
 import * as typeProfiles from '../../config/typeProfiles.js';
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
-import type { ChatCompletionMessageParam, ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionCreateParamsNonStreaming,
+} from 'openai/resources/chat/completions';
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
@@ -81,14 +84,22 @@ async function executeWithTelekomFallback(requestId: string, data: AIRequestData
 */
 
 async function execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
-  const { prompt, systemPrompt, messages, options = {}, type, metadata: requestMetadata = {}, fileMetadata } = data;
+  const {
+    prompt,
+    systemPrompt,
+    messages,
+    options = {},
+    type,
+    metadata: requestMetadata = {},
+    fileMetadata,
+  } = data;
 
-  const { betas, ...apiOptions } = options as { betas?: string[];[key: string]: unknown };
+  const { betas, ...apiOptions } = options as { betas?: string[]; [key: string]: unknown };
 
   const defaultConfig: AnthropicRequestConfig = {
     model: 'claude-3-7-sonnet-latest',
     max_tokens: 8000,
-    temperature: 0.7
+    temperature: 0.7,
   };
 
   const typeConfig = typeProfiles.getTypeProfile(type) as Partial<AnthropicRequestConfig> | null;
@@ -97,7 +108,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     ...defaultConfig,
     ...(typeConfig || {}),
     ...(apiOptions as Partial<AnthropicRequestConfig>),
-    system: systemPrompt || typeConfig?.system || undefined
+    system: systemPrompt || typeConfig?.system || undefined,
   };
 
   const headers: Record<string, string> = {};
@@ -115,42 +126,73 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   }
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`Request Timeout nach ${config.worker.requestTimeout / 1000} Sekunden`)), config.worker.requestTimeout);
+    setTimeout(
+      () =>
+        reject(new Error(`Request Timeout nach ${config.worker.requestTimeout / 1000} Sekunden`)),
+      config.worker.requestTimeout
+    );
   });
 
   try {
-    const response = await Promise.race([
-      anthropic.messages.create(requestConfig as Parameters<typeof anthropic.messages.create>[0], { headers }),
-      timeoutPromise
-    ]) as Anthropic.Message;
+    const response = (await Promise.race([
+      anthropic.messages.create(requestConfig as Parameters<typeof anthropic.messages.create>[0], {
+        headers,
+      }),
+      timeoutPromise,
+    ])) as Anthropic.Message;
 
-    if (!response.content || !response.content[0] || !(response.content[0] as { text?: string }).text) {
-      if (response.stop_reason !== 'tool_use' && (!response.content || !response.content[0] || typeof (response.content[0] as { text?: string }).text !== 'string')) {
-        throw new Error(`Invalid Claude response for request ${requestId}: missing textual content when not using tools`);
+    if (
+      !response.content ||
+      !response.content[0] ||
+      !(response.content[0] as { text?: string }).text
+    ) {
+      if (
+        response.stop_reason !== 'tool_use' &&
+        (!response.content ||
+          !response.content[0] ||
+          typeof (response.content[0] as { text?: string }).text !== 'string')
+      ) {
+        throw new Error(
+          `Invalid Claude response for request ${requestId}: missing textual content when not using tools`
+        );
       }
-      if (response.stop_reason === 'tool_use' && (!(response as unknown as { tool_calls?: unknown[] }).tool_calls || (response as unknown as { tool_calls?: unknown[] }).tool_calls!.length === 0)) {
-        throw new Error(`Invalid Claude response for request ${requestId}: tool_use indicated but no tool_calls provided.`);
+      if (
+        response.stop_reason === 'tool_use' &&
+        (!(response as unknown as { tool_calls?: unknown[] }).tool_calls ||
+          (response as unknown as { tool_calls?: unknown[] }).tool_calls!.length === 0)
+      ) {
+        throw new Error(
+          `Invalid Claude response for request ${requestId}: tool_use indicated but no tool_calls provided.`
+        );
       }
     }
 
-    const textualContent = response.content?.find((block): block is Anthropic.TextBlock => block.type === 'text')?.text || null;
+    const textualContent =
+      response.content?.find((block): block is Anthropic.TextBlock => block.type === 'text')
+        ?.text || null;
 
     const toolCalls: ToolCall[] | undefined = response.content
       ?.filter((block): block is Anthropic.ToolUseBlock => block.type === 'tool_use')
-      .map(block => ({
+      .map((block) => ({
         id: block.id,
         name: block.name,
-        input: block.input as Record<string, unknown>
+        input: block.input as Record<string, unknown>,
       }));
 
-    const rawContentBlocks: ContentBlock[] = response.content?.map(block => {
-      if (block.type === 'text') {
-        return { type: 'text', text: block.text };
-      } else if (block.type === 'tool_use') {
-        return { type: 'tool_use', id: block.id, name: block.name, input: block.input as Record<string, unknown> };
-      }
-      return { type: block.type };
-    }) || [];
+    const rawContentBlocks: ContentBlock[] =
+      response.content?.map((block) => {
+        if (block.type === 'text') {
+          return { type: 'text', text: block.text };
+        } else if (block.type === 'tool_use') {
+          return {
+            type: 'tool_use',
+            id: block.id,
+            name: block.name,
+            input: block.input as Record<string, unknown>,
+          };
+        }
+        return { type: block.type };
+      }) || [];
 
     return {
       content: textualContent,
@@ -167,8 +209,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         isFilesApiRequest: fileMetadata?.fileId ? true : false,
         fileId: fileMetadata?.fileId || null,
         usedPromptCaching: fileMetadata?.usePromptCaching || false,
-        modelUsed: requestConfig.model
-      })
+        modelUsed: requestConfig.model,
+      }),
     };
   } catch (error) {
     // Telekom fallback commented out - may use later

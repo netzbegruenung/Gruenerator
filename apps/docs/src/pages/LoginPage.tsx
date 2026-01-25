@@ -23,36 +23,44 @@ export const LoginPage = () => {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      backgroundColor: 'var(--background-color)',
-      padding: '2rem',
-    }}>
-      <div style={{
-        backgroundColor: 'var(--card-background)',
-        padding: '3rem',
-        borderRadius: '12px',
-        boxShadow: 'var(--shadow-lg)',
-        maxWidth: '400px',
-        width: '100%',
-        textAlign: 'center',
-      }}>
-        <h1 style={{
-          fontSize: '2rem',
-          marginBottom: '1rem',
-          color: 'var(--font-color)',
-        }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        backgroundColor: 'var(--background-color)',
+        padding: '2rem',
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: 'var(--card-background)',
+          padding: '3rem',
+          borderRadius: '12px',
+          boxShadow: 'var(--shadow-lg)',
+          maxWidth: '400px',
+          width: '100%',
+          textAlign: 'center',
+        }}
+      >
+        <h1
+          style={{
+            fontSize: '2rem',
+            marginBottom: '1rem',
+            color: 'var(--font-color)',
+          }}
+        >
           Grünerator Docs
         </h1>
 
-        <p style={{
-          color: 'var(--font-color-secondary)',
-          marginBottom: '2rem',
-        }}>
+        <p
+          style={{
+            color: 'var(--font-color-secondary)',
+            marginBottom: '2rem',
+          }}
+        >
           Melde dich an, um fortzufahren
         </p>
 

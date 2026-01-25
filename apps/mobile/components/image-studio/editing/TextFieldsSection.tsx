@@ -35,9 +35,7 @@ export function TextFieldsSection({
         return (
           <View key={field.key} style={styles.fieldContainer}>
             <View style={styles.labelRow}>
-              <Text style={[styles.label, { color: theme.textSecondary }]}>
-                {field.label}
-              </Text>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>{field.label}</Text>
               {field.maxLength && (
                 <Text
                   style={[

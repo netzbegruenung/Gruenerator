@@ -1,5 +1,9 @@
 import { useMemo } from 'react';
-import { getSearchValueFactory, getSortValueFactory } from '../components/utils/documentOverviewUtils';
+
+import {
+  getSearchValueFactory,
+  getSortValueFactory,
+} from '../components/utils/documentOverviewUtils';
 
 interface DocumentItem {
   source_type?: string;
@@ -80,4 +84,3 @@ export const useFilteredAndGroupedItems = ({
 };
 
 export default useFilteredAndGroupedItems;
-

@@ -6,5 +6,5 @@ export {
   normalizeText,
   tokenizeQuery,
   generateQueryVariants,
-  containsNormalized
+  containsNormalized,
 } from './textNormalization.js';

@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useOparlSearch } from '../hooks/useOparlSearch';
-import SearchBar from '../../search/components/SearchBar';
+
 import { Markdown } from '../../../components/common/Markdown';
+import SearchBar from '../../search/components/SearchBar';
+import { useOparlSearch } from '../hooks/useOparlSearch';
+
 import '../../search/styles/SearchBarStyles.css';
 import '../styles/oparl.css';
 import '../../../assets/styles/common/markdown-styles.css';
@@ -12,7 +14,7 @@ const exampleQuestions = [
   { icon: '🌍', text: 'Klimaschutz CO2' },
   { icon: '🏫', text: 'Schulen Bildung' },
   { icon: '🏠', text: 'Wohnen Miete' },
-  { icon: '🌳', text: 'Grünflächen Park' }
+  { icon: '🌳', text: 'Grünflächen Park' },
 ];
 
 const formatDate = (dateStr: string | undefined): string => {
@@ -46,27 +48,33 @@ const OparlPage = () => {
     selectCity,
     clearCityFilter,
     selectPaper,
-    clearSelectedPaper
+    clearSelectedPaper,
   } = useOparlSearch();
 
   useEffect(() => {
     loadIndexedCities();
   }, [loadIndexedCities]);
 
-  const handleSearch = useCallback((query?: string) => {
-    if (query) {
-      search(query);
-    }
-  }, [search]);
+  const handleSearch = useCallback(
+    (query?: string) => {
+      if (query) {
+        search(query);
+      }
+    },
+    [search]
+  );
 
-  const handleCityChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    const city = e.target.value;
-    if (city === '') {
-      clearCityFilter();
-    } else {
-      selectCity(city);
-    }
-  }, [selectCity, clearCityFilter]);
+  const handleCityChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const city = e.target.value;
+      if (city === '') {
+        clearCityFilter();
+      } else {
+        selectCity(city);
+      }
+    },
+    [selectCity, clearCityFilter]
+  );
 
   if (selectedPaper) {
     return (
@@ -150,9 +158,7 @@ const OparlPage = () => {
         </p>
       </div>
 
-      {error && (
-        <div className="oparl-error">{error}</div>
-      )}
+      {error && <div className="oparl-error">{error}</div>}
 
       <SearchBar
         value={searchValue}
@@ -174,7 +180,9 @@ const OparlPage = () => {
           >
             <option value="">Alle Städte</option>
             {indexedCities.map((city) => (
-              <option key={city} value={city}>{city}</option>
+              <option key={city} value={city}>
+                {city}
+              </option>
             ))}
           </select>
           {selectedCity && (
@@ -193,9 +201,7 @@ const OparlPage = () => {
       )}
 
       {!isSearching && lastQuery && results.length === 0 && (
-        <div className="oparl-empty">
-          Keine Ergebnisse für "{lastQuery}" gefunden
-        </div>
+        <div className="oparl-empty">Keine Ergebnisse für "{lastQuery}" gefunden</div>
       )}
 
       {!isSearching && results.length > 0 && (
@@ -209,35 +215,23 @@ const OparlPage = () => {
 
           <div className="oparl-results-grid">
             {results.map((paper) => (
-              <div
-                key={paper.id}
-                className="oparl-paper-card"
-                onClick={() => selectPaper(paper)}
-              >
+              <div key={paper.id} className="oparl-paper-card" onClick={() => selectPaper(paper)}>
                 <h3 className="oparl-paper-title">{paper.title}</h3>
 
                 <div className="oparl-paper-meta">
                   <span className="oparl-paper-city">{paper.city}</span>
-                  {paper.date && (
-                    <span className="oparl-paper-date">{formatDate(paper.date)}</span>
-                  )}
+                  {paper.date && <span className="oparl-paper-date">{formatDate(paper.date)}</span>}
                 </div>
 
-                {paper.paperType && (
-                  <span className="oparl-paper-type">{paper.paperType}</span>
-                )}
+                {paper.paperType && <span className="oparl-paper-type">{paper.paperType}</span>}
 
                 {paper.matchedChunk && (
                   <div className="oparl-paper-snippet">
-                    <p className="oparl-snippet-text">
-                      {truncateText(paper.matchedChunk, 150)}
-                    </p>
+                    <p className="oparl-snippet-text">{truncateText(paper.matchedChunk, 150)}</p>
                   </div>
                 )}
 
-                <div className="oparl-paper-score">
-                  Relevanz: {Math.round(paper.score * 100)}%
-                </div>
+                <div className="oparl-paper-score">Relevanz: {Math.round(paper.score * 100)}%</div>
               </div>
             ))}
           </div>

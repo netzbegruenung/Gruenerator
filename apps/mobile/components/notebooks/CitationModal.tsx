@@ -53,27 +53,23 @@ export function CitationModal({ visible, onClose, citation, citationIndex }: Cit
           </Pressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {citation.cited_text && (
-            <View style={[styles.citedTextContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View
+              style={[
+                styles.citedTextContainer,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
+            >
               <View style={[styles.quoteBar, { backgroundColor: colors.primary[600] }]} />
-              <Text style={[styles.citedText, { color: theme.text }]}>
-                „{citation.cited_text}"
-              </Text>
+              <Text style={[styles.citedText, { color: theme.text }]}>„{citation.cited_text}"</Text>
             </View>
           )}
 
           {(citation.title || citation.snippet) && (
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                Dokument
-              </Text>
-              <Text style={[styles.documentTitle, { color: theme.text }]}>
-                {citation.title}
-              </Text>
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Dokument</Text>
+              <Text style={[styles.documentTitle, { color: theme.text }]}>{citation.title}</Text>
               {citation.snippet && !citation.cited_text && (
                 <Text style={[styles.snippet, { color: theme.textSecondary }]} numberOfLines={4}>
                   {citation.snippet}
@@ -84,9 +80,7 @@ export function CitationModal({ visible, onClose, citation, citationIndex }: Cit
 
           {citation.collectionName && (
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                Sammlung
-              </Text>
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Sammlung</Text>
               <Text style={[styles.collectionName, { color: theme.text }]}>
                 {citation.collectionName}
               </Text>
@@ -95,9 +89,7 @@ export function CitationModal({ visible, onClose, citation, citationIndex }: Cit
 
           {similarityPercent !== null && (
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                Relevanz
-              </Text>
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Relevanz</Text>
               <View style={styles.relevanceContainer}>
                 <View style={[styles.relevanceBar, { backgroundColor: theme.border }]}>
                   <View

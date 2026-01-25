@@ -28,7 +28,10 @@ import { createCorsOptions } from './config/cors.js';
 import { getServerConfig } from './config/serverConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserConfig.js';
-import { createMasterShutdownHandler, createWorkerShutdownHandler } from './utils/shutdown/index.js';
+import {
+  createMasterShutdownHandler,
+  createWorkerShutdownHandler,
+} from './utils/shutdown/index.js';
 import passport from './config/passportSetup.js';
 import { setupRoutes } from './routes.js';
 import AIWorkerPool from './workers/aiWorkerPool.js';
@@ -94,7 +97,7 @@ if (cluster.isPrimary) {
       cwd: __dirname,
       stdio: 'inherit',
       env: process.env,
-      detached: false // Ensure child process is attached to parent
+      detached: false, // Ensure child process is attached to parent
     });
 
     hocuspocusProcess.on('error', (error: Error) => {
@@ -111,7 +114,7 @@ if (cluster.isPrimary) {
               cwd: __dirname,
               stdio: 'inherit',
               env: process.env,
-              detached: false
+              detached: false,
             });
           }
         }, 2000);
@@ -128,7 +131,7 @@ if (cluster.isPrimary) {
     onComplete: () => {
       isShuttingDown = true;
       killHocuspocus();
-    }
+    },
   });
 
   cluster.on('exit', (worker, code, signal) => {
@@ -187,7 +190,7 @@ async function startWorker(): Promise<void> {
 
   // Initialize AI Search Agent
   try {
-    const aiSearchAgentModule = await import('./services/aiSearchAgent.js') as any;
+    const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as any;
     if (typeof aiSearchAgentModule.setAIWorkerPool === 'function') {
       aiSearchAgentModule.setAIWorkerPool(aiWorkerPool);
       log.debug('AI Search Agent initialized');
@@ -199,7 +202,7 @@ async function startWorker(): Promise<void> {
 
   // Initialize Plan Mode Worker Pool
   try {
-    const planModeModule = await import('./routes/plan-mode/index.js') as any;
+    const planModeModule = (await import('./routes/plan-mode/index.js')) as any;
     if (typeof planModeModule.setPlanModeWorkerPool === 'function') {
       planModeModule.setPlanModeWorkerPool(aiWorkerPool);
       log.debug('Plan Mode Worker Pool initialized');
@@ -211,7 +214,8 @@ async function startWorker(): Promise<void> {
 
   // Initialize Temporary Image Storage
   try {
-    const { default: TemporaryImageStorage } = await import('./services/image/TemporaryImageStorage.js');
+    const { default: TemporaryImageStorage } =
+      await import('./services/image/TemporaryImageStorage.js');
     const temporaryImageStorage = new TemporaryImageStorage(redisClient as any);
     app.locals.sharepicImageManager = temporaryImageStorage;
     log.debug('TemporaryImageStorage initialized');
@@ -243,59 +247,73 @@ async function startWorker(): Promise<void> {
   }
 
   // Compression middleware
-  app.use(compression({
-    filter: (req: Request, res: Response) => {
-      if (req.headers['x-no-compression']) {
-        return false;
-      }
-      return compression.filter(req, res);
-    },
-    level: 6
-  }));
+  app.use(
+    compression({
+      filter: (req: Request, res: Response) => {
+        if (req.headers['x-no-compression']) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+      level: 6,
+    })
+  );
 
   // Security middleware (Helmet)
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:", "https://analytics.gruenes-cms.de"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com", "https://*.canva.com", "https://static.canva.com", "https://analytics.gruenes-cms.de"],
-        connectSrc: [
-          "'self'",
-          "data:",
-          "blob:",
-          "https://*.supabase.co",
-          "https://analytics.gruenes-cms.de",
-          `http://*.${PRIMARY_DOMAIN}`,
-          `https://*.${PRIMARY_DOMAIN}`,
-          "http://*.gruenerator.de",
-          "https://*.gruenerator.de",
-          "http://*.gruenerator.at",
-          "https://*.gruenerator.at",
-          "http://*.gruenerator.eu",
-          "https://*.gruenerator.eu",
-          "http://*.xn--grnerator-z2a.de",
-          "https://*.xn--grnerator-z2a.de",
-          "http://localhost:*",
-          "http://127.0.0.1:*",
-          "http://*.netzbegruenung.verdigado.net",
-          "https://*.netzbegruenung.verdigado.net",
-          ...allowedOrigins,
-        ],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'", "blob:"],
-        frameSrc: [
-          "'self'",
-          "https://www.instagram.com",
-          "https://instagram.com",
-        ],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+            'data:',
+            'https://analytics.gruenes-cms.de',
+          ],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: [
+            "'self'",
+            'data:',
+            'blob:',
+            'https://*.unsplash.com',
+            'https://*.canva.com',
+            'https://static.canva.com',
+            'https://analytics.gruenes-cms.de',
+          ],
+          connectSrc: [
+            "'self'",
+            'data:',
+            'blob:',
+            'https://*.supabase.co',
+            'https://analytics.gruenes-cms.de',
+            `http://*.${PRIMARY_DOMAIN}`,
+            `https://*.${PRIMARY_DOMAIN}`,
+            'http://*.gruenerator.de',
+            'https://*.gruenerator.de',
+            'http://*.gruenerator.at',
+            'https://*.gruenerator.at',
+            'http://*.gruenerator.eu',
+            'https://*.gruenerator.eu',
+            'http://*.xn--grnerator-z2a.de',
+            'https://*.xn--grnerator-z2a.de',
+            'http://localhost:*',
+            'http://127.0.0.1:*',
+            'http://*.netzbegruenung.verdigado.net',
+            'https://*.netzbegruenung.verdigado.net',
+            ...allowedOrigins,
+          ],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'", 'blob:'],
+          frameSrc: ["'self'", 'https://www.instagram.com', 'https://instagram.com'],
+        },
       },
-    },
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
-  }));
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    })
+  );
 
   // Ensure Redis is connected before session middleware
   try {
@@ -311,37 +329,41 @@ async function startWorker(): Promise<void> {
     log.warn('SESSION_SECRET not set - using temporary fallback');
   }
 
-  app.use(session({
-    store: new RedisStore({ client: redisClient }),
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: true,
-    name: 'gruenerator.sid',
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: 'lax',
-      domain: undefined,
-      path: '/'
-    }
-  }));
+  app.use(
+    session({
+      store: new RedisStore({ client: redisClient }),
+      secret: sessionSecret,
+      resave: false,
+      saveUninitialized: true,
+      name: 'gruenerator.sid',
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        sameSite: 'lax',
+        domain: undefined,
+        path: '/',
+      },
+    })
+  );
 
   // Passport middleware
   app.use(passport.initialize());
 
   // Logging middleware (only for errors)
-  app.use(morgan('combined', {
-    skip: function (req: Request, res: Response) {
-      return (req.url.includes('/api/') && req.method === 'POST') || res.statusCode < 400;
-    },
-    stream: { write: (message: string) => {} }
-  }));
+  app.use(
+    morgan('combined', {
+      skip: function (req: Request, res: Response) {
+        return (req.url.includes('/api/') && req.method === 'POST') || res.statusCode < 400;
+      },
+      stream: { write: (message: string) => {} },
+    })
+  );
 
   // Cache middleware
   const cacheMiddleware = createCacheMiddleware(redisClient as any, {
     ttl: 3600,
-    excludePaths: ['/api/']
+    excludePaths: ['/api/'],
   });
   app.use(cacheMiddleware);
 
@@ -355,8 +377,8 @@ async function startWorker(): Promise<void> {
       worker: process.pid,
       uptime: process.uptime(),
       services: {
-        redis: redisHealth
-      }
+        redis: redisHealth,
+      },
     });
   });
 
@@ -384,14 +406,14 @@ async function startWorker(): Promise<void> {
       } else {
         cb(new Error('Ungültiges Dateiformat. Nur MP4, MOV und AVI sind erlaubt.'));
       }
-    }
+    },
   });
 
   // General file upload configuration
   const generalUpload = multer({
     limits: {
-      fileSize: 75 * 1024 * 1024 // 75MB
-    }
+      fileSize: 75 * 1024 * 1024, // 75MB
+    },
   });
 
   // Upload middleware for specific routes
@@ -403,7 +425,7 @@ async function startWorker(): Promise<void> {
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
         res.status(413).json({
-          error: 'Datei ist zu groß. Videos dürfen maximal 150MB groß sein.'
+          error: 'Datei ist zu groß. Videos dürfen maximal 150MB groß sein.',
         });
         return;
       }
@@ -414,20 +436,25 @@ async function startWorker(): Promise<void> {
   // Static files
   const staticFilesPath = path.join(__dirname, '../web/build');
 
-  app.use('/assets', express.static(path.join(staticFilesPath, 'assets'), {
-    maxAge: '1d',
-    etag: true,
-    immutable: true,
-    dotfiles: 'deny'
-  }));
+  app.use(
+    '/assets',
+    express.static(path.join(staticFilesPath, 'assets'), {
+      maxAge: '1d',
+      etag: true,
+      immutable: true,
+      dotfiles: 'deny',
+    })
+  );
 
-  app.use(express.static(staticFilesPath, {
-    maxAge: '1d',
-    etag: true,
-    index: false,
-    extensions: ['html', 'js', 'css', 'png', 'jpg', 'gif', 'svg', 'ico'],
-    dotfiles: 'deny'
-  }));
+  app.use(
+    express.static(staticFilesPath, {
+      maxAge: '1d',
+      etag: true,
+      index: false,
+      extensions: ['html', 'js', 'css', 'png', 'jpg', 'gif', 'svg', 'ico'],
+      dotfiles: 'deny',
+    })
+  );
 
   // SPA routing
   app.get('{*splat}', (req: Request, res: Response, next: NextFunction) => {
@@ -444,30 +471,36 @@ async function startWorker(): Promise<void> {
   });
 
   // Static directory for video exports
-  app.use('/uploads/exports', express.static(path.join(__dirname, 'uploads/exports'), {
-    dotfiles: 'deny',
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.mov') || filePath.endsWith('.MOV')) {
-        res.set('Content-Type', 'video/quicktime');
-      } else if (filePath.endsWith('.mp4')) {
-        res.set('Content-Type', 'video/mp4');
-      }
-      res.set('Accept-Ranges', 'bytes');
-      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.set('Access-Control-Allow-Origin', '*');
-      res.set('Cache-Control', 'no-cache');
-    }
-  }));
+  app.use(
+    '/uploads/exports',
+    express.static(path.join(__dirname, 'uploads/exports'), {
+      dotfiles: 'deny',
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.mov') || filePath.endsWith('.MOV')) {
+          res.set('Content-Type', 'video/quicktime');
+        } else if (filePath.endsWith('.mp4')) {
+          res.set('Content-Type', 'video/mp4');
+        }
+        res.set('Accept-Ranges', 'bytes');
+        res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Cache-Control', 'no-cache');
+      },
+    })
+  );
 
   // Static directory for sharepic backgrounds
-  app.use('/backend-static', express.static(path.join(__dirname, 'public'), {
-    dotfiles: 'deny',
-    setHeaders: (res) => {
-      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.set('Access-Control-Allow-Origin', '*');
-      res.set('Cache-Control', 'public, max-age=86400');
-    }
-  }));
+  app.use(
+    '/backend-static',
+    express.static(path.join(__dirname, 'public'), {
+      dotfiles: 'deny',
+      setHeaders: (res) => {
+        res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Cache-Control', 'public, max-age=86400');
+      },
+    })
+  );
 
   // Request timeout
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -488,7 +521,10 @@ async function startWorker(): Promise<void> {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = 500;
 
-    if (err.name === 'AuthenticationError' || (err.message && err.message.includes('authentication'))) {
+    if (
+      err.name === 'AuthenticationError' ||
+      (err.message && err.message.includes('authentication'))
+    ) {
       statusCode = 401;
       errorMessage = 'Authentifizierung fehlgeschlagen. Bitte melden Sie sich erneut an.';
 
@@ -497,7 +533,8 @@ async function startWorker(): Promise<void> {
         return;
       }
     } else if (err.message && err.message.includes('Index-Datei nicht gefunden')) {
-      errorMessage = 'Die Anwendung konnte nicht geladen werden. Bitte kontaktieren Sie den Administrator.';
+      errorMessage =
+        'Die Anwendung konnte nicht geladen werden. Bitte kontaktieren Sie den Administrator.';
     } else if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       errorMessage = 'Eine benötigte Datei wurde nicht gefunden.';
     } else if ((err as NodeJS.ErrnoException).code === 'EACCES') {
@@ -512,7 +549,7 @@ async function startWorker(): Promise<void> {
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toISOString(),
       errorCode: (err as NodeJS.ErrnoException).code,
-      errorType: err.name
+      errorType: err.name,
     });
   });
 
@@ -526,12 +563,9 @@ async function startWorker(): Promise<void> {
 
   // Worker shutdown handler
   const shutdownHandler = createWorkerShutdownHandler({
-    resources: [
-      aiWorkerPool as any,
-      redisClient as any
-    ].filter(Boolean),
+    resources: [aiWorkerPool as any, redisClient as any].filter(Boolean),
     server,
-    logger: log
+    logger: log,
   });
   shutdownHandler.registerSignalHandlers();
 

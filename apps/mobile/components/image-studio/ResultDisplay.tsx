@@ -103,7 +103,9 @@ export function ResultDisplay({
           </Button>
         )}
         <Pressable onPress={onBack} style={styles.backLink}>
-          <Text style={[styles.backLinkText, { color: colors.primary[600] }]}>Zurück bearbeiten</Text>
+          <Text style={[styles.backLinkText, { color: colors.primary[600] }]}>
+            Zurück bearbeiten
+          </Text>
         </Pressable>
       </View>
     );
@@ -112,9 +114,7 @@ export function ResultDisplay({
   if (!generatedImage) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-          Kein Bild generiert
-        </Text>
+        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Kein Bild generiert</Text>
         <Pressable onPress={onBack} style={styles.backLink}>
           <Text style={[styles.backLinkText, { color: colors.primary[600] }]}>Zurück</Text>
         </Pressable>
@@ -131,11 +131,7 @@ export function ResultDisplay({
       </View>
 
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: imageUri }}
-          style={styles.image}
-          resizeMode="contain"
-        />
+        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="contain" />
         {/* Device gallery saved badge */}
         {saved && (
           <View style={styles.savedBadge}>
@@ -172,10 +168,7 @@ export function ResultDisplay({
               color={saved ? colors.primary[600] : colors.white}
             />
             <Text
-              style={[
-                styles.buttonText,
-                { color: saved ? colors.primary[600] : colors.white },
-              ]}
+              style={[styles.buttonText, { color: saved ? colors.primary[600] : colors.white }]}
             >
               {saved ? 'Gespeichert' : 'Speichern'}
             </Text>
@@ -197,18 +190,22 @@ export function ResultDisplay({
 
       {showEditButton && onEdit && (
         <View style={styles.editButtonContainer}>
-            <Pressable onPress={() => router.push(route('/(fullscreen)/webview-editor'))} style={styles.editButton}>
+          <Pressable
+            onPress={() => router.push(route('/(fullscreen)/webview-editor'))}
+            style={styles.editButton}
+          >
             <Ionicons name="pencil" size={20} color={colors.primary[600]} />
-            <Text style={[styles.editButtonText, { color: colors.primary[600] }]}>
-              Anpassen
-            </Text>
+            <Text style={[styles.editButtonText, { color: colors.primary[600] }]}>Anpassen</Text>
           </Pressable>
         </View>
       )}
 
       <View style={styles.footerActions}>
         {autoSaveStatus === 'saved' && shareToken && (
-          <Pressable onPress={() => router.push('/(tabs)/(media)/image-studio/gallery')} style={styles.galleryButton}>
+          <Pressable
+            onPress={() => router.push('/(tabs)/(media)/image-studio/gallery')}
+            style={styles.galleryButton}
+          >
             <Ionicons name="images-outline" size={20} color={colors.primary[600]} />
             <Text style={[styles.galleryButtonText, { color: colors.primary[600] }]}>
               In Galerie anzeigen

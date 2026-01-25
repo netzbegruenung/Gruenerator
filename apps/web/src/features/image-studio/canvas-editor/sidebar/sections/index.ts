@@ -2,7 +2,7 @@
  * Sidebar Sections Index
  *
  * Exports are split into static and lazy-loaded sections:
- * - Lightweight sections are exported directly (TextSection, FontSizeSection, etc.)
+ * - Lightweight sections are exported directly (FontSizeSection, etc.)
  * - Heavy sections are lazy-loaded with React.lazy() to reduce initial bundle size
  */
 
@@ -12,8 +12,9 @@ import { lazy } from 'react';
 // STATIC EXPORTS - Lightweight sections loaded immediately
 // =============================================================================
 
-export { TextSection } from './TextSection';
 export { FontSizeSection } from './FontSizeSection';
+export { UnifiedTextSection } from './UnifiedTextSection';
+export type { UnifiedTextSectionProps } from './UnifiedTextSection';
 export { AlternativesSection } from './AlternativesSection';
 export type { AlternativesSectionProps } from './AlternativesSection';
 export { IconsSection } from './IconsSection';
@@ -28,19 +29,18 @@ export * from './dreizeilen';
 // =============================================================================
 
 export const AssetsSection = lazy(() =>
-  import('./AssetsSection').then(m => ({ default: m.AssetsSection }))
+  import('./AssetsSection').then((m) => ({ default: m.AssetsSection }))
 );
 
 export const BackgroundSection = lazy(() =>
-  import('./BackgroundSection').then(m => ({ default: m.BackgroundSection }))
+  import('./BackgroundSection').then((m) => ({ default: m.BackgroundSection }))
 );
 
 export const ImageBackgroundSection = lazy(() =>
-  import('./ImageBackgroundSection').then(m => ({ default: m.ImageBackgroundSection }))
+  import('./ImageBackgroundSection').then((m) => ({ default: m.ImageBackgroundSection }))
 );
 
 export const GenericShareSection = lazy(() =>
-  import('./GenericShareSection').then(m => ({ default: m.GenericShareSection }))
+  import('./GenericShareSection').then((m) => ({ default: m.GenericShareSection }))
 );
 export type { GenericShareSectionProps } from './GenericShareSection';
-

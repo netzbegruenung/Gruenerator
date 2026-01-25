@@ -20,18 +20,18 @@ import {
   canExtractTextDirectly as checkParseability,
   extractTextDirectlyFromPDF as extractDirect,
   extractPageTextDirectly as extractPage,
-  extractTextFromBase64PDF as extractBase64
+  extractTextFromBase64PDF as extractBase64,
 } from './pdfOperations.js';
 import { extractTextWithMistralOCR as extractMistral } from './mistralIntegration.js';
 import {
   applyMarkdownFormatting as formatMarkdown,
   isLikelyHeading,
-  determineHeadingLevel
+  determineHeadingLevel,
 } from './textFormatting.js';
 import {
   updateDocumentStatus as updateStatus,
   updateDocumentWithResults as updateResults,
-  generateAndStoreEmbeddings as generateEmbeddings
+  generateAndStoreEmbeddings as generateEmbeddings,
 } from './databaseOperations.js';
 
 import type {
@@ -42,7 +42,7 @@ import type {
   PageExtractionResult,
   PDFInfo,
   EmbeddingGenerationResult,
-  ProcessingMetadata
+  ProcessingMetadata,
 } from './types.js';
 
 /**
@@ -114,10 +114,13 @@ export class OCRService {
       const extractionInfo = {
         method: 'direct_text',
         textLength: text.length,
-        processingTime: 0
+        processingTime: 0,
       };
 
-      console.log(`[OCRService] Successfully processed text document ${documentId}:`, extractionInfo);
+      console.log(
+        `[OCRService] Successfully processed text document ${documentId}:`,
+        extractionInfo
+      );
 
       // Update document with results and generate vectors
       await this.updateDocumentWithResults(documentId, text, 1, extractionInfo);
@@ -137,10 +140,7 @@ export class OCRService {
   /**
    * Validate document limits before processing
    */
-  async validateDocumentLimits(
-    filePath: string,
-    fileExtension: string
-  ): Promise<DocumentLimits> {
+  async validateDocumentLimits(filePath: string, fileExtension: string): Promise<DocumentLimits> {
     return await validateLimits(
       filePath,
       fileExtension,
@@ -155,7 +155,9 @@ export class OCRService {
   async extractTextFromDocument(filePath: string): Promise<DocumentExtractionResult> {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();
-    console.log(`[OCRService] Starting document text extraction with Mistral OCR: ${filePath} (${fileExtension})`);
+    console.log(
+      `[OCRService] Starting document text extraction with Mistral OCR: ${filePath} (${fileExtension})`
+    );
 
     try {
       // Validate document limits first
@@ -179,7 +181,7 @@ export class OCRService {
         extractionMethod: 'mistral-ocr',
         fileType: fileExtension,
         parseabilityStats: parseCheck?.stats || null,
-        totalProcessingTimeMs: totalTime
+        totalProcessingTimeMs: totalTime,
       };
     } catch (error) {
       const totalTime = Date.now() - startTime;
@@ -217,10 +219,7 @@ export class OCRService {
   /**
    * Extract text from a single PDF page
    */
-  async extractPageTextDirectly(
-    pdfDoc: any,
-    pageNum: number
-  ): Promise<PageExtractionResult> {
+  async extractPageTextDirectly(pdfDoc: any, pageNum: number): Promise<PageExtractionResult> {
     return await extractPage(pdfDoc, pageNum, this.applyMarkdownFormatting.bind(this));
   }
 

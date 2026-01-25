@@ -3,8 +3,14 @@
  * Supports normal web search and deep research modes
  */
 
-import { StateGraph, Annotation } from "@langchain/langgraph";
-import type { WebSearchState, WebSearchInput, WebSearchOutput, NormalSearchOutput, DeepSearchOutput } from './types.js';
+import { StateGraph, Annotation } from '@langchain/langgraph';
+import type {
+  WebSearchState,
+  WebSearchInput,
+  WebSearchOutput,
+  NormalSearchOutput,
+  DeepSearchOutput,
+} from './types.js';
 import { plannerNode } from './nodes/PlannerNode.js';
 import { searxngNode } from './nodes/SearxngNode.js';
 import { intelligentCrawlerNode } from './nodes/IntelligentCrawlerNode.js';
@@ -93,7 +99,7 @@ const SearchState = Annotation.Root({
   }),
   error: Annotation({
     reducer: (x: any, y: any) => y ?? x,
-  })
+  }),
 });
 
 /**
@@ -101,58 +107,47 @@ const SearchState = Annotation.Root({
  */
 const createWebSearchGraph = () => {
   const graph = new StateGraph(SearchState)
-    .addNode("planner", plannerNode as any)
-    .addNode("searxng", searxngNode as any)
-    .addNode("intelligentCrawler", intelligentCrawlerNode as any)
-    .addNode("contentEnricher", contentEnricherNode as any)
-    .addNode("grundsatz", grundsatzNode as any)
-    .addNode("aggregator", aggregatorNode as any)
-    .addNode("summarizer", summaryNode as any)
-    .addNode("writer", dossierNode as any)
-    .addEdge("__start__", "planner")
-    .addEdge("planner", "searxng");
+    .addNode('planner', plannerNode as any)
+    .addNode('searxng', searxngNode as any)
+    .addNode('intelligentCrawler', intelligentCrawlerNode as any)
+    .addNode('contentEnricher', contentEnricherNode as any)
+    .addNode('grundsatz', grundsatzNode as any)
+    .addNode('aggregator', aggregatorNode as any)
+    .addNode('summarizer', summaryNode as any)
+    .addNode('writer', dossierNode as any)
+    .addEdge('__start__', 'planner')
+    .addEdge('planner', 'searxng');
 
   // Conditional edges based on mode
   graph.addConditionalEdges(
-    "planner",
-    (state: any) => state.mode === 'deep' ? ["searxng", "grundsatz"] : ["searxng"],
+    'planner',
+    (state: any) => (state.mode === 'deep' ? ['searxng', 'grundsatz'] : ['searxng']),
     {
-      searxng: "searxng",
-      grundsatz: "grundsatz"
+      searxng: 'searxng',
+      grundsatz: 'grundsatz',
     } as any
   );
 
   // After searxng, run intelligent crawler to select URLs
-  graph.addEdge("searxng", "intelligentCrawler");
+  graph.addEdge('searxng', 'intelligentCrawler');
 
   // After crawler decision, enrich content
-  graph.addEdge("intelligentCrawler", "contentEnricher");
+  graph.addEdge('intelligentCrawler', 'contentEnricher');
 
   // After content enrichment, route based on mode
-  graph.addConditionalEdges(
-    "contentEnricher",
-    (state: any) => state.mode === 'normal' ? "summarizer" : "aggregator"
+  graph.addConditionalEdges('contentEnricher', (state: any) =>
+    state.mode === 'normal' ? 'summarizer' : 'aggregator'
   );
 
-  graph.addConditionalEdges(
-    "grundsatz",
-    (state: any) => "aggregator"
+  graph.addConditionalEdges('grundsatz', (state: any) => 'aggregator');
+
+  graph.addConditionalEdges('summarizer', (state: any) => '__end__');
+
+  graph.addConditionalEdges('aggregator', (state: any) =>
+    state.mode === 'deep' ? 'writer' : '__end__'
   );
 
-  graph.addConditionalEdges(
-    "summarizer",
-    (state: any) => "__end__"
-  );
-
-  graph.addConditionalEdges(
-    "aggregator",
-    (state: any) => state.mode === 'deep' ? "writer" : "__end__"
-  );
-
-  graph.addConditionalEdges(
-    "writer",
-    (state: any) => "__end__"
-  );
+  graph.addConditionalEdges('writer', (state: any) => '__end__');
 
   return graph.compile();
 };
@@ -170,7 +165,7 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
     user_id = 'anonymous',
     searchOptions = {},
     aiWorkerPool,
-    req
+    req,
   } = input;
 
   console.log(`[WebSearchGraph] Starting ${mode} search for: "${query}"`);
@@ -185,8 +180,8 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
       req,
       metadata: {
         startTime: Date.now(),
-        searchMode: mode
-      }
+        searchMode: mode,
+      },
     };
 
     const result = await webSearchGraph.invoke(initialState);
@@ -209,8 +204,8 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
           searchType: 'normal_web_search',
           duration: Date.now() - (result.metadata.startTime || 0),
           totalResults: webResults.length,
-          citationsEnabled: !!(result.citations && result.citations.length > 0)
-        }
+          citationsEnabled: !!(result.citations && result.citations.length > 0),
+        },
       } as NormalSearchOutput;
     } else {
       return {
@@ -227,9 +222,11 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
           ...result.metadata,
           searchType: 'deep_research',
           duration: Date.now() - (result.metadata.startTime || 0),
-          hasOfficialPosition: !!(result.grundsatzResults?.success && result.grundsatzResults.results?.length > 0),
-          citationsEnabled: !!(result.citations && result.citations.length > 0)
-        }
+          hasOfficialPosition: !!(
+            result.grundsatzResults?.success && result.grundsatzResults.results?.length > 0
+          ),
+          citationsEnabled: !!(result.citations && result.citations.length > 0),
+        },
       } as DeepSearchOutput;
     }
   } catch (error) {
@@ -241,8 +238,8 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
       error: errorMessage,
       metadata: {
         searchType: mode,
-        errorOccurred: true
-      }
+        errorOccurred: true,
+      },
     } as any;
   }
 }

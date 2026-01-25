@@ -14,7 +14,7 @@ import type {
   Message,
   ContentBlock,
   AIResponseWithTools,
-  WebSearchResult
+  WebSearchResult,
 } from './types.js';
 
 export class ToolHandler {
@@ -85,9 +85,11 @@ export class ToolHandler {
 
     const targetProvider = provider.toLowerCase() as AIProvider;
     const isClaudeProvider = targetProvider === 'claude';
-    const isOpenAIProvider: boolean = ['openai', 'litellm', 'ionos', 'mistral', 'telekom'].includes(targetProvider);
+    const isOpenAIProvider: boolean = ['openai', 'litellm', 'ionos', 'mistral', 'telekom'].includes(
+      targetProvider
+    );
 
-    return tools.map(tool => {
+    return tools.map((tool) => {
       const isOpenAIFormat = 'type' in tool && tool.type === 'function' && 'function' in tool;
 
       if (isClaudeProvider) {
@@ -96,14 +98,14 @@ export class ToolHandler {
           return {
             name: openAITool.function.name,
             description: openAITool.function.description,
-            input_schema: openAITool.function.parameters
+            input_schema: openAITool.function.parameters,
           } as ClaudeTool;
         } else {
           const claudeTool = tool as ClaudeTool;
           return {
             name: claudeTool.name,
             description: claudeTool.description,
-            input_schema: claudeTool.input_schema
+            input_schema: claudeTool.input_schema,
           } as ClaudeTool;
         }
       } else if (isOpenAIProvider) {
@@ -116,8 +118,8 @@ export class ToolHandler {
             function: {
               name: claudeTool.name,
               description: claudeTool.description,
-              parameters: claudeTool.input_schema
-            }
+              parameters: claudeTool.input_schema,
+            },
           } as OpenAITool;
         }
       } else {
@@ -138,7 +140,7 @@ export class ToolHandler {
       return false;
     }
 
-    const availableToolNames = availableTools.map(t => {
+    const availableToolNames = availableTools.map((t) => {
       if ('name' in t) {
         return t.name;
       } else if ('function' in t) {
@@ -174,11 +176,7 @@ export class ToolHandler {
    * @param type - Request type for logging
    * @returns Validated tools array or null if no tools
    */
-  static extractAndValidateTools(
-    options: any,
-    requestId: string,
-    type: string
-  ): Tool[] | null {
+  static extractAndValidateTools(options: any, requestId: string, type: string): Tool[] | null {
     const { tools } = options;
 
     if (!tools) {
@@ -220,7 +218,7 @@ export class ToolHandler {
     }
 
     const payload: ToolPayload = {
-      tools: this.formatToolsForProvider(tools, provider)
+      tools: this.formatToolsForProvider(tools, provider),
     };
 
     // Add tool_choice if specified (mainly for Bedrock/Claude)
@@ -252,7 +250,7 @@ export class ToolHandler {
       provider,
       toolsProvided: tools.length,
       toolCallsMade: toolCalls.length,
-      toolsUsed: toolCalls.map(tc => tc.name)
+      toolsUsed: toolCalls.map((tc) => tc.name),
     });
   }
 
@@ -263,14 +261,16 @@ export class ToolHandler {
    * @returns Tool definition or null if not found
    */
   static getToolByName(tools: Tool[], toolName: string): Tool | null {
-    return tools.find(tool => {
-      if ('name' in tool) {
-        return tool.name === toolName;
-      } else if ('function' in tool) {
-        return tool.function.name === toolName;
-      }
-      return false;
-    }) || null;
+    return (
+      tools.find((tool) => {
+        if ('name' in tool) {
+          return tool.name === toolName;
+        } else if ('function' in tool) {
+          return tool.function.name === toolName;
+        }
+        return false;
+      }) || null
+    );
   }
 
   /**
@@ -303,16 +303,16 @@ export class ToolHandler {
 
     // Add the assistant's tool_use message
     conversationMessages.push({
-      role: "assistant",
+      role: 'assistant',
       content: initialResult.raw_content_blocks || [
-        ...(initialResult.content ? [{ type: "text" as const, text: initialResult.content }] : []),
-        ...initialResult.tool_calls.map(toolCall => ({
-          type: "tool_use" as const,
+        ...(initialResult.content ? [{ type: 'text' as const, text: initialResult.content }] : []),
+        ...initialResult.tool_calls.map((toolCall) => ({
+          type: 'tool_use' as const,
           id: toolCall.id,
           name: toolCall.name,
-          input: toolCall.input
-        }))
-      ]
+          input: toolCall.input,
+        })),
+      ],
     });
 
     // Process each tool call and add tool results
@@ -334,24 +334,28 @@ export class ToolHandler {
         // Handle other tools here in the future
         toolResult = {
           success: false,
-          error: `Tool ${toolCall.name} is not yet implemented`
+          error: `Tool ${toolCall.name} is not yet implemented`,
         };
         console.log(`[ToolHandler] Unknown tool: ${toolCall.name}`);
       }
 
       // Add tool result message
       conversationMessages.push({
-        role: "user",
-        content: [{
-          type: "tool_result",
-          tool_use_id: toolCall.id,
-          content: JSON.stringify(toolResult)
-        }]
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: toolCall.id,
+            content: JSON.stringify(toolResult),
+          },
+        ],
       });
     }
 
     // Continue conversation with updated messages
-    console.log(`[ToolHandler] Continuing conversation with ${conversationMessages.length} messages`);
+    console.log(
+      `[ToolHandler] Continuing conversation with ${conversationMessages.length} messages`
+    );
 
     const continuationPayload = {
       systemPrompt,
@@ -359,18 +363,21 @@ export class ToolHandler {
       options: {
         ...options,
         // Remove tools from continuation to prevent infinite loop
-        tools: undefined
-      }
+        tools: undefined,
+      },
     };
 
     // Get the request type from options or default to 'social'
     const requestType = options.type || 'social';
 
     // Continue conversation through AI Worker Pool
-    const finalResult = await aiWorkerPool.processRequest({
-      type: requestType,
-      ...continuationPayload
-    }, req);
+    const finalResult = await aiWorkerPool.processRequest(
+      {
+        type: requestType,
+        ...continuationPayload,
+      },
+      req
+    );
 
     console.log(`[ToolHandler] Tool continuation completed`);
 
@@ -383,9 +390,9 @@ export class ToolHandler {
       ...finalResult,
       metadata: {
         ...finalResult.metadata,
-        toolsUsed: initialResult.tool_calls.map(tc => tc.name),
-        continuationCompleted: true
-      }
+        toolsUsed: initialResult.tool_calls.map((tc) => tc.name),
+        continuationCompleted: true,
+      },
     };
   }
 }

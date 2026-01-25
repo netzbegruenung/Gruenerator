@@ -13,13 +13,13 @@ const useEditFunctionality = (initialPosts = {}) => {
   }, []);
 
   const handlePostContentChange = useCallback((platform, newContent, newHashtags) => {
-    setPosts(prev => ({
+    setPosts((prev) => ({
       ...prev,
       [platform]: {
         ...prev[platform],
         content: newContent,
-        hashtags: newHashtags
-      }
+        hashtags: newHashtags,
+      },
     }));
   }, []);
 
@@ -29,7 +29,7 @@ const useEditFunctionality = (initialPosts = {}) => {
     editingPlatform,
     handleEditPost,
     handleSavePost,
-    handlePostContentChange
+    handlePostContentChange,
   };
 };
 

@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
+
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 
 export interface UseElementSnappingResult {

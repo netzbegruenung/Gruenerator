@@ -5,7 +5,7 @@ import type {
   ProfileUpdateData,
   BetaFeatures,
   ProfileStats,
-  HealthCheckResult
+  HealthCheckResult,
 } from './types.js';
 
 interface PostgresService {
@@ -44,11 +44,9 @@ class ProfileService {
   async getProfileById(userId: string): Promise<UserProfile | null> {
     try {
       await this.db.ensureInitialized();
-      const profile = await this.db.queryOne(
-        'SELECT * FROM profiles WHERE id = $1',
-        [userId],
-        { table: this.tableName }
-      );
+      const profile = await this.db.queryOne('SELECT * FROM profiles WHERE id = $1', [userId], {
+        table: this.tableName,
+      });
       return profile as UserProfile | null;
     } catch (error: any) {
       console.error('[ProfileService] Error getting profile by ID:', error);
@@ -80,11 +78,9 @@ class ProfileService {
   async getProfileByEmail(email: string): Promise<UserProfile | null> {
     try {
       await this.db.ensureInitialized();
-      const profile = await this.db.queryOne(
-        'SELECT * FROM profiles WHERE email = $1',
-        [email],
-        { table: this.tableName }
-      );
+      const profile = await this.db.queryOne('SELECT * FROM profiles WHERE email = $1', [email], {
+        table: this.tableName,
+      });
       return profile as UserProfile | null;
     } catch (error: any) {
       console.error('[ProfileService] Error getting profile by email:', error);
@@ -95,7 +91,9 @@ class ProfileService {
   /**
    * Get user profile by Canva user ID
    */
-  async getProfileByCanvaId(canvaUserId: string): Promise<Pick<UserProfile, 'id' | 'email' | 'display_name'> | null> {
+  async getProfileByCanvaId(
+    canvaUserId: string
+  ): Promise<Pick<UserProfile, 'id' | 'email' | 'display_name'> | null> {
     try {
       await this.db.ensureInitialized();
       const profile = await this.db.queryOne(
@@ -128,7 +126,7 @@ class ProfileService {
         anweisungen: profileData.anweisungen || false,
         canva: profileData.canva || false,
         avatar_robot_id: profileData.avatar_robot_id || 1,
-        interactive_antrag_enabled: profileData.interactive_antrag_enabled ?? true
+        interactive_antrag_enabled: profileData.interactive_antrag_enabled ?? true,
       };
 
       await this.db.ensureInitialized();
@@ -146,7 +144,7 @@ class ProfileService {
   async updateProfile(userId: string, updateData: ProfileUpdateData): Promise<UserProfile> {
     try {
       const dataToUpdate = {
-        ...updateData
+        ...updateData,
       };
 
       await this.db.ensureInitialized();
@@ -164,7 +162,7 @@ class ProfileService {
   async upsertProfile(profileData: ProfileCreateData | ProfileUpdateData): Promise<UserProfile> {
     try {
       const dataToUpsert = {
-        ...profileData
+        ...profileData,
       };
 
       await this.db.ensureInitialized();
@@ -179,7 +177,11 @@ class ProfileService {
   /**
    * Update beta features for a user
    */
-  async updateBetaFeatures(userId: string, feature: string, enabled: boolean): Promise<UserProfile> {
+  async updateBetaFeatures(
+    userId: string,
+    feature: string,
+    enabled: boolean
+  ): Promise<UserProfile> {
     try {
       const currentProfile = await this.getProfileById(userId);
       if (!currentProfile) {
@@ -189,30 +191,30 @@ class ProfileService {
       const currentBetaFeatures = currentProfile.beta_features || {};
       const updatedBetaFeatures = {
         ...currentBetaFeatures,
-        [feature]: enabled
+        [feature]: enabled,
       };
 
       const updateData: ProfileUpdateData = {
-        beta_features: updatedBetaFeatures
+        beta_features: updatedBetaFeatures,
       };
 
       const featureColumnMap: Record<string, string> = {
-        'igel_modus': 'igel_modus',
-        'groups': 'groups_enabled',
-        'customGenerators': 'custom_generators',
-        'database': 'database_access',
-        'collab': 'collab',
-        'notebook': 'notebook',
-        'sharepic': 'sharepic',
-        'anweisungen': 'anweisungen',
-        'canva': 'canva',
-        'labor': 'labor_enabled',
-        'sites': 'sites_enabled',
-        'chat': 'chat',
-        'interactiveAntrag': 'interactive_antrag_enabled',
-        'autoSaveOnExport': 'auto_save_on_export',
-        'vorlagen': 'vorlagen',
-        'videoEditor': 'video_editor'
+        igel_modus: 'igel_modus',
+        groups: 'groups_enabled',
+        customGenerators: 'custom_generators',
+        database: 'database_access',
+        collab: 'collab',
+        notebook: 'notebook',
+        sharepic: 'sharepic',
+        anweisungen: 'anweisungen',
+        canva: 'canva',
+        labor: 'labor_enabled',
+        sites: 'sites_enabled',
+        chat: 'chat',
+        interactiveAntrag: 'interactive_antrag_enabled',
+        autoSaveOnExport: 'auto_save_on_export',
+        vorlagen: 'vorlagen',
+        videoEditor: 'video_editor',
       };
 
       if (featureColumnMap[feature]) {
@@ -220,7 +222,9 @@ class ProfileService {
       }
 
       const result = await this.updateProfile(userId, updateData);
-      console.log(`[ProfileService] Beta feature updated: ${feature} = ${enabled} for user ${userId}`);
+      console.log(
+        `[ProfileService] Beta feature updated: ${feature} = ${enabled} for user ${userId}`
+      );
       return result;
     } catch (error: any) {
       console.error('[ProfileService] Error updating beta features:', error);
@@ -244,12 +248,16 @@ class ProfileService {
         console.error(`[ProfileService] 🚨 Avatar update verification FAILED for user ${userId}:`, {
           requested: avatarRobotId,
           actual: verifiedProfile?.avatar_robot_id,
-          updateResult: result
+          updateResult: result,
         });
-        throw new Error(`Avatar update failed - requested ${avatarRobotId} but database shows ${verifiedProfile?.avatar_robot_id}`);
+        throw new Error(
+          `Avatar update failed - requested ${avatarRobotId} but database shows ${verifiedProfile?.avatar_robot_id}`
+        );
       }
 
-      console.log(`[ProfileService] 🎨 Avatar updated for user ${userId}: avatar_robot_id=${avatarRobotId} (verified in PostgreSQL)`);
+      console.log(
+        `[ProfileService] 🎨 Avatar updated for user ${userId}: avatar_robot_id=${avatarRobotId} (verified in PostgreSQL)`
+      );
       return verifiedProfile;
     } catch (error: any) {
       console.error('[ProfileService] Error updating avatar:', error);
@@ -278,7 +286,12 @@ class ProfileService {
   /**
    * Update a user default setting for a specific generator
    */
-  async updateUserDefault(userId: string, generator: string, key: string, value: any): Promise<UserProfile> {
+  async updateUserDefault(
+    userId: string,
+    generator: string,
+    key: string,
+    value: any
+  ): Promise<UserProfile> {
     try {
       if (!generator || !key) {
         throw new Error('Generator and key are required');
@@ -296,7 +309,9 @@ class ProfileService {
       defaults[generator][key] = value;
 
       const result = await this.updateProfile(userId, { user_defaults: defaults });
-      console.log(`[ProfileService] User default updated: ${generator}.${key} = ${value} for user ${userId}`);
+      console.log(
+        `[ProfileService] User default updated: ${generator}.${key} = ${value} for user ${userId}`
+      );
       return result;
     } catch (error: any) {
       console.error('[ProfileService] Error updating user default:', error);
@@ -314,7 +329,12 @@ class ProfileService {
   /**
    * Get a specific user default value
    */
-  getUserDefault(profile: UserProfile | null, generator: string, key: string, defaultValue: any = null): any {
+  getUserDefault(
+    profile: UserProfile | null,
+    generator: string,
+    key: string,
+    defaultValue: any = null
+  ): any {
     return profile?.user_defaults?.[generator]?.[key] ?? defaultValue;
   }
 
@@ -332,7 +352,9 @@ class ProfileService {
         { table: this.tableName }
       );
       if (userInfo) {
-        console.log(`[ProfileService] Deleting user profile: ${userInfo.email || 'N/A'} (${userInfo.username || 'N/A'})`);
+        console.log(
+          `[ProfileService] Deleting user profile: ${userInfo.email || 'N/A'} (${userInfo.username || 'N/A'})`
+        );
       } else {
         console.warn(`[ProfileService] User ${userId} not found in profiles table`);
       }
@@ -341,10 +363,17 @@ class ProfileService {
       const result = await this.db.delete(this.tableName, { id: userId });
 
       if (result && result.length > 0) {
-        console.log(`[ProfileService] ✅ Successfully deleted user profile ${userId}. Deleted rows:`, result.length);
-        console.log(`[ProfileService] CASCADE deletion will now automatically remove related data from tables with ON DELETE CASCADE constraints`);
+        console.log(
+          `[ProfileService] ✅ Successfully deleted user profile ${userId}. Deleted rows:`,
+          result.length
+        );
+        console.log(
+          `[ProfileService] CASCADE deletion will now automatically remove related data from tables with ON DELETE CASCADE constraints`
+        );
       } else {
-        console.warn(`[ProfileService] ⚠️ Delete operation returned no rows for user ${userId} - user may not exist`);
+        console.warn(
+          `[ProfileService] ⚠️ Delete operation returned no rows for user ${userId} - user may not exist`
+        );
       }
 
       return result;
@@ -353,7 +382,7 @@ class ProfileService {
       console.error(`[ProfileService] Error details:`, {
         message: error.message,
         code: error.code,
-        stack: error.stack
+        stack: error.stack,
       });
       throw error;
     }
@@ -420,35 +449,40 @@ class ProfileService {
       interactiveAntrag: profile.interactive_antrag_enabled ?? true,
       autoSaveOnExport: profile.auto_save_on_export || false,
       vorlagen: profile.vorlagen || false,
-      videoEditor: profile.video_editor || false
+      videoEditor: profile.video_editor || false,
     };
 
     return {
       ...profileBetaFeatures,
-      ...profileSettingsAsBetaFeatures
+      ...profileSettingsAsBetaFeatures,
     } as BetaFeatures;
   }
 
   /**
    * Update session user object with profile changes
    */
-  updateUserSession(sessionUser: any, profile: UserProfile, feature: string | null = null, enabled: boolean | null = null): void {
+  updateUserSession(
+    sessionUser: any,
+    profile: UserProfile,
+    feature: string | null = null,
+    enabled: boolean | null = null
+  ): void {
     sessionUser.beta_features = this.getMergedBetaFeatures(profile);
 
     const featureMap: Record<string, string> = {
-      'igel_modus': 'igel_modus',
-      'groups': 'groups_enabled',
-      'customGenerators': 'custom_generators',
-      'database': 'database_access',
-      'collab': 'collab',
-      'notebook': 'notebook',
-      'sharepic': 'sharepic',
-      'anweisungen': 'anweisungen',
-      'canva': 'canva',
-      'sites': 'sites_enabled',
-      'chat': 'chat',
-      'interactiveAntrag': 'interactive_antrag_enabled',
-      'autoSaveOnExport': 'auto_save_on_export'
+      igel_modus: 'igel_modus',
+      groups: 'groups_enabled',
+      customGenerators: 'custom_generators',
+      database: 'database_access',
+      collab: 'collab',
+      notebook: 'notebook',
+      sharepic: 'sharepic',
+      anweisungen: 'anweisungen',
+      canva: 'canva',
+      sites: 'sites_enabled',
+      chat: 'chat',
+      interactiveAntrag: 'interactive_antrag_enabled',
+      autoSaveOnExport: 'auto_save_on_export',
     };
 
     Object.entries(featureMap).forEach(([key, column]) => {
@@ -477,13 +511,13 @@ class ProfileService {
       return {
         status: 'healthy',
         database: 'postgresql',
-        profileCount: result[0]?.count || 0
+        profileCount: result[0]?.count || 0,
       };
     } catch (error: any) {
       return {
         status: 'unhealthy',
         database: 'postgresql',
-        error: error.message
+        error: error.message,
       };
     }
   }

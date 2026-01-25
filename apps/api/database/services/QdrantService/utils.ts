@@ -7,6 +7,6 @@
  */
 
 export {
-    stringToNumericHash as stringToNumericId,
-    chunkToNumericId
+  stringToNumericHash as stringToNumericId,
+  chunkToNumericId,
 } from '../../../utils/validation/index.js';

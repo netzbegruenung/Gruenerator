@@ -8,7 +8,11 @@ import { isDesktopApp } from './platform';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const REDIRECT_URI = 'gruenerator://auth/callback';
 
-export type AuthSource = 'gruenerator-login' | 'gruenes-netz-login' | 'netzbegruenung-login' | 'gruene-oesterreich-login';
+export type AuthSource =
+  | 'gruenerator-login'
+  | 'gruenes-netz-login'
+  | 'netzbegruenung-login'
+  | 'gruene-oesterreich-login';
 
 interface ConsumeLoginCodeResponse {
   success: boolean;
@@ -128,7 +132,7 @@ async function exchangeCodeForToken(code: string): Promise<{
       body: JSON.stringify({ code }),
     });
 
-    const data = await response.json() as ConsumeLoginCodeResponse;
+    const data = (await response.json()) as ConsumeLoginCodeResponse;
 
     if (response.ok && data.success && data.token && data.user) {
       localStorage.setItem('gruenerator_desktop_token', data.token);

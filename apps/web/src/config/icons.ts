@@ -1,6 +1,43 @@
-import type { ComponentType } from 'react';
-import type { IconBaseProps } from 'react-icons';
 
+import { CiMemoPad } from 'react-icons/ci';
+import {
+  FaInstagram,
+  FaFacebook,
+  FaTwitter,
+  FaLinkedin,
+  FaCloud,
+  FaBook,
+  FaTiktok, FaMagic 
+} from 'react-icons/fa';
+import { FaFileWord } from 'react-icons/fa6';
+import { FiUpload, FiFile, FiX, FiFileText, FiCheck } from 'react-icons/fi';
+import { GiHedgehog } from 'react-icons/gi';
+import {
+  HiInformationCircle,
+  HiOutlineTrash,
+  HiRefresh,
+  HiArrowLeft,
+  HiLockClosed,
+  HiBeaker,
+  HiChat,
+  HiMicrophone,
+  HiClipboardCheck,
+  HiUserGroup,
+  HiPencilAlt,
+  HiClipboardList,
+  HiQuestionMarkCircle,
+  HiSpeakerphone,
+  HiDownload,
+  HiLink,
+  HiSparkles,
+} from 'react-icons/hi';
+import {
+  IoDownloadOutline,
+  IoCopyOutline,
+  IoShareOutline,
+  IoAccessibilityOutline,
+  IoAccessibility,
+} from 'react-icons/io5';
 import {
   PiFileText,
   PiNewspaper,
@@ -22,66 +59,14 @@ import {
   PiPaintBrush,
   PiArticle,
   PiSquaresFour,
-  PiHouse
+  PiHouse,
 } from 'react-icons/pi';
-
-import {
-  FaInstagram,
-  FaFacebook,
-  FaTwitter,
-  FaLinkedin,
-  FaCloud,
-  FaBook,
-  FaTiktok
-} from 'react-icons/fa';
-
-import { FaFileWord } from 'react-icons/fa6';
-
-import { CiMemoPad } from 'react-icons/ci';
-
-import { GiHedgehog } from 'react-icons/gi';
-
-import {
-  HiInformationCircle,
-  HiOutlineTrash,
-  HiRefresh,
-  HiArrowLeft,
-  HiLockClosed,
-  HiBeaker,
-  HiChat,
-  HiMicrophone,
-  HiClipboardCheck,
-  HiUserGroup,
-  HiPencilAlt,
-  HiClipboardList,
-  HiQuestionMarkCircle,
-  HiSpeakerphone,
-  HiDownload,
-  HiLink,
-  HiSparkles
-} from 'react-icons/hi';
-
-import {
-  IoDownloadOutline,
-  IoCopyOutline,
-  IoShareOutline,
-  IoAccessibilityOutline,
-  IoAccessibility
-} from 'react-icons/io5';
-
-import {
-  FiUpload,
-  FiFile,
-  FiX,
-  FiFileText,
-  FiCheck
-} from 'react-icons/fi';
-
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
-import { FaMagic } from 'react-icons/fa';
-
 import GrueneratorGPTIcon from '../components/common/GrueneratorGPTIcon';
+
+import type { ComponentType } from 'react';
+import type { IconBaseProps } from 'react-icons';
 
 /**
  * Icon component type used throughout the registry
@@ -91,46 +76,109 @@ export type IconType = ComponentType<IconBaseProps>;
 /**
  * Icon category types
  */
-export type IconCategory = 'platforms' | 'textTypes' | 'navigation' | 'actions' | 'ui' | 'accessibility' | 'campaigns';
+export type IconCategory =
+  | 'platforms'
+  | 'textTypes'
+  | 'navigation'
+  | 'actions'
+  | 'ui'
+  | 'accessibility'
+  | 'campaigns';
 
 /**
  * Platform icon names
  */
 export type PlatformIconName =
-  | 'instagram' | 'facebook' | 'twitter' | 'linkedin' | 'tiktok'
-  | 'messenger' | 'sharepic' | 'pressemitteilung' | 'actionIdeas' | 'reelScript'
+  | 'instagram'
+  | 'facebook'
+  | 'twitter'
+  | 'linkedin'
+  | 'tiktok'
+  | 'messenger'
+  | 'sharepic'
+  | 'pressemitteilung'
+  | 'actionIdeas'
+  | 'reelScript'
   | 'automatisch';
 
 /**
  * Text type icon names
  */
 export type TextTypeIconName =
-  | 'rede' | 'wahlprogramm' | 'buergeranfragen' | 'universal'
-  | 'antrag' | 'kleine_anfrage' | 'grosse_anfrage';
+  | 'rede'
+  | 'wahlprogramm'
+  | 'buergeranfragen'
+  | 'universal'
+  | 'antrag'
+  | 'kleine_anfrage'
+  | 'grosse_anfrage';
 
 /**
  * Navigation icon names
  */
 export type NavigationIconName =
-  | 'antrag' | 'presse-social' | 'universal' | 'gruene-jugend' | 'suche'
-  | 'reel' | 'sharepic' | 'datenbank' | 'vorlagen' | 'you' | 'tools'
-  | 'barrierefreiheit' | 'imagine' | 'website' | 'texte' | 'eigene' | 'home';
+  | 'antrag'
+  | 'presse-social'
+  | 'universal'
+  | 'gruene-jugend'
+  | 'suche'
+  | 'reel'
+  | 'sharepic'
+  | 'datenbank'
+  | 'vorlagen'
+  | 'you'
+  | 'tools'
+  | 'barrierefreiheit'
+  | 'imagine'
+  | 'website'
+  | 'texte'
+  | 'eigene'
+  | 'home';
 
 /**
  * Action icon names
  */
 export type ActionIconName =
-  | 'copy' | 'download' | 'share' | 'docs' | 'cloud' | 'word' | 'gruenerator'
-  | 'notebook' | 'delete' | 'edit' | 'add' | 'info' | 'upload' | 'close'
-  | 'check' | 'arrowRight' | 'back' | 'refresh' | 'lock' | 'labor'
-  | 'altText' | 'kiLabel' | 'link';
+  | 'copy'
+  | 'download'
+  | 'share'
+  | 'docs'
+  | 'cloud'
+  | 'word'
+  | 'gruenerator'
+  | 'notebook'
+  | 'delete'
+  | 'edit'
+  | 'add'
+  | 'info'
+  | 'upload'
+  | 'close'
+  | 'check'
+  | 'arrowRight'
+  | 'back'
+  | 'refresh'
+  | 'lock'
+  | 'labor'
+  | 'altText'
+  | 'kiLabel'
+  | 'link';
 
 /**
  * UI icon names
  */
 export type UIIconName =
-  | 'user' | 'file' | 'fileAlt' | 'fileTextAlt' | 'image' | 'video'
-  | 'search' | 'caretDown' | 'caretUp' | 'assistant' | 'brain' | 'notebook';
+  | 'user'
+  | 'file'
+  | 'fileAlt'
+  | 'fileTextAlt'
+  | 'image'
+  | 'video'
+  | 'search'
+  | 'caretDown'
+  | 'caretUp'
+  | 'assistant'
+  | 'brain'
+  | 'notebook';
 
 /**
  * Icon registry structure
@@ -161,7 +209,7 @@ export const ICONS: IconRegistry = {
     pressemitteilung: PiNewspaper,
     actionIdeas: PiMagicWand,
     reelScript: PiVideoCamera,
-    automatisch: HiSparkles
+    automatisch: HiSparkles,
   },
 
   textTypes: {
@@ -171,7 +219,7 @@ export const ICONS: IconRegistry = {
     universal: PiSquaresFour,
     antrag: HiClipboardList,
     kleine_anfrage: HiQuestionMarkCircle,
-    grosse_anfrage: HiSpeakerphone
+    grosse_anfrage: HiSpeakerphone,
   },
 
   navigation: {
@@ -191,7 +239,7 @@ export const ICONS: IconRegistry = {
     website: PiGlobe,
     texte: PiArticle,
     eigene: PiWrench,
-    home: PiHouse
+    home: PiHouse,
   },
 
   actions: {
@@ -217,7 +265,7 @@ export const ICONS: IconRegistry = {
     labor: HiBeaker,
     altText: IoAccessibility,
     kiLabel: PiTextAlignLeftFill,
-    link: HiLink
+    link: HiLink,
   },
 
   ui: {
@@ -232,36 +280,31 @@ export const ICONS: IconRegistry = {
     caretUp: PiCaretUp,
     assistant: RiRobot3Line,
     brain: PiBrain,
-    notebook: FaBook
+    notebook: FaBook,
   },
 
   accessibility: {
     altText: IoAccessibility,
-    leichteSprache: IoAccessibility
+    leichteSprache: IoAccessibility,
   },
 
   campaigns: {
     campaign: HiSparkles,
-    sharepic: PiImageSquare
-  }
+    sharepic: PiImageSquare,
+  },
 };
 
 /**
  * Get an icon component by category and name
  */
-export const getIcon = <C extends IconCategory>(
-  category: C,
-  name: string
-): IconType | null => {
+export const getIcon = <C extends IconCategory>(category: C, name: string): IconType | null => {
   return (ICONS[category] as Record<string, IconType>)?.[name] || null;
 };
 
 /**
  * Get all icons from a specific category
  */
-export const getIconsFromCategory = <C extends IconCategory>(
-  category: C
-): IconRegistry[C] => {
+export const getIconsFromCategory = <C extends IconCategory>(category: C): IconRegistry[C] => {
   return ICONS[category];
 };
 
@@ -300,10 +343,10 @@ export const ICON_CATEGORIES = {
   PLATFORMS: 'platforms',
   NAVIGATION: 'navigation',
   ACTIONS: 'actions',
-  UI: 'ui'
+  UI: 'ui',
 } as const;
 
-export type IconCategoryKey = typeof ICON_CATEGORIES[keyof typeof ICON_CATEGORIES];
+export type IconCategoryKey = (typeof ICON_CATEGORIES)[keyof typeof ICON_CATEGORIES];
 
 export const AssistantIcon = RiRobot3Line;
 export const NotebookIcon = FaBook;

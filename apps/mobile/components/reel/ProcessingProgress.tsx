@@ -61,10 +61,7 @@ export function ProcessingProgress({
                 </View>
                 {!isLast && (
                   <View
-                    style={[
-                      styles.stageLine,
-                      status === 'completed' && styles.stageLineCompleted,
-                    ]}
+                    style={[styles.stageLine, status === 'completed' && styles.stageLineCompleted]}
                   />
                 )}
               </View>
@@ -90,9 +87,7 @@ export function ProcessingProgress({
                 {status === 'active' && (
                   <View style={styles.stageProgressContainer}>
                     <View style={styles.stageProgressBar}>
-                      <View
-                        style={[styles.stageProgressFill, { width: `${stageProgress}%` }]}
-                      />
+                      <View style={[styles.stageProgressFill, { width: `${stageProgress}%` }]} />
                     </View>
                     <Text style={styles.stageProgressText}>{Math.round(stageProgress)}%</Text>
                   </View>

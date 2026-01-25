@@ -12,7 +12,7 @@ import type {
   FormattedSearchResultsWithSummary,
   SearxngSummary,
   CacheEntry,
-  ServiceStatus
+  ServiceStatus,
 } from './types.js';
 
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
@@ -59,7 +59,7 @@ class SearxngService {
       format: 'json',
       categories: 'general',
       time_range: '',
-      page: 1
+      page: 1,
     };
 
     this.redisClient = null;
@@ -83,7 +83,8 @@ class SearxngService {
 
       this.cache.clear();
     } catch (error: any) {
-      if (isVerbose) console.warn('[SearXNG] Redis unavailable, using in-memory cache:', error.message);
+      if (isVerbose)
+        console.warn('[SearXNG] Redis unavailable, using in-memory cache:', error.message);
       this.redisClient = null;
     }
   }
@@ -91,14 +92,17 @@ class SearxngService {
   /**
    * Perform web search using SearXNG
    */
-  async performWebSearch(query: string, options: SearxngSearchOptions = {}): Promise<FormattedSearchResults> {
+  async performWebSearch(
+    query: string,
+    options: SearxngSearchOptions = {}
+  ): Promise<FormattedSearchResults> {
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       throw new Error('Valid search query is required');
     }
 
     const searchOptions = {
       ...this.defaultOptions,
-      ...options
+      ...options,
     };
 
     const cacheKey = this.generateCacheKey(query, searchOptions);
@@ -124,10 +128,11 @@ class SearxngService {
 
       await this.setCachedResult(cacheKey, formattedResults, searchOptions);
 
-      console.log(`🔍 [SearXNG] ${formattedResults.resultCount} results (${formattedResults.contentStats.resultsWithContent} with content)`);
+      console.log(
+        `🔍 [SearXNG] ${formattedResults.resultCount} results (${formattedResults.contentStats.resultsWithContent} with content)`
+      );
 
       return formattedResults;
-
     } catch (error: any) {
       console.error(`[SearXNG] Search failed:`, error.message);
       throw new Error(`Web search failed: ${error.message}`);
@@ -137,14 +142,17 @@ class SearxngService {
   /**
    * Query SearXNG API directly
    */
-  private async querySearXNG(query: string, options: Required<SearxngSearchOptions>): Promise<RawSearxngResponse> {
+  private async querySearXNG(
+    query: string,
+    options: Required<SearxngSearchOptions>
+  ): Promise<RawSearxngResponse> {
     const searchParams = new URLSearchParams({
       q: query,
       format: options.format || 'json',
       categories: options.categories || 'general',
       language: options.language || 'de-DE',
       safesearch: String(options.safesearch || 0),
-      pageno: String(options.page || 1)
+      pageno: String(options.page || 1),
     });
 
     if (options.time_range) {
@@ -156,16 +164,19 @@ class SearxngService {
     if (isDebug) console.log(`[SearXNG] Querying: ${this.baseUrl}/search`);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), options.timeout || this.defaultOptions.timeout);
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      options.timeout || this.defaultOptions.timeout
+    );
 
     try {
       const response = await fetch(searchUrl, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Gruenerator-Search/1.0'
+          Accept: 'application/json',
+          'User-Agent': 'Gruenerator-Search/1.0',
         },
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
@@ -179,19 +190,20 @@ class SearxngService {
         throw new Error('Invalid response format from SearXNG');
       }
 
-      const data = await response.json() as RawSearxngResponse;
+      const data = (await response.json()) as RawSearxngResponse;
 
       if (!data || !Array.isArray(data.results)) {
         throw new Error('Invalid response structure from SearXNG');
       }
 
       return data;
-
     } catch (error: any) {
       clearTimeout(timeoutId);
 
       if (error.name === 'AbortError') {
-        throw new Error(`SearXNG request timeout after ${options.timeout || this.defaultOptions.timeout}ms`);
+        throw new Error(
+          `SearXNG request timeout after ${options.timeout || this.defaultOptions.timeout}ms`
+        );
       }
 
       throw error;
@@ -207,7 +219,10 @@ class SearxngService {
     searchOptions: Required<SearxngSearchOptions>
   ): FormattedSearchResults {
     const results = rawResults.results || [];
-    const maxResults = Math.min(searchOptions.maxResults || this.defaultOptions.maxResults, results.length);
+    const maxResults = Math.min(
+      searchOptions.maxResults || this.defaultOptions.maxResults,
+      results.length
+    );
 
     const formattedResults: SearchResult[] = results.slice(0, maxResults).map((result, index) => ({
       rank: index + 1,
@@ -222,8 +237,8 @@ class SearxngService {
       domain: this.extractDomainFromUrl(result.url),
       metadata: {
         length: result.content?.length || 0,
-        hasContent: !!(result.content && result.content.trim())
-      }
+        hasContent: !!(result.content && result.content.trim()),
+      },
     }));
 
     const contentStats = this.calculateContentStats(formattedResults);
@@ -239,12 +254,12 @@ class SearxngService {
       searchOptions: {
         categories: searchOptions.categories || 'general',
         language: searchOptions.language || 'de-DE',
-        maxResults: maxResults
+        maxResults: maxResults,
       },
       contentStats,
       suggestions: rawResults.suggestions || [],
       infoboxes: rawResults.infoboxes || [],
-      answers: rawResults.answers || []
+      answers: rawResults.answers || [],
     };
   }
 
@@ -264,8 +279,8 @@ class SearxngService {
         summary: {
           text: 'Keine Suchergebnisse zum Zusammenfassen verfügbar.',
           generated: false,
-          error: 'No results to summarize'
-        }
+          error: 'No results to summarize',
+        },
       };
     }
 
@@ -276,8 +291,8 @@ class SearxngService {
         summary: {
           text: 'AI-Zusammenfassung nicht verfügbar.',
           generated: false,
-          error: 'No AI worker pool available'
-        }
+          error: 'No AI worker pool available',
+        },
       };
     }
 
@@ -286,21 +301,23 @@ class SearxngService {
 
       const summaryRequest = {
         type: 'web_search_summary',
-        messages: [{
-          role: 'user',
-          content: `Du bist ein hilfreicher Assistent, der basierend auf Webinhalten fundierte Antworten gibt. Beantworte die folgende Frage oder das Anliegen des Nutzers direkt und umfassend, basierend auf den bereitgestellten Informationen. Die Quellen dienen als Hintergrundinformationen - du sollst eine echte, durchdachte Antwort geben, keine bloße Zusammenfassung.
+        messages: [
+          {
+            role: 'user',
+            content: `Du bist ein hilfreicher Assistent, der basierend auf Webinhalten fundierte Antworten gibt. Beantworte die folgende Frage oder das Anliegen des Nutzers direkt und umfassend, basierend auf den bereitgestellten Informationen. Die Quellen dienen als Hintergrundinformationen - du sollst eine echte, durchdachte Antwort geben, keine bloße Zusammenfassung.
 
 Frage/Anliegen: "${originalQuery}"
 
 Verfügbare Informationen:
 ${contentForSummary}
 
-Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`
-        }],
+Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`,
+          },
+        ],
         options: {
           max_tokens: 1000,
-          temperature: 0.3
-        }
+          temperature: 0.3,
+        },
       };
 
       if (isVerbose) console.log(`[SearXNG] Generating AI summary`);
@@ -316,8 +333,8 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
             model: 'claude-3-haiku',
             timestamp: new Date().toISOString(),
             wordCount: aiResponse.content.trim().split(/\s+/).length,
-            basedOnResults: searchResults.results.length
-          }
+            basedOnResults: searchResults.results.length,
+          },
         };
       } else {
         if (isVerbose) console.warn('[SearXNG] Summary generation failed:', aiResponse.error);
@@ -326,11 +343,10 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
           summary: {
             text: 'Zusammenfassung konnte nicht generiert werden.',
             generated: false,
-            error: aiResponse.error || 'Unknown error'
-          }
+            error: aiResponse.error || 'Unknown error',
+          },
         };
       }
-
     } catch (error: any) {
       console.error('[SearXNG] Error generating summary:', error.message || error);
       return {
@@ -338,8 +354,8 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
         summary: {
           text: 'Fehler beim Generieren der Zusammenfassung.',
           generated: false,
-          error: error.message
-        }
+          error: error.message,
+        },
       };
     }
   }
@@ -350,33 +366,33 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
   private prepareContentForSummary(results: SearchResult[], query: string): string {
     const relevantResults = results.slice(0, 8);
 
-    return relevantResults.map((result, index) => {
-      const content = result.content || result.snippet || '';
-      const truncatedContent = content.length > 300
-        ? content.substring(0, 300) + '...'
-        : content;
+    return relevantResults
+      .map((result, index) => {
+        const content = result.content || result.snippet || '';
+        const truncatedContent = content.length > 300 ? content.substring(0, 300) + '...' : content;
 
-      return `${index + 1}. **${result.title}** (${result.domain})
+        return `${index + 1}. **${result.title}** (${result.domain})
 Inhalt: ${truncatedContent}
 URL: ${result.url}
 `;
-    }).join('\n');
+      })
+      .join('\n');
   }
 
   /**
    * Calculate content statistics from search results
    */
   private calculateContentStats(results: SearchResult[]): ContentStats {
-    const withContent = results.filter(r => r.metadata.hasContent);
+    const withContent = results.filter((r) => r.metadata.hasContent);
     const totalContentLength = results.reduce((sum, r) => sum + r.metadata.length, 0);
-    const domains = [...new Set(results.map(r => r.domain))];
+    const domains = [...new Set(results.map((r) => r.domain))];
 
     return {
       totalResults: results.length,
       resultsWithContent: withContent.length,
       averageContentLength: Math.round(totalContentLength / Math.max(results.length, 1)),
       uniqueDomains: domains.length,
-      topDomains: domains.slice(0, 5)
+      topDomains: domains.slice(0, 5),
     };
   }
 
@@ -419,7 +435,7 @@ URL: ${result.url}
       categories: options.categories || 'general',
       language: options.language || 'de-DE',
       maxResults: options.maxResults || this.defaultOptions.maxResults,
-      time_range: options.time_range || ''
+      time_range: options.time_range || '',
     };
 
     const keyString = JSON.stringify(keyData);
@@ -429,7 +445,10 @@ URL: ${result.url}
   /**
    * Get cached search result
    */
-  private async getCachedResult(cacheKey: string, searchOptions: SearxngSearchOptions): Promise<FormattedSearchResults | null> {
+  private async getCachedResult(
+    cacheKey: string,
+    searchOptions: SearxngSearchOptions
+  ): Promise<FormattedSearchResults | null> {
     try {
       if (this.redisClient) {
         const cachedData = await this.redisClient.get(cacheKey);
@@ -439,9 +458,8 @@ URL: ${result.url}
         }
       } else {
         const cached = this.cache.get(cacheKey);
-        const timeout = searchOptions.categories === 'news'
-          ? this.newsCache * 1000
-          : this.cacheTimeout * 1000;
+        const timeout =
+          searchOptions.categories === 'news' ? this.newsCache * 1000 : this.cacheTimeout * 1000;
 
         if (cached && Date.now() - cached.timestamp < timeout) {
           if (isDebug) console.log(`[SearXNG] Memory cache hit: ${cacheKey.substring(0, 20)}...`);
@@ -462,7 +480,11 @@ URL: ${result.url}
   /**
    * Set cached search result
    */
-  private async setCachedResult(cacheKey: string, data: FormattedSearchResults, searchOptions: SearxngSearchOptions): Promise<void> {
+  private async setCachedResult(
+    cacheKey: string,
+    data: FormattedSearchResults,
+    searchOptions: SearxngSearchOptions
+  ): Promise<void> {
     try {
       if (this.redisClient) {
         const ttl = searchOptions.categories === 'news' ? this.newsCache : this.cacheTimeout;
@@ -476,7 +498,7 @@ URL: ${result.url}
 
         this.cache.set(cacheKey, {
           data,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
         if (isVerbose) console.log(`[SearXNG] Cached in memory`);
       }
@@ -515,7 +537,7 @@ URL: ${result.url}
     let cacheInfo: ServiceStatus['cache'] = {
       type: 'memory',
       size: this.cache.size,
-      connected: true
+      connected: true,
     };
 
     if (this.redisClient) {
@@ -525,14 +547,14 @@ URL: ${result.url}
         cacheInfo = {
           type: 'redis',
           size: keys.length,
-          connected: true
+          connected: true,
         };
       } catch (error: any) {
         cacheInfo = {
           type: 'redis',
           size: 0,
           connected: false,
-          error: error.message
+          error: error.message,
         };
       }
     }
@@ -544,7 +566,7 @@ URL: ${result.url}
       newsCache: this.newsCache,
       defaultOptions: this.defaultOptions,
       uptime: process.uptime(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 }

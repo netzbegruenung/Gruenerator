@@ -1,5 +1,6 @@
-import React, { memo, useMemo } from 'react';
 import { motion } from 'motion/react';
+import React, { memo, useMemo } from 'react';
+
 import type { ExamplePromptsProps, ExamplePrompt } from '@/types/baseform';
 import './ExamplePrompts.css';
 
@@ -7,7 +8,7 @@ const ExamplePrompts: React.FC<ExamplePromptsProps> = ({
   prompts = [],
   onPromptClick,
   className = '',
-  selectedPlatforms = []
+  selectedPlatforms = [],
 }) => {
   if (!prompts || prompts.length === 0) {
     return null;
@@ -23,7 +24,7 @@ const ExamplePrompts: React.FC<ExamplePromptsProps> = ({
       return false;
     }
     // A prompt is selected if any of its platforms are in selectedPlatforms
-    return prompt.platforms.some(platform => selectedPlatforms.includes(platform));
+    return prompt.platforms.some((platform) => selectedPlatforms.includes(platform));
   };
 
   return (
@@ -44,7 +45,9 @@ const ExamplePrompts: React.FC<ExamplePromptsProps> = ({
             aria-pressed={isSelected}
           >
             {prompt.icon && <span className="example-prompts__icon">{prompt.icon}</span>}
-            {(prompt.label || prompt.text) && <span className="example-prompts__text">{prompt.label || prompt.text}</span>}
+            {(prompt.label || prompt.text) && (
+              <span className="example-prompts__text">{prompt.label || prompt.text}</span>
+            )}
           </button>
         );
       })}

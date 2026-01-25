@@ -33,34 +33,37 @@ export function useCanvasHistory(options: UseCanvasHistoryOptions = {}): UseCanv
   const canUndo = currentIndex > 0;
   const canRedo = currentIndex < history.length - 1;
 
-  const saveState = useCallback((layers: Layer[], selectedIds: string[] = []) => {
-    if (isUndoRedoRef.current) {
-      isUndoRedoRef.current = false;
-      return;
-    }
-
-    const entry: CanvasHistoryEntry = {
-      layers: JSON.parse(JSON.stringify(layers)),
-      selectedLayerIds: [...selectedIds],
-      timestamp: Date.now(),
-    };
-
-    setHistory(prev => {
-      const truncated = prev.slice(0, currentIndex + 1);
-      const updated = [...truncated, entry];
-
-      if (updated.length > maxHistorySize) {
-        updated.shift();
-        setCurrentIndex(maxHistorySize - 1);
-      } else {
-        setCurrentIndex(updated.length - 1);
+  const saveState = useCallback(
+    (layers: Layer[], selectedIds: string[] = []) => {
+      if (isUndoRedoRef.current) {
+        isUndoRedoRef.current = false;
+        return;
       }
 
-      return updated;
-    });
+      const entry: CanvasHistoryEntry = {
+        layers: JSON.parse(JSON.stringify(layers)),
+        selectedLayerIds: [...selectedIds],
+        timestamp: Date.now(),
+      };
 
-    onHistoryChange?.(true, false);
-  }, [currentIndex, maxHistorySize, onHistoryChange]);
+      setHistory((prev) => {
+        const truncated = prev.slice(0, currentIndex + 1);
+        const updated = [...truncated, entry];
+
+        if (updated.length > maxHistorySize) {
+          updated.shift();
+          setCurrentIndex(maxHistorySize - 1);
+        } else {
+          setCurrentIndex(updated.length - 1);
+        }
+
+        return updated;
+      });
+
+      onHistoryChange?.(true, false);
+    },
+    [currentIndex, maxHistorySize, onHistoryChange]
+  );
 
   const undo = useCallback((): CanvasHistoryEntry | null => {
     if (!canUndo) return null;

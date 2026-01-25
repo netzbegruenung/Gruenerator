@@ -1,12 +1,19 @@
-import React, { lazy, Suspense, ReactNode, ReactElement } from 'react';
-import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
+import React, { lazy, Suspense, type ReactNode, ReactElement } from 'react';
 
 import { Markdown } from '../../Markdown';
+
+import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
+
 const FinetuneEditor = lazy(() => import('../EditMode/FinetuneEditor'));
 
-import { isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags, stripWrappingCodeFence } from '../utils/contentUtils';
+import {
+  isMarkdownContent,
+  normalizeLineBreaks,
+  removeGruenTitleTags,
+  stripWrappingCodeFence,
+} from '../utils/contentUtils';
 import { CitationBadge } from '../../Citation';
-import ImageDisplay, { SharepicDataItem } from '../../ImageDisplay';
+import ImageDisplay, { type SharepicDataItem } from '../../ImageDisplay';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 
 interface Citation {
@@ -46,9 +53,8 @@ const enhanceTextWithCitations = (text: string, citations: Citation[]): ReactNod
 
     if (match) {
       const citationIndex = match[1];
-      const citation = citations.find(c =>
-        String(c.index) === citationIndex ||
-        c.index === parseInt(citationIndex, 10)
+      const citation = citations.find(
+        (c) => String(c.index) === citationIndex || c.index === parseInt(citationIndex, 10)
       );
 
       elements.push(
@@ -75,7 +81,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   onEditModeToggle,
   isEditModeActive = false,
 }) => {
-  const getGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata);
+  const getGeneratedTextMetadata = useGeneratedTextStore((state) => state.getGeneratedTextMetadata);
 
   let processedGeneratedContent: GeneratedContent | undefined = generatedContent;
 
@@ -91,9 +97,13 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
 
           // Restore function handlers from metadata (functions can't be JSON.stringified)
           // BaseForm stores the original object with handlers as metadata
-          const storedMetadata = getGeneratedTextMetadata(componentName) as Record<string, unknown> | null;
+          const storedMetadata = getGeneratedTextMetadata(componentName) as Record<
+            string,
+            unknown
+          > | null;
           if (storedMetadata && typeof storedMetadata.onEditSharepic === 'function') {
-            ((processedGeneratedContent as unknown) as Record<string, unknown>).onEditSharepic = storedMetadata.onEditSharepic;
+            (processedGeneratedContent as unknown as Record<string, unknown>).onEditSharepic =
+              storedMetadata.onEditSharepic;
           }
         }
       } catch {
@@ -102,26 +112,33 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     }
   }
 
-  if (processedGeneratedContent && typeof processedGeneratedContent === 'object' &&
+  if (
+    processedGeneratedContent &&
+    typeof processedGeneratedContent === 'object' &&
     'content' in processedGeneratedContent &&
-    'success' in processedGeneratedContent) {
+    'success' in processedGeneratedContent
+  ) {
     processedGeneratedContent = (processedGeneratedContent as { content: string }).content;
   }
 
   // Detect mixed content: has sharepic OR has selectedPlatforms (simplified social content structure)
-  const isMixedContent = processedGeneratedContent && typeof processedGeneratedContent === 'object' &&
+  const isMixedContent =
+    processedGeneratedContent &&
+    typeof processedGeneratedContent === 'object' &&
     ('sharepic' in processedGeneratedContent || 'selectedPlatforms' in processedGeneratedContent);
 
   const mixedContent = processedGeneratedContent as MixedContent | undefined;
 
   // Extract content directly (simplified structure has content at top level, no social wrapper)
-  const rawContent = isMixedContent && mixedContent
-    ? (mixedContent.content || '')
-    : (value || processedGeneratedContent || '');
+  const rawContent =
+    isMixedContent && mixedContent
+      ? mixedContent.content || ''
+      : value || processedGeneratedContent || '';
 
-  const contentToRender = typeof rawContent === 'string'
-    ? normalizeLineBreaks(stripWrappingCodeFence(removeGruenTitleTags(rawContent)))
-    : rawContent;
+  const contentToRender =
+    typeof rawContent === 'string'
+      ? normalizeLineBreaks(stripWrappingCodeFence(removeGruenTitleTags(rawContent)))
+      : rawContent;
 
   const metadata = getGeneratedTextMetadata(componentName) as { citations?: Citation[] } | null;
   const citations: Citation[] = metadata?.citations || [];
@@ -142,10 +159,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
         {hasTextContent && (
           <div className="social-content-section">
             <Suspense fallback={<div className="finetune-loading">Editor wird geladen...</div>}>
-              <FinetuneEditor
-                componentName={componentName}
-                readOnly={!isEditModeActive}
-              />
+              <FinetuneEditor componentName={componentName} readOnly={!isEditModeActive} />
             </Suspense>
           </div>
         )}
@@ -160,9 +174,11 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
                 onEditModeToggle={onEditModeToggle}
                 editMode={mixedContent.inlineSharepicEditEnabled ? 'inline' : mixedContent.editMode}
                 showEditButton={mixedContent.showEditButton !== false}
-                title={mixedContent.sharepicTitle as string || "Generierte Sharepics"}
+                title={(mixedContent.sharepicTitle as string) || 'Generierte Sharepics'}
                 downloadButtonText={mixedContent.sharepicDownloadText as string}
-                downloadFilename={mixedContent.sharepicDownloadFilename as string || "sharepic.png"}
+                downloadFilename={
+                  (mixedContent.sharepicDownloadFilename as string) || 'sharepic.png'
+                }
                 enableKiLabel={mixedContent.enableKiLabel as boolean}
                 enableCanvaEdit={mixedContent.enableCanvaEdit as boolean}
                 canvaTemplateUrl={mixedContent.canvaTemplateUrl as string}
@@ -196,11 +212,16 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
 
                 return (
                   <ImageDisplay
-                    key={(sharepicData as { id?: string; type?: string }).id || `${(sharepicData as { type?: string }).type || 'sharepic'}-${index}`}
+                    key={
+                      (sharepicData as { id?: string; type?: string }).id ||
+                      `${(sharepicData as { type?: string }).type || 'sharepic'}-${index}`
+                    }
                     sharepicData={sharepicData}
                     onEdit={mixedContent.onEditSharepic}
                     onEditModeToggle={onEditModeToggle}
-                    editMode={mixedContent.inlineSharepicEditEnabled ? 'inline' : mixedContent.editMode}
+                    editMode={
+                      mixedContent.inlineSharepicEditEnabled ? 'inline' : mixedContent.editMode
+                    }
                     showEditButton={mixedContent.showEditButton !== false}
                     title={sharepicTitle}
                     downloadButtonText={downloadButtonText}
@@ -230,17 +251,15 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   }
 
   // Calculate shouldUseMarkdown BEFORE checking string type
-  const shouldUseMarkdown = useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender as string);
+  const shouldUseMarkdown =
+    useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender as string);
 
   // If string content AND markdown rendering NOT requested → use FinetuneEditor
   if (typeof contentToRender === 'string' && !shouldUseMarkdown) {
     return (
       <div className={`generated-content-wrapper ${isEditModeActive ? 'editable' : ''}`}>
         <Suspense fallback={<div className="finetune-loading">Editor wird geladen...</div>}>
-          <FinetuneEditor
-            componentName={componentName}
-            readOnly={!isEditModeActive}
-          />
+          <FinetuneEditor componentName={componentName} readOnly={!isEditModeActive} />
         </Suspense>
       </div>
     );
@@ -262,9 +281,8 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
 
         if (match) {
           const citationIndex = match[1];
-          const citation = citations.find(c =>
-            String(c.index) === citationIndex ||
-            c.index === parseInt(citationIndex, 10)
+          const citation = citations.find(
+            (c) => String(c.index) === citationIndex || c.index === parseInt(citationIndex, 10)
           );
 
           elements.push(
@@ -285,31 +303,39 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     return {
       text: ({ children }: { children: ReactNode }) => processCitationText(children),
       p: ({ children }: { children: ReactNode }) => {
-        const hasMarkers = React.Children.toArray(children).some(child =>
-          typeof child === 'string' && child.includes('⚡CITE')
+        const hasMarkers = React.Children.toArray(children).some(
+          (child) => typeof child === 'string' && child.includes('⚡CITE')
         );
 
         if (hasMarkers) {
-          return <p>{React.Children.map(children, child =>
-            typeof child === 'string' ? processCitationText(child) : child
-          )}</p>;
+          return (
+            <p>
+              {React.Children.map(children, (child) =>
+                typeof child === 'string' ? processCitationText(child) : child
+              )}
+            </p>
+          );
         }
 
         return <p>{children}</p>;
       },
       li: ({ children }: { children: ReactNode }) => {
-        const hasMarkers = React.Children.toArray(children).some(child =>
-          typeof child === 'string' && child.includes('⚡CITE')
+        const hasMarkers = React.Children.toArray(children).some(
+          (child) => typeof child === 'string' && child.includes('⚡CITE')
         );
 
         if (hasMarkers) {
-          return <li>{React.Children.map(children, child =>
-            typeof child === 'string' ? processCitationText(child) : child
-          )}</li>;
+          return (
+            <li>
+              {React.Children.map(children, (child) =>
+                typeof child === 'string' ? processCitationText(child) : child
+              )}
+            </li>
+          );
         }
 
         return <li>{children}</li>;
-      }
+      },
     };
   };
 
@@ -339,9 +365,8 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     }
   } else {
     // contentToRender is not a string at this point, render it as a string representation
-    const contentString = typeof contentToRender === 'string'
-      ? contentToRender
-      : JSON.stringify(contentToRender);
+    const contentString =
+      typeof contentToRender === 'string' ? contentToRender : JSON.stringify(contentToRender);
     let enhancedContent: ReactNode = contentString;
     if (citations.length > 0) {
       enhancedContent = enhanceTextWithCitations(contentString, citations);

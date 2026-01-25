@@ -8,17 +8,11 @@ import type {
   ValidationResult,
   Source,
   ReferencesMap,
-  ReferenceData
+  ReferenceData,
 } from '../../../services/search/types.js';
 
 // Re-export for external use
-export type {
-  Citation,
-  ValidationResult,
-  Source,
-  ReferencesMap,
-  ReferenceData
-};
+export type { Citation, ValidationResult, Source, ReferencesMap, ReferenceData };
 
 /**
  * Search result from web search providers
@@ -120,15 +114,15 @@ export interface CrawlMetadata {
   strategy?: string;
 
   // Operational properties used by nodes
-  crawledCount?: number;          // ContentEnricherNode: successful crawl count
-  totalResultsAnalyzed?: number;  // IntelligentCrawlerNode: analyzed result count
-  maxCrawlsAllowed?: number;      // IntelligentCrawlerNode: max crawl limit
-  selectedCount?: number;         // IntelligentCrawlerNode: selected URLs count
-  timeout?: number;               // ContentEnricherNode: crawl timeout value
-  failed?: boolean;               // Error flags for crawl failures
-  noResultsToAnalyze?: boolean;   // IntelligentCrawlerNode: no results flag
-  emptyResults?: boolean;         // IntelligentCrawlerNode: empty results flag
-  nothingToCrawl?: boolean;       // ContentEnricherNode: no crawl decisions flag
+  crawledCount?: number; // ContentEnricherNode: successful crawl count
+  totalResultsAnalyzed?: number; // IntelligentCrawlerNode: analyzed result count
+  maxCrawlsAllowed?: number; // IntelligentCrawlerNode: max crawl limit
+  selectedCount?: number; // IntelligentCrawlerNode: selected URLs count
+  timeout?: number; // ContentEnricherNode: crawl timeout value
+  failed?: boolean; // Error flags for crawl failures
+  noResultsToAnalyze?: boolean; // IntelligentCrawlerNode: no results flag
+  emptyResults?: boolean; // IntelligentCrawlerNode: empty results flag
+  nothingToCrawl?: boolean; // ContentEnricherNode: no crawl decisions flag
 }
 
 /**

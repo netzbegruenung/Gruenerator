@@ -14,7 +14,12 @@ import multer from 'multer';
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
-import type { DocumentRequest, UploadManualRequestBody, AddTextRequestBody, CrawlUrlRequestBody } from './types.js';
+import type {
+  DocumentRequest,
+  UploadManualRequestBody,
+  AddTextRequestBody,
+  CrawlUrlRequestBody,
+} from './types.js';
 
 const log = createLogger('documents:manual');
 const router: Router = express.Router();
@@ -28,58 +33,65 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit for text processing in memory
-  }
+  },
 });
 
 /**
  * POST /upload-manual - Manual file upload (no file storage, vectors only)
  */
-router.post('/upload-manual', upload.single('document'), async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { title } = req.body as UploadManualRequestBody;
-    const file = req.file;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.post(
+  '/upload-manual',
+  upload.single('document'),
+  async (req: DocumentRequest, res: Response): Promise<void> => {
+    try {
+      const { title } = req.body as UploadManualRequestBody;
+      const file = req.file;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
+      // Validate file upload
+      if (!file) {
+        res.status(400).json({
+          success: false,
+          message: 'No file uploaded',
+        });
+        return;
+      }
 
-    // Validate file upload
-    if (!file) {
-      res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
+      // Validate title
+      if (!title) {
+        res.status(400).json({
+          success: false,
+          message: 'Title is required',
+        });
+        return;
+      }
+
+      // Use document processing service
+      const result = await documentProcessingService.processFileUpload(
+        userId,
+        file,
+        title,
+        'manual'
+      );
+
+      res.json({
+        success: true,
+        message: 'Document processed and vectorized successfully',
+        data: result,
       });
-      return;
-    }
-
-    // Validate title
-    if (!title) {
-      res.status(400).json({
+    } catch (error) {
+      log.error('[POST /upload-manual] Error:', error);
+      res.status(500).json({
         success: false,
-        message: 'Title is required'
+        message: (error as Error).message || 'Failed to process manual upload',
       });
-      return;
     }
-
-    // Use document processing service
-    const result = await documentProcessingService.processFileUpload(userId, file, title, 'manual');
-
-    res.json({
-      success: true,
-      message: 'Document processed and vectorized successfully',
-      data: result
-    });
-
-  } catch (error) {
-    log.error('[POST /upload-manual] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to process manual upload'
-    });
   }
-});
+);
 
 /**
  * POST /add-text - Add text content manually (no file upload)
@@ -93,12 +105,11 @@ router.post('/add-text', async (req: DocumentRequest, res: Response): Promise<vo
       return;
     }
 
-
     // Validate content
     if (!content || content.trim().length === 0) {
       res.status(400).json({
         success: false,
-        message: 'Text content is required'
+        message: 'Text content is required',
       });
       return;
     }
@@ -107,25 +118,29 @@ router.post('/add-text', async (req: DocumentRequest, res: Response): Promise<vo
     if (!title || title.trim().length === 0) {
       res.status(400).json({
         success: false,
-        message: 'Title is required'
+        message: 'Title is required',
       });
       return;
     }
 
     // Use document processing service
-    const result = await documentProcessingService.processTextContent(userId, title, content, 'manual');
+    const result = await documentProcessingService.processTextContent(
+      userId,
+      title,
+      content,
+      'manual'
+    );
 
     res.json({
       success: true,
       message: 'Text processed and vectorized successfully',
-      data: result
+      data: result,
     });
-
   } catch (error) {
     log.error('[POST /add-text] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to process text'
+      message: (error as Error).message || 'Failed to process text',
     });
   }
 });
@@ -142,12 +157,11 @@ router.post('/crawl-url-manual', async (req: DocumentRequest, res: Response): Pr
       return;
     }
 
-
     // Validate URL
     if (!url || !url.trim()) {
       res.status(400).json({
         success: false,
-        message: 'URL is required'
+        message: 'URL is required',
       });
       return;
     }
@@ -156,7 +170,7 @@ router.post('/crawl-url-manual', async (req: DocumentRequest, res: Response): Pr
     if (!title || !title.trim()) {
       res.status(400).json({
         success: false,
-        message: 'Title is required'
+        message: 'Title is required',
       });
       return;
     }
@@ -164,7 +178,8 @@ router.post('/crawl-url-manual', async (req: DocumentRequest, res: Response): Pr
     log.debug(`[POST /crawl-url-manual] Starting crawl for URL: ${url} with title: ${title}`);
 
     // Import URL crawler dynamically
-    const { urlCrawlerService } = await import('../../services/scrapers/implementations/UrlCrawler/index.js');
+    const { urlCrawlerService } =
+      await import('../../services/scrapers/implementations/UrlCrawler/index.js');
 
     // Crawl the URL
     const crawlResult = await urlCrawlerService.crawlUrl(url.trim());
@@ -184,14 +199,13 @@ router.post('/crawl-url-manual', async (req: DocumentRequest, res: Response): Pr
     res.json({
       success: true,
       message: 'URL crawled and vectorized successfully',
-      data: result
+      data: result,
     });
-
   } catch (error) {
     log.error('[POST /crawl-url-manual] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message
+      message: (error as Error).message,
     });
   }
 });
@@ -201,54 +215,61 @@ router.post('/crawl-url-manual', async (req: DocumentRequest, res: Response): Pr
  * Currently defaults to manual mode for all users
  * NOTE: This could be extended to check user preferences in the future
  */
-router.post('/upload-default', upload.single('document'), async (req: DocumentRequest, res: Response): Promise<void> => {
-  log.debug('[POST /upload-default] Processing upload in manual mode (default behavior)');
+router.post(
+  '/upload-default',
+  upload.single('document'),
+  async (req: DocumentRequest, res: Response): Promise<void> => {
+    log.debug('[POST /upload-default] Processing upload in manual mode (default behavior)');
 
-  try {
-    const { title } = req.body as UploadManualRequestBody;
-    const file = req.file;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    try {
+      const { title } = req.body as UploadManualRequestBody;
+      const file = req.file;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
+      // Validate file upload
+      if (!file) {
+        res.status(400).json({
+          success: false,
+          message: 'No file uploaded',
+        });
+        return;
+      }
 
-    // Validate file upload
-    if (!file) {
-      res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
+      // Validate title
+      if (!title) {
+        res.status(400).json({
+          success: false,
+          message: 'Title is required',
+        });
+        return;
+      }
+
+      // Use document processing service (default to manual mode)
+      const result = await documentProcessingService.processFileUpload(
+        userId,
+        file,
+        title,
+        'manual'
+      );
+
+      res.json({
+        success: true,
+        message: 'Document processed and vectorized successfully',
+        data: result,
       });
-      return;
-    }
-
-    // Validate title
-    if (!title) {
-      res.status(400).json({
+    } catch (error) {
+      log.error('[POST /upload-default] Error:', error);
+      res.status(500).json({
         success: false,
-        message: 'Title is required'
+        message: (error as Error).message || 'Failed to process upload',
       });
-      return;
     }
-
-    // Use document processing service (default to manual mode)
-    const result = await documentProcessingService.processFileUpload(userId, file, title, 'manual');
-
-    res.json({
-      success: true,
-      message: 'Document processed and vectorized successfully',
-      data: result
-    });
-
-  } catch (error) {
-    log.error('[POST /upload-default] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to process upload'
-    });
   }
-});
+);
 
 /**
  * POST /crawl-url-default - Default URL crawling endpoint
@@ -265,12 +286,11 @@ router.post('/crawl-url-default', async (req: DocumentRequest, res: Response): P
       return;
     }
 
-
     // Validate URL
     if (!url || !url.trim()) {
       res.status(400).json({
         success: false,
-        message: 'URL is required'
+        message: 'URL is required',
       });
       return;
     }
@@ -279,7 +299,7 @@ router.post('/crawl-url-default', async (req: DocumentRequest, res: Response): P
     if (!title || !title.trim()) {
       res.status(400).json({
         success: false,
-        message: 'Title is required'
+        message: 'Title is required',
       });
       return;
     }
@@ -287,7 +307,8 @@ router.post('/crawl-url-default', async (req: DocumentRequest, res: Response): P
     log.debug(`[POST /crawl-url-default] Starting crawl for URL: ${url}`);
 
     // Import URL crawler dynamically
-    const { urlCrawlerService } = await import('../../services/scrapers/implementations/UrlCrawler/index.js');
+    const { urlCrawlerService } =
+      await import('../../services/scrapers/implementations/UrlCrawler/index.js');
 
     // Crawl the URL
     const crawlResult = await urlCrawlerService.crawlUrl(url.trim());
@@ -307,14 +328,13 @@ router.post('/crawl-url-default', async (req: DocumentRequest, res: Response): P
     res.json({
       success: true,
       message: 'URL crawled and vectorized successfully',
-      data: result
+      data: result,
     });
-
   } catch (error) {
     log.error('[POST /crawl-url-default] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message
+      message: (error as Error).message,
     });
   }
 });

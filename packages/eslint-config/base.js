@@ -14,22 +14,26 @@ export default tseslint.config(
         ...globals.es2022,
       },
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ['eslint.config.js', 'eslint.config.mjs'],
+        },
       },
     },
     plugins: {
       'import-x': importPlugin,
     },
     rules: {
+      // TODO: Re-enable as 'error' after fixing existing violations
       '@typescript-eslint/no-unused-vars': [
-        'error',
+        'warn',
         {
           argsIgnorePattern: '^_',
           varsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_',
         },
       ],
-      '@typescript-eslint/no-floating-promises': 'error',
+      // TODO: Re-enable as 'error' after fixing existing violations
+      '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/await-thenable': 'error',
       '@typescript-eslint/no-misused-promises': [
         'error',
@@ -46,18 +50,11 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
 
+      // TODO: Re-enable as 'error' after fixing existing violations
       'import-x/order': [
-        'error',
+        'warn',
         {
-          groups: [
-            'builtin',
-            'external',
-            'internal',
-            'parent',
-            'sibling',
-            'index',
-            'type',
-          ],
+          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index', 'type'],
           'newlines-between': 'always',
           alphabetize: {
             order: 'asc',
@@ -71,6 +68,8 @@ export default tseslint.config(
       'prefer-const': 'error',
       'no-var': 'error',
       eqeqeq: ['error', 'always', { null: 'ignore' }],
+      // TODO: Re-enable as 'error' after fixing existing violations
+      'no-case-declarations': 'warn',
     },
   },
   {

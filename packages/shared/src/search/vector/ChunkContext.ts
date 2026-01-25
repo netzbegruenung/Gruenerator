@@ -88,7 +88,10 @@ export async function getChunkWithContext(
         score: 0,
         payload: p.payload || {},
         text: (p.payload?.chunk_text as string) || '',
-        title: (p.payload?.title as string) || (p.payload?.metadata as Record<string, unknown>)?.title as string || '',
+        title:
+          (p.payload?.title as string) ||
+          ((p.payload?.metadata as Record<string, unknown>)?.title as string) ||
+          '',
       })) as VectorSearchResult[];
 
     return {

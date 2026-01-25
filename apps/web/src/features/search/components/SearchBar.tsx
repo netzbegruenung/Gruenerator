@@ -1,18 +1,19 @@
-import { JSX, useState, useRef, useEffect, ChangeEvent, ReactNode } from 'react';
+import { type JSX, useState, useRef, useEffect, ChangeEvent, type ReactNode } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
+
 import Icon from '../../../components/common/Icon';
 import '../styles/SearchBarStyles.css';
 
 const defaultExampleQuestions = [
   {
     icon: '🚲',
-    text: 'Verkehrswende in Kommunen Beispiele'
+    text: 'Verkehrswende in Kommunen Beispiele',
   },
   {
     icon: '🌍',
-    text: 'Klimaschutz für Kommunen Ideen'
-  }
+    text: 'Klimaschutz für Kommunen Ideen',
+  },
 ];
 
 interface SearchBarProps {
@@ -23,7 +24,7 @@ interface SearchBarProps {
   placeholder?: string;
   exampleQuestions?: {
     icon?: string;
-    text?: string
+    text?: string;
   }[];
   onDeepResearchToggle?: () => void;
   isDeepResearchActive?: boolean;
@@ -32,7 +33,8 @@ interface SearchBarProps {
   settingsContent?: ReactNode;
 }
 
-const SearchBar = ({ onSearch,
+const SearchBar = ({
+  onSearch,
   loading,
   value,
   onChange,
@@ -42,7 +44,8 @@ const SearchBar = ({ onSearch,
   isDeepResearchActive = false,
   hideExamples = false,
   hideDisclaimer = false,
-  settingsContent = null }: SearchBarProps): JSX.Element => {
+  settingsContent = null,
+}: SearchBarProps): JSX.Element => {
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -100,11 +103,7 @@ const SearchBar = ({ onSearch,
                 >
                   <HiCog />
                 </button>
-                {showSettings && (
-                  <div className="search-settings-dropdown">
-                    {settingsContent}
-                  </div>
-                )}
+                {showSettings && <div className="search-settings-dropdown">{settingsContent}</div>}
               </div>
             )}
             {onDeepResearchToggle && (
@@ -112,7 +111,9 @@ const SearchBar = ({ onSearch,
                 type="button"
                 className={`deep-research-toggle ${isDeepResearchActive ? 'active' : ''}`}
                 onClick={handleDeepResearchToggle}
-                aria-label={isDeepResearchActive ? 'Deep Research deaktivieren' : 'Deep Research aktivieren'}
+                aria-label={
+                  isDeepResearchActive ? 'Deep Research deaktivieren' : 'Deep Research aktivieren'
+                }
                 disabled={loading}
                 title={isDeepResearchActive ? 'Deep Research aktiv' : 'Deep Research aktivieren'}
               >
@@ -126,7 +127,7 @@ const SearchBar = ({ onSearch,
               aria-label="Suchen"
             >
               {loading ? (
-                <div className="button-spinner"></div>
+                <div className="button-spinner" />
               ) : (
                 <FaSearch className="search-icon" />
               )}

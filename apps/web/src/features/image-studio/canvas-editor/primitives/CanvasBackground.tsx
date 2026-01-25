@@ -67,7 +67,7 @@ function CanvasBackgroundInner({
   if (gradient?.type === 'linear') {
     const startPoint = gradient.start || { x: 0, y: 0 };
     const endPoint = gradient.end || { x: width, y: height };
-    const colorStops = gradient.colorStops.flatMap(s => [s.offset, s.color]);
+    const colorStops = gradient.colorStops.flatMap((s) => [s.offset, s.color]);
 
     return (
       <Rect
@@ -87,7 +87,7 @@ function CanvasBackgroundInner({
   if (gradient?.type === 'radial') {
     const startPoint = gradient.start || { x: width / 2, y: height / 2 };
     const endPoint = gradient.end || { x: width / 2, y: height / 2 };
-    const colorStops = gradient.colorStops.flatMap(s => [s.offset, s.color]);
+    const colorStops = gradient.colorStops.flatMap((s) => [s.offset, s.color]);
 
     return (
       <Rect

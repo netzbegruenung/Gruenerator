@@ -57,16 +57,18 @@ app.get('/health', (_req, res) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    service: 'gruenerator-docs'
+    service: 'gruenerator-docs',
   });
 });
 
 // Serve static files from dist
-app.use(express.static(DIST_PATH, {
-  maxAge: '1y',
-  etag: true,
-  lastModified: true,
-}));
+app.use(
+  express.static(DIST_PATH, {
+    maxAge: '1y',
+    etag: true,
+    lastModified: true,
+  })
+);
 
 // SPA fallback - send all non-matched requests to index.html
 app.use((_req, res) => {
@@ -104,7 +106,6 @@ async function startServers() {
 
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
-
   } catch (error) {
     console.error('Failed to start servers:', error);
     process.exit(1);

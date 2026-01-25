@@ -4,7 +4,12 @@
  */
 
 import { applyMarkdownFormatting } from './textFormatting.js';
-import type { PDFInfo, ParseabilityCheck, ExtractionResult, PageExtractionResult } from './types.js';
+import type {
+  PDFInfo,
+  ParseabilityCheck,
+  ExtractionResult,
+  PageExtractionResult,
+} from './types.js';
 
 /**
  * Lazy load PDF.js to avoid memory overhead
@@ -62,11 +67,7 @@ export async function canExtractTextDirectly(
 
     // Sample 3 pages: first, middle, last
     const pagesToSample = Math.min(3, totalPages);
-    const sampleIndices = [
-      1,
-      Math.ceil(totalPages / 2),
-      totalPages
-    ].slice(0, pagesToSample);
+    const sampleIndices = [1, Math.ceil(totalPages / 2), totalPages].slice(0, pagesToSample);
 
     let totalText = '';
     let pagesWithText = 0;
@@ -85,20 +86,23 @@ export async function canExtractTextDirectly(
           totalText += pageText + ' ';
         }
       } catch (error) {
-        console.warn(`[OcrService] Failed to extract text from page ${pageNum}:`, (error as Error).message);
+        console.warn(
+          `[OcrService] Failed to extract text from page ${pageNum}:`,
+          (error as Error).message
+        );
       }
     }
 
     const pageSuccessRate = pagesWithText / pagesToSample;
     const textDensity = totalText.length / pagesToSample;
     const isParseable = pageSuccessRate >= 0.66 && textDensity > 50;
-    const confidence = Math.min(pageSuccessRate * textDensity / 100, 1.0);
+    const confidence = Math.min((pageSuccessRate * textDensity) / 100, 1.0);
 
     const processingTimeMs = Date.now() - startTime;
 
     console.log(
       `[OcrService] Parseability check: ${isParseable ? 'PARSEABLE' : 'NOT PARSEABLE'} ` +
-      `(${pagesWithText}/${pagesToSample} pages, ${textDensity.toFixed(0)} chars/page, ${(confidence * 100).toFixed(0)}% confidence)`
+        `(${pagesWithText}/${pagesToSample} pages, ${textDensity.toFixed(0)} chars/page, ${(confidence * 100).toFixed(0)}% confidence)`
     );
 
     return {
@@ -111,8 +115,8 @@ export async function canExtractTextDirectly(
         pagesWithText,
         textDensity,
         pageSuccessRate,
-        processingTimeMs
-      }
+        processingTimeMs,
+      },
     };
   } catch (error) {
     console.error('[OcrService] Parseability check failed:', (error as Error).message);
@@ -122,8 +126,8 @@ export async function canExtractTextDirectly(
       sampleText: '',
       stats: {
         error: (error as Error).message,
-        processingTimeMs: Date.now() - startTime
-      }
+        processingTimeMs: Date.now() - startTime,
+      },
     };
   }
 }
@@ -155,9 +159,7 @@ export async function extractTextDirectlyFromPDF(
       const batchPromises: Promise<PageExtractionResult>[] = [];
 
       for (let pageNum = batchStart; pageNum <= batchEnd; pageNum++) {
-        batchPromises.push(
-          extractPageTextDirectly(pdfDoc, pageNum, applyMarkdownFormattingFn)
-        );
+        batchPromises.push(extractPageTextDirectly(pdfDoc, pageNum, applyMarkdownFormattingFn));
       }
 
       // Wait for batch to complete
@@ -172,13 +174,17 @@ export async function extractTextDirectlyFromPDF(
         }
       }
 
-      console.log(`[OcrService] Processed pages ${batchStart}-${batchEnd} (${successfulPages}/${batchEnd} successful)`);
+      console.log(
+        `[OcrService] Processed pages ${batchStart}-${batchEnd} (${successfulPages}/${batchEnd} successful)`
+      );
     }
 
     const fullText = allPageTexts.join('\n\n');
     const processingTimeMs = Date.now() - startTime;
 
-    console.log(`[OcrService] PDF.js extraction completed: ${successfulPages}/${totalPages} pages, ${fullText.length} characters in ${processingTimeMs}ms`);
+    console.log(
+      `[OcrService] PDF.js extraction completed: ${successfulPages}/${totalPages} pages, ${fullText.length} characters in ${processingTimeMs}ms`
+    );
 
     return {
       text: fullText,
@@ -188,8 +194,8 @@ export async function extractTextDirectlyFromPDF(
       stats: {
         pages: totalPages,
         successfulPages,
-        processingTimeMs
-      }
+        processingTimeMs,
+      },
     };
   } catch (error) {
     console.error('[OcrService] PDF.js extraction failed:', (error as Error).message);
@@ -218,13 +224,13 @@ export async function extractPageTextDirectly(
 
     return {
       success: true,
-      text: formattedText
+      text: formattedText,
     };
   } catch (error) {
     return {
       success: false,
       text: '',
-      error: (error as Error).message
+      error: (error as Error).message,
     };
   }
 }
@@ -275,14 +281,19 @@ export async function extractTextFromBase64PDF(
           successfulPages++;
         }
       } catch (error) {
-        console.warn(`[OcrService] Failed to extract text from page ${pageNum}:`, (error as Error).message);
+        console.warn(
+          `[OcrService] Failed to extract text from page ${pageNum}:`,
+          (error as Error).message
+        );
       }
     }
 
     const fullText = allPageTexts.join('\n\n');
     const processingTimeMs = Date.now() - startTime;
 
-    console.log(`[OcrService] Base64 PDF extraction completed: ${successfulPages}/${totalPages} pages, ${fullText.length} characters`);
+    console.log(
+      `[OcrService] Base64 PDF extraction completed: ${successfulPages}/${totalPages} pages, ${fullText.length} characters`
+    );
 
     return {
       text: fullText,
@@ -292,8 +303,8 @@ export async function extractTextFromBase64PDF(
       stats: {
         pages: totalPages,
         successfulPages,
-        processingTimeMs
-      }
+        processingTimeMs,
+      },
     };
   } catch (error) {
     console.error('[OcrService] Base64 PDF extraction failed:', (error as Error).message);

@@ -56,7 +56,7 @@ export async function saveRecentValue(
     user_id: userId,
     field_type: fieldType,
     field_value: trimmedValue,
-    form_name: formName
+    form_name: formName,
   };
 
   try {
@@ -120,10 +120,7 @@ export async function getRecentValues(
  * @param fieldType - The type of field
  * @returns Number of deleted records
  */
-export async function clearRecentValues(
-  userId: string,
-  fieldType: string
-): Promise<number> {
+export async function clearRecentValues(userId: string, fieldType: string): Promise<number> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
   const db = getPostgresInstance();
   await db.ensureInitialized();
@@ -139,7 +136,7 @@ export async function clearRecentValues(
   try {
     const result: any = await db.delete('user_recent_values', {
       user_id: userId,
-      field_type: fieldType
+      field_type: fieldType,
     });
 
     return result?.rowCount || 0;

@@ -10,7 +10,9 @@ export function AttachedContentList() {
   const selectedDocumentIds = useGeneratorSelectionStore((state) => state.selectedDocumentIds);
   const selectedTextIds = useGeneratorSelectionStore((state) => state.selectedTextIds);
   const attachedFiles = useGeneratorSelectionStore((state) => state.attachedFiles);
-  const toggleDocumentSelection = useGeneratorSelectionStore((state) => state.toggleDocumentSelection);
+  const toggleDocumentSelection = useGeneratorSelectionStore(
+    (state) => state.toggleDocumentSelection
+  );
   const toggleTextSelection = useGeneratorSelectionStore((state) => state.toggleTextSelection);
   const removeAttachedFile = useGeneratorSelectionStore((state) => state.removeAttachedFile);
 
@@ -41,10 +43,7 @@ export function AttachedContentList() {
       contentContainerStyle={styles.container}
     >
       {attachedFiles.map((file) => (
-        <View
-          key={file.id}
-          style={[styles.tag, { backgroundColor: theme.buttonBackground }]}
-        >
+        <View key={file.id} style={[styles.tag, { backgroundColor: theme.buttonBackground }]}>
           <Ionicons
             name={file.type.includes('pdf') ? 'document-outline' : 'image-outline'}
             size={14}

@@ -45,18 +45,9 @@ export default function MediaLayout() {
           lazy: true,
         }}
       >
-        <MaterialTopTabs.Screen
-          name="reel"
-          options={{ title: 'Reel' }}
-        />
-        <MaterialTopTabs.Screen
-          name="image-studio"
-          options={{ title: 'Image Studio' }}
-        />
-        <MaterialTopTabs.Screen
-          name="vorlagen"
-          options={{ title: 'Vorlagen' }}
-        />
+        <MaterialTopTabs.Screen name="reel" options={{ title: 'Reel' }} />
+        <MaterialTopTabs.Screen name="image-studio" options={{ title: 'Image Studio' }} />
+        <MaterialTopTabs.Screen name="vorlagen" options={{ title: 'Vorlagen' }} />
       </MaterialTopTabs>
     </SafeAreaView>
   );

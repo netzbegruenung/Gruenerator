@@ -85,13 +85,9 @@ export function CrossPad({
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
       {description && (
-        <Text style={[styles.description, { color: theme.textSecondary }]}>
-          {description}
-        </Text>
+        <Text style={[styles.description, { color: theme.textSecondary }]}>{description}</Text>
       )}
 
       <View style={styles.crossGrid}>
@@ -103,9 +99,7 @@ export function CrossPad({
           <ArrowButton direction="left" icon="chevron-back" />
 
           <View style={[styles.centerDisplay, { backgroundColor: theme.surface }]}>
-            <Text style={[styles.centerText, { color: theme.text }]}>
-              {valueFormatter(offset)}
-            </Text>
+            <Text style={[styles.centerText, { color: theme.text }]}>{valueFormatter(offset)}</Text>
           </View>
 
           <ArrowButton direction="right" icon="chevron-forward" />

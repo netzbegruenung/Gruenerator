@@ -31,8 +31,8 @@ const defaultConfig: ServerConfig = {
   keepAliveTimeout: 60000,
   headersTimeout: 65000,
   socketKeepAliveInterval: 30000,
-  requestTimeout: 300000,   // 5 minutes
-  responseTimeout: 900000   // 15 minutes
+  requestTimeout: 300000, // 5 minutes
+  responseTimeout: 900000, // 15 minutes
 };
 
 /**
@@ -42,7 +42,7 @@ export function getServerConfig(overrides?: ServerConfigOverrides): ServerConfig
   return {
     ...defaultConfig,
     port: overrides?.port ?? parseInt(process.env.PORT || String(defaultConfig.port), 10),
-    host: overrides?.host ?? process.env.HOST ?? defaultConfig.host
+    host: overrides?.host ?? process.env.HOST ?? defaultConfig.host,
   };
 }
 

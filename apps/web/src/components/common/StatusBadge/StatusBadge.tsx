@@ -11,8 +11,8 @@ interface StatusBadgeProps {
 
 const BADGE_LABELS: Record<BadgeType, string> = {
   'early-access': 'Early Access',
-  'beta': 'Beta',
-  'coming-soon': 'Coming Soon'
+  beta: 'Beta',
+  'coming-soon': 'Coming Soon',
 };
 
 const StatusBadge = ({ type, variant = 'inline', className = '' }: StatusBadgeProps) => {

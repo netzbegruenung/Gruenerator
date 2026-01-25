@@ -1,4 +1,13 @@
-import { FaFacebook, FaTwitter, FaInstagram, FaYoutube, FaLinkedin, FaMastodon, FaGlobe } from 'react-icons/fa';
+import {
+  FaFacebook,
+  FaTwitter,
+  FaInstagram,
+  FaYoutube,
+  FaLinkedin,
+  FaMastodon,
+  FaGlobe,
+} from 'react-icons/fa';
+
 import type { HeroSection as HeroSectionType } from '@/types/candidate';
 
 interface HeroSectionProps {
@@ -23,12 +32,7 @@ export function HeroSection({ data }: HeroSectionProps) {
       <div className="hero-container">
         {data.imageUrl && (
           <div className="hero-image-wrapper">
-            <img
-              src={data.imageUrl}
-              alt={data.name}
-              className="hero-portrait"
-              loading="eager"
-            />
+            <img src={data.imageUrl} alt={data.name} className="hero-portrait" loading="eager" />
           </div>
         )}
         <div className="hero-content">

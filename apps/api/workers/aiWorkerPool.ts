@@ -10,7 +10,7 @@ import type {
   AIWorkerResult,
   WorkerMessage,
   WorkerResponseMessage,
-  WorkerErrorMessage
+  WorkerErrorMessage,
 } from './types.js';
 import type { Redis } from 'ioredis';
 
@@ -40,8 +40,8 @@ class AIWorkerPool {
     // Determine correct path based on whether running from source or dist
     const isDist = __dirname.includes('/dist/');
     const workerPath = isDist
-      ? path.join(__dirname, 'aiWorker.js')  // Already in dist/workers/
-      : path.join(__dirname, '..', 'dist', 'workers', 'aiWorker.js');  // From workers/ to dist/workers/
+      ? path.join(__dirname, 'aiWorker.js') // Already in dist/workers/
+      : path.join(__dirname, '..', 'dist', 'workers', 'aiWorker.js'); // From workers/ to dist/workers/
 
     const worker = new Worker(workerPath);
 
@@ -66,7 +66,7 @@ class AIWorkerPool {
     this.workers[index] = {
       instance: worker,
       pendingRequests: new Set<string>(),
-      status: 'ready'
+      status: 'ready',
     };
   }
 
@@ -98,8 +98,8 @@ class AIWorkerPool {
           ...data.metadata,
           workerIndex,
           requestId,
-          processedAt: new Date().toISOString()
-        }
+          processedAt: new Date().toISOString(),
+        },
       } as AIWorkerResult);
     } else if (type === 'progress') {
       // Progress updates removed for cleaner logs
@@ -155,7 +155,10 @@ class AIWorkerPool {
     return { workerIndex, worker: this.workers[workerIndex].instance };
   }
 
-  async processRequest(data: AIRequestData, req: RequestWithUser | null = null): Promise<AIWorkerResult> {
+  async processRequest(
+    data: AIRequestData,
+    req: RequestWithUser | null = null
+  ): Promise<AIWorkerResult> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
     let processedData = { ...data };
@@ -168,7 +171,9 @@ class AIWorkerPool {
           const privacyProvider = await this.privacyCounter.getProviderForUser(userId);
           processedData.provider = privacyProvider;
         } else {
-          console.warn('[AIWorkerPool] Privacy mode enabled but no user ID found, using default provider');
+          console.warn(
+            '[AIWorkerPool] Privacy mode enabled but no user ID found, using default provider'
+          );
         }
       } catch (error) {
         console.error('[AIWorkerPool] Privacy mode error:', error);
@@ -179,19 +184,27 @@ class AIWorkerPool {
       const { workerIndex, worker } = this.selectWorker();
 
       const timeout = setTimeout(() => {
-        console.error(`[AIWorkerPool] Timeout for request ${requestId} after ${config.worker.requestTimeout}ms`);
+        console.error(
+          `[AIWorkerPool] Timeout for request ${requestId} after ${config.worker.requestTimeout}ms`
+        );
         this.pendingRequests.delete(requestId);
         this.workers[workerIndex].pendingRequests.delete(requestId);
         reject(new Error(`Worker Timeout nach ${config.worker.requestTimeout}ms`));
       }, config.worker.requestTimeout);
 
-      this.pendingRequests.set(requestId, { resolve, reject, timeout, workerIndex, startTime: Date.now() });
+      this.pendingRequests.set(requestId, {
+        resolve,
+        reject,
+        timeout,
+        workerIndex,
+        startTime: Date.now(),
+      });
       this.workers[workerIndex].pendingRequests.add(requestId);
 
       const message = {
         type: 'request' as const,
         requestId,
-        data: processedData
+        data: processedData,
       };
 
       worker.postMessage(message);
@@ -204,7 +217,7 @@ class AIWorkerPool {
     }
     this.pendingRequests.clear();
 
-    return Promise.allSettled(this.workers.map(worker => worker.instance.terminate()));
+    return Promise.allSettled(this.workers.map((worker) => worker.instance.terminate()));
   }
 }
 

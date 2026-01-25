@@ -1,11 +1,13 @@
 import { useEditorStore } from '../../stores/editorStore';
-import { HeroSectionEditor } from './sections/HeroSectionEditor';
+
 import { AboutSectionEditor } from './sections/AboutSectionEditor';
-import { HeroImageSectionEditor } from './sections/HeroImageSectionEditor';
-import { ThemesSectionEditor } from './sections/ThemesSectionEditor';
 import { ActionsSectionEditor } from './sections/ActionsSectionEditor';
-import { SocialFeedSectionEditor } from './sections/SocialFeedSectionEditor';
 import { ContactSectionEditor } from './sections/ContactSectionEditor';
+import { HeroImageSectionEditor } from './sections/HeroImageSectionEditor';
+import { HeroSectionEditor } from './sections/HeroSectionEditor';
+import { SocialFeedSectionEditor } from './sections/SocialFeedSectionEditor';
+import { ThemesSectionEditor } from './sections/ThemesSectionEditor';
+
 import type { CandidateData, SocialFeedSection } from '../../types/candidate';
 
 interface SectionEditorContainerProps {
@@ -27,10 +29,7 @@ export function SectionEditorContainer({
     switch (activeSection) {
       case 'hero':
         return (
-          <HeroSectionEditor
-            data={candidateData.hero}
-            onChange={(hero) => onUpdate({ hero })}
-          />
+          <HeroSectionEditor data={candidateData.hero} onChange={(hero) => onUpdate({ hero })} />
         );
       case 'about':
         return (
@@ -83,11 +82,7 @@ export function SectionEditorContainer({
     <div className="section-editor-panel" key={activeSection}>
       {renderEditor()}
 
-      <button
-        className="editor-save-button"
-        onClick={onSave}
-        disabled={isSaving}
-      >
+      <button className="editor-save-button" onClick={onSave} disabled={isSaving}>
         {isSaving ? (
           <>
             <span className="editor-loading-spinner" style={{ width: 18, height: 18 }} />

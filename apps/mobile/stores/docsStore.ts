@@ -30,9 +30,7 @@ export const useDocsStore = create<DocsState>((set, get) => ({
     try {
       const documents = await docsService.fetchDocuments();
       // Sort by updated_at descending (most recent first)
-      documents.sort((a, b) =>
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      );
+      documents.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
       set({ documents, isLoading: false });
     } catch (error) {
       console.error('[DocsStore] Failed to fetch documents:', error);
@@ -90,9 +88,7 @@ export const useDocsStore = create<DocsState>((set, get) => ({
       const document = await docsService.updateDocument(id, payload);
       if (document) {
         set((state) => ({
-          documents: state.documents.map((d) =>
-            d.id === id ? { ...d, ...document } : d
-          ),
+          documents: state.documents.map((d) => (d.id === id ? { ...d, ...document } : d)),
         }));
       }
       return document;

@@ -1,13 +1,15 @@
-import { useForm, useWatch, Control, UseFormProps, FieldValues } from 'react-hook-form';
 import { useCallback, useState, useMemo, useEffect } from 'react';
-import useApiSubmit from '../../../hooks/useApiSubmit';
+import { useForm, useWatch, type Control, type UseFormProps, type FieldValues } from 'react-hook-form';
+import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
+
+import { useOptimizedAuth } from '../../../../hooks/useAuth';
+import { useTabIndex, useBaseFormTabIndex } from '../../../../hooks/useTabIndex';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
 import { useDocumentsStore } from '../../../../stores/documentsStore';
-import { useTabIndex, useBaseFormTabIndex } from '../../../../hooks/useTabIndex';
 import { prepareFilesForSubmission } from '../../../../utils/fileAttachmentUtils';
-import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
-import { useOptimizedAuth } from '../../../../hooks/useAuth';
+import useApiSubmit from '../../../hooks/useApiSubmit';
+
 import type { FeatureToggle as FeatureToggleType } from '../../../../types/baseform';
 
 /**
@@ -112,30 +114,36 @@ interface UseBaseFormOptions extends Omit<UseFormProps<FieldValues>, 'defaultVal
 /**
  * Helper hook to watch and memoize feature toggles
  */
-const useFeatureToggles = (control: Control<FieldValues>, defaultValues: Record<string, unknown>): FeatureToggles => {
+const useFeatureToggles = (
+  control: Control<FieldValues>,
+  defaultValues: Record<string, unknown>
+): FeatureToggles => {
   const webSearch = useWatch({
     control,
     name: 'useWebSearchTool',
-    defaultValue: (defaultValues.useWebSearchTool ?? false) as boolean
+    defaultValue: (defaultValues.useWebSearchTool ?? false) as boolean,
   });
 
   const privacyMode = useWatch({
     control,
     name: 'usePrivacyMode',
-    defaultValue: (defaultValues.usePrivacyMode ?? false) as boolean
+    defaultValue: (defaultValues.usePrivacyMode ?? false) as boolean,
   });
 
   const proMode = useWatch({
     control,
     name: 'useProMode',
-    defaultValue: (defaultValues.useProMode ?? false) as boolean
+    defaultValue: (defaultValues.useProMode ?? false) as boolean,
   });
 
-  return useMemo(() => ({
-    webSearch,
-    privacyMode,
-    proMode
-  }), [webSearch, privacyMode, proMode]);
+  return useMemo(
+    () => ({
+      webSearch,
+      privacyMode,
+      proMode,
+    }),
+    [webSearch, privacyMode, proMode]
+  );
 };
 
 /**
@@ -170,7 +178,6 @@ const useBaseForm = ({
 
   ...restOptions
 }: UseBaseFormOptions = {}): UseBaseFormReturn => {
-
   // React-Hook-Form Initialization
   const hookFormMethods = useForm({
     defaultValues,
@@ -181,7 +188,7 @@ const useBaseForm = ({
     shouldUnregister,
     shouldUseNativeValidation,
     delayError,
-    ...restOptions
+    ...restOptions,
   });
 
   const {
@@ -203,8 +210,8 @@ const useBaseForm = ({
       isSubmitSuccessful,
       submitCount,
       touchedFields,
-      dirtyFields
-    }
+      dirtyFields,
+    },
   } = hookFormMethods;
 
   const toggles = useFeatureToggles(control, defaultValues);
@@ -220,47 +227,65 @@ const useBaseForm = ({
   // Store hooks
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   const { setUIConfig, setAvailableDocuments, setAvailableTexts } = useGeneratorSelectionStore();
-  const { fetchCombinedContent, documents: documentsFromStore, texts: textsFromStore } = useDocumentsStore();
+  const {
+    fetchCombinedContent,
+    documents: documentsFromStore,
+    texts: textsFromStore,
+  } = useDocumentsStore();
 
   // State hooks
   const [attachedFiles, setAttachedFiles] = useState<unknown[]>([]);
   const [processedAttachments, setProcessedAttachments] = useState<unknown[]>([]);
 
   // API hook - pass empty string when not needed
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(generatorType && endpoint ? endpoint : '');
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(
+    generatorType && endpoint ? endpoint : ''
+  );
 
   // Enhanced reset function that preserves original API
-  const enhancedReset = useCallback((values: Record<string, unknown> = defaultValues) => {
-    reset(values);
-  }, [reset, defaultValues]);
+  const enhancedReset = useCallback(
+    (values: Record<string, unknown> = defaultValues) => {
+      reset(values);
+    },
+    [reset, defaultValues]
+  );
 
   // Enhanced set field value with better defaults
-  const setFieldValue = useCallback((name: string, value: unknown, options: Record<string, unknown> = {}) => {
-    setValue(name, value, {
-      shouldValidate: true,
-      shouldDirty: true,
-      ...options
-    });
-  }, [setValue]);
+  const setFieldValue = useCallback(
+    (name: string, value: unknown, options: Record<string, unknown> = {}) => {
+      setValue(name, value, {
+        shouldValidate: true,
+        shouldDirty: true,
+        ...options,
+      });
+    },
+    [setValue]
+  );
 
   // Enhanced set field error
-  const setFieldError = useCallback((name: string, error: string) => {
-    setError(name, {
-      type: 'manual',
-      message: error
-    });
-  }, [setError]);
+  const setFieldError = useCallback(
+    (name: string, error: string) => {
+      setError(name, {
+        type: 'manual',
+        message: error,
+      });
+    },
+    [setError]
+  );
 
   // Enhanced clear field errors
-  const clearFieldErrors = useCallback((names?: string | string[]) => {
-    if (Array.isArray(names)) {
-      names.forEach(name => clearErrors(name));
-    } else if (names) {
-      clearErrors(names);
-    } else {
-      clearErrors();
-    }
-  }, [clearErrors]);
+  const clearFieldErrors = useCallback(
+    (names?: string | string[]) => {
+      if (Array.isArray(names)) {
+        names.forEach((name) => clearErrors(name));
+      } else if (names) {
+        clearErrors(names);
+      } else {
+        clearErrors();
+      }
+    },
+    [clearErrors]
+  );
 
   // Validation function
   const validateForm = useCallback(async (): Promise<boolean> => {
@@ -278,17 +303,24 @@ const useBaseForm = ({
   const getErrorMessage = useCallback((error: unknown): string => {
     if (!error) return '';
 
-    const errorString = typeof error === 'string' ? error : (error instanceof Error) ? error.message : String(error);
+    const errorString =
+      typeof error === 'string' ? error : error instanceof Error ? error.message : String(error);
 
     const errorMessages: Record<string, string> = {
-      '400': 'Deine Eingabe konnte nicht verarbeitet werden. Bitte überprüfe deine Eingaben und versuche es erneut.',
+      '400':
+        'Deine Eingabe konnte nicht verarbeitet werden. Bitte überprüfe deine Eingaben und versuche es erneut.',
       '401': 'Es gibt ein Problem mit der Verbindung zum Server. Bitte lade die Seite neu.',
-      '403': 'Du hast leider keine Berechtigung für diese Aktion. Bitte kontaktiere uns, wenn du denkst, dass dies ein Fehler ist.',
-      '404': 'Die angeforderte Ressource wurde nicht gefunden. Möglicherweise wurde sie gelöscht oder verschoben.',
+      '403':
+        'Du hast leider keine Berechtigung für diese Aktion. Bitte kontaktiere uns, wenn du denkst, dass dies ein Fehler ist.',
+      '404':
+        'Die angeforderte Ressource wurde nicht gefunden. Möglicherweise wurde sie gelöscht oder verschoben.',
       '413': 'Deine Eingabe ist zu lang. Bitte kürze deinen Text etwas.',
-      '429': 'Unser System wird gerade von zu vielen Nutzer*innen verwendet. Bitte warte einen Moment und versuche es dann erneut. Du kannst alternativ den Grünerator Backup verwenden.',
-      '500': 'Ein unerwarteter Fehler ist aufgetreten. Du kannst alternativ Grünerator Backup verwenden.',
-      '529': 'Die Server unseres KI-Anbieters Anthropic sind momentan überlastet. Bitte versuche es in einigen Minuten erneut. Du kannst alternativ den Grünerator Backup verwenden.'
+      '429':
+        'Unser System wird gerade von zu vielen Nutzer*innen verwendet. Bitte warte einen Moment und versuche es dann erneut. Du kannst alternativ den Grünerator Backup verwenden.',
+      '500':
+        'Ein unerwarteter Fehler ist aufgetreten. Du kannst alternativ Grünerator Backup verwenden.',
+      '529':
+        'Die Server unseres KI-Anbieters Anthropic sind momentan überlastet. Bitte versuche es in einigen Minuten erneut. Du kannst alternativ den Grünerator Backup verwenden.',
     };
 
     for (const [code, message] of Object.entries(errorMessages)) {
@@ -339,25 +371,26 @@ const useBaseForm = ({
         enableKnowledge: true,
         enableDocuments: true,
         enableTexts: true,
-        enableSourceSelection: true
+        enableSourceSelection: true,
       });
 
       // PERFORMANCE: Defer fetchCombinedContent to idle time using requestIdleCallback
       // This prevents blocking initial render for a simple textarea input
-      const idleCallbackId = 'requestIdleCallback' in window
-        ? window.requestIdleCallback(
-            () => {
+      const idleCallbackId =
+        'requestIdleCallback' in window
+          ? window.requestIdleCallback(
+              () => {
+                fetchCombinedContent().catch((error: unknown) => {
+                  console.error('[useBaseForm] Failed to fetch combined content:', error);
+                });
+              },
+              { timeout: 2000 } // Ensure it runs within 2 seconds even if browser is busy
+            )
+          : setTimeout(() => {
               fetchCombinedContent().catch((error: unknown) => {
                 console.error('[useBaseForm] Failed to fetch combined content:', error);
               });
-            },
-            { timeout: 2000 } // Ensure it runs within 2 seconds even if browser is busy
-          )
-        : setTimeout(() => {
-            fetchCombinedContent().catch((error: unknown) => {
-              console.error('[useBaseForm] Failed to fetch combined content:', error);
-            });
-          }, 100); // Fallback for browsers without requestIdleCallback
+            }, 100); // Fallback for browsers without requestIdleCallback
 
       return () => {
         if ('requestIdleCallback' in window && typeof idleCallbackId === 'number') {
@@ -374,7 +407,9 @@ const useBaseForm = ({
   // Both have required 'id' property so data is compatible despite type checker differences
   useEffect(() => {
     if (generatorType && !disableKnowledgeSystem && documentsFromStore) {
-      setAvailableDocuments(documentsFromStore as unknown as Parameters<typeof setAvailableDocuments>[0]);
+      setAvailableDocuments(
+        documentsFromStore as unknown as Parameters<typeof setAvailableDocuments>[0]
+      );
     }
   }, [generatorType, disableKnowledgeSystem, documentsFromStore, setAvailableDocuments]);
 
@@ -399,76 +434,95 @@ const useBaseForm = ({
       // 1. Detect if we switched to a new component
       // 2. Reset features when switching
       // 3. Apply this component's default mode (from store or param)
-      setActiveComponent(componentName, defaultMode as unknown as ('privacy' | 'pro' | 'ultra' | 'balanced') | null | undefined);
+      setActiveComponent(
+        componentName,
+        defaultMode as unknown as ('privacy' | 'pro' | 'ultra' | 'balanced') | null | undefined
+      );
     }
   }, [componentName, generatorType]); // Re-run when component changes
 
   // Conditionally extract values based on knowledge system status
-  const source = (!generatorType || disableKnowledgeSystem) ? { type: 'neutral' as const } : selectionStore.source;
-  const isInstructionsActive = (!generatorType || disableKnowledgeSystem) ? false : selectionStore.isInstructionsActive;
-  const instructions = (!generatorType || disableKnowledgeSystem) ? {} : selectionStore.instructions;
-  const getActiveInstruction = (!generatorType || disableKnowledgeSystem) ? () => null : selectionStore.getActiveInstruction;
-  const selectedDocumentIds = (!generatorType || disableKnowledgeSystem) ? [] : selectionStore.selectedDocumentIds;
-  const selectedTextIds = (!generatorType || disableKnowledgeSystem) ? [] : selectionStore.selectedTextIds;
-  const useAutomaticSearch = (!generatorType || disableKnowledgeSystem) ? false : selectionStore.useAutomaticSearch;
+  const source =
+    !generatorType || disableKnowledgeSystem ? { type: 'neutral' as const } : selectionStore.source;
+  const isInstructionsActive =
+    !generatorType || disableKnowledgeSystem ? false : selectionStore.isInstructionsActive;
+  const instructions = !generatorType || disableKnowledgeSystem ? {} : selectionStore.instructions;
+  const getActiveInstruction =
+    !generatorType || disableKnowledgeSystem ? () => null : selectionStore.getActiveInstruction;
+  const selectedDocumentIds =
+    !generatorType || disableKnowledgeSystem ? [] : selectionStore.selectedDocumentIds;
+  const selectedTextIds =
+    !generatorType || disableKnowledgeSystem ? [] : selectionStore.selectedTextIds;
+  const useAutomaticSearch =
+    !generatorType || disableKnowledgeSystem ? false : selectionStore.useAutomaticSearch;
 
   // File attachment handlers - always define, conditionally use
-  const handleAttachmentClick = useCallback(async (files: File[]) => {
-    if (!generatorType) return;
-    try {
-      const processed = await prepareFilesForSubmission(files);
-      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-    } catch (error: unknown) {
-      console.error(`[${generatorType}] File processing error:`, error);
-    }
-  }, [generatorType]);
+  const handleAttachmentClick = useCallback(
+    async (files: File[]) => {
+      if (!generatorType) return;
+      try {
+        const processed = await prepareFilesForSubmission(files);
+        setAttachedFiles((prevFiles) => [...prevFiles, ...files]);
+        setProcessedAttachments((prevProcessed) => [...prevProcessed, ...processed]);
+      } catch (error: unknown) {
+        console.error(`[${generatorType}] File processing error:`, error);
+      }
+    },
+    [generatorType]
+  );
 
   const handleRemoveFile = useCallback((index: number) => {
-    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
+    setAttachedFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
+    setProcessedAttachments((prevProcessed) => prevProcessed.filter((_, i) => i !== index));
   }, []);
 
   // Feature toggles configuration
-  const webSearchFeatureToggle = useMemo((): FeatureToggleType => ({
+  const webSearchFeatureToggle = useMemo(
+    (): FeatureToggleType => ({
       isActive: Boolean(toggles.webSearch),
       onToggle: (checked: boolean) => {
         setFieldValue('useWebSearchTool', checked);
       },
-      label: "Websuche verwenden",
+      label: 'Websuche verwenden',
       icon: HiGlobeAlt,
-      description: "",
-      tabIndex: (tabIndex as Record<string, unknown>)?.webSearch as number || 11
-  }), [toggles.webSearch, setFieldValue, tabIndex]);
+      description: '',
+      tabIndex: ((tabIndex as Record<string, unknown>)?.webSearch as number) || 11,
+    }),
+    [toggles.webSearch, setFieldValue, tabIndex]
+  );
 
-  const privacyModeToggle = useMemo((): FeatureToggleType => ({
+  const privacyModeToggle = useMemo(
+    (): FeatureToggleType => ({
       isActive: Boolean(toggles.privacyMode),
       onToggle: (checked: boolean) => {
         setFieldValue('usePrivacyMode', checked);
       },
-      label: "Privacy-Mode",
+      label: 'Privacy-Mode',
       icon: HiShieldCheck,
-      description: "Verwendet deutsche Server der Netzbegrünung.",
-      tabIndex: (tabIndex as Record<string, unknown>)?.privacyMode as number || 13
-  }), [toggles.privacyMode, setFieldValue, tabIndex]);
+      description: 'Verwendet deutsche Server der Netzbegrünung.',
+      tabIndex: ((tabIndex as Record<string, unknown>)?.privacyMode as number) || 13,
+    }),
+    [toggles.privacyMode, setFieldValue, tabIndex]
+  );
 
   const proModeToggle = useMemo((): FeatureToggleType | null => {
-      if (!generatorType || !features.includes('proMode')) {
-        return null;
-      }
+    if (!generatorType || !features.includes('proMode')) {
+      return null;
+    }
 
-      return {
-        isActive: Boolean(toggles.proMode),
-        onToggle: (checked: boolean) => {
-          setFieldValue('useProMode', checked);
-        },
-        label: "Pro-Mode",
-        description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
-      };
+    return {
+      isActive: Boolean(toggles.proMode),
+      onToggle: (checked: boolean) => {
+        setFieldValue('useProMode', checked);
+      },
+      label: 'Pro-Mode',
+      description: 'Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte.',
+    };
   }, [generatorType, features, toggles.proMode, setFieldValue]);
 
   // Unified submission handler
-  const onSubmitGenerator = useCallback(async (rhfData: Record<string, unknown>) => {
+  const onSubmitGenerator = useCallback(
+    async (rhfData: Record<string, unknown>) => {
       if (!generatorType) return;
       setStoreIsLoading(true);
 
@@ -480,7 +534,7 @@ const useBaseForm = ({
           useProMode: rhfData.useProMode,
           useBedrock: false,
           attachments: processedAttachments,
-          useNotebookEnrich: selectionStore.useNotebookEnrich
+          useNotebookEnrich: selectionStore.useNotebookEnrich,
         };
 
         // Extract search query from form data for intelligent document content
@@ -504,15 +558,14 @@ const useBaseForm = ({
           if (data.gremium) queryParts.push(String(data.gremium));
           if (data.kontext) queryParts.push(String(data.kontext));
 
-          return queryParts.filter(part => part && part.trim()).join(' ');
+          return queryParts.filter((part) => part && part.trim()).join(' ');
         };
 
         const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
         // Get instructions for backend (if active)
-        const customPrompt = isInstructionsActive && instructionType
-          ? getActiveInstruction(instructionType)
-          : null;
+        const customPrompt =
+          isInstructionsActive && instructionType ? getActiveInstruction(instructionType) : null;
 
         // Send only IDs and searchQuery - backend handles all content extraction
         formDataToSubmit.customPrompt = customPrompt;
@@ -528,14 +581,16 @@ const useBaseForm = ({
             selectedTextIds: (formDataToSubmit.selectedTextIds as unknown[]).length,
             hasSearchQuery: Boolean(formDataToSubmit.searchQuery),
             hasCustomPrompt: Boolean(formDataToSubmit.customPrompt),
-            useAutomaticSearch: formDataToSubmit.useAutomaticSearch
+            useAutomaticSearch: formDataToSubmit.useAutomaticSearch,
           });
         }
 
         const response = await submitForm(formDataToSubmit);
         if (response && componentName) {
-          const content = typeof response === 'string' ? response : (response as Record<string, unknown>).content;
-          const metadata = typeof response === 'object' ? (response as Record<string, unknown>).metadata : {};
+          const content =
+            typeof response === 'string' ? response : (response as Record<string, unknown>).content;
+          const metadata =
+            typeof response === 'object' ? (response as Record<string, unknown>).metadata : {};
 
           if (content) {
             setGeneratedText(componentName, content, metadata);
@@ -547,19 +602,40 @@ const useBaseForm = ({
       } finally {
         setStoreIsLoading(false);
       }
-  }, [generatorType, submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, componentName, instructionType, selectedDocumentIds, selectedTextIds, useAutomaticSearch]);
+    },
+    [
+      generatorType,
+      submitForm,
+      resetSuccess,
+      setGeneratedText,
+      setStoreIsLoading,
+      isInstructionsActive,
+      getActiveInstruction,
+      processedAttachments,
+      componentName,
+      instructionType,
+      selectedDocumentIds,
+      selectedTextIds,
+      useAutomaticSearch,
+    ]
+  );
 
   // Generated content handling
-  const generatedContent = useGeneratedTextStore(state => state.getGeneratedText(componentName ?? '')) || '';
+  const generatedContent =
+    useGeneratedTextStore((state) => state.getGeneratedText(componentName ?? '')) || '';
 
-  const handleGeneratedContentChange = useCallback((content: string) => {
+  const handleGeneratedContentChange = useCallback(
+    (content: string) => {
       if (componentName) {
         setGeneratedText(componentName, content);
       }
-  }, [setGeneratedText, componentName]);
+    },
+    [setGeneratedText, componentName]
+  );
 
   // Base form props compilation
-  const baseFormProps = useMemo(() => ({
+  const baseFormProps = useMemo(
+    () => ({
       loading,
       success,
       error,
@@ -573,9 +649,15 @@ const useBaseForm = ({
       helpContent,
       componentName: componentName ?? '',
       features: {
-        webSearch: features.includes('webSearch') ? { enabled: true, toggle: webSearchFeatureToggle ?? undefined } : undefined,
-        privacyMode: features.includes('privacyMode') ? { enabled: true, toggle: privacyModeToggle ?? undefined } : undefined,
-        proMode: features.includes('proMode') ? { enabled: true, toggle: proModeToggle ?? undefined } : undefined
+        webSearch: features.includes('webSearch')
+          ? { enabled: true, toggle: webSearchFeatureToggle ?? undefined }
+          : undefined,
+        privacyMode: features.includes('privacyMode')
+          ? { enabled: true, toggle: privacyModeToggle ?? undefined }
+          : undefined,
+        proMode: features.includes('proMode')
+          ? { enabled: true, toggle: proModeToggle ?? undefined }
+          : undefined,
       },
       useFeatureIcons,
       onAttachmentClick: handleAttachmentClick,
@@ -584,39 +666,64 @@ const useBaseForm = ({
       featureIconsTabIndex: {
         webSearch: (tabIndex as Record<string, unknown>)?.webSearch,
         privacyMode: (tabIndex as Record<string, unknown>)?.privacyMode,
-        attachment: (tabIndex as Record<string, unknown>)?.attachment
+        attachment: (tabIndex as Record<string, unknown>)?.attachment,
       },
-      platformSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)?.platformSelectorTabIndex,
-      knowledgeSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)?.knowledgeSelectorTabIndex,
-      knowledgeSourceSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)?.knowledgeSourceSelectorTabIndex,
-      documentSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)?.documentSelectorTabIndex,
+      platformSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)
+        ?.platformSelectorTabIndex,
+      knowledgeSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)
+        ?.knowledgeSelectorTabIndex,
+      knowledgeSourceSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)
+        ?.knowledgeSourceSelectorTabIndex,
+      documentSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)
+        ?.documentSelectorTabIndex,
       submitButtonTabIndex: (baseFormTabIndex as Record<string, unknown>)?.submitButtonTabIndex,
-      formControl: control
-  }), [
-      helpContent, generatorType, loading, success, error, generatedContent,
-      handleGeneratedContentChange, disableKnowledgeSystem, enablePlatformSelector, platformOptions,
-      componentName, features, webSearchFeatureToggle, privacyModeToggle, proModeToggle,
-      handleAttachmentClick, handleRemoveFile, attachedFiles, tabIndex, baseFormTabIndex,
-      control, useFeatureIcons
-  ]);
-
-  // Build generator logic object (conditionally included in return)
-  const generatorLogic: GeneratorLogic | null = generatorType ? {
+      formControl: control,
+    }),
+    [
+      helpContent,
+      generatorType,
       loading,
       success,
       error,
-      resetSuccess,
-      attachedFiles,
-      handleAttachmentClick,
-      handleRemoveFile,
-      onSubmit: handleSubmit(onSubmitGenerator),
       generatedContent,
       handleGeneratedContentChange,
-      toggles,
+      disableKnowledgeSystem,
+      enablePlatformSelector,
+      platformOptions,
+      componentName,
+      features,
+      webSearchFeatureToggle,
+      privacyModeToggle,
+      proModeToggle,
+      handleAttachmentClick,
+      handleRemoveFile,
+      attachedFiles,
       tabIndex,
       baseFormTabIndex,
-      baseFormProps
-  } : null;
+      control,
+      useFeatureIcons,
+    ]
+  );
+
+  // Build generator logic object (conditionally included in return)
+  const generatorLogic: GeneratorLogic | null = generatorType
+    ? {
+        loading,
+        success,
+        error,
+        resetSuccess,
+        attachedFiles,
+        handleAttachmentClick,
+        handleRemoveFile,
+        onSubmit: handleSubmit(onSubmitGenerator),
+        generatedContent,
+        handleGeneratedContentChange,
+        toggles,
+        tabIndex,
+        baseFormTabIndex,
+        baseFormProps,
+      }
+    : null;
 
   // Return simplified form interface
   return {
@@ -656,17 +763,18 @@ const useBaseForm = ({
     // Utility functions
     utils: {
       hasErrors: Object.keys(errors).length > 0,
-      getFieldError: (name: string) => (errors[name] as Record<string, unknown>)?.message || errors[name],
+      getFieldError: (name: string) =>
+        (errors[name] as Record<string, unknown>)?.message || errors[name],
       isFieldTouched: (name: string) => !!touchedFields[name],
       isFieldDirty: (name: string) => !!dirtyFields[name],
       resetField: (name: string) => {
         setValue(name, (defaultValues[name] ?? '') as FieldValues);
         clearErrors(name);
-      }
+      },
     },
 
     // Generator-specific properties (only when generatorType is provided)
-    ...(generatorLogic && { generator: generatorLogic })
+    ...(generatorLogic && { generator: generatorLogic }),
   };
 };
 

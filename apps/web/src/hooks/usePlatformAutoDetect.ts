@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { detectPlatformsInText } from '../utils/autocompleteUtils';
+
 import useDebounce from '../components/hooks/useDebounce';
+import { detectPlatformsInText } from '../utils/autocompleteUtils';
 
 /**
  * usePlatformAutoDetect - Reusable hook for auto-detecting platforms from text content
@@ -44,7 +45,7 @@ const usePlatformAutoDetect = ({
   validPlatformIds = [],
   onPlatformsDetected,
   debounceMs = 500,
-  enabled = true
+  enabled = true,
 }: PlatformAutoDetectOptions) => {
   const rejectedPlatformsRef = useRef(new Set());
   const previousPlatformsRef = useRef(currentPlatforms);
@@ -55,9 +56,9 @@ const usePlatformAutoDetect = ({
     const prevPlatforms = previousPlatformsRef.current || [];
     const currPlatforms = currentPlatforms || [];
 
-    const removed = prevPlatforms.filter(p => !currPlatforms.includes(p));
+    const removed = prevPlatforms.filter((p) => !currPlatforms.includes(p));
 
-    removed.forEach(platform => {
+    removed.forEach((platform) => {
       rejectedPlatformsRef.current.add(platform);
     });
 
@@ -68,9 +69,9 @@ const usePlatformAutoDetect = ({
     if (!enabled || !debouncedContent || !onPlatformsDetected) return;
 
     const detectedPlatforms = detectPlatformsInText(debouncedContent);
-    const validDetected = detectedPlatforms.filter(p => validPlatformIds.includes(p));
+    const validDetected = detectedPlatforms.filter((p) => validPlatformIds.includes(p));
 
-    const notRejected = validDetected.filter(p => !rejectedPlatformsRef.current.has(p));
+    const notRejected = validDetected.filter((p) => !rejectedPlatformsRef.current.has(p));
 
     if (notRejected.length > 0) {
       const currPlatforms = currentPlatforms || [];
@@ -98,7 +99,7 @@ const usePlatformAutoDetect = ({
     rejectedPlatforms: Array.from(rejectedPlatformsRef.current),
     clearRejected,
     rejectPlatform,
-    isRejected
+    isRejected,
   };
 };
 

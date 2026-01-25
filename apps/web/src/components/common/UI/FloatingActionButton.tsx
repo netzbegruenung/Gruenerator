@@ -9,11 +9,13 @@ interface FloatingActionButtonProps {
   className?: string;
 }
 
-const FloatingActionButton = ({ icon,
+const FloatingActionButton = ({
+  icon,
   onClick,
   visible = true,
   position = 'top-left',
-  className = '' }: FloatingActionButtonProps): JSX.Element | null => {
+  className = '',
+}: FloatingActionButtonProps): JSX.Element | null => {
   if (!visible) return null;
 
   return (

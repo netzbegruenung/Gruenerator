@@ -40,10 +40,14 @@ export function OptionGrid<T extends string = string>({
 
   const getItemWidth = () => {
     switch (columns) {
-      case 2: return '47%';
-      case 3: return '31%';
-      case 4: return '23%';
-      default: return '23%';
+      case 2:
+        return '47%';
+      case 3:
+        return '31%';
+      case 4:
+        return '23%';
+      default:
+        return '23%';
     }
   };
 

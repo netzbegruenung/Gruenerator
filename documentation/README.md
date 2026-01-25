@@ -23,12 +23,14 @@ Diese Dokumentation ist Teil des [Grünerator Monorepos](https://github.com/netz
 ### Lokale Entwicklung
 
 **Von der Monorepo-Root aus:**
+
 ```bash
 # Entwicklungsserver starten
 pnpm run dev:documentation
 ```
 
 **Direkt im documentation/ Verzeichnis:**
+
 ```bash
 cd documentation
 pnpm run dev
@@ -39,12 +41,14 @@ Dieser Befehl startet einen lokalen Entwicklungsserver auf http://localhost:3000
 ### Build
 
 **Von der Monorepo-Root aus:**
+
 ```bash
 # Produktions-Build erstellen
 pnpm run build:documentation
 ```
 
 **Direkt im documentation/ Verzeichnis:**
+
 ```bash
 cd documentation
 pnpm run build

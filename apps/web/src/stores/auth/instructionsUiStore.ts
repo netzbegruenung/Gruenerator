@@ -34,22 +34,26 @@ export const useInstructionsUiStore = create<InstructionsUiState>((set) => ({
 
   // Actions
   setSaving: (isSaving: boolean) => set({ isSaving, error: null, successMessage: null }),
-  setDeleting: (isDeleting: boolean, deletingKnowledgeId: string | null = null) => set({ isDeleting, deletingKnowledgeId, error: null, successMessage: null }),
+  setDeleting: (isDeleting: boolean, deletingKnowledgeId: string | null = null) =>
+    set({ isDeleting, deletingKnowledgeId, error: null, successMessage: null }),
 
-  setSuccess: (message: string) => set({ successMessage: message, error: null, isSaving: false, isDeleting: false }),
-  setError: (errorMessage: string) => set({ error: errorMessage, successMessage: null, isSaving: false, isDeleting: false }),
+  setSuccess: (message: string) =>
+    set({ successMessage: message, error: null, isSaving: false, isDeleting: false }),
+  setError: (errorMessage: string) =>
+    set({ error: errorMessage, successMessage: null, isSaving: false, isDeleting: false }),
 
   setHasUnsavedChanges: (hasUnsavedChanges: boolean) => set({ hasUnsavedChanges }),
 
   clearMessages: () => set({ error: null, successMessage: null }),
-  reset: () => set({
-    isSaving: false,
-    isDeleting: false,
-    error: null,
-    successMessage: null,
-    hasUnsavedChanges: false,
-    deletingKnowledgeId: null,
-  }),
+  reset: () =>
+    set({
+      isSaving: false,
+      isDeleting: false,
+      error: null,
+      successMessage: null,
+      hasUnsavedChanges: false,
+      deletingKnowledgeId: null,
+    }),
 }));
 
 // Legacy export for backward compatibility

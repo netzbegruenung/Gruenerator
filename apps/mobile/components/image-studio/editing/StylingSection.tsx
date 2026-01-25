@@ -13,10 +13,7 @@ interface StylingSectionProps {
   disabled?: boolean;
 }
 
-export function StylingSection({
-  config,
-  disabled = false,
-}: StylingSectionProps) {
+export function StylingSection({ config, disabled = false }: StylingSectionProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
@@ -31,13 +28,9 @@ export function StylingSection({
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Stil</Text>
 
       <View style={styles.controlsContainer}>
-        {config.showFontSize && (
-          <FontSizeControl disabled={disabled} />
-        )}
+        {config.showFontSize && <FontSizeControl disabled={disabled} />}
 
-        {config.showColorScheme && (
-          <ColorSchemeSelector disabled={disabled} />
-        )}
+        {config.showColorScheme && <ColorSchemeSelector disabled={disabled} />}
       </View>
     </View>
   );

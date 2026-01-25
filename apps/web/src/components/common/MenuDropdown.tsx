@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, ReactNode, ReactElement } from 'react';
+import React, { useState, useRef, useEffect, useCallback, type ReactNode, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import '../../assets/styles/components/ui/menu-dropdown.css';
 
@@ -10,7 +10,13 @@ interface MenuDropdownProps {
   alignRight?: boolean;
 }
 
-const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight = true }: MenuDropdownProps) => {
+const MenuDropdown = ({
+  trigger,
+  children,
+  onClose,
+  className = '',
+  alignRight = true,
+}: MenuDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +59,7 @@ const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight =
 
   const handleToggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsOpen(prev => !prev);
+    setIsOpen((prev) => !prev);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -101,7 +107,7 @@ const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight =
         window.removeEventListener('resize', handleResize);
       };
     } else {
-      setStyle(prev => ({ ...prev, opacity: 0 }));
+      setStyle((prev) => ({ ...prev, opacity: 0 }));
     }
   }, [isOpen, updatePosition, handleClose]);
 
@@ -110,22 +116,22 @@ const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight =
       <div ref={triggerRef} onClick={handleToggle}>
         {trigger}
       </div>
-      {isOpen && createPortal(
-        <div
-          ref={dropdownRef}
-          className="menu-dropdown-content"
-          style={style}
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        >
-          {typeof children === 'function'
-            ? children({ onClose: handleClose })
-            : React.isValidElement(children)
-              ? React.cloneElement(children, { onClose: handleClose } as React.Attributes)
-              : children
-          }
-        </div>,
-        document.body
-      )}
+      {isOpen &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="menu-dropdown-content"
+            style={style}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
+            {typeof children === 'function'
+              ? children({ onClose: handleClose })
+              : React.isValidElement(children)
+                ? React.cloneElement(children, { onClose: handleClose } as React.Attributes)
+                : children}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

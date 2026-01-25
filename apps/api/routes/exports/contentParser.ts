@@ -4,250 +4,255 @@
  */
 
 import { markdownForExport, isMarkdownContent } from '../../services/markdown/index.js';
-import type { FormattedSegment, FormattedParagraph, ParsedElement, ContentSection } from './types.js';
+import type {
+  FormattedSegment,
+  FormattedParagraph,
+  ParsedElement,
+  ContentSection,
+} from './types.js';
 
 /**
  * Parse a single paragraph and return an array of formatted segments
  */
 export function parseFormattedParagraph(text: string): FormattedSegment[] {
-    const segments: FormattedSegment[] = [];
+  const segments: FormattedSegment[] = [];
 
-    // Handle line breaks
-    text = text.replace(/<br\s*\/?>/gi, '\n');
+  // Handle line breaks
+  text = text.replace(/<br\s*\/?>/gi, '\n');
 
-    // Handle list items
-    text = text.replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n');
-    text = text.replace(/<ol[^>]*>(.*?)<\/ol>/gi, '$1');
-    text = text.replace(/<ul[^>]*>(.*?)<\/ul>/gi, '$1');
+  // Handle list items
+  text = text.replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n');
+  text = text.replace(/<ol[^>]*>(.*?)<\/ol>/gi, '$1');
+  text = text.replace(/<ul[^>]*>(.*?)<\/ul>/gi, '$1');
 
-    // Regular expressions for formatting
-    const patterns = [
-        // HTML tags
-        { regex: /<strong[^>]*>(.*?)<\/strong>/gi, bold: true, italic: false },
-        { regex: /<b[^>]*>(.*?)<\/b>/gi, bold: true, italic: false },
-        { regex: /<em[^>]*>(.*?)<\/em>/gi, bold: false, italic: true },
-        { regex: /<i[^>]*>(.*?)<\/i>/gi, bold: false, italic: true },
-        // Markdown patterns
-        { regex: /\*\*\*(.*?)\*\*\*/g, bold: true, italic: true },
-        { regex: /\*\*(.*?)\*\*/g, bold: true, italic: false },
-        { regex: /\*(.*?)\*/g, bold: false, italic: true },
-        { regex: /___(.*?)___/g, bold: true, italic: true },
-        { regex: /__(.*?)__/g, bold: true, italic: false },
-        { regex: /_(.*?)_/g, bold: false, italic: true }
-    ];
+  // Regular expressions for formatting
+  const patterns = [
+    // HTML tags
+    { regex: /<strong[^>]*>(.*?)<\/strong>/gi, bold: true, italic: false },
+    { regex: /<b[^>]*>(.*?)<\/b>/gi, bold: true, italic: false },
+    { regex: /<em[^>]*>(.*?)<\/em>/gi, bold: false, italic: true },
+    { regex: /<i[^>]*>(.*?)<\/i>/gi, bold: false, italic: true },
+    // Markdown patterns
+    { regex: /\*\*\*(.*?)\*\*\*/g, bold: true, italic: true },
+    { regex: /\*\*(.*?)\*\*/g, bold: true, italic: false },
+    { regex: /\*(.*?)\*/g, bold: false, italic: true },
+    { regex: /___(.*?)___/g, bold: true, italic: true },
+    { regex: /__(.*?)__/g, bold: true, italic: false },
+    { regex: /_(.*?)_/g, bold: false, italic: true },
+  ];
 
-    const foundFormatting: Array<{
-        start: number;
-        end: number;
-        content: string;
-        bold: boolean;
-        italic: boolean;
-        fullMatch: string;
-    }> = [];
+  const foundFormatting: Array<{
+    start: number;
+    end: number;
+    content: string;
+    bold: boolean;
+    italic: boolean;
+    fullMatch: string;
+  }> = [];
 
-    // Find all formatting matches
-    patterns.forEach(pattern => {
-        let match: RegExpExecArray | null;
-        const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
-        while ((match = regex.exec(text)) !== null) {
-            foundFormatting.push({
-                start: match.index,
-                end: match.index + match[0].length,
-                content: match[1],
-                bold: pattern.bold,
-                italic: pattern.italic,
-                fullMatch: match[0]
-            });
+  // Find all formatting matches
+  patterns.forEach((pattern) => {
+    let match: RegExpExecArray | null;
+    const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+    while ((match = regex.exec(text)) !== null) {
+      foundFormatting.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[1],
+        bold: pattern.bold,
+        italic: pattern.italic,
+        fullMatch: match[0],
+      });
 
-            if (match[0].length === 0) {
-                regex.lastIndex++;
-            }
-        }
-    });
+      if (match[0].length === 0) {
+        regex.lastIndex++;
+      }
+    }
+  });
 
-    // Sort by start position
-    foundFormatting.sort((a, b) => a.start - b.start);
+  // Sort by start position
+  foundFormatting.sort((a, b) => a.start - b.start);
 
-    // Build segments
-    let lastEnd = 0;
+  // Build segments
+  let lastEnd = 0;
 
-    foundFormatting.forEach(format => {
-        if (format.start > lastEnd) {
-            const beforeText = text.substring(lastEnd, format.start);
-            if (beforeText.trim()) {
-                segments.push({ text: beforeText, bold: false, italic: false });
-            }
-        }
-
-        segments.push({
-            text: format.content,
-            bold: format.bold,
-            italic: format.italic
-        });
-
-        lastEnd = format.end;
-    });
-
-    // Add remaining text
-    if (lastEnd < text.length) {
-        const remainingText = text.substring(lastEnd);
-        if (remainingText.trim()) {
-            segments.push({ text: remainingText, bold: false, italic: false });
-        }
+  foundFormatting.forEach((format) => {
+    if (format.start > lastEnd) {
+      const beforeText = text.substring(lastEnd, format.start);
+      if (beforeText.trim()) {
+        segments.push({ text: beforeText, bold: false, italic: false });
+      }
     }
 
-    // If no formatting was found, return the whole text as one segment
-    if (segments.length === 0) {
-        const cleanText = text.replace(/<[^>]*>/g, '').trim();
-        if (cleanText) {
-            segments.push({ text: cleanText, bold: false, italic: false });
-        }
-    }
+    segments.push({
+      text: format.content,
+      bold: format.bold,
+      italic: format.italic,
+    });
 
-    // Clean up any remaining HTML tags from all segments
-    return segments
-        .map(segment => ({
-            ...segment,
-            text: segment.text.replace(/<[^>]*>/g, '').trim()
-        }))
-        .filter(segment => segment.text.length > 0);
+    lastEnd = format.end;
+  });
+
+  // Add remaining text
+  if (lastEnd < text.length) {
+    const remainingText = text.substring(lastEnd);
+    if (remainingText.trim()) {
+      segments.push({ text: remainingText, bold: false, italic: false });
+    }
+  }
+
+  // If no formatting was found, return the whole text as one segment
+  if (segments.length === 0) {
+    const cleanText = text.replace(/<[^>]*>/g, '').trim();
+    if (cleanText) {
+      segments.push({ text: cleanText, bold: false, italic: false });
+    }
+  }
+
+  // Clean up any remaining HTML tags from all segments
+  return segments
+    .map((segment) => ({
+      ...segment,
+      text: segment.text.replace(/<[^>]*>/g, '').trim(),
+    }))
+    .filter((segment) => segment.text.length > 0);
 }
 
 /**
  * Parse content with formatting information preserved
  */
 export function parseFormattedContent(input: string | null | undefined): FormattedParagraph[] {
-    if (!input) return [];
+  if (!input) return [];
 
-    let content = String(input);
+  let content = String(input);
 
-    // First check if this is markdown and convert it
-    if (isMarkdownContent(content)) {
-        content = markdownForExport(content);
-    }
+  // First check if this is markdown and convert it
+  if (isMarkdownContent(content)) {
+    content = markdownForExport(content);
+  }
 
-    // Convert basic HTML entities
-    content = content
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&amp;/gi, '&')
-        .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>')
-        .replace(/&quot;/gi, '"');
+  // Convert basic HTML entities
+  content = content
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"');
 
-    // Parse paragraphs and headers separately
-    const elements: ParsedElement[] = [];
-    const regex = /<(h[1-6]|p|div|section|article)[^>]*>(.*?)<\/\1>/gi;
-    let match: RegExpExecArray | null;
+  // Parse paragraphs and headers separately
+  const elements: ParsedElement[] = [];
+  const regex = /<(h[1-6]|p|div|section|article)[^>]*>(.*?)<\/\1>/gi;
+  let match: RegExpExecArray | null;
 
-    while ((match = regex.exec(content)) !== null) {
-        const tag = match[1].toLowerCase();
-        const innerContent = match[2].trim();
+  while ((match = regex.exec(content)) !== null) {
+    const tag = match[1].toLowerCase();
+    const innerContent = match[2].trim();
 
-        if (!innerContent) continue;
+    if (!innerContent) continue;
 
-        const isHeader = /^h[1-6]$/.test(tag);
-        const headerLevel = isHeader ? parseInt(tag[1]) : null;
+    const isHeader = /^h[1-6]$/.test(tag);
+    const headerLevel = isHeader ? parseInt(tag[1]) : null;
 
-        elements.push({ content: innerContent, isHeader, headerLevel, tag });
-    }
+    elements.push({ content: innerContent, isHeader, headerLevel, tag });
+  }
 
-    // If no elements were found, try splitting by tags
-    if (elements.length === 0) {
-        const paragraphs = content
-            .split(/<\/(h[1-6]|p|div|section|article)>/gi)
-            .map(para => {
-                const headerMatch = para.match(/^<(h[1-6])[^>]*>(.*)/i);
-                if (headerMatch) {
-                    return {
-                        content: headerMatch[2].trim(),
-                        isHeader: true,
-                        headerLevel: parseInt(headerMatch[1][1]),
-                        tag: headerMatch[1].toLowerCase()
-                    };
-                }
+  // If no elements were found, try splitting by tags
+  if (elements.length === 0) {
+    const paragraphs = content
+      .split(/<\/(h[1-6]|p|div|section|article)>/gi)
+      .map((para) => {
+        const headerMatch = para.match(/^<(h[1-6])[^>]*>(.*)/i);
+        if (headerMatch) {
+          return {
+            content: headerMatch[2].trim(),
+            isHeader: true,
+            headerLevel: parseInt(headerMatch[1][1]),
+            tag: headerMatch[1].toLowerCase(),
+          };
+        }
 
-                para = para.replace(/^<(h[1-6]|p|div|section|article)[^>]*>/gi, '');
-                para = para.replace(/<\/(h[1-6]|p|div|section|article)>/gi, '');
-                para = para.replace(/^<p>$/gi, '').replace(/^<\/p>$/gi, '');
-                para = para.trim();
+        para = para.replace(/^<(h[1-6]|p|div|section|article)[^>]*>/gi, '');
+        para = para.replace(/<\/(h[1-6]|p|div|section|article)>/gi, '');
+        para = para.replace(/^<p>$/gi, '').replace(/^<\/p>$/gi, '');
+        para = para.trim();
 
-                if (!para || para === 'p' || para === '/p') return null;
+        if (!para || para === 'p' || para === '/p') return null;
 
-                return { content: para, isHeader: false, headerLevel: null, tag: 'p' };
-            })
-            .filter((el): el is ParsedElement => el !== null);
+        return { content: para, isHeader: false, headerLevel: null, tag: 'p' };
+      })
+      .filter((el): el is ParsedElement => el !== null);
 
-        elements.push(...paragraphs);
-    }
+    elements.push(...paragraphs);
+  }
 
-    return elements.map(element => {
-        const segments = parseFormattedParagraph(element.content);
-        return {
-            segments,
-            isHeader: element.isHeader,
-            headerLevel: element.headerLevel
-        };
-    });
+  return elements.map((element) => {
+    const segments = parseFormattedParagraph(element.content);
+    return {
+      segments,
+      isHeader: element.isHeader,
+      headerLevel: element.headerLevel,
+    };
+  });
 }
 
 /**
  * Convert HTML to plain text
  */
 export function htmlToPlainText(html: string | null | undefined): string {
-    if (!html) return '';
+  if (!html) return '';
 
-    let text = String(html);
+  let text = String(html);
 
-    // Convert line breaks to newlines
-    text = text.replace(/<br\s*\/?>/gi, '\n');
-    text = text.replace(/<\/p>/gi, '\n\n');
-    text = text.replace(/<\/div>/gi, '\n');
-    text = text.replace(/<\/h[1-6]>/gi, '\n\n');
+  // Convert line breaks to newlines
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/p>/gi, '\n\n');
+  text = text.replace(/<\/div>/gi, '\n');
+  text = text.replace(/<\/h[1-6]>/gi, '\n\n');
 
-    // Convert list items
-    text = text.replace(/<li[^>]*>/gi, '• ');
-    text = text.replace(/<\/li>/gi, '\n');
+  // Convert list items
+  text = text.replace(/<li[^>]*>/gi, '• ');
+  text = text.replace(/<\/li>/gi, '\n');
 
-    // Remove all remaining HTML tags
-    text = text.replace(/<[^>]+>/g, '');
+  // Remove all remaining HTML tags
+  text = text.replace(/<[^>]+>/g, '');
 
-    // Convert HTML entities
-    text = text
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&amp;/gi, '&')
-        .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>')
-        .replace(/&quot;/gi, '"')
-        .replace(/&#39;/gi, "'");
+  // Convert HTML entities
+  text = text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
 
-    // Clean up whitespace
-    text = text.replace(/\n{3,}/g, '\n\n');
-    text = text.replace(/[ \t]+/g, ' ');
+  // Clean up whitespace
+  text = text.replace(/\n{3,}/g, '\n\n');
+  text = text.replace(/[ \t]+/g, ' ');
 
-    return text.trim();
+  return text.trim();
 }
 
 /**
  * Parse content into sections with headers
  */
 export function parseSections(plain: string | null | undefined): ContentSection[] {
-    const paragraphs = (plain || '').split(/\n\s*\n/);
-    const sections: ContentSection[] = [];
-    let current: ContentSection | null = null;
+  const paragraphs = (plain || '').split(/\n\s*\n/);
+  const sections: ContentSection[] = [];
+  let current: ContentSection | null = null;
 
-    for (const para of paragraphs) {
-        const p = para.trim();
-        if (!p) continue;
+  for (const para of paragraphs) {
+    const p = para.trim();
+    if (!p) continue;
 
-        if (p.length < 100 && (p === p.toUpperCase() || /^.+:\s*$/.test(p))) {
-            if (current) sections.push(current);
-            current = { header: p.replace(/:$/, ''), content: [] };
-        } else {
-            if (!current) current = { header: null, content: [] };
-            current.content.push(p);
-        }
+    if (p.length < 100 && (p === p.toUpperCase() || /^.+:\s*$/.test(p))) {
+      if (current) sections.push(current);
+      current = { header: p.replace(/:$/, ''), content: [] };
+    } else {
+      if (!current) current = { header: null, content: [] };
+      current.content.push(p);
     }
+  }
 
-    if (current) sections.push(current);
-    return sections;
+  if (current) sections.push(current);
+  return sections;
 }

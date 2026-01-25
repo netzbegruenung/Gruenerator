@@ -11,17 +11,17 @@ import {
   resumeWithAnswers,
   resumeWithCorrections,
   type PlanWorkflowInput,
-  type PlanWorkflowOutput
+  type PlanWorkflowOutput,
 } from '../../agents/langgraph/PlanWorkflowGraph/index.js';
 import {
   saveWorkflowState,
-  getWorkflowState
+  getWorkflowState,
 } from '../../agents/langgraph/PlanWorkflowGraph/persistence.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type {
   PlanModeRequest,
   InitiateResponse,
-  PlanModeError
+  PlanModeError,
 } from '../../agents/langgraph/types/planMode.js';
 
 const router = Router();
@@ -37,7 +37,7 @@ export const setPlanModeWorkerPool = (pool: any) => {
 function injectRuntime(state: any, req: Request): any {
   return {
     ...state,
-    input: { ...state.input, aiWorkerPool, req }
+    input: { ...state.input, aiWorkerPool, req },
   };
 }
 
@@ -55,7 +55,7 @@ router.post('/initiate', async (req: AuthenticatedRequest, res: Response) => {
 
     if (!requestData.generatorType || !requestData.inhalt) {
       return res.status(400).json({
-        error: 'Missing required fields: generatorType, inhalt'
+        error: 'Missing required fields: generatorType, inhalt',
       });
     }
 
@@ -74,7 +74,7 @@ router.post('/initiate', async (req: AuthenticatedRequest, res: Response) => {
       platforms: requestData.platforms,
       aiWorkerPool,
       req,
-      userId
+      userId,
     };
 
     const promptConfig = getPromptConfig(requestData.generatorType);
@@ -91,7 +91,7 @@ router.post('/initiate', async (req: AuthenticatedRequest, res: Response) => {
     if (!finalState.success && finalState.error) {
       return res.status(500).json({
         error: finalState.error,
-        code: 'AI_ERROR'
+        code: 'AI_ERROR',
       } as PlanModeError);
     }
 
@@ -105,8 +105,8 @@ router.post('/initiate', async (req: AuthenticatedRequest, res: Response) => {
       metadata: {
         confidenceScore: finalState.planData?.confidenceScore || 0,
         executionTimeMs,
-        enrichmentMetadata: finalState.planData?.enrichmentMetadata
-      }
+        enrichmentMetadata: finalState.planData?.enrichmentMetadata,
+      },
     };
 
     return res.json(response);
@@ -114,7 +114,7 @@ router.post('/initiate', async (req: AuthenticatedRequest, res: Response) => {
     console.error('[PlanMode] Initiate error:', error);
     return res.status(500).json({
       error: error.message || 'Failed to execute workflow',
-      code: 'AI_ERROR'
+      code: 'AI_ERROR',
     } as PlanModeError);
   }
 });
@@ -128,14 +128,14 @@ router.post('/resume', async (req: Request, res: Response) => {
 
     if (!workflow_id || !answers) {
       return res.status(400).json({
-        error: 'Missing required fields: workflow_id, answers'
+        error: 'Missing required fields: workflow_id, answers',
       });
     }
 
     const savedState = await getWorkflowState(workflow_id);
     if (!savedState) {
       return res.status(404).json({
-        error: `Workflow ${workflow_id} not found or expired`
+        error: `Workflow ${workflow_id} not found or expired`,
       });
     }
 
@@ -149,7 +149,7 @@ router.post('/resume', async (req: Request, res: Response) => {
     if (!finalState.success) {
       return res.status(500).json({
         error: finalState.error || 'Failed to resume workflow',
-        code: 'AI_ERROR'
+        code: 'AI_ERROR',
       } as PlanModeError);
     }
 
@@ -161,14 +161,14 @@ router.post('/resume', async (req: Request, res: Response) => {
       metadata: {
         executionTimeMs,
         phasesExecuted: finalState.phasesExecuted,
-        totalAICalls: finalState.totalAICalls
-      }
+        totalAICalls: finalState.totalAICalls,
+      },
     });
   } catch (error: any) {
     console.error('[PlanMode] Resume error:', error);
     return res.status(500).json({
       error: error.message || 'Failed to resume workflow',
-      code: 'AI_ERROR'
+      code: 'AI_ERROR',
     } as PlanModeError);
   }
 });
@@ -183,20 +183,20 @@ router.post('/correct', async (req: Request, res: Response) => {
 
     if (!workflow_id || !corrections || typeof corrections !== 'string') {
       return res.status(400).json({
-        error: 'Missing required fields: workflow_id, corrections (string)'
+        error: 'Missing required fields: workflow_id, corrections (string)',
       });
     }
 
     if (corrections.trim().length === 0) {
       return res.status(400).json({
-        error: 'Corrections cannot be empty'
+        error: 'Corrections cannot be empty',
       });
     }
 
     const savedState = await getWorkflowState(workflow_id);
     if (!savedState) {
       return res.status(404).json({
-        error: `Workflow ${workflow_id} not found or expired`
+        error: `Workflow ${workflow_id} not found or expired`,
       });
     }
 
@@ -213,7 +213,7 @@ router.post('/correct', async (req: Request, res: Response) => {
     if (!finalState.success && finalState.error) {
       return res.status(500).json({
         error: finalState.error,
-        code: 'AI_ERROR'
+        code: 'AI_ERROR',
       } as PlanModeError);
     }
 
@@ -226,14 +226,14 @@ router.post('/correct', async (req: Request, res: Response) => {
         executionTimeMs,
         correctionTimeMs: finalState.correctedPlanData?.correctionTimeMs,
         phasesExecuted: finalState.phasesExecuted,
-        totalAICalls: finalState.totalAICalls
-      }
+        totalAICalls: finalState.totalAICalls,
+      },
     });
   } catch (error: any) {
     console.error('[PlanMode] Correct error:', error);
     return res.status(500).json({
       error: error.message || 'Failed to apply corrections',
-      code: 'AI_ERROR'
+      code: 'AI_ERROR',
     } as PlanModeError);
   }
 });
@@ -247,14 +247,14 @@ router.post('/generate-production', async (req: Request, res: Response) => {
 
     if (!workflow_id) {
       return res.status(400).json({
-        error: 'Missing required field: workflow_id'
+        error: 'Missing required field: workflow_id',
       });
     }
 
     const savedState = await getWorkflowState(workflow_id);
     if (!savedState) {
       return res.status(404).json({
-        error: `Workflow ${workflow_id} not found or expired`
+        error: `Workflow ${workflow_id} not found or expired`,
       });
     }
 
@@ -264,7 +264,7 @@ router.post('/generate-production', async (req: Request, res: Response) => {
       ...stateWithRuntime,
       skipQuestions: true,
       currentPhase: 'production' as const,
-      phasesExecuted: [...savedState.phasesExecuted, 'skip-to-production']
+      phasesExecuted: [...savedState.phasesExecuted, 'skip-to-production'],
     };
 
     const finalState = await graph.invoke(stateForProduction, { recursionLimit: 10 });
@@ -273,7 +273,7 @@ router.post('/generate-production', async (req: Request, res: Response) => {
     if (!finalState.success) {
       return res.status(500).json({
         error: finalState.error || 'Production generation failed',
-        code: 'AI_ERROR'
+        code: 'AI_ERROR',
       } as PlanModeError);
     }
 
@@ -284,14 +284,14 @@ router.post('/generate-production', async (req: Request, res: Response) => {
       metadata: {
         executionTimeMs,
         phasesExecuted: finalState.phasesExecuted,
-        totalAICalls: finalState.totalAICalls
-      }
+        totalAICalls: finalState.totalAICalls,
+      },
     });
   } catch (error: any) {
     console.error('[PlanMode] Generate production error:', error);
     return res.status(500).json({
       error: error.message || 'Failed to generate production',
-      code: 'AI_ERROR'
+      code: 'AI_ERROR',
     } as PlanModeError);
   }
 });
@@ -307,7 +307,7 @@ router.get('/workflow/:workflowId', async (req: AuthenticatedRequest, res: Respo
     if (!state) {
       return res.status(404).json({
         error: 'Workflow not found or expired',
-        code: 'WORKFLOW_NOT_FOUND'
+        code: 'WORKFLOW_NOT_FOUND',
       } as PlanModeError);
     }
 
@@ -322,13 +322,13 @@ router.get('/workflow/:workflowId', async (req: AuthenticatedRequest, res: Respo
       correction_summary: state.correctedPlanData?.correctionSummary,
       production_data: state.productionData,
       success: state.success,
-      error: state.error
+      error: state.error,
     });
   } catch (error: any) {
     console.error('[PlanMode] Get workflow error:', error);
     return res.status(500).json({
       error: error.message || 'Failed to get workflow status',
-      code: 'INTERNAL_ERROR'
+      code: 'INTERNAL_ERROR',
     } as PlanModeError);
   }
 });

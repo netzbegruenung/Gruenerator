@@ -4,17 +4,19 @@
  * Uses official react-konva pattern: controlled state, update only in onDragEnd/onTransformEnd
  */
 
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { Stage, Layer, Rect, Image as KonvaImage, Transformer } from 'react-konva';
-import type Konva from 'konva';
 import {
   DEFAULT_CANVAS_SIZE,
   DEFAULT_BACKGROUND_COLOR,
   INITIAL_SCALE,
-  type ProfilbildCanvasProps
+  type ProfilbildCanvasProps,
 } from '@gruenerator/shared/canvas-editor';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { Stage, Layer, Rect, Image as KonvaImage, Transformer } from 'react-konva';
+
 import { CanvasEditorLayout } from './layouts';
 import { SidebarTabBar } from './sidebar';
+
+import type Konva from 'konva';
 import './ProfilbildCanvas.css';
 
 interface ImageState {
@@ -63,7 +65,7 @@ export function ProfilbildCanvas({
         x: (canvasSize - width) / 2,
         y: canvasSize - height,
         width,
-        height
+        height,
       });
     };
     img.src = transparentImage;
@@ -90,11 +92,15 @@ export function ProfilbildCanvas({
   }, []);
 
   const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-    setImageState(prev => prev ? {
-      ...prev,
-      x: e.target.x(),
-      y: e.target.y()
-    } : null);
+    setImageState((prev) =>
+      prev
+        ? {
+            ...prev,
+            x: e.target.x(),
+            y: e.target.y(),
+          }
+        : null
+    );
   }, []);
 
   const handleTransformEnd = useCallback(() => {
@@ -111,7 +117,7 @@ export function ProfilbildCanvas({
       x: node.x(),
       y: node.y(),
       width: Math.max(20, node.width() * scaleX),
-      height: Math.max(20, node.height() * scaleY)
+      height: Math.max(20, node.height() * scaleY),
     });
   }, []);
 
@@ -133,12 +139,7 @@ export function ProfilbildCanvas({
   }, [displayScale, onExport]);
 
   const tabBar = (
-    <SidebarTabBar
-      tabs={[]}
-      activeTab={null}
-      onTabClick={() => { }}
-      onExport={handleExport}
-    />
+    <SidebarTabBar tabs={[]} activeTab={null} onTabClick={() => {}} onExport={handleExport} />
   );
 
   if (!image || !imageState) {
@@ -152,7 +153,10 @@ export function ProfilbildCanvas({
 
   return (
     <CanvasEditorLayout sidebar={null} tabBar={tabBar} actions={null}>
-      <div className="profilbild-canvas-wrapper" style={{ width: containerSize.width, height: containerSize.height }}>
+      <div
+        className="profilbild-canvas-wrapper"
+        style={{ width: containerSize.width, height: containerSize.height }}
+      >
         <Stage
           ref={stageRef}
           width={containerSize.width}
@@ -162,8 +166,27 @@ export function ProfilbildCanvas({
           onTouchStart={checkDeselect}
         >
           <Layer>
-            <Rect x={0} y={0} width={canvasSize} height={canvasSize} fill={backgroundColor} listening={false} />
-            <KonvaImage ref={imageRef} image={image} x={imageState.x} y={imageState.y} width={imageState.width} height={imageState.height} draggable onClick={() => setIsSelected(true)} onTap={() => setIsSelected(true)} onDragEnd={handleDragEnd} onTransformEnd={handleTransformEnd} />
+            <Rect
+              x={0}
+              y={0}
+              width={canvasSize}
+              height={canvasSize}
+              fill={backgroundColor}
+              listening={false}
+            />
+            <KonvaImage
+              ref={imageRef}
+              image={image}
+              x={imageState.x}
+              y={imageState.y}
+              width={imageState.width}
+              height={imageState.height}
+              draggable
+              onClick={() => setIsSelected(true)}
+              onTap={() => setIsSelected(true)}
+              onDragEnd={handleDragEnd}
+              onTransformEnd={handleTransformEnd}
+            />
             {isSelected && (
               <Transformer
                 ref={trRef}

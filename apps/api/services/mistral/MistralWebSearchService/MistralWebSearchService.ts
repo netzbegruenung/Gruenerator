@@ -48,7 +48,7 @@ export class MistralWebSearchService {
       console.log(`[MistralWebSearchService] Creating ${config.name}`);
 
       const agent = await this.client.beta.agents.create({
-        model: "mistral-medium-latest",
+        model: 'mistral-medium-latest',
         name: config.name,
         instructions: config.instructions,
         description: config.description,
@@ -69,7 +69,10 @@ export class MistralWebSearchService {
    * @returns Search results
    * @throws Error if search fails
    */
-  async performWebSearch(query: string, agentType: AgentType = 'withSources'): Promise<SearchResults> {
+  async performWebSearch(
+    query: string,
+    agentType: AgentType = 'withSources'
+  ): Promise<SearchResults> {
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       throw new Error('Valid search query is required');
     }
@@ -84,7 +87,7 @@ export class MistralWebSearchService {
       const conversation = await this.client.beta.conversations.start({
         agentId: agentId,
         inputs: `Search for current information about: ${query}`,
-        store: false // Don't store conversation for privacy
+        store: false, // Don't store conversation for privacy
       });
 
       // Extract search results from conversation outputs
@@ -95,11 +98,15 @@ export class MistralWebSearchService {
         const contentLength = searchResults.textContent.length;
         const sourcesCount = searchResults.sourcesCount || 0;
         const preview = searchResults.textContent.substring(0, 300);
-        console.log(`[MistralWebSearchService] Search complete: ${contentLength} chars of content extracted, ${sourcesCount} sources found`);
-        console.log(`[MistralWebSearchService] Content preview: ${preview}${contentLength > 300 ? '...' : ''}`);
+        console.log(
+          `[MistralWebSearchService] Search complete: ${contentLength} chars of content extracted, ${sourcesCount} sources found`
+        );
+        console.log(
+          `[MistralWebSearchService] Content preview: ${preview}${contentLength > 300 ? '...' : ''}`
+        );
 
         if (sourcesCount > 0) {
-          const domains = searchResults.sources.map(s => s.domain).join(', ');
+          const domains = searchResults.sources.map((s) => s.domain).join(', ');
           console.log(`[MistralWebSearchService] Sources from: ${domains}`);
         }
       } else {
@@ -107,7 +114,6 @@ export class MistralWebSearchService {
       }
 
       return searchResults;
-
     } catch (error) {
       const err = error as Error;
       console.error(`[MistralWebSearchService] Search failed for query "${query}":`, err.message);

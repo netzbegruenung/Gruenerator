@@ -34,16 +34,29 @@ interface TrimPoints {
   hasTrimming: boolean;
 }
 
-async function detectSilence(inputPath: string, options: DetectionOptions = {}): Promise<SilenceData> {
+async function detectSilence(
+  inputPath: string,
+  options: DetectionOptions = {}
+): Promise<SilenceData> {
   const { threshold = SILENCE_THRESHOLD_DB, duration = MIN_SILENCE_DURATION } = options;
 
-  log.info(`Detecting silence in: ${inputPath} (threshold: ${threshold}dB, min duration: ${duration}s)`);
+  log.info(
+    `Detecting silence in: ${inputPath} (threshold: ${threshold}dB, min duration: ${duration}s)`
+  );
 
   const metadata = await getVideoDuration(inputPath);
   const videoDuration = metadata.duration;
 
   return new Promise((resolve, reject) => {
-    const args = ['-i', inputPath, '-af', `silencedetect=n=${threshold}dB:d=${duration}`, '-f', 'null', '-'];
+    const args = [
+      '-i',
+      inputPath,
+      '-af',
+      `silencedetect=n=${threshold}dB:d=${duration}`,
+      '-f',
+      'null',
+      '-',
+    ];
     const proc = spawn(ffmpegPath, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     let stderr = '';
 
@@ -53,7 +66,9 @@ async function detectSilence(inputPath: string, options: DetectionOptions = {}):
 
     proc.on('close', () => {
       const silencePeriods = parseSilenceOutput(stderr);
-      log.info(`Found ${silencePeriods.length} silence periods in video (duration: ${videoDuration.toFixed(2)}s)`);
+      log.info(
+        `Found ${silencePeriods.length} silence periods in video (duration: ${videoDuration.toFixed(2)}s)`
+      );
       resolve({ silencePeriods, videoDuration });
     });
 
@@ -119,7 +134,9 @@ function calculateTrimPoints(silenceData: SilenceData): TrimPoints {
   }
 
   const hasTrimming = trimStart > 0 || trimEnd < videoDuration;
-  log.info(`Trim points: ${trimStart.toFixed(2)}s to ${trimEnd.toFixed(2)}s (trimming: ${hasTrimming})`);
+  log.info(
+    `Trim points: ${trimStart.toFixed(2)}s to ${trimEnd.toFixed(2)}s (trimming: ${hasTrimming})`
+  );
 
   return { trimStart, trimEnd, hasTrimming };
 }

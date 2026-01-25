@@ -107,17 +107,13 @@ export default function LoginScreen() {
         onPress={() => handleLogin(provider.source)}
         disabled={isLoading}
       >
-        {provider.logo && (
-          <Image source={provider.logo} style={styles.loginLogo} />
-        )}
+        {provider.logo && <Image source={provider.logo} style={styles.loginLogo} />}
         <View style={styles.loginTextContent}>
           {isButtonLoading ? (
             <ActivityIndicator color={theme.text} />
           ) : (
             <>
-              <Text style={[styles.loginTitle, { color: theme.text }]}>
-                {provider.title}
-              </Text>
+              <Text style={[styles.loginTitle, { color: theme.text }]}>{provider.title}</Text>
               <Text style={[styles.loginDescription, { color: theme.textSecondary }]}>
                 {provider.description}
               </Text>
@@ -130,9 +126,7 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>
-        Willkommen beim Grünerator
-      </Text>
+      <Text style={[styles.title, { color: theme.text }]}>Willkommen beim Grünerator</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
         Melde dich an, um alle Funktionen zu nutzen
       </Text>
@@ -152,19 +146,13 @@ export default function LoginScreen() {
           Mit der Anmeldung stimmst du unseren{' '}
           <Text style={styles.legalLink} onPress={handlePrivacyPress}>
             Nutzungsbedingungen und der Datenschutzerklärung
-          </Text>
-          {' '}zu.
+          </Text>{' '}
+          zu.
         </Text>
       </View>
 
-      <Pressable
-        style={styles.cancelButton}
-        onPress={handleClose}
-        disabled={isLoading}
-      >
-        <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>
-          Abbrechen
-        </Text>
+      <Pressable style={styles.cancelButton} onPress={handleClose} disabled={isLoading}>
+        <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Abbrechen</Text>
       </Pressable>
     </View>
   );

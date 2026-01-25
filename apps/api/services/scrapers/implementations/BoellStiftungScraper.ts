@@ -10,11 +10,20 @@ import type { ScraperResult } from '../types.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
-import { scrollDocuments, batchUpsert, batchDelete, getCollectionStats } from '../../../database/services/QdrantService/operations/batchOperations.js';
+import {
+  scrollDocuments,
+  batchUpsert,
+  batchDelete,
+  getCollectionStats,
+} from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { extractMainContent, extractDate } from '../utils/contentExtractor.js';
-import { extractTitle, extractMetaDescription, removeUnwantedElements } from '../utils/htmlCleaner.js';
+import {
+  extractTitle,
+  extractMetaDescription,
+  removeUnwantedElements,
+} from '../utils/htmlCleaner.js';
 
 /**
  * Content type classification
@@ -329,12 +338,30 @@ export class BoellStiftungScraper extends BaseScraper {
 
     // Remove unwanted elements using shared utility
     const removeSelectors = [
-      'script', 'style', 'noscript', 'iframe', 'nav', 'header', 'footer',
-      '.navigation', '.sidebar', '.cookie-banner', '.cookie-notice', '.popup', '.modal',
-      '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
-      '.breadcrumb', '.breadcrumb-nav', '[aria-label*="Breadcrumb"]',
-      '.social-share', '.share-buttons', '.related-content',
-      '.author-info', '.author-bio',
+      'script',
+      'style',
+      'noscript',
+      'iframe',
+      'nav',
+      'header',
+      'footer',
+      '.navigation',
+      '.sidebar',
+      '.cookie-banner',
+      '.cookie-notice',
+      '.popup',
+      '.modal',
+      '[role="navigation"]',
+      '[role="banner"]',
+      '[role="contentinfo"]',
+      '.breadcrumb',
+      '.breadcrumb-nav',
+      '[aria-label*="Breadcrumb"]',
+      '.social-share',
+      '.share-buttons',
+      '.related-content',
+      '.author-info',
+      '.author-bio',
     ];
     removeUnwantedElements($, removeSelectors);
 
@@ -424,7 +451,10 @@ export class BoellStiftungScraper extends BaseScraper {
         .text()
         .trim()
         .toLowerCase()
-        .replace(/[äöü]/g, (match) => ({ ä: 'ae', ö: 'oe', ü: 'ue' }[match as 'ä' | 'ö' | 'ü'] || match))
+        .replace(
+          /[äöü]/g,
+          (match) => ({ ä: 'ae', ö: 'oe', ü: 'ue' })[match as 'ä' | 'ö' | 'ü'] || match
+        )
         .replace(/\s+/g, '-');
       if (this.topicSlugs.includes(tag as any) && !topics.includes(tag)) {
         topics.push(tag);
@@ -540,15 +570,10 @@ export class BoellStiftungScraper extends BaseScraper {
    * Delete article from Qdrant
    */
   async #deleteArticle(url: string): Promise<void> {
-    await batchDelete(
-      this.qdrant.client,
-      this.config.collectionName,
-      {
-        must: [{ key: 'source_url', match: { value: url } }],
-      }
-    );
+    await batchDelete(this.qdrant.client, this.config.collectionName, {
+      must: [{ key: 'source_url', match: { value: url } }],
+    });
   }
-
 
   /**
    * Process and store article
@@ -758,7 +783,9 @@ export class BoellStiftungScraper extends BaseScraper {
         }
 
         if (i % 10 === 0 && i > 0) {
-          this.log(`Progress: ${result.stored} stored, ${result.updated} updated, ${result.skipped} skipped`);
+          this.log(
+            `Progress: ${result.stored} stored, ${result.updated} updated, ${result.skipped} skipped`
+          );
         }
 
         await this.delay(this.crawlDelay);
@@ -772,7 +799,9 @@ export class BoellStiftungScraper extends BaseScraper {
     result.duration = Math.round((Date.now() - startTime) / 1000);
 
     this.log('\n═══════════════════════════════════════');
-    this.log(`COMPLETED: ${result.stored} new, ${result.updated} updated (${result.totalVectors} vectors)`);
+    this.log(
+      `COMPLETED: ${result.stored} new, ${result.updated} updated (${result.totalVectors} vectors)`
+    );
     this.log(`Skipped: ${result.skipped}, Errors: ${result.errors}`);
     this.log(`Duration: ${result.duration}s`);
 
@@ -801,7 +830,10 @@ export class BoellStiftungScraper extends BaseScraper {
   /**
    * Search articles by semantic query
    */
-  async searchArticles(query: string, options: BoellSearchOptions = {}): Promise<{ results: BoellArticleResult[]; total: number }> {
+  async searchArticles(
+    query: string,
+    options: BoellSearchOptions = {}
+  ): Promise<{ results: BoellArticleResult[]; total: number }> {
     const { contentType = null, topic = null, limit = 10, threshold = 0.35 } = options;
 
     const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);

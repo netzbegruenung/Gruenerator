@@ -1,12 +1,14 @@
+import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'motion/react';
 import { Controller } from 'react-hook-form';
-import ReactSelect from 'react-select';
 import { HiX } from 'react-icons/hi';
+import ReactSelect from 'react-select';
+
+import FileUpload from '../../../components/common/FileUpload';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import SmartInput from '../../../components/common/Form/SmartInput';
-import FileUpload from '../../../components/common/FileUpload';
+
 import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
 import './SharepicConfigPopup.css';
 
@@ -47,7 +49,7 @@ const SharepicConfigPopup = ({
   uploadedImage,
   handleImageChange,
   loading,
-  success
+  success,
 }: SharepicConfigPopupProps) => {
   const [fileObject, setFileObject] = useState<File | null>(null);
 
@@ -57,18 +59,21 @@ const SharepicConfigPopup = ({
     }
   }, [uploadedImage]);
 
-  const handleFileChange = useCallback((file: File | null) => {
-    setFileObject(file);
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleImageChange(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      handleImageChange(null);
-    }
-  }, [handleImageChange]);
+  const handleFileChange = useCallback(
+    (file: File | null) => {
+      setFileObject(file);
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          handleImageChange(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        handleImageChange(null);
+      }
+    },
+    [handleImageChange]
+  );
 
   if (!isOpen) return null;
 
@@ -90,7 +95,7 @@ const SharepicConfigPopup = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <div className="sharepic-config-header">
@@ -124,7 +129,7 @@ const SharepicConfigPopup = ({
                       className={`react-select ${error ? 'error' : ''}`.trim()}
                       classNamePrefix="react-select"
                       options={sharepicTypeOptions}
-                      value={sharepicTypeOptions.find(option => option.value === field.value)}
+                      value={sharepicTypeOptions.find((option) => option.value === field.value)}
                       onChange={(selectedOption) => {
                         field.onChange(selectedOption ? selectedOption.value : '');
                       }}
@@ -136,7 +141,7 @@ const SharepicConfigPopup = ({
                       menuPortalTarget={document.body}
                       menuPosition="fixed"
                       styles={{
-                        menuPortal: (base) => ({ ...base, zIndex: 10001 })
+                        menuPortal: (base) => ({ ...base, zIndex: 10001 }),
                       }}
                     />
                   </FormFieldWrapper>
@@ -189,11 +194,7 @@ const SharepicConfigPopup = ({
             </div>
 
             <div className="sharepic-config-footer">
-              <button
-                type="button"
-                className="sharepic-config-done"
-                onClick={onClose}
-              >
+              <button type="button" className="sharepic-config-done" onClick={onClose}>
                 Fertig
               </button>
             </div>

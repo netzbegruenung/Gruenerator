@@ -1,8 +1,11 @@
-import { JSX, useCallback, useMemo } from 'react';
+import { type JSX, useCallback, useMemo } from 'react';
 import CreatableSelect from 'react-select/creatable';
-import type { MultiValue, SingleValue, ActionMeta, StylesConfig, GroupBase } from 'react-select';
-import FormFieldWrapper from './Input/FormFieldWrapper';
+
 import { useRecentValues } from '../../../hooks/useRecentValues';
+
+import FormFieldWrapper from './Input/FormFieldWrapper';
+
+import type { MultiValue, SingleValue, ActionMeta, StylesConfig, GroupBase } from 'react-select';
 
 /**
  * RecentValuesDropdown - A dropdown that shows recent values and allows free typing
@@ -43,7 +46,8 @@ interface RecentValuesDropdownProps {
   [key: string]: unknown;
 }
 
-const RecentValuesDropdown = ({ // Field configuration
+const RecentValuesDropdown = ({
+  // Field configuration
   fieldType,
   value,
   onChange,
@@ -73,18 +77,14 @@ const RecentValuesDropdown = ({ // Field configuration
   tabIndex,
 
   // Additional react-select props
-  ...selectProps }: RecentValuesDropdownProps): JSX.Element => {
+  ...selectProps
+}: RecentValuesDropdownProps): JSX.Element => {
   // Fetch recent values using the custom hook
-  const {
-    recentValues,
-    isLoading,
-    saveRecentValue,
-    clearRecentValues,
-    hasRecentValue
-  } = useRecentValues(fieldType, {
-    limit: maxRecentValues,
-    autoSave
-  });
+  const { recentValues, isLoading, saveRecentValue, clearRecentValues, hasRecentValue } =
+    useRecentValues(fieldType, {
+      limit: maxRecentValues,
+      autoSave,
+    });
 
   // Convert recent values to options format
   const recentOptions = useMemo(() => {
@@ -93,7 +93,7 @@ const RecentValuesDropdown = ({ // Field configuration
       label: val,
       // Add metadata to distinguish recent values
       __isRecentValue: true,
-      __recentIndex: index
+      __recentIndex: index,
     }));
   }, [recentValues]);
 
@@ -103,9 +103,9 @@ const RecentValuesDropdown = ({ // Field configuration
 
     // For multi-select
     if (isMulti && Array.isArray(value)) {
-      return value.map(v => ({
+      return value.map((v) => ({
         value: v,
-        label: String(v)
+        label: String(v),
       }));
     }
 
@@ -113,7 +113,7 @@ const RecentValuesDropdown = ({ // Field configuration
     if (typeof value === 'string' || typeof value === 'number') {
       return {
         value: String(value),
-        label: String(value)
+        label: String(value),
       };
     }
 
@@ -124,28 +124,31 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Handle selection change
    */
-  const handleChange = useCallback((
-    selectedOption: MultiValue<SelectOption> | SingleValue<SelectOption>,
-    _actionMeta: ActionMeta<SelectOption>
-  ) => {
-    // Extract the value(s) from the option(s)
-    let newValue: string | string[];
+  const handleChange = useCallback(
+    (
+      selectedOption: MultiValue<SelectOption> | SingleValue<SelectOption>,
+      _actionMeta: ActionMeta<SelectOption>
+    ) => {
+      // Extract the value(s) from the option(s)
+      let newValue: string | string[];
 
-    if (!selectedOption) {
-      newValue = isMulti ? [] : '';
-    } else if (isMulti) {
-      const options = selectedOption as MultiValue<SelectOption>;
-      newValue = options.map(opt => opt.value);
-    } else {
-      const option = selectedOption as SingleValue<SelectOption>;
-      newValue = option ? option.value : '';
-    }
+      if (!selectedOption) {
+        newValue = isMulti ? [] : '';
+      } else if (isMulti) {
+        const options = selectedOption as MultiValue<SelectOption>;
+        newValue = options.map((opt) => opt.value);
+      } else {
+        const option = selectedOption as SingleValue<SelectOption>;
+        newValue = option ? option.value : '';
+      }
 
-    // Call the parent onChange with the extracted value
-    if (onChange) {
-      onChange(newValue);
-    }
-  }, [onChange, isMulti]);
+      // Call the parent onChange with the extracted value
+      if (onChange) {
+        onChange(newValue);
+      }
+    },
+    [onChange, isMulti]
+  );
 
   /**
    * Handle blur event - save value if autoSave is enabled
@@ -159,13 +162,13 @@ const RecentValuesDropdown = ({ // Field configuration
     if (autoSave && value && !hasRecentValue(String(value))) {
       if (isMulti && Array.isArray(value)) {
         // Save each new value in multi-select
-        value.forEach(v => {
+        value.forEach((v) => {
           if (v && !hasRecentValue(String(v))) {
-            saveRecentValue(String(v), formName || undefined);
+            void saveRecentValue(String(v), formName || undefined);
           }
         });
       } else if (typeof value === 'string' && value.trim()) {
-        saveRecentValue(value, formName || undefined);
+        void saveRecentValue(value, formName || undefined);
       }
     }
   }, [onBlur, autoSave, value, hasRecentValue, saveRecentValue, formName, isMulti]);
@@ -173,82 +176,86 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Handle creation of new option
    */
-  const handleCreate = useCallback((inputValue: string) => {
-    const trimmedValue = inputValue.trim();
-    if (!trimmedValue) return;
+  const handleCreate = useCallback(
+    (inputValue: string) => {
+      const trimmedValue = inputValue.trim();
+      if (!trimmedValue) return;
 
-    const newOption: SelectOption = {
-      value: trimmedValue,
-      label: trimmedValue
-    };
+      const newOption: SelectOption = {
+        value: trimmedValue,
+        label: trimmedValue,
+      };
 
-    const createAction: ActionMeta<SelectOption> = { action: 'create-option', option: newOption };
+      const createAction: ActionMeta<SelectOption> = { action: 'create-option', option: newOption };
 
-    // For multi-select, add to existing values
-    if (isMulti) {
-      const currentValues = Array.isArray(currentOption) ? currentOption : [];
-      handleChange([...currentValues, newOption], createAction);
-    } else {
-      handleChange(newOption, createAction);
-    }
+      // For multi-select, add to existing values
+      if (isMulti) {
+        const currentValues = Array.isArray(currentOption) ? currentOption : [];
+        handleChange([...currentValues, newOption], createAction);
+      } else {
+        handleChange(newOption, createAction);
+      }
 
-    // Save the new value immediately if autoSave is enabled
-    if (autoSave) {
-      saveRecentValue(trimmedValue, formName || undefined);
-    }
-  }, [handleChange, isMulti, currentOption, autoSave, saveRecentValue, formName]);
+      // Save the new value immediately if autoSave is enabled
+      if (autoSave) {
+        void saveRecentValue(trimmedValue, formName || undefined);
+      }
+    },
+    [handleChange, isMulti, currentOption, autoSave, saveRecentValue, formName]
+  );
 
   /**
    * Custom styles for the select component
    */
-  const customStyles = useMemo((): StylesConfig<SelectOption, boolean, GroupBase<SelectOption>> => ({
-    container: (provided) => ({
-      ...provided,
-      fontSize: 'var(--form-element-font-size)'
-    }),
-    control: (provided, state) => ({
-      ...provided,
-      borderColor: error
-        ? 'var(--error-color, #e74c3c)'
-        : state.isFocused
-          ? 'var(--interactive-accent-color)'
-          : 'var(--input-border)',
-      backgroundColor: disabled
-        ? 'var(--input-disabled-background, #f5f5f5)'
-        : 'var(--input-background, #fff)',
-      '&:hover': {
+  const customStyles = useMemo(
+    (): StylesConfig<SelectOption, boolean, GroupBase<SelectOption>> => ({
+      container: (provided) => ({
+        ...provided,
+        fontSize: 'var(--form-element-font-size)',
+      }),
+      control: (provided, state) => ({
+        ...provided,
         borderColor: error
           ? 'var(--error-color, #e74c3c)'
-          : 'var(--interactive-accent-color)'
-      }
+          : state.isFocused
+            ? 'var(--interactive-accent-color)'
+            : 'var(--input-border)',
+        backgroundColor: disabled
+          ? 'var(--input-disabled-background, #f5f5f5)'
+          : 'var(--input-background, #fff)',
+        '&:hover': {
+          borderColor: error ? 'var(--error-color, #e74c3c)' : 'var(--interactive-accent-color)',
+        },
+      }),
+      menu: (provided) => ({
+        ...provided,
+        zIndex: 9999,
+      }),
+      option: (provided, state) => ({
+        ...provided,
+        backgroundColor: state.isSelected
+          ? 'var(--button-color)'
+          : state.isFocused
+            ? 'var(--klee-light, #e8f5e9)'
+            : 'transparent',
+        color: state.isSelected ? 'white' : 'var(--font-color)',
+        fontSize: 'var(--form-element-font-size)',
+        fontStyle: (state.data as SelectOption)?.__isRecentValue ? 'normal' : 'normal',
+        '&:before': (state.data as SelectOption)?.__isRecentValue
+          ? {
+              content: '"✓ "',
+              color: 'var(--success-color, #27ae60)',
+              marginRight: '4px',
+            }
+          : {},
+      }),
+      placeholder: (provided) => ({
+        ...provided,
+        color: 'var(--input-placeholder-color, #999)',
+      }),
     }),
-    menu: (provided) => ({
-      ...provided,
-      zIndex: 9999
-    }),
-    option: (provided, state) => ({
-      ...provided,
-      backgroundColor: state.isSelected
-        ? 'var(--button-color)'
-        : state.isFocused
-          ? 'var(--klee-light, #e8f5e9)'
-          : 'transparent',
-      color: state.isSelected
-        ? 'white'
-        : 'var(--font-color)',
-      fontSize: 'var(--form-element-font-size)',
-      fontStyle: (state.data as SelectOption)?.__isRecentValue ? 'normal' : 'normal',
-      '&:before': (state.data as SelectOption)?.__isRecentValue ? {
-        content: '"✓ "',
-        color: 'var(--success-color, #27ae60)',
-        marginRight: '4px'
-      } : {}
-    }),
-    placeholder: (provided) => ({
-      ...provided,
-      color: 'var(--input-placeholder-color, #999)'
-    })
-  }), [error, disabled]);
+    [error, disabled]
+  );
 
   /**
    * Format the "create" label
@@ -265,10 +272,13 @@ const RecentValuesDropdown = ({ // Field configuration
     [key: string]: unknown;
   }
   const selectPropsTyped = selectProps as SelectPropsWithComponents;
-  const components = useMemo(() => ({
-    ...(selectPropsTyped?.components || {}),
-    // Could add custom components here if needed
-  }), [selectPropsTyped?.components]);
+  const components = useMemo(
+    () => ({
+      ...(selectPropsTyped?.components || {}),
+      // Could add custom components here if needed
+    }),
+    [selectPropsTyped?.components]
+  );
 
   const selectElement = (
     <CreatableSelect
@@ -278,28 +288,23 @@ const RecentValuesDropdown = ({ // Field configuration
       onChange={handleChange}
       onBlur={handleBlur}
       onCreateOption={handleCreate}
-
       // Options
       options={recentOptions}
       isLoading={isLoading}
-
       // UI Configuration
       placeholder={placeholder}
       isDisabled={disabled}
       isClearable={isClearable}
       isSearchable={isSearchable}
       isMulti={isMulti}
-
       // Styling
       className={className}
       classNamePrefix={classNamePrefix}
       styles={customStyles}
-
       // Labels and messages
       formatCreateLabel={formatCreateLabel}
       noOptionsMessage={() => 'Keine vorherigen Werte gefunden'}
       loadingMessage={() => 'Lade vorherige Werte...'}
-
       // Behavior
       createOptionPosition="first"
       closeMenuOnSelect={!isMulti}
@@ -307,10 +312,8 @@ const RecentValuesDropdown = ({ // Field configuration
       menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
       menuPosition="fixed"
       tabIndex={tabIndex}
-
       // Additional props
       {...selectProps}
-
       // Components override
       components={components}
     />
@@ -320,7 +323,7 @@ const RecentValuesDropdown = ({ // Field configuration
   const clearButton = showClearButton && recentValues.length > 0 && (
     <button
       type="button"
-      onClick={() => clearRecentValues()}
+      onClick={() => void clearRecentValues()}
       className="recent-values-clear-button"
       disabled={disabled}
       title="Verlauf löschen"
@@ -331,7 +334,7 @@ const RecentValuesDropdown = ({ // Field configuration
         background: 'none',
         border: 'none',
         cursor: 'pointer',
-        textDecoration: 'underline'
+        textDecoration: 'underline',
       }}
     >
       Verlauf löschen

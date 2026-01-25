@@ -9,7 +9,7 @@ import {
   extractTheme,
   extractDetails,
   extractStructure,
-  determineRequestType
+  determineRequestType,
 } from '../utils/extractionUtils.js';
 
 /**
@@ -29,6 +29,6 @@ export function extractAntragParams(
     idee,
     details: details || message,
     gliederung,
-    requestType: determineRequestType(message)
+    requestType: determineRequestType(message),
   };
 }

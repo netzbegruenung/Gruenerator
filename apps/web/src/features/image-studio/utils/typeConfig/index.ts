@@ -14,14 +14,9 @@ export {
   IMAGE_STUDIO_TYPES,
   KI_SUBCATEGORIES,
   FORM_STEPS,
-  URL_TYPE_MAP
+  URL_TYPE_MAP,
 } from './constants';
-export type {
-  ImageStudioCategory,
-  ImageStudioType,
-  KiSubcategory,
-  FormStep
-} from './constants';
+export type { ImageStudioCategory, ImageStudioType, KiSubcategory, FormStep } from './constants';
 
 // Export types
 export type {
@@ -40,28 +35,29 @@ export type {
   SelectOption,
   Endpoints,
   ResponseMapper,
-  AlternativesMapper
+  AlternativesMapper,
 } from './types';
 
 // Export variant system
 export { VARIANT_STYLES, VARIANT_TYPES, createVariants } from './variants';
 
 // Import template and KI configs
-import { templateTypeConfigs, templateFieldConfigs } from './templates';
-import { kiTypeConfigs, kiFieldConfigs } from './ki';
 import { IMAGE_STUDIO_CATEGORIES, KI_SUBCATEGORIES } from './constants';
+import { kiTypeConfigs, kiFieldConfigs } from './ki';
+import { templateTypeConfigs, templateFieldConfigs } from './templates';
+
 import type { TypeConfig, TemplateFieldConfig, CategoryConfig, SubcategoryConfig } from './types';
 
 // Combined TYPE_CONFIG for backward compatibility
 export const TYPE_CONFIG: Record<string, TypeConfig> = {
   ...templateTypeConfigs,
-  ...kiTypeConfigs
+  ...kiTypeConfigs,
 };
 
 // Combined TEMPLATE_FIELD_CONFIG for backward compatibility
 export const TEMPLATE_FIELD_CONFIG: Record<string, TemplateFieldConfig> = {
   ...templateFieldConfigs,
-  ...kiFieldConfigs
+  ...kiFieldConfigs,
 };
 
 // Category configuration
@@ -73,8 +69,8 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     description: 'Erstelle Sharepics mit vorgefertigten Designs',
     icon: PiLayout,
     types: Object.values(templateTypeConfigs)
-      .filter(t => !t.hidden && !t.excludeFromTemplates)
-      .map(t => t.id)
+      .filter((t) => !t.hidden && !t.excludeFromTemplates)
+      .map((t) => t.id),
   },
   [IMAGE_STUDIO_CATEGORIES.KI]: {
     id: IMAGE_STUDIO_CATEGORIES.KI,
@@ -85,9 +81,9 @@ export const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
     hasRateLimit: true,
     hasSubcategories: true,
     types: Object.values(kiTypeConfigs)
-      .filter(t => !t.hidden)
-      .map(t => t.id)
-  }
+      .filter((t) => !t.hidden)
+      .map((t) => t.id),
+  },
 };
 
 // KI Subcategory configuration
@@ -97,23 +93,22 @@ export const KI_SUBCATEGORY_CONFIG: Record<string, SubcategoryConfig> = {
     label: 'Mit KI Editieren',
     description: 'Bestehende Bilder mit KI bearbeiten',
     icon: HiPencilAlt,
-    previewImage: '/imagine/green-street-example.png'
+    previewImage: '/imagine/green-street-example.png',
   },
   [KI_SUBCATEGORIES.CREATE]: {
     id: KI_SUBCATEGORIES.CREATE,
     label: 'Mit KI Generieren',
     description: 'Neue Bilder aus Text erstellen',
     icon: HiSparkles,
-    previewImage: '/imagine/variants-pure/soft-illustration.png'
-  }
+    previewImage: '/imagine/variants-pure/soft-illustration.png',
+  },
 };
 
 // Helper functions for backward compatibility
 export const getTemplateFieldConfig = (typeId: string): TemplateFieldConfig | null =>
   TEMPLATE_FIELD_CONFIG[typeId] || null;
 
-export const getTypeConfig = (typeId: string): TypeConfig | null =>
-  TYPE_CONFIG[typeId] || null;
+export const getTypeConfig = (typeId: string): TypeConfig | null => TYPE_CONFIG[typeId] || null;
 
 export const getCategoryConfig = (categoryId: string): CategoryConfig | null =>
   CATEGORY_CONFIG[categoryId] || null;
@@ -122,18 +117,19 @@ export const getTypesForCategory = (categoryId: string, includeExcluded = false)
   const category = CATEGORY_CONFIG[categoryId];
   if (!category) return [];
   return category.types
-    .map(typeId => TYPE_CONFIG[typeId])
-    .filter((t): t is TypeConfig => t !== undefined && !t.hidden && (includeExcluded || !t.excludeFromTemplates));
+    .map((typeId) => TYPE_CONFIG[typeId])
+    .filter(
+      (t): t is TypeConfig =>
+        t !== undefined && !t.hidden && (includeExcluded || !t.excludeFromTemplates)
+    );
 };
 
 export const getAllKiTypes = (): TypeConfig[] => {
-  return Object.values(kiTypeConfigs)
-    .filter(t => !t.hidden);
+  return Object.values(kiTypeConfigs).filter((t) => !t.hidden);
 };
 
 export const getTypesForSubcategory = (subcategoryId: string): TypeConfig[] => {
-  return Object.values(kiTypeConfigs)
-    .filter(t => t.subcategory === subcategoryId && !t.hidden);
+  return Object.values(kiTypeConfigs).filter((t) => t.subcategory === subcategoryId && !t.hidden);
 };
 
 export const getSubcategoryConfig = (subcategoryId: string): SubcategoryConfig | null =>
@@ -155,7 +151,7 @@ export default {
   IMAGE_STUDIO_TYPES: Object.fromEntries(
     Object.entries(TYPE_CONFIG).map(([key, config]) => [
       key.toUpperCase().replace(/-/g, '_'),
-      config.id
+      config.id,
     ])
   ),
   KI_SUBCATEGORIES,
@@ -166,7 +162,7 @@ export default {
     INPUT: 'INPUT',
     PREVIEW: 'PREVIEW',
     CANVAS_EDIT: 'CANVAS_EDIT',
-    RESULT: 'RESULT'
+    RESULT: 'RESULT',
   },
   TYPE_CONFIG,
   CATEGORY_CONFIG,
@@ -183,5 +179,5 @@ export default {
   getTypeFromLegacy,
   URL_TYPE_MAP: Object.fromEntries(
     Object.entries(TYPE_CONFIG).map(([, config]) => [config.id, config.id])
-  )
+  ),
 };

@@ -10,7 +10,12 @@ import type { ScraperResult } from '../types.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
-import { scrollDocuments, batchUpsert, batchDelete, getCollectionStats } from '../../../database/services/QdrantService/operations/batchOperations.js';
+import {
+  scrollDocuments,
+  batchUpsert,
+  batchDelete,
+  getCollectionStats,
+} from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { ocrService } from '../../OcrService/index.js';
@@ -115,76 +120,336 @@ interface ExistingDocument {
  */
 const SATZUNGEN_SOURCES: readonly SatzungSource[] = [
   // PDF Sources - Kreisverbände
-  { url: 'https://www.gruene-bielefeld.de/wp-content/uploads/2024/03/Satzung.pdf', city: 'Bielefeld', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-bochum.de/wp-content/uploads/2023/10/Satzung-Gruene-Bochum-2023_neu.pdf', city: 'Bochum', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-bonn.de/partei/wp-content/uploads/sites/3/2020/06/Satzung_GRUENE-Bonn.pdf', city: 'Bonn', gremium: 'Kreisverband', format: 'pdf' },
+  {
+    url: 'https://www.gruene-bielefeld.de/wp-content/uploads/2024/03/Satzung.pdf',
+    city: 'Bielefeld',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-bochum.de/wp-content/uploads/2023/10/Satzung-Gruene-Bochum-2023_neu.pdf',
+    city: 'Bochum',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-bonn.de/partei/wp-content/uploads/sites/3/2020/06/Satzung_GRUENE-Bonn.pdf',
+    city: 'Bonn',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
   {
     url: 'https://www.gruene-dortmund.de/assets/ov-aplerbeck/assets/downloads/Satzung_KV_Dortmund___nach___nderung_JHV_2024__1.pdf',
     city: 'Dortmund',
     gremium: 'Kreisverband',
     format: 'pdf',
   },
-  { url: 'https://gruene-duisburg.de/wp-content/uploads/2025/03/Satzung-Stand-Mai-2024-1.pdf', city: 'Duisburg', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-dueren.de/files/2019/11/Satzung-KV-D%C3%BCren-laut-KMV-21.09.2018-1.pdf', city: 'Düren', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://www.gruene-duesseldorf.de/wp-content/uploads/2025/04/20250128_Satzung.pdf', city: 'Düsseldorf', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-essen.de/kreisverband/wp-content/uploads/sites/2/2023/01/SatzungKVEssen2012.pdf', city: 'Essen', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://www.gruene-gelsenkirchen.de/wp-content/uploads/2019/12/Satzung.pdf', city: 'Gelsenkirchen', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://www.gruene-kreisgt.de/wp-content/uploads/2022/03/Satzung-KV-Guetersloh-26.03.2022-2.pdf', city: 'Gütersloh', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-herne.de/wp-content/uploads/2020/05/Satzung-und-GO_20201905.pdf', city: 'Herne', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-hoexter.de/userspace/NW/kv_hoexter/Dokumente/Satzung_Beschluss_2014.pdf', city: 'Höxter', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://www.gruenekoeln.de/fileadmin/user_upload/GR%C3%9CNE_K%C3%B6ln_-_Satzung__25.03.2023_.pdf', city: 'Köln', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-muenster.de/wp-content/uploads/2025/07/2025-07-Satzung.pdf', city: 'Münster', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-oberberg.de/wp-content/uploads/2023/09/2023.03.24_Satzung-KV-Oberberg.pdf', city: 'Oberberg', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-oberhausen.de/userspace/NW/kv_oberhausen/Dokumente/Texte/Satzung_Stand_September_2025.pdf', city: 'Oberhausen', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://www.gruene-rkn.de/wp-content/uploads/2023/11/Satzung-KV-RKN.pdf', city: 'Rhein-Kreis Neuss', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-rhein-sieg.de/wp-content/uploads/2025/11/Satzung_KVRSK_25neu.pdf', city: 'Rhein-Sieg', gremium: 'Kreisverband', format: 'pdf' },
+  {
+    url: 'https://gruene-duisburg.de/wp-content/uploads/2025/03/Satzung-Stand-Mai-2024-1.pdf',
+    city: 'Duisburg',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-dueren.de/files/2019/11/Satzung-KV-D%C3%BCren-laut-KMV-21.09.2018-1.pdf',
+    city: 'Düren',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruene-duesseldorf.de/wp-content/uploads/2025/04/20250128_Satzung.pdf',
+    city: 'Düsseldorf',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-essen.de/kreisverband/wp-content/uploads/sites/2/2023/01/SatzungKVEssen2012.pdf',
+    city: 'Essen',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruene-gelsenkirchen.de/wp-content/uploads/2019/12/Satzung.pdf',
+    city: 'Gelsenkirchen',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruene-kreisgt.de/wp-content/uploads/2022/03/Satzung-KV-Guetersloh-26.03.2022-2.pdf',
+    city: 'Gütersloh',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-herne.de/wp-content/uploads/2020/05/Satzung-und-GO_20201905.pdf',
+    city: 'Herne',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-hoexter.de/userspace/NW/kv_hoexter/Dokumente/Satzung_Beschluss_2014.pdf',
+    city: 'Höxter',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruenekoeln.de/fileadmin/user_upload/GR%C3%9CNE_K%C3%B6ln_-_Satzung__25.03.2023_.pdf',
+    city: 'Köln',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-muenster.de/wp-content/uploads/2025/07/2025-07-Satzung.pdf',
+    city: 'Münster',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-oberberg.de/wp-content/uploads/2023/09/2023.03.24_Satzung-KV-Oberberg.pdf',
+    city: 'Oberberg',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-oberhausen.de/userspace/NW/kv_oberhausen/Dokumente/Texte/Satzung_Stand_September_2025.pdf',
+    city: 'Oberhausen',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruene-rkn.de/wp-content/uploads/2023/11/Satzung-KV-RKN.pdf',
+    city: 'Rhein-Kreis Neuss',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-rhein-sieg.de/wp-content/uploads/2025/11/Satzung_KVRSK_25neu.pdf',
+    city: 'Rhein-Sieg',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
   {
     url: 'https://gruene-rbk.de/userspace/NW/kv_rheinberg/Typo3/Kreisverband/Satzung/Satzung_Kreisverband_RBK_Stand__31_08_2024.pdf',
     city: 'Rheinisch-Bergischer Kreis',
     gremium: 'Kreisverband',
     format: 'pdf',
   },
-  { url: 'https://www.gruene-kreis-steinfurt.de/userspace/NW/kv_steinfurt/Dokumente/Neue_Satzung_KV_Steinfurt_-_01.10.2020.pdf', city: 'Steinfurt', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-kreis-warendorf.de/userspace/NW/kv_warendorf/Satzung/20201110_Satzung_KV_Warendorf.pdf', city: 'Warendorf', gremium: 'Kreisverband', format: 'pdf' },
-  { url: 'https://gruene-kvwuppertal.de/userspace/NW/kv_wuppertal/Dokumente/Satzung_01.02.24.pdf', city: 'Wuppertal', gremium: 'Kreisverband', format: 'pdf' },
+  {
+    url: 'https://www.gruene-kreis-steinfurt.de/userspace/NW/kv_steinfurt/Dokumente/Neue_Satzung_KV_Steinfurt_-_01.10.2020.pdf',
+    city: 'Steinfurt',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-kreis-warendorf.de/userspace/NW/kv_warendorf/Satzung/20201110_Satzung_KV_Warendorf.pdf',
+    city: 'Warendorf',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-kvwuppertal.de/userspace/NW/kv_wuppertal/Dokumente/Satzung_01.02.24.pdf',
+    city: 'Wuppertal',
+    gremium: 'Kreisverband',
+    format: 'pdf',
+  },
 
   // PDF Sources - Ortsverbände
-  { url: 'https://www.gruenekoeln.de/fileadmin/user_upload/Satzung_OV_1.pdf', city: 'Köln Innenstadt/Deutz', gremium: 'Ortsverband', format: 'pdf' },
-  { url: 'https://www.gruenekoeln.de/fileadmin/KV/Kreisverband/Veedel/OV2/OV2_-_Satzung_AKTUELL__ab_2022_.pdf', city: 'Köln Rodenkirchen', gremium: 'Ortsverband', format: 'pdf' },
-  { url: 'https://www.gruenekoeln.de/fileadmin/KV/Kreisverband/Veedel/OV5/SatzungOV5.pdf', city: 'Köln Nippes', gremium: 'Ortsverband', format: 'pdf' },
-  { url: 'https://www.gruenekoeln.de/fileadmin/user_upload/Satzung_Gruene_OV_Chorweiler_Endversion_2021.pdf', city: 'Köln Chorweiler', gremium: 'Ortsverband', format: 'pdf' },
-  { url: 'https://gruene-kleve.de/wp-content/uploads/2023/08/2023-08-22_Satzung_Gruener-OV-Kleve.pdf', city: 'Kleve', gremium: 'Ortsverband', format: 'pdf' },
-  { url: 'https://gruene-unna.de/wp-content/uploads/2025/09/satzung.pdf', city: 'Unna', gremium: 'Ortsverband', format: 'pdf' },
-  { url: 'https://www.gruene-wesel.de/wp-content/uploads/2025/05/Satzung_Stand-21.05.2025.pdf', city: 'Wesel', gremium: 'Ortsverband', format: 'pdf' },
-  { url: 'https://gruene-recklinghausen.de/wp-content/uploads/sites/261/2024/03/SatzungOVRecklinghausen.pdf', city: 'Recklinghausen', gremium: 'Ortsverband', format: 'pdf' },
+  {
+    url: 'https://www.gruenekoeln.de/fileadmin/user_upload/Satzung_OV_1.pdf',
+    city: 'Köln Innenstadt/Deutz',
+    gremium: 'Ortsverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruenekoeln.de/fileadmin/KV/Kreisverband/Veedel/OV2/OV2_-_Satzung_AKTUELL__ab_2022_.pdf',
+    city: 'Köln Rodenkirchen',
+    gremium: 'Ortsverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruenekoeln.de/fileadmin/KV/Kreisverband/Veedel/OV5/SatzungOV5.pdf',
+    city: 'Köln Nippes',
+    gremium: 'Ortsverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruenekoeln.de/fileadmin/user_upload/Satzung_Gruene_OV_Chorweiler_Endversion_2021.pdf',
+    city: 'Köln Chorweiler',
+    gremium: 'Ortsverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-kleve.de/wp-content/uploads/2023/08/2023-08-22_Satzung_Gruener-OV-Kleve.pdf',
+    city: 'Kleve',
+    gremium: 'Ortsverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-unna.de/wp-content/uploads/2025/09/satzung.pdf',
+    city: 'Unna',
+    gremium: 'Ortsverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://www.gruene-wesel.de/wp-content/uploads/2025/05/Satzung_Stand-21.05.2025.pdf',
+    city: 'Wesel',
+    gremium: 'Ortsverband',
+    format: 'pdf',
+  },
+  {
+    url: 'https://gruene-recklinghausen.de/wp-content/uploads/sites/261/2024/03/SatzungOVRecklinghausen.pdf',
+    city: 'Recklinghausen',
+    gremium: 'Ortsverband',
+    format: 'pdf',
+  },
 
   // HTML Sources - Kreisverbände
-  { url: 'https://www.gruene-region-aachen.de/service/satzung', city: 'Aachen', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-kreis-borken.de/satzung-buendnis-90-die-gruenen-kreisverband-borken/', city: 'Borken', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://www.gruene-euskirchen.de/kreisverband/satzung/', city: 'Euskirchen', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://www.gruene-hamm.de/satzung/', city: 'Hamm', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-kreis-heinsberg.de/satzung-des-kreisverbandes-heinsberg/', city: 'Heinsberg', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-kreis-herford.de/satzung-von-buendnis-90-die-gruenen-kreisverband-herford/', city: 'Herford', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-hochsauerland.de/satzung-des-kreisverbandes/', city: 'Hochsauerlandkreis', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://www.gruene-krefeld.de/satzung-kv/', city: 'Krefeld', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-lev.de/satzung/', city: 'Leverkusen', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-lippe.de/kreisverband/satzung-und-ordnungen/satzung-kv-lippe/', city: 'Lippe', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://www.gruene-mk.de/kreisverband/satzung/', city: 'Märkischer Kreis', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://xn--grne-milk-r9a.de/satzung-des-kv-milk/', city: 'Minden-Lübbecke', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-mg.net/satzung-buendnis-90-die-gruenen-kreisverband-moenchengladbach', city: 'Mönchengladbach', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-mh.de/satzung/', city: 'Mülheim', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://www.padergruen.de/kreisverband/satzung-kreisverband/', city: 'Paderborn', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-recklinghausen.de/satzung-und-dokumente/', city: 'Recklinghausen', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-remscheid.de/partei-der-kreisverband/satzung', city: 'Remscheid', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://www.gruene-siegen-wittgenstein.de/ueber-uns/satzung/', city: 'Siegen-Wittgenstein', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://gruene-solingen.de/partei/satzung', city: 'Solingen', gremium: 'Kreisverband', format: 'html' },
-  { url: 'https://www.gruene-viersen.de/satzung/', city: 'Viersen', gremium: 'Kreisverband', format: 'html' },
+  {
+    url: 'https://www.gruene-region-aachen.de/service/satzung',
+    city: 'Aachen',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-kreis-borken.de/satzung-buendnis-90-die-gruenen-kreisverband-borken/',
+    city: 'Borken',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://www.gruene-euskirchen.de/kreisverband/satzung/',
+    city: 'Euskirchen',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://www.gruene-hamm.de/satzung/',
+    city: 'Hamm',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-kreis-heinsberg.de/satzung-des-kreisverbandes-heinsberg/',
+    city: 'Heinsberg',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-kreis-herford.de/satzung-von-buendnis-90-die-gruenen-kreisverband-herford/',
+    city: 'Herford',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-hochsauerland.de/satzung-des-kreisverbandes/',
+    city: 'Hochsauerlandkreis',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://www.gruene-krefeld.de/satzung-kv/',
+    city: 'Krefeld',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-lev.de/satzung/',
+    city: 'Leverkusen',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-lippe.de/kreisverband/satzung-und-ordnungen/satzung-kv-lippe/',
+    city: 'Lippe',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://www.gruene-mk.de/kreisverband/satzung/',
+    city: 'Märkischer Kreis',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://xn--grne-milk-r9a.de/satzung-des-kv-milk/',
+    city: 'Minden-Lübbecke',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-mg.net/satzung-buendnis-90-die-gruenen-kreisverband-moenchengladbach',
+    city: 'Mönchengladbach',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-mh.de/satzung/',
+    city: 'Mülheim',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://www.padergruen.de/kreisverband/satzung-kreisverband/',
+    city: 'Paderborn',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-recklinghausen.de/satzung-und-dokumente/',
+    city: 'Recklinghausen',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-remscheid.de/partei-der-kreisverband/satzung',
+    city: 'Remscheid',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://www.gruene-siegen-wittgenstein.de/ueber-uns/satzung/',
+    city: 'Siegen-Wittgenstein',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-solingen.de/partei/satzung',
+    city: 'Solingen',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
+  {
+    url: 'https://www.gruene-viersen.de/satzung/',
+    city: 'Viersen',
+    gremium: 'Kreisverband',
+    format: 'html',
+  },
 
   // HTML Sources - Ortsverbände
-  { url: 'https://www.gruenekoeln.de/veedel/lindenthal/satzung', city: 'Köln Lindenthal', gremium: 'Ortsverband', format: 'html' },
-  { url: 'https://gruene-muenster-nord.de/satzung/', city: 'Münster Nord', gremium: 'Ortsverband', format: 'html' },
-  { url: 'https://gruene-muenster-west.de/?page_id=136', city: 'Münster West', gremium: 'Ortsverband', format: 'html' },
-  { url: 'https://www.gruene-hiltrup.de/ortsverband-hiltrup/satzung/', city: 'Münster Hiltrup', gremium: 'Ortsverband', format: 'html' },
+  {
+    url: 'https://www.gruenekoeln.de/veedel/lindenthal/satzung',
+    city: 'Köln Lindenthal',
+    gremium: 'Ortsverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-muenster-nord.de/satzung/',
+    city: 'Münster Nord',
+    gremium: 'Ortsverband',
+    format: 'html',
+  },
+  {
+    url: 'https://gruene-muenster-west.de/?page_id=136',
+    city: 'Münster West',
+    gremium: 'Ortsverband',
+    format: 'html',
+  },
+  {
+    url: 'https://www.gruene-hiltrup.de/ortsverband-hiltrup/satzung/',
+    city: 'Münster Hiltrup',
+    gremium: 'Ortsverband',
+    format: 'html',
+  },
 ] as const;
 
 /**
@@ -257,7 +522,6 @@ export class SatzungenScraper extends BaseScraper {
     });
   }
 
-
   /**
    * Extract content from HTML
    */
@@ -266,11 +530,28 @@ export class SatzungenScraper extends BaseScraper {
 
     // Remove unwanted elements using shared utility
     const removeSelectors = [
-      'script', 'style', 'noscript', 'iframe', 'nav', 'header', 'footer',
-      '.navigation', '.sidebar', '.cookie-banner', '.cookie-notice', '.popup', '.modal',
-      '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
-      '.breadcrumb', '.breadcrumb-nav', '[aria-label*="Breadcrumb"]',
-      '.social-share', '.share-buttons', '.related-content',
+      'script',
+      'style',
+      'noscript',
+      'iframe',
+      'nav',
+      'header',
+      'footer',
+      '.navigation',
+      '.sidebar',
+      '.cookie-banner',
+      '.cookie-notice',
+      '.popup',
+      '.modal',
+      '[role="navigation"]',
+      '[role="banner"]',
+      '[role="contentinfo"]',
+      '.breadcrumb',
+      '.breadcrumb-nav',
+      '[aria-label*="Breadcrumb"]',
+      '.social-share',
+      '.share-buttons',
+      '.related-content',
     ];
     removeUnwantedElements($, removeSelectors);
 
@@ -340,20 +621,19 @@ export class SatzungenScraper extends BaseScraper {
    * Delete document from Qdrant
    */
   async #deleteDocument(url: string): Promise<void> {
-    await batchDelete(
-      this.qdrant.client,
-      this.config.collectionName,
-      {
-        must: [{ key: 'source_url', match: { value: url } }],
-      }
-    );
+    await batchDelete(this.qdrant.client, this.config.collectionName, {
+      must: [{ key: 'source_url', match: { value: url } }],
+    });
   }
-
 
   /**
    * Process and store document
    */
-  async #processAndStoreDocument(source: SatzungSource, text: string, title: string | null): Promise<ProcessResult> {
+  async #processAndStoreDocument(
+    source: SatzungSource,
+    text: string,
+    title: string | null
+  ): Promise<ProcessResult> {
     if (!text || text.length < 100) {
       return { stored: false, reason: 'too_short' };
     }
@@ -488,7 +768,9 @@ export class SatzungenScraper extends BaseScraper {
       },
     };
 
-    const sourcesToProcess = maxDocuments ? (SATZUNGEN_SOURCES.slice(0, maxDocuments) as SatzungSource[]) : SATZUNGEN_SOURCES;
+    const sourcesToProcess = maxDocuments
+      ? (SATZUNGEN_SOURCES.slice(0, maxDocuments) as SatzungSource[])
+      : SATZUNGEN_SOURCES;
 
     for (let i = 0; i < sourcesToProcess.length; i++) {
       const source = sourcesToProcess[i];
@@ -518,7 +800,9 @@ export class SatzungenScraper extends BaseScraper {
             result.stored++;
           }
           result.totalVectors += processResult.vectors || 0;
-          this.log(`✓ [${i + 1}/${sourcesToProcess.length}] ${source.gremium} ${source.city} (${processResult.chunks} chunks)`);
+          this.log(
+            `✓ [${i + 1}/${sourcesToProcess.length}] ${source.gremium} ${source.city} (${processResult.chunks} chunks)`
+          );
         } else {
           result.skipped++;
           const reason = processResult.reason;
@@ -547,7 +831,9 @@ export class SatzungenScraper extends BaseScraper {
     result.duration = Math.round((Date.now() - startTime) / 1000);
 
     this.log('\n═══════════════════════════════════════');
-    this.log(`COMPLETED: ${result.stored} new, ${result.updated} updated (${result.totalVectors} vectors)`);
+    this.log(
+      `COMPLETED: ${result.stored} new, ${result.updated} updated (${result.totalVectors} vectors)`
+    );
     this.log(`Skipped: ${result.skipped}, Errors: ${result.errors}`);
     this.log(`Duration: ${result.duration}s`);
 
@@ -568,7 +854,10 @@ export class SatzungenScraper extends BaseScraper {
   /**
    * Search documents by semantic query
    */
-  async searchDocuments(query: string, options: SatzungenSearchOptions = {}): Promise<{ results: SatzungSearchResult[]; total: number }> {
+  async searchDocuments(
+    query: string,
+    options: SatzungenSearchOptions = {}
+  ): Promise<{ results: SatzungSearchResult[]; total: number }> {
     const { gremium = null, city = null, limit = 10, threshold = 0.35 } = options;
 
     const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);

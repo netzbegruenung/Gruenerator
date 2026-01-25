@@ -18,7 +18,7 @@ export type {
   KnowledgeExtractionOptions,
   MistralContentItem,
   CacheKeyComponents,
-  ClearUserDataResult
+  ClearUserDataResult,
 } from './types.js';
 
 // Re-export module functions (for direct use if needed)
@@ -27,22 +27,14 @@ export {
   storeAttachment,
   storeAttachments,
   getRecentDocuments,
-  clearUserDocuments
+  clearUserDocuments,
 } from './redisOperations.js';
 
-export {
-  generateQuestionsForIntent
-} from './contextExtraction.js';
+export { generateQuestionsForIntent } from './contextExtraction.js';
 
-export {
-  askMistralAboutDocuments
-} from './mistralIntegration.js';
+export { askMistralAboutDocuments } from './mistralIntegration.js';
 
-export {
-  generateCacheKey,
-  getCachedKnowledge,
-  cacheKnowledge
-} from './contextManagement.js';
+export { generateCacheKey, getCachedKnowledge, cacheKnowledge } from './contextManagement.js';
 
 // Default export
 export { DocumentQnAService as default } from './DocumentQnAService.js';

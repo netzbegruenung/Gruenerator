@@ -49,9 +49,7 @@ export function ProfileHeader({ user, compact = false }: ProfileHeaderProps) {
       <Text style={[styles.displayName, { color: theme.text }]}>
         {user.display_name || 'Grünerator-Nutzer'}
       </Text>
-      <Text style={[styles.email, { color: theme.textSecondary }]}>
-        {user.email}
-      </Text>
+      <Text style={[styles.email, { color: theme.textSecondary }]}>{user.email}</Text>
     </View>
   );
 }

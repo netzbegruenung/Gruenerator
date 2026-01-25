@@ -1,11 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaImage, FaTrash, FaShareAlt, FaDownload, FaPlus, FaClock, FaEdit, FaSave } from 'react-icons/fa';
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
-import type { Share } from '@gruenerator/shared';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  FaImage,
+  FaTrash,
+  FaShareAlt,
+  FaDownload,
+  FaPlus,
+  FaClock,
+  FaEdit,
+  FaSave,
+} from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+
+
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { useTemplateClone } from '../hooks/useTemplateClone';
+
+import type { Share } from '@gruenerator/shared';
 import './ImageGallery.css';
 
 const MAX_IMAGES = 50;
@@ -77,17 +89,17 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   onDownload,
   onEdit,
   onClick,
-  onUseTemplate
+  onUseTemplate,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   // Allow editing if we have sharepicType and either original image OR content data
-  const isEditable = image.imageMetadata?.sharepicType && (
-    image.imageMetadata?.hasOriginalImage ||
-    (image.imageMetadata?.content && Object.keys(image.imageMetadata.content).length > 0)
-  );
+  const isEditable =
+    image.imageMetadata?.sharepicType &&
+    (image.imageMetadata?.hasOriginalImage ||
+      (image.imageMetadata?.content && Object.keys(image.imageMetadata.content).length > 0));
 
   const isTemplate = image.imageMetadata?.is_template === true;
 
@@ -137,9 +149,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   };
 
   const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
-  const thumbnailUrl = image.thumbnailPath
-    ? `${baseURL}/share/${image.shareToken}/preview`
-    : null;
+  const thumbnailUrl = image.thumbnailPath ? `${baseURL}/share/${image.shareToken}/preview` : null;
 
   return (
     <div
@@ -161,9 +171,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
             <FaImage />
           </div>
         )}
-        {image.imageType && (
-          <span className="image-gallery-type-badge">{image.imageType}</span>
-        )}
+        {image.imageType && <span className="image-gallery-type-badge">{image.imageType}</span>}
         {isTemplate && (
           <span className="image-gallery-template-badge">
             <FaSave /> Vorlage
@@ -214,9 +222,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
       </div>
 
       <div className="image-gallery-info">
-        <h3 className="image-gallery-item-title">
-          {image.title || 'Unbenanntes Bild'}
-        </h3>
+        <h3 className="image-gallery-item-title">{image.title || 'Unbenanntes Bild'}</h3>
         <div className="image-gallery-meta">
           <span className="image-gallery-date">
             <FaClock />
@@ -229,16 +235,10 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
         <div className="image-gallery-delete-confirm">
           <p>Bild löschen?</p>
           <div className="image-gallery-delete-actions">
-            <button
-              className="image-gallery-confirm-btn"
-              onClick={confirmDelete}
-            >
+            <button className="image-gallery-confirm-btn" onClick={confirmDelete}>
               Löschen
             </button>
-            <button
-              className="image-gallery-cancel-btn"
-              onClick={cancelDelete}
-            >
+            <button className="image-gallery-cancel-btn" onClick={cancelDelete}>
               Abbrechen
             </button>
           </div>
@@ -257,7 +257,7 @@ const ImageGallery = () => {
     count: totalCount,
     fetchUserShares,
     deleteShare,
-    clearError
+    clearError,
   } = useShareStore();
 
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
@@ -273,14 +273,17 @@ const ImageGallery = () => {
     setShowShareModal(true);
   }, []);
 
-  const handleDelete = useCallback(async (shareToken: string) => {
-    await deleteShare(shareToken);
-  }, [deleteShare]);
+  const handleDelete = useCallback(
+    async (shareToken: string) => {
+      await deleteShare(shareToken);
+    },
+    [deleteShare]
+  );
 
   const handleDownload = useCallback(async (image: GalleryImage) => {
     try {
       const response = await apiClient.get(`/share/${image.shareToken}/download`, {
-        responseType: 'blob'
+        responseType: 'blob',
       });
       const blob = response.data;
       const url = window.URL.createObjectURL(blob);
@@ -301,64 +304,71 @@ const ImageGallery = () => {
     window.open(shareUrl, '_blank');
   }, []);
 
-  const handleEdit = useCallback((image: GalleryImage) => {
-    const metadata = image.imageMetadata || {};
-    const sharepicType = metadata.sharepicType;
-    console.log('[ImageGallery] handleEdit called with:', { shareToken: image.shareToken, metadata, sharepicType });
-
-    if (!sharepicType) {
-      console.warn('Cannot edit: no sharepicType in metadata');
-      return;
-    }
-
-    // Map sharepic types to Image Studio routes
-    const typeRouteMap: Record<SharepicTypeKey, string> = {
-      'Dreizeilen': '/image-studio/templates/dreizeilen',
-      'Zitat': '/image-studio/templates/zitat',
-      'Zitat_Pure': '/image-studio/templates/zitat-pure',
-      'Info': '/image-studio/templates/info',
-      'Headline': '/image-studio/templates/headline',
-    };
-
-    const route = typeRouteMap[sharepicType];
-    if (!route) {
-      console.warn('Unknown sharepic type:', sharepicType);
-      return;
-    }
-
-    const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
-
-    navigate(route, {
-      state: {
-        galleryEditMode: true,
+  const handleEdit = useCallback(
+    (image: GalleryImage) => {
+      const metadata = image.imageMetadata || {};
+      const sharepicType = metadata.sharepicType;
+      console.log('[ImageGallery] handleEdit called with:', {
         shareToken: image.shareToken,
-        content: { ...metadata.content, sharepicType },
-        styling: metadata.styling || {},
-        originalImageUrl: `${baseURL}/share/${image.shareToken}/original`,
-        title: image.title,
-      }
-    });
-  }, [navigate]);
+        metadata,
+        sharepicType,
+      });
 
-  const handleUseTemplate = useCallback((shareToken: string) => {
-    cloneTemplate(shareToken);
-  }, [cloneTemplate]);
+      if (!sharepicType) {
+        console.warn('Cannot edit: no sharepicType in metadata');
+        return;
+      }
+
+      // Map sharepic types to Image Studio routes
+      const typeRouteMap: Record<SharepicTypeKey, string> = {
+        Dreizeilen: '/image-studio/templates/dreizeilen',
+        Zitat: '/image-studio/templates/zitat',
+        Zitat_Pure: '/image-studio/templates/zitat-pure',
+        Info: '/image-studio/templates/info',
+        Headline: '/image-studio/templates/headline',
+      };
+
+      const route = typeRouteMap[sharepicType];
+      if (!route) {
+        console.warn('Unknown sharepic type:', sharepicType);
+        return;
+      }
+
+      const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+      navigate(route, {
+        state: {
+          galleryEditMode: true,
+          shareToken: image.shareToken,
+          content: { ...metadata.content, sharepicType },
+          styling: metadata.styling || {},
+          originalImageUrl: `${baseURL}/share/${image.shareToken}/original`,
+          title: image.title,
+        },
+      });
+    },
+    [navigate]
+  );
+
+  const handleUseTemplate = useCallback(
+    (shareToken: string) => {
+      cloneTemplate(shareToken);
+    },
+    [cloneTemplate]
+  );
 
   const handleNewImage = () => {
     navigate('/image-studio');
   };
 
-  const imageShares = shares.filter(s => s.mediaType === 'image') as GalleryImage[];
+  const imageShares = shares.filter((s) => s.mediaType === 'image') as GalleryImage[];
 
   if (isLoading && imageShares.length === 0) {
     return (
       <div className="image-gallery">
         <div className="image-gallery-header">
           <h1 className="image-gallery-title">Meine Bilder</h1>
-          <button
-            className="btn-primary image-gallery-new-btn"
-            onClick={handleNewImage}
-          >
+          <button className="btn-primary image-gallery-new-btn" onClick={handleNewImage}>
             <FaPlus />
             Neues Bild
           </button>
@@ -402,10 +412,7 @@ const ImageGallery = () => {
           <p className="image-gallery-empty-text">
             Erstelle dein erstes Bild mit dem Image Studio.
           </p>
-          <button
-            className="btn-primary"
-            onClick={handleNewImage}
-          >
+          <button className="btn-primary" onClick={handleNewImage}>
             <FaPlus />
             Bild erstellen
           </button>
@@ -418,10 +425,7 @@ const ImageGallery = () => {
     <div className="image-gallery">
       <div className="image-gallery-header">
         <h1 className="image-gallery-title">Meine Bilder</h1>
-        <button
-          className="btn-primary image-gallery-new-btn"
-          onClick={handleNewImage}
-        >
+        <button className="btn-primary image-gallery-new-btn" onClick={handleNewImage}>
           <FaPlus />
           Neues Bild
         </button>
@@ -443,10 +447,13 @@ const ImageGallery = () => {
       </div>
 
       <div className="image-gallery-limit-info">
-        <span>{imageShares.length} von {MAX_IMAGES} Bildern</span>
+        <span>
+          {imageShares.length} von {MAX_IMAGES} Bildern
+        </span>
         {imageShares.length >= MAX_IMAGES - 5 && (
           <span className="image-gallery-limit-warning">
-            {' '} - Ältere Bilder werden bald automatisch gelöscht
+            {' '}
+            - Ältere Bilder werden bald automatisch gelöscht
           </span>
         )}
       </div>
@@ -458,11 +465,15 @@ const ImageGallery = () => {
           setSelectedImage(null);
         }}
         mediaType="image"
-        imageData={selectedImage ? {
-          image: selectedImage.thumbnailUrl,
-          type: selectedImage.imageType,
-          metadata: selectedImage.imageMetadata || {}
-        } : undefined}
+        imageData={
+          selectedImage
+            ? {
+                image: selectedImage.thumbnailUrl,
+                type: selectedImage.imageType,
+                metadata: selectedImage.imageMetadata || {},
+              }
+            : undefined
+        }
         defaultTitle={selectedImage?.title || ''}
       />
     </div>

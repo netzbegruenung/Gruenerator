@@ -84,7 +84,11 @@ export interface CanvaAsset {
 export interface ListAssetsOptions {
   limit?: number;
   continuation?: string;
-  sort_by?: 'created_descending' | 'created_ascending' | 'modified_descending' | 'modified_ascending';
+  sort_by?:
+    | 'created_descending'
+    | 'created_ascending'
+    | 'modified_descending'
+    | 'modified_ascending';
   [key: string]: unknown;
 }
 
@@ -117,9 +121,9 @@ class CanvaApiClient {
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Gruenerator/1.0',
-        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
-      timeout: 30000 // 30 second timeout for potentially long operations
+      timeout: 30000, // 30 second timeout for potentially long operations
     });
 
     // Add request interceptor for debugging
@@ -137,7 +141,9 @@ class CanvaApiClient {
     // Add response interceptor for error handling
     this.client.interceptors.response.use(
       (response) => {
-        console.log(`[CanvaAPI] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`);
+        console.log(
+          `[CanvaAPI] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`
+        );
         return response;
       },
       (error) => {
@@ -145,7 +151,7 @@ class CanvaApiClient {
           status: error.response?.status,
           statusText: error.response?.statusText,
           message: error.response?.data?.message || error.message,
-          url: error.config?.url
+          url: error.config?.url,
         });
         return Promise.reject(error);
       }
@@ -223,7 +229,7 @@ class CanvaApiClient {
         title,
         design_type,
         ...(template_id && { template_id }),
-        ...options
+        ...options,
       };
 
       const response = await this.client.post<{ design: CanvaDesign }>('/designs', payload);
@@ -278,17 +284,20 @@ class CanvaApiClient {
       const params = {
         limit: Math.min(limit, 100), // Cap at 100 per Canva API limits
         ...(continuation_token && { continuation_token }),
-        ...filters
+        ...filters,
       };
 
-      const response = await this.client.get<{ items?: CanvaDesign[]; continuation?: string }>('/designs', { params });
+      const response = await this.client.get<{ items?: CanvaDesign[]; continuation?: string }>(
+        '/designs',
+        { params }
+      );
 
       if (response.data) {
         console.log(`[CanvaAPI] Successfully listed ${response.data.items?.length || 0} designs`);
         return {
           designs: response.data.items || [],
           has_more: !!response.data.continuation,
-          continuation_token: response.data.continuation || null
+          continuation_token: response.data.continuation || null,
         };
       }
 
@@ -314,7 +323,7 @@ class CanvaApiClient {
       const payload = {
         name,
         ...(parent_folder_id && { parent_folder_id }),
-        ...assetOptions
+        ...assetOptions,
       };
 
       const response = await this.client.post<{ job: UploadJob }>('/asset-uploads', payload);
@@ -364,30 +373,37 @@ class CanvaApiClient {
     try {
       const { limit = 10, continuation, sort_by = 'created_descending', ...filters } = options;
 
-      console.log('[CanvaAPI] Listing assets via folders API with options:', { limit, sort_by, ...filters });
+      console.log('[CanvaAPI] Listing assets via folders API with options:', {
+        limit,
+        sort_by,
+        ...filters,
+      });
 
       const params = {
         item_types: 'image', // Only get image assets for now
         limit: Math.min(limit, 100),
         sort_by,
         ...(continuation && { continuation }),
-        ...filters
+        ...filters,
       };
 
       // Use folders API to list assets from user's root folder
-      const response = await this.client.get<{ items?: Array<{ type: string; image?: CanvaAsset }>; continuation?: string }>('/folders/root/items', { params });
+      const response = await this.client.get<{
+        items?: Array<{ type: string; image?: CanvaAsset }>;
+        continuation?: string;
+      }>('/folders/root/items', { params });
 
       if (response.data && response.data.items) {
         // Extract image assets from the items array
         const assets = response.data.items
-          .filter(item => item.type === 'image' && item.image)
-          .map(item => item.image!);
+          .filter((item) => item.type === 'image' && item.image)
+          .map((item) => item.image!);
 
         console.log(`[CanvaAPI] Successfully listed ${assets.length} assets from folders API`);
         return {
           assets: assets,
           has_more: !!response.data.continuation,
-          continuation_token: response.data.continuation || null
+          continuation_token: response.data.continuation || null,
         };
       }
 
@@ -414,7 +430,7 @@ class CanvaApiClient {
         name,
         url,
         ...(tags && tags.length > 0 && { tags }),
-        ...options
+        ...options,
       };
 
       const response = await this.client.post<{ job: UploadJob }>('/url-asset-uploads', payload);

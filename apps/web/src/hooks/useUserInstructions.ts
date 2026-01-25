@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from './useAuth';
+
 import apiClient from '../components/utils/apiClient';
+
+import { useAuth } from './useAuth';
 
 /**
  * Hook to fetch user's unified custom instruction (Anweisung)

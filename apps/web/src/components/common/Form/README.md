@@ -97,4 +97,4 @@ Die BaseForm-Komponente akzeptiert folgende Props:
 - **submitButtonProps**: Props für den Submit-Button
 - **disableAutoCollapse**: Deaktiviert das automatische Einklappen des Formulars
 - **featureToggle**: Konfiguration für den Feature-Toggle
-- **useFeatureToggle**: Gibt an, ob der Feature-Toggle verwendet werden soll 
+- **useFeatureToggle**: Gibt an, ob der Feature-Toggle verwendet werden soll

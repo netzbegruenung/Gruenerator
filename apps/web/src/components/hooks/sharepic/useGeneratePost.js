@@ -1,5 +1,6 @@
 // useGeneratePost.js
 import { useState } from 'react';
+
 import useApiSubmit from '../useApiSubmit';
 
 const useGeneratePost = () => {

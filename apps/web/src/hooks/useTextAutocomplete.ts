@@ -1,15 +1,39 @@
 import { useState, useCallback, useRef } from 'react';
+
 import { PLATFORM_ALIASES } from '../utils/autocompleteUtils';
 
 /**
  * Default tag dictionary for template descriptions
  */
 export const TAG_DICTIONARY = [
-  'instagram', 'facebook', 'twitter', 'linkedin', 'tiktok', 'youtube',
-  'story', 'post', 'banner', 'header', 'flyer', 'plakat', 'logo',
-  'quadrat', 'hochformat', 'querformat', 'linkvorschau', 'titelbild',
-  'canva', 'green', 'gruen', 'wahlkampf', 'social', 'reel', 'video',
-  'pressemitteilung', 'sharepic', 'aktion'
+  'instagram',
+  'facebook',
+  'twitter',
+  'linkedin',
+  'tiktok',
+  'youtube',
+  'story',
+  'post',
+  'banner',
+  'header',
+  'flyer',
+  'plakat',
+  'logo',
+  'quadrat',
+  'hochformat',
+  'querformat',
+  'linkvorschau',
+  'titelbild',
+  'canva',
+  'green',
+  'gruen',
+  'wahlkampf',
+  'social',
+  'reel',
+  'video',
+  'pressemitteilung',
+  'sharepic',
+  'aktion',
 ];
 
 /**
@@ -18,7 +42,7 @@ export const TAG_DICTIONARY = [
  */
 export const PLATFORM_DICTIONARY = [
   ...Object.keys(PLATFORM_ALIASES),
-  ...Object.values(PLATFORM_ALIASES).flat()
+  ...Object.values(PLATFORM_ALIASES).flat(),
 ];
 
 /**
@@ -69,12 +93,16 @@ interface TextAutocompleteOptions {
   addHashtagOnAccept?: boolean;
 }
 
-export function useTextAutocomplete(value: string, setValue: (value: string) => void, options: TextAutocompleteOptions = {}) {
+export function useTextAutocomplete(
+  value: string,
+  setValue: (value: string) => void,
+  options: TextAutocompleteOptions = {}
+) {
   const {
     dictionary = COMBINED_DICTIONARY,
     minChars = 3,
     requireHashtag = false,
-    addHashtagOnAccept = true
+    addHashtagOnAccept = true,
   } = options;
 
   const [suggestion, setSuggestion] = useState<string | null>(null);
@@ -92,60 +120,68 @@ export function useTextAutocomplete(value: string, setValue: (value: string) => 
     setHasHashtag(true);
   }, []);
 
-  const findMatch = useCallback((searchTerm: string) => {
-    const termLower = searchTerm.toLowerCase();
-    return dictionary.find(word =>
-      word.toLowerCase().startsWith(termLower) && word.toLowerCase() !== termLower
-    );
-  }, [dictionary]);
+  const findMatch = useCallback(
+    (searchTerm: string) => {
+      const termLower = searchTerm.toLowerCase();
+      return dictionary.find(
+        (word) => word.toLowerCase().startsWith(termLower) && word.toLowerCase() !== termLower
+      );
+    },
+    [dictionary]
+  );
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
-    const cursorPos = e.target.selectionStart;
-    setValue(newValue);
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const newValue = e.target.value;
+      const cursorPos = e.target.selectionStart;
+      setValue(newValue);
 
-    const textBeforeCursor = newValue.substring(0, cursorPos);
+      const textBeforeCursor = newValue.substring(0, cursorPos);
 
-    const hashMatch = textBeforeCursor.match(/#([\w]*)$/);
-    const wordMatch = !hashMatch && !requireHashtag &&
-      textBeforeCursor.match(new RegExp(`(?:^|[\\s])([a-zA-ZäöüÄÖÜß]{${minChars},})$`));
+      const hashMatch = textBeforeCursor.match(/#([\w]*)$/);
+      const wordMatch =
+        !hashMatch &&
+        !requireHashtag &&
+        textBeforeCursor.match(new RegExp(`(?:^|[\\s])([a-zA-ZäöüÄÖÜß]{${minChars},})$`));
 
-    if (hashMatch && hashMatch[1].length >= Math.max(1, minChars - 1)) {
-      const searchTerm = hashMatch[1];
-      const startPos = cursorPos - hashMatch[0].length;
-      const match = findMatch(searchTerm);
+      if (hashMatch && hashMatch[1].length >= Math.max(1, minChars - 1)) {
+        const searchTerm = hashMatch[1];
+        const startPos = cursorPos - hashMatch[0].length;
+        const match = findMatch(searchTerm);
 
-      if (match) {
-        setSearchStart(startPos);
-        setSuggestion(match);
-        setSuggestionSuffix(match.substring(searchTerm.length));
-        setGhostPrefix(textBeforeCursor);
-        setHasHashtag(true);
+        if (match) {
+          setSearchStart(startPos);
+          setSuggestion(match);
+          setSuggestionSuffix(match.substring(searchTerm.length));
+          setGhostPrefix(textBeforeCursor);
+          setHasHashtag(true);
+        } else {
+          clearSuggestion();
+        }
+      } else if (wordMatch) {
+        const searchTerm = wordMatch[1];
+        const match = findMatch(searchTerm);
+
+        if (match) {
+          const wordStart = cursorPos - wordMatch[1].length;
+          setSearchStart(wordStart);
+          setSuggestion(match);
+          setSuggestionSuffix(match.substring(searchTerm.length));
+          setGhostPrefix(
+            addHashtagOnAccept
+              ? textBeforeCursor.slice(0, -wordMatch[1].length) + '#' + wordMatch[1]
+              : textBeforeCursor
+          );
+          setHasHashtag(false);
+        } else {
+          clearSuggestion();
+        }
       } else {
         clearSuggestion();
       }
-    } else if (wordMatch) {
-      const searchTerm = wordMatch[1];
-      const match = findMatch(searchTerm);
-
-      if (match) {
-        const wordStart = cursorPos - wordMatch[1].length;
-        setSearchStart(wordStart);
-        setSuggestion(match);
-        setSuggestionSuffix(match.substring(searchTerm.length));
-        setGhostPrefix(
-          addHashtagOnAccept
-            ? textBeforeCursor.slice(0, -wordMatch[1].length) + '#' + wordMatch[1]
-            : textBeforeCursor
-        );
-        setHasHashtag(false);
-      } else {
-        clearSuggestion();
-      }
-    } else {
-      clearSuggestion();
-    }
-  }, [setValue, clearSuggestion, findMatch, minChars, requireHashtag, addHashtagOnAccept]);
+    },
+    [setValue, clearSuggestion, findMatch, minChars, requireHashtag, addHashtagOnAccept]
+  );
 
   const acceptSuggestion = useCallback(() => {
     if (!suggestion || searchStart === -1) return false;
@@ -169,20 +205,23 @@ export function useTextAutocomplete(value: string, setValue: (value: string) => 
     return true;
   }, [value, suggestion, searchStart, setValue, clearSuggestion, addHashtagOnAccept]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!suggestion) return;
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!suggestion) return;
 
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      acceptSuggestion();
-    } else if (e.key === 'Enter') {
-      if (acceptSuggestion()) {
+      if (e.key === 'Tab') {
         e.preventDefault();
+        acceptSuggestion();
+      } else if (e.key === 'Enter') {
+        if (acceptSuggestion()) {
+          e.preventDefault();
+        }
+      } else if (e.key === 'Escape') {
+        clearSuggestion();
       }
-    } else if (e.key === 'Escape') {
-      clearSuggestion();
-    }
-  }, [suggestion, acceptSuggestion, clearSuggestion]);
+    },
+    [suggestion, acceptSuggestion, clearSuggestion]
+  );
 
   const reset = useCallback(() => {
     clearSuggestion();
@@ -198,7 +237,7 @@ export function useTextAutocomplete(value: string, setValue: (value: string) => 
     handleKeyDown,
     acceptSuggestion,
     reset,
-    hasSuggestion: !!suggestion
+    hasSuggestion: !!suggestion,
   };
 }
 

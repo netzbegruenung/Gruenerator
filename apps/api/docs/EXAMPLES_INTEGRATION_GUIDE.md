@@ -28,7 +28,10 @@ This guide describes the integration of the ContentExamplesService with the Prom
 ### Basic Integration
 
 ```javascript
-import { PromptBuilderWithExamples, addExamplesFromService } from '../utils/promptBuilderWithExamples';
+import {
+  PromptBuilderWithExamples,
+  addExamplesFromService,
+} from '../utils/promptBuilderWithExamples';
 
 // Create builder with examples support
 const builder = new PromptBuilderWithExamples('social')
@@ -37,13 +40,13 @@ const builder = new PromptBuilderWithExamples('social')
     maxExamples: 3,
     maxCharactersPerExample: 400,
     includeSimilarityInfo: true,
-    formatStyle: 'structured'
+    formatStyle: 'structured',
   });
 
 // Add examples from service
 await addExamplesFromService(builder, 'instagram', searchQuery, {
   limit: 3,
-  useCache: true
+  useCache: true,
 });
 ```
 
@@ -53,10 +56,10 @@ await addExamplesFromService(builder, 'instagram', searchQuery, {
 
 ```javascript
 builder.configureExamples({
-  maxExamples: 5,              // Maximum number of examples to include
+  maxExamples: 5, // Maximum number of examples to include
   maxCharactersPerExample: 500, // Max characters per example
-  includeSimilarityInfo: true,  // Include relevance information
-  formatStyle: 'structured'      // 'structured', 'inline', or 'minimal'
+  includeSimilarityInfo: true, // Include relevance information
+  formatStyle: 'structured', // 'structured', 'inline', or 'minimal'
 });
 ```
 
@@ -65,11 +68,9 @@ builder.configureExamples({
 1. **Structured** (Default)
    - Full formatting with headers, relevance info, and metadata
    - Best for complex prompts requiring detailed context
-   
 2. **Inline**
    - Simple numbered list format
    - Good for quick reference examples
-   
 3. **Minimal**
    - Just the content with minimal formatting
    - Best when examples should blend with other content
@@ -86,13 +87,13 @@ const examples = [
     similarity_score: 0.85,
     metadata: {
       categories: ['category1'],
-      tags: ['tag1', 'tag2']
-    }
-  }
+      tags: ['tag1', 'tag2'],
+    },
+  },
 ];
 
 builder.addExamples(examples, {
-  formatStyle: 'inline'
+  formatStyle: 'inline',
 });
 ```
 
@@ -118,22 +119,25 @@ USER MESSAGES
 ## Migration Strategy
 
 ### Phase 1: Pilot Routes (Completed)
+
 - ✅ Implement PromptBuilderWithExamples
 - ✅ Update claude_social.js as pilot
 - ✅ Validate examples integration
 
 ### Phase 2: Gradual Rollout
+
 1. **High-Value Routes First**
    - `claude_universal.js` - Universal text generation
    - `claude_gruene_jugend.js` - Youth content
    - `antrag_simple.js` - Political proposals
 
 2. **Update Pattern**
+
    ```javascript
    // Old
    const { PromptBuilder } = require('../utils/promptBuilder');
    const builder = new PromptBuilder('type');
-   
+
    // New
    const { PromptBuilderWithExamples } = require('../utils/promptBuilderWithExamples');
    const builder = new PromptBuilderWithExamples('type');
@@ -148,6 +152,7 @@ USER MESSAGES
    ```
 
 ### Phase 3: Optimization
+
 - Monitor example usage and effectiveness
 - Tune similarity thresholds per content type
 - Optimize caching strategies
@@ -161,10 +166,10 @@ Map user-facing types to example types:
 
 ```javascript
 const exampleTypeMapping = {
-  'social_instagram': 'instagram',
-  'social_facebook': 'facebook',
-  'political_motion': 'antrag',
-  'speech': 'rede'
+  social_instagram: 'instagram',
+  social_facebook: 'facebook',
+  political_motion: 'antrag',
+  speech: 'rede',
 };
 ```
 
@@ -174,11 +179,7 @@ Build effective search queries:
 
 ```javascript
 // Combine multiple fields for better matches
-const searchQuery = [
-  thema,
-  details,
-  keywords
-].filter(Boolean).join(' ');
+const searchQuery = [thema, details, keywords].filter(Boolean).join(' ');
 ```
 
 ### 3. Error Handling
@@ -211,6 +212,7 @@ builder.enableDebug(true);
 ```
 
 Output includes:
+
 - Examples count
 - Format style
 - Content length per example
@@ -219,6 +221,7 @@ Output includes:
 ### Logging
 
 Key log points:
+
 - `[ContentExamplesService]` - Service operations
 - `[PromptBuilderWithExamples]` - Builder operations
 - `[route_name]` - Route-specific integration
@@ -226,16 +229,19 @@ Key log points:
 ## Future Enhancements
 
 ### Short-term
+
 - [ ] Add example quality scoring
 - [ ] Implement example deduplication
 - [ ] Add platform-specific formatting
 
 ### Medium-term
+
 - [ ] Machine learning for example selection
 - [ ] User feedback integration
 - [ ] A/B testing framework
 
 ### Long-term
+
 - [ ] Auto-generate examples from successful outputs
 - [ ] Cross-platform example adaptation
 - [ ] Multi-language example support
@@ -243,18 +249,21 @@ Key log points:
 ## Troubleshooting
 
 ### No Examples Found
+
 1. Check vector search service is running
 2. Verify embeddings are generated
 3. Check similarity threshold settings
 4. Ensure examples exist in database
 
 ### Examples Not Appearing in Prompt
+
 1. Verify builder is PromptBuilderWithExamples
 2. Check examples were added successfully
 3. Review debug output for issues
 4. Ensure proper formatting style
 
 ### Performance Issues
+
 1. Enable caching in ContentExamplesService
 2. Reduce maxExamples count
 3. Use async fetching for multiple types
@@ -263,6 +272,7 @@ Key log points:
 ## Support
 
 For questions or issues:
+
 - Check debug logs first
 - Review this guide
 - Contact backend team for assistance

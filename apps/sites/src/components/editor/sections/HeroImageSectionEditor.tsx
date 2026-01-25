@@ -1,7 +1,9 @@
 import { useRef, useEffect } from 'react';
+
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
+
 import type { HeroImageSection } from '../../../types/candidate';
 
 interface HeroImageSectionEditorProps {
@@ -47,7 +49,9 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
         </div>
 
         <div className="hero-profile-info">
-          <div className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}>
+          <div
+            className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}
+          >
             <label htmlFor="heroimage-title">Hauptbotschaft</label>
             <input
               ref={titleRef}
@@ -60,12 +64,16 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
               placeholder="Gemeinsam für eine nachhaltige Zukunft!"
               maxLength={MAX_TITLE_LENGTH}
             />
-            <div className={`editor-char-count ${data.title.length > MAX_TITLE_LENGTH * 0.9 ? 'editor-char-count--warning' : ''}`}>
+            <div
+              className={`editor-char-count ${data.title.length > MAX_TITLE_LENGTH * 0.9 ? 'editor-char-count--warning' : ''}`}
+            >
               {data.title.length} / {MAX_TITLE_LENGTH} Zeichen
             </div>
           </div>
 
-          <div className={`editor-form-group ${isFieldHighlighted('subtitle') ? 'editor-field-highlighted' : ''}`}>
+          <div
+            className={`editor-form-group ${isFieldHighlighted('subtitle') ? 'editor-field-highlighted' : ''}`}
+          >
             <label htmlFor="heroimage-subtitle">Untertitel</label>
             <textarea
               ref={subtitleRef}
@@ -78,7 +86,9 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
               rows={2}
               maxLength={MAX_SUBTITLE_LENGTH}
             />
-            <div className={`editor-char-count ${data.subtitle.length > MAX_SUBTITLE_LENGTH * 0.9 ? 'editor-char-count--warning' : ''}`}>
+            <div
+              className={`editor-char-count ${data.subtitle.length > MAX_SUBTITLE_LENGTH * 0.9 ? 'editor-char-count--warning' : ''}`}
+            >
               {data.subtitle.length} / {MAX_SUBTITLE_LENGTH} Zeichen
             </div>
           </div>

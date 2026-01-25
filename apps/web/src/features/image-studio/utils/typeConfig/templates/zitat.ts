@@ -2,7 +2,9 @@
  * Zitat (Quote with Image) type configuration
  */
 import { PiQuotes } from 'react-icons/pi';
+
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../constants';
+
 import type { TemplateTypeConfig, TemplateFieldConfig } from '../types';
 
 export const zitatTypeConfig: TemplateTypeConfig = {
@@ -21,11 +23,11 @@ export const zitatTypeConfig: TemplateTypeConfig = {
   parallelPreload: true,
   endpoints: {
     text: '/zitat_claude',
-    canvas: '/zitat_canvas'
+    canvas: '/zitat_canvas',
   },
   formComponent: 'ZitatForm',
   steps: [FORM_STEPS.INPUT, FORM_STEPS.IMAGE_UPLOAD, FORM_STEPS.CANVAS_EDIT, FORM_STEPS.RESULT],
-  legacyType: 'Zitat'
+  legacyType: 'Zitat',
 };
 
 interface ZitatResult {
@@ -45,19 +47,19 @@ export const zitatFieldConfig: TemplateFieldConfig = {
       subtitle: 'Beschreibe das Thema, zu dem ein Zitat erstellt werden soll',
       placeholder: 'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
       required: true,
-      minLength: 3
-    }
+      minLength: 3,
+    },
   ],
   previewFields: [
     { name: 'quote', type: 'textarea', label: 'Zitat' },
-    { name: 'name', type: 'text', label: 'Zitiert wird', placeholder: 'Name der Person' }
+    { name: 'name', type: 'text', label: 'Zitiert wird', placeholder: 'Name der Person' },
   ],
   resultFields: ['quote'],
   responseMapping: (result: ZitatResult) => ({
-    quote: result.quote || ''
+    quote: result.quote || '',
   }),
   alternativesMapping: (alt: ZitatAlternative) => ({
-    quote: alt.quote || ''
+    quote: alt.quote || '',
   }),
   showImageUpload: true,
   showColorControls: false,
@@ -68,5 +70,5 @@ export const zitatFieldConfig: TemplateFieldConfig = {
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Andere Zitate'
+  alternativesButtonText: 'Andere Zitate',
 };

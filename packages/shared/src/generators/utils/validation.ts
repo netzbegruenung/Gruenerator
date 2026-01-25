@@ -24,9 +24,7 @@ import { VALIDATION_MESSAGES } from '../constants.js';
  * @param data - Partial PresseSocialRequest to validate
  * @returns ValidationResult with errors object
  */
-export function validatePresseSocialRequest(
-  data: Partial<PresseSocialRequest>
-): ValidationResult {
+export function validatePresseSocialRequest(data: Partial<PresseSocialRequest>): ValidationResult {
   const errors: Record<string, string> = {};
 
   if (!data.inhalt?.trim()) {
@@ -53,9 +51,7 @@ export function validatePresseSocialRequest(
  * @param data - Partial AntragRequest to validate
  * @returns ValidationResult with errors object
  */
-export function validateAntragRequest(
-  data: Partial<AntragRequest>
-): ValidationResult {
+export function validateAntragRequest(data: Partial<AntragRequest>): ValidationResult {
   const errors: Record<string, string> = {};
 
   if (!data.inhalt?.trim()) {
@@ -83,9 +79,7 @@ export function validateAntragRequest(
  * @param data - Partial UniversalRequest to validate
  * @returns ValidationResult with errors object
  */
-export function validateUniversalRequest(
-  data: Partial<UniversalRequest>
-): ValidationResult {
+export function validateUniversalRequest(data: Partial<UniversalRequest>): ValidationResult {
   const errors: Record<string, string> = {};
 
   if (!data.inhalt?.trim()) {
@@ -120,9 +114,7 @@ export function validateUniversalRequest(
  * @param data - Partial AltTextRequest to validate
  * @returns ValidationResult with errors object
  */
-export function validateAltTextRequest(
-  data: Partial<AltTextRequest>
-): ValidationResult {
+export function validateAltTextRequest(data: Partial<AltTextRequest>): ValidationResult {
   const errors: Record<string, string> = {};
 
   if (!data.imageBase64?.trim()) {
@@ -169,9 +161,7 @@ export function validateLeichteSpracheRequest(
  * @param data - Partial TextImproverRequest to validate
  * @returns ValidationResult with errors object
  */
-export function validateTextImproverRequest(
-  data: Partial<TextImproverRequest>
-): ValidationResult {
+export function validateTextImproverRequest(data: Partial<TextImproverRequest>): ValidationResult {
   const errors: Record<string, string> = {};
 
   if (!data.originalText?.trim()) {

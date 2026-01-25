@@ -75,47 +75,53 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
   immer((set, get) => ({
     ...initialState,
 
-    toggleWebSearch: () => set((state) => {
-      state.useWebSearch = !state.useWebSearch;
-    }),
+    toggleWebSearch: () =>
+      set((state) => {
+        state.useWebSearch = !state.useWebSearch;
+      }),
 
-    togglePrivacyMode: () => set((state) => {
-      state.usePrivacyMode = !state.usePrivacyMode;
-      if (state.usePrivacyMode) {
-        state.useProMode = false;
-        state.useUltraMode = false;
-      }
-    }),
+    togglePrivacyMode: () =>
+      set((state) => {
+        state.usePrivacyMode = !state.usePrivacyMode;
+        if (state.usePrivacyMode) {
+          state.useProMode = false;
+          state.useUltraMode = false;
+        }
+      }),
 
-    toggleProMode: () => set((state) => {
-      state.useProMode = !state.useProMode;
-      if (state.useProMode) {
-        state.usePrivacyMode = false;
-        state.useUltraMode = false;
-      }
-    }),
+    toggleProMode: () =>
+      set((state) => {
+        state.useProMode = !state.useProMode;
+        if (state.useProMode) {
+          state.usePrivacyMode = false;
+          state.useUltraMode = false;
+        }
+      }),
 
-    toggleUltraMode: () => set((state) => {
-      state.useUltraMode = !state.useUltraMode;
-      if (state.useUltraMode) {
-        state.usePrivacyMode = false;
-        state.useProMode = false;
-      }
-    }),
+    toggleUltraMode: () =>
+      set((state) => {
+        state.useUltraMode = !state.useUltraMode;
+        if (state.useUltraMode) {
+          state.usePrivacyMode = false;
+          state.useProMode = false;
+        }
+      }),
 
-    toggleAutomaticSearch: () => set((state) => {
-      state.useAutomaticSearch = !state.useAutomaticSearch;
-      if (state.useAutomaticSearch) {
-        state.selectedDocumentIds = [];
-        state.selectedTextIds = [];
-      }
-    }),
+    toggleAutomaticSearch: () =>
+      set((state) => {
+        state.useAutomaticSearch = !state.useAutomaticSearch;
+        if (state.useAutomaticSearch) {
+          state.selectedDocumentIds = [];
+          state.selectedTextIds = [];
+        }
+      }),
 
-    setAIMode: (mode: AIMode) => set((state) => {
-      state.usePrivacyMode = mode === 'privacy';
-      state.useProMode = mode === 'pro';
-      state.useUltraMode = mode === 'ultra';
-    }),
+    setAIMode: (mode: AIMode) =>
+      set((state) => {
+        state.usePrivacyMode = mode === 'privacy';
+        state.useProMode = mode === 'pro';
+        state.useUltraMode = mode === 'ultra';
+      }),
 
     getCurrentAIMode: (): AIMode => {
       const state = get();
@@ -125,52 +131,59 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       return 'kreativ';
     },
 
-    toggleDocumentSelection: (documentId: string) => set((state) => {
-      const index = state.selectedDocumentIds.indexOf(documentId);
-      if (index > -1) {
-        state.selectedDocumentIds.splice(index, 1);
-      } else {
-        state.selectedDocumentIds.push(documentId);
-      }
-      if (state.useAutomaticSearch) {
-        state.useAutomaticSearch = false;
-      }
-    }),
+    toggleDocumentSelection: (documentId: string) =>
+      set((state) => {
+        const index = state.selectedDocumentIds.indexOf(documentId);
+        if (index > -1) {
+          state.selectedDocumentIds.splice(index, 1);
+        } else {
+          state.selectedDocumentIds.push(documentId);
+        }
+        if (state.useAutomaticSearch) {
+          state.useAutomaticSearch = false;
+        }
+      }),
 
-    toggleTextSelection: (textId: string) => set((state) => {
-      const index = state.selectedTextIds.indexOf(textId);
-      if (index > -1) {
-        state.selectedTextIds.splice(index, 1);
-      } else {
-        state.selectedTextIds.push(textId);
-      }
-      if (state.useAutomaticSearch) {
-        state.useAutomaticSearch = false;
-      }
-    }),
+    toggleTextSelection: (textId: string) =>
+      set((state) => {
+        const index = state.selectedTextIds.indexOf(textId);
+        if (index > -1) {
+          state.selectedTextIds.splice(index, 1);
+        } else {
+          state.selectedTextIds.push(textId);
+        }
+        if (state.useAutomaticSearch) {
+          state.useAutomaticSearch = false;
+        }
+      }),
 
-    addAttachedFile: (file: AttachedFile) => set((state) => {
-      state.attachedFiles.push(file);
-      if (state.useAutomaticSearch) {
-        state.useAutomaticSearch = false;
-      }
-    }),
+    addAttachedFile: (file: AttachedFile) =>
+      set((state) => {
+        state.attachedFiles.push(file);
+        if (state.useAutomaticSearch) {
+          state.useAutomaticSearch = false;
+        }
+      }),
 
-    removeAttachedFile: (fileId: string) => set((state) => {
-      state.attachedFiles = state.attachedFiles.filter((f) => f.id !== fileId);
-    }),
+    removeAttachedFile: (fileId: string) =>
+      set((state) => {
+        state.attachedFiles = state.attachedFiles.filter((f) => f.id !== fileId);
+      }),
 
-    clearAttachedFiles: () => set((state) => {
-      state.attachedFiles = [];
-    }),
+    clearAttachedFiles: () =>
+      set((state) => {
+        state.attachedFiles = [];
+      }),
 
-    setInstructionsActive: (active: boolean) => set((state) => {
-      state.isInstructionsActive = active;
-    }),
+    setInstructionsActive: (active: boolean) =>
+      set((state) => {
+        state.isInstructionsActive = active;
+      }),
 
-    setInstructionType: (type: string | null) => set((state) => {
-      state.instructionType = type;
-    }),
+    setInstructionType: (type: string | null) =>
+      set((state) => {
+        state.instructionType = type;
+      }),
 
     getFeatureState: (): FeatureState => {
       const state = get();
@@ -188,7 +201,9 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
 
     getTotalContentCount: (): number => {
       const state = get();
-      return state.selectedDocumentIds.length + state.selectedTextIds.length + state.attachedFiles.length;
+      return (
+        state.selectedDocumentIds.length + state.selectedTextIds.length + state.attachedFiles.length
+      );
     },
 
     reset: () => set(() => initialState),

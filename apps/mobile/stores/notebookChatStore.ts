@@ -23,10 +23,13 @@ export interface NotebookChatMessage {
 }
 
 interface NotebookChatState {
-  chats: Record<string, {
-    messages: NotebookChatMessage[];
-    lastUpdated: number;
-  }>;
+  chats: Record<
+    string,
+    {
+      messages: NotebookChatMessage[];
+      lastUpdated: number;
+    }
+  >;
 }
 
 interface NotebookChatActions {
@@ -111,7 +114,8 @@ export const useNotebookChatStore = create<NotebookChatStore>()((set, get) => ({
       if (stored) {
         const parsed = JSON.parse(stored);
         // Filter out expired chats
-        const validChats: Record<string, { messages: NotebookChatMessage[]; lastUpdated: number }> = {};
+        const validChats: Record<string, { messages: NotebookChatMessage[]; lastUpdated: number }> =
+          {};
         for (const [key, chat] of Object.entries(parsed)) {
           const typedChat = chat as { messages: NotebookChatMessage[]; lastUpdated: number };
           if (Date.now() - typedChat.lastUpdated < MAX_AGE_MS) {

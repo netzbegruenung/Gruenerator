@@ -1,6 +1,7 @@
+import { motion } from 'motion/react';
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
-import { motion } from 'motion/react';
+
 import SmartInput from '../../../../components/common/Form/SmartInput';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../../components/utils/constants';
 import { TabIndexHelpers } from '../../../../utils/tabIndexConfig';
@@ -69,16 +70,11 @@ export interface PressemitteilungFormRef {
  */
 const PressemitteilungForm = forwardRef<PressemitteilungFormRef, PressemitteilungFormProps>(
   ({ defaultValues = {}, tabIndex = {}, isVisible, success }, ref) => {
-    const {
-      control,
-      getValues,
-      setValue,
-      reset
-    } = useForm<PressemitteilungFormData>({
+    const { control, getValues, setValue, reset } = useForm<PressemitteilungFormData>({
       defaultValues: {
-        zitatgeber: defaultValues.zitatgeber || ''
+        zitatgeber: defaultValues.zitatgeber || '',
       },
-      shouldUnregister: false // Keep values when hidden
+      shouldUnregister: false, // Keep values when hidden
     });
 
     // Expose form data to parent component
@@ -88,7 +84,7 @@ const PressemitteilungForm = forwardRef<PressemitteilungFormRef, Pressemitteilun
         getFormData: () => {
           const formData = getValues();
           return {
-            zitatgeber: formData.zitatgeber || ''
+            zitatgeber: formData.zitatgeber || '',
           };
         },
         resetForm: (data?: Partial<PressemitteilungFormData>) => {
@@ -97,7 +93,7 @@ const PressemitteilungForm = forwardRef<PressemitteilungFormRef, Pressemitteilun
           } else {
             reset();
           }
-        }
+        },
       }),
       [getValues, reset]
     );
@@ -116,7 +112,7 @@ const PressemitteilungForm = forwardRef<PressemitteilungFormRef, Pressemitteilun
           type: 'spring',
           stiffness: 400,
           damping: 25,
-          duration: 0.25
+          duration: 0.25,
         }}
       >
         <h4>Pressemitteilung:</h4>

@@ -33,12 +33,12 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     hasImageBase64: !!imageBase64,
     imageBase64Length: imageBase64?.length || 0,
     hasImageDescription: !!imageDescription,
-    userId: req.user?.id || 'No user'
+    userId: req.user?.id || 'No user',
   });
 
   if (!imageBase64) {
     res.status(400).json({
-      error: 'Bild (imageBase64) ist erforderlich für die Alt-Text-Generierung'
+      error: 'Bild (imageBase64) ist erforderlich für die Alt-Text-Generierung',
     });
     return;
   }
@@ -64,7 +64,8 @@ Struktur deinen Alt-Text in zwei Teilen:
 
 Gib deinen Alt-Text in <alt_text> Tags aus.`;
 
-    let userContent = 'Analysiere dieses Bild und erstelle einen Alt-Text, der den DBSV-Richtlinien für Barrierefreiheit entspricht.';
+    let userContent =
+      'Analysiere dieses Bild und erstelle einen Alt-Text, der den DBSV-Richtlinien für Barrierefreiheit entspricht.';
 
     if (imageDescription) {
       userContent += `\n\nZusätzliche Bildbeschreibung vom Nutzer: ${imageDescription}`;
@@ -73,48 +74,53 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
     const payload = {
       systemPrompt,
       provider: 'mistral',
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: 'image/png',
-              data: imageBase64.replace(/^data:image\/[^;]+;base64,/, '')
-            }
-          } as ImageContentBlock,
-          {
-            type: 'text',
-            text: userContent
-          } as TextContentBlock
-        ] as ContentBlock[]
-      }],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/png',
+                data: imageBase64.replace(/^data:image\/[^;]+;base64,/, ''),
+              },
+            } as ImageContentBlock,
+            {
+              type: 'text',
+              text: userContent,
+            } as TextContentBlock,
+          ] as ContentBlock[],
+        },
+      ],
       options: {
         max_tokens: 2000,
         temperature: 0.3,
-        model: 'mistral-large-2512'
-      }
+        model: 'mistral-large-2512',
+      },
     };
 
     log.debug('[claude_alttext] Payload overview:', {
       systemPromptLength: systemPrompt.length,
       userContentLength: userContent.length,
       messageCount: payload.messages.length,
-      userId: req.user?.id
+      userId: req.user?.id,
     });
 
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'alttext',
-      usePrivacyMode: usePrivacyMode || false,
-      ...payload
-    }, req);
+    const result = await req.app.locals.aiWorkerPool.processRequest(
+      {
+        type: 'alttext',
+        usePrivacyMode: usePrivacyMode || false,
+        ...payload,
+      },
+      req
+    );
 
     log.debug('[claude_alttext] AI Worker response received:', {
       success: result.success,
       contentLength: result.content?.length,
       error: result.error,
-      userId: req.user?.id
+      userId: req.user?.id,
     });
 
     if (!result.success) {
@@ -131,22 +137,21 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
 
     const response = {
       altText: altText,
-      metadata: result.metadata
+      metadata: result.metadata,
     };
 
     log.debug('[claude_alttext] Sending successful response:', {
       altTextLength: response.altText?.length,
       hasMetadata: !!response.metadata,
-      userId: req.user?.id
+      userId: req.user?.id,
     });
 
     res.json(response);
-
   } catch (error) {
     log.error('[claude_alttext] Error creating alt text:', error);
     res.status(500).json({
       error: 'Fehler bei der Erstellung des Alt-Texts',
-      details: (error as Error).message
+      details: (error as Error).message,
     });
   }
 });

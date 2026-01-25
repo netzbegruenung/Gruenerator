@@ -91,7 +91,7 @@ export class UrlDetector {
     const urls = this.extractUrlsFromContent(request);
     return {
       urls,
-      uniqueCount: urls.length
+      uniqueCount: urls.length,
     };
   }
 }

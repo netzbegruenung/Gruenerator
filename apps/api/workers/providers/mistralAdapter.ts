@@ -67,18 +67,24 @@ interface MistralResponse {
   };
 }
 
-function extractFinalAnswerFromReasoning(content: string | Array<{ type: string; text?: string }> | null): string | null {
+function extractFinalAnswerFromReasoning(
+  content: string | Array<{ type: string; text?: string }> | null
+): string | null {
   if (!Array.isArray(content)) {
     return content;
   }
   return content
-    .filter(chunk => chunk.type === 'text')
-    .map(chunk => chunk.text || '')
-    .filter(text => text.trim().length > 0)
+    .filter((chunk) => chunk.type === 'text')
+    .map((chunk) => chunk.text || '')
+    .filter((text) => text.trim().length > 0)
     .join('\n');
 }
 
-function determineTopP(type: string | undefined, platforms: string[] | undefined, temperature: number): number {
+function determineTopP(
+  type: string | undefined,
+  platforms: string[] | undefined,
+  temperature: number
+): number {
   if (type === 'social' && platforms && Array.isArray(platforms)) {
     if (platforms.includes('pressemitteilung')) return 0.7;
     if (platforms.includes('linkedin')) return 0.75;
@@ -97,7 +103,11 @@ function determineTopP(type: string | undefined, platforms: string[] | undefined
   return 1.0;
 }
 
-function determineMaxTokens(type: string | undefined, platforms: string[] | undefined, originalMaxTokens: number | undefined): number {
+function determineMaxTokens(
+  type: string | undefined,
+  platforms: string[] | undefined,
+  originalMaxTokens: number | undefined
+): number {
   if (type === 'social' && platforms && Array.isArray(platforms)) {
     if (platforms.length === 1) {
       const platform = platforms[0];
@@ -117,16 +127,27 @@ function determineMaxTokens(type: string | undefined, platforms: string[] | unde
   return typeof originalMaxTokens === 'number' ? originalMaxTokens : 4096;
 }
 
-function determineTemperature(type: string | undefined, systemPrompt: string | undefined, platforms: string[] | undefined, originalTemp: number | undefined): number {
+function determineTemperature(
+  type: string | undefined,
+  systemPrompt: string | undefined,
+  platforms: string[] | undefined,
+  originalTemp: number | undefined
+): number {
   if (type === 'social') {
     if (platforms && Array.isArray(platforms) && platforms.includes('pressemitteilung')) {
       return 0.3;
     }
 
     if (systemPrompt) {
-      const formalKeywords = ['pressemitteilung', 'förmlich', 'sachlich', 'presseverteiler', 'journalistisch'];
+      const formalKeywords = [
+        'pressemitteilung',
+        'förmlich',
+        'sachlich',
+        'presseverteiler',
+        'journalistisch',
+      ];
       const promptLower = systemPrompt.toLowerCase();
-      if (formalKeywords.some(keyword => promptLower.includes(keyword))) {
+      if (formalKeywords.some((keyword) => promptLower.includes(keyword))) {
         return 0.3;
       }
     }
@@ -154,7 +175,7 @@ function determineTemperature(type: string | undefined, systemPrompt: string | u
     crawler_agent: 0.1,
     qa_tools: 0.3,
     leichte_sprache: 0.3,
-    image_picker: 0.2
+    image_picker: 0.2,
   };
 
   if (type && type.startsWith('sharepic_')) return 0.1;
@@ -188,47 +209,74 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   if (messages) {
     for (const msg of messages) {
       if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-        const content = msg.content as Array<{ type: string; id?: string; name?: string; input?: unknown; text?: string }>;
-        const toolUseBlocks = content.filter(c => c.type === 'tool_use');
-        const toolCalls: MistralToolCall[] = toolUseBlocks.map(tc => ({
+        const content = msg.content as Array<{
+          type: string;
+          id?: string;
+          name?: string;
+          input?: unknown;
+          text?: string;
+        }>;
+        const toolUseBlocks = content.filter((c) => c.type === 'tool_use');
+        const toolCalls: MistralToolCall[] = toolUseBlocks.map((tc) => ({
           id: tc.id || '',
           type: 'function',
           function: {
             name: tc.name || '',
-            arguments: JSON.stringify(tc.input)
-          }
+            arguments: JSON.stringify(tc.input),
+          },
         }));
-        const textContent = content.filter(c => c.type === 'text').map(c => c.text || '').join('\n');
+        const textContent = content
+          .filter((c) => c.type === 'text')
+          .map((c) => c.text || '')
+          .join('\n');
         if (toolCalls.length > 0) {
           const assistantMessage: MistralMessage = {
             role: 'assistant',
             content: textContent && textContent.trim().length > 0 ? textContent : '',
             tool_calls: toolCalls,
-            toolCalls: toolCalls
+            toolCalls: toolCalls,
           };
           mistralMessages.push(assistantMessage);
         } else if (textContent && textContent.trim().length > 0) {
           mistralMessages.push({ role: 'assistant', content: textContent });
         }
       } else if (msg.role === 'user' && Array.isArray(msg.content)) {
-        const content = msg.content as Array<{ type: string; tool_use_id?: string; tool_call_id?: string; toolCallId?: string; id?: string; content?: unknown; text?: string; source?: { data?: string; media_type?: string; name?: string; url?: string; text?: string } }>;
-        const toolResults = content.filter(c => c.type === 'tool_result');
+        const content = msg.content as Array<{
+          type: string;
+          tool_use_id?: string;
+          tool_call_id?: string;
+          toolCallId?: string;
+          id?: string;
+          content?: unknown;
+          text?: string;
+          source?: {
+            data?: string;
+            media_type?: string;
+            name?: string;
+            url?: string;
+            text?: string;
+          };
+        }>;
+        const toolResults = content.filter((c) => c.type === 'tool_result');
         if (toolResults.length > 0) {
           for (const tr of toolResults) {
-            const contentStr = typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content);
+            const contentStr =
+              typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content);
             const toolCallId = tr.tool_use_id || tr.tool_call_id || tr.toolCallId || tr.id || '';
             mistralMessages.push({
               role: 'tool',
               content: contentStr,
               tool_call_id: toolCallId,
-              toolCallId: toolCallId
+              toolCallId: toolCallId,
             });
           }
         } else {
           const wantsDocQnA = options.useDocumentQnA === true;
-          const hasDocs = content.some(c => c.type === 'document' && c.source);
+          const hasDocs = content.some((c) => c.type === 'document' && c.source);
 
-          const uploadAndGetUrl = async (doc: { source?: { data?: string; media_type?: string; name?: string; url?: string } }): Promise<string | null> => {
+          const uploadAndGetUrl = async (doc: {
+            source?: { data?: string; media_type?: string; name?: string; url?: string };
+          }): Promise<string | null> => {
             try {
               if (doc.source?.data) {
                 const fileName = doc.source.name || 'document.pdf';
@@ -242,11 +290,22 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
                   const bytes = new Uint8Array(Buffer.from(base64, 'base64'));
                   uploadPayload = { file: { fileName, content: bytes } };
                 }
-                let res: { id?: string; file?: { id?: string }; data?: { id?: string } } | undefined;
-                const files = (mistralClient as unknown as { files?: { upload?: (p: unknown) => Promise<unknown>; create?: (p: unknown) => Promise<unknown>; add?: (p: unknown) => Promise<unknown>; getSignedUrl?: (p: { fileId: string }) => Promise<{ url?: string }> } }).files;
-                if (files?.upload) res = await files.upload(uploadPayload) as typeof res;
-                else if (files?.create) res = await files.create(uploadPayload) as typeof res;
-                else if (files?.add) res = await files.add(uploadPayload) as typeof res;
+                let res:
+                  | { id?: string; file?: { id?: string }; data?: { id?: string } }
+                  | undefined;
+                const files = (
+                  mistralClient as unknown as {
+                    files?: {
+                      upload?: (p: unknown) => Promise<unknown>;
+                      create?: (p: unknown) => Promise<unknown>;
+                      add?: (p: unknown) => Promise<unknown>;
+                      getSignedUrl?: (p: { fileId: string }) => Promise<{ url?: string }>;
+                    };
+                  }
+                ).files;
+                if (files?.upload) res = (await files.upload(uploadPayload)) as typeof res;
+                else if (files?.create) res = (await files.create(uploadPayload)) as typeof res;
+                else if (files?.add) res = (await files.add(uploadPayload)) as typeof res;
                 const fileId = res?.id || res?.file?.id || res?.data?.id;
                 if (fileId && files?.getSignedUrl) {
                   const signed = await files.getSignedUrl({ fileId });
@@ -263,7 +322,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
           if (wantsDocQnA && hasDocs) {
             const contentArr: MistralContent[] = [];
-            const preface = content.find(c => c.type === 'text' && typeof c.text === 'string');
+            const preface = content.find((c) => c.type === 'text' && typeof c.text === 'string');
             if (preface && preface.text && preface.text.trim()) {
               contentArr.push({ type: 'text', text: preface.text.trim() });
             } else {
@@ -277,13 +336,13 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
                 }
               }
             }
-            if (contentArr.some(b => b.type === 'document_url')) {
+            if (contentArr.some((b) => b.type === 'document_url')) {
               mistralMessages.push({ role: 'user', content: contentArr });
               continue;
             }
           }
 
-          const hasImages = content.some(c => c.type === 'image' && c.source?.data);
+          const hasImages = content.some((c) => c.type === 'image' && c.source?.data);
 
           if (hasImages) {
             const multimodalContent: MistralContent[] = [];
@@ -296,21 +355,24 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
                 multimodalContent.push({
                   type: 'image_url',
                   imageUrl: {
-                    url: `data:${mediaType};base64,${base64Data}`
-                  }
+                    url: `data:${mediaType};base64,${base64Data}`,
+                  },
                 });
               }
             }
             mistralMessages.push({ role: 'user', content: multimodalContent });
           } else {
-            const contentPromises = content.map(async c => {
+            const contentPromises = content.map(async (c) => {
               if (c.type === 'text') {
                 return c.text || '';
               } else if (c.type === 'document' && c.source) {
                 if (c.source.data && c.source.media_type === 'application/pdf') {
                   try {
                     const { ocrService } = await import('../../services/ocrService.js');
-                    const result = await ocrService.extractTextFromBase64PDF(c.source.data, c.source.name || 'unknown.pdf');
+                    const result = await ocrService.extractTextFromBase64PDF(
+                      c.source.data,
+                      c.source.name || 'unknown.pdf'
+                    );
                     return `[PDF-Inhalt: ${c.source.name || 'Unbekannt'}]\n\n${result.text}`;
                   } catch (error: unknown) {
                     const err = error as { message?: string };
@@ -338,7 +400,10 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         if (msg.role === 'system' && systemPrompt) {
           continue;
         }
-        mistralMessages.push({ role: msg.role, content: typeof msg.content === 'string' ? msg.content : String(msg.content || '') });
+        mistralMessages.push({
+          role: msg.role,
+          content: typeof msg.content === 'string' ? msg.content : String(msg.content || ''),
+        });
       }
     }
   }
@@ -351,13 +416,15 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     top_p: typeof options.top_p === 'number' ? options.top_p : top_p,
     max_tokens: max_tokens,
     presence_penalty: (options as { presence_penalty?: number }).presence_penalty || 0,
-    frequency_penalty: (options as { frequency_penalty?: number }).frequency_penalty || 0
+    frequency_penalty: (options as { frequency_penalty?: number }).frequency_penalty || 0,
   };
 
   if (options.useProMode && model.includes('magistral')) {
     mistralConfig.prompt_mode = 'reasoning';
     mistralConfig.max_tokens = Math.max(max_tokens, 6000);
-    console.log(`[mistralAdapter ${requestId}] Reasoning mode enabled for Pro Mode (model=${model})`);
+    console.log(
+      `[mistralAdapter ${requestId}] Reasoning mode enabled for Pro Mode (model=${model})`
+    );
   }
 
   if (type === 'image_picker' || type === 'text_adjustment') {
@@ -381,19 +448,22 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       if (attempt > 1) {
         connectionMetrics.retries++;
         const delay = baseDelay * Math.pow(2, attempt - 1);
-        console.log(`[mistralAdapter ${requestId}] Retry attempt ${attempt}/${maxRetries} after ${delay}ms delay`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        console.log(
+          `[mistralAdapter ${requestId}] Retry attempt ${attempt}/${maxRetries} after ${delay}ms delay`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
       connectionMetrics.attempts++;
-      response = await (mistralClient.chat as { complete: (config: MistralConfig) => Promise<MistralResponse> }).complete(mistralConfig);
+      response = await (
+        mistralClient.chat as { complete: (config: MistralConfig) => Promise<MistralResponse> }
+      ).complete(mistralConfig);
       connectionMetrics.successes++;
 
       if (attempt > 1) {
         console.log(`[mistralAdapter ${requestId}] Retry successful on attempt ${attempt}`);
       }
       break;
-
     } catch (mistralError: unknown) {
       const err = mistralError as { message?: string; code?: string; cause?: { code?: string } };
       lastError = mistralError as Error;
@@ -409,15 +479,21 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         err.cause?.code === 'UND_ERR_SOCKET';
 
       if (!isRetryable || attempt === maxRetries) {
-        console.error(`[mistralAdapter ${requestId}] ${isRetryable ? 'Max retries reached' : 'Non-retryable error'}:`, {
-          message: err.message,
-          code: err.code || err.cause?.code,
-          attempt: attempt
-        });
+        console.error(
+          `[mistralAdapter ${requestId}] ${isRetryable ? 'Max retries reached' : 'Non-retryable error'}:`,
+          {
+            message: err.message,
+            code: err.code || err.cause?.code,
+            attempt: attempt,
+          }
+        );
         throw mistralError;
       }
 
-      console.warn(`[mistralAdapter ${requestId}] Retryable connection error on attempt ${attempt}:`, err.message);
+      console.warn(
+        `[mistralAdapter ${requestId}] Retryable connection error on attempt ${attempt}:`,
+        err.message
+      );
     }
   }
 
@@ -435,20 +511,26 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     const args = call.function?.arguments ?? call.arguments ?? call.input;
     let inputObject: Record<string, unknown> = {};
     if (typeof args === 'string') {
-      try { inputObject = JSON.parse(args); } catch { inputObject = {}; }
+      try {
+        inputObject = JSON.parse(args);
+      } catch {
+        inputObject = {};
+      }
     } else if (typeof args === 'object' && args !== null) {
       inputObject = args as Record<string, unknown>;
     }
     return {
       id: call.id || call.tool_call_id || `mistral_tool_${index}`,
       name: functionName,
-      input: inputObject
+      input: inputObject,
     };
   });
 
   const rawContentBlocks: ContentBlock[] = Array.isArray(messageContent)
     ? messageContent
-    : (messageContent ? [{ type: 'text', text: messageContent }] : []);
+    : messageContent
+      ? [{ type: 'text', text: messageContent }]
+      : [];
   if (toolCalls.length > 0) {
     for (const tc of toolCalls) {
       rawContentBlocks.push({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.input });
@@ -461,15 +543,20 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     content: finalContent,
     stop_reason: normalizedStopReason,
     tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-    raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : (messageContent ? [{ type: 'text', text: messageContent as string }] : []),
+    raw_content_blocks:
+      rawContentBlocks.length > 0
+        ? rawContentBlocks
+        : messageContent
+          ? [{ type: 'text', text: messageContent as string }]
+          : [],
     success: true,
     metadata: mergeMetadata(requestMetadata, {
       provider: 'mistral',
       model: response.model || model,
       timestamp: new Date().toISOString(),
       requestId,
-      usage: response.usage
-    })
+      usage: response.usage,
+    }),
   };
 }
 

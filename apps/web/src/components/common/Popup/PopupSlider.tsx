@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+
 import Icon from '../Icon';
 import './base-popup.css';
 

@@ -5,9 +5,16 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createCanvas, type Canvas, type SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
+import {
+  createCanvas,
+  type Canvas,
+  type SKRSContext2D as CanvasRenderingContext2D,
+} from '@napi-rs/canvas';
 import { registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import {
+  optimizeCanvasBuffer,
+  bufferToBase64,
+} from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { validateFreeCanvasRequest } from '../../../services/sharepic/canvas/utils/layerValidator.js';
 import { renderBackground } from '../../../services/sharepic/canvas/renderers/backgroundRenderer.js';
 import { renderBalken } from '../../../services/sharepic/canvas/renderers/balkenRenderer.js';
@@ -17,7 +24,7 @@ import { renderIcon } from '../../../services/sharepic/canvas/renderers/iconRend
 import { renderText } from '../../../services/sharepic/canvas/renderers/textRenderer.js';
 import type {
   FreeCanvasRequest,
-  FreeCanvasResponse
+  FreeCanvasResponse,
 } from '../../../services/sharepic/canvas/types/freeCanvasTypes.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -40,7 +47,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     log.debug('Free canvas request received:', {
       canvasSize: `${requestData.canvasWidth}×${requestData.canvasHeight}`,
       backgroundType: requestData.background?.type,
-      layerCount: requestData.layerOrder?.length || 0
+      layerCount: requestData.layerOrder?.length || 0,
     });
 
     const validationResult = validateFreeCanvasRequest(requestData);
@@ -48,23 +55,15 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       log.warn('Validation failed:', validationResult.error);
       res.status(400).json({
         success: false,
-        error: validationResult.error
+        error: validationResult.error,
       });
       return;
     }
 
-    const canvas: Canvas = createCanvas(
-      requestData.canvasWidth,
-      requestData.canvasHeight
-    );
+    const canvas: Canvas = createCanvas(requestData.canvasWidth, requestData.canvasHeight);
     const ctx: CanvasRenderingContext2D = canvas.getContext('2d');
 
-    await renderBackground(
-      ctx,
-      requestData.background,
-      canvas.width,
-      canvas.height
-    );
+    await renderBackground(ctx, requestData.background, canvas.width, canvas.height);
 
     let layersRendered = 0;
 
@@ -97,9 +96,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         continue;
       }
 
-      const illustration = requestData.layers.illustrations?.find(
-        (i) => i.id === layerId
-      );
+      const illustration = requestData.layers.illustrations?.find((i) => i.id === layerId);
       if (illustration) {
         await renderIllustration(ctx, illustration);
         layersRendered++;
@@ -118,7 +115,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     log.debug('Free canvas render completed:', {
       layersRendered,
       renderTime: `${renderTime}ms`,
-      outputSize: `${Math.round(optimizedBuffer.length / 1024)}KB`
+      outputSize: `${Math.round(optimizedBuffer.length / 1024)}KB`,
     });
 
     const response: FreeCanvasResponse = {
@@ -128,8 +125,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         width: canvas.width,
         height: canvas.height,
         layersRendered,
-        renderTime
-      }
+        renderTime,
+      },
     };
 
     res.json(response);
@@ -137,7 +134,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     log.error('Free canvas render error:', error);
     res.status(500).json({
       success: false,
-      error: (error as Error).message
+      error: (error as Error).message,
     });
   }
 });

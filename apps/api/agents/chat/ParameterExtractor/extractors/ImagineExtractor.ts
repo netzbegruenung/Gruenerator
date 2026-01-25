@@ -10,7 +10,7 @@ import {
   extractImagineSubject,
   extractImagineVariant,
   extractImagineTitle,
-  extractEditAction
+  extractEditAction,
 } from '../utils/imagineUtils.js';
 
 /**
@@ -45,7 +45,7 @@ export function extractImagineParams(
     variant: variantResult.variant,
     hasExplicitVariant: variantResult.explicit,
     title,
-    action
+    action,
   });
 
   return {
@@ -61,14 +61,14 @@ export function extractImagineParams(
       subject: subject ? 0.8 : 0.3,
       variant: variantResult.explicit ? 0.9 : 0.3,
       title: title ? 0.9 : 0,
-      action: action ? 0.8 : 0
+      action: action ? 0.8 : 0,
     },
     _parameterSources: {
       ...(baseParams._parameterSources || {}),
       subject: 'regex',
       variant: variantResult.explicit ? 'regex' : 'default',
       title: title ? 'regex' : 'default',
-      action: action ? 'regex' : 'default'
-    }
+      action: action ? 'regex' : 'default',
+    },
   };
 }

@@ -57,7 +57,7 @@ export async function storeAttachment(
     data: attachment.data, // base64
     size: attachment.size,
     uploadedAt: timestamp,
-    userId: userId
+    userId: userId,
   };
 
   // Store for 24 hours
@@ -120,15 +120,12 @@ export async function getRecentDocuments(
 /**
  * Clear all user documents and caches from Redis
  */
-export async function clearUserDocuments(
-  redis: any,
-  userId: string
-): Promise<ClearUserDataResult> {
+export async function clearUserDocuments(redis: any, userId: string): Promise<ClearUserDataResult> {
   if (!userId) {
     return {
       success: false,
       deletedDocuments: 0,
-      deletedCacheEntries: 0
+      deletedCacheEntries: 0,
     };
   }
 
@@ -167,19 +164,20 @@ export async function clearUserDocuments(
       }
     }
 
-    console.log(`[DocumentQnAService] Cleared user data for ${userId}: ${deletedCount} documents, ${cacheKeys.length} cache entries`);
+    console.log(
+      `[DocumentQnAService] Cleared user data for ${userId}: ${deletedCount} documents, ${cacheKeys.length} cache entries`
+    );
     return {
       success: true,
       deletedDocuments: deletedCount,
-      deletedCacheEntries: cacheKeys.length
+      deletedCacheEntries: cacheKeys.length,
     };
-
   } catch (error) {
     console.error(`[DocumentQnAService] Error clearing user documents:`, error);
     return {
       success: false,
       deletedDocuments: 0,
-      deletedCacheEntries: 0
+      deletedCacheEntries: 0,
     };
   }
 }

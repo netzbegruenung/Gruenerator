@@ -95,12 +95,14 @@ CREATE INDEX IF NOT EXISTS idx_yjs_snapshots_document
 ### 3.2 Configure Service
 
 **Repository Settings:**
+
 - Repository: `your-gruenerator-repo-url`
 - Branch: `main`
 - Base Directory: `apps/docs`
 - Compose File: `docker-compose.yml`
 
 **Build Settings:**
+
 - Leave as default (uses Dockerfile)
 
 ### 3.3 Set Environment Variables
@@ -136,6 +138,7 @@ curl https://docs.gruenerator.de/health
 ```
 
 Expected:
+
 ```json
 {
   "status": "healthy",
@@ -170,6 +173,7 @@ If WebSocket fails, you may need to configure your reverse proxy.
 ### Option A: Direct Port (Easiest)
 
 Use port 1240 directly:
+
 ```env
 VITE_HOCUSPOCUS_URL=wss://docs.gruenerator.de:1240
 ```
@@ -177,6 +181,7 @@ VITE_HOCUSPOCUS_URL=wss://docs.gruenerator.de:1240
 ### Option B: Proxy WebSocket (Recommended for production)
 
 **Nginx:**
+
 ```nginx
 location /ws {
     proxy_pass http://localhost:1240;
@@ -187,11 +192,13 @@ location /ws {
 ```
 
 Then use:
+
 ```env
 VITE_HOCUSPOCUS_URL=wss://docs.gruenerator.de/ws
 ```
 
 **Caddy:**
+
 ```caddyfile
 docs.gruenerator.de {
     @websocket {
@@ -219,6 +226,7 @@ docs.gruenerator.de {
 
 **Error**: 404 Not Found
 **Fix**:
+
 1. Check logs: `docker logs gruenerator-docs`
 2. Verify build completed successfully
 3. Check if server started on port 3000
@@ -227,6 +235,7 @@ docs.gruenerator.de {
 
 **Error**: "WebSocket connection failed"
 **Fix**:
+
 1. Check port 1240 is accessible
 2. Verify firewall allows port 1240
 3. Check `VITE_HOCUSPOCUS_URL` is correct
@@ -236,6 +245,7 @@ docs.gruenerator.de {
 
 **Error**: "Session not found"
 **Fix**:
+
 1. Verify Redis is accessible from container
 2. Check session cookie domain
 3. Ensure same Redis as main API
@@ -260,6 +270,7 @@ docs.gruenerator.de {
 Your Grünerator Docs is now live at `https://docs.gruenerator.de`! 🎉
 
 Users can:
+
 - Create collaborative documents
 - Edit in real-time with others
 - View version history

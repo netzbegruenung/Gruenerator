@@ -1,56 +1,38 @@
 interface PageHeaderProps {
-    title?: string;
-    subtitle?: string;
-    author?: string;
-    readTime?: string;
-    alignment?: 'center' | 'left';
-    showDivider?: boolean;
+  title?: string;
+  subtitle?: string;
+  author?: string;
+  readTime?: string;
+  alignment?: 'center' | 'left';
+  showDivider?: boolean;
 }
 
 const PageHeader = ({
-    title,
-    subtitle,
-    author,
-    readTime,
-    alignment = 'center',
-    showDivider = true
+  title,
+  subtitle,
+  author,
+  readTime,
+  alignment = 'center',
+  showDivider = true,
 }: PageHeaderProps) => {
-    const headerClass = `page-header ${alignment === 'left' ? 'page-header--left-aligned' : ''}`;
+  const headerClass = `page-header ${alignment === 'left' ? 'page-header--left-aligned' : ''}`;
 
-    return (
-        <header className={headerClass}>
-            {title && (
-                <h1 className="page-header__title gradient-title">
-                    {title}
-                </h1>
-            )}
+  return (
+    <header className={headerClass}>
+      {title && <h1 className="page-header__title gradient-title">{title}</h1>}
 
-            {subtitle && (
-                <p className="page-header__subtitle">
-                    {subtitle}
-                </p>
-            )}
+      {subtitle && <p className="page-header__subtitle">{subtitle}</p>}
 
-            {(author || readTime) && (
-                <div className="page-header__meta">
-                    {author && (
-                        <span className="page-header__author">
-                            {author}
-                        </span>
-                    )}
-                    {readTime && (
-                        <span className="page-header__read-time">
-                            {readTime} Lesezeit
-                        </span>
-                    )}
-                </div>
-            )}
+      {(author || readTime) && (
+        <div className="page-header__meta">
+          {author && <span className="page-header__author">{author}</span>}
+          {readTime && <span className="page-header__read-time">{readTime} Lesezeit</span>}
+        </div>
+      )}
 
-            {showDivider && (
-                <hr className="page-header__divider" />
-            )}
-        </header>
-    );
+      {showDivider && <hr className="page-header__divider" />}
+    </header>
+  );
 };
 
 export default PageHeader;

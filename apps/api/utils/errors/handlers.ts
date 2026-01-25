@@ -15,7 +15,7 @@ import {
   CacheError,
   TimeoutError,
   ResourceError,
-  isVectorBackendError
+  isVectorBackendError,
 } from './classes.js';
 
 /**
@@ -69,37 +69,41 @@ export class ErrorHandler {
       return new ValidationError(message, context.field, context.value);
     }
 
-    if (message.includes('database') || message.includes('RPC') || (error as any).code === 'PGRST') {
+    if (
+      message.includes('database') ||
+      message.includes('RPC') ||
+      (error as any).code === 'PGRST'
+    ) {
       return new DatabaseError(message, 'DATABASE_ERROR', {
         operation: context.operation,
-        rpcFunction: context.rpcFunction
+        rpcFunction: context.rpcFunction,
       });
     }
 
     if (message.includes('embedding') || context.operation === 'embedding') {
       return new EmbeddingError(message, 'EMBEDDING_ERROR', {
         provider: context.provider,
-        embeddingDimensions: context.embeddingDimensions
+        embeddingDimensions: context.embeddingDimensions,
       });
     }
 
     if (message.includes('AI') || message.includes('worker') || context.operation === 'ai_worker') {
       return new AIWorkerError(message, 'AI_WORKER_ERROR', {
         provider: context.provider,
-        model: context.model
+        model: context.model,
       });
     }
 
     if (message.includes('cache') || context.operation === 'cache') {
       return new CacheError(message, 'CACHE_ERROR', {
-        cacheType: context.cacheType
+        cacheType: context.cacheType,
       });
     }
 
     // Default to generic search error
     return new SearchError(message, 'UNKNOWN_ERROR', {
       originalError: error.name,
-      searchType: context.searchType
+      searchType: context.searchType,
     });
   }
 
@@ -110,7 +114,7 @@ export class ErrorHandler {
     const logEntry = {
       ...error.toLogEntry(),
       service: this.serviceName,
-      context: this.sanitizeContext(context)
+      context: this.sanitizeContext(context),
     };
 
     // Choose log level based on error type
@@ -136,7 +140,7 @@ export class ErrorHandler {
     if (process.env.NODE_ENV !== 'production') {
       console.debug(`[${this.serviceName}] Would send to monitoring:`, {
         error: error.toLogEntry(),
-        context: this.sanitizeContext(context)
+        context: this.sanitizeContext(context),
       });
     }
   }
@@ -148,14 +152,14 @@ export class ErrorHandler {
     const sanitized: ErrorContext = { ...context };
 
     // Remove sensitive fields
-    SENSITIVE_FIELDS.forEach(field => {
+    SENSITIVE_FIELDS.forEach((field) => {
       if (sanitized[field]) {
         sanitized[field] = '[REDACTED]';
       }
     });
 
     // Truncate large objects
-    Object.keys(sanitized).forEach(key => {
+    Object.keys(sanitized).forEach((key) => {
       if (typeof sanitized[key] === 'string' && sanitized[key].length > MAX_LOG_STRING_LENGTH) {
         sanitized[key] = sanitized[key].substring(0, MAX_LOG_STRING_LENGTH - 3) + '...';
       }
@@ -168,10 +172,13 @@ export class ErrorHandler {
 /**
  * Create error handler with service-specific configuration
  */
-export function createErrorHandler(serviceName: string, options: ErrorHandlerOptions = {}): ErrorHandler {
+export function createErrorHandler(
+  serviceName: string,
+  options: ErrorHandlerOptions = {}
+): ErrorHandler {
   return new ErrorHandler({
     serviceName,
-    ...options
+    ...options,
   });
 }
 

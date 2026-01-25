@@ -87,17 +87,20 @@ class AssSubtitleService {
   private localeStyleMapping: LocaleStyleMapping;
 
   constructor() {
-    this.grueneTypeFontPath = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Regular.ttf');
+    this.grueneTypeFontPath = path.resolve(
+      __dirname,
+      '../../public/fonts/GrueneTypeNeue-Regular.ttf'
+    );
     this.gjFontPath = path.resolve(__dirname, '../../public/fonts/GJFontRegular.ttf');
     this.montserratFontPath = path.resolve(__dirname, '../../public/fonts/Montserrat-Bold.ttf');
 
     this.localeStyleMapping = {
       'de-AT': {
-        'standard': 'at_standard',
-        'clean': 'at_clean',
-        'shadow': 'at_shadow',
-        'tanne': 'at_gruen'
-      }
+        standard: 'at_standard',
+        clean: 'at_clean',
+        shadow: 'at_shadow',
+        tanne: 'at_gruen',
+      },
     };
   }
 
@@ -142,7 +145,7 @@ class AssSubtitleService {
       alignment: 2,
       marginL: 20,
       marginR: 20,
-      marginV: 30
+      marginV: 30,
     };
   }
 
@@ -169,7 +172,7 @@ class AssSubtitleService {
           shadow: 0,
           primaryColor: '&Hffffff',
           secondaryColor: '&Hffffff',
-          spacing: 1
+          spacing: 1,
         };
 
       case 'clean':
@@ -181,7 +184,7 @@ class AssSubtitleService {
           outlineColor: '&H00000000',
           shadow: 0,
           primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff'
+          secondaryColor: '&Hffffff',
         };
 
       case 'shadow':
@@ -193,7 +196,7 @@ class AssSubtitleService {
           shadow: 3,
           outlineColor: '&H80000000',
           primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff'
+          secondaryColor: '&Hffffff',
         };
 
       case 'tanne': {
@@ -208,7 +211,7 @@ class AssSubtitleService {
           shadow: 0,
           primaryColor: '&Hffffff',
           secondaryColor: '&Hffffff',
-          spacing: 1
+          spacing: 1,
         };
       }
 
@@ -222,7 +225,7 @@ class AssSubtitleService {
           outlineColor: '&H00000000',
           shadow: 0,
           primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff'
+          secondaryColor: '&Hffffff',
         };
 
       case 'gj_shadow':
@@ -235,7 +238,7 @@ class AssSubtitleService {
           shadow: 3,
           outlineColor: '&H80000000',
           primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff'
+          secondaryColor: '&Hffffff',
         };
 
       case 'gj_lavendel': {
@@ -251,7 +254,7 @@ class AssSubtitleService {
           shadow: 0,
           primaryColor: '&Hffffff',
           secondaryColor: '&Hffffff',
-          spacing: 1
+          spacing: 1,
         };
       }
 
@@ -268,7 +271,7 @@ class AssSubtitleService {
           shadow: 0,
           primaryColor: '&H000000',
           secondaryColor: '&H000000',
-          spacing: 1
+          spacing: 1,
         };
       }
 
@@ -283,7 +286,7 @@ class AssSubtitleService {
           shadow: 0,
           primaryColor: '&Hffffff',
           secondaryColor: '&Hffffff',
-          spacing: 1
+          spacing: 1,
         };
 
       case 'at_clean':
@@ -296,7 +299,7 @@ class AssSubtitleService {
           outlineColor: '&H00000000',
           shadow: 0,
           primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff'
+          secondaryColor: '&Hffffff',
         };
 
       case 'at_shadow':
@@ -309,7 +312,7 @@ class AssSubtitleService {
           shadow: 3,
           outlineColor: '&H80000000',
           primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff'
+          secondaryColor: '&Hffffff',
         };
 
       case 'at_gruen': {
@@ -325,7 +328,7 @@ class AssSubtitleService {
           shadow: 0,
           primaryColor: '&Hffffff',
           secondaryColor: '&Hffffff',
-          spacing: 1
+          spacing: 1,
         };
       }
 
@@ -348,14 +351,30 @@ class AssSubtitleService {
     const presetStyle = this.getStylePreset(effectiveStyle);
     const style: AssStyle = { ...presetStyle, ...styleOptions };
 
-    const fontSize = this.calculateFontSize(videoMetadata, style.fontSize, subtitlePreference, effectiveStyle);
+    const fontSize = this.calculateFontSize(
+      videoMetadata,
+      style.fontSize,
+      subtitlePreference,
+      effectiveStyle
+    );
     style.fontSize = fontSize;
 
-    log.debug(`Using style preset: ${effectiveStyle} (original: ${stylePreference}, locale: ${locale})`);
+    log.debug(
+      `Using style preset: ${effectiveStyle} (original: ${stylePreference}, locale: ${locale})`
+    );
 
     const header = this.generateAssHeader(videoMetadata);
-    const stylesSection = this.generateStylesSection(style, textOverlays && textOverlays.length > 0);
-    const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle, videoMetadata, heightPreference);
+    const stylesSection = this.generateStylesSection(
+      style,
+      textOverlays && textOverlays.length > 0
+    );
+    const eventsSection = this.generateEventsSection(
+      segments,
+      subtitlePreference,
+      effectiveStyle,
+      videoMetadata,
+      heightPreference
+    );
 
     let overlayEvents = '';
     if (textOverlays && textOverlays.length > 0) {
@@ -365,7 +384,7 @@ class AssSubtitleService {
 
     return {
       content: `${header}\n${stylesSection}\n${eventsSection}${overlayEvents}`,
-      effectiveStyle
+      effectiveStyle,
     };
   }
 
@@ -397,7 +416,7 @@ class AssSubtitleService {
 
     const isGjStyle = stylePreference?.startsWith('gj_');
     if (isGjStyle) {
-      fontSize = Math.floor(fontSize * 0.70);
+      fontSize = Math.floor(fontSize * 0.7);
     }
 
     const isAtStyle = stylePreference?.startsWith('at_');
@@ -436,20 +455,55 @@ Video Position: 0`;
 
   generateStylesSection(style: AssStyle, includeOverlayStyles: boolean = false): string {
     const formatLine = [
-      'Name', 'Fontname', 'Fontsize', 'PrimaryColour', 'SecondaryColour',
-      'OutlineColour', 'BackColour', 'Bold', 'Italic', 'Underline', 'StrikeOut',
-      'ScaleX', 'ScaleY', 'Spacing', 'Angle', 'BorderStyle', 'Outline',
-      'Shadow', 'Alignment', 'MarginL', 'MarginR', 'MarginV'
+      'Name',
+      'Fontname',
+      'Fontsize',
+      'PrimaryColour',
+      'SecondaryColour',
+      'OutlineColour',
+      'BackColour',
+      'Bold',
+      'Italic',
+      'Underline',
+      'StrikeOut',
+      'ScaleX',
+      'ScaleY',
+      'Spacing',
+      'Angle',
+      'BorderStyle',
+      'Outline',
+      'Shadow',
+      'Alignment',
+      'MarginL',
+      'MarginR',
+      'MarginV',
     ].join(',');
 
     const finalStyle = { ...style };
 
     const styleLine = [
-      'Default', finalStyle.fontName, finalStyle.fontSize, finalStyle.primaryColor,
-      finalStyle.secondaryColor, finalStyle.outlineColor, finalStyle.backColor, finalStyle.bold,
-      finalStyle.italic, finalStyle.underline, finalStyle.strikeOut, finalStyle.scaleX, finalStyle.scaleY,
-      finalStyle.spacing, finalStyle.angle, finalStyle.borderStyle, finalStyle.outline, finalStyle.shadow,
-      finalStyle.alignment, finalStyle.marginL, finalStyle.marginR, finalStyle.marginV
+      'Default',
+      finalStyle.fontName,
+      finalStyle.fontSize,
+      finalStyle.primaryColor,
+      finalStyle.secondaryColor,
+      finalStyle.outlineColor,
+      finalStyle.backColor,
+      finalStyle.bold,
+      finalStyle.italic,
+      finalStyle.underline,
+      finalStyle.strikeOut,
+      finalStyle.scaleX,
+      finalStyle.scaleY,
+      finalStyle.spacing,
+      finalStyle.angle,
+      finalStyle.borderStyle,
+      finalStyle.outline,
+      finalStyle.shadow,
+      finalStyle.alignment,
+      finalStyle.marginL,
+      finalStyle.marginR,
+      finalStyle.marginV,
     ].join(',');
 
     let styles = `[V4+ Styles]
@@ -458,19 +512,53 @@ Style: ${styleLine}`;
 
     if (includeOverlayStyles) {
       const overlayHeaderStyle = [
-        'OverlayHeader', 'GrueneType Neue', finalStyle.fontSize, '&H00FFFFFF',
-        '&H00FFFFFF', '&H80000000', '&H00000000', -1,
-        0, 0, 0, 100, 100,
-        0, 0, 0, 0, 2,
-        5, 10, 10, 10
+        'OverlayHeader',
+        'GrueneType Neue',
+        finalStyle.fontSize,
+        '&H00FFFFFF',
+        '&H00FFFFFF',
+        '&H80000000',
+        '&H00000000',
+        -1,
+        0,
+        0,
+        0,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        2,
+        5,
+        10,
+        10,
+        10,
       ].join(',');
 
       const overlaySubStyle = [
-        'OverlaySub', 'PT Sans', Math.round(finalStyle.fontSize * 0.67), '&H00FFFFFF',
-        '&H00FFFFFF', '&H80000000', '&H00000000', 0,
-        0, 0, 0, 100, 100,
-        0, 0, 0, 0, 2,
-        5, 10, 10, 10
+        'OverlaySub',
+        'PT Sans',
+        Math.round(finalStyle.fontSize * 0.67),
+        '&H00FFFFFF',
+        '&H00FFFFFF',
+        '&H80000000',
+        '&H00000000',
+        0,
+        0,
+        0,
+        0,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        2,
+        5,
+        10,
+        10,
+        10,
       ].join(',');
 
       styles += `\nStyle: ${overlayHeaderStyle}`;
@@ -481,9 +569,14 @@ Style: ${styleLine}`;
   }
 
   addHorizontalPadding(text: string, stylePreference: string): string {
-    if (stylePreference === 'standard' || stylePreference === 'tanne' ||
-        stylePreference === 'gj_lavendel' || stylePreference === 'gj_hellgruen' ||
-        stylePreference === 'at_standard' || stylePreference === 'at_gruen') {
+    if (
+      stylePreference === 'standard' ||
+      stylePreference === 'tanne' ||
+      stylePreference === 'gj_lavendel' ||
+      stylePreference === 'gj_hellgruen' ||
+      stylePreference === 'at_standard' ||
+      stylePreference === 'at_gruen'
+    ) {
       return `\u2009${text}\u2009`;
     }
     return text;
@@ -499,27 +592,28 @@ Style: ${styleLine}`;
     const { width: videoWidth = 1920, height: videoHeight = 1080 } = videoMetadata;
 
     const centerX = Math.round(videoWidth / 2);
-    const subtitleY = heightPreference === 'tief'
-      ? Math.round(videoHeight * 0.80)
-      : Math.round(videoHeight * 0.67);
+    const subtitleY =
+      heightPreference === 'tief' ? Math.round(videoHeight * 0.8) : Math.round(videoHeight * 0.67);
     const formatLine = 'Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text';
 
-    const dialogueLines = segments.map((segment) => {
-      const startTime = this.formatAssTime(segment.startTime);
-      const endTime = this.formatAssTime(segment.endTime);
-      let text = segment.text;
+    const dialogueLines = segments
+      .map((segment) => {
+        const startTime = this.formatAssTime(segment.startTime);
+        const endTime = this.formatAssTime(segment.endTime);
+        let text = segment.text;
 
-      if (subtitlePreference === 'manual') {
-        text = this.addLineBreaksForManualMode(text);
-      }
+        if (subtitlePreference === 'manual') {
+          text = this.addLineBreaksForManualMode(text);
+        }
 
-      text = this.addHorizontalPadding(text, stylePreference);
+        text = this.addHorizontalPadding(text, stylePreference);
 
-      const escapedText = this.escapeAssText(text);
-      const positionedText = `{\\an5\\pos(${centerX},${subtitleY})}${escapedText}`;
+        const escapedText = this.escapeAssText(text);
+        const positionedText = `{\\an5\\pos(${centerX},${subtitleY})}${escapedText}`;
 
-      return `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${positionedText}`;
-    }).join('\n');
+        return `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${positionedText}`;
+      })
+      .join('\n');
 
     return `[Events]
 Format: ${formatLine}
@@ -533,20 +627,22 @@ ${dialogueLines}`;
 
     const { width: videoWidth = 1920, height: videoHeight = 1080 } = videoMetadata;
 
-    const overlayLines = textOverlays.map((overlay) => {
-      const startTime = this.formatAssTime(overlay.startTime);
-      const endTime = this.formatAssTime(overlay.endTime);
+    const overlayLines = textOverlays
+      .map((overlay) => {
+        const startTime = this.formatAssTime(overlay.startTime);
+        const endTime = this.formatAssTime(overlay.endTime);
 
-      const styleName = overlay.type === 'header' ? 'OverlayHeader' : 'OverlaySub';
+        const styleName = overlay.type === 'header' ? 'OverlayHeader' : 'OverlaySub';
 
-      const posX = Math.round((overlay.xPosition / 100) * videoWidth);
-      const posY = Math.round((overlay.yPosition / 100) * videoHeight);
+        const posX = Math.round((overlay.xPosition / 100) * videoWidth);
+        const posY = Math.round((overlay.yPosition / 100) * videoHeight);
 
-      const escapedText = this.escapeAssText(overlay.text);
-      const positionedText = `{\\an5\\pos(${posX},${posY})}${escapedText}`;
+        const escapedText = this.escapeAssText(overlay.text);
+        const positionedText = `{\\an5\\pos(${posX},${posY})}${escapedText}`;
 
-      return `Dialogue: 1,${startTime},${endTime},${styleName},,0,0,0,,${positionedText}`;
-    }).join('\n');
+        return `Dialogue: 1,${startTime},${endTime},${styleName},,0,0,0,,${positionedText}`;
+      })
+      .join('\n');
 
     return `\n${overlayLines}`;
   }
@@ -583,7 +679,10 @@ ${dialogueLines}`;
     return text;
   }
 
-  findOptimalLineBreak(words: string[], text: string): { shouldBreak: boolean; breakIndex?: number; reason: string } {
+  findOptimalLineBreak(
+    words: string[],
+    text: string
+  ): { shouldBreak: boolean; breakIndex?: number; reason: string } {
     const totalLength = text.length;
     const targetSplitPoint = totalLength / 2;
 
@@ -615,7 +714,7 @@ ${dialogueLines}`;
     return {
       shouldBreak: true,
       breakIndex: bestBreakIndex,
-      reason: 'balanced split'
+      reason: 'balanced split',
     };
   }
 

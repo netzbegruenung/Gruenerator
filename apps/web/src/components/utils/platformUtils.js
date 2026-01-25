@@ -1,11 +1,15 @@
 export const formatPlatformContent = (content, platform) => {
-  const displayName = platform === 'pressemitteilung' ? 'Pressemitteilung' :
-                     platform === 'actionIdeas' ? 'Aktionsideen' :
-                     platform === 'reelScript' ? 'Skript für Reels & Tiktoks' :
-                     platform.charAt(0).toUpperCase() + platform.slice(1);
+  const displayName =
+    platform === 'pressemitteilung'
+      ? 'Pressemitteilung'
+      : platform === 'actionIdeas'
+        ? 'Aktionsideen'
+        : platform === 'reelScript'
+          ? 'Skript für Reels & Tiktoks'
+          : platform.charAt(0).toUpperCase() + platform.slice(1);
   return {
     title: displayName,
-    content
+    content,
   };
 };
 
@@ -22,13 +26,17 @@ export const getPlatformContent = (generatedContent, platform) => {
 
 export const combinePlatformContents = (platformValues, platforms) => {
   return platforms
-    .map(platform => {
+    .map((platform) => {
       const content = platformValues[platform] || '';
-      const displayName = platform === 'pressemitteilung' ? 'Pressemitteilung' :
-                         platform === 'actionIdeas' ? 'Aktionsideen' :
-                         platform === 'reelScript' ? 'Skript für Reels & Tiktoks' :
-                         platform.charAt(0).toUpperCase() + platform.slice(1);
+      const displayName =
+        platform === 'pressemitteilung'
+          ? 'Pressemitteilung'
+          : platform === 'actionIdeas'
+            ? 'Aktionsideen'
+            : platform === 'reelScript'
+              ? 'Skript für Reels & Tiktoks'
+              : platform.charAt(0).toUpperCase() + platform.slice(1);
       return `# ${displayName}\n\n${content}`;
     })
     .join('\n\n---\n\n');
-}; 
+};

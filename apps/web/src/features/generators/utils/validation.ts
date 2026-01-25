@@ -18,12 +18,12 @@ export const GENERATOR_VALIDATION_RULES = {
     required: 'Der URL-Pfad darf nicht leer sein.',
     pattern: {
       value: /^[a-z0-9-]+$/,
-      message: 'Der URL-Pfad darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten.'
+      message: 'Der URL-Pfad darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten.',
     },
     minLength: {
       value: 3,
-      message: 'Der URL-Pfad muss mindestens 3 Zeichen lang sein.'
-    }
+      message: 'Der URL-Pfad muss mindestens 3 Zeichen lang sein.',
+    },
   },
   title: {
     required: 'Der Titel darf nicht leer sein.',
@@ -38,11 +38,11 @@ export const GENERATOR_VALIDATION_RULES = {
   // Field editor validations (from FieldEditorAssistant.tsx)
   fieldLabel: {
     required: 'Das Label darf nicht leer sein.',
-    minLength: { value: 1, message: 'Label muss mindestens 1 Zeichen lang sein.' }
+    minLength: { value: 1, message: 'Label muss mindestens 1 Zeichen lang sein.' },
   },
   fieldName: {
     required: 'Technischer Name konnte nicht generiert werden.',
-  }
+  },
 };
 
 /**
@@ -60,11 +60,13 @@ export const validateFieldNameUniqueness = (
   currentFieldName?: string
 ): string | boolean => {
   const otherNames = currentFieldName
-    ? existingNames.filter(n => n !== currentFieldName)
+    ? existingNames.filter((n) => n !== currentFieldName)
     : existingNames;
 
-  return !otherNames.includes(value) ||
-    `Der technische Name '${value}' wird bereits von einem anderen Feld verwendet.`;
+  return (
+    !otherNames.includes(value) ||
+    `Der technische Name '${value}' wird bereits von einem anderen Feld verwendet.`
+  );
 };
 
 /**
@@ -85,9 +87,7 @@ export const suggestFieldType = (label: string): 'text' | 'textarea' => {
   const lowerLabel = label.toLowerCase();
   const textareaKeywords = ['beschreibung', 'text', 'inhalt', 'prompt', 'abschnitt'];
 
-  return textareaKeywords.some(keyword => lowerLabel.includes(keyword))
-    ? 'textarea'
-    : 'text';
+  return textareaKeywords.some((keyword) => lowerLabel.includes(keyword)) ? 'textarea' : 'text';
 };
 
 /**
@@ -108,7 +108,7 @@ export const suggestRequiredStatus = (label: string): boolean => {
   const lowerLabel = label.toLowerCase();
   const requiredKeywords = ['email', 'name', 'titel'];
 
-  return requiredKeywords.some(keyword => lowerLabel.includes(keyword));
+  return requiredKeywords.some((keyword) => lowerLabel.includes(keyword));
 };
 
 /**
@@ -137,7 +137,7 @@ export const validateStep = (
     BASICS: 1,
     FIELDS: 2,
     PROMPT: 3,
-    REVIEW: 4
+    REVIEW: 4,
   };
 
   switch (step) {
@@ -152,7 +152,10 @@ export const validateStep = (
 
     case STEPS.FIELDS:
       if (data.isEditingField) {
-        return { isValid: false, error: 'Bitte schließe zuerst den Feld-Editor (Speichern oder Abbrechen).' };
+        return {
+          isValid: false,
+          error: 'Bitte schließe zuerst den Feld-Editor (Speichern oder Abbrechen).',
+        };
       }
       return { isValid: true };
 

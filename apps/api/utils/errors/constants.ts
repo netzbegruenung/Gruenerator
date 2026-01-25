@@ -24,7 +24,7 @@ export const ERROR_TYPES: Record<ErrorCode, string> = {
   CACHE_ERROR: 'Cache-Fehler',
   RESOURCE_ERROR: 'Ressourcen erschöpft',
   NOT_IMPLEMENTED: 'Funktion nicht implementiert',
-  UNKNOWN_ERROR: 'Unbekannter Fehler'
+  UNKNOWN_ERROR: 'Unbekannter Fehler',
 };
 
 /**
@@ -38,7 +38,7 @@ export const SENSITIVE_FIELDS = [
   'embedding',
   'apiKey',
   'api_key',
-  'authorization'
+  'authorization',
 ] as const;
 
 /**

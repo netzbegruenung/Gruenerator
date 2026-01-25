@@ -1,50 +1,50 @@
 // Definiere verwandte Module und ihre Beziehungen
 export const ROUTE_RELATIONSHIPS = {
-    '/antrag': {
-      immediate: ['Pressemitteilung'], // Sofort laden
-      delayed: ['Rede', 'SocialMedia'],  // Mit Verzögerung laden
-      styles: ['typography', 'baseform'], // Kritische Styles
-      criticalStyles: {
-        fontFamily: "'PT Sans', Arial, sans-serif",
-        typography: true
-      }
+  '/antrag': {
+    immediate: ['Pressemitteilung'], // Sofort laden
+    delayed: ['Rede', 'SocialMedia'], // Mit Verzögerung laden
+    styles: ['typography', 'baseform'], // Kritische Styles
+    criticalStyles: {
+      fontFamily: "'PT Sans', Arial, sans-serif",
+      typography: true,
     },
-    '/pressemitteilung': {
-      immediate: ['SocialMedia'],
-      delayed: ['Antrag', 'Sharepic'],
-      styles: ['typography', 'baseform']
-    },
-    '/socialmedia': {
-      immediate: ['Sharepic'],
-      delayed: ['Pressemitteilung'],
-      styles: ['typography', 'baseform']
-    },
-    '/image-studio': {
-      immediate: ['SocialMedia'],
-      delayed: [],
-      styles: ['typography', 'imagemodificator']
-    },
-    '/image-studio/templates': {
-      immediate: ['SocialMedia'],
-      delayed: [],
-      styles: ['typography', 'imagemodificator']
-    },
-    '/image-studio/ki': {
-      immediate: ['SocialMedia'],
-      delayed: [],
-      styles: ['typography', 'imagemodificator']
-    },
-    '/rede': {
-      immediate: ['Antrag'],
-      delayed: ['Pressemitteilung'],
-      styles: ['typography', 'baseform']
-    },
-    '/wahlprogramm': {
-      immediate: [],
-      delayed: [],
-      styles: ['typography', 'baseform']
-    }
-  };
+  },
+  '/pressemitteilung': {
+    immediate: ['SocialMedia'],
+    delayed: ['Antrag', 'Sharepic'],
+    styles: ['typography', 'baseform'],
+  },
+  '/socialmedia': {
+    immediate: ['Sharepic'],
+    delayed: ['Pressemitteilung'],
+    styles: ['typography', 'baseform'],
+  },
+  '/image-studio': {
+    immediate: ['SocialMedia'],
+    delayed: [],
+    styles: ['typography', 'imagemodificator'],
+  },
+  '/image-studio/templates': {
+    immediate: ['SocialMedia'],
+    delayed: [],
+    styles: ['typography', 'imagemodificator'],
+  },
+  '/image-studio/ki': {
+    immediate: ['SocialMedia'],
+    delayed: [],
+    styles: ['typography', 'imagemodificator'],
+  },
+  '/rede': {
+    immediate: ['Antrag'],
+    delayed: ['Pressemitteilung'],
+    styles: ['typography', 'baseform'],
+  },
+  '/wahlprogramm': {
+    immediate: [],
+    delayed: [],
+    styles: ['typography', 'baseform'],
+  },
+};
 
 // Neue Hilfsfunktion für Style-Management
 export const getCriticalStyles = (pathname) => {
@@ -53,7 +53,7 @@ export const getCriticalStyles = (pathname) => {
     ...(route?.criticalStyles || {}),
     fontFamily: "'PT Sans', Arial, sans-serif",
     typography: true,
-    preloadFonts: true
+    preloadFonts: true,
   };
 };
 
@@ -62,10 +62,10 @@ export const preloadFonts = () => {
     { path: '../../fonts/PTSans-Regular.woff2', type: 'font/woff2' },
     { path: '../../fonts/PTSans-Bold.woff2', type: 'font/woff2' },
     { path: '../../fonts/PTSans-Italic.woff2', type: 'font/woff2' },
-    { path: '../../fonts/GrueneType.woff2', type: 'font/woff2' }
+    { path: '../../fonts/GrueneType.woff2', type: 'font/woff2' },
   ];
 
-  fonts.forEach(font => {
+  fonts.forEach((font) => {
     const link = document.createElement('link');
     link.rel = 'preload';
     link.as = 'font';

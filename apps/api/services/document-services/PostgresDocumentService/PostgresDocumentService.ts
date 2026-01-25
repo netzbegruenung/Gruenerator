@@ -14,7 +14,7 @@ import type {
   UserDocumentMode,
   UserDocumentModeResult,
   DocumentStats,
-  UserTextDocument
+  UserTextDocument,
 } from './types.js';
 
 // Import module functions
@@ -24,28 +24,16 @@ import {
   getDocumentsBySourceType,
   getDocumentById,
   deleteDocument,
-  bulkDeleteDocuments
+  bulkDeleteDocuments,
 } from './metadataOperations.js';
 
-import {
-  storeDocumentText,
-  getDocumentText,
-  createDocumentWithText
-} from './textOperations.js';
+import { storeDocumentText, getDocumentText, createDocumentWithText } from './textOperations.js';
 
-import {
-  getDocumentByWolkeFile
-} from './wolkeOperations.js';
+import { getDocumentByWolkeFile } from './wolkeOperations.js';
 
-import {
-  getUserDocumentMode,
-  setUserDocumentMode
-} from './userPreferences.js';
+import { getUserDocumentMode, setUserDocumentMode } from './userPreferences.js';
 
-import {
-  getDocumentStats,
-  getUserTexts
-} from './statistics.js';
+import { getDocumentStats, getUserTexts } from './statistics.js';
 
 /**
  * Main PostgresDocumentService class
@@ -79,7 +67,10 @@ export class PostgresDocumentService {
   /**
    * Set user's document mode preference
    */
-  async setUserDocumentMode(userId: string, mode: UserDocumentMode): Promise<UserDocumentModeResult> {
+  async setUserDocumentMode(
+    userId: string,
+    mode: UserDocumentMode
+  ): Promise<UserDocumentModeResult> {
     return setUserDocumentMode(this.postgres, userId, mode);
   }
 
@@ -108,7 +99,10 @@ export class PostgresDocumentService {
   /**
    * Get documents by source type for a user
    */
-  async getDocumentsBySourceType(userId: string, sourceType: string | null = null): Promise<DocumentRecord[]> {
+  async getDocumentsBySourceType(
+    userId: string,
+    sourceType: string | null = null
+  ): Promise<DocumentRecord[]> {
     return getDocumentsBySourceType(this.postgres, userId, sourceType);
   }
 

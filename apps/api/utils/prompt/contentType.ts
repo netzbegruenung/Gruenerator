@@ -48,7 +48,9 @@ export function detectContentType(routePath: string, formData: FormData = {}): C
   if (routePath.includes('claude_universal')) {
     const textForm = formData.textForm;
     if (textForm && typeof textForm === 'string') {
-      const cleanTextForm = textForm.toLowerCase().trim()
+      const cleanTextForm = textForm
+        .toLowerCase()
+        .trim()
         .replace(/\s+/g, '_')
         .replace(/[^a-z0-9_]/g, '');
 

@@ -1,14 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { HiPhoto, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
 import { HiColorSwatch } from 'react-icons/hi';
-import type { BackgroundSectionProps, StockImageAttribution } from '../types';
-import { SidebarSlider } from '../components/SidebarSlider';
-import { SidebarHint } from '../components/SidebarHint';
-import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
-import { useUnsplashSearch } from '../../../hooks/useUnsplashSearch';
-import { fetchUnsplashImageAsFile, trackUnsplashDownloadLive, type StockImage } from '../../../services/imageSourceService';
+import { HiPhoto, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
+
 import UnsplashAttribution from '../../../../../components/common/UnsplashAttribution';
+import { useUnsplashSearch } from '../../../hooks/useUnsplashSearch';
+import {
+  fetchUnsplashImageAsFile,
+  trackUnsplashDownloadLive,
+  type StockImage,
+} from '../../../services/imageSourceService';
+import { SidebarHint } from '../components/SidebarHint';
+import { SidebarSlider } from '../components/SidebarSlider';
+import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
+
+import type { BackgroundSectionProps, StockImageAttribution } from '../types';
+
 import './BackgroundSection.css';
 
 // ============================================================================
@@ -76,7 +83,9 @@ function ColorSubsection({
       )}
 
       <SidebarHint>
-        Wähle eine passende Hintergrundfarbe für dein Design. Die Farbe sollte gut mit dem Text harmonieren und für ausreichend Kontrast sorgen. Sand (hell) eignet sich für dunkle Texte, grüne Töne für helle Texte.
+        Wähle eine passende Hintergrundfarbe für dein Design. Die Farbe sollte gut mit dem Text
+        harmonieren und für ausreichend Kontrast sorgen. Sand (hell) eignet sich für dunkle Texte,
+        grüne Töne für helle Texte.
       </SidebarHint>
     </div>
   );
@@ -88,15 +97,15 @@ function ColorSubsection({
 
 interface ImageSubsectionProps {
   currentImageSrc?: string;
-  onImageChange?: (file: File | null, objectUrl?: string, attribution?: StockImageAttribution | null) => void;
+  onImageChange?: (
+    file: File | null,
+    objectUrl?: string,
+    attribution?: StockImageAttribution | null
+  ) => void;
   textContext?: string;
 }
 
-function ImageSubsection({
-  currentImageSrc,
-  onImageChange,
-  textContext,
-}: ImageSubsectionProps) {
+function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageSubsectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const {
@@ -128,27 +137,30 @@ function ImageSubsection({
   }, [debouncedQuery, searchUnsplash, clearSearch]);
 
   // Handle image selection
-  const handleImageSelect = useCallback(async (image: StockImage) => {
-    if (!onImageChange) return;
+  const handleImageSelect = useCallback(
+    async (image: StockImage) => {
+      if (!onImageChange) return;
 
-    try {
-      // Fetch image as File
-      const file = await fetchUnsplashImageAsFile(image);
+      try {
+        // Fetch image as File
+        const file = await fetchUnsplashImageAsFile(image);
 
-      // Create object URL for preview
-      const objectUrl = URL.createObjectURL(file);
+        // Create object URL for preview
+        const objectUrl = URL.createObjectURL(file);
 
-      // Track download (Unsplash API compliance)
-      if (image.attribution?.downloadLocation) {
-        await trackUnsplashDownloadLive(image.attribution.downloadLocation);
+        // Track download (Unsplash API compliance)
+        if (image.attribution?.downloadLocation) {
+          await trackUnsplashDownloadLive(image.attribution.downloadLocation);
+        }
+
+        // Pass to parent with attribution
+        onImageChange(file, objectUrl, image.attribution ?? null);
+      } catch (error) {
+        console.error('[ImageSubsection] Failed to select image:', error);
       }
-
-      // Pass to parent with attribution
-      onImageChange(file, objectUrl, image.attribution ?? null);
-    } catch (error) {
-      console.error('[ImageSubsection] Failed to select image:', error);
-    }
-  }, [onImageChange]);
+    },
+    [onImageChange]
+  );
 
   // Handle image removal
   const handleRemoveImage = useCallback(() => {
@@ -160,16 +172,19 @@ function ImageSubsection({
   return (
     <div className="sidebar-section sidebar-section--image-search">
       {/* Search Input */}
-      <div className="image-search-bar" style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 'var(--spacing-small)',
-        marginBottom: 'var(--spacing-medium)',
-        padding: 'var(--spacing-small)',
-        backgroundColor: 'var(--background-color)',
-        border: '1px solid var(--border-color)',
-        borderRadius: 'var(--border-radius-medium)',
-      }}>
+      <div
+        className="image-search-bar"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--spacing-small)',
+          marginBottom: 'var(--spacing-medium)',
+          padding: 'var(--spacing-small)',
+          backgroundColor: 'var(--background-color)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--border-radius-medium)',
+        }}
+      >
         <HiMagnifyingGlass size={20} style={{ color: 'var(--font-color-muted)' }} />
         <input
           type="text"
@@ -206,16 +221,20 @@ function ImageSubsection({
 
       {/* Current Selection Preview */}
       {currentImageSrc && (
-        <div style={{
-          marginBottom: 'var(--spacing-medium)',
-          position: 'relative',
-        }}>
-          <div style={{
+        <div
+          style={{
+            marginBottom: 'var(--spacing-medium)',
             position: 'relative',
-            borderRadius: 'var(--border-radius-medium)',
-            overflow: 'hidden',
-            aspectRatio: '16/9',
-          }}>
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              borderRadius: 'var(--border-radius-medium)',
+              overflow: 'hidden',
+              aspectRatio: '16/9',
+            }}
+          >
             <img
               src={currentImageSrc}
               alt="Aktuelles Bild"
@@ -251,26 +270,28 @@ function ImageSubsection({
 
       {/* Loading State */}
       {isLoadingSearch && searchResults.length === 0 && (
-        <div style={{
-          padding: 'var(--spacing-large)',
-          textAlign: 'center',
-          color: 'var(--font-color-muted)',
-        }}>
+        <div
+          style={{
+            padding: 'var(--spacing-large)',
+            textAlign: 'center',
+            color: 'var(--font-color-muted)',
+          }}
+        >
           <p>Suche läuft...</p>
         </div>
       )}
 
       {/* Error State */}
       {searchError && (
-        <div style={{
-          padding: 'var(--spacing-medium)',
-          backgroundColor: 'var(--error-background)',
-          borderRadius: 'var(--border-radius-medium)',
-          marginBottom: 'var(--spacing-medium)',
-        }}>
-          <p style={{ color: 'var(--error-color)', fontSize: '0.875rem' }}>
-            {searchError}
-          </p>
+        <div
+          style={{
+            padding: 'var(--spacing-medium)',
+            backgroundColor: 'var(--error-background)',
+            borderRadius: 'var(--border-radius-medium)',
+            marginBottom: 'var(--spacing-medium)',
+          }}
+        >
+          <p style={{ color: 'var(--error-color)', fontSize: '0.875rem' }}>{searchError}</p>
           <button
             type="button"
             onClick={() => searchUnsplash(debouncedQuery)}
@@ -293,12 +314,14 @@ function ImageSubsection({
       {/* Results Grid */}
       {searchResults.length > 0 && (
         <>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: 'var(--spacing-small)',
-            marginBottom: 'var(--spacing-medium)',
-          }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 'var(--spacing-small)',
+              marginBottom: 'var(--spacing-medium)',
+            }}
+          >
             {searchResults.map((image) => {
               const isSelected = currentImageSrc === image.url;
               return (
@@ -308,7 +331,9 @@ function ImageSubsection({
                   type="button"
                   style={{
                     position: 'relative',
-                    border: isSelected ? '2px solid var(--primary-600)' : '1px solid var(--border-color)',
+                    border: isSelected
+                      ? '2px solid var(--primary-600)'
+                      : '1px solid var(--border-color)',
                     borderRadius: 'var(--border-radius-medium)',
                     overflow: 'hidden',
                     cursor: 'pointer',
@@ -330,14 +355,16 @@ function ImageSubsection({
 
                   {/* Attribution Overlay */}
                   {image.attribution && (
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      background: 'rgba(0, 0, 0, 0.7)',
-                      padding: 'var(--spacing-xxsmall)',
-                    }}>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        background: 'rgba(0, 0, 0, 0.7)',
+                        padding: 'var(--spacing-xxsmall)',
+                      }}
+                    >
                       <UnsplashAttribution
                         photographer={image.attribution.photographer}
                         profileUrl={image.attribution.profileUrl}
@@ -349,18 +376,20 @@ function ImageSubsection({
 
                   {/* Selected Checkmark */}
                   {isSelected && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 'var(--spacing-small)',
-                      right: 'var(--spacing-small)',
-                      backgroundColor: 'var(--primary-600)',
-                      borderRadius: '50%',
-                      width: '24px',
-                      height: '24px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'var(--spacing-small)',
+                        right: 'var(--spacing-small)',
+                        backgroundColor: 'var(--primary-600)',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <FaCheck size={12} color="white" />
                     </div>
                   )}
@@ -387,7 +416,9 @@ function ImageSubsection({
                 opacity: isLoadingSearch ? 0.5 : 1,
               }}
             >
-              {isLoadingSearch ? 'Lädt...' : `Mehr laden (${searchResults.length} von ${totalResults})`}
+              {isLoadingSearch
+                ? 'Lädt...'
+                : `Mehr laden (${searchResults.length} von ${totalResults})`}
             </button>
           )}
         </>
@@ -395,18 +426,25 @@ function ImageSubsection({
 
       {/* Empty State */}
       {!searchQuery && searchResults.length === 0 && !isLoadingSearch && (
-        <div style={{
-          padding: 'var(--spacing-xlarge)',
-          textAlign: 'center',
-        }}>
-          <HiPhoto size={48} style={{
-            color: 'var(--font-color-muted)',
-            marginBottom: 'var(--spacing-medium)',
-          }} />
-          <p style={{
-            color: 'var(--font-color)',
-            marginBottom: 'var(--spacing-small)',
-          }}>
+        <div
+          style={{
+            padding: 'var(--spacing-xlarge)',
+            textAlign: 'center',
+          }}
+        >
+          <HiPhoto
+            size={48}
+            style={{
+              color: 'var(--font-color-muted)',
+              marginBottom: 'var(--spacing-medium)',
+            }}
+          />
+          <p
+            style={{
+              color: 'var(--font-color)',
+              marginBottom: 'var(--spacing-small)',
+            }}
+          >
             Suche nach Bildern auf Unsplash
           </p>
           <SidebarHint>
@@ -417,10 +455,12 @@ function ImageSubsection({
 
       {/* No Results */}
       {searchQuery && searchResults.length === 0 && !isLoadingSearch && !searchError && (
-        <div style={{
-          padding: 'var(--spacing-large)',
-          textAlign: 'center',
-        }}>
+        <div
+          style={{
+            padding: 'var(--spacing-large)',
+            textAlign: 'center',
+          }}
+        >
           <p style={{ color: 'var(--font-color-muted)' }}>
             Keine Ergebnisse für "{searchQuery}" gefunden.
           </p>

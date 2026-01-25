@@ -32,8 +32,8 @@ export async function processUrlContent(
     additionalMetadata: {
       originalUrl: url.trim(),
       wordCount: content.split(/\s+/).filter((word: string) => word.length > 0).length,
-      characterCount: content.length
-    }
+      characterCount: content.length,
+    },
   });
 
   await qdrantDocumentService.storeDocumentVectors(
@@ -48,12 +48,14 @@ export async function processUrlContent(
       additionalPayload: {
         source_url: url.trim(),
         word_count: content.split(/\s+/).filter((word: string) => word.length > 0).length,
-        crawled_at: new Date().toISOString()
-      }
+        crawled_at: new Date().toISOString(),
+      },
     }
   );
 
-  console.log(`[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`);
+  console.log(
+    `[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`
+  );
 
   return {
     id: documentMetadata.id,
@@ -62,6 +64,6 @@ export async function processUrlContent(
     sourceUrl: url.trim(),
     status: 'completed',
     created_at: documentMetadata.created_at,
-    sourceType: sourceType
+    sourceType: sourceType,
   };
 }

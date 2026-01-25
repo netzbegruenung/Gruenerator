@@ -12,7 +12,7 @@ import type {
   QdrantRangeCondition,
   QdrantTextCondition,
   FilterSpec,
-  CommonFilterField
+  CommonFilterField,
 } from './types.js';
 
 /**
@@ -24,7 +24,7 @@ export const COMMON_FILTER_FIELDS: CommonFilterField[] = [
   'subcategories',
   'region',
   'country',
-  'platform'
+  'platform',
 ];
 
 /**
@@ -57,7 +57,7 @@ export function buildQdrantFilter(
     if (value !== undefined && value !== null && value !== '') {
       must.push({
         key,
-        match: { value }
+        match: { value },
       } as QdrantMatchCondition);
     }
   }
@@ -95,7 +95,7 @@ export function buildQdrantFilterFromSpecs(specs: FilterSpec[]): QdrantFilter | 
         if (Array.isArray(value)) {
           must.push({
             key: field,
-            match: { any: value }
+            match: { any: value },
           } as QdrantMatchAnyCondition);
         }
         break;
@@ -104,7 +104,7 @@ export function buildQdrantFilterFromSpecs(specs: FilterSpec[]): QdrantFilter | 
         if (typeof value === 'string') {
           must.push({
             key: field,
-            match: { text: value }
+            match: { text: value },
           } as QdrantTextCondition);
         }
         break;
@@ -113,7 +113,7 @@ export function buildQdrantFilterFromSpecs(specs: FilterSpec[]): QdrantFilter | 
         if (typeof value === 'number' && rangeOp) {
           must.push({
             key: field,
-            range: { [rangeOp]: value }
+            range: { [rangeOp]: value },
           } as QdrantRangeCondition);
         }
         break;
@@ -123,7 +123,7 @@ export function buildQdrantFilterFromSpecs(specs: FilterSpec[]): QdrantFilter | 
         if (!Array.isArray(value)) {
           must.push({
             key: field,
-            match: { value }
+            match: { value },
           } as QdrantMatchCondition);
         }
         break;

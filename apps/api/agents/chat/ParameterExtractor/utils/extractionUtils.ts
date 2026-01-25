@@ -19,7 +19,7 @@ export function extractTheme(message: string, context: ChatContext): string | nu
   const themePatterns = [
     /(?:zum thema|über|bezüglich|betreffend)\s+([^.!?]+)/i,
     /(?:thema:?\s*)([^.!?]+)/i,
-    /(klimaschutz|umwelt|verkehr|energie|bildung|soziales|wirtschaft|digitalisierung|europa|demokratie)/i
+    /(klimaschutz|umwelt|verkehr|energie|bildung|soziales|wirtschaft|digitalisierung|europa|demokratie)/i,
   ];
 
   for (const pattern of themePatterns) {
@@ -60,16 +60,16 @@ export function extractPlatforms(message: string): string[] {
   const lowerMessage = message.toLowerCase();
 
   const platformKeywords: Record<string, string[]> = {
-    'twitter': ['twitter', 'tweet', 'x.com', 'x post'],
-    'instagram': ['instagram', 'insta', 'ig'],
-    'facebook': ['facebook', 'fb'],
-    'linkedin': ['linkedin'],
-    'tiktok': ['tiktok'],
-    'mastodon': ['mastodon']
+    twitter: ['twitter', 'tweet', 'x.com', 'x post'],
+    instagram: ['instagram', 'insta', 'ig'],
+    facebook: ['facebook', 'fb'],
+    linkedin: ['linkedin'],
+    tiktok: ['tiktok'],
+    mastodon: ['mastodon'],
   };
 
   for (const [platform, keywords] of Object.entries(platformKeywords)) {
-    if (keywords.some(keyword => lowerMessage.includes(keyword))) {
+    if (keywords.some((keyword) => lowerMessage.includes(keyword))) {
       platforms.push(platform);
     }
   }
@@ -84,7 +84,7 @@ export function extractQuoteAuthor(message: string): AuthorExtractionResult {
   const authorPatterns = [
     /(?:von|zitat von|quote from|autor:?)\s+([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)*)/i,
     /([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)*)\s+(?:sagte|meinte|erklärte)/i,
-    /author:\s*([^,\n]+)/i
+    /author:\s*([^,\n]+)/i,
   ];
 
   for (const pattern of authorPatterns) {
@@ -96,7 +96,7 @@ export function extractQuoteAuthor(message: string): AuthorExtractionResult {
         return {
           value: name,
           confidence: 0.9,
-          source: 'regex'
+          source: 'regex',
         };
       }
     }
@@ -105,7 +105,7 @@ export function extractQuoteAuthor(message: string): AuthorExtractionResult {
   return {
     value: null,
     confidence: 0,
-    source: 'default'
+    source: 'default',
   };
 }
 
@@ -114,14 +114,15 @@ export function extractQuoteAuthor(message: string): AuthorExtractionResult {
  */
 export function extractLines(message: string): LinesExtractionResult | null {
   // Pattern for explicit three lines
-  const threeLinePattern = /zeile\s*1:?\s*["']?([^"'\n]+)["']?\s*zeile\s*2:?\s*["']?([^"'\n]+)["']?\s*zeile\s*3:?\s*["']?([^"'\n]+)["']?/i;
+  const threeLinePattern =
+    /zeile\s*1:?\s*["']?([^"'\n]+)["']?\s*zeile\s*2:?\s*["']?([^"'\n]+)["']?\s*zeile\s*3:?\s*["']?([^"'\n]+)["']?/i;
   const match = message.match(threeLinePattern);
 
   if (match && match[1] && match[2] && match[3]) {
     return {
       line1: match[1].trim(),
       line2: match[2].trim(),
-      line3: match[3].trim()
+      line3: match[3].trim(),
     };
   }
 
@@ -133,9 +134,22 @@ export function extractLines(message: string): LinesExtractionResult | null {
  */
 export function extractTextForm(message: string): string | null {
   const textForms = [
-    'tweet', 'facebook-post', 'instagram-post', 'linkedin-post',
-    'pressemitteilung', 'antrag', 'rede', 'brief', 'artikel', 'blog', 'newsletter',
-    'flyer', 'broschüre', 'wahlprogramm', 'stellungnahme', 'kommentar'
+    'tweet',
+    'facebook-post',
+    'instagram-post',
+    'linkedin-post',
+    'pressemitteilung',
+    'antrag',
+    'rede',
+    'brief',
+    'artikel',
+    'blog',
+    'newsletter',
+    'flyer',
+    'broschüre',
+    'wahlprogramm',
+    'stellungnahme',
+    'kommentar',
   ];
 
   const lowerMessage = message.toLowerCase();
@@ -154,17 +168,17 @@ export function extractTextForm(message: string): string | null {
  */
 export function extractStyle(message: string): string | null {
   const styles: Record<string, string[]> = {
-    'sachlich': ['sachlich', 'neutral', 'objektiv'],
-    'emotional': ['emotional', 'leidenschaftlich', 'bewegend'],
-    'jugendlich': ['jugendlich', 'jung', 'hip', 'cool'],
-    'formal': ['formal', 'offiziell', 'amtlich'],
-    'persönlich': ['persönlich', 'individuell', 'direkt']
+    sachlich: ['sachlich', 'neutral', 'objektiv'],
+    emotional: ['emotional', 'leidenschaftlich', 'bewegend'],
+    jugendlich: ['jugendlich', 'jung', 'hip', 'cool'],
+    formal: ['formal', 'offiziell', 'amtlich'],
+    persönlich: ['persönlich', 'individuell', 'direkt'],
   };
 
   const lowerMessage = message.toLowerCase();
 
   for (const [style, keywords] of Object.entries(styles)) {
-    if (keywords.some(keyword => lowerMessage.includes(keyword))) {
+    if (keywords.some((keyword) => lowerMessage.includes(keyword))) {
       return style.charAt(0).toUpperCase() + style.slice(1);
     }
   }
@@ -178,7 +192,7 @@ export function extractStyle(message: string): string | null {
 export function extractStructure(message: string): string | null {
   const structurePatterns = [
     /(?:gliederung|struktur|aufbau):?\s*([^.!?]+)/i,
-    /(?:mit|in)\s+(\d+)\s+(?:punkten|teilen|abschnitten)/i
+    /(?:mit|in)\s+(\d+)\s+(?:punkten|teilen|abschnitten)/i,
   ];
 
   for (const pattern of structurePatterns) {
@@ -194,11 +208,14 @@ export function extractStructure(message: string): string | null {
 /**
  * Determine request type for Antrag
  */
-export function determineRequestType(message: string): 'default' | 'kleine_anfrage' | 'grosse_anfrage' {
+export function determineRequestType(
+  message: string
+): 'default' | 'kleine_anfrage' | 'grosse_anfrage' {
   const lowerMessage = message.toLowerCase();
 
   if (lowerMessage.includes('kleine anfrage')) return 'kleine_anfrage';
-  if (lowerMessage.includes('große anfrage') || lowerMessage.includes('grosse anfrage')) return 'grosse_anfrage';
+  if (lowerMessage.includes('große anfrage') || lowerMessage.includes('grosse anfrage'))
+    return 'grosse_anfrage';
 
   return 'default';
 }

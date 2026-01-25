@@ -1,4 +1,5 @@
 import { useConsentStore } from '../stores/consentStore';
+
 import type { EmbedPlatform } from '../types/consent';
 
 export function useEmbedConsent(platform: EmbedPlatform) {

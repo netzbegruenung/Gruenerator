@@ -2,7 +2,9 @@
  * Zitat Pure (Text-only Quote) type configuration
  */
 import { PiQuotes } from 'react-icons/pi';
+
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../constants';
+
 import type { TemplateTypeConfig, TemplateFieldConfig } from '../types';
 
 export const zitatPureTypeConfig: TemplateTypeConfig = {
@@ -19,11 +21,11 @@ export const zitatPureTypeConfig: TemplateTypeConfig = {
   hasRateLimit: false,
   endpoints: {
     text: '/zitat_pure_claude',
-    canvas: '/zitat_pure_canvas'
+    canvas: '/zitat_pure_canvas',
   },
   formComponent: 'ZitatPureForm',
   steps: [FORM_STEPS.INPUT, FORM_STEPS.CANVAS_EDIT, FORM_STEPS.RESULT],
-  legacyType: 'Zitat_Pure'
+  legacyType: 'Zitat_Pure',
 };
 
 interface ZitatPureResult {
@@ -43,19 +45,19 @@ export const zitatPureFieldConfig: TemplateFieldConfig = {
       subtitle: 'Beschreibe das Thema, zu dem ein Text-Zitat erstellt werden soll',
       placeholder: 'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
       required: true,
-      minLength: 3
-    }
+      minLength: 3,
+    },
   ],
   previewFields: [
     { name: 'quote', type: 'textarea', label: 'Zitat' },
-    { name: 'name', type: 'text', label: 'Zitiert wird', placeholder: 'Name der Person' }
+    { name: 'name', type: 'text', label: 'Zitiert wird', placeholder: 'Name der Person' },
   ],
   resultFields: ['quote'],
   responseMapping: (result: ZitatPureResult) => ({
-    quote: result.quote || ''
+    quote: result.quote || '',
   }),
   alternativesMapping: (alt: ZitatPureAlternative) => ({
-    quote: alt.quote || ''
+    quote: alt.quote || '',
   }),
   showImageUpload: false,
   showColorControls: false,
@@ -66,5 +68,5 @@ export const zitatPureFieldConfig: TemplateFieldConfig = {
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Andere Zitate'
+  alternativesButtonText: 'Andere Zitate',
 };

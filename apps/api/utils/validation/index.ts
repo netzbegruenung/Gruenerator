@@ -7,7 +7,12 @@
 export { InputValidator, default as InputValidatorDefault, ValidationError } from './input.js';
 
 // Security Utils exports
-export { sanitizePath, sanitizeFilename, generateSecureId, default as securityUtils } from './security.js';
+export {
+  sanitizePath,
+  sanitizeFilename,
+  generateSecureId,
+  default as securityUtils,
+} from './security.js';
 
 // Hash Utils exports
 export {
@@ -17,7 +22,7 @@ export {
   generatePointId,
   chunkToNumericId,
   simpleHash,
-  default as hashUtils
+  default as hashUtils,
 } from './hash.js';
 
 // Type exports

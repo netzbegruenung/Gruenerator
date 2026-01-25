@@ -1,19 +1,20 @@
-import type { IconType } from 'react-icons';
-import type { OriginalSharepicData, GalleryEditData } from '../services/editingSessionService';
+import { type DEFAULT_COLORS } from '../../../components/utils/constants';
 import {
-  IMAGE_STUDIO_CATEGORIES,
-  IMAGE_STUDIO_TYPES,
-  KI_SUBCATEGORIES,
-  FORM_STEPS
+  type IMAGE_STUDIO_CATEGORIES,
+  type IMAGE_STUDIO_TYPES,
+  type KI_SUBCATEGORIES,
+  type FORM_STEPS,
 } from '../utils/typeConfig';
-import { DEFAULT_COLORS } from '../../../components/utils/constants';
+
 import type { ColorScheme } from './shared';
+import type { OriginalSharepicData, GalleryEditData } from '../services/editingSessionService';
+import type { IconType } from 'react-icons';
 
 // Font size constants
 export const FONT_SIZES = {
   S: 75,
   M: 85,
-  L: 105
+  L: 105,
 } as const;
 
 // Type for font size keys
@@ -264,7 +265,9 @@ export interface ImageStudioActions {
 
   // Form data updates
   updateFormData: (data: FormDataUpdate) => void;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  handleChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
 
   // Step navigation
   setCurrentStep: (step: string) => void;
@@ -361,7 +364,11 @@ export interface ImageStudioActions {
   hasRateLimit: () => boolean;
 
   // AI prompt generation (from chat input)
-  loadFromAIGeneration: (sharepicType: string, generatedData: Record<string, string>, selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null) => void;
+  loadFromAIGeneration: (
+    sharepicType: string,
+    generatedData: Record<string, string>,
+    selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null
+  ) => void;
 
   // AI Editor undo/redo
   commitAiGeneration: (image: string, prompt: string) => void;
@@ -394,7 +401,7 @@ export const DEFAULT_VERANSTALTUNG_FIELD_FONT_SIZES: VeranstaltungFieldFontSizes
   date: 65,
   time: 50,
   locationName: 50,
-  address: 40
+  address: 40,
 };
 
 // Re-export ColorScheme from shared module

@@ -1,1 +1,1 @@
-export * from "./ai-editor-popover";
+export * from './ai-editor-popover';

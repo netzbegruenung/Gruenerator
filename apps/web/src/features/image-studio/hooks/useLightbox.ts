@@ -42,7 +42,7 @@ export const useLightbox = (): UseLightboxReturn => {
   return {
     isOpen,
     openLightbox,
-    closeLightbox
+    closeLightbox,
   };
 };
 

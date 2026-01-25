@@ -24,7 +24,7 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
 
     setIsExiting(true);
     setTimeout(() => {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
       setIsExiting(false);
     }, 300);
   }, [currentStep, onComplete]);
@@ -34,7 +34,7 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
 
     setIsExiting(true);
     setTimeout(() => {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep((prev) => prev - 1);
       setIsExiting(false);
     }, 300);
   }, [currentStep]);
@@ -68,13 +68,12 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
       case 'welcome':
         return (
           <div className={`welcome-step ${stepClass}`}>
-            <img
-              className="welcome-logo"
-              src="/images/Logo_Grün.svg"
-              alt="Grünerator"
-            />
+            <img className="welcome-logo" src="/images/Logo_Grün.svg" alt="Grünerator" />
             <h1>Willkommen beim Grünerator</h1>
-            <p>KI-gestützte Textgenerierung für Grüne. Erstelle professionelle Texte, Sharepics und mehr – schnell und einfach.</p>
+            <p>
+              KI-gestützte Textgenerierung für Grüne. Erstelle professionelle Texte, Sharepics und
+              mehr – schnell und einfach.
+            </p>
           </div>
         );
 
@@ -86,7 +85,9 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
               <div className="feature-card">
                 <div className="feature-icon">✍️</div>
                 <h3>Textgenerierung</h3>
-                <p>Erstelle Pressemitteilungen, Social Media Posts und mehr mit KI-Unterstützung.</p>
+                <p>
+                  Erstelle Pressemitteilungen, Social Media Posts und mehr mit KI-Unterstützung.
+                </p>
               </div>
               <div className="feature-card">
                 <div className="feature-icon">🖼️</div>
@@ -194,9 +195,7 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
 
   return (
     <div className="first-run-wizard">
-      <div className="wizard-content">
-        {renderStep()}
-      </div>
+      <div className="wizard-content">{renderStep()}</div>
 
       <div className="progress-indicator">
         {STEPS.map((_, index) => (
@@ -211,11 +210,7 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
 
       {currentStep < STEPS.length - 1 && STEPS[currentStep] !== 'login' && (
         <div className="navigation-buttons">
-          <button
-            className="nav-button back"
-            onClick={handleBack}
-            disabled={currentStep === 0}
-          >
+          <button className="nav-button back" onClick={handleBack} disabled={currentStep === 0}>
             Zurück
           </button>
           <button className="nav-button next" onClick={handleNext}>

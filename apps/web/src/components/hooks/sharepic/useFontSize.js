@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+
 import { FONT_SIZES, MIN_FONT_SIZE, MAX_FONT_SIZE } from '../../utils/constants';
 
 export const useFontSize = (initialSize = 'm') => {
@@ -17,6 +18,6 @@ export const useFontSize = (initialSize = 'm') => {
     fontSize,
     handleFontSizeChange,
     getFontSizeInPixels,
-    FONT_SIZES
+    FONT_SIZES,
   };
 };

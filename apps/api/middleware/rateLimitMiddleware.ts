@@ -44,10 +44,7 @@ const rateLimiter = new RateLimiter(redisClient, rateLimitConfig as unknown as R
  * router.post('/generate', rateLimitMiddleware('text', { autoIncrement: true }), handler);
  */
 function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareOptions = {}) {
-  const {
-    autoIncrement = false,
-    soft = false
-  } = options;
+  const { autoIncrement = false, soft = false } = options;
 
   return async (req: RateLimitRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -60,34 +57,41 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
 
       // Log rate limit check
       if (!status.unlimited && !status.error) {
-        console.log(`[RateLimit] ${resourceType} check for ${userType} ${identifier}: ${status.count}/${status.limit} used, ${status.remaining} remaining`);
+        console.log(
+          `[RateLimit] ${resourceType} check for ${userType} ${identifier}: ${status.count}/${status.limit} used, ${status.remaining} remaining`
+        );
       }
 
       // Handle limit exceeded (hard limit)
       if (!status.canGenerate && !status.unlimited && !soft) {
-        console.warn(`[RateLimit] Blocked ${resourceType} request: ${userType} ${identifier} exceeded limit (${status.count}/${status.limit})`);
+        console.warn(
+          `[RateLimit] Blocked ${resourceType} request: ${userType} ${identifier} exceeded limit (${status.count}/${status.limit})`
+        );
 
         res.status(429).json({
           success: false,
           error: `Rate limit exceeded for ${resourceType} generation`,
-          message: userType === 'anonymous'
-            ? `Du hast dein Tageslimit von ${status.limit} kostenlosen Generierungen erreicht. Melde dich an für unbegrenzte Nutzung.`
-            : `Du hast dein Tageslimit von ${status.limit} Generierungen erreicht. Das Limit wird um Mitternacht zurückgesetzt.`,
+          message:
+            userType === 'anonymous'
+              ? `Du hast dein Tageslimit von ${status.limit} kostenlosen Generierungen erreicht. Melde dich an für unbegrenzte Nutzung.`
+              : `Du hast dein Tageslimit von ${status.limit} Generierungen erreicht. Das Limit wird um Mitternacht zurückgesetzt.`,
           requiresLogin: userType === 'anonymous',
           rateLimitStatus: {
             ...status,
-            timeUntilReset: rateLimiter.getTimeUntilReset(status.window)
-          }
+            timeUntilReset: rateLimiter.getTimeUntilReset(status.window),
+          },
         });
         return;
       }
 
       // Handle soft limit (warn but allow)
       if (!status.canGenerate && !status.unlimited && soft) {
-        console.warn(`[RateLimit] Soft limit warning for ${resourceType}: ${userType} ${identifier} exceeded limit but allowed`);
+        console.warn(
+          `[RateLimit] Soft limit warning for ${resourceType}: ${userType} ${identifier} exceeded limit but allowed`
+        );
         req.rateLimitWarning = {
           message: 'Rate limit exceeded but request allowed (soft limit)',
-          ...status
+          ...status,
         };
       }
 
@@ -97,16 +101,16 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
         identifier,
         userType,
         shouldIncrement: autoIncrement,
-        status
+        status,
       };
 
       // If autoIncrement is enabled, wrap the response to increment on success
       if (autoIncrement) {
         const originalJson = res.json.bind(res);
-        res.json = function(body: any) {
+        res.json = function (body: any) {
           // Only increment if response is successful (2xx status)
           if (res.statusCode >= 200 && res.statusCode < 300) {
-            incrementRateLimit(req).catch(err => {
+            incrementRateLimit(req).catch((err) => {
               console.error('[RateLimit] Auto-increment failed:', err);
             });
           }
@@ -154,7 +158,10 @@ async function incrementRateLimit(req: RateLimitRequest): Promise<any | null> {
     const result = await rateLimiter.incrementCount(resourceType, identifier, userType);
 
     if (!result.success && !result.unlimited) {
-      console.error(`[RateLimit] Failed to increment ${resourceType} for ${userType} ${identifier}:`, result);
+      console.error(
+        `[RateLimit] Failed to increment ${resourceType} for ${userType} ${identifier}:`,
+        result
+      );
     }
 
     return result;

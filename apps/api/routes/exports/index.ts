@@ -11,18 +11,21 @@
 import express from 'express';
 import pdfRouter from './pdfController.js';
 import docxRouter from './docxController.js';
+import zipRouter from './zipController.js';
 
 const router = express.Router();
 
 // Mount sub-routers
 router.use('/pdf', pdfRouter);
 router.use('/docx', docxRouter);
+router.use('/zip', zipRouter);
 
 export default router;
 
 // Named exports for individual controllers
 export { default as pdfController } from './pdfController.js';
 export { default as docxController } from './docxController.js';
+export { default as zipController } from './zipController.js';
 
 // Utility exports
 export * from './contentParser.js';

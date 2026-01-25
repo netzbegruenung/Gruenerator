@@ -1,13 +1,20 @@
 import { enrichRequest } from '../../../utils/requestEnrichment.js';
 import { sendSuccessResponse } from '../../../utils/request/index.js';
-import { generateSharepicForChat, type ExpressRequest, type SharepicResult } from '../../../services/chat/sharepicGenerationService.js';
+import {
+  generateSharepicForChat,
+  type ExpressRequest,
+  type SharepicResult,
+} from '../../../services/chat/sharepicGenerationService.js';
 import { generateStrategicFraming } from './generators/framingGenerator.js';
 import { generatePlatformContent } from './generators/platformGenerator.js';
 import { generateRiskAnalysis } from './generators/riskGenerator.js';
 import { generateVisualBriefing } from './generators/visualGenerator.js';
 import { searchArgumentsFromNotebooks } from './generators/argumentsGenerator.js';
 import { summarizeArguments } from './generators/argumentsSummarizer.js';
-import { formatPRAgentResponse, formatStrategyApprovalResponse } from './utils/responseFormatter.js';
+import {
+  formatPRAgentResponse,
+  formatStrategyApprovalResponse,
+} from './utils/responseFormatter.js';
 import type { PRAgentRequest } from './types.js';
 import { getGenerationStatsService } from '../../../database/services/GenerationStatsService/index.js';
 import { prAgentWorkflow } from '../../../services/WorkflowService/index.js';
@@ -38,13 +45,13 @@ export async function processAutomatischPR(
       selectedDocumentIds: request.selectedDocumentIds || [],
       searchQuery: request.inhalt,
       useAutomaticSearch: true,
-      req
+      req,
     });
 
     const framingPromise = generateStrategicFraming(enrichedState, req);
 
     const socialPlatforms = ['instagram', 'facebook'];
-    const socialPromises = socialPlatforms.map(platform =>
+    const socialPromises = socialPlatforms.map((platform) =>
       generatePlatformContent(platform, enrichedState, req)
     );
     const pressPromise = generatePlatformContent('pressemitteilung', enrichedState, req);
@@ -52,8 +59,8 @@ export async function processAutomatischPR(
     const sharepicPromises = Array.from({ length: 3 }, (_, i) =>
       generateSharepicForChat(req as ExpressRequest, 'dreizeilen', {
         text: request.inhalt,
-        subject: `Sharepic ${i + 1}`
-      }).catch(err => {
+        subject: `Sharepic ${i + 1}`,
+      }).catch((err) => {
         console.error(`[PR Agent] Sharepic ${i + 1} generation failed:`, err);
         return null;
       })
@@ -63,25 +70,25 @@ export async function processAutomatischPR(
       framingPromise,
       ...socialPromises,
       pressPromise,
-      ...sharepicPromises
+      ...sharepicPromises,
     ]);
 
     const [instagramPost, facebookPost, pressRelease, ...sharepicResults] = results;
     const socialContent = {
       instagram: instagramPost as string,
-      facebook: facebookPost as string
+      facebook: facebookPost as string,
     };
 
-    const sharepics = (sharepicResults.filter(Boolean) as SharepicResult[]).map(result => ({
+    const sharepics = (sharepicResults.filter(Boolean) as SharepicResult[]).map((result) => ({
       image: result.content.sharepic.image,
       type: result.content.sharepic.type,
       text: result.content.sharepic.text,
-      mainSlogan: result.content.sharepic.mainSlogan
+      mainSlogan: result.content.sharepic.mainSlogan,
     }));
 
     const [riskAnalysis, visualBriefing] = await Promise.all([
       generateRiskAnalysis(enrichedState, framing, socialContent, pressRelease as string, req),
-      generateVisualBriefing(enrichedState, framing, socialContent, req)
+      generateVisualBriefing(enrichedState, framing, socialContent, req),
     ]);
 
     const formattedResult = formatPRAgentResponse({
@@ -97,8 +104,9 @@ export async function processAutomatischPR(
         parallelGroups: 3,
         totalAICalls: 6,
         sharepicsGenerated: sharepics.length,
-        examplesUsed: enrichedState.enrichmentMetadata?.examplesUsed || enrichedState.examples || []
-      }
+        examplesUsed:
+          enrichedState.enrichmentMetadata?.examplesUsed || enrichedState.examples || [],
+      },
     });
 
     try {
@@ -108,7 +116,7 @@ export async function processAutomatischPR(
         generationType: 'pr-agent',
         platform: 'automatisch',
         tokensUsed: null,
-        success: true
+        success: true,
       });
     } catch (err) {
       console.warn('[PR Agent] Stats logging failed (non-critical):', err);
@@ -121,12 +129,11 @@ export async function processAutomatischPR(
       requestData,
       enrichedState.enrichmentMetadata || {}
     );
-
   } catch (error) {
     console.error('[PR Agent] Fatal error:', error);
     res.status(500).json({
       success: false,
-      error: 'PR-Paket konnte nicht generiert werden. Bitte versuchen Sie es erneut.'
+      error: 'PR-Paket konnte nicht generiert werden. Bitte versuchen Sie es erneut.',
     });
   }
 }
@@ -145,10 +152,7 @@ export async function processStrategyGeneration(
 
   try {
     // 1. Create workflow record
-    const workflowId = await prAgentWorkflow.create(
-      req.user?.id || 'anonymous',
-      requestData
-    );
+    const workflowId = await prAgentWorkflow.create(req.user?.id || 'anonymous', requestData);
 
     // 2. Enrich request (documents, URLs, web search)
     const enrichedState = await enrichRequest(requestData, {
@@ -161,7 +165,7 @@ export async function processStrategyGeneration(
       selectedDocumentIds: requestData.selectedDocumentIds || [],
       searchQuery: requestData.inhalt,
       useAutomaticSearch: true,
-      req
+      req,
     });
 
     // 3. PARALLEL: Generate framing + search arguments
@@ -169,14 +173,13 @@ export async function processStrategyGeneration(
       generateStrategicFraming(enrichedState, req),
       searchArgumentsFromNotebooks(requestData.inhalt, {
         limit: 10,
-        threshold: 0.35
-      })
+        threshold: 0.35,
+      }),
     ]);
 
     // 4. Generate AI summary of arguments (using Mistral Small)
-    const argumentsSummary = args.length > 0
-      ? await summarizeArguments(requestData.inhalt, args)
-      : null;
+    const argumentsSummary =
+      args.length > 0 ? await summarizeArguments(requestData.inhalt, args) : null;
 
     const executionTimeMs = Date.now() - startTime;
 
@@ -193,14 +196,14 @@ export async function processStrategyGeneration(
     const formattedContent = formatStrategyApprovalResponse(
       framing,
       argumentsSummary,
-      args.slice(0, 5),  // Top 5 for display
+      args.slice(0, 5), // Top 5 for display
       requestData.inhalt,
       {
         documentsCount: enrichedState.enrichmentMetadata?.totalDocuments || 0,
         webSourcesCount: enrichedState.enrichmentMetadata?.webSearchSources?.length || 0,
         executionTimeMs,
         argumentsFound: args.length,
-        enrichmentMetadata: enrichedState.enrichmentMetadata  // Pass full metadata for bibliography
+        enrichmentMetadata: enrichedState.enrichmentMetadata, // Pass full metadata for bibliography
       }
     );
 
@@ -209,18 +212,17 @@ export async function processStrategyGeneration(
       success: true,
       workflow_id: workflowId,
       status: 'awaiting_approval',
-      content: formattedContent,  // Pre-formatted markdown
+      content: formattedContent, // Pre-formatted markdown
       metadata: {
         execution_time_ms: executionTimeMs,
-        arguments_found: args.length
-      }
+        arguments_found: args.length,
+      },
     });
-
   } catch (error) {
     console.error('[PR Agent] Phase 1 failed:', error);
     res.status(500).json({
       success: false,
-      error: 'Strategie konnte nicht generiert werden. Bitte versuchen Sie es erneut.'
+      error: 'Strategie konnte nicht generiert werden. Bitte versuchen Sie es erneut.',
     });
   }
 }
@@ -246,14 +248,14 @@ export async function processProductionGeneration(
     if (!workflow) {
       return res.status(404).json({
         success: false,
-        error: 'Workflow nicht gefunden'
+        error: 'Workflow nicht gefunden',
       });
     }
 
     if (workflow.status !== 'approved' && workflow.status !== 'changes_requested') {
       return res.status(400).json({
         success: false,
-        error: 'Workflow muss erst genehmigt werden'
+        error: 'Workflow muss erst genehmigt werden',
       });
     }
 
@@ -264,17 +266,17 @@ export async function processProductionGeneration(
     const enrichedState = await enrichRequest(inputData, {
       type: 'social',
       enableUrls: true,
-      enableWebSearch: false,  // Already enriched in Phase 1
+      enableWebSearch: false, // Already enriched in Phase 1
       enableDocQnA: false,
       systemRole: '',
       selectedDocumentIds: [],
       searchQuery: inputData.inhalt,
       useAutomaticSearch: false,
-      req
+      req,
     });
 
     // 3. PARALLEL: Generate selected platforms
-    const platformPromises = approvedPlatforms.map(platform =>
+    const platformPromises = approvedPlatforms.map((platform) =>
       generatePlatformContent(platform, enrichedState, req)
     );
 
@@ -282,14 +284,14 @@ export async function processProductionGeneration(
     const sharepicPromises = Array.from({ length: 3 }, (_, i) =>
       generateSharepicForChat(req as ExpressRequest, 'dreizeilen', {
         text: inputData.inhalt,
-        subject: `Sharepic ${i + 1}`
+        subject: `Sharepic ${i + 1}`,
       }).catch(() => null)
     );
 
     // Wait for platforms + sharepics
     const [platformResults, sharepicResults] = await Promise.all([
       Promise.all(platformPromises),
-      Promise.all(sharepicPromises)
+      Promise.all(sharepicPromises),
     ]);
 
     const generatedContent: Record<string, any> = {};
@@ -297,21 +299,27 @@ export async function processProductionGeneration(
       generatedContent[platform] = platformResults[idx];
     });
 
-    const sharepics = (sharepicResults.filter(Boolean) as SharepicResult[]).map(result => ({
+    const sharepics = (sharepicResults.filter(Boolean) as SharepicResult[]).map((result) => ({
       image: result.content.sharepic.image,
       type: result.content.sharepic.type,
       text: result.content.sharepic.text,
-      mainSlogan: result.content.sharepic.mainSlogan
+      mainSlogan: result.content.sharepic.mainSlogan,
     }));
 
     // 5. SEQUENTIAL: Risk + Visual (depends on generated content)
     const [riskAnalysis, visualBriefing] = await Promise.all([
-      generateRiskAnalysis(enrichedState, strategyData.framing || '', generatedContent, generatedContent.pressemitteilung || '', req),
-      generateVisualBriefing(enrichedState, strategyData.framing || '', generatedContent, req)
+      generateRiskAnalysis(
+        enrichedState,
+        strategyData.framing || '',
+        generatedContent,
+        generatedContent.pressemitteilung || '',
+        req
+      ),
+      generateVisualBriefing(enrichedState, strategyData.framing || '', generatedContent, req),
     ]);
 
     const executionTimeMs = Date.now() - startTime;
-    const totalAICalls = approvedPlatforms.length + 2;  // platforms + risk + visual
+    const totalAICalls = approvedPlatforms.length + 2; // platforms + risk + visual
 
     // 6. Save production to Redis
     await prAgentWorkflow.saveProduction(
@@ -330,7 +338,7 @@ export async function processProductionGeneration(
       pressRelease: generatedContent.pressemitteilung || '',
       social: {
         instagram: generatedContent.instagram || '',
-        facebook: generatedContent.facebook || ''
+        facebook: generatedContent.facebook || '',
       },
       sharepics,
       riskAnalysis,
@@ -339,17 +347,16 @@ export async function processProductionGeneration(
         executionTimeMs,
         totalAICalls,
         sharepicsGenerated: sharepics.length,
-        examplesUsed: workflow.enrichment_metadata?.examplesUsed || []
-      }
+        examplesUsed: workflow.enrichment_metadata?.examplesUsed || [],
+      },
     });
 
     res.json(formattedResult);
-
   } catch (error) {
     console.error('[PR Agent] Phase 2 failed:', error);
     res.status(500).json({
       success: false,
-      error: 'Produktion konnte nicht generiert werden. Bitte versuchen Sie es erneut.'
+      error: 'Produktion konnte nicht generiert werden. Bitte versuchen Sie es erneut.',
     });
   }
 }

@@ -15,7 +15,12 @@ import {
   useColorScheme,
   Pressable,
 } from 'react-native';
-import type { ImageStudioTemplateType, InputFieldConfig, FormFieldValue, ImageStudioFormData } from '@gruenerator/shared/image-studio';
+import type {
+  ImageStudioTemplateType,
+  InputFieldConfig,
+  FormFieldValue,
+  ImageStudioFormData,
+} from '@gruenerator/shared/image-studio';
 import { getInputFields, getTypeConfig, validateField } from '@gruenerator/shared/image-studio';
 import { Button } from '../common';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
@@ -78,14 +83,14 @@ export function InputStep({ type, formData, onUpdateField, onNext, onBack }: Inp
                       value === option.value
                         ? colors.primary[600]
                         : isDark
-                        ? colors.grey[800]
-                        : colors.grey[100],
+                          ? colors.grey[800]
+                          : colors.grey[100],
                     borderColor:
                       value === option.value
                         ? colors.primary[600]
                         : isDark
-                        ? colors.grey[700]
-                        : colors.grey[300],
+                          ? colors.grey[700]
+                          : colors.grey[300],
                   },
                 ]}
               >
@@ -116,11 +121,7 @@ export function InputStep({ type, formData, onUpdateField, onNext, onBack }: Inp
             isTextarea && styles.textarea,
             {
               backgroundColor: isDark ? colors.grey[900] : colors.white,
-              borderColor: error
-                ? colors.error[500]
-                : isDark
-                ? colors.grey[700]
-                : colors.grey[300],
+              borderColor: error ? colors.error[500] : isDark ? colors.grey[700] : colors.grey[300],
               color: theme.text,
             },
           ]}

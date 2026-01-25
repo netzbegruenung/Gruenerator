@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { HiX, HiPlus, HiExternalLink, HiCheck, HiExclamationCircle } from 'react-icons/hi';
-import { templateService } from '../utils/templateService';
+
 import { validateUrl, normalizeUrl } from '../../utils/urlValidation';
+import { templateService } from '../utils/templateService';
+
 import Spinner from './Spinner';
 
 /**
@@ -24,7 +26,7 @@ const AddCanvaTemplateModal = ({
   isOpen,
   onClose,
   onSuccess,
-  onError
+  onError,
 }: AddCanvaTemplateModalProps) => {
   const modalRef = useRef(null);
   const [url, setUrl] = useState('');
@@ -55,7 +57,7 @@ const AddCanvaTemplateModal = ({
       if (!urlObj.hostname.includes('canva.com')) {
         return {
           isValid: false,
-          error: 'URL muss von canva.com stammen.'
+          error: 'URL muss von canva.com stammen.',
         };
       }
 
@@ -63,7 +65,7 @@ const AddCanvaTemplateModal = ({
       if (!urlObj.pathname.includes('/design/')) {
         return {
           isValid: false,
-          error: 'Bitte verwenden Sie eine gültige Canva Design-URL.'
+          error: 'Bitte verwenden Sie eine gültige Canva Design-URL.',
         };
       }
 
@@ -71,7 +73,7 @@ const AddCanvaTemplateModal = ({
     } catch (error) {
       return {
         isValid: false,
-        error: 'Ungültiges URL-Format.'
+        error: 'Ungültiges URL-Format.',
       };
     }
   };
@@ -111,7 +113,10 @@ const AddCanvaTemplateModal = ({
     setValidationError('');
 
     try {
-      const result = await templateService.createUserTemplateFromUrl(normalizedUrl, enhancedMetadata);
+      const result = await templateService.createUserTemplateFromUrl(
+        normalizedUrl,
+        enhancedMetadata
+      );
 
       if (result.success) {
         onSuccess?.(result.data, result.message || 'Canva Vorlage wurde erfolgreich hinzugefügt.');
@@ -121,7 +126,8 @@ const AddCanvaTemplateModal = ({
       }
     } catch (error) {
       console.error('[AddCanvaTemplateModal] Error creating template:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Hinzufügen der Canva Vorlage.';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Fehler beim Hinzufügen der Canva Vorlage.';
       setValidationError(errorMessage);
       onError?.(errorMessage);
     } finally {
@@ -142,7 +148,11 @@ const AddCanvaTemplateModal = ({
 
   return (
     <div className="citation-modal-overlay" onClick={handleOverlayClick}>
-      <div className="citation-modal add-template-modal" ref={modalRef} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+      <div
+        className="citation-modal add-template-modal"
+        ref={modalRef}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      >
         <div className="citation-modal-header">
           <div className="share-modal-title">
             <HiPlus className="share-modal-icon" />
@@ -199,14 +209,18 @@ const AddCanvaTemplateModal = ({
                   <input
                     type="checkbox"
                     checked={enhancedMetadata}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEnhancedMetadata(e.target.checked)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setEnhancedMetadata(e.target.checked)
+                    }
                     disabled={isProcessing}
                     className="add-template-checkbox"
                   />
                   <span className="add-template-checkbox-text">
                     <strong>Vorschaubild und Metadaten extrahieren</strong>
                     <br />
-                    <small>Lädt zusätzliche Informationen wie Vorschaubild, Abmessungen und Kategorien</small>
+                    <small>
+                      Lädt zusätzliche Informationen wie Vorschaubild, Abmessungen und Kategorien
+                    </small>
                   </span>
                 </label>
               </div>
@@ -215,8 +229,8 @@ const AddCanvaTemplateModal = ({
             {/* Help Text */}
             <div className="add-template-help">
               <p>
-                Geben Sie die URL eines öffentlichen Canva Designs ein.
-                Die Vorlage wird zu Ihrer persönlichen Sammlung hinzugefügt.
+                Geben Sie die URL eines öffentlichen Canva Designs ein. Die Vorlage wird zu Ihrer
+                persönlichen Sammlung hinzugefügt.
               </p>
               <p className="add-template-help-note">
                 Beispiel: https://www.canva.com/design/DAGgS9o-sfY/view
@@ -233,11 +247,7 @@ const AddCanvaTemplateModal = ({
               >
                 Abbrechen
               </button>
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={!isValidUrl || isProcessing}
-              >
+              <button type="submit" className="btn-primary" disabled={!isValidUrl || isProcessing}>
                 {isProcessing ? (
                   <>
                     <Spinner size="small" />

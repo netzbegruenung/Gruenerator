@@ -31,8 +31,9 @@ export async function runMigrations(pool: Pool): Promise<void> {
       client.release();
     }
 
-    const migrationFiles = fs.readdirSync(migrationsPath)
-      .filter(file => file.endsWith('.sql'))
+    const migrationFiles = fs
+      .readdirSync(migrationsPath)
+      .filter((file) => file.endsWith('.sql'))
       .sort();
 
     if (migrationFiles.length === 0) {
@@ -41,7 +42,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
     }
 
     const appliedResult = await pool.query('SELECT filename FROM schema_migrations');
-    const appliedFilenames = new Set(appliedResult.rows.map(row => row.filename));
+    const appliedFilenames = new Set(appliedResult.rows.map((row) => row.filename));
 
     for (const filename of migrationFiles) {
       if (appliedFilenames.has(filename)) {
@@ -51,7 +52,6 @@ export async function runMigrations(pool: Pool): Promise<void> {
 
       await runSingleMigration(pool, migrationsPath, filename);
     }
-
   } catch (error) {
     console.error('[PostgresService] Error running migrations:', error);
   }
@@ -74,7 +74,9 @@ async function runSingleMigration(
   console.log(`[PostgresService] Migration ${filename} size: ${migrationSql.length} characters`);
 
   if (migrationSql.includes('FOREIGN KEY') && migrationSql.includes('REFERENCES')) {
-    console.warn(`[PostgresService] ⚠️ Skipping migration ${filename} - contains foreign key constraint that may hang`);
+    console.warn(
+      `[PostgresService] ⚠️ Skipping migration ${filename} - contains foreign key constraint that may hang`
+    );
     console.warn('[PostgresService] Foreign key constraints will be handled by schema.sql instead');
     return;
   }
@@ -95,7 +97,10 @@ async function runSingleMigration(
     try {
       await client.query('ROLLBACK');
     } catch (rollbackError) {
-      console.error(`[PostgresService] Rollback failed for ${filename}:`, (rollbackError as Error).message);
+      console.error(
+        `[PostgresService] Rollback failed for ${filename}:`,
+        (rollbackError as Error).message
+      );
     }
 
     console.error(`[PostgresService] ❌ Migration ${filename} failed:`, (error as Error).message);
@@ -103,7 +108,10 @@ async function runSingleMigration(
     try {
       await client.query('SET statement_timeout = 0');
     } catch (resetError) {
-      console.warn('[PostgresService] Failed to reset statement timeout:', (resetError as Error).message);
+      console.warn(
+        '[PostgresService] Failed to reset statement timeout:',
+        (resetError as Error).message
+      );
     }
     client.release();
   }
@@ -135,10 +143,7 @@ export async function createDatabaseIfNotExists(config: {
   try {
     await tempClient.connect();
 
-    const result = await tempClient.query(
-      'SELECT 1 FROM pg_database WHERE datname = $1',
-      [dbName]
-    );
+    const result = await tempClient.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);
 
     if (result.rows.length === 0) {
       await tempClient.query(`CREATE DATABASE "${dbName}"`);
@@ -146,7 +151,6 @@ export async function createDatabaseIfNotExists(config: {
     } else {
       console.log(`[PostgresService] Database '${dbName}' already exists`);
     }
-
   } catch (error) {
     console.warn(`[PostgresService] Database creation check failed: ${(error as Error).message}`);
   } finally {

@@ -1,35 +1,54 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense, memo } from 'react';
-import { useWatch } from 'react-hook-form';
 import { AnimatePresence } from 'motion/react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  lazy,
+  Suspense,
+  memo,
+} from 'react';
+import { useWatch } from 'react-hook-form';
+
 import BaseForm from '../../../components/common/BaseForm';
+import CorrectionSection from '../../../components/common/Form/BaseForm/CorrectionSection';
+import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
+import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import Icon from '../../../components/common/Icon';
+import PlatformSelector from '../../../components/common/PlatformSelector';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
+import useFormTips from '../../../hooks/useFormTips';
+import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import usePlatformAutoDetect from '../../../hooks/usePlatformAutoDetect';
+import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
-import usePlatformAutoDetect from '../../../hooks/usePlatformAutoDetect';
-import useFormTips from '../../../hooks/useFormTips';
-import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
-import Icon from '../../../components/common/Icon';
-import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
-import PlatformSelector from '../../../components/common/PlatformSelector';
-import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
-import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
-import SocialMediaForm, { type SocialMediaFormRef } from '../presse/components/SocialMediaForm';
-import PressemitteilungForm, { type PressemitteilungFormRef } from '../presse/components/PressemitteilungForm';
-import SharepicForm, { type SharepicFormRef } from '../presse/components/SharepicForm';
-import { usePresseSocialSubmit, type PresseSocialFormData } from '../presse/hooks/usePresseSocialSubmit';
 import { usePlanModeWorkflow } from '../antrag/hooks/usePlanModeWorkflow';
-import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
-import CorrectionSection from '../../../components/common/Form/BaseForm/CorrectionSection';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import PressemitteilungForm, {
+  type PressemitteilungFormRef,
+} from '../presse/components/PressemitteilungForm';
+import SharepicForm, { type SharepicFormRef } from '../presse/components/SharepicForm';
+import SocialMediaForm, { type SocialMediaFormRef } from '../presse/components/SocialMediaForm';
+import {
+  usePresseSocialSubmit,
+  type PresseSocialFormData,
+} from '../presse/hooks/usePresseSocialSubmit';
+
+import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
+
 import '../presse/presse-social.css';
 
 const AutomatischIcon = memo(() => <Icon category="platforms" name="automatisch" size={16} />);
 AutomatischIcon.displayName = 'AutomatischIcon';
 
-const PressemitteilungIcon = memo(() => <Icon category="platforms" name="pressemitteilung" size={16} />);
+const PressemitteilungIcon = memo(() => (
+  <Icon category="platforms" name="pressemitteilung" size={16} />
+));
 PressemitteilungIcon.displayName = 'PressemitteilungIcon';
 
 const InstagramIcon = memo(() => <Icon category="platforms" name="instagram" size={16} />);
@@ -53,7 +72,11 @@ ActionIdeasIcon.displayName = 'ActionIdeasIcon';
 const ReelScriptIcon = memo(() => <Icon category="platforms" name="reelScript" size={16} />);
 ReelScriptIcon.displayName = 'ReelScriptIcon';
 
-const SharepicMasterEditorModal = lazy(() => import('../../../components/SharepicMasterEditorModal').then(m => ({ default: m.SharepicMasterEditorModal })));
+const SharepicMasterEditorModal = lazy(() =>
+  import('../../../components/SharepicMasterEditorModal').then((m) => ({
+    default: m.SharepicMasterEditorModal,
+  }))
+);
 
 interface PresseSocialTabProps {
   isActive: boolean;
@@ -93,54 +116,63 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       { id: 'linkedin', label: 'LinkedIn', icon: <LinkedInIcon /> },
       { id: 'sharepic', label: 'Sharepic', icon: <SharepicIcon /> },
       { id: 'actionIdeas', label: 'Aktionsideen', icon: <ActionIdeasIcon /> },
-      { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <ReelScriptIcon /> }
+      { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <ReelScriptIcon /> },
     ];
     let filtered = options;
     if (!canUseSharepic) {
-      filtered = filtered.filter(opt => opt.id !== 'sharepic');
+      filtered = filtered.filter((opt) => opt.id !== 'sharepic');
     }
     if (!canUseAutomatischPlanMode) {
-      filtered = filtered.filter(opt => opt.id !== 'automatisch');
+      filtered = filtered.filter((opt) => opt.id !== 'automatisch');
     }
     return filtered;
   }, [canUseSharepic, canUseAutomatischPlanMode]);
 
   const platformTags = useMemo(() => {
     const tags = [
-      { icon: <PressemitteilungIcon />, label: "Pressemitteilung", platforms: ["pressemitteilung"] },
-      { icon: <InstagramIcon />, label: "Instagram", platforms: ["instagram"] },
-      { icon: <FacebookIcon />, label: "Facebook", platforms: ["facebook"] },
-      { icon: <TwitterIcon />, label: "X/bsky/Mastodon", platforms: ["twitter"] },
-      { icon: <LinkedInIcon />, label: "LinkedIn", platforms: ["linkedin"] },
-      { icon: <SharepicIcon />, label: "Sharepic", platforms: ["sharepic"] },
-      { icon: <ActionIdeasIcon />, label: "Aktionen", platforms: ["actionIdeas"] },
-      { icon: <ReelScriptIcon />, label: "Reel", platforms: ["reelScript"] }
+      {
+        icon: <PressemitteilungIcon />,
+        label: 'Pressemitteilung',
+        platforms: ['pressemitteilung'],
+      },
+      { icon: <InstagramIcon />, label: 'Instagram', platforms: ['instagram'] },
+      { icon: <FacebookIcon />, label: 'Facebook', platforms: ['facebook'] },
+      { icon: <TwitterIcon />, label: 'X/bsky/Mastodon', platforms: ['twitter'] },
+      { icon: <LinkedInIcon />, label: 'LinkedIn', platforms: ['linkedin'] },
+      { icon: <SharepicIcon />, label: 'Sharepic', platforms: ['sharepic'] },
+      { icon: <ActionIdeasIcon />, label: 'Aktionen', platforms: ['actionIdeas'] },
+      { icon: <ReelScriptIcon />, label: 'Reel', platforms: ['reelScript'] },
     ];
-    return canUseSharepic ? tags : tags.filter(t => !t.platforms.includes('sharepic'));
+    return canUseSharepic ? tags : tags.filter((t) => !t.platforms.includes('sharepic'));
   }, [canUseSharepic]);
 
-  const sharepicTypeOptions = useMemo(() => [
-    { value: 'default', label: 'Standard (3 Sharepics automatisch)' },
-    { value: 'dreizeilen', label: '3-Zeilen Slogan (mit Bild)' },
-    { value: 'quote', label: 'Zitat mit Bild' },
-    { value: 'quote_pure', label: 'Zitat ohne Bild' },
-    { value: 'info', label: 'Infopost' },
-  ], []);
+  const sharepicTypeOptions = useMemo(
+    () => [
+      { value: 'default', label: 'Standard (3 Sharepics automatisch)' },
+      { value: 'dreizeilen', label: '3-Zeilen Slogan (mit Bild)' },
+      { value: 'quote', label: 'Zitat mit Bild' },
+      { value: 'quote_pure', label: 'Zitat ohne Bild' },
+      { value: 'info', label: 'Infopost' },
+    ],
+    []
+  );
 
   const defaultPlatforms = useMemo(() => {
     let selectedPlatforms: string[] = canUseAutomatischPlanMode ? ['automatisch'] : ['instagram'];
-    const typedInitialContent = initialContent as { platforms?: Record<string, boolean>; isFromSharepic?: boolean } | undefined;
+    const typedInitialContent = initialContent as
+      | { platforms?: Record<string, boolean>; isFromSharepic?: boolean }
+      | undefined;
     if (typedInitialContent?.platforms) {
       selectedPlatforms = Object.keys(typedInitialContent.platforms).filter(
-        key => typedInitialContent.platforms?.[key]
+        (key) => typedInitialContent.platforms?.[key]
       );
       if (selectedPlatforms.length > 0) {
         let filtered = selectedPlatforms;
         if (!canUseSharepic) {
-          filtered = filtered.filter(p => p !== 'sharepic');
+          filtered = filtered.filter((p) => p !== 'sharepic');
         }
         if (!canUseAutomatischPlanMode) {
-          filtered = filtered.filter(p => p !== 'automatisch');
+          filtered = filtered.filter((p) => p !== 'automatisch');
         }
         return filtered;
       }
@@ -150,22 +182,24 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     }
     let filtered = selectedPlatforms;
     if (!canUseSharepic) {
-      filtered = filtered.filter(p => p !== 'sharepic');
+      filtered = filtered.filter((p) => p !== 'sharepic');
     }
     if (!canUseAutomatischPlanMode) {
-      filtered = filtered.filter(p => p !== 'automatisch');
+      filtered = filtered.filter((p) => p !== 'automatisch');
     }
     return filtered;
   }, [initialContent, canUseSharepic, canUseAutomatischPlanMode]);
 
-  const typedInitialContent = initialContent as { inhalt?: string; thema?: string; zitatgeber?: string } | undefined;
+  const typedInitialContent = initialContent as
+    | { inhalt?: string; thema?: string; zitatgeber?: string }
+    | undefined;
   const form = useBaseForm({
     defaultValues: {
       inhalt: typedInitialContent?.inhalt || typedInitialContent?.thema || '',
       zitatgeber: typedInitialContent?.zitatgeber || '',
       platforms: defaultPlatforms,
       sharepicType: 'default',
-      zitatAuthor: ''
+      zitatAuthor: '',
     } as Record<string, unknown>,
     shouldUnregister: false,
     generatorType: 'presse-social' as never,
@@ -175,7 +209,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     features: ['webSearch', 'privacyMode', 'proMode'] as never,
     tabIndexKey: 'PRESS_SOCIAL' as never,
     defaultMode: 'balanced' as never,
-    disableKnowledgeSystem: false
+    disableKnowledgeSystem: false,
   }) as unknown as {
     control: import('react-hook-form').Control<Record<string, unknown>>;
     handleSubmit: (cb: (data: Record<string, unknown>) => Promise<void>) => () => Promise<void>;
@@ -192,24 +226,32 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
 
   const { control, handleSubmit, setValue, getValues } = form;
 
-  const typedControl = control as unknown as import('react-hook-form').Control<{ platforms: string[]; inhalt: string }>;
+  const typedControl = control as unknown as import('react-hook-form').Control<{
+    platforms: string[];
+    inhalt: string;
+  }>;
   const watchPlatformsValue = useWatch({ control: typedControl, name: 'platforms' }) as unknown;
-  const watchPlatforms: string[] = (Array.isArray(watchPlatformsValue) ? watchPlatformsValue : defaultPlatforms) as string[];
-  const watchInhalt: string = (useWatch({ control: typedControl, name: 'inhalt' }) as unknown ?? '') as string;
+  const watchPlatforms: string[] = (
+    Array.isArray(watchPlatformsValue) ? watchPlatformsValue : defaultPlatforms
+  ) as string[];
+  const watchInhalt: string = ((useWatch({ control: typedControl, name: 'inhalt' }) as unknown) ??
+    '') as string;
 
-  const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
-  const watchSharepic = canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
+  const watchPressemitteilung =
+    Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
+  const watchSharepic =
+    canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
 
   usePlatformAutoDetect({
     content: watchInhalt,
     currentPlatforms: watchPlatforms,
-    validPlatformIds: [...platformOptions.map(p => p.id)],
-    onPlatformsDetected: (newPlatforms: string[]) => setValue('platforms', newPlatforms)
+    validPlatformIds: [...platformOptions.map((p) => p.id)],
+    onPlatformsDetected: (newPlatforms: string[]) => setValue('platforms', newPlatforms),
   } as Parameters<typeof usePlatformAutoDetect>[0]);
 
   useEffect(() => {
     if (!canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic')) {
-      const filtered = watchPlatforms.filter(p => p !== 'sharepic');
+      const filtered = watchPlatforms.filter((p) => p !== 'sharepic');
       setValue('platforms', filtered);
     }
   }, [canUseSharepic, watchPlatforms, setValue]);
@@ -229,20 +271,20 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
 
   const setup = useGeneratorSetup({
     instructionType: 'social',
-    componentName: 'presse-social'
+    componentName: 'presse-social',
   });
 
   const { crawledUrls, detectAndCrawlUrls, isCrawling } = useUrlCrawler();
 
-  const allAttachments = useMemo(() => [
-    ...processedAttachments,
-    ...crawledUrls
-  ], [processedAttachments, crawledUrls]);
+  const allAttachments = useMemo(
+    () => [...processedAttachments, ...crawledUrls],
+    [processedAttachments, crawledUrls]
+  );
 
   const builder = useFormDataBuilder({
     ...setup,
     attachments: allAttachments,
-    searchQueryFields: ['inhalt', 'zitatgeber']
+    searchQueryFields: ['inhalt', 'zitatgeber'],
   });
 
   const submitHandler = usePresseSocialSubmit({
@@ -251,90 +293,109 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     selectedDocumentIds: setup.selectedDocumentIds,
     selectedTextIds: setup.selectedTextIds,
     attachments: allAttachments,
-    canUseSharepic
+    canUseSharepic,
   });
 
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
-  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const storeGeneratedText = useGeneratedTextStore((state) =>
+    state.getGeneratedText(componentName)
+  );
 
   const hasGeneratedContent = !!(storeGeneratedText || socialMediaContent);
 
-  const handleUrlsDetected = useCallback(async (urls: string[]) => {
-    if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), setup.features.usePrivacyMode);
-    }
-  }, [detectAndCrawlUrls, isCrawling, setup.features.usePrivacyMode]);
-
-  const onSubmitRHF = useCallback(async (rhfData: Record<string, unknown>) => {
-    setStoreIsLoading(true);
-
-    try {
-      const socialData = socialMediaFormRef.current?.getFormData();
-      const presseData = pressemitteilungFormRef.current?.getFormData();
-      const sharepicData = sharepicFormRef.current?.getFormData();
-
-      if (!socialData) {
-        setStoreIsLoading(false);
-        return;
+  const handleUrlsDetected = useCallback(
+    async (urls: string[]) => {
+      if (!isCrawling && urls.length > 0) {
+        await detectAndCrawlUrls(urls.join(' '), setup.features.usePrivacyMode);
       }
+    },
+    [detectAndCrawlUrls, isCrawling, setup.features.usePrivacyMode]
+  );
 
-      const platforms = Array.isArray(rhfData.platforms) ? rhfData.platforms as string[] : [];
+  const onSubmitRHF = useCallback(
+    async (rhfData: Record<string, unknown>) => {
+      setStoreIsLoading(true);
 
-      if (platforms.length === 0) {
-        setStoreIsLoading(false);
-        return;
-      }
+      try {
+        const socialData = socialMediaFormRef.current?.getFormData();
+        const presseData = pressemitteilungFormRef.current?.getFormData();
+        const sharepicData = sharepicFormRef.current?.getFormData();
 
-      const combinedFormData: PresseSocialFormData = {
-        inhalt: socialData.inhalt,
-        platforms: platforms,
-        zitatgeber: presseData?.zitatgeber || '',
-        sharepicType: sharepicData?.sharepicType || 'default',
-        zitatAuthor: sharepicData?.zitatAuthor || '',
-        uploadedImage: sharepicData?.uploadedImage || null
-      };
+        if (!socialData) {
+          setStoreIsLoading(false);
+          return;
+        }
 
-      if (combinedFormData.platforms.includes('automatisch')) {
-        await planMode.initiatePlan({
-          generatorType: 'pr' as 'antrag',
-          inhalt: combinedFormData.inhalt,
-          useWebSearch: setup.features.useWebSearchTool,
-          usePrivacyMode: setup.features.usePrivacyMode,
-          selectedDocumentIds: Array.from(setup.selectedDocumentIds || []),
-          selectedTextIds: Array.from(setup.selectedTextIds || [])
-        });
-        setStoreIsLoading(false);
-        return;
-      }
+        const platforms = Array.isArray(rhfData.platforms) ? (rhfData.platforms as string[]) : [];
 
-      const result = await submitHandler.submitStandard(combinedFormData);
+        if (platforms.length === 0) {
+          setStoreIsLoading(false);
+          return;
+        }
 
-      if (result && (result.sharepic || result.social)) {
-        const hasTextContent = combinedFormData.platforms.some((p: string) => p !== 'sharepic') && result.social?.content;
-
-        // Create simplified serializable version for store (no functions, no redundant social wrapper)
-        const serializableContent = {
-          content: hasTextContent ? result.social!.content : '',
-          metadata: result.social?.metadata || {},
-          selectedPlatforms: combinedFormData.platforms.filter((p: string) => p !== 'sharepic'),
-          ...(result.sharepic ? { sharepic: result.sharepic } : {})
+        const combinedFormData: PresseSocialFormData = {
+          inhalt: socialData.inhalt,
+          platforms: platforms,
+          zitatgeber: presseData?.zitatgeber || '',
+          sharepicType: sharepicData?.sharepicType || 'default',
+          zitatAuthor: sharepicData?.zitatAuthor || '',
+          uploadedImage: sharepicData?.uploadedImage || null,
         };
 
-        // Full object with handler for local state only
-        const finalContent: GeneratedContentResult = {
-          ...serializableContent,
-          onEditSharepic: async () => {}
-        };
+        if (combinedFormData.platforms.includes('automatisch')) {
+          await planMode.initiatePlan({
+            generatorType: 'pr' as 'antrag',
+            inhalt: combinedFormData.inhalt,
+            useWebSearch: setup.features.useWebSearchTool,
+            usePrivacyMode: setup.features.usePrivacyMode,
+            selectedDocumentIds: Array.from(setup.selectedDocumentIds || []),
+            selectedTextIds: Array.from(setup.selectedTextIds || []),
+          });
+          setStoreIsLoading(false);
+          return;
+        }
 
-        setSocialMediaContent(finalContent);
-        setGeneratedText(componentName, serializableContent, serializableContent.metadata);
+        const result = await submitHandler.submitStandard(combinedFormData);
+
+        if (result && (result.sharepic || result.social)) {
+          const hasTextContent =
+            combinedFormData.platforms.some((p: string) => p !== 'sharepic') &&
+            result.social?.content;
+
+          // Create simplified serializable version for store (no functions, no redundant social wrapper)
+          const serializableContent = {
+            content: hasTextContent ? result.social!.content : '',
+            metadata: result.social?.metadata || {},
+            selectedPlatforms: combinedFormData.platforms.filter((p: string) => p !== 'sharepic'),
+            ...(result.sharepic ? { sharepic: result.sharepic } : {}),
+          };
+
+          // Full object with handler for local state only
+          const finalContent: GeneratedContentResult = {
+            ...serializableContent,
+            onEditSharepic: async () => {},
+          };
+
+          setSocialMediaContent(finalContent);
+          setGeneratedText(componentName, serializableContent, serializableContent.metadata);
+        }
+      } catch (error) {
+        console.error('[PresseSocialTab] Error submitting form:', error);
+      } finally {
+        setStoreIsLoading(false);
       }
-    } catch (error) {
-      console.error('[PresseSocialTab] Error submitting form:', error);
-    } finally {
-      setStoreIsLoading(false);
-    }
-  }, [submitHandler, setStoreIsLoading, setGeneratedText, componentName, planMode, setup.features, setup.selectedDocumentIds, setup.selectedTextIds]);
+    },
+    [
+      submitHandler,
+      setStoreIsLoading,
+      setGeneratedText,
+      componentName,
+      planMode,
+      setup.features,
+      setup.selectedDocumentIds,
+      setup.selectedTextIds,
+    ]
+  );
 
   const handleAttachmentClick = useCallback((files?: File[]) => {
     if (!files || files.length === 0) return;
@@ -342,8 +403,8 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     (async () => {
       try {
         const processed = await prepareFilesForSubmission(files);
-        setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-        setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
+        setAttachedFiles((prevFiles) => [...prevFiles, ...files]);
+        setProcessedAttachments((prevProcessed) => [...prevProcessed, ...processed]);
       } catch (error) {
         console.error('[PresseSocialTab] File processing error:', error);
       }
@@ -351,8 +412,8 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
   }, []);
 
   const handleRemoveFile = useCallback((index: number) => {
-    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
+    setAttachedFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
+    setProcessedAttachments((prevProcessed) => prevProcessed.filter((_, i) => i !== index));
   }, []);
 
   const handleOpenInlineEditor = useCallback((sharepicData: SharepicDataItem, index: number) => {
@@ -360,34 +421,51 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     setEditingSharepicIndex(index);
   }, []);
 
-  const handleEditSharepic = useCallback((sharepicData: unknown) => {
-    const currentContent = storeGeneratedText || socialMediaContent;
-    if (currentContent && typeof currentContent === 'object' && 'sharepic' in currentContent) {
-      const sharepics = currentContent.sharepic as SharepicDataItem[];
-      const index = sharepics.findIndex(s => s === sharepicData || s.id === (sharepicData as SharepicDataItem).id);
-      handleOpenInlineEditor(sharepicData as SharepicDataItem, index >= 0 ? index : 0);
-    } else {
-      handleOpenInlineEditor(sharepicData as SharepicDataItem, 0);
-    }
-  }, [storeGeneratedText, socialMediaContent, handleOpenInlineEditor]);
-
-  const handleEditorExport = useCallback((base64Image: string) => {
-    const currentContent = storeGeneratedText || socialMediaContent;
-    if (currentContent && typeof currentContent === 'object' && 'sharepic' in currentContent && editingSharepicIndex >= 0) {
-      const sharepics = [...(currentContent.sharepic as SharepicDataItem[] || [])];
-      if (sharepics[editingSharepicIndex]) {
-        sharepics[editingSharepicIndex] = {
-          ...sharepics[editingSharepicIndex],
-          image: base64Image
-        };
-        const updatedContent = { ...currentContent, sharepic: sharepics };
-        setSocialMediaContent(updatedContent as GeneratedContentResult);
-        setGeneratedText(componentName, updatedContent, (updatedContent as GeneratedContentResult).metadata);
+  const handleEditSharepic = useCallback(
+    (sharepicData: unknown) => {
+      const currentContent = storeGeneratedText || socialMediaContent;
+      if (currentContent && typeof currentContent === 'object' && 'sharepic' in currentContent) {
+        const sharepics = currentContent.sharepic as SharepicDataItem[];
+        const index = sharepics.findIndex(
+          (s) => s === sharepicData || s.id === (sharepicData as SharepicDataItem).id
+        );
+        handleOpenInlineEditor(sharepicData as SharepicDataItem, index >= 0 ? index : 0);
+      } else {
+        handleOpenInlineEditor(sharepicData as SharepicDataItem, 0);
       }
-    }
-    setEditingSharepic(null);
-    setEditingSharepicIndex(-1);
-  }, [editingSharepicIndex, storeGeneratedText, socialMediaContent, setGeneratedText, componentName]);
+    },
+    [storeGeneratedText, socialMediaContent, handleOpenInlineEditor]
+  );
+
+  const handleEditorExport = useCallback(
+    (base64Image: string) => {
+      const currentContent = storeGeneratedText || socialMediaContent;
+      if (
+        currentContent &&
+        typeof currentContent === 'object' &&
+        'sharepic' in currentContent &&
+        editingSharepicIndex >= 0
+      ) {
+        const sharepics = [...((currentContent.sharepic as SharepicDataItem[]) || [])];
+        if (sharepics[editingSharepicIndex]) {
+          sharepics[editingSharepicIndex] = {
+            ...sharepics[editingSharepicIndex],
+            image: base64Image,
+          };
+          const updatedContent = { ...currentContent, sharepic: sharepics };
+          setSocialMediaContent(updatedContent as GeneratedContentResult);
+          setGeneratedText(
+            componentName,
+            updatedContent,
+            (updatedContent as GeneratedContentResult).metadata
+          );
+        }
+      }
+      setEditingSharepic(null);
+      setEditingSharepicIndex(-1);
+    },
+    [editingSharepicIndex, storeGeneratedText, socialMediaContent, setGeneratedText, componentName]
+  );
 
   const handleEditorCancel = useCallback(() => {
     setEditingSharepic(null);
@@ -395,7 +473,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
   }, []);
 
   const handleAnswerChange = useCallback((questionId: string, answer: string | string[]) => {
-    setQuestionAnswers(prev => ({ ...prev, [questionId]: answer }));
+    setQuestionAnswers((prev) => ({ ...prev, [questionId]: answer }));
   }, []);
 
   const handleQuestionSubmit = useCallback(async () => {
@@ -428,11 +506,14 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     planMode.startCorrections();
   }, [planMode]);
 
-  const handleSubmitCorrections = useCallback(async (corrections: string) => {
-    if (planMode.state.workflowId) {
-      await planMode.submitCorrections(planMode.state.workflowId, corrections);
-    }
-  }, [planMode]);
+  const handleSubmitCorrections = useCallback(
+    async (corrections: string) => {
+      if (planMode.state.workflowId) {
+        await planMode.submitCorrections(planMode.state.workflowId, corrections);
+      }
+    },
+    [planMode]
+  );
 
   const handleCancelCorrections = useCallback(() => {
     planMode.cancelCorrections();
@@ -451,7 +532,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
           content: production,
           title: null,
           metadata: {},
-          useMarkdown: false
+          useMarkdown: false,
         };
       }
 
@@ -468,7 +549,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
           content: `## ${planTitle}\n\n${displayPlan}`,
           title: null,
           metadata: {},
-          useMarkdown: true
+          useMarkdown: true,
         };
       }
     }
@@ -479,10 +560,14 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     if (!watchAutomatisch || planMode.state.status === 'idle') return 'Grünerieren';
 
     switch (planMode.state.status) {
-      case 'generating_plan': return 'Plan wird erstellt...';
-      case 'revising_plan': return 'Plan wird verfeinert...';
-      case 'generating_production': return 'Wird generiert...';
-      default: return 'Grünerieren';
+      case 'generating_plan':
+        return 'Plan wird erstellt...';
+      case 'revising_plan':
+        return 'Plan wird verfeinert...';
+      case 'generating_production':
+        return 'Wird generiert...';
+      default:
+        return 'Grünerieren';
     }
   }, [watchAutomatisch, planMode.state.status]);
 
@@ -501,32 +586,41 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     }
 
     if (content && typeof content === 'object') {
-      return { ...(content as GeneratedContentResult), onEditSharepic: async (data: unknown) => { handleEditSharepic(data); } };
+      return {
+        ...(content as GeneratedContentResult),
+        onEditSharepic: async (data: unknown) => {
+          handleEditSharepic(data);
+        },
+      };
     }
     return content as string | null;
   }, [storeGeneratedText, socialMediaContent, handleEditSharepic]);
 
-  const { activeTip } = useFormTips(
-    { hasPressemitteilung: watchPressemitteilung },
-    {}
+  const { activeTip } = useFormTips({ hasPressemitteilung: watchPressemitteilung }, {});
+
+  const handlePlatformTagClick = useCallback(
+    (tag: { platforms?: string[] }) => {
+      const platformId = tag.platforms?.[0];
+      if (!platformId) return;
+
+      const currentPlatforms = watchPlatforms || [];
+      const isSelected = currentPlatforms.includes(platformId);
+
+      if (isSelected) {
+        setValue(
+          'platforms',
+          currentPlatforms.filter((p) => p !== platformId)
+        );
+      } else {
+        setValue('platforms', [...currentPlatforms, platformId]);
+      }
+    },
+    [watchPlatforms, setValue]
   );
 
-  const handlePlatformTagClick = useCallback((tag: { platforms?: string[] }) => {
-    const platformId = tag.platforms?.[0];
-    if (!platformId) return;
-
-    const currentPlatforms = watchPlatforms || [];
-    const isSelected = currentPlatforms.includes(platformId);
-
-    if (isSelected) {
-      setValue('platforms', currentPlatforms.filter(p => p !== platformId));
-    } else {
-      setValue('platforms', [...currentPlatforms, platformId]);
-    }
-  }, [watchPlatforms, setValue]);
-
   const renderPlanModeContent = () => {
-    const { status, plan, revisedPlan, correctedPlan, questions, correctionSummary } = planMode.state;
+    const { status, plan, revisedPlan, correctedPlan, questions, correctionSummary } =
+      planMode.state;
 
     if (status === 'plan_generated' && (plan || revisedPlan || correctedPlan)) {
       const hasQuestions = questions && questions.length > 0;
@@ -608,7 +702,14 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       );
     }
 
-    if (['generating_plan', 'revising_plan', 'applying_corrections', 'generating_production'].includes(status)) {
+    if (
+      [
+        'generating_plan',
+        'revising_plan',
+        'applying_corrections',
+        'generating_production',
+      ].includes(status)
+    ) {
       let loadingText = getSubmitButtonText();
       if (status === 'applying_corrections') {
         loadingText = 'Korrekturen werden angewendet...';
@@ -616,9 +717,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       return (
         <div className="plan-mode-loading" style={{ textAlign: 'center', padding: '2rem' }}>
           <div className="loading-spinner" />
-          <p style={{ marginTop: '1rem', color: 'var(--font-color-secondary)' }}>
-            {loadingText}
-          </p>
+          <p style={{ marginTop: '1rem', color: 'var(--font-color-secondary)' }}>{loadingText}</p>
         </div>
       );
     }
@@ -626,20 +725,32 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     return null;
   };
 
-  const helpContent = useMemo(() => ({
-    content: "Erstelle professionelle Pressemitteilungen und Social Media Inhalte",
-    tips: [
-      "Beschreibe dein Thema und alle relevanten Details im Inhalt-Feld",
-      "Wähle die gewünschten Formate aus",
-      "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich",
-      "Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics"
-    ],
-    features: [
-      { title: "Multi-Format", description: "Erstelle gleichzeitig Pressemitteilungen, Social Posts und Sharepics" },
-      { title: "Plattform-optimiert", description: "Automatisch angepasst für Instagram, Facebook, Twitter, LinkedIn & mehr" },
-      { title: "Sharepics inklusive", description: "Professionelle Grafiken mit passenden Headlines direkt zum Download" }
-    ]
-  }), []);
+  const helpContent = useMemo(
+    () => ({
+      content: 'Erstelle professionelle Pressemitteilungen und Social Media Inhalte',
+      tips: [
+        'Beschreibe dein Thema und alle relevanten Details im Inhalt-Feld',
+        'Wähle die gewünschten Formate aus',
+        'Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich',
+        'Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics',
+      ],
+      features: [
+        {
+          title: 'Multi-Format',
+          description: 'Erstelle gleichzeitig Pressemitteilungen, Social Posts und Sharepics',
+        },
+        {
+          title: 'Plattform-optimiert',
+          description: 'Automatisch angepasst für Instagram, Facebook, Twitter, LinkedIn & mehr',
+        },
+        {
+          title: 'Sharepics inklusive',
+          description: 'Professionelle Grafiken mit passenden Headlines direkt zum Download',
+        },
+      ],
+    }),
+    []
+  );
 
   return (
     <>
@@ -650,7 +761,10 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         success={false}
         error={planMode.state.error || submitHandler.error}
         showNextButton={!isPlanModeActive || planMode.state.status === 'idle'}
-        generatedContent={displayContent?.content || generatedContentWithHandler as import('../../../types/baseform').GeneratedContent}
+        generatedContent={
+          displayContent?.content ||
+          (generatedContentWithHandler as import('../../../types/baseform').GeneratedContent)
+        }
         useMarkdown={displayContent?.useMarkdown ?? false}
         enableEditMode={!isPlanModeActive}
         enableKnowledgeSelector={true}
@@ -662,15 +776,29 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         attachedFiles={attachedFiles}
         featureIconsTabIndex={{
           webSearch: (form.generator?.tabIndex as Record<string, number> | undefined)?.webSearch,
-          privacyMode: (form.generator?.tabIndex as Record<string, number> | undefined)?.privacyMode,
-          attachment: (form.generator?.tabIndex as Record<string, number> | undefined)?.attachment
+          privacyMode: (form.generator?.tabIndex as Record<string, number> | undefined)
+            ?.privacyMode,
+          attachment: (form.generator?.tabIndex as Record<string, number> | undefined)?.attachment,
         }}
-        knowledgeSelectorTabIndex={(form.generator?.baseFormTabIndex as Record<string, number> | undefined)?.knowledgeSelectorTabIndex}
-        knowledgeSourceSelectorTabIndex={(form.generator?.baseFormTabIndex as Record<string, number> | undefined)?.knowledgeSourceSelectorTabIndex}
-        submitButtonTabIndex={(form.generator?.baseFormTabIndex as Record<string, number> | undefined)?.submitButtonTabIndex}
+        knowledgeSelectorTabIndex={
+          (form.generator?.baseFormTabIndex as Record<string, number> | undefined)
+            ?.knowledgeSelectorTabIndex
+        }
+        knowledgeSourceSelectorTabIndex={
+          (form.generator?.baseFormTabIndex as Record<string, number> | undefined)
+            ?.knowledgeSourceSelectorTabIndex
+        }
+        submitButtonTabIndex={
+          (form.generator?.baseFormTabIndex as Record<string, number> | undefined)
+            ?.submitButtonTabIndex
+        }
         contextualTip={activeTip}
         examplePrompts={platformTags as import('../../../types/baseform').ExamplePrompt[]}
-        onExamplePromptClick={handlePlatformTagClick as (prompt: import('../../../types/baseform').ExamplePrompt) => void}
+        onExamplePromptClick={
+          handlePlatformTagClick as (
+            prompt: import('../../../types/baseform').ExamplePrompt
+          ) => void
+        }
         selectedPlatforms={watchPlatforms}
         nextButtonText={getSubmitButtonText()}
         hideFormExtras={isPlanModeActive && planMode.state.status !== 'idle'}
@@ -698,10 +826,10 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
             <SocialMediaForm
               ref={socialMediaFormRef}
               defaultValues={{
-                inhalt: typedInitialContent?.inhalt || typedInitialContent?.thema || ''
+                inhalt: typedInitialContent?.inhalt || typedInitialContent?.thema || '',
               }}
               tabIndex={{
-                inhalt: form.generator?.tabIndex?.inhalt
+                inhalt: form.generator?.tabIndex?.inhalt,
               }}
               onUrlsDetected={handleUrlsDetected}
             />
@@ -710,10 +838,11 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
                 <PressemitteilungForm
                   ref={pressemitteilungFormRef}
                   defaultValues={{
-                    zitatgeber: typedInitialContent?.zitatgeber || userDisplayName
+                    zitatgeber: typedInitialContent?.zitatgeber || userDisplayName,
                   }}
                   tabIndex={{
-                    zitatgeber: (form.generator?.tabIndex as Record<string, number> | undefined)?.zitatgeber
+                    zitatgeber: (form.generator?.tabIndex as Record<string, number> | undefined)
+                      ?.zitatgeber,
                   }}
                   isVisible={watchPressemitteilung}
                   success={false}

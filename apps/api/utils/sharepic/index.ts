@@ -4,7 +4,7 @@ export {
   extractQuoteArray,
   parseDreizeilenResponse,
   cleanLine,
-  type Slogan
+  type Slogan,
 } from './parsing.js';
 
 export {
@@ -12,14 +12,9 @@ export {
   isInfoValid,
   isThrottlingError,
   sanitizeInfoField,
-  type InfoData
+  type InfoData,
 } from './validation.js';
 
 export { replaceTemplate } from './template.js';
 
-export {
-  parseLabeledText,
-  sanitizeField,
-  truncateField,
-  type ParseResult
-} from './textParser.js';
+export { parseLabeledText, sanitizeField, truncateField, type ParseResult } from './textParser.js';

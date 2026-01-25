@@ -4,7 +4,7 @@ import {
   authorizationCodeGrant,
   fetchUserInfo,
   randomState,
-  skipSubjectCheck
+  skipSubjectCheck,
 } from 'openid-client';
 import type { Strategy } from 'passport';
 import type { Request } from 'express';
@@ -108,7 +108,9 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
   }
 
   async initialize(): Promise<void> {
-    const issuerUrl = new URL(`${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}`);
+    const issuerUrl = new URL(
+      `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}`
+    );
     console.log('[KeycloakOIDC] Discovering issuer:', issuerUrl.href);
 
     const clientId = process.env.KEYCLOAK_CLIENT_ID;
@@ -118,17 +120,15 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
       throw new Error('KEYCLOAK_CLIENT_ID environment variable is required and must be a string');
     }
     if (!clientSecret || typeof clientSecret !== 'string') {
-      throw new Error('KEYCLOAK_CLIENT_SECRET environment variable is required and must be a string');
+      throw new Error(
+        'KEYCLOAK_CLIENT_SECRET environment variable is required and must be a string'
+      );
     }
 
     console.log('[KeycloakOIDC] Client ID:', clientId);
     console.log('[KeycloakOIDC] Client Secret present:', !!clientSecret);
 
-    this.config = await discovery(
-      issuerUrl,
-      clientId,
-      clientSecret
-    );
+    this.config = await discovery(issuerUrl, clientId, clientSecret);
 
     console.log('[KeycloakOIDC] Discovery successful');
   }
@@ -149,19 +149,24 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         redirectTo: req.session.redirectTo || null,
         originDomain: storedOriginDomain,
         correlationId,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
-      console.log(`[KeycloakOIDC:${correlationId}] Stored originDomain in OIDC session: ${storedOriginDomain}`);
+      console.log(
+        `[KeycloakOIDC:${correlationId}] Stored originDomain in OIDC session: ${storedOriginDomain}`
+      );
 
       const originDomain = req.session.originDomain;
-      const isSecure = process.env.NODE_ENV === 'production' ||
-                       req.secure ||
-                       req.headers['x-forwarded-proto'] === 'https';
+      const isSecure =
+        process.env.NODE_ENV === 'production' ||
+        req.secure ||
+        req.headers['x-forwarded-proto'] === 'https';
 
       let redirectUri: string;
       if (originDomain && isAllowedDomain(originDomain)) {
         redirectUri = buildDomainUrl(originDomain, '/api/auth/callback', isSecure);
-        console.log(`[KeycloakOIDC:${correlationId}] Using origin domain for redirect_uri: ${redirectUri}`);
+        console.log(
+          `[KeycloakOIDC:${correlationId}] Using origin domain for redirect_uri: ${redirectUri}`
+        );
       } else {
         redirectUri = URLS.callback;
         console.log(`[KeycloakOIDC:${correlationId}] Using fallback redirect_uri: ${redirectUri}`);
@@ -171,7 +176,7 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         scope: 'openid profile email offline_access',
         state,
         redirect_uri: redirectUri,
-        response_type: 'code'
+        response_type: 'code',
       };
 
       if (options.kc_idp_hint) {
@@ -212,7 +217,9 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         this.redirect(authUrl.href);
       } catch (saveError) {
         console.error(`[KeycloakOIDC:${correlationId}] Failed to save session:`, saveError);
-        return this.redirect(`/auth/error?message=session_save_failed&correlationId=${correlationId}`);
+        return this.redirect(
+          `/auth/error?message=session_save_failed&correlationId=${correlationId}`
+        );
       }
     } catch (error) {
       console.error('[KeycloakOIDC] Authorization initiation error:', error);
@@ -228,7 +235,9 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
       console.log(`[KeycloakOIDC:callback] Cookie header present: ${!!cookieHeader}`);
       console.log(`[KeycloakOIDC:callback] Session ID: ${sessionId}`);
       console.log(`[KeycloakOIDC:callback] Session exists: ${!!req.session}`);
-      console.log(`[KeycloakOIDC:callback] Session keys: ${req.session ? Object.keys(req.session).join(', ') : 'none'}`);
+      console.log(
+        `[KeycloakOIDC:callback] Session keys: ${req.session ? Object.keys(req.session).join(', ') : 'none'}`
+      );
       if (cookieHeader) {
         // Check if our session cookie is in the header
         const hasOurCookie = cookieHeader.includes('gruenerator.sid');
@@ -239,30 +248,37 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
       const correlationId = sessionData?.correlationId || 'unknown';
 
       if (!sessionData) {
-        console.error(`[KeycloakOIDC:${correlationId}] No session data found - possible session loss`);
-        console.error(`[KeycloakOIDC:${correlationId}] Full session object: ${JSON.stringify(req.session)}`);
+        console.error(
+          `[KeycloakOIDC:${correlationId}] No session data found - possible session loss`
+        );
+        console.error(
+          `[KeycloakOIDC:${correlationId}] Full session object: ${JSON.stringify(req.session)}`
+        );
         return this.redirect(`/auth/error?message=session_not_found&retry=true`);
       }
 
-      if (sessionData.timestamp && (Date.now() - sessionData.timestamp) > 600000) {
-        console.error(`[KeycloakOIDC:${correlationId}] Session data is stale (${Math.round((Date.now() - sessionData.timestamp) / 1000)}s old)`);
+      if (sessionData.timestamp && Date.now() - sessionData.timestamp > 600000) {
+        console.error(
+          `[KeycloakOIDC:${correlationId}] Session data is stale (${Math.round((Date.now() - sessionData.timestamp) / 1000)}s old)`
+        );
         return this.redirect(`/auth/error?message=session_expired&retry=true`);
       }
 
-      const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+      const protocol =
+        req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
       const host = req.headers.host || 'localhost:3001';
       const currentUrl = new URL(`${protocol}://${host}${req.originalUrl}`);
 
       let tokenSet: TokenSet;
       try {
-        tokenSet = await authorizationCodeGrant(
-          this.config!,
-          currentUrl,
-          { expectedState: sessionData.state }
-        );
+        tokenSet = await authorizationCodeGrant(this.config!, currentUrl, {
+          expectedState: sessionData.state,
+        });
       } catch (tokenError) {
         console.error(`[KeycloakOIDC:${correlationId}] Token exchange failed:`, tokenError);
-        return this.redirect(`/auth/error?message=token_exchange_failed&retry=true&correlationId=${correlationId}`);
+        return this.redirect(
+          `/auth/error?message=token_exchange_failed&retry=true&correlationId=${correlationId}`
+        );
       }
 
       let expectedSubject: string | undefined;
@@ -273,7 +289,10 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
           );
           expectedSubject = idTokenPayload.sub;
         } catch (error) {
-          console.warn(`[KeycloakOIDC:${correlationId}] Could not extract subject from ID token:`, error);
+          console.warn(
+            `[KeycloakOIDC:${correlationId}] Could not extract subject from ID token:`,
+            error
+          );
         }
       }
 
@@ -286,7 +305,9 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         );
       } catch (userinfoError) {
         console.error(`[KeycloakOIDC:${correlationId}] Failed to fetch user info:`, userinfoError);
-        return this.redirect(`/auth/error?message=userinfo_fetch_failed&retry=true&correlationId=${correlationId}`);
+        return this.redirect(
+          `/auth/error?message=userinfo_fetch_failed&retry=true&correlationId=${correlationId}`
+        );
       }
 
       const profile: PassportProfile = {
@@ -330,7 +351,7 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
 
     const strategy = new KeycloakOIDCStrategy(
       {
-        sessionKey: 'oidc:keycloak'
+        sessionKey: 'oidc:keycloak',
       },
       async (req, tokenSet, userinfo, profile, done) => {
         try {
@@ -343,7 +364,9 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
           }
           if (sessionData?.originDomain) {
             user._originDomain = sessionData.originDomain;
-            console.log(`[KeycloakOIDC] Attached _originDomain to user: ${sessionData.originDomain}`);
+            console.log(
+              `[KeycloakOIDC] Attached _originDomain to user: ${sessionData.originDomain}`
+            );
           }
 
           return done(null, user);
@@ -358,7 +381,6 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
     await strategy.initialize();
     console.log('[KeycloakOIDC] Strategy initialized and discovery pre-warmed successfully');
     return strategy;
-
   } catch (error) {
     console.error('[KeycloakOIDC] Failed to initialize strategy:', error);
     throw error;

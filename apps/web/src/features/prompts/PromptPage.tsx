@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+
 import BaseForm from '../../components/common/BaseForm';
 import useBaseForm from '../../components/common/Form/hooks/useBaseForm';
-import { useGeneratorSetup } from '../../hooks/useGeneratorSetup';
-import { useFormDataBuilder } from '../../hooks/useFormDataBuilder';
 import apiClient from '../../components/utils/apiClient';
+import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useFormDataBuilder } from '../../hooks/useFormDataBuilder';
+import { useGeneratorSetup } from '../../hooks/useGeneratorSetup';
+
 import PromptInputForm from './PromptInputForm';
+
 import type { CustomPrompt } from './types';
 import './prompts.css';
 
@@ -46,7 +49,7 @@ const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true })
 
   const setup = useGeneratorSetup({
     instructionType: 'universal',
-    componentName: COMPONENT_NAME
+    componentName: COMPONENT_NAME,
   });
 
   const form = useBaseForm({
@@ -58,18 +61,18 @@ const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true })
     features: ['webSearch', 'privacyMode', 'proMode'],
     useFeatureIcons: true,
     tabIndexKey: 'PROMPTS',
-    defaultMode: 'balanced'
+    defaultMode: 'balanced',
   } as unknown as Parameters<typeof useBaseForm>[0]);
 
-  const allAttachments = useMemo(() =>
-    form.generator?.attachedFiles || [],
+  const allAttachments = useMemo(
+    () => form.generator?.attachedFiles || [],
     [form.generator?.attachedFiles]
   );
 
   const builder = useFormDataBuilder({
     ...setup,
     attachments: allAttachments,
-    searchQueryFields: ['userInput'] as const
+    searchQueryFields: ['userInput'] as const,
   });
 
   useEffect(() => {
@@ -124,15 +127,16 @@ const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true })
         promptId: promptData.id,
         slug: promptData.slug,
         userInput: userInput.trim(),
-        prompt: promptData.prompt
+        prompt: promptData.prompt,
       });
 
       const response = await apiClient.post('/custom_prompt', formDataToSubmit);
 
       const responseData = response.data || response;
-      const content = typeof responseData === 'string'
-        ? responseData
-        : responseData.generated_text || responseData.content;
+      const content =
+        typeof responseData === 'string'
+          ? responseData
+          : responseData.generated_text || responseData.content;
 
       if (content && form.generator) {
         form.generator.handleGeneratedContentChange(content);
@@ -184,9 +188,7 @@ const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true })
             {isSaving ? 'Speichert...' : 'Prompt speichern'}
           </button>
         )}
-        {isSaved && !isOwner && (
-          <span className="prompt-page__saved-badge">✓ Gespeichert</span>
-        )}
+        {isSaved && !isOwner && <span className="prompt-page__saved-badge">✓ Gespeichert</span>}
       </div>
     );
   }, [isOwner, isSaved, promptData, handleSave, isSaving]);
@@ -225,7 +227,11 @@ const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true })
   } = baseFormProps;
 
   const rawTabIndex = form.generator?.tabIndex;
-  const tabIndexValue = (rawTabIndex || {}) as { formType?: number; hauptfeld?: number; [key: string]: number | undefined };
+  const tabIndexValue = (rawTabIndex || {}) as {
+    formType?: number;
+    hauptfeld?: number;
+    [key: string]: number | undefined;
+  };
 
   return (
     <div className="prompt-page">

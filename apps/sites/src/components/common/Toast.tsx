@@ -28,16 +28,10 @@ function Toast({ toast }: { toast: ToastType }) {
         <ToastIcon type={toast.type} />
         <div className="toast-text">
           <div className="toast-message">{toast.message}</div>
-          {toast.details && (
-            <div className="toast-details">{toast.details}</div>
-          )}
+          {toast.details && <div className="toast-details">{toast.details}</div>}
         </div>
       </div>
-      <button
-        className="toast-close"
-        onClick={() => removeToast(toast.id)}
-        aria-label="Schließen"
-      >
+      <button className="toast-close" onClick={() => removeToast(toast.id)} aria-label="Schließen">
         ×
       </button>
     </div>

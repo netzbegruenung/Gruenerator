@@ -15,7 +15,7 @@ const LoadTextConfirmModal: React.FC<LoadTextConfirmModalProps> = ({
   isOpen,
   title,
   onConfirm,
-  onCancel
+  onCancel,
 }) => {
   if (!isOpen) {
     return null;
@@ -61,19 +61,10 @@ const LoadTextConfirmModal: React.FC<LoadTextConfirmModalProps> = ({
         </div>
 
         <div className="modal-footer">
-          <button
-            type="button"
-            className="button button--secondary"
-            onClick={onCancel}
-            autoFocus
-          >
+          <button type="button" className="button button--secondary" onClick={onCancel} autoFocus>
             Abbrechen
           </button>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={onConfirm}
-          >
+          <button type="button" className="button button--primary" onClick={onConfirm}>
             Laden
           </button>
         </div>

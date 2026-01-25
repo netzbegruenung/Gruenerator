@@ -1,11 +1,9 @@
-import type {
-  ChangeEvent,
-  TextareaHTMLAttributes,
-  LabelHTMLAttributes
-} from 'react';
+import type { ChangeEvent, TextareaHTMLAttributes, LabelHTMLAttributes } from 'react';
 
-export interface TextAreaInputProps
-  extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | 'value'> {
+export interface TextAreaInputProps extends Omit<
+  TextareaHTMLAttributes<HTMLTextAreaElement>,
+  'onChange' | 'value'
+> {
   id: string;
   label?: string;
   value: string;
@@ -37,7 +35,8 @@ const TextAreaInput = ({
   className = '',
   ...rest
 }: TextAreaInputProps) => {
-  const textAreaClassName = `form-textarea ${error ? 'error-input' : ''} ${textAreaProps.className || ''}`.trim();
+  const textAreaClassName =
+    `form-textarea ${error ? 'error-input' : ''} ${textAreaProps.className || ''}`.trim();
   const wrapperClassName = `form-field-wrapper ${className}`.trim();
 
   return (

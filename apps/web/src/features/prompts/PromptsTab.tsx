@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo, memo, lazy, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+
 import { useCustomPromptsData, usePromptMutations } from './usePromptsData';
+
 import type { CustomPrompt } from './types';
 import '../../assets/styles/components/ui/button.css';
 import './prompts.css';
@@ -35,15 +37,23 @@ const PromptCard = memo<PromptCardProps>(({ prompt, onUse, onEdit, onDelete }) =
     <button type="button" className="prompt-card prompt-card--owner" onClick={handleUse}>
       <div className="prompt-card-content">
         <span className="prompt-card-name">{prompt.name}</span>
-        {prompt.is_public && (
-          <span className="prompt-card-badge">Öffentlich</span>
-        )}
+        {prompt.is_public && <span className="prompt-card-badge">Öffentlich</span>}
       </div>
       <div className="prompt-card-actions" onClick={stopPropagation}>
-        <button type="button" className="prompt-card-action" onClick={handleEdit} title="Bearbeiten">
+        <button
+          type="button"
+          className="prompt-card-action"
+          onClick={handleEdit}
+          title="Bearbeiten"
+        >
           ✏️
         </button>
-        <button type="button" className="prompt-card-action prompt-card-action--danger" onClick={handleDelete} title="Löschen">
+        <button
+          type="button"
+          className="prompt-card-action prompt-card-action--danger"
+          onClick={handleDelete}
+          title="Löschen"
+        >
           🗑️
         </button>
       </div>
@@ -62,20 +72,26 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
 
   const prompts = useMemo(() => promptsQuery.data || [], [promptsQuery.data]);
 
-  const handleUsePrompt = useCallback((slug: string) => {
-    navigate(`/prompt/${slug}`);
-  }, [navigate]);
+  const handleUsePrompt = useCallback(
+    (slug: string) => {
+      navigate(`/prompt/${slug}`);
+    },
+    [navigate]
+  );
 
   const handleEditPrompt = useCallback((prompt: CustomPrompt) => {
     setEditingPrompt(prompt);
     setShowCreateForm(true);
   }, []);
 
-  const handleDeletePrompt = useCallback(async (promptId: string) => {
-    if (window.confirm('Prompt wirklich löschen?')) {
-      await deletePrompt(promptId);
-    }
-  }, [deletePrompt]);
+  const handleDeletePrompt = useCallback(
+    async (promptId: string) => {
+      if (window.confirm('Prompt wirklich löschen?')) {
+        await deletePrompt(promptId);
+      }
+    },
+    [deletePrompt]
+  );
 
   const handleFormComplete = useCallback(() => {
     setShowCreateForm(false);
@@ -120,11 +136,7 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
   return (
     <div className="prompts-tab">
       <div className="prompts-content">
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={openCreateForm}
-        >
+        <button type="button" className="btn-primary" onClick={openCreateForm}>
           + Neuen Prompt erstellen
         </button>
 

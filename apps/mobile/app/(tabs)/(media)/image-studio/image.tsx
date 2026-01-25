@@ -12,7 +12,14 @@ import { typeHasTextGeneration } from '@gruenerator/shared/image-studio';
 import { ImageUploadStep } from '../../../../components/image-studio/ImageUploadStep';
 import { useImageStudioStore, selectBgRemovalState } from '../../../../stores/imageStudioStore';
 import { generateProfilbild } from '../../../../services/imageStudio';
-import { lightTheme, darkTheme, colors, spacing, borderRadius, typography } from '../../../../theme';
+import {
+  lightTheme,
+  darkTheme,
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+} from '../../../../theme';
 
 export default function ImageScreen() {
   const colorScheme = useColorScheme();
@@ -100,8 +107,18 @@ export default function ImageScreen() {
       />
 
       {bgRemovalState.loading && (
-        <View style={[styles.loadingOverlay, { backgroundColor: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.9)' }]}>
-          <View style={[styles.loadingCard, { backgroundColor: isDark ? colors.grey[900] : colors.white }]}>
+        <View
+          style={[
+            styles.loadingOverlay,
+            { backgroundColor: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.9)' },
+          ]}
+        >
+          <View
+            style={[
+              styles.loadingCard,
+              { backgroundColor: isDark ? colors.grey[900] : colors.white },
+            ]}
+          >
             <ActivityIndicator size="large" color={colors.primary[500]} />
             <Text style={[styles.loadingTitle, { color: theme.text }]}>
               Profilbild wird erstellt
@@ -113,7 +130,7 @@ export default function ImageScreen() {
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${Math.round(bgRemovalState.progress * 100)}%` }
+                  { width: `${Math.round(bgRemovalState.progress * 100)}%` },
                 ]}
               />
             </View>

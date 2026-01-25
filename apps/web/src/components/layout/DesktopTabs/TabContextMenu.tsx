@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 
 interface TabContextMenuProps {
@@ -11,10 +12,11 @@ interface TabContextMenuProps {
 const TabContextMenu: React.FC<TabContextMenuProps> = ({ tabId, position, onClose }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { tabs, closeTab, closeOtherTabs, closeTabsToRight, duplicateTab, setActiveTab } = useDesktopTabsStore();
+  const { tabs, closeTab, closeOtherTabs, closeTabsToRight, duplicateTab, setActiveTab } =
+    useDesktopTabsStore();
 
-  const tab = tabs.find(t => t.id === tabId);
-  const tabIndex = tabs.findIndex(t => t.id === tabId);
+  const tab = tabs.find((t) => t.id === tabId);
+  const tabIndex = tabs.findIndex((t) => t.id === tabId);
   const isOnlyTab = tabs.length === 1;
   const hasTabsToRight = tabIndex < tabs.length - 1;
 
@@ -42,13 +44,14 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({ tabId, position, onClos
 
   const handleClose = () => {
     if (!isOnlyTab) {
-      const wasActive = tabs.find(t => t.id === tabId)?.id === useDesktopTabsStore.getState().activeTabId;
+      const wasActive =
+        tabs.find((t) => t.id === tabId)?.id === useDesktopTabsStore.getState().activeTabId;
       closeTab(tabId);
       if (wasActive) {
-        const remainingTabs = tabs.filter(t => t.id !== tabId);
+        const remainingTabs = tabs.filter((t) => t.id !== tabId);
         const newActiveIndex = Math.min(tabIndex, remainingTabs.length - 1);
         if (remainingTabs[newActiveIndex]) {
-          navigate(remainingTabs[newActiveIndex].route);
+          void navigate(remainingTabs[newActiveIndex].route);
         }
       }
     }
@@ -59,7 +62,7 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({ tabId, position, onClos
     closeOtherTabs(tabId);
     if (tab) {
       setActiveTab(tabId);
-      navigate(tab.route);
+      void navigate(tab.route);
     }
     onClose();
   };
@@ -72,7 +75,7 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({ tabId, position, onClos
   const handleDuplicate = () => {
     duplicateTab(tabId);
     if (tab) {
-      navigate(tab.route);
+      void navigate(tab.route);
     }
     onClose();
   };
@@ -84,17 +87,8 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({ tabId, position, onClos
   };
 
   return (
-    <div
-      ref={menuRef}
-      className="tab-context-menu"
-      style={menuStyle}
-      role="menu"
-    >
-      <button
-        className="tab-context-menu-item"
-        onClick={handleDuplicate}
-        role="menuitem"
-      >
+    <div ref={menuRef} className="tab-context-menu" style={menuStyle} role="menu">
+      <button className="tab-context-menu-item" onClick={handleDuplicate} role="menuitem">
         Tab duplizieren
       </button>
 

@@ -1,8 +1,10 @@
-import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+
 import Spinner from '../../../components/common/Spinner';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import { getCurrentPath } from '../../../utils/authRedirect';
+
+import type { ReactNode } from 'react';
 
 /**
  * Komponente zum Schutz von Routen, die nur für eingeloggte Benutzer zugänglich sein sollen.
@@ -25,12 +27,14 @@ const ProtectedRoute = ({ children, adminRequired = false }: ProtectedRouteProps
   // Zeige Ladeindikator nur wenn kein Cache vorhanden ist
   if (loading && !hasCachedData) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
         <Spinner size="large" withBackground />
       </div>
     );
@@ -40,7 +44,13 @@ const ProtectedRoute = ({ children, adminRequired = false }: ProtectedRouteProps
   // und den aktuellen Pfad (mit Search-Parametern) in der Location speichern
   if (!isAuthenticated || !user) {
     const currentPath = getCurrentPath(location);
-    return <Navigate to={`/login?redirectTo=${encodeURIComponent(currentPath)}`} state={{ from: location }} replace />;
+    return (
+      <Navigate
+        to={`/login?redirectTo=${encodeURIComponent(currentPath)}`}
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
   // Wenn Admin-Rechte erforderlich sind, aber der Benutzer kein Admin ist

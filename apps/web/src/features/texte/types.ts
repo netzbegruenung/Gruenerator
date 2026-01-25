@@ -1,10 +1,24 @@
 import type { ReactNode } from 'react';
 
-export type TabId = 'texte' | 'presse-social' | 'antrag' | 'universal' | 'barrierefreiheit' | 'texteditor' | 'eigene';
+export type TabId =
+  | 'texte'
+  | 'presse-social'
+  | 'antrag'
+  | 'universal'
+  | 'barrierefreiheit'
+  | 'texteditor'
+  | 'eigene';
 
 export type UniversalSubType = 'rede' | 'wahlprogramm' | 'buergeranfragen' | 'leichte_sprache';
 
-export type InstructionType = 'social' | 'antrag' | 'universal' | 'rede' | 'buergeranfragen' | 'leichte_sprache' | 'texteditor';
+export type InstructionType =
+  | 'social'
+  | 'antrag'
+  | 'universal'
+  | 'rede'
+  | 'buergeranfragen'
+  | 'leichte_sprache'
+  | 'texteditor';
 
 export type FeatureType = 'webSearch' | 'privacyMode' | 'proMode';
 
@@ -52,7 +66,7 @@ export const TAB_CONFIGS: TabConfig[] = [
     instructionType: 'universal',
     features: ['webSearch', 'privacyMode', 'proMode'],
     componentName: 'texte-generator',
-    defaultMode: 'balanced'
+    defaultMode: 'balanced',
   },
   {
     id: 'presse-social',
@@ -62,7 +76,7 @@ export const TAB_CONFIGS: TabConfig[] = [
     instructionType: 'social',
     features: ['webSearch', 'privacyMode', 'proMode'],
     componentName: 'presse-social',
-    defaultMode: 'balanced'
+    defaultMode: 'balanced',
   },
   {
     id: 'antrag',
@@ -72,7 +86,7 @@ export const TAB_CONFIGS: TabConfig[] = [
     instructionType: 'antrag',
     features: ['webSearch', 'privacyMode'],
     componentName: 'antrag-generator',
-    defaultMode: 'pro'
+    defaultMode: 'pro',
   },
   // Temporarily disabled - Leichte Sprache moved to Sonstige tab
   // {
@@ -93,7 +107,7 @@ export const TAB_CONFIGS: TabConfig[] = [
     instructionType: 'universal',
     features: ['webSearch', 'privacyMode', 'proMode'],
     componentName: 'universal-text',
-    defaultMode: 'privacy'
+    defaultMode: 'privacy',
   },
   {
     id: 'texteditor',
@@ -103,7 +117,7 @@ export const TAB_CONFIGS: TabConfig[] = [
     instructionType: 'texteditor',
     features: ['privacyMode'],
     componentName: 'text-editor',
-    defaultMode: 'privacy'
+    defaultMode: 'privacy',
   },
   {
     id: 'eigene',
@@ -113,12 +127,12 @@ export const TAB_CONFIGS: TabConfig[] = [
     instructionType: 'universal',
     features: ['webSearch', 'privacyMode', 'proMode'],
     componentName: 'eigene-generators',
-    defaultMode: 'balanced'
-  }
+    defaultMode: 'balanced',
+  },
 ];
 
 export const getTabConfig = (tabId: TabId): TabConfig | undefined => {
-  return TAB_CONFIGS.find(config => config.id === tabId);
+  return TAB_CONFIGS.find((config) => config.id === tabId);
 };
 
 // Default to 'presse-social' which is the only public tab (accessible without login)

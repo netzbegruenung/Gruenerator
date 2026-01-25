@@ -21,7 +21,7 @@ import type {
   ContentMention,
   FormattedDrucksache,
   FormattedAktivitaet,
-  EnrichedPersonSearchResult
+  EnrichedPersonSearchResult,
 } from './types.js';
 
 interface QdrantSearchResult {
@@ -57,7 +57,10 @@ export class EnrichedPersonSearchService {
    * @param options - Search options
    * @returns Enriched search result or null if not a person query
    */
-  async search(query: string, options: EnrichedSearchOptions = {}): Promise<EnrichedPersonSearchResult> {
+  async search(
+    query: string,
+    options: EnrichedSearchOptions = {}
+  ): Promise<EnrichedPersonSearchResult> {
     // Step 1: Detect if this is a person query
     const detection = await this.personDetection.detectPerson(query);
 
@@ -68,7 +71,9 @@ export class EnrichedPersonSearchService {
     const person = detection.person;
     const personName = `${person.vorname} ${person.nachname}`;
 
-    console.log(`[EnrichedPersonSearch] Detected MP: ${personName} (confidence: ${detection.confidence.toFixed(2)})`);
+    console.log(
+      `[EnrichedPersonSearch] Detected MP: ${personName} (confidence: ${detection.confidence.toFixed(2)})`
+    );
 
     // Step 2: Parallel fetch from all sources
     const startTime = Date.now();
@@ -76,7 +81,7 @@ export class EnrichedPersonSearchService {
       this._fetchPersonDetails(person.id),
       this._searchBundestagContent(personName, options.contentLimit || 15),
       this._searchDrucksachen(personName, options.drucksachenLimit || 20),
-      this._searchAktivitaeten(person.id, options.aktivitaetenLimit || 30)
+      this._searchAktivitaeten(person.id, options.aktivitaetenLimit || 30),
     ]);
 
     const elapsed = Date.now() - startTime;
@@ -97,8 +102,8 @@ export class EnrichedPersonSearchService {
         contentMentionsCount: contentMentions?.length || 0,
         drucksachenCount: drucksachen?.documents?.length || 0,
         aktivitaetenCount: aktivitaeten?.documents?.length || 0,
-        fetchTimeMs: elapsed
-      }
+        fetchTimeMs: elapsed,
+      },
     };
   }
 
@@ -120,7 +125,10 @@ export class EnrichedPersonSearchService {
   /**
    * Search bundestag_content Qdrant collection for mentions
    */
-  private async _searchBundestagContent(personName: string, limit: number = 15): Promise<QdrantSearchResult[]> {
+  private async _searchBundestagContent(
+    personName: string,
+    limit: number = 15
+  ): Promise<QdrantSearchResult[]> {
     try {
       const embedding = await this.embeddingClient.generateEmbedding(personName);
       if (!embedding) {
@@ -129,23 +137,27 @@ export class EnrichedPersonSearchService {
       }
 
       // Hybrid search in bundestag_content
-      const searchResults: QdrantSearchResult[] = (await this.qdrant.client?.search('bundestag_content', {
-        vector: embedding,
-        limit: limit * 2,
-        with_payload: true,
-        score_threshold: 0.3
-      }) ?? []) as QdrantSearchResult[];
+      const searchResults: QdrantSearchResult[] = ((await this.qdrant.client?.search(
+        'bundestag_content',
+        {
+          vector: embedding,
+          limit: limit * 2,
+          with_payload: true,
+          score_threshold: 0.3,
+        }
+      )) ?? []) as QdrantSearchResult[];
 
       // Also do text search for exact name matches
-      const textResults: QdrantScrollResult = (await this.qdrant.client?.scroll('bundestag_content', {
-        filter: {
-          must: [
-            { key: 'chunk_text', match: { text: personName } }
-          ]
-        },
-        limit: limit,
-        with_payload: true
-      }) ?? { points: [] }) as QdrantScrollResult;
+      const textResults: QdrantScrollResult = ((await this.qdrant.client?.scroll(
+        'bundestag_content',
+        {
+          filter: {
+            must: [{ key: 'chunk_text', match: { text: personName } }],
+          },
+          limit: limit,
+          with_payload: true,
+        }
+      )) ?? { points: [] }) as QdrantScrollResult;
 
       // Merge and deduplicate results
       const seen = new Set<string | number>();
@@ -157,7 +169,7 @@ export class EnrichedPersonSearchService {
           seen.add(result.id);
           merged.push({
             ...result,
-            searchMethod: 'vector'
+            searchMethod: 'vector',
           });
         }
       }
@@ -170,16 +182,13 @@ export class EnrichedPersonSearchService {
             id: point.id,
             score: 0.8, // Fixed score for text matches
             payload: point.payload,
-            searchMethod: 'text'
+            searchMethod: 'text',
           });
         }
       }
 
       // Sort by score and limit
-      return merged
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, limit);
-
+      return merged.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, limit);
     } catch (error: any) {
       console.error('[EnrichedPersonSearch] bundestag_content search failed:', error.message);
       return [];
@@ -194,7 +203,7 @@ export class EnrichedPersonSearchService {
       const result = await this.mcpClient.searchDrucksachen({
         urheber: personName,
         wahlperiode: 20,
-        limit
+        limit,
       });
       return result;
     } catch (error: any) {
@@ -206,14 +215,17 @@ export class EnrichedPersonSearchService {
   /**
    * Search DIP Aktivitäten for person
    */
-  private async _searchAktivitaeten(personId: string | undefined, limit: number = 30): Promise<SearchResult> {
+  private async _searchAktivitaeten(
+    personId: string | undefined,
+    limit: number = 30
+  ): Promise<SearchResult> {
     if (!personId) return { documents: [] };
 
     try {
       const result = await this.mcpClient.searchAktivitaeten({
         person_id: personId,
         wahlperiode: 20,
-        limit
+        limit,
       });
       return result;
     } catch (error: any) {
@@ -225,7 +237,10 @@ export class EnrichedPersonSearchService {
   /**
    * Build combined person profile
    */
-  private _buildPersonProfile(basicPerson: Person, detailedPerson: SearchResult | null): PersonProfile {
+  private _buildPersonProfile(
+    basicPerson: Person,
+    detailedPerson: SearchResult | null
+  ): PersonProfile {
     const details: any = detailedPerson || {};
     return {
       id: basicPerson.id,
@@ -241,7 +256,7 @@ export class EnrichedPersonSearchService {
       biografie: details.biografie || details.vita_kurz,
       vita: details.vita_kurz,
       wahlperioden: details.wahlperioden,
-      source: 'DIP'
+      source: 'DIP',
     };
   }
 
@@ -249,7 +264,7 @@ export class EnrichedPersonSearchService {
    * Format content mentions from bundestag_content
    */
   private _formatContentMentions(results: QdrantSearchResult[]): ContentMention[] {
-    return (results || []).map(r => ({
+    return (results || []).map((r) => ({
       title: r.payload?.title || 'Unbekannt',
       url: r.payload?.source_url || r.payload?.url,
       snippet: this._truncateSnippet(r.payload?.chunk_text, 300),
@@ -257,7 +272,7 @@ export class EnrichedPersonSearchService {
       searchMethod: r.searchMethod,
       category: r.payload?.primary_category,
       publishedAt: r.payload?.published_at,
-      source: 'bundestag_content'
+      source: 'bundestag_content',
     }));
   }
 
@@ -274,7 +289,7 @@ export class EnrichedPersonSearchService {
       wahlperiode: d.wahlperiode,
       urheber: d.urheber,
       fundstelle: d.fundstelle,
-      source: 'DIP_Drucksachen'
+      source: 'DIP_Drucksachen',
     }));
   }
 
@@ -289,7 +304,7 @@ export class EnrichedPersonSearchService {
       datum: a.datum,
       wahlperiode: a.wahlperiode,
       vorgangsbezug: a.vorgangsbezug,
-      source: 'DIP_Aktivitaeten'
+      source: 'DIP_Aktivitaeten',
     }));
   }
 

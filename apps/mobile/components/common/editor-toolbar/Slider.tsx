@@ -35,11 +35,7 @@ export function Slider({
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: theme.textSecondary }]}>
-          {label}
-        </Text>
-      )}
+      {label && <Text style={[styles.label, { color: theme.textSecondary }]}>{label}</Text>}
       <View style={styles.sliderRow}>
         <RNSlider
           style={styles.slider}
@@ -55,9 +51,7 @@ export function Slider({
         />
         {showValue && (
           <View style={[styles.valueContainer, { backgroundColor: theme.surface }]}>
-            <Text style={[styles.valueText, { color: theme.text }]}>
-              {valueFormat(value)}
-            </Text>
+            <Text style={[styles.valueText, { color: theme.text }]}>{valueFormat(value)}</Text>
           </View>
         )}
       </View>

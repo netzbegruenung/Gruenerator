@@ -53,7 +53,7 @@ export const VERANSTALTUNG_CONFIG = {
     centerX: 880, // Adjusted to be visible on canvas
     centerY: 874, // photo height (540) + 334
     rotation: -10, // degrees
-    backgroundColor: '#009EE3', // HIMMEL
+    backgroundColor: '#0BA1DD', // HIMMEL
     textColor: '#ffffff',
     lineHeight: 65,
   },
@@ -108,7 +108,8 @@ export function calculateVeranstaltungLayout(
   descriptionFontSize: number = VERANSTALTUNG_CONFIG.description.fontSize
 ) {
   const titleLineHeight = eventTitleFontSize * VERANSTALTUNG_CONFIG.eventTitle.lineHeightRatio;
-  const descriptionLineHeight = descriptionFontSize * VERANSTALTUNG_CONFIG.description.lineHeightRatio;
+  const descriptionLineHeight =
+    descriptionFontSize * VERANSTALTUNG_CONFIG.description.lineHeightRatio;
 
   return {
     canvas: VERANSTALTUNG_CONFIG.canvas,

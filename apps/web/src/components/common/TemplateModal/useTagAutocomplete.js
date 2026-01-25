@@ -10,7 +10,7 @@ export function useTagAutocomplete(value, setValue) {
   return useTextAutocomplete(value, setValue, {
     dictionary: TAG_DICTIONARY,
     minChars: 3,
-    addHashtagOnAccept: true
+    addHashtagOnAccept: true,
   });
 }
 

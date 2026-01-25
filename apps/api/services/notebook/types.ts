@@ -6,7 +6,7 @@ import type {
   ExpandedChunkResult,
   Citation as SearchCitation,
   Source as SearchSource,
-  SourcesByCollection as SearchSourcesByCollection
+  SourcesByCollection as SearchSourcesByCollection,
 } from '../search/types.js';
 
 /**

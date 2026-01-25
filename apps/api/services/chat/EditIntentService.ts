@@ -65,12 +65,13 @@ Antworte NUR mit JSON:
   try {
     const result = await aiWorkerPool.processRequest({
       type: 'edit_extraction',
-      systemPrompt: 'Du bist ein präziser Text-Analysator. Trenne Anweisungen von Quelltexten. Antworte NUR mit JSON.',
+      systemPrompt:
+        'Du bist ein präziser Text-Analysator. Trenne Anweisungen von Quelltexten. Antworte NUR mit JSON.',
       messages: [{ role: 'user', content: extractionPrompt }],
       options: {
         max_tokens: 4000,
-        temperature: 0.2
-      }
+        temperature: 0.2,
+      },
     });
 
     if (!result.success) {
@@ -100,9 +101,8 @@ Antworte NUR mit JSON:
       sourceText: parsed.sourceText,
       instruction: parsed.instruction,
       editType: parsed.editType || 'generic',
-      confidence: parsed.confidence || 0.8
+      confidence: parsed.confidence || 0.8,
     };
-
   } catch (error) {
     log.error('[EditIntentService] AI extraction error:', error);
     return null;
@@ -114,14 +114,20 @@ Antworte NUR mit JSON:
  */
 function buildEditInstruction(editType: EditOperationType, userInstruction: string): string {
   const typeInstructions: Record<EditOperationType, string> = {
-    shorten: 'Kürze den Text erheblich. Behalte die Kernaussagen und den Stil bei, aber entferne Füllwörter, Wiederholungen und weniger wichtige Details. Der gekürzte Text sollte prägnant und auf den Punkt sein.',
-    expand: 'Erweitere den Text mit mehr Details, Beispielen und Ausführungen. Behalte den Stil und Ton bei. Füge relevante Informationen hinzu, die den Text bereichern.',
-    rewrite: 'Schreibe den Text komplett um mit anderen Formulierungen und Satzstrukturen. Behalte die Kernaussagen bei, aber verwende einen frischen Ansatz.',
-    improve: 'Verbessere den Text: Optimiere Stil, Grammatik, Lesbarkeit und Wirkung. Korrigiere Fehler und mache den Text professioneller.',
-    simplify: 'Vereinfache den Text: Verwende einfachere Wörter, kürzere Sätze und klarere Strukturen. Der Text soll leichter verständlich werden.',
-    formalize: 'Mache den Text formeller und professioneller. Entferne umgangssprachliche Ausdrücke und verwende einen sachlichen, seriösen Ton.',
+    shorten:
+      'Kürze den Text erheblich. Behalte die Kernaussagen und den Stil bei, aber entferne Füllwörter, Wiederholungen und weniger wichtige Details. Der gekürzte Text sollte prägnant und auf den Punkt sein.',
+    expand:
+      'Erweitere den Text mit mehr Details, Beispielen und Ausführungen. Behalte den Stil und Ton bei. Füge relevante Informationen hinzu, die den Text bereichern.',
+    rewrite:
+      'Schreibe den Text komplett um mit anderen Formulierungen und Satzstrukturen. Behalte die Kernaussagen bei, aber verwende einen frischen Ansatz.',
+    improve:
+      'Verbessere den Text: Optimiere Stil, Grammatik, Lesbarkeit und Wirkung. Korrigiere Fehler und mache den Text professioneller.',
+    simplify:
+      'Vereinfache den Text: Verwende einfachere Wörter, kürzere Sätze und klarere Strukturen. Der Text soll leichter verständlich werden.',
+    formalize:
+      'Mache den Text formeller und professioneller. Entferne umgangssprachliche Ausdrücke und verwende einen sachlichen, seriösen Ton.',
     translate: 'Übersetze den Text wie angewiesen. Behalte den Stil und die Bedeutung bei.',
-    generic: 'Bearbeite den Text gemäß der Anweisung.'
+    generic: 'Bearbeite den Text gemäß der Anweisung.',
   };
 
   const baseInstruction = typeInstructions[editType] || typeInstructions.generic;
@@ -157,15 +163,18 @@ ${sourceText}
 Gib den bearbeiteten Text zurück:`;
 
   try {
-    const result = await aiWorkerPool.processRequest({
-      type: 'text_edit',
-      systemPrompt,
-      messages: [{ role: 'user', content: userContent }],
-      options: {
-        max_tokens: Math.max(4096, sourceText.length * 2),
-        temperature: 0.4
-      }
-    }, req);
+    const result = await aiWorkerPool.processRequest(
+      {
+        type: 'text_edit',
+        systemPrompt,
+        messages: [{ role: 'user', content: userContent }],
+        options: {
+          max_tokens: Math.max(4096, sourceText.length * 2),
+          temperature: 0.4,
+        },
+      },
+      req
+    );
 
     if (!result.success) {
       return { success: false, error: result.error };
@@ -176,12 +185,11 @@ Gib den bearbeiteten Text zurück:`;
     editedText = editedText.replace(/^```[\s\S]*?\n|```$/g, '');
 
     return { success: true, editedText };
-
   } catch (error) {
     log.error('[EditIntentService] Edit application error:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -189,23 +197,29 @@ Gib den bearbeiteten Text zurück:`;
 /**
  * Generate summary message based on edit type and lengths
  */
-function generateSummary(editType: EditOperationType, originalLength: number, editedLength: number): string {
+function generateSummary(
+  editType: EditOperationType,
+  originalLength: number,
+  editedLength: number
+): string {
   const diff = originalLength - editedLength;
   const percentage = Math.round((Math.abs(diff) / originalLength) * 100);
 
   const summaryMap: Record<EditOperationType, string> = {
-    shorten: diff > 0
-      ? `Text um ${percentage}% gekürzt (${originalLength} → ${editedLength} Zeichen)`
-      : `Text bearbeitet (${editedLength} Zeichen)`,
-    expand: editedLength > originalLength
-      ? `Text um ${percentage}% erweitert (${originalLength} → ${editedLength} Zeichen)`
-      : `Text bearbeitet (${editedLength} Zeichen)`,
+    shorten:
+      diff > 0
+        ? `Text um ${percentage}% gekürzt (${originalLength} → ${editedLength} Zeichen)`
+        : `Text bearbeitet (${editedLength} Zeichen)`,
+    expand:
+      editedLength > originalLength
+        ? `Text um ${percentage}% erweitert (${originalLength} → ${editedLength} Zeichen)`
+        : `Text bearbeitet (${editedLength} Zeichen)`,
     rewrite: `Text umformuliert (${editedLength} Zeichen)`,
     improve: `Text verbessert (${editedLength} Zeichen)`,
     simplify: `Text vereinfacht (${editedLength} Zeichen)`,
     formalize: `Text formalisiert (${editedLength} Zeichen)`,
     translate: `Text übersetzt (${editedLength} Zeichen)`,
-    generic: `Text bearbeitet (${editedLength} Zeichen)`
+    generic: `Text bearbeitet (${editedLength} Zeichen)`,
   };
 
   return summaryMap[editType] || summaryMap.generic;
@@ -237,8 +251,8 @@ export async function processEditIntent(
       agent: 'text_edit',
       content: {
         text: 'Ich konnte den zu bearbeitenden Text nicht vom Bearbeitungswunsch trennen. Bitte formuliere deine Anfrage um, z.B.:\n\n"Kürze diesen Text: [dein Text hier]"\n\noder\n\n"Verbessere folgenden Beitrag: [dein Text hier]"',
-        type: 'error'
-      }
+        type: 'error',
+      },
     };
   }
 
@@ -256,8 +270,8 @@ export async function processEditIntent(
       agent: 'text_edit',
       content: {
         text: `Bei der Textbearbeitung ist ein Fehler aufgetreten: ${editResult.error || 'Unbekannter Fehler'}`,
-        type: 'error'
-      }
+        type: 'error',
+      },
     };
   }
 
@@ -273,13 +287,13 @@ export async function processEditIntent(
     content: {
       text: editResult.editedText,
       type: 'text',
-      summary
+      summary,
     },
     metadata: {
       editType: context.editType,
       originalLength: context.sourceText.length,
       editedLength: editResult.editedText.length,
-      instruction: context.instruction
-    }
+      instruction: context.instruction,
+    },
   };
 }

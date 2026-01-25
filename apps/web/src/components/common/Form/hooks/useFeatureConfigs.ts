@@ -1,11 +1,9 @@
 import { useMemo, useCallback } from 'react';
-import type { FeatureToggle, FeatureConfig, FeaturesConfig } from '@/types/baseform';
-import type {
-  WebSearchConfig,
-  PrivacyModeConfig,
-  ProModeConfig
-} from '../FormStateProvider';
+
 import { useResolvedConfig, mergeConfigs } from '../utils/configResolver';
+
+import type { WebSearchConfig, PrivacyModeConfig, ProModeConfig } from '../FormStateProvider';
+import type { FeatureToggle, FeatureConfig, FeaturesConfig } from '@/types/baseform';
 
 // =============================================================================
 // Resolved Config Interfaces
@@ -112,133 +110,143 @@ export function useFeatureConfigs(params: UseFeatureConfigsParams) {
     storeProModeConfig,
     interactiveModeToggle,
     useInteractiveModeToggle,
-    interactiveModeConfig
+    interactiveModeConfig,
   } = params;
 
   // Generic feature resolver with deprecation warnings
-  const resolveFeature = useCallback((
-    featureName: FeatureName,
-    newConfig: FeatureConfig | undefined,
-    legacyToggle: FeatureToggle | null | undefined,
-    legacyEnabled: boolean | undefined,
-    legacyConfig: Record<string, unknown> | null | undefined,
-    storeConfig: Record<string, unknown>
-  ): ResolvedFeatureConfig => {
-    // Emit deprecation warning in dev mode
-    if (process.env.NODE_ENV === 'development') {
-      const hasLegacyProps = legacyToggle !== undefined || legacyEnabled !== undefined || legacyConfig !== undefined;
-      const hasNewConfig = newConfig !== undefined;
+  const resolveFeature = useCallback(
+    (
+      featureName: FeatureName,
+      newConfig: FeatureConfig | undefined,
+      legacyToggle: FeatureToggle | null | undefined,
+      legacyEnabled: boolean | undefined,
+      legacyConfig: Record<string, unknown> | null | undefined,
+      storeConfig: Record<string, unknown>
+    ): ResolvedFeatureConfig => {
+      // Emit deprecation warning in dev mode
+      if (process.env.NODE_ENV === 'development') {
+        const hasLegacyProps =
+          legacyToggle !== undefined || legacyEnabled !== undefined || legacyConfig !== undefined;
+        const hasNewConfig = newConfig !== undefined;
 
-      if (hasLegacyProps && !hasNewConfig) {
-        console.warn(
-          `[BaseForm] Deprecated: Use features.${featureName} instead of individual ${featureName} props.`,
-          `\nSee: https://docs.example.com/migrations/baseform-props`
-        );
+        if (hasLegacyProps && !hasNewConfig) {
+          console.warn(
+            `[BaseForm] Deprecated: Use features.${featureName} instead of individual ${featureName} props.`,
+            `\nSee: https://docs.example.com/migrations/baseform-props`
+          );
+        }
       }
-    }
 
-    // Merge legacy props into new structure if features prop is not provided
-    const effectiveConfig: FeatureConfig = newConfig || {
-      enabled: legacyEnabled,
-      toggle: legacyToggle ?? undefined,
-      config: legacyConfig ?? undefined
-    };
+      // Merge legacy props into new structure if features prop is not provided
+      const effectiveConfig: FeatureConfig = newConfig || {
+        enabled: legacyEnabled,
+        toggle: legacyToggle ?? undefined,
+        config: legacyConfig ?? undefined,
+      };
 
-    // Build resolved config with proper defaults
-    const storeEnabled = 'enabled' in storeConfig ? (storeConfig.enabled as boolean) : false;
-    const storeIsActive = 'isActive' in storeConfig ? (storeConfig.isActive as boolean) : false;
+      // Build resolved config with proper defaults
+      const storeEnabled = 'enabled' in storeConfig ? (storeConfig.enabled as boolean) : false;
+      const storeIsActive = 'isActive' in storeConfig ? (storeConfig.isActive as boolean) : false;
 
-    const resolved: ResolvedFeatureConfig = {
-      enabled: effectiveConfig.enabled ?? storeEnabled ?? false,
-      toggle: effectiveConfig.toggle,
-      isActive: effectiveConfig.config?.isActive ?? storeIsActive ?? false,
-    };
+      const resolved: ResolvedFeatureConfig = {
+        enabled: effectiveConfig.enabled ?? storeEnabled ?? false,
+        toggle: effectiveConfig.toggle,
+        isActive: effectiveConfig.config?.isActive ?? storeIsActive ?? false,
+      };
 
-    // Add web search specific fields
-    if (featureName === 'webSearch') {
-      const storeIsSearching = 'isSearching' in storeConfig ? (storeConfig.isSearching as boolean) : false;
-      const storeStatusMessage = 'statusMessage' in storeConfig ? (storeConfig.statusMessage as string) : '';
+      // Add web search specific fields
+      if (featureName === 'webSearch') {
+        const storeIsSearching =
+          'isSearching' in storeConfig ? (storeConfig.isSearching as boolean) : false;
+        const storeStatusMessage =
+          'statusMessage' in storeConfig ? (storeConfig.statusMessage as string) : '';
 
-      resolved.isSearching = effectiveConfig.config?.isSearching ?? storeIsSearching ?? false;
-      resolved.statusMessage = effectiveConfig.config?.statusMessage ?? storeStatusMessage ?? '';
-    }
+        resolved.isSearching = effectiveConfig.config?.isSearching ?? storeIsSearching ?? false;
+        resolved.statusMessage = effectiveConfig.config?.statusMessage ?? storeStatusMessage ?? '';
+      }
 
-    return resolved;
-  }, []);
+      return resolved;
+    },
+    []
+  );
 
   // Resolve each feature
   const resolvedWebSearchConfig = useMemo(
-    () => resolveFeature(
-      'webSearch',
-      features?.webSearch,
-      webSearchFeatureToggle,
-      useWebSearchFeatureToggle,
-      webSearchConfig,
-      storeWebSearchConfig as unknown as Record<string, unknown>
-    ),
+    () =>
+      resolveFeature(
+        'webSearch',
+        features?.webSearch,
+        webSearchFeatureToggle,
+        useWebSearchFeatureToggle,
+        webSearchConfig,
+        storeWebSearchConfig as unknown as Record<string, unknown>
+      ),
     [
       features?.webSearch,
       webSearchFeatureToggle,
       useWebSearchFeatureToggle,
       webSearchConfig,
       storeWebSearchConfig,
-      resolveFeature
+      resolveFeature,
     ]
   );
 
   const resolvedPrivacyModeConfig = useMemo(
-    () => resolveFeature(
-      'privacyMode',
-      features?.privacyMode,
-      privacyModeToggle,
-      usePrivacyModeToggle,
-      privacyModeConfig,
-      storePrivacyModeConfig as unknown as Record<string, unknown>
-    ),
+    () =>
+      resolveFeature(
+        'privacyMode',
+        features?.privacyMode,
+        privacyModeToggle,
+        usePrivacyModeToggle,
+        privacyModeConfig,
+        storePrivacyModeConfig as unknown as Record<string, unknown>
+      ),
     [
       features?.privacyMode,
       privacyModeToggle,
       usePrivacyModeToggle,
       privacyModeConfig,
       storePrivacyModeConfig,
-      resolveFeature
+      resolveFeature,
     ]
   );
 
   const resolvedProModeConfig = useMemo(
-    () => resolveFeature(
-      'proMode',
-      features?.proMode,
-      proModeToggle,
-      useProModeToggle,
-      proModeConfig,
-      storeProModeConfig as unknown as Record<string, unknown>
-    ),
+    () =>
+      resolveFeature(
+        'proMode',
+        features?.proMode,
+        proModeToggle,
+        useProModeToggle,
+        proModeConfig,
+        storeProModeConfig as unknown as Record<string, unknown>
+      ),
     [
       features?.proMode,
       proModeToggle,
       useProModeToggle,
       proModeConfig,
       storeProModeConfig,
-      resolveFeature
+      resolveFeature,
     ]
   );
 
   const resolvedInteractiveModeConfig = useMemo(
-    () => resolveFeature(
-      'interactiveMode',
-      features?.interactiveMode,
-      interactiveModeToggle,
-      useInteractiveModeToggle,
-      interactiveModeConfig,
-      { isActive: false, enabled: false } // No store config for interactive mode
-    ),
+    () =>
+      resolveFeature(
+        'interactiveMode',
+        features?.interactiveMode,
+        interactiveModeToggle,
+        useInteractiveModeToggle,
+        interactiveModeConfig,
+        { isActive: false, enabled: false } // No store config for interactive mode
+      ),
     [
       features?.interactiveMode,
       interactiveModeToggle,
       useInteractiveModeToggle,
       interactiveModeConfig,
-      resolveFeature
+      resolveFeature,
     ]
   );
 
@@ -246,6 +254,6 @@ export function useFeatureConfigs(params: UseFeatureConfigsParams) {
     resolvedWebSearchConfig,
     resolvedPrivacyModeConfig,
     resolvedProModeConfig,
-    resolvedInteractiveModeConfig
+    resolvedInteractiveModeConfig,
   };
 }

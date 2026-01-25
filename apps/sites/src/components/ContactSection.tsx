@@ -1,4 +1,15 @@
-import { FaEnvelope, FaPhone, FaMapMarkerAlt, FaFacebook, FaTwitter, FaInstagram, FaYoutube, FaLinkedin, FaMastodon } from 'react-icons/fa';
+import {
+  FaEnvelope,
+  FaPhone,
+  FaMapMarkerAlt,
+  FaFacebook,
+  FaTwitter,
+  FaInstagram,
+  FaYoutube,
+  FaLinkedin,
+  FaMastodon,
+} from 'react-icons/fa';
+
 import type { ContactSection as ContactSectionType } from '@/types/candidate';
 
 interface ContactSectionProps {
@@ -18,7 +29,9 @@ export function ContactSection({ data }: ContactSectionProps) {
   return (
     <section
       className="contact-section"
-      style={data.backgroundImageUrl ? { backgroundImage: `url(${data.backgroundImageUrl})` } : undefined}
+      style={
+        data.backgroundImageUrl ? { backgroundImage: `url(${data.backgroundImageUrl})` } : undefined
+      }
     >
       <div className="contact-overlay">
         <div className="contact-container">

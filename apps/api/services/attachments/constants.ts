@@ -10,16 +10,13 @@ export const ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/jpg',
   'image/png',
-  'image/webp'
+  'image/webp',
 ] as const;
 
 /**
  * Allowed attachment types (including special types like crawled URLs)
  */
-export const ALLOWED_ATTACHMENT_TYPES = [
-  ...ALLOWED_MIME_TYPES,
-  'crawled_url'
-] as const;
+export const ALLOWED_ATTACHMENT_TYPES = [...ALLOWED_MIME_TYPES, 'crawled_url'] as const;
 
 /**
  * Maximum size for a single file attachment (5MB)
@@ -45,5 +42,5 @@ export const MIME_TO_EXTENSION: Record<string, string> = {
   'image/jpg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',
-  'image/gif': '.gif'
+  'image/gif': '.gif',
 };

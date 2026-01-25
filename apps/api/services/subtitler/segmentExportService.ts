@@ -17,7 +17,7 @@ import {
   buildSegmentFilterComplex,
   buildVideoOnlyFilterComplex,
   calculateTotalDuration,
-  Segment
+  Segment,
 } from './segmentFilterBuilders.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,8 +83,8 @@ function parseFrameRate(frameRateStr: string): number {
 
 async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
   const metadata = await ffprobe(inputPath);
-  const videoStream = metadata.streams.find(s => s.codec_type === 'video');
-  const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+  const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
+  const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
   return {
     width: videoStream?.width || 1920,
@@ -96,8 +96,8 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
       codec: videoStream?.codec_name,
       audioCodec: audioStream?.codec_name,
       audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
-      videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null
-    }
+      videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null,
+    },
   };
 }
 
@@ -108,22 +108,35 @@ function calculateFontSize(metadata: VideoMetadata): number {
   let minFontSize: number, maxFontSize: number, basePercentage: number;
 
   if (referenceDimension >= 2160) {
-    minFontSize = 80; maxFontSize = 180; basePercentage = isVertical ? 0.070 : 0.065;
+    minFontSize = 80;
+    maxFontSize = 180;
+    basePercentage = isVertical ? 0.07 : 0.065;
   } else if (referenceDimension >= 1440) {
-    minFontSize = 60; maxFontSize = 140; basePercentage = isVertical ? 0.065 : 0.060;
+    minFontSize = 60;
+    maxFontSize = 140;
+    basePercentage = isVertical ? 0.065 : 0.06;
   } else if (referenceDimension >= 1080) {
-    minFontSize = 40; maxFontSize = 90; basePercentage = isVertical ? 0.054 : 0.0495;
+    minFontSize = 40;
+    maxFontSize = 90;
+    basePercentage = isVertical ? 0.054 : 0.0495;
   } else if (referenceDimension >= 720) {
-    minFontSize = 35; maxFontSize = 70; basePercentage = isVertical ? 0.055 : 0.050;
+    minFontSize = 35;
+    maxFontSize = 70;
+    basePercentage = isVertical ? 0.055 : 0.05;
   } else {
-    minFontSize = 32; maxFontSize = 65; basePercentage = isVertical ? 0.065 : 0.060;
+    minFontSize = 32;
+    maxFontSize = 65;
+    basePercentage = isVertical ? 0.065 : 0.06;
   }
 
   const totalPixels = metadata.width * metadata.height;
   const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1;
   const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4);
 
-  return Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage)));
+  return Math.max(
+    minFontSize,
+    Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage))
+  );
 }
 
 /**
@@ -162,11 +175,15 @@ export function adjustSubtitleTimings(
       accumulatedTime += segmentDuration;
     }
 
-    if (composedStartTime !== null && composedEndTime !== null && composedEndTime > composedStartTime) {
+    if (
+      composedStartTime !== null &&
+      composedEndTime !== null &&
+      composedEndTime > composedStartTime
+    ) {
       adjustedSubtitles.push({
         ...subtitle,
         startTime: composedStartTime,
-        endTime: composedEndTime
+        endTime: composedEndTime,
       });
     }
   }
@@ -197,10 +214,8 @@ export async function exportWithSegments(
       throw new Error('No segments provided');
     }
 
-    const validSegments = segments.filter(seg =>
-      seg.start >= 0 &&
-      seg.end > seg.start &&
-      seg.end <= metadata.duration + 0.5
+    const validSegments = segments.filter(
+      (seg) => seg.start >= 0 && seg.end > seg.start && seg.end <= metadata.duration + 0.5
     );
 
     if (validSegments.length === 0) {
@@ -215,12 +230,16 @@ export async function exportWithSegments(
 
     const totalDuration = calculateTotalDuration(validSegments);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'exporting',
-      progress: 0,
-      message: 'Starting video processing...',
-      type: 'segment-cut'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'exporting',
+        progress: 0,
+        message: 'Starting video processing...',
+        type: 'segment-cut',
+      }),
+      { EX: 60 * 60 }
+    );
 
     const isVertical = metadata.width < metadata.height;
     const referenceDimension = isVertical ? metadata.width : metadata.height;
@@ -231,8 +250,7 @@ export async function exportWithSegments(
 
     await ffmpegPool.run(async () => {
       await new Promise<void>((resolve, reject) => {
-        const command = ffmpeg(inputPath)
-          .setDuration(totalDuration);
+        const command = ffmpeg(inputPath).setDuration(totalDuration);
 
         const isLargeFile = fileSizeMB > 200;
         const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
@@ -255,32 +273,45 @@ export async function exportWithSegments(
 
           outputOptions = [
             '-y',
-            '-filter_complex', filterComplex,
-            '-map', outputStreams[0],
+            '-filter_complex',
+            filterComplex,
+            '-map',
+            outputStreams[0],
             ...(hasAudio ? ['-map', outputStreams[1]] : []),
             ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
             ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags', '+faststart',
-            '-avoid_negative_ts', 'make_zero'
+            '-movflags',
+            '+faststart',
+            '-avoid_negative_ts',
+            'make_zero',
           ];
 
           log.debug(`Segment export using VAAPI: ${referenceDimension}p, encoder: ${videoCodec}`);
         } else {
-          const videoCodec = (is4K && isHevcSource) ? 'libx265' : 'libx264';
+          const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
 
           outputOptions = [
             '-y',
-            '-filter_complex', filterComplex,
-            '-map', outputStreams[0],
+            '-filter_complex',
+            filterComplex,
+            '-map',
+            outputStreams[0],
             ...(hasAudio ? ['-map', outputStreams[1]] : []),
-            '-c:v', videoCodec,
-            '-preset', preset,
-            '-crf', crf.toString(),
-            '-profile:v', videoCodec === 'libx264' ? 'high' : 'main',
-            '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
+            '-c:v',
+            videoCodec,
+            '-preset',
+            preset,
+            '-crf',
+            crf.toString(),
+            '-profile:v',
+            videoCodec === 'libx264' ? 'high' : 'main',
+            '-level',
+            videoCodec === 'libx264' ? '4.1' : '4.0',
             ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags', '+faststart',
-            '-avoid_negative_ts', 'make_zero'
+            '-movflags',
+            '+faststart',
+            '-avoid_negative_ts',
+            'make_zero',
           ];
 
           if (videoCodec === 'libx264') {
@@ -299,12 +330,16 @@ export async function exportWithSegments(
           .on('progress', async (progress: { percent?: number }) => {
             const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
             try {
-              await redisClient.set(`export:${exportToken}`, JSON.stringify({
-                status: 'exporting',
-                progress: progressPercent,
-                message: `Processing: ${progressPercent}%`,
-                type: 'segment-cut'
-              }), { EX: 60 * 60 });
+              await redisClient.set(
+                `export:${exportToken}`,
+                JSON.stringify({
+                  status: 'exporting',
+                  progress: progressPercent,
+                  message: `Processing: ${progressPercent}%`,
+                  type: 'segment-cut',
+                }),
+                { EX: 60 * 60 }
+              );
             } catch {}
           })
           .on('error', (err: Error) => {
@@ -319,13 +354,17 @@ export async function exportWithSegments(
       });
     }, `segment-export-${exportToken}`);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'complete',
-      progress: 100,
-      outputPath,
-      duration: totalDuration,
-      type: 'segment-cut'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'complete',
+        progress: 100,
+        outputPath,
+        duration: totalDuration,
+        type: 'segment-cut',
+      }),
+      { EX: 60 * 60 }
+    );
 
     log.info(`Segment export completed: ${outputPath}, duration: ${totalDuration}s`);
 
@@ -333,17 +372,20 @@ export async function exportWithSegments(
       exportToken,
       outputPath,
       duration: totalDuration,
-      segmentCount: validSegments.length
+      segmentCount: validSegments.length,
     };
-
   } catch (error: any) {
     log.error(`Segment export failed: ${error.message}`);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'error',
-      error: error.message,
-      type: 'segment-cut'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'error',
+        error: error.message,
+        type: 'segment-cut',
+      }),
+      { EX: 60 * 60 }
+    );
 
     throw error;
   }
@@ -373,10 +415,8 @@ export async function exportWithSegmentsAndSubtitles(
       throw new Error('No segments provided');
     }
 
-    const validSegments = segments.filter(seg =>
-      seg.start >= 0 &&
-      seg.end > seg.start &&
-      seg.end <= metadata.duration + 0.5
+    const validSegments = segments.filter(
+      (seg) => seg.start >= 0 && seg.end > seg.start && seg.end <= metadata.duration + 0.5
     );
 
     if (validSegments.length === 0) {
@@ -391,30 +431,32 @@ export async function exportWithSegmentsAndSubtitles(
 
     const totalDuration = calculateTotalDuration(validSegments);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'exporting',
-      progress: 0,
-      message: 'Starting video processing with subtitles...',
-      type: 'segment-cut-subtitles'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'exporting',
+        progress: 0,
+        message: 'Starting video processing with subtitles...',
+        type: 'segment-cut-subtitles',
+      }),
+      { EX: 60 * 60 }
+    );
 
     const AssSubtitleService = (await import('./assSubtitleService.js')).default;
     const assService = new AssSubtitleService();
 
-    const adjustedSubtitles = adjustSubtitleTimings(
-      subtitleConfig.segments,
-      validSegments
-    );
+    const adjustedSubtitles = adjustSubtitleTimings(subtitleConfig.segments, validSegments);
 
     const isVertical = metadata.width < metadata.height;
     const styleOptions = {
       fontSize: Math.floor(calculateFontSize(metadata) / 2),
       marginL: 10,
       marginR: 10,
-      marginV: subtitleConfig.heightPreference === 'tief'
-        ? Math.floor(metadata.height * 0.20)
-        : Math.floor(metadata.height * 0.33),
-      alignment: 2
+      marginV:
+        subtitleConfig.heightPreference === 'tief'
+          ? Math.floor(metadata.height * 0.2)
+          : Math.floor(metadata.height * 0.33),
+      alignment: 2,
     };
 
     const assResult = assService.generateAssContent(
@@ -449,8 +491,7 @@ export async function exportWithSegmentsAndSubtitles(
 
     await ffmpegPool.run(async () => {
       await new Promise<void>((resolve, reject) => {
-        const command = ffmpeg(inputPath)
-          .setDuration(totalDuration);
+        const command = ffmpeg(inputPath).setDuration(totalDuration);
 
         const isLargeFile = fileSizeMB > 200;
         const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
@@ -478,30 +519,43 @@ export async function exportWithSegmentsAndSubtitles(
 
           outputOptions = [
             '-y',
-            '-filter_complex', combinedFilter,
-            '-map', '[finalv]',
+            '-filter_complex',
+            combinedFilter,
+            '-map',
+            '[finalv]',
             ...(hasAudio ? ['-map', '[outa]'] : []),
             ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
             ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags', '+faststart',
-            '-avoid_negative_ts', 'make_zero'
+            '-movflags',
+            '+faststart',
+            '-avoid_negative_ts',
+            'make_zero',
           ];
         } else {
-          const videoCodec = (is4K && isHevcSource) ? 'libx265' : 'libx264';
+          const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
 
           outputOptions = [
             '-y',
-            '-filter_complex', combinedFilter,
-            '-map', '[finalv]',
+            '-filter_complex',
+            combinedFilter,
+            '-map',
+            '[finalv]',
             ...(hasAudio ? ['-map', '[outa]'] : []),
-            '-c:v', videoCodec,
-            '-preset', preset,
-            '-crf', crf.toString(),
-            '-profile:v', videoCodec === 'libx264' ? 'high' : 'main',
-            '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
+            '-c:v',
+            videoCodec,
+            '-preset',
+            preset,
+            '-crf',
+            crf.toString(),
+            '-profile:v',
+            videoCodec === 'libx264' ? 'high' : 'main',
+            '-level',
+            videoCodec === 'libx264' ? '4.1' : '4.0',
             ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags', '+faststart',
-            '-avoid_negative_ts', 'make_zero'
+            '-movflags',
+            '+faststart',
+            '-avoid_negative_ts',
+            'make_zero',
           ];
 
           if (videoCodec === 'libx264') {
@@ -518,12 +572,16 @@ export async function exportWithSegmentsAndSubtitles(
           .on('progress', async (progress: { percent?: number }) => {
             const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
             try {
-              await redisClient.set(`export:${exportToken}`, JSON.stringify({
-                status: 'exporting',
-                progress: progressPercent,
-                message: `Processing: ${progressPercent}%`,
-                type: 'segment-cut-subtitles'
-              }), { EX: 60 * 60 });
+              await redisClient.set(
+                `export:${exportToken}`,
+                JSON.stringify({
+                  status: 'exporting',
+                  progress: progressPercent,
+                  message: `Processing: ${progressPercent}%`,
+                  type: 'segment-cut-subtitles',
+                }),
+                { EX: 60 * 60 }
+              );
             } catch {}
           })
           .on('error', (err: Error) => {
@@ -543,29 +601,36 @@ export async function exportWithSegmentsAndSubtitles(
       if (tempFontPath) await fs.unlink(tempFontPath).catch(() => {});
     } catch {}
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'complete',
-      progress: 100,
-      outputPath,
-      duration: totalDuration,
-      type: 'segment-cut-subtitles'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'complete',
+        progress: 100,
+        outputPath,
+        duration: totalDuration,
+        type: 'segment-cut-subtitles',
+      }),
+      { EX: 60 * 60 }
+    );
 
     return {
       exportToken,
       outputPath,
       duration: totalDuration,
-      segmentCount: validSegments.length
+      segmentCount: validSegments.length,
     };
-
   } catch (error: any) {
     log.error(`Segment+subtitle export failed: ${error.message}`);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'error',
-      error: error.message,
-      type: 'segment-cut-subtitles'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'error',
+        error: error.message,
+        type: 'segment-cut-subtitles',
+      }),
+      { EX: 60 * 60 }
+    );
 
     throw error;
   }

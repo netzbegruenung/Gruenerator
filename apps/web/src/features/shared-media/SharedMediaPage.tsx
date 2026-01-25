@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import QRCode from 'react-qr-code';
 import { FaInstagram } from 'react-icons/fa';
-import type { AxiosRequestConfig } from 'axios';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+import QRCode from 'react-qr-code';
+import { useParams } from 'react-router-dom';
+
+
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import Spinner from '../../components/common/Spinner';
 import apiClient from '../../components/utils/apiClient';
-import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
 import { buildUrl } from '../../config/domains';
+import { useOptimizedAuth } from '../../hooks/useAuth';
+import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
+
+import type { AxiosRequestConfig } from 'axios';
 import './SharedMediaPage.css';
 import '../../assets/styles/components/ui/button.css';
 
@@ -42,8 +45,11 @@ const SharedMediaPage = () => {
 
   useEffect(() => {
     const checkShareCapability = async () => {
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        || (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
+      const isMobile =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) ||
+        (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
 
       if (!isMobile || !navigator.share || !navigator.canShare) {
         setCanNativeShare(false);
@@ -63,14 +69,16 @@ const SharedMediaPage = () => {
     const fetchShareData = async () => {
       try {
         const response = await apiClient.get(`/share/${shareToken}`, {
-          skipAuthRedirect: true
+          skipAuthRedirect: true,
         } as ExtendedAxiosRequestConfig);
         if (response.data.success) {
           setShareData(response.data.share);
           if (response.data.share.status === 'processing') {
             setIsProcessing(true);
           } else if (response.data.share.status === 'failed') {
-            setError('Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.');
+            setError(
+              'Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.'
+            );
           }
         }
       } catch (err) {
@@ -96,7 +104,7 @@ const SharedMediaPage = () => {
     const pollStatus = async () => {
       try {
         const response = await apiClient.get(`/share/${shareToken}`, {
-          skipAuthRedirect: true
+          skipAuthRedirect: true,
         } as ExtendedAxiosRequestConfig);
         if (response.data.success) {
           const newStatus = response.data.share.status;
@@ -105,7 +113,9 @@ const SharedMediaPage = () => {
             setShareData(response.data.share);
           } else if (newStatus === 'failed') {
             setIsProcessing(false);
-            setError('Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.');
+            setError(
+              'Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.'
+            );
           }
         }
       } catch (err) {
@@ -124,10 +134,9 @@ const SharedMediaPage = () => {
     setIsDownloading(true);
 
     try {
-      const response = await apiClient.get(
-        `/share/${shareToken}/download`,
-        { responseType: 'blob' }
-      );
+      const response = await apiClient.get(`/share/${shareToken}/download`, {
+        responseType: 'blob',
+      });
 
       const mimeType = shareData?.mediaType === 'video' ? 'video/mp4' : 'image/png';
       const extension = shareData?.mediaType === 'video' ? 'mp4' : 'png';
@@ -137,7 +146,10 @@ const SharedMediaPage = () => {
       const link = document.createElement('a');
       link.href = url;
 
-      const filename = `${shareData?.title || 'media'}_gruenerator.${extension}`.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const filename = `${shareData?.title || 'media'}_gruenerator.${extension}`.replace(
+        /[^a-zA-Z0-9_.-]/g,
+        '_'
+      );
       link.download = filename;
 
       document.body.appendChild(link);
@@ -186,7 +198,7 @@ const SharedMediaPage = () => {
     setIsSharing(true);
     try {
       const response = await apiClient.get(`/share/${shareToken}/preview`, {
-        responseType: 'blob'
+        responseType: 'blob',
       });
       const blob = response.data;
       const mimeType = shareData?.mediaType === 'video' ? 'video/mp4' : 'image/png';
@@ -226,7 +238,14 @@ const SharedMediaPage = () => {
       <div className="shared-media-page">
         <div className="shared-media-container">
           <div className="shared-media-error">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="15" y1="9" x2="9" y2="15" />
               <line x1="9" y1="9" x2="15" y2="15" />
@@ -245,7 +264,11 @@ const SharedMediaPage = () => {
         <div className="shared-media-container">
           <div className="shared-media-processing">
             <div className="spinner" />
-            <h2>{shareData?.mediaType === 'video' ? 'Video wird gerendert...' : 'Bild wird verarbeitet...'}</h2>
+            <h2>
+              {shareData?.mediaType === 'video'
+                ? 'Video wird gerendert...'
+                : 'Bild wird verarbeitet...'}
+            </h2>
             <p>Das Medium wird gerade vorbereitet. Dies kann einige Minuten dauern.</p>
             <p className="processing-hint">Diese Seite aktualisiert sich automatisch.</p>
           </div>
@@ -264,20 +287,12 @@ const SharedMediaPage = () => {
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
-          <QRCode
-            value={window.location.href}
-            size={64}
-            level="M"
-          />
+          <QRCode value={window.location.href} size={64} level="M" />
           {copied && <span className="shared-media-qr-copied">Kopiert!</span>}
         </button>
         <div className="shared-media-left">
           {isVideo ? (
-            <video
-              controls
-              preload="metadata"
-              playsInline
-            >
+            <video controls preload="metadata" playsInline>
               <source src={`${baseURL}/share/${shareToken}/preview`} type="video/mp4" />
               Dein Browser unterstützt keine Video-Wiedergabe.
             </video>
@@ -293,7 +308,8 @@ const SharedMediaPage = () => {
         <div className="shared-media-right">
           <div className="shared-media-content">
             <p className="shared-by-message">
-              <strong>{shareData?.sharerName || 'Jemand'}</strong> hat {isVideo ? 'ein Video' : 'ein Bild'} mit dir geteilt
+              <strong>{shareData?.sharerName || 'Jemand'}</strong> hat{' '}
+              {isVideo ? 'ein Video' : 'ein Bild'} mit dir geteilt
             </p>
             <h1>{shareData?.title || (isVideo ? 'Geteiltes Video' : 'Geteiltes Bild')}</h1>
 
@@ -306,7 +322,14 @@ const SharedMediaPage = () => {
                 />
               ) : downloadSuccess ? (
                 <div className="download-success-inline">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                     <polyline points="22,4 12,14.01 9,11.01" />
                   </svg>
@@ -320,12 +343,13 @@ const SharedMediaPage = () => {
                       onClick={handleDownload}
                       disabled={isDownloading}
                     >
-                      {isDownloading ? 'Wird geladen...' : (isVideo ? 'Video herunterladen' : 'Bild herunterladen')}
+                      {isDownloading
+                        ? 'Wird geladen...'
+                        : isVideo
+                          ? 'Video herunterladen'
+                          : 'Bild herunterladen'}
                     </button>
-                    <button
-                      className="btn-primary"
-                      onClick={handleShare}
-                    >
+                    <button className="btn-primary" onClick={handleShare}>
                       {copied ? 'Link kopiert!' : 'Link teilen'}
                     </button>
                     {canNativeShare && (
@@ -335,26 +359,32 @@ const SharedMediaPage = () => {
                         disabled={isSharing}
                         title="Auf Instagram posten"
                       >
-                        {isSharing ? (
-                          <Spinner size="small" white />
-                        ) : (
-                          <FaInstagram />
-                        )}
+                        {isSharing ? <Spinner size="small" white /> : <FaInstagram />}
                         Posten
                       </button>
                     )}
                   </div>
 
-                  {downloadError && (
-                    <div className="download-error">{downloadError}</div>
-                  )}
+                  {downloadError && <div className="download-error">{downloadError}</div>}
                 </>
               )}
             </div>
 
             <div className="shared-media-footer">
               <p>
-                Willst du auch {isVideo ? 'solche Videos' : 'solche Bilder'} erstellen? Mit dem <a href={buildUrl(isVideo ? '/subtitler' : '/image-studio')} target="_blank" rel="noopener noreferrer">Grünerator</a> kannst du {isVideo ? 'Reels mit automatischen Untertiteln und grünem Design' : 'Sharepics und Bilder mit grünem Design'} erstellen!
+                Willst du auch {isVideo ? 'solche Videos' : 'solche Bilder'} erstellen? Mit dem{' '}
+                <a
+                  href={buildUrl(isVideo ? '/subtitler' : '/image-studio')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Grünerator
+                </a>{' '}
+                kannst du{' '}
+                {isVideo
+                  ? 'Reels mit automatischen Untertiteln und grünem Design'
+                  : 'Sharepics und Bilder mit grünem Design'}{' '}
+                erstellen!
               </p>
             </div>
           </div>

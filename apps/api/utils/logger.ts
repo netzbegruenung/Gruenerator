@@ -11,7 +11,7 @@ const logger = winston.createLogger({
       return `${timestamp} ${level.toUpperCase().padEnd(5)} ${svc} ${message}`;
     })
   ),
-  transports: [new winston.transports.Console()]
+  transports: [new winston.transports.Console()],
 });
 
 export const createLogger = (service: string): winston.Logger => logger.child({ service });

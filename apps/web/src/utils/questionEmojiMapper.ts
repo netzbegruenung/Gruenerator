@@ -37,34 +37,34 @@ type QuestionType =
 export function getQuestionEmoji(questionType: string): string {
   const emojiMap: Record<string, string> = {
     // Core categories
-    scope: '🎯',           // Target/focus
-    audience: '🏛️',       // Government building
-    committee: '🏛️',      // Government building
-    tone: '🎨',            // Palette/tone
-    structure: '📋',       // Clipboard/organization
-    facts: '📊',           // Chart/data
+    scope: '🎯', // Target/focus
+    audience: '🏛️', // Government building
+    committee: '🏛️', // Government building
+    tone: '🎨', // Palette/tone
+    structure: '📋', // Clipboard/organization
+    facts: '📊', // Chart/data
 
     // Action/implementation categories
-    measures: '⚙️',        // Gear/action
-    stakeholders: '👥',    // People
-    timeline: '⏱️',        // Timer/schedule
-    justification: '💡',   // Lightbulb/reason
-    goals: '🎯',           // Target
-    budget: '💰',          // Money
-    legal_basis: '⚖️',     // Scales/law
+    measures: '⚙️', // Gear/action
+    stakeholders: '👥', // People
+    timeline: '⏱️', // Timer/schedule
+    justification: '💡', // Lightbulb/reason
+    goals: '🎯', // Target
+    budget: '💰', // Money
+    legal_basis: '⚖️', // Scales/law
 
     // Other categories
-    clarification: '🔍',   // Magnifying glass
-    priority: '⭐',        // Star/priority
-    background: '📖',      // Book/context
-    info_goal: '🔎',       // Search/information
-    format: '📄',          // Document
-    main_topic: '📌',      // Pin/main focus
-    debate_focus: '💬',    // Speech bubble
-    data_focus: '📈',      // Trending chart
-    sub_questions: '🔢',   // Numbers
+    clarification: '🔍', // Magnifying glass
+    priority: '⭐', // Star/priority
+    background: '📖', // Book/context
+    info_goal: '🔎', // Search/information
+    format: '📄', // Document
+    main_topic: '📌', // Pin/main focus
+    debate_focus: '💬', // Speech bubble
+    data_focus: '📈', // Trending chart
+    sub_questions: '🔢', // Numbers
     political_context: '🗳️', // Ballot box
-    specificity: '🎲'      // Dice/specificity
+    specificity: '🎲', // Dice/specificity
   };
 
   return emojiMap[questionType] || '❓'; // Default question mark
@@ -94,7 +94,10 @@ export function getYesNoEmoji(answer: string): string {
  * @param optionText - The text of the answer option
  * @returns Emoji character or empty string
  */
-export function getAnswerOptionEmoji(questionType: string, optionText: string | null | undefined): string {
+export function getAnswerOptionEmoji(
+  questionType: string,
+  optionText: string | null | undefined
+): string {
   if (!optionText) return '';
 
   const lowerOption = optionText.toLowerCase();
@@ -148,7 +151,7 @@ export function getRoundEmoji(round: number): string {
   const roundEmojis: Record<number, string> = {
     1: '1️⃣',
     2: '2️⃣',
-    3: '3️⃣'
+    3: '3️⃣',
   };
 
   return roundEmojis[round] || '🔄';

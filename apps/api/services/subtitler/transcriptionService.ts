@@ -77,9 +77,14 @@ async function transcribeVideo(
         throw new Error('Invalid transcription data received from provider');
       }
 
-      log.debug(`Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+      log.debug(
+        `Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`
+      );
 
-      finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words || []);
+      finalTranscription = await generateManualSubtitles(
+        transcriptionResult.text,
+        transcriptionResult.words || []
+      );
     } else {
       log.warn(`Unknown mode '${subtitlePreference}', using manual mode as fallback`);
       const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId);
@@ -88,9 +93,14 @@ async function transcribeVideo(
         throw new Error('Invalid transcription data received from provider');
       }
 
-      log.debug(`Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+      log.debug(
+        `Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`
+      );
 
-      finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words || []);
+      finalTranscription = await generateManualSubtitles(
+        transcriptionResult.text,
+        transcriptionResult.words || []
+      );
     }
 
     try {

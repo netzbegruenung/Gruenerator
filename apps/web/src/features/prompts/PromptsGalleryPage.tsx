@@ -1,11 +1,9 @@
 import { memo } from 'react';
+
 import GalleryContainer from '../../components/common/Gallery/GalleryContainer';
 
 const PromptsGalleryPage = memo(() => (
-  <GalleryContainer
-    initialContentType="prompts"
-    availableContentTypes={['prompts']}
-  />
+  <GalleryContainer initialContentType="prompts" availableContentTypes={['prompts']} />
 ));
 
 PromptsGalleryPage.displayName = 'PromptsGalleryPage';

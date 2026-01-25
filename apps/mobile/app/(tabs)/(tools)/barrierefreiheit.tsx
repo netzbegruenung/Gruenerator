@@ -3,10 +3,7 @@ import { StyleSheet, View, Text, useColorScheme, BackHandler } from 'react-nativ
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useGeneratedTextStore } from '@gruenerator/shared/stores';
-import {
-  ACCESSIBILITY_MODES,
-  type AccessibilityMode,
-} from '@gruenerator/shared/generators';
+import { ACCESSIBILITY_MODES, type AccessibilityMode } from '@gruenerator/shared/generators';
 import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
 import { ContentDisplay } from '../../../components/content';
 import { ChipGroup } from '../../../components/common';

@@ -27,14 +27,8 @@ export default function DocumentsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  const {
-    documents,
-    isLoading,
-    error,
-    fetchDocuments,
-    createDocument,
-    deleteDocument,
-  } = useDocsStore();
+  const { documents, isLoading, error, fetchDocuments, createDocument, deleteDocument } =
+    useDocsStore();
 
   useEffect(() => {
     fetchDocuments();
@@ -56,18 +50,14 @@ export default function DocumentsScreen() {
   };
 
   const handleDelete = (id: string, title: string) => {
-    Alert.alert(
-      'Dokument löschen',
-      `Möchtest du "${title}" wirklich löschen?`,
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Löschen',
-          style: 'destructive',
-          onPress: () => deleteDocument(id),
-        },
-      ]
-    );
+    Alert.alert('Dokument löschen', `Möchtest du "${title}" wirklich löschen?`, [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Löschen',
+        style: 'destructive',
+        onPress: () => deleteDocument(id),
+      },
+    ]);
   };
 
   const formatDate = (dateString: string) => {
@@ -79,7 +69,11 @@ export default function DocumentsScreen() {
     });
   };
 
-  const renderDocument = ({ item }: { item: { id: string; title: string; updated_at: string } }) => (
+  const renderDocument = ({
+    item,
+  }: {
+    item: { id: string; title: string; updated_at: string };
+  }) => (
     <TouchableOpacity
       style={[styles.documentCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
       onPress={() => router.push({ pathname: '/(tabs)/(docs)/[id]', params: { id: item.id } })}
@@ -118,7 +112,10 @@ export default function DocumentsScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={['top']}
+      >
         <View style={styles.errorState}>
           <Ionicons name="alert-circle-outline" size={64} color={colors.error[500]} />
           <Text style={[styles.errorTitle, { color: theme.text }]}>Fehler beim Laden</Text>
@@ -159,10 +156,7 @@ export default function DocumentsScreen() {
           data={documents}
           keyExtractor={(item) => item.id}
           renderItem={renderDocument}
-          contentContainerStyle={[
-            styles.list,
-            documents.length === 0 && styles.listEmpty,
-          ]}
+          contentContainerStyle={[styles.list, documents.length === 0 && styles.listEmpty]}
           ListEmptyComponent={renderEmptyState}
           refreshControl={
             <RefreshControl

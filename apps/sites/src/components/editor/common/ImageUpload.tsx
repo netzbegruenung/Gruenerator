@@ -1,5 +1,5 @@
-import { useRef } from 'react';
 import { useMediaPicker, useMediaUpload, type MediaItem } from '@gruenerator/shared/media-library';
+import { useRef } from 'react';
 import '../../../styles/components/image-upload.css';
 
 interface ImageUploadProps {

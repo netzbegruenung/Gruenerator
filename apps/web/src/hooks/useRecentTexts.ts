@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+
 import apiClient from '../components/utils/apiClient';
 
 /**
@@ -88,9 +89,9 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
         params: {
           type: generatorType,
           limit,
-          page: 1
+          page: 1,
         },
-        skipAuthRedirect: true
+        skipAuthRedirect: true,
       } as any);
 
       const fetchedTexts = response.data.data || [];
@@ -101,7 +102,7 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
         // Update cache
         cache.set(cacheKey, {
           data: fetchedTexts,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
 
         console.log('[useRecentTexts] Fetched', fetchedTexts.length, 'texts');
@@ -123,33 +124,36 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
   /**
    * Delete a text
    */
-  const deleteText = useCallback(async (id: string) => {
-    try {
-      console.log('[useRecentTexts] Deleting text', id);
+  const deleteText = useCallback(
+    async (id: string) => {
+      try {
+        console.log('[useRecentTexts] Deleting text', id);
 
-      await apiClient.delete(`/auth/saved-texts/${id}`);
+        await apiClient.delete(`/auth/saved-texts/${id}`);
 
-      // Remove from local state
-      if (isMountedRef.current) {
-        setTexts(prev => prev.filter(text => text.id !== id));
+        // Remove from local state
+        if (isMountedRef.current) {
+          setTexts((prev) => prev.filter((text) => text.id !== id));
 
-        // Invalidate cache
-        const cacheKey = `${generatorType}-${limit}`;
-        cache.delete(cacheKey);
+          // Invalidate cache
+          const cacheKey = `${generatorType}-${limit}`;
+          cache.delete(cacheKey);
 
-        console.log('[useRecentTexts] Text deleted successfully');
+          console.log('[useRecentTexts] Text deleted successfully');
+        }
+      } catch (err) {
+        console.error('[useRecentTexts] Error deleting text:', err);
+
+        const errorMessage = err instanceof Error ? err.message : 'Fehler beim Löschen';
+        if (isMountedRef.current) {
+          setError(errorMessage);
+        }
+
+        throw err;
       }
-    } catch (err) {
-      console.error('[useRecentTexts] Error deleting text:', err);
-
-      const errorMessage = err instanceof Error ? err.message : 'Fehler beim Löschen';
-      if (isMountedRef.current) {
-        setError(errorMessage);
-      }
-
-      throw err;
-    }
-  }, [generatorType, limit]);
+    },
+    [generatorType, limit]
+  );
 
   /**
    * Manual refetch
@@ -185,6 +189,6 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
     isLoading,
     error,
     refetch,
-    deleteText
+    deleteText,
   };
 }

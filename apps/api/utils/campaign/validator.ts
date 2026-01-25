@@ -99,7 +99,7 @@ export function validateField(
   if (rules.required && !stringValue) {
     return {
       valid: false,
-      error: rules.errorMessage || `${fieldName} ist erforderlich`
+      error: rules.errorMessage || `${fieldName} ist erforderlich`,
     };
   }
 
@@ -111,15 +111,14 @@ export function validateField(
     return {
       valid: false,
       error:
-        rules.errorMessage ||
-        `${fieldName} muss mindestens ${rules.minLength} Zeichen lang sein`
+        rules.errorMessage || `${fieldName} muss mindestens ${rules.minLength} Zeichen lang sein`,
     };
   }
 
   if (rules.maxLength && stringValue.length > rules.maxLength) {
     return {
       valid: false,
-      error: rules.errorMessage || `${fieldName} darf maximal ${rules.maxLength} Zeichen lang sein`
+      error: rules.errorMessage || `${fieldName} darf maximal ${rules.maxLength} Zeichen lang sein`,
     };
   }
 
@@ -128,7 +127,7 @@ export function validateField(
     if (!regex.test(stringValue)) {
       return {
         valid: false,
-        error: rules.errorMessage || `${fieldName} hat ein ungültiges Format`
+        error: rules.errorMessage || `${fieldName} hat ein ungültiges Format`,
       };
     }
   }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import type { JSX, ReactNode, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+import type { JSX, ReactNode, FormEvent } from 'react';
 import '../../assets/styles/components/actions/verify.css';
 
 interface EyeIconProps {
@@ -51,7 +52,12 @@ const EyeIcon = ({ closed }: EyeIconProps): JSX.Element => (
   </svg>
 );
 
-export default function VerifyFeature({ feature, children, onVerified, onCancel }: VerifyFeatureProps): JSX.Element | ReactNode {
+export default function VerifyFeature({
+  feature,
+  children,
+  onVerified,
+  onCancel,
+}: VerifyFeatureProps): JSX.Element | ReactNode {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -67,7 +73,7 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
     let timer: ReturnType<typeof setInterval>;
     if (lockoutTime > 0) {
       timer = setInterval(() => {
-        setLockoutTime(prev => {
+        setLockoutTime((prev) => {
           if (prev <= 1) {
             setIsLocked(false);
             setAttempts(0);
@@ -98,11 +104,17 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
         if (newAttempts >= MAX_ATTEMPTS) {
           setIsLocked(true);
           setLockoutTime(LOCKOUT_DURATION);
-          setError(`Zu viele fehlgeschlagene Versuche. Bitte warten Sie ${LOCKOUT_DURATION / 60} Minuten.`);
-          console.log(`Fehlgeschlagene Anmeldeversuche für Feature ${feature} - Account gesperrt für ${LOCKOUT_DURATION / 60} Minuten`);
+          setError(
+            `Zu viele fehlgeschlagene Versuche. Bitte warten Sie ${LOCKOUT_DURATION / 60} Minuten.`
+          );
+          console.log(
+            `Fehlgeschlagene Anmeldeversuche für Feature ${feature} - Account gesperrt für ${LOCKOUT_DURATION / 60} Minuten`
+          );
         } else {
           setError(`Falsches Passwort. Noch ${MAX_ATTEMPTS - newAttempts} Versuche übrig`);
-          console.log(`Fehlgeschlagener Anmeldeversuch für Feature ${feature} - Versuch ${newAttempts} von ${MAX_ATTEMPTS}`);
+          console.log(
+            `Fehlgeschlagener Anmeldeversuch für Feature ${feature} - Versuch ${newAttempts} von ${MAX_ATTEMPTS}`
+          );
         }
       } else {
         setAttempts(0);
@@ -131,12 +143,7 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
     return (
       <div className="verify-attempts">
         {[...Array(MAX_ATTEMPTS)].map((_, index) => (
-          <div
-            key={index}
-            className={`attempt-dot ${
-              index < attempts ? 'failed' : 'active'
-            }`}
-          />
+          <div key={index} className={`attempt-dot ${index < attempts ? 'failed' : 'active'}`} />
         ))}
       </div>
     );
@@ -155,7 +162,7 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
         <form onSubmit={handleSubmit} className="verify-form">
           <div className="verify-input-group">
             <input
-              type={showPassword ? "text" : "password"}
+              type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               placeholder="Passwort eingeben"
@@ -166,7 +173,7 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
               type="button"
               onClick={togglePasswordVisibility}
               className="verify-password-toggle"
-              aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+              aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
               disabled={isLocked}
             >
               <EyeIcon closed={!showPassword} />
@@ -187,4 +194,3 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
     </div>
   );
 }
-

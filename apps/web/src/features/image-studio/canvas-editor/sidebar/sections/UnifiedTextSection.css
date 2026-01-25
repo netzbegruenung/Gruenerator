@@ -1,0 +1,215 @@
+/**
+ * UnifiedTextSection Styles
+ *
+ * Consistent styling for the unified text editing section that adapts to any template.
+ */
+
+/* ============================================================================
+   CONTAINER
+   ============================================================================ */
+
+.sidebar-section--unified-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-medium);
+}
+
+.unified-text-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+}
+
+/* ============================================================================
+   TEXT FIELD
+   ============================================================================ */
+
+.unified-text-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.unified-text-field__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 28px;
+}
+
+.unified-text-field__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+/* ============================================================================
+   TEXT INPUT (single line)
+   ============================================================================ */
+
+.unified-text-input {
+  width: 100%;
+  padding: var(--spacing-small) var(--spacing-medium);
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: var(--font-color);
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-medium);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.unified-text-input:focus {
+  border-color: var(--primary-600);
+  box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.unified-text-input::placeholder {
+  color: var(--font-color-muted);
+}
+
+/* ============================================================================
+   TEXTAREA (multi-line)
+   ============================================================================ */
+
+.unified-textarea-wrapper {
+  position: relative;
+}
+
+.unified-textarea {
+  width: 100%;
+  padding: var(--spacing-small) var(--spacing-medium);
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: var(--font-color);
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-medium);
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.unified-textarea:focus {
+  border-color: var(--primary-600);
+  box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.unified-textarea::placeholder {
+  color: var(--font-color-muted);
+}
+
+.unified-textarea__count {
+  position: absolute;
+  bottom: var(--spacing-small);
+  right: var(--spacing-small);
+  font-size: 0.75rem;
+  color: var(--font-color-muted);
+  background-color: var(--background-color);
+  padding: 0 var(--spacing-xxsmall);
+  border-radius: var(--border-radius-small);
+}
+
+/* ============================================================================
+   FONT SIZE STEPPER
+   ============================================================================ */
+
+.unified-font-size-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--background-subtle, #f5f5f5);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+[data-theme="dark"] .unified-font-size-stepper {
+  background: var(--surface-hover);
+}
+
+.unified-font-size-stepper__btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.unified-font-size-stepper__btn:hover:not(:disabled) {
+  background-color: var(--background-hover);
+  color: var(--primary-600);
+}
+
+.unified-font-size-stepper__btn:active:not(:disabled) {
+  background-color: var(--background-active);
+}
+
+.unified-font-size-stepper__btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  color: var(--text-tertiary);
+}
+
+.unified-font-size-stepper__input {
+  width: 36px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+  -moz-appearance: textfield;
+}
+
+.unified-font-size-stepper__input::-webkit-outer-spin-button,
+.unified-font-size-stepper__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.unified-font-size-stepper__input:focus {
+  outline: none;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 900px) {
+  .sidebar-section--unified-text {
+    padding: var(--spacing-small);
+  }
+
+  .unified-text-fields {
+    gap: var(--spacing-medium);
+  }
+
+  .unified-text-field__header {
+    flex-wrap: wrap;
+    gap: var(--spacing-small);
+  }
+
+  .unified-font-size-stepper__btn {
+    width: 20px;
+    height: 20px;
+  }
+
+  .unified-font-size-stepper__input {
+    width: 32px;
+    height: 20px;
+    font-size: 0.75rem;
+  }
+}

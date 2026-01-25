@@ -37,7 +37,7 @@ export type {
   ErrorHandlerOptions,
   BaseSearchServiceOptions,
   MMROptions,
-  ScoringConfig
+  ScoringConfig,
 } from './types.js';
 
 // Text utilities for subclasses that need them
@@ -51,7 +51,7 @@ export {
   extractMatchedExcerpt,
   extractSimpleExcerpt,
   deduplicateParagraphs,
-  deduplicateChunkTexts
+  deduplicateChunkTexts,
 } from './textUtils.js';
 
 // Scoring utilities for subclasses
@@ -61,7 +61,7 @@ export {
   calculateDynamicThreshold,
   calculateStaticDocumentScore,
   calculateStaticThreshold,
-  applyMMRSelection
+  applyMMRSelection,
 } from './scoring.js';
 
 // KeywordExtractor exports
@@ -72,5 +72,5 @@ export type {
   WeightedKeyword,
   KeywordExtractionOptions,
   Language,
-  KeywordExtractorStats
+  KeywordExtractorStats,
 } from './keyword-extractor-types.js';

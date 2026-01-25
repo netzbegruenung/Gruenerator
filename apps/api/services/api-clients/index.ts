@@ -10,7 +10,7 @@ export type {
   CanvaAsset,
   ListAssetsOptions,
   ListAssetsResponse,
-  UploadAssetFromUrlData
+  UploadAssetFromUrlData,
 } from './canvaApiClient.js';
 
 export { default as NextcloudApiClient } from './nextcloudApiClient.js';
@@ -20,7 +20,7 @@ export type {
   UploadFileResult,
   NextcloudFile,
   ShareInfo,
-  DownloadFileResult
+  DownloadFileResult,
 } from './nextcloudApiClient.js';
 
 export { default as oparlApiClient } from './oparlApiClient.js';
@@ -34,5 +34,5 @@ export type {
   GetPapersOptions,
   GetGreenPapersResult,
   GetAllGreenPapersOptions,
-  GetAllGreenPapersResult
+  GetAllGreenPapersResult,
 } from './oparlApiClient.js';

@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
-import type { JSX } from 'react';
-import QRCode from 'react-qr-code';
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
+import { useState, useEffect } from 'react';
+import QRCode from 'react-qr-code';
+
 import { canShare, shareContent } from '../../../utils/shareUtils';
+
+import type { JSX } from 'react';
 import './ShareMediaModal.css';
 
 interface ShareData {
@@ -29,7 +31,8 @@ interface ShareMediaModalProps {
   getOriginalImage?: () => Promise<string | undefined> | string | undefined;
 }
 
-const ShareMediaModal = ({ isOpen,
+const ShareMediaModal = ({
+  isOpen,
   onClose,
   mediaType,
   projectId,
@@ -37,7 +40,8 @@ const ShareMediaModal = ({ isOpen,
   imageData,
   defaultTitle,
   onShareCreated,
-  getOriginalImage, }: ShareMediaModalProps): JSX.Element | null => {
+  getOriginalImage,
+}: ShareMediaModalProps): JSX.Element | null => {
   const [shareTitle, setShareTitle] = useState(defaultTitle || '');
   const [copied, setCopied] = useState(false);
 
@@ -100,7 +104,7 @@ const ShareMediaModal = ({ isOpen,
   const handleCopyLink = () => {
     if (currentShare?.shareToken) {
       const url = getShareUrl(currentShare.shareToken);
-      navigator.clipboard.writeText(url);
+      void navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -125,7 +129,14 @@ const ShareMediaModal = ({ isOpen,
     <div className="share-modal-overlay" onClick={onClose}>
       <div className="share-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <button className="share-modal-close" onClick={onClose}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
@@ -145,40 +156,45 @@ const ShareMediaModal = ({ isOpen,
                   id="shareTitle"
                   type="text"
                   value={shareTitle}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShareTitle(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setShareTitle(e.target.value)
+                  }
                   placeholder={`Titel für ${mediaType === 'video' ? 'das geteilte Video' : 'das geteilte Bild'}`}
                 />
               </div>
             </div>
 
             {error && (
-              <div className={`share-modal-error ${errorCode === 'NO_SUBTITLES' ? 'export-required' : ''}`}>
+              <div
+                className={`share-modal-error ${errorCode === 'NO_SUBTITLES' ? 'export-required' : ''}`}
+              >
                 {errorCode === 'NO_SUBTITLES' ? (
                   <>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="8" x2="12" y2="12" />
                       <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
                     <span>{error}</span>
                   </>
-                ) : error}
+                ) : (
+                  error
+                )}
               </div>
             )}
 
             <div className="share-modal-actions">
-              <button
-                className="btn-secondary"
-                onClick={onClose}
-                disabled={isCreating}
-              >
+              <button className="btn-secondary" onClick={onClose} disabled={isCreating}>
                 Abbrechen
               </button>
-              <button
-                className="btn-primary"
-                onClick={handleCreateShare}
-                disabled={isCreating}
-              >
+              <button className="btn-primary" onClick={handleCreateShare} disabled={isCreating}>
                 {isCreating ? 'Wird erstellt...' : 'Link erstellen'}
               </button>
             </div>
@@ -196,11 +212,7 @@ const ShareMediaModal = ({ isOpen,
             <div className="share-modal-success-layout">
               <div className="share-modal-left">
                 <div className="share-qr-container">
-                  <QRCode
-                    value={getShareUrl(currentShare.shareToken)}
-                    size={160}
-                    level="M"
-                  />
+                  <QRCode value={getShareUrl(currentShare.shareToken)} size={160} level="M" />
                 </div>
               </div>
 
@@ -213,27 +225,42 @@ const ShareMediaModal = ({ isOpen,
                     value={getShareUrl(currentShare.shareToken)}
                     className="share-link-input"
                   />
-                  <button
-                    className="share-copy-button"
-                    onClick={handleCopyLink}
-                  >
+                  <button className="share-copy-button" onClick={handleCopyLink}>
                     {copied ? (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <polyline points="20,6 9,17 4,12" />
                       </svg>
                     ) : (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                       </svg>
                     )}
                   </button>
                   {canShare() && (
-                    <button
-                      className="share-native-button"
-                      onClick={handleNativeShare}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <button className="share-native-button" onClick={handleNativeShare}>
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <circle cx="18" cy="5" r="3" />
                         <circle cx="6" cy="12" r="3" />
                         <circle cx="18" cy="19" r="3" />
@@ -247,10 +274,7 @@ const ShareMediaModal = ({ isOpen,
             </div>
 
             <div className="share-modal-actions-centered">
-              <button
-                className="btn-primary"
-                onClick={onClose}
-              >
+              <button className="btn-primary" onClick={onClose}>
                 Fertig
               </button>
             </div>

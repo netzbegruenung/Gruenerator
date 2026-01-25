@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
+
 import { searchPapers, getIndexedCities } from '../services/oparlService';
+
 import type { OparlPaper, SearchResult, IndexedCitiesResult } from '../types';
 
 export const useOparlSearch = () => {
@@ -13,34 +15,37 @@ export const useOparlSearch = () => {
   const [lastQuery, setLastQuery] = useState('');
   const [selectedPaper, setSelectedPaper] = useState<OparlPaper | null>(null);
 
-  const handleSearch = useCallback(async (query: string, options: { city?: string | null; limit?: number } = {}) => {
-    if (!query || query.trim().length < 2) {
-      setError('Suchanfrage muss mindestens 2 Zeichen haben');
-      return;
-    }
+  const handleSearch = useCallback(
+    async (query: string, options: { city?: string | null; limit?: number } = {}) => {
+      if (!query || query.trim().length < 2) {
+        setError('Suchanfrage muss mindestens 2 Zeichen haben');
+        return;
+      }
 
-    setIsSearching(true);
-    setError(null);
-    setLastQuery(query.trim());
+      setIsSearching(true);
+      setError(null);
+      setLastQuery(query.trim());
 
-    try {
-      const result = await searchPapers(query.trim(), {
-        city: options.city || selectedCity,
-        limit: options.limit || 10
-      });
+      try {
+        const result = await searchPapers(query.trim(), {
+          city: options.city || selectedCity,
+          limit: options.limit || 10,
+        });
 
-      setResults((result as SearchResult).results || []);
-      setTotalResults((result as SearchResult).total || 0);
-    } catch (err: unknown) {
-      console.error('[useOparlSearch] Search error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Suche';
-      setError(errorMessage);
-      setResults([]);
-      setTotalResults(0);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [selectedCity]);
+        setResults((result as SearchResult).results || []);
+        setTotalResults((result as SearchResult).total || 0);
+      } catch (err: unknown) {
+        console.error('[useOparlSearch] Search error:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Suche';
+        setError(errorMessage);
+        setResults([]);
+        setTotalResults(0);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [selectedCity]
+  );
 
   const loadIndexedCities = useCallback(async () => {
     setIsLoadingCities(true);
@@ -54,12 +59,15 @@ export const useOparlSearch = () => {
     }
   }, []);
 
-  const handleSelectCity = useCallback((city: string) => {
-    setSelectedCity(city);
-    if (lastQuery) {
-      handleSearch(lastQuery, { city });
-    }
-  }, [lastQuery, handleSearch]);
+  const handleSelectCity = useCallback(
+    (city: string) => {
+      setSelectedCity(city);
+      if (lastQuery) {
+        handleSearch(lastQuery, { city });
+      }
+    },
+    [lastQuery, handleSearch]
+  );
 
   const clearCityFilter = useCallback(() => {
     setSelectedCity(null);
@@ -101,7 +109,7 @@ export const useOparlSearch = () => {
     clearCityFilter,
     selectPaper: handleSelectPaper,
     clearSelectedPaper,
-    reset
+    reset,
   };
 };
 

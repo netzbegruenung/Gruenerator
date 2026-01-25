@@ -288,7 +288,7 @@ export function getAllKiTypes(): KiTypeConfig[] {
  * Get KI types by subcategory
  */
 export function getKiTypesBySubcategory(subcategory: 'edit' | 'create'): KiTypeConfig[] {
-  return Object.values(KI_TYPE_CONFIGS).filter(t => t.subcategory === subcategory);
+  return Object.values(KI_TYPE_CONFIGS).filter((t) => t.subcategory === subcategory);
 }
 
 /**
@@ -302,14 +302,16 @@ export function kiTypeRequiresImage(typeId: ImageStudioKiType): boolean {
  * Get style variant by ID
  */
 export function getStyleVariant(variantId: KiStyleVariant): StyleVariantConfig | null {
-  return STYLE_VARIANTS.find(v => v.id === variantId) || null;
+  return STYLE_VARIANTS.find((v) => v.id === variantId) || null;
 }
 
 /**
  * Get infrastructure option by ID
  */
-export function getInfrastructureOption(optionId: GreenEditInfrastructure): InfrastructureOptionConfig | null {
-  return INFRASTRUCTURE_OPTIONS.find(o => o.id === optionId) || null;
+export function getInfrastructureOption(
+  optionId: GreenEditInfrastructure
+): InfrastructureOptionConfig | null {
+  return INFRASTRUCTURE_OPTIONS.find((o) => o.id === optionId) || null;
 }
 
 // ============================================================================
@@ -326,7 +328,8 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
         name: 'thema',
         type: 'textarea',
         label: 'Thema & Details',
-        placeholder: 'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
+        placeholder:
+          'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
         required: true,
         minLength: 3,
       },
@@ -354,7 +357,8 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
         name: 'thema',
         type: 'textarea',
         label: 'Thema & Details',
-        placeholder: 'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
+        placeholder:
+          'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
         required: true,
         minLength: 3,
       },
@@ -366,9 +370,7 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
         required: true,
       },
     ],
-    previewFields: [
-      { name: 'quote', type: 'textarea', label: 'Zitat', required: false },
-    ],
+    previewFields: [{ name: 'quote', type: 'textarea', label: 'Zitat', required: false }],
     resultFields: ['quote'],
     showImageUpload: true,
     showColorControls: false,
@@ -387,7 +389,8 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
         name: 'thema',
         type: 'textarea',
         label: 'Thema & Details',
-        placeholder: 'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
+        placeholder:
+          'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
         required: true,
         minLength: 3,
       },
@@ -399,9 +402,7 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
         required: true,
       },
     ],
-    previewFields: [
-      { name: 'quote', type: 'textarea', label: 'Zitat', required: false },
-    ],
+    previewFields: [{ name: 'quote', type: 'textarea', label: 'Zitat', required: false }],
     resultFields: ['quote'],
     showImageUpload: false,
     showColorControls: false,
@@ -420,7 +421,8 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
         name: 'thema',
         type: 'textarea',
         label: 'Thema & Details',
-        placeholder: 'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
+        placeholder:
+          'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
         required: true,
         minLength: 3,
       },
@@ -448,22 +450,74 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
         name: 'thema',
         type: 'textarea',
         label: 'Event-Beschreibung',
-        placeholder: 'z.B. Klimaschutz-Diskussion am 15. Januar 2025 um 19 Uhr im Rathaus Musterstadt, Hauptstraße 1',
+        placeholder:
+          'z.B. Klimaschutz-Diskussion am 15. Januar 2025 um 19 Uhr im Rathaus Musterstadt, Hauptstraße 1',
         required: true,
         rows: 3,
       },
     ],
     previewFields: [
-      { name: 'eventTitle', type: 'text', label: 'Event-Titel', placeholder: 'z.B. DISKUSSION', required: false },
-      { name: 'beschreibung', type: 'textarea', label: 'Beschreibung', placeholder: 'z.B. Gemeinsam für mehr Klimaschutz in unserer Stadt!', rows: 2, required: false },
-      { name: 'weekday', type: 'text', label: 'Wochentag (im Kreis)', placeholder: 'z.B. MI', required: false },
-      { name: 'date', type: 'text', label: 'Datum (im Kreis)', placeholder: 'z.B. 15.01.', required: false },
-      { name: 'time', type: 'text', label: 'Uhrzeit (im Kreis)', placeholder: 'z.B. 19 UHR', required: false },
-      { name: 'locationName', type: 'text', label: 'Veranstaltungsort', placeholder: 'z.B. Rathaus Musterstadt', required: false },
-      { name: 'address', type: 'text', label: 'Adresse', placeholder: 'z.B. Hauptstraße 1, 12345 Musterstadt', required: false },
+      {
+        name: 'eventTitle',
+        type: 'text',
+        label: 'Event-Titel',
+        placeholder: 'z.B. DISKUSSION',
+        required: false,
+      },
+      {
+        name: 'beschreibung',
+        type: 'textarea',
+        label: 'Beschreibung',
+        placeholder: 'z.B. Gemeinsam für mehr Klimaschutz in unserer Stadt!',
+        rows: 2,
+        required: false,
+      },
+      {
+        name: 'weekday',
+        type: 'text',
+        label: 'Wochentag (im Kreis)',
+        placeholder: 'z.B. MI',
+        required: false,
+      },
+      {
+        name: 'date',
+        type: 'text',
+        label: 'Datum (im Kreis)',
+        placeholder: 'z.B. 15.01.',
+        required: false,
+      },
+      {
+        name: 'time',
+        type: 'text',
+        label: 'Uhrzeit (im Kreis)',
+        placeholder: 'z.B. 19 UHR',
+        required: false,
+      },
+      {
+        name: 'locationName',
+        type: 'text',
+        label: 'Veranstaltungsort',
+        placeholder: 'z.B. Rathaus Musterstadt',
+        required: false,
+      },
+      {
+        name: 'address',
+        type: 'text',
+        label: 'Adresse',
+        placeholder: 'z.B. Hauptstraße 1, 12345 Musterstadt',
+        required: false,
+      },
     ],
     showPreviewLabels: true,
-    resultFields: ['eventTitle', 'beschreibung', 'weekday', 'date', 'time', 'locationName', 'address'],
+    resultFields: [
+      'eventTitle',
+      'beschreibung',
+      'weekday',
+      'date',
+      'time',
+      'locationName',
+      'address',
+    ],
     showImageUpload: true,
     showColorControls: false,
     showFontSizeControl: true,
@@ -640,14 +694,14 @@ export function getAllTemplateTypes(): ImageStudioTypeConfig[] {
  * Get types that require image upload
  */
 export function getTypesRequiringImage(): ImageStudioTypeConfig[] {
-  return Object.values(IMAGE_STUDIO_TYPE_CONFIGS).filter(t => t.requiresImage);
+  return Object.values(IMAGE_STUDIO_TYPE_CONFIGS).filter((t) => t.requiresImage);
 }
 
 /**
  * Get types with text generation
  */
 export function getTypesWithTextGeneration(): ImageStudioTypeConfig[] {
-  return Object.values(IMAGE_STUDIO_TYPE_CONFIGS).filter(t => t.hasTextGeneration);
+  return Object.values(IMAGE_STUDIO_TYPE_CONFIGS).filter((t) => t.hasTextGeneration);
 }
 
 /**

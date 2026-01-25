@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useMemo, useRef, memo } from 'react';
+
 import BaseForm from '../../../components/common/BaseForm';
-import TexteForm from '../texte/TexteForm';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
-import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
+import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import TexteForm from '../texte/TexteForm';
+
 import type { ExamplePrompt } from '@/types/baseform';
 import './TexteTab.css';
 
@@ -30,18 +32,22 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
 
   const setup = useGeneratorSetup({
     instructionType: 'universal',
-    componentName: COMPONENT_NAME
+    componentName: COMPONENT_NAME,
   });
 
-  const helpContent = useMemo(() => ({
-    content: 'Erstelle beliebige Texte mit KI-Unterstützung - von Social Media Posts über E-Mails bis hin zu Zusammenfassungen.',
-    title: 'Texte Grünerator',
-    tips: [
-      'Beschreibe einfach, welchen Text du brauchst',
-      'Sei so spezifisch wie möglich für bessere Ergebnisse',
-      'Du kannst auch Texte zur Verbesserung einfügen'
-    ]
-  }), []);
+  const helpContent = useMemo(
+    () => ({
+      content:
+        'Erstelle beliebige Texte mit KI-Unterstützung - von Social Media Posts über E-Mails bis hin zu Zusammenfassungen.',
+      title: 'Texte Grünerator',
+      tips: [
+        'Beschreibe einfach, welchen Text du brauchst',
+        'Sei so spezifisch wie möglich für bessere Ergebnisse',
+        'Du kannst auch Texte zur Verbesserung einfügen',
+      ],
+    }),
+    []
+  );
 
   const form = useBaseForm({
     defaultValues: { inhalt: '' },
@@ -52,18 +58,18 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
     features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'TEXTE',
     defaultMode: 'balanced',
-    helpContent
+    helpContent,
   } as unknown as Parameters<typeof useBaseForm>[0]);
 
-  const allAttachments = useMemo(() =>
-    form.generator?.attachedFiles || [],
+  const allAttachments = useMemo(
+    () => form.generator?.attachedFiles || [],
     [form.generator?.attachedFiles]
   );
 
   const builder = useFormDataBuilder({
     ...setup,
     attachments: allAttachments,
-    searchQueryFields: ['inhalt'] as const
+    searchQueryFields: ['inhalt'] as const,
   });
 
   const handleSubmit = useCallback(async () => {
@@ -112,10 +118,18 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
   }, []);
 
   const baseFormProps = form.generator?.baseFormProps;
-  const { platformOptions: _platformOptions, componentName: _componentName, ...restBaseFormProps } = baseFormProps || {};
+  const {
+    platformOptions: _platformOptions,
+    componentName: _componentName,
+    ...restBaseFormProps
+  } = baseFormProps || {};
 
   const rawTabIndex = form.generator?.tabIndex;
-  const tabIndexValue = (rawTabIndex || {}) as { formType?: number; hauptfeld?: number; [key: string]: number | undefined };
+  const tabIndexValue = (rawTabIndex || {}) as {
+    formType?: number;
+    hauptfeld?: number;
+    [key: string]: number | undefined;
+  };
 
   return (
     <div className="texte-tab">

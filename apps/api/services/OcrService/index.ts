@@ -19,7 +19,7 @@ export type {
   EmbeddingGenerationResult,
   MistralOCRResponse,
   MistralFileUploadResult,
-  ProcessingMetadata
+  ProcessingMetadata,
 } from './types.js';
 
 // Export validation utilities (if needed externally)
@@ -29,7 +29,7 @@ export { validateDocumentLimits, getMediaType } from './validation.js';
 export {
   applyMarkdownFormatting,
   isLikelyHeading,
-  determineHeadingLevel
+  determineHeadingLevel,
 } from './textFormatting.js';
 
 // Create and export singleton instance (for backward compatibility)

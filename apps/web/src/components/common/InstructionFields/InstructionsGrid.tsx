@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, ReactNode } from 'react';
+import { type Control } from 'react-hook-form';
 import { HiOutlineDocumentText, HiOutlinePlus, HiOutlineX } from 'react-icons/hi';
-import { Control } from 'react-hook-form';
-import ProfileCard from '../ProfileCard';
+
 import { useFormFields } from '../Form/hooks';
+import ProfileCard from '../ProfileCard';
 import '../../../assets/styles/features/auth/profile.css';
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
@@ -34,15 +35,16 @@ const INSTRUCTION_FIELDS: InstructionField[] = [
     dataKey: 'antragPrompt',
     title: 'Anträge',
     placeholder: 'Gib hier deine Anweisungen für die Erstellung von Anträgen ein...',
-    helpText: 'z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte'
+    helpText: 'z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte',
   },
   {
     name: 'customSocialPrompt',
     dataKey: 'socialPrompt',
     title: 'Presse & Social Media',
-    placeholder: 'Gib hier deine Anweisungen für die Erstellung von Presse- und Social Media-Inhalten ein...',
-    helpText: 'z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache'
-  }
+    placeholder:
+      'Gib hier deine Anweisungen für die Erstellung von Presse- und Social Media-Inhalten ein...',
+    helpText: 'z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache',
+  },
 ];
 
 const InstructionsGrid = ({
@@ -56,7 +58,7 @@ const InstructionsGrid = ({
   maxRows = 8,
   enabledFields = [],
   onAddField,
-  onRemoveField
+  onRemoveField,
 }: InstructionsGridProps) => {
   const { Textarea } = useFormFields() as { Textarea: React.FC<Record<string, unknown>> };
   const [showDropdown, setShowDropdown] = useState(false);
@@ -74,19 +76,19 @@ const InstructionsGrid = ({
   }, []);
 
   const getFieldValue = (fieldName: string): string => {
-    const field = INSTRUCTION_FIELDS.find(f => f.name === fieldName);
+    const field = INSTRUCTION_FIELDS.find((f) => f.name === fieldName);
     const value = data[field?.dataKey as string];
     return typeof value === 'string' ? value : '';
   };
 
-  const fieldsWithContent = INSTRUCTION_FIELDS.filter(field => {
+  const fieldsWithContent = INSTRUCTION_FIELDS.filter((field) => {
     const value = data[field.dataKey];
     return typeof value === 'string' && value.trim().length > 0;
-  }).map(f => f.name);
+  }).map((f) => f.name);
 
   const activeFieldNames = [...new Set([...fieldsWithContent, ...enabledFields])];
-  const activeFields = INSTRUCTION_FIELDS.filter(f => activeFieldNames.includes(f.name));
-  const availableToAdd = INSTRUCTION_FIELDS.filter(f => !activeFieldNames.includes(f.name));
+  const activeFields = INSTRUCTION_FIELDS.filter((f) => activeFieldNames.includes(f.name));
+  const availableToAdd = INSTRUCTION_FIELDS.filter((f) => !activeFieldNames.includes(f.name));
 
   const hasNoInstructions = activeFields.length === 0;
 
@@ -109,7 +111,7 @@ const InstructionsGrid = ({
   };
 
   if (isReadOnly) {
-    const fieldsToShow = INSTRUCTION_FIELDS.filter(field => {
+    const fieldsToShow = INSTRUCTION_FIELDS.filter((field) => {
       const value = data[field.dataKey] as string | undefined;
       return value && value.trim().length > 0;
     });
@@ -127,9 +129,7 @@ const InstructionsGrid = ({
       <div className="profile-cards-grid">
         {fieldsToShow.map((field) => (
           <ProfileCard key={field.name} title={`Anweisungen für ${field.title}`}>
-            <div className="instruction-display">
-              {data[field.dataKey] as string}
-            </div>
+            <div className="instruction-display">{data[field.dataKey] as string}</div>
           </ProfileCard>
         ))}
       </div>

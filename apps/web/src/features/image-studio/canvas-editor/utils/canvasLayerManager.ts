@@ -8,18 +8,27 @@ import type { FullCanvasConfig } from '../configs/types';
  */
 
 export interface CanvasItem {
-    id: string;
-    type: 'element' | 'balken' | 'icon' | 'shape' | 'additional-text' | 'illustration' | 'asset';
-    data?: Record<string, unknown>;
+  id: string;
+  type:
+    | 'element'
+    | 'balken'
+    | 'icon'
+    | 'shape'
+    | 'additional-text'
+    | 'illustration'
+    | 'asset'
+    | 'circle-badge';
+  data?: Record<string, unknown>;
 }
 
 interface StateWithFeatures {
-    balkenInstances?: Array<Record<string, unknown>>;
-    selectedIcons?: string[];
-    shapeInstances?: Array<Record<string, unknown>>;
-    additionalTexts?: Array<Record<string, unknown>>;
-    illustrationInstances?: Array<Record<string, unknown>>;
-    assetInstances?: Array<Record<string, unknown>>;
+  balkenInstances?: Array<Record<string, unknown>>;
+  selectedIcons?: string[];
+  shapeInstances?: Array<Record<string, unknown>>;
+  additionalTexts?: Array<Record<string, unknown>>;
+  illustrationInstances?: Array<Record<string, unknown>>;
+  assetInstances?: Array<Record<string, unknown>>;
+  circleBadgeInstances?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -34,47 +43,60 @@ interface StateWithFeatures {
  * 6. Illustrations
  * 7. Assets (decorative elements like sunflowers, arrows)
  */
-export function buildCanvasItems<TState extends StateWithFeatures = StateWithFeatures, TActions = Record<string, unknown>>(
-    config: FullCanvasConfig<TState, TActions>,
-    state: TState
-): CanvasItem[] {
-    const items: CanvasItem[] = [];
+export function buildCanvasItems<
+  TState extends StateWithFeatures = StateWithFeatures,
+  TActions = Record<string, unknown>,
+>(config: FullCanvasConfig<TState, TActions>, state: TState): CanvasItem[] {
+  const items: CanvasItem[] = [];
 
-    // 1. Config Elements (sorted by order property)
-    const sortedConfigElements = [...config.elements].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    sortedConfigElements.forEach((el) => items.push({ id: el.id, type: 'element', data: el as unknown as Record<string, unknown> }));
+  // 1. Config Elements (sorted by order property)
+  const sortedConfigElements = [...config.elements].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  sortedConfigElements.forEach((el) =>
+    items.push({ id: el.id, type: 'element', data: el as unknown as Record<string, unknown> })
+  );
 
-    // 2. Balkens
-    if (state.balkenInstances) {
-        state.balkenInstances.forEach((b) => items.push({ id: String(b.id), type: 'balken', data: b }));
-    }
+  // 2. Balkens
+  if (state.balkenInstances) {
+    state.balkenInstances.forEach((b) => items.push({ id: String(b.id), type: 'balken', data: b }));
+  }
 
-    // 3. Icons
-    if (state.selectedIcons) {
-        state.selectedIcons.forEach((id: string) => items.push({ id, type: 'icon' }));
-    }
+  // 3. Icons
+  if (state.selectedIcons) {
+    state.selectedIcons.forEach((id: string) => items.push({ id, type: 'icon' }));
+  }
 
-    // 4. Shapes
-    if (state.shapeInstances) {
-        state.shapeInstances.forEach((s) => items.push({ id: String(s.id), type: 'shape', data: s }));
-    }
+  // 4. Shapes
+  if (state.shapeInstances) {
+    state.shapeInstances.forEach((s) => items.push({ id: String(s.id), type: 'shape', data: s }));
+  }
 
-    // 5. Additional Texts
-    if (state.additionalTexts) {
-        state.additionalTexts.forEach((t) => items.push({ id: String(t.id), type: 'additional-text', data: t }));
-    }
+  // 5. Additional Texts
+  if (state.additionalTexts) {
+    state.additionalTexts.forEach((t) =>
+      items.push({ id: String(t.id), type: 'additional-text', data: t })
+    );
+  }
 
-    // 6. Illustrations
-    if (state.illustrationInstances) {
-        state.illustrationInstances.forEach((i) => items.push({ id: String(i.id), type: 'illustration', data: i }));
-    }
+  // 6. Illustrations
+  if (state.illustrationInstances) {
+    state.illustrationInstances.forEach((i) =>
+      items.push({ id: String(i.id), type: 'illustration', data: i })
+    );
+  }
 
-    // 7. Assets (decorative elements)
-    if (state.assetInstances) {
-        state.assetInstances.forEach((a) => items.push({ id: String(a.id), type: 'asset', data: a }));
-    }
+  // 7. Assets (decorative elements)
+  if (state.assetInstances) {
+    state.assetInstances.forEach((a) => items.push({ id: String(a.id), type: 'asset', data: a }));
+  }
 
-    return items;
+  // 8. Circle Badges (e.g., date circles)
+  if (state.circleBadgeInstances) {
+    state.circleBadgeInstances.forEach((c) =>
+      items.push({ id: String(c.id), type: 'circle-badge', data: c })
+    );
+  }
+
+  return items;
 }
 
 /**
@@ -84,22 +106,22 @@ export function buildCanvasItems<TState extends StateWithFeatures = StateWithFea
  * Items not in layerOrder are appended (newly added items).
  */
 export function buildSortedRenderList(items: CanvasItem[], layerOrder: string[]): CanvasItem[] {
-    const pendingItems = [...items];
-    const result: CanvasItem[] = [];
+  const pendingItems = [...items];
+  const result: CanvasItem[] = [];
 
-    // 1. Add items that are in layerOrder, in that order
-    layerOrder.forEach((id) => {
-        const idx = pendingItems.findIndex((item) => item.id === id);
-        if (idx !== -1) {
-            result.push(pendingItems[idx]);
-            pendingItems.splice(idx, 1);
-        }
-    });
+  // 1. Add items that are in layerOrder, in that order
+  layerOrder.forEach((id) => {
+    const idx = pendingItems.findIndex((item) => item.id === id);
+    if (idx !== -1) {
+      result.push(pendingItems[idx]);
+      pendingItems.splice(idx, 1);
+    }
+  });
 
-    // 2. Append remaining items (newly added or not tracked yet)
-    result.push(...pendingItems);
+  // 2. Append remaining items (newly added or not tracked yet)
+  result.push(...pendingItems);
 
-    return result;
+  return result;
 }
 
 /**
@@ -109,54 +131,54 @@ export function buildSortedRenderList(items: CanvasItem[], layerOrder: string[])
  * "up" = later in array (drawn on top), "down" = earlier in array (drawn behind)
  */
 export function moveLayer(
-    currentOrder: string[],
-    selectedId: string,
-    direction: 'up' | 'down'
+  currentOrder: string[],
+  selectedId: string,
+  direction: 'up' | 'down'
 ): string[] {
-    const currentIndex = currentOrder.indexOf(selectedId);
+  const currentIndex = currentOrder.indexOf(selectedId);
 
-    if (currentIndex === -1) {
-        return currentOrder;
+  if (currentIndex === -1) {
+    return currentOrder;
+  }
+
+  const newOrder = [...currentOrder];
+
+  if (direction === 'up') {
+    if (currentIndex < newOrder.length - 1) {
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [
+        newOrder[currentIndex + 1],
+        newOrder[currentIndex],
+      ];
     }
-
-    const newOrder = [...currentOrder];
-
-    if (direction === 'up') {
-        if (currentIndex < newOrder.length - 1) {
-            [newOrder[currentIndex], newOrder[currentIndex + 1]] = [
-                newOrder[currentIndex + 1],
-                newOrder[currentIndex],
-            ];
-        }
-    } else {
-        if (currentIndex > 0) {
-            [newOrder[currentIndex], newOrder[currentIndex - 1]] = [
-                newOrder[currentIndex - 1],
-                newOrder[currentIndex],
-            ];
-        }
+  } else {
+    if (currentIndex > 0) {
+      [newOrder[currentIndex], newOrder[currentIndex - 1]] = [
+        newOrder[currentIndex - 1],
+        newOrder[currentIndex],
+      ];
     }
+  }
 
-    return newOrder;
+  return newOrder;
 }
 
 /**
  * Check if element can move in direction
  */
 export function canMoveInDirection(
-    items: CanvasItem[],
-    selectedId: string,
-    direction: 'up' | 'down'
+  items: CanvasItem[],
+  selectedId: string,
+  direction: 'up' | 'down'
 ): boolean {
-    const idx = items.findIndex((i) => i.id === selectedId);
+  const idx = items.findIndex((i) => i.id === selectedId);
 
-    if (idx === -1) {
-        return false;
-    }
+  if (idx === -1) {
+    return false;
+  }
 
-    if (direction === 'up') {
-        return idx < items.length - 1;
-    } else {
-        return idx > 0;
-    }
+  if (direction === 'up') {
+    return idx < items.length - 1;
+  } else {
+    return idx > 0;
+  }
 }

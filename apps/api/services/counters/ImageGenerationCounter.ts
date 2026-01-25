@@ -53,7 +53,7 @@ export class ImageGenerationCounter {
         count: currentCount,
         remaining,
         limit: this.DAILY_LIMIT,
-        canGenerate
+        canGenerate,
       };
     } catch (error) {
       console.error('[ImageGenerationCounter] Error checking limit:', error);
@@ -67,7 +67,13 @@ export class ImageGenerationCounter {
    */
   async incrementCount(userId: string): Promise<ImageGenerationResult> {
     if (!userId) {
-      return { success: false, count: 0, remaining: 0, limit: this.DAILY_LIMIT, canGenerate: false };
+      return {
+        success: false,
+        count: 0,
+        remaining: 0,
+        limit: this.DAILY_LIMIT,
+        canGenerate: false,
+      };
     }
 
     try {
@@ -107,11 +113,17 @@ export class ImageGenerationCounter {
         count: newCount,
         remaining,
         limit: this.DAILY_LIMIT,
-        canGenerate
+        canGenerate,
       };
     } catch (error) {
       console.error('[ImageGenerationCounter] Error incrementing count:', error);
-      return { success: false, count: 0, remaining: 0, limit: this.DAILY_LIMIT, canGenerate: false };
+      return {
+        success: false,
+        count: 0,
+        remaining: 0,
+        limit: this.DAILY_LIMIT,
+        canGenerate: false,
+      };
     }
   }
 

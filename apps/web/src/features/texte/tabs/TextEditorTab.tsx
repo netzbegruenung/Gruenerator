@@ -1,16 +1,25 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
-import type { Control, FieldValues } from 'react-hook-form';
+import {
+  PiMagicWand,
+  PiArrowsClockwise,
+  PiTextAlignLeft,
+  PiCheckCircle,
+  PiBriefcase,
+  PiTextAa,
+} from 'react-icons/pi';
+
 import BaseForm from '../../../components/common/BaseForm';
+import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { FormTextarea } from '../../../components/common/Form/Input';
 import PlatformSelector from '../../../components/common/PlatformSelector';
-import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
+import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
+import { useUserInstructions } from '../../../hooks/useUserInstructions';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
-import { useUserInstructions } from '../../../hooks/useUserInstructions';
-import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
-import { PiMagicWand, PiArrowsClockwise, PiTextAlignLeft, PiCheckCircle, PiBriefcase, PiTextAa } from 'react-icons/pi';
+
 import type { BaseFormProps, HelpContent, PlatformOption } from '@/types/baseform';
+import type { Control, FieldValues } from 'react-hook-form';
 
 interface TextImproverFormValues {
   originalText: string;
@@ -69,24 +78,24 @@ const ACTION_OPTIONS: ActionOption[] = [
   { id: 'summarize', label: 'Zusammenfassen', icon: <SummarizeIcon /> },
   { id: 'spellcheck', label: 'Rechtschreibung', icon: <SpellcheckIcon /> },
   { id: 'formalize', label: 'Formell machen', icon: <FormalizeIcon /> },
-  { id: 'simplify', label: 'Vereinfachen', icon: <SimplifyIcon /> }
+  { id: 'simplify', label: 'Vereinfachen', icon: <SimplifyIcon /> },
 ];
 
 // Static help content defined outside component
 const HELP_CONTENT_CONFIG: HelpContent = {
-  content: "Verbessere, schreibe um oder transformiere bestehende Texte.",
+  content: 'Verbessere, schreibe um oder transformiere bestehende Texte.',
   tips: [
-    "Füge deinen Text ein",
-    "Wähle eine Aktion: Verbessern, Umschreiben, etc.",
-    "Der KI-Assistent bearbeitet deinen Text"
-  ]
+    'Füge deinen Text ein',
+    'Wähle eine Aktion: Verbessern, Umschreiben, etc.',
+    'Der KI-Assistent bearbeitet deinen Text',
+  ],
 };
 
 // Static form config defined outside component
 const BASE_FORM_CONFIG = {
   defaultValues: {
     originalText: '',
-    action: ['improve']
+    action: ['improve'],
   },
   generatorType: 'text-improver',
   componentName: 'text-improver',
@@ -94,128 +103,162 @@ const BASE_FORM_CONFIG = {
   instructionType: 'text_improver',
   features: ['privacyMode'],
   tabIndexKey: 'TEXT_IMPROVER',
-  helpContent: HELP_CONTENT_CONFIG
+  helpContent: HELP_CONTENT_CONFIG,
 };
 
 const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
   const componentName = 'text-improver';
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
-  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
-  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
-  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
-  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
+  const getFeatureState = useGeneratorSelectionStore((state) => state.getFeatureState);
+  const selectedDocumentIds = useGeneratorSelectionStore((state) => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorSelectionStore((state) => state.selectedTextIds);
+  const isInstructionsActive = useGeneratorSelectionStore((state) => state.isInstructionsActive);
+  const usePrivacyMode = useGeneratorSelectionStore((state) => state.usePrivacyMode);
 
   const customPrompt = useUserInstructions('text_improver', isInstructionsActive);
 
-  const form = useBaseForm(BASE_FORM_CONFIG as unknown as Parameters<typeof useBaseForm>[0]) as UseBaseFormReturn;
+  const form = useBaseForm(
+    BASE_FORM_CONFIG as unknown as Parameters<typeof useBaseForm>[0]
+  ) as UseBaseFormReturn;
 
   const { control, handleSubmit } = form;
 
   const [improvedContent, setImprovedContent] = useState('');
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_text_improver');
-  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const { submitForm, loading, success, resetSuccess, error } =
+    useApiSubmit('/claude_text_improver');
+  const storeGeneratedText = useGeneratedTextStore((state) =>
+    state.getGeneratedText(componentName)
+  );
 
-  const {
-    crawledUrls,
-    detectAndCrawlUrls,
-    isCrawling
-  } = useUrlCrawler();
+  const { crawledUrls, detectAndCrawlUrls, isCrawling } = useUrlCrawler();
 
-  const handleUrlsDetected = useCallback(async (urls: string[]) => {
-    if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
-    }
-  }, [detectAndCrawlUrls, isCrawling, usePrivacyMode]);
-
-  const onSubmitRHF = useCallback(async (rhfData: TextImproverFormValues) => {
-    setStoreIsLoading(true);
-
-    try {
-      const features = getFeatureState();
-      const selectedAction = Array.isArray(rhfData.action) ? rhfData.action[0] : rhfData.action;
-
-      const allAttachments = [
-        ...(form.generator?.attachedFiles || []),
-        ...crawledUrls
-      ];
-
-      const formDataToSubmit = {
-        originalText: rhfData.originalText,
-        action: selectedAction,
-        ...features,
-        attachments: allAttachments,
-        customPrompt: customPrompt,
-        selectedDocumentIds: selectedDocumentIds || [],
-        selectedTextIds: selectedTextIds || [],
-        searchQuery: rhfData.originalText?.substring(0, 200) || ''
-      };
-
-      const response = await submitForm(formDataToSubmit) as string | ApiResponse | null;
-
-      if (response) {
-        const content = typeof response === 'string' ? response : response.content;
-        const metadata = typeof response === 'object' && response !== null ? response.metadata || {} : {};
-
-        if (content) {
-          setImprovedContent(content);
-          setGeneratedText(componentName, content, metadata);
-          setTimeout(resetSuccess, 3000);
-        }
+  const handleUrlsDetected = useCallback(
+    async (urls: string[]) => {
+      if (!isCrawling && urls.length > 0) {
+        await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
       }
-    } catch (submitError) {
-      console.error('[TextEditorTab] Error:', submitError);
-    } finally {
-      setStoreIsLoading(false);
-    }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, form.generator, crawledUrls, selectedDocumentIds, selectedTextIds, getFeatureState]);
+    },
+    [detectAndCrawlUrls, isCrawling, usePrivacyMode]
+  );
 
-  const handleGeneratedContentChange = useCallback((content: string) => {
-    setImprovedContent(content);
-    setGeneratedText(componentName, content);
-  }, [setGeneratedText, componentName]);
+  const onSubmitRHF = useCallback(
+    async (rhfData: TextImproverFormValues) => {
+      setStoreIsLoading(true);
 
-  const platformOptionsForSelector = useMemo<PlatformOption[]>(() =>
-    ACTION_OPTIONS.map(opt => ({
-      id: opt.id,
-      label: opt.label
-    })),
-  []);
+      try {
+        const features = getFeatureState();
+        const selectedAction = Array.isArray(rhfData.action) ? rhfData.action[0] : rhfData.action;
 
-  const renderActionSelector = useCallback(() => (
-    <PlatformSelector
-      name="action"
-      control={control}
-      platformOptions={platformOptionsForSelector}
-      label=""
-      placeholder="Aktion auswählen..."
-      required={true}
-      isMulti={false}
-      tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
-    />
-  ), [control, platformOptionsForSelector, form.generator?.baseFormTabIndex?.platformSelectorTabIndex]);
+        const allAttachments = [...(form.generator?.attachedFiles || []), ...crawledUrls];
 
-  const renderFormInputs = useCallback(() => (
-    <FormTextarea
-      name="originalText"
-      label="Inhalt"
-      control={control}
-      placeholder="Füge hier den Text ein, den du bearbeiten möchtest..."
-      rules={{ required: 'Text ist ein Pflichtfeld' }}
-      minRows={8}
-      maxRows={50}
-      className="form-textarea-large"
-      tabIndex={form.generator?.tabIndex?.originalText}
-      enableUrlDetection={true}
-      onUrlsDetected={handleUrlsDetected}
-    />
-  ), [control, form.generator?.tabIndex?.originalText, handleUrlsDetected]);
+        const formDataToSubmit = {
+          originalText: rhfData.originalText,
+          action: selectedAction,
+          ...features,
+          attachments: allAttachments,
+          customPrompt: customPrompt,
+          selectedDocumentIds: selectedDocumentIds || [],
+          selectedTextIds: selectedTextIds || [],
+          searchQuery: rhfData.originalText?.substring(0, 200) || '',
+        };
+
+        const response = (await submitForm(formDataToSubmit)) as string | ApiResponse | null;
+
+        if (response) {
+          const content = typeof response === 'string' ? response : response.content;
+          const metadata =
+            typeof response === 'object' && response !== null ? response.metadata || {} : {};
+
+          if (content) {
+            setImprovedContent(content);
+            setGeneratedText(componentName, content, metadata);
+            setTimeout(resetSuccess, 3000);
+          }
+        }
+      } catch (submitError) {
+        console.error('[TextEditorTab] Error:', submitError);
+      } finally {
+        setStoreIsLoading(false);
+      }
+    },
+    [
+      submitForm,
+      resetSuccess,
+      setGeneratedText,
+      setStoreIsLoading,
+      customPrompt,
+      form.generator,
+      crawledUrls,
+      selectedDocumentIds,
+      selectedTextIds,
+      getFeatureState,
+    ]
+  );
+
+  const handleGeneratedContentChange = useCallback(
+    (content: string) => {
+      setImprovedContent(content);
+      setGeneratedText(componentName, content);
+    },
+    [setGeneratedText, componentName]
+  );
+
+  const platformOptionsForSelector = useMemo<PlatformOption[]>(
+    () =>
+      ACTION_OPTIONS.map((opt) => ({
+        id: opt.id,
+        label: opt.label,
+      })),
+    []
+  );
+
+  const renderActionSelector = useCallback(
+    () => (
+      <PlatformSelector
+        name="action"
+        control={control}
+        platformOptions={platformOptionsForSelector}
+        label=""
+        placeholder="Aktion auswählen..."
+        required={true}
+        isMulti={false}
+        tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
+      />
+    ),
+    [
+      control,
+      platformOptionsForSelector,
+      form.generator?.baseFormTabIndex?.platformSelectorTabIndex,
+    ]
+  );
+
+  const renderFormInputs = useCallback(
+    () => (
+      <FormTextarea
+        name="originalText"
+        label="Inhalt"
+        control={control}
+        placeholder="Füge hier den Text ein, den du bearbeiten möchtest..."
+        rules={{ required: 'Text ist ein Pflichtfeld' }}
+        minRows={8}
+        maxRows={50}
+        className="form-textarea-large"
+        tabIndex={form.generator?.tabIndex?.originalText}
+        enableUrlDetection={true}
+        onUrlsDetected={handleUrlsDetected}
+      />
+    ),
+    [control, form.generator?.tabIndex?.originalText, handleUrlsDetected]
+  );
 
   const baseFormProps = form.generator?.baseFormProps || {};
-  const generatedContentValue = typeof storeGeneratedText === 'string'
-    ? storeGeneratedText
-    : (storeGeneratedText ? String(storeGeneratedText) : improvedContent);
+  const generatedContentValue =
+    typeof storeGeneratedText === 'string'
+      ? storeGeneratedText
+      : storeGeneratedText
+        ? String(storeGeneratedText)
+        : improvedContent;
 
   return (
     <BaseForm

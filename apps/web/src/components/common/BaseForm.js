@@ -10,4 +10,4 @@
  *
  * This compatibility shim will be removed in a future version.
  */
-export { default } from './Form/BaseForm'; 
+export { default } from './Form/BaseForm';

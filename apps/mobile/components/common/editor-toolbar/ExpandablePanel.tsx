@@ -33,12 +33,15 @@ export function ExpandablePanel({
   const animatedHeight = useSharedValue(0);
   const animatedOpacity = useSharedValue(0);
 
-  const handleLayout = useCallback((event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    if (height > 0 && height !== contentHeight) {
-      setContentHeight(Math.min(height, maxHeight));
-    }
-  }, [contentHeight, maxHeight]);
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const { height } = event.nativeEvent.layout;
+      if (height > 0 && height !== contentHeight) {
+        setContentHeight(Math.min(height, maxHeight));
+      }
+    },
+    [contentHeight, maxHeight]
+  );
 
   const targetHeight = isExpanded ? contentHeight : 0;
 
@@ -61,10 +64,7 @@ export function ExpandablePanel({
   return (
     <Animated.View style={[styles.container, animatedContainerStyle]}>
       <View
-        style={[
-          styles.content,
-          showBorder && { borderTopColor: theme.border, borderTopWidth: 1 },
-        ]}
+        style={[styles.content, showBorder && { borderTopColor: theme.border, borderTopWidth: 1 }]}
         onLayout={handleLayout}
       >
         {children}

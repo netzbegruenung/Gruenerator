@@ -70,4 +70,5 @@ export const useUpdateStatus = () => useDesktopUpdateStore((state) => state.stat
 export const useUpdateInfo = () => useDesktopUpdateStore((state) => state.updateInfo);
 export const useDownloadProgress = () => useDesktopUpdateStore((state) => state.downloadProgress);
 export const useIsUpdateReady = () => useDesktopUpdateStore((state) => state.status === 'ready');
-export const useIsUpdateAvailable = () => useDesktopUpdateStore((state) => state.status === 'available');
+export const useIsUpdateAvailable = () =>
+  useDesktopUpdateStore((state) => state.status === 'available');

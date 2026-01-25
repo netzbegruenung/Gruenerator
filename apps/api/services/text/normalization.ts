@@ -4,7 +4,13 @@
  * Handles German umlauts, hyphenation, unicode subscripts, and decimal formats
  */
 
-import { SUBSCRIPT_MAP, SUPERSCRIPT_MAP, SOFT_HYPHEN, GERMAN_CHARS, DASH_CHARS } from './constants.js';
+import {
+  SUBSCRIPT_MAP,
+  SUPERSCRIPT_MAP,
+  SOFT_HYPHEN,
+  GERMAN_CHARS,
+  DASH_CHARS,
+} from './constants.js';
 
 /**
  * Fold German umlauts to ASCII equivalents
@@ -151,7 +157,9 @@ export function generateQueryVariants(query: string): string[] {
   if (germanDecimal !== q) variants.add(germanDecimal);
 
   // Umlaut-folded versions of all variants
-  const folded = Array.from(variants).map((v) => foldUmlauts(v)).filter(Boolean);
+  const folded = Array.from(variants)
+    .map((v) => foldUmlauts(v))
+    .filter(Boolean);
   folded.forEach((f) => variants.add(f));
 
   return Array.from(variants).filter((v) => v && v.trim().length >= 2);

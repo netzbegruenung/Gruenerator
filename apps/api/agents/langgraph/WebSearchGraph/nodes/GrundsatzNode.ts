@@ -24,12 +24,12 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
       query: state.query,
       userId: 'deep-research',
       filters: {
-        searchCollection: 'grundsatz_documents'
+        searchCollection: 'grundsatz_documents',
       },
       options: {
         limit: 3,
-        mode: 'hybrid'
-      }
+        mode: 'hybrid',
+      },
     });
 
     const formattedResults = (searchResults.results || []).map((result: any) => ({
@@ -42,7 +42,7 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
       filename: result.filename,
       chunk_index: result.chunk_index || 0,
       relevance_info: result.relevance_info,
-      source_type: 'official_document'
+      source_type: 'official_document',
     }));
 
     console.log(`[WebSearchGraph] Grundsatz search found ${formattedResults.length} results`);
@@ -51,12 +51,12 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
       grundsatzResults: {
         success: true,
         results: formattedResults,
-        source: 'grundsatz'
+        source: 'grundsatz',
       },
       metadata: {
         ...state.metadata,
-        grundsatzResults: formattedResults.length
-      }
+        grundsatzResults: formattedResults.length,
+      },
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -65,9 +65,9 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
       grundsatzResults: {
         success: false,
         results: [],
-        source: 'grundsatz'
+        source: 'grundsatz',
       },
-      metadata: { ...state.metadata, grundsatzResults: 0 }
+      metadata: { ...state.metadata, grundsatzResults: 0 },
     };
   }
 }

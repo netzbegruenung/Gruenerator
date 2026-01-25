@@ -11,11 +11,14 @@ export {
   sendSuccessResponse,
   sendSuccessResponseWithAttachments,
   sendErrorResponse,
-  default as responseFormatter
+  default as responseFormatter,
 } from './formatter.js';
 
 // Message Preprocessor exports
-export { toOpenAICompatibleMessages, default as messagePreprocessor } from './messagePreprocessor.js';
+export {
+  toOpenAICompatibleMessages,
+  default as messagePreprocessor,
+} from './messagePreprocessor.js';
 
 // Type exports
 export type * from './types.js';

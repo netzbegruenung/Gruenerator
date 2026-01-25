@@ -74,9 +74,7 @@ export function SidebarHint({ children, className = '', style }: SidebarHintProp
             >
               <FaTimes size={12} />
             </button>
-            <div className="sidebar-hint-popup__content">
-              {children}
-            </div>
+            <div className="sidebar-hint-popup__content">{children}</div>
           </div>
         )}
       </div>

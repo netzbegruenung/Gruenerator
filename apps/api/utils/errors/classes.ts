@@ -38,7 +38,7 @@ export class VectorBackendError extends Error {
       code: this.code,
       timestamp: this.timestamp,
       // Don't expose internal details in production
-      ...(process.env.NODE_ENV !== 'production' && { details: this.details })
+      ...(process.env.NODE_ENV !== 'production' && { details: this.details }),
     };
   }
 
@@ -52,7 +52,7 @@ export class VectorBackendError extends Error {
       code: this.code,
       details: this.details,
       timestamp: this.timestamp,
-      stack: this.stack
+      stack: this.stack,
     };
   }
 }
@@ -74,7 +74,7 @@ export class ValidationError extends VectorBackendError {
     return {
       ...super.toAPIResponse(),
       field: this.field,
-      message: 'Validation error'
+      message: 'Validation error',
     };
   }
 }

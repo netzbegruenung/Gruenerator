@@ -19,25 +19,25 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
       setHasTranscriptionFailed(false);
       setRetryCount(0);
       audioChunksRef.current = [];
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: 44100
-        }
+          sampleRate: 44100,
+        },
       });
 
       // Detect supported format
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ?
-        'audio/webm;codecs=opus' :
-        MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ?
-          'audio/ogg;codecs=opus' :
-          'audio/webm'; // fallback
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+          ? 'audio/ogg;codecs=opus'
+          : 'audio/webm'; // fallback
 
       mediaRecorderRef.current = new MediaRecorder(stream, {
         mimeType: mimeType,
-        audioBitsPerSecond: 128000
+        audioBitsPerSecond: 128000,
       });
 
       // Store mimeType for later use
@@ -54,17 +54,25 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
       mediaRecorderRef.current.onstop = () => {
         const detectedMimeType = mediaRecorderRef.current.detectedMimeType || 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: detectedMimeType });
-        console.log('[Voice Recorder] Audio blob created - Type:', detectedMimeType, 'Size:', audioBlob.size, 'bytes');
+        console.log(
+          '[Voice Recorder] Audio blob created - Type:',
+          detectedMimeType,
+          'Size:',
+          audioBlob.size,
+          'bytes'
+        );
         setAudioBlob(audioBlob);
-        
+
         // Stoppe alle Tracks des Streams
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       };
-      
+
       mediaRecorderRef.current.start();
       setIsRecording(true);
     } catch (err) {
-      setError('Mikrofon konnte nicht aktiviert werden. Bitte erlaube den Zugriff auf dein Mikrofon.');
+      setError(
+        'Mikrofon konnte nicht aktiviert werden. Bitte erlaube den Zugriff auf dein Mikrofon.'
+      );
       console.error('Fehler beim Starten der Aufnahme:', err);
     }
   }, []);
@@ -80,27 +88,32 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
   // Sende die Aufnahme zur Transkription
   const sendForTranscription = useCallback(async () => {
     if (!audioBlob || hasTranscriptionFailed) return;
-    
+
     // Maximale Anzahl von Versuchen (3)
     const MAX_RETRIES = 3;
-    
+
     if (retryCount >= MAX_RETRIES) {
-      setError(`Transkription nach ${MAX_RETRIES} Versuchen fehlgeschlagen. Bitte versuche es erneut.`);
+      setError(
+        `Transkription nach ${MAX_RETRIES} Versuchen fehlgeschlagen. Bitte versuche es erneut.`
+      );
       setHasTranscriptionFailed(true);
       setIsProcessing(false);
       return;
     }
-    
+
     setIsProcessing(true);
     setError(null);
-    
+
     try {
       const formData = new FormData();
 
       // Determine correct file extension based on MIME type
       const mimeType = audioBlob.type || 'audio/webm';
-      const extension = mimeType.includes('webm') ? 'webm' :
-                        mimeType.includes('ogg') ? 'ogg' : 'webm';
+      const extension = mimeType.includes('webm')
+        ? 'webm'
+        : mimeType.includes('ogg')
+          ? 'ogg'
+          : 'webm';
       const filename = `recording.${extension}`;
 
       formData.append('audio', audioBlob, filename);
@@ -109,47 +122,61 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
       const url = `${apiBaseUrl.endsWith('/api') ? apiBaseUrl : `${apiBaseUrl}/api`}/voice/transcribe${removeTimestamps ? '?removeTimestamps=true' : ''}`;
 
       console.log('[Voice Recorder] Sending request to:', url);
-      console.log('[Voice Recorder] Audio format:', mimeType, 'File:', filename, 'Size:', audioBlob.size, 'bytes');
+      console.log(
+        '[Voice Recorder] Audio format:',
+        mimeType,
+        'File:',
+        filename,
+        'Size:',
+        audioBlob.size,
+        'bytes'
+      );
       console.log('[Voice Recorder] Remove timestamps:', removeTimestamps);
-      
+
       const response = await fetch(url, {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error('Fehler bei der Transkription');
       }
-      
+
       const data = await response.json();
       console.log('Transkription erhalten:', data);
-      
+
       if (data.success && data.text) {
         let transcriptionText = data.text;
-        
+
         // Zusätzliche Zeitstempel-Entfernung im Frontend, falls das Backend sie nicht entfernt hat
         if (removeTimestamps) {
           console.log('Frontend entfernt Zeitstempel aus:', transcriptionText);
-          
+
           // Entferne Zeitstempel (Format [00:00:00.000 --> 00:00:00.000] oder [00:00.000 --> 00:00.000])
-          transcriptionText = transcriptionText.replace(/\[\d{2}:\d{2}(:\d{2})?\.\d{3} --> \d{2}:\d{2}(:\d{2})?\.\d{3}\]\s*/g, '');
-          
+          transcriptionText = transcriptionText.replace(
+            /\[\d{2}:\d{2}(:\d{2})?\.\d{3} --> \d{2}:\d{2}(:\d{2})?\.\d{3}\]\s*/g,
+            ''
+          );
+
           // Entferne andere mögliche Zeitformate
-          transcriptionText = transcriptionText.replace(/\d{2}:\d{2}:\d{2}\s*-\s*\d{2}:\d{2}:\d{2}\s*/g, '');
+          transcriptionText = transcriptionText.replace(
+            /\d{2}:\d{2}:\d{2}\s*-\s*\d{2}:\d{2}:\d{2}\s*/g,
+            ''
+          );
           transcriptionText = transcriptionText.replace(/\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*/g, '');
-          
+
           // Entferne Whisper-spezifische Zeitstempel (z.B. [00:00.000] oder [00:00:00.000])
           transcriptionText = transcriptionText.replace(/\[\d{2}:\d{2}(:\d{2})?\.\d{3}\]\s*/g, '');
-          
+
           // Entferne Zeitstempel im Format (MM:SS)
           transcriptionText = transcriptionText.replace(/\(\d{2}:\d{2}\)\s*/g, '');
-          
+
           // Entferne doppelte Leerzeichen und trimme
           transcriptionText = transcriptionText.replace(/\s+/g, ' ').trim();
-          
+
           console.log('Frontend Ergebnis nach Zeitstempel-Entfernung:', transcriptionText);
         }
-        
+
         onTranscriptionComplete(transcriptionText);
         setAudioBlob(null);
         setRetryCount(0);
@@ -160,8 +187,8 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
     } catch (err) {
       setError('Fehler bei der Transkription: ' + err.message);
       console.error('Transkriptionsfehler:', err);
-      setRetryCount(prevCount => prevCount + 1);
-      
+      setRetryCount((prevCount) => prevCount + 1);
+
       if (retryCount + 1 >= MAX_RETRIES) {
         setHasTranscriptionFailed(true);
       }
@@ -195,8 +222,8 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
     startRecording,
     stopRecording,
     processRecording,
-    retryTranscription
+    retryTranscription,
   };
 };
 
-export default useVoiceRecorder; 
+export default useVoiceRecorder;

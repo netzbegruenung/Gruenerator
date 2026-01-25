@@ -5,5 +5,5 @@ export const INFRASTRUCTURE_OPTIONS = [
   { value: 'sitzgelegenheiten', label: 'Sitzbänke im Schatten' },
   { value: 'fussgaenger', label: 'Breitere Gehwege' },
   { value: 'strassenbahn', label: 'Straßenbahn' },
-  { value: 'bushaltestelle', label: 'Bushaltestelle' }
+  { value: 'bushaltestelle', label: 'Bushaltestelle' },
 ];

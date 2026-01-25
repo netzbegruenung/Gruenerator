@@ -43,7 +43,7 @@ class QueryIntentService {
       { type: 'timeline', re: /(chronologie|zeitverlauf|timeline)\b/i },
     ];
 
-    let match = patterns.find(p => p.re.test(q));
+    let match = patterns.find((p) => p.re.test(q));
     if (!match) {
       // English fallback (basic)
       const en: readonly IntentPattern[] = [
@@ -56,7 +56,7 @@ class QueryIntentService {
         { type: 'code', re: /(code|snippet|example)\b/i },
         { type: 'summary', re: /(summary|tl;dr)/i },
       ];
-      match = en.find(p => p.re.test(q));
+      match = en.find((p) => p.re.test(q));
     }
 
     const type = match ? match.type : 'general';
@@ -104,7 +104,10 @@ class QueryIntentService {
     // Prefer content types via should clauses; vectorSearch.ts ensures these
     // are safely stripped when they would be the only filter criteria
     if (prefs.preferredTypes?.length) {
-      filter.should = prefs.preferredTypes.map(t => ({ key: 'content_type', match: { value: t } }));
+      filter.should = prefs.preferredTypes.map((t) => ({
+        key: 'content_type',
+        match: { value: t },
+      }));
     }
 
     // Language hint (heuristic); only apply as should
@@ -135,7 +138,7 @@ class QueryIntentService {
       { re: /\b(nur\s+)?(FAQ|Fragen)\b/i, value: 'faq' },
       { re: /\b(nur\s+)?Personalien\b/i, value: 'personalien' },
       { re: /\b(nur\s+)?Sachgebiet(e)?\b/i, value: 'sachgebiet' },
-      { re: /\b(nur\s+)?(Artikel|Beiträge)\b/i, value: 'artikel' }
+      { re: /\b(nur\s+)?(Artikel|Beiträge)\b/i, value: 'artikel' },
     ];
 
     for (const p of articleTypePatterns) {
@@ -148,7 +151,7 @@ class QueryIntentService {
     // Category patterns - extract from "im Bereich X", "zum Thema X", "Kategorie X"
     const categoryPatterns = [
       /\b(?:im\s+Bereich|zum\s+Thema|Kategorie|in\s+der\s+Kategorie)\s+([A-ZÄÖÜa-zäöüß][A-ZÄÖÜa-zäöüß-]+)\b/i,
-      /\b(?:über|zu|betreffend)\s+([A-ZÄÖÜa-zäöüß][A-ZÄÖÜa-zäöüß-]+politik)\b/i
+      /\b(?:über|zu|betreffend)\s+([A-ZÄÖÜa-zäöüß][A-ZÄÖÜa-zäöüß-]+politik)\b/i,
     ];
 
     for (const re of categoryPatterns) {
@@ -161,7 +164,10 @@ class QueryIntentService {
 
     // Section patterns (for bundestag, gruene-de, gruene-at)
     const sectionPatterns = [
-      { re: /\b(?:im\s+Bereich|unter)\s+(Positionen|Themen|Aktuelles|Fraktion|Presse)\b/i, field: 'section' }
+      {
+        re: /\b(?:im\s+Bereich|unter)\s+(Positionen|Themen|Aktuelles|Fraktion|Presse)\b/i,
+        field: 'section',
+      },
     ];
 
     for (const p of sectionPatterns) {
@@ -187,7 +193,7 @@ class QueryIntentService {
         collections: getDefaultMultiCollectionIds(),
         documentTitleFilter: null,
         detectedPhrase: null,
-        subcategoryFilters: {}
+        subcategoryFilters: {},
       };
     }
 
@@ -198,48 +204,48 @@ class QueryIntentService {
       {
         re: /\b(im\s+)?Grundsatzprogramm(\s+2020)?\b/i,
         collections: ['grundsatz-system'],
-        titleFilter: 'Grundsatzprogramm 2020'
+        titleFilter: 'Grundsatzprogramm 2020',
       },
       {
         re: /\b(im\s+)?(EU[\s-]?Wahlprogramm|Europawahlprogramm)(\s+2024)?\b/i,
         collections: ['grundsatz-system'],
-        titleFilter: 'EU-Wahlprogramm 2024'
+        titleFilter: 'EU-Wahlprogramm 2024',
       },
       {
         re: /\b(im\s+)?Regierungsprogramm(\s+2025)?\b/i,
         collections: ['grundsatz-system'],
-        titleFilter: 'Regierungsprogramm 2025'
+        titleFilter: 'Regierungsprogramm 2025',
       },
       {
         re: /\b((in\s+den\s+)?(Grundsatz)?programmen|Grundsatzprogramme)\b/i,
         collections: ['grundsatz-system'],
-        titleFilter: null
+        titleFilter: null,
       },
       {
         re: /\b(Bundestags?fraktion|gruene-?bundestag|grüne-?bundestag)\b/i,
         collections: ['bundestagsfraktion-system'],
-        titleFilter: null
+        titleFilter: null,
       },
       {
         re: /\b(KommunalWiki|Kommunalwiki|kommunalwiki)\b/i,
         collections: ['kommunalwiki-system'],
-        titleFilter: null
+        titleFilter: null,
       },
       {
         re: /\b(gruene\.de|grüne\.de)\b/i,
         collections: ['gruene-de-system'],
-        titleFilter: null
+        titleFilter: null,
       },
       {
         re: /\b(gruene\.at|grüne\.at|Grüne\s+Österreich)\b/i,
         collections: ['gruene-at-system'],
-        titleFilter: null
+        titleFilter: null,
       },
       {
         re: /\b(satzung|satzungen|kreisverband|ortsverband)\b/i,
         collections: ['satzungen-system'],
-        titleFilter: null
-      }
+        titleFilter: null,
+      },
     ];
 
     for (const pattern of docPatterns) {
@@ -249,7 +255,7 @@ class QueryIntentService {
           collections: pattern.collections,
           documentTitleFilter: pattern.titleFilter,
           detectedPhrase: match[0],
-          subcategoryFilters
+          subcategoryFilters,
         };
       }
     }
@@ -258,7 +264,7 @@ class QueryIntentService {
       collections: getDefaultMultiCollectionIds(),
       documentTitleFilter: null,
       detectedPhrase: null,
-      subcategoryFilters
+      subcategoryFilters,
     };
   }
 
@@ -268,7 +274,8 @@ class QueryIntentService {
    * Detect language from query text
    */
   #detectLanguage(q: string): Language {
-    const hasGerman = /[äöüß]/i.test(q) || /(der|die|das|und|ist|nicht|mit|für|auf|ein|eine)\b/i.test(q);
+    const hasGerman =
+      /[äöüß]/i.test(q) || /(der|die|das|und|ist|nicht|mit|für|auf|ein|eine)\b/i.test(q);
     const hasEnglish = /(the|and|is|with|for|on|in|of)\b/i.test(q);
     if (hasGerman && !hasEnglish) return 'de';
     if (hasEnglish && !hasGerman) return 'en';
@@ -282,7 +289,7 @@ class QueryIntentService {
     return lower
       .replace(/[^a-zäöüß0-9\s-]/gi, ' ')
       .split(/\s+/)
-      .filter(t => t.length > 2)
+      .filter((t) => t.length > 2)
       .slice(0, 10);
   }
 }

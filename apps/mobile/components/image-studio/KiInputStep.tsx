@@ -15,7 +15,11 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { ImageStudioKiType, KiStyleVariant, GreenEditInfrastructure } from '@gruenerator/shared/image-studio';
+import type {
+  ImageStudioKiType,
+  KiStyleVariant,
+  GreenEditInfrastructure,
+} from '@gruenerator/shared/image-studio';
 import { getKiTypeConfig } from '@gruenerator/shared/image-studio';
 import { Button } from '../common';
 import { VariantSelector } from './VariantSelector';
@@ -96,7 +100,13 @@ export function KiInputStep({
               ]}
             >
               <Ionicons
-                name={isPureCreate ? 'color-wand-outline' : isGreenEdit ? 'leaf-outline' : 'brush-outline'}
+                name={
+                  isPureCreate
+                    ? 'color-wand-outline'
+                    : isGreenEdit
+                      ? 'leaf-outline'
+                      : 'brush-outline'
+                }
                 size={24}
                 color={colors.primary[500]}
               />
@@ -112,10 +122,21 @@ export function KiInputStep({
 
         {uploadedImageUri && !isPureCreate && (
           <View style={styles.imagePreview}>
-            <Image source={{ uri: uploadedImageUri }} style={styles.previewImage} resizeMode="cover" />
-            <View style={[styles.imageLabel, { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] }]}>
+            <Image
+              source={{ uri: uploadedImageUri }}
+              style={styles.previewImage}
+              resizeMode="cover"
+            />
+            <View
+              style={[
+                styles.imageLabel,
+                { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] },
+              ]}
+            >
               <Ionicons name="image-outline" size={14} color={theme.textSecondary} />
-              <Text style={[styles.imageLabelText, { color: theme.textSecondary }]}>Ausgangsbild</Text>
+              <Text style={[styles.imageLabelText, { color: theme.textSecondary }]}>
+                Ausgangsbild
+              </Text>
             </View>
           </View>
         )}
@@ -169,10 +190,16 @@ export function KiInputStep({
           </View>
         )}
 
-        <View style={[styles.rateLimitNote, { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] }]}>
+        <View
+          style={[
+            styles.rateLimitNote,
+            { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] },
+          ]}
+        >
           <Ionicons name="information-circle-outline" size={16} color={theme.textSecondary} />
           <Text style={[styles.rateLimitText, { color: theme.textSecondary }]}>
-            Die KI-Bildgenerierung kann einige Sekunden dauern. Bei hoher Auslastung kann es zu Wartezeiten kommen.
+            Die KI-Bildgenerierung kann einige Sekunden dauern. Bei hoher Auslastung kann es zu
+            Wartezeiten kommen.
           </Text>
         </View>
 

@@ -1,4 +1,4 @@
-import { JSX, useRef, useCallback, RefObject } from 'react';
+import { type JSX, useRef, useCallback, type RefObject } from 'react';
 import { FaPlus } from 'react-icons/fa';
 
 interface ChatFileUploadButtonProps {
@@ -11,13 +11,15 @@ interface ChatFileUploadButtonProps {
   externalRef?: RefObject<HTMLInputElement> | null;
 }
 
-const ChatFileUploadButton = ({ enabled = true,
+const ChatFileUploadButton = ({
+  enabled = true,
   disabled = false,
   onFileSelect,
-  accept = ".pdf,.jpg,.jpeg,.png,.webp",
+  accept = '.pdf,.jpg,.jpeg,.png,.webp',
   className = 'chat-file-upload-button',
-  ariaLabel = "Datei hinzufügen",
-  externalRef = null }: ChatFileUploadButtonProps): JSX.Element | null => {
+  ariaLabel = 'Datei hinzufügen',
+  externalRef = null,
+}: ChatFileUploadButtonProps): JSX.Element | null => {
   const internalRef = useRef<HTMLInputElement>(null);
   const fileInputRef = externalRef || internalRef;
 
@@ -25,13 +27,16 @@ const ChatFileUploadButton = ({ enabled = true,
     fileInputRef.current?.click();
   }, [fileInputRef]);
 
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length > 0) {
-      onFileSelect?.(files);
-    }
-    event.target.value = '';
-  }, [onFileSelect]);
+  const handleChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || []);
+      if (files.length > 0) {
+        onFileSelect?.(files);
+      }
+      event.target.value = '';
+    },
+    [onFileSelect]
+  );
 
   if (!enabled) return null;
 

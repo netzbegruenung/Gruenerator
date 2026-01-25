@@ -52,38 +52,41 @@ export default function VorlagenScreen() {
     setLikedTemplates(new Set(likesData));
   }, []);
 
-  const handleLikeToggle = useCallback(async (templateId: string) => {
-    const isCurrentlyLiked = likedTemplates.has(templateId);
+  const handleLikeToggle = useCallback(
+    async (templateId: string) => {
+      const isCurrentlyLiked = likedTemplates.has(templateId);
 
-    // Optimistic update
-    setLikedTemplates((prev) => {
-      const next = new Set(prev);
-      if (isCurrentlyLiked) {
-        next.delete(templateId);
-      } else {
-        next.add(templateId);
-      }
-      return next;
-    });
-
-    // Make API call
-    const success = isCurrentlyLiked
-      ? await unlikeTemplate(templateId)
-      : await likeTemplate(templateId, 'system');
-
-    // Revert on failure
-    if (!success) {
+      // Optimistic update
       setLikedTemplates((prev) => {
         const next = new Set(prev);
         if (isCurrentlyLiked) {
-          next.add(templateId);
-        } else {
           next.delete(templateId);
+        } else {
+          next.add(templateId);
         }
         return next;
       });
-    }
-  }, [likedTemplates]);
+
+      // Make API call
+      const success = isCurrentlyLiked
+        ? await unlikeTemplate(templateId)
+        : await likeTemplate(templateId, 'system');
+
+      // Revert on failure
+      if (!success) {
+        setLikedTemplates((prev) => {
+          const next = new Set(prev);
+          if (isCurrentlyLiked) {
+            next.add(templateId);
+          } else {
+            next.delete(templateId);
+          }
+          return next;
+        });
+      }
+    },
+    [likedTemplates]
+  );
 
   useEffect(() => {
     setIsLoading(true);

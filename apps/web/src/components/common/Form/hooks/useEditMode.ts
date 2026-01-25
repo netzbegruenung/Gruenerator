@@ -16,7 +16,7 @@ export function useEditMode(params: UseEditModeParams) {
   const isEditModeActive = isEditModeToggled && enableEditMode && hasEditableContent;
 
   const handleToggleEditMode = useCallback(() => {
-    setIsEditModeToggled(prev => !prev);
+    setIsEditModeToggled((prev) => !prev);
   }, []);
 
   const handleToggleImageEdit = useCallback(() => {
@@ -40,6 +40,6 @@ export function useEditMode(params: UseEditModeParams) {
     isEditModeActive,
     isImageEditActive,
     handleToggleEditMode,
-    handleToggleImageEdit
+    handleToggleImageEdit,
   };
 }

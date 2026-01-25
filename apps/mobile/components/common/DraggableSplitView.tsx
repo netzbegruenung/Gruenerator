@@ -67,10 +67,7 @@ export function DraggableSplitView({
     })
     .onUpdate((event) => {
       const deltaRatio = event.translationY / usableHeight;
-      const newRatio = Math.max(
-        minTopRatio,
-        Math.min(maxTopRatio, startRatio.value + deltaRatio)
-      );
+      const newRatio = Math.max(minTopRatio, Math.min(maxTopRatio, startRatio.value + deltaRatio));
       ratio.value = newRatio;
     })
     .onEnd(() => {
@@ -92,9 +89,7 @@ export function DraggableSplitView({
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.section, topStyle]}>
-        {topContent}
-      </Animated.View>
+      <Animated.View style={[styles.section, topStyle]}>{topContent}</Animated.View>
 
       <GestureDetector gesture={panGesture}>
         <Animated.View
@@ -109,9 +104,7 @@ export function DraggableSplitView({
         </Animated.View>
       </GestureDetector>
 
-      <Animated.View style={[styles.section, bottomStyle]}>
-        {bottomContent}
-      </Animated.View>
+      <Animated.View style={[styles.section, bottomStyle]}>{bottomContent}</Animated.View>
     </View>
   );
 }

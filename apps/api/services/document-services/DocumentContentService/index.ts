@@ -16,26 +16,23 @@ export type {
   ContentSearchMetadata,
   ContentStrategyDecision,
   ExcerptOptions,
-  TextMatch
+  TextMatch,
 } from './types.js';
 
 // Re-export module functions (for direct use if needed)
-export {
-  getAccessibleDocuments,
-  getAccessibleDocumentIds
-} from './accessControl.js';
+export { getAccessibleDocuments, getAccessibleDocumentIds } from './accessControl.js';
 
 export {
   determineContentStrategy,
   createIntelligentExcerpt,
-  extractRelevantText
+  extractRelevantText,
 } from './contentExtraction.js';
 
 export {
   performVectorSearch,
   processVectorSearchResults,
   fillMissingDocuments,
-  createSearchResponse
+  createSearchResponse,
 } from './searchOperations.js';
 
 // Singleton instance (for backward compatibility)

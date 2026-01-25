@@ -101,7 +101,6 @@ export class PostgresPersistence {
       const state = Y.encodeStateAsUpdate(ydoc);
       log.info(`[Load] Document ${documentId} loaded (${state.length} bytes)`);
       return state;
-
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Load] Error loading document ${documentId}: ${err.message}`);
@@ -132,7 +131,6 @@ export class PostgresPersistence {
 
       // Clean up old updates
       await this.cleanupOldUpdates(documentId);
-
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Store] Error storing document ${documentId}: ${err.message}`);
@@ -248,9 +246,10 @@ export class PostgresPersistence {
         [documentId, compressed, nextVersion, label || null, userId]
       );
 
-      log.info(`[Manual Snapshot] Created version ${nextVersion} for ${documentId}: ${label || 'unlabeled'}`);
+      log.info(
+        `[Manual Snapshot] Created version ${nextVersion} for ${documentId}: ${label || 'unlabeled'}`
+      );
       return nextVersion as number;
-
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Manual Snapshot] Error creating snapshot: ${err.message}`);
@@ -276,7 +275,6 @@ export class PostgresPersistence {
 
       const decompressed = await gunzipAsync(result[0].snapshot_data as Buffer);
       return decompressed;
-
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Get Version] Error getting version ${version}: ${err.message}`);

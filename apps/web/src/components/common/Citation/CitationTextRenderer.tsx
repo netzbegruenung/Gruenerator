@@ -1,6 +1,9 @@
-import { JSX } from 'react';
-import CitationBadge, { CitationData } from './CitationBadge';
+import { type JSX } from 'react';
+
 import { Markdown } from '../Markdown';
+
+import CitationBadge, { type CitationData } from './CitationBadge';
+
 import type { LinkConfig } from '../../../stores/citationStore';
 
 interface CitationTextRendererProps {
@@ -13,8 +16,8 @@ interface CitationTextRendererProps {
 const CitationTextRenderer = ({
   text,
   citations = [],
-  className = "",
-  linkConfig
+  className = '',
+  linkConfig,
 }: CitationTextRendererProps): JSX.Element => {
   if (!text || typeof text !== 'string') {
     return <span className={className}>{text}</span>;
@@ -35,7 +38,7 @@ const CitationTextRenderer = ({
 
   // Create a lookup map for citations by index
   const citationMap = new Map<string, CitationData>();
-  citations.forEach(citation => {
+  citations.forEach((citation) => {
     if (citation.index !== undefined) {
       citationMap.set(citation.index.toString(), citation);
     }
@@ -61,7 +64,7 @@ const CitationTextRenderer = ({
       type: 'citation',
       citationIndex: citationIndex,
       citation: citation,
-      key: `citation-${citationIndex}-${matchStart}`
+      key: `citation-${citationIndex}-${matchStart}`,
     });
 
     lastIndex = match.index + fullMatch.length;
@@ -98,11 +101,7 @@ const CitationTextRenderer = ({
           );
         }
         return (
-          <Markdown
-            key={index}
-            className="citation-text-segment"
-            inline
-          >
+          <Markdown key={index} className="citation-text-segment" inline>
             {part.content || ''}
           </Markdown>
         );

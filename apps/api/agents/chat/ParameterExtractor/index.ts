@@ -4,7 +4,11 @@
  */
 
 // Main extraction functions
-export { extractParameters, analyzeParameterConfidence, extractQuoteAuthor } from './ParameterExtractor.js';
+export {
+  extractParameters,
+  analyzeParameterConfidence,
+  extractQuoteAuthor,
+} from './ParameterExtractor.js';
 
 // Type exports
 export type {
@@ -22,7 +26,7 @@ export type {
   AuthorExtractionResult,
   VariantResult,
   LinesExtractionResult,
-  ConfidenceAnalysis
+  ConfidenceAnalysis,
 } from './types.js';
 
 // Utility exports (for advanced use cases)
@@ -34,7 +38,7 @@ export {
   extractStyle,
   extractStructure,
   determineRequestType,
-  extractLines
+  extractLines,
 } from './utils/extractionUtils.js';
 
 export {
@@ -42,5 +46,5 @@ export {
   extractImagineSubject,
   extractImagineVariant,
   extractImagineTitle,
-  extractEditAction
+  extractEditAction,
 } from './utils/imagineUtils.js';

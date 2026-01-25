@@ -4,7 +4,11 @@
  * Supports multiple icon libraries via dynamic imports
  */
 
-import { loadImage, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
+import {
+  loadImage,
+  type SKRSContext2D as CanvasRenderingContext2D,
+  type Image,
+} from '@napi-rs/canvas';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 import type { IconLayer } from '../types/freeCanvasTypes.js';
@@ -63,10 +67,7 @@ async function getIconComponent(iconId: string): Promise<any | null> {
  * @param ctx - Canvas 2D context
  * @param icon - Icon layer configuration
  */
-export async function renderIcon(
-  ctx: CanvasRenderingContext2D,
-  icon: IconLayer
-): Promise<void> {
+export async function renderIcon(ctx: CanvasRenderingContext2D, icon: IconLayer): Promise<void> {
   const cacheKey = `${icon.iconId}-${icon.size}-${icon.color}`;
 
   let svgString = iconCache.get(cacheKey);
@@ -82,7 +83,7 @@ export async function renderIcon(
     svgString = renderToStaticMarkup(
       createElement(IconComponent, {
         size: icon.size,
-        color: icon.color
+        color: icon.color,
       })
     );
 

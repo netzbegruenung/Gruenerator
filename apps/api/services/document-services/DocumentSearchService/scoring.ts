@@ -9,13 +9,13 @@
  */
 
 import type {
-    ChunkData,
-    DocumentChunkData,
-    BaseScore,
-    DocumentEnhancedScore,
-    HybridMetadata,
-    RawChunk,
-    DocumentRawChunk
+  ChunkData,
+  DocumentChunkData,
+  BaseScore,
+  DocumentEnhancedScore,
+  HybridMetadata,
+  RawChunk,
+  DocumentRawChunk,
 } from './types.js';
 
 // Import vectorConfig for scoring configuration
@@ -34,41 +34,41 @@ import { vectorConfig } from '../../../config/vectorConfig.js';
  * @returns Base score components
  */
 export function computeSafeBaseScore(chunks: ChunkData[]): BaseScore {
-    const scoringConfig = vectorConfig.get('scoring');
+  const scoringConfig = vectorConfig.get('scoring');
 
-    if (!chunks || chunks.length === 0) {
-        return {
-            finalScore: 0,
-            maxSimilarity: 0,
-            avgSimilarity: 0,
-            positionScore: 0,
-            diversityBonus: 0
-        };
-    }
-
-    const sims = chunks.map(c => c.similarity || 0);
-    const maxSimilarity = Math.max(...sims);
-    const avgSimilarity = sims.reduce((a, b) => a + b, 0) / sims.length;
-
-    const diversityBonus = Math.min(
-        scoringConfig.maxDiversityBonus,
-        chunks.length * scoringConfig.diversityBonusRate
-    );
-
-    const finalScoreRaw =
-        (maxSimilarity * scoringConfig.maxSimilarityWeight) +
-        (avgSimilarity * scoringConfig.avgSimilarityWeight) +
-        diversityBonus;
-
-    const finalScore = Math.min(scoringConfig.maxFinalScore, finalScoreRaw);
-
+  if (!chunks || chunks.length === 0) {
     return {
-        finalScore,
-        maxSimilarity,
-        avgSimilarity,
-        positionScore: 0,
-        diversityBonus
+      finalScore: 0,
+      maxSimilarity: 0,
+      avgSimilarity: 0,
+      positionScore: 0,
+      diversityBonus: 0,
     };
+  }
+
+  const sims = chunks.map((c) => c.similarity || 0);
+  const maxSimilarity = Math.max(...sims);
+  const avgSimilarity = sims.reduce((a, b) => a + b, 0) / sims.length;
+
+  const diversityBonus = Math.min(
+    scoringConfig.maxDiversityBonus,
+    chunks.length * scoringConfig.diversityBonusRate
+  );
+
+  const finalScoreRaw =
+    maxSimilarity * scoringConfig.maxSimilarityWeight +
+    avgSimilarity * scoringConfig.avgSimilarityWeight +
+    diversityBonus;
+
+  const finalScore = Math.min(scoringConfig.maxFinalScore, finalScoreRaw);
+
+  return {
+    finalScore,
+    maxSimilarity,
+    avgSimilarity,
+    positionScore: 0,
+    diversityBonus,
+  };
 }
 
 /**
@@ -83,25 +83,25 @@ export function computeSafeBaseScore(chunks: ChunkData[]): BaseScore {
  * @returns Enhanced score with quality information
  */
 export function calculateEnhancedDocumentScore(chunks: DocumentChunkData[]): DocumentEnhancedScore {
-    const base = computeSafeBaseScore(chunks);
+  const base = computeSafeBaseScore(chunks);
 
-    const qualities = chunks.map(c =>
-        typeof c.quality_score === 'number' ? c.quality_score : 1.0
-    );
-    const avgQ = qualities.length
-        ? (qualities.reduce((a, b) => a + b, 0) / qualities.length)
-        : 1.0;
+  const qualities = chunks.map((c) =>
+    typeof c.quality_score === 'number' ? c.quality_score : 1.0
+  );
+  const avgQ = qualities.length ? qualities.reduce((a, b) => a + b, 0) / qualities.length : 1.0;
 
-    const qCfg = (vectorConfig.get('quality') as { retrieval?: { qualityBoostFactor?: number } })?.retrieval || {};
-    const boost = qCfg.qualityBoostFactor ?? 1.2;
+  const qCfg =
+    (vectorConfig.get('quality') as { retrieval?: { qualityBoostFactor?: number } })?.retrieval ||
+    {};
+  const boost = qCfg.qualityBoostFactor ?? 1.2;
 
-    const factor = 1 + ((avgQ - 0.5) * (boost - 1));
+  const factor = 1 + (avgQ - 0.5) * (boost - 1);
 
-    return {
-        ...base,
-        finalScore: Math.min(1.0, base.finalScore * factor),
-        qualityAvg: avgQ
-    };
+  return {
+    ...base,
+    finalScore: Math.min(1.0, base.finalScore * factor),
+    qualityAvg: avgQ,
+  };
 }
 
 /**
@@ -118,32 +118,32 @@ export function calculateEnhancedDocumentScore(chunks: DocumentChunkData[]): Doc
  * @returns Enhanced score with hybrid and quality components
  */
 export function calculateHybridDocumentScore(
-    chunks: DocumentChunkData[],
-    hybridMetadata?: HybridMetadata
+  chunks: DocumentChunkData[],
+  hybridMetadata?: HybridMetadata
 ): DocumentEnhancedScore {
-    const baseSimple = computeSafeBaseScore(chunks);
+  const baseSimple = computeSafeBaseScore(chunks);
 
-    const bothSignals = hybridMetadata?.hasVectorMatch && hybridMetadata?.hasTextMatch;
-    const hybridBonus = bothSignals ? 0.05 : 0;
+  const bothSignals = hybridMetadata?.hasVectorMatch && hybridMetadata?.hasTextMatch;
+  const hybridBonus = bothSignals ? 0.05 : 0;
 
-    const qualities = chunks.map(c =>
-        typeof c.quality_score === 'number' ? c.quality_score : 1.0
-    );
-    const avgQ = qualities.length
-        ? (qualities.reduce((a, b) => a + b, 0) / qualities.length)
-        : 1.0;
+  const qualities = chunks.map((c) =>
+    typeof c.quality_score === 'number' ? c.quality_score : 1.0
+  );
+  const avgQ = qualities.length ? qualities.reduce((a, b) => a + b, 0) / qualities.length : 1.0;
 
-    const qCfg = (vectorConfig.get('quality') as { retrieval?: { qualityBoostFactor?: number } })?.retrieval || {};
-    const boost = qCfg.qualityBoostFactor ?? 1.2;
-    const factor = 1 + ((avgQ - 0.5) * (boost - 1));
+  const qCfg =
+    (vectorConfig.get('quality') as { retrieval?: { qualityBoostFactor?: number } })?.retrieval ||
+    {};
+  const boost = qCfg.qualityBoostFactor ?? 1.2;
+  const factor = 1 + (avgQ - 0.5) * (boost - 1);
 
-    return {
-        ...baseSimple,
-        finalScore: Math.min(1.0, (baseSimple.finalScore + hybridBonus) * factor),
-        diversityBonus: baseSimple.diversityBonus,
-        hybridBonus,
-        qualityAvg: avgQ
-    };
+  return {
+    ...baseSimple,
+    finalScore: Math.min(1.0, (baseSimple.finalScore + hybridBonus) * factor),
+    diversityBonus: baseSimple.diversityBonus,
+    hybridBonus,
+    qualityAvg: avgQ,
+  };
 }
 
 /**
@@ -156,19 +156,19 @@ export function calculateHybridDocumentScore(
  * @returns Structured chunk data
  */
 export function extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
-    return {
-        chunk_id: chunk.id,
-        chunk_index: chunk.chunk_index,
-        text: chunk.chunk_text,
-        content_type: chunk.content_type ?? null,
-        page_number: chunk.page_number ?? null,
-        similarity: chunk.similarity,
-        token_count: chunk.token_count,
-        quality_score: chunk.quality_score ?? undefined,
-        searchMethod: chunk.searchMethod,
-        originalVectorScore: chunk.originalVectorScore ?? null,
-        originalTextScore: chunk.originalTextScore ?? null
-    };
+  return {
+    chunk_id: chunk.id,
+    chunk_index: chunk.chunk_index,
+    text: chunk.chunk_text,
+    content_type: chunk.content_type ?? null,
+    page_number: chunk.page_number ?? null,
+    similarity: chunk.similarity,
+    token_count: chunk.token_count,
+    quality_score: chunk.quality_score ?? undefined,
+    searchMethod: chunk.searchMethod,
+    originalVectorScore: chunk.originalVectorScore ?? null,
+    originalTextScore: chunk.originalTextScore ?? null,
+  };
 }
 
 /**
@@ -183,14 +183,14 @@ export function extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
  * @returns Formatted relevance string
  */
 export function buildRelevanceInfo(
-    doc: { similarity_score: number },
-    enhancedScore: DocumentEnhancedScore
+  doc: { similarity_score: number },
+  enhancedScore: DocumentEnhancedScore
 ): string {
-    let base = `Relevance: ${(doc.similarity_score * 100).toFixed(1)}%`;
+  let base = `Relevance: ${(doc.similarity_score * 100).toFixed(1)}%`;
 
-    if (typeof enhancedScore.qualityAvg === 'number') {
-        base += ` (quality avg: ${enhancedScore.qualityAvg.toFixed(2)})`;
-    }
+  if (typeof enhancedScore.qualityAvg === 'number') {
+    base += ` (quality avg: ${enhancedScore.qualityAvg.toFixed(2)})`;
+  }
 
-    return base;
+  return base;
 }

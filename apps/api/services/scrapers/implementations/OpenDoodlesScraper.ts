@@ -60,7 +60,8 @@ export class OpenDoodlesScraper extends BaseScraper {
       verbose: config.verbose ?? true,
     });
 
-    this.outputDir = config.outputDir || join(__dirname, '../../../../public/illustrations/opendoodles');
+    this.outputDir =
+      config.outputDir || join(__dirname, '../../../../public/illustrations/opendoodles');
     this.downloadPng = config.downloadPng ?? false;
     this.downloadGif = config.downloadGif ?? false;
   }
@@ -79,7 +80,9 @@ export class OpenDoodlesScraper extends BaseScraper {
       await this.scrapeGalleryPage();
       await this.downloadAllDoodles();
 
-      this.log(`Scraping complete: ${this.doodles.length} doodles found, ${this.stats.documentsProcessed} files downloaded`);
+      this.log(
+        `Scraping complete: ${this.doodles.length} doodles found, ${this.stats.documentsProcessed} files downloaded`
+      );
       return this.buildResult();
     } catch (error) {
       this.logError('Scraping failed', error);
@@ -166,13 +169,47 @@ export class OpenDoodlesScraper extends BaseScraper {
         this.log('Attempting alternative extraction method...');
 
         const knownDoodles = [
-          'sitting', 'reading', 'messy', 'selfie', 'loving', 'plant',
-          'dancing', 'coffee', 'stand', 'strolling', 'sprinting', 'meditating',
-          'yoga', 'levitate', 'walking', 'sitting-reading', 'resting',
-          'success', 'defeated', 'falling', 'jumping', 'flying', 'floating',
-          'working', 'gaming', 'browsing', 'teaching', 'studying', 'presenting',
-          'chatting', 'calling', 'video-call', 'listening', 'music', 'podcasting',
-          'shopping', 'cooking', 'eating', 'pet', 'dog', 'cat',
+          'sitting',
+          'reading',
+          'messy',
+          'selfie',
+          'loving',
+          'plant',
+          'dancing',
+          'coffee',
+          'stand',
+          'strolling',
+          'sprinting',
+          'meditating',
+          'yoga',
+          'levitate',
+          'walking',
+          'sitting-reading',
+          'resting',
+          'success',
+          'defeated',
+          'falling',
+          'jumping',
+          'flying',
+          'floating',
+          'working',
+          'gaming',
+          'browsing',
+          'teaching',
+          'studying',
+          'presenting',
+          'chatting',
+          'calling',
+          'video-call',
+          'listening',
+          'music',
+          'podcasting',
+          'shopping',
+          'cooking',
+          'eating',
+          'pet',
+          'dog',
+          'cat',
         ];
 
         for (const name of knownDoodles) {
@@ -190,9 +227,7 @@ export class OpenDoodlesScraper extends BaseScraper {
       this.logError('Failed to parse gallery page', error);
     }
 
-    const uniqueDoodles = Array.from(
-      new Map(doodles.map(d => [d.name, d])).values()
-    );
+    const uniqueDoodles = Array.from(new Map(doodles.map((d) => [d.name, d])).values());
 
     return uniqueDoodles;
   }
@@ -201,7 +236,9 @@ export class OpenDoodlesScraper extends BaseScraper {
    * Download all discovered doodles
    */
   private async downloadAllDoodles(): Promise<void> {
-    this.log(`Downloading doodles (SVG: yes, PNG: ${this.downloadPng}, GIF: ${this.downloadGif})...`);
+    this.log(
+      `Downloading doodles (SVG: yes, PNG: ${this.downloadPng}, GIF: ${this.downloadGif})...`
+    );
 
     const concurrent = this.config.maxConcurrent || 5;
     const chunks: OpenDoodle[][] = [];
@@ -253,7 +290,11 @@ export class OpenDoodlesScraper extends BaseScraper {
   /**
    * Download a file from URL
    */
-  private async downloadFile(url: string, filename: string, type: 'svg' | 'png' | 'gif'): Promise<void> {
+  private async downloadFile(
+    url: string,
+    filename: string,
+    type: 'svg' | 'png' | 'gif'
+  ): Promise<void> {
     try {
       const response = await this.fetchWithRetry(url, {
         timeout: 15000,
@@ -267,7 +308,8 @@ export class OpenDoodlesScraper extends BaseScraper {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      const content = type === 'svg' ? await response.text() : Buffer.from(await response.arrayBuffer());
+      const content =
+        type === 'svg' ? await response.text() : Buffer.from(await response.arrayBuffer());
 
       const filepath = join(this.outputDir, filename);
       await writeFile(filepath, content, type === 'svg' ? 'utf-8' : undefined);

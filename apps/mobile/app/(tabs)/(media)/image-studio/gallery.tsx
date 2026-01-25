@@ -20,7 +20,14 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useShareStore, type Share } from '@gruenerator/shared/share';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  typography,
+} from '../../../../theme';
 import { shareImage } from '../../../../services/imageStudio';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -83,11 +90,9 @@ export default function GalleryScreen() {
     }
   }, []);
 
-  const handleDelete = useCallback((share: Share) => {
-    Alert.alert(
-      'Bild löschen?',
-      'Das Bild wird unwiderruflich aus der Galerie entfernt.',
-      [
+  const handleDelete = useCallback(
+    (share: Share) => {
+      Alert.alert('Bild löschen?', 'Das Bild wird unwiderruflich aus der Galerie entfernt.', [
         { text: 'Abbrechen', style: 'cancel' },
         {
           text: 'Löschen',
@@ -101,50 +106,45 @@ export default function GalleryScreen() {
             }
           },
         },
-      ]
-    );
-  }, [deleteShare]);
+      ]);
+    },
+    [deleteShare]
+  );
 
-  const renderItem = useCallback(({ item }: { item: Share }) => {
-    const imageUrl = item.thumbnailUrl || `https://gruenerator.eu/share/${item.shareToken}/thumbnail`;
+  const renderItem = useCallback(
+    ({ item }: { item: Share }) => {
+      const imageUrl =
+        item.thumbnailUrl || `https://gruenerator.eu/share/${item.shareToken}/thumbnail`;
 
-    return (
-      <View style={styles.itemContainer}>
-        <Pressable
-          style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-          onPress={() => handleShare(item)}
-        >
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.itemImage}
-            resizeMode="cover"
-          />
-          <View style={styles.itemOverlay}>
-            <Text style={styles.itemTitle} numberOfLines={1}>
-              {item.title || 'Sharepic'}
-            </Text>
-            <Text style={styles.itemDate}>
-              {new Date(item.createdAt).toLocaleDateString('de-DE')}
-            </Text>
-          </View>
-        </Pressable>
-        <View style={styles.itemActions}>
+      return (
+        <View style={styles.itemContainer}>
           <Pressable
-            style={styles.actionButton}
+            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() => handleShare(item)}
           >
-            <Ionicons name="share-outline" size={18} color={colors.primary[600]} />
+            <Image source={{ uri: imageUrl }} style={styles.itemImage} resizeMode="cover" />
+            <View style={styles.itemOverlay}>
+              <Text style={styles.itemTitle} numberOfLines={1}>
+                {item.title || 'Sharepic'}
+              </Text>
+              <Text style={styles.itemDate}>
+                {new Date(item.createdAt).toLocaleDateString('de-DE')}
+              </Text>
+            </View>
           </Pressable>
-          <Pressable
-            style={styles.actionButton}
-            onPress={() => handleDelete(item)}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.error[500]} />
-          </Pressable>
+          <View style={styles.itemActions}>
+            <Pressable style={styles.actionButton} onPress={() => handleShare(item)}>
+              <Ionicons name="share-outline" size={18} color={colors.primary[600]} />
+            </Pressable>
+            <Pressable style={styles.actionButton} onPress={() => handleDelete(item)}>
+              <Ionicons name="trash-outline" size={18} color={colors.error[500]} />
+            </Pressable>
+          </View>
         </View>
-      </View>
-    );
-  }, [handleShare, handleDelete]);
+      );
+    },
+    [handleShare, handleDelete]
+  );
 
   const getEmptyStateContent = () => {
     switch (filter) {
@@ -171,16 +171,9 @@ export default function GalleryScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="images-outline" size={64} color={theme.textSecondary} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>
-          {emptyContent.title}
-        </Text>
-        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-          {emptyContent.text}
-        </Text>
-        <Pressable
-          style={styles.createButton}
-          onPress={() => router.back()}
-        >
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>{emptyContent.title}</Text>
+        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{emptyContent.text}</Text>
+        <Pressable style={styles.createButton} onPress={() => router.back()}>
           <Ionicons name="add-circle-outline" size={20} color={colors.primary[600]} />
           <Text style={styles.createButtonText}>Sharepic erstellen</Text>
         </Pressable>
@@ -192,9 +185,7 @@ export default function GalleryScreen() {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-          Lade Galerie...
-        </Text>
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Lade Galerie...</Text>
       </View>
     );
   }

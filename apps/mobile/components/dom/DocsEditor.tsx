@@ -47,8 +47,16 @@ interface CollaborationUser {
 
 const generateUserColor = () => {
   const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-    '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788'
+    '#FF6B6B',
+    '#4ECDC4',
+    '#45B7D1',
+    '#FFA07A',
+    '#98D8C8',
+    '#F7DC6F',
+    '#BB8FCE',
+    '#85C1E2',
+    '#F8B739',
+    '#52B788',
   ];
   return colors[Math.floor(Math.random() * colors.length)];
 };
@@ -134,68 +142,65 @@ export default function DocsEditor({
     };
   }, [documentId, userId, hocuspocusUrl, authToken, userName, userEmail]);
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        autocomplete: 'off',
-        autocorrect: 'off',
-        autocapitalize: 'off',
-        'aria-label': 'Dokumenteditor',
-        class: 'docs-editor-content',
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      editorProps: {
+        attributes: {
+          autocomplete: 'off',
+          autocorrect: 'off',
+          autocapitalize: 'off',
+          'aria-label': 'Dokumenteditor',
+          class: 'docs-editor-content',
+        },
+      },
+      extensions: [
+        StarterKit.configure({
+          history: ydocRef.current ? false : undefined,
+        }),
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        Highlight.configure({ multicolor: true }),
+        Image,
+        Typography,
+        Superscript,
+        Subscript,
+        Underline,
+        Link.configure({
+          openOnClick: false,
+        }),
+        Placeholder.configure({
+          placeholder: 'Beginne zu schreiben...',
+        }),
+        ...(ydocRef.current
+          ? [
+              Collaboration.configure({
+                document: ydocRef.current,
+              }),
+              CollaborationCursor.configure({
+                provider: providerRef.current || undefined,
+                user: {
+                  name: userName || userEmail || 'Anonymous',
+                  color: generateUserColor(),
+                },
+              }),
+            ]
+          : []),
+      ],
+      content: ydocRef.current ? undefined : initialContent,
+      onUpdate: ({ editor }) => {
+        if (onContentChange && !ydocRef.current) {
+          onContentChange(editor.getHTML());
+        }
       },
     },
-    extensions: [
-      StarterKit.configure({
-        history: ydocRef.current ? false : undefined,
-      }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Highlight.configure({ multicolor: true }),
-      Image,
-      Typography,
-      Superscript,
-      Subscript,
-      Underline,
-      Link.configure({
-        openOnClick: false,
-      }),
-      Placeholder.configure({
-        placeholder: 'Beginne zu schreiben...',
-      }),
-      ...(ydocRef.current
-        ? [
-            Collaboration.configure({
-              document: ydocRef.current,
-            }),
-            CollaborationCursor.configure({
-              provider: providerRef.current || undefined,
-              user: {
-                name: userName || userEmail || 'Anonymous',
-                color: generateUserColor(),
-              },
-            }),
-          ]
-        : []),
-    ],
-    content: ydocRef.current ? undefined : initialContent,
-    onUpdate: ({ editor }) => {
-      if (onContentChange && !ydocRef.current) {
-        onContentChange(editor.getHTML());
-      }
-    },
-  }, [ydocRef.current, providerRef.current]);
+    [ydocRef.current, providerRef.current]
+  );
 
   // Initialize Y.js document with HTML content
   useEffect(() => {
-    if (
-      editor &&
-      ydocRef.current &&
-      initialContent &&
-      !hasInitialized.current &&
-      isSynced
-    ) {
+    if (editor && ydocRef.current && initialContent && !hasInitialized.current && isSynced) {
       const fragment = ydocRef.current.getXmlFragment('default');
       const isEmpty = fragment.length === 0;
 
@@ -221,7 +226,7 @@ export default function DocsEditor({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({ content, title }),
       });
@@ -242,17 +247,13 @@ export default function DocsEditor({
     setShowActionSheet(false);
   };
 
-  const connectionStatus = !isConnected ? 'disconnected' : (!isSynced ? 'syncing' : 'connected');
+  const connectionStatus = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
 
   return (
     <div className="docs-editor-wrapper">
       <header className="docs-editor-header">
         <div className="header-left">
-          <button
-            onClick={onNavigateBack}
-            className="back-button"
-            aria-label="Zurück"
-          >
+          <button onClick={onNavigateBack} className="back-button" aria-label="Zurück">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M15 18l-6-6 6-6" />
             </svg>
@@ -267,7 +268,7 @@ export default function DocsEditor({
           />
           <div
             className={`connection-indicator ${connectionStatus}`}
-            title={!isConnected ? 'Getrennt' : (!isSynced ? 'Synchronisiert...' : 'Verbunden')}
+            title={!isConnected ? 'Getrennt' : !isSynced ? 'Synchronisiert...' : 'Verbunden'}
           />
         </div>
 
@@ -313,21 +314,14 @@ export default function DocsEditor({
 
       <main className="docs-editor-main">
         <EditorContext.Provider value={{ editor }}>
-          <EditorContent
-            editor={editor}
-            role="presentation"
-            className="editor-content-wrapper"
-          />
+          <EditorContent editor={editor} role="presentation" className="editor-content-wrapper" />
         </EditorContext.Provider>
       </main>
 
       {/* Simple Action Sheet */}
       {showActionSheet && (
         <>
-          <div
-            className="action-sheet-overlay"
-            onClick={() => setShowActionSheet(false)}
-          />
+          <div className="action-sheet-overlay" onClick={() => setShowActionSheet(false)} />
           <div className="action-sheet">
             <div className="action-sheet-handle" />
             <div className="action-sheet-content">

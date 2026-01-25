@@ -51,7 +51,9 @@ export async function initDesktopMenuEvents(handlers: DesktopMenuEvents): Promis
         if (direction === 'in') {
           document.body.style.zoom = String(parseFloat(document.body.style.zoom || '1') + 0.1);
         } else if (direction === 'out') {
-          document.body.style.zoom = String(Math.max(0.5, parseFloat(document.body.style.zoom || '1') - 0.1));
+          document.body.style.zoom = String(
+            Math.max(0.5, parseFloat(document.body.style.zoom || '1') - 0.1)
+          );
         } else {
           document.body.style.zoom = '1';
         }
@@ -87,7 +89,7 @@ export async function initDesktopMenuEvents(handlers: DesktopMenuEvents): Promis
  * Clean up menu event listeners
  */
 export function cleanupDesktopMenuEvents(): void {
-  menuListenerCleanups.forEach(cleanup => cleanup());
+  menuListenerCleanups.forEach((cleanup) => cleanup());
   menuListenerCleanups = [];
 }
 

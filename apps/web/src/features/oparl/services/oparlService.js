@@ -6,12 +6,12 @@ const apiClient = axios.create({
   baseURL: baseURL,
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true
+  withCredentials: true,
 });
 
 export const searchCity = async (query) => {
   const response = await apiClient.get('/oparl/search-city', {
-    params: { q: query }
+    params: { q: query },
   });
   return response.data;
 };
@@ -23,7 +23,7 @@ export const getEndpoints = async () => {
 
 export const getPapers = async (city, limit = 50) => {
   const response = await apiClient.get('/oparl/papers', {
-    params: { city, limit }
+    params: { city, limit },
   });
   return response.data;
 };
@@ -31,7 +31,7 @@ export const getPapers = async (city, limit = 50) => {
 export const searchPapers = async (query, options = {}) => {
   const { city, limit = 10 } = options;
   const response = await apiClient.get('/oparl/search', {
-    params: { q: query, city, limit }
+    params: { q: query, city, limit },
   });
   return response.data;
 };
@@ -52,5 +52,5 @@ export default {
   getPapers,
   searchPapers,
   getIndexedCities,
-  getStats
+  getStats,
 };

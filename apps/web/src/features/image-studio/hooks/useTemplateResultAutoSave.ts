@@ -1,23 +1,21 @@
-import { useEffect, useRef, useCallback } from 'react';
-import useImageStudioStore from '../../../stores/imageStudioStore';
-import { useAutoSaveStore } from './useAutoSaveStore';
 import { useShareStore } from '@gruenerator/shared/share';
+import { useEffect, useRef, useCallback } from 'react';
+
+import useImageStudioStore from '../../../stores/imageStudioStore';
 import { getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
+
+import { useAutoSaveStore } from './useAutoSaveStore';
 import { useImageHelpers } from './useImageHelpers';
 
 export const useTemplateResultAutoSave = (): void => {
-  const {
-    type,
-    generatedImageSrc,
-    galleryEditMode
-  } = useImageStudioStore();
+  const { type, generatedImageSrc, galleryEditMode } = useImageStudioStore();
 
   const {
     autoSaveStatus,
     lastAutoSavedImageSrc,
     setAutoSaveStatus,
     setAutoSavedShareToken,
-    setLastAutoSavedImageSrc
+    setLastAutoSavedImageSrc,
   } = useAutoSaveStore();
 
   const { createImageShare } = useShareStore();
@@ -39,7 +37,7 @@ export const useTemplateResultAutoSave = (): void => {
     createImageShare,
     setAutoSaveStatus,
     setAutoSavedShareToken,
-    setLastAutoSavedImageSrc
+    setLastAutoSavedImageSrc,
   });
 
   // Update refs on each render
@@ -55,7 +53,7 @@ export const useTemplateResultAutoSave = (): void => {
     createImageShare,
     setAutoSaveStatus,
     setAutoSavedShareToken,
-    setLastAutoSavedImageSrc
+    setLastAutoSavedImageSrc,
   };
 
   // Stable auto-save function that reads from refs

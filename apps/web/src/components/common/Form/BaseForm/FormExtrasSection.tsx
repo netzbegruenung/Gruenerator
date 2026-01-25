@@ -1,14 +1,23 @@
 import React, { useCallback, memo, ReactNode } from 'react';
 import { FiSend } from 'react-icons/fi';
-import FeatureToggle from '../../FeatureToggle';
-import FeatureIcons from '../../FeatureIcons';
-import SubmitButton from '../../SubmitButton';
-import ExamplePrompts from './ExamplePrompts';
-import useResponsive from '../hooks/useResponsive';
+
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import { useFormStateSelector } from '../FormStateProvider';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
-import type { FormExtrasSectionProps, FeatureToggle as FeatureToggleType, TabIndexConfig, ExamplePrompt } from '@/types/baseform';
+import FeatureIcons from '../../FeatureIcons';
+import FeatureToggle from '../../FeatureToggle';
+import SubmitButton from '../../SubmitButton';
+import { useFormStateSelector } from '../FormStateProvider';
+import useResponsive from '../hooks/useResponsive';
+
+import ExamplePrompts from './ExamplePrompts';
+
+
+import type {
+  FormExtrasSectionProps,
+  FeatureToggle as FeatureToggleType,
+  TabIndexConfig,
+  ExamplePrompt,
+} from '@/types/baseform';
 import '../../../../assets/styles/components/ui/FormExtras.css';
 
 import type { AttachedFile } from '../../ContentSelector';
@@ -39,7 +48,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
     webSearch: 11,
     balancedMode: 12,
     attachment: 13,
-    anweisungen: 14
+    anweisungen: 14,
   } as FeatureIconsTabIndex,
   submitButtonTabIndex = 17,
   onPrivacyInfoClick,
@@ -51,22 +60,28 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
   isStartMode = false,
   examplePrompts = [],
   onExamplePromptClick = null,
-  selectedPlatforms = []
+  selectedPlatforms = [],
 }) => {
   const { isMobileView } = useResponsive();
 
-  const loading = useFormStateSelector(state => state.loading);
-  const success = useFormStateSelector(state => state.success);
-  const useInteractiveModeToggleStore = useFormStateSelector(state => state.interactiveModeConfig?.enabled || false);
-  const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
-  const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles) as AttachedFile[];
+  const loading = useFormStateSelector((state) => state.loading);
+  const success = useFormStateSelector((state) => state.success);
+  const useInteractiveModeToggleStore = useFormStateSelector(
+    (state) => state.interactiveModeConfig?.enabled || false
+  );
+  const useFeatureIcons = useFormStateSelector((state) => state.useFeatureIcons);
+  const storeAttachedFiles = useFormStateSelector((state) => state.attachedFiles) as AttachedFile[];
 
-  const finalAttachedFiles = (attachedFiles.length > 0 ? attachedFiles : storeAttachedFiles) as AttachedFile[];
+  const finalAttachedFiles = (
+    attachedFiles.length > 0 ? attachedFiles : storeAttachedFiles
+  ) as AttachedFile[];
 
-  const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
+  const currentGeneratedContent = useGeneratedTextStore(
+    (state) => state.generatedTexts[componentName] || ''
+  );
 
-  const source = useGeneratorSelectionStore(state => state.source);
-  const setSource = useGeneratorSelectionStore(state => state.setSource);
+  const source = useGeneratorSelectionStore((state) => state.source);
+  const setSource = useGeneratorSelectionStore((state) => state.setSource);
   const anweisungenActive = source.type === 'user';
 
   const handleAnweisungenClick = useCallback((): void => {
@@ -87,12 +102,13 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
     return null;
   }
 
-  const hasExtras = useInteractiveModeToggle ||
-                   formNotice ||
-                   showSubmitButton ||
-                   children ||
-                   firstExtrasChildren ||
-                   true;
+  const hasExtras =
+    useInteractiveModeToggle ||
+    formNotice ||
+    showSubmitButton ||
+    children ||
+    firstExtrasChildren ||
+    true;
 
   if (!hasExtras) {
     return null;
@@ -102,14 +118,14 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
     ? () => balancedModeToggle.onToggle?.(!balancedModeToggle.isActive)
     : undefined;
 
-  const handleInteractiveMode = interactiveModeToggle && useInteractiveModeToggleStore
-    ? handleInteractiveModeClick
-    : undefined;
+  const handleInteractiveMode =
+    interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined;
 
   return (
-    <div className={`form-section__extras ${isStartMode ? 'form-section__extras--start-mode' : ''}`}>
+    <div
+      className={`form-section__extras ${isStartMode ? 'form-section__extras--start-mode' : ''}`}
+    >
       <div className="form-extras__content">
-
         {isStartMode ? (
           <>
             <div className="form-extras__row">
@@ -122,7 +138,9 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                     onAnweisungenClick={handleAnweisungenClick}
                     onInteractiveModeClick={handleInteractiveMode}
                     anweisungenActive={anweisungenActive}
-                    interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
+                    interactiveModeActive={
+                      interactiveModeToggle ? interactiveModeToggle.isActive : false
+                    }
                     attachedFiles={finalAttachedFiles}
                     className="form-extras__feature-icons"
                     tabIndex={featureIconsTabIndex}
@@ -145,14 +163,22 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
               <div className="form-extras__right">
                 {showSubmitButton && (
                   <SubmitButton
-                    onClick={(e: React.MouseEvent) => { e.preventDefault(); onSubmit?.(); }}
+                    onClick={(e: React.MouseEvent) => {
+                      e.preventDefault();
+                      onSubmit?.();
+                    }}
                     loading={loading}
                     success={success}
-                    text={isMultiStep ? (nextButtonText || 'Weiter') : ((submitButtonProps as Record<string, string>)?.defaultText || "Grünerieren")}
+                    text={
+                      isMultiStep
+                        ? nextButtonText || 'Weiter'
+                        : (submitButtonProps as Record<string, string>)?.defaultText ||
+                          'Grünerieren'
+                    }
                     icon={<FiSend />}
                     iconOnly={true}
                     className="form-extras__submit-button btn-icon btn-primary"
-                    ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
+                    ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
                     type="submit"
                     tabIndex={submitButtonTabIndex}
                     {...submitButtonProps}
@@ -164,9 +190,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
         ) : (
           <>
             {firstExtrasChildren && (
-              <div className="form-extras__item form-extras__first">
-                {firstExtrasChildren}
-              </div>
+              <div className="form-extras__item form-extras__first">{firstExtrasChildren}</div>
             )}
 
             {useFeatureIcons && (
@@ -178,7 +202,9 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                   onAnweisungenClick={handleAnweisungenClick}
                   onInteractiveModeClick={handleInteractiveMode}
                   anweisungenActive={anweisungenActive}
-                  interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
+                  interactiveModeActive={
+                    interactiveModeToggle ? interactiveModeToggle.isActive : false
+                  }
                   attachedFiles={finalAttachedFiles}
                   className="form-extras__feature-icons"
                   tabIndex={featureIconsTabIndex}
@@ -190,9 +216,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
             )}
 
             {formNotice && (
-              <div className="form-extras__item form-extras__notice">
-                {formNotice}
-              </div>
+              <div className="form-extras__item form-extras__notice">{formNotice}</div>
             )}
 
             {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
@@ -208,21 +232,24 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
               </div>
             )}
 
-            {children && (
-              <div className="form-extras__item form-extras__custom">
-                {children}
-              </div>
-            )}
+            {children && <div className="form-extras__item form-extras__custom">{children}</div>}
 
             {showSubmitButton && (
               <div className="form-extras__item form-extras__submit">
                 <SubmitButton
-                  onClick={(e: React.MouseEvent) => { e.preventDefault(); onSubmit?.(); }}
+                  onClick={(e: React.MouseEvent) => {
+                    e.preventDefault();
+                    onSubmit?.();
+                  }}
                   loading={loading}
                   success={success}
-                  text={isMultiStep ? (nextButtonText || 'Weiter') : ((submitButtonProps as Record<string, string>)?.defaultText || "Grünerieren")}
+                  text={
+                    isMultiStep
+                      ? nextButtonText || 'Weiter'
+                      : (submitButtonProps as Record<string, string>)?.defaultText || 'Grünerieren'
+                  }
                   className="form-extras__submit-button button-primary"
-                  ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
+                  ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
                   type="submit"
                   tabIndex={submitButtonTabIndex}
                   {...submitButtonProps}
@@ -231,7 +258,6 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
             )}
           </>
         )}
-
       </div>
     </div>
   );

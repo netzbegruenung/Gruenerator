@@ -52,12 +52,7 @@ export function PresetButtonRow<T>({
               disabled && styles.disabled,
             ]}
           >
-            <Text
-              style={[
-                styles.buttonText,
-                { color: isActive ? colors.white : theme.text },
-              ]}
-            >
+            <Text style={[styles.buttonText, { color: isActive ? colors.white : theme.text }]}>
               {option.label}
             </Text>
           </Pressable>

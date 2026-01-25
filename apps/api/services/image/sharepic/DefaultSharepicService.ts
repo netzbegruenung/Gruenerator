@@ -6,11 +6,7 @@
 
 import { generateSharepicForChat } from '../../chat/sharepicGenerationService.js';
 import type { Request } from 'express';
-import type {
-  SharepicRequestBody,
-  DefaultSharepicResult,
-  DefaultSharepic
-} from './types.js';
+import type { SharepicRequestBody, DefaultSharepicResult, DefaultSharepic } from './types.js';
 
 // Cast type for compatibility with sharepicGenerationService
 type ExpressRequest = Parameters<typeof generateSharepicForChat>[0];
@@ -36,9 +32,9 @@ export async function generateDefaultSharepics(
       generateSharepicForChat(req, 'zitat_pure', {
         ...requestBody,
         name: 'Die Grünen', // Default author for quote_pure
-        preserveName: true // Preserve the default name
+        preserveName: true, // Preserve the default name
       }),
-      generateSharepicForChat(req, 'info', requestBody)
+      generateSharepicForChat(req, 'info', requestBody),
     ]);
 
     console.log('[DefaultSharepicService] All 3 default sharepics generated successfully');
@@ -48,18 +44,18 @@ export async function generateDefaultSharepics(
       {
         ...dreizeilenResult.content.sharepic,
         id: `default-dreizeilen-${Date.now()}`,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       },
       {
         ...quotePureResult.content.sharepic,
         id: `default-quote-pure-${Date.now()}`,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       },
       {
         ...infoResult.content.sharepic,
         id: `default-info-${Date.now()}`,
-        createdAt: new Date().toISOString()
-      }
+        createdAt: new Date().toISOString(),
+      },
     ];
 
     return {
@@ -69,10 +65,9 @@ export async function generateDefaultSharepics(
         generationType: 'default',
         generatedCount: 3,
         types: ['dreizeilen', 'zitat_pure', 'info'],
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     };
-
   } catch (error: any) {
     console.error('[DefaultSharepicService] Error generating default sharepics:', error);
     throw new Error(`Failed to generate default sharepics: ${error.message}`);

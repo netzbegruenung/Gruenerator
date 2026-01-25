@@ -18,19 +18,6 @@
     "verbatimModuleSyntax": false,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "**/*.ts",
-    "**/*.mts",
-    "**/*.js",
-    "**/*.mjs",
-    "types/**/*.d.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "uploads",
-    "test",
-    "tests",
-    "scripts"
-  ]
+  "include": ["**/*.ts", "**/*.mts", "**/*.js", "**/*.mjs", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "uploads", "test", "tests", "scripts"]
 }

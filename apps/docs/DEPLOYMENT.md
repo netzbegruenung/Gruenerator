@@ -5,6 +5,7 @@
 ### 1. Prerequisites
 
 Ensure you have:
+
 - Coolify instance running
 - Access to the same PostgreSQL and Redis as the main Grünerator API
 - Domain `docs.gruenerator.de` pointing to your Coolify server
@@ -65,11 +66,13 @@ Ensure you have:
 ### 3. Verify Deployment
 
 Check the health endpoint:
+
 ```bash
 curl https://docs.gruenerator.de/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "healthy",
@@ -79,6 +82,7 @@ Expected response:
 ```
 
 Test WebSocket connection:
+
 ```bash
 # In browser console at https://docs.gruenerator.de
 const ws = new WebSocket('wss://docs.gruenerator.de:1240');
@@ -164,6 +168,7 @@ server {
 ```
 
 Enable and test:
+
 ```bash
 sudo ln -s /etc/nginx/sites-available/docs.gruenerator.de /etc/nginx/sites-enabled/
 sudo nginx -t
@@ -202,6 +207,7 @@ docs.gruenerator.de {
 ```
 
 Reload Caddy:
+
 ```bash
 sudo systemctl reload caddy
 ```
@@ -294,11 +300,13 @@ LOG_SYSLOG_ADDRESS=udp://your-log-server:514
 ## Scaling Considerations
 
 ### Single Instance (Current Setup)
+
 - Suitable for <100 concurrent users
 - Single WebSocket server handles all connections
 - PostgreSQL handles document persistence
 
 ### Multi-Instance (Future)
+
 For higher load, consider:
 
 1. **Load Balancer**: Distribute HTTP traffic
@@ -311,6 +319,7 @@ For higher load, consider:
 ### Database Backups
 
 Ensure your PostgreSQL backup includes:
+
 - `collaborative_documents` table
 - `yjs_document_updates` table
 - `yjs_document_snapshots` table
@@ -379,15 +388,17 @@ docker logs gruenerator-docs 2>&1 | grep Hocuspocus
 ### Authentication Fails
 
 1. Verify Redis connection:
+
    ```bash
    # From docs container
    redis-cli -h your-redis-host ping
    ```
 
 2. Check session cookie:
+
    ```javascript
    // In browser console
-   document.cookie
+   document.cookie;
    ```
 
 3. Verify PostgreSQL connection:
@@ -399,6 +410,7 @@ docker logs gruenerator-docs 2>&1 | grep Hocuspocus
 ## Support
 
 For issues:
+
 1. Check logs in Coolify
 2. Review [README.md](./README.md)
 3. Check [main Grünerator docs](../../docs/)

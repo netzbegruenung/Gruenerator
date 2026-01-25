@@ -2,13 +2,21 @@ import { Router, Request, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import multer from 'multer';
-import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
+import {
+  createCanvas,
+  loadImage,
+  type Canvas,
+  type SKRSContext2D as CanvasRenderingContext2D,
+} from '@napi-rs/canvas';
 import fs from 'fs/promises';
 import path from 'path';
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
 import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import {
+  optimizeCanvasBuffer,
+  bufferToBase64,
+} from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,7 +63,7 @@ async function processZitatPureText(textData: ZitatPureTextData): Promise<ZitatP
 
   return {
     quote: quote.trim(),
-    name: name.trim()
+    name: name.trim(),
   };
 }
 
@@ -112,7 +120,8 @@ async function createZitatPureImage(
     const canvas: Canvas = createCanvas(1080, 1350);
     const ctx: CanvasRenderingContext2D = canvas.getContext('2d');
 
-    const { backgroundColor, textColor, quoteMarkColor, quoteFontSize, nameFontSize } = validatedParams;
+    const { backgroundColor, textColor, quoteMarkColor, quoteFontSize, nameFontSize } =
+      validatedParams;
 
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, 1080, 1350);
@@ -126,10 +135,12 @@ async function createZitatPureImage(
     ctx.globalAlpha = 0.06;
     ctx.drawImage(sunflower, sunflowerX, sunflowerY, sunflowerSize, sunflowerSize);
     ctx.restore();
-    log.debug(`Sunflower watermark drawn at (${sunflowerX}, ${sunflowerY}) with size ${sunflowerSize}px and 6% opacity`);
+    log.debug(
+      `Sunflower watermark drawn at (${sunflowerX}, ${sunflowerY}) with size ${sunflowerSize}px and 6% opacity`
+    );
 
     ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
-    const testText = "Test";
+    const testText = 'Test';
     const beforeWidth = ctx.measureText(testText).width;
     ctx.font = `italic ${quoteFontSize}px serif`;
     const serifWidth = ctx.measureText(testText).width;
@@ -140,11 +151,11 @@ async function createZitatPureImage(
       grueneTypeWidth: beforeWidth,
       serifWidth: serifWidth,
       grueneTypeWidthAfter: afterWidth,
-      differentFromSerif: afterWidth !== serifWidth
+      differentFromSerif: afterWidth !== serifWidth,
     });
 
     const margin = 75;
-    const textWidth = 1080 - (margin * 2);
+    const textWidth = 1080 - margin * 2;
     const quoteMarkSize = 100;
     const quoteMarkX = margin;
     const gapBetweenQuoteMarkAndText = 20;
@@ -167,7 +178,12 @@ async function createZitatPureImage(
     const quoteLines = wrapText(ctx, processedText.quote, textWidth);
     const lineHeight = adjustedQuoteFontSize * 1.2;
     const quoteTextHeight = quoteLines.length * lineHeight;
-    const totalContentHeight = quoteMarkSize + gapBetweenQuoteMarkAndText + quoteTextHeight + gapBetweenQuoteAndName + adjustedNameFontSize;
+    const totalContentHeight =
+      quoteMarkSize +
+      gapBetweenQuoteMarkAndText +
+      quoteTextHeight +
+      gapBetweenQuoteAndName +
+      adjustedNameFontSize;
 
     const topBoundary = 120;
     const bottomBoundary = 1350 - 100;
@@ -187,7 +203,7 @@ async function createZitatPureImage(
 
     let finalQuoteY = quoteTextY;
     quoteLines.forEach((line, index) => {
-      const textY = quoteTextY + (index * lineHeight);
+      const textY = quoteTextY + index * lineHeight;
       ctx.fillText(line, margin, textY);
       log.debug(`Quote line ${index}: "${line}" at position (${margin}, ${textY})`);
       finalQuoteY = textY;
@@ -217,22 +233,15 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
   try {
     log.debug('Received request body:', req.body);
 
-    const {
-      quote,
-      name,
-      backgroundColor,
-      textColor,
-      quoteMarkColor,
-      quoteFontSize,
-      nameFontSize
-    } = req.body as ZitatPureRequestBody;
+    const { quote, name, backgroundColor, textColor, quoteMarkColor, quoteFontSize, nameFontSize } =
+      req.body as ZitatPureRequestBody;
 
     const modParams: ZitatPureParams = {
       backgroundColor: isValidHexColor(backgroundColor) ? backgroundColor! : COLORS.ZITAT_BG,
       textColor: isValidHexColor(textColor) ? textColor! : '#005437',
       quoteMarkColor: isValidHexColor(quoteMarkColor) ? quoteMarkColor! : '#005437',
       quoteFontSize: parseInt(quoteFontSize || '81', 10) || 81,
-      nameFontSize: parseInt(nameFontSize || '35', 10) || 35
+      nameFontSize: parseInt(nameFontSize || '35', 10) || 35,
     };
 
     log.debug('Parsed zitat pure params:', modParams);
@@ -243,7 +252,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
     const zitatPureValidatedParams: ZitatPureParams = {
       ...modParams,
       quoteFontSize: Math.max(50, Math.min(90, modParams.quoteFontSize)),
-      nameFontSize: Math.max(25, Math.min(50, modParams.nameFontSize))
+      nameFontSize: Math.max(25, Math.min(50, modParams.nameFontSize)),
     };
 
     log.debug('Validated zitat pure params:', zitatPureValidatedParams);
@@ -260,12 +269,11 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
 
     log.debug('Zitat Pure image generated successfully');
     res.json({ image: base64Image });
-
   } catch (err) {
     const error = err as Error;
     log.error('Error in zitat_pure_canvas request:', error);
     res.status(500).json({
-      error: 'Fehler beim Erstellen des Zitat-Pure-Bildes: ' + error.message
+      error: 'Fehler beim Erstellen des Zitat-Pure-Bildes: ' + error.message,
     });
   }
 });

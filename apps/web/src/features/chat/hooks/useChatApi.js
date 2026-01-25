@@ -1,16 +1,23 @@
 import { useCallback } from 'react';
-import apiClient, { processText } from '../../../components/utils/apiClient';
-import { useChatStore } from '../../../stores/chatStore';
-import { useAuthStore } from '../../../stores/authStore';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { applyChangesToContent, extractEditableText } from '../../../stores/hooks/useTextEditActions';
-import {
-  getEditSuccessMessage,
-  getErrorMessage,
-  getNoChangesMessage
-} from '../utils/chatMessages';
 
-const SHAREPIC_AGENT_SET = new Set(['dreizeilen', 'headline', 'info', 'zitat', 'quote', 'zitat_pure']);
+import apiClient, { processText } from '../../../components/utils/apiClient';
+import { useAuthStore } from '../../../stores/authStore';
+import { useChatStore } from '../../../stores/chatStore';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import {
+  applyChangesToContent,
+  extractEditableText,
+} from '../../../stores/hooks/useTextEditActions';
+import { getEditSuccessMessage, getErrorMessage, getNoChangesMessage } from '../utils/chatMessages';
+
+const SHAREPIC_AGENT_SET = new Set([
+  'dreizeilen',
+  'headline',
+  'info',
+  'zitat',
+  'quote',
+  'zitat_pure',
+]);
 
 const mergeRelatedResults = (results) => {
   if (!results || results.length < 2) {
@@ -35,8 +42,8 @@ const mergeRelatedResults = (results) => {
     total: results.length,
     textResults: textResults.length,
     sharepicResults: sharepicResults.length,
-    textAgents: textResults.map(r => r.agent),
-    sharepicAgents: sharepicResults.map(r => r.agent)
+    textAgents: textResults.map((r) => r.agent),
+    sharepicAgents: sharepicResults.map((r) => r.agent),
   });
 
   if (textResults.length === 1 && sharepicResults.length === 1) {
@@ -57,18 +64,18 @@ const mergeRelatedResults = (results) => {
         enableKiLabel: sharepicResult.content.enableKiLabel,
         onSharepicUpdate: sharepicResult.content.onSharepicUpdate,
         onEditSharepic: sharepicResult.content.onEditSharepic,
-        showEditButton: sharepicResult.content.showEditButton
+        showEditButton: sharepicResult.content.showEditButton,
       },
       mergedFrom: {
         text: textResult.agent,
-        sharepic: sharepicResult.agent
-      }
+        sharepic: sharepicResult.agent,
+      },
     };
 
     console.log('[useChatApi] Merged text and sharepic results:', {
       textAgent: textResult.agent,
       sharepicAgent: sharepicResult.agent,
-      mergedTitle: mergedResult.title
+      mergedTitle: mergedResult.title,
     });
 
     return [mergedResult];
@@ -116,7 +123,7 @@ export const useChatApi = () => {
     getApiContext,
     currentAgent,
     updateContext,
-    getLastGeneratedText
+    getLastGeneratedText,
   } = useChatStore();
 
   const { user } = useAuthStore();
@@ -147,15 +154,20 @@ export const useChatApi = () => {
           try {
             const parsed = JSON.parse(content.text);
             if (Array.isArray(parsed)) {
-              quotes = parsed.map(item => (typeof item === 'string' ? item : item?.quote).trim()).filter(Boolean);
-              formattedText = quotes.map(q => `"${q}"`).join('\n\n');
+              quotes = parsed
+                .map((item) => (typeof item === 'string' ? item : item?.quote).trim())
+                .filter(Boolean);
+              formattedText = quotes.map((q) => `"${q}"`).join('\n\n');
             }
           } catch (error) {
             console.warn('[useChatApi] Failed to parse quote array:', error);
           }
         }
 
-        const primaryQuote = quotes?.[0] || (typeof content.quote === 'string' ? content.quote : null) || formattedText;
+        const primaryQuote =
+          quotes?.[0] ||
+          (typeof content.quote === 'string' ? content.quote : null) ||
+          formattedText;
 
         return {
           ...normalized,
@@ -166,9 +178,9 @@ export const useChatApi = () => {
             sharepicSource: {
               quote: typeof primaryQuote === 'string' ? primaryQuote : primaryQuote?.quote || '',
               alternatives: quotes?.slice(1) || [],
-              name: content.name || content.metadata?.name || null
-            }
-          }
+              name: content.name || content.metadata?.name || null,
+            },
+          },
         };
       }
 
@@ -183,15 +195,15 @@ export const useChatApi = () => {
               structured: {
                 header: content.header,
                 subheader: content.subheader,
-                body: content.body
+                body: content.body,
               },
               sharepicSource: {
                 header: content.header,
                 subheader: content.subheader,
                 body: content.body,
-                alternatives: content.alternatives || []
-              }
-            }
+                alternatives: content.alternatives || [],
+              },
+            },
           };
         }
         break;
@@ -219,12 +231,12 @@ export const useChatApi = () => {
                   ? {
                       line1: mainSlogan[0] || '',
                       line2: mainSlogan[1] || '',
-                      line3: mainSlogan[2] || ''
+                      line3: mainSlogan[2] || '',
                     }
                   : mainSlogan,
-                alternatives: content.alternatives || []
-              }
-            }
+                alternatives: content.alternatives || [],
+              },
+            },
           };
         }
         break;
@@ -238,13 +250,13 @@ export const useChatApi = () => {
             text: content.text,
             metadata: {
               ...content.metadata,
-              isInformationRequest: true
-            }
+              isInformationRequest: true,
+            },
           },
           actions: [
             { label: 'Ja', value: 'ja', style: 'primary' },
-            { label: 'Nein', value: 'nein', style: 'secondary' }
-          ]
+            { label: 'Nein', value: 'nein', style: 'secondary' },
+          ],
         };
 
       case 'websearch_offer':
@@ -256,13 +268,13 @@ export const useChatApi = () => {
             text: content.text,
             metadata: {
               ...content.metadata,
-              isWebSearchOffer: true
-            }
+              isWebSearchOffer: true,
+            },
           },
           actions: [
             { label: 'Ja', value: 'ja', style: 'primary' },
-            { label: 'Nein', value: 'nein', style: 'secondary' }
-          ]
+            { label: 'Nein', value: 'nein', style: 'secondary' },
+          ],
         };
 
       default:
@@ -278,412 +290,455 @@ export const useChatApi = () => {
    * @param {string} message - The user's message
    * @param {Object} options - Additional options for the API call
    */
-  const sendMessage = useCallback(async (message, options = {}) => {
-    if (!message?.trim()) {
-      setError(getErrorMessage('empty_message'));
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    // Add user message immediately with attachment metadata
-    const safeOptions = options || {};
-    const attachmentMeta = safeOptions.attachments?.length > 0
-      ? safeOptions.attachments.map(f => ({
-          name: f.name,
-          type: f.type,
-          size: f.size,
-          displayType: f.displayType || f.type
-        }))
-      : null;
-
-    const userMessage = {
-      type: 'user',
-      content: message.trim(),
-      timestamp: Date.now(),
-      userName: user?.user_metadata?.firstName || user?.email || 'Sie',
-      attachments: attachmentMeta
-    };
-
-    addMessage(userMessage);
-
-    try {
-      // Prepare API request with context
-      const context = getApiContext();
-      const requestData = {
-        message: message.trim(),
-        context,
-        usePrivacyMode: safeOptions.usePrivacyMode || false,
-        provider: safeOptions.provider || null,
-        attachments: safeOptions.attachments || [],
-        ...safeOptions
-      };
-
-      console.log('[useChatApi] Sending request:', {
-        messageLength: message.length,
-        hasContext: Object.keys(context).length > 0,
-        currentAgent,
-        provider: requestData.provider
-      });
-
-      // Call the chat API
-      const rawResponse = await processText('chat', requestData);
-
-      if (rawResponse?.multiResponse) {
-        const intentResults = Array.isArray(rawResponse.results) ? rawResponse.results : [];
-
-        console.log('[useChatApi] Received multi-response payload:', {
-          totalResults: intentResults.length,
-          successful: intentResults.filter(result => result?.success || result?.content?.success).length
-        });
-
-        const successfulResponses = [];
-
-        for (let index = 0; index < intentResults.length; index++) {
-          const intentResult = intentResults[index];
-          if (!intentResult) continue;
-
-          const baseContent = intentResult.content && typeof intentResult.content === 'object'
-            ? { ...intentResult.content }
-            : null;
-
-          const responsePayload = baseContent
-            ? {
-                ...baseContent,
-                success: baseContent.success ?? intentResult.success,
-                agent: baseContent.agent || intentResult.agent,
-                metadata: baseContent.metadata ?? intentResult.metadata
-              }
-            : {
-                success: intentResult.success,
-                agent: intentResult.agent,
-                content: intentResult.content,
-                metadata: intentResult.metadata
-              };
-
-          if (!responsePayload.content && baseContent) {
-            responsePayload.content = baseContent.content ?? baseContent;
-          }
-
-          if (!responsePayload.success) {
-            console.warn('[useChatApi] Skipping intent without success flag:', intentResult.agent);
-            continue;
-          }
-
-          if (!responsePayload.agent) {
-            console.warn('[useChatApi] Skipping intent without agent identifier');
-            continue;
-          }
-
-          const normalizedIntentResponse = normalizeChatResponse(responsePayload);
-          const parsedIntentResponse = parseResponse(normalizedIntentResponse);
-
-          if (intentResult.confidence !== undefined) {
-            parsedIntentResponse.confidence = intentResult.confidence;
-          }
-
-          if (!parsedIntentResponse.id) {
-            const fallbackAgent = intentResult.agent || parsedIntentResponse.agent || 'intent';
-            parsedIntentResponse.id = intentResult.processingIndex != null
-              ? `intent_${intentResult.processingIndex}`
-              : `intent_${fallbackAgent}_${index}`;
-          }
-
-          if (!parsedIntentResponse.title) {
-            parsedIntentResponse.title = parsedIntentResponse.content?.metadata?.title
-              || parsedIntentResponse.content?.title
-              || parsedIntentResponse.agent;
-          }
-
-          const hasTextContent = typeof parsedIntentResponse?.content?.text === 'string'
-            && parsedIntentResponse.content.text.trim().length > 0;
-          const hasSharepicContent = !!parsedIntentResponse?.content?.sharepic;
-
-          if (!parsedIntentResponse?.success || (!hasTextContent && !hasSharepicContent)) {
-            console.warn('[useChatApi] Skipping intent without usable content:', responsePayload.agent);
-            continue;
-          }
-
-          // Handle information requests and websearch offers as direct chat messages in multi-agent flow
-          if (parsedIntentResponse.agent === 'information_request' || parsedIntentResponse.agent === 'websearch_offer') {
-            addMessage({
-              type: 'assistant',
-              content: parsedIntentResponse.content.text,
-              timestamp: Date.now(),
-              agent: parsedIntentResponse.agent,
-              actions: parsedIntentResponse.actions
-            });
-            continue; // Don't add to results, just show in chat
-          }
-
-          // Collect successful parsed intent responses; defer store updates to dedicated handler
-          successfulResponses.push(parsedIntentResponse);
-        }
-
-        if (successfulResponses.length === 0) {
-          // If we only had information requests, that's okay - they were already added to chat
-          return [];
-        }
-
-        const mergedResponses = mergeRelatedResults(successfulResponses);
-        handleMultiAgentResponses(mergedResponses);
-
-        // Add individual messages with resultData for inline rendering
-        const currentStore = useChatStore.getState();
-        const updatedResults = currentStore.multiResults || [];
-
-        for (const result of updatedResults) {
-          const resultText = result.content?.text || '';
-          addMessage({
-            type: 'assistant',
-            content: resultText,
-            timestamp: Date.now(),
-            agent: result.agent,
-            resultData: {
-              text: resultText,
-              sharepic: result.content?.sharepic || null,
-              componentId: result.componentId,
-              metadata: result.content?.metadata || result.metadata || {},
-              title: result.title
-            }
-          });
-        }
-
-        return mergedResponses;
-      }
-
-      const normalizedResponse = normalizeChatResponse(rawResponse);
-      const parsedResponse = parseResponse(normalizedResponse);
-
-      console.log('[useChatApi] Received response:', {
-        success: parsedResponse?.success,
-        agent: parsedResponse?.agent,
-        hasContent: !!parsedResponse?.content,
-        contentLength: parsedResponse?.content?.text?.length || 0,
-        hasSuggestions: !!parsedResponse?.suggestions
-      });
-
-      // Validate response structure
-      if (!parsedResponse || !parsedResponse.success) {
-        throw new Error(parsedResponse?.error || getErrorMessage('unexpected_response'));
-      }
-
-      if (!parsedResponse.agent) {
-        throw new Error(getErrorMessage('no_agent'));
-      }
-
-      if (!parsedResponse.content?.text && !parsedResponse.content?.sharepic && parsedResponse.agent !== 'information_request' && parsedResponse.agent !== 'websearch_offer' && parsedResponse.agent !== 'simple_response') {
-        throw new Error(getErrorMessage('no_content'));
-      }
-
-      // Handle information requests, websearch offers, and simple responses as direct chat messages
-      if (parsedResponse.agent === 'information_request' || parsedResponse.agent === 'websearch_offer' || parsedResponse.agent === 'simple_response') {
-        addMessage({
-          type: 'assistant',
-          content: parsedResponse.content.text,
-          timestamp: Date.now(),
-          agent: parsedResponse.agent,
-          actions: parsedResponse.actions
-        });
-        return parsedResponse;
-      }
-
-      // Always get existing results and append new response
-      const currentStore = useChatStore.getState();
-      const existingResults = currentStore.multiResults || [];
-
-      // Convert single response to multi-result format
-      const newResult = {
-        ...parsedResponse,
-        id: parsedResponse.id || `single_${Date.now()}`,
-        title: parsedResponse.content?.metadata?.title || parsedResponse.agent,
-        componentId: `result_${existingResults.length}_${Date.now()}`
-      };
-
-      // Add to existing results
-      const allResults = [...existingResults, newResult];
-      handleMultiAgentResponses(allResults);
-
-      const resultText = parsedResponse.content?.text || '';
-      addMessage({
-        type: 'assistant',
-        content: resultText,
-        timestamp: Date.now(),
-        agent: parsedResponse.agent,
-        resultData: {
-          text: resultText,
-          sharepic: parsedResponse.content?.sharepic || null,
-          componentId: newResult.componentId,
-          metadata: parsedResponse.content?.metadata || parsedResponse.metadata || {},
-          title: newResult.title
-        }
-      });
-
-      return parsedResponse;
-
-    } catch (error) {
-      console.error('[useChatApi] Error sending message:', error);
-
-      // Add error message to chat
-      const errorMessage = {
-        type: 'error',
-        content: getErrorMessage('general_error', error.message || 'Unbekannter Fehler beim Senden der Nachricht'),
-        timestamp: Date.now()
-      };
-
-      addMessage(errorMessage);
-      setError(error.message || getErrorMessage('general_error'));
-
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    addMessage,
-    setLoading,
-    setError,
-    parseResponse,
-    handleAgentResponse,
-    handleMultiAgentResponses,
-    clearMultiResults,
-    getApiContext,
-    currentAgent,
-    user
-  ]);
-
-  const sendEditInstruction = useCallback(async (instruction) => {
-    const trimmedInstruction = (instruction || '').trim();
-    if (!trimmedInstruction) {
-      setError(getErrorMessage('empty_instruction'));
-      return;
-    }
-
-    const textStore = useGeneratedTextStore.getState();
-    let currentContent = textStore.generatedTexts?.grueneratorChat;
-
-    if (!currentContent) {
-      const fallback = getLastGeneratedText();
-      if (fallback) {
-        textStore.setGeneratedText('grueneratorChat', fallback, currentAgent ? { agent: currentAgent } : undefined);
-        currentContent = fallback;
-      }
-    }
-
-    const editableText = extractEditableText(currentContent) || (typeof currentContent === 'string' ? currentContent : '');
-
-    if (!editableText) {
-      const fallbackMessage = getErrorMessage('no_text_to_edit');
-      const timestamp = Date.now();
-      addMessage({ type: 'error', content: fallbackMessage, timestamp });
-      setError(fallbackMessage);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    const userMessage = {
-      type: 'user',
-      content: trimmedInstruction,
-      timestamp: Date.now(),
-      userName: user?.user_metadata?.firstName || user?.email || 'Sie'
-    };
-
-    addMessage(userMessage);
-
-    try {
-      const response = await apiClient.post('/claude_suggest_edits', {
-        instruction: trimmedInstruction,
-        currentText: editableText
-      });
-
-      const changes = Array.isArray(response?.data?.changes) ? response.data.changes : [];
-      const summaryFromApi = response?.data?.summary;
-
-      if (changes.length === 0) {
-        addMessage({
-          type: 'assistant',
-          content: summaryFromApi || getNoChangesMessage(),
-          timestamp: Date.now(),
-          agent: 'edit'
-        });
+  const sendMessage = useCallback(
+    async (message, options = {}) => {
+      if (!message?.trim()) {
+        setError(getErrorMessage('empty_message'));
         return;
       }
 
-      const metadata = textStore.generatedTextMetadata?.grueneratorChat || {};
+      setLoading(true);
+      setError(null);
 
-      if (typeof textStore.pushToHistory === 'function') {
-        textStore.pushToHistory('grueneratorChat');
+      // Add user message immediately with attachment metadata
+      const safeOptions = options || {};
+      const attachmentMeta =
+        safeOptions.attachments?.length > 0
+          ? safeOptions.attachments.map((f) => ({
+              name: f.name,
+              type: f.type,
+              size: f.size,
+              displayType: f.displayType || f.type,
+            }))
+          : null;
+
+      const userMessage = {
+        type: 'user',
+        content: message.trim(),
+        timestamp: Date.now(),
+        userName: user?.user_metadata?.firstName || user?.email || 'Sie',
+        attachments: attachmentMeta,
+      };
+
+      addMessage(userMessage);
+
+      try {
+        // Prepare API request with context
+        const context = getApiContext();
+        const requestData = {
+          message: message.trim(),
+          context,
+          usePrivacyMode: safeOptions.usePrivacyMode || false,
+          provider: safeOptions.provider || null,
+          attachments: safeOptions.attachments || [],
+          ...safeOptions,
+        };
+
+        console.log('[useChatApi] Sending request:', {
+          messageLength: message.length,
+          hasContext: Object.keys(context).length > 0,
+          currentAgent,
+          provider: requestData.provider,
+        });
+
+        // Call the chat API
+        const rawResponse = await processText('chat', requestData);
+
+        if (rawResponse?.multiResponse) {
+          const intentResults = Array.isArray(rawResponse.results) ? rawResponse.results : [];
+
+          console.log('[useChatApi] Received multi-response payload:', {
+            totalResults: intentResults.length,
+            successful: intentResults.filter(
+              (result) => result?.success || result?.content?.success
+            ).length,
+          });
+
+          const successfulResponses = [];
+
+          for (let index = 0; index < intentResults.length; index++) {
+            const intentResult = intentResults[index];
+            if (!intentResult) continue;
+
+            const baseContent =
+              intentResult.content && typeof intentResult.content === 'object'
+                ? { ...intentResult.content }
+                : null;
+
+            const responsePayload = baseContent
+              ? {
+                  ...baseContent,
+                  success: baseContent.success ?? intentResult.success,
+                  agent: baseContent.agent || intentResult.agent,
+                  metadata: baseContent.metadata ?? intentResult.metadata,
+                }
+              : {
+                  success: intentResult.success,
+                  agent: intentResult.agent,
+                  content: intentResult.content,
+                  metadata: intentResult.metadata,
+                };
+
+            if (!responsePayload.content && baseContent) {
+              responsePayload.content = baseContent.content ?? baseContent;
+            }
+
+            if (!responsePayload.success) {
+              console.warn(
+                '[useChatApi] Skipping intent without success flag:',
+                intentResult.agent
+              );
+              continue;
+            }
+
+            if (!responsePayload.agent) {
+              console.warn('[useChatApi] Skipping intent without agent identifier');
+              continue;
+            }
+
+            const normalizedIntentResponse = normalizeChatResponse(responsePayload);
+            const parsedIntentResponse = parseResponse(normalizedIntentResponse);
+
+            if (intentResult.confidence !== undefined) {
+              parsedIntentResponse.confidence = intentResult.confidence;
+            }
+
+            if (!parsedIntentResponse.id) {
+              const fallbackAgent = intentResult.agent || parsedIntentResponse.agent || 'intent';
+              parsedIntentResponse.id =
+                intentResult.processingIndex != null
+                  ? `intent_${intentResult.processingIndex}`
+                  : `intent_${fallbackAgent}_${index}`;
+            }
+
+            if (!parsedIntentResponse.title) {
+              parsedIntentResponse.title =
+                parsedIntentResponse.content?.metadata?.title ||
+                parsedIntentResponse.content?.title ||
+                parsedIntentResponse.agent;
+            }
+
+            const hasTextContent =
+              typeof parsedIntentResponse?.content?.text === 'string' &&
+              parsedIntentResponse.content.text.trim().length > 0;
+            const hasSharepicContent = !!parsedIntentResponse?.content?.sharepic;
+
+            if (!parsedIntentResponse?.success || (!hasTextContent && !hasSharepicContent)) {
+              console.warn(
+                '[useChatApi] Skipping intent without usable content:',
+                responsePayload.agent
+              );
+              continue;
+            }
+
+            // Handle information requests and websearch offers as direct chat messages in multi-agent flow
+            if (
+              parsedIntentResponse.agent === 'information_request' ||
+              parsedIntentResponse.agent === 'websearch_offer'
+            ) {
+              addMessage({
+                type: 'assistant',
+                content: parsedIntentResponse.content.text,
+                timestamp: Date.now(),
+                agent: parsedIntentResponse.agent,
+                actions: parsedIntentResponse.actions,
+              });
+              continue; // Don't add to results, just show in chat
+            }
+
+            // Collect successful parsed intent responses; defer store updates to dedicated handler
+            successfulResponses.push(parsedIntentResponse);
+          }
+
+          if (successfulResponses.length === 0) {
+            // If we only had information requests, that's okay - they were already added to chat
+            return [];
+          }
+
+          const mergedResponses = mergeRelatedResults(successfulResponses);
+          handleMultiAgentResponses(mergedResponses);
+
+          // Add individual messages with resultData for inline rendering
+          const currentStore = useChatStore.getState();
+          const updatedResults = currentStore.multiResults || [];
+
+          for (const result of updatedResults) {
+            const resultText = result.content?.text || '';
+            addMessage({
+              type: 'assistant',
+              content: resultText,
+              timestamp: Date.now(),
+              agent: result.agent,
+              resultData: {
+                text: resultText,
+                sharepic: result.content?.sharepic || null,
+                componentId: result.componentId,
+                metadata: result.content?.metadata || result.metadata || {},
+                title: result.title,
+              },
+            });
+          }
+
+          return mergedResponses;
+        }
+
+        const normalizedResponse = normalizeChatResponse(rawResponse);
+        const parsedResponse = parseResponse(normalizedResponse);
+
+        console.log('[useChatApi] Received response:', {
+          success: parsedResponse?.success,
+          agent: parsedResponse?.agent,
+          hasContent: !!parsedResponse?.content,
+          contentLength: parsedResponse?.content?.text?.length || 0,
+          hasSuggestions: !!parsedResponse?.suggestions,
+        });
+
+        // Validate response structure
+        if (!parsedResponse || !parsedResponse.success) {
+          throw new Error(parsedResponse?.error || getErrorMessage('unexpected_response'));
+        }
+
+        if (!parsedResponse.agent) {
+          throw new Error(getErrorMessage('no_agent'));
+        }
+
+        if (
+          !parsedResponse.content?.text &&
+          !parsedResponse.content?.sharepic &&
+          parsedResponse.agent !== 'information_request' &&
+          parsedResponse.agent !== 'websearch_offer' &&
+          parsedResponse.agent !== 'simple_response'
+        ) {
+          throw new Error(getErrorMessage('no_content'));
+        }
+
+        // Handle information requests, websearch offers, and simple responses as direct chat messages
+        if (
+          parsedResponse.agent === 'information_request' ||
+          parsedResponse.agent === 'websearch_offer' ||
+          parsedResponse.agent === 'simple_response'
+        ) {
+          addMessage({
+            type: 'assistant',
+            content: parsedResponse.content.text,
+            timestamp: Date.now(),
+            agent: parsedResponse.agent,
+            actions: parsedResponse.actions,
+          });
+          return parsedResponse;
+        }
+
+        // Always get existing results and append new response
+        const currentStore = useChatStore.getState();
+        const existingResults = currentStore.multiResults || [];
+
+        // Convert single response to multi-result format
+        const newResult = {
+          ...parsedResponse,
+          id: parsedResponse.id || `single_${Date.now()}`,
+          title: parsedResponse.content?.metadata?.title || parsedResponse.agent,
+          componentId: `result_${existingResults.length}_${Date.now()}`,
+        };
+
+        // Add to existing results
+        const allResults = [...existingResults, newResult];
+        handleMultiAgentResponses(allResults);
+
+        const resultText = parsedResponse.content?.text || '';
+        addMessage({
+          type: 'assistant',
+          content: resultText,
+          timestamp: Date.now(),
+          agent: parsedResponse.agent,
+          resultData: {
+            text: resultText,
+            sharepic: parsedResponse.content?.sharepic || null,
+            componentId: newResult.componentId,
+            metadata: parsedResponse.content?.metadata || parsedResponse.metadata || {},
+            title: newResult.title,
+          },
+        });
+
+        return parsedResponse;
+      } catch (error) {
+        console.error('[useChatApi] Error sending message:', error);
+
+        // Add error message to chat
+        const errorMessage = {
+          type: 'error',
+          content: getErrorMessage(
+            'general_error',
+            error.message || 'Unbekannter Fehler beim Senden der Nachricht'
+          ),
+          timestamp: Date.now(),
+        };
+
+        addMessage(errorMessage);
+        setError(error.message || getErrorMessage('general_error'));
+
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      addMessage,
+      setLoading,
+      setError,
+      parseResponse,
+      handleAgentResponse,
+      handleMultiAgentResponses,
+      clearMultiResults,
+      getApiContext,
+      currentAgent,
+      user,
+    ]
+  );
+
+  const sendEditInstruction = useCallback(
+    async (instruction) => {
+      const trimmedInstruction = (instruction || '').trim();
+      if (!trimmedInstruction) {
+        setError(getErrorMessage('empty_instruction'));
+        return;
       }
 
-      const updatedContentRaw = applyChangesToContent(currentContent, changes) ?? currentContent;
-      const updatedTextString = extractEditableText(updatedContentRaw) || (typeof updatedContentRaw === 'string' ? updatedContentRaw : editableText);
+      const textStore = useGeneratedTextStore.getState();
+      let currentContent = textStore.generatedTexts?.grueneratorChat;
 
-      if (typeof textStore.setTextWithHistory === 'function') {
-        textStore.setTextWithHistory('grueneratorChat', updatedTextString, metadata);
-      } else {
+      if (!currentContent) {
+        const fallback = getLastGeneratedText();
+        if (fallback) {
+          textStore.setGeneratedText(
+            'grueneratorChat',
+            fallback,
+            currentAgent ? { agent: currentAgent } : undefined
+          );
+          currentContent = fallback;
+        }
+      }
+
+      const editableText =
+        extractEditableText(currentContent) ||
+        (typeof currentContent === 'string' ? currentContent : '');
+
+      if (!editableText) {
+        const fallbackMessage = getErrorMessage('no_text_to_edit');
+        const timestamp = Date.now();
+        addMessage({ type: 'error', content: fallbackMessage, timestamp });
+        setError(fallbackMessage);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      const userMessage = {
+        type: 'user',
+        content: trimmedInstruction,
+        timestamp: Date.now(),
+        userName: user?.user_metadata?.firstName || user?.email || 'Sie',
+      };
+
+      addMessage(userMessage);
+
+      try {
+        const response = await apiClient.post('/claude_suggest_edits', {
+          instruction: trimmedInstruction,
+          currentText: editableText,
+        });
+
+        const changes = Array.isArray(response?.data?.changes) ? response.data.changes : [];
+        const summaryFromApi = response?.data?.summary;
+
+        if (changes.length === 0) {
+          addMessage({
+            type: 'assistant',
+            content: summaryFromApi || getNoChangesMessage(),
+            timestamp: Date.now(),
+            agent: 'edit',
+          });
+          return;
+        }
+
+        const metadata = textStore.generatedTextMetadata?.grueneratorChat || {};
+
         if (typeof textStore.pushToHistory === 'function') {
           textStore.pushToHistory('grueneratorChat');
         }
-        textStore.setGeneratedText('grueneratorChat', updatedTextString, metadata);
-      }
 
-      updateContext({ lastGeneratedText: updatedTextString });
+        const updatedContentRaw = applyChangesToContent(currentContent, changes) ?? currentContent;
+        const updatedTextString =
+          extractEditableText(updatedContentRaw) ||
+          (typeof updatedContentRaw === 'string' ? updatedContentRaw : editableText);
 
-      const chatState = useChatStore.getState();
-      if (chatState.activeResultId) {
-        const targetResult = typeof chatState.getResultById === 'function'
-          ? chatState.getResultById(chatState.activeResultId)
-          : chatState.multiResults?.find(result => result.componentId === chatState.activeResultId);
+        if (typeof textStore.setTextWithHistory === 'function') {
+          textStore.setTextWithHistory('grueneratorChat', updatedTextString, metadata);
+        } else {
+          if (typeof textStore.pushToHistory === 'function') {
+            textStore.pushToHistory('grueneratorChat');
+          }
+          textStore.setGeneratedText('grueneratorChat', updatedTextString, metadata);
+        }
 
-        if (targetResult && typeof chatState.updateMultiResultContent === 'function') {
-          if (targetResult.content && typeof targetResult.content === 'object' && targetResult.content.sharepic) {
-            const baseContent = targetResult.content;
-            const nextContent = {
-              ...baseContent,
-              text: updatedTextString,
-              content: updatedTextString,
-              social: baseContent.social && typeof baseContent.social === 'object'
-                ? { ...baseContent.social, content: updatedTextString }
-                : baseContent.social
-            };
-            chatState.updateMultiResultContent(chatState.activeResultId, nextContent);
-          } else {
-            chatState.updateMultiResultContent(chatState.activeResultId, updatedTextString);
+        updateContext({ lastGeneratedText: updatedTextString });
+
+        const chatState = useChatStore.getState();
+        if (chatState.activeResultId) {
+          const targetResult =
+            typeof chatState.getResultById === 'function'
+              ? chatState.getResultById(chatState.activeResultId)
+              : chatState.multiResults?.find(
+                  (result) => result.componentId === chatState.activeResultId
+                );
+
+          if (targetResult && typeof chatState.updateMultiResultContent === 'function') {
+            if (
+              targetResult.content &&
+              typeof targetResult.content === 'object' &&
+              targetResult.content.sharepic
+            ) {
+              const baseContent = targetResult.content;
+              const nextContent = {
+                ...baseContent,
+                text: updatedTextString,
+                content: updatedTextString,
+                social:
+                  baseContent.social && typeof baseContent.social === 'object'
+                    ? { ...baseContent.social, content: updatedTextString }
+                    : baseContent.social,
+              };
+              chatState.updateMultiResultContent(chatState.activeResultId, nextContent);
+            } else {
+              chatState.updateMultiResultContent(chatState.activeResultId, updatedTextString);
+            }
           }
         }
-      }
 
-      const successSummary = summaryFromApi || getEditSuccessMessage(changes.length);
-      addMessage({
-        type: 'assistant',
-        content: successSummary,
-        timestamp: Date.now(),
-        agent: 'edit'
-      });
-    } catch (error) {
-      console.error('[useChatApi] Error applying edit instruction:', error);
-      const errorMessage = error?.response?.data?.error || error.message || 'Fehler bei der Bearbeitung';
-      addMessage({
-        type: 'error',
-        content: getErrorMessage('general_error', errorMessage),
-        timestamp: Date.now()
-      });
-      setError(errorMessage);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    addMessage,
-    setLoading,
-    setError,
-    updateContext,
-    getLastGeneratedText,
-    user,
-    currentAgent
-  ]);
+        const successSummary = summaryFromApi || getEditSuccessMessage(changes.length);
+        addMessage({
+          type: 'assistant',
+          content: successSummary,
+          timestamp: Date.now(),
+          agent: 'edit',
+        });
+      } catch (error) {
+        console.error('[useChatApi] Error applying edit instruction:', error);
+        const errorMessage =
+          error?.response?.data?.error || error.message || 'Fehler bei der Bearbeitung';
+        addMessage({
+          type: 'error',
+          content: getErrorMessage('general_error', errorMessage),
+          timestamp: Date.now(),
+        });
+        setError(errorMessage);
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [addMessage, setLoading, setError, updateContext, getLastGeneratedText, user, currentAgent]
+  );
 
   /**
    * Check if the last response is ready for sharepic generation
@@ -709,7 +764,7 @@ export const useChatApi = () => {
       return [
         { text: 'Social Media Post erstellen', action: 'social_media' },
         { text: 'Pressemitteilung schreiben', action: 'pressemitteilung' },
-        { text: 'Antrag verfassen', action: 'antrag' }
+        { text: 'Antrag verfassen', action: 'antrag' },
       ];
     }
 
@@ -741,15 +796,11 @@ export const useChatApi = () => {
         break;
 
       default:
-        suggestions.push(
-          { text: 'Anderes Format erstellen', action: 'universal' }
-        );
+        suggestions.push({ text: 'Anderes Format erstellen', action: 'universal' });
     }
 
     // Always add some general suggestions
-    suggestions.push(
-      { text: 'Neues Thema beginnen', action: 'clear' }
-    );
+    suggestions.push({ text: 'Neues Thema beginnen', action: 'clear' });
 
     return suggestions.slice(0, 4); // Limit to 4 suggestions
   }, []);
@@ -759,7 +810,7 @@ export const useChatApi = () => {
     parseResponse,
     isSharepicReady,
     getFollowUpSuggestions,
-    sendEditInstruction
+    sendEditInstruction,
   };
 };
 

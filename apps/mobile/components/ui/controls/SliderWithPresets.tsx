@@ -68,9 +68,7 @@ export function SliderWithPresets({
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
 
       <View style={styles.controlRow}>
         <PresetButtonRow
@@ -82,9 +80,7 @@ export function SliderWithPresets({
         />
 
         <View style={[styles.valueDisplay, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.valueText, { color: theme.text }]}>
-            {valueFormatter(value)}
-          </Text>
+          <Text style={[styles.valueText, { color: theme.text }]}>{valueFormatter(value)}</Text>
         </View>
       </View>
 

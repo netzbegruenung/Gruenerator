@@ -11,7 +11,7 @@ export {
   AGENT_MAPPINGS,
   findKeywordMatch,
   classifyFromContext,
-  isQuestionMessage
+  isQuestionMessage,
 } from './IntentClassifier.js';
 
 // Information Request Handler
@@ -27,7 +27,7 @@ export {
   generateFollowUpQuestions,
   extractStructuredAnswers,
   isWebSearchConfirmation,
-  getWebSearchQuestion
+  getWebSearchQuestion,
 } from './InformationRequestHandler.js';
 
 // Information Request Handler Types
@@ -41,7 +41,7 @@ export type {
   ClassifiedIntent,
   StructuredAnswers,
   QuestionConfig,
-  HandlerResult
+  HandlerResult,
 } from './InformationRequestHandler.js';
 
 // Parameter Extraction
@@ -61,7 +61,7 @@ export {
   extractImagineSubject,
   extractImagineVariant,
   extractImagineTitle,
-  extractEditAction
+  extractEditAction,
 } from './ParameterExtractor/index.js';
 
 // Parameter Extraction Types
@@ -80,7 +80,7 @@ export type {
   AuthorExtractionResult,
   VariantResult,
   LinesExtractionResult,
-  ConfidenceAnalysis
+  ConfidenceAnalysis,
 } from './ParameterExtractor/index.js';
 
 // Core Type exports
@@ -95,5 +95,5 @@ export type {
   AIWorkerResponse,
   AIClassificationResponse,
   KeywordMatch,
-  ContextClassification
+  ContextClassification,
 } from './types.js';

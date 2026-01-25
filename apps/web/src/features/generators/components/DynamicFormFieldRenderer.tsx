@@ -10,11 +10,12 @@
  */
 
 import React, { useCallback, useMemo, memo } from 'react';
-import { Control, Controller } from 'react-hook-form';
+import { type Control, Controller } from 'react-hook-form';
+
+import EnhancedSelect from '../../../components/common/EnhancedSelect';
 import FormInput from '../../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../../components/common/Form/Input/FormTextarea';
-import EnhancedSelect from '../../../components/common/EnhancedSelect';
-import { GeneratorFormField } from '../types/generatorTypes';
+import { type GeneratorFormField } from '../types/generatorTypes';
 
 // Static constant moved outside component
 const MENU_PORTAL_TARGET = typeof document !== 'undefined' ? document.body : null;
@@ -29,98 +30,101 @@ interface DynamicFormFieldRendererProps {
 /**
  * Renders dynamic form fields based on field configuration
  */
-const DynamicFormFieldRenderer: React.FC<DynamicFormFieldRendererProps> = memo(({
-  fields,
-  control,
-  onUrlsDetected,
-  enableUrlDetection = false
-}) => {
-  const renderField = useCallback((field: GeneratorFormField) => {
-    const requiredRule = field.required
-      ? { required: `${field.label} ist ein Pflichtfeld` }
-      : {};
+const DynamicFormFieldRenderer: React.FC<DynamicFormFieldRendererProps> = memo(
+  ({ fields, control, onUrlsDetected, enableUrlDetection = false }) => {
+    const renderField = useCallback(
+      (field: GeneratorFormField) => {
+        const requiredRule = field.required
+          ? { required: `${field.label} ist ein Pflichtfeld` }
+          : {};
 
-    if (field.type === 'textarea') {
-      return (
-        <FormTextarea
-          key={field.name}
-          name={field.name}
-          label={field.label}
-          placeholder={field.placeholder}
-          required={field.required}
-          control={control}
-          defaultValue={field.defaultValue || ''}
-          rows={4}
-          rules={requiredRule}
-          enableUrlDetection={enableUrlDetection}
-          onUrlsDetected={onUrlsDetected}
-        />
-      );
-    }
-
-    if (field.type === 'select') {
-      const selectOptions = (field.options || []).map(option => ({
-        value: option.value,
-        label: option.label
-      }));
-
-      return (
-        <Controller
-          key={field.name}
-          name={field.name as never}
-          control={control}
-          defaultValue={(field.defaultValue || '') as never}
-          rules={requiredRule}
-          render={({ field: controllerField, fieldState }) => (
-            <EnhancedSelect
-              inputId={`${field.name}-select`}
+        if (field.type === 'textarea') {
+          return (
+            <FormTextarea
+              key={field.name}
+              name={field.name}
               label={field.label}
-              options={selectOptions}
-              placeholder={field.placeholder || 'Bitte wählen...'}
-              value={controllerField.value
-                ? selectOptions.find(opt => opt.value === controllerField.value)
-                : null}
-              onChange={(selectedOption) => {
-                const value = selectedOption && !Array.isArray(selectedOption)
-                  ? (selectedOption as { value: string | number }).value
-                  : null;
-                controllerField.onChange(value);
-              }}
-              onBlur={controllerField.onBlur}
-              isClearable={!field.required}
-              isSearchable={false}
-              className="react-select"
-              classNamePrefix="react-select"
-              error={fieldState.error?.message}
+              placeholder={field.placeholder}
               required={field.required}
-              menuPortalTarget={MENU_PORTAL_TARGET}
-              menuPosition="fixed"
+              control={control}
+              defaultValue={field.defaultValue || ''}
+              rows={4}
+              rules={requiredRule}
+              enableUrlDetection={enableUrlDetection}
+              onUrlsDetected={onUrlsDetected}
             />
-          )}
-        />
-      );
-    }
+          );
+        }
 
-    return (
-      <FormInput
-        key={field.name}
-        name={field.name}
-        label={field.label}
-        placeholder={field.placeholder}
-        type={field.type}
-        required={field.required}
-        control={control}
-        defaultValue={field.defaultValue || ''}
-        rules={requiredRule}
-      />
+        if (field.type === 'select') {
+          const selectOptions = (field.options || []).map((option) => ({
+            value: option.value,
+            label: option.label,
+          }));
+
+          return (
+            <Controller
+              key={field.name}
+              name={field.name as never}
+              control={control}
+              defaultValue={(field.defaultValue || '') as never}
+              rules={requiredRule}
+              render={({ field: controllerField, fieldState }) => (
+                <EnhancedSelect
+                  inputId={`${field.name}-select`}
+                  label={field.label}
+                  options={selectOptions}
+                  placeholder={field.placeholder || 'Bitte wählen...'}
+                  value={
+                    controllerField.value
+                      ? selectOptions.find((opt) => opt.value === controllerField.value)
+                      : null
+                  }
+                  onChange={(selectedOption) => {
+                    const value =
+                      selectedOption && !Array.isArray(selectedOption)
+                        ? (selectedOption as { value: string | number }).value
+                        : null;
+                    controllerField.onChange(value);
+                  }}
+                  onBlur={controllerField.onBlur}
+                  isClearable={!field.required}
+                  isSearchable={false}
+                  className="react-select"
+                  classNamePrefix="react-select"
+                  error={fieldState.error?.message}
+                  required={field.required}
+                  menuPortalTarget={MENU_PORTAL_TARGET}
+                  menuPosition="fixed"
+                />
+              )}
+            />
+          );
+        }
+
+        return (
+          <FormInput
+            key={field.name}
+            name={field.name}
+            label={field.label}
+            placeholder={field.placeholder}
+            type={field.type}
+            required={field.required}
+            control={control}
+            defaultValue={field.defaultValue || ''}
+            rules={requiredRule}
+          />
+        );
+      },
+      [control, onUrlsDetected, enableUrlDetection]
     );
-  }, [control, onUrlsDetected, enableUrlDetection]);
 
-  // Memoize rendered fields to prevent unnecessary re-renders
-  const renderedFields = useMemo(() => fields.map(renderField), [fields, renderField]);
+    // Memoize rendered fields to prevent unnecessary re-renders
+    const renderedFields = useMemo(() => fields.map(renderField), [fields, renderField]);
 
-  return <>{renderedFields}</>;
-});
+    return <>{renderedFields}</>;
+  }
+);
 
 DynamicFormFieldRenderer.displayName = 'DynamicFormFieldRenderer';
 

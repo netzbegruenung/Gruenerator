@@ -1,7 +1,9 @@
 import React from 'react';
-import { Controller, Control, FieldValues } from 'react-hook-form';
-import FormFieldWrapper from './FormFieldWrapper';
+import { Controller, type Control, type FieldValues } from 'react-hook-form';
+
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
+
+import FormFieldWrapper from './FormFieldWrapper';
 
 interface FormInputProps {
   name: string;

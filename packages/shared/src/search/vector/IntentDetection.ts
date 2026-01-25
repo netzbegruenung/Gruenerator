@@ -103,8 +103,8 @@ const ARTICLE_TYPE_PATTERNS = [
  * Detect language from query
  */
 function detectLanguage(query: string): 'de' | 'en' | 'unknown' {
-  const hasGerman = /[äöüß]/i.test(query) ||
-    /(der|die|das|und|ist|nicht|mit|für|auf|ein|eine)\b/i.test(query);
+  const hasGerman =
+    /[äöüß]/i.test(query) || /(der|die|das|und|ist|nicht|mit|für|auf|ein|eine)\b/i.test(query);
   const hasEnglish = /(the|and|is|with|for|on|in|of)\b/i.test(query);
 
   if (hasGerman && !hasEnglish) return 'de';

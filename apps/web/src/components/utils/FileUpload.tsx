@@ -1,5 +1,4 @@
-import { JSX, useRef } from 'react';
-
+import { type JSX, useRef } from 'react';
 import { FaUpload } from 'react-icons/fa';
 
 interface UnsplashImage {
@@ -18,7 +17,15 @@ interface FileUploadProps {
   buttonText?: string;
 }
 
-const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selectedUnsplashImage, isCompact }: FileUploadProps): JSX.Element => {
+const FileUpload = ({
+  loading,
+  file,
+  handleChange,
+  error,
+  allowedTypes,
+  selectedUnsplashImage,
+  isCompact,
+}: FileUploadProps): JSX.Element => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClick = (event: React.MouseEvent<HTMLLabelElement>) => {
@@ -26,7 +33,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     event.stopPropagation();
     console.log('File input clicked');
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Clear the input value to ensure it always triggers the change event
+      fileInputRef.current.value = ''; // Clear the input value to ensure it always triggers the change event
       fileInputRef.current.click();
     }
   };
@@ -86,7 +93,11 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
         type="file"
         name="fileUpload"
         onChange={onFileChange}
-        accept={Array.isArray(allowedTypes) && allowedTypes.length > 0 ? allowedTypes.join(',') : 'image/*'}
+        accept={
+          Array.isArray(allowedTypes) && allowedTypes.length > 0
+            ? allowedTypes.join(',')
+            : 'image/*'
+        }
         ref={fileInputRef}
         style={{ display: 'none' }}
       />
@@ -94,7 +105,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
         htmlFor="fileUpload"
         className={`file-input-text ${loading ? 'loading' : ''}`}
         onClick={handleClick}
-        aria-label={isCompact ? "Datei hochladen" : undefined}
+        aria-label={isCompact ? 'Datei hochladen' : undefined}
       >
         {renderContent()}
       </label>
@@ -102,9 +113,5 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     </div>
   );
 };
-
-
-
-
 
 export default FileUpload;

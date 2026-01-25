@@ -6,7 +6,9 @@ const log = createLogger('sharepic-parsing');
  * Extract clean JSON object from malformed AI responses
  * Handles markdown code blocks and extracts the first valid JSON object
  */
-export function extractCleanJSON(content: string | null | undefined): Record<string, unknown> | null {
+export function extractCleanJSON(
+  content: string | null | undefined
+): Record<string, unknown> | null {
   if (!content || typeof content !== 'string') {
     return null;
   }
@@ -80,9 +82,7 @@ export function extractQuoteArray(content: string | null | undefined): QuoteItem
     return null;
   }
 
-  const withoutCodeFences = content
-    .replace(/```(?:json)?/gi, '')
-    .replace(/```/g, '');
+  const withoutCodeFences = content.replace(/```(?:json)?/gi, '').replace(/```/g, '');
 
   const match = withoutCodeFences.match(/\[[\s\S]*\]/);
   if (!match) {
@@ -128,17 +128,26 @@ export function parseDreizeilenResponse(content: string, _skipShortener: boolean
     if (line1 && line2 && line3) {
       log.debug(`[parser] Checking lines: ["${line1}", "${line2}", "${line3}"]`);
 
-      if (line1.toLowerCase().includes('suchbegriff') ||
-          line2.toLowerCase().includes('suchbegriff') ||
-          line3.toLowerCase().includes('suchbegriff')) {
+      if (
+        line1.toLowerCase().includes('suchbegriff') ||
+        line2.toLowerCase().includes('suchbegriff') ||
+        line3.toLowerCase().includes('suchbegriff')
+      ) {
         log.debug(`[parser] Rejected: contains 'suchbegriff'`);
         continue;
       }
 
-      if (line1.length < 3 || line1.length > 35 ||
-          line2.length < 3 || line2.length > 35 ||
-          line3.length < 3 || line3.length > 35) {
-        log.debug(`[parser] Rejected: length issue [${line1.length}, ${line2.length}, ${line3.length}]`);
+      if (
+        line1.length < 3 ||
+        line1.length > 35 ||
+        line2.length < 3 ||
+        line2.length > 35 ||
+        line3.length < 3 ||
+        line3.length > 35
+      ) {
+        log.debug(
+          `[parser] Rejected: length issue [${line1.length}, ${line2.length}, ${line3.length}]`
+        );
         continue;
       }
 

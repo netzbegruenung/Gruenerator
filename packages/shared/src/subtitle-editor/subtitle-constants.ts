@@ -65,13 +65,16 @@ export const DEFAULT_SUBTITLE_PARAMS: SubtitleModificationParams = {
  * Style configurations for rendering subtitle overlay
  * These match the web's LiveSubtitlePreview component
  */
-export const SUBTITLE_STYLE_CONFIGS: Record<SubtitleStylePreference, {
-  backgroundColor: string;
-  textColor: string;
-  textShadow: string | null;
-  padding: string;
-  borderRadius: string;
-}> = {
+export const SUBTITLE_STYLE_CONFIGS: Record<
+  SubtitleStylePreference,
+  {
+    backgroundColor: string;
+    textColor: string;
+    textShadow: string | null;
+    padding: string;
+    borderRadius: string;
+  }
+> = {
   shadow: {
     backgroundColor: 'transparent',
     textColor: '#ffffff',
@@ -157,7 +160,7 @@ export function getHeightOption(value: SubtitleHeightPreference): SubtitleHeight
 export function getStyleConfig(
   style: SubtitleStylePreference,
   locale?: string
-): typeof SUBTITLE_STYLE_CONFIGS[SubtitleStylePreference] {
+): (typeof SUBTITLE_STYLE_CONFIGS)[SubtitleStylePreference] {
   const config = { ...SUBTITLE_STYLE_CONFIGS[style] };
 
   if (style === 'tanne' && locale && TANNE_COLORS[locale]) {

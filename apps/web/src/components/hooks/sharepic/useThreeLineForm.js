@@ -16,6 +16,6 @@ export const useThreeLineForm = () => {
 
   return {
     threeLineData: { line1, line2, line3 },
-    handleThreeLineChange: handleChange
+    handleThreeLineChange: handleChange,
   };
 };

@@ -18,7 +18,7 @@ export const COLORS = {
   SAND: '#F5F1E9',
   HIMMEL: '#009EE3',
   ZITAT_BG: '#6ccd87',
-  SONNE: '#FFD43B'
+  SONNE: '#FFD43B',
 } as const;
 
 export const COLOR_SCHEMES: ColorScheme[] = [
@@ -27,49 +27,49 @@ export const COLOR_SCHEMES: ColorScheme[] = [
     colors: [
       { background: COLORS.TANNE, text: COLORS.SAND },
       { background: COLORS.TANNE, text: COLORS.SAND },
-      { background: COLORS.TANNE, text: COLORS.SAND }
-    ]
+      { background: COLORS.TANNE, text: COLORS.SAND },
+    ],
   },
   {
     id: 'klee-sand',
     colors: [
       { background: COLORS.KLEE, text: COLORS.SAND },
       { background: COLORS.KLEE, text: COLORS.SAND },
-      { background: COLORS.KLEE, text: COLORS.SAND }
-    ]
+      { background: COLORS.KLEE, text: COLORS.SAND },
+    ],
   },
   {
     id: 'grashalm-tanne',
     colors: [
       { background: COLORS.GRASHALM, text: COLORS.TANNE },
       { background: COLORS.GRASHALM, text: COLORS.TANNE },
-      { background: COLORS.GRASHALM, text: COLORS.TANNE }
-    ]
+      { background: COLORS.GRASHALM, text: COLORS.TANNE },
+    ],
   },
   {
     id: 'sand-tanne',
     colors: [
       { background: COLORS.SAND, text: COLORS.TANNE },
       { background: COLORS.SAND, text: COLORS.TANNE },
-      { background: COLORS.SAND, text: COLORS.TANNE }
-    ]
+      { background: COLORS.SAND, text: COLORS.TANNE },
+    ],
   },
   {
     id: 'himmel-sand',
     colors: [
       { background: COLORS.HIMMEL, text: COLORS.SAND },
       { background: COLORS.HIMMEL, text: COLORS.SAND },
-      { background: COLORS.HIMMEL, text: COLORS.SAND }
-    ]
+      { background: COLORS.HIMMEL, text: COLORS.SAND },
+    ],
   },
   {
     id: 'tanne-klee-grashalm',
     colors: [
       { background: COLORS.TANNE, text: COLORS.SAND },
       { background: COLORS.KLEE, text: COLORS.SAND },
-      { background: COLORS.GRASHALM, text: COLORS.TANNE }
-    ]
-  }
+      { background: COLORS.GRASHALM, text: COLORS.TANNE },
+    ],
+  },
 ];
 
 /**
@@ -92,10 +92,10 @@ export function calculateParallelogramPoints(
   const skewOffset = (height * Math.tan(skewRad)) / 2;
 
   return [
-    { x: x, y: y + height },                    // bottom-left
+    { x: x, y: y + height }, // bottom-left
     { x: x + width - skewOffset, y: y + height }, // bottom-right
-    { x: x + width + skewOffset, y: y },        // top-right
-    { x: x + skewOffset, y: y }                 // top-left
+    { x: x + width + skewOffset, y: y }, // top-right
+    { x: x + skewOffset, y: y }, // top-left
   ];
 }
 
@@ -103,7 +103,7 @@ export function calculateParallelogramPoints(
  * Get color scheme by ID
  */
 export function getColorScheme(colorSchemeId: string): ColorScheme {
-  const scheme = COLOR_SCHEMES.find(s => s.id === colorSchemeId);
+  const scheme = COLOR_SCHEMES.find((s) => s.id === colorSchemeId);
   if (!scheme) {
     return COLOR_SCHEMES[0];
   }
@@ -118,5 +118,5 @@ export const BALKEN_CONFIG = {
   heightFactor: 1.6,
   defaultFontSize: 75,
   gap: 15,
-  defaultWidth: 900
+  defaultWidth: 900,
 } as const;

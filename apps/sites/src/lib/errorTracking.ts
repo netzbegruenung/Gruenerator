@@ -6,7 +6,7 @@ export function initErrorTracking(): void {
   if (!projectId) {
     console.info(
       'Highlight.io project ID not configured. Error tracking disabled. ' +
-      'Set VITE_HIGHLIGHT_PROJECT_ID environment variable to enable error tracking.'
+        'Set VITE_HIGHLIGHT_PROJECT_ID environment variable to enable error tracking.'
     );
     return;
   }

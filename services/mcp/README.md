@@ -25,7 +25,8 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that g
 ## Demo
 
 <!-- Add screenshot or GIF of MCP client using Gruenerator -->
-*Coming soon: Demo of search functionality in action*
+
+_Coming soon: Demo of search functionality in action_
 
 ## Features
 
@@ -39,15 +40,15 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that g
 
 ## Available Document Collections
 
-| Collection | Description | Filters |
-|------------|-------------|---------|
-| `oesterreich` | Die Grünen Austria: EU Election, Basic Program, National Council | `title` |
-| `deutschland` | Bündnis 90/Die Grünen: Basic Program, EU Election, Government Program | `title` |
-| `bundestagsfraktion` | Green Parliamentary Group: Positions and expert content | `section` |
-| `gruene-de` | gruene.de website: Positions, topics, and news | `section` |
-| `gruene-at` | gruene.at website: Positions, topics, and news | `section` |
-| `kommunalwiki` | KommunalWiki: Municipal politics knowledge (Heinrich Böll Foundation) | `article_type`, `category` |
-| `boell-stiftung` | Heinrich-Böll-Stiftung: Analyses, dossiers, and atlases | `content_type`, `topic`, `region` |
+| Collection           | Description                                                           | Filters                           |
+| -------------------- | --------------------------------------------------------------------- | --------------------------------- |
+| `oesterreich`        | Die Grünen Austria: EU Election, Basic Program, National Council      | `title`                           |
+| `deutschland`        | Bündnis 90/Die Grünen: Basic Program, EU Election, Government Program | `title`                           |
+| `bundestagsfraktion` | Green Parliamentary Group: Positions and expert content               | `section`                         |
+| `gruene-de`          | gruene.de website: Positions, topics, and news                        | `section`                         |
+| `gruene-at`          | gruene.at website: Positions, topics, and news                        | `section`                         |
+| `kommunalwiki`       | KommunalWiki: Municipal politics knowledge (Heinrich Böll Foundation) | `article_type`, `category`        |
+| `boell-stiftung`     | Heinrich-Böll-Stiftung: Analyses, dossiers, and atlases               | `content_type`, `topic`, `region` |
 
 ## Prerequisites
 
@@ -107,14 +108,14 @@ npm run dev
 
 ### Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `QDRANT_URL` | URL to Qdrant instance | Yes |
-| `QDRANT_API_KEY` | API key for Qdrant | Yes |
-| `MISTRAL_API_KEY` | API key for Mistral embeddings | Yes |
-| `PORT` | Server port | No (default: 3000) |
-| `PUBLIC_URL` | Public URL for config generation | No |
-| `LOG_LEVEL` | Log level: DEBUG, INFO, WARN, ERROR | No (default: INFO) |
+| Variable          | Description                         | Required           |
+| ----------------- | ----------------------------------- | ------------------ |
+| `QDRANT_URL`      | URL to Qdrant instance              | Yes                |
+| `QDRANT_API_KEY`  | API key for Qdrant                  | Yes                |
+| `MISTRAL_API_KEY` | API key for Mistral embeddings      | Yes                |
+| `PORT`            | Server port                         | No (default: 3000) |
+| `PUBLIC_URL`      | Public URL for config generation    | No                 |
+| `LOG_LEVEL`       | Log level: DEBUG, INFO, WARN, ERROR | No (default: INFO) |
 
 ### MCP Client Setup
 
@@ -144,16 +145,16 @@ After configuration, you can ask questions like:
 
 ### Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/mcp` | POST | MCP communication |
-| `/mcp` | GET | SSE stream |
-| `/mcp` | DELETE | End session |
-| `/health` | GET | Health check with cache and request statistics |
-| `/metrics` | GET | Detailed server metrics |
-| `/.well-known/mcp.json` | GET | Auto-discovery metadata |
-| `/config/:client` | GET | Generate client configuration |
-| `/info` | GET | Server information |
+| Endpoint                | Method | Description                                    |
+| ----------------------- | ------ | ---------------------------------------------- |
+| `/mcp`                  | POST   | MCP communication                              |
+| `/mcp`                  | GET    | SSE stream                                     |
+| `/mcp`                  | DELETE | End session                                    |
+| `/health`               | GET    | Health check with cache and request statistics |
+| `/metrics`              | GET    | Detailed server metrics                        |
+| `/.well-known/mcp.json` | GET    | Auto-discovery metadata                        |
+| `/config/:client`       | GET    | Generate client configuration                  |
+| `/info`                 | GET    | Server information                             |
 
 ### Health Check Response
 
@@ -162,7 +163,15 @@ After configuration, you can ask questions like:
   "status": "ok",
   "service": "gruenerator-mcp",
   "version": "1.0.0",
-  "collections": ["oesterreich", "deutschland", "bundestagsfraktion", "gruene-de", "gruene-at", "kommunalwiki", "boell-stiftung"],
+  "collections": [
+    "oesterreich",
+    "deutschland",
+    "bundestagsfraktion",
+    "gruene-de",
+    "gruene-at",
+    "kommunalwiki",
+    "boell-stiftung"
+  ],
   "uptime": { "ms": 3600000, "hours": 1.0 },
   "cache": {
     "embeddingHitRate": "65%",
@@ -181,7 +190,14 @@ After configuration, you can ask questions like:
   "uptime": { "hours": 1.0 },
   "requests": { "total": 150, "searches": 120 },
   "breakdown": {
-    "byCollection": { "deutschland": 40, "oesterreich": 30, "kommunalwiki": 25, "bundestagsfraktion": 20, "gruene-de": 15, "gruene-at": 20 },
+    "byCollection": {
+      "deutschland": 40,
+      "oesterreich": 30,
+      "kommunalwiki": 25,
+      "bundestagsfraktion": 20,
+      "gruene-de": 15,
+      "gruene-at": 20
+    },
     "bySearchMode": { "hybrid": 100, "vector": 15, "text": 5 }
   },
   "cache": {
@@ -202,29 +218,30 @@ Searches party programs and content with hybrid, vector, or text search.
 
 **Parameters:**
 
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `query` | string | Search term or question | required |
-| `collection` | string | Collection to search (see table above) | required |
-| `searchMode` | string | `hybrid`, `vector`, or `text` | `hybrid` |
-| `limit` | number | Maximum number of results (1-20) | 5 |
-| `filters` | object | Metadata filters (see below) | optional |
-| `useCache` | boolean | Use cache | true |
+| Parameter    | Type    | Description                            | Default  |
+| ------------ | ------- | -------------------------------------- | -------- |
+| `query`      | string  | Search term or question                | required |
+| `collection` | string  | Collection to search (see table above) | required |
+| `searchMode` | string  | `hybrid`, `vector`, or `text`          | `hybrid` |
+| `limit`      | number  | Maximum number of results (1-20)       | 5        |
+| `filters`    | object  | Metadata filters (see below)           | optional |
+| `useCache`   | boolean | Use cache                              | true     |
 
 **Available Filters by Collection:**
 
-| Filter | Collections | Description |
-|--------|-------------|-------------|
-| `documentType` | oesterreich, deutschland | Document type (grundsatzprogramm, wahlprogramm, eu-wahlprogramm) |
-| `title` | oesterreich, deutschland | Exact document title |
-| `section` | bundestagsfraktion, gruene-de, gruene-at | Content section (Positionen, Themen, etc.) |
-| `article_type` | kommunalwiki | Article type (literatur, praxishilfe, faq, etc.) |
-| `category` | kommunalwiki | Thematic category (Haushalt, Umwelt, etc.) |
-| `content_type` | boell-stiftung | Content type (artikel, dossier, atlas, schwerpunkt) |
-| `topic` | boell-stiftung | Topic (klima, feminismus, migration, digitalisierung, etc.) |
-| `region` | boell-stiftung | Geographic region (afrika, europa, asien, lateinamerika, etc.) |
+| Filter         | Collections                              | Description                                                      |
+| -------------- | ---------------------------------------- | ---------------------------------------------------------------- |
+| `documentType` | oesterreich, deutschland                 | Document type (grundsatzprogramm, wahlprogramm, eu-wahlprogramm) |
+| `title`        | oesterreich, deutschland                 | Exact document title                                             |
+| `section`      | bundestagsfraktion, gruene-de, gruene-at | Content section (Positionen, Themen, etc.)                       |
+| `article_type` | kommunalwiki                             | Article type (literatur, praxishilfe, faq, etc.)                 |
+| `category`     | kommunalwiki                             | Thematic category (Haushalt, Umwelt, etc.)                       |
+| `content_type` | boell-stiftung                           | Content type (artikel, dossier, atlas, schwerpunkt)              |
+| `topic`        | boell-stiftung                           | Topic (klima, feminismus, migration, digitalisierung, etc.)      |
+| `region`       | boell-stiftung                           | Geographic region (afrika, europa, asien, lateinamerika, etc.)   |
 
 **Example:**
+
 ```json
 {
   "query": "climate protection and renewable energy",
@@ -241,11 +258,12 @@ Discovers available filter values for a collection. Use this before filtering to
 
 **Parameters:**
 
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
+| Parameter    | Type   | Description                   | Default  |
+| ------------ | ------ | ----------------------------- | -------- |
 | `collection` | string | Collection to get filters for | required |
 
 **Example Response:**
+
 ```json
 {
   "collection": "KommunalWiki",
@@ -275,6 +293,7 @@ Shows cache statistics for embeddings and search results.
 **Parameters:** None
 
 **Example Response:**
+
 ```json
 {
   "embeddings": { "entries": 50, "hits": 120, "misses": 30, "hitRate": "80%" },
@@ -287,28 +306,32 @@ Shows cache statistics for embeddings and search results.
 Generates ready-to-use MCP configurations for various clients.
 
 **Parameters:**
+
 - `client` (string, required) - `claude`, `cursor`, or `vscode`
 
 ### Resources
 
 The server provides the following resources via MCP protocol:
 
-| URI | Description |
-|-----|-------------|
-| `gruenerator://system-prompt` | **Read first!** Usage instructions for AI assistants |
-| `gruenerator://info` | Server information and capabilities |
-| `gruenerator://collections` | List of all available collections |
+| URI                               | Description                                                                                                                         |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `gruenerator://system-prompt`     | **Read first!** Usage instructions for AI assistants                                                                                |
+| `gruenerator://info`              | Server information and capabilities                                                                                                 |
+| `gruenerator://collections`       | List of all available collections                                                                                                   |
 | `gruenerator://collections/{key}` | Details of a specific collection (oesterreich, deutschland, bundestagsfraktion, gruene-de, gruene-at, kommunalwiki, boell-stiftung) |
 
 ## Search Modes
 
 ### Hybrid (Default)
+
 Combines vector and text search with Reciprocal Rank Fusion (RRF). Best results for most queries.
 
 ### Vector
+
 Pure semantic search based on embeddings. Good for conceptual questions.
 
 ### Text
+
 Classic text search with German optimizations. Good for exact terms or names.
 
 ## Contributing
@@ -320,6 +343,7 @@ Contributions are welcome! Here's how you can help:
 3. **Submit PRs** - Fork the repo, create a branch, and submit a pull request
 
 Please ensure your PR:
+
 - Passes CI checks
 - Follows existing code style
 - Includes appropriate documentation updates

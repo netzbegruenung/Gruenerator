@@ -1,10 +1,11 @@
 import { create } from 'zustand';
+
 import {
   fetchStockImages as fetchStockImagesApi,
   fetchStockImageAsFile,
   openUnsplashSearch,
   type StockImage,
-  type StockImageAttribution
+  type StockImageAttribution,
 } from '../services/imageSourceService';
 
 type ImageSourceTab = 'upload' | 'stock' | 'unsplash' | 'mediathek';
@@ -50,7 +51,7 @@ const initialState: ImageSourceState = {
   stockImageCategory: null,
   unsplashImages: [],
   isLoadingUnsplashImages: false,
-  unsplashError: null
+  unsplashError: null,
 };
 
 export const useImageSourceStore = create<ImageSourceStore>((set, get) => ({
@@ -67,7 +68,7 @@ export const useImageSourceStore = create<ImageSourceStore>((set, get) => ({
         stockImages: data.images,
         stockImageCategories: data.categories,
         isLoadingStockImages: false,
-        stockImageCategory: category
+        stockImageCategory: category,
       });
       return data.images;
     } catch (error) {
@@ -90,7 +91,7 @@ export const useImageSourceStore = create<ImageSourceStore>((set, get) => ({
 
     set({
       selectedStockImage: image,
-      stockImageAttribution: image.attribution ?? null
+      stockImageAttribution: image.attribution ?? null,
     });
 
     try {
@@ -101,35 +102,38 @@ export const useImageSourceStore = create<ImageSourceStore>((set, get) => ({
     }
   },
 
-  resetStockImageState: () => set({
-    imageSourceTab: 'upload',
-    stockImages: [],
-    stockImageCategories: [],
-    isLoadingStockImages: false,
-    stockImagesError: null,
-    selectedStockImage: null,
-    stockImageAttribution: null,
-    stockImageCategory: null
-  }),
+  resetStockImageState: () =>
+    set({
+      imageSourceTab: 'upload',
+      stockImages: [],
+      stockImageCategories: [],
+      isLoadingStockImages: false,
+      stockImagesError: null,
+      selectedStockImage: null,
+      stockImageAttribution: null,
+      stockImageCategory: null,
+    }),
 
   handleUnsplashSearch: (query) => openUnsplashSearch(query),
 
-  setUnsplashImages: (images) => set({
-    unsplashImages: images,
-    isLoadingUnsplashImages: false
-  }),
+  setUnsplashImages: (images) =>
+    set({
+      unsplashImages: images,
+      isLoadingUnsplashImages: false,
+    }),
 
   setLoadingUnsplashImages: (loading) => set({ isLoadingUnsplashImages: loading }),
 
   setUnsplashError: (error) => set({ unsplashError: error }),
 
-  resetUnsplashState: () => set({
-    unsplashImages: [],
-    isLoadingUnsplashImages: false,
-    unsplashError: null
-  }),
+  resetUnsplashState: () =>
+    set({
+      unsplashImages: [],
+      isLoadingUnsplashImages: false,
+      unsplashError: null,
+    }),
 
-  resetImageSourceState: () => set(initialState)
+  resetImageSourceState: () => set(initialState),
 }));
 
 export default useImageSourceStore;

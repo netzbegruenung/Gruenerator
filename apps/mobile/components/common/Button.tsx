@@ -1,5 +1,13 @@
 import { ReactNode } from 'react';
-import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, View } from 'react-native';
+import {
+  Pressable,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
+  View,
+} from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../../theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';

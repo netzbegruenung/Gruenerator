@@ -12,33 +12,34 @@ import useChatInput from './useChatInput';
  * @param {Function} options.externalVoiceProps.stopRecording
  * @param {Object} options.chatInputConfig - Config for internal useChatInput hook
  */
-const useVoiceInputState = ({
-  externalVoiceProps = {},
-  chatInputConfig = {}
-}) => {
+const useVoiceInputState = ({ externalVoiceProps = {}, chatInputConfig = {} }) => {
   const {
     isVoiceRecording: externalIsVoiceRecording,
     isVoiceProcessing: externalIsVoiceProcessing,
     startRecording: externalStartRecording,
-    stopRecording: externalStopRecording
+    stopRecording: externalStopRecording,
   } = externalVoiceProps;
 
   const hasExternalVoice = externalStartRecording !== undefined;
 
   const internalChatInput = useChatInput({
     ...chatInputConfig,
-    enableVoiceRecording: !hasExternalVoice
+    enableVoiceRecording: !hasExternalVoice,
   });
 
   return {
-    isVoiceRecording: hasExternalVoice ? externalIsVoiceRecording : internalChatInput.isVoiceRecording,
-    isVoiceProcessing: hasExternalVoice ? externalIsVoiceProcessing : internalChatInput.isVoiceProcessing,
+    isVoiceRecording: hasExternalVoice
+      ? externalIsVoiceRecording
+      : internalChatInput.isVoiceRecording,
+    isVoiceProcessing: hasExternalVoice
+      ? externalIsVoiceProcessing
+      : internalChatInput.isVoiceProcessing,
     startRecording: hasExternalVoice ? externalStartRecording : internalChatInput.startRecording,
     stopRecording: hasExternalVoice ? externalStopRecording : internalChatInput.stopRecording,
     fileInputRef: internalChatInput.fileInputRef,
     handleFileUploadClick: internalChatInput.handleFileUploadClick,
     handleFileChange: internalChatInput.handleFileChange,
-    hasExternalVoice
+    hasExternalVoice,
   };
 };
 
