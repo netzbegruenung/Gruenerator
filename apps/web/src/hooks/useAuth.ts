@@ -337,39 +337,8 @@ export const useAuth = (options: AuthOptions = {}) => {
   const [hasInitializedFromCache, setHasInitializedFromCache] = useState(false);
   const queryClient = useQueryClient();
 
-  // Skip all auth logic for public pages
-  if (skipAuth) {
-    return {
-      user: null,
-      isAuthenticated: false,
-      loading: false,
-      error: null,
-      isLoggingOut: false,
-      isAuthResolved: true,
-      isInitialLoad: false,
-      hasCachedData: false,
-      selectedMessageColor: '#008939',
-      igelModus: false,
-      login,
-      logout: () => {},
-      updateUserMessageColor: async () => {},
-      setIgelModus: async () => false,
-      register: () => {},
-      deleteAccount: async () => ({ success: false, message: '' }),
-      sendPasswordResetEmail: async () => ({ success: false, message: '' }),
-      updatePassword: () => {},
-      updateProfile: async () => ({}),
-      updateAvatar: async () => ({}),
-      refetchAuth: () => {},
-      setLoginIntent: () => {},
-      session: null,
-      supabase: null,
-      canManageAccount: () => false,
-    };
-  }
-
   // Load cached state immediately for instant mode
-  const cachedAuth = instant ? getCachedAuthState() : null;
+  const cachedAuth = !skipAuth && instant ? getCachedAuthState() : null;
   const [hasCachedData] = useState(!!cachedAuth);
 
   // Initialize with cached data if available
@@ -403,14 +372,10 @@ export const useAuth = (options: AuthOptions = {}) => {
   } = useQuery<AuthData>({
     queryKey: ['authStatus'],
     queryFn: async (): Promise<AuthData> => {
-      try {
-        const response = await apiClient.get('/auth/status', {
-          skipAuthRedirect: true,
-        } as ExtendedAxiosRequestConfig);
-        return response.data as AuthData;
-      } catch (error: unknown) {
-        throw error;
-      }
+      const response = await apiClient.get('/auth/status', {
+        skipAuthRedirect: true,
+      } as ExtendedAxiosRequestConfig);
+      return response.data as AuthData;
     },
     enabled: isServerAvailable && !skipAuth && (!hasRecentlyLoggedOut || isOnLoginPage), // Allow auth on login page
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -531,13 +496,39 @@ export const useAuth = (options: AuthOptions = {}) => {
     if (!user) {
       return;
     }
-
-    try {
-      await updateMessageColor(newColor);
-    } catch (err) {
-      throw err;
-    }
+    await updateMessageColor(newColor);
   };
+
+  // Skip all auth logic for public pages - return after all hooks have been called
+  if (skipAuth) {
+    return {
+      user: null,
+      isAuthenticated: false,
+      loading: false,
+      error: null,
+      isLoggingOut: false,
+      isAuthResolved: true,
+      isInitialLoad: false,
+      hasCachedData: false,
+      selectedMessageColor: '#008939',
+      igelModus: false,
+      login,
+      logout: () => {},
+      updateUserMessageColor: async () => {},
+      setIgelModus: async () => false,
+      register: () => {},
+      deleteAccount: async () => ({ success: false, message: '' }),
+      sendPasswordResetEmail: async () => ({ success: false, message: '' }),
+      updatePassword: () => {},
+      updateProfile: async () => ({}),
+      updateAvatar: async () => ({}),
+      refetchAuth: () => {},
+      setLoginIntent: () => {},
+      session: null,
+      supabase: null,
+      canManageAccount: () => false,
+    };
+  }
 
   return {
     user,

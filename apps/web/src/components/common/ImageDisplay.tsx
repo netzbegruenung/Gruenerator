@@ -111,25 +111,15 @@ const ImageDisplay = ({
     setShowAltText,
   } = useAltTextStore();
 
-  if (!sharepicItems.length || !sharepicItems.some((item) => item?.image)) {
-    return null;
-  }
+  // Compute values needed by hooks
+  const effectiveDownloadFilename = downloadFilename || 'sharepic.png';
 
-  // Lightbox handlers
-  const openLightbox = () => setIsLightboxOpen(true);
-  const closeLightbox = () => setIsLightboxOpen(false);
-
-  const handleLightboxOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      closeLightbox();
-    }
-  };
-
+  // All hooks must be called before any early returns
   // Keyboard event listener for lightbox
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isLightboxOpen) {
-        closeLightbox();
+        setIsLightboxOpen(false);
       }
     };
 
@@ -143,6 +133,52 @@ const ImageDisplay = ({
       document.body.style.overflow = 'unset';
     };
   }, [isLightboxOpen]);
+
+  const handleDownload = React.useCallback(
+    (imageIndex: number | null = null) => {
+      if (!sharepicItems.length) return;
+      try {
+        const targetSharepic = imageIndex !== null ? sharepicItems[imageIndex] : currentSharepic;
+        const targetFilename =
+          imageIndex !== null
+            ? `${effectiveDownloadFilename.replace(/\.([^.]+)$/, '')}-${imageIndex + 1}.$1`
+            : effectiveDownloadFilename;
+
+        const link = document.createElement('a');
+        link.href = targetSharepic?.image || '';
+        link.download = targetFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (error) {
+        console.error('[ImageDisplay] Download failed:', error);
+      }
+    },
+    [sharepicItems, currentSharepic, effectiveDownloadFilename]
+  );
+
+  const handleDownloadAll = React.useCallback(() => {
+    sharepicItems.forEach((_item, index) => {
+      setTimeout(() => {
+        handleDownload(index);
+      }, index * 200);
+    });
+  }, [sharepicItems, handleDownload]);
+
+  // Early return after all hooks
+  if (!sharepicItems.length || !sharepicItems.some((item) => item?.image)) {
+    return null;
+  }
+
+  // Lightbox handlers
+  const openLightbox = () => setIsLightboxOpen(true);
+  const closeLightbox = () => setIsLightboxOpen(false);
+
+  const handleLightboxOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      closeLightbox();
+    }
+  };
 
   const handleGenerateAltText = async () => {
     if (isAltTextLoading || isKiLabelLoading) return;
@@ -320,37 +356,6 @@ const ImageDisplay = ({
   };
 
   const effectiveDownloadText = minimal ? 'Herunterladen' : downloadButtonText;
-  const effectiveDownloadFilename = downloadFilename || 'sharepic.png';
-
-  const handleDownload = React.useCallback(
-    (imageIndex: number | null = null) => {
-      try {
-        const targetSharepic = imageIndex !== null ? sharepicItems[imageIndex] : currentSharepic;
-        const targetFilename =
-          imageIndex !== null
-            ? `${effectiveDownloadFilename.replace(/\.([^.]+)$/, '')}-${imageIndex + 1}.$1`
-            : effectiveDownloadFilename;
-
-        const link = document.createElement('a');
-        link.href = targetSharepic.image || '';
-        link.download = targetFilename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (error) {
-        console.error('[ImageDisplay] Download failed:', error);
-      }
-    },
-    [sharepicItems, currentSharepic, effectiveDownloadFilename]
-  );
-
-  const handleDownloadAll = React.useCallback(() => {
-    sharepicItems.forEach((item, index) => {
-      setTimeout(() => {
-        handleDownload(index);
-      }, index * 200); // 200ms delay between downloads
-    });
-  }, [sharepicItems, handleDownload]);
 
   return (
     <>

@@ -334,7 +334,7 @@ const DocumentOverview = ({
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      onErrorMessage && onErrorMessage('Fehler beim Löschen: ' + errorMessage);
+      onErrorMessage?.('Fehler beim Löschen: ' + errorMessage);
     } finally {
       setDeleting(null);
     }
@@ -354,10 +354,10 @@ const DocumentOverview = ({
     if (newTitle.trim() && newTitle.trim() !== originalTitle && onUpdateTitle) {
       try {
         await onUpdateTitle(itemId, newTitle.trim());
-        onSuccessMessage && onSuccessMessage('Titel erfolgreich aktualisiert');
+        onSuccessMessage?.('Titel erfolgreich aktualisiert');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
-        onErrorMessage && onErrorMessage('Fehler beim Aktualisieren des Titels: ' + errorMessage);
+        onErrorMessage?.('Fehler beim Aktualisieren des Titels: ' + errorMessage);
       }
     }
     setEditingTitle(null);
@@ -406,13 +406,12 @@ const DocumentOverview = ({
       setSelectedItemIds(new Set());
       setShowBulkDeleteModal(false);
 
-      onSuccessMessage &&
-        onSuccessMessage(
+      onSuccessMessage?.(
           `${idsArray.length} ${idsArray.length === 1 ? 'Element' : 'Elemente'} erfolgreich gelöscht.`
         );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      onErrorMessage && onErrorMessage('Fehler beim Bulk-Löschen: ' + errorMessage);
+      onErrorMessage?.('Fehler beim Bulk-Löschen: ' + errorMessage);
     } finally {
       setIsBulkDeleting(false);
     }
@@ -449,11 +448,11 @@ const DocumentOverview = ({
   };
 
   const handleEditItem = (item: DocumentItem) => {
-    onEdit && onEdit(item);
+    onEdit?.(item);
   };
 
   const handleShareItem = (item: DocumentItem) => {
-    onShare && onShare(item);
+    onShare?.(item);
   };
 
   // Handle document refresh (for processing/pending documents)
@@ -463,12 +462,11 @@ const DocumentOverview = ({
     setRefreshing(item.id);
     try {
       await onRefreshDocument(item.id);
-      onSuccessMessage && onSuccessMessage('Dokumentstatus wurde aktualisiert.');
+      onSuccessMessage?.('Dokumentstatus wurde aktualisiert.');
     } catch (error) {
       console.error('[DocumentOverview] Error refreshing document:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      onErrorMessage &&
-        onErrorMessage('Fehler beim Aktualisieren des Dokumentstatus: ' + errorMessage);
+      onErrorMessage?.('Fehler beim Aktualisieren des Dokumentstatus: ' + errorMessage);
     } finally {
       setRefreshing(null);
     }
@@ -500,7 +498,7 @@ const DocumentOverview = ({
       console.error('[DocumentOverview] Error fetching document content:', error);
       setPreviewError('Fehler beim Laden des Dokument-Inhalts');
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      onErrorMessage && onErrorMessage('Fehler beim Laden des Dokument-Inhalts: ' + errorMessage);
+      onErrorMessage?.('Fehler beim Laden des Dokument-Inhalts: ' + errorMessage);
     } finally {
       setPreviewLoading(false);
     }
@@ -806,7 +804,7 @@ const DocumentOverview = ({
               onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 handleClick();
-                onClose && onClose();
+                onClose?.();
               }}
               disabled={action.loading}
             >

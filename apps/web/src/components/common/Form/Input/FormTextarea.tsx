@@ -75,13 +75,15 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   onChange,
   ...rest
 }) => {
-  let storeIsStartMode = false;
-  try {
-    storeIsStartMode = useFormStateSelector((state) => state.isStartMode);
-  } catch {
-    // Not inside FormStateProvider - use default
-  }
+  // All hooks must be called unconditionally at the top
+  const formState = useFormStateSelector((state) => state);
+  const storeIsStartMode = formState?.isStartMode ?? false;
   const minRows = storeIsStartMode ? 2 : minRowsProp;
+
+  // Simple form store hooks - called unconditionally
+  const rawValue = useSimpleFormStore((state) => state.fields[name]);
+  const setField = useSimpleFormStore((state) => state.setField);
+  const simpleFormValue = (rawValue as string) ?? defaultValue;
 
   const textareaId = `form-textarea-${name}`;
   const textareaClassName = `form-textarea ${className}`.trim();
@@ -207,10 +209,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
     );
   }
 
-  const rawValue = useSimpleFormStore((state) => state.fields[name]);
-  const value = (rawValue as string) ?? defaultValue;
-  const setField = useSimpleFormStore((state) => state.setField);
-
   return (
     <FormFieldWrapper
       label={label}
@@ -229,7 +227,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
           maxRows={maxRows}
           maxLength={maxLength}
           className={textareaClassName}
-          value={value}
+          value={simpleFormValue}
           tabIndex={tabIndex}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             const newVal = e.target.value;
@@ -246,7 +244,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
           {...textareaProps}
           {...rest}
         />
-        <CharacterCount value={value} />
+        <CharacterCount value={simpleFormValue} />
       </div>
     </FormFieldWrapper>
   );

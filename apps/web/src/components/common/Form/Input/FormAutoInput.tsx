@@ -121,12 +121,14 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
   onChange: onChangeProp,
   ...rest
 }: FormAutoInputProps<T>) {
-  let storeIsStartMode = false;
-  try {
-    storeIsStartMode = useFormStateSelector((state) => state.isStartMode);
-  } catch {
-    // Not inside FormStateProvider - use default
-  }
+  // All hooks must be called unconditionally at the top
+  const formState = useFormStateSelector((state) => state);
+  const storeIsStartMode = formState?.isStartMode ?? false;
+
+  // Simple form store hooks - called unconditionally
+  const rawValue = useSimpleFormStore((state) => state.fields[String(name)]);
+  const setField = useSimpleFormStore((state) => state.setField);
+  const simpleFormValue = (rawValue as string) ?? defaultValue;
 
   const minRows = storeIsStartMode ? 2 : minRowsProp;
   const autoInputId = `form-auto-input-${String(name)}`;
@@ -186,10 +188,6 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
   }
 
   // Zustand fallback controlled component
-  const rawValue = useSimpleFormStore((state) => state.fields[String(name)]);
-  const value = (rawValue as string) ?? defaultValue;
-  const setField = useSimpleFormStore((state) => state.setField);
-
   return (
     <FormFieldWrapper
       label={label}
@@ -210,7 +208,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
           maxRows={maxRows}
           maxLength={maxLength}
           className={autoInputClassName}
-          value={value}
+          value={simpleFormValue}
           style={undefined}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             let newVal = e.target.value;
@@ -224,7 +222,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
           }}
         />
         <TextStats
-          value={value}
+          value={simpleFormValue}
           showCharacterCount={showCharacterCount}
           showWordCount={showWordCount}
           maxLength={maxLength}
