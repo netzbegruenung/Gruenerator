@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -50,54 +50,66 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          padding: '2rem',
-          textAlign: 'center',
-          backgroundColor: 'var(--background-color, #f5f5f5)',
-        }}>
-          <div style={{
-            maxWidth: '500px',
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh',
             padding: '2rem',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          }}>
-            <h1 style={{
-              fontSize: '1.5rem',
-              marginBottom: '1rem',
-              color: 'var(--font-color, #333)',
-            }}>
+            textAlign: 'center',
+            backgroundColor: 'var(--background-color, #f5f5f5)',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: '500px',
+              padding: '2rem',
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            <h1
+              style={{
+                fontSize: '1.5rem',
+                marginBottom: '1rem',
+                color: 'var(--font-color, #333)',
+              }}
+            >
               Etwas ist schiefgelaufen
             </h1>
-            <p style={{
-              marginBottom: '1.5rem',
-              color: 'var(--font-color-secondary, #666)',
-            }}>
-              Die Anwendung ist auf einen unerwarteten Fehler gestoßen.
-              Bitte lade die Seite neu und versuche es erneut.
+            <p
+              style={{
+                marginBottom: '1.5rem',
+                color: 'var(--font-color-secondary, #666)',
+              }}
+            >
+              Die Anwendung ist auf einen unerwarteten Fehler gestoßen. Bitte lade die Seite neu und
+              versuche es erneut.
             </p>
             {this.state.error && import.meta.env.DEV && (
-              <details style={{
-                marginBottom: '1.5rem',
-                textAlign: 'left',
-                padding: '1rem',
-                backgroundColor: '#f5f5f5',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-              }}>
+              <details
+                style={{
+                  marginBottom: '1.5rem',
+                  textAlign: 'left',
+                  padding: '1rem',
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem',
+                }}
+              >
                 <summary style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
                   Fehlerdetails (nur in Entwicklung sichtbar)
                 </summary>
-                <pre style={{
-                  overflow: 'auto',
-                  fontSize: '0.75rem',
-                  color: '#c7254e',
-                }}>
+                <pre
+                  style={{
+                    overflow: 'auto',
+                    fontSize: '0.75rem',
+                    color: '#c7254e',
+                  }}
+                >
                   {this.state.error.toString()}
                 </pre>
               </details>

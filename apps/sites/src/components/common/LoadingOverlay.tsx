@@ -7,12 +7,7 @@ interface LoadingOverlayProps {
   submessage?: string;
 }
 
-export function LoadingOverlay({
-  isLoading,
-  message,
-  progress,
-  submessage,
-}: LoadingOverlayProps) {
+export function LoadingOverlay({ isLoading, message, progress, submessage }: LoadingOverlayProps) {
   if (!isLoading) return null;
 
   return (
@@ -23,10 +18,7 @@ export function LoadingOverlay({
         {submessage && <p className="loading-submessage">{submessage}</p>}
         {progress !== undefined && progress > 0 && (
           <div className="loading-progress">
-            <div
-              className="loading-progress-bar"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="loading-progress-bar" style={{ width: `${progress}%` }} />
             <span className="loading-progress-text">{progress}%</span>
           </div>
         )}

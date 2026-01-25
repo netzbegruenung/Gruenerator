@@ -36,9 +36,7 @@ export function ClassicTabLayout() {
         options={{
           title: 'Start',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -56,9 +54,7 @@ export function ClassicTabLayout() {
         options={{
           title: 'Medien',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="videocam" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="videocam" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -66,9 +62,7 @@ export function ClassicTabLayout() {
         options={{
           title: 'Tools',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="construct" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="construct" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -86,9 +80,7 @@ export function ClassicTabLayout() {
         options={{
           title: 'Docs',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="documents" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="documents" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

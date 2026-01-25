@@ -13,7 +13,7 @@ export type {
   DownloadResult,
   GenerateFromPromptOptions,
   GenerateResult,
-  GenerateFromImageOptions
+  GenerateFromImageOptions,
 } from './FluxImageService.js';
 
 export {
@@ -24,7 +24,7 @@ export {
   getAspectRatios,
   VARIANTS,
   ASPECT_RATIOS,
-  BRAND_COLORS
+  BRAND_COLORS,
 } from './FluxPromptBuilder.js';
 
 export type {
@@ -36,5 +36,5 @@ export type {
   PromptData,
   BuildFluxPromptOptions,
   BuildFluxPromptResult,
-  VariantInfo
+  VariantInfo,
 } from './FluxPromptBuilder.js';

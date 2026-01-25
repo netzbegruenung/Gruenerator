@@ -100,7 +100,9 @@ export class MetadataExtractor {
     }
 
     // Try Open Graph tags
-    const ogTags = $('meta[property="og:tags"]').attr('content') || $('meta[property="article:tag"]').attr('content');
+    const ogTags =
+      $('meta[property="og:tags"]').attr('content') ||
+      $('meta[property="article:tag"]').attr('content');
     if (ogTags) {
       ogTags.split(',').forEach((tag) => {
         const cleaned = tag.trim().toLowerCase();
@@ -175,7 +177,10 @@ export class MetadataExtractor {
         }
       }
     } catch (error) {
-      console.warn('[MetadataExtractor] Error parsing structured data:', error instanceof Error ? error.message : 'Unknown error');
+      console.warn(
+        '[MetadataExtractor] Error parsing structured data:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
 
     return null;

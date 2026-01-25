@@ -1,9 +1,5 @@
 import apiClient from '../../../components/utils/apiClient';
-import {
-  IMAGE_STUDIO_CATEGORIES,
-  IMAGE_STUDIO_TYPES,
-  FORM_STEPS
-} from '../utils/typeConfig';
+import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../utils/typeConfig';
 
 export interface GalleryEditData {
   shareToken: string;
@@ -55,18 +51,18 @@ export interface OriginalSharepicData {
 }
 
 const LEGACY_TYPE_MAP: Record<string, string> = {
-  'Dreizeilen': IMAGE_STUDIO_TYPES.DREIZEILEN,
-  'Zitat': IMAGE_STUDIO_TYPES.ZITAT,
-  'Zitat_Pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
-  'Info': IMAGE_STUDIO_TYPES.INFO
+  Dreizeilen: IMAGE_STUDIO_TYPES.DREIZEILEN,
+  Zitat: IMAGE_STUDIO_TYPES.ZITAT,
+  Zitat_Pure: IMAGE_STUDIO_TYPES.ZITAT_PURE,
+  Info: IMAGE_STUDIO_TYPES.INFO,
 };
 
 const EDIT_SESSION_TYPE_MAP: Record<string, string> = {
-  'dreizeilen': IMAGE_STUDIO_TYPES.DREIZEILEN,
-  'default': IMAGE_STUDIO_TYPES.DREIZEILEN,
-  'zitat': IMAGE_STUDIO_TYPES.ZITAT,
+  dreizeilen: IMAGE_STUDIO_TYPES.DREIZEILEN,
+  default: IMAGE_STUDIO_TYPES.DREIZEILEN,
+  zitat: IMAGE_STUDIO_TYPES.ZITAT,
   'zitat-pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
-  'info': IMAGE_STUDIO_TYPES.INFO
+  info: IMAGE_STUDIO_TYPES.INFO,
 };
 
 export function parseSharepicForEditing(
@@ -78,7 +74,7 @@ export function parseSharepicForEditing(
     originalSharepicData: sharepicData,
     generatedImageSrc: sharepicData.image || null,
     currentStep: FORM_STEPS.RESULT,
-    category: IMAGE_STUDIO_CATEGORIES.TEMPLATES
+    category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
   };
 
   if (sharepicData.type === 'info') {
@@ -100,7 +96,10 @@ export function parseSharepicForEditing(
     }
 
     if (quoteMatch) {
-      result.type = sharepicData.type === 'quote_pure' ? IMAGE_STUDIO_TYPES.ZITAT_PURE : IMAGE_STUDIO_TYPES.ZITAT;
+      result.type =
+        sharepicData.type === 'quote_pure'
+          ? IMAGE_STUDIO_TYPES.ZITAT_PURE
+          : IMAGE_STUDIO_TYPES.ZITAT;
       result.quote = quoteMatch[1];
       result.name = quoteMatch[2];
     }
@@ -115,12 +114,14 @@ export function parseSharepicForEditing(
   return result;
 }
 
-export async function loadGalleryEditData(editData: GalleryEditData): Promise<Record<string, unknown>> {
+export async function loadGalleryEditData(
+  editData: GalleryEditData
+): Promise<Record<string, unknown>> {
   console.log('[loadGalleryEditData] === START ===');
   console.log('[loadGalleryEditData] Input editData:', JSON.stringify(editData, null, 2));
   const { shareToken, content, styling, originalImageUrl, title } = editData;
   const sharepicType = content?.sharepicType || styling?.sharepicType;
-  const mappedType = sharepicType ? (LEGACY_TYPE_MAP[sharepicType] || sharepicType) : null;
+  const mappedType = sharepicType ? LEGACY_TYPE_MAP[sharepicType] || sharepicType : null;
   console.log('[loadGalleryEditData] Type mapping:', {
     sharepicType,
     mappedType,
@@ -128,7 +129,7 @@ export async function loadGalleryEditData(editData: GalleryEditData): Promise<Re
     hasContent: !!content,
     hasStyling: !!styling,
     contentKeys: content ? Object.keys(content) : [],
-    stylingKeys: styling ? Object.keys(styling) : []
+    stylingKeys: styling ? Object.keys(styling) : [],
   });
 
   const formData: Record<string, unknown> = {
@@ -141,7 +142,7 @@ export async function loadGalleryEditData(editData: GalleryEditData): Promise<Re
     type: mappedType,
     // Use CANVAS_EDIT step for canvas-enabled templates so they open in the canvas editor
     currentStep: FORM_STEPS.CANVAS_EDIT,
-    editingSource: 'gallery'
+    editingSource: 'gallery',
   };
 
   if (styling) {
@@ -151,7 +152,8 @@ export async function loadGalleryEditData(editData: GalleryEditData): Promise<Re
     if (styling.balkenGruppenOffset) formData.balkenGruppenOffset = styling.balkenGruppenOffset;
     if (styling.sunflowerOffset) formData.sunflowerOffset = styling.sunflowerOffset;
     if (styling.credit) formData.credit = styling.credit;
-    if (styling.veranstaltungFieldFontSizes) formData.veranstaltungFieldFontSizes = styling.veranstaltungFieldFontSizes;
+    if (styling.veranstaltungFieldFontSizes)
+      formData.veranstaltungFieldFontSizes = styling.veranstaltungFieldFontSizes;
   }
 
   if (content) {
@@ -181,7 +183,9 @@ export async function loadGalleryEditData(editData: GalleryEditData): Promise<Re
   if (originalImageUrl) {
     console.log('[loadGalleryEditData] Fetching original image from:', originalImageUrl);
     try {
-      const urlPath = originalImageUrl.startsWith('/api') ? originalImageUrl.slice(4) : originalImageUrl;
+      const urlPath = originalImageUrl.startsWith('/api')
+        ? originalImageUrl.slice(4)
+        : originalImageUrl;
       const response = await apiClient.get(urlPath, { responseType: 'blob' });
       formData.uploadedImage = response.data;
       formData.file = response.data;
@@ -195,16 +199,18 @@ export async function loadGalleryEditData(editData: GalleryEditData): Promise<Re
     type: formData.type,
     currentStep: formData.currentStep,
     category: formData.category,
-    hasContent: ['line1', 'line2', 'line3', 'quote', 'header', 'body'].filter(k => formData[k]),
-    hasStyling: ['fontSize', 'colorScheme', 'balkenOffset', 'credit'].filter(k => formData[k]),
-    hasUploadedImage: !!formData.uploadedImage
+    hasContent: ['line1', 'line2', 'line3', 'quote', 'header', 'body'].filter((k) => formData[k]),
+    hasStyling: ['fontSize', 'colorScheme', 'balkenOffset', 'credit'].filter((k) => formData[k]),
+    hasUploadedImage: !!formData.uploadedImage,
   });
   console.log('[loadGalleryEditData] === END ===');
 
   return formData;
 }
 
-export async function loadEditSessionData(editSessionId: string): Promise<Record<string, unknown> | null> {
+export async function loadEditSessionData(
+  editSessionId: string
+): Promise<Record<string, unknown> | null> {
   try {
     const sessionDataStr = sessionStorage.getItem(editSessionId);
     if (!sessionDataStr) {
@@ -221,7 +227,7 @@ export async function loadEditSessionData(editSessionId: string): Promise<Record
     }
 
     const mappedType = data.type
-      ? (EDIT_SESSION_TYPE_MAP[data.type] || IMAGE_STUDIO_TYPES.DREIZEILEN)
+      ? EDIT_SESSION_TYPE_MAP[data.type] || IMAGE_STUDIO_TYPES.DREIZEILEN
       : IMAGE_STUDIO_TYPES.DREIZEILEN;
 
     const formData: Record<string, unknown> = {
@@ -229,7 +235,7 @@ export async function loadEditSessionData(editSessionId: string): Promise<Record
       type: mappedType,
       currentStep: FORM_STEPS.INPUT,
       editingSource: source || 'external',
-      isEditSession: true
+      isEditSession: true,
     };
 
     if (data.text) {
@@ -282,12 +288,12 @@ export function parseAIGeneratedData(
   selectedImage?: AISelectedImage | null
 ): Record<string, unknown> {
   const typeMap: Record<string, string> = {
-    'dreizeilen': IMAGE_STUDIO_TYPES.DREIZEILEN,
+    dreizeilen: IMAGE_STUDIO_TYPES.DREIZEILEN,
     'zitat-pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
-    'zitat_pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
-    'info': IMAGE_STUDIO_TYPES.INFO,
-    'veranstaltung': IMAGE_STUDIO_TYPES.VERANSTALTUNG,
-    'simple': IMAGE_STUDIO_TYPES.SIMPLE
+    zitat_pure: IMAGE_STUDIO_TYPES.ZITAT_PURE,
+    info: IMAGE_STUDIO_TYPES.INFO,
+    veranstaltung: IMAGE_STUDIO_TYPES.VERANSTALTUNG,
+    simple: IMAGE_STUDIO_TYPES.SIMPLE,
   };
 
   const mappedType = typeMap[sharepicType] || sharepicType;
@@ -297,7 +303,7 @@ export function parseAIGeneratedData(
     type: mappedType,
     currentStep: FORM_STEPS.CANVAS_EDIT,
     aiGeneratedContent: true,
-    editingSource: 'aiPrompt'
+    editingSource: 'aiPrompt',
   };
 
   if (mappedType === IMAGE_STUDIO_TYPES.DREIZEILEN) {
@@ -327,7 +333,9 @@ export function parseAIGeneratedData(
   // Add selected image if provided
   if (selectedImage?.path) {
     // Use same baseURL pattern as apiClient for consistent URL resolution
-    const apiBaseUrl = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || '/api';
+    const apiBaseUrl =
+      (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL ||
+      '/api';
     const fullImagePath = `${apiBaseUrl}${selectedImage.path}`;
     formData.uploadedImage = fullImagePath;
     formData.credit = selectedImage.alt_text || '';

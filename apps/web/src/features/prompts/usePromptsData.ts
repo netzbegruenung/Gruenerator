@@ -2,12 +2,14 @@
  * Hook for custom prompts data operations
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+
 import apiClient from '../../components/utils/apiClient';
+import { useOptimizedAuth } from '../../hooks/useAuth';
+
 import type { CustomPrompt, CustomPromptCreateData, CustomPromptUpdateData } from './types';
 
 const QUERY_KEYS = {
-  customPrompts: (userId: string | undefined) => ['customPrompts', userId]
+  customPrompts: (userId: string | undefined) => ['customPrompts', userId],
 };
 
 interface UseCustomPromptsOptions {
@@ -28,7 +30,7 @@ export const useCustomPromptsData = (options: UseCustomPromptsOptions = {}) => {
     enabled: enabled && !!user?.id && isActive,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
   });
 
   return { query };
@@ -45,7 +47,7 @@ export const usePromptMutations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
-    }
+    },
   });
 
   const updateMutation = useMutation({
@@ -56,7 +58,7 @@ export const usePromptMutations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
-    }
+    },
   });
 
   const deleteMutation = useMutation({
@@ -65,7 +67,7 @@ export const usePromptMutations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
-    }
+    },
   });
 
   return {
@@ -74,6 +76,6 @@ export const usePromptMutations = () => {
     deletePrompt: deleteMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
-    isDeleting: deleteMutation.isPending
+    isDeleting: deleteMutation.isPending,
   };
 };

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import apiClient from '../components/utils/apiClient';
 
 interface UseInteractiveGeneratorOptions {
@@ -20,7 +21,7 @@ interface UseInteractiveGeneratorOptions {
  */
 const useInteractiveGenerator = ({
   generatorType,
-  baseEndpoint = '/antraege/experimental'
+  baseEndpoint = '/antraege/experimental',
 }: UseInteractiveGeneratorOptions = {}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,31 +34,43 @@ const useInteractiveGenerator = ({
    * @param {string} params.locale - Locale (default: 'de-DE')
    * @returns {Promise<Object>} { sessionId, conversationState, questions, questionRound, metadata }
    */
-  const initiateSession = async ({ inhalt, requestType, locale = 'de-DE' }: { inhalt: string; requestType: string; locale?: string }) => {
+  const initiateSession = async ({
+    inhalt,
+    requestType,
+    locale = 'de-DE',
+  }: {
+    inhalt: string;
+    requestType: string;
+    locale?: string;
+  }) => {
     setLoading(true);
     setError(null);
 
     try {
-      console.log(`[useInteractiveGenerator:${generatorType}] Initiating session:`, { requestType, baseEndpoint });
+      console.log(`[useInteractiveGenerator:${generatorType}] Initiating session:`, {
+        requestType,
+        baseEndpoint,
+      });
 
       const response = await apiClient.post(`${baseEndpoint}/initiate`, {
         inhalt,
         requestType,
         generatorType,
-        locale
+        locale,
       });
 
       console.log(`[useInteractiveGenerator:${generatorType}] Session initiated:`, {
         sessionId: response.data.sessionId,
         questionCount: response.data.questions?.length,
-        status: response.data.status
+        status: response.data.status,
       });
 
       setLoading(false);
       return response.data;
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Unknown error';
+      const errorMessage =
+        axiosError.response?.data?.message || axiosError.message || 'Unknown error';
       console.error(`[useInteractiveGenerator:${generatorType}] Initiate error:`, errorMessage);
       setLoading(false);
       setError(errorMessage);
@@ -78,25 +91,26 @@ const useInteractiveGenerator = ({
     try {
       console.log(`[useInteractiveGenerator:${generatorType}] Continuing session:`, {
         sessionId,
-        answerCount: Object.keys(answers).length
+        answerCount: Object.keys(answers).length,
       });
 
       const response = await apiClient.post(`${baseEndpoint}/continue`, {
         sessionId,
-        answers
+        answers,
       });
 
       console.log(`[useInteractiveGenerator:${generatorType}] Session continued:`, {
         status: response.data.status,
         hasQuestions: !!response.data.questions,
-        hasResult: !!response.data.finalResult
+        hasResult: !!response.data.finalResult,
       });
 
       setLoading(false);
       return response.data;
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Unknown error';
+      const errorMessage =
+        axiosError.response?.data?.message || axiosError.message || 'Unknown error';
       console.error(`[useInteractiveGenerator:${generatorType}] Continue error:`, errorMessage);
       setLoading(false);
       setError(errorMessage);
@@ -116,13 +130,14 @@ const useInteractiveGenerator = ({
       const response = await apiClient.get(`${baseEndpoint}/status/${sessionId}`);
 
       console.log(`[useInteractiveGenerator:${generatorType}] Session status:`, {
-        conversationState: response.data.session?.conversationState
+        conversationState: response.data.session?.conversationState,
       });
 
       return response.data.session;
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Unknown error';
+      const errorMessage =
+        axiosError.response?.data?.message || axiosError.message || 'Unknown error';
       console.error(`[useInteractiveGenerator:${generatorType}] Status error:`, errorMessage);
       setError(errorMessage);
       throw err;
@@ -142,7 +157,7 @@ const useInteractiveGenerator = ({
     getSessionStatus,
     loading,
     error,
-    clearError
+    clearError,
   };
 };
 

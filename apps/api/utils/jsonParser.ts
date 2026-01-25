@@ -24,9 +24,21 @@ function escapeBareNewlinesInStrings(input: string): string {
         out += ch;
         continue;
       }
-      if (ch === '\n') { out += '\\n'; escape = false; continue; }
-      if (ch === '\r') { out += '\\r'; escape = false; continue; }
-      if (ch === '\t') { out += '\\t'; escape = false; continue; }
+      if (ch === '\n') {
+        out += '\\n';
+        escape = false;
+        continue;
+      }
+      if (ch === '\r') {
+        out += '\\r';
+        escape = false;
+        continue;
+      }
+      if (ch === '\t') {
+        out += '\\t';
+        escape = false;
+        continue;
+      }
       out += ch;
       if (ch === '\\' && !escape) {
         escape = true;
@@ -38,7 +50,7 @@ function escapeBareNewlinesInStrings(input: string): string {
       if (ch === '"' && !escape) {
         inString = true;
       }
-      escape = (ch === '\\') ? !escape : false;
+      escape = ch === '\\' ? !escape : false;
     }
   }
   return out;
@@ -62,7 +74,10 @@ export function extractJsonObject<T = Record<string, unknown>>(raw: unknown): T 
   text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
 
   // Remove leading/trailing quotes if the whole payload was quoted
-  if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
     text = text.slice(1, -1);
   }
 
@@ -79,7 +94,7 @@ export function extractJsonObject<T = Record<string, unknown>>(raw: unknown): T 
   log.debug('[jsonParser] Parsing JSON preview:', {
     startsWithCurly: text.trim().startsWith('{'),
     endsWithCurly: text.trim().endsWith('}'),
-    length: text.length
+    length: text.length,
   });
 
   // Try parse directly first
@@ -99,7 +114,12 @@ export function extractJsonObject<T = Record<string, unknown>>(raw: unknown): T 
       if (pos >= 0) {
         const start = Math.max(0, pos - 60);
         const end = Math.min(repaired.length, pos + 60);
-        log.error('[jsonParser] JSON parse error around position', pos, 'context:', repaired.slice(start, end));
+        log.error(
+          '[jsonParser] JSON parse error around position',
+          pos,
+          'context:',
+          repaired.slice(start, end)
+        );
       } else {
         log.error('[jsonParser] JSON parse error:', msg);
       }

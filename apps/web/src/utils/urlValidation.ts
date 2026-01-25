@@ -16,32 +16,34 @@ export const validateUrl = (url: string | null | undefined): ValidationResult =>
   if (!url || !url.trim()) {
     return {
       isValid: false,
-      error: 'URL ist erforderlich.'
+      error: 'URL ist erforderlich.',
     };
   }
-  
+
   try {
     const urlObj = new URL(url.trim());
-    
+
     // Check for supported protocols
     if (!['http:', 'https:'].includes(urlObj.protocol)) {
       return {
         isValid: false,
-        error: 'Nur HTTP und HTTPS URLs sind erlaubt.'
+        error: 'Nur HTTP und HTTPS URLs sind erlaubt.',
       };
     }
 
     // Check for localhost or private IP addresses in production
     if (process.env.NODE_ENV === 'production') {
       const hostname = urlObj.hostname.toLowerCase();
-      if (hostname === 'localhost' || 
-          hostname.startsWith('127.') || 
-          hostname.startsWith('10.') ||
-          hostname.startsWith('192.168.') ||
-          hostname.startsWith('172.')) {
+      if (
+        hostname === 'localhost' ||
+        hostname.startsWith('127.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('172.')
+      ) {
         return {
           isValid: false,
-          error: 'Lokale und private Netzwerk-URLs sind nicht erlaubt.'
+          error: 'Lokale und private Netzwerk-URLs sind nicht erlaubt.',
         };
       }
     }
@@ -51,15 +53,15 @@ export const validateUrl = (url: string | null | undefined): ValidationResult =>
     if (blockedDomains.includes(urlObj.hostname.toLowerCase())) {
       return {
         isValid: false,
-        error: 'Diese Domain ist nicht erlaubt.'
+        error: 'Diese Domain ist nicht erlaubt.',
       };
     }
 
     return { isValid: true };
-  } catch (error) {
+  } catch (_error) {
     return {
       isValid: false,
-      error: 'Ungültige URL. Bitte überprüfen Sie das Format.'
+      error: 'Ungültige URL. Bitte überprüfen Sie das Format.',
     };
   }
 };
@@ -71,14 +73,14 @@ export const validateUrl = (url: string | null | undefined): ValidationResult =>
  */
 export const normalizeUrl = (url: string | null | undefined): string => {
   if (!url) return '';
-  
+
   let normalized = url.trim();
-  
+
   // Add https:// if no protocol is specified
   if (normalized && !normalized.match(/^https?:\/\//i)) {
     normalized = 'https://' + normalized;
   }
-  
+
   return normalized;
 };
 
@@ -91,7 +93,7 @@ export const extractDomain = (url: string): string => {
   try {
     const urlObj = new URL(url);
     return urlObj.hostname;
-  } catch (error) {
+  } catch (_error) {
     return '';
   }
 };
@@ -105,7 +107,7 @@ export const isPdfUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
     return urlObj.pathname.toLowerCase().endsWith('.pdf');
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 };
@@ -119,23 +121,23 @@ export const generateTitleFromUrl = (url: string): string => {
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.replace(/^www\./, '');
-    const pathParts = urlObj.pathname.split('/').filter(part => part);
-    
+    const pathParts = urlObj.pathname.split('/').filter((part) => part);
+
     if (pathParts.length > 0) {
       const lastPart = pathParts[pathParts.length - 1];
       // Remove file extensions and convert dashes/underscores to spaces
       const cleaned = lastPart
         .replace(/\.[^.]*$/, '') // Remove file extension
         .replace(/[-_]/g, ' ') // Replace dashes and underscores with spaces
-        .replace(/\b\w/g, l => l.toUpperCase()); // Capitalize first letter of each word
-      
+        .replace(/\b\w/g, (l) => l.toUpperCase()); // Capitalize first letter of each word
+
       if (cleaned.length > 3) {
         return `${cleaned} - ${domain}`;
       }
     }
-    
+
     return `Content from ${domain}`;
-  } catch (error) {
+  } catch (_error) {
     return 'Crawled Content';
   }
 };

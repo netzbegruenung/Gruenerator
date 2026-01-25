@@ -20,11 +20,7 @@ export type {
   CreateSiteBody,
   UpdateSiteBody,
   PublishBody,
-  CheckSubdomainQuery
+  CheckSubdomainQuery,
 } from './types.js';
 
-export {
-  RESERVED_SUBDOMAINS,
-  THEME_STYLES,
-  AVAILABLE_THEMES
-} from './types.js';
+export { RESERVED_SUBDOMAINS, THEME_STYLES, AVAILABLE_THEMES } from './types.js';

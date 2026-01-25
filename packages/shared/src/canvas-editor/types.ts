@@ -86,9 +86,14 @@ export type Layer = ImageLayer | TextLayer | ShapeLayer;
 // =============================================================================
 
 export type TransformAnchor =
-  | 'top-left' | 'top-center' | 'top-right'
-  | 'middle-left' | 'middle-right'
-  | 'bottom-left' | 'bottom-center' | 'bottom-right';
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'middle-left'
+  | 'middle-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
 
 export interface TransformBounds {
   minX?: number;

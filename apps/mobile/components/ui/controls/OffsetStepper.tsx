@@ -42,9 +42,7 @@ export function OffsetStepper({
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
 
       <View style={styles.controls}>
         <Pressable
@@ -67,9 +65,7 @@ export function OffsetStepper({
         </Pressable>
 
         <View style={[styles.valueDisplay, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.valueText, { color: theme.text }]}>
-            {valueFormatter(value)}
-          </Text>
+          <Text style={[styles.valueText, { color: theme.text }]}>{valueFormatter(value)}</Text>
         </View>
 
         <Pressable

@@ -1,19 +1,20 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
+
 import BaseForm from '../../../components/common/BaseForm';
-import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
-import useApiSubmit from '../../../components/hooks/useApiSubmit';
-import SmartInput from '../../../components/common/Form/SmartInput';
-import { FormTextarea } from '../../../components/common/Form/Input';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import PlatformSelector from '../../../components/common/PlatformSelector';
-import Icon from '../../../components/common/Icon';
-import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
-import { useUserDefaults } from '../../../hooks/useUserDefaults';
-import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
-import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import FeatureToggle from '../../../components/common/FeatureToggle';
-import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
 import CorrectionSection from '../../../components/common/Form/BaseForm/CorrectionSection';
+import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
+import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import { FormTextarea } from '../../../components/common/Form/Input';
+import SmartInput from '../../../components/common/Form/SmartInput';
+import Icon from '../../../components/common/Icon';
+import PlatformSelector from '../../../components/common/PlatformSelector';
+import useApiSubmit from '../../../components/hooks/useApiSubmit';
+import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
+import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
+import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import { useUserDefaults } from '../../../hooks/useUserDefaults';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { usePlanModeWorkflow } from '../antrag/hooks/usePlanModeWorkflow';
 
 interface AntragTabProps {
@@ -28,13 +29,13 @@ interface FormValues {
 const REQUEST_TYPES = {
   ANTRAG: 'antrag',
   KLEINE_ANFRAGE: 'kleine_anfrage',
-  GROSSE_ANFRAGE: 'grosse_anfrage'
+  GROSSE_ANFRAGE: 'grosse_anfrage',
 } as const;
 
 const REQUEST_TYPE_LABELS = {
   [REQUEST_TYPES.ANTRAG]: 'Antrag',
   [REQUEST_TYPES.KLEINE_ANFRAGE]: 'Kleine Anfrage',
-  [REQUEST_TYPES.GROSSE_ANFRAGE]: 'Große Anfrage'
+  [REQUEST_TYPES.GROSSE_ANFRAGE]: 'Große Anfrage',
 };
 
 const AntragIcon = memo(() => <Icon category="textTypes" name="antrag" size={16} />);
@@ -49,7 +50,7 @@ GrosseAnfrageIcon.displayName = 'GrosseAnfrageIcon';
 const REQUEST_TYPE_ICONS: Record<string, () => React.ReactNode> = {
   [REQUEST_TYPES.ANTRAG]: () => <AntragIcon />,
   [REQUEST_TYPES.KLEINE_ANFRAGE]: () => <KleineAnfrageIcon />,
-  [REQUEST_TYPES.GROSSE_ANFRAGE]: () => <GrosseAnfrageIcon />
+  [REQUEST_TYPES.GROSSE_ANFRAGE]: () => <GrosseAnfrageIcon />,
 };
 
 const PlanModeIcon = memo(({ className }: { className?: string }) => (
@@ -62,26 +63,34 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
 
   useUserDefaults('antrag');
 
-  const [selectedRequestType, setSelectedRequestType] = useState<typeof REQUEST_TYPES.ANTRAG | typeof REQUEST_TYPES.KLEINE_ANFRAGE | typeof REQUEST_TYPES.GROSSE_ANFRAGE>(REQUEST_TYPES.ANTRAG);
+  const [selectedRequestType, setSelectedRequestType] = useState<
+    | typeof REQUEST_TYPES.ANTRAG
+    | typeof REQUEST_TYPES.KLEINE_ANFRAGE
+    | typeof REQUEST_TYPES.GROSSE_ANFRAGE
+  >(REQUEST_TYPES.ANTRAG);
   const [usePlanMode, setUsePlanMode] = useState(false);
   const [questionAnswers, setQuestionAnswers] = useState<Record<string, string | string[]>>({});
   const planMode = usePlanModeWorkflow();
 
   const [antragContent, setAntragContent] = useState('');
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/antraege/generate-simple');
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(
+    '/antraege/generate-simple'
+  );
 
-  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const storeGeneratedText = useGeneratedTextStore((state) =>
+    state.getGeneratedText(componentName)
+  );
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   const setup = useGeneratorSetup({
     instructionType: 'antrag',
-    componentName: 'antrag-generator'
+    componentName: 'antrag-generator',
   });
 
   const form = useBaseForm({
     defaultValues: {
       inhalt: '',
-      gliederung: ''
+      gliederung: '',
     },
     generatorType: 'antrag' as unknown as null,
     componentName: componentName as unknown as null,
@@ -91,95 +100,107 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     tabIndexKey: 'ANTRAG' as unknown as null,
     defaultMode: 'pro' as unknown as null,
     helpContent: {
-      content: 'Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.',
+      content:
+        'Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.',
       tips: [
         'Wähle die Art: Antrag, Kleine oder Große Anfrage',
         'Kleine Anfragen: Präzise Fachinformationen punktuell abfragen',
         'Große Anfragen: Umfassende politische Themen mit Debatte',
         'Formuliere deine Idee klar und präzise',
-        'Nutze die Websuche für aktuelle Informationen'
-      ]
-    } as unknown as null
+        'Nutze die Websuche für aktuelle Informationen',
+      ],
+    } as unknown as null,
   });
 
   const { control, handleSubmit, setValue } = form;
   const getValues = form.getValues as (name?: string) => unknown;
 
-  const allAttachments = useMemo(() => [
-    ...(form.generator?.attachedFiles || [])
-  ], [form.generator?.attachedFiles]);
+  const allAttachments = useMemo(
+    () => [...(form.generator?.attachedFiles || [])],
+    [form.generator?.attachedFiles]
+  );
 
   const builder = useFormDataBuilder({
     ...setup,
     attachments: allAttachments,
-    searchQueryFields: ['inhalt', 'gliederung'] as const
+    searchQueryFields: ['inhalt', 'gliederung'] as const,
   });
 
-  const onSubmitRHF = useCallback(async (rhfData: FormValues) => {
-    setStoreIsLoading(true);
+  const onSubmitRHF = useCallback(
+    async (rhfData: FormValues) => {
+      setStoreIsLoading(true);
 
-    try {
-      if (usePlanMode) {
-        const submissionData = builder.buildSubmissionData({
+      try {
+        if (usePlanMode) {
+          const submissionData = builder.buildSubmissionData({
+            requestType: selectedRequestType,
+            inhalt: rhfData.inhalt,
+            gliederung: rhfData.gliederung,
+          });
+
+          await planMode.initiatePlan({
+            generatorType: 'antrag',
+            inhalt: rhfData.inhalt,
+            requestType: selectedRequestType,
+            useWebSearch: submissionData.useWebSearchTool,
+            usePrivacyMode: submissionData.usePrivacyMode,
+            selectedDocumentIds: submissionData.selectedDocumentIds,
+            selectedTextIds: submissionData.selectedTextIds,
+          });
+
+          setStoreIsLoading(false);
+          return;
+        }
+
+        const formDataToSubmit = builder.buildSubmissionData({
           requestType: selectedRequestType,
           inhalt: rhfData.inhalt,
-          gliederung: rhfData.gliederung
+          gliederung: rhfData.gliederung,
         });
 
-        await planMode.initiatePlan({
-          generatorType: 'antrag',
-          inhalt: rhfData.inhalt,
-          requestType: selectedRequestType,
-          useWebSearch: submissionData.useWebSearchTool,
-          usePrivacyMode: submissionData.usePrivacyMode,
-          selectedDocumentIds: submissionData.selectedDocumentIds,
-          selectedTextIds: submissionData.selectedTextIds
-        });
+        const response = await submitForm(formDataToSubmit as unknown as Record<string, unknown>);
+
+        if (response) {
+          const content =
+            typeof response === 'string' ? response : (response as { content?: string }).content;
+          const metadata =
+            typeof response === 'object'
+              ? (response as { metadata?: Record<string, unknown> }).metadata
+              : undefined;
+
+          if (content) {
+            setAntragContent(content);
+            setGeneratedText(componentName, content, metadata);
+            setTimeout(resetSuccess, 3000);
+          }
+        }
 
         setStoreIsLoading(false);
-        return;
+      } catch (submitError) {
+        console.error('[AntragTab] Error submitting form:', submitError);
+        setStoreIsLoading(false);
       }
+    },
+    [
+      submitForm,
+      resetSuccess,
+      setGeneratedText,
+      setStoreIsLoading,
+      componentName,
+      selectedRequestType,
+      builder,
+      usePlanMode,
+      planMode,
+    ]
+  );
 
-      const formDataToSubmit = builder.buildSubmissionData({
-        requestType: selectedRequestType,
-        inhalt: rhfData.inhalt,
-        gliederung: rhfData.gliederung
-      });
-
-      const response = await submitForm(formDataToSubmit as unknown as Record<string, unknown>);
-
-      if (response) {
-        const content = typeof response === 'string' ? response : (response as { content?: string }).content;
-        const metadata = typeof response === 'object' ? (response as { metadata?: Record<string, unknown> }).metadata : undefined;
-
-        if (content) {
-          setAntragContent(content);
-          setGeneratedText(componentName, content, metadata);
-          setTimeout(resetSuccess, 3000);
-        }
-      }
-
-      setStoreIsLoading(false);
-    } catch (submitError) {
-      console.error('[AntragTab] Error submitting form:', submitError);
-      setStoreIsLoading(false);
-    }
-  }, [
-    submitForm,
-    resetSuccess,
-    setGeneratedText,
-    setStoreIsLoading,
-    componentName,
-    selectedRequestType,
-    builder,
-    usePlanMode,
-    planMode
-  ]);
-
-  const handleGeneratedContentChange = useCallback((content: string) => {
-    setAntragContent(content);
-    setGeneratedText(componentName, content);
-  }, [setGeneratedText, componentName]);
+  const handleGeneratedContentChange = useCallback(
+    (content: string) => {
+      setAntragContent(content);
+      setGeneratedText(componentName, content);
+    },
+    [setGeneratedText, componentName]
+  );
 
   const displayContent = useMemo(() => {
     if (usePlanMode) {
@@ -190,7 +211,7 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
           content: production,
           title: null,
           metadata: {},
-          useMarkdown: false
+          useMarkdown: false,
         };
       }
 
@@ -207,7 +228,7 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
           content: `## ${planTitle}\n\n${displayPlan}`,
           title: null,
           metadata: {},
-          useMarkdown: true
+          useMarkdown: true,
         };
       }
     }
@@ -219,7 +240,7 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
         content,
         title: null,
         metadata: {},
-        useMarkdown: false
+        useMarkdown: false,
       };
     }
 
@@ -230,16 +251,21 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     if (!usePlanMode) return 'Grünerieren';
 
     switch (planMode.state.status) {
-      case 'idle': return 'Plan erstellen';
-      case 'generating_plan': return 'Plan wird erstellt...';
-      case 'revising_plan': return 'Plan wird verfeinert...';
-      case 'generating_production': return 'Wird generiert...';
-      default: return 'Grünerieren';
+      case 'idle':
+        return 'Plan erstellen';
+      case 'generating_plan':
+        return 'Plan wird erstellt...';
+      case 'revising_plan':
+        return 'Plan wird verfeinert...';
+      case 'generating_production':
+        return 'Wird generiert...';
+      default:
+        return 'Grünerieren';
     }
   }, [usePlanMode, planMode.state.status]);
 
   const handleAnswerChange = useCallback((questionId: string, answer: string | string[]) => {
-    setQuestionAnswers(prev => ({ ...prev, [questionId]: answer }));
+    setQuestionAnswers((prev) => ({ ...prev, [questionId]: answer }));
   }, []);
 
   const handleQuestionSubmit = useCallback(async () => {
@@ -267,11 +293,14 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     planMode.startCorrections();
   }, [planMode]);
 
-  const handleSubmitCorrections = useCallback(async (corrections: string) => {
-    if (planMode.state.workflowId) {
-      await planMode.submitCorrections(planMode.state.workflowId, corrections);
-    }
-  }, [planMode]);
+  const handleSubmitCorrections = useCallback(
+    async (corrections: string) => {
+      if (planMode.state.workflowId) {
+        await planMode.submitCorrections(planMode.state.workflowId, corrections);
+      }
+    },
+    [planMode]
+  );
 
   const handleCancelCorrections = useCallback(() => {
     planMode.cancelCorrections();
@@ -280,42 +309,57 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
   const isPlanModeActive = usePlanMode && planMode.state.status !== 'idle';
   const showFormInputs = !isPlanModeActive || planMode.state.status === 'error';
 
-  const requestTypeOptions = useMemo(() =>
-    Object.entries(REQUEST_TYPE_LABELS).map(([value, label]) => ({
-      value,
-      label,
-      icon: REQUEST_TYPE_ICONS[value]
-    })),
+  const requestTypeOptions = useMemo(
+    () =>
+      Object.entries(REQUEST_TYPE_LABELS).map(([value, label]) => ({
+        value,
+        label,
+        icon: REQUEST_TYPE_ICONS[value],
+      })),
     []
   );
 
-  const handleRequestTypeChange = useCallback((value: string | number | (string | number)[] | null | undefined) => {
-    // Extract first value if array (shouldn't happen with isMulti=false but type union expects it)
-    const val = Array.isArray(value) ? value[0] : value;
-    setSelectedRequestType(String(val ?? REQUEST_TYPES.ANTRAG) as typeof REQUEST_TYPES.ANTRAG | typeof REQUEST_TYPES.KLEINE_ANFRAGE | typeof REQUEST_TYPES.GROSSE_ANFRAGE);
-  }, []);
+  const handleRequestTypeChange = useCallback(
+    (value: string | number | (string | number)[] | null | undefined) => {
+      // Extract first value if array (shouldn't happen with isMulti=false but type union expects it)
+      const val = Array.isArray(value) ? value[0] : value;
+      setSelectedRequestType(
+        String(val ?? REQUEST_TYPES.ANTRAG) as
+          | typeof REQUEST_TYPES.ANTRAG
+          | typeof REQUEST_TYPES.KLEINE_ANFRAGE
+          | typeof REQUEST_TYPES.GROSSE_ANFRAGE
+      );
+    },
+    []
+  );
 
-  const handlePlanModeToggle = useCallback((checked: boolean) => {
-    setUsePlanMode(checked);
-    if (!checked) handlePlanModeReset();
-  }, [handlePlanModeReset]);
+  const handlePlanModeToggle = useCallback(
+    (checked: boolean) => {
+      setUsePlanMode(checked);
+      if (!checked) handlePlanModeReset();
+    },
+    [handlePlanModeReset]
+  );
 
-  const renderRequestTypeSection = useCallback(() => (
-    <PlatformSelector
-      name="requestType"
-      options={requestTypeOptions}
-      value={selectedRequestType}
-      onChange={handleRequestTypeChange}
-      label="Art der Anfrage"
-      placeholder="Art der Anfrage auswählen..."
-      isMulti={false}
-      control={undefined}
-      enableIcons={true}
-      enableSubtitles={false}
-      isSearchable={false}
-      required={true}
-    />
-  ), [requestTypeOptions, selectedRequestType, handleRequestTypeChange]);
+  const renderRequestTypeSection = useCallback(
+    () => (
+      <PlatformSelector
+        name="requestType"
+        options={requestTypeOptions}
+        value={selectedRequestType}
+        onChange={handleRequestTypeChange}
+        label="Art der Anfrage"
+        placeholder="Art der Anfrage auswählen..."
+        isMulti={false}
+        control={undefined}
+        enableIcons={true}
+        enableSubtitles={false}
+        isSearchable={false}
+        required={true}
+      />
+    ),
+    [requestTypeOptions, selectedRequestType, handleRequestTypeChange]
+  );
 
   const renderFormInputs = () => {
     return (
@@ -329,7 +373,9 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
           minRows={5}
           maxRows={15}
           className="form-textarea-large"
-          tabIndex={(form.generator?.tabIndex as Record<string, unknown>)?.inhalt as number | undefined}
+          tabIndex={
+            (form.generator?.tabIndex as Record<string, unknown>)?.inhalt as number | undefined
+          }
         />
 
         <SmartInput
@@ -340,7 +386,9 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
           getValues={getValues}
           label={FORM_LABELS.GLIEDERUNG}
           placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
-          tabIndex={(form.generator?.tabIndex as Record<string, unknown>)?.gliederung as number | undefined}
+          tabIndex={
+            (form.generator?.tabIndex as Record<string, unknown>)?.gliederung as number | undefined
+          }
           onSubmitSuccess={success ? String(getValues('gliederung') || '') : null}
           shouldSave={success}
           formName="antrag"
@@ -350,7 +398,8 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
   };
 
   const renderPlanModeContent = () => {
-    const { status, plan, revisedPlan, correctedPlan, questions, correctionSummary } = planMode.state;
+    const { status, plan, revisedPlan, correctedPlan, questions, correctionSummary } =
+      planMode.state;
 
     if (status === 'plan_generated' && (plan || revisedPlan || correctedPlan)) {
       const hasQuestions = questions && questions.length > 0;
@@ -432,7 +481,14 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
       );
     }
 
-    if (['generating_plan', 'revising_plan', 'applying_corrections', 'generating_production'].includes(status)) {
+    if (
+      [
+        'generating_plan',
+        'revising_plan',
+        'applying_corrections',
+        'generating_production',
+      ].includes(status)
+    ) {
       let loadingText = getSubmitButtonText();
       if (status === 'applying_corrections') {
         loadingText = 'Korrekturen werden angewendet...';
@@ -440,9 +496,7 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
       return (
         <div className="plan-mode-loading" style={{ textAlign: 'center', padding: '2rem' }}>
           <div className="loading-spinner" />
-          <p style={{ marginTop: '1rem', color: 'var(--font-color-secondary)' }}>
-            {loadingText}
-          </p>
+          <p style={{ marginTop: '1rem', color: 'var(--font-color-secondary)' }}>{loadingText}</p>
         </div>
       );
     }
@@ -450,20 +504,23 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     return renderFormInputs();
   };
 
-  const renderFirstExtras = useCallback(() => (
-    <>
-      {renderRequestTypeSection()}
-      <FeatureToggle
-        label="Plan Mode"
-        isActive={usePlanMode}
-        onToggle={handlePlanModeToggle}
-        icon={PlanModeIcon}
-        description="Erst planen, dann generieren"
-        noBorder={true}
-        disabled={isPlanModeActive}
-      />
-    </>
-  ), [renderRequestTypeSection, usePlanMode, handlePlanModeToggle, isPlanModeActive]);
+  const renderFirstExtras = useCallback(
+    () => (
+      <>
+        {renderRequestTypeSection()}
+        <FeatureToggle
+          label="Plan Mode"
+          isActive={usePlanMode}
+          onToggle={handlePlanModeToggle}
+          icon={PlanModeIcon}
+          description="Erst planen, dann generieren"
+          noBorder={true}
+          disabled={isPlanModeActive}
+        />
+      </>
+    ),
+    [renderRequestTypeSection, usePlanMode, handlePlanModeToggle, isPlanModeActive]
+  );
 
   return (
     <BaseForm
@@ -483,7 +540,11 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
       useMarkdown={displayContent?.useMarkdown ?? false}
       nextButtonText={getSubmitButtonText()}
       firstExtrasChildren={renderFirstExtras()}
-      platformOptions={(form.generator?.baseFormProps?.platformOptions ?? undefined) as unknown as any[] | undefined}
+      platformOptions={
+        (form.generator?.baseFormProps?.platformOptions ?? undefined) as unknown as
+          | any[]
+          | undefined
+      }
       hideFormExtras={isPlanModeActive && planMode.state.status !== 'idle'}
     >
       {usePlanMode ? renderPlanModeContent() : renderFormInputs()}

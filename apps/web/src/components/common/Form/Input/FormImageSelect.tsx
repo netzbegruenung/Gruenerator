@@ -1,6 +1,8 @@
-import type { JSX } from 'react';
-import { Controller, Control } from 'react-hook-form';
+import { Controller, type Control } from 'react-hook-form';
+
 import FormFieldWrapper from './FormFieldWrapper';
+
+import type { JSX } from 'react';
 import '../../../../assets/styles/components/form/form-image-select.css';
 
 interface ImageOption {
@@ -25,7 +27,7 @@ interface FormImageSelectProps {
   columns?: {
     desktop?: number;
     tablet?: number;
-    mobile?: number
+    mobile?: number;
   };
   aspectRatio?: string;
   showLabel?: boolean;
@@ -50,15 +52,20 @@ const FormImageSelect = ({
   showLabel = false,
   imageProps = {},
 }: FormImageSelectProps): JSX.Element => {
-  const renderImageGrid = (selectedValue: string | number | undefined, onChangeGrid: (value: string | number) => void) => {
+  const renderImageGrid = (
+    selectedValue: string | number | undefined,
+    onChangeGrid: (value: string | number) => void
+  ) => {
     return (
       <div
-        className={`form-image-select-grid`}
-        style={{
-          '--grid-cols-desktop': columns?.desktop ?? 3,
-          '--grid-cols-tablet': columns?.tablet ?? 2,
-          '--grid-cols-mobile': columns?.mobile ?? 1
-        } as React.CSSProperties}
+        className="form-image-select-grid"
+        style={
+          {
+            '--grid-cols-desktop': columns?.desktop ?? 3,
+            '--grid-cols-tablet': columns?.tablet ?? 2,
+            '--grid-cols-mobile': columns?.mobile ?? 1,
+          } as React.CSSProperties
+        }
         role="radiogroup"
         aria-label={label}
       >
@@ -84,15 +91,11 @@ const FormImageSelect = ({
             }}
             style={{
               backgroundImage: `url(${option.imageUrl})`,
-              aspectRatio: aspectRatio
+              aspectRatio: aspectRatio,
             }}
             {...imageProps}
           >
-            {showLabel && (
-              <div className="form-image-select-card__label">
-                {option.label}
-              </div>
-            )}
+            {showLabel && <div className="form-image-select-card__label">{option.label}</div>}
           </div>
         ))}
       </div>
@@ -124,15 +127,10 @@ const FormImageSelect = ({
 
   // Controlled mode: use value/onChange props
   const selectedValue = value !== undefined ? value : defaultValue;
-  const handleChange = onChange || (() => { });
+  const handleChange = onChange || (() => {});
 
   return (
-    <FormFieldWrapper
-      label={label}
-      required={required}
-      helpText={helpText}
-      htmlFor={name}
-    >
+    <FormFieldWrapper label={label} required={required} helpText={helpText} htmlFor={name}>
       <div className={`form-image-select ${className}`.trim()}>
         {renderImageGrid(selectedValue, handleChange)}
       </div>

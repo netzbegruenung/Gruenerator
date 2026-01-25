@@ -117,7 +117,10 @@ export const MIN_TEXT_RESULTS_FOR_RRF = 3;
 /**
  * Content type preferences by query intent
  */
-export const INTENT_CONTENT_PREFERENCES: Record<string, { preferredTypes: string[]; boost: Record<string, number> }> = {
+export const INTENT_CONTENT_PREFERENCES: Record<
+  string,
+  { preferredTypes: string[]; boost: Record<string, number> }
+> = {
   definition: { preferredTypes: ['heading', 'paragraph'], boost: { heading: 1.2 } },
   howto: { preferredTypes: ['list', 'paragraph'], boost: { list: 1.3 } },
   factual: { preferredTypes: ['paragraph', 'table'], boost: { table: 1.1 } },

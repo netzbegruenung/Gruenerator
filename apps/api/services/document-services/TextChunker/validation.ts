@@ -28,8 +28,7 @@ export function validateChunkingOptions(options: any): void {
     throw new Error('overlapTokens must be non-negative');
   }
 
-  if (options.overlapTokens && options.maxTokens &&
-      options.overlapTokens >= options.maxTokens) {
+  if (options.overlapTokens && options.maxTokens && options.overlapTokens >= options.maxTokens) {
     throw new Error('overlapTokens must be less than maxTokens');
   }
 }

@@ -1,14 +1,15 @@
 /**
  * Centralized content extraction utility for the Grünerator application.
  * Handles various content types and output formats to reduce code duplication.
- * 
+ *
  * Note: For search exports with complex formatting requirements, the existing
  * formatExportContent from exportUtils.jsx is used to maintain specific functionality.
  */
 
-import { formatExportContent } from './exportUtils';
 import { isMarkdownContent } from '../common/Form/utils/contentUtils';
+
 import apiClient from './apiClient';
+import { formatExportContent } from './exportUtils';
 
 /**
  * Converts HTML string to plain text while preserving basic structure
@@ -17,7 +18,7 @@ import apiClient from './apiClient';
  */
 export const convertHtmlToPlainText = async (html) => {
   if (!html) return '';
-  
+
   // Convert markdown to HTML first if needed using backend service
   if (typeof html === 'string' && isMarkdownContent(html)) {
     try {
@@ -30,16 +31,18 @@ export const convertHtmlToPlainText = async (html) => {
       // Continue with original content on error
     }
   }
-  
+
   // Create temporary DOM element for parsing
   const tempElement = document.createElement('div');
   tempElement.innerHTML = html;
-  
+
   // Add line breaks for block elements and list formatting
-  const blockElements = tempElement.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
-  blockElements.forEach(element => {
+  const blockElements = tempElement.querySelectorAll(
+    'p, div, li, h1, h2, h3, h4, h5, h6, blockquote'
+  );
+  blockElements.forEach((element) => {
     element.insertAdjacentHTML('afterend', '\n');
-    
+
     // Add bullet points for list items
     if (element.tagName === 'LI') {
       element.insertAdjacentHTML('beforebegin', '• ');
@@ -48,7 +51,7 @@ export const convertHtmlToPlainText = async (html) => {
 
   // Add extra line breaks after lists for better readability
   const lists = tempElement.querySelectorAll('ul, ol');
-  lists.forEach(list => {
+  lists.forEach((list) => {
     list.insertAdjacentHTML('afterend', '\n');
   });
 
@@ -68,41 +71,40 @@ export const convertHtmlToPlainText = async (html) => {
  */
 export const extractMixedContent = (mixedContent) => {
   if (!mixedContent || typeof mixedContent !== 'object') return '';
-  
+
   const parts = [];
-  
+
   if (mixedContent.sharepic) {
     const sharepicEntries = Array.isArray(mixedContent.sharepic)
       ? mixedContent.sharepic
       : [mixedContent.sharepic];
 
-    sharepicEntries
-      .filter(Boolean)
-      .forEach(entry => {
-        if (typeof entry === 'object') {
-          const sharepicText = entry.text || entry.content || '';
-          if (sharepicText) {
-            parts.push(sharepicText);
-          }
-        } else if (entry) {
-          parts.push(entry);
+    sharepicEntries.filter(Boolean).forEach((entry) => {
+      if (typeof entry === 'object') {
+        const sharepicText = entry.text || entry.content || '';
+        if (sharepicText) {
+          parts.push(sharepicText);
         }
-      });
+      } else if (entry) {
+        parts.push(entry);
+      }
+    });
   }
-  
+
   if (mixedContent.social) {
     // Extract content property if it's an object, otherwise use as-is
-    const socialContent = typeof mixedContent.social === 'object'
-      ? (mixedContent.social.content || '')
-      : mixedContent.social;
+    const socialContent =
+      typeof mixedContent.social === 'object'
+        ? mixedContent.social.content || ''
+        : mixedContent.social;
     if (socialContent) parts.push(socialContent);
   }
-  
+
   // Include fallback content if no parts were added
   if (parts.length === 0 && mixedContent.content) {
     parts.push(mixedContent.content);
   }
-  
+
   return parts.join('\n\n');
 };
 
@@ -114,37 +116,37 @@ export const extractMixedContent = (mixedContent) => {
  */
 export const extractSearchExportContent = (searchExport, includeMetadata = true) => {
   if (!searchExport || typeof searchExport !== 'object') return '';
-  
+
   let content = '';
-  
+
   // Main analysis content
   if (searchExport.analysis) {
     content = searchExport.analysis;
-    
+
     // Clean HTML if present
     if (content.includes('<')) {
       content = convertHtmlToPlainText(content);
     }
   }
-  
+
   if (!includeMetadata) return content;
-  
+
   // Add source recommendations
   if (searchExport.sourceRecommendations?.length > 0) {
     content += '\n\nQuellenempfehlungen:';
-    searchExport.sourceRecommendations.forEach(rec => {
+    searchExport.sourceRecommendations.forEach((rec) => {
       content += `\n• ${rec.title} - ${rec.summary}`;
     });
   }
-  
+
   // Add unused sources
   if (searchExport.unusedSources?.length > 0) {
     content += '\n\nWeitere relevante Quellen:';
-    searchExport.unusedSources.forEach(source => {
+    searchExport.unusedSources.forEach((source) => {
       content += `\n• ${source.title}`;
     });
   }
-  
+
   return content.trim();
 };
 
@@ -159,62 +161,62 @@ export const extractPlainText = async (content) => {
     console.log('extractPlainText input:', {
       type: typeof content,
       isObject: typeof content === 'object',
-      hasSharepic: !!(content?.sharepic),
-      hasSocial: !!(content?.social),
-      hasAnalysis: !!(content?.analysis),
-      objectKeys: typeof content === 'object' ? Object.keys(content) : null
+      hasSharepic: !!content?.sharepic,
+      hasSocial: !!content?.social,
+      hasAnalysis: !!content?.analysis,
+      objectKeys: typeof content === 'object' ? Object.keys(content) : null,
     });
   }
-  
+
   // Handle null/undefined
   if (!content) return '';
-  
+
   // Handle plain strings
   if (typeof content === 'string') {
     // Convert markdown first if needed
     if (isMarkdownContent(content)) {
       const { marked } = await import('marked');
       content = marked(content, {
-        breaks: true,      // Convert line breaks to <br>
-        gfm: true,        // GitHub Flavored Markdown
+        breaks: true, // Convert line breaks to <br>
+        gfm: true, // GitHub Flavored Markdown
         headerIds: false, // Don't add IDs to headers
-        mangle: false     // Don't mangle autolinks
+        mangle: false, // Don't mangle autolinks
       });
     }
-    
+
     // Check if it's HTML content (after potential markdown conversion)
     if (content.includes('<') && content.includes('>')) {
       return convertHtmlToPlainText(content);
     }
     return content.trim();
   }
-  
+
   // Handle objects
   if (typeof content === 'object') {
     // Search export format
     if (content.analysis) {
       return extractSearchExportContent(content, true);
     }
-    
+
     // Mixed content format (sharepic/social)
     if (content.sharepic || content.social) {
       const mixedText = extractMixedContent(content);
       return mixedText.includes('<') ? convertHtmlToPlainText(mixedText) : mixedText;
     }
   }
-  
+
   // Handle unexpected object structures gracefully
   if (typeof content === 'object') {
     // Try common content properties
     if (content.content) return content.content.trim();
     if (content.text) return content.text.trim();
     if (content.value) return content.value.trim();
-    
+
     // Debug logging in development
     if (process.env.NODE_ENV === 'development') {
       console.warn('Unknown content object structure:', Object.keys(content));
     }
-    
+
     // Last resort: stringify for debugging
     return JSON.stringify(content);
   }
@@ -231,40 +233,40 @@ export const extractPlainText = async (content) => {
 export const extractFormattedText = async (content) => {
   // For document exports, send raw content to backend - no frontend conversion
   // Backend will handle markdown/HTML conversion and formatting
-  
+
   // Handle null/undefined
   if (!content) return '';
-  
+
   // Handle plain strings - return as-is (markdown or HTML)
   if (typeof content === 'string') {
     return content.trim();
   }
-  
+
   // Handle objects
   if (typeof content === 'object') {
     // Search export format
     if (content.analysis) {
       return extractSearchExportContent(content, true);
     }
-    
+
     // Mixed content format (sharepic/social)
     if (content.sharepic || content.social) {
       return extractMixedContent(content);
     }
   }
-  
+
   // Handle unexpected object structures gracefully
   if (typeof content === 'object') {
     // Try common content properties
     if (content.content) return content.content.trim();
     if (content.text) return content.text.trim();
     if (content.value) return content.value.trim();
-    
+
     // Debug logging in development
     if (process.env.NODE_ENV === 'development') {
       console.warn('Unknown content object structure:', Object.keys(content));
     }
-    
+
     // Last resort: stringify for debugging
     return JSON.stringify(content);
   }
@@ -272,7 +274,6 @@ export const extractFormattedText = async (content) => {
   // Fallback for non-object types
   return String(content).trim();
 };
-
 
 /**
  * Extracts HTML content for rich clipboard copying (Word, Etherpad)
@@ -289,10 +290,10 @@ export const extractHTMLContent = async (content) => {
     if (isMarkdownContent(content)) {
       const { marked } = await import('marked');
       return marked(content, {
-        breaks: true,      // Convert line breaks to <br>
-        gfm: true,        // GitHub Flavored Markdown
+        breaks: true, // Convert line breaks to <br>
+        gfm: true, // GitHub Flavored Markdown
         headerIds: false, // Don't add IDs to headers
-        mangle: false     // Don't mangle autolinks
+        mangle: false, // Don't mangle autolinks
       });
     }
 
@@ -319,7 +320,7 @@ export const extractHTMLContent = async (content) => {
         breaks: true,
         gfm: true,
         headerIds: false,
-        mangle: false
+        mangle: false,
       });
     }
     return `<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;

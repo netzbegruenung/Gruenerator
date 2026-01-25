@@ -2,7 +2,14 @@
  * Ally Maker KI type configuration
  */
 import { HiHeart } from 'react-icons/hi';
-import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, KI_SUBCATEGORIES, FORM_STEPS } from '../constants';
+
+import {
+  IMAGE_STUDIO_CATEGORIES,
+  IMAGE_STUDIO_TYPES,
+  KI_SUBCATEGORIES,
+  FORM_STEPS,
+} from '../constants';
+
 import type { KiTypeConfig, TemplateFieldConfig } from '../types';
 
 export const allyMakerTypeConfig: KiTypeConfig = {
@@ -20,7 +27,7 @@ export const allyMakerTypeConfig: KiTypeConfig = {
   hasRateLimit: true,
   hasPrecisionMode: true,
   endpoints: {
-    generate: '/flux/green-edit/prompt'
+    generate: '/flux/green-edit/prompt',
   },
   formComponent: 'AllyMakerForm',
   steps: [FORM_STEPS.IMAGE_UPLOAD, FORM_STEPS.INPUT, FORM_STEPS.RESULT],
@@ -28,8 +35,8 @@ export const allyMakerTypeConfig: KiTypeConfig = {
     { value: 'Wange', label: 'Wange' },
     { value: 'Handgelenk', label: 'Handgelenk' },
     { value: 'Schlafe', label: 'Schläfe' },
-    { value: 'Schulter', label: 'Schulter' }
-  ]
+    { value: 'Schulter', label: 'Schulter' },
+  ],
 };
 
 export const allyMakerFieldConfig: TemplateFieldConfig = {
@@ -38,16 +45,17 @@ export const allyMakerFieldConfig: TemplateFieldConfig = {
       name: 'allyPlacement',
       type: 'select',
       label: 'Wo soll das Tattoo erscheinen?',
-      subtitle: 'Wähle die Position aus, wo das Regenbogen-Tattoo auf der Person platziert werden soll',
+      subtitle:
+        'Wähle die Position aus, wo das Regenbogen-Tattoo auf der Person platziert werden soll',
       placeholder: 'Wähle eine Position...',
       required: true,
       options: [
         { value: 'Wange', label: 'Wange' },
         { value: 'Handgelenk', label: 'Handgelenk' },
         { value: 'Schlafe', label: 'Schläfe' },
-        { value: 'Schulter', label: 'Schulter' }
-      ]
-    }
+        { value: 'Schulter', label: 'Schulter' },
+      ],
+    },
   ],
   previewFields: [],
   resultFields: [],
@@ -60,5 +68,5 @@ export const allyMakerFieldConfig: TemplateFieldConfig = {
   showAlternatives: false,
   showEditPanel: false,
   showAutoSave: true,
-  showSocialGeneration: true
+  showSocialGeneration: true,
 };

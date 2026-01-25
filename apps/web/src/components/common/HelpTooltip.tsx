@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode, type CSSProperties } from 'react';
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type ReactNode,
+  type CSSProperties,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { HiQuestionMarkCircle } from 'react-icons/hi';
 import '../../assets/styles/components/ui/tooltip.css';
@@ -43,7 +50,7 @@ const HelpTooltip = ({ children, className = '' }: HelpTooltipProps) => {
         top: `${triggerRect.bottom + window.scrollY + 4}px`,
         left: `${left}px`,
         opacity: 1,
-        transition: 'opacity 0.15s ease-in'
+        transition: 'opacity 0.15s ease-in',
       });
     }
   }, []);
@@ -83,7 +90,7 @@ const HelpTooltip = ({ children, className = '' }: HelpTooltipProps) => {
       {isVisible &&
         createPortal(
           <div ref={tooltipRef} className="help-tooltip-content" style={style}>
-            <div className="help-tooltip-arrow"></div>
+            <div className="help-tooltip-arrow" />
             {children}
           </div>,
           document.body

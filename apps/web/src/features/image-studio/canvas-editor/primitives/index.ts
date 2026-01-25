@@ -24,3 +24,6 @@ export { IllustrationPrimitive } from './IllustrationPrimitive';
 export type { IllustrationPrimitiveProps } from './IllustrationPrimitive';
 
 export { AttributionOverlay } from './AttributionOverlay';
+
+export { CircleBadge } from './CircleBadge';
+export type { CircleBadgeProps, CircleBadgeInstance, CircleBadgeTextLine } from './CircleBadge';

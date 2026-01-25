@@ -4,7 +4,10 @@
 
 import { Request } from 'express';
 import { UserProfile } from '../../services/user/types.js';
-import type { ImageGenerationStatus, ImageGenerationResult } from '../../services/counters/types.js';
+import type {
+  ImageGenerationStatus,
+  ImageGenerationResult,
+} from '../../services/counters/types.js';
 import type { ImageCatalogEntry } from '../../services/image/types.js';
 
 // ============================================================================

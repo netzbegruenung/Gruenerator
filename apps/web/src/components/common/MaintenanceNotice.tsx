@@ -1,4 +1,5 @@
 import { FaTools } from 'react-icons/fa';
+
 import styles from './MaintenanceNotice.module.css';
 
 export interface MaintenanceNoticeProps {

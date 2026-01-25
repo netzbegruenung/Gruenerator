@@ -1,8 +1,8 @@
 import React from 'react';
+
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
-
-import { InputField } from '../utils/typeConfig';
+import { type InputField } from '../utils/typeConfig';
 
 import './ConfigDrivenFields.css';
 
@@ -27,7 +27,7 @@ const ConfigDrivenFields: React.FC<ConfigDrivenFieldsProps> = ({
   errors = {},
   disabled = false,
   className = '',
-  hideLabels = false
+  hideLabels = false,
 }) => {
   if (!fields || fields.length === 0) return null;
 
@@ -40,7 +40,7 @@ const ConfigDrivenFields: React.FC<ConfigDrivenFieldsProps> = ({
 
   return (
     <div className={`config-driven-fields ${className}`}>
-      {fields.map(field => {
+      {fields.map((field) => {
         const value = values?.[field.name] || '';
         const error = errors?.[field.name];
         const hasError = !!error;
@@ -48,7 +48,7 @@ const ConfigDrivenFields: React.FC<ConfigDrivenFieldsProps> = ({
         return (
           <FormFieldWrapper
             key={field.name}
-            label={hideLabels ? undefined : (field.label || undefined)}
+            label={hideLabels ? undefined : field.label || undefined}
             htmlFor={field.name}
             error={error}
           >

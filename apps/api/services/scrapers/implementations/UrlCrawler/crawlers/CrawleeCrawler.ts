@@ -22,7 +22,10 @@ export class CrawleeCrawler {
     try {
       crawlee = await import('crawlee');
     } catch (importError) {
-      throw new Error('Crawlee not available: ' + (importError instanceof Error ? importError.message : 'Unknown error'));
+      throw new Error(
+        'Crawlee not available: ' +
+          (importError instanceof Error ? importError.message : 'Unknown error')
+      );
     }
 
     const { CheerioCrawler, PlaywrightCrawler, log } = crawlee;
@@ -43,14 +46,20 @@ export class CrawleeCrawler {
     try {
       return await this.runCheerioCrawler(url, crawlOptions, CheerioCrawler);
     } catch (cheerioError) {
-      console.log(`[CrawleeCrawler] CheerioCrawler failed, trying PlaywrightCrawler:`, cheerioError instanceof Error ? cheerioError.message : 'Unknown error');
+      console.log(
+        `[CrawleeCrawler] CheerioCrawler failed, trying PlaywrightCrawler:`,
+        cheerioError instanceof Error ? cheerioError.message : 'Unknown error'
+      );
 
       // Check if error suggests JavaScript requirement
       if (this.requiresJavaScript(cheerioError)) {
         try {
           return await this.runPlaywrightCrawler(url, crawlOptions, PlaywrightCrawler);
         } catch (playwrightError) {
-          console.error(`[CrawleeCrawler] Both crawlers failed for ${url}:`, playwrightError instanceof Error ? playwrightError.message : 'Unknown error');
+          console.error(
+            `[CrawleeCrawler] Both crawlers failed for ${url}:`,
+            playwrightError instanceof Error ? playwrightError.message : 'Unknown error'
+          );
           throw playwrightError;
         }
       } else {
@@ -62,7 +71,11 @@ export class CrawleeCrawler {
   /**
    * Runs CheerioCrawler with memory storage
    */
-  private async runCheerioCrawler(url: string, options: any, CheerioCrawler: any): Promise<RawCrawlResult> {
+  private async runCheerioCrawler(
+    url: string,
+    options: any,
+    CheerioCrawler: any
+  ): Promise<RawCrawlResult> {
     const results: RawCrawlResult[] = [];
     const queueId = `queue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -80,11 +93,21 @@ export class CrawleeCrawler {
       persistCookiesPerSession: false,
       useSessionPool: false,
 
-      requestHandler: async ({ request, response, $ }: { request: any; response: any; $: CheerioAPI }) => {
+      requestHandler: async ({
+        request,
+        response,
+        $,
+      }: {
+        request: any;
+        response: any;
+        $: CheerioAPI;
+      }) => {
         try {
           // Validate response
           if (response.statusCode >= 400) {
-            throw new Error(`HTTP ${response.statusCode}: ${response.statusMessage || 'Request failed'}`);
+            throw new Error(
+              `HTTP ${response.statusCode}: ${response.statusMessage || 'Request failed'}`
+            );
           }
 
           // Check content type
@@ -112,7 +135,10 @@ export class CrawleeCrawler {
             statusCode: response.statusCode || 200,
           });
         } catch (error) {
-          console.error(`[CrawleeCrawler] CheerioCrawler request handler error for ${request.url}:`, error instanceof Error ? error.message : 'Unknown error');
+          console.error(
+            `[CrawleeCrawler] CheerioCrawler request handler error for ${request.url}:`,
+            error instanceof Error ? error.message : 'Unknown error'
+          );
           throw error;
         }
       },
@@ -150,7 +176,10 @@ export class CrawleeCrawler {
       try {
         await crawler.teardown();
       } catch (cleanupError) {
-        console.warn('[CrawleeCrawler] Failed to cleanup CheerioCrawler:', cleanupError instanceof Error ? cleanupError.message : 'Unknown error');
+        console.warn(
+          '[CrawleeCrawler] Failed to cleanup CheerioCrawler:',
+          cleanupError instanceof Error ? cleanupError.message : 'Unknown error'
+        );
       }
     }
   }
@@ -158,7 +187,11 @@ export class CrawleeCrawler {
   /**
    * Runs PlaywrightCrawler with memory storage
    */
-  private async runPlaywrightCrawler(url: string, options: any, PlaywrightCrawler: any): Promise<RawCrawlResult> {
+  private async runPlaywrightCrawler(
+    url: string,
+    options: any,
+    PlaywrightCrawler: any
+  ): Promise<RawCrawlResult> {
     const results: RawCrawlResult[] = [];
 
     const crawler = new PlaywrightCrawler({
@@ -196,13 +229,19 @@ export class CrawleeCrawler {
             statusCode: 200, // Playwright doesn't provide direct access to status code
           });
         } catch (error) {
-          console.error(`[CrawleeCrawler] PlaywrightCrawler request handler error for ${request.url}:`, error instanceof Error ? error.message : 'Unknown error');
+          console.error(
+            `[CrawleeCrawler] PlaywrightCrawler request handler error for ${request.url}:`,
+            error instanceof Error ? error.message : 'Unknown error'
+          );
           throw error;
         }
       },
 
       errorHandler: ({ request, error }: { request: any; error: Error }) => {
-        console.error(`[CrawleeCrawler] PlaywrightCrawler error for ${request.url}:`, error.message);
+        console.error(
+          `[CrawleeCrawler] PlaywrightCrawler error for ${request.url}:`,
+          error.message
+        );
       },
     });
 
@@ -218,7 +257,10 @@ export class CrawleeCrawler {
       try {
         await crawler.teardown();
       } catch (cleanupError) {
-        console.warn('[CrawleeCrawler] Failed to cleanup PlaywrightCrawler:', cleanupError instanceof Error ? cleanupError.message : 'Unknown error');
+        console.warn(
+          '[CrawleeCrawler] Failed to cleanup PlaywrightCrawler:',
+          cleanupError instanceof Error ? cleanupError.message : 'Unknown error'
+        );
       }
     }
   }
@@ -260,9 +302,14 @@ export class CrawleeCrawler {
       $('body').text().trim().length < 50 && $('script').length > 0,
 
       // Common framework indicators with minimal content
-      (html.includes('ng-app') || html.includes('data-reactroot') || html.includes('__NEXT_DATA__')) && $('body').text().trim().length < 100,
+      (html.includes('ng-app') ||
+        html.includes('data-reactroot') ||
+        html.includes('__NEXT_DATA__')) &&
+        $('body').text().trim().length < 100,
     ];
 
-    return indicators.some((indicator) => (typeof indicator === 'boolean' ? indicator : indicator.test(html)));
+    return indicators.some((indicator) =>
+      typeof indicator === 'boolean' ? indicator : indicator.test(html)
+    );
   }
 }

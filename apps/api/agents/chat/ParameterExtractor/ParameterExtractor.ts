@@ -5,10 +5,16 @@
 
 import type { ExtractedParameters, BaseParameters } from './types.js';
 import type { ChatContext } from '../types.js';
-import { extractSocialParams, extractGrueneJugendParams } from './extractors/SocialMediaExtractor.js';
+import {
+  extractSocialParams,
+  extractGrueneJugendParams,
+} from './extractors/SocialMediaExtractor.js';
 import { extractSharepicParams } from './extractors/SharepicExtractor.js';
 import { extractAntragParams } from './extractors/AntragExtractor.js';
-import { extractUniversalParams, extractLeichteSpracheParams } from './extractors/UniversalExtractor.js';
+import {
+  extractUniversalParams,
+  extractLeichteSpracheParams,
+} from './extractors/UniversalExtractor.js';
 import { extractImagineParams } from './extractors/ImagineExtractor.js';
 import { extractParametersWithMistral } from './mistral/MistralExtractor.js';
 import { analyzeParameterConfidence } from './utils/confidenceAnalyzer.js';
@@ -28,7 +34,7 @@ export async function extractParameters(
     originalMessage: message,
     chatContext: context,
     _parameterConfidence: {},
-    _parameterSources: {}
+    _parameterSources: {},
   };
 
   // For sharepic agents, use Mistral AI for better semantic extraction
@@ -38,7 +44,10 @@ export async function extractParameters(
       return { ...baseParams, ...mistralParams } as ExtractedParameters;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[ParameterExtractor] Mistral extraction failed, falling back to regex:', errorMessage);
+      console.error(
+        '[ParameterExtractor] Mistral extraction failed, falling back to regex:',
+        errorMessage
+      );
       // Fall back to regex-based extraction
       return extractSharepicParams(message, context, baseParams, agent);
     }

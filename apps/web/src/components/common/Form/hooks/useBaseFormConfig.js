@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { useFormStateSelector } from '../FormStateProvider';
 
 /**
@@ -16,11 +17,11 @@ import { useFormStateSelector } from '../FormStateProvider';
  */
 const useBaseFormConfig = (config = {}) => {
   // Get store actions
-  const updateTabIndexConfig = useFormStateSelector(state => state.updateTabIndexConfig);
-  const updatePlatformConfig = useFormStateSelector(state => state.updatePlatformConfig);
-  const updateSubmitConfig = useFormStateSelector(state => state.updateSubmitConfig);
-  const updateUIConfig = useFormStateSelector(state => state.updateUIConfig);
-  const updateHelpConfig = useFormStateSelector(state => state.updateHelpConfig);
+  const updateTabIndexConfig = useFormStateSelector((state) => state.updateTabIndexConfig);
+  const updatePlatformConfig = useFormStateSelector((state) => state.updatePlatformConfig);
+  const updateSubmitConfig = useFormStateSelector((state) => state.updateSubmitConfig);
+  const updateUIConfig = useFormStateSelector((state) => state.updateUIConfig);
+  const updateHelpConfig = useFormStateSelector((state) => state.updateHelpConfig);
 
   // Initialize store with configuration
   React.useEffect(() => {
@@ -49,7 +50,7 @@ const useBaseFormConfig = (config = {}) => {
     updatePlatformConfig,
     updateSubmitConfig,
     updateUIConfig,
-    updateHelpConfig
+    updateHelpConfig,
   ]);
 
   // Return simplified props for BaseForm
@@ -79,7 +80,7 @@ const useBaseFormConfig = (config = {}) => {
     displayActions: config.displayActions,
     headerContent: config.headerContent,
     bottomSectionChildren: config.bottomSectionChildren,
-    firstExtrasChildren: config.firstExtrasChildren
+    firstExtrasChildren: config.firstExtrasChildren,
   };
 };
 

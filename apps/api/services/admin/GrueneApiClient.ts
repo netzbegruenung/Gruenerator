@@ -6,11 +6,7 @@
 
 import axios, { type AxiosInstance } from 'axios';
 import { createLogger } from '../../utils/logger.js';
-import type {
-  GrueneApiConfig,
-  OffboardingUsersResponse,
-  BatchUpdateEntry
-} from './types.js';
+import type { GrueneApiConfig, OffboardingUsersResponse, BatchUpdateEntry } from './types.js';
 
 const log = createLogger('GrueneApiClient');
 
@@ -33,7 +29,7 @@ export class GrueneApiClient {
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
     });
 
     // Setup authentication
@@ -42,7 +38,7 @@ export class GrueneApiClient {
     } else if (this.username && this.password) {
       this.client.defaults.auth = {
         username: this.username,
-        password: this.password
+        password: this.password,
       };
     }
   }
@@ -53,11 +49,17 @@ export class GrueneApiClient {
    * @param after - Cursor for pagination
    * @returns Response with users and pagination metadata
    */
-  async findUsersToOffboard(limit: number = 1000, after: string | null = null): Promise<OffboardingUsersResponse> {
+  async findUsersToOffboard(
+    limit: number = 1000,
+    after: string | null = null
+  ): Promise<OffboardingUsersResponse> {
     try {
-      const response = await this.client.get<OffboardingUsersResponse>('/v1/offboarding/users/self', {
-        params: { limit, after }
-      });
+      const response = await this.client.get<OffboardingUsersResponse>(
+        '/v1/offboarding/users/self',
+        {
+          params: { limit, after },
+        }
+      );
       return response.data;
     } catch (error: any) {
       log.error('Failed to fetch users from Grüne API:', error.message);
@@ -73,7 +75,7 @@ export class GrueneApiClient {
   async batchUpdateOffboardingUsers(upserts: BatchUpdateEntry[]): Promise<any> {
     try {
       const response = await this.client.post('/v1/offboarding/users/self/batch', {
-        upsert: upserts
+        upsert: upserts,
       });
       return response.data;
     } catch (error: any) {

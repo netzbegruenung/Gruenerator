@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import apiClient from '../components/utils/apiClient';
 
 interface Share {
@@ -15,7 +16,11 @@ interface SubtitlerShareState {
   errorCode: string | null;
   currentShare: Share | null;
   isCreatingShare: boolean;
-  createShareFromProject: (projectId: string, title?: string | null, expiresInDays?: number) => Promise<Share>;
+  createShareFromProject: (
+    projectId: string,
+    title?: string | null,
+    expiresInDays?: number
+  ) => Promise<Share>;
   fetchUserShares: () => Promise<Share[]>;
   deleteShare: (shareToken: string) => Promise<boolean>;
   clearCurrentShare: () => void;
@@ -35,7 +40,11 @@ const initialState = {
 export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => ({
   ...initialState,
 
-  createShareFromProject: async (projectId: string, title: string | null = null, expiresInDays = 7) => {
+  createShareFromProject: async (
+    projectId: string,
+    title: string | null = null,
+    expiresInDays = 7
+  ) => {
     set({ isCreatingShare: true, error: null, errorCode: null });
 
     try {
@@ -57,7 +66,10 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
         throw new Error(response.data.error || 'Failed to create share');
       }
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string; code?: string } }; message?: string };
+      const err = error as {
+        response?: { data?: { error?: string; code?: string } };
+        message?: string;
+      };
       const errorMessage = err.response?.data?.error || err.message || 'Failed to create share';
       const errorCode = err.response?.data?.code || null;
       set({ isCreatingShare: false, error: errorMessage, errorCode });

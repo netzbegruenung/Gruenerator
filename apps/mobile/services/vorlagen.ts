@@ -35,18 +35,22 @@ const getPublicImageUrl = (relativePath: string | undefined): string | null => {
     : `${API_BASE_URL}/api/templates/images/${relativePath}`;
 };
 
-export async function fetchVorlagen(params?: {
-  templateType?: string;
-}): Promise<Template[]> {
+export async function fetchVorlagen(params?: { templateType?: string }): Promise<Template[]> {
   try {
     const queryParams = params?.templateType ? `?templateType=${params.templateType}` : '';
-    const response = await apiRequest<{ vorlagen: unknown[] }>('get', `/auth/vorlagen${queryParams}`);
+    const response = await apiRequest<{ vorlagen: unknown[] }>(
+      'get',
+      `/auth/vorlagen${queryParams}`
+    );
     const vorlagen = response?.vorlagen || [];
 
     return vorlagen.map((template: unknown) => {
       const t = template as Record<string, unknown>;
 
-      const rawImages = (t.canva_template_images || t.images || []) as Array<{ url: string; display_order: number }>;
+      const rawImages = (t.canva_template_images || t.images || []) as Array<{
+        url: string;
+        display_order: number;
+      }>;
       const images = rawImages
         .sort((a, b) => a.display_order - b.display_order)
         .map((img) => ({
@@ -55,7 +59,10 @@ export async function fetchVorlagen(params?: {
         }))
         .filter((img) => img.url !== '');
 
-      const rawTags = (t.template_to_tags || t.tags || []) as Array<{ template_tags?: { name: string }; name?: string }>;
+      const rawTags = (t.template_to_tags || t.tags || []) as Array<{
+        template_tags?: { name: string };
+        name?: string;
+      }>;
       const tags = rawTags
         .filter((jtt) => jtt.template_tags || jtt.name)
         .map((jtt) => jtt.template_tags?.name || jtt.name || '');
@@ -111,7 +118,10 @@ export async function fetchTemplateLikes(): Promise<string[]> {
   }
 }
 
-export async function likeTemplate(templateId: string, templateType: string = 'system'): Promise<boolean> {
+export async function likeTemplate(
+  templateId: string,
+  templateType: string = 'system'
+): Promise<boolean> {
   try {
     await apiRequest('post', `/auth/vorlagen/${templateId}/like`, { templateType });
     return true;

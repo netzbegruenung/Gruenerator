@@ -195,7 +195,10 @@ export function normalizeResponse(response: ChatResponse): GrueneratorChatMessag
   }
 }
 
-export function createUserMessage(text: string, attachments?: ChatAttachment[]): GrueneratorChatMessage {
+export function createUserMessage(
+  text: string,
+  attachments?: ChatAttachment[]
+): GrueneratorChatMessage {
   return {
     id: Date.now().toString(),
     type: 'user',
@@ -207,14 +210,14 @@ export function createUserMessage(text: string, attachments?: ChatAttachment[]):
 
 export function buildContextFromMessages(messages: GrueneratorChatMessage[]): ChatContext {
   const history = messages
-    .filter(msg => msg.type === 'user' || msg.type === 'assistant')
+    .filter((msg) => msg.type === 'user' || msg.type === 'assistant')
     .slice(-10)
-    .map(msg => ({
+    .map((msg) => ({
       role: (msg.type === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
       content: msg.content,
     }));
 
-  const lastAssistantMsg = [...messages].reverse().find(m => m.type === 'assistant');
+  const lastAssistantMsg = [...messages].reverse().find((m) => m.type === 'assistant');
 
   return {
     messageHistory: history,

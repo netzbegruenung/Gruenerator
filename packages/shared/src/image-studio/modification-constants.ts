@@ -268,7 +268,9 @@ export function getDefaultModificationParams(
       return {
         fontSize: DEFAULT_DREIZEILEN_PARAMS.fontSize,
         balkenOffset: [...DEFAULT_DREIZEILEN_PARAMS.balkenOffset],
-        colorScheme: DEFAULT_DREIZEILEN_PARAMS.colorScheme.map(c => ({ ...c })) as DreizeilenColorScheme,
+        colorScheme: DEFAULT_DREIZEILEN_PARAMS.colorScheme.map((c) => ({
+          ...c,
+        })) as DreizeilenColorScheme,
         balkenGruppenOffset: [...DEFAULT_DREIZEILEN_PARAMS.balkenGruppenOffset] as [number, number],
         sunflowerOffset: [...DEFAULT_DREIZEILEN_PARAMS.sunflowerOffset] as [number, number],
         credit: DEFAULT_DREIZEILEN_PARAMS.credit,

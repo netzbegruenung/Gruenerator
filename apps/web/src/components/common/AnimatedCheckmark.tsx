@@ -29,9 +29,9 @@ const AnimatedCheckmark = ({ size = 50 }: AnimatedCheckmarkProps) => {
             opacity: 1,
             transition: {
               pathLength: { delay: 0.2, type: 'tween', duration: 0.3, ease: 'easeOut' },
-              opacity: { delay: 0.2, duration: 0.01 }
-            }
-          }
+              opacity: { delay: 0.2, duration: 0.01 },
+            },
+          },
         }}
       />
     </motion.svg>

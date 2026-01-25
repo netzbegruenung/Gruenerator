@@ -21,7 +21,10 @@ export interface ParseResult {
  * @param expectedFields - Array of field names to extract (lowercase)
  * @returns ParseResult with success status and extracted data
  */
-export function parseLabeledText(content: string | null | undefined, expectedFields: string[]): ParseResult {
+export function parseLabeledText(
+  content: string | null | undefined,
+  expectedFields: string[]
+): ParseResult {
   if (!content || typeof content !== 'string') {
     return { success: false, data: {}, error: 'Empty or invalid content' };
   }
@@ -36,7 +39,7 @@ export function parseLabeledText(content: string | null | undefined, expectedFie
   }
 
   const data: Record<string, string> = {};
-  const upperFields = expectedFields.map(f => f.toUpperCase());
+  const upperFields = expectedFields.map((f) => f.toUpperCase());
   const labelPattern = new RegExp(`^(${upperFields.join('|')}):\\s*`, 'i');
 
   const lines = cleanedContent.split('\n');
@@ -63,7 +66,7 @@ export function parseLabeledText(content: string | null | undefined, expectedFie
     data[currentLabel.toLowerCase()] = currentValue.join('\n').trim();
   }
 
-  const missingFields = expectedFields.filter(field => {
+  const missingFields = expectedFields.filter((field) => {
     const value = data[field.toLowerCase()];
     return !value || value.trim() === '';
   });
@@ -73,7 +76,7 @@ export function parseLabeledText(content: string | null | undefined, expectedFie
     return {
       success: false,
       data,
-      error: `Missing required fields: ${missingFields.join(', ')}`
+      error: `Missing required fields: ${missingFields.join(', ')}`,
     };
   }
 
@@ -116,7 +119,7 @@ export function parseLabeledTextBatch(
   }
 
   const variantPattern = /(?:VARIANTE|VARIANT)\s*\d+/gi;
-  const variants = cleaned.split(variantPattern).filter(s => s.trim());
+  const variants = cleaned.split(variantPattern).filter((s) => s.trim());
 
   if (variants.length === 0) {
     log.warn('[textParser] No variants found in content');
@@ -145,11 +148,7 @@ export function parseLabeledTextBatch(
 export function sanitizeField(value: string | undefined | null): string {
   if (!value || typeof value !== 'string') return '';
 
-  return value
-    .replace(/\*\*/g, '')
-    .replace(/#\w+/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return value.replace(/\*\*/g, '').replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
 }
 
 /**

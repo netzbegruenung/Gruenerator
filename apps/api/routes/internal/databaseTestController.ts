@@ -58,10 +58,12 @@ function extractTablesFromSchema(schemaContent: string): string[] {
   const tableMatches = schemaContent.match(/CREATE TABLE IF NOT EXISTS (\w+)/g);
   if (!tableMatches) return [];
 
-  return tableMatches.map(match => {
-    const tableNameMatch = match.match(/CREATE TABLE IF NOT EXISTS (\w+)/);
-    return tableNameMatch ? tableNameMatch[1] : '';
-  }).filter(Boolean);
+  return tableMatches
+    .map((match) => {
+      const tableNameMatch = match.match(/CREATE TABLE IF NOT EXISTS (\w+)/);
+      return tableNameMatch ? tableNameMatch[1] : '';
+    })
+    .filter(Boolean);
 }
 
 router.get('/test', async (req: Request, res: Response) => {
@@ -79,7 +81,7 @@ router.get('/test', async (req: Request, res: Response) => {
         success: false,
         error: 'Database connection not available',
         health: health,
-        message: `Database status: ${health.status}. Last error: ${health.lastError || 'None'}`
+        message: `Database status: ${health.status}. Last error: ${health.lastError || 'None'}`,
       } as DatabaseTestResponse);
     }
 
@@ -90,7 +92,7 @@ router.get('/test', async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: 'Schema file not found',
-        path: schemaPath
+        path: schemaPath,
       } as DatabaseTestResponse);
     }
 
@@ -107,11 +109,13 @@ router.get('/test', async (req: Request, res: Response) => {
       ORDER BY table_name
     `;
 
-    const existingTablesResult = await postgresService.query(existingTablesQuery) as unknown as TableInfo[];
-    const existingTables = existingTablesResult.map(row => row.table_name);
+    const existingTablesResult = (await postgresService.query(
+      existingTablesQuery
+    )) as unknown as TableInfo[];
+    const existingTables = existingTablesResult.map((row) => row.table_name);
     log.debug('[DatabaseTest] Existing tables:', existingTables);
 
-    const missingTables = expectedTables.filter(table => !existingTables.includes(table));
+    const missingTables = expectedTables.filter((table) => !existingTables.includes(table));
     log.debug('[DatabaseTest] Missing tables:', missingTables);
 
     const createdTables: string[] = [];
@@ -128,50 +132,51 @@ router.get('/test', async (req: Request, res: Response) => {
         log.error('[DatabaseTest] Error creating tables:', (error as Error).message);
         creationErrors.push({
           error: (error as Error).message,
-          tables: missingTables
+          tables: missingTables,
         });
       }
     }
 
-    const finalTablesResult = await postgresService.query(existingTablesQuery) as unknown as TableInfo[];
-    const finalTables = finalTablesResult.map(row => row.table_name);
+    const finalTablesResult = (await postgresService.query(
+      existingTablesQuery
+    )) as unknown as TableInfo[];
+    const finalTables = finalTablesResult.map((row) => row.table_name);
 
     const response: DatabaseTestResponse = {
       success: true,
       database: {
         connection: 'healthy',
         status: health.status,
-        pool: health.pool
+        pool: health.pool,
       },
       schema: {
         file_path: schemaPath,
         expected_tables_count: expectedTables.length,
         existing_tables_count: finalTables.length,
-        missing_tables_count: expectedTables.filter(table => !finalTables.includes(table)).length
+        missing_tables_count: expectedTables.filter((table) => !finalTables.includes(table)).length,
       },
       tables: {
         expected: expectedTables,
         existing: finalTables,
-        missing: expectedTables.filter(table => !finalTables.includes(table)),
-        created: createdTables
+        missing: expectedTables.filter((table) => !finalTables.includes(table)),
+        created: createdTables,
       },
       actions: {
         create_requested: createMissing,
         tables_created: createdTables.length,
-        creation_errors: creationErrors
-      }
+        creation_errors: creationErrors,
+      },
     };
 
     log.debug('[DatabaseTest] Test completed successfully');
     return res.json(response);
-
   } catch (error) {
     log.error('[DatabaseTest] Error during database test:', error);
     return res.status(500).json({
       success: false,
       error: (error as Error).message,
       type: 'DatabaseTestError',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     } as DatabaseTestResponse);
   }
 });

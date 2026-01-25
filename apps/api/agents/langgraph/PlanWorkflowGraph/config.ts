@@ -21,7 +21,7 @@ export const GENERATOR_CONFIGS: Record<string, PromptConfiguration> = {
     enableWebSearch: true,
     enableDocuments: true,
     enableKnowledge: true,
-    enableGreenFraming: true
+    enableGreenFraming: true,
   },
 
   // PR / Social Media Posts
@@ -37,7 +37,7 @@ export const GENERATOR_CONFIGS: Record<string, PromptConfiguration> = {
     enableDocuments: true,
     enableKnowledge: true,
     enableGreenFraming: true,
-    enableExamples: true
+    enableExamples: true,
   },
 
   // Future: Wahlprogramm, Rede, etc.

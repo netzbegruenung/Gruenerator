@@ -23,7 +23,7 @@ export type {
   ResearchDossier,
   SearchOptions,
   CrawlMetadata,
-  SearchMetadata
+  SearchMetadata,
 } from './types.js';
 
 // Node exports (for advanced use cases)
@@ -40,5 +40,9 @@ export { dossierNode } from './nodes/DossierNode.js';
 export { optimizeSearchQuery, generateResearchQuestions } from './utilities/queryOptimizer.js';
 export { getIntelligentSearchOptions } from './utilities/searchOptions.js';
 export { filterDataForAI } from './utilities/dataFilter.js';
-export { buildDossierSystemPrompt, buildDossierPrompt, buildMethodologySection } from './utilities/dossierBuilder.js';
+export {
+  buildDossierSystemPrompt,
+  buildDossierPrompt,
+  buildMethodologySection,
+} from './utilities/dossierBuilder.js';
 export { extractKeyParagraphs } from './utilities/contentExtractor.js';

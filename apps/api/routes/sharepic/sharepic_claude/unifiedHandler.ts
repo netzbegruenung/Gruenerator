@@ -1,7 +1,12 @@
 import type { Response } from 'express';
 import prompts from '../../../prompts/sharepic/index.js';
 import { createLogger } from '../../../utils/logger.js';
-import { parseLabeledText, parseLabeledTextBatch, sanitizeField, truncateField } from '../../../utils/sharepic/textParser.js';
+import {
+  parseLabeledText,
+  parseLabeledTextBatch,
+  sanitizeField,
+  truncateField,
+} from '../../../utils/sharepic/textParser.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
 import type { SharepicRequest, PromptConfig } from './types.js';
 
@@ -17,52 +22,55 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
   info: {
     fields: ['header', 'subheader', 'body', 'suchbegriff'],
     mainKey: 'mainInfo',
-    maxLengths: { header: 65, subheader: 125, body: 255 }
+    maxLengths: { header: 65, subheader: 125, body: 255 },
   },
   dreizeilen: {
     fields: ['zeile1', 'zeile2', 'zeile3', 'suchbegriff'],
     mainKey: 'mainSlogan',
-    maxLengths: { zeile1: 35, zeile2: 35, zeile3: 35 }
+    maxLengths: { zeile1: 35, zeile2: 35, zeile3: 35 },
   },
   veranstaltung: {
     fields: ['titel', 'tag', 'datum', 'zeit', 'ort', 'adresse', 'beschreibung', 'suchbegriff'],
     mainKey: 'mainEvent',
-    maxLengths: { titel: 35, ort: 45, adresse: 45, beschreibung: 150 }
+    maxLengths: { titel: 35, ort: 45, adresse: 45, beschreibung: 150 },
   },
   zitat: {
     fields: ['zitat'],
-    mainKey: 'quote'
+    mainKey: 'quote',
   },
   zitat_pure: {
     fields: ['zitat'],
-    mainKey: 'quote'
+    mainKey: 'quote',
   },
   headline: {
     fields: ['zeile1', 'zeile2', 'zeile3'],
     mainKey: 'mainSlogan',
-    maxLengths: { zeile1: 20, zeile2: 20, zeile3: 20 }
+    maxLengths: { zeile1: 20, zeile2: 20, zeile3: 20 },
   },
   simple: {
     fields: ['headline', 'subtext', 'suchbegriff'],
     mainKey: 'mainSimple',
-    maxLengths: { headline: 50, subtext: 150 }
-  }
+    maxLengths: { headline: 50, subtext: 150 },
+  },
 };
 
-function mapToResponseFormat(type: string, data: Record<string, string>): Record<string, unknown> | string {
+function mapToResponseFormat(
+  type: string,
+  data: Record<string, string>
+): Record<string, unknown> | string {
   switch (type) {
     case 'info':
       return {
         header: data.header,
         subheader: data.subheader,
-        body: data.body
+        body: data.body,
       };
     case 'dreizeilen':
     case 'headline':
       return {
         line1: data.zeile1,
         line2: data.zeile2,
-        line3: data.zeile3
+        line3: data.zeile3,
       };
     case 'veranstaltung':
       return {
@@ -72,7 +80,7 @@ function mapToResponseFormat(type: string, data: Record<string, string>): Record
         time: data.zeit,
         locationName: data.ort,
         address: data.adresse || '',
-        beschreibung: data.beschreibung || ''
+        beschreibung: data.beschreibung || '',
       };
     case 'zitat':
     case 'zitat_pure':
@@ -80,7 +88,7 @@ function mapToResponseFormat(type: string, data: Record<string, string>): Record
     case 'simple':
       return {
         headline: data.headline,
-        subtext: data.subtext
+        subtext: data.subtext,
       };
     default:
       return data;
@@ -107,19 +115,19 @@ export async function handleUnifiedRequest(
   }
 
   const promptConfig = rawPromptConfig as PromptConfig;
-  const template = count === 1
-    ? (promptConfig.singleItemTemplate || promptConfig.requestTemplate || '')
-    : (promptConfig.alternativesTemplate || promptConfig.requestTemplate || '');
-  const options = count === 1
-    ? promptConfig.options
-    : (promptConfig.alternativesOptions || promptConfig.options);
+  const template =
+    count === 1
+      ? promptConfig.singleItemTemplate || promptConfig.requestTemplate || ''
+      : promptConfig.alternativesTemplate || promptConfig.requestTemplate || '';
+  const options =
+    count === 1 ? promptConfig.options : promptConfig.alternativesOptions || promptConfig.options;
 
   const requestContent = replaceTemplate(template, {
     thema: thema || '',
     details: details || '',
     quote: quote || '',
     name: name || '',
-    count: count.toString()
+    count: count.toString(),
   });
 
   log.debug(`[${type}] Request:`, requestContent.substring(0, 100) + '...');
@@ -132,12 +140,15 @@ export async function handleUnifiedRequest(
     attempts++;
 
     try {
-      const result = await req.app.locals.aiWorkerPool.processRequest({
-        type: `sharepic_${type}`,
-        systemPrompt: promptConfig.systemRole,
-        messages: [{ role: 'user', content: requestContent }],
-        options
-      }, req);
+      const result = await req.app.locals.aiWorkerPool.processRequest(
+        {
+          type: `sharepic_${type}`,
+          systemPrompt: promptConfig.systemRole,
+          messages: [{ role: 'user', content: requestContent }],
+          options,
+        },
+        req
+      );
 
       if (!result.success) {
         lastError = result.error || 'AI request failed';
@@ -153,7 +164,9 @@ export async function handleUnifiedRequest(
       let searchTerms: string[] = [];
 
       if (count > 1) {
+        console.log('[DEBUG unifiedHandler] Processing batch, count:', count);
         const parseResults = parseLabeledTextBatch(content, config.fields, count);
+        console.log('[DEBUG unifiedHandler] Parsed variants:', parseResults.length);
 
         if (parseResults.length === 0) {
           lastError = 'No valid alternatives parsed';
@@ -161,7 +174,7 @@ export async function handleUnifiedRequest(
           continue;
         }
 
-        const processedResults = parseResults.map(parseResult => {
+        const processedResults = parseResults.map((parseResult) => {
           const processedData: Record<string, string> = {};
           for (const [key, value] of Object.entries(parseResult.data)) {
             let processed = sanitizeField(value);
@@ -174,9 +187,11 @@ export async function handleUnifiedRequest(
         });
 
         mainData = mapToResponseFormat(type, processedResults[0]);
-        alternatives = processedResults.slice(1).map(data => mapToResponseFormat(type, data));
-        searchTerms = processedResults.flatMap(data => data.suchbegriff ? [data.suchbegriff] : []);
-
+        alternatives = processedResults.slice(1).map((data) => mapToResponseFormat(type, data));
+        console.log('[DEBUG unifiedHandler] Final alternatives:', alternatives);
+        searchTerms = processedResults.flatMap((data) =>
+          data.suchbegriff ? [data.suchbegriff] : []
+        );
       } else {
         const parseResult = parseLabeledText(content, config.fields);
 
@@ -203,7 +218,7 @@ export async function handleUnifiedRequest(
         success: true,
         [config.mainKey]: mainData,
         alternatives,
-        searchTerms
+        searchTerms,
       };
 
       if (type === 'zitat' || type === 'zitat_pure') {
@@ -214,7 +229,6 @@ export async function handleUnifiedRequest(
       log.info(`[${type}] Success on attempt ${attempts}`);
       res.json(response);
       return;
-
     } catch (error) {
       lastError = (error as Error).message;
       log.error(`[${type}] Attempt ${attempts} exception:`, error);
@@ -224,6 +238,6 @@ export async function handleUnifiedRequest(
   log.error(`[${type}] Failed after ${maxAttempts} attempts:`, lastError);
   res.status(500).json({
     success: false,
-    error: `Failed after ${maxAttempts} attempts: ${lastError}`
+    error: `Failed after ${maxAttempts} attempts: ${lastError}`,
   });
 }

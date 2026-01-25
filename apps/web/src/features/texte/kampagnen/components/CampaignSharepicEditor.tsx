@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import { FormInput } from '../../../../components/common/Form/Input';
 import './campaign-sharepic-editor.css';
 
@@ -38,7 +39,7 @@ const CampaignSharepicEditor = ({
   activeIndex,
   onEditedLinesChange,
   regenerationError,
-  onClearError
+  onClearError,
 }: CampaignSharepicEditorProps) => {
   // Extract text from active sharepic
   const activeSharepic = sharepics[activeIndex];
@@ -50,7 +51,7 @@ const CampaignSharepicEditor = ({
     line3: '',
     line4: '',
     line5: '',
-    customCredit: ''
+    customCredit: '',
   });
 
   // Update edited lines when active sharepic changes
@@ -59,7 +60,7 @@ const CampaignSharepicEditor = ({
       console.log('[CampaignSharepicEditor] Active sharepic:', {
         hasCreditText: !!activeSharepic.creditText,
         creditText: activeSharepic.creditText,
-        fullSharepic: activeSharepic
+        fullSharepic: activeSharepic,
       });
 
       setEditedLines({
@@ -68,7 +69,7 @@ const CampaignSharepicEditor = ({
         line3: activeSharepic.line3 || '',
         line4: activeSharepic.line4 || '',
         line5: activeSharepic.line5 || '',
-        customCredit: activeSharepic.customCredit || ''
+        customCredit: activeSharepic.customCredit || '',
       });
 
       // Clear error when switching sharepics
@@ -81,7 +82,7 @@ const CampaignSharepicEditor = ({
   const handleLineChange = (lineNumber: number, value: string) => {
     const newLines = {
       ...editedLines,
-      [`line${lineNumber}`]: value
+      [`line${lineNumber}`]: value,
     };
     setEditedLines(newLines);
 
@@ -94,7 +95,7 @@ const CampaignSharepicEditor = ({
   const handleCustomCreditChange = (value: string) => {
     const newLines = {
       ...editedLines,
-      customCredit: value
+      customCredit: value,
     };
     setEditedLines(newLines);
 
@@ -105,8 +106,8 @@ const CampaignSharepicEditor = ({
   };
 
   const hasChanges = () => {
-    return (Object.keys(editedLines) as Array<keyof EditedLines>).some(key =>
-      editedLines[key] !== (activeSharepic?.[key as keyof SharepicData] || '')
+    return (Object.keys(editedLines) as Array<keyof EditedLines>).some(
+      (key) => editedLines[key] !== (activeSharepic?.[key as keyof SharepicData] || '')
     );
   };
 
@@ -118,14 +119,12 @@ const CampaignSharepicEditor = ({
     <div className="campaign-sharepic-editor">
       <div className="editor-header">
         <h3 className="editor-title">Sharepic bearbeiten</h3>
-        <p className="editor-subtitle">
-          Bearbeite den Text des Sharepics und generiere es neu
-        </p>
+        <p className="editor-subtitle">Bearbeite den Text des Sharepics und generiere es neu</p>
       </div>
 
       <div className="editor-content">
         <div className="editor-form">
-          {([1, 2, 3, 4, 5] as const).map(lineNum => (
+          {([1, 2, 3, 4, 5] as const).map((lineNum) => (
             <div key={lineNum} className="editor-field">
               <FormInput
                 name={`line${lineNum}`}
@@ -141,9 +140,7 @@ const CampaignSharepicEditor = ({
           {activeSharepic.creditText && (
             <div className="editor-field">
               <label className="form-label">Aktueller Credit-Text</label>
-              <div className="current-credit-display">
-                {activeSharepic.creditText}
-              </div>
+              <div className="current-credit-display">{activeSharepic.creditText}</div>
             </div>
           )}
 
@@ -173,7 +170,7 @@ const CampaignSharepicEditor = ({
 CampaignSharepicEditor.defaultProps = {
   onEditedLinesChange: null,
   regenerationError: null,
-  onClearError: null
+  onClearError: null,
 };
 
 export default CampaignSharepicEditor;

@@ -9,10 +9,12 @@
 
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
-import type Konva from 'konva';
-import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
+
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
+
 import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type Konva from 'konva';
 
 export interface CanvasTextProps {
   id?: string;
@@ -171,7 +173,8 @@ function CanvasTextInner({
     // Only update if scale changed significantly (> 3%)
     // This prevents tiny accidental resizes
     const SCALE_THRESHOLD = 0.03;
-    const scaleChanged = Math.abs(scaleX - 1) > SCALE_THRESHOLD || Math.abs(scaleY - 1) > SCALE_THRESHOLD;
+    const scaleChanged =
+      Math.abs(scaleX - 1) > SCALE_THRESHOLD || Math.abs(scaleY - 1) > SCALE_THRESHOLD;
 
     if (scaleChanged) {
       // Calculate new dimensions - scale both fontSize AND width
@@ -340,10 +343,29 @@ export const CanvasText = memo(CanvasTextInner, (prevProps, nextProps) => {
   // Custom comparison: only re-render if these specific props changed
   // Ignore snapTargets array reference changes (we use the values inside)
   const keysToCompare: (keyof CanvasTextProps)[] = [
-    'id', 'text', 'x', 'y', 'width', 'fontSize', 'fontFamily', 'fontStyle',
-    'fill', 'stroke', 'strokeWidth', 'align', 'verticalAlign', 'lineHeight',
-    'wrap', 'padding', 'draggable', 'selected', 'editable', 'opacity',
-    'stageWidth', 'stageHeight', 'snapToCenter'
+    'id',
+    'text',
+    'x',
+    'y',
+    'width',
+    'fontSize',
+    'fontFamily',
+    'fontStyle',
+    'fill',
+    'stroke',
+    'strokeWidth',
+    'align',
+    'verticalAlign',
+    'lineHeight',
+    'wrap',
+    'padding',
+    'draggable',
+    'selected',
+    'editable',
+    'opacity',
+    'stageWidth',
+    'stageHeight',
+    'snapToCenter',
   ];
 
   for (const key of keysToCompare) {

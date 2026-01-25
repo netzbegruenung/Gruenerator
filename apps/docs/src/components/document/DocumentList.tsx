@@ -5,7 +5,8 @@ import './DocumentList.css';
 
 export const DocumentList = () => {
   const navigate = useNavigate();
-  const { documents, isLoading, error, fetchDocuments, createDocument, deleteDocument } = useDocumentStore();
+  const { documents, isLoading, error, fetchDocuments, createDocument, deleteDocument } =
+    useDocumentStore();
 
   useEffect(() => {
     fetchDocuments();

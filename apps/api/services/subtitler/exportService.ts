@@ -72,8 +72,8 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
         return;
       }
 
-      const videoStream = metadata.streams.find(s => s.codec_type === 'video');
-      const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+      const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
+      const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
       resolve({
         width: videoStream?.width || 1920,
@@ -84,8 +84,8 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
           codec: videoStream?.codec_name,
           audioCodec: audioStream?.codec_name,
           audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
-          videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null
-        }
+          videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null,
+        },
       });
     });
   });
@@ -129,11 +129,11 @@ function calculateFontSize(metadata: VideoMetadata): number {
   if (referenceDimension >= 2160) {
     minFontSize = 80;
     maxFontSize = 180;
-    basePercentage = isVertical ? 0.070 : 0.065;
+    basePercentage = isVertical ? 0.07 : 0.065;
   } else if (referenceDimension >= 1440) {
     minFontSize = 60;
     maxFontSize = 140;
-    basePercentage = isVertical ? 0.065 : 0.060;
+    basePercentage = isVertical ? 0.065 : 0.06;
   } else if (referenceDimension >= 1080) {
     minFontSize = 40;
     maxFontSize = 90;
@@ -141,20 +141,26 @@ function calculateFontSize(metadata: VideoMetadata): number {
   } else if (referenceDimension >= 720) {
     minFontSize = 35;
     maxFontSize = 70;
-    basePercentage = isVertical ? 0.055 : 0.050;
+    basePercentage = isVertical ? 0.055 : 0.05;
   } else {
     minFontSize = 32;
     maxFontSize = 65;
-    basePercentage = isVertical ? 0.065 : 0.060;
+    basePercentage = isVertical ? 0.065 : 0.06;
   }
 
   const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1;
   const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4);
 
-  return Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage)));
+  return Math.max(
+    minFontSize,
+    Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage))
+  );
 }
 
-async function processProjectExport(project: Project, projService: ProjectService): Promise<ExportResult> {
+async function processProjectExport(
+  project: Project,
+  projService: ProjectService
+): Promise<ExportResult> {
   const exportToken = uuidv4();
 
   log.info(`Starting project export for project ${project.id}, token: ${exportToken}`);
@@ -168,7 +174,7 @@ async function processProjectExport(project: Project, projService: ProjectServic
       throw new Error('Video file not found');
     }
 
-    const metadata = project.video_metadata || await getVideoMetadata(inputPath);
+    const metadata = project.video_metadata || (await getVideoMetadata(inputPath));
     const fileStats = await fs.stat(inputPath);
 
     const segments = parseSubtitleSegments(project.subtitles);
@@ -185,11 +191,15 @@ async function processProjectExport(project: Project, projService: ProjectServic
     const heightPreference = project.height_preference || 'standard';
     const locale = 'de-DE';
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'exporting',
-      progress: 0,
-      message: 'Starting video processing...'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'exporting',
+        progress: 0,
+        message: 'Starting video processing...',
+      }),
+      { EX: 60 * 60 }
+    );
 
     const AssSubtitleService = (await import('./assSubtitleService.js')).default;
     const assService = new AssSubtitleService();
@@ -198,10 +208,11 @@ async function processProjectExport(project: Project, projService: ProjectServic
       fontSize: Math.floor(finalFontSize / 2),
       marginL: 10,
       marginR: 10,
-      marginV: heightPreference === 'tief'
-        ? Math.floor(metadata.height * 0.20)
-        : Math.floor(metadata.height * 0.33),
-      alignment: 2
+      marginV:
+        heightPreference === 'tief'
+          ? Math.floor(metadata.height * 0.2)
+          : Math.floor(metadata.height * 0.33),
+      alignment: 2,
     };
 
     const assResult = assService.generateAssContent(
@@ -235,29 +246,30 @@ async function processProjectExport(project: Project, projService: ProjectServic
         width: metadata.width,
         height: metadata.height,
         rotation: metadata.rotation,
-        originalFormat: metadata.originalFormat ? {
-          codec: metadata.originalFormat.codec,
-          videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
-          audioCodec: metadata.originalFormat.audioCodec,
-          audioBitrate: metadata.originalFormat.audioBitrate ?? undefined
-        } : undefined
+        originalFormat: metadata.originalFormat
+          ? {
+              codec: metadata.originalFormat.codec,
+              videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
+              audioCodec: metadata.originalFormat.audioCodec,
+              audioBitrate: metadata.originalFormat.audioBitrate ?? undefined,
+            }
+          : undefined,
       },
       fileStats,
       useHwAccel,
-      includeTune: true
+      includeTune: true,
     });
 
     const videoFilters = buildVideoFilters({
       assFilePath,
       tempFontPath,
       scaleFilter: null,
-      useHwAccel
+      useHwAccel,
     });
 
     await ffmpegPool.run(async () => {
       await new Promise<void>((resolve, reject) => {
-        const command = ffmpeg(inputPath)
-          .setDuration(parseFloat(String(metadata.duration)) || 0);
+        const command = ffmpeg(inputPath).setDuration(parseFloat(String(metadata.duration)) || 0);
 
         if (inputOptions.length > 0) {
           command.inputOptions(inputOptions);
@@ -276,11 +288,15 @@ async function processProjectExport(project: Project, projService: ProjectServic
           .on('progress', async (progress: { percent?: number }) => {
             const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
             try {
-              await redisClient.set(`export:${exportToken}`, JSON.stringify({
-                status: 'exporting',
-                progress: progressPercent,
-                message: `Processing: ${progressPercent}%`
-              }), { EX: 60 * 60 });
+              await redisClient.set(
+                `export:${exportToken}`,
+                JSON.stringify({
+                  status: 'exporting',
+                  progress: progressPercent,
+                  message: `Processing: ${progressPercent}%`,
+                }),
+                { EX: 60 * 60 }
+              );
             } catch {}
           })
           .on('error', (err: Error) => {
@@ -300,28 +316,35 @@ async function processProjectExport(project: Project, projService: ProjectServic
       if (tempFontPath) await fs.unlink(tempFontPath).catch(() => {});
     } catch {}
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'complete',
-      progress: 100,
-      outputPath,
-      duration: metadata.duration
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'complete',
+        progress: 100,
+        outputPath,
+        duration: metadata.duration,
+      }),
+      { EX: 60 * 60 }
+    );
 
     log.info(`Project export completed: ${outputPath}`);
 
     return {
       exportToken,
       outputPath,
-      duration: metadata.duration
+      duration: metadata.duration,
     };
-
   } catch (error: any) {
     log.error(`Project export failed: ${error.message}`);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'error',
-      error: error.message
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'error',
+        error: error.message,
+      }),
+      { EX: 60 * 60 }
+    );
 
     throw error;
   }

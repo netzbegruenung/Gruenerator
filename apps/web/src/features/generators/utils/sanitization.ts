@@ -22,8 +22,8 @@
 export const sanitizeSlug = (text: string): string => {
   return text
     .toLowerCase()
-    .replace(/\s+/g, '-')           // Replace spaces with hyphens
-    .replace(/[^a-z0-9-]/g, '');    // Remove non-alphanumeric except hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/[^a-z0-9-]/g, ''); // Remove non-alphanumeric except hyphens
 };
 
 /**
@@ -45,8 +45,8 @@ export const sanitizeSlug = (text: string): string => {
 export const sanitizeFieldName = (text: string): string => {
   return text
     .toLowerCase()
-    .replace(/\s+/g, '_')           // Replace spaces with underscores
-    .replace(/[^a-z0-9_]/g, '');    // Remove non-alphanumeric except underscores
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .replace(/[^a-z0-9_]/g, ''); // Remove non-alphanumeric except underscores
 };
 
 /**

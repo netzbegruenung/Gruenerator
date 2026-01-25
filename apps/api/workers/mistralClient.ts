@@ -7,7 +7,9 @@ require('dotenv').config({ quiet: true });
 const apiKey = process.env.MISTRAL_API_KEY;
 
 if (!apiKey) {
-  console.warn('[Mistral Client] MISTRAL_API_KEY environment variable not set. Mistral client will not work correctly.');
+  console.warn(
+    '[Mistral Client] MISTRAL_API_KEY environment variable not set. Mistral client will not work correctly.'
+  );
 }
 
 export interface ConnectionMetrics {
@@ -25,20 +27,26 @@ const connectionMetrics: ConnectionMetrics = {
   failures: 0,
   retries: 0,
   lastFailureTime: null,
-  lastFailureReason: null
+  lastFailureReason: null,
 };
 
 const mistralClient = new Mistral({
-  apiKey: apiKey
+  apiKey: apiKey,
 });
 
-console.log(`[Mistral Client] Initialized with API key: ${apiKey ? `${apiKey.substring(0, 8)}...` : 'not provided'}`);
+console.log(
+  `[Mistral Client] Initialized with API key: ${apiKey ? `${apiKey.substring(0, 8)}...` : 'not provided'}`
+);
 
 process.on('exit', () => {
   if (connectionMetrics.attempts > 0) {
-    console.log(`[Mistral Client] Connection metrics: ${connectionMetrics.attempts} attempts, ${connectionMetrics.successes} successes, ${connectionMetrics.failures} failures, ${connectionMetrics.retries} retries`);
+    console.log(
+      `[Mistral Client] Connection metrics: ${connectionMetrics.attempts} attempts, ${connectionMetrics.successes} successes, ${connectionMetrics.failures} failures, ${connectionMetrics.retries} retries`
+    );
     if (connectionMetrics.lastFailureTime) {
-      console.log(`[Mistral Client] Last failure: ${connectionMetrics.lastFailureReason} at ${new Date(connectionMetrics.lastFailureTime).toISOString()}`);
+      console.log(
+        `[Mistral Client] Last failure: ${connectionMetrics.lastFailureReason} at ${new Date(connectionMetrics.lastFailureTime).toISOString()}`
+      );
     }
   }
 });

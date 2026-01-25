@@ -7,20 +7,24 @@ Your TipTap collaborative documentation platform is now ready for production dep
 ### 📁 Files Created
 
 #### Core Server Files
+
 - **`server.ts`** - Production server that serves the frontend and runs Hocuspocus WebSocket server
 - **`package.json`** - Updated with production dependencies and scripts
 
 #### Docker Configuration
+
 - **`Dockerfile`** - Multi-stage production-optimized Docker build
 - **`docker-compose.yml`** - Complete deployment configuration for Coolify
 - **`.dockerignore`** - Optimized build context
 - **`.coolify.yml`** - Coolify-specific configuration
 
 #### Environment Configuration
+
 - **`.env.example`** - Template for all environment variables
 - **`.env.production.example`** - Production-ready environment template
 
 #### Documentation
+
 - **`README.md`** - Complete technical documentation
 - **`DEPLOYMENT.md`** - Detailed deployment guide with Nginx/Caddy configs
 - **`QUICKSTART.md`** - 10-minute deployment guide for Coolify
@@ -96,6 +100,7 @@ docker compose down
 See [QUICKSTART.md](./QUICKSTART.md) for step-by-step guide.
 
 **TL;DR:**
+
 1. Create Docker Compose service in Coolify
 2. Point to `apps/docs/docker-compose.yml`
 3. Set environment variables (see `.env.production.example`)
@@ -145,17 +150,20 @@ Run this SQL on your PostgreSQL instance:
 ## 📊 Performance Optimizations
 
 ### Docker Build
+
 - **Multi-stage build** - Minimizes final image size
 - **Layer caching** - Fast rebuilds
 - **Production dependencies only** - Smaller image
 - **Gzip compression** - Reduced bandwidth
 
 ### Frontend
+
 - **Code splitting** - Lazy load routes
 - **Asset optimization** - Minified CSS/JS
 - **Cache headers** - 1-year cache for static assets
 
 ### Backend
+
 - **Document compression** - Gzip for Y.js snapshots
 - **Incremental updates** - Only store changes
 - **Periodic snapshots** - Fast document loading
@@ -181,6 +189,7 @@ curl https://docs.gruenerator.de/health
 ```
 
 Returns:
+
 ```json
 {
   "status": "healthy",
@@ -227,12 +236,14 @@ docker run -p 3000:3000 -p 1240:1240 --env-file .env.production test-docs
 ## 📝 Next Steps
 
 ### Immediate
+
 1. [ ] Deploy to Coolify (see QUICKSTART.md)
 2. [ ] Verify health check passes
 3. [ ] Test WebSocket connection
 4. [ ] Create test document and verify collaboration
 
 ### Soon
+
 1. [ ] Set up monitoring alerts
 2. [ ] Configure automated backups
 3. [ ] Set up log aggregation
@@ -240,6 +251,7 @@ docker run -p 3000:3000 -p 1240:1240 --env-file .env.production test-docs
 5. [ ] Create staging environment
 
 ### Future Enhancements
+
 - [ ] Multi-instance deployment with Redis pub/sub
 - [ ] Document templates
 - [ ] Export to PDF/DOCX

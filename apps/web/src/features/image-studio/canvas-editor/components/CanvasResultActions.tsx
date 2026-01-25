@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaDownload, FaShareAlt, FaImages } from 'react-icons/fa';
 import { IoCheckmarkOutline } from 'react-icons/io5';
+
 import Spinner from '../../../../components/common/Spinner';
 import '../../../../assets/styles/components/ui/button.css';
 
@@ -36,12 +37,7 @@ export const CanvasResultActions: React.FC<CanvasResultActionsProps> = ({
         <FaDownload />
       </button>
 
-      <button
-        className="btn-icon btn-primary"
-        onClick={onShare}
-        disabled={loading}
-        title="Teilen"
-      >
+      <button className="btn-icon btn-primary" onClick={onShare} disabled={loading} title="Teilen">
         <FaShareAlt />
       </button>
 

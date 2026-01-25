@@ -36,18 +36,21 @@ export function useMobileSheet({
     startTimeRef.current = Date.now();
   }, []);
 
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!isDragging) return;
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (!isDragging) return;
 
-    currentYRef.current = e.touches[0].clientY;
-    const deltaY = currentYRef.current - startYRef.current;
+      currentYRef.current = e.touches[0].clientY;
+      const deltaY = currentYRef.current - startYRef.current;
 
-    // Only allow dragging down
-    if (deltaY > 0) {
-      setTranslateY(deltaY);
-      e.preventDefault();
-    }
-  }, [isDragging]);
+      // Only allow dragging down
+      if (deltaY > 0) {
+        setTranslateY(deltaY);
+        e.preventDefault();
+      }
+    },
+    [isDragging]
+  );
 
   const handleTouchEnd = useCallback(() => {
     if (!isDragging) return;
@@ -91,4 +94,3 @@ export function useMobileSheet({
     translateY,
   };
 }
-

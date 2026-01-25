@@ -9,6 +9,6 @@ export function mergeMetadata(
     ...responseMetadata,
     provider: responseMetadata.provider,
     model: responseMetadata.model,
-    timestamp: responseMetadata.timestamp
+    timestamp: responseMetadata.timestamp,
   };
 }

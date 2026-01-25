@@ -6,9 +6,19 @@ import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 import { useGeneratorSelectionStore, type AIMode } from '../../stores';
 import { ContentPicker } from './ContentPicker';
 
-const AI_MODES: { mode: AIMode; label: string; icon: keyof typeof Ionicons.glyphMap; description: string }[] = [
+const AI_MODES: {
+  mode: AIMode;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  description: string;
+}[] = [
   { mode: 'kreativ', label: 'Kreativ', icon: 'sparkles-outline', description: 'Mistral Medium' },
-  { mode: 'privacy', label: 'Gruenerator-GPT', icon: 'shield-checkmark-outline', description: 'Selbstgehostet' },
+  {
+    mode: 'privacy',
+    label: 'Gruenerator-GPT',
+    icon: 'shield-checkmark-outline',
+    description: 'Selbstgehostet',
+  },
   { mode: 'pro', label: 'Reasoning', icon: 'bulb-outline', description: 'Kann nachdenken' },
   { mode: 'ultra', label: 'Ultra', icon: 'rocket-outline', description: 'Führendes Modell' },
 ];
@@ -65,10 +75,7 @@ export function FeatureIcons({
         {showWebSearch && (
           <Pressable
             onPress={toggleWebSearch}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.pressed,
-            ]}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             hitSlop={8}
           >
             <Ionicons
@@ -82,10 +89,7 @@ export function FeatureIcons({
         {showAIMode && (
           <Pressable
             onPress={handleAIModePress}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.pressed,
-            ]}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             hitSlop={8}
           >
             <Ionicons
@@ -99,10 +103,7 @@ export function FeatureIcons({
         {showContent && (
           <Pressable
             onPress={() => setShowContentPicker(true)}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.pressed,
-            ]}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             hitSlop={8}
           >
             <Ionicons
@@ -119,10 +120,7 @@ export function FeatureIcons({
         )}
       </View>
 
-      <ContentPicker
-        visible={showContentPicker}
-        onClose={() => setShowContentPicker(false)}
-      />
+      <ContentPicker visible={showContentPicker} onClose={() => setShowContentPicker(false)} />
     </>
   );
 }

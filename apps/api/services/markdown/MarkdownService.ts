@@ -8,7 +8,7 @@ import { marked } from 'marked';
 // Configure marked with consistent settings
 marked.setOptions({
   breaks: true, // Convert line breaks to <br>
-  gfm: true // GitHub Flavored Markdown
+  gfm: true, // GitHub Flavored Markdown
 });
 
 export class MarkdownService {
@@ -95,7 +95,7 @@ export class MarkdownService {
       /^>\s+/m, // Blockquotes
       /`[^`]+`/, // Inline code
       /^```/m, // Code blocks
-      /\|.+\|.+\|/m // Tables (GFM)
+      /\|.+\|.+\|/m, // Tables (GFM)
     ];
 
     return markdownPatterns.some((pattern) => pattern.test(content));

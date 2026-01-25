@@ -4,9 +4,11 @@
  */
 
 import { useEffect, type RefObject } from 'react';
-import type { CanvasStageRef } from '../primitives/CanvasStage';
+
 import { canvasRefRegistry } from '../../../../stores/canvasEditorRefs';
 import { useCanvasEditorStore } from '../../../../stores/canvasEditorStore';
+
+import type { CanvasStageRef } from '../primitives/CanvasStage';
 
 /**
  * Sets up canvas store registration on mount and cleanup on unmount

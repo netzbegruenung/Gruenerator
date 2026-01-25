@@ -21,8 +21,8 @@ export async function plannerNode(state: WebSearchState): Promise<Partial<WebSea
         metadata: {
           ...state.metadata,
           planningStrategy: 'normal_mode',
-          queryOptimization: optimizedQuery !== state.query
-        }
+          queryOptimization: optimizedQuery !== state.query,
+        },
       };
     } else if (state.mode === 'deep') {
       // Deep mode: generate strategic research questions using AI
@@ -36,8 +36,8 @@ export async function plannerNode(state: WebSearchState): Promise<Partial<WebSea
         metadata: {
           ...state.metadata,
           planningStrategy: 'deep_research',
-          generatedQuestions: subqueries.length
-        }
+          generatedQuestions: subqueries.length,
+        },
       };
     } else {
       throw new Error(`Unknown search mode: ${state.mode}`);
@@ -48,7 +48,7 @@ export async function plannerNode(state: WebSearchState): Promise<Partial<WebSea
     return {
       subqueries: [state.query], // Fallback to original query
       error: `Planning failed: ${errorMessage}`,
-      metadata: { ...state.metadata, planningStrategy: 'fallback' }
+      metadata: { ...state.metadata, planningStrategy: 'fallback' },
     };
   }
 }

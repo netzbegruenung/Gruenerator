@@ -16,7 +16,11 @@ import { ffmpeg, ffprobe, FFprobeMetadata } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
 import AssSubtitleService from './assSubtitleService.js';
 import { ffmpegPool } from './ffmpegPool.js';
-import { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
+import {
+  calculateScaleFilter,
+  buildFFmpegOutputOptions,
+  buildVideoFilters,
+} from './ffmpegExportUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,7 +41,7 @@ const STAGES: Record<string, Stage> = {
   ANALYZING: { id: 1, name: 'Video wird analysiert...', weight: 15 },
   TRIMMING: { id: 2, name: 'Stille Teile werden entfernt...', weight: 20 },
   SUBTITLES: { id: 3, name: 'Untertitel werden generiert...', weight: 55 },
-  FINALIZING: { id: 4, name: 'Wird fertiggestellt...', weight: 10 }
+  FINALIZING: { id: 4, name: 'Wird fertiggestellt...', weight: 10 },
 };
 
 interface ProgressData {
@@ -104,7 +108,7 @@ async function updateProgress(uploadId: string, progressData: ProgressData): Pro
     overallProgress: progressData.overallProgress || 0,
     error: progressData.error || null,
     outputPath: progressData.outputPath || null,
-    duration: progressData.duration || null
+    duration: progressData.duration || null,
   };
 
   await redisClient.set(`auto:${uploadId}`, JSON.stringify(data), { EX: 60 * 60 });
@@ -142,8 +146,8 @@ function parseFrameRate(frameRateStr: string): number {
 
 async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
   const metadata = await ffprobe(inputPath);
-  const videoStream = metadata.streams.find(s => s.codec_type === 'video');
-  const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+  const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
+  const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
   return {
     width: videoStream?.width || 1920,
@@ -154,14 +158,18 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
     originalFormat: {
       codec: videoStream?.codec_name,
       audioCodec: audioStream?.codec_name,
-      audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null
-    }
+      audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
+    },
   };
 }
 
 const TARGET_RESOLUTION = 1080;
 
-async function preScaleVideo(inputPath: string, metadata: VideoMetadata, targetResolution: number): Promise<string> {
+async function preScaleVideo(
+  inputPath: string,
+  metadata: VideoMetadata,
+  targetResolution: number
+): Promise<string> {
   const isVertical = metadata.width < metadata.height;
 
   let targetWidth: number, targetHeight: number;
@@ -178,19 +186,28 @@ async function preScaleVideo(inputPath: string, metadata: VideoMetadata, targetR
 
   const tempPath = path.join(path.dirname(inputPath), `prescaled_${Date.now()}.mp4`);
 
-  log.info(`Pre-scaling video: ${metadata.width}x${metadata.height} → ${targetWidth}x${targetHeight}`);
+  log.info(
+    `Pre-scaling video: ${metadata.width}x${metadata.height} → ${targetWidth}x${targetHeight}`
+  );
 
   await new Promise<void>((resolve, reject) => {
     ffmpeg(inputPath)
       .videoFilters(`scale=${targetWidth}:${targetHeight}`)
       .outputOptions([
-        '-c:v', 'libx264',
-        '-preset', 'medium',
-        '-crf', '17',
-        '-pix_fmt', 'yuv420p',
-        '-bf', '3',
-        '-refs', '4',
-        '-c:a', 'copy'
+        '-c:v',
+        'libx264',
+        '-preset',
+        'medium',
+        '-crf',
+        '17',
+        '-pix_fmt',
+        'yuv420p',
+        '-bf',
+        '3',
+        '-refs',
+        '4',
+        '-c:a',
+        'copy',
       ])
       .on('end', resolve)
       .on('error', reject)
@@ -210,7 +227,7 @@ async function processVideoAutomatically(
     stylePreference = 'shadow',
     heightPreference = 'tief',
     locale = 'de-DE',
-    maxResolution = null
+    maxResolution = null,
   } = options;
 
   log.info(`Starting automatic processing for: ${uploadId}, token: ${autoProcessToken}`);
@@ -222,18 +239,20 @@ async function processVideoAutomatically(
       stage: STAGES.ANALYZING.id,
       stageName: STAGES.ANALYZING.name,
       stageProgress: 0,
-      overallProgress: 0
+      overallProgress: 0,
     });
 
     let metadata = await getVideoMetadata(inputPath);
     const fileStats = await fs.stat(inputPath);
-    log.debug(`Video metadata: ${metadata.width}x${metadata.height}, duration: ${metadata.duration}s, size: ${(fileStats.size / 1024 / 1024).toFixed(2)}MB`);
+    log.debug(
+      `Video metadata: ${metadata.width}x${metadata.height}, duration: ${metadata.duration}s, size: ${(fileStats.size / 1024 / 1024).toFixed(2)}MB`
+    );
 
     await updateProgress(uploadId, {
       stage: STAGES.ANALYZING.id,
       stageName: STAGES.ANALYZING.name,
       stageProgress: 50,
-      overallProgress: calculateOverallProgress(STAGES.ANALYZING.id, 50)
+      overallProgress: calculateOverallProgress(STAGES.ANALYZING.id, 50),
     });
 
     let silenceData: SilenceData | undefined;
@@ -250,39 +269,42 @@ async function processVideoAutomatically(
       stage: STAGES.ANALYZING.id,
       stageName: STAGES.ANALYZING.name,
       stageProgress: 100,
-      overallProgress: calculateOverallProgress(STAGES.ANALYZING.id, 100)
+      overallProgress: calculateOverallProgress(STAGES.ANALYZING.id, 100),
     });
 
     await updateProgress(uploadId, {
       stage: STAGES.TRIMMING.id,
       stageName: STAGES.TRIMMING.name,
       stageProgress: 0,
-      overallProgress: calculateOverallProgress(STAGES.TRIMMING.id, 0)
+      overallProgress: calculateOverallProgress(STAGES.TRIMMING.id, 0),
     });
 
     let workingVideoPath = inputPath;
     const trimmedDuration = trimPoints.trimEnd - trimPoints.trimStart;
 
     if (trimPoints.hasTrimming) {
-      log.info(`Trimming video: ${trimPoints.trimStart.toFixed(2)}s to ${trimPoints.trimEnd.toFixed(2)}s`);
+      log.info(
+        `Trimming video: ${trimPoints.trimStart.toFixed(2)}s to ${trimPoints.trimEnd.toFixed(2)}s`
+      );
     }
 
     await updateProgress(uploadId, {
       stage: STAGES.TRIMMING.id,
       stageName: STAGES.TRIMMING.name,
       stageProgress: 100,
-      overallProgress: calculateOverallProgress(STAGES.TRIMMING.id, 100)
+      overallProgress: calculateOverallProgress(STAGES.TRIMMING.id, 100),
     });
 
     await updateProgress(uploadId, {
       stage: STAGES.SUBTITLES.id,
       stageName: STAGES.SUBTITLES.name,
       stageProgress: 0,
-      overallProgress: calculateOverallProgress(STAGES.SUBTITLES.id, 0)
+      overallProgress: calculateOverallProgress(STAGES.SUBTITLES.id, 0),
     });
 
-    const needsPreScale = metadata.width > TARGET_RESOLUTION ||
-                          (metadata.height > TARGET_RESOLUTION && metadata.width >= metadata.height);
+    const needsPreScale =
+      metadata.width > TARGET_RESOLUTION ||
+      (metadata.height > TARGET_RESOLUTION && metadata.width >= metadata.height);
 
     let subtitles: string;
 
@@ -291,7 +313,7 @@ async function processVideoAutomatically(
         transcribeVideo(inputPath, 'manual', undefined, 'de'),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
-          : Promise.resolve(null)
+          : Promise.resolve(null),
       ]);
 
       subtitles = transcriptionResult;
@@ -315,7 +337,7 @@ async function processVideoAutomatically(
         status: 'error',
         stage: STAGES.SUBTITLES.id,
         stageName: STAGES.SUBTITLES.name,
-        error: 'Untertitel konnten nicht generiert werden. Bitte versuche es erneut.'
+        error: 'Untertitel konnten nicht generiert werden. Bitte versuche es erneut.',
       });
       throw transcriptionError;
     }
@@ -324,14 +346,14 @@ async function processVideoAutomatically(
       stage: STAGES.SUBTITLES.id,
       stageName: STAGES.SUBTITLES.name,
       stageProgress: 100,
-      overallProgress: calculateOverallProgress(STAGES.SUBTITLES.id, 100)
+      overallProgress: calculateOverallProgress(STAGES.SUBTITLES.id, 100),
     });
 
     await updateProgress(uploadId, {
       stage: STAGES.FINALIZING.id,
       stageName: STAGES.FINALIZING.name,
       stageProgress: 0,
-      overallProgress: calculateOverallProgress(STAGES.FINALIZING.id, 0)
+      overallProgress: calculateOverallProgress(STAGES.FINALIZING.id, 0),
     });
 
     const outputPath = await exportWithEnhancements(
@@ -346,7 +368,7 @@ async function processVideoAutomatically(
         locale,
         maxResolution: null,
         autoProcessToken,
-        uploadId
+        uploadId,
       }
     );
 
@@ -354,7 +376,7 @@ async function processVideoAutomatically(
       stage: STAGES.FINALIZING.id,
       stageName: STAGES.FINALIZING.name,
       stageProgress: 0,
-      overallProgress: calculateOverallProgress(STAGES.FINALIZING.id, 0)
+      overallProgress: calculateOverallProgress(STAGES.FINALIZING.id, 0),
     });
 
     await updateProgress(uploadId, {
@@ -364,7 +386,7 @@ async function processVideoAutomatically(
       stageProgress: 100,
       overallProgress: 100,
       outputPath,
-      duration: trimmedDuration
+      duration: trimmedDuration,
     });
 
     log.info(`Automatic processing complete: ${outputPath}`);
@@ -382,9 +404,8 @@ async function processVideoAutomatically(
       autoProcessToken,
       segments: subtitleSegments,
       subtitles,
-      metadata
+      metadata,
     };
-
   } catch (error: any) {
     log.error(`Automatic processing failed: ${error.message}`);
 
@@ -394,7 +415,7 @@ async function processVideoAutomatically(
 
     await updateProgress(uploadId, {
       status: 'error',
-      error: error.message || 'Verarbeitung fehlgeschlagen'
+      error: error.message || 'Verarbeitung fehlgeschlagen',
     });
 
     throw error;
@@ -418,14 +439,8 @@ async function exportWithEnhancements(
   fileStats: { size: number },
   options: ExportOptions
 ): Promise<string> {
-  const {
-    stylePreference,
-    heightPreference,
-    locale,
-    maxResolution,
-    autoProcessToken,
-    uploadId
-  } = options;
+  const { stylePreference, heightPreference, locale, maxResolution, autoProcessToken, uploadId } =
+    options;
 
   await fs.mkdir(EXPORTS_DIR, { recursive: true });
   const outputFilename = `auto_${autoProcessToken}_${Date.now()}.mp4`;
@@ -437,10 +452,11 @@ async function exportWithEnhancements(
     fontSize: calculateFontSize(metadata),
     marginL: 10,
     marginR: 10,
-    marginV: heightPreference === 'tief'
-      ? Math.floor(metadata.height * 0.20)
-      : Math.floor(metadata.height * 0.33),
-    alignment: 2
+    marginV:
+      heightPreference === 'tief'
+        ? Math.floor(metadata.height * 0.2)
+        : Math.floor(metadata.height * 0.33),
+    alignment: 2,
   };
 
   const trimmedDuration = trimPoints.trimEnd - trimPoints.trimStart;
@@ -472,12 +488,14 @@ async function exportWithEnhancements(
     width: metadata.width,
     height: metadata.height,
     rotation: metadata.rotation,
-    originalFormat: metadata.originalFormat ? {
-      codec: metadata.originalFormat.codec,
-      videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
-      audioCodec: metadata.originalFormat.audioCodec,
-      audioBitrate: metadata.originalFormat.audioBitrate ?? undefined
-    } : undefined
+    originalFormat: metadata.originalFormat
+      ? {
+          codec: metadata.originalFormat.codec,
+          videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
+          audioCodec: metadata.originalFormat.audioCodec,
+          audioBitrate: metadata.originalFormat.audioBitrate ?? undefined,
+        }
+      : undefined,
   };
   const scaleFilter = calculateScaleFilter(compatibleMetadata, maxResolution);
 
@@ -485,20 +503,19 @@ async function exportWithEnhancements(
     metadata: compatibleMetadata,
     fileStats,
     useHwAccel,
-    includeTune: false
+    includeTune: false,
   });
 
   const videoFilters = buildVideoFilters({
     assFilePath,
     tempFontPath,
     scaleFilter,
-    useHwAccel
+    useHwAccel,
   });
 
   await ffmpegPool.run(async () => {
     await new Promise<void>((resolve, reject) => {
-      const command = ffmpeg(inputPath)
-        .setDuration(trimmedDuration);
+      const command = ffmpeg(inputPath).setDuration(trimmedDuration);
 
       if (inputOptions.length > 0) {
         command.inputOptions(inputOptions);
@@ -506,14 +523,18 @@ async function exportWithEnhancements(
 
       const outputOptions = [
         ...baseOutputOptions,
-        '-ss', trimPoints.trimStart.toString(),
-        '-t', trimmedDuration.toString()
+        '-ss',
+        trimPoints.trimStart.toString(),
+        '-t',
+        trimmedDuration.toString(),
       ];
 
       if (!hasAudio) {
-        const audioIndex = outputOptions.findIndex(opt => opt === '-c:a');
+        const audioIndex = outputOptions.findIndex((opt) => opt === '-c:a');
         if (audioIndex !== -1) {
-          const bitrateIndex = outputOptions.findIndex((opt, i) => i > audioIndex && opt === '-b:a');
+          const bitrateIndex = outputOptions.findIndex(
+            (opt, i) => i > audioIndex && opt === '-b:a'
+          );
           if (bitrateIndex !== -1) {
             outputOptions.splice(bitrateIndex, 2);
           }
@@ -538,7 +559,7 @@ async function exportWithEnhancements(
               stage: STAGES.FINALIZING.id,
               stageName: STAGES.FINALIZING.name,
               stageProgress: progressPercent,
-              overallProgress: calculateOverallProgress(STAGES.FINALIZING.id, progressPercent)
+              overallProgress: calculateOverallProgress(STAGES.FINALIZING.id, progressPercent),
             });
           } catch {}
         })
@@ -597,7 +618,7 @@ function parseSubtitlesToSegments(subtitles: string, trimPoints: TrimPoints): Su
     segments.push({
       startTime,
       endTime,
-      text
+      text,
     });
   }
 
@@ -614,7 +635,7 @@ function calculateFontSize(metadata: VideoMetadata): number {
   } else if (referenceDimension >= 1080) {
     basePercentage = isVertical ? 0.027 : 0.025;
   } else {
-    basePercentage = isVertical ? 0.033 : 0.030;
+    basePercentage = isVertical ? 0.033 : 0.03;
   }
 
   return Math.floor(referenceDimension * basePercentage);
@@ -638,4 +659,10 @@ async function getAutoProgress(token: string): Promise<AutoProgressData | null> 
 }
 
 export { processVideoAutomatically, getAutoProgress, STAGES };
-export type { ProcessingOptions, ProcessingResult, VideoMetadata, SubtitleSegment, AutoProgressData };
+export type {
+  ProcessingOptions,
+  ProcessingResult,
+  VideoMetadata,
+  SubtitleSegment,
+  AutoProgressData,
+};

@@ -1,7 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, ChangeEvent, KeyboardEvent } from 'react';
-import { Player, PlayerRef } from '@remotion/player';
-import VideoComposition from './VideoComposition';
+import { Player, type PlayerRef } from '@remotion/player';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from 'react';
+
 import useVideoEditorStore from '../../../../stores/videoEditorStore';
+
+import VideoComposition from './VideoComposition';
+
 import './VideoEditorPlayer.css';
 
 interface TextOverlay {
@@ -72,7 +83,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
     videoUrl,
     fps,
     width,
-    height
+    height,
   } = useVideoEditorStore();
 
   // Use composition values, fallback to legacy for backward compatibility
@@ -83,22 +94,37 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
   const composedDuration = getComposedDuration();
   const durationInFrames = Math.max(1, Math.round(composedDuration * effectiveFps));
 
-  const inputProps = useMemo(() => ({
-    clips,
-    segments,
-    subtitles,
-    stylePreference,
-    videoUrl,
-    textOverlays,
-    selectedOverlayId,
-    editingOverlayId
-  }), [clips, segments, subtitles, stylePreference, videoUrl, textOverlays, selectedOverlayId, editingOverlayId]);
+  const inputProps = useMemo(
+    () => ({
+      clips,
+      segments,
+      subtitles,
+      stylePreference,
+      videoUrl,
+      textOverlays,
+      selectedOverlayId,
+      editingOverlayId,
+    }),
+    [
+      clips,
+      segments,
+      subtitles,
+      stylePreference,
+      videoUrl,
+      textOverlays,
+      selectedOverlayId,
+      editingOverlayId,
+    ]
+  );
 
-  const handleTimeUpdate = useCallback((e: TimeUpdateEvent) => {
-    const currentFrame = e.detail.frame;
-    const timeInSeconds = currentFrame / effectiveFps;
-    setCurrentTime(timeInSeconds);
-  }, [effectiveFps, setCurrentTime]);
+  const handleTimeUpdate = useCallback(
+    (e: TimeUpdateEvent) => {
+      const currentFrame = e.detail.frame;
+      const timeInSeconds = currentFrame / effectiveFps;
+      setCurrentTime(timeInSeconds);
+    },
+    [effectiveFps, setCurrentTime]
+  );
 
   const handlePlay = useCallback(() => {
     setIsPlaying(true);
@@ -140,13 +166,16 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
     }
   }, [isPlaying]);
 
-  const seekToTime = useCallback((timeInSeconds: number) => {
-    const player = playerRef.current;
-    if (!player) return;
+  const seekToTime = useCallback(
+    (timeInSeconds: number) => {
+      const player = playerRef.current;
+      if (!player) return;
 
-    const frame = Math.round(timeInSeconds * effectiveFps);
-    player.seekTo(frame);
-  }, [effectiveFps]);
+      const frame = Math.round(timeInSeconds * effectiveFps);
+      player.seekTo(frame);
+    },
+    [effectiveFps]
+  );
 
   useEffect(() => {
     useVideoEditorStore.setState({ seekToTime });
@@ -167,108 +196,123 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
   }, [segments]);
 
   const getVisibleOverlays = useCallback(() => {
-    return textOverlays.filter(overlay =>
-      currentTime >= overlay.startTime && currentTime < overlay.endTime
+    return textOverlays.filter(
+      (overlay) => currentTime >= overlay.startTime && currentTime < overlay.endTime
     );
   }, [textOverlays, currentTime]);
 
-  const findOverlayAtPosition = useCallback((clientX: number, clientY: number): TextOverlay | null => {
-    if (!containerRef.current) return null;
+  const findOverlayAtPosition = useCallback(
+    (clientX: number, clientY: number): TextOverlay | null => {
+      if (!containerRef.current) return null;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const clickX = clientX - rect.left;
-    const clickY = clientY - rect.top;
-    const clickXPercent = (clickX / rect.width) * 100;
-    const clickYPercent = (clickY / rect.height) * 100;
+      const rect = containerRef.current.getBoundingClientRect();
+      const clickX = clientX - rect.left;
+      const clickY = clientY - rect.top;
+      const clickXPercent = (clickX / rect.width) * 100;
+      const clickYPercent = (clickY / rect.height) * 100;
 
-    const visibleOverlays = getVisibleOverlays();
-    const tolerance = 8;
+      const visibleOverlays = getVisibleOverlays();
+      const tolerance = 8;
 
-    for (const overlay of visibleOverlays) {
-      const overlayX = overlay.xPosition || 50;
-      const overlayY = overlay.yPosition;
-      const distX = Math.abs(clickXPercent - overlayX);
-      const distY = Math.abs(clickYPercent - overlayY);
-      if (distX < 15 && distY < tolerance) {
-        return overlay;
+      for (const overlay of visibleOverlays) {
+        const overlayX = overlay.xPosition || 50;
+        const overlayY = overlay.yPosition;
+        const distX = Math.abs(clickXPercent - overlayX);
+        const distY = Math.abs(clickYPercent - overlayY);
+        if (distX < 15 && distY < tolerance) {
+          return overlay;
+        }
       }
-    }
-    return null;
-  }, [getVisibleOverlays]);
+      return null;
+    },
+    [getVisibleOverlays]
+  );
 
-  const checkResizeEdge = useCallback((clientX: number, clientY: number): { isOnEdge: boolean; overlay: TextOverlay | null } => {
-    if (!containerRef.current) return { isOnEdge: false, overlay: null };
+  const checkResizeEdge = useCallback(
+    (clientX: number, clientY: number): { isOnEdge: boolean; overlay: TextOverlay | null } => {
+      if (!containerRef.current) return { isOnEdge: false, overlay: null };
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const clickX = clientX - rect.left;
-    const clickY = clientY - rect.top;
-    const clickXPercent = (clickX / rect.width) * 100;
-    const clickYPercent = (clickY / rect.height) * 100;
+      const rect = containerRef.current.getBoundingClientRect();
+      const clickX = clientX - rect.left;
+      const clickY = clientY - rect.top;
+      const clickXPercent = (clickX / rect.width) * 100;
+      const clickYPercent = (clickY / rect.height) * 100;
 
-    const visibleOverlays = getVisibleOverlays();
-    const edgeTolerance = 3;
-    const yTolerance = 8;
+      const visibleOverlays = getVisibleOverlays();
+      const edgeTolerance = 3;
+      const yTolerance = 8;
 
-    for (const overlay of visibleOverlays) {
-      const overlayX = overlay.xPosition || 50;
-      const overlayY = overlay.yPosition;
-      const overlayWidth = overlay.width || 60;
-      const rightEdgeX = overlayX + (overlayWidth / 2);
-      const distToRightEdge = Math.abs(clickXPercent - rightEdgeX);
-      const distY = Math.abs(clickYPercent - overlayY);
+      for (const overlay of visibleOverlays) {
+        const overlayX = overlay.xPosition || 50;
+        const overlayY = overlay.yPosition;
+        const overlayWidth = overlay.width || 60;
+        const rightEdgeX = overlayX + overlayWidth / 2;
+        const distToRightEdge = Math.abs(clickXPercent - rightEdgeX);
+        const distY = Math.abs(clickYPercent - overlayY);
 
-      if (distToRightEdge < edgeTolerance && distY < yTolerance) {
-        return { isOnEdge: true, overlay };
+        if (distToRightEdge < edgeTolerance && distY < yTolerance) {
+          return { isOnEdge: true, overlay };
+        }
       }
-    }
-    return { isOnEdge: false, overlay: null };
-  }, [getVisibleOverlays]);
+      return { isOnEdge: false, overlay: null };
+    },
+    [getVisibleOverlays]
+  );
 
-  const handleOverlayInteractionMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (isDraggingOverlay || isResizingOverlay) return;
+  const handleOverlayInteractionMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isDraggingOverlay || isResizingOverlay) return;
 
-    const { isOnEdge } = checkResizeEdge(e.clientX, e.clientY);
-    setIsOnResizeEdge(isOnEdge);
-  }, [isDraggingOverlay, isResizingOverlay, checkResizeEdge]);
+      const { isOnEdge } = checkResizeEdge(e.clientX, e.clientY);
+      setIsOnResizeEdge(isOnEdge);
+    },
+    [isDraggingOverlay, isResizingOverlay, checkResizeEdge]
+  );
 
-  const handleOverlayMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const { isOnEdge, overlay: resizeOverlay } = checkResizeEdge(e.clientX, e.clientY);
+  const handleOverlayMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const { isOnEdge, overlay: resizeOverlay } = checkResizeEdge(e.clientX, e.clientY);
 
-    if (isOnEdge && resizeOverlay) {
-      e.preventDefault();
-      e.stopPropagation();
-      setResizingOverlayId(resizeOverlay.id);
-      setIsResizingOverlay(true);
-      setResizeStartX(e.clientX);
-      setResizeStartWidth(resizeOverlay.width || 60);
-      return;
-    }
-
-    const clickedOverlay = findOverlayAtPosition(e.clientX, e.clientY);
-
-    if (clickedOverlay) {
-      e.preventDefault();
-      e.stopPropagation();
-      setDraggingOverlayId(clickedOverlay.id);
-      setIsDraggingOverlay(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
-      setDragStartPosition({ x: clickedOverlay.xPosition || 50, y: clickedOverlay.yPosition });
-    }
-  }, [checkResizeEdge, findOverlayAtPosition]);
-
-  const handleOverlayDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const clickedOverlay = findOverlayAtPosition(e.clientX, e.clientY);
-
-    if (clickedOverlay) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth);
+      if (isOnEdge && resizeOverlay) {
+        e.preventDefault();
+        e.stopPropagation();
+        setResizingOverlayId(resizeOverlay.id);
+        setIsResizingOverlay(true);
+        setResizeStartX(e.clientX);
+        setResizeStartWidth(resizeOverlay.width || 60);
+        return;
       }
-      setEditingOverlayId(clickedOverlay.id);
-      setEditingText(clickedOverlay.text);
-    }
-  }, [findOverlayAtPosition]);
+
+      const clickedOverlay = findOverlayAtPosition(e.clientX, e.clientY);
+
+      if (clickedOverlay) {
+        e.preventDefault();
+        e.stopPropagation();
+        setDraggingOverlayId(clickedOverlay.id);
+        setIsDraggingOverlay(true);
+        setDragStart({ x: e.clientX, y: e.clientY });
+        setDragStartPosition({ x: clickedOverlay.xPosition || 50, y: clickedOverlay.yPosition });
+      }
+    },
+    [checkResizeEdge, findOverlayAtPosition]
+  );
+
+  const handleOverlayDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const clickedOverlay = findOverlayAtPosition(e.clientX, e.clientY);
+
+      if (clickedOverlay) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (containerRef.current) {
+          setContainerWidth(containerRef.current.offsetWidth);
+        }
+        setEditingOverlayId(clickedOverlay.id);
+        setEditingText(clickedOverlay.text);
+      }
+    },
+    [findOverlayAtPosition]
+  );
 
   const handleInlineInputChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
     setEditingText(e.target.value);
@@ -296,21 +340,26 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
     }
   }, [editingOverlayId]);
 
-  const editingOverlay = editingOverlayId ? textOverlays.find(o => o.id === editingOverlayId) : null;
+  const editingOverlay = editingOverlayId
+    ? textOverlays.find((o) => o.id === editingOverlayId)
+    : null;
 
-  const handleOverlayMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDraggingOverlay || !containerRef.current || !draggingOverlayId) return;
+  const handleOverlayMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingOverlay || !containerRef.current || !draggingOverlayId) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const deltaX = e.clientX - dragStart.x;
-    const deltaY = e.clientY - dragStart.y;
-    const deltaXPercent = (deltaX / rect.width) * 100;
-    const deltaYPercent = (deltaY / rect.height) * 100;
-    const newX = dragStartPosition.x + deltaXPercent;
-    const newY = dragStartPosition.y + deltaYPercent;
+      const rect = containerRef.current.getBoundingClientRect();
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      const deltaXPercent = (deltaX / rect.width) * 100;
+      const deltaYPercent = (deltaY / rect.height) * 100;
+      const newX = dragStartPosition.x + deltaXPercent;
+      const newY = dragStartPosition.y + deltaYPercent;
 
-    updateOverlayPosition(draggingOverlayId, newX, newY);
-  }, [isDraggingOverlay, draggingOverlayId, dragStart, dragStartPosition, updateOverlayPosition]);
+      updateOverlayPosition(draggingOverlayId, newX, newY);
+    },
+    [isDraggingOverlay, draggingOverlayId, dragStart, dragStartPosition, updateOverlayPosition]
+  );
 
   const handleOverlayMouseUp = useCallback(() => {
     if (isDraggingOverlay) {
@@ -320,16 +369,19 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
     }
   }, [isDraggingOverlay, commitOverlayPosition]);
 
-  const handleResizeMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizingOverlay || !containerRef.current || !resizingOverlayId) return;
+  const handleResizeMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizingOverlay || !containerRef.current || !resizingOverlayId) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const deltaX = e.clientX - resizeStartX;
-    const deltaWidthPercent = (deltaX / rect.width) * 100 * 2;
-    const newWidth = resizeStartWidth + deltaWidthPercent;
+      const rect = containerRef.current.getBoundingClientRect();
+      const deltaX = e.clientX - resizeStartX;
+      const deltaWidthPercent = (deltaX / rect.width) * 100 * 2;
+      const newWidth = resizeStartWidth + deltaWidthPercent;
 
-    updateOverlayWidth(resizingOverlayId, newWidth);
-  }, [isResizingOverlay, resizingOverlayId, resizeStartX, resizeStartWidth, updateOverlayWidth]);
+      updateOverlayWidth(resizingOverlayId, newWidth);
+    },
+    [isResizingOverlay, resizingOverlayId, resizeStartX, resizeStartWidth, updateOverlayWidth]
+  );
 
   const handleResizeMouseUp = useCallback(() => {
     if (isResizingOverlay) {
@@ -368,9 +420,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
   if (!hasValidSource || segments.length === 0) {
     return (
       <div className={`video-editor-player video-editor-player--empty ${className || ''}`}>
-        <div className="video-editor-player__placeholder">
-          Video wird geladen...
-        </div>
+        <div className="video-editor-player__placeholder">Video wird geladen...</div>
       </div>
     );
   }
@@ -381,7 +431,9 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
   const hasVisibleOverlays = getVisibleOverlays().length > 0;
 
   return (
-    <div className={`video-editor-player ${isVertical ? 'video-editor-player--vertical' : 'video-editor-player--horizontal'} ${className || ''}`}>
+    <div
+      className={`video-editor-player ${isVertical ? 'video-editor-player--vertical' : 'video-editor-player--horizontal'} ${className || ''}`}
+    >
       <div
         ref={containerRef}
         className="video-editor-player__container"
@@ -397,7 +449,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
           compositionHeight={effectiveHeight}
           style={{
             width: '100%',
-            height: '100%'
+            height: '100%',
           }}
           controls={false}
           loop={false}
@@ -412,30 +464,32 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEdito
             onDoubleClick={handleOverlayDoubleClick}
           />
         )}
-        {editingOverlay && containerWidth > 0 && (() => {
-          const scale = containerWidth / effectiveWidth;
-          const fontSize = Math.round(48 * scale);
-          const shadowBlur1 = Math.max(1, Math.round(4 * scale));
-          const shadowBlur2 = Math.max(1, Math.round(8 * scale));
-          return (
-            <textarea
-              ref={inlineInputRef}
-              className="video-editor-player__inline-input"
-              value={editingText}
-              onChange={handleInlineInputChange}
-              onBlur={handleInlineInputBlur}
-              onKeyDown={handleInlineInputKeyDown}
-              rows={3}
-              style={{
-                top: `${editingOverlay.yPosition}%`,
-                left: `${editingOverlay.xPosition || 50}%`,
-                width: `${editingOverlay.width || 60}%`,
-                fontSize: `${fontSize}px`,
-                textShadow: `2px 2px ${shadowBlur1}px rgba(0,0,0,0.8), 0 0 ${shadowBlur2}px rgba(0,0,0,0.5)`
-              }}
-            />
-          );
-        })()}
+        {editingOverlay &&
+          containerWidth > 0 &&
+          (() => {
+            const scale = containerWidth / effectiveWidth;
+            const fontSize = Math.round(48 * scale);
+            const shadowBlur1 = Math.max(1, Math.round(4 * scale));
+            const shadowBlur2 = Math.max(1, Math.round(8 * scale));
+            return (
+              <textarea
+                ref={inlineInputRef}
+                className="video-editor-player__inline-input"
+                value={editingText}
+                onChange={handleInlineInputChange}
+                onBlur={handleInlineInputBlur}
+                onKeyDown={handleInlineInputKeyDown}
+                rows={3}
+                style={{
+                  top: `${editingOverlay.yPosition}%`,
+                  left: `${editingOverlay.xPosition || 50}%`,
+                  width: `${editingOverlay.width || 60}%`,
+                  fontSize: `${fontSize}px`,
+                  textShadow: `2px 2px ${shadowBlur1}px rgba(0,0,0,0.8), 0 0 ${shadowBlur2}px rgba(0,0,0,0.5)`,
+                }}
+              />
+            );
+          })()}
       </div>
     </div>
   );

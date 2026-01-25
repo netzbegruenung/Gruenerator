@@ -89,15 +89,31 @@ export interface UseAvailableDocumentsReturn {
 export function useProfile(userId?: string): UseQueryResult<unknown, Error>;
 export function useUserTexts(options?: UseUserTextsOptions): UseUserTextsReturn;
 export function useUserTemplates(options?: UseUserTemplatesOptions): UseUserTemplatesReturn;
-export function useNotebookCollections(options?: UseNotebookCollectionsOptions): UseNotebookCollectionsReturn & { syncQACollection?: (id: string) => Promise<void>; isSyncing?: boolean };
-export function useAnweisungenWissen(options?: UseAnweisungenWissenOptions): { query: UseQueryResult<unknown, Error>; saveChanges: (data: unknown) => Promise<unknown>; isSaving: boolean; saveError: Error | null; [key: string]: unknown };
-export function useCustomGeneratorsData(options?: UseCustomGeneratorsDataOptions): UseCustomGeneratorsDataReturn;
+export function useNotebookCollections(
+  options?: UseNotebookCollectionsOptions
+): UseNotebookCollectionsReturn & {
+  syncQACollection?: (id: string) => Promise<void>;
+  isSyncing?: boolean;
+};
+export function useAnweisungenWissen(options?: UseAnweisungenWissenOptions): {
+  query: UseQueryResult<unknown, Error>;
+  saveChanges: (data: unknown) => Promise<unknown>;
+  isSaving: boolean;
+  saveError: Error | null;
+  [key: string]: unknown;
+};
+export function useCustomGeneratorsData(
+  options?: UseCustomGeneratorsDataOptions
+): UseCustomGeneratorsDataReturn;
 export function useCustomGeneratorsMutations(): UseCustomGeneratorsMutationsReturn;
 export function useAvailableDocuments(options?: { enabled?: boolean }): UseAvailableDocumentsReturn;
 export function useSavedGenerators(options?: { isActive?: boolean }): UseSavedGeneratorsReturn;
 export const QUERY_KEYS: {
   profile: (userId: string | undefined) => (string | undefined)[];
-  bundledProfile: (userId: string | undefined, options: unknown) => (string | undefined | unknown)[];
+  bundledProfile: (
+    userId: string | undefined,
+    options: unknown
+  ) => (string | undefined | unknown)[];
   anweisungenWissen: (userId: string | undefined) => (string | undefined)[];
   notebookCollections: (userId: string | undefined) => (string | undefined)[];
   customGenerators: (userId: string | undefined) => (string | undefined)[];

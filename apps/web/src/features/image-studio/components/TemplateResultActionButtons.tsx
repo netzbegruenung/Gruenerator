@@ -1,8 +1,19 @@
 import React from 'react';
-import { FaDownload, FaEdit, FaShareAlt, FaSave, FaImages, FaInstagram, FaRedo, FaUndo } from 'react-icons/fa';
-import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
+import {
+  FaDownload,
+  FaEdit,
+  FaShareAlt,
+  FaSave,
+  FaImages,
+  FaInstagram,
+  FaRedo,
+  FaUndo,
+} from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi';
+import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
+
 import Spinner from '../../../components/common/Spinner';
+
 import type { TemplateResultActionButtonsProps } from '../types/templateResultTypes';
 import '../../../assets/styles/components/ui/button.css';
 
@@ -32,7 +43,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
   onTextButtonClick,
   onShareToInstagram,
   onUndo,
-  onRedo
+  onRedo,
 }) => {
   if (!generatedImageSrc) return null;
 
@@ -54,7 +65,13 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
           disabled={loading || isUpdating}
           title={updateSuccess ? 'Gespeichert!' : 'Änderungen speichern'}
         >
-          {isUpdating ? <Spinner size="small" /> : updateSuccess ? <IoCheckmarkOutline /> : <FaSave />}
+          {isUpdating ? (
+            <Spinner size="small" />
+          ) : updateSuccess ? (
+            <IoCheckmarkOutline />
+          ) : (
+            <FaSave />
+          )}
         </button>
       ) : (
         <button
@@ -124,7 +141,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
         disabled={loading || socialLoading || isAltTextLoading}
         title={hasGeneratedText ? (copied ? 'Kopiert!' : 'Text kopieren') : 'Texte generieren'}
       >
-        {(socialLoading || isAltTextLoading) ? (
+        {socialLoading || isAltTextLoading ? (
           <Spinner size="small" />
         ) : copied ? (
           <IoCheckmarkOutline />

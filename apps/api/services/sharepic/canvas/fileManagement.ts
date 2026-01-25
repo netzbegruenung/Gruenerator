@@ -23,7 +23,7 @@ export async function checkFiles(): Promise<void> {
     { path: FONT_PATH, name: 'GrueneTypeNeue Schriftartdatei' },
     { path: PTSANS_REGULAR_PATH, name: 'PTSans Regular Schriftartdatei' },
     { path: PTSANS_BOLD_PATH, name: 'PTSans Bold Schriftartdatei' },
-    { path: SUNFLOWER_PATH, name: 'Sonnenblumen-Bild' }
+    { path: SUNFLOWER_PATH, name: 'Sonnenblumen-Bild' },
   ];
 
   for (const file of files) {
@@ -44,7 +44,7 @@ export function registerFonts(): void {
   const fonts: FontConfig[] = [
     { path: FONT_PATH, family: 'GrueneTypeNeue', name: 'GrueneTypeNeue' },
     { path: PTSANS_REGULAR_PATH, family: 'PTSans-Regular', name: 'PTSans Regular' },
-    { path: PTSANS_BOLD_PATH, family: 'PTSans-Bold', name: 'PTSans Bold' }
+    { path: PTSANS_BOLD_PATH, family: 'PTSans-Bold', name: 'PTSans Bold' },
   ];
 
   for (const font of fonts) {

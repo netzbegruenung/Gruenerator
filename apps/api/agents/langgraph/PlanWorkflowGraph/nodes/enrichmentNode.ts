@@ -27,7 +27,7 @@ export async function enrichmentNode(state: PlanWorkflowState): Promise<Enrichme
       searchQuery: input.inhalt,
       selectedDocumentIds: input.selectedDocumentIds,
       selectedTextIds: input.selectedTextIds,
-      req: input.req
+      req: input.req,
     });
 
     // Green framing enrichment (for political generators)
@@ -37,11 +37,12 @@ export async function enrichmentNode(state: PlanWorkflowState): Promise<Enrichme
         const results = await searchArgumentsFromNotebooks(input.inhalt, {
           collections: ['grundsatz_documents', 'gruene_de_documents'],
           limit: 5,
-          threshold: 0.4
+          threshold: 0.4,
         });
 
-        greenFraming = results.map(r =>
-          `## ${r.source}\n**Quelle:** ${r.metadata.collection}\n**Relevanz:** ${Math.round(r.relevance * 100)}%\n\n${r.text}`
+        greenFraming = results.map(
+          (r) =>
+            `## ${r.source}\n**Quelle:** ${r.metadata.collection}\n**Relevanz:** ${Math.round(r.relevance * 100)}%\n\n${r.text}`
         );
 
         console.log(`[PlanWorkflow] Found ${greenFraming.length} green framing arguments`);
@@ -64,20 +65,20 @@ export async function enrichmentNode(state: PlanWorkflowState): Promise<Enrichme
           webSearchResultCount: 0,
           knowledgeSourceCount: enrichedState.knowledge?.length || 0,
           enrichmentTimeMs: Date.now() - startTime,
-          sources: [] as Array<{ type: string; title?: string; url?: string }>
-        }) as any
+          sources: [] as Array<{ type: string; title?: string; url?: string }>,
+        }) as any,
       },
       enrichmentTimeMs,
       currentPhase: 'plan',
       phasesExecuted: [...state.phasesExecuted, 'enrich'],
-      totalAICalls: state.totalAICalls // No AI calls in enrichment
+      totalAICalls: state.totalAICalls, // No AI calls in enrichment
     };
   } catch (error: any) {
     console.error('[PlanWorkflow] Enrichment error:', error);
     return {
       error: `Enrichment failed: ${error.message}`,
       currentPhase: 'error',
-      success: false
+      success: false,
     };
   }
 }

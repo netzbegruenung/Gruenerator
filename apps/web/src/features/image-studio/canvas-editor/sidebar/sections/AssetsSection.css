@@ -63,6 +63,13 @@
   font-style: italic;
 }
 
+/* Hide search hint on desktop - only useful on mobile touch interfaces */
+@media (min-width: 900px) {
+  .assets-search-hint {
+    display: none;
+  }
+}
+
 /* Normalize all asset images to consistent visual weight */
 .sidebar-section--assets .asset-image {
   width: 60%;
@@ -160,4 +167,70 @@
   align-items: center;
   justify-content: center;
   position: relative;
+}
+
+/* =============================================================================
+   TEXT CREATION BUTTONS
+   ============================================================================= */
+
+/* Action buttons container */
+.text-section-actions {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-small);
+  padding: 0;
+}
+
+.text-preview-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-medium);
+  background-color: var(--background-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-primary);
+  width: 100%;
+  text-align: center;
+  font-weight: 600;
+  height: 80px;
+}
+
+/* Header preview uses GrueneTypeNeue - the actual canvas header font */
+.text-preview-btn.header-preview {
+  font-family: 'GrueneTypeNeue', Arial, sans-serif;
+  font-size: var(--font-size-xl);
+}
+
+/* Body preview uses PT Sans - the actual canvas body font */
+.text-preview-btn.body-preview {
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: var(--font-size-lg);
+  font-weight: 400;
+}
+
+.text-preview-btn:hover {
+  background-color: var(--background-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.text-preview-btn:active {
+  transform: translateY(0);
+}
+
+/* Mobile: Compact text buttons */
+@media (max-width: 899px) {
+  .text-preview-btn {
+    height: 56px;
+    padding: var(--spacing-small);
+    font-size: 13px;
+  }
+
+  .text-section-actions {
+    gap: var(--spacing-xsmall);
+  }
 }

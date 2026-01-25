@@ -20,7 +20,11 @@ interface AuthStatusResponse {
 export const useAuth = () => {
   const { user, isAuthenticated, setAuthState, clearAuth } = useAuthStore();
 
-  const { data: authData, isLoading, error } = useQuery({
+  const {
+    data: authData,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['authStatus'],
     queryFn: async (): Promise<AuthStatusResponse> => {
       const response = await apiClient.get('/auth/status');

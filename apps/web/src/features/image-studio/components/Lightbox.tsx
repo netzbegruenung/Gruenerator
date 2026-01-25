@@ -1,5 +1,6 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import React from 'react';
+
 import type { TemplateResultLightboxProps } from '../types/templateResultTypes';
 import './Lightbox.css';
 
@@ -7,7 +8,7 @@ export const Lightbox: React.FC<TemplateResultLightboxProps> = ({
   isOpen,
   onClose,
   imageSrc,
-  altText
+  altText,
 }) => {
   if (!isOpen) return null;
 

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+
 import useImageStudioStore from '../../../stores/imageStudioStore';
 
 /**
@@ -6,12 +7,7 @@ import useImageStudioStore from '../../../stores/imageStudioStore';
  * Provides undo/redo functionality with Ctrl+Z / Ctrl+Shift+Z shortcuts
  */
 export const useAiEditorHistory = () => {
-  const {
-    undoAiGeneration,
-    redoAiGeneration,
-    canUndoAi,
-    canRedoAi
-  } = useImageStudioStore();
+  const { undoAiGeneration, redoAiGeneration, canUndoAi, canRedoAi } = useImageStudioStore();
 
   // Setup keyboard shortcuts
   useEffect(() => {
@@ -47,7 +43,7 @@ export const useAiEditorHistory = () => {
     undo: undoAiGeneration,
     redo: redoAiGeneration,
     canUndo: canUndoAi,
-    canRedo: canRedoAi
+    canRedo: canRedoAi,
   };
 };
 

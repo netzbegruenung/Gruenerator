@@ -29,12 +29,16 @@ class RedisOAuthStateManager {
   private async init(): Promise<void> {
     try {
       if (!process.env.REDIS_URL) {
-        console.warn('[Redis OAuth] No REDIS_URL configured - OAuth state will use fallback storage');
+        console.warn(
+          '[Redis OAuth] No REDIS_URL configured - OAuth state will use fallback storage'
+        );
         return;
       }
 
-      console.log('[Redis OAuth] Initializing Redis client with URL:',
-        process.env.REDIS_URL.replace(/:\/\/(.*:)?(.*)@/, '://<user>:<password>@'));
+      console.log(
+        '[Redis OAuth] Initializing Redis client with URL:',
+        process.env.REDIS_URL.replace(/:\/\/(.*:)?(.*)@/, '://<user>:<password>@')
+      );
 
       this.client = redis.createClient({
         url: process.env.REDIS_URL,
@@ -45,8 +49,8 @@ class RedisOAuthStateManager {
               return new Error('Too many retry attempts');
             }
             return Math.min(retries * 100, 3000);
-          }
-        }
+          },
+        },
       });
 
       this.client.on('error', (err: Error) => {
@@ -70,7 +74,6 @@ class RedisOAuthStateManager {
       });
 
       await this.client.connect();
-
     } catch (error) {
       console.error('[Redis OAuth] Failed to initialize Redis:', (error as Error).message);
       this.isConnected = false;
@@ -91,7 +94,11 @@ class RedisOAuthStateManager {
    * @param ttlSeconds - TTL in seconds (default: 600 = 10 minutes)
    * @returns Success status
    */
-  async storeState(state: string, data: OAuthStateData, ttlSeconds: number = 600): Promise<boolean> {
+  async storeState(
+    state: string,
+    data: OAuthStateData,
+    ttlSeconds: number = 600
+  ): Promise<boolean> {
     try {
       if (!this.isConnected || !this.client) {
         console.warn('[Redis OAuth] Redis not available for storing state');
@@ -102,7 +109,7 @@ class RedisOAuthStateManager {
       const stateData: OAuthStateData = {
         ...data,
         createdAt: Date.now(),
-        expiresAt: Date.now() + (ttlSeconds * 1000)
+        expiresAt: Date.now() + ttlSeconds * 1000,
       };
 
       await this.client.setEx(key, ttlSeconds, JSON.stringify(stateData));
@@ -111,11 +118,10 @@ class RedisOAuthStateManager {
         state: state.substring(0, 20) + '...',
         userId: data.userId,
         ttl: ttlSeconds,
-        expiresAt: new Date(stateData.expiresAt!).toISOString()
+        expiresAt: new Date(stateData.expiresAt!).toISOString(),
       });
 
       return true;
-
     } catch (error) {
       console.error('[Redis OAuth] Error storing OAuth state:', (error as Error).message);
       return false;
@@ -142,11 +148,11 @@ class RedisOAuthStateManager {
       multi.del(key);
       const results = await multi.exec();
 
-      const dataString = (results[0] as unknown) as string | null;
+      const dataString = results[0] as unknown as string | null;
 
       if (!dataString) {
         console.log('[Redis OAuth] OAuth state not found', {
-          state: state.substring(0, 20) + '...'
+          state: state.substring(0, 20) + '...',
         });
         return null;
       }
@@ -157,7 +163,7 @@ class RedisOAuthStateManager {
       if (data.expiresAt && Date.now() > data.expiresAt) {
         console.log('[Redis OAuth] OAuth state expired', {
           state: state.substring(0, 20) + '...',
-          expiredAt: new Date(data.expiresAt).toISOString()
+          expiredAt: new Date(data.expiresAt).toISOString(),
         });
         return null;
       }
@@ -165,11 +171,10 @@ class RedisOAuthStateManager {
       console.log('[Redis OAuth] OAuth state retrieved', {
         state: state.substring(0, 20) + '...',
         userId: data.userId,
-        age: data.createdAt ? Math.round((Date.now() - data.createdAt) / 1000) + 's' : 'unknown'
+        age: data.createdAt ? Math.round((Date.now() - data.createdAt) / 1000) + 's' : 'unknown',
       });
 
       return data;
-
     } catch (error) {
       console.error('[Redis OAuth] Error retrieving OAuth state:', (error as Error).message);
       return null;
@@ -225,7 +230,6 @@ class RedisOAuthStateManager {
       }
 
       return cleaned;
-
     } catch (error) {
       console.error('[Redis OAuth] Error during cleanup:', (error as Error).message);
       return 0;
@@ -247,9 +251,8 @@ class RedisOAuthStateManager {
       return {
         available: true,
         count: keys.length,
-        connected: this.isConnected
+        connected: this.isConnected,
       };
-
     } catch (error) {
       console.error('[Redis OAuth] Error getting stats:', (error as Error).message);
       return { available: false, count: 0, error: (error as Error).message };

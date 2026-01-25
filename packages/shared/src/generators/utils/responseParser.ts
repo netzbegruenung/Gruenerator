@@ -109,5 +109,5 @@ export function parseGeneratorResponse(response: unknown): GeneratorResult {
  */
 export function extractContent(response: unknown): string | null {
   const result = parseGeneratorResponse(response);
-  return result.success ? result.data?.content ?? null : null;
+  return result.success ? (result.data?.content ?? null) : null;
 }

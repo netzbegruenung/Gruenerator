@@ -11,7 +11,10 @@
 // Main service exports
 export { default as ImageSelectionService } from './ImageSelectionService.js';
 export { default as TemporaryImageStorage } from './TemporaryImageStorage.js';
-export { UnsplashAttributionService, unsplashAttributionService } from './UnsplashAttributionService.js';
+export {
+  UnsplashAttributionService,
+  unsplashAttributionService,
+} from './UnsplashAttributionService.js';
 
 // Canvas renderer exports
 export {
@@ -21,7 +24,7 @@ export {
   FLUX_HEIGHT,
   OUTPUT_WIDTH,
   OUTPUT_HEIGHT,
-  BRAND_COLORS
+  BRAND_COLORS,
 } from './ImagineCanvasRenderer.js';
 
 // Unsplash attribution exports (backward compatibility)
@@ -30,7 +33,7 @@ export {
   formatPhotographerName,
   buildUnsplashUrls,
   getAttribution,
-  enhanceWithAttribution
+  enhanceWithAttribution,
 } from './UnsplashAttributionService.js';
 
 // Type exports
@@ -59,5 +62,5 @@ export type {
   UnsplashParsedFilename,
   UnsplashUrls,
   UnsplashAttribution,
-  ImageWithAttribution
+  ImageWithAttribution,
 } from './types.js';

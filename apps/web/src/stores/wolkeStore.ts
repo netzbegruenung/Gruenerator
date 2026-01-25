@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+
 import apiClient from '../components/utils/apiClient';
 import { NextcloudShareManager } from '../utils/nextcloudShareManager';
 
@@ -95,7 +96,11 @@ interface WolkeStore {
   fetchPromise: Promise<SyncStatus[]> | null;
   shareLinksPreloaded: boolean;
 
-  setScope: (scope: 'personal' | 'group', scopeId?: string | null, permissions?: Partial<WolkePermissions> | null) => void;
+  setScope: (
+    scope: 'personal' | 'group',
+    scopeId?: string | null,
+    permissions?: Partial<WolkePermissions> | null
+  ) => void;
   resetToPersonal: () => void;
   getApiBasePath: () => string;
   setLoading: (isLoading: boolean) => void;
@@ -111,7 +116,11 @@ interface WolkeStore {
   fetchSyncStatuses: (forceRefresh?: boolean) => Promise<SyncStatus[]>;
   ensureSyncStatuses: () => Promise<SyncStatus[]>;
   syncFolder: (shareLinkId: string, folderPath?: string) => Promise<WolkeSyncResult>;
-  setAutoSync: (shareLinkId: string, folderPath: string | undefined, enabled: boolean) => Promise<WolkeSyncResult>;
+  setAutoSync: (
+    shareLinkId: string,
+    folderPath: string | undefined,
+    enabled: boolean
+  ) => Promise<WolkeSyncResult>;
   isSyncingFolder: (shareLinkId: string) => boolean;
   getSyncStatus: (shareLinkId: string, folderPath?: string) => SyncStatus | undefined;
   getSyncStats: () => SyncStats;
@@ -140,20 +149,50 @@ export const useWolkeStore = create<WolkeStore>()(
       canAddLinks: true,
       canDeleteLinks: true,
       canSync: true,
-      isAdmin: false
+      isAdmin: false,
     },
     initialized: false,
     lastFetchTimestamp: 0,
     fetchPromise: null,
     shareLinksPreloaded: false,
 
-    setScope: (scope, scopeId = null, permissions = null) => set(state => {
-      const currentScope = state.scope;
-      const currentScopeId = state.scopeId;
+    setScope: (scope, scopeId = null, permissions = null) =>
+      set((state) => {
+        const currentScope = state.scope;
+        const currentScopeId = state.scopeId;
 
-      const scopeChanged = currentScope !== scope || currentScopeId !== scopeId;
+        const scopeChanged = currentScope !== scope || currentScopeId !== scopeId;
 
-      if (scopeChanged) {
+        if (scopeChanged) {
+          state.shareLinks = [];
+          state.syncStatuses = [];
+          state.error = null;
+          state.successMessage = '';
+          state.initialized = false;
+          state.shareLinksPreloaded = false;
+          state.filesCache.clear();
+          state.preloadPromises.clear();
+        }
+
+        state.scope = scope;
+        state.scopeId = scopeId;
+
+        if (permissions) {
+          state.permissions = { ...state.permissions, ...permissions };
+        } else {
+          state.permissions = {
+            canAddLinks: true,
+            canDeleteLinks: true,
+            canSync: true,
+            isAdmin: scope === 'personal',
+          };
+        }
+      }),
+
+    resetToPersonal: () =>
+      set((state) => {
+        state.scope = 'personal';
+        state.scopeId = null;
         state.shareLinks = [];
         state.syncStatuses = [];
         state.error = null;
@@ -162,73 +201,50 @@ export const useWolkeStore = create<WolkeStore>()(
         state.shareLinksPreloaded = false;
         state.filesCache.clear();
         state.preloadPromises.clear();
-      }
-
-      state.scope = scope;
-      state.scopeId = scopeId;
-
-      if (permissions) {
-        state.permissions = { ...state.permissions, ...permissions };
-      } else {
         state.permissions = {
           canAddLinks: true,
           canDeleteLinks: true,
           canSync: true,
-          isAdmin: scope === 'personal'
+          isAdmin: true,
         };
-      }
-    }),
-
-    resetToPersonal: () => set(state => {
-      state.scope = 'personal';
-      state.scopeId = null;
-      state.shareLinks = [];
-      state.syncStatuses = [];
-      state.error = null;
-      state.successMessage = '';
-      state.initialized = false;
-      state.shareLinksPreloaded = false;
-      state.filesCache.clear();
-      state.preloadPromises.clear();
-      state.permissions = {
-        canAddLinks: true,
-        canDeleteLinks: true,
-        canSync: true,
-        isAdmin: true
-      };
-    }),
+      }),
 
     getApiBasePath: () => {
       const { scope, scopeId } = get();
       return scope === 'group' ? `/groups/${scopeId}/wolke` : '/nextcloud';
     },
 
-    setLoading: (isLoading) => set(state => {
-      state.isLoading = isLoading;
-    }),
+    setLoading: (isLoading) =>
+      set((state) => {
+        state.isLoading = isLoading;
+      }),
 
-    setError: (error) => set(state => {
-      state.error = error;
-      state.successMessage = '';
-    }),
+    setError: (error) =>
+      set((state) => {
+        state.error = error;
+        state.successMessage = '';
+      }),
 
-    clearError: () => set(state => {
-      state.error = null;
-    }),
+    clearError: () =>
+      set((state) => {
+        state.error = null;
+      }),
 
-    setSuccessMessage: (message) => set(state => {
-      state.successMessage = message;
-      state.error = null;
-    }),
+    setSuccessMessage: (message) =>
+      set((state) => {
+        state.successMessage = message;
+        state.error = null;
+      }),
 
-    clearMessages: () => set(state => {
-      state.error = null;
-      state.successMessage = '';
-    }),
+    clearMessages: () =>
+      set((state) => {
+        state.error = null;
+        state.successMessage = '';
+      }),
 
     fetchShareLinks: async () => {
       try {
-        set(state => {
+        set((state) => {
           state.isLoading = true;
           state.error = null;
         });
@@ -240,7 +256,7 @@ export const useWolkeStore = create<WolkeStore>()(
           const response = await apiClient.get(`${basePath}/share-links`);
 
           if (response.data && response.data.success) {
-            set(state => {
+            set((state) => {
               state.shareLinks = response.data.shareLinks || [];
               state.isLoading = false;
               state.initialized = true;
@@ -251,17 +267,16 @@ export const useWolkeStore = create<WolkeStore>()(
           }
         } else {
           const shareLinks = await NextcloudShareManager.getShareLinks();
-          set(state => {
+          set((state) => {
             state.shareLinks = shareLinks;
             state.isLoading = false;
             state.initialized = true;
             state.shareLinksPreloaded = true;
           });
         }
-
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        set(state => {
+        set((state) => {
           state.error = errorMessage;
           state.isLoading = false;
           state.shareLinks = [];
@@ -277,7 +292,7 @@ export const useWolkeStore = create<WolkeStore>()(
         throw new Error('Keine Berechtigung zum Hinzufügen von Links');
       }
 
-      set(state => {
+      set((state) => {
         state.error = null;
       });
 
@@ -287,7 +302,7 @@ export const useWolkeStore = create<WolkeStore>()(
         const basePath = `/groups/${scopeId}/wolke`;
         const response = await apiClient.post(`${basePath}/share-links`, {
           shareLink: shareLink.trim(),
-          label: label.trim()
+          label: label.trim(),
         });
 
         if (response.data && response.data.success) {
@@ -299,11 +314,12 @@ export const useWolkeStore = create<WolkeStore>()(
         newShareLink = await NextcloudShareManager.saveShareLink(shareLink, label);
       }
 
-      set(state => {
+      set((state) => {
         state.shareLinks.push(newShareLink);
-        state.successMessage = scope === 'group'
-          ? 'Wolke-Link zur Gruppe hinzugefügt.'
-          : 'Wolke-Verbindung wurde erfolgreich hinzugefügt.';
+        state.successMessage =
+          scope === 'group'
+            ? 'Wolke-Link zur Gruppe hinzugefügt.'
+            : 'Wolke-Verbindung wurde erfolgreich hinzugefügt.';
       });
 
       return newShareLink;
@@ -316,7 +332,7 @@ export const useWolkeStore = create<WolkeStore>()(
         throw new Error('Keine Berechtigung zum Löschen von Links');
       }
 
-      set(state => {
+      set((state) => {
         state.error = null;
       });
 
@@ -331,11 +347,12 @@ export const useWolkeStore = create<WolkeStore>()(
         await NextcloudShareManager.deleteShareLink(shareLinkId);
       }
 
-      set(state => {
-        state.shareLinks = state.shareLinks.filter(link => link.id !== shareLinkId);
-        state.successMessage = scope === 'group'
-          ? 'Wolke-Link aus Gruppe entfernt.'
-          : 'Wolke-Verbindung wurde gelöscht.';
+      set((state) => {
+        state.shareLinks = state.shareLinks.filter((link) => link.id !== shareLinkId);
+        state.successMessage =
+          scope === 'group'
+            ? 'Wolke-Link aus Gruppe entfernt.'
+            : 'Wolke-Verbindung wurde gelöscht.';
       });
     },
 
@@ -345,7 +362,7 @@ export const useWolkeStore = create<WolkeStore>()(
       if (scope === 'group') {
         const basePath = `/groups/${scopeId}/wolke`;
         const response = await apiClient.post(`${basePath}/test-connection`, {
-          shareLink: shareLink.trim()
+          shareLink: shareLink.trim(),
         });
 
         return response.data;
@@ -362,7 +379,7 @@ export const useWolkeStore = create<WolkeStore>()(
         const response = await apiClient.post(`${basePath}/upload-test`, {
           shareLinkId,
           content,
-          filename
+          filename,
         });
 
         return response.data;
@@ -389,10 +406,11 @@ export const useWolkeStore = create<WolkeStore>()(
       const fetchPromise = (async () => {
         try {
           const currentSyncStatuses = get().syncStatuses;
-          const shouldShowLoading = forceRefresh || !currentSyncStatuses || currentSyncStatuses.length === 0;
+          const shouldShowLoading =
+            forceRefresh || !currentSyncStatuses || currentSyncStatuses.length === 0;
 
           if (shouldShowLoading) {
-            set(state => {
+            set((state) => {
               state.isLoading = true;
               state.error = null;
             });
@@ -420,7 +438,7 @@ export const useWolkeStore = create<WolkeStore>()(
             }
           }
 
-          set(state => {
+          set((state) => {
             state.syncStatuses = syncStatuses;
             state.isLoading = false;
             state.lastFetchTimestamp = Date.now();
@@ -431,10 +449,9 @@ export const useWolkeStore = create<WolkeStore>()(
           });
 
           return syncStatuses;
-
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-          set(state => {
+          set((state) => {
             state.error = errorMessage;
             state.isLoading = false;
             state.fetchPromise = null;
@@ -446,7 +463,7 @@ export const useWolkeStore = create<WolkeStore>()(
         }
       })();
 
-      set(state => {
+      set((state) => {
         state.fetchPromise = fetchPromise;
       });
 
@@ -461,7 +478,7 @@ export const useWolkeStore = create<WolkeStore>()(
       }
 
       if (isLoading) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         return get().syncStatuses;
       }
 
@@ -475,23 +492,21 @@ export const useWolkeStore = create<WolkeStore>()(
         throw new Error('Keine Berechtigung zum Synchronisieren');
       }
 
-      set(state => {
+      set((state) => {
         state.isSyncing.add(shareLinkId);
         state.error = null;
       });
 
       try {
-        const basePath = scope === 'group'
-          ? `/groups/${scopeId}/wolke`
-          : '/documents/wolke';
+        const basePath = scope === 'group' ? `/groups/${scopeId}/wolke` : '/documents/wolke';
 
         const response = await apiClient.post(`${basePath}/sync`, {
           shareLinkId,
-          folderPath
+          folderPath,
         });
 
         if (response.data && response.data.success) {
-          set(state => {
+          set((state) => {
             state.successMessage = 'Synchronisation gestartet.';
           });
 
@@ -502,7 +517,7 @@ export const useWolkeStore = create<WolkeStore>()(
           throw new Error(response.data?.message || 'Failed to start sync');
         }
       } finally {
-        set(state => {
+        set((state) => {
           state.isSyncing.delete(shareLinkId);
         });
       }
@@ -515,30 +530,28 @@ export const useWolkeStore = create<WolkeStore>()(
         throw new Error('Nur Admins können Auto-Sync für Gruppen aktivieren');
       }
 
-      set(state => {
+      set((state) => {
         state.error = null;
       });
 
-      const basePath = scope === 'group'
-        ? `/groups/${scopeId}/wolke`
-        : '/documents/wolke';
+      const basePath = scope === 'group' ? `/groups/${scopeId}/wolke` : '/documents/wolke';
 
       const response = await apiClient.post(`${basePath}/auto-sync`, {
         shareLinkId,
         folderPath,
-        enabled
+        enabled,
       });
 
       if (response.data && response.data.success) {
-        set(state => {
-          const existingStatusIndex = state.syncStatuses.findIndex(status =>
-            status.share_link_id === shareLinkId && status.folder_path === folderPath
+        set((state) => {
+          const existingStatusIndex = state.syncStatuses.findIndex(
+            (status) => status.share_link_id === shareLinkId && status.folder_path === folderPath
           );
 
           if (existingStatusIndex >= 0) {
             state.syncStatuses[existingStatusIndex] = {
               ...state.syncStatuses[existingStatusIndex],
-              auto_sync_enabled: enabled
+              auto_sync_enabled: enabled,
             };
           } else {
             state.syncStatuses.push({
@@ -550,7 +563,7 @@ export const useWolkeStore = create<WolkeStore>()(
               files_processed: 0,
               files_failed: 0,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
             });
           }
 
@@ -567,15 +580,14 @@ export const useWolkeStore = create<WolkeStore>()(
 
     isSyncingFolder: (shareLinkId) => {
       const { isSyncing, syncStatuses } = get();
-      const status = syncStatuses.find(s => s.share_link_id === shareLinkId);
+      const status = syncStatuses.find((s) => s.share_link_id === shareLinkId);
       return isSyncing.has(shareLinkId) || status?.sync_status === 'syncing';
     },
 
     getSyncStatus: (shareLinkId, folderPath = '') => {
       const { syncStatuses } = get();
-      return syncStatuses.find(status =>
-        status.share_link_id === shareLinkId &&
-        status.folder_path === folderPath
+      return syncStatuses.find(
+        (status) => status.share_link_id === shareLinkId && status.folder_path === folderPath
       );
     },
 
@@ -583,17 +595,23 @@ export const useWolkeStore = create<WolkeStore>()(
       const { syncStatuses } = get();
 
       const totalFolders = syncStatuses.length;
-      const activeFolders = syncStatuses.filter(status => status.auto_sync_enabled).length;
-      const syncingFolders = syncStatuses.filter(status => status.sync_status === 'syncing').length;
-      const completedFolders = syncStatuses.filter(status => status.sync_status === 'completed').length;
-      const failedFolders = syncStatuses.filter(status => status.sync_status === 'failed').length;
+      const activeFolders = syncStatuses.filter((status) => status.auto_sync_enabled).length;
+      const syncingFolders = syncStatuses.filter(
+        (status) => status.sync_status === 'syncing'
+      ).length;
+      const completedFolders = syncStatuses.filter(
+        (status) => status.sync_status === 'completed'
+      ).length;
+      const failedFolders = syncStatuses.filter((status) => status.sync_status === 'failed').length;
 
-      const totalFilesProcessed = syncStatuses.reduce((sum, status) =>
-        sum + (status.files_processed || 0), 0
+      const totalFilesProcessed = syncStatuses.reduce(
+        (sum, status) => sum + (status.files_processed || 0),
+        0
       );
 
-      const totalFilesFailed = syncStatuses.reduce((sum, status) =>
-        sum + (status.files_failed || 0), 0
+      const totalFilesFailed = syncStatuses.reduce(
+        (sum, status) => sum + (status.files_failed || 0),
+        0
       );
 
       return {
@@ -603,7 +621,7 @@ export const useWolkeStore = create<WolkeStore>()(
         completedFolders,
         failedFolders,
         totalFilesProcessed,
-        totalFilesFailed
+        totalFilesFailed,
       };
     },
 
@@ -638,7 +656,7 @@ export const useWolkeStore = create<WolkeStore>()(
       const now = Date.now();
 
       const cached = state.filesCache.get(shareLinkId);
-      if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      if (cached && now - cached.timestamp < CACHE_DURATION) {
         return cached.files;
       }
 
@@ -649,11 +667,11 @@ export const useWolkeStore = create<WolkeStore>()(
 
       const loadPromise = (async () => {
         try {
-          set(state => {
+          set((state) => {
             state.filesCache.set(shareLinkId, {
               files: cached?.files || [],
               timestamp: cached?.timestamp || 0,
-              loading: true
+              loading: true,
             });
           });
 
@@ -662,11 +680,11 @@ export const useWolkeStore = create<WolkeStore>()(
           if (response.data && response.data.success) {
             const files = response.data.files || [];
 
-            set(state => {
+            set((state) => {
               state.filesCache.set(shareLinkId, {
                 files,
                 timestamp: now,
-                loading: false
+                loading: false,
               });
               state.preloadPromises.delete(shareLinkId);
             });
@@ -676,12 +694,12 @@ export const useWolkeStore = create<WolkeStore>()(
             throw new Error('Failed to preload files');
           }
         } catch (error) {
-          set(state => {
+          set((state) => {
             const cached = state.filesCache.get(shareLinkId);
             if (cached) {
               state.filesCache.set(shareLinkId, {
                 ...cached,
-                loading: false
+                loading: false,
               });
             }
             state.preloadPromises.delete(shareLinkId);
@@ -691,7 +709,7 @@ export const useWolkeStore = create<WolkeStore>()(
         }
       })();
 
-      set(state => {
+      set((state) => {
         state.preloadPromises.set(shareLinkId, loadPromise);
       });
 
@@ -706,9 +724,12 @@ export const useWolkeStore = create<WolkeStore>()(
           const primaryShareLink = shareLinks[0];
 
           if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-            window.requestIdleCallback(() => {
-              get().preloadFiles(primaryShareLink.id);
-            }, { timeout: 5000 });
+            window.requestIdleCallback(
+              () => {
+                get().preloadFiles(primaryShareLink.id);
+              },
+              { timeout: 5000 }
+            );
           } else {
             setTimeout(() => {
               get().preloadFiles(primaryShareLink.id);
@@ -722,17 +743,19 @@ export const useWolkeStore = create<WolkeStore>()(
 
     getCachedFiles: (shareLinkId) => {
       const cached = get().filesCache.get(shareLinkId);
-      return cached ? {
-        files: cached.files,
-        loading: cached.loading,
-        isCached: true,
-        timestamp: cached.timestamp
-      } : {
-        files: [],
-        loading: false,
-        isCached: false,
-        timestamp: 0
-      };
+      return cached
+        ? {
+            files: cached.files,
+            loading: cached.loading,
+            isCached: true,
+            timestamp: cached.timestamp,
+          }
+        : {
+            files: [],
+            loading: false,
+            isCached: false,
+            timestamp: 0,
+          };
     },
 
     areFilesCached: (shareLinkId, maxAge = 5 * 60 * 1000) => {
@@ -740,24 +763,35 @@ export const useWolkeStore = create<WolkeStore>()(
       if (!cached) return false;
 
       const now = Date.now();
-      return (now - cached.timestamp) < maxAge;
+      return now - cached.timestamp < maxAge;
     },
 
     clearFileCache: (shareLinkId) => {
-      set(state => {
+      set((state) => {
         state.filesCache.delete(shareLinkId);
         state.preloadPromises.delete(shareLinkId);
       });
     },
 
     clearAllFileCaches: () => {
-      set(state => {
+      set((state) => {
         state.filesCache.clear();
         state.preloadPromises.clear();
       });
-    }
+    },
   }))
 );
 
 export default useWolkeStore;
-export type { ShareLink, SyncStatus, FileCache, WolkePermissions, SyncStats, CachedFilesResult, WolkeStore, WolkeFileItem, WolkeTestResult, WolkeSyncResult };
+export type {
+  ShareLink,
+  SyncStatus,
+  FileCache,
+  WolkePermissions,
+  SyncStats,
+  CachedFilesResult,
+  WolkeStore,
+  WolkeFileItem,
+  WolkeTestResult,
+  WolkeSyncResult,
+};

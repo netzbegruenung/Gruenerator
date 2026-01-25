@@ -58,7 +58,10 @@ class FFmpegCommand {
   private filters: string[] = [];
   private duration: number | null = null;
   private listeners: Record<EventType, Array<(...args: any[]) => void>> = {
-    start: [], progress: [], error: [], end: []
+    start: [],
+    progress: [],
+    error: [],
+    end: [],
   };
 
   constructor(input?: string) {
@@ -154,7 +157,7 @@ class FFmpegCommand {
       frame: frameMatch ? parseInt(frameMatch[1], 10) : null,
       fps: fpsMatch ? parseFloat(fpsMatch[1]) : null,
       bitrate: bitrateMatch ? parseFloat(bitrateMatch[1]) : null,
-      percent: null
+      percent: null,
     };
 
     if (this.duration && this.duration > 0) {
@@ -187,7 +190,10 @@ class FFmpegCommand {
         this.emit('end');
       } else {
         const errorLines = stderr.split('\n').slice(-10).join('\n');
-        const error = new Error(`FFmpeg exited with code ${code}: ${errorLines}`) as Error & { code: number | null; stderr: string };
+        const error = new Error(`FFmpeg exited with code ${code}: ${errorLines}`) as Error & {
+          code: number | null;
+          stderr: string;
+        };
         error.code = code;
         error.stderr = stderr;
         this.emit('error', error);
@@ -204,13 +210,25 @@ class FFmpegCommand {
 
 async function ffprobe(inputPath: string): Promise<FFprobeMetadata> {
   return new Promise((resolve, reject) => {
-    const args = ['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', inputPath];
+    const args = [
+      '-v',
+      'quiet',
+      '-print_format',
+      'json',
+      '-show_format',
+      '-show_streams',
+      inputPath,
+    ];
     const proc = spawn(ffprobePath, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
 
-    proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-    proc.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    proc.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+    proc.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
 
     proc.on('close', (code: number | null) => {
       if (code === 0) {
@@ -230,21 +248,26 @@ async function ffprobe(inputPath: string): Promise<FFprobeMetadata> {
 
 interface FFmpegFactory {
   (input?: string): FFmpegCommand;
-  ffprobe: (inputPath: string, callback: (err: Error | null, metadata?: FFprobeMetadata) => void) => void;
+  ffprobe: (
+    inputPath: string,
+    callback: (err: Error | null, metadata?: FFprobeMetadata) => void
+  ) => void;
   setFfmpegPath: () => void;
   setFfprobePath: () => void;
 }
 
-const ffmpeg: FFmpegFactory = Object.assign(
-  (input?: string) => new FFmpegCommand(input),
-  {
-    ffprobe: (inputPath: string, callback: (err: Error | null, metadata?: FFprobeMetadata) => void) => {
-      ffprobe(inputPath).then(metadata => callback(null, metadata)).catch(err => callback(err));
-    },
-    setFfmpegPath: () => {},
-    setFfprobePath: () => {}
-  }
-);
+const ffmpeg: FFmpegFactory = Object.assign((input?: string) => new FFmpegCommand(input), {
+  ffprobe: (
+    inputPath: string,
+    callback: (err: Error | null, metadata?: FFprobeMetadata) => void
+  ) => {
+    ffprobe(inputPath)
+      .then((metadata) => callback(null, metadata))
+      .catch((err) => callback(err));
+  },
+  setFfmpegPath: () => {},
+  setFfprobePath: () => {},
+});
 
 export { FFmpegCommand, ffprobe, ffmpeg };
 export type { FFmpegProgress, FFprobeMetadata, FFprobeStream, FFprobeFormat };

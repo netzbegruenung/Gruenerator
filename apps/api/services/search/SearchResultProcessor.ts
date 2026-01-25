@@ -18,7 +18,7 @@ import type {
   FilterOptions,
   DedupeOptions,
   CollectionConfig,
-  SourcesByCollection
+  SourcesByCollection,
 } from './types.js';
 
 /**
@@ -49,7 +49,7 @@ export function expandResultsToChunks(
           chunk_index: chunk.chunk_index,
           page_number: chunk.page_number ?? null,
           ...(collectionId && { collection_id: collectionId }),
-          ...(collectionName && { collection_name: collectionName })
+          ...(collectionName && { collection_name: collectionName }),
         });
       }
     } else {
@@ -63,7 +63,7 @@ export function expandResultsToChunks(
         chunk_index: r.chunk_index || 0,
         page_number: null,
         ...(collectionId && { collection_id: collectionId }),
-        ...(collectionName && { collection_name: collectionName })
+        ...(collectionName && { collection_name: collectionName }),
       });
     }
   }
@@ -117,7 +117,7 @@ export function buildReferencesMap(results: ExpandedChunkResult[]): ReferencesMa
       chunk_index: r.chunk_index,
       page_number: r.page_number,
       ...(r.collection_id && { collection_id: r.collection_id }),
-      ...(r.collection_name && { collection_name: r.collection_name })
+      ...(r.collection_name && { collection_name: r.collection_name }),
     };
   }
 
@@ -127,7 +127,10 @@ export function buildReferencesMap(results: ExpandedChunkResult[]): ReferencesMa
 /**
  * Validate draft content and inject citation markers
  */
-export function validateAndInjectCitations(draft: string, referencesMap: ReferencesMap): ValidationResult {
+export function validateAndInjectCitations(
+  draft: string,
+  referencesMap: ReferencesMap
+): ValidationResult {
   const validIds = new Set(Object.keys(referencesMap));
   const errors: string[] = [];
 
@@ -136,7 +139,10 @@ export function validateAndInjectCitations(draft: string, referencesMap: Referen
   content = content.replace(/\n+Quellen:[\s\S]*$/i, '');
 
   content = content.replace(/\[(\s*\d+(?:\s*,\s*\d+)+\s*)\]/g, (m, inner) => {
-    const nums = inner.split(',').map((s: string) => s.trim()).filter(Boolean);
+    const nums = inner
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean);
     return nums.map((n: string) => `[${n}]`).join('');
   });
 
@@ -158,7 +164,7 @@ export function validateAndInjectCitations(draft: string, referencesMap: Referen
     content = content.replace(re, `⚡CITE${id}⚡`);
   }
 
-  const citations: Citation[] = [...usedIds].map(id => {
+  const citations: Citation[] = [...usedIds].map((id) => {
     const ref = referencesMap[id];
     return {
       index: id,
@@ -171,18 +177,21 @@ export function validateAndInjectCitations(draft: string, referencesMap: Referen
       filename: ref.filename,
       page_number: ref.page_number,
       ...(ref.collection_id && { collection_id: ref.collection_id }),
-      ...(ref.collection_name && { collection_name: ref.collection_name })
+      ...(ref.collection_name && { collection_name: ref.collection_name }),
     };
   });
 
-  const byDoc = new Map<string, {
-    document_id: string;
-    document_title: string;
-    source_url: string | null;
-    chunk_texts: string[];
-    similarity_scores: number[];
-    citations: Citation[];
-  }>();
+  const byDoc = new Map<
+    string,
+    {
+      document_id: string;
+      document_title: string;
+      source_url: string | null;
+      chunk_texts: string[];
+      similarity_scores: number[];
+      citations: Citation[];
+    }
+  >();
 
   for (const c of citations) {
     const key = c.document_id || c.document_title;
@@ -193,7 +202,7 @@ export function validateAndInjectCitations(draft: string, referencesMap: Referen
         source_url: c.source_url || null,
         chunk_texts: [c.cited_text],
         similarity_scores: [c.similarity_score],
-        citations: []
+        citations: [],
       });
     } else {
       const doc = byDoc.get(key)!;
@@ -203,20 +212,20 @@ export function validateAndInjectCitations(draft: string, referencesMap: Referen
     byDoc.get(key)!.citations.push(c);
   }
 
-  const sources: Source[] = [...byDoc.values()].map(source => ({
+  const sources: Source[] = [...byDoc.values()].map((source) => ({
     document_id: source.document_id,
     document_title: source.document_title,
     source_url: source.source_url || null,
     chunk_text: source.chunk_texts.join(' [...] '),
     similarity_score: Math.max(...source.similarity_scores),
-    citations: source.citations
+    citations: source.citations,
   }));
 
   return {
     cleanDraft: content,
     citations,
     sources,
-    errors: errors.length > 0 ? errors : null
+    errors: errors.length > 0 ? errors : null,
   };
 }
 
@@ -268,7 +277,7 @@ export function filterAndSortResults(
   const { threshold = 0.35, limit = 40 } = options;
 
   return results
-    .filter(r => r.similarity >= threshold)
+    .filter((r) => r.similarity >= threshold)
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, limit);
 }
@@ -284,18 +293,23 @@ export function groupSourcesByCollection(
   const sourcesByCollection: SourcesByCollection = {};
 
   for (const [collectionId, config] of Object.entries(collectionsConfig)) {
-    const collectionCitations = citations.filter(c => c.collection_id === collectionId);
-    const collectionResults = allResults.filter(r => r.collection_id === collectionId);
-    const citedDocChunks = new Set(collectionCitations.map(c => `${c.document_id}:${c.chunk_index}`));
+    const collectionCitations = citations.filter((c) => c.collection_id === collectionId);
+    const collectionResults = allResults.filter((r) => r.collection_id === collectionId);
+    const citedDocChunks = new Set(
+      collectionCitations.map((c) => `${c.document_id}:${c.chunk_index}`)
+    );
 
-    const byDoc = new Map<string, {
-      document_id: string;
-      document_title: string;
-      source_url: string | null;
-      chunk_texts: string[];
-      similarity_scores: number[];
-      citations: Citation[];
-    }>();
+    const byDoc = new Map<
+      string,
+      {
+        document_id: string;
+        document_title: string;
+        source_url: string | null;
+        chunk_texts: string[];
+        similarity_scores: number[];
+        citations: Citation[];
+      }
+    >();
 
     for (const c of collectionCitations) {
       const key = c.document_id || c.document_title;
@@ -306,7 +320,7 @@ export function groupSourcesByCollection(
           source_url: c.source_url || null,
           chunk_texts: [c.cited_text],
           similarity_scores: [c.similarity_score],
-          citations: []
+          citations: [],
         });
       } else {
         const doc = byDoc.get(key)!;
@@ -316,23 +330,23 @@ export function groupSourcesByCollection(
       byDoc.get(key)!.citations.push(c);
     }
 
-    const sources: Source[] = [...byDoc.values()].map(source => ({
+    const sources: Source[] = [...byDoc.values()].map((source) => ({
       document_id: source.document_id,
       document_title: source.document_title,
       source_url: source.source_url || null,
       chunk_text: source.chunk_texts.join(' [...] '),
       similarity_score: Math.max(...source.similarity_scores),
-      citations: source.citations
+      citations: source.citations,
     }));
 
     const allSources: ExpandedChunkResult[] = collectionResults
-      .filter(r => !citedDocChunks.has(`${r.document_id}:${r.chunk_index}`))
-      .map(r => r);
+      .filter((r) => !citedDocChunks.has(`${r.document_id}:${r.chunk_index}`))
+      .map((r) => r);
 
     sourcesByCollection[collectionId] = {
       name: config.name,
       sources,
-      allSources
+      allSources,
     };
   }
 
@@ -344,7 +358,10 @@ export function groupSourcesByCollection(
  */
 export function normalizeSearchResult(r: any): ExpandedChunkResult {
   const title = r.title || r.document_title || r.filename || 'Unbenanntes Dokument';
-  const snippet = (r.relevant_content || r.chunk_text || r.content || r.snippet || '').slice(0, 500);
+  const snippet = (r.relevant_content || r.chunk_text || r.content || r.snippet || '').slice(
+    0,
+    500
+  );
   const top = r.top_chunks?.[0] || {};
   return {
     document_id: r.document_id || '',
@@ -354,7 +371,7 @@ export function normalizeSearchResult(r: any): ExpandedChunkResult {
     similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
     chunk_index: (top.chunk_index ?? r.chunk_index) || 0,
     page_number: top.page_number ?? null,
-    source_url: r.source_url || r.url || null
+    source_url: r.source_url || r.url || null,
   };
 }
 
@@ -368,8 +385,8 @@ export function dedupeAndDiversify(
   const limitPerDoc = opts.limitPerDoc ?? 4;
   const maxTotal = opts.maxTotal ?? 12;
 
-  const sorted = [...results].sort((a, b) =>
-    (b.similarity - a.similarity) || String(a.title).localeCompare(String(b.title))
+  const sorted = [...results].sort(
+    (a, b) => b.similarity - a.similarity || String(a.title).localeCompare(String(b.title))
   );
 
   const seenPerDoc = new Map<string, number>();
@@ -390,13 +407,17 @@ export function dedupeAndDiversify(
 /**
  * Summarize references map for AI prompts
  */
-export function summarizeReferencesForPrompt(refMap: ReferencesMap, maxChars: number = 4000): string {
+export function summarizeReferencesForPrompt(
+  refMap: ReferencesMap,
+  maxChars: number = 4000
+): string {
   const lines: string[] = [];
   for (const id of Object.keys(refMap)) {
     const ref = refMap[id];
-    const snippet = Array.isArray(ref.snippets) && ref.snippets[0] && Array.isArray(ref.snippets[0])
-      ? String(ref.snippets[0].join(' '))
-      : '';
+    const snippet =
+      Array.isArray(ref.snippets) && ref.snippets[0] && Array.isArray(ref.snippets[0])
+        ? String(ref.snippets[0].join(' '))
+        : '';
     const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
     lines.push(`${id}. ${ref.title} — "${short}"`);
   }

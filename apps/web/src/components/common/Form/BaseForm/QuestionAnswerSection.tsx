@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
+import React, { useState, useEffect, useRef, type ChangeEvent } from 'react';
+
 import SubmitButton from '../../SubmitButton';
+
 import type { Question, QuestionAnswerSectionProps } from '@/types/baseform';
+
 import '../../../../assets/styles/components/interactive-antrag.css';
 import {
   getYesNoEmoji,
   getAnswerOptionEmoji,
-  getRoundEmoji
+  getRoundEmoji,
 } from '../../../../utils/questionEmojiMapper';
 
 const CUSTOM_OPTION_VALUE = '__custom__';
@@ -22,7 +25,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
   loading = false,
   success = false,
   submitButtonProps = {},
-  hideSubmitButton = false
+  hideSubmitButton = false,
 }) => {
   const [customSelections, setCustomSelections] = useState<CustomSelectionsState>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -31,7 +34,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
     setCurrentQuestionIndex(0);
   }, [questions]);
 
-  const allAnswered = questions.every(q => {
+  const allAnswered = questions.every((q) => {
     const answer = answers[q.id];
     const hasCustom = customSelections[q.id];
 
@@ -49,17 +52,17 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
   const isCurrentQuestionAnswered = Array.isArray(currentAnswer)
     ? currentAnswer.length > 0
-    : (typeof currentAnswer === 'string' && currentAnswer.trim().length > 0);
+    : typeof currentAnswer === 'string' && currentAnswer.trim().length > 0;
 
   const handleNext = (): void => {
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      setCurrentQuestionIndex((prev) => prev + 1);
     }
   };
 
   const handleBack = (): void => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+      setCurrentQuestionIndex((prev) => prev - 1);
     }
   };
 
@@ -83,7 +86,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
         if (question.allowMultiSelect) {
           const currentAnswers = Array.isArray(questionAnswer) ? questionAnswer : [];
           const newAnswers = currentAnswers.includes(value)
-            ? currentAnswers.filter(a => a !== value)
+            ? currentAnswers.filter((a) => a !== value)
             : [...currentAnswers, value];
           onAnswerChange(question.id, newAnswers);
         } else {
@@ -115,15 +118,13 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
           <span className="question-number">{index + 1}.</span>
           {question.text}
           {question.refersTo && (
-            <span className="question-clarification-badge">
-              🔍 Präzisierung
-            </span>
+            <span className="question-clarification-badge">🔍 Präzisierung</span>
           )}
         </label>
 
         {question.questionFormat === 'yes_no' ? (
           <div className="yes-no-buttons">
-            {question.options?.map(option => (
+            {question.options?.map((option) => (
               <button
                 key={option}
                 type="button"
@@ -160,11 +161,12 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
                   <div className={`question-options-grid ${gridClass}`}>
                     {predefinedOptions.map((option, optionIndex) => {
                       const isChecked = question.allowMultiSelect
-                        ? (Array.isArray(questionAnswer) && questionAnswer.includes(option))
-                        : (!isCustomSelected && questionAnswer === option);
+                        ? Array.isArray(questionAnswer) && questionAnswer.includes(option)
+                        : !isCustomSelected && questionAnswer === option;
 
-                      const optionEmoji = (question.optionEmojis && question.optionEmojis[optionIndex])
-                        || getAnswerOptionEmoji(question.type, option);
+                      const optionEmoji =
+                        (question.optionEmojis && question.optionEmojis[optionIndex]) ||
+                        getAnswerOptionEmoji(question.type, option);
 
                       return (
                         <button
@@ -175,9 +177,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
                         >
                           {optionEmoji && <span className="option-emoji">{optionEmoji}</span>}
                           <span className="option-text">{option}</span>
-                          {question.allowMultiSelect && (
-                            <span className="checkbox-indicator" />
-                          )}
+                          {question.allowMultiSelect && <span className="checkbox-indicator" />}
                         </button>
                       );
                     })}
@@ -242,7 +242,9 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
     <div className="question-answer-section quiz-mode">
       {questionRound > 1 && (
         <div className="question-round-indicator">
-          <span>{getRoundEmoji(questionRound)} Vertiefende Fragen (Runde {questionRound}/2)</span>
+          <span>
+            {getRoundEmoji(questionRound)} Vertiefende Fragen (Runde {questionRound}/2)
+          </span>
         </div>
       )}
 
@@ -285,7 +287,9 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
               onClick={onSubmit}
               loading={loading}
               success={success}
-              text={(submitButtonProps as Record<string, string>)?.defaultText || "Fragen beantworten"}
+              text={
+                (submitButtonProps as Record<string, string>)?.defaultText || 'Fragen beantworten'
+              }
               className="quiz-submit-button button-primary"
               ariaLabel="Fragen beantworten"
               type="submit"

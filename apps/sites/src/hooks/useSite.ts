@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
 import apiClient from '../lib/apiClient';
 
 interface AiGeneratedContent {
@@ -30,9 +31,17 @@ function transformAiResponse(ai: AiGeneratedContent): GeneratedSiteData {
     bio: ai.about.content,
     contact_email: ai.contact.email,
     sections: {
-      heroImage: { imageUrl: ai.hero_image.imageUrl || '', title: ai.hero_image.title, subtitle: ai.hero_image.subtitle },
-      themes: ai.themes.map(t => ({ imageUrl: t.imageUrl || '', title: t.title, content: t.content })),
-      actions: ai.actions.map(a => ({ imageUrl: a.imageUrl || '', text: a.text, link: a.link })),
+      heroImage: {
+        imageUrl: ai.hero_image.imageUrl || '',
+        title: ai.hero_image.title,
+        subtitle: ai.hero_image.subtitle,
+      },
+      themes: ai.themes.map((t) => ({
+        imageUrl: t.imageUrl || '',
+        title: t.title,
+        content: t.content,
+      })),
+      actions: ai.actions.map((a) => ({ imageUrl: a.imageUrl || '', text: a.text, link: a.link })),
       contact: { title: ai.contact.title, backgroundImageUrl: ai.contact.backgroundImageUrl || '' },
     },
   };
@@ -64,7 +73,12 @@ interface SiteData {
 export function useSite() {
   const queryClient = useQueryClient();
 
-  const { data: site, isLoading, error, refetch } = useQuery<SiteData | null>({
+  const {
+    data: site,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<SiteData | null>({
     queryKey: ['my-site'],
     queryFn: async () => {
       try {
@@ -88,7 +102,7 @@ export function useSite() {
       return response.data.site;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-site'] });
+      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
     },
   });
 
@@ -98,7 +112,7 @@ export function useSite() {
       return response.data.site;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-site'] });
+      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
     },
   });
 
@@ -108,12 +122,15 @@ export function useSite() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-site'] });
+      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
     },
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (data: { description: string; email?: string }): Promise<GeneratedSiteData> => {
+    mutationFn: async (data: {
+      description: string;
+      email?: string;
+    }): Promise<GeneratedSiteData> => {
       const response = await apiClient.post('/claude_website', data);
       return transformAiResponse(response.data.json);
     },

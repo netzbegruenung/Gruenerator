@@ -1,13 +1,22 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PiSun, PiMoon } from 'react-icons/pi';
-import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, getFooterLinks, type MenuItemType, type MenuSection } from '../Header/menuData';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
 import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarStore from '../../../stores/sidebarStore';
-import SidebarSection from './SidebarSection';
 import { StatusBadge } from '../../common/StatusBadge';
+import {
+  getMenuItems,
+  getDirectMenuItems,
+  getMobileOnlyMenuItems,
+  getFooterLinks,
+  type MenuItemType,
+  type MenuSection,
+} from '../Header/menuData';
+
+import SidebarSection from './SidebarSection';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 interface SidebarProps {
@@ -31,17 +40,24 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const isAustrian = locale === 'de-AT';
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
-  const [darkMode, setDarkMode] = useState(() =>
-    document.documentElement.getAttribute('data-theme') === 'dark'
+  const [darkMode, setDarkMode] = useState(
+    () => document.documentElement.getAttribute('data-theme') === 'dark'
   );
 
-  const menuItems = useMemo(() => getMenuItems(
-    { databaseBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian }
-  ), [databaseBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian]);
+  const menuItems = useMemo(
+    () => getMenuItems({ databaseBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian }),
+    [databaseBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian]
+  );
 
-  const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, isAustrian }), [databaseBetaEnabled, chatBetaEnabled, isAustrian]);
+  const directMenuItems = useMemo(
+    () => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, isAustrian }),
+    [databaseBetaEnabled, chatBetaEnabled, isAustrian]
+  );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
-  const additionalItems = useMemo<MenuItemType[]>(() => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)], [directMenuItems, mobileOnlyItems]);
+  const additionalItems = useMemo<MenuItemType[]>(
+    () => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)],
+    [directMenuItems, mobileOnlyItems]
+  );
   const footerLinks = useMemo(() => getFooterLinks(), []);
 
   // Close sidebar on route change
@@ -71,21 +87,23 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, close]);
 
-
   const toggleSection = useCallback((sectionKey: string) => {
-    setActiveSection(prev => prev === sectionKey ? null : sectionKey);
+    setActiveSection((prev) => (prev === sectionKey ? null : sectionKey));
   }, []);
 
   const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
-  const handleLinkClick = useCallback((path: string, title: string = '') => {
-    if (onNavigate) {
-      onNavigate(path, title);
-    } else {
-      navigate(path);
-    }
-    close();
-  }, [navigate, close, onNavigate]);
+  const handleLinkClick = useCallback(
+    (path: string, title: string = '') => {
+      if (onNavigate) {
+        onNavigate(path, title);
+      } else {
+        navigate(path);
+      }
+      close();
+    },
+    [navigate, close, onNavigate]
+  );
 
   const toggleDarkMode = useCallback(() => {
     const newTheme = darkMode ? 'light' : 'dark';
@@ -109,11 +127,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           type="button"
           title="Zur Startseite"
         >
-          <img
-            src="/images/logo-square.png"
-            alt="Grünerator"
-            className="sidebar-logo-icon"
-          />
+          <img src="/images/logo-square.png" alt="Grünerator" className="sidebar-logo-icon" />
           {isOpen && <span className="sidebar-logo-text">Grünerator</span>}
         </button>
       )}
@@ -122,7 +136,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         {/* Direct menu items - main navigation */}
         {additionalItems.length > 0 && (
           <div className="sidebar-main-nav">
-            {additionalItems.map((item) => (
+            {additionalItems.map((item) =>
               isDesktop ? (
                 <button
                   key={item.id}
@@ -148,7 +162,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                   {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
                 </Link>
               )
-            ))}
+            )}
           </div>
         )}
 
@@ -169,28 +183,28 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
               sidebarExpanded={isOpen}
             />
           ))}
-
-        </nav>
+      </nav>
 
       {/* Footer - pushed to bottom */}
       <div className="sidebar-footer">
         <button
           className="sidebar-theme-toggle"
           onClick={toggleDarkMode}
-          aria-label={darkMode ? "Zum hellen Modus wechseln" : "Zum dunklen Modus wechseln"}
+          aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
         >
           {darkMode ? <PiMoon aria-hidden="true" /> : <PiSun aria-hidden="true" />}
         </button>
-        {!isDesktop && footerLinks.map((item) => (
-          <Link
-            key={item.id}
-            to={item.path}
-            className="sidebar-footer-link"
-            onClick={() => handleLinkClick(item.path, item.title)}
-          >
-            <span className="sidebar-footer-link-title">{item.title}</span>
-          </Link>
-        ))}
+        {!isDesktop &&
+          footerLinks.map((item) => (
+            <Link
+              key={item.id}
+              to={item.path}
+              className="sidebar-footer-link"
+              onClick={() => handleLinkClick(item.path, item.title)}
+            >
+              <span className="sidebar-footer-link-title">{item.title}</span>
+            </Link>
+          ))}
       </div>
     </aside>
   );

@@ -1,8 +1,17 @@
-import type { InputHTMLAttributes, LabelHTMLAttributes } from 'react';
-import { Controller, type Control, type RegisterOptions, type FieldValues, type Path } from 'react-hook-form';
+import {
+  Controller,
+  type Control,
+  type RegisterOptions,
+  type FieldValues,
+  type Path,
+} from 'react-hook-form';
 
-export interface FormCheckboxProps<T extends FieldValues = FieldValues>
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'name' | 'type' | 'defaultValue'> {
+import type { InputHTMLAttributes, LabelHTMLAttributes } from 'react';
+
+export interface FormCheckboxProps<T extends FieldValues = FieldValues> extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'name' | 'type' | 'defaultValue'
+> {
   name: Path<T>;
   label?: string;
   required?: boolean;
@@ -44,7 +53,7 @@ function FormCheckbox<T extends FieldValues = FieldValues>({
         control={control}
         rules={{
           required: required ? 'Dieses Feld muss ausgewählt werden' : false,
-          ...rules
+          ...rules,
         }}
         defaultValue={defaultValue as never}
         render={({ field, fieldState: { error } }) => (

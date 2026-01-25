@@ -11,12 +11,18 @@ services:
 
     # Port mappings
     ports:
-      - "3000:3000"  # HTTP server
-      - "1240:1240"  # Hocuspocus WebSocket
+      - '3000:3000' # HTTP server
+      - '1240:1240' # Hocuspocus WebSocket
 
     # Health check
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -49,7 +55,7 @@ services:
 
 # Coolify labels for automatic configuration
 labels:
-  coolify.managed: "true"
-  coolify.name: "gruenerator-docs"
-  coolify.http.port: "3000"
-  coolify.websocket.port: "1240"
+  coolify.managed: 'true'
+  coolify.name: 'gruenerator-docs'
+  coolify.http.port: '3000'
+  coolify.websocket.port: '1240'

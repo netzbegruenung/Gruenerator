@@ -21,7 +21,7 @@ import type {
   ImageValidateResponse,
   StockCatalogResponse,
   StockCatalogQuery,
-  StockImageQuery
+  StockImageQuery,
 } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,7 +43,7 @@ router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSele
       return res.status(400).json({
         success: false,
         error: 'Valid text is required for image selection',
-        code: 'INVALID_TEXT'
+        code: 'INVALID_TEXT',
       });
     }
 
@@ -51,18 +51,30 @@ router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSele
       return res.status(400).json({
         success: false,
         error: 'Text too long (max 2000 characters)',
-        code: 'TEXT_TOO_LONG'
+        code: 'TEXT_TOO_LONG',
       });
     }
 
     const options: { maxCandidates?: number } = {};
-    if (maxCandidates && typeof maxCandidates === 'number' && maxCandidates > 0 && maxCandidates <= 20) {
+    if (
+      maxCandidates &&
+      typeof maxCandidates === 'number' &&
+      maxCandidates > 0 &&
+      maxCandidates <= 20
+    ) {
       options.maxCandidates = maxCandidates;
     }
 
-    log.debug(`[ImagePicker API] Request for text: "${text.substring(0, 50)}..." (type: ${type || 'not specified'})`);
+    log.debug(
+      `[ImagePicker API] Request for text: "${text.substring(0, 50)}..." (type: ${type || 'not specified'})`
+    );
 
-    const result = await imagePickerService.selectBestImage(text, req.app.locals.aiWorkerPool, options, req);
+    const result = await imagePickerService.selectBestImage(
+      text,
+      req.app.locals.aiWorkerPool,
+      options,
+      req
+    );
 
     const response: ImageSelectResponse = {
       success: true,
@@ -71,7 +83,7 @@ router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSele
         category: result.selectedImage.category,
         tags: result.selectedImage.tags,
         alt_text: result.selectedImage.alt_text,
-        path: `/api/image-picker/stock-image/${result.selectedImage.filename}`
+        path: `/api/image-picker/stock-image/${result.selectedImage.filename}`,
       },
       confidence: result.confidence,
       reasoning: result.reasoning,
@@ -80,18 +92,20 @@ router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSele
         category: alt.category,
         tags: alt.tags,
         alt_text: alt.alt_text,
-        path: `/api/image-picker/stock-image/${alt.filename}`
+        path: `/api/image-picker/stock-image/${alt.filename}`,
       })),
       metadata: {
         totalImages: result.metadata.totalImages,
         candidatesFound: result.metadata.candidatesFound,
         detectedThemes: result.metadata.themes,
         extractedKeywords: result.metadata.keywords,
-        processingTime: new Date().toISOString()
-      }
+        processingTime: new Date().toISOString(),
+      },
     };
 
-    log.debug(`[ImagePicker API] Selected: ${result.selectedImage.filename} (confidence: ${result.confidence})`);
+    log.debug(
+      `[ImagePicker API] Selected: ${result.selectedImage.filename} (confidence: ${result.confidence})`
+    );
 
     return res.json(response);
   } catch (error) {
@@ -102,7 +116,7 @@ router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSele
       success: false,
       error: 'Internal server error during image selection',
       code: 'SELECTION_ERROR',
-      message: err.message
+      message: err.message,
     });
   }
 });
@@ -111,28 +125,31 @@ router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSele
  * GET /stats
  * Get service statistics
  */
-router.get('/stats', async (_req: AuthenticatedRequest, res: Response<ImagePickerStatsResponse>) => {
-  try {
-    const stats = imagePickerService.getStats();
+router.get(
+  '/stats',
+  async (_req: AuthenticatedRequest, res: Response<ImagePickerStatsResponse>) => {
+    try {
+      const stats = imagePickerService.getStats();
 
-    return res.json({
-      success: true,
-      stats: {
-        ...stats,
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    log.error('[ImagePicker API] Stats error:', error);
+      return res.json({
+        success: true,
+        stats: {
+          ...stats,
+          uptime: process.uptime(),
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      log.error('[ImagePicker API] Stats error:', error);
 
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to get service statistics',
-      code: 'STATS_ERROR'
-    });
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get service statistics',
+        code: 'STATS_ERROR',
+      });
+    }
   }
-});
+);
 
 /**
  * GET /catalog
@@ -147,7 +164,7 @@ router.get('/catalog', async (_req: AuthenticatedRequest, res: Response<ImageCat
       success: true,
       catalog: catalog ?? undefined,
       count: catalog?.images?.length || 0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     log.error('[ImagePicker API] Catalog error:', error);
@@ -155,7 +172,7 @@ router.get('/catalog', async (_req: AuthenticatedRequest, res: Response<ImageCat
     return res.status(500).json({
       success: false,
       error: 'Failed to get image catalog',
-      code: 'CATALOG_ERROR'
+      code: 'CATALOG_ERROR',
     });
   }
 });
@@ -164,111 +181,120 @@ router.get('/catalog', async (_req: AuthenticatedRequest, res: Response<ImageCat
  * POST /clear-cache
  * Clear the selection cache (for testing/debugging)
  */
-router.post('/clear-cache', async (_req: AuthenticatedRequest, res: Response<CacheClearResponse>) => {
-  try {
-    imagePickerService.clearCache();
+router.post(
+  '/clear-cache',
+  async (_req: AuthenticatedRequest, res: Response<CacheClearResponse>) => {
+    try {
+      imagePickerService.clearCache();
 
-    return res.json({
-      success: true,
-      message: 'Cache cleared successfully',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    log.error('[ImagePicker API] Clear cache error:', error);
+      return res.json({
+        success: true,
+        message: 'Cache cleared successfully',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error('[ImagePicker API] Clear cache error:', error);
 
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to clear cache',
-      code: 'CACHE_CLEAR_ERROR'
-    });
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to clear cache',
+        code: 'CACHE_CLEAR_ERROR',
+      });
+    }
   }
-});
+);
 
 /**
  * POST /validate
  * Validate that an image file exists
  */
-router.post('/validate', async (req: AuthenticatedRequest, res: Response<ImageValidateResponse>) => {
-  try {
-    const { filename } = req.body as ImageValidateRequestBody;
+router.post(
+  '/validate',
+  async (req: AuthenticatedRequest, res: Response<ImageValidateResponse>) => {
+    try {
+      const { filename } = req.body as ImageValidateRequestBody;
 
-    if (!filename || typeof filename !== 'string') {
-      return res.status(400).json({
+      if (!filename || typeof filename !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'Valid filename is required',
+          code: 'INVALID_FILENAME',
+        });
+      }
+
+      const exists = await imagePickerService.validateImageExists(filename);
+      const imagePath = imagePickerService.getImagePath(filename);
+
+      return res.json({
+        success: true,
+        filename,
+        exists,
+        path: exists ? `/api/image-picker/stock-image/${filename}` : null,
+        fullPath: imagePath,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error('[ImagePicker API] Validate error:', error);
+
+      return res.status(500).json({
         success: false,
-        error: 'Valid filename is required',
-        code: 'INVALID_FILENAME'
+        error: 'Failed to validate image',
+        code: 'VALIDATION_ERROR',
       });
     }
-
-    const exists = await imagePickerService.validateImageExists(filename);
-    const imagePath = imagePickerService.getImagePath(filename);
-
-    return res.json({
-      success: true,
-      filename,
-      exists,
-      path: exists ? `/api/image-picker/stock-image/${filename}` : null,
-      fullPath: imagePath,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    log.error('[ImagePicker API] Validate error:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to validate image',
-      code: 'VALIDATION_ERROR'
-    });
   }
-});
+);
 
 /**
  * GET /stock-catalog
  * Get stock images with proper Unsplash attribution for frontend display
  */
-router.get('/stock-catalog', async (req: AuthenticatedRequest, res: Response<StockCatalogResponse>) => {
-  try {
-    const { category } = req.query as StockCatalogQuery;
+router.get(
+  '/stock-catalog',
+  async (req: AuthenticatedRequest, res: Response<StockCatalogResponse>) => {
+    try {
+      const { category } = req.query as StockCatalogQuery;
 
-    await imagePickerService.initialize();
-    const catalog = imagePickerService.getCatalog();
+      await imagePickerService.initialize();
+      const catalog = imagePickerService.getCatalog();
 
-    if (!catalog?.images) {
-      return res.status(404).json({
+      if (!catalog?.images) {
+        return res.status(404).json({
+          success: false,
+          error: 'Image catalog not found',
+          code: 'CATALOG_NOT_FOUND',
+        });
+      }
+
+      let images = catalog.images.map(enhanceWithAttribution);
+
+      if (category && category !== 'all') {
+        images = images.filter((img) => img.category === category);
+      }
+
+      const categories = [...new Set(catalog.images.map((img) => img.category))].sort();
+
+      return res.json({
+        success: true,
+        images: images as any,
+        count: images.length,
+        totalCount: catalog.images.length,
+        categories,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error('[ImagePicker API] Stock catalog error:', error);
+      const err = error as Error;
+
+      return res.status(500).json({
         success: false,
-        error: 'Image catalog not found',
-        code: 'CATALOG_NOT_FOUND'
+        error: 'Failed to get stock image catalog',
+        code: 'STOCK_CATALOG_ERROR',
+        message: err.message,
       });
     }
-
-    let images = catalog.images.map(enhanceWithAttribution);
-
-    if (category && category !== 'all') {
-      images = images.filter((img) => img.category === category);
-    }
-
-    const categories = [...new Set(catalog.images.map((img) => img.category))].sort();
-
-    return res.json({
-      success: true,
-      images: images as any,
-      count: images.length,
-      totalCount: catalog.images.length,
-      categories,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    log.error('[ImagePicker API] Stock catalog error:', error);
-    const err = error as Error;
-
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to get stock image catalog',
-      code: 'STOCK_CATALOG_ERROR',
-      message: err.message
-    });
   }
-});
+);
 
 /**
  * POST /download-track
@@ -283,7 +309,7 @@ router.post('/download-track', async (req: AuthenticatedRequest, res: Response) 
       return res.status(400).json({
         success: false,
         error: 'Valid filename is required',
-        code: 'INVALID_FILENAME'
+        code: 'INVALID_FILENAME',
       });
     }
 
@@ -308,7 +334,7 @@ router.post('/download-track', async (req: AuthenticatedRequest, res: Response) 
     return res.json({
       success: true,
       tracked: !!downloadLocation,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     log.error('[ImagePicker API] Download track error:', error);
@@ -316,7 +342,7 @@ router.post('/download-track', async (req: AuthenticatedRequest, res: Response) 
     return res.status(500).json({
       success: false,
       error: 'Failed to track download',
-      code: 'DOWNLOAD_TRACK_ERROR'
+      code: 'DOWNLOAD_TRACK_ERROR',
     });
   }
 });

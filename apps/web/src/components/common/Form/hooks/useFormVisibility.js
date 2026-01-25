@@ -15,11 +15,11 @@ export const useFormVisibility = (hasContent, disableAutoCollapse = false) => {
 
   // Manuelles Umschalten der Sichtbarkeit.
   const toggleFormVisibility = useCallback(() => {
-    setIsFormVisible(prev => !prev);
+    setIsFormVisible((prev) => !prev);
   }, []);
 
   return {
     isFormVisible,
     toggleFormVisibility,
   };
-}; 
+};

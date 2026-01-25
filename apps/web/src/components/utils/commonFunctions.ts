@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
 import axios from 'axios';
+import { useEffect } from 'react';
+
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
+
 import { extractPlainText, extractHTMLContent } from './contentExtractor';
 
 // Type definitions
@@ -43,7 +45,8 @@ export const handleSubmit = async (
 
 // Function to copy text to clipboard
 export const handleCopyToClipboard = (text: string): void => {
-  navigator.clipboard.writeText(text)
+  navigator.clipboard
+    .writeText(text)
     .then(() => {
       console.log('Text copied to clipboard');
     })
@@ -61,7 +64,8 @@ export const copyPlainText = (htmlContent: string): void => {
   tempElement.innerHTML = htmlContent;
   const plainText = tempElement.innerText.trim();
 
-  navigator.clipboard.writeText(plainText)
+  navigator.clipboard
+    .writeText(plainText)
     .then(() => {
       console.log('Formatierter Text erfolgreich in die Zwischenablage kopiert.');
     })
@@ -189,8 +193,8 @@ export const copyFormattedContent = async (
         const clipboardItems = [
           new ClipboardItem({
             'text/html': new Blob([htmlContent], { type: 'text/html' }),
-            'text/plain': new Blob([plainText], { type: 'text/plain' })
-          })
+            'text/plain': new Blob([plainText], { type: 'text/plain' }),
+          }),
         ];
 
         await navigator.clipboard.write(clipboardItems);
@@ -229,8 +233,10 @@ export const formatQuillContent = (content: string | SearchContentObject): strin
   tempElement.innerHTML = content as string;
 
   // Formatiere Block-Elemente
-  const blockElements = tempElement.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
-  blockElements.forEach(element => {
+  const blockElements = tempElement.querySelectorAll(
+    'p, div, li, h1, h2, h3, h4, h5, h6, blockquote'
+  );
+  blockElements.forEach((element) => {
     // Fügt Zeilenumbrüche nach Block-Elementen ein
     element.insertAdjacentHTML('afterend', '\n');
 
@@ -242,7 +248,7 @@ export const formatQuillContent = (content: string | SearchContentObject): strin
 
   // Doppelte Zeilenumbrüche für bessere Lesbarkeit
   const lists = tempElement.querySelectorAll('ul, ol');
-  lists.forEach(list => {
+  lists.forEach((list) => {
     list.insertAdjacentHTML('afterend', '\n');
   });
 

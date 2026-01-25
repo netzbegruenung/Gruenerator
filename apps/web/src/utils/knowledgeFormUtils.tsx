@@ -56,11 +56,11 @@ export const createKnowledgeFormNotice = ({
     return null;
   }
 
-  let noticeParts = [];
-  let sourceNameForNotice = "";
+  const noticeParts = [];
+  let sourceNameForNotice = '';
 
   if (source.type === 'user') {
-    sourceNameForNotice = "Persönliche";
+    sourceNameForNotice = 'Persönliche';
     if (isInstructionsActive && instructions[instructionType]) {
       noticeParts.push(`${sourceNameForNotice} Anweisungen`);
     } else if (instructions[instructionType]) {
@@ -68,13 +68,12 @@ export const createKnowledgeFormNotice = ({
     }
   } else if (source.type === 'group') {
     sourceNameForNotice = source.name || 'Gruppe';
-    const groupInstructionKey = instructionType === 'antrag' ? 'custom_antrag_prompt' : 'custom_social_prompt';
+    const groupInstructionKey =
+      instructionType === 'antrag' ? 'custom_antrag_prompt' : 'custom_social_prompt';
     if (groupDetailsData?.instructions?.[groupInstructionKey]) {
       noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
     }
   }
-
-
 
   if (noticeParts.length === 0 && source.type === 'neutral') {
     return null;

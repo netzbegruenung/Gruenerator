@@ -1,5 +1,6 @@
-import { MarkdownContent } from '@/utils/markdown';
 import type { AboutSection as AboutSectionType } from '@/types/candidate';
+
+import { MarkdownContent } from '@/utils/markdown';
 
 interface AboutSectionProps {
   data: AboutSectionType;

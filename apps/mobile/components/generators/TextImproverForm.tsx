@@ -1,5 +1,13 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, View, useColorScheme } from 'react-native';
+import {
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  View,
+  useColorScheme,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, lightTheme, darkTheme } from '../../theme';
 import { TextInput, Button, ChipGroup } from '../common';
@@ -80,7 +88,10 @@ export function TextImproverForm({ onResult, onError }: TextImproverFormProps) {
   }, [originalText, action, generate, onError]);
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.header, { color: theme.text }]}>
           Wie soll dein Text besser werden?

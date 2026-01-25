@@ -13,7 +13,13 @@ import { DocumentSearchService } from '../../services/document-services/Document
 import { getDocumentContentService } from '../../services/document-services/DocumentContentService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
-import type { DocumentRequest, SearchDocumentsRequestBody, SearchContentRequestBody, SearchResultCompatible, HybridTestResult } from './types.js';
+import type {
+  DocumentRequest,
+  SearchDocumentsRequestBody,
+  SearchContentRequestBody,
+  SearchResultCompatible,
+  HybridTestResult,
+} from './types.js';
 
 const log = createLogger('documents:search');
 const router: Router = express.Router();
@@ -28,19 +34,23 @@ const postgresDocumentService = getPostgresDocumentService();
  */
 router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
   try {
-    const { query, limit = 5, searchMode = 'hybrid', documentIds } = req.body as SearchDocumentsRequestBody;
+    const {
+      query,
+      limit = 5,
+      searchMode = 'hybrid',
+      documentIds,
+    } = req.body as SearchDocumentsRequestBody;
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-
     // Validate query
     if (!query || !query.trim()) {
       res.status(400).json({
         success: false,
-        message: 'Search query is required'
+        message: 'Search query is required',
       });
       return;
     }
@@ -52,45 +62,33 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
     // Choose search method based on mode
     if (searchMode === 'hybrid') {
       // Use hybrid search for best results
-      searchResult = await documentSearchService.hybridSearch(
-        query.trim(),
-        userId,
-        {
-          limit: Math.min(Math.max(1, limit), 20),
-          vectorWeight: 0.7,
-          textWeight: 0.3,
-          documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined
-        }
-      );
+      searchResult = await documentSearchService.hybridSearch(query.trim(), userId, {
+        limit: Math.min(Math.max(1, limit), 20),
+        vectorWeight: 0.7,
+        textWeight: 0.3,
+        documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined,
+      });
     } else if (searchMode === 'text') {
       // Full-text only search
-      searchResult = await documentSearchService.textSearch(
-        query.trim(),
-        userId,
-        {
-          limit: Math.min(Math.max(1, limit), 20),
-          documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined
-        }
-      );
+      searchResult = await documentSearchService.textSearch(query.trim(), userId, {
+        limit: Math.min(Math.max(1, limit), 20),
+        documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined,
+      });
     } else {
       // Fallback to hybrid for unknown modes
-      searchResult = await documentSearchService.hybridSearch(
-        query.trim(),
-        userId,
-        {
-          limit: Math.min(Math.max(1, limit), 20),
-          vectorWeight: 0.7,
-          textWeight: 0.3,
-          documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined
-        }
-      );
+      searchResult = await documentSearchService.hybridSearch(query.trim(), userId, {
+        limit: Math.min(Math.max(1, limit), 20),
+        vectorWeight: 0.7,
+        textWeight: 0.3,
+        documentIds: Array.isArray(documentIds) && documentIds.length ? documentIds : undefined,
+      });
     }
 
     // Guard against validation errors returning no results array
     const safeResults = Array.isArray(searchResult?.results) ? searchResult.results : [];
 
     // Transform results for backward compatibility
-    const compatibleResults: SearchResultCompatible[] = safeResults.map(doc => ({
+    const compatibleResults: SearchResultCompatible[] = safeResults.map((doc) => ({
       id: doc.document_id,
       title: doc.title || '',
       filename: doc.filename || '',
@@ -98,7 +96,7 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
       created_at: doc.created_at || '',
       similarity_score: doc.similarity_score,
       relevance_info: doc.relevance_info,
-      search_type: searchResult.searchType
+      search_type: searchResult.searchType,
     }));
 
     // If validation error occurred, return a safe response with empty data
@@ -108,7 +106,7 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
         data: [],
         message: searchResult?.message || 'Validation error',
         searchType: searchResult?.searchType || 'error',
-        query: query.trim()
+        query: query.trim(),
       });
       return;
     }
@@ -118,14 +116,13 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
       data: compatibleResults,
       message: searchResult.message,
       searchType: searchResult.searchType,
-      query: searchResult.query
+      query: searchResult.query,
     });
-
   } catch (error) {
     log.error('[POST /] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to search documents'
+      message: (error as Error).message || 'Failed to search documents',
     });
   }
 });
@@ -143,7 +140,6 @@ router.post('/content', async (req: DocumentRequest, res: Response): Promise<voi
       return;
     }
 
-
     // Validate input
     if (!query || !query.trim()) {
       res.status(400).json({ error: 'Search query is required' });
@@ -160,17 +156,16 @@ router.post('/content', async (req: DocumentRequest, res: Response): Promise<voi
       query,
       documentIds,
       limit,
-      mode
+      mode,
     });
 
     res.json(result);
-
   } catch (error) {
     log.error('[POST /content] Error:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      message: (error as Error).message
+      message: (error as Error).message,
     });
   }
 });
@@ -185,7 +180,6 @@ router.get('/stats', async (req: DocumentRequest, res: Response): Promise<void> 
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-
 
     // Get user document stats from PostgreSQL
     const docStats = await postgresDocumentService.getDocumentStats(userId);
@@ -204,16 +198,15 @@ router.get('/stats', async (req: DocumentRequest, res: Response): Promise<void> 
           german_enhancement: true,
           hybrid_search: true,
           multi_stage_pipeline: true,
-          qdrant_vector_search: true
-        }
-      }
+          qdrant_vector_search: true,
+        },
+      },
     });
-
   } catch (error) {
     log.error('[GET /stats] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to get search stats'
+      message: (error as Error).message || 'Failed to get search stats',
     });
   }
 });
@@ -230,12 +223,11 @@ router.post('/hybrid-test', async (req: DocumentRequest, res: Response): Promise
       return;
     }
 
-
     // Validate query
     if (!query || !query.trim()) {
       res.status(400).json({
         success: false,
-        message: 'Search query is required'
+        message: 'Search query is required',
       });
       return;
     }
@@ -245,7 +237,7 @@ router.post('/hybrid-test', async (req: DocumentRequest, res: Response): Promise
     // Run both search methods for comparison
     const [vectorResult, hybridResult] = await Promise.all([
       documentSearchService.searchDocuments(query.trim(), userId, { limit }),
-      documentSearchService.hybridSearch(query.trim(), userId, { limit })
+      documentSearchService.hybridSearch(query.trim(), userId, { limit }),
     ]);
 
     const result: HybridTestResult = {
@@ -253,26 +245,25 @@ router.post('/hybrid-test', async (req: DocumentRequest, res: Response): Promise
       vector_search: {
         results: vectorResult.results,
         search_type: vectorResult.searchType,
-        message: vectorResult.message
+        message: vectorResult.message,
       },
       hybrid_search: {
         results: hybridResult.results,
         search_type: hybridResult.searchType,
         message: hybridResult.message,
-        stats: (hybridResult as any).stats
-      }
+        stats: (hybridResult as any).stats,
+      },
     };
 
     res.json({
       success: true,
-      data: result
+      data: result,
     });
-
   } catch (error) {
     log.error('[POST /hybrid-test] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to test hybrid search'
+      message: (error as Error).message || 'Failed to test hybrid search',
     });
   }
 });

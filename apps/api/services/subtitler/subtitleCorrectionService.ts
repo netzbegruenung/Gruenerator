@@ -90,9 +90,9 @@ Antworte mit validem JSON:
 Wenn KEINE Korrekturen nötig sind:
 { "corrections": [], "hasCorrections": false }`;
 
-  const segmentsForReview = segments.map(s => ({
+  const segmentsForReview = segments.map((s) => ({
     id: s.id,
-    text: s.text
+    text: s.text,
   }));
 
   const userContent = `Prüfe diese Untertitel-Segmente auf Fehler:
@@ -106,11 +106,13 @@ Antworte NUR mit dem JSON-Objekt, keine weiteren Erklärungen.`;
   const result = await aiWorkerPool.processRequest({
     type: 'claude_subtitle_correction',
     systemPrompt,
-    messages: [{
-      role: 'user',
-      content: [{ type: 'text', text: userContent }]
-    }],
-    options: { temperature: 0.1, max_tokens: 4096 }
+    messages: [
+      {
+        role: 'user',
+        content: [{ type: 'text', text: userContent }],
+      },
+    ],
+    options: { temperature: 0.1, max_tokens: 4096 },
   });
 
   if (!result.success) {
@@ -144,16 +146,18 @@ Antworte NUR mit dem JSON-Objekt, keine weiteren Erklärungen.`;
     throw new Error('Ungültige AI-Antwort: corrections muss ein Array sein');
   }
 
-  log.debug(`[SubtitleCorrection] Korrekturen gefunden: ${parsedResponse.hasCorrections}, Anzahl: ${parsedResponse.corrections?.length || 0}`);
+  log.debug(
+    `[SubtitleCorrection] Korrekturen gefunden: ${parsedResponse.hasCorrections}, Anzahl: ${parsedResponse.corrections?.length || 0}`
+  );
 
-  const cleanedCorrections = (parsedResponse.corrections || []).map(correction => ({
+  const cleanedCorrections = (parsedResponse.corrections || []).map((correction) => ({
     ...correction,
-    corrected: cleanCorrectedText(correction.corrected)
+    corrected: cleanCorrectedText(correction.corrected),
   }));
 
   return {
     corrections: cleanedCorrections,
-    hasCorrections: parsedResponse.hasCorrections
+    hasCorrections: parsedResponse.hasCorrections,
   };
 }
 

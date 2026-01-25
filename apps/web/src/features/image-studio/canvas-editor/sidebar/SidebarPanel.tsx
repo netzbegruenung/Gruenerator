@@ -1,21 +1,19 @@
-import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import type { SidebarPanelProps } from './types';
+import { useEffect, useState } from 'react';
+
 import { useMobileSheet } from '../hooks/useMobileSheet';
+
+import type { SidebarPanelProps } from './types';
+
 
 interface ExtendedSidebarPanelProps extends SidebarPanelProps {
   onClose?: () => void;
 }
 
-export function SidebarPanel({
-  isOpen,
-  children,
-  onClose,
-}: ExtendedSidebarPanelProps) {
+export function SidebarPanel({ isOpen, children, onClose }: ExtendedSidebarPanelProps) {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== 'undefined' && window.innerWidth >= 900
   );
-
 
   useEffect(() => {
     const handleResize = () => {
@@ -27,7 +25,7 @@ export function SidebarPanel({
 
   const { handleRef, isDragging, translateY } = useMobileSheet({
     isOpen: isOpen && !isDesktop,
-    onClose: onClose || (() => { }),
+    onClose: onClose || (() => {}),
     threshold: 100,
     velocityThreshold: 0.5,
   });
@@ -59,7 +57,9 @@ export function SidebarPanel({
             initial={isDesktop ? { scaleX: 0, opacity: 0.8 } : { y: '100%' }}
             animate={isDesktop ? { scaleX: 1, opacity: 1 } : { y: 0 }}
             exit={isDesktop ? { scaleX: 0, opacity: 0.8 } : { y: '100%' }}
-            transition={isDesktop ? { type: 'spring', damping: 28, stiffness: 350 } : { duration: 0 }}
+            transition={
+              isDesktop ? { type: 'spring', damping: 28, stiffness: 350 } : { duration: 0 }
+            }
             style={
               isDesktop
                 ? { transformOrigin: 'left center' }

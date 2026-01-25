@@ -18,7 +18,7 @@ import {
   buildMultiClipVideoOnlyFilterComplex,
   calculateTotalDuration,
   Segment,
-  Clip
+  Clip,
 } from './segmentFilterBuilders.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,8 +83,8 @@ function parseFrameRate(frameRateStr: string): number {
 
 async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
   const metadata = await ffprobe(inputPath);
-  const videoStream = metadata.streams.find(s => s.codec_type === 'video');
-  const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+  const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
+  const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
   return {
     width: videoStream?.width || 1920,
@@ -96,8 +96,8 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
       codec: videoStream?.codec_name,
       audioCodec: audioStream?.codec_name,
       audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
-      videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null
-    }
+      videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null,
+    },
   };
 }
 
@@ -108,22 +108,35 @@ function calculateFontSize(metadata: VideoMetadata): number {
   let minFontSize: number, maxFontSize: number, basePercentage: number;
 
   if (referenceDimension >= 2160) {
-    minFontSize = 80; maxFontSize = 180; basePercentage = isVertical ? 0.070 : 0.065;
+    minFontSize = 80;
+    maxFontSize = 180;
+    basePercentage = isVertical ? 0.07 : 0.065;
   } else if (referenceDimension >= 1440) {
-    minFontSize = 60; maxFontSize = 140; basePercentage = isVertical ? 0.065 : 0.060;
+    minFontSize = 60;
+    maxFontSize = 140;
+    basePercentage = isVertical ? 0.065 : 0.06;
   } else if (referenceDimension >= 1080) {
-    minFontSize = 40; maxFontSize = 90; basePercentage = isVertical ? 0.054 : 0.0495;
+    minFontSize = 40;
+    maxFontSize = 90;
+    basePercentage = isVertical ? 0.054 : 0.0495;
   } else if (referenceDimension >= 720) {
-    minFontSize = 35; maxFontSize = 70; basePercentage = isVertical ? 0.055 : 0.050;
+    minFontSize = 35;
+    maxFontSize = 70;
+    basePercentage = isVertical ? 0.055 : 0.05;
   } else {
-    minFontSize = 32; maxFontSize = 65; basePercentage = isVertical ? 0.065 : 0.060;
+    minFontSize = 32;
+    maxFontSize = 65;
+    basePercentage = isVertical ? 0.065 : 0.06;
   }
 
   const totalPixels = metadata.width * metadata.height;
   const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1;
   const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4);
 
-  return Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage)));
+  return Math.max(
+    minFontSize,
+    Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage))
+  );
 }
 
 /**
@@ -162,11 +175,15 @@ function adjustSubtitleTimingsMultiClip(
       accumulatedTime += segmentDuration;
     }
 
-    if (composedStartTime !== null && composedEndTime !== null && composedEndTime > composedStartTime) {
+    if (
+      composedStartTime !== null &&
+      composedEndTime !== null &&
+      composedEndTime > composedStartTime
+    ) {
       adjustedSubtitles.push({
         ...subtitle,
         startTime: composedStartTime,
-        endTime: composedEndTime
+        endTime: composedEndTime,
       });
     }
   }
@@ -185,7 +202,9 @@ export async function exportMultiClipWithSegments(
   const exportToken = uuidv4();
   const { projectId } = options;
 
-  log.info(`Starting multi-clip export, token: ${exportToken}, clips: ${clips.length}, segments: ${segments.length}`);
+  log.info(
+    `Starting multi-clip export, token: ${exportToken}, clips: ${clips.length}, segments: ${segments.length}`
+  );
 
   try {
     for (const clip of clips) {
@@ -203,7 +222,7 @@ export async function exportMultiClipWithSegments(
       throw new Error('No segments provided');
     }
 
-    const validSegments = segments.filter(seg => {
+    const validSegments = segments.filter((seg) => {
       const clipMeta = seg.clipId ? clipMetadataMap[seg.clipId] : undefined;
       if (!clipMeta) {
         log.warn(`Segment references unknown clipId: ${seg.clipId}`);
@@ -224,18 +243,24 @@ export async function exportMultiClipWithSegments(
 
     const totalDuration = calculateTotalDuration(validSegments);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'exporting',
-      progress: 0,
-      message: 'Starting multi-clip video processing...',
-      type: 'multi-clip-cut'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'exporting',
+        progress: 0,
+        message: 'Starting multi-clip video processing...',
+        type: 'multi-clip-cut',
+      }),
+      { EX: 60 * 60 }
+    );
 
     const isVertical = firstClipMetadata.width < firstClipMetadata.height;
     const referenceDimension = isVertical ? firstClipMetadata.width : firstClipMetadata.height;
     const useHwAccel = await hwaccel.detectVaapi();
 
-    const hasAudio = clips.some(clip => clipMetadataMap[clip.clipId]?.originalFormat?.audioCodec != null);
+    const hasAudio = clips.some(
+      (clip) => clipMetadataMap[clip.clipId]?.originalFormat?.audioCodec != null
+    );
 
     await ffmpegPool.run(async () => {
       await new Promise<void>((resolve, reject) => {
@@ -266,34 +291,47 @@ export async function exportMultiClipWithSegments(
 
           outputOptions = [
             '-y',
-            '-filter_complex', filterComplex,
-            '-map', outputStreams[0],
+            '-filter_complex',
+            filterComplex,
+            '-map',
+            outputStreams[0],
             ...(hasAudio && outputStreams[1] ? ['-map', outputStreams[1]] : []),
             ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
             ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags', '+faststart',
-            '-avoid_negative_ts', 'make_zero'
+            '-movflags',
+            '+faststart',
+            '-avoid_negative_ts',
+            'make_zero',
           ];
 
           log.debug(`Multi-clip export using VAAPI: ${clips.length} clips, encoder: ${videoCodec}`);
         } else {
           const is4K = referenceDimension >= 2160;
           const isHevcSource = firstClipMetadata.originalFormat?.codec === 'hevc';
-          const videoCodec = (is4K && isHevcSource) ? 'libx265' : 'libx264';
+          const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
 
           outputOptions = [
             '-y',
-            '-filter_complex', filterComplex,
-            '-map', outputStreams[0],
+            '-filter_complex',
+            filterComplex,
+            '-map',
+            outputStreams[0],
             ...(hasAudio && outputStreams[1] ? ['-map', outputStreams[1]] : []),
-            '-c:v', videoCodec,
-            '-preset', preset,
-            '-crf', crf.toString(),
-            '-profile:v', videoCodec === 'libx264' ? 'high' : 'main',
-            '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
+            '-c:v',
+            videoCodec,
+            '-preset',
+            preset,
+            '-crf',
+            crf.toString(),
+            '-profile:v',
+            videoCodec === 'libx264' ? 'high' : 'main',
+            '-level',
+            videoCodec === 'libx264' ? '4.1' : '4.0',
             ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags', '+faststart',
-            '-avoid_negative_ts', 'make_zero'
+            '-movflags',
+            '+faststart',
+            '-avoid_negative_ts',
+            'make_zero',
           ];
 
           if (videoCodec === 'libx264') {
@@ -312,12 +350,16 @@ export async function exportMultiClipWithSegments(
           .on('progress', async (progress: { percent?: number }) => {
             const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
             try {
-              await redisClient.set(`export:${exportToken}`, JSON.stringify({
-                status: 'exporting',
-                progress: progressPercent,
-                message: `Processing: ${progressPercent}%`,
-                type: 'multi-clip-cut'
-              }), { EX: 60 * 60 });
+              await redisClient.set(
+                `export:${exportToken}`,
+                JSON.stringify({
+                  status: 'exporting',
+                  progress: progressPercent,
+                  message: `Processing: ${progressPercent}%`,
+                  type: 'multi-clip-cut',
+                }),
+                { EX: 60 * 60 }
+              );
             } catch {}
           })
           .on('error', (err: Error) => {
@@ -332,13 +374,17 @@ export async function exportMultiClipWithSegments(
       });
     }, `multiclip-export-${exportToken}`);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'complete',
-      progress: 100,
-      outputPath,
-      duration: totalDuration,
-      type: 'multi-clip-cut'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'complete',
+        progress: 100,
+        outputPath,
+        duration: totalDuration,
+        type: 'multi-clip-cut',
+      }),
+      { EX: 60 * 60 }
+    );
 
     log.info(`Multi-clip export completed: ${outputPath}, duration: ${totalDuration}s`);
 
@@ -347,17 +393,20 @@ export async function exportMultiClipWithSegments(
       outputPath,
       duration: totalDuration,
       segmentCount: validSegments.length,
-      clipCount: clips.length
+      clipCount: clips.length,
     };
-
   } catch (error: any) {
     log.error(`Multi-clip export failed: ${error.message}`);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'error',
-      error: error.message,
-      type: 'multi-clip-cut'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'error',
+        error: error.message,
+        type: 'multi-clip-cut',
+      }),
+      { EX: 60 * 60 }
+    );
 
     throw error;
   }
@@ -394,7 +443,7 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
       throw new Error('No segments provided');
     }
 
-    const validSegments = segments.filter(seg => {
+    const validSegments = segments.filter((seg) => {
       const clipMeta = seg.clipId ? clipMetadataMap[seg.clipId] : undefined;
       if (!clipMeta) return false;
       return seg.start >= 0 && seg.end > seg.start && seg.end <= clipMeta.duration + 0.5;
@@ -412,12 +461,16 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
 
     const totalDuration = calculateTotalDuration(validSegments);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'exporting',
-      progress: 0,
-      message: 'Starting multi-clip video processing with subtitles...',
-      type: 'multi-clip-cut-subtitles'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'exporting',
+        progress: 0,
+        message: 'Starting multi-clip video processing with subtitles...',
+        type: 'multi-clip-cut-subtitles',
+      }),
+      { EX: 60 * 60 }
+    );
 
     const AssSubtitleService = (await import('./assSubtitleService.js')).default;
     const assService = new AssSubtitleService();
@@ -433,10 +486,11 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
       fontSize: Math.floor(calculateFontSize(firstClipMetadata) / 2),
       marginL: 10,
       marginR: 10,
-      marginV: subtitleConfig.heightPreference === 'tief'
-        ? Math.floor(firstClipMetadata.height * 0.20)
-        : Math.floor(firstClipMetadata.height * 0.33),
-      alignment: 2
+      marginV:
+        subtitleConfig.heightPreference === 'tief'
+          ? Math.floor(firstClipMetadata.height * 0.2)
+          : Math.floor(firstClipMetadata.height * 0.33),
+      alignment: 2,
     };
 
     const assResult = assService.generateAssContent(
@@ -467,7 +521,9 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
     const referenceDimension = isVertical ? firstClipMetadata.width : firstClipMetadata.height;
     const fileSizeMB = fileStats.size / 1024 / 1024;
     const useHwAccel = await hwaccel.detectVaapi();
-    const hasAudio = clips.some(clip => clipMetadataMap[clip.clipId]?.originalFormat?.audioCodec != null);
+    const hasAudio = clips.some(
+      (clip) => clipMetadataMap[clip.clipId]?.originalFormat?.audioCodec != null
+    );
 
     await ffmpegPool.run(async () => {
       await new Promise<void>((resolve, reject) => {
@@ -505,30 +561,43 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
 
           outputOptions = [
             '-y',
-            '-filter_complex', combinedFilter,
-            '-map', '[finalv]',
+            '-filter_complex',
+            combinedFilter,
+            '-map',
+            '[finalv]',
             ...(hasAudio ? ['-map', '[outa]'] : []),
             ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
             ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags', '+faststart',
-            '-avoid_negative_ts', 'make_zero'
+            '-movflags',
+            '+faststart',
+            '-avoid_negative_ts',
+            'make_zero',
           ];
         } else {
-          const videoCodec = (is4K && isHevcSource) ? 'libx265' : 'libx264';
+          const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
 
           outputOptions = [
             '-y',
-            '-filter_complex', combinedFilter,
-            '-map', '[finalv]',
+            '-filter_complex',
+            combinedFilter,
+            '-map',
+            '[finalv]',
             ...(hasAudio ? ['-map', '[outa]'] : []),
-            '-c:v', videoCodec,
-            '-preset', preset,
-            '-crf', crf.toString(),
-            '-profile:v', videoCodec === 'libx264' ? 'high' : 'main',
-            '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
+            '-c:v',
+            videoCodec,
+            '-preset',
+            preset,
+            '-crf',
+            crf.toString(),
+            '-profile:v',
+            videoCodec === 'libx264' ? 'high' : 'main',
+            '-level',
+            videoCodec === 'libx264' ? '4.1' : '4.0',
             ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags', '+faststart',
-            '-avoid_negative_ts', 'make_zero'
+            '-movflags',
+            '+faststart',
+            '-avoid_negative_ts',
+            'make_zero',
           ];
 
           if (videoCodec === 'libx264') {
@@ -545,12 +614,16 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
           .on('progress', async (progress: { percent?: number }) => {
             const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
             try {
-              await redisClient.set(`export:${exportToken}`, JSON.stringify({
-                status: 'exporting',
-                progress: progressPercent,
-                message: `Processing: ${progressPercent}%`,
-                type: 'multi-clip-cut-subtitles'
-              }), { EX: 60 * 60 });
+              await redisClient.set(
+                `export:${exportToken}`,
+                JSON.stringify({
+                  status: 'exporting',
+                  progress: progressPercent,
+                  message: `Processing: ${progressPercent}%`,
+                  type: 'multi-clip-cut-subtitles',
+                }),
+                { EX: 60 * 60 }
+              );
             } catch {}
           })
           .on('error', (err: Error) => {
@@ -570,33 +643,46 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
       if (tempFontPath) await fs.unlink(tempFontPath).catch(() => {});
     } catch {}
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'complete',
-      progress: 100,
-      outputPath,
-      duration: totalDuration,
-      type: 'multi-clip-cut-subtitles'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'complete',
+        progress: 100,
+        outputPath,
+        duration: totalDuration,
+        type: 'multi-clip-cut-subtitles',
+      }),
+      { EX: 60 * 60 }
+    );
 
     return {
       exportToken,
       outputPath,
       duration: totalDuration,
       segmentCount: validSegments.length,
-      clipCount: clips.length
+      clipCount: clips.length,
     };
-
   } catch (error: any) {
     log.error(`Multi-clip+subtitle export failed: ${error.message}`);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'error',
-      error: error.message,
-      type: 'multi-clip-cut-subtitles'
-    }), { EX: 60 * 60 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'error',
+        error: error.message,
+        type: 'multi-clip-cut-subtitles',
+      }),
+      { EX: 60 * 60 }
+    );
 
     throw error;
   }
 }
 
-export type { VideoMetadata, SubtitleSegment, SubtitleConfig, ExportOptions, MultiClipExportResult };
+export type {
+  VideoMetadata,
+  SubtitleSegment,
+  SubtitleConfig,
+  ExportOptions,
+  MultiClipExportResult,
+};

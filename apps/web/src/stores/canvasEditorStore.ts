@@ -7,21 +7,22 @@
  * - History snapshots for undo/redo
  */
 
+import {
+  DEFAULT_CANVAS_SIZE,
+  DEFAULT_CANVAS_HEIGHT,
+  DEFAULT_BACKGROUND_COLOR,
+} from '@gruenerator/shared/canvas-editor';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { useShallow } from 'zustand/shallow';
+
+import type { SnapTarget, SnapLine } from '../features/image-studio/canvas-editor/utils/snapping';
 import type {
   Layer,
   CanvasEditorConfig,
   CanvasHistoryEntry,
   ExportFormat,
 } from '@gruenerator/shared/canvas-editor';
-import {
-  DEFAULT_CANVAS_SIZE,
-  DEFAULT_CANVAS_HEIGHT,
-  DEFAULT_BACKGROUND_COLOR,
-} from '@gruenerator/shared/canvas-editor';
-import type { SnapTarget, SnapLine } from '../features/image-studio/canvas-editor/utils/snapping';
 
 // =============================================================================
 // TYPES
@@ -80,7 +81,9 @@ interface CanvasEditorActions {
   saveToHistory: (componentState?: Record<string, unknown>) => void;
   undo: () => void;
   redo: () => void;
-  setStateRestorationCallback: (callback: ((state: Record<string, unknown>) => void) | null) => void;
+  setStateRestorationCallback: (
+    callback: ((state: Record<string, unknown>) => void) | null
+  ) => void;
 
   // Snapping
   setSnapGuides: (h: boolean, v: boolean) => void;
@@ -135,8 +138,7 @@ const initialState: CanvasEditorState = {
 // HELPERS
 // =============================================================================
 
-const generateLayerId = () =>
-  `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+const generateLayerId = () => `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 // =============================================================================
 // STORE
@@ -376,8 +378,7 @@ export const useCanvasEditorStore = create<CanvasEditorStore>()(
 // SELECTOR HOOKS (for minimal re-renders)
 // =============================================================================
 
-export const useCanvasLayers = (): Layer[] =>
-  useCanvasEditorStore(useShallow((s) => s.layers));
+export const useCanvasLayers = (): Layer[] => useCanvasEditorStore(useShallow((s) => s.layers));
 
 export const useCanvasSelection = (): string[] =>
   useCanvasEditorStore(useShallow((s) => s.selectedLayerIds));
@@ -388,14 +389,12 @@ export const useCanvasConfig = (): CanvasEditorState['config'] =>
 export const useCanvasContainerSize = (): { width: number; height: number } =>
   useCanvasEditorStore(useShallow((s) => s.containerSize));
 
-export const useRenderVersion = (): number =>
-  useCanvasEditorStore((s) => s.renderVersion);
+export const useRenderVersion = (): number => useCanvasEditorStore((s) => s.renderVersion);
 
 export const useSnapGuides = (): { h: boolean; v: boolean } =>
   useCanvasEditorStore(useShallow((s) => s.snapGuides));
 
-export const useSnapLines = (): SnapLine[] =>
-  useCanvasEditorStore(useShallow((s) => s.snapLines));
+export const useSnapLines = (): SnapLine[] => useCanvasEditorStore(useShallow((s) => s.snapLines));
 
 export const useElementPositions = (): Record<string, SnapTarget> =>
   useCanvasEditorStore(useShallow((s) => s.elementPositions));

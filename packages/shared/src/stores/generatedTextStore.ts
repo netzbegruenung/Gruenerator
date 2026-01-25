@@ -29,8 +29,16 @@ export interface GeneratedTextState {
 export interface GeneratedTextActions {
   getGeneratedText: (componentName: string) => string;
   getGeneratedTextMetadata: (componentName: string) => GeneratedTextMetadata | null;
-  setGeneratedText: (componentName: string, text: string, metadata?: GeneratedTextMetadata | null) => void;
-  setTextWithHistory: (componentName: string, text: string, metadata?: GeneratedTextMetadata | null) => void;
+  setGeneratedText: (
+    componentName: string,
+    text: string,
+    metadata?: GeneratedTextMetadata | null
+  ) => void;
+  setTextWithHistory: (
+    componentName: string,
+    text: string,
+    metadata?: GeneratedTextMetadata | null
+  ) => void;
   setGeneratedTextMetadata: (componentName: string, metadata: GeneratedTextMetadata) => void;
   clearGeneratedText: (componentName: string) => void;
   clearAllGeneratedTexts: () => void;
@@ -105,7 +113,9 @@ const createGeneratedTextSlice: StateCreator<GeneratedTextStore> = (set, get) =>
       if (currentIndex === -1 || currentIndex === currentHistory.length - 1) {
         newHistory = [...currentHistory, text].slice(-state.maxHistorySize);
       } else {
-        newHistory = [...currentHistory.slice(0, currentIndex + 1), text].slice(-state.maxHistorySize);
+        newHistory = [...currentHistory.slice(0, currentIndex + 1), text].slice(
+          -state.maxHistorySize
+        );
       }
 
       newIndex = newHistory.length - 1;
@@ -279,7 +289,11 @@ const createGeneratedTextSlice: StateCreator<GeneratedTextStore> = (set, get) =>
       const currentHistory = state.history[componentName];
       const currentIndex = state.historyIndex[componentName] ?? 0;
 
-      if (!currentHistory || currentHistory.length <= 1 || currentIndex >= currentHistory.length - 1) {
+      if (
+        !currentHistory ||
+        currentHistory.length <= 1 ||
+        currentIndex >= currentHistory.length - 1
+      ) {
         return state;
       }
 
@@ -313,7 +327,11 @@ const createGeneratedTextSlice: StateCreator<GeneratedTextStore> = (set, get) =>
     const currentHistory = state.history[componentName];
     const currentIndex = state.historyIndex[componentName] ?? 0;
 
-    return !!(currentHistory && currentHistory.length > 1 && currentIndex < currentHistory.length - 1);
+    return !!(
+      currentHistory &&
+      currentHistory.length > 1 &&
+      currentIndex < currentHistory.length - 1
+    );
   },
 
   clearHistory: (componentName) => {

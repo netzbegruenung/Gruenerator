@@ -5,7 +5,11 @@
 
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import type { SubtitleSegment, SubtitleStylePreference, SubtitleHeightPreference } from '@gruenerator/shared/subtitle-editor';
+import type {
+  SubtitleSegment,
+  SubtitleStylePreference,
+  SubtitleHeightPreference,
+} from '@gruenerator/shared/subtitle-editor';
 import { getStyleConfig, HEIGHT_BOTTOM_PERCENT } from '@gruenerator/shared/subtitle-editor';
 import { useAuthStore } from '@gruenerator/shared/stores';
 
@@ -25,9 +29,11 @@ export function SubtitleOverlay({
   const locale = useAuthStore((state) => state.locale) ?? 'de-DE';
 
   const activeSegment = useMemo(() => {
-    return segments.find(
-      (segment) => currentTime >= segment.startTime && currentTime <= segment.endTime
-    ) || null;
+    return (
+      segments.find(
+        (segment) => currentTime >= segment.startTime && currentTime <= segment.endTime
+      ) || null
+    );
   }, [segments, currentTime]);
 
   const styleConfig = useMemo(() => {
@@ -73,11 +79,13 @@ export function SubtitleOverlay({
   );
 }
 
-function parseTextShadow(shadowString: string): {
-  textShadowColor?: string;
-  textShadowOffset?: { width: number; height: number };
-  textShadowRadius?: number;
-} | undefined {
+function parseTextShadow(shadowString: string):
+  | {
+      textShadowColor?: string;
+      textShadowOffset?: { width: number; height: number };
+      textShadowRadius?: number;
+    }
+  | undefined {
   if (!shadowString || shadowString === 'none') {
     return undefined;
   }

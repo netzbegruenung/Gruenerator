@@ -46,9 +46,7 @@ function EmptyState({ message }: { message: string }) {
 
   return (
     <View style={styles.emptyState}>
-      <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-        {message}
-      </Text>
+      <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>{message}</Text>
     </View>
   );
 }
@@ -56,7 +54,16 @@ function EmptyState({ message }: { message: string }) {
 function InhalteSection() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const { isLoading, isRefreshing, error, fetchContent, refreshContent, deleteDocument, deleteText, getCombinedContent } = useContentStore();
+  const {
+    isLoading,
+    isRefreshing,
+    error,
+    fetchContent,
+    refreshContent,
+    deleteDocument,
+    deleteText,
+    getCombinedContent,
+  } = useContentStore();
 
   const combinedContent = getCombinedContent();
 
@@ -64,21 +71,27 @@ function InhalteSection() {
     fetchContent();
   }, [fetchContent]);
 
-  const handleDelete = useCallback(async (id: string, itemType: 'document' | 'text') => {
-    try {
-      if (itemType === 'document') {
-        await deleteDocument(id);
-      } else {
-        await deleteText(id);
+  const handleDelete = useCallback(
+    async (id: string, itemType: 'document' | 'text') => {
+      try {
+        if (itemType === 'document') {
+          await deleteDocument(id);
+        } else {
+          await deleteText(id);
+        }
+      } catch {
+        // Error handled in store
       }
-    } catch {
-      // Error handled in store
-    }
-  }, [deleteDocument, deleteText]);
+    },
+    [deleteDocument, deleteText]
+  );
 
-  const renderItem = useCallback(({ item }: { item: CombinedContentItem }) => (
-    <ContentItem item={item} onDelete={handleDelete} />
-  ), [handleDelete]);
+  const renderItem = useCallback(
+    ({ item }: { item: CombinedContentItem }) => (
+      <ContentItem item={item} onDelete={handleDelete} />
+    ),
+    [handleDelete]
+  );
 
   if (isLoading && combinedContent.length === 0) {
     return (
@@ -92,7 +105,9 @@ function InhalteSection() {
     return (
       <View style={[styles.sectionContent, styles.centered]}>
         <Text style={[styles.errorText, { color: theme.text }]}>{error}</Text>
-        <Button onPress={fetchContent} variant="outline">Erneut versuchen</Button>
+        <Button onPress={fetchContent} variant="outline">
+          Erneut versuchen
+        </Button>
       </View>
     );
   }
@@ -118,8 +133,18 @@ function InhalteSection() {
 function AnweisungenSection() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const { instructions, isLoading, isSaving, lastSaved, fetchInstructions, updateInstruction, saveInstructions } = useInstructionsStore();
-  const [enabledFields, setEnabledFields] = useState<typeof INSTRUCTION_TYPES[number]['key'][]>([]);
+  const {
+    instructions,
+    isLoading,
+    isSaving,
+    lastSaved,
+    fetchInstructions,
+    updateInstruction,
+    saveInstructions,
+  } = useInstructionsStore();
+  const [enabledFields, setEnabledFields] = useState<(typeof INSTRUCTION_TYPES)[number]['key'][]>(
+    []
+  );
   const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
@@ -127,20 +152,20 @@ function AnweisungenSection() {
   }, [fetchInstructions]);
 
   const instructionsWithContent = INSTRUCTION_TYPES.filter(
-    type => instructions[type.key]?.trim().length > 0
+    (type) => instructions[type.key]?.trim().length > 0
   );
 
   const activeInstructions = INSTRUCTION_TYPES.filter(
-    type => instructionsWithContent.some(t => t.key === type.key) ||
-            enabledFields.includes(type.key)
+    (type) =>
+      instructionsWithContent.some((t) => t.key === type.key) || enabledFields.includes(type.key)
   );
 
   const availableToAdd = INSTRUCTION_TYPES.filter(
-    type => !activeInstructions.some(t => t.key === type.key)
+    (type) => !activeInstructions.some((t) => t.key === type.key)
   );
 
-  const handleAddInstruction = useCallback((key: typeof INSTRUCTION_TYPES[number]['key']) => {
-    setEnabledFields(prev => [...prev, key]);
+  const handleAddInstruction = useCallback((key: (typeof INSTRUCTION_TYPES)[number]['key']) => {
+    setEnabledFields((prev) => [...prev, key]);
     setShowPicker(false);
   }, []);
 
@@ -166,7 +191,12 @@ function AnweisungenSection() {
           <Button onPress={() => setShowPicker(true)}>Anweisung hinzufügen</Button>
         </View>
         {showPicker && (
-          <View style={[styles.pickerContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View
+            style={[
+              styles.pickerContainer,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
             {INSTRUCTION_TYPES.map((type) => (
               <Pressable
                 key={type.key}
@@ -176,11 +206,10 @@ function AnweisungenSection() {
                 <Text style={[styles.pickerItemText, { color: theme.text }]}>{type.title}</Text>
               </Pressable>
             ))}
-            <Pressable
-              style={styles.pickerCancel}
-              onPress={() => setShowPicker(false)}
-            >
-              <Text style={[styles.pickerCancelText, { color: theme.textSecondary }]}>Abbrechen</Text>
+            <Pressable style={styles.pickerCancel} onPress={() => setShowPicker(false)}>
+              <Text style={[styles.pickerCancelText, { color: theme.textSecondary }]}>
+                Abbrechen
+              </Text>
             </Pressable>
           </View>
         )}
@@ -210,7 +239,12 @@ function AnweisungenSection() {
             Anweisung hinzufügen
           </Button>
           {showPicker && (
-            <View style={[styles.pickerContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View
+              style={[
+                styles.pickerContainer,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
               {availableToAdd.map((type) => (
                 <Pressable
                   key={type.key}
@@ -220,11 +254,10 @@ function AnweisungenSection() {
                   <Text style={[styles.pickerItemText, { color: theme.text }]}>{type.title}</Text>
                 </Pressable>
               ))}
-              <Pressable
-                style={styles.pickerCancel}
-                onPress={() => setShowPicker(false)}
-              >
-                <Text style={[styles.pickerCancelText, { color: theme.textSecondary }]}>Abbrechen</Text>
+              <Pressable style={styles.pickerCancel} onPress={() => setShowPicker(false)}>
+                <Text style={[styles.pickerCancelText, { color: theme.textSecondary }]}>
+                  Abbrechen
+                </Text>
               </Pressable>
             </View>
           )}
@@ -272,14 +305,17 @@ export default function ProfileScreen() {
     await logout();
   };
 
-  const handleSwipe = useCallback((direction: 'left' | 'right') => {
-    const currentIndex = SECTION_ORDER.indexOf(activeSection);
-    if (direction === 'left' && currentIndex < SECTION_ORDER.length - 1) {
-      setActiveSection(SECTION_ORDER[currentIndex + 1]);
-    } else if (direction === 'right' && currentIndex > 0) {
-      setActiveSection(SECTION_ORDER[currentIndex - 1]);
-    }
-  }, [activeSection]);
+  const handleSwipe = useCallback(
+    (direction: 'left' | 'right') => {
+      const currentIndex = SECTION_ORDER.indexOf(activeSection);
+      if (direction === 'left' && currentIndex < SECTION_ORDER.length - 1) {
+        setActiveSection(SECTION_ORDER[currentIndex + 1]);
+      } else if (direction === 'right' && currentIndex > 0) {
+        setActiveSection(SECTION_ORDER[currentIndex - 1]);
+      }
+    },
+    [activeSection]
+  );
 
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-20, 20])
@@ -293,7 +329,10 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: theme.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.container, styles.centered, { backgroundColor: theme.background }]}
+        edges={['top']}
+      >
         <ActivityIndicator size="large" color={colors.primary[600]} />
       </SafeAreaView>
     );
@@ -301,7 +340,10 @@ export default function ProfileScreen() {
 
   if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={['top']}
+      >
         <View style={[styles.centered, { flex: 1, paddingTop: spacing.xxlarge }]}>
           <Text style={[styles.title, { color: theme.text }]}>Profil</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>

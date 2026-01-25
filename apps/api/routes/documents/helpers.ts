@@ -51,9 +51,7 @@ export function generateContentPreview(text: string, limit: number = 600): strin
   }
 
   const lastSpace = truncated.lastIndexOf(' ');
-  return lastSpace > limit * 0.6
-    ? `${truncated.slice(0, lastSpace)}...`
-    : `${truncated}...`;
+  return lastSpace > limit * 0.6 ? `${truncated.slice(0, lastSpace)}...` : `${truncated}...`;
 }
 
 /**
@@ -72,16 +70,14 @@ export function formatFileSize(bytes: number): string {
  * Enrich document with content preview from multiple sources
  * Consolidates enrichment logic used throughout the original file
  */
-export function enrichDocumentWithPreview(
-  doc: any,
-  firstChunks: Record<string, string> = {}
-): any {
+export function enrichDocumentWithPreview(doc: any, firstChunks: Record<string, string> = {}): any {
   const meta = parseMetadata(doc.metadata);
 
   // Try multiple sources for content preview
-  const preview = meta.content_preview ||
-                 (meta.full_text ? generateContentPreview(meta.full_text) : null) ||
-                 (firstChunks[doc.id] ? generateContentPreview(firstChunks[doc.id]) : null);
+  const preview =
+    meta.content_preview ||
+    (meta.full_text ? generateContentPreview(meta.full_text) : null) ||
+    (firstChunks[doc.id] ? generateContentPreview(firstChunks[doc.id]) : null);
 
   return {
     ...doc,

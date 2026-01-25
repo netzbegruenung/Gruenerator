@@ -94,23 +94,23 @@ export function useLayerOrdering(
   }, [canvasItems, layerOrder]);
 
   const moveLayerUp = useCallback((itemId: string) => {
-    setLayerOrder(prev => moveInOrder(prev, itemId, 'up'));
+    setLayerOrder((prev) => moveInOrder(prev, itemId, 'up'));
   }, []);
 
   const moveLayerDown = useCallback((itemId: string) => {
-    setLayerOrder(prev => moveInOrder(prev, itemId, 'down'));
+    setLayerOrder((prev) => moveInOrder(prev, itemId, 'down'));
   }, []);
 
   const bringToFront = useCallback((itemId: string) => {
-    setLayerOrder(prev => {
-      const filtered = prev.filter(id => id !== itemId);
+    setLayerOrder((prev) => {
+      const filtered = prev.filter((id) => id !== itemId);
       return [...filtered, itemId];
     });
   }, []);
 
   const sendToBack = useCallback((itemId: string) => {
-    setLayerOrder(prev => {
-      const filtered = prev.filter(id => id !== itemId);
+    setLayerOrder((prev) => {
+      const filtered = prev.filter((id) => id !== itemId);
       return [itemId, ...filtered];
     });
   }, []);

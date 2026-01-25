@@ -5,7 +5,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
-import { FloatingGlassMenu, createChatRenderers, ASSISTANT_USER, CURRENT_USER } from '../../components/chat';
+import {
+  FloatingGlassMenu,
+  createChatRenderers,
+  ASSISTANT_USER,
+  CURRENT_USER,
+} from '../../components/chat';
 import { useChatStore } from '../../stores/chatStore';
 import type { GrueneratorChatMessage } from '../../services/chat';
 
@@ -134,20 +139,14 @@ export default function GrueneratorChatModal() {
       <FloatingGlassMenu>
         <Pressable
           onPress={handleClearChat}
-          style={({ pressed }) => [
-            styles.floatingButton,
-            { opacity: pressed ? 0.7 : 1 },
-          ]}
+          style={({ pressed }) => [styles.floatingButton, { opacity: pressed ? 0.7 : 1 }]}
         >
           <Ionicons name="trash-outline" size={20} color={theme.text} />
         </Pressable>
         <View style={styles.floatingDivider} />
         <Pressable
           onPress={handleClose}
-          style={({ pressed }) => [
-            styles.floatingButton,
-            { opacity: pressed ? 0.7 : 1 },
-          ]}
+          style={({ pressed }) => [styles.floatingButton, { opacity: pressed ? 0.7 : 1 }]}
         >
           <Ionicons name="close" size={22} color={colors.primary[600]} />
         </Pressable>
@@ -171,11 +170,7 @@ export default function GrueneratorChatModal() {
         )}
 
         {showActions && latestMessage.actions && (
-          <ActionButtons
-            actions={latestMessage.actions}
-            onAction={handleAction}
-            theme={theme}
-          />
+          <ActionButtons actions={latestMessage.actions} onAction={handleAction} theme={theme} />
         )}
       </View>
     </View>

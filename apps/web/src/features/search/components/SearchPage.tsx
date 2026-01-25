@@ -1,14 +1,16 @@
-import { JSX, useState, useMemo, useCallback } from 'react';
+import { type JSX, useState, useMemo, useCallback } from 'react';
 import { FaFileWord } from 'react-icons/fa';
-import SearchBar from './SearchBar';
-import useSearch from '../hooks/useSearch';
+
 import ActionButtons from '../../../components/common/ActionButtons';
+import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
+import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
+import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { formatExportContent } from '../../../components/utils/exportUtils';
-import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
-import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
-import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { useExportStore } from '../../../stores/core/exportStore';
+import useSearch from '../hooks/useSearch';
+
+import SearchBar from './SearchBar';
 
 // Search Feature CSS - Loaded only when this feature is accessed
 import '../styles/SearchPage.css';
@@ -18,16 +20,16 @@ import '../styles/SearchBarStyles.css';
 const exampleQuestions = [
   {
     icon: '🌍',
-    text: 'Was macht die Grüne Fraktion für den Klimaschutz?'
+    text: 'Was macht die Grüne Fraktion für den Klimaschutz?',
   },
   {
     icon: '🏘️',
-    text: 'Grüne Position zum Mietendeckel'
+    text: 'Grüne Position zum Mietendeckel',
   },
   {
     icon: '🚲',
-    text: 'Fahrradinfrastruktur in Deutschland'
-  }
+    text: 'Fahrradinfrastruktur in Deutschland',
+  },
 ];
 
 interface ExampleQuestionsProps {
@@ -80,7 +82,9 @@ const SourceList = ({ sources, title, recommendations = [] }: SourceListProps) =
     <h2>{title}</h2>
     <div className="sources-list">
       {sources.map((source, index) => {
-        const recommendation = source.title ? recommendations.find(r => r.title === source.title) : undefined;
+        const recommendation = source.title
+          ? recommendations.find((r) => r.title === source.title)
+          : undefined;
         const hasSnippets = source.content_snippets && source.content_snippets.trim().length > 0;
 
         return (
@@ -102,8 +106,7 @@ const SourceList = ({ sources, title, recommendations = [] }: SourceListProps) =
                 <p className="content-preview">
                   {source.content_snippets.length > 200
                     ? `${source.content_snippets.substring(0, 200)}...`
-                    : source.content_snippets
-                  }
+                    : source.content_snippets}
                 </p>
               </div>
             )}
@@ -133,7 +136,7 @@ const SearchPage = () => {
     categorizedSources,
     sourceRecommendations = [],
     citations = [],
-    citationSources = []
+    citationSources = [],
   } = useSearch();
 
   const hasCitations = citations.length > 0;
@@ -150,34 +153,33 @@ const SearchPage = () => {
 
   const handleDeepResearchDOCXExport = useCallback(async () => {
     if (!hasCitations || !dossier) return;
-    await generateNotebookDOCX(
-      dossier,
-      'Recherche-Dossier',
-      citations,
-      citationSources
-    );
+    await generateNotebookDOCX(dossier, 'Recherche-Dossier', citations, citationSources);
   }, [hasCitations, dossier, citations, citationSources, generateNotebookDOCX]);
 
   const webSearchExportOptions = useMemo(() => {
     if (!hasCitations) return [];
-    return [{
-      id: 'web-search-docx',
-      label: 'Word mit Quellen',
-      subtitle: 'Inkl. Quellenangaben',
-      icon: <FaFileWord size={16} />,
-      onClick: handleWebSearchDOCXExport
-    }];
+    return [
+      {
+        id: 'web-search-docx',
+        label: 'Word mit Quellen',
+        subtitle: 'Inkl. Quellenangaben',
+        icon: <FaFileWord size={16} />,
+        onClick: handleWebSearchDOCXExport,
+      },
+    ];
   }, [hasCitations, handleWebSearchDOCXExport]);
 
   const deepResearchExportOptions = useMemo(() => {
     if (!hasCitations) return [];
-    return [{
-      id: 'deep-research-docx',
-      label: 'Word mit Quellen',
-      subtitle: 'Inkl. Quellenangaben',
-      icon: <FaFileWord size={16} />,
-      onClick: handleDeepResearchDOCXExport
-    }];
+    return [
+      {
+        id: 'deep-research-docx',
+        label: 'Word mit Quellen',
+        subtitle: 'Inkl. Quellenangaben',
+        icon: <FaFileWord size={16} />,
+        onClick: handleDeepResearchDOCXExport,
+      },
+    ];
   }, [hasCitations, handleDeepResearchDOCXExport]);
 
   const handleSearch = (query?: string) => {
@@ -190,12 +192,12 @@ const SearchPage = () => {
   };
 
   const toggleDeepResearch = () => {
-    setSearchMode(prev => prev === 'deep' ? 'web' : 'deep');
+    setSearchMode((prev) => (prev === 'deep' ? 'web' : 'deep'));
   };
 
   // Berechne die nicht verwendeten Quellen
   const unusedSources = results.filter(
-    result => !usedSources.some(used => used.url === result.url)
+    (result) => !usedSources.some((used) => used.url === result.url)
   );
 
   return (
@@ -228,11 +230,7 @@ const SearchPage = () => {
           </div>
         )}
 
-        {error && (
-          <div className="search-error">
-            {error}
-          </div>
-        )}
+        {error && <div className="search-error">{error}</div>}
 
         {/* Web Search Results */}
         {webResults && searchMode === 'web' && (
@@ -262,8 +260,16 @@ const SearchPage = () => {
                 {searchMode === 'web' && citations.length > 0 && (
                   <div className="citation-sources-section">
                     <CitationSourcesDisplay
-                      sources={citationSources as unknown as Array<{ url?: string; title?: string; [key: string]: unknown }>}
-                      citations={citations as unknown as Array<{ id: string; [key: string]: unknown }>}
+                      sources={
+                        citationSources as unknown as Array<{
+                          url?: string;
+                          title?: string;
+                          [key: string]: unknown;
+                        }>
+                      }
+                      citations={
+                        citations as unknown as Array<{ id: string; [key: string]: unknown }>
+                      }
                       linkConfig={{ type: 'none' }}
                       title="🔗 Quellen der Zusammenfassung"
                       className="search-citation-sources"
@@ -277,10 +283,10 @@ const SearchPage = () => {
               {webResults.results && webResults.results.length > 0 && (
                 <div className="sources-section">
                   <SourceList
-                    sources={webResults.results.map(result => ({
+                    sources={webResults.results.map((result) => ({
                       url: result.url,
                       title: result.title,
-                      content_snippets: result.snippet || ''
+                      content_snippets: result.snippet || '',
                     }))}
                     title={`🌐 Web-Suchergebnisse (${webResults.resultCount})`}
                   />
@@ -333,8 +339,16 @@ const SearchPage = () => {
               {searchMode === 'deep' && citations.length > 0 && (
                 <div className="citation-sources-section">
                   <CitationSourcesDisplay
-                    sources={citationSources as unknown as Array<{ url?: string; title?: string; [key: string]: unknown }>}
-                    citations={citations as unknown as Array<{ id: string; [key: string]: unknown }>}
+                    sources={
+                      citationSources as unknown as Array<{
+                        url?: string;
+                        title?: string;
+                        [key: string]: unknown;
+                      }>
+                    }
+                    citations={
+                      citations as unknown as Array<{ id: string; [key: string]: unknown }>
+                    }
                     linkConfig={{ type: 'none' }}
                     title="🔗 Quellen des Dossiers"
                     className="search-citation-sources"
@@ -402,5 +416,5 @@ const SearchPage = () => {
 
 export default withAuthRequired(SearchPage, {
   title: 'Suche',
-  message: 'Melde dich an, um die Suche zu nutzen.'
+  message: 'Melde dich an, um die Suche zu nutzen.',
 });

@@ -43,20 +43,23 @@ export function InstructionCard({
     setLocalValue(value);
   }, [value]);
 
-  const handleChange = useCallback((text: string) => {
-    if (text.length <= maxLength) {
-      setLocalValue(text);
-      onChange(text);
+  const handleChange = useCallback(
+    (text: string) => {
+      if (text.length <= maxLength) {
+        setLocalValue(text);
+        onChange(text);
 
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
+        if (debounceRef.current) {
+          clearTimeout(debounceRef.current);
+        }
+
+        debounceRef.current = setTimeout(() => {
+          onSave();
+        }, DEBOUNCE_DELAY);
       }
-
-      debounceRef.current = setTimeout(() => {
-        onSave();
-      }, DEBOUNCE_DELAY);
-    }
-  }, [onChange, onSave, maxLength]);
+    },
+    [onChange, onSave, maxLength]
+  );
 
   useEffect(() => {
     return () => {
@@ -75,24 +78,32 @@ export function InstructionCard({
 
   return (
     <View style={[styles.container, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <Pressable
-        style={styles.header}
-        onPress={toggleExpanded}
-      >
+      <Pressable style={styles.header} onPress={toggleExpanded}>
         <View style={styles.headerContent}>
-          <View style={[
-            styles.statusDot,
-            { backgroundColor: hasContent ? colors.primary[500] : theme.textSecondary }
-          ]} />
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: hasContent ? colors.primary[500] : theme.textSecondary },
+            ]}
+          />
           <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
         </View>
 
         <View style={styles.headerRight}>
           {isSaving && (
-            <ActivityIndicator size="small" color={colors.primary[600]} style={styles.savingIndicator} />
+            <ActivityIndicator
+              size="small"
+              color={colors.primary[600]}
+              style={styles.savingIndicator}
+            />
           )}
           {!isSaving && lastSaved && hasContent && (
-            <Ionicons name="checkmark-circle" size={16} color={colors.primary[500]} style={styles.savedIcon} />
+            <Ionicons
+              name="checkmark-circle"
+              size={16}
+              color={colors.primary[500]}
+              style={styles.savedIcon}
+            />
           )}
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
@@ -127,13 +138,8 @@ export function InstructionCard({
               {characterCount} / {maxLength} Zeichen
             </Text>
             {hasContent && (
-              <Pressable
-                style={styles.clearButton}
-                onPress={() => handleChange('')}
-              >
-                <Text style={[styles.clearButtonText, { color: colors.error[500] }]}>
-                  Löschen
-                </Text>
+              <Pressable style={styles.clearButton} onPress={() => handleChange('')}>
+                <Text style={[styles.clearButtonText, { color: colors.error[500] }]}>Löschen</Text>
               </Pressable>
             )}
           </View>

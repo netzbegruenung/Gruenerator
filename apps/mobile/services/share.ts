@@ -46,15 +46,12 @@ export async function shareFile(
  * @param title - Optional title
  * @param message - Optional message
  */
-export async function shareUrl(
-  url: string,
-  title?: string,
-  message?: string
-): Promise<boolean> {
+export async function shareUrl(url: string, title?: string, message?: string): Promise<boolean> {
   try {
-    const shareContent = Platform.OS === 'ios'
-      ? { url, message, title }
-      : { message: message ? `${message}\n${url}` : url, title };
+    const shareContent =
+      Platform.OS === 'ios'
+        ? { url, message, title }
+        : { message: message ? `${message}\n${url}` : url, title };
 
     const result = await RNShare.share(shareContent);
 
@@ -114,7 +111,10 @@ export async function openPlatformShare(
     }
     return false;
   } catch (error: unknown) {
-    console.error(`[ShareService] openPlatformShare error for ${platform}:`, getErrorMessage(error));
+    console.error(
+      `[ShareService] openPlatformShare error for ${platform}:`,
+      getErrorMessage(error)
+    );
     return false;
   }
 }

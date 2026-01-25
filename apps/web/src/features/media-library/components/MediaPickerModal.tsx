@@ -1,10 +1,7 @@
+import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/shared/media-library';
 import React, { useEffect } from 'react';
 import { FaImage, FaVideo, FaCheck, FaTimes, FaUpload } from 'react-icons/fa';
-import {
-  useMediaLibrary,
-  useMediaUpload,
-  useMediaPicker
-} from '@gruenerator/shared/media-library';
+
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 import './MediaPickerModal.css';
 
@@ -18,22 +15,15 @@ const MediaPickerModal: React.FC = () => {
     mediaTypeFilter,
     closePicker,
     selectItem,
-    confirmSelection
+    confirmSelection,
   } = useMediaPicker();
 
-  const {
-    items,
-    pagination,
-    isLoading,
-    setFilters,
-    refetch,
-    loadMore
-  } = useMediaLibrary({
-    initialFilters: { type: mediaTypeFilter }
+  const { items, pagination, isLoading, setFilters, refetch, loadMore } = useMediaLibrary({
+    initialFilters: { type: mediaTypeFilter },
   });
 
   const { upload, isUploading, progress } = useMediaUpload({
-    onSuccess: () => refetch()
+    onSuccess: () => refetch(),
   });
 
   useEffect(() => {
@@ -50,19 +40,20 @@ const MediaPickerModal: React.FC = () => {
     }
   };
 
-  const isSelected = (item: MediaItem) =>
-    selectedItems.some(i => i.id === item.id);
+  const isSelected = (item: MediaItem) => selectedItems.some((i) => i.id === item.id);
 
   if (!isOpen) return null;
 
   return (
     <div className="media-picker-overlay" onClick={closePicker}>
-      <div className="media-picker-modal" onClick={e => e.stopPropagation()}>
+      <div className="media-picker-modal" onClick={(e) => e.stopPropagation()}>
         <header className="media-picker-header">
           <h2>
-            {mediaTypeFilter === 'video' ? 'Video auswählen' :
-             mediaTypeFilter === 'image' ? 'Bild auswählen' :
-             'Medium auswählen'}
+            {mediaTypeFilter === 'video'
+              ? 'Video auswählen'
+              : mediaTypeFilter === 'image'
+                ? 'Bild auswählen'
+                : 'Medium auswählen'}
           </h2>
           <button className="close-btn" onClick={closePicker}>
             <FaTimes />
@@ -72,22 +63,13 @@ const MediaPickerModal: React.FC = () => {
         <div className="media-picker-toolbar">
           {mediaTypeFilter === 'all' && (
             <div className="media-picker-filters">
-              <button
-                className="filter-btn active"
-                onClick={() => setFilters({ type: 'all' })}
-              >
+              <button className="filter-btn active" onClick={() => setFilters({ type: 'all' })}>
                 Alle
               </button>
-              <button
-                className="filter-btn"
-                onClick={() => setFilters({ type: 'image' })}
-              >
+              <button className="filter-btn" onClick={() => setFilters({ type: 'image' })}>
                 <FaImage /> Bilder
               </button>
-              <button
-                className="filter-btn"
-                onClick={() => setFilters({ type: 'video' })}
-              >
+              <button className="filter-btn" onClick={() => setFilters({ type: 'video' })}>
                 <FaVideo /> Videos
               </button>
             </div>
@@ -98,12 +80,14 @@ const MediaPickerModal: React.FC = () => {
             <input
               type="file"
               accept={
-                mediaTypeFilter === 'image' ? 'image/*' :
-                mediaTypeFilter === 'video' ? 'video/*' :
-                'image/*,video/*'
+                mediaTypeFilter === 'image'
+                  ? 'image/*'
+                  : mediaTypeFilter === 'video'
+                    ? 'video/*'
+                    : 'image/*,video/*'
               }
               multiple={allowMultiple}
-              onChange={e => handleFileUpload(e.target.files)}
+              onChange={(e) => handleFileUpload(e.target.files)}
               hidden
             />
           </label>
@@ -126,7 +110,7 @@ const MediaPickerModal: React.FC = () => {
               <p>Keine Medien gefunden</p>
             </div>
           ) : (
-            items.map(item => (
+            items.map((item) => (
               <div
                 key={item.id}
                 className={`media-picker-item ${isSelected(item) ? 'selected' : ''}`}
@@ -134,11 +118,7 @@ const MediaPickerModal: React.FC = () => {
               >
                 <div className="media-picker-thumbnail">
                   {item.mediaType === 'video' ? (
-                    <video
-                      src={`${baseURL}/share/${item.shareToken}/preview`}
-                      muted
-                      playsInline
-                    />
+                    <video src={`${baseURL}/share/${item.shareToken}/preview`} muted playsInline />
                   ) : (
                     <img
                       src={`${baseURL}/share/${item.shareToken}/preview`}
@@ -155,28 +135,20 @@ const MediaPickerModal: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <span className="media-picker-title">
-                  {item.title || 'Unbenannt'}
-                </span>
+                <span className="media-picker-title">{item.title || 'Unbenannt'}</span>
               </div>
             ))
           )}
         </div>
 
         {pagination.hasMore && (
-          <button
-            className="load-more-btn"
-            onClick={loadMore}
-            disabled={isLoading}
-          >
+          <button className="load-more-btn" onClick={loadMore} disabled={isLoading}>
             {isLoading ? 'Laden...' : 'Mehr laden'}
           </button>
         )}
 
         <footer className="media-picker-footer">
-          <span className="selection-count">
-            {selectedItems.length} ausgewählt
-          </span>
+          <span className="selection-count">{selectedItems.length} ausgewählt</span>
           <div className="footer-actions">
             <button className="btn-secondary" onClick={closePicker}>
               Abbrechen

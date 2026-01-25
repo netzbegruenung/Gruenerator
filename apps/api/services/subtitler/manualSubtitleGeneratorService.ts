@@ -50,9 +50,42 @@ interface PunctuationResult {
 }
 
 const BREAK_WORDS = new Set([
-  'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'einer', 'eines',
-  'von', 'zu', 'mit', 'bei', 'nach', 'vor', 'über', 'unter', 'durch', 'für', 'ohne', 'gegen',
-  'und', 'oder', 'aber', 'doch', 'jedoch', 'sowie', 'als', 'wie', 'wenn', 'weil', 'dass', 'da'
+  'der',
+  'die',
+  'das',
+  'den',
+  'dem',
+  'des',
+  'ein',
+  'eine',
+  'einen',
+  'einem',
+  'einer',
+  'eines',
+  'von',
+  'zu',
+  'mit',
+  'bei',
+  'nach',
+  'vor',
+  'über',
+  'unter',
+  'durch',
+  'für',
+  'ohne',
+  'gegen',
+  'und',
+  'oder',
+  'aber',
+  'doch',
+  'jedoch',
+  'sowie',
+  'als',
+  'wie',
+  'wenn',
+  'weil',
+  'dass',
+  'da',
 ]);
 
 const CONFIG = {
@@ -63,7 +96,7 @@ const CONFIG = {
   strongPunctuation: ['.', '!', '?'],
   weakPunctuation: [',', ';', ':'],
   maxWordsPerSegment: 4,
-  longWordThreshold: 15
+  longWordThreshold: 15,
 } as const;
 
 function detectPunctuation(word: string): PunctuationResult {
@@ -73,7 +106,7 @@ function detectPunctuation(word: string): PunctuationResult {
   return {
     hasStrong: CONFIG.strongPunctuation.includes(lastChar as any),
     hasWeak: CONFIG.weakPunctuation.includes(lastChar as any),
-    cleanWord
+    cleanWord,
   };
 }
 
@@ -95,8 +128,15 @@ function validateWordTimestamps(words: WordTimestamp[]): void {
 
   for (let i = 0; i < Math.min(3, words.length); i++) {
     const word = words[i];
-    if (!word || typeof word.word !== 'string' || typeof word.start !== 'number' || typeof word.end !== 'number') {
-      throw new Error(`Invalid word timestamp structure at index ${i}. Expected: {word: string, start: number, end: number}`);
+    if (
+      !word ||
+      typeof word.word !== 'string' ||
+      typeof word.start !== 'number' ||
+      typeof word.end !== 'number'
+    ) {
+      throw new Error(
+        `Invalid word timestamp structure at index ${i}. Expected: {word: string, start: number, end: number}`
+      );
     }
 
     if (word.start < 0 || word.end < 0 || word.start >= word.end) {
@@ -118,11 +158,11 @@ function findSmartBreakPoint(
   if (BREAK_WORDS.has(currentWordClean)) {
     return {
       shouldBreak: true,
-      reason: `smart break (after "${currentWordClean}")`
+      reason: `smart break (after "${currentWordClean}")`,
     };
   }
 
-  for (let i = 1; i <= lookaheadWords && (currentWordIndex + i) < words.length; i++) {
+  for (let i = 1; i <= lookaheadWords && currentWordIndex + i < words.length; i++) {
     const futureWord = words[currentWordIndex + i];
     const futureWordClean = futureWord.word.toLowerCase().replace(/[.!?,:;""''()[\]{}]/g, '');
     const futureDuration = futureWord.end - currentSegment.start;
@@ -130,7 +170,7 @@ function findSmartBreakPoint(
     if (BREAK_WORDS.has(futureWordClean) && futureDuration <= CONFIG.maxDuration) {
       return {
         shouldBreak: false,
-        reason: `continuing to break word "${futureWordClean}"`
+        reason: `continuing to break word "${futureWordClean}"`,
       };
     }
 
@@ -146,7 +186,7 @@ function findSmartBreakPoint(
     if (wordGap > 0.1) {
       return {
         shouldBreak: true,
-        reason: `smart break (natural pause: ${wordGap.toFixed(1)}s)`
+        reason: `smart break (natural pause: ${wordGap.toFixed(1)}s)`,
       };
     }
   }
@@ -154,13 +194,13 @@ function findSmartBreakPoint(
   if (currentDuration >= CONFIG.targetDuration * 0.85) {
     return {
       shouldBreak: true,
-      reason: 'smart break (target duration reached)'
+      reason: 'smart break (target duration reached)',
     };
   }
 
   return {
     shouldBreak: false,
-    reason: 'continuing (no natural break found yet)'
+    reason: 'continuing (no natural break found yet)',
   };
 }
 
@@ -194,35 +234,37 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
     words: [],
     wordIndices: [],
     start: words[0].start,
-    end: words[0].start
+    end: words[0].start,
   };
 
   log.debug(`Processing ${words.length} words`);
 
   let textPosition = 0;
-  const wordPositions: WordPosition[] = words.map((word, index) => {
-    const cleanWord = word.word.replace(/[.!?,:;""''()[\]{}]/g, '');
+  const wordPositions: WordPosition[] = words
+    .map((word, index) => {
+      const cleanWord = word.word.replace(/[.!?,:;""''()[\]{}]/g, '');
 
-    const wordStart = fullText.toLowerCase().indexOf(cleanWord.toLowerCase(), textPosition);
-    if (wordStart !== -1) {
-      let wordEnd = wordStart + cleanWord.length;
-      while (wordEnd < fullText.length && /[.!?,:;""''()[\]{}]/.test(fullText[wordEnd])) {
-        wordEnd++;
-      }
-      textPosition = wordEnd;
-      while (textPosition < fullText.length && /\s/.test(fullText[textPosition])) {
-        textPosition++;
-      }
+      const wordStart = fullText.toLowerCase().indexOf(cleanWord.toLowerCase(), textPosition);
+      if (wordStart !== -1) {
+        let wordEnd = wordStart + cleanWord.length;
+        while (wordEnd < fullText.length && /[.!?,:;""''()[\]{}]/.test(fullText[wordEnd])) {
+          wordEnd++;
+        }
+        textPosition = wordEnd;
+        while (textPosition < fullText.length && /\s/.test(fullText[textPosition])) {
+          textPosition++;
+        }
 
-      return {
-        wordIndex: index,
-        textStart: wordStart,
-        textEnd: wordEnd,
-        actualText: fullText.slice(wordStart, wordEnd)
-      };
-    }
-    return null;
-  }).filter((pos): pos is WordPosition => pos !== null);
+        return {
+          wordIndex: index,
+          textStart: wordStart,
+          textEnd: wordEnd,
+          actualText: fullText.slice(wordStart, wordEnd),
+        };
+      }
+      return null;
+    })
+    .filter((pos): pos is WordPosition => pos !== null);
 
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
@@ -232,8 +274,8 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
     if (isLongWord && currentSegment.words.length > 0) {
       const firstWordIndex = currentSegment.wordIndices[0];
       const lastWordIndex = currentSegment.wordIndices[currentSegment.wordIndices.length - 1];
-      const firstWordPos = wordPositions.find(pos => pos.wordIndex === firstWordIndex);
-      const lastWordPos = wordPositions.find(pos => pos.wordIndex === lastWordIndex);
+      const firstWordPos = wordPositions.find((pos) => pos.wordIndex === firstWordIndex);
+      const lastWordPos = wordPositions.find((pos) => pos.wordIndex === lastWordIndex);
 
       let segmentText = '';
       if (firstWordPos && lastWordPos) {
@@ -247,21 +289,21 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
         end: words[i - 1].end,
         text: segmentText,
         duration: words[i - 1].end - currentSegment.start,
-        reason: 'before long word'
+        reason: 'before long word',
       });
 
       currentSegment = {
         words: [],
         wordIndices: [],
         start: word.start,
-        end: word.start
+        end: word.start,
       };
     }
 
     currentSegment.words.push(word.word);
     currentSegment.wordIndices.push(i);
 
-    const nextWord = (i + 1 < words.length) ? words[i + 1] : null;
+    const nextWord = i + 1 < words.length ? words[i + 1] : null;
     const maxAllowedEnd = nextWord ? nextWord.start : word.end + 5.0;
 
     let potentialEnd = word.end;
@@ -277,7 +319,7 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
     let hasPunctuationAfter = false;
     let punctuationType = '';
 
-    const wordPos = wordPositions.find(pos => pos.wordIndex === i);
+    const wordPos = wordPositions.find((pos) => pos.wordIndex === i);
     if (wordPos) {
       if (/[.!?]$/.test(wordPos.actualText)) {
         hasPunctuationAfter = true;
@@ -308,7 +350,11 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
     } else if (hasPunctuationAfter && punctuationType === 'strong') {
       shouldEndSegment = true;
       reason = 'strong punctuation';
-    } else if (hasPunctuationAfter && punctuationType === 'weak' && potentialDuration >= CONFIG.minDurationPunctuation) {
+    } else if (
+      hasPunctuationAfter &&
+      punctuationType === 'weak' &&
+      potentialDuration >= CONFIG.minDurationPunctuation
+    ) {
       shouldEndSegment = true;
       reason = 'weak punctuation';
     } else if (potentialDuration >= CONFIG.targetDuration) {
@@ -333,8 +379,8 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
         const firstWordIndex = currentSegment.wordIndices[0];
         const lastWordIndex = currentSegment.wordIndices[currentSegment.wordIndices.length - 1];
 
-        const firstWordPos = wordPositions.find(pos => pos.wordIndex === firstWordIndex);
-        const lastWordPos = wordPositions.find(pos => pos.wordIndex === lastWordIndex);
+        const firstWordPos = wordPositions.find((pos) => pos.wordIndex === firstWordIndex);
+        const lastWordPos = wordPositions.find((pos) => pos.wordIndex === lastWordIndex);
 
         if (firstWordPos && lastWordPos) {
           segmentText = fullText.slice(firstWordPos.textStart, lastWordPos.textEnd).trim();
@@ -353,7 +399,7 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
         end: currentSegment.end,
         text: segmentText,
         duration,
-        reason
+        reason,
       });
 
       if (i < words.length - 1) {
@@ -362,7 +408,7 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
           words: [],
           wordIndices: [],
           start: nextWordObj.start,
-          end: nextWordObj.start
+          end: nextWordObj.start,
         };
       }
     }
@@ -374,7 +420,7 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
 
 function formatSegmentsToSubtitleText(segments: SubtitleSegment[]): string {
   return segments
-    .map(segment => {
+    .map((segment) => {
       const startTime = formatTime(segment.start);
       const endTime = formatTime(segment.end);
       return `${startTime} - ${endTime}\n${segment.text}`;
@@ -387,9 +433,10 @@ async function generateManualSubtitles(fullText: string, words: WordTimestamp[])
     const segments = groupWordsIntoSegments(words, fullText);
     const subtitleText = formatSegmentsToSubtitleText(segments);
 
-    const avgDuration = segments.length > 0
-      ? (segments.reduce((sum, s) => sum + s.duration, 0) / segments.length).toFixed(1)
-      : '0';
+    const avgDuration =
+      segments.length > 0
+        ? (segments.reduce((sum, s) => sum + s.duration, 0) / segments.length).toFixed(1)
+        : '0';
     log.info(`Generated ${segments.length} segments, avg duration: ${avgDuration}s`);
 
     return subtitleText;
@@ -408,7 +455,7 @@ export {
   formatSegmentsToSubtitleText,
   validateWordTimestamps,
   findSmartBreakPoint,
-  applyElasticTiming
+  applyElasticTiming,
 };
 
 export type { WordTimestamp, SubtitleSegment, PunctuationResult, SmartBreakResult };

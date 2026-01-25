@@ -4,15 +4,17 @@
  */
 
 import { useRef, useEffect, useCallback } from 'react';
+import { View, Text, TextInput, StyleSheet, Pressable, useColorScheme } from 'react-native';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  Pressable,
-  useColorScheme,
-} from 'react-native';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, moderateScale, verticalScale, scale } from '../../theme';
+  colors,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  moderateScale,
+  verticalScale,
+  scale,
+} from '../../theme';
 import { formatTime } from '@gruenerator/shared/subtitle-editor';
 import type { SubtitleSegment } from '@gruenerator/shared/subtitle-editor';
 
@@ -76,11 +78,7 @@ export function SubtitleSegmentItem({
     }
 
     if (isActive) {
-      return [
-        ...baseStyle,
-        styles.active,
-        { borderColor: colors.primary[200] },
-      ];
+      return [...baseStyle, styles.active, { borderColor: colors.primary[200] }];
     }
 
     return baseStyle;
@@ -92,10 +90,7 @@ export function SubtitleSegmentItem({
         {isEditing ? (
           <TextInput
             ref={inputRef}
-            style={[
-              styles.input,
-              { color: theme.text, backgroundColor: theme.background },
-            ]}
+            style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
             value={segment.text}
             onChangeText={onTextChange}
             onBlur={handleBlur}
@@ -107,11 +102,7 @@ export function SubtitleSegmentItem({
             selectTextOnFocus
           />
         ) : (
-          <Text
-            style={[styles.text, { color: theme.text }]}
-            numberOfLines={2}
-            ellipsizeMode="tail"
-          >
+          <Text style={[styles.text, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
             {segment.text}
           </Text>
         )}

@@ -52,11 +52,7 @@ const IndexPage = ({
           </div>
         )}
 
-        {!loading && !error && children && (
-          <div className="gallery-grid">
-            {children}
-          </div>
-        )}
+        {!loading && !error && children && <div className="gallery-grid">{children}</div>}
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { useOptimizedAuth } from './useAuth';
+
 import apiClient from '../components/utils/apiClient';
+
+import { useOptimizedAuth } from './useAuth';
 
 // Types for generation limit data
 interface GenerationLimitData {
@@ -64,7 +66,10 @@ export const useGenerationLimit = (resourceType: string) => {
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes (renamed from cacheTime in v5)
     retry: (failureCount, error) => {
       // Don't retry on client errors (4xx)
-      if (error instanceof Error && (error.message.includes('400') || error.message.includes('401'))) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('400') || error.message.includes('401'))
+      ) {
         return false;
       }
       // Retry up to 3 times on network/server errors

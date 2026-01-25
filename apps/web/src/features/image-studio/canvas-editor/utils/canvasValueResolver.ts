@@ -8,12 +8,12 @@ import type { LayoutResult } from '../configs/types';
  * This utility resolves both cases uniformly.
  */
 export function resolveValue<T, TState extends Record<string, unknown>>(
-    value: T | ((state: TState, layout: LayoutResult) => T),
-    state: TState,
-    layout: LayoutResult
+  value: T | ((state: TState, layout: LayoutResult) => T),
+  state: TState,
+  layout: LayoutResult
 ): T {
-    if (typeof value === 'function') {
-        return (value as (state: TState, layout: LayoutResult) => T)(state, layout);
-    }
-    return value;
+  if (typeof value === 'function') {
+    return (value as (state: TState, layout: LayoutResult) => T)(state, layout);
+  }
+  return value;
 }

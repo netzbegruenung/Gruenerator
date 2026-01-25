@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { HiCheck, HiRefresh, HiStar } from 'react-icons/hi';
-import useImageStudioStore from '../../../stores/imageStudioStore';
-import { usePreloadStore } from '../hooks/usePreloadStore';
-import { useImageSourceStore } from '../hooks/useImageSourceStore';
-import { StockImage } from '../services/imageSourceService';
+
 import UnsplashAttribution from '../../../components/common/UnsplashAttribution';
 import apiClient from '../../../components/utils/apiClient';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import { useImageSourceStore } from '../hooks/useImageSourceStore';
+import { usePreloadStore } from '../hooks/usePreloadStore';
+import { type StockImage } from '../services/imageSourceService';
 import './StockImagesGrid.css';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -17,7 +18,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   social: 'Gesellschaft',
   nature: 'Natur',
   politics: 'Politik',
-  education: 'Bildung'
+  education: 'Bildung',
 };
 
 interface StockImagesGridProps {
@@ -35,7 +36,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     selectedStockImage,
     fetchStockImages,
     selectStockImage,
-    setStockImageCategory
+    setStockImageCategory,
   } = useImageSourceStore();
 
   const [isAiSuggesting, setIsAiSuggesting] = useState(false);
@@ -52,28 +53,34 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
 
   const [localCategory, setLocalCategory] = useState('all');
 
-  const handleCategoryChange = useCallback((category: string) => {
-    setLocalCategory(category);
-    // Only call store for real categories (not 'empfohlen' which is local-only)
-    if (category !== 'empfohlen') {
-      setStockImageCategory(category === 'all' ? null : category);
-    }
-  }, [setStockImageCategory]);
+  const handleCategoryChange = useCallback(
+    (category: string) => {
+      setLocalCategory(category);
+      // Only call store for real categories (not 'empfohlen' which is local-only)
+      if (category !== 'empfohlen') {
+        setStockImageCategory(category === 'all' ? null : category);
+      }
+    },
+    [setStockImageCategory]
+  );
 
-  const handleImageClick = useCallback(async (image: StockImage) => {
-    try {
-      const file = await selectStockImage(image);
-      if (file) {
-        setUploadedImage(file);
-        setFile(file);
+  const handleImageClick = useCallback(
+    async (image: StockImage) => {
+      try {
+        const file = await selectStockImage(image);
+        if (file) {
+          setUploadedImage(file);
+          setFile(file);
+        }
+        if (onImageSelect) {
+          onImageSelect(image);
+        }
+      } catch (error) {
+        console.error('Failed to select stock image:', error);
       }
-      if (onImageSelect) {
-        onImageSelect(image);
-      }
-    } catch (error) {
-      console.error('Failed to select stock image:', error);
-    }
-  }, [selectStockImage, onImageSelect, setUploadedImage, setFile]);
+    },
+    [selectStockImage, onImageSelect, setUploadedImage, setFile]
+  );
 
   const handleAiSuggest = useCallback(async () => {
     const textForSuggestion = thema || line1 || '';
@@ -84,7 +91,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     try {
       const response = await apiClient.post('/image-picker/select', {
         text: textForSuggestion,
-        type: 'sharepic'
+        type: 'sharepic',
       });
 
       if (response.data.success) {
@@ -93,7 +100,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
         setRecommendedCategory(suggestion.selectedImage.category);
 
         const matchingImage = stockImages.find(
-          img => img.filename === suggestion.selectedImage.filename
+          (img) => img.filename === suggestion.selectedImage.filename
         );
 
         if (matchingImage) {
@@ -111,7 +118,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
   useEffect(() => {
     if (preloadedImageResult && !recommendedImage && stockImages.length > 0) {
       const matchingImage = stockImages.find(
-        img => img.filename === preloadedImageResult.image?.filename
+        (img) => img.filename === preloadedImageResult.image?.filename
       );
       if (matchingImage) {
         setRecommendedImage(matchingImage);
@@ -149,20 +156,15 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     if (currentCategory === 'all') {
       if (recommendedCategory) {
         const categoryImages = stockImages.filter(
-          img => img.category === recommendedCategory && img.filename !== recommendedImage?.filename
+          (img) =>
+            img.category === recommendedCategory && img.filename !== recommendedImage?.filename
         );
-        const otherImages = stockImages.filter(
-          img => img.category !== recommendedCategory
-        );
-        return [
-          ...(recommendedImage ? [recommendedImage] : []),
-          ...categoryImages,
-          ...otherImages
-        ];
+        const otherImages = stockImages.filter((img) => img.category !== recommendedCategory);
+        return [...(recommendedImage ? [recommendedImage] : []), ...categoryImages, ...otherImages];
       }
       return stockImages;
     }
-    return stockImages.filter(img => img.category === currentCategory);
+    return stockImages.filter((img) => img.category === currentCategory);
   }, [currentCategory, stockImages, recommendedImage, recommendedCategory]);
 
   if (isLoadingStockImages && stockImages.length === 0) {
@@ -178,11 +180,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     return (
       <div className="stock-images-grid__error">
         <p>{stockImagesError}</p>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => fetchStockImages()}
-        >
+        <button type="button" className="btn-secondary" onClick={() => fetchStockImages()}>
           <HiRefresh /> Erneut versuchen
         </button>
       </div>
@@ -192,7 +190,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
   return (
     <div className="stock-images-grid">
       <div className="stock-images-grid__filters">
-        {categories.map(category => (
+        {categories.map((category) => (
           <button
             key={category}
             type="button"

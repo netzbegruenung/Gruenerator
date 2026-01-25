@@ -1,5 +1,6 @@
-import { JSX, useRef } from 'react';
+import { type JSX, useRef } from 'react';
 import { SiCanva } from 'react-icons/si';
+
 import CopyButton from './CopyButton';
 import '../../assets/styles/components/common/canva-template-modal.css';
 
@@ -16,27 +17,31 @@ interface CanvaTemplateModalProps {
     line2?: string;
     line3?: string;
     line4?: string;
-    line5?: string
+    line5?: string;
   };
   onClose: () => void;
 }
 
-const CanvaTemplateModal = ({ url,
+const CanvaTemplateModal = ({
+  url,
   previewImage,
   title = 'In Canva bearbeiten',
   sharepicLines,
-  onClose }: CanvaTemplateModalProps): JSX.Element => {
+  onClose,
+}: CanvaTemplateModalProps): JSX.Element => {
   const modalRef = useRef(null);
 
   const formatLinesForCopy = (lines: CanvaTemplateModalProps['sharepicLines']) => {
     if (!lines) return '';
     return [1, 2, 3, 4, 5]
-      .map(n => (lines as Record<string, string | undefined>)[`line${n}`])
+      .map((n) => (lines as Record<string, string | undefined>)[`line${n}`])
       .filter(Boolean)
       .join('\n');
   };
 
-  const hasLines = sharepicLines && [1, 2, 3, 4, 5].some(n => (sharepicLines as Record<string, string | undefined>)[`line${n}`]);
+  const hasLines =
+    sharepicLines &&
+    [1, 2, 3, 4, 5].some((n) => (sharepicLines as Record<string, string | undefined>)[`line${n}`]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -50,12 +55,12 @@ const CanvaTemplateModal = ({ url,
 
   return (
     <div className="canva-template-modal-overlay" onClick={handleOverlayClick}>
-      <div className="canva-template-modal" ref={modalRef} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <button
-          className="canva-template-modal-close"
-          onClick={onClose}
-          aria-label="Schliessen"
-        >
+      <div
+        className="canva-template-modal"
+        ref={modalRef}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      >
+        <button className="canva-template-modal-close" onClick={onClose} aria-label="Schliessen">
           &times;
         </button>
 
@@ -78,16 +83,13 @@ const CanvaTemplateModal = ({ url,
 
             <div className="canva-template-description">
               <p>
-                Bearbeite diese Vorlage direkt in Canva. Du kannst Texte, Farben und
-                Elemente nach deinen Wünschen anpassen.
+                Bearbeite diese Vorlage direkt in Canva. Du kannst Texte, Farben und Elemente nach
+                deinen Wünschen anpassen.
               </p>
             </div>
 
             <div className="canva-template-actions">
-              <button
-                className="canva-template-open-button"
-                onClick={handleOpenCanva}
-              >
+              <button className="canva-template-open-button" onClick={handleOpenCanva}>
                 <SiCanva className="canva-template-button-icon" />
                 In Canva öffnen
               </button>

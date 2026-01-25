@@ -10,21 +10,18 @@ export default function WebViewEditorScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  const {
-    type,
-    formData,
-    modifications,
-    uploadedImageBase64,
-    setGeneratedImage,
-    setLoading,
-  } = useImageStudioStore();
+  const { type, formData, modifications, uploadedImageBase64, setGeneratedImage, setLoading } =
+    useImageStudioStore();
 
-  const handleSave = useCallback((base64: string) => {
-    // Update the generated image in the store
-    setGeneratedImage(base64);
-    // Go back to the result screen
-    router.back();
-  }, [setGeneratedImage]);
+  const handleSave = useCallback(
+    (base64: string) => {
+      // Update the generated image in the store
+      setGeneratedImage(base64);
+      // Go back to the result screen
+      router.back();
+    },
+    [setGeneratedImage]
+  );
 
   const handleCancel = useCallback(() => {
     router.back();
@@ -42,11 +39,7 @@ export default function WebViewEditorScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar hidden />
-      <WebViewEditor
-        initialData={initialData}
-        onSave={handleSave}
-        onCancel={handleCancel}
-      />
+      <WebViewEditor initialData={initialData} onSave={handleSave} onCancel={handleCancel} />
     </View>
   );
 }

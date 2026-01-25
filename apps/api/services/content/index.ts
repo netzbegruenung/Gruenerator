@@ -13,7 +13,7 @@ export {
   detectMarkdownStructure,
   extractHeaderLevel,
   extractPageNumber,
-  detectGermanPatterns
+  detectGermanPatterns,
 } from './ContentDetector.js';
 
 export {
@@ -21,7 +21,7 @@ export {
   extractUrlsFromContent,
   isValidUrl,
   getUrlDomain,
-  filterNewUrls
+  filterNewUrls,
 } from './UrlDetector.js';
 
 // Type exports
@@ -31,7 +31,7 @@ export type {
   MarkdownStructure,
   GermanPatterns,
   UrlDetectionResult,
-  AttachmentWithUrl
+  AttachmentWithUrl,
 } from './types.js';
 
 // Constant exports

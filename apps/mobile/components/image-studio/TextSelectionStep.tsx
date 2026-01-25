@@ -13,7 +13,11 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { ImageStudioTemplateType, NormalizedTextResult, ImageStudioFormData } from '@gruenerator/shared/image-studio';
+import type {
+  ImageStudioTemplateType,
+  NormalizedTextResult,
+  ImageStudioFormData,
+} from '@gruenerator/shared/image-studio';
 import { getTypeConfig, getFieldConfig } from '@gruenerator/shared/image-studio';
 import { Button } from '../common';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
@@ -60,7 +64,11 @@ export function TextSelectionStep({
     }, 100);
   };
 
-  const renderTextPreview = (fields: Record<string, string | number>, isSelected: boolean, index: number) => {
+  const renderTextPreview = (
+    fields: Record<string, string | number>,
+    isSelected: boolean,
+    index: number
+  ) => {
     const previewFields = fieldConfig?.previewFields || [];
 
     return (
@@ -73,8 +81,8 @@ export function TextSelectionStep({
             borderColor: isSelected
               ? colors.primary[600]
               : isDark
-              ? colors.grey[800]
-              : colors.grey[200],
+                ? colors.grey[800]
+                : colors.grey[200],
             borderWidth: isSelected ? 2 : 1,
           },
         ]}

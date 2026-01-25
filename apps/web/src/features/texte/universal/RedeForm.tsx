@@ -1,5 +1,6 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { Control, useForm } from 'react-hook-form';
+import { type Control, useForm } from 'react-hook-form';
+
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
 interface RedeFormProps {
@@ -16,20 +17,16 @@ interface RedeFormRef {
 }
 
 const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref) => {
-  const {
-    control,
-    getValues,
-    reset
-  } = useForm({
+  const { control, getValues, reset } = useForm({
     defaultValues: {
       rolle: '',
-      thema: ''
-    }
+      thema: '',
+    },
   });
 
   useImperativeHandle(ref, () => ({
     getFormData: () => getValues(),
-    resetForm: (data) => reset(data)
+    resetForm: (data) => reset(data),
   }));
 
   return (

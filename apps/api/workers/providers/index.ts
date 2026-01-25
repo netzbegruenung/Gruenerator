@@ -12,7 +12,11 @@ interface ProviderModule {
 
 const adapters: Record<string, ProviderModule> = { claude, mistral, ionos, litellm, telekom };
 
-async function executeProvider(providerName: ProviderName | string, requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
+async function executeProvider(
+  providerName: ProviderName | string,
+  requestId: string,
+  data: AIRequestData
+): Promise<AIWorkerResult> {
   const adapter = adapters[providerName];
   if (!adapter || typeof adapter.execute !== 'function') {
     throw new Error(`Unknown provider: ${providerName}`);

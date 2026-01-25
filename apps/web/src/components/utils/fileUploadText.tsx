@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { FiUpload, FiFile } from 'react-icons/fi';
+
 import useTextFileUpload from '../hooks/useTextFileUpload';
 
 interface FileUploadTextProps {
@@ -40,7 +41,7 @@ const FileUpload_Text = ({ onFileSelect, allowedTypes, maxSize }: FileUploadText
   console.log('FileUpload_Text wird gerendert mit Zuständen:', {
     fileName,
     error,
-    dragging
+    dragging,
   });
 
   return (
@@ -54,7 +55,9 @@ const FileUpload_Text = ({ onFileSelect, allowedTypes, maxSize }: FileUploadText
       <input
         type="file"
         ref={fileInputRef}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileChange(e.target.files?.[0] || null)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          handleFileChange(e.target.files?.[0] || null)
+        }
         accept={allowedTypes.join(',')}
         style={{ display: 'none' }}
       />

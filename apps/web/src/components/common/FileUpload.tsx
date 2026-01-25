@@ -1,4 +1,4 @@
-import { JSX, useRef } from 'react';
+import { type JSX, useRef } from 'react';
 import { HiX } from 'react-icons/hi';
 
 interface FileUploadProps {
@@ -11,7 +11,14 @@ interface FileUploadProps {
   tabIndex?: number;
 }
 
-const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = "Datei auswählen" }: FileUploadProps): JSX.Element => {
+const FileUpload = ({
+  handleChange,
+  error,
+  allowedTypes,
+  loading,
+  file,
+  label = 'Datei auswählen',
+}: FileUploadProps): JSX.Element => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,11 +35,7 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = 
 
   return (
     <div className="form-field-wrapper">
-      {label && (
-        <label className="form-field-label">
-          {label}
-        </label>
-      )}
+      {label && <label className="form-field-label">{label}</label>}
       <input
         type="file"
         onChange={onFileSelect}
@@ -68,8 +71,10 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = 
                 <HiX />
               </span>
             </>
+          ) : loading ? (
+            'Laden...'
           ) : (
-            loading ? 'Laden...' : 'Datei auswählen'
+            'Datei auswählen'
           )}
         </button>
       </div>

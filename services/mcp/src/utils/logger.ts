@@ -8,7 +8,7 @@ const LOG_LEVELS = {
   DEBUG: 0,
   INFO: 1,
   WARN: 2,
-  ERROR: 3
+  ERROR: 3,
 };
 
 // Current log level (can be set via environment)
@@ -26,7 +26,7 @@ const stats = {
   startTime: Date.now(),
   lastRequestTime: null,
   requestsByCollection: {},
-  requestsBySearchMode: {}
+  requestsBySearchMode: {},
 };
 
 /**
@@ -41,7 +41,12 @@ function getTimestamp() {
  */
 function _debug(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.DEBUG) {
-    const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'DEBUG', category, message };
+    const log: Record<string, unknown> = {
+      timestamp: getTimestamp(),
+      level: 'DEBUG',
+      category,
+      message,
+    };
     if (data) log.data = data;
     console.error(JSON.stringify(log));
   }
@@ -52,7 +57,12 @@ function _debug(category: string, message: string, data: unknown = null) {
  */
 export function info(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.INFO) {
-    const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'INFO', category, message };
+    const log: Record<string, unknown> = {
+      timestamp: getTimestamp(),
+      level: 'INFO',
+      category,
+      message,
+    };
     if (data) log.data = data;
     console.error(JSON.stringify(log));
   }
@@ -63,7 +73,12 @@ export function info(category: string, message: string, data: unknown = null) {
  */
 function _warn(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.WARN) {
-    const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'WARN', category, message };
+    const log: Record<string, unknown> = {
+      timestamp: getTimestamp(),
+      level: 'WARN',
+      category,
+      message,
+    };
     if (data) log.data = data;
     console.error(JSON.stringify(log));
   }
@@ -74,7 +89,12 @@ function _warn(category: string, message: string, data: unknown = null) {
  */
 export function error(category: string, message: string, data: unknown = null) {
   if (currentLevel <= LOG_LEVELS.ERROR) {
-    const log: Record<string, unknown> = { timestamp: getTimestamp(), level: 'ERROR', category, message };
+    const log: Record<string, unknown> = {
+      timestamp: getTimestamp(),
+      level: 'ERROR',
+      category,
+      message,
+    };
     if (data) log.data = data;
     console.error(JSON.stringify(log));
     stats.errors++;
@@ -84,7 +104,14 @@ export function error(category: string, message: string, data: unknown = null) {
 /**
  * Log a search request
  */
-export function logSearch(query, collection, searchMode, resultCount, responseTimeMs, cached = false) {
+export function logSearch(
+  query,
+  collection,
+  searchMode,
+  resultCount,
+  responseTimeMs,
+  cached = false
+) {
   stats.totalRequests++;
   stats.searchRequests++;
   stats.lastRequestTime = Date.now();
@@ -100,7 +127,8 @@ export function logSearch(query, collection, searchMode, resultCount, responseTi
   if (stats.responseTimes.length > 100) {
     stats.responseTimes.shift();
   }
-  stats.avgResponseTimeMs = stats.responseTimes.reduce((a, b) => a + b, 0) / stats.responseTimes.length;
+  stats.avgResponseTimeMs =
+    stats.responseTimes.reduce((a, b) => a + b, 0) / stats.responseTimes.length;
 
   // Track by collection
   stats.requestsByCollection[collection] = (stats.requestsByCollection[collection] || 0) + 1;
@@ -108,7 +136,10 @@ export function logSearch(query, collection, searchMode, resultCount, responseTi
   // Track by search mode
   stats.requestsBySearchMode[searchMode] = (stats.requestsBySearchMode[searchMode] || 0) + 1;
 
-  info('Search', `Query: "${query.substring(0, 50)}..." | Collection: ${collection} | Mode: ${searchMode} | Results: ${resultCount} | Time: ${responseTimeMs}ms | Cached: ${cached}`);
+  info(
+    'Search',
+    `Query: "${query.substring(0, 50)}..." | Collection: ${collection} | Mode: ${searchMode} | Results: ${resultCount} | Time: ${responseTimeMs}ms | Cached: ${cached}`
+  );
 }
 
 /**
@@ -122,24 +153,25 @@ export function getStats() {
     uptime: {
       ms: uptimeMs,
       hours: parseFloat(uptimeHours),
-      startedAt: new Date(stats.startTime).toISOString()
+      startedAt: new Date(stats.startTime).toISOString(),
     },
     requests: {
       total: stats.totalRequests,
       searches: stats.searchRequests,
       errors: stats.errors,
-      lastRequestAt: stats.lastRequestTime ? new Date(stats.lastRequestTime).toISOString() : null
+      lastRequestAt: stats.lastRequestTime ? new Date(stats.lastRequestTime).toISOString() : null,
     },
     performance: {
       avgResponseTimeMs: Math.round(stats.avgResponseTimeMs),
-      cacheHitRate: stats.totalRequests > 0
-        ? `${((stats.cacheHits / stats.totalRequests) * 100).toFixed(1)}%`
-        : '0%'
+      cacheHitRate:
+        stats.totalRequests > 0
+          ? `${((stats.cacheHits / stats.totalRequests) * 100).toFixed(1)}%`
+          : '0%',
     },
     breakdown: {
       byCollection: stats.requestsByCollection,
-      bySearchMode: stats.requestsBySearchMode
-    }
+      bySearchMode: stats.requestsBySearchMode,
+    },
   };
 }
 

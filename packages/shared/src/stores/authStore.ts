@@ -31,7 +31,8 @@ const createAuthStoreSlice: StateCreator<AuthStore> = (set, get) => ({
       isAuthenticated: true,
       isLoading: false,
       error: null,
-      selectedMessageColor: user.user_metadata?.chat_color || DEFAULT_AUTH_STATE.selectedMessageColor,
+      selectedMessageColor:
+        user.user_metadata?.chat_color || DEFAULT_AUTH_STATE.selectedMessageColor,
       igelModus: user.igel_modus || false,
       locale: user.locale || 'de-DE',
       ...rest,
@@ -130,6 +131,24 @@ const createAuthStoreSlice: StateCreator<AuthStore> = (set, get) => ({
 export const useAuthStore = create<AuthStore>()(createAuthStoreSlice);
 
 export const getAuthState = (): AuthState => {
-  const { user, isAuthenticated, isLoading, error, isLoggingOut, selectedMessageColor, igelModus, locale } = useAuthStore.getState();
-  return { user, isAuthenticated, isLoading, error, isLoggingOut, selectedMessageColor, igelModus, locale };
+  const {
+    user,
+    isAuthenticated,
+    isLoading,
+    error,
+    isLoggingOut,
+    selectedMessageColor,
+    igelModus,
+    locale,
+  } = useAuthStore.getState();
+  return {
+    user,
+    isAuthenticated,
+    isLoading,
+    error,
+    isLoggingOut,
+    selectedMessageColor,
+    igelModus,
+    locale,
+  };
 };

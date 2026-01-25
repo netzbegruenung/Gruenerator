@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDesktopTabsStore, Tab as TabType } from '../../../stores/desktopTabsStore';
+
+import { useDesktopTabsStore, type Tab as TabType } from '../../../stores/desktopTabsStore';
 
 interface TabProps {
   tab: TabType;
@@ -29,22 +30,22 @@ const Tab: React.FC<TabProps> = ({
 
   const handleClick = () => {
     setActiveTab(tab.id);
-    navigate(tab.route);
+    void navigate(tab.route);
   };
 
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (tabs.length > 1) {
-      const currentIndex = tabs.findIndex(t => t.id === tab.id);
+      const currentIndex = tabs.findIndex((t) => t.id === tab.id);
       const wasActive = isActive;
 
       closeTab(tab.id);
 
       if (wasActive) {
-        const remainingTabs = tabs.filter(t => t.id !== tab.id);
+        const remainingTabs = tabs.filter((t) => t.id !== tab.id);
         const newActiveIndex = Math.min(currentIndex, remainingTabs.length - 1);
         if (remainingTabs[newActiveIndex]) {
-          navigate(remainingTabs[newActiveIndex].route);
+          void navigate(remainingTabs[newActiveIndex].route);
         }
       }
     }
@@ -68,7 +69,10 @@ const Tab: React.FC<TabProps> = ({
       onClick={handleClick}
       onMouseDown={handleMiddleClick}
       onDragStart={(e: React.DragEvent) => onDragStart(e, tab.id, index)}
-      onDragOver={(e) => { e.preventDefault(); onDragOver(e, index); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOver(e, index);
+      }}
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}
     >
@@ -87,8 +91,24 @@ const Tab: React.FC<TabProps> = ({
           aria-label={`Tab "${tab.title}" schließen`}
         >
           <svg width="10" height="10" viewBox="0 0 10 10">
-            <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <line
+              x1="1"
+              y1="1"
+              x2="9"
+              y2="9"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+            <line
+              x1="9"
+              y1="1"
+              x2="1"
+              y2="9"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
           </svg>
         </button>
       )}

@@ -19,11 +19,7 @@ interface AxiosErrorLike {
 }
 
 function isAxiosError(error: unknown): error is AxiosErrorLike {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    ('response' in error || 'code' in error)
-  );
+  return typeof error === 'object' && error !== null && ('response' in error || 'code' in error);
 }
 
 /**
@@ -42,9 +38,7 @@ function isAxiosError(error: unknown): error is AxiosErrorLike {
 export function parseGeneratorError(error: unknown): GeneratorError {
   if (isAxiosError(error)) {
     const status = error.response?.status;
-    const serverMessage =
-      error.response?.data?.error ||
-      error.response?.data?.message;
+    const serverMessage = error.response?.data?.error || error.response?.data?.message;
 
     // Server-provided message takes priority
     if (serverMessage && typeof serverMessage === 'string') {

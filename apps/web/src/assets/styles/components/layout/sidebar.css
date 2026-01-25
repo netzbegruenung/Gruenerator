@@ -438,8 +438,8 @@
 
 /* Desktop App Sidebar Adjustments */
 .sidebar--desktop {
-  top: 48px;
-  height: calc(100vh - 48px);
+  top: var(--titlebar-height);
+  height: calc(100vh - var(--titlebar-height));
   background-color: var(--bar-background);
   width: 64px;
 }

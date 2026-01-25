@@ -13,7 +13,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import { useProjectsStore, formatDuration, formatDate, type Project, getThumbnailUrl } from '@gruenerator/shared';
+import {
+  useProjectsStore,
+  formatDuration,
+  formatDate,
+  type Project,
+  getThumbnailUrl,
+} from '@gruenerator/shared';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 import { secureStorage } from '../../services/storage';
@@ -25,7 +31,12 @@ interface ProjectListProps {
   onNewReel: () => void;
 }
 
-export function ProjectList({ onSelectProject, onEditProject, onShareProject, onNewReel }: ProjectListProps) {
+export function ProjectList({
+  onSelectProject,
+  onEditProject,
+  onShareProject,
+  onNewReel,
+}: ProjectListProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { showActionSheetWithOptions } = useActionSheet();
@@ -59,11 +70,9 @@ export function ProjectList({ onSelectProject, onEditProject, onShareProject, on
     setRefreshing(false);
   }, [fetchProjects]);
 
-  const confirmDelete = useCallback((project: Project) => {
-    Alert.alert(
-      'Projekt löschen',
-      `Möchtest du "${project.title}" wirklich löschen?`,
-      [
+  const confirmDelete = useCallback(
+    (project: Project) => {
+      Alert.alert('Projekt löschen', `Möchtest du "${project.title}" wirklich löschen?`, [
         { text: 'Abbrechen', style: 'cancel' },
         {
           text: 'Löschen',
@@ -76,97 +85,104 @@ export function ProjectList({ onSelectProject, onEditProject, onShareProject, on
             }
           },
         },
-      ]
-    );
-  }, [deleteProject]);
+      ]);
+    },
+    [deleteProject]
+  );
 
-  const showProjectOptions = useCallback((project: Project) => {
-    const options = ['Bearbeiten', 'Teilen', 'Löschen', 'Abbrechen'];
-    const destructiveButtonIndex = 2;
-    const cancelButtonIndex = 3;
+  const showProjectOptions = useCallback(
+    (project: Project) => {
+      const options = ['Bearbeiten', 'Teilen', 'Löschen', 'Abbrechen'];
+      const destructiveButtonIndex = 2;
+      const cancelButtonIndex = 3;
 
-    showActionSheetWithOptions(
-      {
-        options,
-        cancelButtonIndex,
-        destructiveButtonIndex,
-        title: project.title,
-      },
-      (selectedIndex) => {
-        switch (selectedIndex) {
-          case 0:
-            if (onEditProject) {
-              onEditProject(project);
-            } else {
-              onSelectProject(project);
-            }
-            break;
-          case 1:
-            onShareProject?.(project);
-            break;
-          case 2:
-            confirmDelete(project);
-            break;
+      showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex,
+          destructiveButtonIndex,
+          title: project.title,
+        },
+        (selectedIndex) => {
+          switch (selectedIndex) {
+            case 0:
+              if (onEditProject) {
+                onEditProject(project);
+              } else {
+                onSelectProject(project);
+              }
+              break;
+            case 1:
+              onShareProject?.(project);
+              break;
+            case 2:
+              confirmDelete(project);
+              break;
+          }
         }
-      }
-    );
-  }, [showActionSheetWithOptions, onSelectProject, onEditProject, onShareProject, confirmDelete]);
+      );
+    },
+    [showActionSheetWithOptions, onSelectProject, onEditProject, onShareProject, confirmDelete]
+  );
 
-  const renderProject = useCallback(({ item }: { item: Project }) => {
-    const thumbnailUrl = item.thumbnail_path ? getThumbnailUrl(item.id) : null;
-    const duration = item.video_metadata?.duration;
+  const renderProject = useCallback(
+    ({ item }: { item: Project }) => {
+      const thumbnailUrl = item.thumbnail_path ? getThumbnailUrl(item.id) : null;
+      const duration = item.video_metadata?.duration;
 
-    return (
-      <TouchableOpacity
-        style={[styles.projectCard, { backgroundColor: theme.card }]}
-        onPress={() => onSelectProject(item)}
-        onLongPress={() => showProjectOptions(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.thumbnailContainer}>
-          {thumbnailUrl && authToken ? (
-            <Image
-              source={{
-                uri: thumbnailUrl,
-                headers: { Authorization: `Bearer ${authToken}` },
-              }}
-              style={styles.thumbnail}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.thumbnailPlaceholder, { backgroundColor: theme.border }]}>
-              <Ionicons name="videocam" size={32} color={theme.textSecondary} />
-            </View>
-          )}
-          {duration && (
-            <View style={styles.durationBadge}>
-              <Text style={styles.durationText}>{formatDuration(duration)}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.projectInfo}>
-          <Text style={[styles.projectTitle, { color: theme.text }]} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <View style={styles.projectMeta}>
-            <Ionicons name="time-outline" size={12} color={theme.textSecondary} />
-            <Text style={[styles.projectDate, { color: theme.textSecondary }]}>
-              {formatDate(item.last_edited_at)}
-            </Text>
-          </View>
-        </View>
-
+      return (
         <TouchableOpacity
-          style={styles.moreButton}
-          onPress={() => showProjectOptions(item)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={[styles.projectCard, { backgroundColor: theme.card }]}
+          onPress={() => onSelectProject(item)}
+          onLongPress={() => showProjectOptions(item)}
+          activeOpacity={0.7}
         >
-          <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
+          <View style={styles.thumbnailContainer}>
+            {thumbnailUrl && authToken ? (
+              <Image
+                source={{
+                  uri: thumbnailUrl,
+                  headers: { Authorization: `Bearer ${authToken}` },
+                }}
+                style={styles.thumbnail}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.thumbnailPlaceholder, { backgroundColor: theme.border }]}>
+                <Ionicons name="videocam" size={32} color={theme.textSecondary} />
+              </View>
+            )}
+            {duration && (
+              <View style={styles.durationBadge}>
+                <Text style={styles.durationText}>{formatDuration(duration)}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.projectInfo}>
+            <Text style={[styles.projectTitle, { color: theme.text }]} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <View style={styles.projectMeta}>
+              <Ionicons name="time-outline" size={12} color={theme.textSecondary} />
+              <Text style={[styles.projectDate, { color: theme.textSecondary }]}>
+                {formatDate(item.last_edited_at)}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.moreButton}
+            onPress={() => showProjectOptions(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
         </TouchableOpacity>
-      </TouchableOpacity>
-    );
-  }, [theme, onSelectProject, showProjectOptions, authToken]);
+      );
+    },
+    [theme, onSelectProject, showProjectOptions, authToken]
+  );
 
   const renderEmpty = () => {
     if (isLoading && !initialFetchComplete) {
@@ -180,9 +196,7 @@ export function ProjectList({ onSelectProject, onEditProject, onShareProject, on
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="videocam-outline" size={64} color={theme.textSecondary} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>
-          Noch keine Projekte
-        </Text>
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>Noch keine Projekte</Text>
         <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
           Erstelle dein erstes Reel mit automatischen Untertiteln
         </Text>

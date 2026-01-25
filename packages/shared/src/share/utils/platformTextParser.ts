@@ -15,7 +15,7 @@ export function normalizePlatformId(platformName: string): string {
   const name = platformName.toLowerCase().trim();
 
   for (const [id, aliases] of Object.entries(PLATFORM_MAPPINGS)) {
-    if (aliases.some(alias => name.includes(alias))) {
+    if (aliases.some((alias) => name.includes(alias))) {
       return id;
     }
   }
@@ -46,17 +46,29 @@ export function parsePlatformSections(
   }
 
   const MAX_CONTENT_LENGTH = 100000;
-  const safeContent = content.length > MAX_CONTENT_LENGTH ? content.slice(0, MAX_CONTENT_LENGTH) : content;
+  const safeContent =
+    content.length > MAX_CONTENT_LENGTH ? content.slice(0, MAX_CONTENT_LENGTH) : content;
 
   const sections: PlatformSections = {};
-  const platformNames = ['Instagram', 'Facebook', 'Twitter', 'LinkedIn', 'Pressemitteilung', 'X', 'Mastodon', 'Bsky', 'Bluesky'];
-  const headerRegex = /^##\s*(Instagram|Facebook|Twitter|LinkedIn|Pressemitteilung|X,?\s*Mastodon|Bsky|Bluesky)[^\n]*/gim;
+  const platformNames = [
+    'Instagram',
+    'Facebook',
+    'Twitter',
+    'LinkedIn',
+    'Pressemitteilung',
+    'X',
+    'Mastodon',
+    'Bsky',
+    'Bluesky',
+  ];
+  const headerRegex =
+    /^##\s*(Instagram|Facebook|Twitter|LinkedIn|Pressemitteilung|X,?\s*Mastodon|Bsky|Bluesky)[^\n]*/gim;
 
   const headers: { index: number; platform: string }[] = [];
   let headerMatch;
   while ((headerMatch = headerRegex.exec(safeContent)) !== null) {
     const platformName = headerMatch[1];
-    if (platformNames.some(p => platformName.toLowerCase().includes(p.toLowerCase()))) {
+    if (platformNames.some((p) => platformName.toLowerCase().includes(p.toLowerCase()))) {
       headers.push({ index: headerMatch.index, platform: platformName });
     }
   }

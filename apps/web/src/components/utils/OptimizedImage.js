@@ -1,5 +1,5 @@
-import React from 'react';
 import PropTypes from 'prop-types';
+import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
@@ -40,7 +40,7 @@ OptimizedImage.propTypes = {
   effect: PropTypes.oneOf(['blur', 'black-and-white', 'opacity']),
   placeholderSrc: PropTypes.string,
   onError: PropTypes.func,
-  onLoad: PropTypes.func
+  onLoad: PropTypes.func,
 };
 
-export default OptimizedImage; 
+export default OptimizedImage;

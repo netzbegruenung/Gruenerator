@@ -1,6 +1,7 @@
+import * as Sentry from '@sentry/browser';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import * as Sentry from '@sentry/browser';
+
 import './assets/styles/index.css';
 import App from './App';
 import { registerServiceWorker } from './utils/registerServiceWorker';
@@ -38,17 +39,19 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 root.render(
   // <React.StrictMode>
-    <App />
+  <App />
   // </React.StrictMode>
 );
 
 // Register Service Worker for illustration caching (production only)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  registerServiceWorker().then(registration => {
-    if (registration) {
-      console.log('[App] Illustration cache service worker registered');
-    }
-  }).catch(err => {
-    console.error('[App] Service Worker registration failed:', err);
-  });
+  registerServiceWorker()
+    .then((registration) => {
+      if (registration) {
+        console.log('[App] Illustration cache service worker registered');
+      }
+    })
+    .catch((err) => {
+      console.error('[App] Service Worker registration failed:', err);
+    });
 }

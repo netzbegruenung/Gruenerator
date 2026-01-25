@@ -1,11 +1,25 @@
 import { Router, Request, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { createCanvas, loadImage, GlobalFonts, type Canvas, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
+import {
+  createCanvas,
+  loadImage,
+  GlobalFonts,
+  type Canvas,
+  type SKRSContext2D as CanvasRenderingContext2D,
+  type Image,
+} from '@napi-rs/canvas';
 import path from 'path';
 import fs from 'fs';
-import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } from '../../../services/sharepic/canvas/config.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import {
+  FONT_PATH,
+  PTSANS_REGULAR_PATH,
+  PTSANS_BOLD_PATH,
+} from '../../../services/sharepic/canvas/config.js';
+import {
+  optimizeCanvasBuffer,
+  bufferToBase64,
+} from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -132,20 +146,22 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
 
       canvasConfig.textLines = canvasConfig.textLines?.map((line: TextLineConfig) => ({
         ...line,
-        color: theme.textColor
+        color: theme.textColor,
       }));
 
       if (canvasConfig.credit) {
         canvasConfig.credit = {
           ...canvasConfig.credit,
           color: theme.creditColor,
-          y: theme.creditY
+          y: theme.creditY,
         };
       }
 
       canvasConfig.backgroundImage = typeConfig.backgroundImage;
 
-      log.debug(`[CampaignCanvas] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`);
+      log.debug(
+        `[CampaignCanvas] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`
+      );
     } else {
       canvasConfig = typeConfig.canvas;
     }
@@ -154,7 +170,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
 
     return {
       canvas: canvasConfig,
-      basedOn: typeConfig.basedOn
+      basedOn: typeConfig.basedOn,
     };
   } catch (error) {
     log.error(`[CampaignCanvas] Failed to load config:`, error);
@@ -204,7 +220,10 @@ async function renderBackground(
     const imageAspectRatio = bgImage.width / bgImage.height;
     const canvasAspectRatio = width / height;
 
-    let sx = 0, sy = 0, sWidth = bgImage.width, sHeight = bgImage.height;
+    let sx = 0,
+      sy = 0,
+      sWidth = bgImage.width,
+      sHeight = bgImage.height;
 
     if (imageAspectRatio > canvasAspectRatio) {
       sWidth = bgImage.height * canvasAspectRatio;
@@ -216,7 +235,6 @@ async function renderBackground(
 
     ctx.drawImage(bgImage, sx, sy, sWidth, sHeight, 0, 0, width, height);
     log.debug(`[CampaignCanvas] Background image rendered successfully`);
-
   } else if (config.backgroundColor) {
     log.debug(`[CampaignCanvas] Using solid background color: ${config.backgroundColor}`);
     ctx.fillStyle = config.backgroundColor;
@@ -346,7 +364,8 @@ async function generateCampaignCanvas(
     height: campaignConfig.canvas.height,
     textLines: campaignConfig.canvas.textLines?.length,
     decorations: campaignConfig.canvas.decorations?.length,
-    hasBackground: !!campaignConfig.canvas.backgroundImage || !!campaignConfig.canvas.backgroundColor
+    hasBackground:
+      !!campaignConfig.canvas.backgroundImage || !!campaignConfig.canvas.backgroundColor,
   });
 
   log.debug('[CampaignCanvas] Text data:', textData);
@@ -377,7 +396,7 @@ async function generateCampaignCanvas(
   const base64Image = bufferToBase64(optimizedBuffer);
   return {
     image: base64Image,
-    creditText: creditText
+    creditText: creditText,
   };
 }
 
@@ -398,7 +417,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       if (!campaignId || !campaignTypeId) {
         res.status(400).json({
           success: false,
-          error: 'Either campaignConfig or (campaignId + campaignTypeId) required'
+          error: 'Either campaignConfig or (campaignId + campaignTypeId) required',
         });
         return;
       }
@@ -408,16 +427,22 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         line2: body.line2 || '',
         line3: body.line3 || '',
         line4: body.line4 || '',
-        line5: body.line5 || ''
+        line5: body.line5 || '',
       };
 
       log.debug(`[CampaignCanvas] Text data from request:`, textData);
 
-      const { image, creditText } = await generateCampaignCanvas(campaignId, campaignTypeId, textData, location, customCredit);
+      const { image, creditText } = await generateCampaignCanvas(
+        campaignId,
+        campaignTypeId,
+        textData,
+        location,
+        customCredit
+      );
       res.json({
         success: true,
         image: image,
-        creditText: creditText
+        creditText: creditText,
       });
       return;
     }
@@ -425,7 +450,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     if (!campaignConfig.canvas) {
       res.status(400).json({
         success: false,
-        error: 'Campaign canvas configuration required'
+        error: 'Campaign canvas configuration required',
       });
       return;
     }
@@ -435,7 +460,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       height: campaignConfig.canvas.height,
       textLines: campaignConfig.canvas.textLines?.length,
       decorations: campaignConfig.canvas.decorations?.length,
-      hasBackground: !!campaignConfig.canvas.backgroundImage || !!campaignConfig.canvas.backgroundColor
+      hasBackground:
+        !!campaignConfig.canvas.backgroundImage || !!campaignConfig.canvas.backgroundColor,
     });
 
     log.debug('[CampaignCanvas] Text data:', textData);
@@ -465,14 +491,13 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     res.json({
       success: true,
       image: base64Image,
-      creditText: creditText
+      creditText: creditText,
     });
-
   } catch (error) {
     log.error('[CampaignCanvas] Error:', error);
     res.status(500).json({
       success: false,
-      error: (error as Error).message
+      error: (error as Error).message,
     });
   }
 });

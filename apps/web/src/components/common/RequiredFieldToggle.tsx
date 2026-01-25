@@ -1,5 +1,6 @@
-import type { JSX } from 'react';
 import * as Switch from '@radix-ui/react-switch';
+
+import type { JSX } from 'react';
 import '../../assets/styles/components/ui/RequiredFieldToggle.css';
 
 interface RequiredFieldToggleProps {
@@ -10,11 +11,13 @@ interface RequiredFieldToggleProps {
   showLabel?: boolean;
 }
 
-const RequiredFieldToggle = ({ checked = false,
+const RequiredFieldToggle = ({
+  checked = false,
   onChange,
   disabled = false,
   label = 'Pflichtfeld',
-  showLabel = true }: RequiredFieldToggleProps): JSX.Element => {
+  showLabel = true,
+}: RequiredFieldToggleProps): JSX.Element => {
   const handleToggle = (newChecked: boolean): void => {
     if (!disabled && onChange) {
       onChange(newChecked);
@@ -32,11 +35,7 @@ const RequiredFieldToggle = ({ checked = false,
       >
         <Switch.Thumb className="required-switch-thumb" />
       </Switch.Root>
-      {showLabel && (
-        <span className="required-switch-label">
-          {label}
-        </span>
-      )}
+      {showLabel && <span className="required-switch-label">{label}</span>}
     </div>
   );
 };

@@ -1,9 +1,11 @@
-import { JSX, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { type JSX, useState, useEffect, useRef, useCallback } from 'react';
+
 import { AssistantIcon } from '../../../config/icons';
-import TypingIndicator from '../UI/TypingIndicator';
-import ChatActionButtons from './ChatActionButtons';
 import { Markdown } from '../Markdown';
+import TypingIndicator from '../UI/TypingIndicator';
+
+import ChatActionButtons from './ChatActionButtons';
 import './FloatingAssistantBubble.css';
 
 const AUTO_DISMISS_TIMEOUT = 8000;
@@ -20,7 +22,7 @@ interface FloatingAssistantBubbleProps {
     type?: string;
     content?: string;
     timestamp?: number;
-    actions?: ChatAction[]
+    actions?: ChatAction[];
   };
   onDismiss: () => void;
   onActionClick?: (action: ChatAction) => void;
@@ -28,11 +30,13 @@ interface FloatingAssistantBubbleProps {
   isProcessing?: boolean;
 }
 
-const FloatingAssistantBubble = ({ message,
+const FloatingAssistantBubble = ({
+  message,
   onDismiss,
   onActionClick,
   autoDismissTimeout = AUTO_DISMISS_TIMEOUT,
-  isProcessing = false }: FloatingAssistantBubbleProps): JSX.Element => {
+  isProcessing = false,
+}: FloatingAssistantBubbleProps): JSX.Element => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,30 +68,36 @@ const FloatingAssistantBubble = ({ message,
     }
   }, [isExpanded, startAutoDismissTimer]);
 
-  const handleDismiss = useCallback((e?: React.MouseEvent | React.KeyboardEvent) => {
-    e?.stopPropagation();
-    setIsVisible(false);
-    setTimeout(onDismiss, 300);
-  }, [onDismiss]);
+  const handleDismiss = useCallback(
+    (e?: React.MouseEvent | React.KeyboardEvent) => {
+      e?.stopPropagation();
+      setIsVisible(false);
+      setTimeout(onDismiss, 300);
+    },
+    [onDismiss]
+  );
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      handleDismiss(e);
-    } else if ((e.key === 'Enter' || e.key === ' ') && !isExpanded) {
-      e.preventDefault();
-      handleToggleExpand();
-    }
-  }, [handleDismiss, handleToggleExpand, isExpanded]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleDismiss(e);
+      } else if ((e.key === 'Enter' || e.key === ' ') && !isExpanded) {
+        e.preventDefault();
+        handleToggleExpand();
+      }
+    },
+    [handleDismiss, handleToggleExpand, isExpanded]
+  );
 
   const previewText = message?.content
     ? message.content.slice(0, PREVIEW_LENGTH) +
-    (message.content.length > PREVIEW_LENGTH ? '...' : '')
+      (message.content.length > PREVIEW_LENGTH ? '...' : '')
     : '';
 
   const bubbleVariants = {
     hidden: { opacity: 0, y: -10, scale: 0.95 },
     visible: { opacity: 1, y: 0, scale: 1 },
-    exit: { opacity: 0, y: -5, scale: 0.98 }
+    exit: { opacity: 0, y: -5, scale: 0.98 },
   };
 
   return (
@@ -100,7 +110,7 @@ const FloatingAssistantBubble = ({ message,
           initial="hidden"
           animate="visible"
           exit="exit"
-          transition={{ type: "tween", ease: "easeOut", duration: 0.35 }}
+          transition={{ type: 'tween', ease: 'easeOut', duration: 0.35 }}
           onClick={!isExpanded ? handleToggleExpand : undefined}
           onKeyDown={handleKeyDown}
           tabIndex={0}
@@ -143,7 +153,7 @@ const FloatingAssistantBubble = ({ message,
               {message.actions && message.actions.length > 0 && (
                 <ChatActionButtons
                   actions={message.actions}
-                  onAction={onActionClick || (() => { })}
+                  onAction={onActionClick || (() => {})}
                   disabled={isProcessing}
                 />
               )}

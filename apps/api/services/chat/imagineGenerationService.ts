@@ -8,7 +8,11 @@ import path from 'path';
 import fs from 'fs';
 import { createLogger } from '../../utils/logger.js';
 import { buildFluxPrompt, VARIANTS, type VariantKey } from '../../services/flux/index.js';
-import { composeImagineCreate, OUTPUT_WIDTH, OUTPUT_HEIGHT } from '../../services/image/ImagineCanvasRenderer.js';
+import {
+  composeImagineCreate,
+  OUTPUT_WIDTH,
+  OUTPUT_HEIGHT,
+} from '../../services/image/ImagineCanvasRenderer.js';
 import { addKiLabel } from '../../routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { redisClient } from '../../utils/redis/index.js';
@@ -71,8 +75,16 @@ interface GenerationResult {
 }
 
 interface FluxImageServiceType {
-  generateFromPrompt(prompt: string, options: Record<string, unknown>): Promise<{ stored: { filePath: string } }>;
-  generateFromImage(prompt: string, imageBuffer: Buffer, mimeType: string, options: Record<string, unknown>): Promise<{ stored: { filePath: string } }>;
+  generateFromPrompt(
+    prompt: string,
+    options: Record<string, unknown>
+  ): Promise<{ stored: { filePath: string } }>;
+  generateFromImage(
+    prompt: string,
+    imageBuffer: Buffer,
+    mimeType: string,
+    options: Record<string, unknown>
+  ): Promise<{ stored: { filePath: string } }>;
 }
 
 const imageCounter = new ImageGenerationCounter(redisClient);
@@ -99,7 +111,7 @@ async function generateImagineForChat(
     userId,
     hasSubject: !!requestBody.subject,
     hasVariant: !!requestBody.variant,
-    hasTitle: !!requestBody.title
+    hasTitle: !!requestBody.title,
   });
 
   const limitStatus = await imageCounter.checkLimit(userId ?? '');
@@ -111,9 +123,9 @@ async function generateImagineForChat(
       agent: 'imagine',
       content: {
         text: `Du hast dein tägliches Limit von ${limitStatus.limit} Bildern erreicht. Versuche es morgen wieder.`,
-        type: 'rate_limit'
+        type: 'rate_limit',
       },
-      usage: limitStatus
+      usage: limitStatus,
     };
   }
 
@@ -136,9 +148,9 @@ async function generateImagineForChat(
       agent: 'imagine',
       content: {
         text: `Fehler bei der Bilderzeugung: ${err.message || 'Unbekannter Fehler'}`,
-        type: 'error'
+        type: 'error',
       },
-      error: err.message
+      error: err.message,
     };
   }
 }
@@ -150,13 +162,16 @@ async function generatePureImage(
   const { subject, variant = 'illustration-pure' } = requestBody;
   const userId = expressReq.user?.id;
 
-  log.debug('[ImagineGeneration] Generating pure image:', { subject: subject?.substring(0, 50), variant });
+  log.debug('[ImagineGeneration] Generating pure image:', {
+    subject: subject?.substring(0, 50),
+    variant,
+  });
 
   const pureVariant = ensurePureVariant(variant);
 
   const { prompt, dimensions } = buildFluxPrompt({
     variant: pureVariant,
-    subject: subject ?? ''
+    subject: subject ?? '',
   });
 
   log.debug('[ImagineGeneration] Built prompt:', { prompt: prompt.substring(0, 100), dimensions });
@@ -166,7 +181,7 @@ async function generatePureImage(
     width: dimensions.width,
     height: dimensions.height,
     output_format: 'jpeg',
-    safety_tolerance: 2
+    safety_tolerance: 2,
   });
 
   const imageBuffer = fs.readFileSync(stored.filePath);
@@ -190,20 +205,20 @@ async function generatePureImage(
       type: 'imagine',
       sharepic: {
         image: base64,
-        type: 'imagine_pure'
+        type: 'imagine_pure',
       },
       metadata: {
         mode: 'pure',
         variant: pureVariant,
         prompt: prompt,
-        dimensions: dimensions
-      }
+        dimensions: dimensions,
+      },
     },
     usage: {
       count: usageStatus.count,
       remaining: usageStatus.remaining,
-      limit: usageStatus.limit
-    }
+      limit: usageStatus.limit,
+    },
   };
 }
 
@@ -217,14 +232,14 @@ async function generateSharepicImage(
   log.debug('[ImagineGeneration] Generating sharepic image:', {
     subject: subject?.substring(0, 50),
     title: title?.substring(0, 30),
-    variant
+    variant,
   });
 
   const sharepicVariant = ensureSharepicVariant(variant);
 
   const { prompt } = buildFluxPrompt({
     variant: sharepicVariant,
-    subject: subject ?? ''
+    subject: subject ?? '',
   });
 
   const flux = await getFluxImageService();
@@ -232,14 +247,14 @@ async function generateSharepicImage(
     width: 768,
     height: 960,
     output_format: 'jpeg',
-    safety_tolerance: 2
+    safety_tolerance: 2,
   });
 
   const fluxImageBuffer = fs.readFileSync(stored.filePath);
 
   const composedBuffer = await composeImagineCreate(fluxImageBuffer, {
     title: title ?? '',
-    variant: sharepicVariant
+    variant: sharepicVariant,
   });
 
   const labeledBuffer = await addKiLabel(composedBuffer);
@@ -261,20 +276,20 @@ async function generateSharepicImage(
       sharepic: {
         image: base64,
         type: 'imagine_sharepic',
-        title: title
+        title: title,
       },
       metadata: {
         mode: 'sharepic',
         variant: sharepicVariant,
         title: title,
-        dimensions: { width: OUTPUT_WIDTH, height: OUTPUT_HEIGHT }
-      }
+        dimensions: { width: OUTPUT_WIDTH, height: OUTPUT_HEIGHT },
+      },
     },
     usage: {
       count: usageStatus.count,
       remaining: usageStatus.remaining,
-      limit: usageStatus.limit
-    }
+      limit: usageStatus.limit,
+    },
   };
 }
 
@@ -287,7 +302,7 @@ async function generateEditImage(
 
   log.debug('[ImagineGeneration] Generating edit image:', {
     action: action?.substring(0, 50),
-    variant
+    variant,
   });
 
   const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
@@ -299,7 +314,7 @@ async function generateEditImage(
   }
 
   if (!imageAttachment && requestBody.attachments) {
-    imageAttachment = requestBody.attachments.find(a => a.type?.startsWith('image/')) || null;
+    imageAttachment = requestBody.attachments.find((a) => a.type?.startsWith('image/')) || null;
   }
 
   if (!imageAttachment) {
@@ -308,8 +323,8 @@ async function generateEditImage(
       agent: 'imagine_edit',
       content: {
         text: 'Für die Bildbearbeitung benötige ich ein Bild. Bitte lade ein Bild hoch und beschreibe, wie es transformiert werden soll.',
-        type: 'error'
-      }
+        type: 'error',
+      },
     };
   }
 
@@ -319,7 +334,7 @@ async function generateEditImage(
 
   log.debug('[ImagineGeneration] Processing image-to-image:', {
     promptLength: editPrompt.length,
-    imageSize: imageBuffer.length
+    imageSize: imageBuffer.length,
   });
 
   const flux = await getFluxImageService();
@@ -349,23 +364,28 @@ async function generateEditImage(
       type: 'imagine',
       sharepic: {
         image: base64,
-        type: 'imagine_edit'
+        type: 'imagine_edit',
       },
       metadata: {
         mode: 'edit',
-        action: action
-      }
+        action: action,
+      },
     },
     usage: {
       count: usageStatus.count,
       remaining: usageStatus.remaining,
-      limit: usageStatus.limit
-    }
+      limit: usageStatus.limit,
+    },
   };
 }
 
 function ensurePureVariant(variant: string): VariantKey {
-  const pureVariants: VariantKey[] = ['illustration-pure', 'realistic-pure', 'pixel-pure', 'editorial-pure'];
+  const pureVariants: VariantKey[] = [
+    'illustration-pure',
+    'realistic-pure',
+    'pixel-pure',
+    'editorial-pure',
+  ];
   if (pureVariants.includes(variant as VariantKey)) return variant as VariantKey;
 
   const mapping: Record<string, VariantKey> = {
@@ -375,17 +395,22 @@ function ensurePureVariant(variant: string): VariantKey {
     'realistic-bottom': 'realistic-pure',
     'pixel-top': 'pixel-pure',
     'pixel-bottom': 'pixel-pure',
-    'editorial': 'editorial-pure',
-    'illustration': 'illustration-pure',
-    'realistisch': 'realistic-pure',
-    'pixel': 'pixel-pure'
+    editorial: 'editorial-pure',
+    illustration: 'illustration-pure',
+    realistisch: 'realistic-pure',
+    pixel: 'pixel-pure',
   };
 
   return mapping[variant] || 'illustration-pure';
 }
 
 function ensureSharepicVariant(variant: string): ImagineVariant {
-  const sharepicVariants: ImagineVariant[] = ['light-top', 'realistic-top', 'pixel-top', 'editorial'];
+  const sharepicVariants: ImagineVariant[] = [
+    'light-top',
+    'realistic-top',
+    'pixel-top',
+    'editorial',
+  ];
   if (sharepicVariants.includes(variant as ImagineVariant)) return variant as ImagineVariant;
 
   const mapping: Record<string, ImagineVariant> = {
@@ -393,9 +418,9 @@ function ensureSharepicVariant(variant: string): ImagineVariant {
     'realistic-pure': 'realistic-top',
     'pixel-pure': 'pixel-top',
     'editorial-pure': 'editorial',
-    'illustration': 'light-top',
-    'realistisch': 'realistic-top',
-    'pixel': 'pixel-top'
+    illustration: 'light-top',
+    realistisch: 'realistic-top',
+    pixel: 'pixel-top',
   };
 
   return mapping[variant] || 'light-top';

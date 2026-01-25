@@ -34,7 +34,7 @@ export function enhanceStructure(structure: DocumentStructure, text: string): Do
     hasLists: structure.lists.length > 0,
     hasTables: structure.tables.length > 0,
     structureComplexity: calculateComplexity(structure),
-    documentType: inferDocumentType(structure)
+    documentType: inferDocumentType(structure),
   };
 
   return structure;
@@ -43,7 +43,9 @@ export function enhanceStructure(structure: DocumentStructure, text: string): Do
 /**
  * Calculate document structure complexity
  */
-export function calculateComplexity(structure: DocumentStructure): 'simple' | 'moderate' | 'complex' {
+export function calculateComplexity(
+  structure: DocumentStructure
+): 'simple' | 'moderate' | 'complex' {
   let complexity = 0;
   complexity += structure.chapters.length * 3;
   complexity += structure.sections.length * 2;

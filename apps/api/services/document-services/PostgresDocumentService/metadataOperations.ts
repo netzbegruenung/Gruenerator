@@ -3,7 +3,13 @@
  * Handles saving, updating, retrieving, and deleting document metadata
  */
 
-import type { DocumentMetadata, DocumentRecord, DocumentUpdateData, DeleteResult, BulkDeleteResult } from './types.js';
+import type {
+  DocumentMetadata,
+  DocumentRecord,
+  DocumentUpdateData,
+  DeleteResult,
+  BulkDeleteResult,
+} from './types.js';
 import { parseMetadata } from '../../../routes/documents/helpers.js';
 
 /**
@@ -28,7 +34,7 @@ export async function saveDocumentMetadata(
       vector_count: metadata.vectorCount || 0,
       file_size: metadata.fileSize || 0,
       status: metadata.status || 'processing',
-      metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null
+      metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };
 
     const document = await postgres.insert('documents', documentData);
@@ -80,15 +86,14 @@ export async function updateDocumentMetadata(
       const baseMeta = parseMetadata(current?.metadata);
       updateData.metadata = JSON.stringify({
         ...baseMeta,
-        ...updates.additionalMetadata
+        ...updates.additionalMetadata,
       });
     }
 
-    const result = await postgres.update(
-      'documents',
-      updateData,
-      { id: documentId, user_id: userId }
-    );
+    const result = await postgres.update('documents', updateData, {
+      id: documentId,
+      user_id: userId,
+    });
 
     console.log(`[PostgresDocumentService] Document ${documentId} updated`);
     return result.data[0];
@@ -164,7 +169,7 @@ export async function deleteDocument(
 
     const result = await postgres.delete('documents', {
       id: documentId,
-      user_id: userId
+      user_id: userId,
     });
 
     if (result.changes === 0) {
@@ -196,11 +201,13 @@ export async function bulkDeleteDocuments(
 
     const result = await postgres.query(query, [userId, ...documentIds]);
 
-    console.log(`[PostgresDocumentService] Bulk deleted ${result.length} documents for user ${userId}`);
+    console.log(
+      `[PostgresDocumentService] Bulk deleted ${result.length} documents for user ${userId}`
+    );
     return {
       success: true,
       deletedCount: result.length,
-      deletedIds: result.map((row: any) => row.id)
+      deletedIds: result.map((row: any) => row.id),
     };
   } catch (error) {
     console.error('[PostgresDocumentService] Error bulk deleting documents:', error);

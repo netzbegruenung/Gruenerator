@@ -1,4 +1,4 @@
-import { JSX, useCallback } from 'react';
+import { type JSX, useCallback } from 'react';
 import '../../../assets/styles/components/ui/SegmentedControl.css';
 
 // Define step interface
@@ -26,15 +26,17 @@ const SegmentedControl = ({
   label,
   ariaLabel = 'Select option',
 }: SegmentedControlProps): JSX.Element => {
-
   // Handle button click
-  const handleClick = useCallback((value: string | number, stepDisabled?: boolean) => {
-    // Only call onChange if the specific step is not disabled,
-    // the whole control is not disabled, and the value actually changes
-    if (!stepDisabled && !disabled && value !== currentValue) {
-      onChange(value);
-    }
-  }, [onChange, disabled, currentValue]);
+  const handleClick = useCallback(
+    (value: string | number, stepDisabled?: boolean) => {
+      // Only call onChange if the specific step is not disabled,
+      // the whole control is not disabled, and the value actually changes
+      if (!stepDisabled && !disabled && value !== currentValue) {
+        onChange(value);
+      }
+    },
+    [onChange, disabled, currentValue]
+  );
 
   return (
     // New wrapper to include the label and apply frame styles
@@ -56,7 +58,7 @@ const SegmentedControl = ({
               onClick={() => handleClick(step.value, step.disabled)}
               disabled={isDisabled}
               aria-pressed={isActive} // Indicates the pressed state for assistive technologies
-            // aria-label={step.label} // Optionally, if label text is not descriptive enough
+              // aria-label={step.label} // Optionally, if label text is not descriptive enough
             >
               {step.label}
             </button>

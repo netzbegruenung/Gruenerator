@@ -63,84 +63,87 @@ function MessageBubble({ message }: { message: NotebookChatMessage }) {
   const hasSources = message.sources && message.sources.length > 0;
 
   // Markdown styles for assistant messages
-  const markdownStyles = useMemo(() => ({
-    body: {
-      color: theme.text,
-      fontSize: 15,
-      lineHeight: 22,
-    },
-    paragraph: {
-      marginTop: 0,
-      marginBottom: 8,
-    },
-    heading1: {
-      color: theme.text,
-      fontSize: 18,
-      fontWeight: '700' as const,
-      marginBottom: 8,
-      marginTop: 12,
-    },
-    heading2: {
-      color: theme.text,
-      fontSize: 16,
-      fontWeight: '600' as const,
-      marginBottom: 6,
-      marginTop: 10,
-    },
-    heading3: {
-      color: theme.text,
-      fontSize: 15,
-      fontWeight: '600' as const,
-      marginBottom: 4,
-      marginTop: 8,
-    },
-    strong: {
-      fontWeight: '600' as const,
-    },
-    em: {
-      fontStyle: 'italic' as const,
-    },
-    bullet_list: {
-      marginBottom: 8,
-    },
-    ordered_list: {
-      marginBottom: 8,
-    },
-    list_item: {
-      flexDirection: 'row' as const,
-      marginBottom: 4,
-    },
-    link: {
-      color: colors.primary[600],
-      textDecorationLine: 'underline' as const,
-    },
-    blockquote: {
-      borderLeftWidth: 3,
-      borderLeftColor: colors.primary[400],
-      paddingLeft: 12,
-      marginVertical: 8,
-      opacity: 0.9,
-    },
-    code_inline: {
-      backgroundColor: colorScheme === 'dark' ? colors.grey[700] : colors.grey[200],
-      color: colors.primary[600],
-      paddingHorizontal: 4,
-      paddingVertical: 1,
-      borderRadius: 4,
-      fontSize: 13,
-      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    },
-    fence: {
-      backgroundColor: colorScheme === 'dark' ? colors.grey[700] : colors.grey[200],
-      padding: 12,
-      borderRadius: 8,
-      marginVertical: 8,
-    },
-    code_block: {
-      fontSize: 13,
-      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    },
-  }), [theme, colorScheme]);
+  const markdownStyles = useMemo(
+    () => ({
+      body: {
+        color: theme.text,
+        fontSize: 15,
+        lineHeight: 22,
+      },
+      paragraph: {
+        marginTop: 0,
+        marginBottom: 8,
+      },
+      heading1: {
+        color: theme.text,
+        fontSize: 18,
+        fontWeight: '700' as const,
+        marginBottom: 8,
+        marginTop: 12,
+      },
+      heading2: {
+        color: theme.text,
+        fontSize: 16,
+        fontWeight: '600' as const,
+        marginBottom: 6,
+        marginTop: 10,
+      },
+      heading3: {
+        color: theme.text,
+        fontSize: 15,
+        fontWeight: '600' as const,
+        marginBottom: 4,
+        marginTop: 8,
+      },
+      strong: {
+        fontWeight: '600' as const,
+      },
+      em: {
+        fontStyle: 'italic' as const,
+      },
+      bullet_list: {
+        marginBottom: 8,
+      },
+      ordered_list: {
+        marginBottom: 8,
+      },
+      list_item: {
+        flexDirection: 'row' as const,
+        marginBottom: 4,
+      },
+      link: {
+        color: colors.primary[600],
+        textDecorationLine: 'underline' as const,
+      },
+      blockquote: {
+        borderLeftWidth: 3,
+        borderLeftColor: colors.primary[400],
+        paddingLeft: 12,
+        marginVertical: 8,
+        opacity: 0.9,
+      },
+      code_inline: {
+        backgroundColor: colorScheme === 'dark' ? colors.grey[700] : colors.grey[200],
+        color: colors.primary[600],
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 4,
+        fontSize: 13,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      },
+      fence: {
+        backgroundColor: colorScheme === 'dark' ? colors.grey[700] : colors.grey[200],
+        padding: 12,
+        borderRadius: 8,
+        marginVertical: 8,
+      },
+      code_block: {
+        fontSize: 13,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      },
+    }),
+    [theme, colorScheme]
+  );
 
   return (
     <View style={[styles.messageContainer, isUser && styles.messageContainerUser]}>
@@ -153,8 +156,8 @@ function MessageBubble({ message }: { message: NotebookChatMessage }) {
             backgroundColor: isUser
               ? colors.primary[600]
               : isError
-              ? colors.error[100]
-              : theme.surface,
+                ? colors.error[100]
+                : theme.surface,
             borderColor: isUser ? colors.primary[600] : isError ? colors.error[300] : theme.border,
           },
         ]}
@@ -167,13 +170,9 @@ function MessageBubble({ message }: { message: NotebookChatMessage }) {
             </Text>
           </View>
         ) : isUser ? (
-          <Text style={[styles.messageText, { color: colors.white }]}>
-            {message.content}
-          </Text>
+          <Text style={[styles.messageText, { color: colors.white }]}>{message.content}</Text>
         ) : isError ? (
-          <Text style={[styles.messageText, { color: colors.error[700] }]}>
-            {message.content}
-          </Text>
+          <Text style={[styles.messageText, { color: colors.error[700] }]}>{message.content}</Text>
         ) : (
           <CitationTextRenderer
             text={message.content}
@@ -185,10 +184,7 @@ function MessageBubble({ message }: { message: NotebookChatMessage }) {
 
       {hasSources && !message.isLoading && (
         <View style={styles.sourcesSection}>
-          <Pressable
-            style={styles.sourcesToggle}
-            onPress={() => setShowSources(!showSources)}
-          >
+          <Pressable style={styles.sourcesToggle} onPress={() => setShowSources(!showSources)}>
             <Ionicons
               name={showSources ? 'chevron-up' : 'chevron-down'}
               size={14}
@@ -287,9 +283,7 @@ export function NotebookChat({ notebookId }: NotebookChatProps) {
           <View style={[styles.emptyIconContainer, { backgroundColor: config.color + '15' }]}>
             <Ionicons name="chatbubbles" size={32} color={config.color} />
           </View>
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>
-            {config.title}
-          </Text>
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>{config.title}</Text>
           <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
             {config.placeholder}
           </Text>
@@ -318,8 +312,21 @@ export function NotebookChat({ notebookId }: NotebookChatProps) {
       )}
 
       <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
-        <View style={[styles.inputWrapper, { backgroundColor: theme.background, paddingBottom: Math.max(insets.bottom, spacing.small) }]}>
-          <View style={[styles.inputContainer, { backgroundColor: colorScheme === 'dark' ? colors.grey[800] : colors.grey[100] }]}>
+        <View
+          style={[
+            styles.inputWrapper,
+            {
+              backgroundColor: theme.background,
+              paddingBottom: Math.max(insets.bottom, spacing.small),
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.inputContainer,
+              { backgroundColor: colorScheme === 'dark' ? colors.grey[800] : colors.grey[100] },
+            ]}
+          >
             <TextInput
               style={[styles.textInput, { color: theme.text }]}
               placeholder="Nachricht"
@@ -334,7 +341,8 @@ export function NotebookChat({ notebookId }: NotebookChatProps) {
               style={[
                 styles.sendButton,
                 {
-                  backgroundColor: inputText.trim() && !isLoading ? colors.primary[600] : 'transparent',
+                  backgroundColor:
+                    inputText.trim() && !isLoading ? colors.primary[600] : 'transparent',
                 },
               ]}
               onPress={handleSend}

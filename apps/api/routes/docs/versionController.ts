@@ -61,10 +61,10 @@ router.get('/:id/versions', async (req: Request, res: Response) => {
     }
 
     // Check document access
-    const docResult = await db.query(
+    const docResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -72,15 +72,14 @@ router.get('/:id/versions', async (req: Request, res: Response) => {
 
     const document = docResult[0];
     const hasAccess =
-      document.created_by === userId ||
-      (document.permissions && document.permissions[userId]);
+      document.created_by === userId || (document.permissions && document.permissions[userId]);
 
     if (!hasAccess) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
     // Get all versions
-    const versions = await db.query(
+    const versions = (await db.query(
       `SELECT
         v.id,
         v.version,
@@ -94,7 +93,7 @@ router.get('/:id/versions', async (req: Request, res: Response) => {
        WHERE v.document_id = $1
        ORDER BY v.version DESC`,
       [id]
-    ) as VersionRow[];
+    )) as VersionRow[];
 
     return res.json(versions);
   } catch (error: any) {
@@ -119,10 +118,10 @@ router.post('/:id/versions', async (req: Request, res: Response) => {
     }
 
     // Check document access and permissions
-    const docResult = await db.query(
+    const docResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -131,7 +130,8 @@ router.post('/:id/versions', async (req: Request, res: Response) => {
     const document = docResult[0];
     const userPermission = document.permissions?.[userId];
     const isOwner = document.created_by === userId;
-    const canEdit = isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+    const canEdit =
+      isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
 
     if (!canEdit) {
       return res.status(403).json({ error: 'Insufficient permissions to create version' });
@@ -145,12 +145,7 @@ router.post('/:id/versions', async (req: Request, res: Response) => {
     }
 
     // Create manual snapshot
-    const versionNumber = await persistence.createManualSnapshot(
-      id,
-      currentState,
-      userId,
-      label
-    );
+    const versionNumber = await persistence.createManualSnapshot(id, currentState, userId, label);
 
     return res.status(201).json({
       message: 'Version created successfully',
@@ -178,10 +173,10 @@ router.post('/:id/versions/:versionNumber/restore', async (req: Request, res: Re
     }
 
     // Check document access and permissions
-    const docResult = await db.query(
+    const docResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -190,7 +185,8 @@ router.post('/:id/versions/:versionNumber/restore', async (req: Request, res: Re
     const document = docResult[0];
     const userPermission = document.permissions?.[userId];
     const isOwner = document.created_by === userId;
-    const canEdit = isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+    const canEdit =
+      isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
 
     if (!canEdit) {
       return res.status(403).json({ error: 'Insufficient permissions to restore version' });
@@ -242,10 +238,10 @@ router.delete('/:id/versions/:versionNumber', async (req: Request, res: Response
     }
 
     // Check document ownership
-    const docResult = await db.query(
+    const docResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -253,17 +249,18 @@ router.delete('/:id/versions/:versionNumber', async (req: Request, res: Response
 
     const document = docResult[0];
     const userPermission = document.permissions?.[userId];
-    const isOwner = document.created_by === userId || (userPermission && userPermission.level === 'owner');
+    const isOwner =
+      document.created_by === userId || (userPermission && userPermission.level === 'owner');
 
     if (!isOwner) {
       return res.status(403).json({ error: 'Only owners can delete versions' });
     }
 
     // Delete the version
-    const result = await db.query(
+    const result = (await db.query(
       'DELETE FROM yjs_document_snapshots WHERE document_id = $1 AND version = $2 RETURNING id',
       [id, parseInt(versionNumber, 10)]
-    ) as Array<{ id: string }>;
+    )) as Array<{ id: string }>;
 
     if (result.length === 0) {
       return res.status(404).json({ error: 'Version not found' });

@@ -9,14 +9,14 @@ import type {
   WorkerShutdownHandler,
   ShutdownableResource,
   Logger,
-  ClusterMessage
+  ClusterMessage,
 } from './types.js';
 
 const defaultLogger: Logger = {
   info: (msg: string) => console.log(`[Worker] ${msg}`),
   warn: (msg: string) => console.warn(`[Worker] ${msg}`),
   error: (msg: string) => console.error(`[Worker] ${msg}`),
-  debug: (msg: string) => console.debug(`[Worker] ${msg}`)
+  debug: (msg: string) => console.debug(`[Worker] ${msg}`),
 };
 
 /**
@@ -47,9 +47,7 @@ async function shutdownResource(resource: ShutdownableResource): Promise<void> {
 /**
  * Create a shutdown handler for a worker process
  */
-export function createWorkerShutdownHandler(
-  options: WorkerShutdownOptions
-): WorkerShutdownHandler {
+export function createWorkerShutdownHandler(options: WorkerShutdownOptions): WorkerShutdownHandler {
   const logger = options.logger ?? defaultLogger;
   const { resources, server, onComplete } = options;
   let inProgress = false;
@@ -70,7 +68,7 @@ export function createWorkerShutdownHandler(
 
       // Close the HTTP server
       if (server) {
-        await new Promise<void>(resolve => {
+        await new Promise<void>((resolve) => {
           server.close(() => {
             logger.debug(`Worker ${process.pid} server closed`);
             resolve();
@@ -115,7 +113,7 @@ export function createWorkerShutdownHandler(
     },
     shutdown,
     handleMessage,
-    registerSignalHandlers
+    registerSignalHandlers,
   };
 }
 

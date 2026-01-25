@@ -24,7 +24,7 @@ export const useEditPanel = (): UseEditPanelReturn => {
   }, []);
 
   const toggleAdvanced = useCallback(() => {
-    setIsAdvancedOpen(prev => !prev);
+    setIsAdvancedOpen((prev) => !prev);
   }, []);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export const useEditPanel = (): UseEditPanelReturn => {
     isAlternativesOpen,
     setIsAlternativesOpen,
     isAdvancedOpen,
-    toggleAdvanced
+    toggleAdvanced,
   };
 };
 

@@ -1,4 +1,4 @@
-import React, { ReactNode, ErrorInfo } from 'react';
+import React, { type ReactNode, type ErrorInfo } from 'react';
 
 import '../assets/styles/components/error-boundary.css';
 
@@ -33,7 +33,13 @@ interface ErrorBoundaryState {
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null, copied: false, isChunkError: false };
+    this.state = {
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      copied: false,
+      isChunkError: false,
+    };
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
@@ -69,7 +75,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   logErrorToService(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
+    console.error('Uncaught error:', error, errorInfo);
     // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
   }
 
@@ -104,14 +110,17 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       errorText += `\nComponent Stack:\n${errorInfo.componentStack}`;
     }
 
-    navigator.clipboard.writeText(errorText).then(() => {
-      this.setState({ copied: true });
-      setTimeout(() => {
-        this.setState({ copied: false });
-      }, 2000);
-    }).catch(err => {
-      console.error('Fehler beim Kopieren:', err);
-    });
+    navigator.clipboard
+      .writeText(errorText)
+      .then(() => {
+        this.setState({ copied: true });
+        setTimeout(() => {
+          this.setState({ copied: false });
+        }, 2000);
+      })
+      .catch((err) => {
+        console.error('Fehler beim Kopieren:', err);
+      });
   };
 
   getErrorMessage() {
@@ -121,8 +130,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     if (isChunkError) {
       return {
         title: 'Neue Version verfügbar',
-        message: 'Eine neue Version der Anwendung wurde veröffentlicht. Bitte führen Sie einen harten Refresh durch: Strg+Shift+R (Windows/Linux) oder Cmd+Shift+R (Mac).',
-        isChunkError: true
+        message:
+          'Eine neue Version der Anwendung wurde veröffentlicht. Bitte führen Sie einen harten Refresh durch: Strg+Shift+R (Windows/Linux) oder Cmd+Shift+R (Mac).',
+        isChunkError: true,
       };
     }
 
@@ -135,7 +145,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         errorId: error.errorId,
         timestamp: error.timestamp,
         errorCode: error.originalError?.response?.data?.errorCode,
-        errorType: error.originalError?.response?.data?.errorType
+        errorType: error.originalError?.response?.data?.errorType,
       };
     }
 
@@ -143,16 +153,18 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     if (error?.message?.includes('Something broke!')) {
       return {
         title: 'Serverfehler',
-        message: 'Ein kritischer Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.',
-        details: error.message
+        message:
+          'Ein kritischer Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.',
+        details: error.message,
       };
     }
 
     // Standard-Fehlermeldung
     return {
       title: 'Oops, etwas ist schiefgelaufen.',
-      message: 'Wir entschuldigen uns für die Unannehmlichkeiten. Bitte versuchen Sie, die Seite neu zu laden.',
-      details: error?.message || 'Unbekannter Fehler'
+      message:
+        'Wir entschuldigen uns für die Unannehmlichkeiten. Bitte versuchen Sie, die Seite neu zu laden.',
+      details: error?.message || 'Unbekannter Fehler',
     };
   }
 
@@ -179,21 +191,23 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             <details>
               <summary>Technische Details</summary>
               <p>{errorMessage.details}</p>
-              {this.state.errorInfo && (
-                <pre>{this.state.errorInfo.componentStack}</pre>
-              )}
+              {this.state.errorInfo && <pre>{this.state.errorInfo.componentStack}</pre>}
             </details>
           )}
 
           <div className="error-actions">
             {this.props.fallback ? (
-              typeof this.props.fallback === 'function'
-                ? this.props.fallback(this.state.error, this.state.errorInfo)
-                : this.props.fallback
+              typeof this.props.fallback === 'function' ? (
+                this.props.fallback(this.state.error, this.state.errorInfo)
+              ) : (
+                this.props.fallback
+              )
             ) : (
               <>
                 <button onClick={() => window.location.reload()}>Seite neu laden</button>
-                <a href="/" className="button">Zur Startseite</a>
+                <a href="/" className="button">
+                  Zur Startseite
+                </a>
                 <button
                   onClick={this.copyErrorText}
                   className={`copy-button ${this.state.copied ? 'copied' : ''}`}
@@ -210,7 +224,5 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     return this.props.children;
   }
 }
-
-
 
 export default ErrorBoundary;

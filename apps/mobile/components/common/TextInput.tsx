@@ -1,4 +1,11 @@
-import { View, Text, TextInput as RNTextInput, StyleSheet, TextInputProps, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput as RNTextInput,
+  StyleSheet,
+  TextInputProps,
+  useColorScheme,
+} from 'react-native';
 import { colors, typography, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 
 interface Props extends TextInputProps {
@@ -21,9 +28,7 @@ export function TextInput({
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
       <RNTextInput
         style={[
           styles.input,
@@ -46,9 +51,7 @@ export function TextInput({
         numberOfLines={multiline ? numberOfLines : 1}
         {...props}
       />
-      {error && (
-        <Text style={styles.error}>{error}</Text>
-      )}
+      {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
 }

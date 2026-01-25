@@ -308,12 +308,15 @@ export const useStepFlow = ({
             type!,
             formData,
             (alternatives) => {
+              console.log('[DEBUG useStepFlow] Received alternatives:', alternatives);
+              console.log('[DEBUG useStepFlow] alternativesMapping exists:', !!fieldConfig.alternativesMapping);
               // Map each alternative through alternativesMapping to add ids (index starts at 1)
               const mappedAlternatives = fieldConfig.alternativesMapping
                 ? alternatives.map((alt, idx) =>
                     fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
                   )
                 : alternatives;
+              console.log('[DEBUG useStepFlow] Mapped alternatives:', mappedAlternatives);
               // Prepend original to alternatives list
               setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
             },

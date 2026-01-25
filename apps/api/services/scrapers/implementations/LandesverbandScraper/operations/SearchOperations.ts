@@ -25,7 +25,14 @@ export class SearchOperations {
     query: string,
     options: LandesverbandSearchOptions = {}
   ): Promise<{ results: LandesverbandSearchResult[]; total: number }> {
-    const { sourceId = null, landesverband = null, sourceType = null, contentType = null, limit = 10, threshold = 0.35 } = options;
+    const {
+      sourceId = null,
+      landesverband = null,
+      sourceType = null,
+      contentType = null,
+      limit = 10,
+      threshold = 0.35,
+    } = options;
 
     // Generate query embedding
     const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);

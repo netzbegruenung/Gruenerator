@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../hooks/useAuth';
 
 export function HomePage() {
@@ -8,7 +9,7 @@ export function HomePage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate('/edit');
+      void navigate('/edit');
     }
   }, [isAuthenticated, isLoading, navigate]);
 

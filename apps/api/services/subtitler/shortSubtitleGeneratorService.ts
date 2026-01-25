@@ -32,10 +32,13 @@ async function generateShortSubtitlesViaAI(
   aiWorkerPool: AIWorkerPool
 ): Promise<string> {
   if (!text || !Array.isArray(words) || words.length === 0) {
-    throw new Error('Volltext (text) und Wort-Timestamps (words) sind für die AI-Untertitelgenerierung erforderlich.');
+    throw new Error(
+      'Volltext (text) und Wort-Timestamps (words) sind für die AI-Untertitelgenerierung erforderlich.'
+    );
   }
 
-  const systemPrompt = 'Du bist ein Experte für die Erstellung von prägnanten Untertiteln für Social-Media-Videos (Reels).';
+  const systemPrompt =
+    'Du bist ein Experte für die Erstellung von prägnanten Untertiteln für Social-Media-Videos (Reels).';
 
   const userContent = `Deine Aufgabe ist es, aus einem gegebenen Volltext und den dazugehörigen Wort-Timestamps kurze, gut lesbare Untertitel-Segmente zu generieren.
 
@@ -101,17 +104,24 @@ ${JSON.stringify(words, null, 2)}
 
 Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
 
-  log.debug(`[ShortSubtitleGenerator] Anfrage an Claude: ${text.length} chars, ${words.length} Wörter`);
-  log.debug(`[ShortSubtitleGenerator] Erste 3 Wort-Timestamps:`, words.slice(0, 3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
+  log.debug(
+    `[ShortSubtitleGenerator] Anfrage an Claude: ${text.length} chars, ${words.length} Wörter`
+  );
+  log.debug(
+    `[ShortSubtitleGenerator] Erste 3 Wort-Timestamps:`,
+    words.slice(0, 3).map((w) => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`)
+  );
 
   const result = await aiWorkerPool.processRequest({
     type: 'claude_short_subtitles',
     systemPrompt,
-    messages: [{
-      role: 'user',
-      content: [{ type: 'text', text: userContent }]
-    }],
-    options: { temperature: 0.3 }
+    messages: [
+      {
+        role: 'user',
+        content: [{ type: 'text', text: userContent }],
+      },
+    ],
+    options: { temperature: 0.3 },
   });
 
   if (!result.success) {

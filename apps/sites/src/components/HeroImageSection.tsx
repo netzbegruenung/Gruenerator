@@ -15,9 +15,7 @@ export function HeroImageSection({ data }: HeroImageSectionProps) {
       <div className="hero-image-overlay">
         <div className="hero-image-content">
           <h2 className="hero-image-title">{data.title}</h2>
-          {data.subtitle && (
-            <p className="hero-image-subtitle">{data.subtitle}</p>
-          )}
+          {data.subtitle && <p className="hero-image-subtitle">{data.subtitle}</p>}
         </div>
       </div>
     </section>

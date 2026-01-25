@@ -1,33 +1,27 @@
 export const validators = {
   subdomain: (value: string): string | null => {
     if (!value) return 'Subdomain ist erforderlich';
-    if (!/^[a-z0-9-]+$/.test(value))
-      return 'Nur Kleinbuchstaben, Zahlen und Bindestriche erlaubt';
+    if (!/^[a-z0-9-]+$/.test(value)) return 'Nur Kleinbuchstaben, Zahlen und Bindestriche erlaubt';
     if (value.length < 3) return 'Mindestens 3 Zeichen';
     if (value.length > 50) return 'Maximal 50 Zeichen';
     if (value.startsWith('-') || value.endsWith('-'))
       return 'Darf nicht mit Bindestrich beginnen oder enden';
-    if (value.includes('--'))
-      return 'Doppelte Bindestriche sind nicht erlaubt';
+    if (value.includes('--')) return 'Doppelte Bindestriche sind nicht erlaubt';
     return null;
   },
 
   email: (value: string): string | null => {
     if (!value) return null; // Optional field
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value))
-      return 'Ungültige E-Mail-Adresse';
-    if (value.length > 254)
-      return 'E-Mail-Adresse zu lang';
+    if (!emailRegex.test(value)) return 'Ungültige E-Mail-Adresse';
+    if (value.length > 254) return 'E-Mail-Adresse zu lang';
     return null;
   },
 
   description: (value: string): string | null => {
     if (!value) return 'Beschreibung ist erforderlich';
-    if (value.length < 50)
-      return 'Mindestens 50 Zeichen für gute KI-Ergebnisse empfohlen';
-    if (value.length > 5000)
-      return 'Maximal 5000 Zeichen';
+    if (value.length < 50) return 'Mindestens 50 Zeichen für gute KI-Ergebnisse empfohlen';
+    if (value.length > 5000) return 'Maximal 5000 Zeichen';
     return null;
   },
 
@@ -47,13 +41,10 @@ export const validators = {
   phone: (value: string): string | null => {
     if (!value) return null; // Optional
     const phoneRegex = /^[\d\s\-+()]+$/;
-    if (!phoneRegex.test(value))
-      return 'Ungültige Telefonnummer';
+    if (!phoneRegex.test(value)) return 'Ungültige Telefonnummer';
     const digitsOnly = value.replace(/\D/g, '');
-    if (digitsOnly.length < 5)
-      return 'Telefonnummer zu kurz';
-    if (digitsOnly.length > 20)
-      return 'Telefonnummer zu lang';
+    if (digitsOnly.length < 5) return 'Telefonnummer zu kurz';
+    if (digitsOnly.length > 20) return 'Telefonnummer zu lang';
     return null;
   },
 };

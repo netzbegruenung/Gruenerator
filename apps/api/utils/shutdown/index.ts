@@ -14,5 +14,5 @@ export type {
   MasterShutdownHandler,
   WorkerShutdownHandler,
   Logger,
-  ClusterMessage
+  ClusterMessage,
 } from './types.js';

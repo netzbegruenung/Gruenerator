@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+
 import apiClient from '../components/utils/apiClient';
 
 // Types
@@ -52,12 +53,12 @@ export const useUserDefaultsStore = create<UserDefaultsStore>()(
         set({ isLoading: true });
         try {
           const response = await apiClient.get('/auth/profile/user-defaults', {
-            skipAuthRedirect: true
+            skipAuthRedirect: true,
           } as any);
           set({
             defaults: response.data.userDefaults || {},
             isHydrated: true,
-            isLoading: false
+            isLoading: false,
           });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -85,16 +86,16 @@ export const useUserDefaultsStore = create<UserDefaultsStore>()(
             ...prev,
             [generator]: {
               ...(prev[generator] || {}),
-              [key]: value
-            }
-          }
+              [key]: value,
+            },
+          },
         });
 
         try {
           await apiClient.patch('/auth/profile/user-defaults', {
             generator,
             key,
-            value
+            value,
           });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -110,12 +111,12 @@ export const useUserDefaultsStore = create<UserDefaultsStore>()(
        */
       reset: () => {
         set({ defaults: {}, isHydrated: false, isLoading: false });
-      }
+      },
     }),
     {
       name: 'user-defaults',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ defaults: state.defaults })
+      partialize: (state) => ({ defaults: state.defaults }),
     }
   )
 );

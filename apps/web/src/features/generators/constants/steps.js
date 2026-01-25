@@ -3,5 +3,5 @@ export const STEPS = {
   FIELDS: 2,
   // DOCUMENTS: 3,
   PROMPT: 3,
-  REVIEW: 4
-}; 
+  REVIEW: 4,
+};

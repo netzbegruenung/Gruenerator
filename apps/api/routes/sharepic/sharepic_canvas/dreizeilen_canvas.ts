@@ -1,12 +1,26 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
+import {
+  createCanvas,
+  loadImage,
+  type Canvas,
+  type SKRSContext2D as CanvasRenderingContext2D,
+  type Image,
+} from '@napi-rs/canvas';
 import fs from 'fs/promises';
-import { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } from '../../../services/sharepic/canvas/config.js';
+import {
+  TESTBILD_PATH,
+  params,
+  SUNFLOWER_PATH,
+  COLORS,
+} from '../../../services/sharepic/canvas/config.js';
 import { isValidHexColor, getDefaultColor } from '../../../services/sharepic/canvas/utils.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import { validateParams } from '../../../services/sharepic/canvas/paramValidation.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import {
+  optimizeCanvasBuffer,
+  bufferToBase64,
+} from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('dreizeilen_canv');
@@ -148,14 +162,22 @@ async function addTextToImage(
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     }
 
-    const { balkenGruppenOffset, fontSize, colors, balkenOffset, sunflowerOffset, sunflowerPosition, credit } = validatedParams;
+    const {
+      balkenGruppenOffset,
+      fontSize,
+      colors,
+      balkenOffset,
+      sunflowerOffset,
+      sunflowerPosition,
+      credit,
+    } = validatedParams;
     ctx.font = `${fontSize}px GrueneTypeNeue`;
 
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
 
     const balkenHeight = fontSize * params.BALKEN_HEIGHT_FACTOR;
-    const activeTextLines = processedText.filter(line => line.text);
+    const activeTextLines = processedText.filter((line) => line.text);
     const totalBalkenHeight = balkenHeight * activeTextLines.length;
     let startY = (canvasHeight - totalBalkenHeight) / 2 + 80;
     startY = Math.max(startY, 100);
@@ -164,29 +186,36 @@ async function addTextToImage(
       const textWidth = ctx.measureText(line.text).width;
       const padding = fontSize * params.TEXT_PADDING_FACTOR;
       const rectWidth = Math.min(textWidth + padding * 2 + 20, canvasWidth - 20);
-      const x = Math.max(10, Math.min(canvasWidth - rectWidth - 10,
-        (canvasWidth - rectWidth) / 2 + balkenOffset[index] + balkenGruppenOffset[0]));
-      const y = startY + (balkenHeight * index) + balkenGruppenOffset[1];
+      const x = Math.max(
+        10,
+        Math.min(
+          canvasWidth - rectWidth - 10,
+          (canvasWidth - rectWidth) / 2 + balkenOffset[index] + balkenGruppenOffset[0]
+        )
+      );
+      const y = startY + balkenHeight * index + balkenGruppenOffset[1];
 
       return { x, y, width: rectWidth, height: balkenHeight };
     });
 
-    const textBlockLeft = Math.min(...balkenPositions.map(b => b.x));
-    const textBlockRight = Math.max(...balkenPositions.map(b => b.x + b.width));
+    const textBlockLeft = Math.min(...balkenPositions.map((b) => b.x));
+    const textBlockRight = Math.max(...balkenPositions.map((b) => b.x + b.width));
     const textBlockTop = balkenPositions[0].y;
     const textBlockBottom = balkenPositions[balkenPositions.length - 1].y + balkenHeight;
     const textBlockWidth = textBlockRight - textBlockLeft;
     const textBlockHeight = textBlockBottom - textBlockTop;
 
-    const baseSunflowerSize = Math.min(textBlockWidth, textBlockHeight) * params.SUNFLOWER_SIZE_FACTOR;
+    const baseSunflowerSize =
+      Math.min(textBlockWidth, textBlockHeight) * params.SUNFLOWER_SIZE_FACTOR;
     const sizeFactor = Math.max(0.5, Math.min(1, fontSize / params.DEFAULT_FONT_SIZE));
     const sunflowerSize = baseSunflowerSize * sizeFactor;
 
     let sunflowerX: number, sunflowerY: number;
 
-    const referenceY = activeTextLines.length === 2 ?
-      balkenPositions[1].y + balkenHeight - sunflowerSize * 0.6 :
-      textBlockBottom - sunflowerSize * 0.6;
+    const referenceY =
+      activeTextLines.length === 2
+        ? balkenPositions[1].y + balkenHeight - sunflowerSize * 0.6
+        : textBlockBottom - sunflowerSize * 0.6;
 
     switch (sunflowerPosition) {
       case 'topLeft':
@@ -216,12 +245,24 @@ async function addTextToImage(
         break;
     }
 
-    const adjustedSunflowerX = Math.max(0, Math.min(canvasWidth - sunflowerSize, sunflowerX + sunflowerOffset[0]));
-    const adjustedSunflowerY = Math.max(0, Math.min(canvasHeight - sunflowerSize, sunflowerY + sunflowerOffset[1]));
+    const adjustedSunflowerX = Math.max(
+      0,
+      Math.min(canvasWidth - sunflowerSize, sunflowerX + sunflowerOffset[0])
+    );
+    const adjustedSunflowerY = Math.max(
+      0,
+      Math.min(canvasHeight - sunflowerSize, sunflowerY + sunflowerOffset[1])
+    );
 
     const sunflowerBuffer = await fs.readFile(SUNFLOWER_PATH);
     const sunflowerImage = await loadImage(sunflowerBuffer);
-    ctx.drawImage(sunflowerImage, adjustedSunflowerX, adjustedSunflowerY, sunflowerSize, sunflowerSize);
+    ctx.drawImage(
+      sunflowerImage,
+      adjustedSunflowerX,
+      adjustedSunflowerY,
+      sunflowerSize,
+      sunflowerSize
+    );
 
     balkenPositions.forEach((balken, index) => {
       const { x, y, width, height } = balken;
@@ -229,9 +270,9 @@ async function addTextToImage(
 
       const points = [
         { x: x, y: y + height },
-        { x: x + width - (height * Math.tan(12 * Math.PI / 180)) / 2, y: y + height },
-        { x: x + width + (height * Math.tan(12 * Math.PI / 180)) / 2, y: y },
-        { x: x + (height * Math.tan(12 * Math.PI / 180)) / 2, y: y }
+        { x: x + width - (height * Math.tan((12 * Math.PI) / 180)) / 2, y: y + height },
+        { x: x + width + (height * Math.tan((12 * Math.PI) / 180)) / 2, y: y },
+        { x: x + (height * Math.tan((12 * Math.PI) / 180)) / 2, y: y },
       ];
 
       ctx.fillStyle = background;
@@ -271,101 +312,145 @@ async function addTextToImage(
   }
 }
 
-router.post('/', upload.single('image'), async (req: MulterRequest, res: Response): Promise<void> => {
-  try {
-    const {
-      balkenGruppe_offset_x, balkenGruppe_offset_y, fontSize,
-      colors_0_background, colors_0_text,
-      colors_1_background, colors_1_text,
-      colors_2_background, colors_2_text,
-      balkenOffset_0, balkenOffset_1, balkenOffset_2,
-      line1, line2, line3,
-      sunflower_offset_x, sunflower_offset_y,
-      sunflowerPosition,
-      credit
-    } = req.body as DreizeilenRequestBody;
-
-    const uploadedImageBuffer = req.file ? req.file.buffer : null;
-
-    log.debug('Incoming color values:', {
-      colors_0_background, colors_0_text,
-      colors_1_background, colors_1_text,
-      colors_2_background, colors_2_text
-    });
-
-    const hasBackgroundImage = !!uploadedImageBuffer;
-
-    const getColorForNoBackground = (type: 'background' | 'text', index: number): string => {
-      if (hasBackgroundImage) {
-        return getDefaultColor(type, index);
-      }
-
-      if (type === 'background') {
-        return index === 0 ? COLORS.KLEE : COLORS.TANNE;
-      } else {
-        return COLORS.SAND;
-      }
-    };
-
-    const modParams: DreizeilenParams = {
-      balkenGruppenOffset: [parseFloat(balkenGruppe_offset_x || '0') || 0, parseFloat(balkenGruppe_offset_y || '0') || 0],
-      fontSize: parseInt(fontSize || String(params.DEFAULT_FONT_SIZE), 10) || params.DEFAULT_FONT_SIZE,
-      colors: [
-        {
-          background: isValidHexColor(colors_0_background) ? colors_0_background! : getColorForNoBackground('background', 0),
-          text: isValidHexColor(colors_0_text) ? colors_0_text! : getColorForNoBackground('text', 0)
-        },
-        {
-          background: isValidHexColor(colors_1_background) ? colors_1_background! : getColorForNoBackground('background', 1),
-          text: isValidHexColor(colors_1_text) ? colors_1_text! : getColorForNoBackground('text', 1)
-        },
-        {
-          background: isValidHexColor(colors_2_background) ? colors_2_background! : getColorForNoBackground('background', 2),
-          text: isValidHexColor(colors_2_text) ? colors_2_text! : getColorForNoBackground('text', 2)
-        }
-      ],
-      balkenOffset: [
-        balkenOffset_0 !== undefined ? parseFloat(balkenOffset_0) : params.DEFAULT_BALKEN_OFFSET[0],
-        balkenOffset_1 !== undefined ? parseFloat(balkenOffset_1) : params.DEFAULT_BALKEN_OFFSET[1],
-        balkenOffset_2 !== undefined ? parseFloat(balkenOffset_2) : params.DEFAULT_BALKEN_OFFSET[2]
-      ] as [number, number, number],
-      sunflowerOffset: [
-        parseFloat(sunflower_offset_x || '0') || 0,
-        parseFloat(sunflower_offset_y || '0') || 0
-      ],
-      sunflowerPosition: sunflowerPosition || params.DEFAULT_SUNFLOWER_POSITION,
-      credit: credit || ''
-    };
-
-    await checkFiles();
-    registerFonts();
-
-    const validatedParams = validateParams(modParams);
-    const processedText = await processText({ line1, line2, line3 });
-    const imageBuffer = req.file?.buffer || null;
-
+router.post(
+  '/',
+  upload.single('image'),
+  async (req: MulterRequest, res: Response): Promise<void> => {
     try {
-      if (imageBuffer) {
-        await loadImage(imageBuffer);
-      }
+      const {
+        balkenGruppe_offset_x,
+        balkenGruppe_offset_y,
+        fontSize,
+        colors_0_background,
+        colors_0_text,
+        colors_1_background,
+        colors_1_text,
+        colors_2_background,
+        colors_2_text,
+        balkenOffset_0,
+        balkenOffset_1,
+        balkenOffset_2,
+        line1,
+        line2,
+        line3,
+        sunflower_offset_x,
+        sunflower_offset_y,
+        sunflowerPosition,
+        credit,
+      } = req.body as DreizeilenRequestBody;
 
-      const generatedImageBuffer = await addTextToImage(imageBuffer, processedText, validatedParams);
-      const base64Image = bufferToBase64(generatedImageBuffer);
+      const uploadedImageBuffer = req.file ? req.file.buffer : null;
 
-      res.json({ image: base64Image });
-    } catch (error) {
-      log.error('Fehler bei der Bildverarbeitung:', error);
-      res.status(400).json({
-        error: 'Bildverarbeitungsfehler',
-        details: (error as Error).message
+      log.debug('Incoming color values:', {
+        colors_0_background,
+        colors_0_text,
+        colors_1_background,
+        colors_1_text,
+        colors_2_background,
+        colors_2_text,
       });
-    }
 
-  } catch (err) {
-    log.error('Fehler bei der Anfrage:', err);
-    res.status(500).json({ error: 'Fehler beim Erstellen des Bildes: ' + (err as Error).message });
+      const hasBackgroundImage = !!uploadedImageBuffer;
+
+      const getColorForNoBackground = (type: 'background' | 'text', index: number): string => {
+        if (hasBackgroundImage) {
+          return getDefaultColor(type, index);
+        }
+
+        if (type === 'background') {
+          return index === 0 ? COLORS.KLEE : COLORS.TANNE;
+        } else {
+          return COLORS.SAND;
+        }
+      };
+
+      const modParams: DreizeilenParams = {
+        balkenGruppenOffset: [
+          parseFloat(balkenGruppe_offset_x || '0') || 0,
+          parseFloat(balkenGruppe_offset_y || '0') || 0,
+        ],
+        fontSize:
+          parseInt(fontSize || String(params.DEFAULT_FONT_SIZE), 10) || params.DEFAULT_FONT_SIZE,
+        colors: [
+          {
+            background: isValidHexColor(colors_0_background)
+              ? colors_0_background!
+              : getColorForNoBackground('background', 0),
+            text: isValidHexColor(colors_0_text)
+              ? colors_0_text!
+              : getColorForNoBackground('text', 0),
+          },
+          {
+            background: isValidHexColor(colors_1_background)
+              ? colors_1_background!
+              : getColorForNoBackground('background', 1),
+            text: isValidHexColor(colors_1_text)
+              ? colors_1_text!
+              : getColorForNoBackground('text', 1),
+          },
+          {
+            background: isValidHexColor(colors_2_background)
+              ? colors_2_background!
+              : getColorForNoBackground('background', 2),
+            text: isValidHexColor(colors_2_text)
+              ? colors_2_text!
+              : getColorForNoBackground('text', 2),
+          },
+        ],
+        balkenOffset: [
+          balkenOffset_0 !== undefined
+            ? parseFloat(balkenOffset_0)
+            : params.DEFAULT_BALKEN_OFFSET[0],
+          balkenOffset_1 !== undefined
+            ? parseFloat(balkenOffset_1)
+            : params.DEFAULT_BALKEN_OFFSET[1],
+          balkenOffset_2 !== undefined
+            ? parseFloat(balkenOffset_2)
+            : params.DEFAULT_BALKEN_OFFSET[2],
+        ] as [number, number, number],
+        sunflowerOffset: [
+          parseFloat(sunflower_offset_x || '0') || 0,
+          parseFloat(sunflower_offset_y || '0') || 0,
+        ],
+        sunflowerPosition: sunflowerPosition || params.DEFAULT_SUNFLOWER_POSITION,
+        credit: credit || '',
+      };
+
+      await checkFiles();
+      registerFonts();
+
+      const validatedParams = validateParams(modParams);
+      const processedText = await processText({ line1, line2, line3 });
+      const imageBuffer = req.file?.buffer || null;
+
+      try {
+        if (imageBuffer) {
+          await loadImage(imageBuffer);
+        }
+
+        const generatedImageBuffer = await addTextToImage(
+          imageBuffer,
+          processedText,
+          validatedParams
+        );
+        const base64Image = bufferToBase64(generatedImageBuffer);
+
+        res.json({ image: base64Image });
+      } catch (error) {
+        log.error('Fehler bei der Bildverarbeitung:', error);
+        res.status(400).json({
+          error: 'Bildverarbeitungsfehler',
+          details: (error as Error).message,
+        });
+      }
+    } catch (err) {
+      log.error('Fehler bei der Anfrage:', err);
+      res
+        .status(500)
+        .json({ error: 'Fehler beim Erstellen des Bildes: ' + (err as Error).message });
+    }
   }
-});
+);
 
 export { processText };
 export default router;

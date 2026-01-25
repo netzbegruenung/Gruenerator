@@ -1,19 +1,19 @@
 import { useCallback } from 'react';
-import useSharepicGeneration from '../../../../hooks/useSharepicGeneration';
+
 import useApiSubmit from '../../../../components/hooks/useApiSubmit';
+import useSharepicGeneration from '../../../../hooks/useSharepicGeneration';
 import { usePRWorkflow } from '../../../pr-agent/hooks/usePRWorkflow';
-import type { SocialMediaFormData } from '../components/SocialMediaForm';
+
+import type { FeatureState } from '../../../../hooks/useGeneratorSetup';
 import type { PressemitteilungFormData } from '../components/PressemitteilungForm';
 import type { SharepicFormData } from '../components/SharepicForm';
-import type { FeatureState } from '../../../../hooks/useGeneratorSetup';
+import type { SocialMediaFormData } from '../components/SocialMediaForm';
 
 /**
  * Combined form data from all child forms
  */
 export interface PresseSocialFormData
-  extends SocialMediaFormData,
-    Partial<PressemitteilungFormData>,
-    Partial<SharepicFormData> {
+  extends SocialMediaFormData, Partial<PressemitteilungFormData>, Partial<SharepicFormData> {
   /**
    * Selected platforms for generation
    */
@@ -82,9 +82,7 @@ interface SubmitReturn {
    * Submit handler for standard social media generation
    * Executes sharepic and social content in parallel
    */
-  submitStandard: (
-    formData: PresseSocialFormData
-  ) => Promise<GenerationResult | null>;
+  submitStandard: (formData: PresseSocialFormData) => Promise<GenerationResult | null>;
 
   /**
    * Generate production content after PR approval
@@ -146,9 +144,7 @@ interface SubmitReturn {
  * };
  * ```
  */
-export function usePresseSocialSubmit(
-  config: SubmissionConfig
-): SubmitReturn {
+export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
   const { submitForm, loading: socialLoading, error: socialError } = useApiSubmit('/claude_social');
   const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
   const prWorkflow = usePRWorkflow();
@@ -158,13 +154,20 @@ export function usePresseSocialSubmit(
    * Phase 1: Generate strategy for approval
    */
   const submitPRWorkflow = useCallback(
-    async (formData: PresseSocialFormData): Promise<{ success: boolean; workflow_id: string; content: string; error?: string } | null> => {
+    async (
+      formData: PresseSocialFormData
+    ): Promise<{
+      success: boolean;
+      workflow_id: string;
+      content: string;
+      error?: string;
+    } | null> => {
       try {
         const result = await prWorkflow.generateStrategy({
           inhalt: formData.inhalt,
           useWebSearchTool: config.features.useWebSearchTool,
           selectedDocumentIds: Array.from(config.selectedDocumentIds),
-          selectedTextIds: Array.from(config.selectedTextIds)
+          selectedTextIds: Array.from(config.selectedTextIds),
         });
 
         return result as { success: boolean; workflow_id: string; content: string; error?: string };
@@ -196,7 +199,7 @@ export function usePresseSocialSubmit(
           customPrompt: config.customPrompt,
           selectedDocumentIds: Array.from(config.selectedDocumentIds),
           selectedTextIds: Array.from(config.selectedTextIds),
-          searchQuery: buildSearchQuery(formData)
+          searchQuery: buildSearchQuery(formData),
         };
 
         const combinedResults: GenerationResult = {};
@@ -208,7 +211,13 @@ export function usePresseSocialSubmit(
 
         // Prepare sharepic generation promise
         if (hasSharepic) {
-          type SharepicType = 'default' | 'quote' | 'quote_pure' | 'info' | 'headline' | 'dreizeilen';
+          type SharepicType =
+            | 'default'
+            | 'quote'
+            | 'quote_pure'
+            | 'info'
+            | 'headline'
+            | 'dreizeilen';
 
           generationPromises.push(
             generateSharepic(
@@ -223,8 +232,8 @@ export function usePresseSocialSubmit(
               null,
               config.features.useBedrock
             )
-              .then(result => ({ type: 'sharepic' as const, result }))
-              .catch(error => ({ type: 'sharepic' as const, error }))
+              .then((result) => ({ type: 'sharepic' as const, result }))
+              .catch((error) => ({ type: 'sharepic' as const, error }))
           );
         }
 
@@ -232,8 +241,8 @@ export function usePresseSocialSubmit(
         if (otherPlatforms.length > 0) {
           generationPromises.push(
             submitForm(submissionData)
-              .then(result => ({ type: 'social', result }))
-              .catch(error => ({ type: 'social', error }))
+              .then((result) => ({ type: 'social', result }))
+              .catch((error) => ({ type: 'social', error }))
           );
         }
 
@@ -256,15 +265,15 @@ export function usePresseSocialSubmit(
               newSharepicEntries = sharepicResult.map((sharepic: SharepicEntry) => ({
                 ...sharepic,
                 id: sharepic.id || `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                createdAt: sharepic.createdAt || new Date().toISOString()
+                createdAt: sharepic.createdAt || new Date().toISOString(),
               }));
             } else {
               newSharepicEntries = [
                 {
                   ...sharepicResult,
                   id: `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                  createdAt: new Date().toISOString()
-                }
+                  createdAt: new Date().toISOString(),
+                },
               ];
             }
 
@@ -277,7 +286,7 @@ export function usePresseSocialSubmit(
             const response = outcome.result as
               | { content?: string; metadata?: Record<string, unknown> }
               | string;
-            let content =
+            const content =
               typeof response === 'string'
                 ? response
                 : (response as { content?: string }).content || '';
@@ -306,7 +315,7 @@ export function usePresseSocialSubmit(
       config.attachments,
       config.customPrompt,
       config.selectedDocumentIds,
-      config.selectedTextIds
+      config.selectedTextIds,
     ]
   );
 
@@ -332,8 +341,10 @@ export function usePresseSocialSubmit(
     submitStandard,
     generateProduction,
     loading: socialLoading || sharepicLoading || prWorkflow.state.status === 'generating_strategy',
-    error: (socialError as unknown as { message: string } | null) || (prWorkflow.state.error ? { message: prWorkflow.state.error } : null),
-    prWorkflow
+    error:
+      (socialError as unknown as { message: string } | null) ||
+      (prWorkflow.state.error ? { message: prWorkflow.state.error } : null),
+    prWorkflow,
   };
 }
 
@@ -346,5 +357,5 @@ function buildSearchQuery(formData: PresseSocialFormData): string {
   if (formData.inhalt) queryParts.push(formData.inhalt);
   if (formData.zitatgeber) queryParts.push(formData.zitatgeber);
 
-  return queryParts.filter(part => part && part.trim()).join(' ');
+  return queryParts.filter((part) => part && part.trim()).join(' ');
 }

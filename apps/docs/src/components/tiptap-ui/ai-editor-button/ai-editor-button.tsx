@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { forwardRef } from "react";
-import { Button } from "@/components/tiptap-ui-primitive/button";
-import type { ButtonProps } from "@/components/tiptap-ui-primitive/button";
-import { SparklesIcon } from "@/components/tiptap-icons/sparkles-icon";
-import { useAiEditStore } from "@/stores/aiEditStore";
-import { useEditorStore } from "@/stores/editorStore";
+import { forwardRef } from 'react';
+import { Button } from '@/components/tiptap-ui-primitive/button';
+import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
+import { SparklesIcon } from '@/components/tiptap-icons/sparkles-icon';
+import { useAiEditStore } from '@/stores/aiEditStore';
+import { useEditorStore } from '@/stores/editorStore';
 
-export interface AiEditorButtonProps extends Omit<ButtonProps, "onClick"> {
+export interface AiEditorButtonProps extends Omit<ButtonProps, 'onClick'> {
   documentId: string;
   onClick?: () => void;
   text?: string;
@@ -31,11 +31,11 @@ export const AiEditorButton = forwardRef<HTMLButtonElement, AiEditorButtonProps>
         disabled={isDisabled}
         {...props}
       >
-        <SparklesIcon className={isProcessing ? "animate-pulse" : ""} />
+        <SparklesIcon className={isProcessing ? 'animate-pulse' : ''} />
         {text && <span className="ml-2">{text}</span>}
       </Button>
     );
   }
 );
 
-AiEditorButton.displayName = "AiEditorButton";
+AiEditorButton.displayName = 'AiEditorButton';

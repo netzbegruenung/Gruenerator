@@ -87,7 +87,7 @@ export function parseTimeRange(timeLine: string): { start: number; end: number }
   const [, startStr, endStr] = timeMatch;
   return {
     start: parseSubtitleTime(startStr),
-    end: parseSubtitleTime(endStr)
+    end: parseSubtitleTime(endStr),
   };
 }
 

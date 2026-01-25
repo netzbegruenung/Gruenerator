@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import ProfileButton from './ProfileButton';
+
 import useHeaderStore from '../../../stores/headerStore';
 import useSidebarStore from '../../../stores/sidebarStore';
+
+import ProfileButton from './ProfileButton';
 import '../../../assets/styles/components/layout/header.css';
 
 const Header = () => {

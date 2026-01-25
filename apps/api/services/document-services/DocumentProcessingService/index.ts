@@ -17,30 +17,19 @@ export type {
   TextProcessingResult,
   UrlProcessingResult,
   UploadedFile,
-  OcrExtractionResult
+  OcrExtractionResult,
 } from './types.js';
 
 // Re-export module functions (for direct use if needed)
-export {
-  extractTextFromFile,
-  generateContentPreview
-} from './textExtraction.js';
+export { extractTextFromFile, generateContentPreview } from './textExtraction.js';
 
-export {
-  chunkAndEmbedText
-} from './chunkingPipeline.js';
+export { chunkAndEmbedText } from './chunkingPipeline.js';
 
-export {
-  processFileUpload
-} from './fileProcessing.js';
+export { processFileUpload } from './fileProcessing.js';
 
-export {
-  processTextContent
-} from './textProcessing.js';
+export { processTextContent } from './textProcessing.js';
 
-export {
-  processUrlContent
-} from './urlProcessing.js';
+export { processUrlContent } from './urlProcessing.js';
 
 // Singleton instance (for backward compatibility)
 import { DocumentProcessingService } from './DocumentProcessingService.js';

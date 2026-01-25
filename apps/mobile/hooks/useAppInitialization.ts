@@ -12,10 +12,7 @@ export function useAppInitialization() {
       try {
         initializeApiClient();
         configureAuthStore();
-        await Promise.all([
-          checkAuthStatus(),
-          loadPreferences(),
-        ]);
+        await Promise.all([checkAuthStatus(), loadPreferences()]);
       } catch (error) {
         console.error('[App] Initialization error:', error);
       } finally {

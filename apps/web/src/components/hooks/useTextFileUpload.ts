@@ -23,35 +23,41 @@ const useTextFileUpload = (
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
 
-  const validateFile = useCallback((fileToValidate: File) => {
-    if (!allowedTypes.includes(fileToValidate.type)) {
-      throw new Error('Ungültiger Dateityp. Bitte wählen Sie eine unterstützte Textdatei.');
-    }
-    if (fileToValidate.size > maxSize) {
-      throw new Error(`Dateigröße überschreitet ${maxSize / 1024 / 1024} MB`);
-    }
-  }, [allowedTypes, maxSize]);
+  const validateFile = useCallback(
+    (fileToValidate: File) => {
+      if (!allowedTypes.includes(fileToValidate.type)) {
+        throw new Error('Ungültiger Dateityp. Bitte wählen Sie eine unterstützte Textdatei.');
+      }
+      if (fileToValidate.size > maxSize) {
+        throw new Error(`Dateigröße überschreitet ${maxSize / 1024 / 1024} MB`);
+      }
+    },
+    [allowedTypes, maxSize]
+  );
 
-  const handleFileChange = useCallback(async (selectedFile: File | null) => {
-    setLoading(true);
-    setError('');
-    try {
-      if (!selectedFile) {
+  const handleFileChange = useCallback(
+    async (selectedFile: File | null) => {
+      setLoading(true);
+      setError('');
+      try {
+        if (!selectedFile) {
+          setFile(null);
+          setFileName('');
+          return;
+        }
+        validateFile(selectedFile);
+        setFile(selectedFile);
+        setFileName(selectedFile.name);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
         setFile(null);
         setFileName('');
-        return;
+      } finally {
+        setLoading(false);
       }
-      validateFile(selectedFile);
-      setFile(selectedFile);
-      setFileName(selectedFile.name);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
-      setFile(null);
-      setFileName('');
-    } finally {
-      setLoading(false);
-    }
-  }, [validateFile]);
+    },
+    [validateFile]
+  );
 
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
@@ -70,13 +76,16 @@ const useTextFileUpload = (
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-    const droppedFile = e.dataTransfer.files[0] ?? null;
-    handleFileChange(droppedFile);
-  }, [handleFileChange]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragging(false);
+      const droppedFile = e.dataTransfer.files[0] ?? null;
+      void handleFileChange(droppedFile);
+    },
+    [handleFileChange]
+  );
 
   return {
     file,

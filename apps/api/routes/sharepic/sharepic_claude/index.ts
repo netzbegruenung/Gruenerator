@@ -5,9 +5,25 @@ import type { SharepicRequest } from './types.js';
 
 const router: Router = Router();
 
-type SharepicType = 'default' | 'dreizeilen' | 'zitat' | 'zitat_pure' | 'headline' | 'info' | 'veranstaltung' | 'simple';
+type SharepicType =
+  | 'default'
+  | 'dreizeilen'
+  | 'zitat'
+  | 'zitat_pure'
+  | 'headline'
+  | 'info'
+  | 'veranstaltung'
+  | 'simple';
 
-const UNIFIED_TYPES = ['dreizeilen', 'zitat', 'zitat_pure', 'headline', 'info', 'veranstaltung', 'simple'];
+const UNIFIED_TYPES = [
+  'dreizeilen',
+  'zitat',
+  'zitat_pure',
+  'headline',
+  'info',
+  'veranstaltung',
+  'simple',
+];
 
 async function handleClaudeRequest(
   req: SharepicRequest,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaWindows, FaApple, FaLinux } from 'react-icons/fa';
 import { HiDownload, HiRefresh } from 'react-icons/hi';
+
 import { Markdown } from '../../components/common/Markdown';
 import '../../assets/styles/pages/Impressum_datenschutz.css';
 import '../../assets/styles/components/ui/button.css';
@@ -54,19 +55,26 @@ const detectArchitecture = () => {
 
     // Fallback: Check for Apple Silicon hints in userAgent
     // Safari on Apple Silicon includes specific identifiers
-    if (userAgent.includes('macintosh') &&
-        (userAgent.includes('applewebkit') && !userAgent.includes('intel'))) {
+    if (
+      userAgent.includes('macintosh') &&
+      userAgent.includes('applewebkit') &&
+      !userAgent.includes('intel')
+    ) {
       // Could be Apple Silicon, but not definitive
     }
 
     // Use WebGL renderer as fallback detection
     try {
       const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
+      const gl =
+        canvas.getContext('webgl') ||
+        (canvas.getContext('experimental-webgl') as WebGLRenderingContext | null);
       if (gl) {
         const debugInfo = (gl as WebGLRenderingContext).getExtension('WEBGL_debug_renderer_info');
         if (debugInfo) {
-          const renderer = ((gl as WebGLRenderingContext).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) as string).toLowerCase();
+          const renderer = (
+            (gl as WebGLRenderingContext).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) as string
+          ).toLowerCase();
           if (renderer.includes('apple m') || renderer.includes('apple gpu')) {
             return 'arm64';
           }
@@ -102,7 +110,7 @@ const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString('de-DE', {
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
   });
 };
 
@@ -150,8 +158,13 @@ const categorizeAssets = (assets: ReleaseAsset[] | undefined): CategorizedAssets
 
   return {
     windows: assets.filter((a: ReleaseAsset) => /\.(exe|msi)$/i.test(a.name)),
-    macos: assets.filter((a: ReleaseAsset) => /\.dmg$/i.test(a.name) || a.name.toLowerCase().includes('darwin') || a.name.toLowerCase().includes('macos')),
-    linux: assets.filter((a: ReleaseAsset) => /\.(appimage|deb|rpm)$/i.test(a.name))
+    macos: assets.filter(
+      (a: ReleaseAsset) =>
+        /\.dmg$/i.test(a.name) ||
+        a.name.toLowerCase().includes('darwin') ||
+        a.name.toLowerCase().includes('macos')
+    ),
+    linux: assets.filter((a: ReleaseAsset) => /\.(appimage|deb|rpm)$/i.test(a.name)),
   };
 };
 
@@ -170,7 +183,13 @@ interface PlatformSectionProps {
   userArchitecture: string;
 }
 
-const PlatformSection = ({ title, icon: Icon, assets, isCurrentPlatform, userArchitecture }: PlatformSectionProps): React.ReactElement | null => {
+const PlatformSection = ({
+  title,
+  icon: Icon,
+  assets,
+  isCurrentPlatform,
+  userArchitecture,
+}: PlatformSectionProps): React.ReactElement | null => {
   if (!assets || assets.length === 0) return null;
 
   // Sort assets to put the user's architecture first
@@ -242,7 +261,7 @@ const AppsPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchRelease();
+    void fetchRelease();
   }, [fetchRelease]);
 
   if (loading) {
@@ -276,16 +295,17 @@ const AppsPage = () => {
   }
 
   const categorizedAssets = categorizeAssets(release.assets);
-  const hasAnyAssets = categorizedAssets.windows.length > 0 ||
-                       categorizedAssets.macos.length > 0 ||
-                       categorizedAssets.linux.length > 0;
+  const hasAnyAssets =
+    categorizedAssets.windows.length > 0 ||
+    categorizedAssets.macos.length > 0 ||
+    categorizedAssets.linux.length > 0;
 
   return (
     <div className="page-container">
       <h1>Grünerator Desktop App</h1>
       <p>
-        Lade die Grünerator Desktop-App herunter für schnelleren Zugriff auf alle Funktionen
-        - auch offline verfügbar.
+        Lade die Grünerator Desktop-App herunter für schnelleren Zugriff auf alle Funktionen - auch
+        offline verfügbar.
       </p>
 
       <div className="apps-version-info">
@@ -302,9 +322,14 @@ const AppsPage = () => {
             const currentPlatform = detectPlatform();
             const currentArchitecture = detectArchitecture();
             const platformConfigs = [
-              { key: 'windows', title: 'Windows', icon: FaWindows, assets: categorizedAssets.windows },
+              {
+                key: 'windows',
+                title: 'Windows',
+                icon: FaWindows,
+                assets: categorizedAssets.windows,
+              },
               { key: 'macos', title: 'macOS', icon: FaApple, assets: categorizedAssets.macos },
-              { key: 'linux', title: 'Linux', icon: FaLinux, assets: categorizedAssets.linux }
+              { key: 'linux', title: 'Linux', icon: FaLinux, assets: categorizedAssets.linux },
             ];
 
             // Sort to put current platform first

@@ -1,9 +1,25 @@
-import type { JSX, ComponentType } from 'react';
-import type { IconType, IconBaseProps } from 'react-icons';
-import { ICONS } from '../../../config/icons';
 import { SiCanva } from 'react-icons/si';
 
-export type ActionIconName = 'edit' | 'delete' | 'back' | 'refresh' | 'open' | 'add' | 'info' | 'altText' | 'kiLabel' | 'download' | 'canva' | 'link' | 'share' | 'check';
+import { ICONS } from '../../../config/icons';
+
+import type { JSX, ComponentType } from 'react';
+import type { IconType, IconBaseProps } from 'react-icons';
+
+export type ActionIconName =
+  | 'edit'
+  | 'delete'
+  | 'back'
+  | 'refresh'
+  | 'open'
+  | 'add'
+  | 'info'
+  | 'altText'
+  | 'kiLabel'
+  | 'download'
+  | 'canva'
+  | 'link'
+  | 'share'
+  | 'check';
 export type ButtonVariant = 'ghost' | 'secondary' | 'primary' | 'danger' | 'delete';
 export type ButtonSize = 's' | 'm';
 type IconComponent = ComponentType<IconBaseProps> | null;
@@ -22,16 +38,22 @@ const DEFAULTS: Record<ActionIconName, { label: string; variant: ButtonVariant }
   canva: { label: 'In Canva bearbeiten', variant: 'secondary' },
   link: { label: 'Link kopieren', variant: 'ghost' },
   share: { label: 'Teilen', variant: 'primary' },
-  check: { label: 'Bestätigen', variant: 'primary' }
+  check: { label: 'Bestätigen', variant: 'primary' },
 };
 
 const variantToClass = (variant: ButtonVariant): string => {
   switch (variant) {
-    case 'primary': return 'pabtn pabtn--primary';
-    case 'secondary': return 'pabtn pabtn--secondary';
-    case 'danger': return 'pabtn pabtn--danger';
-    case 'delete': return 'pabtn pabtn--delete';
-    case 'ghost': default: return 'pabtn pabtn--ghost';
+    case 'primary':
+      return 'pabtn pabtn--primary';
+    case 'secondary':
+      return 'pabtn pabtn--secondary';
+    case 'danger':
+      return 'pabtn pabtn--danger';
+    case 'delete':
+      return 'pabtn pabtn--delete';
+    case 'ghost':
+    default:
+      return 'pabtn pabtn--ghost';
   }
 };
 
@@ -59,7 +81,8 @@ export interface ProfileActionButtonProps {
   showLabel?: boolean;
 }
 
-export const ProfileActionButton = ({ action,
+export const ProfileActionButton = ({
+  action,
   label,
   ariaLabel,
   title,
@@ -70,7 +93,8 @@ export const ProfileActionButton = ({ action,
   disabled = false,
   onClick,
   className = '',
-  showLabel = true }: ProfileActionButtonProps): JSX.Element => {
+  showLabel = true,
+}: ProfileActionButtonProps): JSX.Element => {
   const defaults = DEFAULTS[action] || { label: action, variant: 'secondary' };
   const finalLabel = label || defaults.label;
   const finalTitle = title || finalLabel;

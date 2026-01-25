@@ -10,7 +10,7 @@ import type {
   CorrectionItem,
   VideoMetadata,
   SubtitleSegment,
-  LoadedProject
+  LoadedProject,
 } from '../types';
 
 /**
@@ -56,10 +56,7 @@ export function isCorrectionItem(data: unknown): data is CorrectionItem {
 
   const item = data as Record<string, unknown>;
 
-  return (
-    typeof item.id === 'number' &&
-    typeof item.corrected === 'string'
-  );
+  return typeof item.id === 'number' && typeof item.corrected === 'string';
 }
 
 /**
@@ -128,7 +125,7 @@ export function isSubtitleSegmentArray(data: unknown): data is SubtitleSegment[]
     return false;
   }
 
-  return data.every(item => isSubtitleSegment(item));
+  return data.every((item) => isSubtitleSegment(item));
 }
 
 /**
@@ -150,9 +147,17 @@ export function isLoadedProject(data: unknown): data is LoadedProject {
   }
 
   // Optional fields validation
-  const optionalStringFields = ['uploadId', 'subtitles', 'title', 'stylePreference',
-                                'heightPreference', 'modePreference', 'videoFilename',
-                                'createdAt', 'updatedAt'];
+  const optionalStringFields = [
+    'uploadId',
+    'subtitles',
+    'title',
+    'stylePreference',
+    'heightPreference',
+    'modePreference',
+    'videoFilename',
+    'createdAt',
+    'updatedAt',
+  ];
 
   for (const field of optionalStringFields) {
     if (project[field] !== undefined && typeof project[field] !== 'string') {
@@ -206,10 +211,7 @@ export function assertCorrectionResponse(
  * @returns Validated VideoMetadata
  * @throws Error if validation fails
  */
-export function assertVideoMetadata(
-  data: unknown,
-  context = 'video metadata'
-): VideoMetadata {
+export function assertVideoMetadata(data: unknown, context = 'video metadata'): VideoMetadata {
   if (!isVideoMetadata(data)) {
     throw new Error(`Invalid video metadata format in ${context}`);
   }

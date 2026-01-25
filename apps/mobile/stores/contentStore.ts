@@ -48,7 +48,7 @@ export const useContentStore = create<ContentStore>()((set, get) => ({
       set({
         documents: result?.documents || [],
         texts: result?.texts || [],
-        isLoading: false
+        isLoading: false,
       });
     } catch (error: unknown) {
       set({ error: getErrorMessage(error), isLoading: false });
@@ -62,7 +62,7 @@ export const useContentStore = create<ContentStore>()((set, get) => ({
       set({
         documents: result?.documents || [],
         texts: result?.texts || [],
-        isRefreshing: false
+        isRefreshing: false,
       });
     } catch (error: unknown) {
       set({ error: getErrorMessage(error), isRefreshing: false });
@@ -97,9 +97,7 @@ export const useContentStore = create<ContentStore>()((set, get) => ({
     try {
       await apiUpdateTextTitle(id, title);
       set((state) => ({
-        texts: state.texts.map((text) =>
-          text.id === id ? { ...text, title } : text
-        ),
+        texts: state.texts.map((text) => (text.id === id ? { ...text, title } : text)),
       }));
     } catch (error: unknown) {
       set({ error: getErrorMessage(error) });

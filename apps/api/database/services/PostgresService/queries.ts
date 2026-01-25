@@ -37,8 +37,8 @@ export function buildUpdateQuery(
   const whereColumns = Object.keys(whereConditions);
 
   const setClause = dataColumns.map((key, index) => `${key} = $${index + 1}`);
-  const whereClause = whereColumns.map((key, index) =>
-    `${key} = $${dataColumns.length + index + 1}`
+  const whereClause = whereColumns.map(
+    (key, index) => `${key} = $${dataColumns.length + index + 1}`
   );
 
   const sql = `
@@ -81,8 +81,8 @@ export function buildUpsertQuery(
   const values = Object.values(data);
   const placeholders = values.map((_, index) => `$${index + 1}`);
 
-  const updateColumns = columns.filter(col => !conflictColumns.includes(col));
-  const updateClause = updateColumns.map(col => `${col} = EXCLUDED.${col}`).join(', ');
+  const updateColumns = columns.filter((col) => !conflictColumns.includes(col));
+  const updateClause = updateColumns.map((col) => `${col} = EXCLUDED.${col}`).join(', ');
 
   const sql = `
     INSERT INTO ${table} (${columns.join(', ')})
@@ -108,14 +108,16 @@ export function buildBulkInsertQuery(
 
   const columns = Object.keys(records[0]);
 
-  const valuesClause = records.map((_, recordIndex) => {
-    const placeholders = columns.map((_, colIndex) =>
-      `$${recordIndex * columns.length + colIndex + 1}`
-    );
-    return `(${placeholders.join(', ')})`;
-  }).join(', ');
+  const valuesClause = records
+    .map((_, recordIndex) => {
+      const placeholders = columns.map(
+        (_, colIndex) => `$${recordIndex * columns.length + colIndex + 1}`
+      );
+      return `(${placeholders.join(', ')})`;
+    })
+    .join(', ');
 
-  const values = records.flatMap(record => Object.values(record));
+  const values = records.flatMap((record) => Object.values(record));
 
   const sql = `
     INSERT INTO ${table} (${columns.join(', ')})

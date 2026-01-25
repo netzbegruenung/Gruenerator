@@ -33,7 +33,11 @@ export function NativeTabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(tools)">
         {Platform.select({
-          ios: <Icon sf={{ default: 'wrench.and.screwdriver', selected: 'wrench.and.screwdriver.fill' }} />,
+          ios: (
+            <Icon
+              sf={{ default: 'wrench.and.screwdriver', selected: 'wrench.and.screwdriver.fill' }}
+            />
+          ),
           android: <Icon src={<VectorIcon family={Ionicons} name="construct" />} />,
         })}
         <Label>Tools</Label>

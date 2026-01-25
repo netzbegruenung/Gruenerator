@@ -1,7 +1,9 @@
 import { useRef, useEffect } from 'react';
+
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { MarkdownEditor } from '../common/MarkdownEditor';
+
 import type { AboutSection } from '../../../types/candidate';
 
 interface AboutSectionEditorProps {
@@ -30,7 +32,7 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
   };
 
   const getTextLength = (markdown: string) => {
-    return markdown.replace(/[#*_\[\]()]/g, '').length;
+    return markdown.replace(/[#*_[\]()]/g, '').length;
   };
 
   const contentLength = getTextLength(data.content || '');
@@ -44,7 +46,9 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
     <div className="about-section-editor">
       <h3 className="section-editor-title">Über mich</h3>
 
-      <div className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}>
+      <div
+        className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}
+      >
         <label htmlFor="about-title">Titel</label>
         <input
           ref={titleRef}
@@ -58,7 +62,9 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
         />
       </div>
 
-      <div className={`editor-form-group ${isFieldHighlighted('content') ? 'editor-field-highlighted' : ''}`}>
+      <div
+        className={`editor-form-group ${isFieldHighlighted('content') ? 'editor-field-highlighted' : ''}`}
+      >
         <label>Inhalt</label>
         <MarkdownEditor
           value={data.content}

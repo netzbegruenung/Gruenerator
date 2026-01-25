@@ -7,8 +7,16 @@
  */
 
 // Main service exports
-export { ProfileService, getProfileService, default as ProfileServiceClass } from './ProfileService.js';
-export { KnowledgeService, getKnowledgeService, default as KnowledgeServiceClass } from './KnowledgeService.js';
+export {
+  ProfileService,
+  getProfileService,
+  default as ProfileServiceClass,
+} from './ProfileService.js';
+export {
+  KnowledgeService,
+  getKnowledgeService,
+  default as KnowledgeServiceClass,
+} from './KnowledgeService.js';
 
 // Type exports
 export type {
@@ -30,5 +38,5 @@ export type {
   SearchResult,
   SearchResponse,
   ChunkingOptions,
-  DocumentChunk
+  DocumentChunk,
 } from './types.js';

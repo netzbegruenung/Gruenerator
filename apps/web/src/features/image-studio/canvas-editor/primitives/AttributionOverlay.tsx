@@ -6,6 +6,7 @@
  */
 
 import { Group, Rect, Text } from 'react-konva';
+
 import type { AttributionRenderData } from '../utils/attributionOverlay';
 
 interface AttributionOverlayProps {

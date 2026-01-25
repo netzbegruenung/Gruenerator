@@ -40,8 +40,8 @@ export function sentenceSegments(text: string): SentenceSegment[] {
       const lastWord = beforePunctuation.split(/\s+/).pop() || '';
 
       // Decide if this is a real sentence boundary
-      const isAbbreviation = GERMAN_ABBREVIATIONS.has(lastWord) ||
-                           GERMAN_ABBREVIATIONS.has(lastWord.replace(/\./g, ''));
+      const isAbbreviation =
+        GERMAN_ABBREVIATIONS.has(lastWord) || GERMAN_ABBREVIATIONS.has(lastWord.replace(/\./g, ''));
       const nextStartsWithLower = afterPunctuation && /^[a-zäöüß]/.test(afterPunctuation);
       const isRealSentenceEnd = !isAbbreviation && isNewSentenceStart(afterPunctuation);
 
@@ -52,7 +52,7 @@ export function sentenceSegments(text: string): SentenceSegment[] {
           segments.push({
             s: sentence,
             start: currentStart,
-            end: currentStart + sentence.length
+            end: currentStart + sentence.length,
           });
         }
 
@@ -77,7 +77,7 @@ export function sentenceSegments(text: string): SentenceSegment[] {
     segments.push({
       s: currentSentence.trim(),
       start: currentStart,
-      end: currentStart + currentSentence.length
+      end: currentStart + currentSentence.length,
     });
   }
 

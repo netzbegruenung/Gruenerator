@@ -104,7 +104,17 @@ export interface HandlerResult {
 /**
  * Web search confirmation detection
  */
-const WEBSEARCH_CONFIRMATIONS = ['ja', 'bitte', 'gerne', 'ok', 'mach das', 'such', 'recherchiere', 'klar', 'sicher'];
+const WEBSEARCH_CONFIRMATIONS = [
+  'ja',
+  'bitte',
+  'gerne',
+  'ok',
+  'mach das',
+  'such',
+  'recherchiere',
+  'klar',
+  'sicher',
+];
 const WEBSEARCH_REJECTIONS = ['nein', 'nicht', 'lass', 'abbrechen', 'cancel', 'stop', 'vergiss'];
 
 /**
@@ -113,7 +123,7 @@ const WEBSEARCH_REJECTIONS = ['nein', 'nicht', 'lass', 'abbrechen', 'cancel', 's
 const WEBSEARCH_QUESTIONS = [
   'Das kann ich leider nicht direkt beantworten. Soll ich im Internet danach suchen?',
   'Dazu habe ich keine Informationen. Möchtest du, dass ich eine Websuche durchführe?',
-  'Diese Frage kann ich nicht aus meinem Wissen beantworten. Soll ich online recherchieren?'
+  'Diese Frage kann ich nicht aus meinem Wissen beantworten. Soll ich online recherchieren?',
 ];
 
 /**
@@ -121,8 +131,8 @@ const WEBSEARCH_QUESTIONS = [
  */
 export function isWebSearchConfirmation(message: string): boolean {
   const normalized = message.toLowerCase().trim();
-  if (WEBSEARCH_REJECTIONS.some(r => normalized.includes(r))) return false;
-  return WEBSEARCH_CONFIRMATIONS.some(c => normalized.includes(c));
+  if (WEBSEARCH_REJECTIONS.some((r) => normalized.includes(r))) return false;
+  return WEBSEARCH_CONFIRMATIONS.some((c) => normalized.includes(c));
 }
 
 /**
@@ -136,64 +146,64 @@ export function getWebSearchQuestion(): string {
  * Required fields configuration for different intent types
  */
 const REQUIRED_FIELDS: RequiredFieldsConfig = {
-  'zitat': {
-    'name': {
+  zitat: {
+    name: {
       field: 'name',
       displayName: 'Autor/Name',
       questions: [
         'Für das Zitat brauche ich noch den Namen des Autors. Wer hat das gesagt?',
         'Von wem stammt dieses Zitat? Bitte gib mir den Namen an.',
-        'Um das Zitat zu vervollständigen, benötige ich noch den Autorennamen. Wie heißt die Person?'
+        'Um das Zitat zu vervollständigen, benötige ich noch den Autorennamen. Wie heißt die Person?',
       ],
-      extractionPattern: /(?:von|autor|name:?\s*)([a-züäöß\s-]+)/i
-    }
+      extractionPattern: /(?:von|autor|name:?\s*)([a-züäöß\s-]+)/i,
+    },
   },
-  'zitat_pure': {
-    'name': {
+  zitat_pure: {
+    name: {
       field: 'name',
       displayName: 'Autor/Name',
       questions: [
         'Für das Zitat brauche ich noch den Namen des Autors. Wer hat das gesagt?',
         'Von wem stammt dieses Zitat? Bitte gib mir den Namen an.',
-        'Um das Zitat zu vervollständigen, benötige ich noch den Autorennamen. Wie heißt die Person?'
+        'Um das Zitat zu vervollständigen, benötige ich noch den Autorennamen. Wie heißt die Person?',
       ],
-      extractionPattern: /(?:von|autor|name:?\s*)([a-züäöß\s-]+)/i
-    }
+      extractionPattern: /(?:von|autor|name:?\s*)([a-züäöß\s-]+)/i,
+    },
   },
-  'zitat_with_image': {
-    'name': {
+  zitat_with_image: {
+    name: {
       field: 'name',
       displayName: 'Autor/Name',
       questions: [
         'Für das Zitat brauche ich noch den Namen des Autors. Wer hat das gesagt?',
         'Von wem stammt dieses Zitat? Bitte gib mir den Namen an.',
-        'Um das Zitat zu vervollständigen, benötige ich noch den Autorennamen. Wie heißt die Person?'
+        'Um das Zitat zu vervollständigen, benötige ich noch den Autorennamen. Wie heißt die Person?',
       ],
-      extractionPattern: /(?:von|autor|name:?\s*)([a-züäöß\s-]+)/i
-    }
+      extractionPattern: /(?:von|autor|name:?\s*)([a-züäöß\s-]+)/i,
+    },
   },
-  'dreizeilen': {
-    'thema': {
+  dreizeilen: {
+    thema: {
       field: 'thema',
       displayName: 'Thema',
       questions: [
         'Zu welchem Thema soll ich den Dreizeilen-Slogan erstellen?',
         'Welches Thema soll der Slogan behandeln?',
-        'Über welches Thema soll der Dreizeilen-Text gehen?'
+        'Über welches Thema soll der Dreizeilen-Text gehen?',
       ],
-      extractionPattern: /(?:thema|über|zum thema|bezüglich:?\s*)([a-züäöß\s-]+)/i
-    }
+      extractionPattern: /(?:thema|über|zum thema|bezüglich:?\s*)([a-züäöß\s-]+)/i,
+    },
   },
-  'imagine': {
-    'variant': {
+  imagine: {
+    variant: {
       field: 'variant',
       displayName: 'Bildstil',
       questions: [
         'Welchen Bildstil möchtest du? Zur Auswahl stehen:\n• **Illustration** - Weiche, malerische Darstellung\n• **Realistisch** - Fotorealistischer Stil\n• **Pixel Art** - Retro-Gaming-Ästhetik\n• **Editorial** - Magazin-Qualität',
-        'Bitte wähle einen Stil für dein Bild:\n1. Illustration (weich und malerisch)\n2. Realistisch (fotorealistisch)\n3. Pixel Art (Retro-Gaming)\n4. Editorial (Magazin-Look)'
-      ]
-    }
-  }
+        'Bitte wähle einen Stil für dein Bild:\n1. Illustration (weich und malerisch)\n2. Realistisch (fotorealistisch)\n3. Pixel Art (Retro-Gaming)\n4. Editorial (Magazin-Look)',
+      ],
+    },
+  },
 };
 
 /**
@@ -217,7 +227,11 @@ export function checkForMissingInformation(
     const fieldValue = extractedParams[fieldConfig.field];
 
     // Check if field is missing or empty
-    if (!fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim()) || fieldValue === 'Unbekannt') {
+    if (
+      !fieldValue ||
+      (typeof fieldValue === 'string' && !fieldValue.trim()) ||
+      fieldValue === 'Unbekannt'
+    ) {
       console.log(`[InformationRequestHandler] Missing required field: ${fieldKey}`);
 
       return {
@@ -225,7 +239,7 @@ export function checkForMissingInformation(
         fieldKey: fieldKey,
         displayName: fieldConfig.displayName,
         questions: fieldConfig.questions ?? [],
-        extractionPattern: fieldConfig.extractionPattern
+        extractionPattern: fieldConfig.extractionPattern,
       };
     }
   }
@@ -236,7 +250,10 @@ export function checkForMissingInformation(
 /**
  * Generate a natural language question for missing information
  */
-export function generateInformationQuestion(missingFieldInfo: MissingFieldInfo, context: Record<string, unknown> = {}): string {
+export function generateInformationQuestion(
+  missingFieldInfo: MissingFieldInfo,
+  context: Record<string, unknown> = {}
+): string {
   const { questions } = missingFieldInfo;
 
   if (!questions || questions.length === 0) {
@@ -269,8 +286,8 @@ export function createInformationRequest(
       metadata: {
         requestType: 'information_request',
         missingField: missingFieldInfo.field,
-        fieldDisplayName: missingFieldInfo.displayName
-      }
+        fieldDisplayName: missingFieldInfo.displayName,
+      },
     },
     pendingRequest: {
       type: 'missing_information',
@@ -281,15 +298,18 @@ export function createInformationRequest(
       extractionPattern: missingFieldInfo.extractionPattern,
       originalContext: originalRequest,
       // Store complete classified intent for restoration
-      classifiedIntent: classifiedIntent || undefined
-    }
+      classifiedIntent: classifiedIntent || undefined,
+    },
   };
 }
 
 /**
  * Try to extract missing information from a user's response
  */
-export function extractRequestedInformation(message: string, pendingRequest: PendingRequest): Record<string, string> | null {
+export function extractRequestedInformation(
+  message: string,
+  pendingRequest: PendingRequest
+): Record<string, string> | null {
   console.log('[InformationRequestHandler] Attempting to extract info from:', message);
 
   const { missingField, extractionPattern } = pendingRequest;
@@ -299,9 +319,12 @@ export function extractRequestedInformation(message: string, pendingRequest: Pen
     const match = message.match(extractionPattern);
     if (match && match[1]) {
       const extractedValue = match[1].trim();
-      console.log(`[InformationRequestHandler] Extracted ${missingField} via pattern:`, extractedValue);
+      console.log(
+        `[InformationRequestHandler] Extracted ${missingField} via pattern:`,
+        extractedValue
+      );
       return {
-        [missingField]: extractedValue
+        [missingField]: extractedValue,
       };
     }
   }
@@ -315,24 +338,41 @@ export function extractRequestedInformation(message: string, pendingRequest: Pen
       .trim();
 
     // Reject if it contains command keywords
-    const commandKeywords = ['erstelle', 'mache', 'schreibe', 'generiere', 'sharepic', 'zitat', 'thema'];
-    if (commandKeywords.some(keyword => cleanedMessage.toLowerCase().includes(keyword))) {
-      console.log(`[InformationRequestHandler] Message contains commands, not a name:`, cleanedMessage);
+    const commandKeywords = [
+      'erstelle',
+      'mache',
+      'schreibe',
+      'generiere',
+      'sharepic',
+      'zitat',
+      'thema',
+    ];
+    if (commandKeywords.some((keyword) => cleanedMessage.toLowerCase().includes(keyword))) {
+      console.log(
+        `[InformationRequestHandler] Message contains commands, not a name:`,
+        cleanedMessage
+      );
       return null;
     }
 
     // Only accept 1-4 word responses (reasonable for names)
-    const wordCount = cleanedMessage.split(/\s+/).filter(word => word.length > 0).length;
+    const wordCount = cleanedMessage.split(/\s+/).filter((word) => word.length > 0).length;
     if (wordCount > 4) {
-      console.log(`[InformationRequestHandler] Too many words for a name (${wordCount}):`, cleanedMessage);
+      console.log(
+        `[InformationRequestHandler] Too many words for a name (${wordCount}):`,
+        cleanedMessage
+      );
       return null;
     }
 
     // Check if it looks like a name (contains letters, reasonable length)
     if (cleanedMessage && /^[a-züäöß\s.-]{2,50}$/i.test(cleanedMessage)) {
-      console.log(`[InformationRequestHandler] Extracted ${missingField} via heuristics:`, cleanedMessage);
+      console.log(
+        `[InformationRequestHandler] Extracted ${missingField} via heuristics:`,
+        cleanedMessage
+      );
       return {
-        [missingField]: cleanedMessage
+        [missingField]: cleanedMessage,
       };
     }
   }
@@ -342,16 +382,22 @@ export function extractRequestedInformation(message: string, pendingRequest: Pen
     const trimmedMessage = message.trim();
 
     // Only accept 1-10 word responses (reasonable for a theme)
-    const wordCount = trimmedMessage.split(/\s+/).filter(word => word.length > 0).length;
+    const wordCount = trimmedMessage.split(/\s+/).filter((word) => word.length > 0).length;
     if (wordCount > 10) {
-      console.log(`[InformationRequestHandler] Too many words for a theme (${wordCount}):`, trimmedMessage);
+      console.log(
+        `[InformationRequestHandler] Too many words for a theme (${wordCount}):`,
+        trimmedMessage
+      );
       return null;
     }
 
     if (trimmedMessage && trimmedMessage.length >= 3) {
-      console.log(`[InformationRequestHandler] Extracted ${missingField} as theme:`, trimmedMessage);
+      console.log(
+        `[InformationRequestHandler] Extracted ${missingField} as theme:`,
+        trimmedMessage
+      );
       return {
-        [missingField]: trimmedMessage
+        [missingField]: trimmedMessage,
       };
     }
   }
@@ -362,27 +408,30 @@ export function extractRequestedInformation(message: string, pendingRequest: Pen
 
     // Map common responses to variant values
     const variantMappings: Record<string, string> = {
-      'illustration': 'illustration-pure',
-      'zeichnung': 'illustration-pure',
-      'aquarell': 'illustration-pure',
-      'malerisch': 'illustration-pure',
-      'realistisch': 'realistic-pure',
-      'foto': 'realistic-pure',
-      'fotorealistisch': 'realistic-pure',
-      'pixel': 'pixel-pure',
+      illustration: 'illustration-pure',
+      zeichnung: 'illustration-pure',
+      aquarell: 'illustration-pure',
+      malerisch: 'illustration-pure',
+      realistisch: 'realistic-pure',
+      foto: 'realistic-pure',
+      fotorealistisch: 'realistic-pure',
+      pixel: 'pixel-pure',
       'pixel art': 'pixel-pure',
-      'pixelart': 'pixel-pure',
-      'retro': 'pixel-pure',
+      pixelart: 'pixel-pure',
+      retro: 'pixel-pure',
       '16-bit': 'pixel-pure',
-      'editorial': 'editorial-pure',
-      'magazin': 'editorial-pure'
+      editorial: 'editorial-pure',
+      magazin: 'editorial-pure',
     };
 
     for (const [keyword, variantValue] of Object.entries(variantMappings)) {
       if (lowerMessage.includes(keyword)) {
-        console.log(`[InformationRequestHandler] Extracted variant via keyword "${keyword}":`, variantValue);
+        console.log(
+          `[InformationRequestHandler] Extracted variant via keyword "${keyword}":`,
+          variantValue
+        );
         return {
-          [missingField]: variantValue
+          [missingField]: variantValue,
         };
       }
     }
@@ -394,12 +443,15 @@ export function extractRequestedInformation(message: string, pendingRequest: Pen
         '1': 'illustration-pure',
         '2': 'realistic-pure',
         '3': 'pixel-pure',
-        '4': 'editorial-pure'
+        '4': 'editorial-pure',
       };
       const variantValue = numberToVariant[numberMatch[0]];
-      console.log(`[InformationRequestHandler] Extracted variant via number selection:`, variantValue);
+      console.log(
+        `[InformationRequestHandler] Extracted variant via number selection:`,
+        variantValue
+      );
       return {
-        [missingField]: variantValue
+        [missingField]: variantValue,
       };
     }
   }
@@ -429,24 +481,27 @@ export function completePendingRequest(
     params: { ...pendingRequest.params },
     classifiedIntent: classifiedIntent,
     // Update parameters with extracted information
-    ...Object.keys(extractedInfo || {}).reduce((acc, key) => {
-      acc[key] = extractedInfo[key];
-      return acc;
-    }, {} as Record<string, unknown>),
+    ...Object.keys(extractedInfo || {}).reduce(
+      (acc, key) => {
+        acc[key] = extractedInfo[key];
+        return acc;
+      },
+      {} as Record<string, unknown>
+    ),
     // Preserve original message and context with safe defaults
     originalMessage: originalContext?.originalMessage || originalContext?.message || '',
     chatContext: originalContext?.chatContext || {},
     usePrivacyMode: originalContext?.usePrivacyMode || false,
     provider: originalContext?.provider || null,
     attachments: originalContext?.attachments || [],
-    documentIds: originalContext?.documentIds || []
+    documentIds: originalContext?.documentIds || [],
   };
 
   console.log('[InformationRequestHandler] Updated request context with complete intent:', {
     agent: updatedRequest.agent,
     route: updatedRequest.route,
     hasParams: !!updatedRequest.params,
-    extractedFields: Object.keys(extractedInfo || {})
+    extractedFields: Object.keys(extractedInfo || {}),
   });
 
   return updatedRequest;
@@ -465,10 +520,14 @@ export async function handleInformationRequest(
 ): Promise<HandlerResult | null> {
   try {
     // Check if there's already a pending request
-    const existingPendingRequest = await chatMemory.getPendingRequest(userId) as unknown as PendingRequest | null;
+    const existingPendingRequest = (await chatMemory.getPendingRequest(
+      userId
+    )) as unknown as PendingRequest | null;
 
     if (existingPendingRequest && existingPendingRequest.type === 'missing_information') {
-      console.log('[InformationRequestHandler] Found existing pending request, attempting to resolve');
+      console.log(
+        '[InformationRequestHandler] Found existing pending request, attempting to resolve'
+      );
 
       // Try to extract the requested information from the current message
       const extractedInfo = extractRequestedInformation(message, existingPendingRequest);
@@ -477,10 +536,14 @@ export async function handleInformationRequest(
         // Information found! Clear pending request and return updated context
         await chatMemory.clearPendingRequest(userId);
 
-        const completedRequest = completePendingRequest(existingPendingRequest, extractedInfo, originalRequest);
+        const completedRequest = completePendingRequest(
+          existingPendingRequest,
+          extractedInfo,
+          originalRequest
+        );
         return {
           type: 'completion',
-          data: completedRequest
+          data: completedRequest,
         };
       } else {
         // Information still not provided, ask again (but don't create duplicate pending request)
@@ -496,20 +559,23 @@ export async function handleInformationRequest(
       console.log('[InformationRequestHandler] Missing information detected, creating request');
 
       // Create information request with complete classified intent
-      const informationRequest = createInformationRequest(missingFieldInfo, originalRequest, classifiedIntent);
+      const informationRequest = createInformationRequest(
+        missingFieldInfo,
+        originalRequest,
+        classifiedIntent
+      );
 
       // Store pending request in memory
       await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest);
 
       return {
         type: 'request',
-        data: informationRequest
+        data: informationRequest,
       };
     }
 
     // All required information is present
     return null;
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[InformationRequestHandler] Error handling information request:', errorMessage);
@@ -523,8 +589,13 @@ export async function handleInformationRequest(
  * Questions are now loaded from predefined config in antragQuestions.js
  * @deprecated Use getQuestionsForType from config/antragQuestions.js instead
  */
-export async function generateAntragQuestions(context: Record<string, unknown>, aiWorkerPool: unknown): Promise<QuestionConfig[]> {
-  console.warn('[InformationRequestHandler] generateAntragQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js');
+export async function generateAntragQuestions(
+  context: Record<string, unknown>,
+  aiWorkerPool: unknown
+): Promise<QuestionConfig[]> {
+  console.warn(
+    '[InformationRequestHandler] generateAntragQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js'
+  );
 
   const { getQuestionsForType } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
@@ -543,20 +614,20 @@ function generateFallbackAntragQuestions(context: Record<string, unknown>): Ques
       id: 'q1',
       text: 'Welche spezifischen Aspekte sollen im Vordergrund stehen?',
       type: 'scope',
-      requiresText: true
+      requiresText: true,
     },
     {
       id: 'q2',
       text: 'An welches Gremium richtet sich der Antrag?',
       type: 'audience',
-      options: ['Gemeinderat', 'Stadtrat', 'Ausschuss', 'Anderes']
+      options: ['Gemeinderat', 'Stadtrat', 'Ausschuss', 'Anderes'],
     },
     {
       id: 'q3',
       text: 'Welche Tonalität bevorzugst du?',
       type: 'tone',
-      options: ['Sachlich-neutral', 'Appellativ', 'Fachlich-detailliert']
-    }
+      options: ['Sachlich-neutral', 'Appellativ', 'Fachlich-detailliert'],
+    },
   ];
 
   if (requestType === 'kleine_anfrage' || requestType === 'grosse_anfrage') {
@@ -564,7 +635,7 @@ function generateFallbackAntragQuestions(context: Record<string, unknown>): Ques
       id: 'q4',
       text: 'Auf welche konkreten Informationen/Daten wartest du als Antwort?',
       type: 'facts',
-      requiresText: true
+      requiresText: true,
     });
   }
 
@@ -583,7 +654,9 @@ export async function analyzeAnswersForFollowup(
   context: Record<string, unknown>,
   aiWorkerPool: unknown
 ): Promise<boolean> {
-  console.warn('[InformationRequestHandler] analyzeAnswersForFollowup is deprecated. Use hasFollowUpQuestions from config/antragQuestions.js');
+  console.warn(
+    '[InformationRequestHandler] analyzeAnswersForFollowup is deprecated. Use hasFollowUpQuestions from config/antragQuestions.js'
+  );
 
   const { hasFollowUpQuestions } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
@@ -596,8 +669,13 @@ export async function analyzeAnswersForFollowup(
  * NOTE: This function is deprecated. Follow-up questions are now predefined.
  * @deprecated Use getQuestionsForType(requestType, 2) from config/antragQuestions.js instead
  */
-export async function generateFollowUpQuestions(context: Record<string, unknown>, aiWorkerPool: unknown): Promise<QuestionConfig[]> {
-  console.warn('[InformationRequestHandler] generateFollowUpQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js');
+export async function generateFollowUpQuestions(
+  context: Record<string, unknown>,
+  aiWorkerPool: unknown
+): Promise<QuestionConfig[]> {
+  console.warn(
+    '[InformationRequestHandler] generateFollowUpQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js'
+  );
 
   const { getQuestionsForType } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
@@ -608,7 +686,10 @@ export async function generateFollowUpQuestions(context: Record<string, unknown>
 /**
  * Extract structured information from user answers
  */
-export function extractStructuredAnswers(answers: Record<string, string>, questions: QuestionConfig[]): StructuredAnswers {
+export function extractStructuredAnswers(
+  answers: Record<string, string>,
+  questions: QuestionConfig[]
+): StructuredAnswers {
   const structured: StructuredAnswers = {
     scope: [],
     audience: null,
@@ -616,11 +697,11 @@ export function extractStructuredAnswers(answers: Record<string, string>, questi
     tone: null,
     structure: null,
     clarifications: [],
-    raw: answers
+    raw: answers,
   };
 
   // Group answers by question type
-  questions.forEach(q => {
+  questions.forEach((q) => {
     const answer = answers[q.id];
     if (!answer) return;
 
@@ -643,7 +724,7 @@ export function extractStructuredAnswers(answers: Record<string, string>, questi
       case 'clarification':
         structured.clarifications.push({
           refersTo: q.refersTo,
-          answer: answer
+          answer: answer,
         });
         break;
       default:
@@ -661,7 +742,7 @@ export function extractStructuredAnswers(answers: Record<string, string>, questi
     hasAudience: !!structured.audience,
     hasFacts: structured.facts.length > 0,
     hasTone: !!structured.tone,
-    hasClarifications: structured.clarifications.length > 0
+    hasClarifications: structured.clarifications.length > 0,
   });
 
   return structured;
@@ -669,11 +750,11 @@ export function extractStructuredAnswers(answers: Record<string, string>, questi
 
 // Add to REQUIRED_FIELDS for experimental Antrag flow
 REQUIRED_FIELDS['antrag_experimental'] = {
-  'clarifications': {
+  clarifications: {
     field: 'clarifications',
     displayName: 'Verständnisfragen',
     generateDynamic: true,
     maxQuestions: 5,
-    questionTypes: ['scope', 'audience', 'facts', 'tone', 'structure']
-  }
+    questionTypes: ['scope', 'audience', 'facts', 'tone', 'structure'],
+  },
 };

@@ -23,7 +23,7 @@ export {
   updateExperimentalSession,
   deleteExperimentalSession,
   getUserExperimentalSessions,
-  cleanupExpiredSessions
+  cleanupExpiredSessions,
 } from './ChatMemoryService.js';
 
 // Re-export types

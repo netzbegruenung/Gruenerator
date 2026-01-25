@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import { useSubtitlerShareStore, getShareUrl } from '../../../stores/subtitlerShareStore';
+
 import EnhancedSelect from '../../../components/common/EnhancedSelect/EnhancedSelect';
+import { useSubtitlerShareStore, getShareUrl } from '../../../stores/subtitlerShareStore';
 import { canShare, shareContent } from '../../../utils/shareUtils';
 import '../styles/ShareVideoModal.css';
 
@@ -23,7 +24,15 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
   const [expiresInDays, setExpiresInDays] = useState(expirationOptions[1]);
   const [copied, setCopied] = useState(false);
 
-  const { createShareFromProject, currentShare, isCreatingShare, error, errorCode, clearError, clearCurrentShare } = useSubtitlerShareStore();
+  const {
+    createShareFromProject,
+    currentShare,
+    isCreatingShare,
+    error,
+    errorCode,
+    clearError,
+    clearCurrentShare,
+  } = useSubtitlerShareStore();
 
   useEffect(() => {
     clearCurrentShare();
@@ -68,7 +77,7 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -76,7 +85,14 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
     <div className="share-modal-overlay" onClick={onClose}>
       <div className="share-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <button className="share-modal-close" onClick={onClose}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
@@ -96,7 +112,9 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
                   id="shareTitle"
                   type="text"
                   value={shareTitle}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShareTitle(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setShareTitle(e.target.value)
+                  }
                   placeholder="Titel für das geteilte Video"
                 />
               </div>
@@ -105,33 +123,42 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
                 label="Link gültig für"
                 options={expirationOptions}
                 value={expiresInDays}
-                onChange={(option) => option && setExpiresInDays(option as { value: number; label: string })}
+                onChange={(option) =>
+                  option && setExpiresInDays(option as { value: number; label: string })
+                }
                 isSearchable={false}
                 menuPlacement="auto"
               />
             </div>
 
             {error && (
-              <div className={`share-modal-error ${errorCode === 'EXPORT_REQUIRED' ? 'export-required' : ''}`}>
+              <div
+                className={`share-modal-error ${errorCode === 'EXPORT_REQUIRED' ? 'export-required' : ''}`}
+              >
                 {errorCode === 'EXPORT_REQUIRED' ? (
                   <>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="8" x2="12" y2="12" />
                       <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
                     <span>{error}</span>
                   </>
-                ) : error}
+                ) : (
+                  error
+                )}
               </div>
             )}
 
             <div className="share-modal-actions">
-              <button
-                className="btn-secondary"
-                onClick={onClose}
-                disabled={isCreatingShare}
-              >
+              <button className="btn-secondary" onClick={onClose} disabled={isCreatingShare}>
                 Abbrechen
               </button>
               <button
@@ -147,18 +174,15 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
           <>
             {currentShare.status === 'rendering' && (
               <p className="share-modal-info share-modal-rendering-info">
-                Das Video wird im Hintergrund gerendert. Der Empfänger kann es herunterladen, sobald es fertig ist.
+                Das Video wird im Hintergrund gerendert. Der Empfänger kann es herunterladen, sobald
+                es fertig ist.
               </p>
             )}
 
             <div className="share-modal-success-layout">
               <div className="share-modal-left">
                 <div className="share-qr-container">
-                  <QRCode
-                    value={getShareUrl(currentShare.shareToken || '')}
-                    size={160}
-                    level="M"
-                  />
+                  <QRCode value={getShareUrl(currentShare.shareToken || '')} size={160} level="M" />
                 </div>
               </div>
 
@@ -171,27 +195,42 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
                     value={getShareUrl(currentShare.shareToken || '')}
                     className="share-link-input"
                   />
-                  <button
-                    className="share-copy-button"
-                    onClick={handleCopyLink}
-                  >
+                  <button className="share-copy-button" onClick={handleCopyLink}>
                     {copied ? (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <polyline points="20,6 9,17 4,12" />
                       </svg>
                     ) : (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                       </svg>
                     )}
                   </button>
                   {canShare() && (
-                    <button
-                      className="share-native-button"
-                      onClick={handleNativeShare}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <button className="share-native-button" onClick={handleNativeShare}>
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <circle cx="18" cy="5" r="3" />
                         <circle cx="6" cy="12" r="3" />
                         <circle cx="18" cy="19" r="3" />
@@ -201,15 +240,14 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
                     </button>
                   )}
                 </div>
-                <p className="share-modal-expiry">Gültig bis {formatExpiration(currentShare.expiresAt as string | undefined)}</p>
+                <p className="share-modal-expiry">
+                  Gültig bis {formatExpiration(currentShare.expiresAt as string | undefined)}
+                </p>
               </div>
             </div>
 
             <div className="share-modal-actions-centered">
-              <button
-                className="btn-primary"
-                onClick={onClose}
-              >
+              <button className="btn-primary" onClick={onClose}>
                 Fertig
               </button>
             </div>

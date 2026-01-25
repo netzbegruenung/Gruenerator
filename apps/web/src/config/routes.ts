@@ -1,5 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent, type FC, createElement } from 'react';
 import { Navigate } from 'react-router-dom';
+
 import { isDesktopApp } from '../utils/platform';
 
 /**
@@ -19,46 +20,72 @@ const createRedirect = (to: string): FC<Record<string, unknown>> => {
   return () => createElement(Navigate, { to, replace: true });
 };
 
-const AltTextRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/barrierefreiheit?type=alt-text')
-}));
+const AltTextRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/barrierefreiheit?type=alt-text'),
+  })
+);
 
-const LeichteSpracheRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/barrierefreiheit?type=leichte-sprache')
-}));
+const LeichteSpracheRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/barrierefreiheit?type=leichte-sprache'),
+  })
+);
 
 // Redirects for unified TexteGenerator
-const PresseSocialRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/texte?tab=presse-social')
-}));
+const PresseSocialRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/texte?tab=presse-social'),
+  })
+);
 
-const AntragRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/texte?tab=antrag')
-}));
+const AntragRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/texte?tab=antrag'),
+  })
+);
 
-const UniversalRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/texte?tab=universal')
-}));
+const UniversalRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/texte?tab=universal'),
+  })
+);
 
-const RedeRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/texte?tab=universal')
-}));
+const RedeRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/texte?tab=universal'),
+  })
+);
 
-const WahlprogrammRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/texte?tab=universal')
-}));
+const WahlprogrammRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/texte?tab=universal'),
+  })
+);
 
-const BuergeranfragenRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/texte?tab=universal')
-}));
+const BuergeranfragenRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/texte?tab=universal'),
+  })
+);
 
-const BarrierefreiheitRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/texte?tab=barrierefreiheit')
-}));
+const BarrierefreiheitRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/texte?tab=barrierefreiheit'),
+  })
+);
 
-const TextEditorRedirect = lazy(() => Promise.resolve({
-  default: createRedirect('/texte?tab=texteditor')
-}));
+const TextEditorRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/texte?tab=texteditor'),
+  })
+);
+
+const ImagineRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/image-studio/ki'),
+  })
+);
 
 // Statische Importe in dynamische umwandeln
 const TexteGenerator = lazy(() => import('../features/texte/TexteGenerator'));
@@ -66,18 +93,25 @@ const GalleryPage = lazy(() => import('../components/common/Gallery'));
 const VorlagenGallery = lazy(() =>
   Promise.all([
     import('../components/common/Gallery'),
-    import('../components/common/BetaFeatureWrapper')
+    import('../components/common/BetaFeatureWrapper'),
   ]).then(([galleryMod, wrapperMod]) => ({
-    default: (props: Record<string, unknown>) => wrapperMod.default({
-      children: galleryMod.default({ ...props, initialContentType: 'vorlagen', availableContentTypes: ['vorlagen'] }),
-      featureKey: 'vorlagen',
-      fallbackPath: '/'
-    })
+    default: (props: Record<string, unknown>) =>
+      wrapperMod.default({
+        children: galleryMod.default({
+          ...props,
+          initialContentType: 'vorlagen',
+          availableContentTypes: ['vorlagen'],
+        }),
+        featureKey: 'vorlagen',
+        fallbackPath: '/',
+      }),
   }))
 );
 const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
-const CreateCustomGeneratorPage = lazy(() => import('../features/generators/CreateCustomGeneratorPage'));
+const CreateCustomGeneratorPage = lazy(
+  () => import('../features/generators/CreateCustomGeneratorPage')
+);
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
@@ -92,18 +126,40 @@ const HomeWrapper = lazy(() =>
     ? import('../components/pages/DesktopHome/DesktopHome')
     : import('../components/pages/Startseite')
 );
-const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
+const Datenschutz = lazy(
+  () => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz')
+);
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Support'));
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
 const NotebookSearchPage = lazy(() => import('../features/notebook/NotebookSearchPage'));
-const NotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('gruene') })));
-const BundestagsfraktionNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('bundestagsfraktion') })));
-const GrueneratorNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('gruenerator') })));
-const OesterreichGrueneNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('oesterreich') })));
-const HamburgNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('hamburg') })));
+const NotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('gruene'),
+  }))
+);
+const BundestagsfraktionNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('bundestagsfraktion'),
+  }))
+);
+const GrueneratorNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('gruenerator'),
+  }))
+);
+const OesterreichGrueneNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('oesterreich'),
+  }))
+);
+// const HamburgNotebookPage = lazy(() =>
+//   import('../features/notebook/components/NotebookPage').then((m) => ({
+//     default: m.createNotebookPage('hamburg'),
+//   }))
+// );
 const NotebooksGalleryPage = lazy(() => import('../features/notebook/pages/NotebooksGalleryPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
@@ -115,7 +171,9 @@ const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
 const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator'));
 const TextEditorPage = lazy(() => import('../features/texteditor/TextEditorPage'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
-const MediaLibraryPage = lazy(() => import('../features/media-library/MediaLibraryPage').then(m => ({ default: m.default })));
+const MediaLibraryPage = lazy(() =>
+  import('../features/media-library/MediaLibraryPage').then((m) => ({ default: m.default }))
+);
 
 // Notebook Chat Komponente importieren
 const NotebookChat = lazy(() => import('../features/notebook/components/NotebookChat'));
@@ -130,22 +188,27 @@ const BetaFeatureWrapper = lazy(() => import('../components/common/BetaFeatureWr
 const WrappedGrueneratorChat = lazy(() =>
   Promise.all([
     import('../features/chat/components/GrueneratorChat'),
-    import('../components/common/BetaFeatureWrapper')
+    import('../components/common/BetaFeatureWrapper'),
   ]).then(([chatModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) => (
+    default: (props: Record<string, unknown>) =>
       wrapperModule.default({
         children: chatModule.default(),
         featureKey: 'chat',
-        fallbackPath: '/profile?tab=labor'
-      })
-    )
+        fallbackPath: '/profile?tab=labor',
+      }),
   }))
 );
 
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
-const StructuredExamplePage = lazy(() => import('../features/pages/ExamplePage').then(module => ({ default: module.StructuredExamplePage })));
-const CustomExamplePage = lazy(() => import('../features/pages/ExamplePage').then(module => ({ default: module.CustomExamplePage })));
+const StructuredExamplePage = lazy(() =>
+  import('../features/pages/ExamplePage').then((module) => ({
+    default: module.StructuredExamplePage,
+  }))
+);
+const CustomExamplePage = lazy(() =>
+  import('../features/pages/ExamplePage').then((module) => ({ default: module.CustomExamplePage }))
+);
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 const PromptPage = lazy(() => import('../features/prompts/PromptPage'));
 const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
@@ -168,7 +231,7 @@ export const GrueneratorenBundle = {
   BundestagsfraktionNotebook: BundestagsfraktionNotebookPage,
   GrueneratorNotebook: GrueneratorNotebookPage,
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
-  HamburgNotebook: HamburgNotebookPage,
+  // HamburgNotebook: HamburgNotebookPage,
   NotebooksGallery: NotebooksGalleryPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
@@ -183,7 +246,7 @@ export const GrueneratorenBundle = {
   CustomExamplePage: CustomExamplePage,
   TextEditor: TextEditorPage,
   MobileEditor: MobileEditorPage,
-  DatabaseIndex: DatabaseIndexPage
+  DatabaseIndex: DatabaseIndexPage,
 } as const;
 
 // Route Konfigurationen
@@ -215,10 +278,22 @@ const standardRoutes: RouteConfig[] = [
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
   { path: '/gruene-notebook', component: GrueneratorenBundle.GrueneNotebook, withForm: true },
-  { path: '/gruene-bundestag', component: GrueneratorenBundle.BundestagsfraktionNotebook, withForm: true },
-  { path: '/gruenerator-notebook', component: GrueneratorenBundle.GrueneratorNotebook, withForm: true },
-  { path: '/gruene-oesterreich', component: GrueneratorenBundle.OesterreichGrueneNotebook, withForm: true },
-  { path: '/gruene-hamburg', component: GrueneratorenBundle.HamburgNotebook, withForm: true },
+  {
+    path: '/gruene-bundestag',
+    component: GrueneratorenBundle.BundestagsfraktionNotebook,
+    withForm: true,
+  },
+  {
+    path: '/gruenerator-notebook',
+    component: GrueneratorenBundle.GrueneratorNotebook,
+    withForm: true,
+  },
+  {
+    path: '/gruene-oesterreich',
+    component: GrueneratorenBundle.OesterreichGrueneNotebook,
+    withForm: true,
+  },
+  // { path: '/gruene-hamburg', component: GrueneratorenBundle.HamburgNotebook, withForm: true },
   { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
@@ -251,15 +326,20 @@ const standardRoutes: RouteConfig[] = [
   // Media Library Route
   { path: '/media-library', component: MediaLibraryPage },
   // Image Studio Routes
+  { path: '/imagine', component: ImagineRedirect },
   { path: '/image-studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
   { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },
   { path: '/image-studio/:category', component: GrueneratorenBundle.ImageStudio, withForm: true },
-  { path: '/image-studio/:category/:type', component: GrueneratorenBundle.ImageStudio, withForm: true },
+  {
+    path: '/image-studio/:category/:type',
+    component: GrueneratorenBundle.ImageStudio,
+    withForm: true,
+  },
   // Pages Feature Routes
   { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
   { path: '/pages/:pageId', component: GrueneratorenBundle.DynamicPageView },
-  { path: '*', component: NotFound }
+  { path: '*', component: NotFound },
 ];
 
 const specialRoutes: RouteConfig[] = [];
@@ -270,14 +350,12 @@ const specialRoutes: RouteConfig[] = [];
 const createNoHeaderFooterRoute = (route: RouteConfig): RouteConfig | null => {
   if (route.path === '*') return null;
 
-  const noHeaderPath = route.path === '/'
-    ? '/no-header-footer'
-    : `${route.path}-no-header-footer`;
+  const noHeaderPath = route.path === '/' ? '/no-header-footer' : `${route.path}-no-header-footer`;
 
   return {
     ...route,
     path: noHeaderPath,
-    showHeaderFooter: false
+    showHeaderFooter: false,
   };
 };
 
@@ -291,15 +369,19 @@ export const routes: Routes = {
   standard: standardRoutes,
   special: specialRoutes,
   noHeaderFooter: [
-    { path: '/mobile-editor', component: GrueneratorenBundle.MobileEditor, showHeaderFooter: false },
+    {
+      path: '/mobile-editor',
+      component: GrueneratorenBundle.MobileEditor,
+      showHeaderFooter: false,
+    },
     ...standardRoutes
       .map(createNoHeaderFooterRoute)
       .filter((route): route is RouteConfig => route !== null)
-      .filter(route => route.path !== '/editor/collab/:documentId-no-header-footer'),
+      .filter((route) => route.path !== '/editor/collab/:documentId-no-header-footer'),
     ...specialRoutes
       .map(createNoHeaderFooterRoute)
-      .filter((route): route is RouteConfig => route !== null)
-  ]
+      .filter((route): route is RouteConfig => route !== null),
+  ],
 };
 
 export default routes;

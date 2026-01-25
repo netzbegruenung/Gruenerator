@@ -6,12 +6,18 @@ interface WelcomePageProps {
   stepsTitle: string;
   steps: {
     title?: string;
-    description?: string
+    description?: string;
   }[];
   onStart: () => void;
 }
 
-const WelcomePage = ({ title, description, steps, onStart, stepsTitle }: WelcomePageProps): JSX.Element => {
+const WelcomePage = ({
+  title,
+  description,
+  steps,
+  onStart,
+  stepsTitle,
+}: WelcomePageProps): JSX.Element => {
   const handleStart = () => {
     const welcomeScreen = document.querySelector('.welcome-screen');
     if (welcomeScreen) {
@@ -42,10 +48,7 @@ const WelcomePage = ({ title, description, steps, onStart, stepsTitle }: Welcome
           </div>
         </div>
 
-        <button
-          className="start-button"
-          onClick={handleStart}
-        >
+        <button className="start-button" onClick={handleStart}>
           Los geht&apos;s!
         </button>
       </div>

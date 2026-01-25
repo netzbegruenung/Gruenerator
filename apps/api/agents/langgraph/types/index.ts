@@ -31,7 +31,7 @@ export type {
   GeneratorConfig,
   ToolSchema,
   ToolCall,
-  QuestionDefaults
+  QuestionDefaults,
 } from './simpleInteractiveGenerator.js';
 
 // Re-export Locale from promptAssembly

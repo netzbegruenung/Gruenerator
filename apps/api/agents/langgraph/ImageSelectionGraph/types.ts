@@ -27,7 +27,11 @@ export interface ImageCatalog {
  */
 export interface SelectionMetadata {
   totalImages?: number;
-  selectionMethod?: 'direct_description_matching' | 'direct_ai_selection' | 'smart_fallback' | 'error_fallback';
+  selectionMethod?:
+    | 'direct_description_matching'
+    | 'direct_ai_selection'
+    | 'smart_fallback'
+    | 'error_fallback';
   aiConfidence?: number;
   totalImagesConsidered?: number;
   parseError?: string;

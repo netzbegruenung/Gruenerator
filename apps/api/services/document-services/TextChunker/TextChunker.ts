@@ -45,10 +45,12 @@ export async function smartChunkDocument(
         const chunks = await langChainChunker.chunkDocument(pageText, pageMeta);
         const repacked = sentenceRepack(chunks, { baseMetadata: pageMeta });
         // Ensure page_number is set on every chunk (prefer explicit over detection)
-        all.push(...repacked.map(c => ({
-          ...c,
-          metadata: { ...c.metadata, page_number: p.pageNumber }
-        })));
+        all.push(
+          ...repacked.map((c) => ({
+            ...c,
+            metadata: { ...c.metadata, page_number: p.pageNumber },
+          }))
+        );
       }
     }
 
@@ -59,7 +61,7 @@ export async function smartChunkDocument(
     const { maxTokens = 600, overlapTokens = 150 } = options;
     const cleaned = cleanTextForEmbedding(text);
     const chunks = hierarchicalChunkDocument(cleaned, { maxTokens, overlapTokens });
-    return chunks.map(c => enrichChunkWithMetadata(c, baseMetadata));
+    return chunks.map((c) => enrichChunkWithMetadata(c, baseMetadata));
   }
 }
 

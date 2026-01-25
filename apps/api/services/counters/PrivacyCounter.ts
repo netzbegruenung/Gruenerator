@@ -37,7 +37,9 @@ export class PrivacyCounter {
       // Always use litellm for privacy mode - ionos is fallback on error only
       const provider = 'litellm';
 
-      console.log(`[PrivacyCounter] User ${userId}: Request #${count}, using provider: ${provider}`);
+      console.log(
+        `[PrivacyCounter] User ${userId}: Request #${count}, using provider: ${provider}`
+      );
 
       return provider;
     } catch (error) {

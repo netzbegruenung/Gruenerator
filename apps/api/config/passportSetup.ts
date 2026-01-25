@@ -187,23 +187,31 @@ export async function handleUserProfile(
         const emailConflictUser = await getUserByEmail(email);
         if (emailConflictUser && emailConflictUser.id !== existingUser.id) {
           log.warn('[handleUserProfile] Email conflict detected, keeping existing email');
-          return await updateUser(existingUser.id!, {
-            display_name: name,
-            username,
-            email: existingUser.email || null,
-            locale: existingUser.locale || locale,
-            last_login: new Date().toISOString(),
-          }, authSource);
+          return await updateUser(
+            existingUser.id!,
+            {
+              display_name: name,
+              username,
+              email: existingUser.email || null,
+              locale: existingUser.locale || locale,
+              last_login: new Date().toISOString(),
+            },
+            authSource
+          );
         }
       }
 
-      return await updateUser(existingUser.id!, {
-        display_name: name,
-        username,
-        email: email || existingUser.email || null,
-        locale: existingUser.locale || locale,
-        last_login: new Date().toISOString(),
-      }, authSource);
+      return await updateUser(
+        existingUser.id!,
+        {
+          display_name: name,
+          username,
+          email: email || existingUser.email || null,
+          locale: existingUser.locale || locale,
+          last_login: new Date().toISOString(),
+        },
+        authSource
+      );
     }
 
     // Check for existing user by email (only if email exists)
@@ -211,13 +219,17 @@ export async function handleUserProfile(
       const userByEmail = await getUserByEmail(email);
 
       if (userByEmail) {
-        return await linkUser(userByEmail.id!, {
-          keycloak_id: keycloakId,
-          display_name: name,
-          username,
-          locale: userByEmail.locale || locale,
-          last_login: new Date().toISOString(),
-        }, authSource);
+        return await linkUser(
+          userByEmail.id!,
+          {
+            keycloak_id: keycloakId,
+            display_name: name,
+            username,
+            locale: userByEmail.locale || locale,
+            last_login: new Date().toISOString(),
+          },
+          authSource
+        );
       }
     }
 
@@ -296,11 +308,13 @@ async function createProfileUser(profileData: ProfileData): Promise<UserWithSess
       email: profileData.email ?? undefined,
       locale: profileData.locale || 'de-DE',
       last_login: profileData.last_login,
-      beta_features: {}
+      beta_features: {},
     };
 
     const profileService = getProfileService();
-    const profile = await profileService.createProfile(newProfileData as Parameters<typeof profileService.createProfile>[0]);
+    const profile = await profileService.createProfile(
+      newProfileData as Parameters<typeof profileService.createProfile>[0]
+    );
 
     return profile as unknown as UserWithSession;
   } catch (error) {
@@ -325,7 +339,7 @@ async function updateUser(
     // Convert null to undefined for email field to match ProfileUpdateData
     const profileUpdates = {
       ...updates,
-      email: updates.email ?? undefined
+      email: updates.email ?? undefined,
     };
     const profile = await profileService.updateProfile(userId, profileUpdates);
 
@@ -352,7 +366,7 @@ async function linkUser(
     // Convert null to undefined for email field to match ProfileUpdateData
     const profileUpdates = {
       ...updates,
-      email: updates.email ?? undefined
+      email: updates.email ?? undefined,
     };
     const profile = await profileService.updateProfile(userId, profileUpdates);
 

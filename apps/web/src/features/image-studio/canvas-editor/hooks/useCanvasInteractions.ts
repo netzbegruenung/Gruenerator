@@ -4,13 +4,13 @@
  */
 
 import { useState, useCallback, type RefObject } from 'react';
-import type Konva from 'konva';
+
+import { useCanvasEditorStore, useElementPositions } from '../../../../stores/canvasEditorStore';
+
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SnapTarget } from '../utils/snapping';
-import {
-  useCanvasEditorStore,
-  useElementPositions,
-} from '../../../../stores/canvasEditorStore';
+import type Konva from 'konva';
+
 
 export interface UseCanvasInteractionsOptions {
   stageRef: RefObject<CanvasStageRef | null>;

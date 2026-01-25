@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+
 import { useEditorStore, type SectionType, SECTION_ORDER } from '../stores/editorStore';
 
 interface UseScrollSyncOptions {
@@ -7,7 +8,16 @@ interface UseScrollSyncOptions {
 }
 
 export function useScrollSync({ containerRef, enabled = true }: UseScrollSyncOptions) {
-  const { activeSection, setActiveSection, isScrollLocked, setScrollLocked, scrollSource, setScrollSource, pendingScrollTo, clearPendingScroll } = useEditorStore();
+  const {
+    activeSection,
+    setActiveSection,
+    isScrollLocked,
+    setScrollLocked,
+    scrollSource,
+    setScrollSource,
+    pendingScrollTo,
+    clearPendingScroll,
+  } = useEditorStore();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const sectionRefs = useRef<Map<SectionType, HTMLElement>>(new Map());
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -20,26 +30,29 @@ export function useScrollSync({ containerRef, enabled = true }: UseScrollSyncOpt
     }
   }, []);
 
-  const scrollToSection = useCallback((section: SectionType, source: 'preview' | 'sidebar' = 'sidebar') => {
-    const element = sectionRefs.current.get(section);
-    if (!element || !containerRef.current) return;
+  const scrollToSection = useCallback(
+    (section: SectionType, source: 'preview' | 'sidebar' = 'sidebar') => {
+      const element = sectionRefs.current.get(section);
+      if (!element || !containerRef.current) return;
 
-    setScrollLocked(true);
-    setScrollSource(source);
+      setScrollLocked(true);
+      setScrollSource(source);
 
-    element.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
 
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      setScrollLocked(false);
-      setScrollSource(null);
-    }, 500);
-  }, [containerRef, setScrollLocked, setScrollSource]);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        setScrollLocked(false);
+        setScrollSource(null);
+      }, 500);
+    },
+    [containerRef, setScrollLocked, setScrollSource]
+  );
 
   useEffect(() => {
     if (!enabled || !containerRef.current) return;
@@ -48,13 +61,13 @@ export function useScrollSync({ containerRef, enabled = true }: UseScrollSyncOpt
       if (isScrollLocked || scrollSource === 'sidebar') return;
 
       const visibleSections = entries
-        .filter(entry => entry.isIntersecting)
-        .map(entry => ({
+        .filter((entry) => entry.isIntersecting)
+        .map((entry) => ({
           section: entry.target.getAttribute('data-section-id') as SectionType,
           ratio: entry.intersectionRatio,
           top: entry.boundingClientRect.top,
         }))
-        .filter(item => item.section && SECTION_ORDER.includes(item.section));
+        .filter((item) => item.section && SECTION_ORDER.includes(item.section));
 
       if (visibleSections.length === 0) return;
 

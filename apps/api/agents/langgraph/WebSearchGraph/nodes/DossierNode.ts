@@ -9,10 +9,14 @@ import {
   dedupeAndDiversify,
   buildReferencesMap,
   summarizeReferencesForPrompt,
-  validateAndInjectCitations
+  validateAndInjectCitations,
 } from '../../../../services/search/index.js';
 import { filterDataForAI } from '../utilities/dataFilter.js';
-import { buildDossierSystemPrompt, buildDossierPrompt, buildMethodologySection } from '../utilities/dossierBuilder.js';
+import {
+  buildDossierSystemPrompt,
+  buildDossierPrompt,
+  buildMethodologySection,
+} from '../utilities/dossierBuilder.js';
 
 /**
  * Dossier Node: Generate comprehensive research dossier with citations
@@ -36,9 +40,9 @@ export async function dossierNode(state: WebSearchState): Promise<Partial<WebSea
 
     // Add Grundsatz document results
     if (state.grundsatzResults?.success && state.grundsatzResults.results?.length > 0) {
-      const normalizedGrundsatzSources = state.grundsatzResults.results.map(result => ({
+      const normalizedGrundsatzSources = state.grundsatzResults.results.map((result) => ({
         ...normalizeSearchResult(result),
-        source_type: 'official_document'
+        source_type: 'official_document',
       }));
       allSources.push(...normalizedGrundsatzSources);
     }
@@ -50,26 +54,26 @@ export async function dossierNode(state: WebSearchState): Promise<Partial<WebSea
           executiveSummary: 'Keine Quellen für die Deep Research verfügbar.',
           detailedAnalysis: '',
           methodology: '',
-          sources: []
+          sources: [],
         } as ResearchDossier,
-        metadata: { ...state.metadata, dossierGenerated: false }
+        metadata: { ...state.metadata, dossierGenerated: false },
       };
     }
 
     // Deduplicate and limit sources for citations
     const deduplicatedSources = dedupeAndDiversify(allSources, {
       limitPerDoc: 4,
-      maxTotal: 12
+      maxTotal: 12,
     });
 
     // Map ExpandedChunkResult to SearchResult format for dossier
-    const mappedSources: SearchResult[] = deduplicatedSources.map(source => ({
+    const mappedSources: SearchResult[] = deduplicatedSources.map((source) => ({
       url: source.source_url || '',
       title: source.title,
       content: source.snippet,
       snippet: source.snippet,
       domain: source.source_url ? new URL(source.source_url).hostname : undefined,
-      score: source.similarity
+      score: source.similarity,
     }));
 
     // Build references map for citations
@@ -78,7 +82,11 @@ export async function dossierNode(state: WebSearchState): Promise<Partial<WebSea
 
     // Get system and user prompts
     const systemPrompt = buildDossierSystemPrompt();
-    const filteredData = filterDataForAI(state.webResults, state.aggregatedResults, state.grundsatzResults);
+    const filteredData = filterDataForAI(
+      state.webResults,
+      state.aggregatedResults,
+      state.grundsatzResults
+    );
     const userPrompt = buildDossierPrompt(state.query, filteredData);
 
     // Enhanced dossier prompt with citations
@@ -96,17 +104,20 @@ Verwende dabei Quellenangaben [1], [2], [3] etc. bei wichtigen Aussagen.
 Verfügbare Quellenreferenzen:
 ${refsSummary}`;
 
-    const result = await state.aiWorkerPool.processRequest({
-      type: 'text_adjustment',
-      systemPrompt: enhancedSystemPrompt,
-      messages: [{ role: "user", content: enhancedUserPrompt }],
-      options: {
-        provider: 'litellm',
-        model: 'gpt-oss:120b',
-        max_tokens: 6000,
-        temperature: 0.3
-      }
-    }, state.req);
+    const result = await state.aiWorkerPool.processRequest(
+      {
+        type: 'text_adjustment',
+        systemPrompt: enhancedSystemPrompt,
+        messages: [{ role: 'user', content: enhancedUserPrompt }],
+        options: {
+          provider: 'litellm',
+          model: 'gpt-oss:120b',
+          max_tokens: 6000,
+          temperature: 0.3,
+        },
+      },
+      state.req
+    );
 
     if (!result.success) {
       throw new Error(result.error);
@@ -141,7 +152,7 @@ ${refsSummary}`;
         executiveSummary: cleanDraft.split('\n\n')[0] || '',
         detailedAnalysis: cleanDraft,
         methodology: methodologySection,
-        sources: mappedSources
+        sources: mappedSources,
       } as ResearchDossier,
       referencesMap,
       citations,
@@ -152,8 +163,8 @@ ${refsSummary}`;
         dossierLength: completeDossier.length,
         citationsCount: citations?.length || 0,
         sourcesCount: sources?.length || 0,
-        citationErrors: errors?.length || 0
-      }
+        citationErrors: errors?.length || 0,
+      },
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -164,10 +175,10 @@ ${refsSummary}`;
         executiveSummary: `Fehler bei der Deep Research: ${errorMessage}`,
         detailedAnalysis: '',
         methodology: '',
-        sources: []
+        sources: [],
       } as ResearchDossier,
       error: `Dossier generation failed: ${errorMessage}`,
-      metadata: { ...state.metadata, dossierGenerated: false }
+      metadata: { ...state.metadata, dossierGenerated: false },
     };
   }
 }

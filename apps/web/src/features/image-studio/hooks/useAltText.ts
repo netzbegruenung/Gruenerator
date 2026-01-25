@@ -29,12 +29,13 @@ export const useAltTextStore = create<AltTextStore>((set) => ({
   setAltTextError: (error) => set({ altTextError: error }),
   toggleAltText: () => set((state) => ({ showAltText: !state.showAltText })),
   setShowAltText: (show) => set({ showAltText: show }),
-  resetAltText: () => set({
-    altText: '',
-    isAltTextLoading: false,
-    altTextError: null,
-    showAltText: false
-  })
+  resetAltText: () =>
+    set({
+      altText: '',
+      isAltTextLoading: false,
+      altTextError: null,
+      showAltText: false,
+    }),
 }));
 
 export default useAltTextStore;

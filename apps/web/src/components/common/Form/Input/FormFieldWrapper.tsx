@@ -1,4 +1,9 @@
-import { cloneElement, type ReactElement, type HTMLAttributes, type LabelHTMLAttributes } from 'react';
+import {
+  cloneElement,
+  type ReactElement,
+  type HTMLAttributes,
+  type LabelHTMLAttributes,
+} from 'react';
 
 export interface FormFieldWrapperProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactElement<{ 'aria-invalid'?: boolean; 'aria-describedby'?: string }>;
@@ -23,7 +28,8 @@ const FormFieldWrapper = ({
   ...rest
 }: FormFieldWrapperProps) => {
   const wrapperClassName = `form-field-wrapper ${className}`.trim();
-  const labelClassName = `form-field-label ${required ? 'required' : ''} ${labelProps.className || ''}`.trim();
+  const labelClassName =
+    `form-field-label ${required ? 'required' : ''} ${labelProps.className || ''}`.trim();
   const errorId = error ? `${htmlFor}-error` : undefined;
   const helpId = helpText ? `${htmlFor}-help` : undefined;
 
@@ -37,7 +43,7 @@ const FormFieldWrapper = ({
 
       {cloneElement(children, {
         'aria-invalid': !!error,
-        'aria-describedby': [helpId, errorId].filter(Boolean).join(' ') || undefined
+        'aria-describedby': [helpId, errorId].filter(Boolean).join(' ') || undefined,
       })}
 
       {helpText && (

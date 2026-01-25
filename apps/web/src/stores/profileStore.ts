@@ -1,8 +1,10 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import { subscribeWithSelector } from 'zustand/middleware';
 import { enableMapSet } from 'immer';
+import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+import { immer } from 'zustand/middleware/immer';
+
 import { profileApiService } from '../features/auth/services/profileApiService';
+
 import { useAuthStore } from './authStore';
 
 enableMapSet();
@@ -183,15 +185,30 @@ interface ProfileStore {
   syncMemories: (memories: Memory[] | null) => void;
   syncAvailableDocuments: (documents: AvailableDocument[] | null) => void;
   setEditMode: (section: keyof Omit<EditModes, 'customGenerators'>, enabled: boolean) => void;
-  setUnsavedChanges: (section: keyof Omit<UnsavedChanges, 'knowledge' | 'qaCollections' | 'customGenerators'>, changes: Record<string, unknown>) => void;
+  setUnsavedChanges: (
+    section: keyof Omit<UnsavedChanges, 'knowledge' | 'qaCollections' | 'customGenerators'>,
+    changes: Record<string, unknown>
+  ) => void;
   clearUnsavedChanges: (section: keyof UnsavedChanges) => void;
   hasUnsavedChanges: (section: keyof UnsavedChanges) => boolean;
-  setValidationErrors: (section: keyof Omit<ValidationErrors, 'knowledge' | 'qaCollections' | 'customGenerators'>, errors: Record<string, string>) => void;
+  setValidationErrors: (
+    section: keyof Omit<ValidationErrors, 'knowledge' | 'qaCollections' | 'customGenerators'>,
+    errors: Record<string, string>
+  ) => void;
   clearValidationErrors: (section: keyof ValidationErrors) => void;
-  updateProfileOptimistic: (updates: Partial<Profile>, loadingKey?: BooleanLoadingKey | null) => void;
-  completeOptimisticUpdate: (loadingKey: BooleanLoadingKey | null, finalData?: Partial<Profile> | null) => void;
+  updateProfileOptimistic: (
+    updates: Partial<Profile>,
+    loadingKey?: BooleanLoadingKey | null
+  ) => void;
+  completeOptimisticUpdate: (
+    loadingKey: BooleanLoadingKey | null,
+    finalData?: Partial<Profile> | null
+  ) => void;
   syncWithAuthStore: (profileUpdates: Partial<Profile>) => void;
-  rollbackOptimisticUpdate: (originalData: Partial<Profile>, loadingKey?: BooleanLoadingKey | null) => void;
+  rollbackOptimisticUpdate: (
+    originalData: Partial<Profile>,
+    loadingKey?: BooleanLoadingKey | null
+  ) => void;
   updateAvatarOptimistic: (avatarRobotId: string) => Promise<{ avatar_robot_id: string }>;
   updateDisplayNameOptimistic: (displayName: string) => Promise<Partial<Profile>>;
   setKnowledgeEntryChanges: (entryId: string, changes: KnowledgeChanges) => void;
@@ -207,7 +224,11 @@ interface ProfileStore {
   updateGeneratorOptimistic: (generatorId: string, updates: Partial<CustomGenerator>) => void;
   deleteGeneratorOptimistic: (generatorId: string) => void;
   clearAllGeneratorEditModes: () => void;
-  setActiveContext: (type: 'user' | 'group', groupId?: string | null, groupName?: string | null) => void;
+  setActiveContext: (
+    type: 'user' | 'group',
+    groupId?: string | null,
+    groupName?: string | null
+  ) => void;
   resetToUserContext: () => void;
   setIntegrationTab: (tab: string) => void;
   setCanvaSubsection: (subsection: string) => void;
@@ -237,21 +258,21 @@ export const useProfileStore = create<ProfileStore>()(
         avatar: false,
         anweisungen: false,
         qaCollections: false,
-        customGenerators: new Map<string, boolean>()
+        customGenerators: new Map<string, boolean>(),
       },
       unsavedChanges: {
         profile: {},
         anweisungen: {},
         knowledge: new Map<string, KnowledgeChanges>(),
         qaCollections: new Map<string, QAChanges>(),
-        customGenerators: new Map<string, GeneratorChanges>()
+        customGenerators: new Map<string, GeneratorChanges>(),
       },
       validationErrors: {
         profile: {},
         anweisungen: {},
         knowledge: new Map<string, Record<string, string>>(),
         qaCollections: new Map<string, Record<string, string>>(),
-        customGenerators: new Map<string, Record<string, string>>()
+        customGenerators: new Map<string, Record<string, string>>(),
       },
       optimisticLoading: {
         avatar: false,
@@ -259,155 +280,184 @@ export const useProfileStore = create<ProfileStore>()(
         betaFeatures: new Set<string>(),
         anweisungen: false,
         knowledge: new Set<string>(),
-        customGenerators: new Set<string>()
+        customGenerators: new Set<string>(),
       },
       messages: {
         success: '',
         error: '',
-        timestamp: null
+        timestamp: null,
       },
       activeContext: {
         type: 'user',
         groupId: null,
-        groupName: null
+        groupName: null,
       },
       integrationsUI: {
         currentTab: 'wolke',
         canvaSubsection: 'overview',
         shareModal: {
           isOpen: false,
-          content: null
-        }
+          content: null,
+        },
       },
 
-      syncProfile: (profileData) => set(state => {
-        if (!state.editModes.profile && !state.optimisticLoading.avatar) {
-          state.profile = profileData;
-        } else if (state.optimisticLoading.avatar && profileData) {
-          const optimisticAvatarId = state.profile?.avatar_robot_id;
-          state.profile = {
-            ...profileData,
-            avatar_robot_id: optimisticAvatarId || profileData.avatar_robot_id
-          };
-        }
-      }),
-
-      syncAnweisungenWissen: (data) => set(state => {
-        if (!state.editModes.anweisungen) {
-          state.anweisungenWissen = data;
-        }
-      }),
-
-      syncQACollections: (collections) => set(state => {
-        state.qaCollections = collections || [];
-      }),
-
-      syncNotebookCollections: (collections) => set(state => {
-        state.qaCollections = collections || [];
-      }),
-
-      syncCustomGenerators: (generators) => set(state => {
-        state.customGenerators = generators || [];
-      }),
-
-      syncSavedGenerators: (generators) => set(state => {
-        state.savedGenerators = generators || [];
-      }),
-
-      syncUserTexts: (texts) => set(state => {
-        state.userTexts = texts || [];
-      }),
-
-      syncUserTemplates: (templates) => set(state => {
-        state.userTemplates = templates || [];
-      }),
-
-      syncMemories: (memories) => set(state => {
-        state.memories = memories || [];
-      }),
-
-      syncAvailableDocuments: (documents) => set(state => {
-        state.availableDocuments = documents || [];
-      }),
-
-      setEditMode: (section, enabled) => set(state => {
-        if (section === 'profile') {
-          state.editModes.profile = enabled;
-          if (!enabled) {
-            state.unsavedChanges.profile = {};
+      syncProfile: (profileData) =>
+        set((state) => {
+          if (!state.editModes.profile && !state.optimisticLoading.avatar) {
+            state.profile = profileData;
+          } else if (state.optimisticLoading.avatar && profileData) {
+            const optimisticAvatarId = state.profile?.avatar_robot_id;
+            state.profile = {
+              ...profileData,
+              avatar_robot_id: optimisticAvatarId || profileData.avatar_robot_id,
+            };
           }
-        } else if (section === 'avatar') {
-          state.editModes.avatar = enabled;
-        } else if (section === 'anweisungen') {
-          state.editModes.anweisungen = enabled;
-          if (!enabled) {
-            state.unsavedChanges.anweisungen = {};
-          }
-        } else if (section === 'qaCollections') {
-          state.editModes.qaCollections = enabled;
-          if (!enabled) {
-            state.unsavedChanges.qaCollections.clear();
-          }
-        }
-      }),
+        }),
 
-      setUnsavedChanges: (section, changes) => set(state => {
-        if (section === 'profile') {
-          state.unsavedChanges.profile = { ...state.unsavedChanges.profile, ...changes };
-        } else if (section === 'anweisungen') {
-          state.unsavedChanges.anweisungen = { ...state.unsavedChanges.anweisungen, ...changes };
-        }
-      }),
+      syncAnweisungenWissen: (data) =>
+        set((state) => {
+          if (!state.editModes.anweisungen) {
+            state.anweisungenWissen = data;
+          }
+        }),
 
-      clearUnsavedChanges: (section) => set(state => {
-        if (section === 'profile' || section === 'anweisungen') {
-          state.unsavedChanges[section] = {};
-        } else if (section === 'knowledge' || section === 'qaCollections' || section === 'customGenerators') {
-          state.unsavedChanges[section].clear();
-        }
-      }),
+      syncQACollections: (collections) =>
+        set((state) => {
+          state.qaCollections = collections || [];
+        }),
+
+      syncNotebookCollections: (collections) =>
+        set((state) => {
+          state.qaCollections = collections || [];
+        }),
+
+      syncCustomGenerators: (generators) =>
+        set((state) => {
+          state.customGenerators = generators || [];
+        }),
+
+      syncSavedGenerators: (generators) =>
+        set((state) => {
+          state.savedGenerators = generators || [];
+        }),
+
+      syncUserTexts: (texts) =>
+        set((state) => {
+          state.userTexts = texts || [];
+        }),
+
+      syncUserTemplates: (templates) =>
+        set((state) => {
+          state.userTemplates = templates || [];
+        }),
+
+      syncMemories: (memories) =>
+        set((state) => {
+          state.memories = memories || [];
+        }),
+
+      syncAvailableDocuments: (documents) =>
+        set((state) => {
+          state.availableDocuments = documents || [];
+        }),
+
+      setEditMode: (section, enabled) =>
+        set((state) => {
+          if (section === 'profile') {
+            state.editModes.profile = enabled;
+            if (!enabled) {
+              state.unsavedChanges.profile = {};
+            }
+          } else if (section === 'avatar') {
+            state.editModes.avatar = enabled;
+          } else if (section === 'anweisungen') {
+            state.editModes.anweisungen = enabled;
+            if (!enabled) {
+              state.unsavedChanges.anweisungen = {};
+            }
+          } else if (section === 'qaCollections') {
+            state.editModes.qaCollections = enabled;
+            if (!enabled) {
+              state.unsavedChanges.qaCollections.clear();
+            }
+          }
+        }),
+
+      setUnsavedChanges: (section, changes) =>
+        set((state) => {
+          if (section === 'profile') {
+            state.unsavedChanges.profile = { ...state.unsavedChanges.profile, ...changes };
+          } else if (section === 'anweisungen') {
+            state.unsavedChanges.anweisungen = { ...state.unsavedChanges.anweisungen, ...changes };
+          }
+        }),
+
+      clearUnsavedChanges: (section) =>
+        set((state) => {
+          if (section === 'profile' || section === 'anweisungen') {
+            state.unsavedChanges[section] = {};
+          } else if (
+            section === 'knowledge' ||
+            section === 'qaCollections' ||
+            section === 'customGenerators'
+          ) {
+            state.unsavedChanges[section].clear();
+          }
+        }),
 
       hasUnsavedChanges: (section) => {
         const unsavedChanges = get().unsavedChanges;
         if (section === 'profile' || section === 'anweisungen') {
           return Object.keys(unsavedChanges[section] || {}).length > 0;
-        } else if (section === 'knowledge' || section === 'qaCollections' || section === 'customGenerators') {
+        } else if (
+          section === 'knowledge' ||
+          section === 'qaCollections' ||
+          section === 'customGenerators'
+        ) {
           return unsavedChanges[section].size > 0;
         }
         return false;
       },
 
-      setValidationErrors: (section, errors) => set(state => {
-        if (section === 'profile') {
-          state.validationErrors.profile = errors;
-        } else if (section === 'anweisungen') {
-          state.validationErrors.anweisungen = errors;
-        }
-      }),
+      setValidationErrors: (section, errors) =>
+        set((state) => {
+          if (section === 'profile') {
+            state.validationErrors.profile = errors;
+          } else if (section === 'anweisungen') {
+            state.validationErrors.anweisungen = errors;
+          }
+        }),
 
-      clearValidationErrors: (section) => set(state => {
-        if (section === 'profile' || section === 'anweisungen') {
-          state.validationErrors[section] = {};
-        } else if (section === 'knowledge' || section === 'qaCollections' || section === 'customGenerators') {
-          state.validationErrors[section].clear();
-        }
-      }),
+      clearValidationErrors: (section) =>
+        set((state) => {
+          if (section === 'profile' || section === 'anweisungen') {
+            state.validationErrors[section] = {};
+          } else if (
+            section === 'knowledge' ||
+            section === 'qaCollections' ||
+            section === 'customGenerators'
+          ) {
+            state.validationErrors[section].clear();
+          }
+        }),
 
-      updateProfileOptimistic: (updates, loadingKey = null) => set(state => {
-        state.profile = { ...state.profile, ...updates } as Profile;
-        if (loadingKey) {
-          state.optimisticLoading[loadingKey] = true;
-        }
-      }),
+      updateProfileOptimistic: (updates, loadingKey = null) =>
+        set((state) => {
+          state.profile = { ...state.profile, ...updates } as Profile;
+          if (loadingKey) {
+            state.optimisticLoading[loadingKey] = true;
+          }
+        }),
 
-      completeOptimisticUpdate: (loadingKey, finalData = null) => set(state => {
-        if (loadingKey) {
-          state.optimisticLoading[loadingKey] = false;
-        }
-        if (finalData) {
-          state.profile = { ...state.profile, ...finalData } as Profile;
-        }
-      }),
+      completeOptimisticUpdate: (loadingKey, finalData = null) =>
+        set((state) => {
+          if (loadingKey) {
+            state.optimisticLoading[loadingKey] = false;
+          }
+          if (finalData) {
+            state.profile = { ...state.profile, ...finalData } as Profile;
+          }
+        }),
 
       syncWithAuthStore: (profileUpdates) => {
         try {
@@ -415,12 +465,12 @@ export const useProfileStore = create<ProfileStore>()(
           if (authState.user && profileUpdates) {
             const sanitizedUpdates = {
               ...profileUpdates,
-              locale: profileUpdates.locale as 'de-DE' | 'de-AT' | undefined
+              locale: profileUpdates.locale as 'de-DE' | 'de-AT' | undefined,
             };
             authState.setAuthState({
               user: { ...authState.user, ...sanitizedUpdates } as typeof authState.user,
               isAuthenticated: authState.isAuthenticated,
-              supabaseSession: authState.supabaseSession
+              supabaseSession: authState.supabaseSession,
             });
           }
         } catch (error) {
@@ -432,12 +482,13 @@ export const useProfileStore = create<ProfileStore>()(
         }
       },
 
-      rollbackOptimisticUpdate: (originalData, loadingKey = null) => set(state => {
-        state.profile = { ...state.profile, ...originalData } as Profile;
-        if (loadingKey) {
-          state.optimisticLoading[loadingKey] = false;
-        }
-      }),
+      rollbackOptimisticUpdate: (originalData, loadingKey = null) =>
+        set((state) => {
+          state.profile = { ...state.profile, ...originalData } as Profile;
+          if (loadingKey) {
+            state.optimisticLoading[loadingKey] = false;
+          }
+        }),
 
       updateAvatarOptimistic: async (avatarRobotId) => {
         try {
@@ -472,216 +523,236 @@ export const useProfileStore = create<ProfileStore>()(
         }
       },
 
-      setKnowledgeEntryChanges: (entryId, changes) => set(state => {
-        state.unsavedChanges.knowledge.set(entryId, changes);
-      }),
+      setKnowledgeEntryChanges: (entryId, changes) =>
+        set((state) => {
+          state.unsavedChanges.knowledge.set(entryId, changes);
+        }),
 
-      clearKnowledgeEntryChanges: (entryId) => set(state => {
-        state.unsavedChanges.knowledge.delete(entryId);
-        state.validationErrors.knowledge.delete(entryId);
-      }),
+      clearKnowledgeEntryChanges: (entryId) =>
+        set((state) => {
+          state.unsavedChanges.knowledge.delete(entryId);
+          state.validationErrors.knowledge.delete(entryId);
+        }),
 
-      setKnowledgeEntryLoading: (entryId, loading) => set(state => {
-        if (loading) {
-          state.optimisticLoading.knowledge.add(entryId);
-        } else {
-          state.optimisticLoading.knowledge.delete(entryId);
-        }
-      }),
+      setKnowledgeEntryLoading: (entryId, loading) =>
+        set((state) => {
+          if (loading) {
+            state.optimisticLoading.knowledge.add(entryId);
+          } else {
+            state.optimisticLoading.knowledge.delete(entryId);
+          }
+        }),
 
       hasKnowledgeEntryChanges: (entryId) => {
         return get().unsavedChanges.knowledge.has(entryId);
       },
 
-      setGeneratorEditMode: (generatorId, enabled) => set(state => {
-        if (enabled) {
-          state.editModes.customGenerators.set(generatorId, true);
-        } else {
-          state.editModes.customGenerators.delete(generatorId);
+      setGeneratorEditMode: (generatorId, enabled) =>
+        set((state) => {
+          if (enabled) {
+            state.editModes.customGenerators.set(generatorId, true);
+          } else {
+            state.editModes.customGenerators.delete(generatorId);
+            state.unsavedChanges.customGenerators.delete(generatorId);
+            state.validationErrors.customGenerators.delete(generatorId);
+          }
+        }),
+
+      setGeneratorChanges: (generatorId, changes) =>
+        set((state) => {
+          state.unsavedChanges.customGenerators.set(generatorId, {
+            ...state.unsavedChanges.customGenerators.get(generatorId),
+            ...changes,
+          });
+        }),
+
+      clearGeneratorChanges: (generatorId) =>
+        set((state) => {
           state.unsavedChanges.customGenerators.delete(generatorId);
           state.validationErrors.customGenerators.delete(generatorId);
-        }
-      }),
-
-      setGeneratorChanges: (generatorId, changes) => set(state => {
-        state.unsavedChanges.customGenerators.set(generatorId, {
-          ...state.unsavedChanges.customGenerators.get(generatorId),
-          ...changes
-        });
-      }),
-
-      clearGeneratorChanges: (generatorId) => set(state => {
-        state.unsavedChanges.customGenerators.delete(generatorId);
-        state.validationErrors.customGenerators.delete(generatorId);
-      }),
+        }),
 
       hasGeneratorChanges: (generatorId) => {
         return get().unsavedChanges.customGenerators.has(generatorId);
       },
 
-      setGeneratorLoading: (generatorId, loading) => set(state => {
-        if (loading) {
-          state.optimisticLoading.customGenerators.add(generatorId);
-        } else {
-          state.optimisticLoading.customGenerators.delete(generatorId);
-        }
-      }),
+      setGeneratorLoading: (generatorId, loading) =>
+        set((state) => {
+          if (loading) {
+            state.optimisticLoading.customGenerators.add(generatorId);
+          } else {
+            state.optimisticLoading.customGenerators.delete(generatorId);
+          }
+        }),
 
-      setGeneratorValidationErrors: (generatorId, errors) => set(state => {
-        if (Object.keys(errors).length > 0) {
-          state.validationErrors.customGenerators.set(generatorId, errors);
-        } else {
+      setGeneratorValidationErrors: (generatorId, errors) =>
+        set((state) => {
+          if (Object.keys(errors).length > 0) {
+            state.validationErrors.customGenerators.set(generatorId, errors);
+          } else {
+            state.validationErrors.customGenerators.delete(generatorId);
+          }
+        }),
+
+      updateGeneratorOptimistic: (generatorId, updates) =>
+        set((state) => {
+          const generatorIndex = state.customGenerators.findIndex((g) => g.id === generatorId);
+          if (generatorIndex !== -1) {
+            state.customGenerators[generatorIndex] = {
+              ...state.customGenerators[generatorIndex],
+              ...updates,
+            };
+          }
+        }),
+
+      deleteGeneratorOptimistic: (generatorId) =>
+        set((state) => {
+          state.customGenerators = state.customGenerators.filter((g) => g.id !== generatorId);
+          state.editModes.customGenerators.delete(generatorId);
+          state.unsavedChanges.customGenerators.delete(generatorId);
           state.validationErrors.customGenerators.delete(generatorId);
-        }
-      }),
+          state.optimisticLoading.customGenerators.delete(generatorId);
+        }),
 
-      updateGeneratorOptimistic: (generatorId, updates) => set(state => {
-        const generatorIndex = state.customGenerators.findIndex(g => g.id === generatorId);
-        if (generatorIndex !== -1) {
-          state.customGenerators[generatorIndex] = {
-            ...state.customGenerators[generatorIndex],
-            ...updates
-          };
-        }
-      }),
+      clearAllGeneratorEditModes: () =>
+        set((state) => {
+          state.editModes.customGenerators.clear();
+          state.unsavedChanges.customGenerators.clear();
+          state.validationErrors.customGenerators.clear();
+        }),
 
-      deleteGeneratorOptimistic: (generatorId) => set(state => {
-        state.customGenerators = state.customGenerators.filter(g => g.id !== generatorId);
-        state.editModes.customGenerators.delete(generatorId);
-        state.unsavedChanges.customGenerators.delete(generatorId);
-        state.validationErrors.customGenerators.delete(generatorId);
-        state.optimisticLoading.customGenerators.delete(generatorId);
-      }),
-
-      clearAllGeneratorEditModes: () => set(state => {
-        state.editModes.customGenerators.clear();
-        state.unsavedChanges.customGenerators.clear();
-        state.validationErrors.customGenerators.clear();
-      }),
-
-      setActiveContext: (type, groupId = null, groupName = null) => set(state => {
-        state.activeContext = { type, groupId, groupName };
-        state.anweisungenWissen = null;
-        state.unsavedChanges.anweisungen = {};
-        state.unsavedChanges.knowledge.clear();
-        state.validationErrors.anweisungen = {};
-        state.validationErrors.knowledge.clear();
-      }),
+      setActiveContext: (type, groupId = null, groupName = null) =>
+        set((state) => {
+          state.activeContext = { type, groupId, groupName };
+          state.anweisungenWissen = null;
+          state.unsavedChanges.anweisungen = {};
+          state.unsavedChanges.knowledge.clear();
+          state.validationErrors.anweisungen = {};
+          state.validationErrors.knowledge.clear();
+        }),
 
       resetToUserContext: () => {
         get().setActiveContext('user');
       },
 
-      setIntegrationTab: (tab) => set(state => {
-        state.integrationsUI.currentTab = tab;
-      }),
+      setIntegrationTab: (tab) =>
+        set((state) => {
+          state.integrationsUI.currentTab = tab;
+        }),
 
-      setCanvaSubsection: (subsection) => set(state => {
-        if (subsection === 'overview' || subsection === 'vorlagen' || subsection === 'assets') {
-          state.integrationsUI.canvaSubsection = subsection;
-        }
-      }),
-
-      openShareModal: (contentType, contentId, contentTitle) => set(state => {
-        state.integrationsUI.shareModal = {
-          isOpen: true,
-          content: {
-            type: contentType,
-            id: contentId,
-            title: contentTitle
+      setCanvaSubsection: (subsection) =>
+        set((state) => {
+          if (subsection === 'overview' || subsection === 'vorlagen' || subsection === 'assets') {
+            state.integrationsUI.canvaSubsection = subsection;
           }
-        };
-      }),
+        }),
 
-      closeShareModal: () => set(state => {
-        state.integrationsUI.shareModal = {
-          isOpen: false,
-          content: null
-        };
-      }),
+      openShareModal: (contentType, contentId, contentTitle) =>
+        set((state) => {
+          state.integrationsUI.shareModal = {
+            isOpen: true,
+            content: {
+              type: contentType,
+              id: contentId,
+              title: contentTitle,
+            },
+          };
+        }),
 
-      initializeIntegrationTab: (initialTab, canAccessCanva) => set(state => {
-        let normalizedTab = initialTab;
-        if (normalizedTab === 'canva' && !canAccessCanva) {
-          normalizedTab = 'wolke';
-        }
-        state.integrationsUI.currentTab = normalizedTab;
-      }),
-
-      setMessage: (message, type = 'success') => set(state => {
-        state.messages = {
-          success: type === 'success' ? message : '',
-          error: type === 'error' ? message : '',
-          timestamp: Date.now()
-        };
-      }),
-
-      clearMessages: () => set(state => {
-        state.messages = {
-          success: '',
-          error: '',
-          timestamp: null
-        };
-      }),
-
-      reset: () => set(() => ({
-        profile: null,
-        anweisungenWissen: null,
-        qaCollections: [],
-        customGenerators: [],
-        savedGenerators: [],
-        userTexts: [],
-        userTemplates: [],
-        memories: [],
-        availableDocuments: [],
-        editModes: {
-          profile: false,
-          avatar: false,
-          anweisungen: false,
-          qaCollections: false,
-          customGenerators: new Map<string, boolean>()
-        },
-        unsavedChanges: {
-          profile: {},
-          anweisungen: {},
-          knowledge: new Map<string, KnowledgeChanges>(),
-          qaCollections: new Map<string, QAChanges>(),
-          customGenerators: new Map<string, GeneratorChanges>()
-        },
-        validationErrors: {
-          profile: {},
-          anweisungen: {},
-          knowledge: new Map<string, Record<string, string>>(),
-          qaCollections: new Map<string, Record<string, string>>(),
-          customGenerators: new Map<string, Record<string, string>>()
-        },
-        optimisticLoading: {
-          avatar: false,
-          displayName: false,
-          betaFeatures: new Set<string>(),
-          anweisungen: false,
-          knowledge: new Set<string>(),
-          customGenerators: new Set<string>()
-        },
-        messages: {
-          success: '',
-          error: '',
-          timestamp: null
-        },
-        activeContext: {
-          type: 'user',
-          groupId: null,
-          groupName: null
-        },
-        integrationsUI: {
-          currentTab: 'wolke',
-          canvaSubsection: 'overview',
-          shareModal: {
+      closeShareModal: () =>
+        set((state) => {
+          state.integrationsUI.shareModal = {
             isOpen: false,
-            content: null
+            content: null,
+          };
+        }),
+
+      initializeIntegrationTab: (initialTab, canAccessCanva) =>
+        set((state) => {
+          let normalizedTab = initialTab;
+          if (normalizedTab === 'canva' && !canAccessCanva) {
+            normalizedTab = 'wolke';
           }
-        }
-      })),
+          state.integrationsUI.currentTab = normalizedTab;
+        }),
+
+      setMessage: (message, type = 'success') =>
+        set((state) => {
+          state.messages = {
+            success: type === 'success' ? message : '',
+            error: type === 'error' ? message : '',
+            timestamp: Date.now(),
+          };
+        }),
+
+      clearMessages: () =>
+        set((state) => {
+          state.messages = {
+            success: '',
+            error: '',
+            timestamp: null,
+          };
+        }),
+
+      reset: () =>
+        set(() => ({
+          profile: null,
+          anweisungenWissen: null,
+          qaCollections: [],
+          customGenerators: [],
+          savedGenerators: [],
+          userTexts: [],
+          userTemplates: [],
+          memories: [],
+          availableDocuments: [],
+          editModes: {
+            profile: false,
+            avatar: false,
+            anweisungen: false,
+            qaCollections: false,
+            customGenerators: new Map<string, boolean>(),
+          },
+          unsavedChanges: {
+            profile: {},
+            anweisungen: {},
+            knowledge: new Map<string, KnowledgeChanges>(),
+            qaCollections: new Map<string, QAChanges>(),
+            customGenerators: new Map<string, GeneratorChanges>(),
+          },
+          validationErrors: {
+            profile: {},
+            anweisungen: {},
+            knowledge: new Map<string, Record<string, string>>(),
+            qaCollections: new Map<string, Record<string, string>>(),
+            customGenerators: new Map<string, Record<string, string>>(),
+          },
+          optimisticLoading: {
+            avatar: false,
+            displayName: false,
+            betaFeatures: new Set<string>(),
+            anweisungen: false,
+            knowledge: new Set<string>(),
+            customGenerators: new Set<string>(),
+          },
+          messages: {
+            success: '',
+            error: '',
+            timestamp: null,
+          },
+          activeContext: {
+            type: 'user',
+            groupId: null,
+            groupName: null,
+          },
+          integrationsUI: {
+            currentTab: 'wolke',
+            canvaSubsection: 'overview',
+            shareModal: {
+              isOpen: false,
+              content: null,
+            },
+          },
+        })),
 
       getEditState: () => {
         const state = get();
@@ -690,19 +761,19 @@ export const useProfileStore = create<ProfileStore>()(
           hasChanges: {
             profile: Object.keys(state.unsavedChanges.profile || {}).length > 0,
             anweisungen: Object.keys(state.unsavedChanges.anweisungen || {}).length > 0,
-            knowledge: state.unsavedChanges.knowledge.size > 0
+            knowledge: state.unsavedChanges.knowledge.size > 0,
           },
-          isLoading: state.optimisticLoading
+          isLoading: state.optimisticLoading,
         };
-      }
+      },
     }))
   )
 );
 
-export const useProfileData = () => useProfileStore(state => state.profile);
+export const useProfileData = () => useProfileStore((state) => state.profile);
 
 export const useProfileEditMode = (section: keyof Omit<EditModes, 'customGenerators'>) =>
-  useProfileStore(state => {
+  useProfileStore((state) => {
     if (section === 'profile') return state.editModes.profile;
     if (section === 'avatar') return state.editModes.avatar;
     if (section === 'anweisungen') return state.editModes.anweisungen;
@@ -711,33 +782,35 @@ export const useProfileEditMode = (section: keyof Omit<EditModes, 'customGenerat
   });
 
 export const useProfileUnsavedChanges = (section: keyof UnsavedChanges) =>
-  useProfileStore(state => {
+  useProfileStore((state) => {
     if (section === 'profile' || section === 'anweisungen') {
       return state.unsavedChanges[section];
     }
     return state.unsavedChanges[section];
   });
 
-export const useProfileMessages = () => useProfileStore(state => state.messages);
-export const useProfileOptimisticLoading = () => useProfileStore(state => state.optimisticLoading);
+export const useProfileMessages = () => useProfileStore((state) => state.messages);
+export const useProfileOptimisticLoading = () =>
+  useProfileStore((state) => state.optimisticLoading);
 
-export const useGeneratorEditMode = (generatorId: string) => useProfileStore(state =>
-  state.editModes.customGenerators?.get(generatorId) || false
-);
-export const useGeneratorChanges = (generatorId: string) => useProfileStore(state =>
-  state.unsavedChanges.customGenerators?.get(generatorId) || EMPTY_OBJECT
-);
-export const useGeneratorLoading = (generatorId: string) => useProfileStore(state =>
-  state.optimisticLoading.customGenerators?.has(generatorId) || false
-);
-export const useGeneratorValidationErrors = (generatorId: string) => useProfileStore(state =>
-  state.validationErrors.customGenerators?.get(generatorId) || EMPTY_OBJECT
-);
-export const useCustomGeneratorsList = () => useProfileStore(state => state.customGenerators);
+export const useGeneratorEditMode = (generatorId: string) =>
+  useProfileStore((state) => state.editModes.customGenerators?.get(generatorId) || false);
+export const useGeneratorChanges = (generatorId: string) =>
+  useProfileStore(
+    (state) => state.unsavedChanges.customGenerators?.get(generatorId) || EMPTY_OBJECT
+  );
+export const useGeneratorLoading = (generatorId: string) =>
+  useProfileStore((state) => state.optimisticLoading.customGenerators?.has(generatorId) || false);
+export const useGeneratorValidationErrors = (generatorId: string) =>
+  useProfileStore(
+    (state) => state.validationErrors.customGenerators?.get(generatorId) || EMPTY_OBJECT
+  );
+export const useCustomGeneratorsList = () => useProfileStore((state) => state.customGenerators);
 
-export const useIntegrationTab = () => useProfileStore(state => state.integrationsUI.currentTab);
-export const useCanvaSubsection = () => useProfileStore(state => state.integrationsUI.canvaSubsection);
-export const useShareModal = () => useProfileStore(state => state.integrationsUI.shareModal);
-export const useIntegrationsUI = () => useProfileStore(state => state.integrationsUI);
+export const useIntegrationTab = () => useProfileStore((state) => state.integrationsUI.currentTab);
+export const useCanvaSubsection = () =>
+  useProfileStore((state) => state.integrationsUI.canvaSubsection);
+export const useShareModal = () => useProfileStore((state) => state.integrationsUI.shareModal);
+export const useIntegrationsUI = () => useProfileStore((state) => state.integrationsUI);
 
 export default useProfileStore;

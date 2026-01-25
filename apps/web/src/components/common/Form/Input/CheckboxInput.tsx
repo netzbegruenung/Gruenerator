@@ -1,12 +1,9 @@
-import type {
-  ChangeEvent,
-  InputHTMLAttributes,
-  LabelHTMLAttributes,
-  CSSProperties
-} from 'react';
+import type { ChangeEvent, InputHTMLAttributes, LabelHTMLAttributes, CSSProperties } from 'react';
 
-export interface CheckboxInputProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'checked' | 'type'> {
+export interface CheckboxInputProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'onChange' | 'checked' | 'type'
+> {
   id: string;
   label?: string;
   checked: boolean;
@@ -32,7 +29,8 @@ const CheckboxInput = ({
   className = '',
   ...rest
 }: CheckboxInputProps) => {
-  const inputClassName = `form-checkbox ${error ? 'error-input' : ''} ${inputProps.className || ''}`.trim();
+  const inputClassName =
+    `form-checkbox ${error ? 'error-input' : ''} ${inputProps.className || ''}`.trim();
   const wrapperClassName = `form-field-wrapper checkbox-wrapper ${className}`.trim();
   const labelClassName = `checkbox-label ${labelProps.className || ''}`.trim();
 
@@ -59,7 +57,7 @@ const CheckboxInput = ({
             style={{
               marginLeft: 'var(--spacing-xsmall)',
               cursor: 'pointer',
-              ...labelProps.style
+              ...labelProps.style,
             }}
           >
             {label}

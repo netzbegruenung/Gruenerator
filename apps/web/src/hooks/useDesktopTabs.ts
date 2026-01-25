@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+
 import { useDesktopTabsStore } from '../stores/desktopTabsStore';
 import { isDesktopApp } from '../utils/platform';
 
@@ -68,15 +69,18 @@ export const useDesktopTabs = () => {
   const isFirstRender = useRef(true);
   const lastSyncedPath = useRef<string | null>(null);
 
-  const syncRouteToActiveTab = useCallback((pathname: string) => {
-    if (!isDesktopApp() || !activeTabId) return;
+  const syncRouteToActiveTab = useCallback(
+    (pathname: string) => {
+      if (!isDesktopApp() || !activeTabId) return;
 
-    if (lastSyncedPath.current === pathname) return;
-    lastSyncedPath.current = pathname;
+      if (lastSyncedPath.current === pathname) return;
+      lastSyncedPath.current = pathname;
 
-    const title = getRouteTitle(pathname);
-    navigateTab(activeTabId, pathname, title);
-  }, [activeTabId, navigateTab]);
+      const title = getRouteTitle(pathname);
+      navigateTab(activeTabId, pathname, title);
+    },
+    [activeTabId, navigateTab]
+  );
 
   useEffect(() => {
     if (!isDesktopApp()) return;

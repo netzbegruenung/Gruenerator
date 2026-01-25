@@ -28,7 +28,7 @@ const TabNavigation = ({
   getTabProps = () => ({}),
   tabClassName = '',
   additionalContent = null,
-  renderSubtabs = () => null
+  renderSubtabs = () => null,
 }: TabNavigationProps) => {
   const baseClassName =
     orientation === 'vertical' ? 'profile-vertical-navigation' : 'groups-horizontal-navigation';

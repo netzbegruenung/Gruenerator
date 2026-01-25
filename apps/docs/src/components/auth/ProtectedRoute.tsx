@@ -16,14 +16,16 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   // Show loading state
   if (isLoading) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        fontSize: '1.2rem',
-        color: 'var(--font-color)',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          fontSize: '1.2rem',
+          color: 'var(--font-color)',
+        }}
+      >
         Loading...
       </div>
     );

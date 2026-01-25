@@ -56,7 +56,10 @@ export function cleanTextForEmbedding(text: string, preserveStructure = false): 
   out = out.replace(new RegExp(SOFT_HYPHEN, 'g'), '');
 
   // Dehyphenate across line breaks: word-\nword -> wordword
-  const dehyphenatePattern = new RegExp(`([${GERMAN_CHARS}])\\-\\s*\\n\\s*([${GERMAN_CHARS}])`, 'g');
+  const dehyphenatePattern = new RegExp(
+    `([${GERMAN_CHARS}])\\-\\s*\\n\\s*([${GERMAN_CHARS}])`,
+    'g'
+  );
   out = out.replace(dehyphenatePattern, '$1$2');
 
   // Join split words caused by OCR spacing inside a word: "No  vember" -> "November"

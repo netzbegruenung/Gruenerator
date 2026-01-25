@@ -4,17 +4,18 @@
  * Shared between image-studio and subtitle-editor
  */
 
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, moderateScale, verticalScale } from '../../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  moderateScale,
+  verticalScale,
+} from '../../../theme';
 
 export interface CategoryConfig<T extends string = string> {
   id: T;
@@ -57,11 +58,7 @@ export function CategoryBar<T extends string = string>({
             style={[styles.chip, { backgroundColor: theme.background }]}
             onPress={() => onSelectCategory(category.id)}
           >
-            <Ionicons
-              name={category.icon}
-              size={moderateScale(20)}
-              color={colors.primary[600]}
-            />
+            <Ionicons name={category.icon} size={moderateScale(20)} color={colors.primary[600]} />
             <Text style={[styles.chipText, { color: theme.text, fontSize: moderateScale(15) }]}>
               {category.label}
             </Text>

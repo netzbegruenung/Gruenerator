@@ -14,13 +14,8 @@ export const HomePage = () => {
           <h1 className="home-page-title">Grünerator Docs</h1>
 
           <div className="home-page-user-section">
-            <span className="home-page-user-name">
-              {user?.display_name || user?.email}
-            </span>
-            <button
-              onClick={() => logout()}
-              className="home-page-logout-button"
-            >
+            <span className="home-page-user-name">{user?.display_name || user?.email}</span>
+            <button onClick={() => logout()} className="home-page-logout-button">
               Abmelden
             </button>
           </div>

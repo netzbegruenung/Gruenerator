@@ -1,20 +1,7 @@
 import { useState, useMemo, useDeferredValue, useEffect } from 'react';
-import useDebounce from '../../../../../components/hooks/useDebounce';
 import { FaCheck, FaPuzzlePiece, FaShapes, FaSearch } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
-import { PiMagnifyingGlass, PiSmileyWink } from 'react-icons/pi';
-import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
-import { IconsSection } from './IconsSection';
-import { BalkenSection } from './BalkenSection';
-import { FormenSection } from './FormenSection';
-import { IllustrationenSection } from './IllustrationenSection';
-import type { BalkenInstance, BalkenMode } from '../../primitives';
-import { ShapeInstance, ShapeType, ALL_SHAPES, ShapeDef } from '../../utils/shapes';
-import { ALL_ASSETS, UniversalAsset, AssetInstance } from '../../utils/canvasAssets';
-import { ALL_ICONS, IconDef } from '../../utils/canvasIcons';
-import type { IllustrationInstance, IllustrationDef, KawaiiIllustrationType, KawaiiDef, SvgDef } from '../../utils/illustrations/types';
-import { searchIllustrations, getIllustrationPath, getAllIllustrations } from '../../utils/illustrations/registry';
-import { prefetchBackground } from '../../utils/illustrations/svgCache';
+import { PiMagnifyingGlass, PiSmileyWink, PiTextT } from 'react-icons/pi';
 import {
   Planet,
   Cat,
@@ -29,8 +16,34 @@ import {
   Folder,
   type KawaiiProps,
 } from 'react-kawaii';
-import { getEnglishSearchTerms } from '../../utils/searchTranslations';
+
+import useDebounce from '../../../../../components/hooks/useDebounce';
 import { BalkenIcon } from '../../icons';
+import { ALL_ASSETS, type UniversalAsset, type AssetInstance } from '../../utils/canvasAssets';
+import { ALL_ICONS, type IconDef } from '../../utils/canvasIcons';
+import {
+  getIllustrationPath,
+  ALL_ILLUSTRATIONS,
+} from '../../utils/illustrations/registry';
+import { prefetchBackground } from '../../utils/illustrations/svgCache';
+import { getEnglishSearchTerms } from '../../utils/searchTranslations';
+import { type ShapeInstance, type ShapeType, ALL_SHAPES, type ShapeDef } from '../../utils/shapes';
+import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
+
+import { BalkenSection } from './BalkenSection';
+import { FormenSection } from './FormenSection';
+import { IconsSection } from './IconsSection';
+import { IllustrationenSection } from './IllustrationenSection';
+
+import type { BalkenInstance, BalkenMode } from '../../primitives';
+import type {
+  IllustrationInstance,
+  IllustrationDef,
+  KawaiiIllustrationType,
+  KawaiiDef,
+  SvgDef,
+} from '../../utils/illustrations/types';
+
 import './AssetsSection.css';
 
 // Unified search result item type
@@ -62,7 +75,7 @@ const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.FunctionComponent
   creditCard: CreditCard,
   file: File,
   folder: Folder,
-}
+};
 
 function SearchInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -79,7 +92,13 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
-function AssetGrid({ assets, onAddAsset }: { assets: UniversalAsset[]; onAddAsset: (assetId: string) => void }) {
+function AssetGrid({
+  assets,
+  onAddAsset,
+}: {
+  assets: UniversalAsset[];
+  onAddAsset: (assetId: string) => void;
+}) {
   return (
     <div className="sidebar-card-grid">
       {assets.map((asset) => (
@@ -91,11 +110,7 @@ function AssetGrid({ assets, onAddAsset }: { assets: UniversalAsset[]; onAddAsse
           title={`${asset.label} hinzufügen`}
         >
           <div className="sidebar-selectable-card__preview">
-            <img
-              src={asset.src}
-              alt={asset.label}
-              className="asset-image"
-            />
+            <img src={asset.src} alt={asset.label} className="asset-image" />
           </div>
         </button>
       ))}
@@ -155,7 +170,9 @@ function SearchResultsGrid({
               <div className="sidebar-selectable-card__preview">
                 {shape.id === 'rect' && <div className="formen-preview formen-preview--rect" />}
                 {shape.id === 'circle' && <div className="formen-preview formen-preview--circle" />}
-                {shape.id === 'triangle' && <div className="formen-preview formen-preview--triangle" />}
+                {shape.id === 'triangle' && (
+                  <div className="formen-preview formen-preview--triangle" />
+                )}
                 {['star', 'heart', 'cloud', 'arrow'].includes(shape.id) && (
                   <span style={{ fontSize: 24 }}>
                     {shape.id === 'star' && '★'}
@@ -224,11 +241,7 @@ function SearchResultsGrid({
                 title={ill.name}
               >
                 <div className="sidebar-selectable-card__preview illustration-preview illustration-preview--svg">
-                  <img
-                    src={getIllustrationPath(ill as SvgDef)}
-                    alt={ill.name}
-                    loading="lazy"
-                  />
+                  <img src={getIllustrationPath(ill as SvgDef)} alt={ill.name} loading="lazy" />
                 </div>
               </button>
             );
@@ -250,38 +263,31 @@ function GrafiksSectionContent({
   onAddAsset,
   recommendedAssetIds = [],
 }: GrafiksSectionContentProps) {
-  const recommendedAssets = ALL_ASSETS.filter(a => recommendedAssetIds.includes(a.id));
-  const otherAssets = ALL_ASSETS.filter(a => !recommendedAssetIds.includes(a.id));
-
-  const hasRecommended = recommendedAssets.length > 0;
-  const hasOthers = otherAssets.length > 0;
+  // Sort assets: recommended first, then others
+  const sortedAssets = useMemo(() => {
+    const recommended = ALL_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
+    const others = ALL_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
+    return [...recommended, ...others];
+  }, [recommendedAssetIds]);
 
   return (
     <div className="sidebar-section sidebar-section--assets">
-      {hasRecommended && (
-        <div className="assets-group assets-group--recommended">
-          <h4 className="assets-section-header">
-            <HiSparkles size={14} />
-            <span>Empfohlen</span>
-          </h4>
-          <AssetGrid assets={recommendedAssets} onAddAsset={onAddAsset} />
-        </div>
-      )}
-
-      {hasOthers && (
-        <div className="assets-group assets-group--elements">
-          <h4 className={`assets-section-header ${hasRecommended ? 'assets-section-header--secondary' : ''}`}>
-            <FaPuzzlePiece size={12} />
-            <span>Elemente</span>
-          </h4>
-          <AssetGrid assets={otherAssets} onAddAsset={onAddAsset} />
-        </div>
-      )}
+      <div className="assets-group">
+        <h4 className="assets-section-header">
+          <FaPuzzlePiece size={12} />
+          <span>Grafiken</span>
+        </h4>
+        <AssetGrid assets={sortedAssets} onAddAsset={onAddAsset} />
+      </div>
     </div>
   );
 }
 
 export interface ExtendedAssetsSectionProps {
+  // Text creation props
+  onAddHeader?: () => void;
+  onAddText?: () => void;
+
   // Asset props (instance-based, replacing old toggle-based)
   recommendedAssetIds?: string[];
   assetInstances?: AssetInstance[];
@@ -322,6 +328,8 @@ export interface ExtendedAssetsSectionProps {
 }
 
 export function AssetsSection({
+  onAddHeader,
+  onAddText,
   recommendedAssetIds = [],
   assetInstances,
   selectedAssetId,
@@ -357,37 +365,23 @@ export function AssetsSection({
   const [formenExpanded, setFormenExpanded] = useState(false);
   const [iconsExpanded, setIconsExpanded] = useState(false);
   const [illustrationenExpanded, setIllustrationenExpanded] = useState(false);
-  const [illustrations, setIllustrations] = useState<IllustrationDef[]>([]);
-  const [illustrationsLoading, setIllustrationsLoading] = useState(false);
 
+  const hasTextFeature = onAddHeader !== undefined || onAddText !== undefined;
   const hasAssetsFeature = onAddAsset !== undefined;
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
   const hasBalkenFeature = onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
   const hasIllustrationsFeature = onAddIllustration !== undefined;
 
-  useEffect(() => {
-    // Always load illustrations for search functionality (search tab is always available)
-    if (illustrations.length === 0 && !illustrationsLoading) {
-      setIllustrationsLoading(true);
-      getAllIllustrations()
-        .then(setIllustrations)
-        .catch((error) => {
-          console.error('[AssetsSection] Failed to load illustrations:', error);
-        })
-        .finally(() => setIllustrationsLoading(false));
-    }
-  }, [illustrations.length, illustrationsLoading]);
-
   // Background prefetch all SVG illustrations during idle time
   useEffect(() => {
-    if (illustrations.length > 0 && hasIllustrationsFeature) {
+    if (hasIllustrationsFeature) {
       // Filter to SVG illustrations only (Kawaii are rendered dynamically)
-      const svgIllustrations = illustrations
-        .filter(ill => ill.source !== 'kawaii')
-        .map(ill => ({
+      const svgIllustrations = ALL_ILLUSTRATIONS
+        .filter((ill) => ill.source !== 'kawaii')
+        .map((ill) => ({
           id: ill.id,
-          def: ill as SvgDef
+          def: ill as SvgDef,
         }));
 
       if (svgIllustrations.length === 0) return;
@@ -400,7 +394,7 @@ export function AssetsSection({
         setTimeout(() => prefetchBackground(svgIllustrations), 1000);
       }
     }
-  }, [illustrations, hasIllustrationsFeature]);
+  }, [hasIllustrationsFeature]);
 
   // Build search results
   const searchResults = useMemo(() => {
@@ -413,7 +407,7 @@ export function AssetsSection({
     if (hasAssetsFeature) {
       ALL_ASSETS.forEach((asset) => {
         const matchesLabel = asset.label.toLowerCase().includes(query);
-        const matchesTags = asset.tags.some(tag => tag.toLowerCase().includes(query));
+        const matchesTags = asset.tags.some((tag) => tag.toLowerCase().includes(query));
 
         if (matchesLabel || matchesTags) {
           results.push({
@@ -430,7 +424,7 @@ export function AssetsSection({
     if (hasShapesFeature) {
       ALL_SHAPES.forEach((shape) => {
         const matchesName = shape.name.toLowerCase().includes(query);
-        const matchesTags = shape.tags.some(tag => tag.toLowerCase().includes(query));
+        const matchesTags = shape.tags.some((tag) => tag.toLowerCase().includes(query));
 
         if (matchesName || matchesTags) {
           results.push({
@@ -455,7 +449,7 @@ export function AssetsSection({
         const matchesName = iconNameLower.includes(query);
         const matchesLibrary = icon.library.toLowerCase().includes(query);
         // Also match English translations of German search terms
-        const matchesTranslation = englishTerms.some(term => iconNameLower.includes(term));
+        const matchesTranslation = englishTerms.some((term) => iconNameLower.includes(term));
 
         if (matchesName || matchesLibrary || matchesTranslation) {
           results.push({
@@ -469,34 +463,35 @@ export function AssetsSection({
       }
     }
 
-    // Search illustrations (always search if illustrations are loaded, regardless of add feature)
-    if (illustrations.length > 0) {
+    // Search illustrations
+    if (ALL_ILLUSTRATIONS.length > 0) {
       const englishTermsForIllustrations = getEnglishSearchTerms(query);
-      const matchingIllustrations = illustrations.filter(ill => {
+      const matchingIllustrations = ALL_ILLUSTRATIONS.filter((ill) => {
         const nameLower = ill.name.toLowerCase();
         const matchesName = nameLower.includes(query);
-        const matchesTags = ill.tags.some(tag => tag.toLowerCase().includes(query));
-        const matchesCategory = ill.source !== 'kawaii' &&
+        const matchesTags = ill.tags.some((tag) => tag.toLowerCase().includes(query));
+        const matchesCategory =
+          ill.source !== 'kawaii' &&
           (ill as unknown as { category?: string }).category?.toLowerCase().includes(query);
         // Also match English translation terms against illustration names/tags
-        const matchesTranslation = englishTermsForIllustrations.some(term =>
-          nameLower.includes(term) ||
-          ill.tags.some(tag => tag.toLowerCase().includes(term))
+        const matchesTranslation = englishTermsForIllustrations.some(
+          (term) =>
+            nameLower.includes(term) || ill.tags.some((tag) => tag.toLowerCase().includes(term))
         );
         return matchesName || matchesTags || matchesCategory || matchesTranslation;
       });
-      matchingIllustrations.forEach(ill => {
+      matchingIllustrations.forEach((ill) => {
         results.push({
           type: 'illustration',
           id: ill.id,
           name: ill.name,
-          illustrationDef: ill
+          illustrationDef: ill,
         });
       });
     }
 
     return results;
-  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature, illustrations]);
+  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature]);
 
   // Determine search state for stable rendering
   const hasQuery = searchQuery.trim().length > 0;
@@ -508,43 +503,68 @@ export function AssetsSection({
   const showNoResults = hasDeferredQuery && searchResults.length === 0 && !isTyping;
 
   // Build subsections
-  const subsections: Subsection[] = [
-    // Search subsection
-    {
-      id: 'suche',
-      icon: FaSearch,
-      label: 'Suche',
-      content: (
-        <div className="sidebar-section sidebar-section--assets sidebar-section--search">
-          <SearchInput value={searchQuery} onChange={setSearchQuery} />
+  const subsections: Subsection[] = [];
 
-          {/* Always render container for stable layout */}
-          <div className={`assets-search-results ${hasQuery ? 'assets-search-results--active' : ''}`}>
-            {showResults && (
-              <SearchResultsGrid
-                results={searchResults}
-                onAddAsset={onAddAsset}
-                onAddShape={onAddShape}
-                onAddIllustration={onAddIllustration}
-                selectedIcons={selectedIcons}
-                onIconToggle={onIconToggle}
-                maxIconSelections={maxIconSelections}
-              />
+  // Text subsection - shown first if text creation is available
+  if (hasTextFeature) {
+    subsections.push({
+      id: 'text',
+      icon: PiTextT,
+      label: 'Text',
+      content: (
+        <div className="sidebar-section sidebar-section--assets">
+          <h4 className="assets-section-header">
+            <PiTextT size={14} />
+            <span>Text hinzufügen</span>
+          </h4>
+          <div className="text-section-actions">
+            {onAddHeader && (
+              <button className="text-preview-btn header-preview" onClick={onAddHeader}>
+                <span>Überschrift</span>
+              </button>
             )}
-            {showNoResults && (
-              <p className="assets-no-results">Keine Ergebnisse für "{deferredQuery}"</p>
-            )}
-            {isSearching && (
-              <p className="assets-search-hint">Suche...</p>
-            )}
-            {!hasQuery && (
-              <p className="assets-search-hint">Tippe um zu suchen</p>
+            {onAddText && (
+              <button className="text-preview-btn body-preview" onClick={onAddText}>
+                <span>Fließtext</span>
+              </button>
             )}
           </div>
         </div>
       ),
-    },
-  ];
+    });
+  }
+
+  // Search subsection
+  subsections.push({
+    id: 'suche',
+    icon: FaSearch,
+    label: 'Suche',
+    content: (
+      <div className="sidebar-section sidebar-section--assets sidebar-section--search">
+        <SearchInput value={searchQuery} onChange={setSearchQuery} />
+
+        {/* Always render container for stable layout */}
+        <div className={`assets-search-results ${hasQuery ? 'assets-search-results--active' : ''}`}>
+          {showResults && (
+            <SearchResultsGrid
+              results={searchResults}
+              onAddAsset={onAddAsset}
+              onAddShape={onAddShape}
+              onAddIllustration={onAddIllustration}
+              selectedIcons={selectedIcons}
+              onIconToggle={onIconToggle}
+              maxIconSelections={maxIconSelections}
+            />
+          )}
+          {showNoResults && (
+            <p className="assets-no-results">Keine Ergebnisse für "{deferredQuery}"</p>
+          )}
+          {isSearching && <p className="assets-search-hint">Suche...</p>}
+          {!hasQuery && <p className="assets-search-hint">Tippe um zu suchen</p>}
+        </div>
+      </div>
+    ),
+  });
 
   // Add Grafiken subsection only if assets feature is available
   if (hasAssetsFeature) {
@@ -553,16 +573,13 @@ export function AssetsSection({
       icon: FaPuzzlePiece,
       label: 'Grafiken',
       content: (
-        <GrafiksSectionContent
-          onAddAsset={onAddAsset!}
-          recommendedAssetIds={recommendedAssetIds}
-        />
+        <GrafiksSectionContent onAddAsset={onAddAsset!} recommendedAssetIds={recommendedAssetIds} />
       ),
     });
   }
 
   if (hasBalkenFeature) {
-    const selectedBalken = balkenInstances?.find(b => b.id === selectedBalkenId) || null;
+    const selectedBalken = balkenInstances?.find((b) => b.id === selectedBalkenId) || null;
     subsections.push({
       id: 'balken',
       icon: BalkenIcon,
@@ -576,8 +593,8 @@ export function AssetsSection({
           <BalkenSection
             onAddBalken={onAddBalken!}
             selectedBalken={selectedBalken}
-            onUpdateBalken={onUpdateBalken ?? (() => { })}
-            onRemoveBalken={onRemoveBalken ?? (() => { })}
+            onUpdateBalken={onUpdateBalken ?? (() => {})}
+            onRemoveBalken={onRemoveBalken ?? (() => {})}
             onDuplicateBalken={onDuplicateBalken}
           />
         </>
@@ -605,18 +622,16 @@ export function AssetsSection({
               </button>
             )}
           </h4>
-          <FormenSection
-            onAddShape={onAddShape!}
-            isExpanded={formenExpanded}
-          />
+          <FormenSection onAddShape={onAddShape!} isExpanded={formenExpanded} />
         </>
       ),
     });
   }
 
   if (hasIllustrationsFeature) {
-    const selectedIllustration = illustrationInstances?.find(i => i.id === selectedIllustrationId) || null;
-    const hasMoreIllustrations = illustrations.length > 4;
+    const selectedIllustration =
+      illustrationInstances?.find((i) => i.id === selectedIllustrationId) || null;
+    const hasMoreIllustrations = ALL_ILLUSTRATIONS.length > 4;
     subsections.push({
       id: 'illustrationen',
       icon: PiSmileyWink,
@@ -638,11 +653,11 @@ export function AssetsSection({
           <IllustrationenSection
             onAddIllustration={onAddIllustration!}
             selectedIllustration={selectedIllustration}
-            onUpdateIllustration={onUpdateIllustration ?? (() => { })}
-            onRemoveIllustration={onRemoveIllustration ?? (() => { })}
+            onUpdateIllustration={onUpdateIllustration ?? (() => {})}
+            onRemoveIllustration={onRemoveIllustration ?? (() => {})}
             onDuplicateIllustration={onDuplicateIllustration}
             isExpanded={illustrationenExpanded}
-            illustrations={illustrations}
+            illustrations={ALL_ILLUSTRATIONS}
           />
         </>
       ),
@@ -681,8 +696,12 @@ export function AssetsSection({
     });
   }
 
-  // Default to grafiken if available, otherwise first subsection
-  const defaultSubsection = hasAssetsFeature ? 'grafiken' : subsections[0]?.id || 'suche';
+  // Default to text if available, then grafiken, otherwise first subsection
+  const defaultSubsection = hasTextFeature
+    ? 'text'
+    : hasAssetsFeature
+      ? 'grafiken'
+      : subsections[0]?.id || 'suche';
 
   return (
     <div className="sidebar-section sidebar-section--assets-wrapper">

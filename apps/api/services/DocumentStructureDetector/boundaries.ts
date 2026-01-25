@@ -8,17 +8,20 @@ import type { DocumentStructure, SemanticBoundary, StructureItem } from './types
 /**
  * Find semantic boundaries for chunking
  */
-export function findSemanticBoundaries(text: string, structure: DocumentStructure): SemanticBoundary[] {
+export function findSemanticBoundaries(
+  text: string,
+  structure: DocumentStructure
+): SemanticBoundary[] {
   const boundaries: SemanticBoundary[] = [];
 
   // Add all structural boundaries
-  structure.hierarchy.forEach(item => {
+  structure.hierarchy.forEach((item) => {
     boundaries.push({
       position: item.startPosition,
       type: item.type,
       level: item.level,
       title: item.title,
-      importance: getBoundaryImportance(item.type)
+      importance: getBoundaryImportance(item.type),
     });
   });
 
@@ -35,7 +38,10 @@ export function findSemanticBoundaries(text: string, structure: DocumentStructur
 /**
  * Find paragraph boundaries
  */
-export function findParagraphBoundaries(text: string, structure: DocumentStructure): SemanticBoundary[] {
+export function findParagraphBoundaries(
+  text: string,
+  structure: DocumentStructure
+): SemanticBoundary[] {
   const boundaries: SemanticBoundary[] = [];
   const lines = text.split('\n');
   let position = 0;
@@ -52,7 +58,7 @@ export function findParagraphBoundaries(text: string, structure: DocumentStructu
           position: position,
           type: 'paragraph',
           level: 5,
-          importance: 1
+          importance: 1,
         });
         inParagraph = false;
       }
@@ -72,14 +78,16 @@ export function findParagraphBoundaries(text: string, structure: DocumentStructu
 /**
  * Get boundary importance (for chunking decisions)
  */
-export function getBoundaryImportance(type: StructureItem['type'] | 'paragraph' | 'list' | 'table'): number {
+export function getBoundaryImportance(
+  type: StructureItem['type'] | 'paragraph' | 'list' | 'table'
+): number {
   const importance: Record<string, number> = {
-    'chapter': 5,
-    'section': 4,
-    'subsection': 3,
-    'paragraph': 1,
-    'list': 2,
-    'table': 2
+    chapter: 5,
+    section: 4,
+    subsection: 3,
+    paragraph: 1,
+    list: 2,
+    table: 2,
   };
   return importance[type] || 1;
 }

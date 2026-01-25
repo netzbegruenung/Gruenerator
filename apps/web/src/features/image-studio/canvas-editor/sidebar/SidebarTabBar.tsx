@@ -1,9 +1,57 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { useAutoSaveStore } from '../../hooks/useAutoSaveStore';
-import type { SidebarTabBarProps, SidebarTabId } from './types';
 
-export function SidebarTabBar({
+import { useAutoSaveStore } from '../../hooks/useAutoSaveStore';
+
+import type { SidebarTabBarProps, SidebarTabId, SidebarTab } from './types';
+
+interface TabButtonProps {
+  tab: SidebarTab;
+  isActive: boolean;
+  isDisabled: boolean;
+  isMobile: boolean;
+  onTabClick: (tabId: SidebarTabId) => void;
+}
+
+/**
+ * Memoized tab button - only re-renders when its specific state changes.
+ * Prevents all tabs from re-rendering when only one tab's active state changes.
+ */
+const TabButton = memo(function TabButton({
+  tab,
+  isActive,
+  isDisabled,
+  isMobile,
+  onTabClick,
+}: TabButtonProps) {
+  const Icon = tab.icon;
+  const isAlternativesLoading = tab.id === 'alternatives' && isDisabled;
+
+  const handleClick = useCallback(() => {
+    onTabClick(tab.id as SidebarTabId);
+  }, [onTabClick, tab.id]);
+
+  return (
+    <button
+      className={`sidebar-tab-bar__tab ${isActive ? 'sidebar-tab-bar__tab--active' : ''} ${isAlternativesLoading ? 'sidebar-tab-bar__tab--loading' : ''}`}
+      onClick={handleClick}
+      disabled={isDisabled}
+      aria-label={tab.ariaLabel}
+      aria-pressed={isActive}
+      title={tab.label}
+      type="button"
+    >
+      <Icon size={isMobile ? 20 : 22} />
+      <span className="sidebar-tab-bar__label">{tab.label}</span>
+    </button>
+  );
+});
+
+/**
+ * Memoized sidebar tab bar - skips re-renders when props haven't changed.
+ * Internal state (isMobile, showSaved) still triggers re-renders when they change.
+ */
+export const SidebarTabBar = memo(function SidebarTabBar({
   tabs,
   activeTab,
   onTabClick,
@@ -40,30 +88,16 @@ export function SidebarTabBar({
 
   return (
     <div className={`sidebar-tab-bar ${isHorizontal ? 'sidebar-tab-bar--horizontal' : ''}`}>
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
-        const isDisabled = disabledTabs.includes(tab.id);
-        const isAlternativesLoading = tab.id === 'alternatives' && isDisabled;
-
-        return (
-          <button
-            key={tab.id}
-            className={`sidebar-tab-bar__tab ${isActive ? 'sidebar-tab-bar__tab--active' : ''} ${isAlternativesLoading ? 'sidebar-tab-bar__tab--loading' : ''}`}
-            onClick={() => {
-              onTabClick(tab.id as SidebarTabId);
-            }}
-            disabled={isDisabled}
-            aria-label={tab.ariaLabel}
-            aria-pressed={isActive}
-            title={tab.label}
-            type="button"
-          >
-            <Icon size={isMobile ? 20 : 22} />
-            <span className="sidebar-tab-bar__label">{tab.label}</span>
-          </button>
-        );
-      })}
+      {tabs.map((tab) => (
+        <TabButton
+          key={tab.id}
+          tab={tab}
+          isActive={activeTab === tab.id}
+          isDisabled={disabledTabs.includes(tab.id)}
+          isMobile={isMobile}
+          onTabClick={onTabClick}
+        />
+      ))}
 
       <div className="sidebar-tab-bar__separator" />
 
@@ -74,19 +108,19 @@ export function SidebarTabBar({
             autoSaveStatus === 'saving' ? 'sidebar-tab-bar__auto-save--saving' : ''
           } ${showSaved ? 'sidebar-tab-bar__auto-save--saved' : ''}`}
           title={
-            autoSaveStatus === 'saving' ? 'Wird gespeichert...' :
-            autoSaveStatus === 'saved' ? 'Gespeichert' :
-            autoSaveStatus === 'error' ? 'Fehler beim Speichern' : ''
+            autoSaveStatus === 'saving'
+              ? 'Wird gespeichert...'
+              : autoSaveStatus === 'saved'
+                ? 'Gespeichert'
+                : autoSaveStatus === 'error'
+                  ? 'Fehler beim Speichern'
+                  : ''
           }
         >
-          {autoSaveStatus === 'saving' && (
-            <div className="sidebar-tab-bar__auto-save-spinner" />
-          )}
-          {showSaved && (
-            <FaCheck size={14} className="sidebar-tab-bar__auto-save-check" />
-          )}
+          {autoSaveStatus === 'saving' && <div className="sidebar-tab-bar__auto-save-spinner" />}
+          {showSaved && <FaCheck size={14} className="sidebar-tab-bar__auto-save-check" />}
         </div>
       )}
     </div>
   );
-}
+});

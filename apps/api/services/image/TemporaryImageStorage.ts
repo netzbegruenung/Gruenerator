@@ -6,11 +6,7 @@
  * unwanted reuse across different sharepic requests.
  */
 
-import type {
-  ImageAttachment,
-  ImageStorageSession,
-  ImageStorageStats
-} from './types.js';
+import type { ImageAttachment, ImageStorageSession, ImageStorageStats } from './types.js';
 
 interface RedisClient {
   setEx(key: string, seconds: number, value: string): Promise<string>;
@@ -51,7 +47,7 @@ class TemporaryImageStorage {
       userId,
       timestamp: Date.now(),
       key,
-      imageName: imageAttachment.name || 'unknown'
+      imageName: imageAttachment.name || 'unknown',
     });
 
     console.log(`[TemporaryImageStorage] Image stored with key: ${key}, TTL: ${this.defaultTTL}s`);
@@ -122,9 +118,9 @@ class TemporaryImageStorage {
 
     return {
       totalActiveSessions: sessions.length,
-      oldestSession: sessions.length > 0 ? Math.min(...sessions.map(s => s.timestamp)) : null,
-      sessionsOlderThan1Min: sessions.filter(s => now - s.timestamp > 60000).length,
-      sessionsOlderThan2Min: sessions.filter(s => now - s.timestamp > 120000).length
+      oldestSession: sessions.length > 0 ? Math.min(...sessions.map((s) => s.timestamp)) : null,
+      sessionsOlderThan1Min: sessions.filter((s) => now - s.timestamp > 60000).length,
+      sessionsOlderThan2Min: sessions.filter((s) => now - s.timestamp > 120000).length,
     };
   }
 
@@ -146,7 +142,9 @@ class TemporaryImageStorage {
 
         if (exists) {
           await this.redis.del(session.key);
-          console.log(`[TemporaryImageStorage] Cleaned up orphaned session: ${requestId} (age: ${Math.round(age / 1000)}s)`);
+          console.log(
+            `[TemporaryImageStorage] Cleaned up orphaned session: ${requestId} (age: ${Math.round(age / 1000)}s)`
+          );
         }
 
         this.activeSessions.delete(requestId);
@@ -155,7 +153,9 @@ class TemporaryImageStorage {
     }
 
     if (cleanedCount > 0) {
-      console.log(`[TemporaryImageStorage] Cleanup completed: ${cleanedCount} expired sessions removed`);
+      console.log(
+        `[TemporaryImageStorage] Cleanup completed: ${cleanedCount} expired sessions removed`
+      );
     }
 
     return cleanedCount;

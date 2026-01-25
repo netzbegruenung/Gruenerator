@@ -48,10 +48,10 @@ function formatDocumentType(documentType: string): string {
     .replace(/\s+/g, '-')
     .replace(/[äöüß]/g, (match) => {
       const replacements: Record<string, string> = {
-        'ä': 'ae',
-        'ö': 'oe',
-        'ü': 'ue',
-        'ß': 'ss'
+        ä: 'ae',
+        ö: 'oe',
+        ü: 'ue',
+        ß: 'ss',
       };
       return replacements[match] || match;
     });
@@ -86,15 +86,16 @@ export async function createPadWithText(options: CreatePadOptions): Promise<Crea
     const formattedPadId = generateFormattedPadId(padId, documentType);
 
     // Truncate content to respect ep_post_data limit
-    const payload = typeof text === 'string'
-      ? text.slice(0, MAX_PAD_CONTENT_LENGTH)
-      : String(text).slice(0, MAX_PAD_CONTENT_LENGTH);
+    const payload =
+      typeof text === 'string'
+        ? text.slice(0, MAX_PAD_CONTENT_LENGTH)
+        : String(text).slice(0, MAX_PAD_CONTENT_LENGTH);
 
     // Proactively create pad by visiting its URL (Etherpad auto-creates on first access)
     try {
       await axios.get(`${ETHERPAD_PAD_BASE_URL}/${formattedPadId}`, {
         timeout: 5000,
-        validateStatus: () => true
+        validateStatus: () => true,
       });
     } catch {
       // Ignore errors - pad creation is best-effort
@@ -108,10 +109,10 @@ export async function createPadWithText(options: CreatePadOptions): Promise<Crea
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
           'X-PAD-ID': formattedPadId,
-          'x-pad-id': formattedPadId
+          'x-pad-id': formattedPadId,
         },
         maxBodyLength: MAX_PAD_CONTENT_LENGTH,
-        validateStatus: (status) => status >= 200 && status < 400
+        validateStatus: (status) => status >= 200 && status < 400,
       });
 
       if (process.env.NODE_ENV === 'development') {
@@ -136,7 +137,7 @@ export async function createPadWithText(options: CreatePadOptions): Promise<Crea
 
     return {
       padUrl,
-      padId: formattedPadId
+      padId: formattedPadId,
     };
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -150,7 +151,7 @@ export async function createPadWithText(options: CreatePadOptions): Promise<Crea
 // ============================================================================
 
 const EtherpadService = {
-  createPadWithText
+  createPadWithText,
 };
 
 export default EtherpadService;

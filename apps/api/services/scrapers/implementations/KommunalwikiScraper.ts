@@ -112,7 +112,7 @@ export class KommunalwikiScraper extends BaseScraper {
         list: 'allpages',
         aplimit: '500',
         apnamespace: '0',
-        format: 'json'
+        format: 'json',
       });
       if (apcontinue) params.set('apcontinue', apcontinue);
 
@@ -124,10 +124,12 @@ export class KommunalwikiScraper extends BaseScraper {
       const data = await response.json();
 
       if (data.query?.allpages) {
-        articles.push(...data.query.allpages.map((p: any) => ({
-          title: p.title,
-          pageid: p.pageid
-        })));
+        articles.push(
+          ...data.query.allpages.map((p: any) => ({
+            title: p.title,
+            pageid: p.pageid,
+          }))
+        );
       }
 
       apcontinue = data.continue?.apcontinue || null;
@@ -152,7 +154,7 @@ export class KommunalwikiScraper extends BaseScraper {
       rvprop: 'content|timestamp',
       rvslots: 'main',
       cllimit: 'max',
-      format: 'json'
+      format: 'json',
     });
 
     const response = await fetch(`${this.apiUrl}?${params}`);
@@ -209,7 +211,7 @@ export class KommunalwikiScraper extends BaseScraper {
    * Detect article type based on categories
    */
   private detectArticleType(title: string, categories: string[]): string {
-    const catSet = new Set(categories.map(c => c.toLowerCase()));
+    const catSet = new Set(categories.map((c) => c.toLowerCase()));
 
     if (catSet.has('sachgebiet') || catSet.has('sachgebiete')) return 'sachgebiet';
     if (catSet.has('literatur')) return 'literatur';
@@ -228,7 +230,7 @@ export class KommunalwikiScraper extends BaseScraper {
     let hash = 0;
     for (let i = 0; i < combinedString.length; i++) {
       const char = combinedString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash);
@@ -241,11 +243,11 @@ export class KommunalwikiScraper extends BaseScraper {
     try {
       const result = await this.qdrant.client.scroll(this.config.collectionName, {
         filter: {
-          must: [{ key: 'pageid', match: { value: pageid } }]
+          must: [{ key: 'pageid', match: { value: pageid } }],
         },
         limit: 1,
         with_payload: ['published_at'],
-        with_vector: false
+        with_vector: false,
       });
 
       if (result.points && result.points.length > 0) {
@@ -263,8 +265,8 @@ export class KommunalwikiScraper extends BaseScraper {
   private async deleteArticle(pageid: number): Promise<void> {
     await this.qdrant.client.delete(this.config.collectionName, {
       filter: {
-        must: [{ key: 'pageid', match: { value: pageid } }]
-      }
+        must: [{ key: 'pageid', match: { value: pageid } }],
+      },
     });
   }
 
@@ -287,8 +289,8 @@ export class KommunalwikiScraper extends BaseScraper {
       baseMetadata: {
         title: article.title,
         source: 'kommunalwiki',
-        source_url: `${this.baseUrl}/index.php/${encodeURIComponent(article.title.replace(/ /g, '_'))}`
-      }
+        source_url: `${this.baseUrl}/index.php/${encodeURIComponent(article.title.replace(/ /g, '_'))}`,
+      },
     });
 
     if (chunks.length === 0) {
@@ -315,8 +317,8 @@ export class KommunalwikiScraper extends BaseScraper {
         content_type: articleType,
         source_url: `${this.baseUrl}/index.php/${encodeURIComponent(article.title.replace(/ /g, '_'))}`,
         published_at: timestamp,
-        indexed_at: new Date().toISOString()
-      }
+        indexed_at: new Date().toISOString(),
+      },
     }));
 
     // Store in batches of 10
@@ -357,8 +359,8 @@ export class KommunalwikiScraper extends BaseScraper {
         no_content: { count: 0, examples: [] },
         no_revision: { count: 0, examples: [] },
         no_chunks: { count: 0, examples: [] },
-        already_exists: { count: 0, examples: [] }
-      }
+        already_exists: { count: 0, examples: [] },
+      },
     };
 
     try {
@@ -370,9 +372,11 @@ export class KommunalwikiScraper extends BaseScraper {
         const batchNum = Math.floor(i / this.batchSize) + 1;
         const totalBatches = Math.ceil(articles.length / this.batchSize);
 
-        console.log(`\n[KommunalWiki] ─── Batch ${batchNum}/${totalBatches} (articles ${i + 1}-${Math.min(i + this.batchSize, articles.length)}) ───`);
+        console.log(
+          `\n[KommunalWiki] ─── Batch ${batchNum}/${totalBatches} (articles ${i + 1}-${Math.min(i + this.batchSize, articles.length)}) ───`
+        );
 
-        const pageids = batch.map(a => a.pageid);
+        const pageids = batch.map((a) => a.pageid);
 
         try {
           const contentData = await this.getArticleContent(pageids);
@@ -380,7 +384,7 @@ export class KommunalwikiScraper extends BaseScraper {
 
           for (const pageid of Object.keys(pages)) {
             const page = pages[pageid];
-            const article = batch.find(a => a.pageid === parseInt(pageid));
+            const article = batch.find((a) => a.pageid === parseInt(pageid));
 
             if (!article || !page.revisions?.[0]) {
               result.skipped++;
@@ -405,8 +409,10 @@ export class KommunalwikiScraper extends BaseScraper {
               continue;
             }
 
-            if (wikiContent.trim().toUpperCase().startsWith('#REDIRECT') ||
-                wikiContent.trim().toUpperCase().startsWith('#WEITERLEITUNG')) {
+            if (
+              wikiContent.trim().toUpperCase().startsWith('#REDIRECT') ||
+              wikiContent.trim().toUpperCase().startsWith('#WEITERLEITUNG')
+            ) {
               result.skipped++;
               result.skipReasons.redirect.count++;
               if (result.skipReasons.redirect.examples.length < 10) {
@@ -447,7 +453,9 @@ export class KommunalwikiScraper extends BaseScraper {
               if (processResult.stored) {
                 result.stored++;
                 result.totalVectors += processResult.vectors!;
-                console.log(`[KommunalWiki] ✓ "${article.title.substring(0, 50)}" (${processResult.chunks} chunks)`);
+                console.log(
+                  `[KommunalWiki] ✓ "${article.title.substring(0, 50)}" (${processResult.chunks} chunks)`
+                );
               } else {
                 result.skipped++;
                 const reason = processResult.reason!;
@@ -470,8 +478,9 @@ export class KommunalwikiScraper extends BaseScraper {
             }
           }
 
-          console.log(`[KommunalWiki] Progress: ${result.stored} stored, ${result.skipped} skipped, ${result.errors} errors`);
-
+          console.log(
+            `[KommunalWiki] Progress: ${result.stored} stored, ${result.skipped} skipped, ${result.errors} errors`
+          );
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`[KommunalWiki] Batch error: ${errorMsg}`);
@@ -480,7 +489,6 @@ export class KommunalwikiScraper extends BaseScraper {
 
         await this.delay(this.crawlDelay);
       }
-
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error('[KommunalWiki] Crawl failed:', errorMsg);
@@ -502,8 +510,12 @@ export class KommunalwikiScraper extends BaseScraper {
    */
   private printCrawlSummary(result: CrawlResult): void {
     console.log('\n[KommunalWiki] ═══════════════════════════════════════');
-    console.log(`[KommunalWiki] COMPLETED: ${result.stored} articles (${result.totalVectors} vectors)`);
-    console.log(`[KommunalWiki] Updated: ${result.updated}, Skipped: ${result.skipped}, Errors: ${result.errors}`);
+    console.log(
+      `[KommunalWiki] COMPLETED: ${result.stored} articles (${result.totalVectors} vectors)`
+    );
+    console.log(
+      `[KommunalWiki] Updated: ${result.updated}, Skipped: ${result.skipped}, Errors: ${result.errors}`
+    );
     console.log(`[KommunalWiki] Duration: ${Math.round(result.duration / 1000)}s`);
 
     if (result.skipped > 0) {
@@ -511,25 +523,29 @@ export class KommunalwikiScraper extends BaseScraper {
       const sr = result.skipReasons;
       if (sr.redirect.count > 0) {
         console.log(`  • Redirects: ${sr.redirect.count}`);
-        if (sr.redirect.examples.length > 0) console.log(`    Examples: ${sr.redirect.examples.slice(0, 5).join(', ')}`);
+        if (sr.redirect.examples.length > 0)
+          console.log(`    Examples: ${sr.redirect.examples.slice(0, 5).join(', ')}`);
       }
       if (sr.too_short.count > 0) {
         console.log(`  • Too short (<100 chars): ${sr.too_short.count}`);
-        if (sr.too_short.examples.length > 0) console.log(`    Examples: ${sr.too_short.examples.slice(0, 5).join(', ')}`);
+        if (sr.too_short.examples.length > 0)
+          console.log(`    Examples: ${sr.too_short.examples.slice(0, 5).join(', ')}`);
       }
       if (sr.already_exists.count > 0) {
         console.log(`  • Already indexed: ${sr.already_exists.count}`);
       }
       if (sr.no_content.count > 0) {
         console.log(`  • No content: ${sr.no_content.count}`);
-        if (sr.no_content.examples.length > 0) console.log(`    Examples: ${sr.no_content.examples.slice(0, 5).join(', ')}`);
+        if (sr.no_content.examples.length > 0)
+          console.log(`    Examples: ${sr.no_content.examples.slice(0, 5).join(', ')}`);
       }
       if (sr.no_revision.count > 0) {
         console.log(`  • No revision data: ${sr.no_revision.count}`);
       }
       if (sr.no_chunks.count > 0) {
         console.log(`  • No chunks generated: ${sr.no_chunks.count}`);
-        if (sr.no_chunks.examples.length > 0) console.log(`    Examples: ${sr.no_chunks.examples.slice(0, 5).join(', ')}`);
+        if (sr.no_chunks.examples.length > 0)
+          console.log(`    Examples: ${sr.no_chunks.examples.slice(0, 5).join(', ')}`);
       }
     }
 
@@ -564,7 +580,7 @@ export class KommunalwikiScraper extends BaseScraper {
       filter: filter.must.length > 0 ? filter : undefined,
       limit: limit * 3,
       score_threshold: threshold,
-      with_payload: true
+      with_payload: true,
     });
 
     const articlesMap = new Map();
@@ -579,7 +595,7 @@ export class KommunalwikiScraper extends BaseScraper {
           subcategories: hit.payload.subcategories,
           content_type: hit.payload.content_type,
           source_url: hit.payload.source_url,
-          matchedChunk: hit.payload.chunk_text
+          matchedChunk: hit.payload.chunk_text,
         });
       }
 
@@ -588,7 +604,7 @@ export class KommunalwikiScraper extends BaseScraper {
 
     return {
       results: Array.from(articlesMap.values()),
-      total: articlesMap.size
+      total: articlesMap.size,
     };
   }
 
@@ -602,7 +618,7 @@ export class KommunalwikiScraper extends BaseScraper {
         collection: this.config.collectionName,
         vectors_count: info.vectors_count,
         points_count: info.points_count,
-        status: info.status
+        status: info.status,
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -623,7 +639,7 @@ export class KommunalwikiScraper extends BaseScraper {
           limit: 100,
           offset: offset,
           with_payload: ['subcategories'],
-          with_vector: false
+          with_vector: false,
         });
 
         for (const point of result.points) {
@@ -649,8 +665,8 @@ export class KommunalwikiScraper extends BaseScraper {
     try {
       await this.qdrant.client.delete(this.config.collectionName, {
         filter: {
-          must: [{ key: 'pageid', match: { any: [] } }]
-        }
+          must: [{ key: 'pageid', match: { any: [] } }],
+        },
       });
     } catch {
       const points: any[] = [];
@@ -661,7 +677,7 @@ export class KommunalwikiScraper extends BaseScraper {
           limit: 100,
           offset: offset,
           with_payload: false,
-          with_vector: false
+          with_vector: false,
         });
 
         points.push(...result.points.map((p: any) => p.id));
@@ -672,7 +688,7 @@ export class KommunalwikiScraper extends BaseScraper {
         for (let i = 0; i < points.length; i += 100) {
           const batch = points.slice(i, i + 100);
           await this.qdrant.client.delete(this.config.collectionName, {
-            points: batch
+            points: batch,
           });
         }
       }

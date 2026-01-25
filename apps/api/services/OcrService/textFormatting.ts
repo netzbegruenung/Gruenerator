@@ -71,11 +71,7 @@ export function isLikelyHeading(line: string): boolean {
 /**
  * Determine heading level (H1/H2/H3)
  */
-export function determineHeadingLevel(
-  line: string,
-  index: number,
-  allLines: string[]
-): number {
+export function determineHeadingLevel(line: string, index: number, allLines: string[]): number {
   const trimmed = line.trim();
 
   // H1 criteria: First few lines, short, ALL CAPS

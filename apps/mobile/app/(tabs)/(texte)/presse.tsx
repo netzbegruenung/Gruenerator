@@ -24,17 +24,20 @@ export default function PresseScreen() {
   const hasSharepicResult = sharepics && sharepics.length > 0;
   const hasResult = hasTextResult || hasSharepicResult;
 
-  const handleResult = useCallback((result: PresseSocialResult) => {
-    setError(null);
+  const handleResult = useCallback(
+    (result: PresseSocialResult) => {
+      setError(null);
 
-    if (result.text) {
-      setTextWithHistory(COMPONENT_NAME, result.text);
-    }
+      if (result.text) {
+        setTextWithHistory(COMPONENT_NAME, result.text);
+      }
 
-    if (result.sharepics && result.sharepics.length > 0) {
-      setSharepics(result.sharepics);
-    }
-  }, [setTextWithHistory]);
+      if (result.sharepics && result.sharepics.length > 0) {
+        setSharepics(result.sharepics);
+      }
+    },
+    [setTextWithHistory]
+  );
 
   const handleError = useCallback((message: string) => {
     setError(message);
@@ -58,10 +61,7 @@ export default function PresseScreen() {
         )}
 
         {hasTextResult && (
-          <ContentDisplay
-            componentName={COMPONENT_NAME}
-            onNewGeneration={handleNewGeneration}
-          />
+          <ContentDisplay componentName={COMPONENT_NAME} onNewGeneration={handleNewGeneration} />
         )}
       </ScrollView>
     );

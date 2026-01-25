@@ -8,8 +8,9 @@
  * Critical: Lines 545-557 and 606-618 in SubtitleEditor are 100% identical!
  */
 
-import type { SubtitleSegment } from '../types';
 import { parseTimeRange, formatTimeRange, isValidTime } from './subtitleTimeUtils';
+
+import type { SubtitleSegment } from '../types';
 
 /**
  * Parse subtitle string blocks into array of segments
@@ -31,7 +32,7 @@ export function parseSubtitleBlocks(subtitles: string): SubtitleSegment[] {
     return [];
   }
 
-  const blocks = subtitles.split('\n\n').filter(block => block.trim());
+  const blocks = subtitles.split('\n\n').filter((block) => block.trim());
 
   const segments: SubtitleSegment[] = [];
 
@@ -61,7 +62,7 @@ export function parseSubtitleBlocks(subtitles: string): SubtitleSegment[] {
       id: index,
       startTime: timeRange.start,
       endTime: timeRange.end,
-      text
+      text,
     });
   });
 
@@ -81,7 +82,7 @@ export function parseSubtitleBlocks(subtitles: string): SubtitleSegment[] {
  */
 export function formatSubtitleBlocks(segments: SubtitleSegment[]): string {
   return segments
-    .map(segment => {
+    .map((segment) => {
       const timeRangeStr = formatTimeRange(segment.startTime, segment.endTime);
       return `${timeRangeStr}\n${segment.text}`;
     })
@@ -103,9 +104,11 @@ export function findActiveSegment(
     return null;
   }
 
-  return segments.find(segment =>
-    currentTime >= segment.startTime && currentTime <= segment.endTime
-  ) ?? null;
+  return (
+    segments.find(
+      (segment) => currentTime >= segment.startTime && currentTime <= segment.endTime
+    ) ?? null
+  );
 }
 
 /**
@@ -176,7 +179,7 @@ export function validateSegmentSequence(segments: SubtitleSegment[]): {
   return {
     valid: overlaps.length === 0,
     overlaps,
-    gaps
+    gaps,
   };
 }
 
@@ -199,7 +202,7 @@ export function sortSegmentsByTime(segments: SubtitleSegment[]): SubtitleSegment
 export function reindexSegments(segments: SubtitleSegment[]): SubtitleSegment[] {
   return segments.map((segment, index) => ({
     ...segment,
-    id: index
+    id: index,
   }));
 }
 

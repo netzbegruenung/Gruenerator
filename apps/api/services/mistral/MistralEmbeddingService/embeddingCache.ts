@@ -149,7 +149,7 @@ class EmbeddingCache {
       return {
         enabled: true,
         keys: keys.length,
-        memoryInfo: info
+        memoryInfo: info,
       };
     } catch (error) {
       const err = error as Error;

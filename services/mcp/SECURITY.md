@@ -23,6 +23,7 @@ We will respond within 48 hours and work with you to resolve the issue.
 ## Security Best Practices
 
 When deploying this server:
+
 - Keep API keys secure and never commit them
 - Use HTTPS in production
 - Regularly update dependencies

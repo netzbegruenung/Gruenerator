@@ -49,11 +49,7 @@ export function UniversalGeneratorForm({ onSubmit, isLoading }: UniversalGenerat
       />
 
       <View style={styles.buttonContainer}>
-        <Button
-          onPress={handleSubmit}
-          disabled={!isValid}
-          loading={isLoading}
-        >
+        <Button onPress={handleSubmit} disabled={!isValid} loading={isLoading}>
           Text grünerieren
         </Button>
       </View>

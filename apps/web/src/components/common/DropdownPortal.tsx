@@ -1,4 +1,4 @@
-import React, { JSX, useRef, useEffect, useCallback, useState, ReactNode, RefObject } from 'react';
+import React, { type JSX, useRef, useEffect, useCallback, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 interface DropdownPortalProps {
@@ -13,7 +13,8 @@ interface DropdownPortalProps {
   gap?: number;
 }
 
-const DropdownPortal = ({ triggerRef,
+const DropdownPortal = ({
+  triggerRef,
   isOpen,
   onClose,
   children,
@@ -21,7 +22,8 @@ const DropdownPortal = ({ triggerRef,
   width = 'auto',
   widthRef = null,
   minWidth = null,
-  gap = 4 }: DropdownPortalProps): JSX.Element | null => {
+  gap = 4,
+}: DropdownPortalProps): JSX.Element | null => {
   const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -73,7 +75,7 @@ const DropdownPortal = ({ triggerRef,
     }
 
     // Center the dropdown relative to the reference element
-    let left = referenceRect.left + window.scrollX + (referenceRect.width / 2) - (dropdownWidth / 2);
+    let left = referenceRect.left + window.scrollX + referenceRect.width / 2 - dropdownWidth / 2;
 
     if (left < space) {
       left = space;
@@ -85,7 +87,11 @@ const DropdownPortal = ({ triggerRef,
       position: 'absolute' as const,
       top: `${top}px`,
       left: `${left}px`,
-      width: widthRef?.current ? `${dropdownWidth}px` : (width === 'trigger' ? `${triggerRect.width}px` : width),
+      width: widthRef?.current
+        ? `${dropdownWidth}px`
+        : width === 'trigger'
+          ? `${triggerRect.width}px`
+          : width,
       minWidth: minWidth ? `${minWidth}px` : undefined,
       opacity: 1,
       zIndex: 1000,
@@ -133,11 +139,7 @@ const DropdownPortal = ({ triggerRef,
   if (!isOpen) return null;
 
   return createPortal(
-    <div
-      ref={dropdownRef}
-      className={className}
-      style={style}
-    >
+    <div ref={dropdownRef} className={className} style={style}>
       {children}
     </div>,
     document.body

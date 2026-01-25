@@ -1,7 +1,8 @@
 import { motion } from 'motion/react';
-import React from 'react';
+import React, { useEffect } from 'react';
 
-import { ProfilbildCanvas, DreizeilenCanvas } from '../canvas-editor';
+import useSidebarStore from '../../../stores/sidebarStore';
+import { ProfilbildCanvas } from '../canvas-editor';
 import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
 import { slideVariants } from '../components/StepFlow';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
@@ -52,6 +53,14 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
   onHeadlineChange,
   onSubtextChange,
 }) => {
+  const requestHideSidebar = useSidebarStore((state) => state.requestHideSidebar);
+  const releaseHideSidebar = useSidebarStore((state) => state.releaseHideSidebar);
+
+  useEffect(() => {
+    requestHideSidebar('canvas-edit-step');
+    return () => releaseHideSidebar('canvas-edit-step');
+  }, [requestHideSidebar, releaseHideSidebar]);
+
   return (
     <>
       {transparentImage && !typeConfig?.hasTextCanvasEdit && (
@@ -187,17 +196,19 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="typeform-field typeform-field--canvas-edit"
         >
-          <DreizeilenCanvas
-            line1={String(getFieldValue('line1') ?? '')}
-            line2={String(getFieldValue('line2') ?? '')}
-            line3={String(getFieldValue('line3') ?? '')}
+          <ControllableCanvasWrapper
+            type="dreizeilen"
+            initialState={{
+              line1: getFieldValue('line1') || '',
+              line2: getFieldValue('line2') || '',
+              line3: getFieldValue('line3') || '',
+              alternatives: sloganAlternatives.filter(
+                (alt): alt is DreizeilenAlternative =>
+                  alt.line1 !== undefined && alt.line2 !== undefined && alt.line3 !== undefined
+              ),
+            }}
             imageSrc={uploadedImageUrl ?? undefined}
-            alternatives={sloganAlternatives.filter(
-              (alt): alt is DreizeilenAlternative =>
-                alt.line1 !== undefined && alt.line2 !== undefined && alt.line3 !== undefined
-            )}
             onExport={handleCanvasExport}
-            onSave={handleCanvasSave}
             onCancel={handleBack}
           />
         </motion.div>

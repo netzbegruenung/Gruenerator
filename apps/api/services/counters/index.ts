@@ -15,7 +15,7 @@ export {
   trimMessagesToTokenLimit,
   getTokenStats,
   exceedsTokenLimit,
-  formatTokenCount
+  formatTokenCount,
 } from './TokenCounter.js';
 
 // Default exports for backward compatibility
@@ -28,5 +28,5 @@ export type {
   TokenStats,
   ImageGenerationStatus,
   ImageGenerationResult,
-  RedisClient
+  RedisClient,
 } from './types.js';

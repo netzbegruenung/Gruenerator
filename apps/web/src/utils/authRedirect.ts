@@ -55,7 +55,10 @@ interface LocationObject {
  * @param defaultRedirect - Default redirect if none found
  * @returns Redirect URL
  */
-export const getIntendedRedirect = (location: LocationObject, defaultRedirect = '/profile'): string => {
+export const getIntendedRedirect = (
+  location: LocationObject,
+  defaultRedirect = '/profile'
+): string => {
   // 1. Check URL query parameters (highest priority)
   const searchParams = new URLSearchParams(location.search);
   const redirectToParam = searchParams.get('redirectTo');

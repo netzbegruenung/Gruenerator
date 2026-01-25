@@ -1,11 +1,9 @@
-import type {
-  ChangeEvent,
-  InputHTMLAttributes,
-  LabelHTMLAttributes
-} from 'react';
+import type { ChangeEvent, InputHTMLAttributes, LabelHTMLAttributes } from 'react';
 
-export interface TextInputProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
+export interface TextInputProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'onChange' | 'value'
+> {
   id: string;
   label?: string;
   value: string | number;
@@ -37,7 +35,8 @@ const TextInput = ({
   className = '',
   ...rest
 }: TextInputProps) => {
-  const inputClassName = `form-input ${error ? 'error-input' : ''} ${inputProps.className || ''}`.trim();
+  const inputClassName =
+    `form-input ${error ? 'error-input' : ''} ${inputProps.className || ''}`.trim();
   const wrapperClassName = `form-field-wrapper ${className}`.trim();
 
   return (

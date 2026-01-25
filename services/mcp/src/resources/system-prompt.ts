@@ -219,10 +219,12 @@ Zeige dem Nutzer die verfügbaren Werte aus gruenerator_get_filters.
 `;
 
   return {
-    contents: [{
-      uri: 'gruenerator://system-prompt',
-      mimeType: 'text/markdown',
-      text: systemPrompt
-    }]
+    contents: [
+      {
+        uri: 'gruenerator://system-prompt',
+        mimeType: 'text/markdown',
+        text: systemPrompt,
+      },
+    ],
   };
 }

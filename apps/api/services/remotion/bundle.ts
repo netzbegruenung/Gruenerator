@@ -29,9 +29,9 @@ async function webpackOverride(config: any): Promise<any> {
     resolve: {
       ...config.resolve,
       alias: {
-        ...config.resolve?.alias
-      }
-    }
+        ...config.resolve?.alias,
+      },
+    },
   };
 }
 
@@ -74,7 +74,7 @@ export async function createBundle(): Promise<string> {
         webpackOverride,
         outDir: BUNDLE_CACHE_DIR,
         publicPath: './',
-        publicDir: PUBLIC_DIR // Include fonts and other static assets
+        publicDir: PUBLIC_DIR, // Include fonts and other static assets
       });
 
       const duration = Date.now() - startTime;

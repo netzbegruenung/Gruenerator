@@ -38,10 +38,7 @@ export default function TypeSelectionScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
-      <TypeSelector
-        onSelectTemplate={handleTemplateSelect}
-        onSelectKi={handleKiSelect}
-      />
+      <TypeSelector onSelectTemplate={handleTemplateSelect} onSelectKi={handleKiSelect} />
     </SafeAreaView>
   );
 }

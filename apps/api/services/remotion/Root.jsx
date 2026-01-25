@@ -19,7 +19,7 @@ export const RemotionRoot = () => {
           stylePreference: 'shadow',
           textOverlays: [],
           videoWidth: 1920,
-          videoHeight: 1080
+          videoHeight: 1080,
         }}
         calculateMetadata={async ({ props }) => {
           // Use dimensions from inputProps for server-side rendering
@@ -36,8 +36,8 @@ export const RemotionRoot = () => {
             props: {
               ...props,
               videoWidth: width,
-              videoHeight: height
-            }
+              videoHeight: height,
+            },
           };
         }}
       />

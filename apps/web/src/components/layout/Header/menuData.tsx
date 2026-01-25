@@ -1,7 +1,8 @@
-import type { JSX, ComponentType } from 'react';
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
-import type { IconType } from 'react-icons';
+
 import type { BadgeType } from '../../common/StatusBadge';
+import type { JSX, ComponentType } from 'react';
+import type { IconType } from 'react-icons';
 
 // Beta features interface
 export interface BetaFeatures {
@@ -50,36 +51,44 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       path: '/',
       title: 'Start',
       description: 'Zurück zur Startseite',
-      icon: getIcon('navigation', 'home')
+      icon: getIcon('navigation', 'home'),
     },
     texte: {
       id: 'texte',
       path: '/texte',
       title: 'Texte',
       description: 'Anträge, Presse & Social Media, Universal',
-      icon: getIcon('navigation', 'texte')
+      icon: getIcon('navigation', 'texte'),
     },
     reel: {
       id: 'reel',
       path: '/reel',
       title: 'Reel',
       description: 'Untertitel für Social Media Videos',
-      icon: getIcon('navigation', 'reel')
+      icon: getIcon('navigation', 'reel'),
     },
-    imageStudio: {
-      id: 'image-studio',
-      path: '/image-studio',
-      title: 'Bilder',
-      description: 'Sharepics & KI-Bildgenerierung',
-      icon: getIcon('navigation', 'sharepic'),
-      badge: 'early-access'
-    },
+    // TEMPORARILY HIDDEN - Image Studio menu item
+    // imageStudio: {
+    //   id: 'image-studio',
+    //   path: '/image-studio',
+    //   title: 'Bilder',
+    //   description: 'Sharepics & KI-Bildgenerierung',
+    //   icon: getIcon('navigation', 'sharepic'),
+    //   badge: 'early-access'
+    // },
     suche: {
       id: 'suche',
       path: '/suche',
       title: 'Suche',
       description: 'Webrecherche für aktuelle Informationen',
-      icon: getIcon('navigation', 'suche')
+      icon: getIcon('navigation', 'suche'),
+    },
+    imagine: {
+      id: 'imagine',
+      path: '/imagine',
+      title: 'Imagine',
+      description: 'KI-Bildgenerierung',
+      icon: getIcon('navigation', 'sharepic'),
     },
     notebooks: {
       id: 'notebooks',
@@ -87,15 +96,15 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       title: 'Notebooks',
       description: 'Wissenssammlungen durchsuchen',
       icon: getIcon('ui', 'notebook'),
-      badge: 'early-access'
+      badge: 'early-access',
     },
     datenbank: {
       id: 'datenbank',
       path: '/datenbank',
       title: 'Datenbank',
       description: 'Vorlagen, Prompts und Anträge',
-      icon: getIcon('navigation', 'datenbank')
-    }
+      icon: getIcon('navigation', 'datenbank'),
+    },
   };
 
   // Add chat if beta feature is enabled
@@ -105,7 +114,7 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       path: '/chat',
       title: 'Chat',
       description: 'KI-Assistent für alle Textarten',
-      icon: getIcon('ui', 'assistant')
+      icon: getIcon('ui', 'assistant'),
     };
   }
 
@@ -123,8 +132,8 @@ export const getFooterLinks = (): MenuItemType[] => [
     id: 'support',
     path: '/support',
     title: 'Support',
-    description: ''
-  }
+    description: '',
+  },
 ];
 
 // Funktion zur Generierung der Hauptmenüstruktur - simplified, no more dropdowns
@@ -132,20 +141,22 @@ export const getMenuItems = (betaFeatures: BetaFeatures = {}): MenuItemsResult =
   // All items moved to direct menu items - keeping this for backwards compatibility
   const result: MenuItemsResult = {
     bildUndVideo: { title: 'Bild und Video', items: [] },
-    tools: { title: 'Tools', items: [] }
+    tools: { title: 'Tools', items: [] },
   };
 
   // Only add labor section if beta features enabled
   if (betaFeatures.databaseBetaEnabled) {
     result.labor = {
       title: 'Labor',
-      items: [{
-        id: 'datenbank',
-        path: '/datenbank',
-        title: 'Datenbank',
-        description: 'Texte, Vorlagen und Anträge finden',
-        icon: getIcon('navigation', 'datenbank')
-      }]
+      items: [
+        {
+          id: 'datenbank',
+          path: '/datenbank',
+          title: 'Datenbank',
+          description: 'Texte, Vorlagen und Anträge finden',
+          icon: getIcon('navigation', 'datenbank'),
+        },
+      ],
     };
   }
 
@@ -168,7 +179,11 @@ export const handleMenuInteraction = (
   type: 'keydown' | 'click',
   callback: () => void
 ) => {
-  if (type === 'click' || (event as React.KeyboardEvent).key === 'Enter' || (event as React.KeyboardEvent).key === ' ') {
+  if (
+    type === 'click' ||
+    (event as React.KeyboardEvent).key === 'Enter' ||
+    (event as React.KeyboardEvent).key === ' '
+  ) {
     event.preventDefault();
     callback();
   }
@@ -186,15 +201,13 @@ export const menuStyles = {
   description: 'menu-item-description',
   dropdownContent: {
     base: 'header-dropdown-content',
-    show: 'show'
-  }
+    show: 'show',
+  },
 };
 
 export const MenuItem = ({ item }: MenuItemProps): JSX.Element => (
   <div className="menu-item-content">
-    <div className="menu-item-icon">
-      {item.icon && <item.icon aria-hidden="true" />}
-    </div>
+    <div className="menu-item-icon">{item.icon && <item.icon aria-hidden="true" />}</div>
     <div className="menu-item-header">
       <h4 className="menu-item-title">{item.title}</h4>
       <p className="menu-item-description">{item.description}</p>

@@ -4,32 +4,20 @@
  * Used in site editor for hero images, profile images, section images
  */
 
-import { useEffect, useRef, useState } from 'react';
 import {
   useMediaLibrary,
   useMediaUpload,
   useMediaPickerStore,
   type MediaItem,
 } from '@gruenerator/shared/media-library';
+import { useEffect, useRef, useState } from 'react';
 import './SiteMediaPicker.css';
 
 export function SiteMediaPicker() {
-  const {
-    isOpen,
-    selectedItems,
-    mediaTypeFilter,
-    closePicker,
-    selectItem,
-    confirmSelection,
-  } = useMediaPickerStore();
+  const { isOpen, selectedItems, mediaTypeFilter, closePicker, selectItem, confirmSelection } =
+    useMediaPickerStore();
 
-  const {
-    items,
-    isLoading,
-    error,
-    refetch,
-    setFilters,
-  } = useMediaLibrary({
+  const { items, isLoading, error, refetch, setFilters } = useMediaLibrary({
     initialFilters: { type: mediaTypeFilter === 'all' ? 'image' : mediaTypeFilter },
   });
 
@@ -41,7 +29,7 @@ export function SiteMediaPicker() {
     reset: resetUpload,
   } = useMediaUpload({
     onSuccess: () => {
-      refetch();
+      void refetch();
       resetUpload();
     },
   });
@@ -52,7 +40,7 @@ export function SiteMediaPicker() {
 
   useEffect(() => {
     if (isOpen) {
-      refetch();
+      void refetch();
     }
   }, [isOpen, refetch]);
 
@@ -94,8 +82,7 @@ export function SiteMediaPicker() {
     }
   };
 
-  const isSelected = (item: MediaItem) =>
-    selectedItems.some(i => i.id === item.id);
+  const isSelected = (item: MediaItem) => selectedItems.some((i) => i.id === item.id);
 
   const getMediaUrl = (item: MediaItem) => {
     if (item.thumbnailUrl) return item.thumbnailUrl;
@@ -106,11 +93,7 @@ export function SiteMediaPicker() {
   if (!isOpen) return null;
 
   return (
-    <div
-      className="site-media-picker-overlay"
-      ref={modalRef}
-      onClick={handleBackdropClick}
-    >
+    <div className="site-media-picker-overlay" ref={modalRef} onClick={handleBackdropClick}>
       <div className="site-media-picker-modal">
         <div className="site-media-picker-header">
           <h2>Mediathek</h2>
@@ -153,9 +136,7 @@ export function SiteMediaPicker() {
         </div>
 
         {(error || uploadError) && (
-          <div className="site-media-picker-error">
-            {error || uploadError}
-          </div>
+          <div className="site-media-picker-error">{error || uploadError}</div>
         )}
 
         <div className="site-media-picker-content">
@@ -185,14 +166,8 @@ export function SiteMediaPicker() {
                     alt={item.altText || item.title || 'Media'}
                     loading="lazy"
                   />
-                  {isSelected(item) && (
-                    <div className="site-media-picker-item-check">✓</div>
-                  )}
-                  {item.title && (
-                    <div className="site-media-picker-item-title">
-                      {item.title}
-                    </div>
-                  )}
+                  {isSelected(item) && <div className="site-media-picker-item-check">✓</div>}
+                  {item.title && <div className="site-media-picker-item-title">{item.title}</div>}
                 </button>
               ))}
             </div>
@@ -200,11 +175,7 @@ export function SiteMediaPicker() {
         </div>
 
         <div className="site-media-picker-footer">
-          <button
-            type="button"
-            className="site-media-picker-cancel"
-            onClick={closePicker}
-          >
+          <button type="button" className="site-media-picker-cancel" onClick={closePicker}>
             Abbrechen
           </button>
           <button

@@ -28,11 +28,7 @@ export function FloatingGlassMenu({ children, style }: FloatingGlassMenuProps) {
   const combinedStyle = [menuStyle, style];
 
   if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
-    return (
-      <GlassView style={combinedStyle}>
-        {children}
-      </GlassView>
-    );
+    return <GlassView style={combinedStyle}>{children}</GlassView>;
   }
 
   return (
@@ -43,9 +39,8 @@ export function FloatingGlassMenu({ children, style }: FloatingGlassMenuProps) {
         combinedStyle,
         {
           overflow: 'hidden',
-          backgroundColor: colorScheme === 'dark'
-            ? 'rgba(30, 30, 30, 0.85)'
-            : 'rgba(255, 255, 255, 0.75)',
+          backgroundColor:
+            colorScheme === 'dark' ? 'rgba(30, 30, 30, 0.85)' : 'rgba(255, 255, 255, 0.75)',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.15,

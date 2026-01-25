@@ -65,10 +65,13 @@ interface FluxGenerationResult {
 // Helper Functions
 // ============================================================================
 
-function buildPurePrompt(userPrompt: string, variant: PureImageVariant = 'illustration-pure'): FluxPromptResult {
+function buildPurePrompt(
+  userPrompt: string,
+  variant: PureImageVariant = 'illustration-pure'
+): FluxPromptResult {
   return buildFluxPrompt({
     variant,
-    subject: userPrompt
+    subject: userPrompt,
   }) as FluxPromptResult;
 }
 
@@ -96,23 +99,17 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         success: false,
         error: 'Daily image generation limit reached',
         data: limitStatus,
-        message: `You have reached your daily limit of ${limitStatus.limit} image generations. Try again tomorrow.`
+        message: `You have reached your daily limit of ${limitStatus.limit} image generations. Try again tomorrow.`,
       });
     }
 
     const body = req.body as ImaginePureRequestBody;
-    const {
-      prompt,
-      variant = 'illustration-pure',
-      seed,
-      width,
-      height
-    } = body;
+    const { prompt, variant = 'illustration-pure', seed, width, height } = body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 5) {
       return res.status(400).json({
         success: false,
-        error: 'A prompt of at least 5 characters is required'
+        error: 'A prompt of at least 5 characters is required',
       });
     }
 
@@ -121,37 +118,46 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       if (width < 64 || height < 64) {
         return res.status(400).json({
           success: false,
-          error: 'Dimensions must be at least 64x64'
+          error: 'Dimensions must be at least 64x64',
         });
       }
       if (width % 16 !== 0 || height % 16 !== 0) {
         return res.status(400).json({
           success: false,
-          error: 'Dimensions must be multiples of 16'
+          error: 'Dimensions must be multiples of 16',
         });
       }
       if (width * height > 4_000_000) {
         return res.status(400).json({
           success: false,
-          error: 'Image size cannot exceed 4 megapixels'
+          error: 'Image size cannot exceed 4 megapixels',
         });
       }
     }
 
-    const validVariants: PureImageVariant[] = ['illustration-pure', 'realistic-pure', 'pixel-pure', 'editorial-pure'];
-    const selectedVariant: PureImageVariant = validVariants.includes(variant) ? variant : 'illustration-pure';
+    const validVariants: PureImageVariant[] = [
+      'illustration-pure',
+      'realistic-pure',
+      'pixel-pure',
+      'editorial-pure',
+    ];
+    const selectedVariant: PureImageVariant = validVariants.includes(variant)
+      ? variant
+      : 'illustration-pure';
 
-    log.debug(`[ImaginePure] Starting generation for user ${userId}, variant: ${selectedVariant}, prompt: "${prompt.substring(0, 50)}..."`);
+    log.debug(
+      `[ImaginePure] Starting generation for user ${userId}, variant: ${selectedVariant}, prompt: "${prompt.substring(0, 50)}..."`
+    );
 
     const fluxPromptResult = buildPurePrompt(prompt.trim(), selectedVariant);
     const fluxPrompt = fluxPromptResult.prompt;
 
     // Use custom dimensions if provided, otherwise use variant defaults
-    const dimensions = (width && height)
-      ? { width, height }
-      : fluxPromptResult.dimensions;
+    const dimensions = width && height ? { width, height } : fluxPromptResult.dimensions;
 
-    log.debug(`[ImaginePure] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${(width && height) ? ' (custom)' : ' (variant default)'}`);
+    log.debug(
+      `[ImaginePure] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${width && height ? ' (custom)' : ' (variant default)'}`
+    );
 
     const flux = new FluxImageService();
     const fluxOptions: {
@@ -164,14 +170,17 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       width: dimensions.width,
       height: dimensions.height,
       output_format: 'jpeg' as const,
-      safety_tolerance: 2
+      safety_tolerance: 2,
     };
 
     if (seed && Number.isInteger(seed)) {
       fluxOptions.seed = seed;
     }
 
-    const { stored: fluxResult } = await flux.generateFromPrompt(fluxPrompt, fluxOptions) as FluxGenerationResult;
+    const { stored: fluxResult } = (await flux.generateFromPrompt(
+      fluxPrompt,
+      fluxOptions
+    )) as FluxGenerationResult;
 
     log.debug(`[ImaginePure] FLUX image generated, size: ${fluxResult.size} bytes`);
 
@@ -196,7 +205,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     await imageCounter.incrementCount(userId);
     const updatedLimitStatus = await imageCounter.checkLimit(userId);
 
-    log.debug(`[ImaginePure] Image saved to ${filePath}, updated usage: ${updatedLimitStatus.count}/${updatedLimitStatus.limit}`);
+    log.debug(
+      `[ImaginePure] Image saved to ${filePath}, updated usage: ${updatedLimitStatus.count}/${updatedLimitStatus.limit}`
+    );
 
     const base64Output = `data:image/png;base64,${labeledBuffer.toString('base64')}`;
 
@@ -207,21 +218,20 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         path: filePath,
         relativePath: path.join('uploads', 'imagine', 'pure', today, filename),
         filename,
-        size: labeledBuffer.length
+        size: labeledBuffer.length,
       },
       metadata: {
         dimensions: { width: dimensions.width, height: dimensions.height },
         prompt: fluxPrompt,
         variant: selectedVariant,
-        timestamp: now.toISOString()
+        timestamp: now.toISOString(),
       },
       usage: {
         count: updatedLimitStatus.count,
         remaining: updatedLimitStatus.limit - updatedLimitStatus.count,
-        limit: updatedLimitStatus.limit
-      }
+        limit: updatedLimitStatus.limit,
+      },
     });
-
   } catch (error: any) {
     log.error('[ImaginePure] Error during image creation:', error.message);
 
@@ -229,18 +239,27 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       log.error('[ImaginePure] API response status:', error.response.status);
     }
 
-    const statusCode = error.type === 'validation' ? 400 :
-                       error.type === 'billing' ? 402 :
-                       error.retryable === false ? 400 : 500;
+    const statusCode =
+      error.type === 'validation'
+        ? 400
+        : error.type === 'billing'
+          ? 402
+          : error.retryable === false
+            ? 400
+            : 500;
 
     return res.status(statusCode).json({
       success: false,
       error: error.message || 'Failed to create image',
       type: error.type || 'unknown',
       retryable: error.retryable ?? true,
-      ...(error.type === 'network' && { hint: 'Please check your internet connection and try again' }),
+      ...(error.type === 'network' && {
+        hint: 'Please check your internet connection and try again',
+      }),
       ...(error.type === 'billing' && { hint: 'Please add credits to your BFL account' }),
-      ...(error.type === 'server' && { hint: 'The service is temporarily unavailable. Please try again in a few minutes' })
+      ...(error.type === 'server' && {
+        hint: 'The service is temporarily unavailable. Please try again in a few minutes',
+      }),
     });
   }
 });

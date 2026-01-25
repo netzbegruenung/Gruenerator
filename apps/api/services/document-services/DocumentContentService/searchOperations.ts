@@ -4,7 +4,11 @@
  */
 
 import type { DocumentRecord } from '../PostgresDocumentService/types.js';
-import type { DocumentContentResult, ContentSearchResponse, ContentSearchMetadata } from './types.js';
+import type {
+  DocumentContentResult,
+  ContentSearchResponse,
+  ContentSearchMetadata,
+} from './types.js';
 import { createIntelligentExcerpt } from './contentExtraction.js';
 
 /**
@@ -24,7 +28,7 @@ export async function performVectorSearch(
       user_id: userId,
       documentIds: documentIds,
       limit: limit * 2, // Get more results for better aggregation
-      mode: mode
+      mode: mode,
     });
 
     const results = searchResponse.results || [];
@@ -50,7 +54,7 @@ export function processVectorSearchResults(
     const content = result.relevant_content || result.chunk_text || '';
 
     if (!documentContents.has(docId)) {
-      const docInfo = accessibleDocuments.find(d => d.id === docId);
+      const docInfo = accessibleDocuments.find((d) => d.id === docId);
 
       documentContents.set(docId, {
         document_id: docId,
@@ -60,7 +64,7 @@ export function processVectorSearchResults(
         content_type: 'vector_search',
         content: content,
         similarity_score: result.similarity_score,
-        search_info: result.relevance_info || 'Vector search found relevant content'
+        search_info: result.relevance_info || 'Vector search found relevant content',
       });
     } else {
       // Append additional content if we have more chunks from the same document
@@ -113,12 +117,16 @@ export async function fillMissingDocuments(
           content_type: contentType,
           content: content,
           similarity_score: null,
-          search_info: contentType === 'full_text_from_vectors'
-            ? 'Full text retrieved from vectors'
-            : 'Intelligent excerpt created from vectors'
+          search_info:
+            contentType === 'full_text_from_vectors'
+              ? 'Full text retrieved from vectors'
+              : 'Intelligent excerpt created from vectors',
         });
       } catch (qdrantError) {
-        console.error(`[DocumentContentService] Failed to get full text for document ${doc.id}:`, qdrantError);
+        console.error(
+          `[DocumentContentService] Failed to get full text for document ${doc.id}:`,
+          qdrantError
+        );
         // Add empty entry to indicate document was processed
         documentContents.set(doc.id, {
           document_id: doc.id,
@@ -128,7 +136,7 @@ export async function fillMissingDocuments(
           content_type: 'no_content',
           content: '',
           similarity_score: null,
-          search_info: 'No content available'
+          search_info: 'No content available',
         });
       }
     }
@@ -151,7 +159,7 @@ export function createSearchResponse(
 
   // Count different content types for metadata
   const contentTypeCounts: Record<string, number> = {};
-  results.forEach(result => {
+  results.forEach((result) => {
     const type = result.content_type || 'unknown';
     contentTypeCounts[type] = (contentTypeCounts[type] || 0) + 1;
   });
@@ -162,16 +170,18 @@ export function createSearchResponse(
     vector_search_results: vectorSearchResultCount,
     content_type_breakdown: contentTypeCounts,
     processing_version: '3.0_postgres_qdrant',
-    user_id: userId
+    user_id: userId,
   };
 
-  console.log(`[DocumentContentService] Returning ${results.length} document contents (${responseTime}ms)`);
+  console.log(
+    `[DocumentContentService] Returning ${results.length} document contents (${responseTime}ms)`
+  );
 
   return {
     success: true,
     results: results,
     query: query,
     search_mode: mode,
-    metadata: metadata
+    metadata: metadata,
   };
 }

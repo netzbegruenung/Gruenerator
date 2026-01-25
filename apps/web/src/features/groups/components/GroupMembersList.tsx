@@ -1,4 +1,5 @@
 import { HiUsers, HiShieldCheck } from 'react-icons/hi';
+
 import Spinner from '../../../components/common/Spinner';
 import { useGroupMembers } from '../hooks/useGroups';
 import { getMemberDisplayName, sortMembersByName } from '../utils/anonymousNames';
@@ -20,12 +21,9 @@ interface GroupMembersListProps {
 }
 
 const GroupMembersList = ({ groupId, isActive = false, className = '' }: GroupMembersListProps) => {
-  const {
-    members,
-    isLoadingMembers,
-    isErrorMembers,
-    errorMembers
-  } = useGroupMembers(groupId, { isActive });
+  const { members, isLoadingMembers, isErrorMembers, errorMembers } = useGroupMembers(groupId, {
+    isActive,
+  });
 
   if (isLoadingMembers) {
     return (
@@ -122,10 +120,11 @@ const GroupMembersList = ({ groupId, isActive = false, className = '' }: GroupMe
 
                 <div className="member-meta">
                   <span className="member-join-date">
-                    Beigetreten: {new Date(member.joined_at).toLocaleDateString('de-DE', {
+                    Beigetreten:{' '}
+                    {new Date(member.joined_at).toLocaleDateString('de-DE', {
                       year: 'numeric',
                       month: 'short',
-                      day: 'numeric'
+                      day: 'numeric',
                     })}
                   </span>
                 </div>

@@ -3,7 +3,10 @@
  * Helper functions for validating and extracting metadata from Canva URLs
  */
 
-import { urlCrawlerService, ContentExtractor } from '../services/scrapers/implementations/UrlCrawler/index.js';
+import {
+  urlCrawlerService,
+  ContentExtractor,
+} from '../services/scrapers/implementations/UrlCrawler/index.js';
 import { createLogger } from './logger.js';
 
 const contentExtractor = new ContentExtractor();
@@ -71,7 +74,7 @@ export async function validateCanvaUrl(url: string): Promise<CanvaValidationResu
     if (!urlObj.hostname.includes('canva.com')) {
       return {
         isValid: false,
-        error: 'URL muss von canva.com stammen.'
+        error: 'URL muss von canva.com stammen.',
       };
     }
 
@@ -80,17 +83,20 @@ export async function validateCanvaUrl(url: string): Promise<CanvaValidationResu
     if (!designMatch) {
       return {
         isValid: false,
-        error: 'Ungültige Canva URL. Bitte verwenden Sie eine gültige Design-URL.'
+        error: 'Ungültige Canva URL. Bitte verwenden Sie eine gültige Design-URL.',
       };
     }
 
     const designId = designMatch[1];
 
     // Extract the view key (second path segment after design ID)
-    const fullPathMatch = urlObj.pathname.match(/\/design\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)(?:\/|$)/);
-    const viewKey = fullPathMatch && fullPathMatch[2] && !['view', 'edit', 'watch'].includes(fullPathMatch[2])
-      ? fullPathMatch[2]
-      : null;
+    const fullPathMatch = urlObj.pathname.match(
+      /\/design\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)(?:\/|$)/
+    );
+    const viewKey =
+      fullPathMatch && fullPathMatch[2] && !['view', 'edit', 'watch'].includes(fullPathMatch[2])
+        ? fullPathMatch[2]
+        : null;
 
     // Create a clean URL without tracking parameters
     const cleanUrl = viewKey
@@ -107,12 +113,12 @@ export async function validateCanvaUrl(url: string): Promise<CanvaValidationResu
       designId,
       viewKey,
       cleanUrl,
-      thumbnailUrl
+      thumbnailUrl,
     };
   } catch {
     return {
       isValid: false,
-      error: 'Ungültiges URL-Format.'
+      error: 'Ungültiges URL-Format.',
     };
   }
 }
@@ -120,14 +126,17 @@ export async function validateCanvaUrl(url: string): Promise<CanvaValidationResu
 /**
  * Processes a Canva URL to extract metadata and create template data
  */
-export async function processCanvaUrl(url: string, enhancedMetadata: boolean = false): Promise<CanvaProcessResult> {
+export async function processCanvaUrl(
+  url: string,
+  enhancedMetadata: boolean = false
+): Promise<CanvaProcessResult> {
   try {
     // Validate the Canva URL first
     const validation = await validateCanvaUrl(url);
     if (!validation.isValid) {
       return {
         success: false,
-        error: validation.error
+        error: validation.error,
       };
     }
 
@@ -169,14 +178,20 @@ export async function processCanvaUrl(url: string, enhancedMetadata: boolean = f
         log.debug('[processCanvaUrl] Enhanced metadata extracted:', {
           hasPreviewImage: !!previewImage,
           hasDimensions: !!dimensions,
-          categoriesCount: categories.length
+          categoriesCount: categories.length,
         });
       }
 
-      log.debug('[processCanvaUrl] Successfully extracted data from Canva page:', { title, enhancedMetadata });
+      log.debug('[processCanvaUrl] Successfully extracted data from Canva page:', {
+        title,
+        enhancedMetadata,
+      });
     } catch (error) {
       const err = error as Error;
-      log.warn('[processCanvaUrl] Could not extract data from HTML, using constructed thumbnail URL:', err.message);
+      log.warn(
+        '[processCanvaUrl] Could not extract data from HTML, using constructed thumbnail URL:',
+        err.message
+      );
       title = `Canva Design ${validation.designId}`;
     }
 
@@ -186,7 +201,7 @@ export async function processCanvaUrl(url: string, enhancedMetadata: boolean = f
       template_type: 'canva',
       canva_url: validation.cleanUrl!,
       designId: validation.designId!,
-      originalUrl: url
+      originalUrl: url,
     };
 
     // Add preview image URL
@@ -206,14 +221,14 @@ export async function processCanvaUrl(url: string, enhancedMetadata: boolean = f
 
     return {
       success: true,
-      templateData
+      templateData,
     };
   } catch (error) {
     const err = error as Error;
     log.error('[processCanvaUrl] Error processing Canva URL:', err);
     return {
       success: false,
-      error: 'Fehler beim Verarbeiten der Canva URL: ' + err.message
+      error: 'Fehler beim Verarbeiten der Canva URL: ' + err.message,
     };
   }
 }

@@ -2,13 +2,21 @@ import { Router, Request, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import multer from 'multer';
-import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
+import {
+  createCanvas,
+  loadImage,
+  type Canvas,
+  type SKRSContext2D as CanvasRenderingContext2D,
+} from '@napi-rs/canvas';
 import fs from 'fs/promises';
 import path from 'path';
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
 import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import {
+  optimizeCanvasBuffer,
+  bufferToBase64,
+} from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -82,7 +90,7 @@ async function processInfoText(textData: Partial<InfoTextData>): Promise<InfoTex
   return {
     header: header || '',
     bodyFirstSentence: bodyFirstSentence || '',
-    bodyRemaining: bodyRemaining || ''
+    bodyRemaining: bodyRemaining || '',
   };
 }
 
@@ -155,7 +163,7 @@ async function createInfoImage(
 
     const canvasWidth = canvas.width;
     const margin = 50;
-    const textWidth = canvasWidth - (margin * 2);
+    const textWidth = canvasWidth - margin * 2;
 
     let currentY = 190;
 
@@ -167,11 +175,11 @@ async function createInfoImage(
 
       const headerLines = wrapText(ctx, processedText.header, textWidth);
       headerLines.forEach((line, index) => {
-        const textY = currentY + (index * (headerFontSize * 1.2));
+        const textY = currentY + index * (headerFontSize * 1.2);
         ctx.fillText(line, margin, textY);
       });
 
-      currentY += (headerLines.length * headerFontSize * 1.2) + 40;
+      currentY += headerLines.length * headerFontSize * 1.2 + 40;
     }
 
     const arrowSize = 60;
@@ -189,13 +197,22 @@ async function createInfoImage(
     const bodyTextWidth = canvasWidth - bodyTextMargin - margin;
 
     if (processedText.bodyFirstSentence || processedText.bodyRemaining) {
-      const fullBodyText = (processedText.bodyFirstSentence + ' ' + processedText.bodyRemaining).trim();
+      const fullBodyText = (
+        processedText.bodyFirstSentence +
+        ' ' +
+        processedText.bodyRemaining
+      ).trim();
       const allWords = fullBodyText.split(' ');
-      const firstSentenceWordCount = processedText.bodyFirstSentence ? processedText.bodyFirstSentence.split(' ').length : 0;
+      const firstSentenceWordCount = processedText.bodyFirstSentence
+        ? processedText.bodyFirstSentence.split(' ').length
+        : 0;
 
       const wordsWithFont: WordWithFont[] = allWords.map((word, index) => ({
         text: word,
-        font: index < firstSentenceWordCount ? `${bodyFontSize}px PTSans-Bold` : `${bodyFontSize}px PTSans-Regular`
+        font:
+          index < firstSentenceWordCount
+            ? `${bodyFontSize}px PTSans-Bold`
+            : `${bodyFontSize}px PTSans-Regular`,
       }));
 
       ctx.fillStyle = bodyColor;
@@ -250,14 +267,14 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       headerColor,
       bodyColor,
       headerFontSize,
-      bodyFontSize
+      bodyFontSize,
     } = req.body as InfoRequestBody;
 
     const modParams: InfoParams = {
       headerColor: isValidHexColor(headerColor) ? headerColor! : '#FFFFFF',
       bodyColor: isValidHexColor(bodyColor) ? bodyColor! : '#FFFFFF',
       headerFontSize: parseInt(headerFontSize || '89', 10) || 89,
-      bodyFontSize: parseInt(bodyFontSize || '40', 10) || 40
+      bodyFontSize: parseInt(bodyFontSize || '40', 10) || 40,
     };
 
     await checkFiles();
@@ -266,7 +283,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
     const infoValidatedParams: InfoParams = {
       ...modParams,
       headerFontSize: Math.max(50, Math.min(120, modParams.headerFontSize)),
-      bodyFontSize: Math.max(30, Math.min(60, modParams.bodyFontSize))
+      bodyFontSize: Math.max(30, Math.min(60, modParams.bodyFontSize)),
     };
 
     let parsedBodyFirstSentence = bodyFirstSentence;
@@ -281,23 +298,19 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
     const processedText = await processInfoText({
       header,
       bodyFirstSentence: parsedBodyFirstSentence,
-      bodyRemaining: parsedBodyRemaining
+      bodyRemaining: parsedBodyRemaining,
     });
 
-    const generatedImageBuffer = await createInfoImage(
-      processedText,
-      infoValidatedParams
-    );
+    const generatedImageBuffer = await createInfoImage(processedText, infoValidatedParams);
 
     const base64Image = bufferToBase64(generatedImageBuffer);
 
     res.json({ image: base64Image });
-
   } catch (err) {
     const error = err as Error;
     log.error('Error in info_canvas request:', error);
     res.status(500).json({
-      error: 'Fehler beim Erstellen des Info-Bildes: ' + error.message
+      error: 'Fehler beim Erstellen des Info-Bildes: ' + error.message,
     });
   }
 });

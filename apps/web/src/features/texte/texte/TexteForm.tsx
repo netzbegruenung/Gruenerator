@@ -1,5 +1,6 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { useForm, Control } from 'react-hook-form';
+import { useForm, type Control } from 'react-hook-form';
+
 import { FormTextarea } from '../../../components/common/Form/Input';
 
 interface TexteFormProps {
@@ -16,19 +17,15 @@ interface TexteFormRef {
 }
 
 const TexteForm = forwardRef<TexteFormRef, TexteFormProps>(({ tabIndex = {} }, ref) => {
-  const {
-    control,
-    getValues,
-    reset
-  } = useForm({
+  const { control, getValues, reset } = useForm({
     defaultValues: {
-      inhalt: ''
-    }
+      inhalt: '',
+    },
   });
 
   useImperativeHandle(ref, () => ({
     getFormData: () => getValues(),
-    resetForm: (data) => reset(data)
+    resetForm: (data) => reset(data),
   }));
 
   return (

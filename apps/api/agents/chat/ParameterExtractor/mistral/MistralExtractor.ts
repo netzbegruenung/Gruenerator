@@ -25,17 +25,18 @@ export async function extractParametersWithMistral(
     messages: [
       {
         role: 'user',
-        content: prompt
-      }
+        content: prompt,
+      },
     ],
     temperature: 0.1,
-    maxTokens: 500
+    maxTokens: 500,
   });
 
   const messageContent = response.choices[0].message.content;
-  let responseText = typeof messageContent === 'string'
-    ? messageContent.trim()
-    : JSON.stringify(messageContent).trim();
+  let responseText =
+    typeof messageContent === 'string'
+      ? messageContent.trim()
+      : JSON.stringify(messageContent).trim();
 
   // Remove markdown code blocks if present
   if (responseText.startsWith('```json')) {
@@ -54,13 +55,14 @@ export async function extractParametersWithMistral(
       details: extracted.details || message,
       type: agent,
       _parameterConfidence: {},
-      _parameterSources: {}
+      _parameterSources: {},
     };
 
     // Add agent-specific fields
     if (agent === 'zitat' && extracted.author) {
       result.name = extracted.author;
-      (result._parameterConfidence as Record<string, number>).name = extracted.confidence?.author || 0.9;
+      (result._parameterConfidence as Record<string, number>).name =
+        extracted.confidence?.author || 0.9;
       (result._parameterSources as Record<string, string>).name = 'mistral_ai';
     }
 
@@ -71,7 +73,6 @@ export async function extractParametersWithMistral(
     }
 
     return result;
-
   } catch (parseError) {
     console.error('[MistralExtractor] Failed to parse Mistral response:', parseError);
     console.error('[MistralExtractor] Raw response:', responseText);

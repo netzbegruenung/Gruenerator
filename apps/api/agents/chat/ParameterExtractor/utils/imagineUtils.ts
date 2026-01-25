@@ -10,20 +10,20 @@ import type { VariantResult, ImagineVariantKeywords } from '../types.js';
  * Variant keyword mapping for imagine agent
  */
 export const IMAGINE_VARIANT_KEYWORDS: ImagineVariantKeywords = {
-  'illustration': 'illustration-pure',
-  'zeichnung': 'illustration-pure',
-  'aquarell': 'illustration-pure',
-  'malerisch': 'illustration-pure',
-  'realistisch': 'realistic-pure',
-  'foto': 'realistic-pure',
-  'fotorealistisch': 'realistic-pure',
-  'photorealistisch': 'realistic-pure',
-  'pixel': 'pixel-pure',
-  'retro': 'pixel-pure',
-  'pixelart': 'pixel-pure',
+  illustration: 'illustration-pure',
+  zeichnung: 'illustration-pure',
+  aquarell: 'illustration-pure',
+  malerisch: 'illustration-pure',
+  realistisch: 'realistic-pure',
+  foto: 'realistic-pure',
+  fotorealistisch: 'realistic-pure',
+  photorealistisch: 'realistic-pure',
+  pixel: 'pixel-pure',
+  retro: 'pixel-pure',
+  pixelart: 'pixel-pure',
   '16-bit': 'pixel-pure',
-  'editorial': 'editorial-pure',
-  'magazin': 'editorial-pure'
+  editorial: 'editorial-pure',
+  magazin: 'editorial-pure',
 };
 
 /**
@@ -35,15 +35,32 @@ export function detectImagineMode(
 ): 'pure' | 'sharepic' | 'edit' {
   // EDIT mode: image attached + transformation intent
   if (context.hasImageAttachment) {
-    const editKeywords = ['transformiere', 'bearbeite', 'ändere', 'begrüne', 'verwandle', 'mache grün', 'grüner machen', 'umwandeln'];
-    if (editKeywords.some(k => normalizedMessage.includes(k))) {
+    const editKeywords = [
+      'transformiere',
+      'bearbeite',
+      'ändere',
+      'begrüne',
+      'verwandle',
+      'mache grün',
+      'grüner machen',
+      'umwandeln',
+    ];
+    if (editKeywords.some((k) => normalizedMessage.includes(k))) {
       return 'edit';
     }
   }
 
   // SHAREPIC mode: explicit title mention
-  const sharepicKeywords = ['mit titel', 'mit dem titel', 'mit text', 'mit überschrift', 'mit der überschrift', 'titel:', 'überschrift:'];
-  if (sharepicKeywords.some(k => normalizedMessage.includes(k))) {
+  const sharepicKeywords = [
+    'mit titel',
+    'mit dem titel',
+    'mit text',
+    'mit überschrift',
+    'mit der überschrift',
+    'titel:',
+    'überschrift:',
+  ];
+  if (sharepicKeywords.some((k) => normalizedMessage.includes(k))) {
     return 'sharepic';
   }
 
@@ -54,7 +71,10 @@ export function detectImagineMode(
 /**
  * Extract the subject/description for the image
  */
-export function extractImagineSubject(message: string, mode: 'pure' | 'sharepic' | 'edit'): string | null {
+export function extractImagineSubject(
+  message: string,
+  mode: 'pure' | 'sharepic' | 'edit'
+): string | null {
   let subject = message;
 
   // Remove common command prefixes
@@ -63,7 +83,7 @@ export function extractImagineSubject(message: string, mode: 'pure' | 'sharepic'
     /^(?:erstelle|generiere|mache|erzeuge)\s+(?:mir\s+)?(?:ein(?:en?)?(?:e)?)\s+(?:realistisch(?:es?|er?)?|illustration|illustriert(?:es?|er?)?|pixel(?:\s*art)?|editorial|fotorealistisch(?:es?|er?)?|gemalt(?:es?|er?)?|gezeichnet(?:es?|er?)?)?\s*(?:bild|foto|illustration|grafik)\s+/i,
     /^(?:bild|foto|illustration|grafik)\s+(?:von|über|zu)?\s*/i,
     /^(?:visualisiere|illustriere)\s+(?:mir\s+)?(?:ein(?:en?)?(?:e)?)?\s*/i,
-    /^(?:imagine|flux)\s*/i
+    /^(?:imagine|flux)\s*/i,
   ];
 
   for (const pattern of commandPatterns) {
@@ -73,7 +93,9 @@ export function extractImagineSubject(message: string, mode: 'pure' | 'sharepic'
   // Remove title specification for sharepic mode
   if (mode === 'sharepic') {
     // Match "mit dem Titel X über/von/zu Y" - keep Y as subject
-    const titleSubjectMatch = subject.match(/mit\s+(?:dem\s+)?titel\s+\S+\s+(?:über|von|zu)\s+(.+)/i);
+    const titleSubjectMatch = subject.match(
+      /mit\s+(?:dem\s+)?titel\s+\S+\s+(?:über|von|zu)\s+(.+)/i
+    );
     if (titleSubjectMatch) {
       subject = titleSubjectMatch[1];
     } else {
@@ -118,7 +140,7 @@ export function extractImagineTitle(message: string): string | null {
     /titel:\s*["']?([^"'\n]+?)["']?(?:\s|$)/i,
     /überschrift:\s*["']?([^"'\n]+?)["']?(?:\s|$)/i,
     /mit\s+(?:dem\s+)?titel\s+(\S+)/i,
-    /mit\s+(?:der?\s+)?überschrift\s+(\S+)/i
+    /mit\s+(?:der?\s+)?überschrift\s+(\S+)/i,
   ];
 
   for (const pattern of titlePatterns) {
@@ -139,7 +161,7 @@ export function extractEditAction(message: string): string | null {
   const actionPatterns = [
     /(?:transformiere|verwandle|ändere|bearbeite)\s+(?:das\s+bild\s+)?(?:zu|in|so\s+dass)\s+(.+)/i,
     /(?:begrüne|mache\s+grün(?:er)?)\s+(.+)/i,
-    /(.+?)\s+(?:transformieren|verwandeln|bearbeiten)/i
+    /(.+?)\s+(?:transformieren|verwandeln|bearbeiten)/i,
   ];
 
   for (const pattern of actionPatterns) {

@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 // Placeholder for Antrag Gallery
 const AntragGalleryPlaceholder = () => {
   useEffect(() => {
-    console.log("Placeholder index.jsx wurde geladen!");
+    console.log('Placeholder index.jsx wurde geladen!');
   }, []);
 
   return (

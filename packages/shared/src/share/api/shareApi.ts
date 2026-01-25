@@ -36,9 +36,7 @@ export const SHARE_ENDPOINTS = {
 /**
  * Create a video share from a project
  */
-export async function createVideoShare(
-  params: CreateVideoShareParams
-): Promise<ShareResponse> {
+export async function createVideoShare(params: CreateVideoShareParams): Promise<ShareResponse> {
   return apiRequest<ShareResponse>('post', SHARE_ENDPOINTS.CREATE_VIDEO_FROM_PROJECT, params);
 }
 
@@ -60,18 +58,14 @@ export async function createVideoShareFromToken(
 /**
  * Create an image share
  */
-export async function createImageShare(
-  params: CreateImageShareParams
-): Promise<ShareResponse> {
+export async function createImageShare(params: CreateImageShareParams): Promise<ShareResponse> {
   return apiRequest<ShareResponse>('post', SHARE_ENDPOINTS.CREATE_IMAGE, params);
 }
 
 /**
  * Update an existing image share
  */
-export async function updateImageShare(
-  params: UpdateImageShareParams
-): Promise<ShareResponse> {
+export async function updateImageShare(params: UpdateImageShareParams): Promise<ShareResponse> {
   const { shareToken, ...data } = params;
   return apiRequest<ShareResponse>('put', SHARE_ENDPOINTS.UPDATE_IMAGE(shareToken), data);
 }
@@ -79,9 +73,7 @@ export async function updateImageShare(
 /**
  * Get user's shares (optionally filtered by media type)
  */
-export async function getUserShares(
-  mediaType?: ShareMediaType
-): Promise<ShareListResponse> {
+export async function getUserShares(mediaType?: ShareMediaType): Promise<ShareListResponse> {
   const url = mediaType
     ? `${SHARE_ENDPOINTS.USER_SHARES}?type=${mediaType}`
     : SHARE_ENDPOINTS.USER_SHARES;
@@ -112,7 +104,7 @@ export async function saveAsTemplate(
 ): Promise<SaveAsTemplateResponse> {
   return apiRequest<SaveAsTemplateResponse>('post', SHARE_ENDPOINTS.SAVE_AS_TEMPLATE(shareToken), {
     title,
-    visibility
+    visibility,
   });
 }
 

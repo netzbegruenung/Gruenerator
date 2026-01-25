@@ -12,7 +12,7 @@ const defaultLogger: Logger = {
   info: (msg: string) => console.log(`[Master] ${msg}`),
   warn: (msg: string) => console.warn(`[Master] ${msg}`),
   error: (msg: string) => console.error(`[Master] ${msg}`),
-  debug: (msg: string) => console.debug(`[Master] ${msg}`)
+  debug: (msg: string) => console.debug(`[Master] ${msg}`),
 };
 
 /**
@@ -39,13 +39,13 @@ export function createMasterShutdownHandler(
     );
 
     // Disconnect all workers
-    workers.forEach(worker => {
+    workers.forEach((worker) => {
       worker.disconnect();
     });
 
     // Wait for workers to shut down with timeout
-    const shutdownPromises = workers.map(worker => {
-      return new Promise<void>(resolve => {
+    const shutdownPromises = workers.map((worker) => {
+      return new Promise<void>((resolve) => {
         const timeout = setTimeout(() => {
           logger.warn(`Worker ${worker.process.pid} timeout, forcing kill`);
           worker.kill('SIGKILL');
@@ -88,7 +88,7 @@ export function createMasterShutdownHandler(
       return inProgress;
     },
     shutdown,
-    registerSignalHandlers
+    registerSignalHandlers,
   };
 }
 

@@ -11,4 +11,4 @@ export { useContentManagement } from './useContentManagement';
 export { useStartMode } from './useStartMode';
 export { useFeatureConfigs } from './useFeatureConfigs';
 export { useFormEventHandlers } from './useFormEventHandlers';
-export { useBaseFormAccessibility } from './useBaseFormAccessibility'; 
+export { useBaseFormAccessibility } from './useBaseFormAccessibility';

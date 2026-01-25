@@ -3,7 +3,13 @@
  * Shared constants for text generators across web and mobile platforms.
  */
 
-import type { SocialPlatform, AntragRequestType, UniversalTextType, AccessibilityMode, TextImproverAction } from './types.js';
+import type {
+  SocialPlatform,
+  AntragRequestType,
+  UniversalTextType,
+  AccessibilityMode,
+  TextImproverAction,
+} from './types.js';
 
 // API Endpoints
 export const GENERATOR_ENDPOINTS = {
@@ -71,10 +77,25 @@ export interface TextTypeOption {
 
 // Universal text type options
 export const UNIVERSAL_TEXT_TYPES: readonly TextTypeOption[] = [
-  { id: 'universal', label: 'Universal', shortLabel: 'Frei', endpoint: GENERATOR_ENDPOINTS.UNIVERSAL },
+  {
+    id: 'universal',
+    label: 'Universal',
+    shortLabel: 'Frei',
+    endpoint: GENERATOR_ENDPOINTS.UNIVERSAL,
+  },
   { id: 'rede', label: 'Rede', endpoint: GENERATOR_ENDPOINTS.REDE },
-  { id: 'wahlprogramm', label: 'Wahlprogramm', shortLabel: 'Programm', endpoint: GENERATOR_ENDPOINTS.WAHLPROGRAMM },
-  { id: 'buergeranfragen', label: 'Bürger*innenanfragen', shortLabel: 'Bürger', endpoint: GENERATOR_ENDPOINTS.BUERGERANFRAGEN },
+  {
+    id: 'wahlprogramm',
+    label: 'Wahlprogramm',
+    shortLabel: 'Programm',
+    endpoint: GENERATOR_ENDPOINTS.WAHLPROGRAMM,
+  },
+  {
+    id: 'buergeranfragen',
+    label: 'Bürger*innenanfragen',
+    shortLabel: 'Bürger',
+    endpoint: GENERATOR_ENDPOINTS.BUERGERANFRAGEN,
+  },
 ] as const;
 
 // Accessibility mode option interface

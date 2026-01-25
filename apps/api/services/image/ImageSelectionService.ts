@@ -6,7 +6,7 @@ import type {
   ImageCatalog,
   ImageSelectionOptions,
   ImageSelectionResult,
-  ImageSelectionServiceStats
+  ImageSelectionServiceStats,
 } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +23,8 @@ class ImageSelectionService {
 
   async initialize(): Promise<void> {
     if (!this.imageGraph) {
-      const { imageSelectionGraph } = await import('../../agents/langgraph/ImageSelectionGraph/index.js');
+      const { imageSelectionGraph } =
+        await import('../../agents/langgraph/ImageSelectionGraph/index.js');
       this.imageGraph = imageSelectionGraph;
       console.log('[ImageSelectionService] LangGraph service initialized');
     }
@@ -32,7 +33,9 @@ class ImageSelectionService {
       const catalogPath = path.join(this.basePath, 'image_alt_texts.json');
       const catalogData = await fs.readFile(catalogPath, 'utf8');
       this.imageCatalog = JSON.parse(catalogData) as ImageCatalog;
-      console.log(`[ImageSelectionService] Loaded ${this.imageCatalog.images.length} images from catalog`);
+      console.log(
+        `[ImageSelectionService] Loaded ${this.imageCatalog.images.length} images from catalog`
+      );
     }
   }
 
@@ -47,13 +50,15 @@ class ImageSelectionService {
     const sharepicType = options.sharepicType || 'general';
 
     try {
-      console.log(`[ImageSelectionService] Using LangGraph for image selection: "${text.substring(0, 50)}..."`);
+      console.log(
+        `[ImageSelectionService] Using LangGraph for image selection: "${text.substring(0, 50)}..."`
+      );
 
       const result = await this.imageGraph.invoke({
         text,
         sharepicType,
         aiWorkerPool,
-        req
+        req,
       });
 
       if (result.error) {
@@ -67,13 +72,13 @@ class ImageSelectionService {
         alternatives: result.alternatives || [],
         metadata: {
           totalImages: result.metadata?.totalImages || 0,
-          candidatesFound: result.metadata?.totalImagesConsidered || result.metadata?.totalImages || 0,
+          candidatesFound:
+            result.metadata?.totalImagesConsidered || result.metadata?.totalImages || 0,
           themes: [],
           keywords: [],
-          processingMethod: result.metadata?.selectionMethod || 'direct_description_matching'
-        }
+          processingMethod: result.metadata?.selectionMethod || 'direct_description_matching',
+        },
       };
-
     } catch (error: any) {
       console.error('[ImageSelectionService] LangGraph selection failed:', error);
       throw new Error(`Image selection failed: ${error.message}`);
@@ -98,7 +103,7 @@ class ImageSelectionService {
     return {
       serviceName: 'LangGraph Image Picker',
       method: 'two-step-ai-selection',
-      initialized: !!this.imageGraph
+      initialized: !!this.imageGraph,
     };
   }
 

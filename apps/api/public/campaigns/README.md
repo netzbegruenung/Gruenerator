@@ -20,12 +20,14 @@ campaigns/
 ## Image Requirements
 
 ### Background Images
+
 - **Dimensions**: 1080x1350px (Instagram portrait format)
 - **Format**: PNG or JPG
 - **Size**: Keep under 2MB for fast loading
 - **Quality**: High-resolution, sharp images
 
 ### Decoration Images
+
 - **Format**: PNG with transparency recommended
 - **Size**: Varies based on usage (typically 80-200px)
 - **Purpose**: Overlay elements like snowflakes, stars, icons
@@ -58,6 +60,7 @@ campaigns/
 ## Path References
 
 When referencing assets in campaign JSON configs, use paths relative to `/public`:
+
 - Correct: `/campaigns/christmas2025/bg_snow.png`
 - Incorrect: `campaigns/christmas2025/bg_snow.png`
 - Incorrect: `/public/campaigns/christmas2025/bg_snow.png`

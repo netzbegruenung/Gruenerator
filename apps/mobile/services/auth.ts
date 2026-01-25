@@ -13,7 +13,11 @@ WebBrowser.maybeCompleteAuthSession();
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
 // Auth source types matching backend
-export type AuthSource = 'gruenerator-login' | 'gruenes-netz-login' | 'netzbegruenung-login' | 'gruene-oesterreich-login';
+export type AuthSource =
+  | 'gruenerator-login'
+  | 'gruenes-netz-login'
+  | 'netzbegruenung-login'
+  | 'gruene-oesterreich-login';
 
 // OAuth redirect URI for deep linking
 export const REDIRECT_URI = makeRedirectUri({
@@ -126,7 +130,9 @@ export async function login(source: AuthSource): Promise<{ success: boolean; err
 /**
  * Exchange login code for JWT and store credentials
  */
-export async function handleAuthCallback(code: string): Promise<{ success: boolean; error?: string }> {
+export async function handleAuthCallback(
+  code: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     const apiClient = getGlobalApiClient();
 

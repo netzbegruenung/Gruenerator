@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+
 import { searchCity, getPapers, getEndpoints } from '../services/oparlService';
 
 export const useOparl = () => {
@@ -77,7 +78,7 @@ export const useOparl = () => {
     totalAvailable,
     searchCity: handleSearchCity,
     selectCity: handleSelectCity,
-    reset
+    reset,
   };
 };
 

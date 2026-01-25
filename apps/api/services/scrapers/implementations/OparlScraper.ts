@@ -132,13 +132,18 @@ export class OparlScraper extends BaseScraper {
    * Note: This scraper is typically used via scrapeCity() instead
    */
   async scrape(): Promise<ScraperResult> {
-    throw new Error('OparlScraper requires scrapeCity() with specific endpoint. Use scrapeCity() instead.');
+    throw new Error(
+      'OparlScraper requires scrapeCity() with specific endpoint. Use scrapeCity() instead.'
+    );
   }
 
   /**
    * Scrape papers from a specific city endpoint
    */
-  async scrapeCity(endpoint: OparlEndpoint, options: OparlScraperOptions = {}): Promise<CityScrapeResult> {
+  async scrapeCity(
+    endpoint: OparlEndpoint,
+    options: OparlScraperOptions = {}
+  ): Promise<CityScrapeResult> {
     const { pdfConcurrency = 5 } = options;
     const startTime = Date.now();
 
@@ -184,7 +189,9 @@ export class OparlScraper extends BaseScraper {
         const batch = newPapers.slice(i, i + pdfConcurrency);
         const batchNum = Math.floor(i / pdfConcurrency) + 1;
         const totalBatches = Math.ceil(newPapers.length / pdfConcurrency);
-        this.log(`\n─── Batch ${batchNum}/${totalBatches} (papers ${i + 1}-${Math.min(i + pdfConcurrency, newPapers.length)}) ───`);
+        this.log(
+          `\n─── Batch ${batchNum}/${totalBatches} (papers ${i + 1}-${Math.min(i + pdfConcurrency, newPapers.length)}) ───`
+        );
 
         // Step 1: Extract PDFs in parallel
         const extractionResults = await Promise.allSettled(
@@ -223,7 +230,13 @@ export class OparlScraper extends BaseScraper {
             const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
             // Store immediately (in small batches of 5 points)
-            const points = this.#createPoints(endpoint.city ?? 'unknown', paper, fullText, chunks, embeddings);
+            const points = this.#createPoints(
+              endpoint.city ?? 'unknown',
+              paper,
+              fullText,
+              chunks,
+              embeddings
+            );
             for (let j = 0; j < points.length; j += 5) {
               const pointBatch = points.slice(j, j + 5);
               await this.qdrant.client.upsert(this.config.collectionName, { points: pointBatch });
@@ -240,7 +253,9 @@ export class OparlScraper extends BaseScraper {
         }
 
         // Progress summary after each batch
-        this.log(`Progress: ${result.stored} stored, ${result.skipped} skipped, ${result.errors} errors`);
+        this.log(
+          `Progress: ${result.stored} stored, ${result.skipped} skipped, ${result.errors} errors`
+        );
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -261,7 +276,13 @@ export class OparlScraper extends BaseScraper {
   /**
    * Create Qdrant points from chunks
    */
-  #createPoints(city: string, paper: OparlPaper, fullText: string, chunks: any[], embeddings: number[][]): OparlPoint[] {
+  #createPoints(
+    city: string,
+    paper: OparlPaper,
+    fullText: string,
+    chunks: any[],
+    embeddings: number[][]
+  ): OparlPoint[] {
     const paperId = uuidv4();
     const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
 
@@ -334,7 +355,9 @@ export class OparlScraper extends BaseScraper {
           const result = await ocrService.extractTextWithMistralOCR(tempPath);
 
           if (result.text && result.text.length > 100) {
-            this.log(`✓ Mistral OCR extracted ${result.text.length} chars (${result.pageCount} pages)`);
+            this.log(
+              `✓ Mistral OCR extracted ${result.text.length} chars (${result.pageCount} pages)`
+            );
             return result.text;
           }
         } finally {
@@ -362,7 +385,7 @@ export class OparlScraper extends BaseScraper {
     let hash = 0;
     for (let i = 0; i < combinedString.length; i++) {
       const char = combinedString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash);
@@ -390,7 +413,10 @@ export class OparlScraper extends BaseScraper {
   /**
    * Search papers by semantic query
    */
-  async searchPapers(query: string, options: OparlSearchOptions = {}): Promise<{ results: PaperSearchResult[]; total: number }> {
+  async searchPapers(
+    query: string,
+    options: OparlSearchOptions = {}
+  ): Promise<{ results: PaperSearchResult[]; total: number }> {
     const { city, limit = 10, threshold = 0.35 } = options;
 
     const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
@@ -481,7 +507,10 @@ export class OparlScraper extends BaseScraper {
       let offset: string | number | null = null;
 
       do {
-        const result: { points: Array<{ payload: { city?: string } }>; next_page_offset?: string | number | null } = await this.qdrant.client.scroll(this.config.collectionName, {
+        const result: {
+          points: Array<{ payload: { city?: string } }>;
+          next_page_offset?: string | number | null;
+        } = await this.qdrant.client.scroll(this.config.collectionName, {
           limit: 100,
           offset: offset,
           with_payload: ['city'],

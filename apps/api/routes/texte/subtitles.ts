@@ -21,13 +21,13 @@ router.post('/generate-short-subtitles', async (req: Request, res: Response): Pr
 
   if (!text || !Array.isArray(words) || words.length === 0) {
     res.status(400).json({
-      error: 'Volltext (text) und Wort-Timestamps (words) sind erforderlich.'
+      error: 'Volltext (text) und Wort-Timestamps (words) sind erforderlich.',
     });
     return;
   }
 
   try {
-    const wordTimestamps = words.map(w => ({ word: w.text, start: w.start, end: w.end }));
+    const wordTimestamps = words.map((w) => ({ word: w.text, start: w.start, end: w.end }));
     const subtitles = await generateShortSubtitlesViaAI(
       text,
       wordTimestamps,
@@ -35,14 +35,13 @@ router.post('/generate-short-subtitles', async (req: Request, res: Response): Pr
     );
 
     res.json({
-      content: subtitles
+      content: subtitles,
     });
-
   } catch (error) {
     log.error('Fehler im /generate-short-subtitles Handler nach Aufruf des Service:', error);
     res.status(500).json({
       error: 'Fehler bei der Erstellung der kurzen Untertitel',
-      details: (error as Error).message
+      details: (error as Error).message,
     });
   }
 });

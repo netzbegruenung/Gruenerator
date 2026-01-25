@@ -27,15 +27,15 @@ export async function summaryNode(state: WebSearchState): Promise<Partial<WebSea
 
     if (resultsToUse.length === 0) {
       return {
-        summary: 'Keine Suchergebnisse zum Zusammenfassen verfügbar.'
+        summary: 'Keine Suchergebnisse zum Zusammenfassen verfügbar.',
       };
     }
 
     console.log(`[IntelligentSummary] Processing ${resultsToUse.length} results`);
 
     // Separate full content from snippets
-    const fullContentResults = resultsToUse.filter(r => r.crawled && r.fullContent);
-    const snippetResults = resultsToUse.filter(r => !r.crawled || !r.fullContent);
+    const fullContentResults = resultsToUse.filter((r) => r.crawled && r.fullContent);
+    const snippetResults = resultsToUse.filter((r) => !r.crawled || !r.fullContent);
 
     // Build hierarchical references - prioritize full content
     const references: any[] = [];
@@ -43,13 +43,17 @@ export async function summaryNode(state: WebSearchState): Promise<Partial<WebSea
 
     // Primary sources (full content) - extract key paragraphs
     for (const result of fullContentResults.slice(0, 3)) {
-      const keyContent = extractKeyParagraphs(result.fullContent || result.content, state.query, 400);
+      const keyContent = extractKeyParagraphs(
+        result.fullContent || result.content,
+        state.query,
+        400
+      );
       references.push({
         id: refIndex++,
         title: result.title,
         content: keyContent,
         type: 'primary',
-        source: result.url
+        source: result.url,
       });
     }
 
@@ -60,21 +64,23 @@ export async function summaryNode(state: WebSearchState): Promise<Partial<WebSea
         title: result.title,
         content: result.snippet || result.content || 'No preview available',
         type: 'supplementary',
-        source: result.url
+        source: result.url,
       });
     }
 
     if (references.length === 0) {
       return {
-        summary: 'Keine verwertbaren Inhalte zum Zusammenfassen gefunden.'
+        summary: 'Keine verwertbaren Inhalte zum Zusammenfassen gefunden.',
       };
     }
 
     // Build references summary for AI
-    const referencesText = references.map(r => {
-      const typeLabel = r.type === 'primary' ? '(VOLLTEXT)' : '(Snippet)';
-      return `[${r.id}] ${r.title} ${typeLabel}: ${r.content.slice(0, 300)}`;
-    }).join('\n\n');
+    const referencesText = references
+      .map((r) => {
+        const typeLabel = r.type === 'primary' ? '(VOLLTEXT)' : '(Snippet)';
+        return `[${r.id}] ${r.title} ${typeLabel}: ${r.content.slice(0, 300)}`;
+      })
+      .join('\n\n');
 
     // Enhanced system prompt
     const systemPrompt = `Du bist ein Experte für intelligente Web-Zusammenfassungen. Du erhältst sowohl Volltext-Quellen als auch Snippets.
@@ -101,17 +107,20 @@ ${referencesText}
 
 Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
 
-    const result = await state.aiWorkerPool.processRequest({
-      type: 'web_search_summary',
-      systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-      options: {
-        provider: 'litellm',
-        model: 'gpt-oss:120b',
-        max_tokens: 500,
-        temperature: 0.2
-      }
-    }, state.req);
+    const result = await state.aiWorkerPool.processRequest(
+      {
+        type: 'web_search_summary',
+        systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        options: {
+          provider: 'litellm',
+          model: 'gpt-oss:120b',
+          max_tokens: 500,
+          temperature: 0.2,
+        },
+      },
+      state.req
+    );
 
     if (!result.success) {
       throw new Error(result.error);
@@ -119,7 +128,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
 
     // Build references map for citation validation
     const referencesMap: Record<string, any> = {};
-    references.forEach(ref => {
+    references.forEach((ref) => {
       referencesMap[String(ref.id)] = {
         title: ref.title,
         snippets: [[ref.content]],
@@ -129,7 +138,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
         url: ref.source,
         source_type: 'web',
         similarity_score: 1.0,
-        chunk_index: 0
+        chunk_index: 0,
       };
     });
 
@@ -154,15 +163,14 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
         summaryGenerated: true,
         citationsCount: citations?.length || 0,
         sourcesCount: sources?.length || 0,
-        citationErrors: errors?.length || 0
-      }
+        citationErrors: errors?.length || 0,
+      },
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[WebSearchGraph] Intelligent summary generation error:', errorMessage);
     return {
-      summary: 'Fehler beim Generieren der intelligenten Zusammenfassung.'
+      summary: 'Fehler beim Generieren der intelligenten Zusammenfassung.',
     };
   }
 }

@@ -24,7 +24,7 @@ export async function validateDocumentLimits(
     if (fileSizeMB > maxSizeMB) {
       throw new Error(
         `Das Dokument ist zu groß. Maximale Dateigröße: ${maxSizeMB}MB. ` +
-        `Ihre Datei: ${fileSizeMB.toFixed(1)}MB.`
+          `Ihre Datei: ${fileSizeMB.toFixed(1)}MB.`
       );
     }
 
@@ -36,11 +36,13 @@ export async function validateDocumentLimits(
       if (pageCount > maxPages) {
         throw new Error(
           `Das Dokument hat zu viele Seiten. Maximum: ${maxPages} Seiten. ` +
-          `Ihr Dokument: ${pageCount} Seiten.`
+            `Ihr Dokument: ${pageCount} Seiten.`
         );
       }
 
-      console.log(`[OCRService] Document validation passed: ${pageCount} pages, ${fileSizeMB.toFixed(1)}MB`);
+      console.log(
+        `[OCRService] Document validation passed: ${pageCount} pages, ${fileSizeMB.toFixed(1)}MB`
+      );
       return { pageCount, fileSizeMB };
     }
 
@@ -62,7 +64,9 @@ export function getMediaType(ext: string): string {
   if (e === '.jpg' || e === '.jpeg') return 'image/jpeg';
   if (e === '.webp') return 'image/webp';
   if (e === '.avif') return 'image/avif';
-  if (e === '.docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (e === '.pptx') return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  if (e === '.docx')
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (e === '.pptx')
+    return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
   return 'application/octet-stream';
 }

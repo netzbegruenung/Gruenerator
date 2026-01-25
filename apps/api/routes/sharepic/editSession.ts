@@ -18,7 +18,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     if (!imageData) {
       res.status(400).json({
-        error: 'Image data is required'
+        error: 'Image data is required',
       });
       return;
     }
@@ -29,22 +29,23 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       imageData,
       originalImageData,
       metadata,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     await redisClient.setEx(sessionId, 3600, JSON.stringify(sessionData));
 
-    log.debug(`[EditSession] Stored image data for session: ${sessionId}, hasOriginal: ${!!originalImageData}`);
+    log.debug(
+      `[EditSession] Stored image data for session: ${sessionId}, hasOriginal: ${!!originalImageData}`
+    );
 
     res.json({
       sessionId,
-      expiresIn: 3600
+      expiresIn: 3600,
     } as EditSessionResponse);
-
   } catch (error) {
     log.error('[EditSession] Error storing session data:', error);
     res.status(500).json({
-      error: 'Failed to store edit session data'
+      error: 'Failed to store edit session data',
     });
   }
 });
@@ -55,7 +56,7 @@ router.get('/:sessionId', async (req: Request, res: Response): Promise<void> => 
 
     if (!sessionId) {
       res.status(400).json({
-        error: 'Session ID is required'
+        error: 'Session ID is required',
       });
       return;
     }
@@ -64,26 +65,27 @@ router.get('/:sessionId', async (req: Request, res: Response): Promise<void> => 
 
     if (!sessionDataString || typeof sessionDataString !== 'string') {
       res.status(404).json({
-        error: 'Edit session not found or expired'
+        error: 'Edit session not found or expired',
       });
       return;
     }
 
     const sessionData = JSON.parse(sessionDataString) as EditSessionData;
 
-    log.debug(`[EditSession] Retrieved image data for session: ${sessionId}, hasOriginal: ${!!sessionData.originalImageData}`);
+    log.debug(
+      `[EditSession] Retrieved image data for session: ${sessionId}, hasOriginal: ${!!sessionData.originalImageData}`
+    );
 
     res.json({
       imageData: sessionData.imageData,
       originalImageData: sessionData.originalImageData,
       metadata: sessionData.metadata,
-      createdAt: sessionData.createdAt
+      createdAt: sessionData.createdAt,
     } as EditSessionResponse);
-
   } catch (error) {
     log.error('[EditSession] Error retrieving session data:', error);
     res.status(500).json({
-      error: 'Failed to retrieve edit session data'
+      error: 'Failed to retrieve edit session data',
     });
   }
 });
@@ -94,7 +96,7 @@ router.delete('/:sessionId', async (req: Request, res: Response): Promise<void> 
 
     if (!sessionId) {
       res.status(400).json({
-        error: 'Session ID is required'
+        error: 'Session ID is required',
       });
       return;
     }
@@ -105,13 +107,12 @@ router.delete('/:sessionId', async (req: Request, res: Response): Promise<void> 
 
     res.json({
       deleted: deleted > 0,
-      sessionId
+      sessionId,
     } as EditSessionResponse);
-
   } catch (error) {
     log.error('[EditSession] Error deleting session data:', error);
     res.status(500).json({
-      error: 'Failed to delete edit session data'
+      error: 'Failed to delete edit session data',
     });
   }
 });

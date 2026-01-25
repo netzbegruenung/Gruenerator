@@ -57,7 +57,7 @@ export class BatchProcessor<T = any, R = any> {
       itemsProcessed: 0,
       errors: 0,
       retries: 0,
-      avgBatchTime: 0
+      avgBatchTime: 0,
     };
   }
 
@@ -103,7 +103,7 @@ export class BatchProcessor<T = any, R = any> {
             ...(failedBatch.map((item) => ({
               item,
               error: result.reason.message || 'Batch processing failed',
-              batchIndex: i + index
+              batchIndex: i + index,
             })) as unknown as R[])
           );
         }
@@ -143,7 +143,7 @@ export class BatchProcessor<T = any, R = any> {
               () => reject(new TimeoutError(`Batch processing timeout`, this.timeout)),
               this.timeout
             )
-          )
+          ),
         ]);
 
         const batchTime = Date.now() - batchStartTime;
@@ -201,7 +201,7 @@ export class BatchProcessor<T = any, R = any> {
       itemsProcessed: 0,
       errors: 0,
       retries: 0,
-      avgBatchTime: 0
+      avgBatchTime: 0,
     };
   }
 }
@@ -217,7 +217,7 @@ export class EmbeddingBatchProcessor extends BatchProcessor {
       batchSize: options.batchSize || 5,
       maxConcurrent: options.maxConcurrent || 3,
       timeout: options.timeout || (vectorConfig.getValue('timeouts.embeddingGeneration') as number),
-      ...options
+      ...options,
     });
 
     this.embeddingService = embeddingService;
@@ -235,7 +235,7 @@ export class EmbeddingBatchProcessor extends BatchProcessor {
       return batch.map((query, index) => ({
         query,
         embedding: embeddings[index],
-        dimensions: embeddings[index]?.length || 0
+        dimensions: embeddings[index]?.length || 0,
       }));
     });
   }
@@ -251,7 +251,7 @@ export class ChunkExpansionBatchProcessor extends BatchProcessor {
     super({
       batchSize: options.batchSize || 10,
       maxConcurrent: options.maxConcurrent || 5,
-      ...options
+      ...options,
     });
 
     this.vectorSearchService = vectorSearchService;
@@ -267,7 +267,7 @@ export class ChunkExpansionBatchProcessor extends BatchProcessor {
           this.vectorSearchService.expandSingleChunk(chunk, options).catch((error: Error) => ({
             ...chunk,
             expansion_error: error.message,
-            expanded_content: chunk.chunk_text
+            expanded_content: chunk.chunk_text,
           }))
         )
       );
@@ -295,7 +295,7 @@ export class DatabaseQueryOptimizer {
       queriesExecuted: 0,
       cacheHits: 0,
       avgQueryTime: 0,
-      totalTime: 0
+      totalTime: 0,
     };
   }
 
@@ -320,13 +320,17 @@ export class DatabaseQueryOptimizer {
     }
 
     try {
-      const timeout = options.timeout || (vectorConfig.getValue('timeouts.searchDefault') as number);
+      const timeout =
+        options.timeout || (vectorConfig.getValue('timeouts.searchDefault') as number);
 
       const result = await Promise.race([
         queryFunction(),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new TimeoutError('Database query timeout', timeout)), timeout as number)
-        )
+          setTimeout(
+            () => reject(new TimeoutError('Database query timeout', timeout)),
+            timeout as number
+          )
+        ),
       ]);
 
       const queryTime = Date.now() - startTime;
@@ -398,5 +402,5 @@ export const createBatchProcessor = {
     new EmbeddingBatchProcessor(embeddingService, options),
   chunkExpansion: (vectorSearchService: any, options: BatchProcessorOptions = {}) =>
     new ChunkExpansionBatchProcessor(vectorSearchService, options),
-  databaseOptimizer: (supabaseService: any) => new DatabaseQueryOptimizer(supabaseService)
+  databaseOptimizer: (supabaseService: any) => new DatabaseQueryOptimizer(supabaseService),
 };

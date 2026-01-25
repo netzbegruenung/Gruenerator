@@ -15,10 +15,7 @@ export function HeightPreview({ position }: HeightPreviewProps) {
   return (
     <View style={styles.container}>
       <View
-        style={[
-          styles.subtitleBar,
-          position === 'tief' ? styles.positionLow : styles.positionMid,
-        ]}
+        style={[styles.subtitleBar, position === 'tief' ? styles.positionLow : styles.positionMid]}
       />
     </View>
   );

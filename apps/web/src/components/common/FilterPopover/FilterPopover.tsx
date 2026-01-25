@@ -1,5 +1,6 @@
-import { JSX, useEffect, useState, ReactNode } from 'react';
+import { type JSX, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+
 import useClickOutside from '../../../hooks/useClickOutside';
 import './FilterPopover.css';
 
@@ -12,12 +13,14 @@ interface FilterPopoverProps {
   className?: string;
 }
 
-const FilterPopover = ({ isOpen,
+const FilterPopover = ({
+  isOpen,
   onClose,
   children,
   anchorRef,
-  title = "Filter",
-  className = "" }: FilterPopoverProps): JSX.Element | null => {
+  title = 'Filter',
+  className = '',
+}: FilterPopoverProps): JSX.Element | null => {
   const popoverRef = useClickOutside<HTMLDivElement>(onClose, isOpen);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
@@ -66,7 +69,7 @@ const FilterPopover = ({ isOpen,
       className={`filter-popover ${className}`}
       style={{
         top: `${position.top}px`,
-        left: `${position.left}px`
+        left: `${position.left}px`,
       }}
       role="dialog"
       aria-labelledby="filter-popover-title"
@@ -87,9 +90,7 @@ const FilterPopover = ({ isOpen,
         </button>
       </div>
 
-      <div className="filter-popover-body">
-        {children}
-      </div>
+      <div className="filter-popover-body">{children}</div>
     </div>
   );
 

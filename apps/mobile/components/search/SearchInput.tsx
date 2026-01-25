@@ -1,4 +1,12 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme, Keyboard, TextInput as RNTextInput } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  useColorScheme,
+  Keyboard,
+  TextInput as RNTextInput,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
@@ -11,7 +19,11 @@ interface ExampleQuestion {
 }
 
 const EXAMPLE_QUESTIONS: ExampleQuestion[] = [
-  { icon: '🌍', text: 'Was macht die Grüne Fraktion für den Klimaschutz?', title: 'Grüner Klimaschutz' },
+  {
+    icon: '🌍',
+    text: 'Was macht die Grüne Fraktion für den Klimaschutz?',
+    title: 'Grüner Klimaschutz',
+  },
   { icon: '🏘️', text: 'Grüne Position zum Mietendeckel', title: 'Bezahlbares Wohnen' },
   { icon: '🚲', text: 'Fahrradinfrastruktur in Deutschland', title: 'Bessere Radwege' },
 ];
@@ -47,27 +59,20 @@ export function SearchInput({ onSearch, loading = false, initialQuery = '' }: Se
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.header, { color: theme.text }]}>
-        Was möchtest du herausfinden?
-      </Text>
-      <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Text style={[styles.header, { color: theme.text }]}>Was möchtest du herausfinden?</Text>
+      <View
+        style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      >
         <RNTextInput
           value={query}
           onChangeText={setQuery}
-          placeholder={
-            mode === 'deep'
-              ? 'Thema für Tiefenrecherche...'
-              : 'Suche...'
-          }
+          placeholder={mode === 'deep' ? 'Thema für Tiefenrecherche...' : 'Suche...'}
           multiline
           numberOfLines={3}
           textAlignVertical="top"
           autoCapitalize="sentences"
           autoCorrect={false}
-          style={[
-            styles.input,
-            { color: theme.text },
-          ]}
+          style={[styles.input, { color: theme.text }]}
           placeholderTextColor={theme.textSecondary}
         />
         <View style={styles.actionsRow}>
@@ -84,7 +89,12 @@ export function SearchInput({ onSearch, loading = false, initialQuery = '' }: Se
               size={20}
               color={mode === 'deep' ? colors.primary[600] : theme.textSecondary}
             />
-            <Text style={[styles.modeText, { color: mode === 'deep' ? colors.primary[600] : theme.textSecondary }]}>
+            <Text
+              style={[
+                styles.modeText,
+                { color: mode === 'deep' ? colors.primary[600] : theme.textSecondary },
+              ]}
+            >
               {mode === 'deep' ? 'Tiefenrecherche' : 'Web'}
             </Text>
           </Pressable>
@@ -98,11 +108,7 @@ export function SearchInput({ onSearch, loading = false, initialQuery = '' }: Se
               pressed && { opacity: 0.8 },
             ]}
           >
-            <Ionicons
-              name={loading ? 'hourglass' : 'search'}
-              size={18}
-              color="#fff"
-            />
+            <Ionicons name={loading ? 'hourglass' : 'search'} size={18} color="#fff" />
           </Pressable>
         </View>
       </View>
@@ -129,7 +135,6 @@ export function SearchInput({ onSearch, loading = false, initialQuery = '' }: Se
           </View>
         </View>
       )}
-
     </View>
   );
 }

@@ -51,8 +51,5 @@ export {
 export type { ChunkContextOptions, QdrantClientLike } from './ChunkContext.js';
 
 // Embedding service
-export {
-  EmbeddingService,
-  createEmbeddingService,
-} from './EmbeddingService.js';
+export { EmbeddingService, createEmbeddingService } from './EmbeddingService.js';
 export type { MistralClient } from './EmbeddingService.js';

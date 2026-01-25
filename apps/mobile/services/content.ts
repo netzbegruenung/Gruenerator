@@ -70,10 +70,7 @@ export async function updateTextTitle(textId: string, title: string): Promise<vo
 }
 
 export async function fetchAnweisungenWissen(): Promise<AnweisungenWissen> {
-  const response = await apiRequest<AnweisungenWissen>(
-    'get',
-    '/auth/anweisungen-wissen'
-  );
+  const response = await apiRequest<AnweisungenWissen>('get', '/auth/anweisungen-wissen');
   return response;
 }
 

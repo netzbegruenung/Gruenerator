@@ -11,30 +11,19 @@ import type {
   TextProcessingResult,
   UrlProcessingResult,
   ChunkingOptions,
-  ChunkAndEmbedResult
+  ChunkAndEmbedResult,
 } from './types.js';
 
 // Import module functions
-import {
-  extractTextFromFile,
-  generateContentPreview
-} from './textExtraction.js';
+import { extractTextFromFile, generateContentPreview } from './textExtraction.js';
 
-import {
-  chunkAndEmbedText
-} from './chunkingPipeline.js';
+import { chunkAndEmbedText } from './chunkingPipeline.js';
 
-import {
-  processFileUpload
-} from './fileProcessing.js';
+import { processFileUpload } from './fileProcessing.js';
 
-import {
-  processTextContent
-} from './textProcessing.js';
+import { processTextContent } from './textProcessing.js';
 
-import {
-  processUrlContent
-} from './urlProcessing.js';
+import { processUrlContent } from './urlProcessing.js';
 
 /**
  * Main DocumentProcessingService class

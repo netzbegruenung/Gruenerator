@@ -15,7 +15,8 @@ import { redisClient } from '../../utils/redis/index.js';
 
 const log = createLogger('remotion-export');
 
-const INTERNAL_VIDEO_BASE_URL = process.env.INTERNAL_API_URL || 'http://localhost:3001/api/subtitler/internal-video';
+const INTERNAL_VIDEO_BASE_URL =
+  process.env.INTERNAL_API_URL || 'http://localhost:3001/api/subtitler/internal-video';
 
 interface ClipData {
   id?: string;
@@ -68,29 +69,35 @@ function getInternalVideoUrl(uploadId: string): string {
 }
 
 async function processRemotionExport(params: ExportParams): Promise<{ exportToken: string }> {
-  const {
-    uploadId,
-    projectId,
-  } = params;
+  const { uploadId, projectId } = params;
 
   const exportToken = uuidv4();
 
-  log.info(`[${exportToken}] Starting Remotion export: uploadId=${uploadId}, projectId=${projectId}`);
+  log.info(
+    `[${exportToken}] Starting Remotion export: uploadId=${uploadId}, projectId=${projectId}`
+  );
 
-  await redisClient.set(`export:${exportToken}`, JSON.stringify({
-    status: 'starting',
-    progress: 0,
-    message: 'Initializing export...'
-  }), { EX: 3600 });
+  await redisClient.set(
+    `export:${exportToken}`,
+    JSON.stringify({
+      status: 'starting',
+      progress: 0,
+      message: 'Initializing export...',
+    }),
+    { EX: 3600 }
+  );
 
-  processRemotionExportAsync(exportToken, params).catch(error => {
+  processRemotionExportAsync(exportToken, params).catch((error) => {
     log.error(`[${exportToken}] Async export failed: ${error.message}`);
   });
 
   return { exportToken };
 }
 
-async function processRemotionExportAsync(exportToken: string, params: ExportParams): Promise<RenderResult> {
+async function processRemotionExportAsync(
+  exportToken: string,
+  params: ExportParams
+): Promise<RenderResult> {
   const {
     uploadId,
     clips: frontendClips = {},
@@ -98,17 +105,21 @@ async function processRemotionExportAsync(exportToken: string, params: ExportPar
     subtitles = '',
     stylePreference = 'shadow',
     textOverlays = [],
-    maxResolution = null
+    maxResolution = null,
   } = params;
 
   const segments = [...inputSegments];
 
   try {
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'exporting',
-      progress: 2,
-      message: 'Resolving video sources...'
-    }), { EX: 3600 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'exporting',
+        progress: 2,
+        message: 'Resolving video sources...',
+      }),
+      { EX: 3600 }
+    );
 
     const resolvedClips: Record<string, ClipData> = {};
     let videoWidth = 1920;
@@ -126,7 +137,7 @@ async function processRemotionExportAsync(exportToken: string, params: ExportPar
           filePath = getFilePathFromUploadId(uploadId);
         }
 
-        if (filePath && await checkFileExists(filePath)) {
+        if (filePath && (await checkFileExists(filePath))) {
           const metadata = await getVideoMetadata(filePath);
           const clipUploadId = clipData.uploadId || uploadId;
 
@@ -136,7 +147,7 @@ async function processRemotionExportAsync(exportToken: string, params: ExportPar
             url: getInternalVideoUrl(clipUploadId!),
             width: metadata.width,
             height: metadata.height,
-            fps: 30
+            fps: 30,
           };
 
           if (Object.keys(resolvedClips).length === 1) {
@@ -150,12 +161,12 @@ async function processRemotionExportAsync(exportToken: string, params: ExportPar
     } else if (uploadId) {
       const filePath = getFilePathFromUploadId(uploadId);
 
-      if (!await checkFileExists(filePath)) {
+      if (!(await checkFileExists(filePath))) {
         throw new Error('Video file not found');
       }
 
       const metadata = await getVideoMetadata(filePath);
-      originalFilename = await getOriginalFilename(uploadId) || 'video.mp4';
+      originalFilename = (await getOriginalFilename(uploadId)) || 'video.mp4';
 
       videoWidth = metadata.width;
       videoHeight = metadata.height;
@@ -168,7 +179,7 @@ async function processRemotionExportAsync(exportToken: string, params: ExportPar
         duration: parseFloat(String(metadata.duration)) || 0,
         width: metadata.width,
         height: metadata.height,
-        fps: 30
+        fps: 30,
       };
 
       if (segments.length === 0) {
@@ -176,10 +187,10 @@ async function processRemotionExportAsync(exportToken: string, params: ExportPar
           id: 1,
           clipId: defaultClipId,
           start: 0,
-          end: parseFloat(String(metadata.duration)) || 0
+          end: parseFloat(String(metadata.duration)) || 0,
         });
       } else {
-        segments.forEach(seg => {
+        segments.forEach((seg) => {
           if (!seg.clipId) {
             seg.clipId = defaultClipId;
           }
@@ -209,7 +220,9 @@ async function processRemotionExportAsync(exportToken: string, params: ExportPar
         targetWidth = targetWidth % 2 === 0 ? targetWidth : targetWidth - 1;
         targetHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight - 1;
 
-        log.info(`[${exportToken}] Scaling from ${videoWidth}x${videoHeight} to ${targetWidth}x${targetHeight}`);
+        log.info(
+          `[${exportToken}] Scaling from ${videoWidth}x${videoHeight} to ${targetWidth}x${targetHeight}`
+        );
       }
     }
 
@@ -226,30 +239,37 @@ async function processRemotionExportAsync(exportToken: string, params: ExportPar
       videoHeight: targetHeight,
       fps,
       exportToken,
-      outputFilename
+      outputFilename,
     });
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'complete',
-      progress: 100,
-      outputPath: result.outputPath,
-      originalFilename,
-      fileSize: result.fileSize,
-      renderTime: result.renderTime
-    }), { EX: 3600 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'complete',
+        progress: 100,
+        outputPath: result.outputPath,
+        originalFilename,
+        fileSize: result.fileSize,
+        renderTime: result.renderTime,
+      }),
+      { EX: 3600 }
+    );
 
     log.info(`[${exportToken}] Export complete: ${result.outputPath}`);
 
     return result;
-
   } catch (error: any) {
     log.error(`[${exportToken}] Export failed: ${error.message}`);
 
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'error',
-      progress: 0,
-      error: error.message || 'Export failed'
-    }), { EX: 3600 });
+    await redisClient.set(
+      `export:${exportToken}`,
+      JSON.stringify({
+        status: 'error',
+        progress: 0,
+        error: error.message || 'Export failed',
+      }),
+      { EX: 3600 }
+    );
 
     throw error;
   }

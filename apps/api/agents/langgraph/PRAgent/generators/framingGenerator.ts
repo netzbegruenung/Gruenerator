@@ -41,20 +41,23 @@ Entwickle das strategische Framing für dieses Thema.`;
     systemRole,
     request: userMessage,
     constraints: 'Antwort: 1-2 kompakte Absätze, maximal 800 Zeichen.',
-    formatting: MARKDOWN_FORMATTING_INSTRUCTIONS
+    formatting: MARKDOWN_FORMATTING_INSTRUCTIONS,
   });
 
-  const aiResult = await req.app.locals.aiWorkerPool.processRequest({
-    type: 'social',
-    usePrivacyMode: request.usePrivacyMode || false,
-    systemPrompt: promptResult.system,
-    messages: promptResult.messages,
-    options: {
-      max_tokens: 600,
-      temperature: 0.7,
-      top_p: 0.9
-    }
-  }, req);
+  const aiResult = await req.app.locals.aiWorkerPool.processRequest(
+    {
+      type: 'social',
+      usePrivacyMode: request.usePrivacyMode || false,
+      systemPrompt: promptResult.system,
+      messages: promptResult.messages,
+      options: {
+        max_tokens: 600,
+        temperature: 0.7,
+        top_p: 0.9,
+      },
+    },
+    req
+  );
 
   return aiResult.content || aiResult.data?.content || '';
 }

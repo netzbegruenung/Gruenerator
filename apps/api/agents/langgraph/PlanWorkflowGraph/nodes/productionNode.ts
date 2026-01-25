@@ -40,7 +40,9 @@ export async function productionNode(state: PlanWorkflowState): Promise<Producti
     // Auto-determine approved plan (revised or original)
     const approvedPlan = revisedPlanData?.revisedPlan || planData.originalPlan;
 
-    console.log(`[PlanWorkflow] Using ${revisedPlanData ? 'revised' : 'original'} plan for production`);
+    console.log(
+      `[PlanWorkflow] Using ${revisedPlanData ? 'revised' : 'original'} plan for production`
+    );
 
     // Load production prompt configuration
     const promptConfigData = await loadPromptConfig(promptConfig.productionPrompt);
@@ -53,32 +55,35 @@ export async function productionNode(state: PlanWorkflowState): Promise<Producti
         gliederung: input.gliederung,
         requestType: input.subType || input.generatorType,
         locale: input.locale || 'de-DE',
-        platforms: input.platforms // For PR generator
+        platforms: input.platforms, // For PR generator
       },
       knowledge: [
         `## Genehmigter Strategieplan\n${approvedPlan}`,
         ...(enrichedState?.webSearchResults || []),
         ...(enrichedState?.knowledgeBase || []),
-        ...(enrichedState?.greenFraming || [])
+        ...(enrichedState?.greenFraming || []),
       ],
       documents: enrichedState?.documents || [],
-      enrichmentMetadata: enrichedState?.enrichmentMetadata
+      enrichmentMetadata: enrichedState?.enrichmentMetadata,
     };
 
     // Assemble full prompt
     const assembledPrompt = await assemblePromptGraphAsync(promptContext);
 
     // Generate production content via AI worker pool
-    const aiResponse = await input.aiWorkerPool.processRequest({
-      type: `${state.generatorType}_production`,
-      usePrivacyMode: input.usePrivacyMode || false,
-      systemPrompt: assembledPrompt.system,
-      messages: assembledPrompt.messages as never,
-      options: {
-        max_tokens: promptConfigData.options?.max_tokens || 8000,
-        temperature: promptConfigData.options?.temperature || 0.7
-      }
-    }, input.req);
+    const aiResponse = await input.aiWorkerPool.processRequest(
+      {
+        type: `${state.generatorType}_production`,
+        usePrivacyMode: input.usePrivacyMode || false,
+        systemPrompt: assembledPrompt.system,
+        messages: assembledPrompt.messages as never,
+        options: {
+          max_tokens: promptConfigData.options?.max_tokens || 8000,
+          temperature: promptConfigData.options?.temperature || 0.7,
+        },
+      },
+      input.req
+    );
 
     const productionTimeMs = Date.now() - startTime;
 
@@ -91,8 +96,8 @@ export async function productionNode(state: PlanWorkflowState): Promise<Producti
         executionTimeMs: productionTimeMs,
         aiCallsCount: 1,
         approvedPlanUsed: revisedPlanData ? 'revised' : 'original',
-        generatorType: state.generatorType
-      }
+        generatorType: state.generatorType,
+      },
     };
 
     return {
@@ -101,14 +106,14 @@ export async function productionNode(state: PlanWorkflowState): Promise<Producti
       currentPhase: 'completed',
       phasesExecuted: [...state.phasesExecuted, 'production'],
       totalAICalls: state.totalAICalls + 1,
-      success: true
+      success: true,
     };
   } catch (error: any) {
     console.error('[PlanWorkflow] Production generation error:', error);
     return {
       error: `Production generation failed: ${error.message}`,
       currentPhase: 'error',
-      success: false
+      success: false,
     };
   }
 }

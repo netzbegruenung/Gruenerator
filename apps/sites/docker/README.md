@@ -13,11 +13,11 @@ Self-hosted Docker deployment for the Gruenerator Sites app. Optimized for **Coo
 
 ### 2. Configure Build Settings
 
-| Setting | Value |
-|---------|-------|
+| Setting                 | Value                          |
+| ----------------------- | ------------------------------ |
 | **Dockerfile Location** | `apps/sites/docker/Dockerfile` |
-| **Build Context** | `/` (repository root) |
-| **Port** | `3000` |
+| **Build Context**       | `/` (repository root)          |
+| **Port**                | `3000`                         |
 
 ### 3. Add Environment Variables
 
@@ -27,10 +27,10 @@ In Coolify's **Environment Variables** section:
 API_BASE_URL=https://your-api.gruenerator.de
 ```
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `API_BASE_URL` | **Yes** | URL of your Gruenerator API backend |
-| `PORT` | No | Coolify sets this automatically (default: 3000) |
+| Variable       | Required | Description                                     |
+| -------------- | -------- | ----------------------------------------------- |
+| `API_BASE_URL` | **Yes**  | URL of your Gruenerator API backend             |
+| `PORT`         | No       | Coolify sets this automatically (default: 3000) |
 
 ### 4. Deploy
 
@@ -71,11 +71,13 @@ docker-compose up --build
 ```
 
 **Container includes:**
+
 - Nginx serving the React SPA
 - Reverse proxy for `/api/*` and `/auth/*` routes
 - Health check at `/health`
 
 **External (not in container):**
+
 - Your existing Gruenerator API
 - Keycloak authentication
 - PostgreSQL database
@@ -84,10 +86,10 @@ docker-compose up --build
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_BASE_URL` | `http://localhost:3001` | Your Gruenerator API URL |
-| `PORT` | `3000` | Port nginx listens on (Coolify sets this) |
+| Variable       | Default                 | Description                               |
+| -------------- | ----------------------- | ----------------------------------------- |
+| `API_BASE_URL` | `http://localhost:3001` | Your Gruenerator API URL                  |
+| `PORT`         | `3000`                  | Port nginx listens on (Coolify sets this) |
 
 ---
 
@@ -149,6 +151,7 @@ docker run -p 3000:3000 \
 In Coolify, simply push to your Git repository and Coolify will automatically rebuild and deploy.
 
 For manual updates:
+
 ```bash
 docker-compose down
 docker-compose up --build -d

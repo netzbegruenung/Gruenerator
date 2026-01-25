@@ -4,7 +4,14 @@ import { reelApi } from '../services/reel';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { getErrorMessage } from '../utils/errors';
 
-export type ReelStatus = 'idle' | 'uploading' | 'processing' | 'downloading' | 'complete' | 'error' | 'transcribing';
+export type ReelStatus =
+  | 'idle'
+  | 'uploading'
+  | 'processing'
+  | 'downloading'
+  | 'complete'
+  | 'error'
+  | 'transcribing';
 
 export interface ReelProcessingState {
   status: ReelStatus;
@@ -68,7 +75,7 @@ export function useReelProcessing() {
 
   const updateState = useCallback((updates: Partial<ReelProcessingState>) => {
     if (isMountedRef.current) {
-      setState(prev => ({ ...prev, ...updates }));
+      setState((prev) => ({ ...prev, ...updates }));
     }
   }, []);
 
@@ -80,118 +87,133 @@ export function useReelProcessing() {
     setState(initialState);
   }, []);
 
-  const handleError = useCallback((errorKey: keyof typeof ERROR_MESSAGES, details?: string) => {
-    console.error(`[ReelProcessing] Error: ${errorKey}`, details);
-    updateState({
-      status: 'error',
-      error: ERROR_MESSAGES[errorKey],
-    });
-  }, [updateState]);
+  const handleError = useCallback(
+    (errorKey: keyof typeof ERROR_MESSAGES, details?: string) => {
+      console.error(`[ReelProcessing] Error: ${errorKey}`, details);
+      updateState({
+        status: 'error',
+        error: ERROR_MESSAGES[errorKey],
+      });
+    },
+    [updateState]
+  );
 
-  const saveToGallery = useCallback(async (videoUri: string): Promise<boolean> => {
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        handleError('permission_denied');
+  const saveToGallery = useCallback(
+    async (videoUri: string): Promise<boolean> => {
+      try {
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
+          handleError('permission_denied');
+          return false;
+        }
+
+        await MediaLibrary.saveToLibraryAsync(videoUri);
+        updateState({ savedToGallery: true });
+        return true;
+      } catch (error: unknown) {
+        console.error('[ReelProcessing] Save to gallery failed:', getErrorMessage(error));
+        handleError('save_failed');
         return false;
       }
+    },
+    [handleError, updateState]
+  );
 
-      await MediaLibrary.saveToLibraryAsync(videoUri);
-      updateState({ savedToGallery: true });
-      return true;
-    } catch (error: unknown) {
-      console.error('[ReelProcessing] Save to gallery failed:', getErrorMessage(error));
-      handleError('save_failed');
-      return false;
-    }
-  }, [handleError, updateState]);
+  const pollProgress = useCallback(
+    async (uploadId: string) => {
+      try {
+        const progress = await reelApi.getAutoProgress(uploadId);
 
-  const pollProgress = useCallback(async (uploadId: string) => {
-    try {
-      const progress = await reelApi.getAutoProgress(uploadId);
+        if (!isMountedRef.current) return;
 
-      if (!isMountedRef.current) return;
+        updateState({
+          processingStage: progress.stage,
+          stageName: progress.stageName || PROCESSING_STAGES[progress.stage]?.name || '',
+          stageProgress: progress.stageProgress,
+          overallProgress: progress.overallProgress,
+        });
 
-      updateState({
-        processingStage: progress.stage,
-        stageName: progress.stageName || PROCESSING_STAGES[progress.stage]?.name || '',
-        stageProgress: progress.stageProgress,
-        overallProgress: progress.overallProgress,
-      });
+        if (progress.status === 'complete') {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
 
-      if (progress.status === 'complete') {
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
+          updateState({ status: 'downloading' });
+
+          try {
+            const localVideoUri = await reelApi.downloadVideo(uploadId);
+
+            if (!isMountedRef.current) return;
+
+            updateState({
+              status: 'complete',
+              videoUri: localVideoUri,
+            });
+
+            await saveToGallery(localVideoUri);
+          } catch (downloadError: unknown) {
+            handleError('download_failed', getErrorMessage(downloadError));
+          }
+        } else if (progress.status === 'error') {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          handleError('processing_failed', progress.error || undefined);
         }
-
-        updateState({ status: 'downloading' });
-
-        try {
-          const localVideoUri = await reelApi.downloadVideo(uploadId);
-
-          if (!isMountedRef.current) return;
-
-          updateState({
-            status: 'complete',
-            videoUri: localVideoUri,
-          });
-
-          await saveToGallery(localVideoUri);
-        } catch (downloadError: unknown) {
-          handleError('download_failed', getErrorMessage(downloadError));
-        }
-      } else if (progress.status === 'error') {
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-        }
-        handleError('processing_failed', progress.error || undefined);
+      } catch (error: unknown) {
+        console.error('[ReelProcessing] Polling error:', getErrorMessage(error));
       }
-    } catch (error: unknown) {
-      console.error('[ReelProcessing] Polling error:', getErrorMessage(error));
-    }
-  }, [handleError, saveToGallery, updateState]);
+    },
+    [handleError, saveToGallery, updateState]
+  );
 
-  const startPolling = useCallback((uploadId: string) => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-    }
+  const startPolling = useCallback(
+    (uploadId: string) => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
 
-    pollProgress(uploadId);
-
-    pollingRef.current = setInterval(() => {
       pollProgress(uploadId);
-    }, 2000);
-  }, [pollProgress]);
 
-  const startProcessing = useCallback(async (fileUri: string) => {
-    reset();
-    updateState({ status: 'uploading' });
+      pollingRef.current = setInterval(() => {
+        pollProgress(uploadId);
+      }, 2000);
+    },
+    [pollProgress]
+  );
 
-    try {
-      const uploadId = await reelApi.uploadVideo(fileUri, (progress) => {
-        if (isMountedRef.current) {
-          updateState({ uploadProgress: progress });
-        }
-      });
+  const startProcessing = useCallback(
+    async (fileUri: string) => {
+      reset();
+      updateState({ status: 'uploading' });
 
-      if (!isMountedRef.current) return;
+      try {
+        const uploadId = await reelApi.uploadVideo(fileUri, (progress) => {
+          if (isMountedRef.current) {
+            updateState({ uploadProgress: progress });
+          }
+        });
 
-      updateState({
-        status: 'processing',
-        uploadId,
-        uploadProgress: 100,
-      });
+        if (!isMountedRef.current) return;
 
-      await reelApi.startAutoProcess(uploadId, user?.id);
+        updateState({
+          status: 'processing',
+          uploadId,
+          uploadProgress: 100,
+        });
 
-      startPolling(uploadId);
-    } catch (error: unknown) {
-      console.error('[ReelProcessing] Start processing error:', getErrorMessage(error));
-      handleError('upload_failed', getErrorMessage(error));
-    }
-  }, [handleError, reset, startPolling, updateState, user?.id]);
+        await reelApi.startAutoProcess(uploadId, user?.id);
+
+        startPolling(uploadId);
+      } catch (error: unknown) {
+        console.error('[ReelProcessing] Start processing error:', getErrorMessage(error));
+        handleError('upload_failed', getErrorMessage(error));
+      }
+    },
+    [handleError, reset, startPolling, updateState, user?.id]
+  );
 
   const cancelProcessing = useCallback(() => {
     if (pollingRef.current) {
@@ -201,74 +223,83 @@ export function useReelProcessing() {
     reset();
   }, [reset]);
 
-  const pollManualResult = useCallback(async (uploadId: string) => {
-    try {
-      const result = await reelApi.getManualResult(uploadId);
+  const pollManualResult = useCallback(
+    async (uploadId: string) => {
+      try {
+        const result = await reelApi.getManualResult(uploadId);
 
-      if (!isMountedRef.current) return;
+        if (!isMountedRef.current) return;
 
-      if (result.status === 'complete' && result.data) {
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
+        if (result.status === 'complete' && result.data) {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+
+          updateState({
+            status: 'complete',
+            transcribedSubtitles: result.data,
+          });
+        } else if (result.status === 'error') {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          handleError('processing_failed');
         }
+      } catch (error: unknown) {
+        console.error('[ReelProcessing] Manual polling error:', getErrorMessage(error));
+      }
+    },
+    [handleError, updateState]
+  );
+
+  const startManualPolling = useCallback(
+    (uploadId: string) => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+
+      pollManualResult(uploadId);
+
+      pollingRef.current = setInterval(() => {
+        pollManualResult(uploadId);
+      }, 2000);
+    },
+    [pollManualResult]
+  );
+
+  const startManualProcessing = useCallback(
+    async (fileUri: string) => {
+      reset();
+      updateState({ status: 'uploading' });
+
+      try {
+        const uploadId = await reelApi.uploadVideo(fileUri, (progress) => {
+          if (isMountedRef.current) {
+            updateState({ uploadProgress: progress });
+          }
+        });
+
+        if (!isMountedRef.current) return;
 
         updateState({
-          status: 'complete',
-          transcribedSubtitles: result.data,
+          status: 'transcribing',
+          uploadId,
+          uploadProgress: 100,
+          stageName: 'Untertitel werden grüneriert...',
         });
-      } else if (result.status === 'error') {
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-        }
-        handleError('processing_failed');
+
+        await reelApi.startManualProcess(uploadId);
+
+        startManualPolling(uploadId);
+      } catch (error: unknown) {
+        console.error('[ReelProcessing] Start manual processing error:', getErrorMessage(error));
+        handleError('upload_failed', getErrorMessage(error));
       }
-    } catch (error: unknown) {
-      console.error('[ReelProcessing] Manual polling error:', getErrorMessage(error));
-    }
-  }, [handleError, updateState]);
-
-  const startManualPolling = useCallback((uploadId: string) => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-    }
-
-    pollManualResult(uploadId);
-
-    pollingRef.current = setInterval(() => {
-      pollManualResult(uploadId);
-    }, 2000);
-  }, [pollManualResult]);
-
-  const startManualProcessing = useCallback(async (fileUri: string) => {
-    reset();
-    updateState({ status: 'uploading' });
-
-    try {
-      const uploadId = await reelApi.uploadVideo(fileUri, (progress) => {
-        if (isMountedRef.current) {
-          updateState({ uploadProgress: progress });
-        }
-      });
-
-      if (!isMountedRef.current) return;
-
-      updateState({
-        status: 'transcribing',
-        uploadId,
-        uploadProgress: 100,
-        stageName: 'Untertitel werden grüneriert...',
-      });
-
-      await reelApi.startManualProcess(uploadId);
-
-      startManualPolling(uploadId);
-    } catch (error: unknown) {
-      console.error('[ReelProcessing] Start manual processing error:', getErrorMessage(error));
-      handleError('upload_failed', getErrorMessage(error));
-    }
-  }, [handleError, reset, startManualPolling, updateState]);
+    },
+    [handleError, reset, startManualPolling, updateState]
+  );
 
   return {
     ...state,

@@ -7,7 +7,11 @@ import { useCallback, useRef } from 'react';
 import { useDebouncedCallback } from './useDebounced';
 import { useImageStudio } from '@gruenerator/shared/image-studio';
 import { useImageStudioStore } from '../stores/imageStudioStore';
-import type { ImageStudioTemplateType, DreizeilenModificationParams, ModificationParams } from '@gruenerator/shared/image-studio';
+import type {
+  ImageStudioTemplateType,
+  DreizeilenModificationParams,
+  ModificationParams,
+} from '@gruenerator/shared/image-studio';
 
 interface UseEditRegenerationOptions {
   debounceMs?: number;

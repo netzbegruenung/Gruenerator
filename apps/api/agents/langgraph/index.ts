@@ -15,7 +15,7 @@ export {
   buildConstraints,
   getAIOptions,
   buildPlatformGuidelines,
-  getTaskInstructions
+  getTaskInstructions,
 } from './PromptProcessor.js';
 
 // Re-export types
@@ -26,7 +26,7 @@ export type {
   AIOptions,
   AssembledPrompt,
   TemplateContext,
-  ProcessingResult
+  ProcessingResult,
 } from './types/index.js';
 
 // Re-export prompt builders
@@ -34,5 +34,5 @@ export {
   buildPlannerPromptGrundsatz,
   buildPlannerPromptGeneral,
   buildDraftPromptGrundsatz,
-  buildDraftPromptGeneral
+  buildDraftPromptGeneral,
 } from './prompts.js';

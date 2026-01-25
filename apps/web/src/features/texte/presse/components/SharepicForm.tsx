@@ -1,10 +1,11 @@
+import { motion, AnimatePresence } from 'motion/react';
 import React, { forwardRef, useImperativeHandle, useState, useCallback, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { motion, AnimatePresence } from 'motion/react';
 import ReactSelect from 'react-select';
-import SmartInput from '../../../../components/common/Form/SmartInput';
-import FormFieldWrapper from '../../../../components/common/Form/Input/FormFieldWrapper';
+
 import FileUpload from '../../../../components/common/FileUpload';
+import FormFieldWrapper from '../../../../components/common/Form/Input/FormFieldWrapper';
+import SmartInput from '../../../../components/common/Form/SmartInput';
 
 export interface SharepicFormData {
   sharepicType: string;
@@ -31,28 +32,14 @@ export interface SharepicFormRef {
 }
 
 const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
-  (
-    {
-      isVisible,
-      sharepicTypeOptions,
-      loading,
-      success
-    },
-    ref
-  ) => {
-    const {
-      control,
-      getValues,
-      setValue,
-      reset,
-      watch
-    } = useForm<SharepicFormData>({
+  ({ isVisible, sharepicTypeOptions, loading, success }, ref) => {
+    const { control, getValues, setValue, reset, watch } = useForm<SharepicFormData>({
       defaultValues: {
         sharepicType: 'default',
         zitatAuthor: '',
-        uploadedImage: null
+        uploadedImage: null,
       },
-      shouldUnregister: false
+      shouldUnregister: false,
     });
 
     const watchSharepicType = watch('sharepicType');
@@ -65,21 +52,24 @@ const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
       }
     }, [uploadedImage]);
 
-    const handleFileChange = useCallback((file: File | null) => {
-      setFileObject(file);
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          setUploadedImage(result);
-          setValue('uploadedImage', result);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setUploadedImage(null);
-        setValue('uploadedImage', null);
-      }
-    }, [setValue]);
+    const handleFileChange = useCallback(
+      (file: File | null) => {
+        setFileObject(file);
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            setUploadedImage(result);
+            setValue('uploadedImage', result);
+          };
+          reader.readAsDataURL(file);
+        } else {
+          setUploadedImage(null);
+          setValue('uploadedImage', null);
+        }
+      },
+      [setValue]
+    );
 
     useImperativeHandle(
       ref,
@@ -89,7 +79,7 @@ const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
           return {
             sharepicType: formData.sharepicType || 'default',
             zitatAuthor: formData.zitatAuthor || '',
-            uploadedImage: formData.uploadedImage || null
+            uploadedImage: formData.uploadedImage || null,
           };
         },
         resetForm: (data?: Partial<SharepicFormData>) => {
@@ -100,7 +90,7 @@ const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
           }
           setUploadedImage(null);
           setFileObject(null);
-        }
+        },
       }),
       [getValues, reset]
     );
@@ -122,7 +112,7 @@ const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
           type: 'spring',
           stiffness: 400,
           damping: 25,
-          duration: 0.25
+          duration: 0.25,
         }}
       >
         <h4>Sharepic:</h4>
@@ -144,7 +134,7 @@ const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
                 className={`react-select ${error ? 'error' : ''}`.trim()}
                 classNamePrefix="react-select"
                 options={sharepicTypeOptions}
-                value={sharepicTypeOptions.find(option => option.value === field.value)}
+                value={sharepicTypeOptions.find((option) => option.value === field.value)}
                 onChange={(selectedOption) => {
                   field.onChange(selectedOption ? selectedOption.value : 'default');
                 }}

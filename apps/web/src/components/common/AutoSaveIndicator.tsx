@@ -1,6 +1,7 @@
 import React from 'react';
 import { HiCheckCircle, HiExclamationCircle } from 'react-icons/hi';
 import { ImSpinner2 } from 'react-icons/im';
+
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { formatAutoSaveTime } from '../../utils/dateFormatter';
 import '../../assets/styles/components/common/auto-save-indicator.css';
@@ -18,10 +19,10 @@ export interface AutoSaveIndicatorProps {
 const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
   componentName,
   className = '',
-  onRetry
+  onRetry,
 }) => {
-  const status = useGeneratedTextStore(state => state.getAutoSaveStatus(componentName));
-  const lastSaved = useGeneratedTextStore(state => state.getLastAutoSaveTime(componentName));
+  const status = useGeneratedTextStore((state) => state.getAutoSaveStatus(componentName));
+  const lastSaved = useGeneratedTextStore((state) => state.getLastAutoSaveTime(componentName));
 
   // Don't render anything in idle state
   if (status === 'idle') {
@@ -41,7 +42,10 @@ const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
       case 'saved':
         return (
           <>
-            <HiCheckCircle className="auto-save-indicator__icon auto-save-indicator__icon--success" aria-hidden="true" />
+            <HiCheckCircle
+              className="auto-save-indicator__icon auto-save-indicator__icon--success"
+              aria-hidden="true"
+            />
             <span className="auto-save-indicator__text">
               Gespeichert {lastSaved ? formatAutoSaveTime(lastSaved) : ''}
             </span>
@@ -51,7 +55,10 @@ const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
       case 'error':
         return (
           <>
-            <HiExclamationCircle className="auto-save-indicator__icon auto-save-indicator__icon--error" aria-hidden="true" />
+            <HiExclamationCircle
+              className="auto-save-indicator__icon auto-save-indicator__icon--error"
+              aria-hidden="true"
+            />
             <span className="auto-save-indicator__text">Fehler beim Speichern</span>
             {onRetry && (
               <button

@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
-import { Controller, Control } from 'react-hook-form';
-import type { ActionMeta, SingleValue, MultiValue } from 'react-select';
-import { useRecentValues } from '../../../hooks/useRecentValues';
-import { FormInput } from './Input';
-import EnhancedSelect from '../EnhancedSelect/EnhancedSelect';
-import type { EnhancedSelectOption } from '../EnhancedSelect/EnhancedSelect';
+import { Controller, type Control } from 'react-hook-form';
+
 import { useLazyAuth } from '../../../hooks/useAuth';
+import { useRecentValues } from '../../../hooks/useRecentValues';
+import EnhancedSelect from '../EnhancedSelect/EnhancedSelect';
+
+import { FormInput } from './Input';
+
+
+import type { EnhancedSelectOption } from '../EnhancedSelect/EnhancedSelect';
+import type { ActionMeta, SingleValue, MultiValue } from 'react-select';
+
 
 interface SmartInputProps {
   fieldType: string;
@@ -66,33 +71,45 @@ const SmartInput: React.FC<SmartInputProps> = ({
 }) => {
   const { isAuthenticated } = useLazyAuth();
 
-  const {
-    recentValues,
-    isLoading,
-    saveRecentValue,
-    hasRecentValue
-  } = useRecentValues(fieldType, {
+  const { recentValues, isLoading, saveRecentValue, hasRecentValue } = useRecentValues(fieldType, {
     limit: maxRecentValues,
-    autoSave: false
+    autoSave: false,
   });
 
   const handleSaveValue = useCallback(async () => {
-    if (isAuthenticated && shouldSave && onSubmitSuccess && typeof onSubmitSuccess === 'string' && onSubmitSuccess.trim()) {
+    if (
+      isAuthenticated &&
+      shouldSave &&
+      onSubmitSuccess &&
+      typeof onSubmitSuccess === 'string' &&
+      onSubmitSuccess.trim()
+    ) {
       const valueToSave = onSubmitSuccess.trim();
 
       if (!hasRecentValue(valueToSave)) {
         try {
           await saveRecentValue(valueToSave, formName);
-          console.log(`[SmartInput] Saved recent value for ${fieldType}:`, valueToSave.substring(0, 50) + '...');
+          console.log(
+            `[SmartInput] Saved recent value for ${fieldType}:`,
+            valueToSave.substring(0, 50) + '...'
+          );
         } catch (error) {
           console.error(`[SmartInput] Failed to save recent value for ${fieldType}:`, error);
         }
       }
     }
-  }, [isAuthenticated, shouldSave, onSubmitSuccess, hasRecentValue, saveRecentValue, formName, fieldType]);
+  }, [
+    isAuthenticated,
+    shouldSave,
+    onSubmitSuccess,
+    hasRecentValue,
+    saveRecentValue,
+    formName,
+    fieldType,
+  ]);
 
   useEffect(() => {
-    handleSaveValue();
+    void handleSaveValue();
   }, [handleSaveValue]);
 
   useEffect(() => {
@@ -101,7 +118,7 @@ const SmartInput: React.FC<SmartInputProps> = ({
       if (!currentValue) {
         setValue(name, recentValues[0], {
           shouldValidate: false,
-          shouldDirty: false
+          shouldDirty: false,
         });
       }
     }
@@ -113,10 +130,10 @@ const SmartInput: React.FC<SmartInputProps> = ({
       label: val,
       tag: {
         label: '✓',
-        variant: 'custom'
+        variant: 'custom',
       },
       __isRecentValue: true,
-      __recentIndex: index
+      __recentIndex: index,
     }));
   }, [recentValues]);
 
@@ -147,7 +164,13 @@ const SmartInput: React.FC<SmartInputProps> = ({
       render={({ field, fieldState: { error } }) => {
         const currentValue = field.value as string | undefined;
         const selectedValue: SingleValue<EnhancedSelectOption> = currentValue
-          ? { value: currentValue, label: currentValue, tag: { label: '', variant: '' }, __isRecentValue: false, __recentIndex: -1 }
+          ? {
+              value: currentValue,
+              label: currentValue,
+              tag: { label: '', variant: '' },
+              __isRecentValue: false,
+              __recentIndex: -1,
+            }
           : null;
 
         return (
@@ -161,7 +184,10 @@ const SmartInput: React.FC<SmartInputProps> = ({
             enableTags={true}
             options={recentOptions}
             isLoading={isLoading}
-            onChange={(newValue: MultiValue<EnhancedSelectOption> | SingleValue<EnhancedSelectOption>, _actionMeta: ActionMeta<EnhancedSelectOption>) => {
+            onChange={(
+              newValue: MultiValue<EnhancedSelectOption> | SingleValue<EnhancedSelectOption>,
+              _actionMeta: ActionMeta<EnhancedSelectOption>
+            ) => {
               // Handle both multi-value and single-value cases
               if (Array.isArray(newValue)) {
                 // Multi-value: take the first item

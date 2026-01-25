@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 
 const NewTabButton: React.FC = () => {
@@ -11,7 +12,7 @@ const NewTabButton: React.FC = () => {
       return;
     }
     createTab('/', 'Start');
-    navigate('/');
+    void navigate('/');
   };
 
   const isDisabled = tabs.length >= maxTabs;
@@ -25,8 +26,24 @@ const NewTabButton: React.FC = () => {
       title={isDisabled ? `Maximum ${maxTabs} Tabs erreicht` : 'Neuen Tab öffnen (Strg+T)'}
     >
       <svg width="12" height="12" viewBox="0 0 12 12">
-        <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <line
+          x1="6"
+          y1="1"
+          x2="6"
+          y2="11"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <line
+          x1="1"
+          y1="6"
+          x2="11"
+          y2="6"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
       </svg>
     </button>
   );

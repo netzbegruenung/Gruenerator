@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Controller, Control } from 'react-hook-form';
+import { Controller, type Control } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
-import FormFieldWrapper from './FormFieldWrapper';
+
+import useDebounce from '../../../../components/hooks/useDebounce';
+import { COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 import { detectUrls } from '../../../../utils/urlDetection';
-import useDebounce from '../../../../components/hooks/useDebounce';
 import { useFormStateSelector } from '../FormStateProvider';
-import { COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
+
+import FormFieldWrapper from './FormFieldWrapper';
 import TextareaWithAutocomplete from './TextareaWithAutocomplete';
 import '../../../../assets/styles/components/form/form-inputs.css';
 
@@ -75,7 +77,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
 }) => {
   let storeIsStartMode = false;
   try {
-    storeIsStartMode = useFormStateSelector(state => state.isStartMode);
+    storeIsStartMode = useFormStateSelector((state) => state.isStartMode);
   } catch {
     // Not inside FormStateProvider - use default
   }
@@ -115,10 +117,15 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
         className={`form-field-help character-count ${isNearLimit ? 'near-limit' : ''} ${isOverLimit ? 'over-limit' : ''}`}
         style={{
           textAlign: 'right',
-          color: isOverLimit ? 'var(--error-red)' : isNearLimit ? 'var(--warning-color, orange)' : undefined
+          color: isOverLimit
+            ? 'var(--error-red)'
+            : isNearLimit
+              ? 'var(--warning-color, orange)'
+              : undefined,
         }}
       >
-        {currentLength}{maxLength ? `/${maxLength}` : ''} Zeichen
+        {currentLength}
+        {maxLength ? `/${maxLength}` : ''} Zeichen
       </small>
     );
   };
@@ -189,7 +196,9 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                   }}
                   {...textareaProps}
                 />
-                <CharacterCount value={typeof field.value === 'string' ? field.value : String(field.value ?? '')} />
+                <CharacterCount
+                  value={typeof field.value === 'string' ? field.value : String(field.value ?? '')}
+                />
               </div>
             )}
           </FormFieldWrapper>

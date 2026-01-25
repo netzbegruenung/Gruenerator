@@ -9,10 +9,7 @@
  */
 
 import { vectorConfig } from '../../config/vectorConfig.js';
-import {
-  detectContentType,
-  detectMarkdownStructure,
-} from '../content/index.js';
+import { detectContentType, detectMarkdownStructure } from '../content/index.js';
 import type { ChunkMetadata } from './types.js';
 
 class ChunkQualityService {
@@ -157,7 +154,7 @@ class ChunkQualityService {
     if (tokens.length === 0) return 0;
 
     const stopwords = this.#germanStopwords();
-    const contentTokens = tokens.filter(t => !stopwords.has(t));
+    const contentTokens = tokens.filter((t) => !stopwords.has(t));
     const unique = new Set(contentTokens);
 
     // Unique ratio mapped to [0,1]; clamp between 0.2..0.85 for stability
@@ -181,7 +178,7 @@ class ChunkQualityService {
     return (text || '')
       .replace(/\n+/g, ' ')
       .split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9„(])/)
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
   }
 
@@ -222,15 +219,95 @@ class ChunkQualityService {
    */
   #germanStopwords(): Set<string> {
     const list = [
-      'der','die','das','ein','eine','einer','eines','einem','einen',
-      'und','oder','aber','denn','sondern','doch','dass','daß','weil','wenn','als',
-      'zu','zum','zur','vom','von','im','in','am','an','auf','aus','bei','mit','nach','über','unter','vor','hinter','für',
-      'ist','sind','war','waren','wird','werden','hat','haben','habe','hatte','hatten',
-      'ich','du','er','sie','es','wir','ihr','sie',
-      'dies','diese','dieser','dieses','jenes','jede','jeder','jedes',
-      'nicht','kein','keine','ohne','mehr','weniger','sehr','auch','nur','noch','schon',
-      'zum','zur','ins','vom','beim','vom','zum',
-      'e.g.','z.b.','bzw','etc','usw'
+      'der',
+      'die',
+      'das',
+      'ein',
+      'eine',
+      'einer',
+      'eines',
+      'einem',
+      'einen',
+      'und',
+      'oder',
+      'aber',
+      'denn',
+      'sondern',
+      'doch',
+      'dass',
+      'daß',
+      'weil',
+      'wenn',
+      'als',
+      'zu',
+      'zum',
+      'zur',
+      'vom',
+      'von',
+      'im',
+      'in',
+      'am',
+      'an',
+      'auf',
+      'aus',
+      'bei',
+      'mit',
+      'nach',
+      'über',
+      'unter',
+      'vor',
+      'hinter',
+      'für',
+      'ist',
+      'sind',
+      'war',
+      'waren',
+      'wird',
+      'werden',
+      'hat',
+      'haben',
+      'habe',
+      'hatte',
+      'hatten',
+      'ich',
+      'du',
+      'er',
+      'sie',
+      'es',
+      'wir',
+      'ihr',
+      'sie',
+      'dies',
+      'diese',
+      'dieser',
+      'dieses',
+      'jenes',
+      'jede',
+      'jeder',
+      'jedes',
+      'nicht',
+      'kein',
+      'keine',
+      'ohne',
+      'mehr',
+      'weniger',
+      'sehr',
+      'auch',
+      'nur',
+      'noch',
+      'schon',
+      'zum',
+      'zur',
+      'ins',
+      'vom',
+      'beim',
+      'vom',
+      'zum',
+      'e.g.',
+      'z.b.',
+      'bzw',
+      'etc',
+      'usw',
     ];
     return new Set(list);
   }

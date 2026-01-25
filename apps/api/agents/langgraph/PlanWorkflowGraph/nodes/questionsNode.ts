@@ -41,11 +41,14 @@ function parseQuestionsResponse(content: string): QuestionsResponse {
 
   try {
     const parsed = JSON.parse(jsonMatch[0]);
-    console.log('[questionsNode] Parsed response:', JSON.stringify(parsed, null, 2).substring(0, 500));
+    console.log(
+      '[questionsNode] Parsed response:',
+      JSON.stringify(parsed, null, 2).substring(0, 500)
+    );
     return {
       needsClarification: parsed.needsClarification ?? false,
       confidenceReason: parsed.confidenceReason ?? '',
-      questions: Array.isArray(parsed.questions) ? parsed.questions : []
+      questions: Array.isArray(parsed.questions) ? parsed.questions : [],
     };
   } catch (e) {
     console.log('[questionsNode] JSON parse error:', e);
@@ -60,7 +63,7 @@ function mapToGeneratedQuestions(questions: QuestionsResponse['questions']): Gen
     questionType: 'verstaendnis' as const,
     why: q.why || '',
     options: q.options || [],
-    clarificationPurpose: q.why
+    clarificationPurpose: q.why,
   }));
 }
 
@@ -72,7 +75,7 @@ function extractOptionsFromPlan(plan: string): GeneratedQuestion[] {
     const optionMatches = section.match(/Option\s+[A-D][:.]?\s*([^\n]+)/gi);
     if (optionMatches && optionMatches.length >= 2) {
       const sectionTitle = section.split('\n')[0].trim();
-      const options = optionMatches.map(m => m.replace(/Option\s+[A-D][:.]?\s*/i, '').trim());
+      const options = optionMatches.map((m) => m.replace(/Option\s+[A-D][:.]?\s*/i, '').trim());
 
       questions.push({
         id: `q${questions.length + 1}`,
@@ -80,7 +83,7 @@ function extractOptionsFromPlan(plan: string): GeneratedQuestion[] {
         questionType: 'verstaendnis',
         why: `Plan enthält ${options.length} Alternativen`,
         options: options.slice(0, 4),
-        clarificationPurpose: sectionTitle
+        clarificationPurpose: sectionTitle,
       });
     }
   }
@@ -104,7 +107,7 @@ export async function questionsNode(state: PlanWorkflowState): Promise<Questions
       return {
         skipQuestions: true,
         currentPhase: 'production',
-        phasesExecuted: [...state.phasesExecuted, 'questions-skipped']
+        phasesExecuted: [...state.phasesExecuted, 'questions-skipped'],
       };
     }
 
@@ -114,22 +117,25 @@ export async function questionsNode(state: PlanWorkflowState): Promise<Questions
       systemRole: promptConfigData.systemPrompt,
       request: {
         inhalt: input.inhalt,
-        plan: planData.originalPlan
-      }
+        plan: planData.originalPlan,
+      },
     };
 
     const assembledPrompt = await assemblePromptGraphAsync(promptContext);
 
-    const aiResponse = await input.aiWorkerPool.processRequest({
-      type: `${state.generatorType}_question_generation`,
-      usePrivacyMode: input.usePrivacyMode || false,
-      systemPrompt: assembledPrompt.system,
-      messages: assembledPrompt.messages as never,
-      options: {
-        max_tokens: promptConfigData.options?.max_tokens || 1000,
-        temperature: promptConfigData.options?.temperature || 0.2
-      }
-    }, input.req);
+    const aiResponse = await input.aiWorkerPool.processRequest(
+      {
+        type: `${state.generatorType}_question_generation`,
+        usePrivacyMode: input.usePrivacyMode || false,
+        systemPrompt: assembledPrompt.system,
+        messages: assembledPrompt.messages as never,
+        options: {
+          max_tokens: promptConfigData.options?.max_tokens || 1000,
+          temperature: promptConfigData.options?.temperature || 0.2,
+        },
+      },
+      input.req
+    );
 
     const questionsGenerationTimeMs = Date.now() - startTime;
     const parsed = parseQuestionsResponse(aiResponse.content ?? '');
@@ -146,12 +152,15 @@ export async function questionsNode(state: PlanWorkflowState): Promise<Questions
       needsClarification: questions.length > 0,
       questions,
       questionRound: 1,
-      confidenceReason: questions.length > 0
-        ? `${questions.length} Entscheidungspunkte gefunden`
-        : parsed.confidenceReason || 'Keine offenen Entscheidungen'
+      confidenceReason:
+        questions.length > 0
+          ? `${questions.length} Entscheidungspunkte gefunden`
+          : parsed.confidenceReason || 'Keine offenen Entscheidungen',
     };
 
-    console.log(`[PlanWorkflow] Questions: needsClarification=${questionsData.needsClarification}, count=${questions.length}`);
+    console.log(
+      `[PlanWorkflow] Questions: needsClarification=${questionsData.needsClarification}, count=${questions.length}`
+    );
 
     if (!questionsData.needsClarification) {
       return {
@@ -160,7 +169,7 @@ export async function questionsNode(state: PlanWorkflowState): Promise<Questions
         skipQuestions: true,
         currentPhase: 'production',
         phasesExecuted: [...state.phasesExecuted, 'questions-not-needed'],
-        totalAICalls: state.totalAICalls + 1
+        totalAICalls: state.totalAICalls + 1,
       };
     }
 
@@ -170,7 +179,7 @@ export async function questionsNode(state: PlanWorkflowState): Promise<Questions
       skipQuestions: false,
       currentPhase: 'questions',
       phasesExecuted: [...state.phasesExecuted, 'questions-generated'],
-      totalAICalls: state.totalAICalls + 1
+      totalAICalls: state.totalAICalls + 1,
     };
   } catch (error: any) {
     console.error('[PlanWorkflow] Questions generation error:', error);
@@ -178,7 +187,7 @@ export async function questionsNode(state: PlanWorkflowState): Promise<Questions
       skipQuestions: true,
       currentPhase: 'production',
       phasesExecuted: [...state.phasesExecuted, 'questions-error'],
-      totalAICalls: state.totalAICalls + 1
+      totalAICalls: state.totalAICalls + 1,
     };
   }
 }

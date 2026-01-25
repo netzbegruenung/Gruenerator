@@ -38,7 +38,7 @@ import type {
   ContinueGeneratorResult,
   GenerateFinalResultParams,
   GeneratorConfig,
-  Locale
+  Locale,
 } from './types/index.js';
 import type { ExperimentalSession } from '../../services/chat/types.js';
 import type { PromptConfig } from './types/promptProcessor.js';
@@ -46,7 +46,7 @@ import type { PromptConfig } from './types/promptProcessor.js';
 import {
   setExperimentalSession,
   getExperimentalSession,
-  updateExperimentalSession
+  updateExperimentalSession,
 } from '../../services/chat/ChatMemoryService.js';
 import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 import { getQuestionsForType } from '../../config/antragQuestions.js';
@@ -95,7 +95,7 @@ async function generateClarifyingQuestions(
   const userPrompt = SimpleTemplateEngine.render(config.generationPrompt, {
     inhalt: state.inhalt,
     requestType: state.requestType,
-    searchSummary: 'Keine Suchergebnisse verfügbar.'
+    searchSummary: 'Keine Suchergebnisse verfügbar.',
   });
 
   const tools = [config.toolSchema];
@@ -109,8 +109,8 @@ async function generateClarifyingQuestions(
       messages: [{ role: 'user', content: userPrompt }],
       options: {
         ...config.options,
-        tools
-      }
+        tools,
+      },
     } as AIWorkerRequest,
     state.req
   );
@@ -118,14 +118,20 @@ async function generateClarifyingQuestions(
   if (result.tool_calls && result.tool_calls.length > 0) {
     const toolCall = result.tool_calls[0];
     const functionArgs =
-      typeof toolCall.input === 'string'
-        ? JSON.parse(toolCall.input)
-        : toolCall.input;
+      typeof toolCall.input === 'string' ? JSON.parse(toolCall.input) : toolCall.input;
 
     // Type guard for QuestionGenerationArgs
-    if (!functionArgs || typeof functionArgs !== 'object' || !('needsClarification' in functionArgs)) {
+    if (
+      !functionArgs ||
+      typeof functionArgs !== 'object' ||
+      !('needsClarification' in functionArgs)
+    ) {
       console.warn('[SimpleInteractiveGenerator] Invalid tool call response format');
-      return { needsClarification: false, questions: [], confidenceReason: 'Invalid response format' };
+      return {
+        needsClarification: false,
+        questions: [],
+        confidenceReason: 'Invalid response format',
+      };
     }
 
     const typedArgs = functionArgs as QuestionGenerationArgs;
@@ -134,9 +140,10 @@ async function generateClarifyingQuestions(
     const needsClarification = typedArgs.needsClarification;
     const confidenceReason = typedArgs.confidenceReason || '';
 
-
     if (!needsClarification || !typedArgs.questions || typedArgs.questions.length === 0) {
-      console.log(`[SimpleInteractiveGenerator] AI decided no questions needed: ${confidenceReason}`);
+      console.log(
+        `[SimpleInteractiveGenerator] AI decided no questions needed: ${confidenceReason}`
+      );
       return { needsClarification: false, questions: [], confidenceReason };
     }
 
@@ -150,14 +157,16 @@ async function generateClarifyingQuestions(
       optionEmojis: q.emojis,
       allowCustom: config.questionDefaults?.allowCustom ?? true,
       allowMultiSelect: config.questionDefaults?.allowMultiSelect ?? false,
-      skipOption: config.questionDefaults?.skipOption
+      skipOption: config.questionDefaults?.skipOption,
     }));
 
     console.log(`[SimpleInteractiveGenerator] Generated ${questions.length} AI questions`);
     return { needsClarification: true, questions, confidenceReason };
   }
 
-  console.warn('[SimpleInteractiveGenerator] AI question generation failed, proceeding without questions');
+  console.warn(
+    '[SimpleInteractiveGenerator] AI question generation failed, proceeding without questions'
+  );
   return { needsClarification: false, questions: [], confidenceReason: 'AI response failed' };
 }
 
@@ -166,8 +175,8 @@ async function generateClarifyingQuestions(
  */
 function formatQAPairs(questions: GeneratedQuestion[], answers: QuestionAnswers): string {
   const pairs = questions
-    .filter(q => answers[q.id] && answers[q.id] !== 'Überspringen')
-    .map(q => `- ${q.text}: ${answers[q.id]}`)
+    .filter((q) => answers[q.id] && answers[q.id] !== 'Überspringen')
+    .map((q) => `- ${q.text}: ${answers[q.id]}`)
     .join('\n');
 
   if (!pairs) {
@@ -196,18 +205,18 @@ async function performWebSearch(state: {
     const searchQuery = `${state.inhalt} Bündnis 90 Die Grünen`;
     const result = await searxngService.performWebSearch(searchQuery, {
       maxResults: 10,
-      language: state.locale || 'de-DE'
+      language: state.locale || 'de-DE',
     });
 
     if (result.success && result.results) {
       console.log(`[SimpleInteractiveAntrag] Web search found ${result.results.length} results`);
       return {
         results: result.results,
-        sources: result.results.map(r => ({
+        sources: result.results.map((r) => ({
           title: r.title,
           url: r.url,
-          snippet: r.content_snippets || r.snippet || ''
-        }))
+          snippet: r.content_snippets || r.snippet || '',
+        })),
       };
     }
   } catch (error) {
@@ -236,7 +245,7 @@ function extractStructuredAnswers(
     beneficiaries: [],
     budget: null,
     history: null,
-    urgency: null
+    urgency: null,
   };
 
   for (const q of questions) {
@@ -294,7 +303,7 @@ export async function initiateInteractiveGenerator({
   generatorType = 'antrag',
   locale = 'de-DE',
   aiWorkerPool,
-  req
+  req,
 }: InitiateGeneratorParams): Promise<InitiateGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Initiating ${generatorType} session`);
 
@@ -316,7 +325,7 @@ export async function initiateInteractiveGenerator({
       generatorType,
       locale,
       aiWorkerPool,
-      req
+      req,
     });
 
     // If AI is confident, generate result directly without questions
@@ -334,7 +343,7 @@ export async function initiateInteractiveGenerator({
         questions: [],
         answers: {},
         aiWorkerPool,
-        req
+        req,
       });
 
       return {
@@ -346,8 +355,8 @@ export async function initiateInteractiveGenerator({
         questionRound: 0,
         metadata: {
           skippedQuestions: true,
-          confidenceReason: result.confidenceReason
-        }
+          confidenceReason: result.confidenceReason,
+        },
       };
     }
 
@@ -364,13 +373,15 @@ export async function initiateInteractiveGenerator({
       answers: {},
       metadata: {
         startTime: Date.now(),
-        confidenceReason: result.confidenceReason
-      }
+        confidenceReason: result.confidenceReason,
+      },
     };
 
     await setExperimentalSession(userId, sessionData);
 
-    console.log(`[SimpleInteractiveGenerator] Session created: ${sessionId}, ${result.questions.length} questions`);
+    console.log(
+      `[SimpleInteractiveGenerator] Session created: ${sessionId}, ${result.questions.length} questions`
+    );
 
     return {
       status: 'success',
@@ -379,10 +390,9 @@ export async function initiateInteractiveGenerator({
       questions: result.questions,
       questionRound: 1,
       metadata: {
-        questionCount: result.questions.length
-      }
+        questionCount: result.questions.length,
+      },
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[SimpleInteractiveGenerator] Initiate error:', error);
@@ -391,7 +401,7 @@ export async function initiateInteractiveGenerator({
       sessionId,
       conversationState: 'questions_asked',
       message: 'Fehler beim Starten der interaktiven Erstellung',
-      error: errorMessage
+      error: errorMessage,
     };
   }
 }
@@ -409,7 +419,7 @@ async function generateFinalResult({
   questions = [],
   answers = {},
   aiWorkerPool,
-  req
+  req,
 }: GenerateFinalResultParams): Promise<GenerationResult> {
   // Format Q&A pairs if present
   const formattedQA = questions.length > 0 ? formatQAPairs(questions, answers) : '';
@@ -428,7 +438,8 @@ async function generateFinalResult({
   // Build system role
   let systemRole = config.systemRole || 'Du bist ein Experte bei Bündnis 90/Die Grünen.';
   if (config.systemRoleExtensions) {
-    const extension = config.systemRoleExtensions[requestType] || config.systemRoleExtensions.default;
+    const extension =
+      config.systemRoleExtensions[requestType] || config.systemRoleExtensions.default;
     if (extension) {
       systemRole += ' ' + extension;
     }
@@ -438,21 +449,23 @@ async function generateFinalResult({
   }
 
   // Extract structured answers if present
-  const structuredAnswers = questions.length > 0
-    ? extractStructuredAnswers(answers, questions)
-    : {} as StructuredAnswers;
+  const structuredAnswers =
+    questions.length > 0 ? extractStructuredAnswers(answers, questions) : ({} as StructuredAnswers);
 
   // Build enrichment request
   const enrichmentRequest: EnrichmentRequest = {
     inhalt,
     requestType,
-    userClarifications: structuredAnswers
+    userClarifications: structuredAnswers,
   };
 
   // Apply document enrichment
   // Note: enrichRequest returns EnrichedState which has a different document format,
   // but we only use the knowledge array from it, so the cast is safe
-  const enrichedContext = await enrichRequest(enrichmentRequest, {}) as unknown as EnrichedContext;
+  const enrichedContext = (await enrichRequest(
+    enrichmentRequest,
+    {}
+  )) as unknown as EnrichedContext;
 
   // Build knowledge array
   const knowledgeItems: string[] = [];
@@ -466,7 +479,9 @@ async function generateFinalResult({
   }
 
   if ((searchResults?.sources?.length ?? 0) > 0) {
-    knowledgeItems.push(...(searchResults?.sources ?? []).map(s => `${s.title}: ${s.snippet}`).slice(0, 5));
+    knowledgeItems.push(
+      ...(searchResults?.sources ?? []).map((s) => `${s.title}: ${s.snippet}`).slice(0, 5)
+    );
   }
 
   console.log(`[SimpleInteractiveGenerator] Knowledge items: ${knowledgeItems.length}`);
@@ -478,23 +493,27 @@ async function generateFinalResult({
     request: { inhalt, requestType, locale: locale as Locale },
     documents: enrichedContext?.documents || [],
     knowledge: knowledgeItems,
-    locale: locale as Locale
+    locale: locale as Locale,
   };
 
   // Assemble prompt (any cast needed due to document type mismatch between simple docs and ClaudeDocument[])
-  const assembledPrompt = await assemblePromptGraphAsync(promptContext as any) as unknown as AssembledPromptResult;
+  const assembledPrompt = (await assemblePromptGraphAsync(
+    promptContext as any
+  )) as unknown as AssembledPromptResult;
 
   // Generate final text (convert ClaudeMessage[] to simple format)
-  const simpleMessages = assembledPrompt.messages.map(msg => ({
+  const simpleMessages = assembledPrompt.messages.map((msg) => ({
     role: msg.role,
     content: Array.isArray(msg.content)
-      ? msg.content.map(block => {
-          if ('type' in block && block.type === 'text' && 'text' in block) {
-            return block.text;
-          }
-          return '';
-        }).join('\n')
-      : String(msg.content || '')
+      ? msg.content
+          .map((block) => {
+            if ('type' in block && block.type === 'text' && 'text' in block) {
+              return block.text;
+            }
+            return '';
+          })
+          .join('\n')
+      : String(msg.content || ''),
   }));
 
   const generationResult = await aiWorkerPool.processRequest(
@@ -505,8 +524,9 @@ async function generateFinalResult({
       options: {
         max_tokens: config.options?.max_tokens || 4000,
         temperature: config.options?.temperature || 0.3,
-        ...(assembledPrompt.tools?.length && assembledPrompt.tools.length > 0 && { tools: assembledPrompt.tools as any })
-      }
+        ...(assembledPrompt.tools?.length &&
+          assembledPrompt.tools.length > 0 && { tools: assembledPrompt.tools as any }),
+      },
     } as AIWorkerRequest,
     req
   );
@@ -515,11 +535,13 @@ async function generateFinalResult({
     throw new Error('Generation failed: ' + generationResult.error);
   }
 
-  console.log(`[SimpleInteractiveGenerator] Generation completed: ${generationResult.content?.length || 0} chars`);
+  console.log(
+    `[SimpleInteractiveGenerator] Generation completed: ${generationResult.content?.length || 0} chars`
+  );
 
   return {
     content: generationResult.content || '',
-    metadata: generationResult.metadata
+    metadata: generationResult.metadata,
   };
 }
 
@@ -531,13 +553,16 @@ export async function continueInteractiveGenerator({
   sessionId,
   answers,
   aiWorkerPool,
-  req
+  req,
 }: ContinueGeneratorParams): Promise<ContinueGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Continuing session: ${sessionId}`);
 
   try {
     // Retrieve session
-    const sessionData = await getExperimentalSession(userId, sessionId) as ExperimentalSession | null;
+    const sessionData = (await getExperimentalSession(
+      userId,
+      sessionId
+    )) as ExperimentalSession | null;
     if (!sessionData) {
       throw new Error('Session not found or expired');
     }
@@ -545,7 +570,9 @@ export async function continueInteractiveGenerator({
     // Convert ExperimentalSession to InteractiveSession
     const session: InteractiveSession = {
       sessionId: sessionData.sessionId || sessionId,
-      conversationState: (sessionData.conversationState as InteractiveSession['conversationState']) || 'questions_asked',
+      conversationState:
+        (sessionData.conversationState as InteractiveSession['conversationState']) ||
+        'questions_asked',
       inhalt: sessionData.inhalt || '',
       requestType: sessionData.requestType || 'antrag',
       generatorType: sessionData.generatorType || 'antrag',
@@ -555,15 +582,15 @@ export async function continueInteractiveGenerator({
       answers: sessionData.answers || {},
       metadata: {
         startTime: sessionData.createdAt || Date.now(),
-        ...sessionData.metadata
-      }
+        ...sessionData.metadata,
+      },
     };
 
     // Update session with answers
     await updateExperimentalSession(userId, sessionId, {
       answers: { round1: answers },
       conversationState: 'generating',
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
     });
 
     // Generate final result using helper
@@ -577,7 +604,7 @@ export async function continueInteractiveGenerator({
       questions: session.questions,
       answers,
       aiWorkerPool,
-      req
+      req,
     });
 
     // Update session with final result
@@ -588,8 +615,8 @@ export async function continueInteractiveGenerator({
       metadata: {
         ...session.metadata,
         completedAt,
-        duration: completedAt - session.metadata.startTime
-      }
+        duration: completedAt - session.metadata.startTime,
+      },
     });
 
     return {
@@ -599,10 +626,9 @@ export async function continueInteractiveGenerator({
       finalResult: result.content,
       metadata: {
         completedAt,
-        duration: completedAt - session.metadata.startTime
-      }
+        duration: completedAt - session.metadata.startTime,
+      },
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[SimpleInteractiveGenerator] Continue error:', error);
@@ -611,7 +637,7 @@ export async function continueInteractiveGenerator({
       sessionId,
       conversationState: 'completed',
       message: 'Fehler beim Fortsetzen der interaktiven Erstellung',
-      error: errorMessage
+      error: errorMessage,
     };
   }
 }

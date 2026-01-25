@@ -10,14 +10,13 @@ import type {
   ValidatedSearchParams,
   SearchParamsInput,
   ValidatedAIWorkerRequest,
-  AIWorkerRequest
+  AIWorkerRequest,
 } from './types.js';
 
 /**
  * Comprehensive input validation for vector search operations
  */
 export class InputValidator {
-
   /**
    * Validate and sanitize embedding array for SQL safety
    */
@@ -30,7 +29,8 @@ export class InputValidator {
       throw new ValidationError('Embedding cannot be empty', 'embedding', embedding.length);
     }
 
-    if (embedding.length > 10000) { // Reasonable upper bound
+    if (embedding.length > 10000) {
+      // Reasonable upper bound
       throw new ValidationError('Embedding too large', 'embedding', embedding.length);
     }
 
@@ -39,15 +39,28 @@ export class InputValidator {
       const value = embedding[i];
 
       if (typeof value !== 'number') {
-        throw new ValidationError(`Embedding element at index ${i} must be a number`, 'embedding', value);
+        throw new ValidationError(
+          `Embedding element at index ${i} must be a number`,
+          'embedding',
+          value
+        );
       }
 
       if (!isFinite(value)) {
-        throw new ValidationError(`Embedding element at index ${i} must be finite`, 'embedding', value);
+        throw new ValidationError(
+          `Embedding element at index ${i} must be finite`,
+          'embedding',
+          value
+        );
       }
 
-      if (Math.abs(value) > 100) { // Reasonable bounds for embedding values
-        throw new ValidationError(`Embedding element at index ${i} out of bounds`, 'embedding', value);
+      if (Math.abs(value) > 100) {
+        // Reasonable bounds for embedding values
+        throw new ValidationError(
+          `Embedding element at index ${i} out of bounds`,
+          'embedding',
+          value
+        );
       }
     }
 
@@ -82,20 +95,29 @@ export class InputValidator {
       throw new ValidationError('Document IDs must be an array', 'documentIds', typeof documentIds);
     }
 
-    if (documentIds.length > 1000) { // Reasonable upper bound
+    if (documentIds.length > 1000) {
+      // Reasonable upper bound
       throw new ValidationError('Too many document IDs', 'documentIds', documentIds.length);
     }
 
     return documentIds.map((id: any, index: number) => {
       if (!id || typeof id !== 'string') {
-        throw new ValidationError(`Document ID at index ${index} must be a string`, 'documentIds', id);
+        throw new ValidationError(
+          `Document ID at index ${index} must be a string`,
+          'documentIds',
+          id
+        );
       }
 
       // Sanitize document ID
       const sanitized = id.replace(/[^a-zA-Z0-9_-]/g, '');
 
       if (sanitized.length === 0 || sanitized.length > 100) {
-        throw new ValidationError(`Document ID at index ${index} invalid format`, 'documentIds', id);
+        throw new ValidationError(
+          `Document ID at index ${index} invalid format`,
+          'documentIds',
+          id
+        );
       }
 
       return sanitized;
@@ -161,7 +183,7 @@ export class InputValidator {
       user_id: '',
       limit: 5,
       threshold: null,
-      mode: 'vector'
+      mode: 'vector',
     };
 
     // Required fields
@@ -169,20 +191,24 @@ export class InputValidator {
     validated.user_id = this.validateUserId(params.user_id);
 
     // Optional fields with defaults
-    validated.limit = this.validateNumber(
-      params.limit || 5,
-      'limit',
-      { min: 1, max: 100 }
-    ) as number;
+    validated.limit = this.validateNumber(params.limit || 5, 'limit', {
+      min: 1,
+      max: 100,
+    }) as number;
 
-    validated.threshold = this.validateNumber(
-      params.threshold,
-      'threshold',
-      { min: 0, max: 1, allowNull: true }
-    );
+    validated.threshold = this.validateNumber(params.threshold, 'threshold', {
+      min: 0,
+      max: 1,
+      allowNull: true,
+    });
 
     // Validate mode
-    const validModes: Array<'vector' | 'hybrid' | 'keyword' | 'text'> = ['vector', 'hybrid', 'keyword', 'text'];
+    const validModes: Array<'vector' | 'hybrid' | 'keyword' | 'text'> = [
+      'vector',
+      'hybrid',
+      'keyword',
+      'text',
+    ];
     if (params.mode && !validModes.includes(params.mode as any)) {
       throw new ValidationError('Invalid search mode', 'mode', params.mode);
     }
@@ -206,13 +232,21 @@ export class InputValidator {
    */
   static validateContentType(contentType: any): string {
     if (!contentType || typeof contentType !== 'string') {
-      throw new ValidationError('Content type must be a non-empty string', 'contentType', contentType);
+      throw new ValidationError(
+        'Content type must be a non-empty string',
+        'contentType',
+        contentType
+      );
     }
 
     const sanitized = contentType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
     if (sanitized.length === 0 || sanitized.length > 50) {
-      throw new ValidationError('Content type must be 1-50 alphanumeric characters', 'contentType', contentType);
+      throw new ValidationError(
+        'Content type must be 1-50 alphanumeric characters',
+        'contentType',
+        contentType
+      );
     }
 
     return sanitized;
@@ -228,7 +262,7 @@ export class InputValidator {
         error: 'Validation error',
         message: error.message,
         field: (error as any).field,
-        code: 'VALIDATION_ERROR'
+        code: 'VALIDATION_ERROR',
       };
     }
 
@@ -237,7 +271,7 @@ export class InputValidator {
       success: false,
       error: 'Internal error',
       message: 'An unexpected error occurred',
-      code: 'INTERNAL_ERROR'
+      code: 'INTERNAL_ERROR',
     };
   }
 
@@ -272,20 +306,33 @@ export class InputValidator {
       }
 
       if (!msg.role || !msg.content) {
-        throw new ValidationError(`Message at index ${index} must have role and content`, 'messages', msg);
+        throw new ValidationError(
+          `Message at index ${index} must have role and content`,
+          'messages',
+          msg
+        );
       }
 
       if (typeof msg.content !== 'string' || msg.content.trim().length === 0) {
-        throw new ValidationError(`Message content at index ${index} must be non-empty string`, 'messages', msg.content);
+        throw new ValidationError(
+          `Message content at index ${index} must be non-empty string`,
+          'messages',
+          msg.content
+        );
       }
 
-      if (msg.content.length > 50000) { // Reasonable limit
-        throw new ValidationError(`Message content at index ${index} too long`, 'messages', msg.content.length);
+      if (msg.content.length > 50000) {
+        // Reasonable limit
+        throw new ValidationError(
+          `Message content at index ${index} too long`,
+          'messages',
+          msg.content.length
+        );
       }
 
       return {
         role: msg.role,
-        content: msg.content.trim()
+        content: msg.content.trim(),
       };
     });
 

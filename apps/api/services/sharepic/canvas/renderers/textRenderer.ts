@@ -49,10 +49,7 @@ function wrapText(
  * @param ctx - Canvas 2D context
  * @param text - Text layer configuration
  */
-export function renderText(
-  ctx: CanvasRenderingContext2D,
-  text: TextLayer
-): void {
+export function renderText(ctx: CanvasRenderingContext2D, text: TextLayer): void {
   ctx.save();
 
   ctx.translate(text.x, text.y);

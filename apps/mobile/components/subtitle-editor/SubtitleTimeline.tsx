@@ -4,13 +4,7 @@
  */
 
 import { forwardRef, useCallback } from 'react';
-import {
-  FlatList,
-  View,
-  Text,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
+import { FlatList, View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { colors, spacing, lightTheme, darkTheme, verticalScale } from '../../theme';
 import { SubtitleSegmentItem } from './SubtitleSegmentItem';
 import { SUBTITLE_EDITOR_LABELS } from '@gruenerator/shared/subtitle-editor';
@@ -54,13 +48,17 @@ export const SubtitleTimeline = forwardRef<FlatList<SubtitleSegment>, SubtitleTi
           onEditComplete={onEditComplete}
         />
       ),
-      [activeSegmentId, selectedSegmentId, editingSegmentId, onSegmentTap, onTextChange, onEditComplete]
+      [
+        activeSegmentId,
+        selectedSegmentId,
+        editingSegmentId,
+        onSegmentTap,
+        onTextChange,
+        onEditComplete,
+      ]
     );
 
-    const keyExtractor = useCallback(
-      (item: SubtitleSegment) => item.id.toString(),
-      []
-    );
+    const keyExtractor = useCallback((item: SubtitleSegment) => item.id.toString(), []);
 
     // Item height: minHeight (48) + vertical margins (3*2) = 54, scaled
     const itemHeight = verticalScale(48) + verticalScale(3) * 2;

@@ -1,12 +1,14 @@
-import type { SelectHTMLAttributes, LabelHTMLAttributes } from 'react';
 import {
   Controller,
   type Control,
   type RegisterOptions,
   type FieldValues,
-  type Path
+  type Path,
 } from 'react-hook-form';
+
 import FormFieldWrapper from './FormFieldWrapper';
+
+import type { SelectHTMLAttributes, LabelHTMLAttributes } from 'react';
 
 export interface SelectOption {
   value: string | number;
@@ -25,8 +27,10 @@ function isOptionGroup(option: SelectOptionType): option is SelectOptionGroup {
   return 'group' in option;
 }
 
-export interface FormSelectProps<T extends FieldValues = FieldValues>
-  extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'name' | 'defaultValue'> {
+export interface FormSelectProps<T extends FieldValues = FieldValues> extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  'name' | 'defaultValue'
+> {
   name: Path<T>;
   label?: string;
   options?: SelectOptionType[];
@@ -96,7 +100,7 @@ function FormSelect<T extends FieldValues = FieldValues>({
         control={control}
         rules={{
           required: required ? 'Bitte wählen Sie eine Option' : false,
-          ...rules
+          ...rules,
         }}
         defaultValue={defaultValue as never}
         render={({ field, fieldState: { error } }) => {
@@ -149,17 +153,8 @@ function FormSelect<T extends FieldValues = FieldValues>({
     );
   }
 
-  const {
-    value: _v,
-    onChange: _oc,
-    onBlur: _ob,
-    ...uncontrolledSelectProps
-  } = selectProps;
-  const {
-    value: _v2,
-    onBlur: _ob2,
-    ...uncontrolledRest
-  } = rest as Record<string, unknown>;
+  const { value: _v, onChange: _oc, onBlur: _ob, ...uncontrolledSelectProps } = selectProps;
+  const { value: _v2, onBlur: _ob2, ...uncontrolledRest } = rest as Record<string, unknown>;
 
   return (
     <FormFieldWrapper

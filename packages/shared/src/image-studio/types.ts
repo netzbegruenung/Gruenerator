@@ -22,10 +22,7 @@ export type ImageStudioTemplateType =
 /**
  * KI types supported by image-studio (FLUX API-based)
  */
-export type ImageStudioKiType =
-  | 'pure-create'
-  | 'green-edit'
-  | 'universal-edit';
+export type ImageStudioKiType = 'pure-create' | 'green-edit' | 'universal-edit';
 
 /**
  * All image studio types (templates + KI)
@@ -46,12 +43,12 @@ export type KiSubcategory = 'edit' | 'create';
  * Form step identifiers
  */
 export type ImageStudioStep =
-  | 'select'    // Type selection
-  | 'input'     // Form input (template types)
-  | 'ki-input'  // KI input (KI types)
-  | 'image'     // Image upload (if required)
-  | 'text'      // Text selection/alternatives
-  | 'result';   // Final result
+  | 'select' // Type selection
+  | 'input' // Form input (template types)
+  | 'ki-input' // KI input (KI types)
+  | 'image' // Image upload (if required)
+  | 'text' // Text selection/alternatives
+  | 'result'; // Final result
 
 // ============================================================================
 // TYPE CONFIGURATION
@@ -171,9 +168,9 @@ export interface TemplateFieldConfig {
  */
 export interface TextGenerationRequest {
   thema: string;
-  name?: string;      // For quote types
-  source?: string;    // Always 'image-studio'
-  count?: number;     // Number of alternatives (default 5)
+  name?: string; // For quote types
+  source?: string; // Always 'image-studio'
+  count?: number; // Number of alternatives (default 5)
 }
 
 /**
@@ -469,9 +466,15 @@ export interface UseImageStudioOptions {
  */
 export interface UseImageStudioReturn {
   /** Generate text for a given type */
-  generateText: (type: ImageStudioTemplateType, formData: TextGenerationRequest) => Promise<NormalizedTextResult>;
+  generateText: (
+    type: ImageStudioTemplateType,
+    formData: TextGenerationRequest
+  ) => Promise<NormalizedTextResult>;
   /** Generate canvas image */
-  generateCanvas: (type: ImageStudioTemplateType, request: CanvasGenerationRequest) => Promise<string>;
+  generateCanvas: (
+    type: ImageStudioTemplateType,
+    request: CanvasGenerationRequest
+  ) => Promise<string>;
   /** Loading state */
   loading: boolean;
   /** Text generation loading state */
@@ -500,7 +503,10 @@ export interface UseKiImageGenerationReturn {
   /** Generate image from text (pure-create) */
   generatePureCreate: (request: KiCreateRequest) => Promise<string>;
   /** Edit image with instructions (green-edit, universal-edit) */
-  generateKiEdit: (type: 'green-edit' | 'universal-edit', request: KiEditRequest) => Promise<string>;
+  generateKiEdit: (
+    type: 'green-edit' | 'universal-edit',
+    request: KiEditRequest
+  ) => Promise<string>;
   /** Loading state */
   loading: boolean;
   /** Rate limit exceeded */

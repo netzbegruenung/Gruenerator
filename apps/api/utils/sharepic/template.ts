@@ -6,7 +6,12 @@ interface TemplateData {
 
 const MAX_TEMPLATE_LENGTH = 50000;
 
-function parseConditional(text: string, startTag: string, elseTag: string, endTag: string): { fullMatch: string; trueBranch: string; falseBranch: string } | null {
+function parseConditional(
+  text: string,
+  startTag: string,
+  elseTag: string,
+  endTag: string
+): { fullMatch: string; trueBranch: string; falseBranch: string } | null {
   const startIdx = text.indexOf(startTag);
   if (startIdx === -1) return null;
 
@@ -38,7 +43,12 @@ export function replaceTemplate(template: string | null | undefined, data: Templ
 
   let result = template;
 
-  const preserveNameConditional = parseConditional(result, '{{#if preserveName}}', '{{else}}', '{{/if}}');
+  const preserveNameConditional = parseConditional(
+    result,
+    '{{#if preserveName}}',
+    '{{else}}',
+    '{{/if}}'
+  );
   if (preserveNameConditional) {
     result = result.replace(
       preserveNameConditional.fullMatch,

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { useOptimizedAuth } from './useAuth';
+
 import apiClient from '../components/utils/apiClient';
+
+import { useOptimizedAuth } from './useAuth';
 
 /**
  * React Query hook for managing image generation limits
@@ -28,7 +30,7 @@ export const useImageGenerationLimit = () => {
       // Don't retry on auth errors
       if (error instanceof Error && error.message?.includes('401')) return false;
       return failureCount < 3;
-    }
+    },
   });
 };
 

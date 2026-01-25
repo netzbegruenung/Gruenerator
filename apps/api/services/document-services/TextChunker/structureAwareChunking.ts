@@ -4,7 +4,10 @@
  */
 
 import { documentStructureDetector } from '../../DocumentStructureDetector/index.js';
-import type { DocumentStructure, SemanticBoundary as DetectorSemanticBoundary } from '../../DocumentStructureDetector/types.js';
+import type {
+  DocumentStructure,
+  SemanticBoundary as DetectorSemanticBoundary,
+} from '../../DocumentStructureDetector/types.js';
 import { estimateTokens } from './validation.js';
 import type { Chunk, ChunkContext, SemanticBoundary } from './types.js';
 
@@ -15,16 +18,15 @@ export function hierarchicalChunkDocument(
   text: string,
   options: { maxTokens?: number; overlapTokens?: number } = {}
 ): Chunk[] {
-  const {
-    maxTokens = 600,
-    overlapTokens = 150
-  } = options;
+  const { maxTokens = 600, overlapTokens = 150 } = options;
 
   console.log('[hierarchicalChunkDocument] Starting hierarchical chunking');
 
   // Analyze document structure
   const structure = documentStructureDetector.analyzeStructure(text);
-  console.log(`[hierarchicalChunkDocument] Structure analysis: ${structure.chapters.length} chapters, ${structure.sections.length} sections`);
+  console.log(
+    `[hierarchicalChunkDocument] Structure analysis: ${structure.chapters.length} chapters, ${structure.sections.length} sections`
+  );
 
   // Find semantic boundaries
   const boundaries = documentStructureDetector.findSemanticBoundaries(text, structure);
@@ -52,15 +54,17 @@ function createSemanticChunks(
   if (boundaries.length === 0) {
     // No structure detected, create a single chunk
     console.log('[createSemanticChunks] No boundaries found, creating single chunk');
-    return [{
-      text: text.trim(),
-      index: 0,
-      tokens: estimateTokens(text),
-      metadata: {
-        chunkType: 'unstructured',
-        chunkingMethod: 'hierarchical-single',
-      }
-    }];
+    return [
+      {
+        text: text.trim(),
+        index: 0,
+        tokens: estimateTokens(text),
+        metadata: {
+          chunkType: 'unstructured',
+          chunkingMethod: 'hierarchical-single',
+        },
+      },
+    ];
   }
 
   let currentChunk = '';
@@ -68,7 +72,7 @@ function createSemanticChunks(
   let chunkIndex = 0;
   let chunkStart = 0;
   let currentContext: ChunkContext = {
-    level: 0
+    level: 0,
   };
 
   // Process text between boundaries
@@ -88,15 +92,17 @@ function createSemanticChunks(
     if (shouldStartNewChunk(currentTokens, segmentTokens, maxTokens, boundary)) {
       // Save current chunk if it has content
       if (currentChunk.trim().length > 0) {
-        chunks.push(createChunkWithMetadata(
-          currentChunk.trim(),
-          chunkIndex,
-          currentTokens,
-          currentContext,
-          chunkStart,
-          boundary.position,
-          structure
-        ));
+        chunks.push(
+          createChunkWithMetadata(
+            currentChunk.trim(),
+            chunkIndex,
+            currentTokens,
+            currentContext,
+            chunkStart,
+            boundary.position,
+            structure
+          )
+        );
         chunkIndex++;
       }
 
@@ -113,15 +119,17 @@ function createSemanticChunks(
     // Add overlap context if chunk is getting large
     if (currentTokens > maxTokens * 0.8 && i < boundaries.length - 1) {
       // Add current chunk and start new one with overlap
-      chunks.push(createChunkWithMetadata(
-        currentChunk.trim(),
-        chunkIndex,
-        currentTokens,
-        currentContext,
-        chunkStart,
-        boundary.position + segment.length,
-        structure
-      ));
+      chunks.push(
+        createChunkWithMetadata(
+          currentChunk.trim(),
+          chunkIndex,
+          currentTokens,
+          currentContext,
+          chunkStart,
+          boundary.position + segment.length,
+          structure
+        )
+      );
 
       // Create overlap for next chunk
       const overlapText = createOverlapText(currentChunk, overlapTokens);
@@ -134,15 +142,17 @@ function createSemanticChunks(
 
   // Add final chunk
   if (currentChunk.trim().length > 0) {
-    chunks.push(createChunkWithMetadata(
-      currentChunk.trim(),
-      chunkIndex,
-      currentTokens,
-      currentContext,
-      chunkStart,
-      text.length,
-      structure
-    ));
+    chunks.push(
+      createChunkWithMetadata(
+        currentChunk.trim(),
+        chunkIndex,
+        currentTokens,
+        currentContext,
+        chunkStart,
+        text.length,
+        structure
+      )
+    );
   }
 
   return addChunkRelationships(chunks);
@@ -253,8 +263,8 @@ function createChunkWithMetadata(
       // Relationships (will be filled by addChunkRelationships)
       prevChunkId: undefined,
       nextChunkId: undefined,
-      relatedChunks: []
-    }
+      relatedChunks: [],
+    },
   };
 }
 
@@ -299,8 +309,8 @@ function isCompleteSection(chunk: Chunk, allChunks: Chunk[]): boolean {
   if (!chunk.metadata.sectionTitle) return false;
 
   // Check if other chunks share the same section
-  const sameSectionChunks = allChunks.filter(c =>
-    c.metadata.sectionTitle === chunk.metadata.sectionTitle
+  const sameSectionChunks = allChunks.filter(
+    (c) => c.metadata.sectionTitle === chunk.metadata.sectionTitle
   );
 
   return sameSectionChunks.length === 1;

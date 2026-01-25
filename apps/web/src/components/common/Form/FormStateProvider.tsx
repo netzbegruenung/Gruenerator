@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useMemo, ReactNode } from 'react';
-import { create, StoreApi, UseBoundStore } from 'zustand';
-import { useShallow } from 'zustand/react/shallow';
+import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
 
 // =============================================================================
 // Type Definitions
@@ -186,15 +186,15 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
         isActive: false,
         isSearching: false,
         statusMessage: '',
-        enabled: false
+        enabled: false,
       },
       privacyModeConfig: {
         isActive: false,
-        enabled: false
+        enabled: false,
       },
       proModeConfig: {
         isActive: false,
-        enabled: true
+        enabled: true,
       },
 
       // Feature presentation mode
@@ -231,53 +231,54 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
       clearError: () => set({ error: null }),
 
       // Clear all form state
-      clearFormState: () => set({
-        loading: false,
-        success: false,
-        error: null,
-        formErrors: {},
-        saveLoading: false
-      }),
+      clearFormState: () =>
+        set({
+          loading: false,
+          success: false,
+          error: null,
+          formErrors: {},
+          saveLoading: false,
+        }),
 
       // Actions for web search
       setWebSearchActive: (isActive) =>
         set((state) => ({
           webSearchConfig: {
             ...state.webSearchConfig,
-            isActive
-          }
+            isActive,
+          },
         })),
 
       setWebSearchSearching: (isSearching) =>
         set((state) => ({
           webSearchConfig: {
             ...state.webSearchConfig,
-            isSearching
-          }
+            isSearching,
+          },
         })),
 
       setWebSearchStatusMessage: (statusMessage) =>
         set((state) => ({
           webSearchConfig: {
             ...state.webSearchConfig,
-            statusMessage
-          }
+            statusMessage,
+          },
         })),
 
       setWebSearchEnabled: (enabled) =>
         set((state) => ({
           webSearchConfig: {
             ...state.webSearchConfig,
-            enabled
-          }
+            enabled,
+          },
         })),
 
       toggleWebSearch: () =>
         set((state) => ({
           webSearchConfig: {
             ...state.webSearchConfig,
-            isActive: !state.webSearchConfig.isActive
-          }
+            isActive: !state.webSearchConfig.isActive,
+          },
         })),
 
       // Actions for privacy mode
@@ -285,24 +286,24 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
         set((state) => ({
           privacyModeConfig: {
             ...state.privacyModeConfig,
-            isActive
-          }
+            isActive,
+          },
         })),
 
       setPrivacyModeEnabled: (enabled) =>
         set((state) => ({
           privacyModeConfig: {
             ...state.privacyModeConfig,
-            enabled
-          }
+            enabled,
+          },
         })),
 
       togglePrivacyMode: () =>
         set((state) => ({
           privacyModeConfig: {
             ...state.privacyModeConfig,
-            isActive: !state.privacyModeConfig.isActive
-          }
+            isActive: !state.privacyModeConfig.isActive,
+          },
         })),
 
       // Actions for pro mode
@@ -310,24 +311,24 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
         set((state) => ({
           proModeConfig: {
             ...state.proModeConfig,
-            isActive
-          }
+            isActive,
+          },
         })),
 
       setProModeEnabled: (enabled) =>
         set((state) => ({
           proModeConfig: {
             ...state.proModeConfig,
-            enabled
-          }
+            enabled,
+          },
         })),
 
       toggleProMode: () =>
         set((state) => ({
           proModeConfig: {
             ...state.proModeConfig,
-            isActive: !state.proModeConfig.isActive
-          }
+            isActive: !state.proModeConfig.isActive,
+          },
         })),
 
       // Actions for feature presentation
@@ -337,11 +338,11 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
       setAttachedFiles: (attachedFiles) => set({ attachedFiles }),
       addAttachedFile: (file) =>
         set((state) => ({
-          attachedFiles: [...state.attachedFiles, file]
+          attachedFiles: [...state.attachedFiles, file],
         })),
       removeAttachedFile: (fileIndex) =>
         set((state) => ({
-          attachedFiles: state.attachedFiles.filter((_, index) => index !== fileIndex)
+          attachedFiles: state.attachedFiles.filter((_, index) => index !== fileIndex),
         })),
       clearAttachedFiles: () => set({ attachedFiles: [] }),
 
@@ -365,59 +366,60 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
       // Merge configuration updates (non-destructive)
       updateTabIndexConfig: (updates) =>
         set((state) => ({
-          tabIndexConfig: { ...state.tabIndexConfig, ...updates }
+          tabIndexConfig: { ...state.tabIndexConfig, ...updates },
         })),
       updatePlatformConfig: (updates) =>
         set((state) => ({
-          platformConfig: { ...state.platformConfig, ...updates }
+          platformConfig: { ...state.platformConfig, ...updates },
         })),
       updateSubmitConfig: (updates) =>
         set((state) => ({
-          submitConfig: { ...state.submitConfig, ...updates }
+          submitConfig: { ...state.submitConfig, ...updates },
         })),
       updateUIConfig: (updates) =>
         set((state) => ({
-          uiConfig: { ...state.uiConfig, ...updates }
+          uiConfig: { ...state.uiConfig, ...updates },
         })),
       updateHelpConfig: (updates) =>
         set((state) => ({
-          helpConfig: { ...state.helpConfig, ...updates }
+          helpConfig: { ...state.helpConfig, ...updates },
         })),
 
       // Reset all form state to initial values
-      resetFormState: () => set({
-        loading: false,
-        success: false,
-        error: null,
-        formErrors: {},
-        saveLoading: false,
-        webSearchConfig: {
-          isActive: false,
-          isSearching: false,
-          statusMessage: '',
-          enabled: false
-        },
-        privacyModeConfig: {
-          isActive: false,
-          enabled: false
-        },
-        proModeConfig: {
-          isActive: false,
-          enabled: true
-        },
-        useFeatureIcons: false,
-        attachedFiles: [],
-        uploadedImage: null,
-        isFormVisible: true,
-        isStartMode: false,
-        // Configuration sections reset to empty (preserve initial state if provided)
-        tabIndexConfig: initialState.tabIndexConfig || {},
-        platformConfig: initialState.platformConfig || {},
-        submitConfig: initialState.submitConfig || {},
-        uiConfig: initialState.uiConfig || {},
-        helpConfig: initialState.helpConfig || {},
-        ...initialState // Reset to initial state, not defaults
-      }),
+      resetFormState: () =>
+        set({
+          loading: false,
+          success: false,
+          error: null,
+          formErrors: {},
+          saveLoading: false,
+          webSearchConfig: {
+            isActive: false,
+            isSearching: false,
+            statusMessage: '',
+            enabled: false,
+          },
+          privacyModeConfig: {
+            isActive: false,
+            enabled: false,
+          },
+          proModeConfig: {
+            isActive: false,
+            enabled: true,
+          },
+          useFeatureIcons: false,
+          attachedFiles: [],
+          uploadedImage: null,
+          isFormVisible: true,
+          isStartMode: false,
+          // Configuration sections reset to empty (preserve initial state if provided)
+          tabIndexConfig: initialState.tabIndexConfig || {},
+          platformConfig: initialState.platformConfig || {},
+          submitConfig: initialState.submitConfig || {},
+          uiConfig: initialState.uiConfig || {},
+          helpConfig: initialState.helpConfig || {},
+          ...initialState, // Reset to initial state, not defaults
+        }),
 
       // Helper selectors
       getFormSubmissionState: () => {
@@ -427,7 +429,7 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
           success: state.success,
           error: state.error,
           formErrors: state.formErrors,
-          saveLoading: state.saveLoading
+          saveLoading: state.saveLoading,
         };
       },
 
@@ -437,7 +439,7 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
           webSearchConfig: state.webSearchConfig,
           privacyModeConfig: state.privacyModeConfig,
           proModeConfig: state.proModeConfig,
-          useFeatureIcons: state.useFeatureIcons
+          useFeatureIcons: state.useFeatureIcons,
         };
       },
 
@@ -445,7 +447,7 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
         const state = get();
         return {
           attachedFiles: state.attachedFiles,
-          uploadedImage: state.uploadedImage
+          uploadedImage: state.uploadedImage,
         };
       },
 
@@ -457,7 +459,7 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
           platformConfig: state.platformConfig,
           submitConfig: state.submitConfig,
           uiConfig: state.uiConfig,
-          helpConfig: state.helpConfig
+          helpConfig: state.helpConfig,
         };
       },
 
@@ -485,7 +487,7 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
       getHelpConfig: <T,>(key: string, fallback: T): T => {
         const state = get();
         return (state.helpConfig[key] as T) ?? fallback;
-      }
+      },
     }))
   );
 };
@@ -497,7 +499,11 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
  * @param {Object} props.initialState - Initial state for the form store
  * @param {string} props.formId - Unique identifier for this form instance (for debugging)
  */
-export const FormStateProvider = ({ children, initialState = {}, formId = 'default' }: FormStateProviderProps) => {
+export const FormStateProvider = ({
+  children,
+  initialState = {},
+  formId = 'default',
+}: FormStateProviderProps) => {
   // Create a unique store instance for this form
   const store = useMemo(() => {
     const storeInstance = createFormStateStore(initialState);
@@ -510,11 +516,7 @@ export const FormStateProvider = ({ children, initialState = {}, formId = 'defau
     return storeInstance;
   }, [formId]); // Only recreate if formId changes
 
-  return (
-    <FormStateContext.Provider value={store}>
-      {children}
-    </FormStateContext.Provider>
-  );
+  return <FormStateContext.Provider value={store}>{children}</FormStateContext.Provider>;
 };
 
 /**

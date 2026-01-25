@@ -1,4 +1,10 @@
-import { createCanvas, loadImage, Canvas, SKRSContext2D as CanvasRenderingContext2D, Image } from '@napi-rs/canvas';
+import {
+  createCanvas,
+  loadImage,
+  Canvas,
+  SKRSContext2D as CanvasRenderingContext2D,
+  Image,
+} from '@napi-rs/canvas';
 import { checkFiles, registerFonts } from '../sharepic/canvas/fileManagement.js';
 import { COLORS } from '../sharepic/canvas/config.js';
 import { createLogger } from '../../utils/logger.js';
@@ -8,7 +14,7 @@ import type {
   ImagineComposeOptions,
   GradientConfig,
   BarConfig,
-  TemplateConfig
+  TemplateConfig,
 } from './types.js';
 
 const log = createLogger('ImagineCanvasRenderer');
@@ -34,20 +40,20 @@ export const BRAND_COLORS: Readonly<BrandColors> = {
   TANNE: COLORS.TANNE || '#005538',
   SAND: COLORS.SAND || '#F5F1E9',
   WHITE: '#FFFFFF',
-  KLEE: COLORS.KLEE || '#008939'
+  KLEE: COLORS.KLEE || '#008939',
 };
 
 export const VARIANT_CONFIGS: Readonly<Record<string, VariantConfig>> = {
   'light-top': {
     name: 'Light Top',
-    textArea: { y: 0, height: 0.20 },
-    defaultTextColor: BRAND_COLORS.TANNE
+    textArea: { y: 0, height: 0.2 },
+    defaultTextColor: BRAND_COLORS.TANNE,
   },
   'green-bottom': {
     name: 'Green Bottom',
-    textArea: { y: 0.80, height: 0.20 },
-    defaultTextColor: BRAND_COLORS.WHITE
-  }
+    textArea: { y: 0.8, height: 0.2 },
+    defaultTextColor: BRAND_COLORS.WHITE,
+  },
 };
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -92,7 +98,10 @@ function calculateFontSize(
     const lines = wrapText(ctx, text, maxWidth * 0.92);
     const totalHeight = lines.length * fontSize * lineHeightMultiplier;
 
-    if (totalHeight <= maxHeight && lines.every(line => ctx.measureText(line).width <= maxWidth * 0.95)) {
+    if (
+      totalHeight <= maxHeight &&
+      lines.every((line) => ctx.measureText(line).width <= maxWidth * 0.95)
+    ) {
       return { fontSize, lines };
     }
     fontSize -= 4;
@@ -118,7 +127,10 @@ function renderFluxImage(
   const imageAspectRatio = image.width / image.height;
   const areaAspectRatio = outputWidth / destHeight;
 
-  let sx = 0, sy = 0, sWidth = image.width, sHeight = image.height;
+  let sx = 0,
+    sy = 0,
+    sWidth = image.width,
+    sHeight = image.height;
 
   if (imageAspectRatio > areaAspectRatio) {
     sWidth = image.height * areaAspectRatio;
@@ -202,7 +214,7 @@ function renderTitle(
   const { textArea } = templateConfig;
   const textY = textArea.y * outputHeight;
   const textHeight = textArea.height * outputHeight;
-  const maxWidth = outputWidth * 0.90;
+  const maxWidth = outputWidth * 0.9;
   const fontFamily = 'GrueneTypeNeue';
 
   const { fontSize, lines } = calculateFontSize(
@@ -222,14 +234,16 @@ function renderTitle(
 
   const lineHeight = fontSize * 1.15;
   const totalTextHeight = lines.length * lineHeight;
-  const startY = textY + (textHeight * 0.5) - (totalTextHeight / 2) + lineHeight / 2;
+  const startY = textY + textHeight * 0.5 - totalTextHeight / 2 + lineHeight / 2;
 
   lines.forEach((line, index) => {
     const lineY = startY + index * lineHeight;
     ctx.fillText(line, outputWidth / 2, lineY);
   });
 
-  log.debug(`Rendered title: "${title.substring(0, 30)}..." fontSize=${fontSize}, lines=${lines.length}`);
+  log.debug(
+    `Rendered title: "${title.substring(0, 30)}..." fontSize=${fontSize}, lines=${lines.length}`
+  );
 }
 
 export async function composeImagineCreate(
@@ -244,12 +258,14 @@ export async function composeImagineCreate(
     titleColor,
     variant = 'light-top',
     outputWidth = OUTPUT_WIDTH,
-    outputHeight = OUTPUT_HEIGHT
+    outputHeight = OUTPUT_HEIGHT,
   } = options;
 
   const variantConfig = VARIANT_CONFIGS[variant] || VARIANT_CONFIGS['light-top'];
 
-  log.debug(`Composing imagine create: variant="${variant}", title="${title?.substring(0, 30)}..."`);
+  log.debug(
+    `Composing imagine create: variant="${variant}", title="${title?.substring(0, 30)}..."`
+  );
 
   const canvas: Canvas = createCanvas(outputWidth, outputHeight);
   const ctx = canvas.getContext('2d');
@@ -260,7 +276,10 @@ export async function composeImagineCreate(
   const imageAspectRatio = fluxImage.width / fluxImage.height;
   const canvasAspectRatio = outputWidth / outputHeight;
 
-  let sx = 0, sy = 0, sWidth = fluxImage.width, sHeight = fluxImage.height;
+  let sx = 0,
+    sy = 0,
+    sWidth = fluxImage.width,
+    sHeight = fluxImage.height;
 
   if (imageAspectRatio > canvasAspectRatio) {
     sWidth = fluxImage.height * canvasAspectRatio;

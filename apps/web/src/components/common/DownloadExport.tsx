@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { IoDownloadOutline } from "react-icons/io5";
-import { HiRefresh } from "react-icons/hi";
+import { HiRefresh } from 'react-icons/hi';
+import { IoDownloadOutline } from 'react-icons/io5';
+
 import { useExportStore } from '../../stores/core/exportStore';
 import { extractFormattedText } from '../utils/contentExtractor';
 
@@ -20,7 +21,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }: Downloa
     // loadingPDF, // Temporarily disabled
     // loadingDOCX, // handled via isGenerating
     // loadPDFLibrary, // Temporarily disabled
-    generateDOCX
+    generateDOCX,
   } = useExportStore();
 
   if (!content) {
@@ -59,22 +60,25 @@ const DownloadExport = ({ content, title, className = 'action-button' }: Downloa
   //   }
   // }, [loadPDFLibrary]);
 
-  const loadDOCX = useCallback(async () => { }, []);
+  const loadDOCX = useCallback(async () => {}, []);
 
   const handleDownloadClick = () => {
     setShowFormatSelector(!showFormatSelector);
   };
 
-  const handleFormatSelect = useCallback((format: 'docx' | 'pdf') => {
-    setShowFormatSelector(false);
+  const handleFormatSelect = useCallback(
+    (format: 'docx' | 'pdf') => {
+      setShowFormatSelector(false);
 
-    if (format === 'docx') {
-      handleDOCXDownload();
-    } else if (format === 'pdf') {
-      // PDF export temporarily disabled
-      console.log('PDF export is temporarily disabled');
-    }
-  }, [handleDOCXDownload]);
+      if (format === 'docx') {
+        handleDOCXDownload();
+      } else if (format === 'pdf') {
+        // PDF export temporarily disabled
+        console.log('PDF export is temporarily disabled');
+      }
+    },
+    [handleDOCXDownload]
+  );
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -98,11 +102,15 @@ const DownloadExport = ({ content, title, className = 'action-button' }: Downloa
         disabled={isGenerating}
         aria-label="Herunterladen"
         {...(!isMobileView && {
-          'data-tooltip-id': "action-tooltip",
-          'data-tooltip-content': "Herunterladen"
+          'data-tooltip-id': 'action-tooltip',
+          'data-tooltip-content': 'Herunterladen',
         })}
       >
-        {isGenerating ? <HiRefresh className="spinning" size={16} /> : <IoDownloadOutline size={16} />}
+        {isGenerating ? (
+          <HiRefresh className="spinning" size={16} />
+        ) : (
+          <IoDownloadOutline size={16} />
+        )}
       </button>
 
       {showFormatSelector && (

@@ -112,11 +112,13 @@ const upload = multer({
     if (mistralVoiceService.isFormatSupported(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(
-        `Unsupported audio format: ${file.mimetype}. Supported formats: ${mistralVoiceService.getSupportedFormats().join(', ')}`
-      ));
+      cb(
+        new Error(
+          `Unsupported audio format: ${file.mimetype}. Supported formats: ${mistralVoiceService.getSupportedFormats().join(', ')}`
+        )
+      );
     }
-  }
+  },
 });
 
 // ============================================================================
@@ -127,129 +129,146 @@ const upload = multer({
  * POST /api/voice/transcribe
  * Transcribe audio file with Mistral Voxtral
  */
-router.post('/transcribe', upload.single('audio'), async (req: TranscribeRequest, res: Response<TranscribeResponse>) => {
-  if (!req.file) {
-    return res.status(400).json({
-      success: false,
-      error: 'Keine Audio-Datei erhalten'
-    });
+router.post(
+  '/transcribe',
+  upload.single('audio'),
+  async (req: TranscribeRequest, res: Response<TranscribeResponse>) => {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Keine Audio-Datei erhalten',
+      });
+    }
+
+    const audioBuffer = req.file.buffer;
+    const filename = req.file.originalname;
+
+    const options: TranscriptionOptions = {
+      language: req.query.language || req.body.language || 'de',
+      removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
+      timestamp_granularities:
+        req.query.timestamps === 'true' || req.body.timestamps === true ? ['segment'] : undefined,
+    };
+
+    try {
+      log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
+
+      const result = (await mistralVoiceService.transcribeFromBuffer(
+        audioBuffer,
+        filename,
+        options
+      )) as unknown as TranscriptionResult;
+
+      return res.json({
+        success: true,
+        text: result.text,
+        segments: result.segments,
+        hasTimestamps: result.hasTimestamps,
+        language: options.language,
+      });
+    } catch (error) {
+      log.error('[Voice] Transcription error:', error);
+
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Transkription: ' + (error as Error).message,
+      });
+    }
   }
-
-  const audioBuffer = req.file.buffer;
-  const filename = req.file.originalname;
-
-  const options: TranscriptionOptions = {
-    language: req.query.language || req.body.language || 'de',
-    removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
-    timestamp_granularities: (req.query.timestamps === 'true' || req.body.timestamps === true)
-      ? ['segment']
-      : undefined
-  };
-
-  try {
-    log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
-
-    const result = await mistralVoiceService.transcribeFromBuffer(
-      audioBuffer,
-      filename,
-      options
-    ) as unknown as TranscriptionResult;
-
-    return res.json({
-      success: true,
-      text: result.text,
-      segments: result.segments,
-      hasTimestamps: result.hasTimestamps,
-      language: options.language
-    });
-  } catch (error) {
-    log.error('[Voice] Transcription error:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler bei der Transkription: ' + (error as Error).message
-    });
-  }
-});
+);
 
 /**
  * POST /api/voice/transcribe-url
  * Transcribe audio from URL
  */
-router.post('/transcribe-url', async (req: TranscribeUrlRequest, res: Response<TranscribeUrlResponse>) => {
-  const { url, language = 'de', removeTimestamps = false, timestamps = false } = req.body;
+router.post(
+  '/transcribe-url',
+  async (req: TranscribeUrlRequest, res: Response<TranscribeUrlResponse>) => {
+    const { url, language = 'de', removeTimestamps = false, timestamps = false } = req.body;
 
-  if (!url) {
-    return res.status(400).json({
-      success: false,
-      error: 'Audio URL ist erforderlich'
-    });
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Audio URL ist erforderlich',
+      });
+    }
+
+    const options: TranscriptionOptions = {
+      language,
+      removeTimestamps,
+      timestamp_granularities: timestamps ? ['segment'] : undefined,
+    };
+
+    try {
+      log.debug('[Voice] Starting URL transcription for:', url, 'Options:', options);
+
+      const result = (await mistralVoiceService.transcribeFromUrl(
+        url,
+        options
+      )) as unknown as TranscriptionResult;
+
+      return res.json({
+        success: true,
+        text: result.text,
+        segments: result.segments,
+        hasTimestamps: result.hasTimestamps,
+        language: options.language,
+        sourceUrl: url,
+      });
+    } catch (error) {
+      log.error('[Voice] URL transcription error:', error);
+
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der URL-Transkription: ' + (error as Error).message,
+      });
+    }
   }
-
-  const options: TranscriptionOptions = {
-    language,
-    removeTimestamps,
-    timestamp_granularities: timestamps ? ['segment'] : undefined
-  };
-
-  try {
-    log.debug('[Voice] Starting URL transcription for:', url, 'Options:', options);
-
-    const result = await mistralVoiceService.transcribeFromUrl(url, options) as unknown as TranscriptionResult;
-
-    return res.json({
-      success: true,
-      text: result.text,
-      segments: result.segments,
-      hasTimestamps: result.hasTimestamps,
-      language: options.language,
-      sourceUrl: url
-    });
-  } catch (error) {
-    log.error('[Voice] URL transcription error:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler bei der URL-Transkription: ' + (error as Error).message
-    });
-  }
-});
+);
 
 /**
  * POST /api/voice/chat
  * Chat with audio input
  */
-router.post('/chat', upload.single('audio'), async (req: ChatRequest, res: Response<ChatResponse>) => {
-  if (!req.file) {
-    return res.status(400).json({
-      success: false,
-      error: 'Keine Audio-Datei erhalten'
-    });
+router.post(
+  '/chat',
+  upload.single('audio'),
+  async (req: ChatRequest, res: Response<ChatResponse>) => {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Keine Audio-Datei erhalten',
+      });
+    }
+
+    const audioBuffer = req.file.buffer;
+    const filename = req.file.originalname;
+    const prompt = req.body.prompt || req.query.prompt || 'Was ist in dieser Audio-Datei?';
+
+    try {
+      log.debug('[Voice] Starting audio chat for:', filename, 'Prompt:', prompt);
+
+      const response: string = await mistralVoiceService.chatWithAudio(
+        audioBuffer,
+        filename,
+        prompt
+      );
+
+      return res.json({
+        success: true,
+        response,
+        prompt,
+      });
+    } catch (error) {
+      log.error('[Voice] Audio chat error:', error);
+
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
+      });
+    }
   }
-
-  const audioBuffer = req.file.buffer;
-  const filename = req.file.originalname;
-  const prompt = req.body.prompt || req.query.prompt || 'Was ist in dieser Audio-Datei?';
-
-  try {
-    log.debug('[Voice] Starting audio chat for:', filename, 'Prompt:', prompt);
-
-    const response: string = await mistralVoiceService.chatWithAudio(audioBuffer, filename, prompt);
-
-    return res.json({
-      success: true,
-      response,
-      prompt
-    });
-  } catch (error) {
-    log.error('[Voice] Audio chat error:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler beim Audio-Chat: ' + (error as Error).message
-    });
-  }
-});
+);
 
 /**
  * GET /api/voice/formats
@@ -264,14 +283,14 @@ router.get('/formats', (_req: Request, res: Response<FormatsResponse>) => {
       supportedFormats: formats,
       maxFileSize: '50MB',
       maxDuration: '~15 minutes for transcription, ~20 minutes for chat',
-      provider: 'Mistral Voxtral'
+      provider: 'Mistral Voxtral',
     });
   } catch (error) {
     log.error('[Voice] Formats error:', error);
 
     return res.status(500).json({
       success: false,
-      error: 'Fehler beim Abrufen der unterstützten Formate'
+      error: 'Fehler beim Abrufen der unterstützten Formate',
     });
   }
 });

@@ -1,6 +1,6 @@
 /**
  * Centralized TabIndex Configuration
- * 
+ *
  * This file manages all tabIndex values across the application to ensure:
  * - Header navigation comes first (0-5)
  * - Generator forms start after header (10+)
@@ -10,14 +10,14 @@
 
 // Global ranges - 100-gap system for maximum flexibility
 export const TAB_INDEX_RANGES = {
-  HEADER: { start: 0, end: 99 },           // Header navigation
-  FORM_FIELDS: { start: 100, end: 399 },   // Main form inputs
+  HEADER: { start: 0, end: 99 }, // Header navigation
+  FORM_FIELDS: { start: 100, end: 399 }, // Main form inputs
   FEATURE_ICONS: { start: 400, end: 499 }, // Web search, privacy, attachments
-  SELECTORS: { start: 500, end: 699 },     // Platform, knowledge, document selectors
-  CONDITIONAL: { start: 700, end: 899 },   // Conditional/dynamic fields
-  ACTIONS: { start: 900, end: 999 },       // Submit, cancel, other actions
-  PROFILE: { start: 1000, end: 1999 },     // Profile page specific
-  SPECIAL_PAGES: { start: 2000, end: 2999 } // Special pages/modals
+  SELECTORS: { start: 500, end: 699 }, // Platform, knowledge, document selectors
+  CONDITIONAL: { start: 700, end: 899 }, // Conditional/dynamic fields
+  ACTIONS: { start: 900, end: 999 }, // Submit, cancel, other actions
+  PROFILE: { start: 1000, end: 1999 }, // Profile page specific
+  SPECIAL_PAGES: { start: 2000, end: 2999 }, // Special pages/modals
 };
 
 // Page-specific tabIndex configurations
@@ -27,25 +27,25 @@ export const TAB_INDEX_CONFIG = {
     // Form fields (100-399)
     thema: 100,
     details: 110,
-    
+
     // Feature icons (400-499)
     webSearch: 400,
     privacyMode: 410,
     attachment: 420,
-    
+
     // Selectors (500-699)
     platformSelector: 500,
     knowledgeSourceSelector: 510,
     knowledgeSelector: 520,
-    
+
     // Conditional fields (700-899) - AnimatePresence
     sharepicType: 700,
     zitatAuthor: 710,
     zitatgeber: 720,
     pressekontakt: 730,
-    
+
     // Actions (900-999)
-    submit: 900
+    submit: 900,
   },
 
   // Antrag Generator
@@ -54,19 +54,19 @@ export const TAB_INDEX_CONFIG = {
     idee: 100,
     details: 110,
     gliederung: 120,
-    
+
     // Feature icons (400-499)
     webSearch: 400,
     privacyMode: 410,
     attachment: 420,
-    
+
     // Selectors (500-699)
     platformSelector: 500,
     knowledgeSourceSelector: 510,
     knowledgeSelector: 520,
-    
+
     // Actions (900-999)
-    submit: 900
+    submit: 900,
   },
 
   // Grüne Jugend Generator
@@ -74,19 +74,19 @@ export const TAB_INDEX_CONFIG = {
     // Form fields (100-399)
     thema: 100,
     details: 110,
-    
+
     // Feature icons (400-499)
     webSearch: 400,
     privacyMode: 410,
     attachment: 420,
-    
+
     // Selectors (500-699)
     platformSelector: 500,
     knowledgeSourceSelector: 510,
     knowledgeSelector: 520,
-    
+
     // Actions (900-999)
-    submit: 900
+    submit: 900,
   },
 
   // Universal Text Generator
@@ -106,7 +106,7 @@ export const TAB_INDEX_CONFIG = {
     knowledgeSelector: 520,
 
     // Actions (900-999)
-    submit: 900
+    submit: 900,
   },
 
   // Texte Generator
@@ -125,7 +125,7 @@ export const TAB_INDEX_CONFIG = {
     knowledgeSelector: 520,
 
     // Actions (900-999)
-    submit: 900
+    submit: 900,
   },
 
   // Alt-Text Generator
@@ -144,7 +144,7 @@ export const TAB_INDEX_CONFIG = {
     knowledgeSelector: 520,
 
     // Actions (900-999)
-    submit: 900
+    submit: 900,
   },
 
   // Leichte Sprache Generator
@@ -164,7 +164,7 @@ export const TAB_INDEX_CONFIG = {
     knowledgeSelector: 520,
 
     // Actions (900-999)
-    submit: 900
+    submit: 900,
   },
 
   // Profile Page - Main navigation
@@ -178,7 +178,7 @@ export const TAB_INDEX_CONFIG = {
 
     // Legacy aliases for backward compatibility
     tabsStart: 1000,
-    contentStart: 1100
+    contentStart: 1100,
   },
 
   // Profile Page - ProfileInfoTab
@@ -189,18 +189,18 @@ export const TAB_INDEX_CONFIG = {
     firstNameInput: 1120,
     lastNameInput: 1130,
     hedgehogToggle: 1140,
-    
+
     // Actions (1200-1299)
     deleteAccountButton: 1200,
-    
+
     // Conditional forms (1300-1399)
     deletePasswordInput: 1300,
     deleteConfirmButton: 1310,
     deleteCancelButton: 1320,
-    
+
     // Modal elements (1400-1499)
     avatarOption: 1400, // Base for dynamic avatar options
-    avatarModalClose: 1490
+    avatarModalClose: 1490,
   },
 
   // Profile Page - GroupsManagementTab
@@ -208,29 +208,29 @@ export const TAB_INDEX_CONFIG = {
     // Navigation (1500-1599)
     overviewButton: 1500,
     createGroupButton: 1510,
-    
+
     // Overview state (1600-1699)
     groupCard: 1600, // Base for dynamic group cards
-    
+
     // Create group form (1700-1799)
     groupNameInput: 1700,
     createSubmitButton: 1710,
     createCancelButton: 1720,
-    
+
     // Group detail view (1800-1899)
     groupDetailTabs: 1800,
     groupNameEdit: 1810,
     groupDescEdit: 1820,
     deleteGroupButton: 1830,
     copyLinkButton: 1840,
-    
+
     // Group settings form (1900-1999)
     instructionTextarea: 1900,
     platformSelector: 1910,
     knowledgeSelector: 1920,
     addKnowledgeButton: 1930,
     removeKnowledgeButton: 1940,
-    saveButton: 1950
+    saveButton: 1950,
   },
 
   // Profile Page - IntelligenceTab
@@ -241,15 +241,15 @@ export const TAB_INDEX_CONFIG = {
     antragTab: 1120,
     jugendTab: 1130,
     memoryTab: 1140,
-    
+
     // Instruction textareas (1200-1299)
     instructionTextarea: 1200, // Base for all instruction textareas
-    
+
     // Knowledge management (1300-1399)
     addKnowledgeButton: 1300,
     removeKnowledgeButton: 1310,
     knowledgeSelector: 1320,
-    
+
     // Memory section - conditional (1400-1499)
     memoryToggle: 1400,
     deleteAllMemoryButton: 1410,
@@ -258,7 +258,7 @@ export const TAB_INDEX_CONFIG = {
     memoryTagInput: 1440,
     saveMemoryButton: 1450,
     cancelMemoryButton: 1460,
-    deleteMemoryButton: 1470 // Base for individual memory delete buttons
+    deleteMemoryButton: 1470, // Base for individual memory delete buttons
   },
 
   // Profile Page - ContentManagementTab (merged DocumentsTab and CanvaTab)
@@ -266,7 +266,7 @@ export const TAB_INDEX_CONFIG = {
     // Vertical navigation (1100-1199)
     documentsTab: 1100,
     qaTab: 1110,
-    
+
     // Document overview (1200-1299)
     addContentButton: 1200,
     searchInput: 1210,
@@ -276,18 +276,18 @@ export const TAB_INDEX_CONFIG = {
     deleteButton: 1250,
     shareButton: 1260,
     templateButton: 1270,
-    
+
     // Q&A creator (1300-1399)
     qaQuestionInput: 1300,
     qaAnswerTextarea: 1310,
     qaSourceInput: 1320,
     qaSaveButton: 1330,
     qaCancelButton: 1340,
-    
+
     // Modals - conditional (1400-1499)
     modalInput: 1400,
     modalButton: 1410,
-    modalClose: 1420
+    modalClose: 1420,
   },
 
   // Profile Page - CustomGeneratorsTab
@@ -306,7 +306,7 @@ export const TAB_INDEX_CONFIG = {
     manageDocsButton: 1300,
     documentSelector: 1310,
     removeDocButton: 1320,
-    backButton: 1330
+    backButton: 1330,
   },
 
   // Profile Page - Labor Tab
@@ -314,23 +314,30 @@ export const TAB_INDEX_CONFIG = {
     // Main content (1100-1199)
     featureToggle: 1100,
     settingInput: 1110,
-    actionButton: 1120
+    actionButton: 1120,
   },
 
   // Home Page
   HOME: {
     // Primary buttons (100-199)
     primaryButtons: 100,
-    
+
     // Secondary buttons (200-299)
     secondaryButtons: 200,
-    
+
     // Newsletter (300-399)
-    newsletter: 300
-  }
+    newsletter: 300,
+  },
 };
 
-type SectionName = 'FORM' | 'FEATURES' | 'SELECTORS' | 'CONDITIONAL' | 'ACTIONS' | 'PROFILE' | 'SPECIAL';
+type SectionName =
+  | 'FORM'
+  | 'FEATURES'
+  | 'SELECTORS'
+  | 'CONDITIONAL'
+  | 'ACTIONS'
+  | 'PROFILE'
+  | 'SPECIAL';
 type RangeName = keyof typeof TAB_INDEX_RANGES;
 type PageType = keyof typeof TAB_INDEX_CONFIG;
 
@@ -350,7 +357,7 @@ export const TabIndexHelpers = {
       CONDITIONAL: 700,
       ACTIONS: 900,
       PROFILE: 1000,
-      SPECIAL: 2000
+      SPECIAL: 2000,
     };
 
     if (!sectionStarts[section]) {
@@ -358,7 +365,7 @@ export const TabIndexHelpers = {
       return 100; // Default to form field range
     }
 
-    return sectionStarts[section] + (position * 10);
+    return sectionStarts[section] + position * 10;
   },
 
   /**
@@ -382,7 +389,8 @@ export const TabIndexHelpers = {
    * @param isVisible - Whether the element is currently visible
    * @returns tabIndex value or undefined if not visible
    */
-  getConditional: (baseIndex: number, isVisible: boolean): number | undefined => isVisible ? baseIndex : undefined,
+  getConditional: (baseIndex: number, isVisible: boolean): number | undefined =>
+    isVisible ? baseIndex : undefined,
 
   /**
    * Get sequential tabIndex values starting from a base (UPDATED for 100-gap system)
@@ -391,7 +399,7 @@ export const TabIndexHelpers = {
    * @returns Array of sequential tabIndex values with 10-gaps
    */
   getSequential: (startIndex: number, count: number): number[] =>
-    Array.from({ length: count }, (_, i) => startIndex + (i * 10)),
+    Array.from({ length: count }, (_, i) => startIndex + i * 10),
 
   /**
    * Get tabIndex for form elements with offset
@@ -416,10 +424,10 @@ export const TabIndexHelpers = {
    */
   isValidTabIndex: (tabIndex: number): boolean => {
     // Check if it's in any of the defined ranges
-    return Object.values(TAB_INDEX_RANGES).some(range =>
-      tabIndex >= range.start && tabIndex <= range.end
+    return Object.values(TAB_INDEX_RANGES).some(
+      (range) => tabIndex >= range.start && tabIndex <= range.end
     );
-  }
+  },
 };
 
 // Export individual page configs for convenience
@@ -438,7 +446,7 @@ export const {
   PROFILE_CONTENT_MANAGEMENT,
   PROFILE_GENERATORS,
   PROFILE_LABOR,
-  HOME
+  HOME,
 } = TAB_INDEX_CONFIG;
 
 // Default configuration for unknown pages
@@ -457,5 +465,5 @@ export const DEFAULT_TAB_INDEX = {
   knowledgeSelector: 520,
 
   // Actions (900-999)
-  submit: 900
+  submit: 900,
 };

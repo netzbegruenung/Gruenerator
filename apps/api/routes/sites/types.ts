@@ -112,8 +112,17 @@ export interface SuccessResponse {
 }
 
 export const RESERVED_SUBDOMAINS = [
-  'www', 'api', 'admin', 'app', 'mail', 'ftp',
-  'blog', 'shop', 'test', 'dev', 'staging'
+  'www',
+  'api',
+  'admin',
+  'app',
+  'mail',
+  'ftp',
+  'blog',
+  'shop',
+  'test',
+  'dev',
+  'staging',
 ];
 
 export const THEME_STYLES: Record<string, ThemeColors> = {
@@ -121,20 +130,20 @@ export const THEME_STYLES: Record<string, ThemeColors> = {
     primary: '#46962b',
     background: '#f5f5f5',
     text: '#2c3e50',
-    card: '#ffffff'
+    card: '#ffffff',
   },
   modern: {
     primary: '#2c3e50',
     background: '#ffffff',
     text: '#1a1a1a',
-    card: '#f8f9fa'
+    card: '#f8f9fa',
   },
   professional: {
     primary: '#34495e',
     background: '#f8f9fa',
     text: '#2c3e50',
-    card: '#ffffff'
-  }
+    card: '#ffffff',
+  },
 };
 
 export const AVAILABLE_THEMES: Theme[] = [
@@ -143,20 +152,20 @@ export const AVAILABLE_THEMES: Theme[] = [
     name: 'Grüne Classic',
     description: 'Klassisches Design in Grünen-Farben',
     primaryColor: '#46962b',
-    secondaryColor: '#64a70b'
+    secondaryColor: '#64a70b',
   },
   {
     id: 'modern',
     name: 'Modern Minimal',
     description: 'Modernes, minimalistisches Design',
     primaryColor: '#2c3e50',
-    secondaryColor: '#3498db'
+    secondaryColor: '#3498db',
   },
   {
     id: 'professional',
     name: 'Professional',
     description: 'Professionelles Business-Design',
     primaryColor: '#34495e',
-    secondaryColor: '#95a5a6'
-  }
+    secondaryColor: '#95a5a6',
+  },
 ];

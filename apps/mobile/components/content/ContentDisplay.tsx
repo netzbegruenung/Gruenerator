@@ -1,4 +1,16 @@
-import { View, Text, StyleSheet, ScrollView, useColorScheme, Share, Pressable, Modal, TouchableWithoutFeedback, Platform, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  useColorScheme,
+  Share,
+  Pressable,
+  Modal,
+  TouchableWithoutFeedback,
+  Platform,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -229,9 +241,8 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
             styles.fabBlur,
             {
               bottom: insets.bottom + 16,
-              backgroundColor: colorScheme === 'dark'
-                ? 'rgba(30, 30, 30, 0.85)'
-                : 'rgba(255, 255, 255, 0.75)',
+              backgroundColor:
+                colorScheme === 'dark' ? 'rgba(30, 30, 30, 0.85)' : 'rgba(255, 255, 255, 0.75)',
             },
           ]}
         >
@@ -249,31 +260,58 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
       >
         <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
           <View style={styles.menuOverlay}>
-            <View style={[styles.menuContainer, { backgroundColor: theme.card, bottom: insets.bottom + 80, right: spacing.medium }]}>
+            <View
+              style={[
+                styles.menuContainer,
+                { backgroundColor: theme.card, bottom: insets.bottom + 80, right: spacing.medium },
+              ]}
+            >
               <Pressable
-                onPress={() => { setMenuVisible(false); handleEdit(); }}
-                style={({ pressed }) => [styles.menuItem, styles.menuItemPrimary, { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] }]}
+                onPress={() => {
+                  setMenuVisible(false);
+                  handleEdit();
+                }}
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  styles.menuItemPrimary,
+                  { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+                ]}
               >
                 <Ionicons name="chatbubble-outline" size={18} color={colors.white} />
-                <Text style={[styles.menuItemText, { color: colors.white, fontWeight: '500' }]}>Bearbeiten</Text>
+                <Text style={[styles.menuItemText, { color: colors.white, fontWeight: '500' }]}>
+                  Bearbeiten
+                </Text>
               </Pressable>
               <Pressable
                 onPress={handleMenuCopy}
-                style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  { backgroundColor: pressed ? theme.surface : 'transparent' },
+                ]}
               >
-                <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? colors.primary[600] : theme.text} />
+                <Ionicons
+                  name={copied ? 'checkmark' : 'copy-outline'}
+                  size={18}
+                  color={copied ? colors.primary[600] : theme.text}
+                />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Kopieren</Text>
               </Pressable>
               <Pressable
                 onPress={handleShare}
-                style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  { backgroundColor: pressed ? theme.surface : 'transparent' },
+                ]}
               >
                 <Ionicons name="share-outline" size={18} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Teilen</Text>
               </Pressable>
               <Pressable
                 onPress={handleDOCXDownload}
-                style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  { backgroundColor: pressed ? theme.surface : 'transparent' },
+                ]}
               >
                 <Ionicons name="document-outline" size={18} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Als Word speichern</Text>
@@ -283,8 +321,14 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
               )}
               {canUndo && (
                 <Pressable
-                  onPress={() => { setMenuVisible(false); handleUndo(); }}
-                  style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    handleUndo();
+                  }}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    { backgroundColor: pressed ? theme.surface : 'transparent' },
+                  ]}
                 >
                   <Ionicons name="arrow-undo" size={18} color={theme.text} />
                   <Text style={[styles.menuItemText, { color: theme.text }]}>Rückgängig</Text>
@@ -292,8 +336,14 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
               )}
               {canRedo && (
                 <Pressable
-                  onPress={() => { setMenuVisible(false); handleRedo(); }}
-                  style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    handleRedo();
+                  }}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    { backgroundColor: pressed ? theme.surface : 'transparent' },
+                  ]}
                 >
                   <Ionicons name="arrow-redo" size={18} color={theme.text} />
                   <Text style={[styles.menuItemText, { color: theme.text }]}>Wiederholen</Text>
@@ -301,8 +351,14 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
               )}
               <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
               <Pressable
-                onPress={() => { setMenuVisible(false); onNewGeneration(); }}
-                style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onNewGeneration();
+                }}
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  { backgroundColor: pressed ? theme.surface : 'transparent' },
+                ]}
               >
                 <Ionicons name="refresh-outline" size={18} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Neu grünerieren</Text>

@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { FieldValues, UseFormSetValue } from 'react-hook-form';
-import { suggestFieldType, suggestRequiredStatus } from '../utils/validation';
+import { type FieldValues, type UseFormSetValue } from 'react-hook-form';
+
 import { sanitizeFieldName } from '../utils/sanitization';
+import { suggestFieldType, suggestRequiredStatus } from '../utils/validation';
 
 interface UseFieldAutoSuggestOptions<T extends FieldValues> {
   label: string;
@@ -12,7 +13,7 @@ interface UseFieldAutoSuggestOptions<T extends FieldValues> {
 export const useFieldAutoSuggest = <T extends FieldValues>({
   label,
   setValue,
-  currentType
+  currentType,
 }: UseFieldAutoSuggestOptions<T>): void => {
   useEffect(() => {
     if (!label) return;

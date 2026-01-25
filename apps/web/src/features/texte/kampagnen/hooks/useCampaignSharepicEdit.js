@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+
 import apiClient from '../../../../components/utils/apiClient';
 
 /**
@@ -20,38 +21,41 @@ const useCampaignSharepicEdit = () => {
    * @param {Object} params.features - Feature toggles (usePrivacyMode, useBedrock, etc.)
    * @returns {Promise<Object>} Regenerated sharepic object
    */
-  const regenerateSharepic = useCallback(async ({ campaignId, variant, location, details, editedLines, features }) => {
-    setIsRegenerating(true);
-    setRegenerationError(null);
+  const regenerateSharepic = useCallback(
+    async ({ campaignId, variant, location, details, editedLines, features }) => {
+      setIsRegenerating(true);
+      setRegenerationError(null);
 
-    try {
-      const response = await apiClient.post('/campaign_generate', {
-        campaignId: campaignId,
-        campaignTypeId: variant,
-        thema: location,
-        details: details || '',
-        lineOverrides: editedLines,
-        count: 1,
-        ...features
-      });
+      try {
+        const response = await apiClient.post('/campaign_generate', {
+          campaignId: campaignId,
+          campaignTypeId: variant,
+          thema: location,
+          details: details || '',
+          lineOverrides: editedLines,
+          count: 1,
+          ...features,
+        });
 
-      const result = response.data;
+        const result = response.data;
 
-      if (!result.success || !result.sharepics || result.sharepics.length === 0) {
-        throw new Error('Keine Sharepics vom Server empfangen');
+        if (!result.success || !result.sharepics || result.sharepics.length === 0) {
+          throw new Error('Keine Sharepics vom Server empfangen');
+        }
+
+        return result.sharepics[0];
+      } catch (error) {
+        console.error('[useCampaignSharepicEdit] Regeneration failed:', error);
+        const errorMessage =
+          error?.response?.data?.error || error.message || 'Fehler beim Regenerieren';
+        setRegenerationError(errorMessage);
+        throw error;
+      } finally {
+        setIsRegenerating(false);
       }
-
-      return result.sharepics[0];
-
-    } catch (error) {
-      console.error('[useCampaignSharepicEdit] Regeneration failed:', error);
-      const errorMessage = error?.response?.data?.error || error.message || 'Fehler beim Regenerieren';
-      setRegenerationError(errorMessage);
-      throw error;
-    } finally {
-      setIsRegenerating(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   /**
    * Clear regeneration error
@@ -64,7 +68,7 @@ const useCampaignSharepicEdit = () => {
     regenerateSharepic,
     isRegenerating,
     regenerationError,
-    clearError
+    clearError,
   };
 };
 

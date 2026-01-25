@@ -26,7 +26,10 @@ import {
 } from '@gruenerator/shared/image-studio';
 
 // Re-export shared types for convenience
-export type { FormFieldValue as ImageStudioFieldValue, ImageStudioFormData } from '@gruenerator/shared/image-studio';
+export type {
+  FormFieldValue as ImageStudioFieldValue,
+  ImageStudioFormData,
+} from '@gruenerator/shared/image-studio';
 
 interface ImageStudioState {
   /** Selected template type */
@@ -432,14 +435,12 @@ export const selectBgRemovalState = (state: ImageStudioStore) => ({
 /**
  * Selector for checking if result is ready
  */
-export const selectHasResult = (state: ImageStudioStore) =>
-  state.generatedImage !== null;
+export const selectHasResult = (state: ImageStudioStore) => state.generatedImage !== null;
 
 /**
  * Selector for checking if text generation is complete
  */
-export const selectHasGeneratedText = (state: ImageStudioStore) =>
-  state.generatedText !== null;
+export const selectHasGeneratedText = (state: ImageStudioStore) => state.generatedText !== null;
 
 /**
  * Selector for getting the current form data with all fields
@@ -453,8 +454,7 @@ export const selectCompleteFormData = (state: ImageStudioStore) => ({
  * Selector for whether floating badges should be visible
  * Badges are hidden when actively creating an image (type is selected)
  */
-export const selectShouldShowBadges = (state: ImageStudioStore) =>
-  state.type === null;
+export const selectShouldShowBadges = (state: ImageStudioStore) => state.type === null;
 
 /**
  * Selector for whether modifications are available for current type
@@ -472,14 +472,14 @@ export const selectIsModificationLoading = (state: ImageStudioStore) =>
  * Selector for getting current modifications with type safety
  */
 export const selectDreizeilenModifications = (state: ImageStudioStore) =>
-  state.type === 'dreizeilen' ? state.modifications as DreizeilenModificationParams | null : null;
+  state.type === 'dreizeilen' ? (state.modifications as DreizeilenModificationParams | null) : null;
 
 /**
  * Selector for getting zitat modifications
  */
 export const selectZitatModifications = (state: ImageStudioStore) =>
-  (state.type === 'zitat' || state.type === 'zitat-pure')
-    ? state.modifications as ZitatModificationParams | null
+  state.type === 'zitat' || state.type === 'zitat-pure'
+    ? (state.modifications as ZitatModificationParams | null)
     : null;
 
 /**
@@ -487,20 +487,18 @@ export const selectZitatModifications = (state: ImageStudioStore) =>
  */
 export const selectVeranstaltungModifications = (state: ImageStudioStore) =>
   state.type === 'veranstaltung'
-    ? state.modifications as VeranstaltungModificationParams | null
+    ? (state.modifications as VeranstaltungModificationParams | null)
     : null;
 
 /**
  * Selector for whether a KI type is selected
  */
-export const selectIsKiMode = (state: ImageStudioStore) =>
-  state.kiType !== null;
+export const selectIsKiMode = (state: ImageStudioStore) => state.kiType !== null;
 
 /**
  * Selector for KI loading state
  */
-export const selectIsKiLoading = (state: ImageStudioStore) =>
-  state.kiLoading;
+export const selectIsKiLoading = (state: ImageStudioStore) => state.kiLoading;
 
 /**
  * Selector for checking if KI instruction is valid
@@ -520,8 +518,7 @@ export const selectShouldShowBadgesWithKi = (state: ImageStudioStore) =>
 /**
  * Selector for auto-save status
  */
-export const selectAutoSaveStatus = (state: ImageStudioStore) =>
-  state.autoSaveStatus;
+export const selectAutoSaveStatus = (state: ImageStudioStore) => state.autoSaveStatus;
 
 /**
  * Selector for checking if image is auto-saved

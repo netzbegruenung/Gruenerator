@@ -7,11 +7,15 @@
 export { SimpleMessageDetector, simpleMessageDetector } from './SimpleMessageDetector.js';
 
 // Named function exports (backward compatibility)
-export { detectSimpleMessage, generateSimpleResponse, loadConfig } from './SimpleMessageDetector.js';
+export {
+  detectSimpleMessage,
+  generateSimpleResponse,
+  loadConfig,
+} from './SimpleMessageDetector.js';
 
 // Type exports
 export type {
   CategoryConfig,
   SimpleMessagesConfig,
-  SimpleMessageDetectionResult
+  SimpleMessageDetectionResult,
 } from './types.js';

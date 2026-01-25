@@ -14,7 +14,7 @@ import type {
   SubtitlerProjectListItem,
   CreateProjectData,
   UpdateProjectData,
-  DeleteProjectResult
+  DeleteProjectResult,
 } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -91,9 +91,8 @@ export class SubtitlerProjectService {
         created_at: row.created_at,
         updated_at: row.updated_at,
         last_edited_at: row.last_edited_at,
-        export_count: row.export_count
+        export_count: row.export_count,
       }));
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to get user projects:', error);
       throw new Error(`Failed to retrieve projects: ${error.message}`);
@@ -119,7 +118,6 @@ export class SubtitlerProjectService {
       }
 
       return result as unknown as SubtitlerProject;
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to get project:', error);
       throw new Error(`Failed to retrieve project: ${error.message}`);
@@ -145,14 +143,16 @@ export class SubtitlerProjectService {
       const result = await this.postgres.queryOne(query, [projectId]);
 
       return result ? (result as unknown as SubtitlerProject) : null;
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to get project by id:', error);
       throw new Error(`Failed to retrieve project: ${error.message}`);
     }
   }
 
-  async findProjectByVideoFilename(userId: string, videoFilename: string): Promise<Partial<SubtitlerProject> | null> {
+  async findProjectByVideoFilename(
+    userId: string,
+    videoFilename: string
+  ): Promise<Partial<SubtitlerProject> | null> {
     await this.ensureInitialized();
 
     try {
@@ -164,7 +164,7 @@ export class SubtitlerProjectService {
                 LIMIT 1
             `;
       const result = await this.postgres.queryOne(query, [userId, videoFilename]);
-      return result ? result as unknown as Partial<SubtitlerProject> : null;
+      return result ? (result as unknown as Partial<SubtitlerProject>) : null;
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to find project by filename:', error);
       return null;
@@ -187,7 +187,18 @@ export class SubtitlerProjectService {
   async createProject(userId: string, projectData: CreateProjectData): Promise<SubtitlerProject> {
     await this.ensureInitialized();
 
-    const { uploadId, subtitles, title, stylePreference, heightPreference, modePreference, videoMetadata, videoFilename, videoSize, videoSourcePath } = projectData;
+    const {
+      uploadId,
+      subtitles,
+      title,
+      stylePreference,
+      heightPreference,
+      modePreference,
+      videoMetadata,
+      videoFilename,
+      videoSize,
+      videoSourcePath,
+    } = projectData;
 
     try {
       await this.enforceProjectLimit(userId);
@@ -217,7 +228,10 @@ export class SubtitlerProjectService {
         const { markUploadAsPromoted } = await import('./tusService.js');
         markUploadAsPromoted(uploadId);
       } catch (promoteError: any) {
-        console.warn('[SubtitlerProjectService] Could not mark upload as promoted:', promoteError.message);
+        console.warn(
+          '[SubtitlerProjectService] Could not mark upload as promoted:',
+          promoteError.message
+        );
       }
 
       try {
@@ -231,7 +245,7 @@ export class SubtitlerProjectService {
       try {
         await fs.access(thumbnailPath);
         thumbnailExists = true;
-      } catch { }
+      } catch {}
 
       const project = await this.postgres.insert('subtitler_projects', {
         id: projectId,
@@ -246,24 +260,33 @@ export class SubtitlerProjectService {
         subtitles: subtitles || '',
         style_preference: stylePreference || 'standard',
         height_preference: heightPreference || 'standard',
-        mode_preference: modePreference || 'manual'
+        mode_preference: modePreference || 'manual',
       });
 
       console.log(`[SubtitlerProjectService] Created project ${projectId} for user ${userId}`);
 
       return project as unknown as SubtitlerProject;
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to create project:', error);
       throw new Error(`Failed to create project: ${error.message}`);
     }
   }
 
-  async updateProject(userId: string, projectId: string, updates: UpdateProjectData): Promise<SubtitlerProject> {
+  async updateProject(
+    userId: string,
+    projectId: string,
+    updates: UpdateProjectData
+  ): Promise<SubtitlerProject> {
     await this.ensureInitialized();
 
     try {
-      const allowedFields = ['title', 'subtitles', 'style_preference', 'height_preference', 'status'];
+      const allowedFields = [
+        'title',
+        'subtitles',
+        'style_preference',
+        'height_preference',
+        'status',
+      ];
       const updateData: Record<string, any> = {};
 
       for (const field of allowedFields) {
@@ -277,14 +300,19 @@ export class SubtitlerProjectService {
 
       updateData.last_edited_at = new Date().toISOString();
 
-      console.log('[SubtitlerProjectService] updateProject - updates received:', Object.keys(updates));
-      console.log('[SubtitlerProjectService] updateProject - updateData to save:', Object.keys(updateData));
-
-      const result = await this.postgres.update(
-        'subtitler_projects',
-        updateData,
-        { id: projectId, user_id: userId }
+      console.log(
+        '[SubtitlerProjectService] updateProject - updates received:',
+        Object.keys(updates)
       );
+      console.log(
+        '[SubtitlerProjectService] updateProject - updateData to save:',
+        Object.keys(updateData)
+      );
+
+      const result = await this.postgres.update('subtitler_projects', updateData, {
+        id: projectId,
+        user_id: userId,
+      });
 
       if (result.data.length === 0) {
         throw new Error('Project not found or access denied');
@@ -293,14 +321,16 @@ export class SubtitlerProjectService {
       console.log(`[SubtitlerProjectService] Updated project ${projectId}`);
 
       return result.data[0] as unknown as SubtitlerProject;
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to update project:', error);
       throw new Error(`Failed to update project: ${error.message}`);
     }
   }
 
-  async incrementExportCount(userId: string, projectId: string): Promise<SubtitlerProject | undefined> {
+  async incrementExportCount(
+    userId: string,
+    projectId: string
+  ): Promise<SubtitlerProject | undefined> {
     await this.ensureInitialized();
 
     try {
@@ -315,14 +345,17 @@ export class SubtitlerProjectService {
 
       const result = await this.postgres.query(query, [projectId, userId]);
       return result[0] as unknown as SubtitlerProject;
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to increment export count:', error);
       return undefined;
     }
   }
 
-  async updateSubtitledVideoPath(userId: string, projectId: string, subtitledVideoPath: string): Promise<SubtitlerProject> {
+  async updateSubtitledVideoPath(
+    userId: string,
+    projectId: string,
+    subtitledVideoPath: string
+  ): Promise<SubtitlerProject> {
     await this.ensureInitialized();
 
     try {
@@ -340,9 +373,10 @@ export class SubtitlerProjectService {
         throw new Error('Project not found or access denied');
       }
 
-      console.log(`[SubtitlerProjectService] Updated subtitled_video_path for project ${projectId}`);
+      console.log(
+        `[SubtitlerProjectService] Updated subtitled_video_path for project ${projectId}`
+      );
       return result[0] as unknown as SubtitlerProject;
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to update subtitled video path:', error);
       throw new Error(`Failed to update subtitled video path: ${error.message}`);
@@ -366,13 +400,15 @@ export class SubtitlerProjectService {
         await fs.rm(projectDir, { recursive: true, force: true });
         console.log(`[SubtitlerProjectService] Deleted project files at ${projectDir}`);
       } catch (fileError: any) {
-        console.warn('[SubtitlerProjectService] Failed to delete project files:', fileError.message);
+        console.warn(
+          '[SubtitlerProjectService] Failed to delete project files:',
+          fileError.message
+        );
       }
 
       console.log(`[SubtitlerProjectService] Deleted project ${projectId} for user ${userId}`);
 
       return { success: true };
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to delete project:', error);
       throw new Error(`Failed to delete project: ${error.message}`);
@@ -399,11 +435,12 @@ export class SubtitlerProjectService {
         const oldestProjects = await this.postgres.query(oldestQuery, [userId, toDelete]);
 
         for (const project of oldestProjects) {
-          console.log(`[SubtitlerProjectService] Auto-deleting oldest project ${project.id} to enforce limit`);
+          console.log(
+            `[SubtitlerProjectService] Auto-deleting oldest project ${project.id} to enforce limit`
+          );
           await this.deleteProject(userId, project.id);
         }
       }
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to enforce project limit:', error);
     }
@@ -416,7 +453,6 @@ export class SubtitlerProjectService {
       const query = `SELECT COUNT(*) as count FROM subtitler_projects WHERE user_id = $1`;
       const result = await this.postgres.queryOne(query, [userId]);
       return parseInt(result.count, 10);
-
     } catch (error: any) {
       console.error('[SubtitlerProjectService] Failed to get project count:', error);
       return 0;
@@ -427,12 +463,17 @@ export class SubtitlerProjectService {
     return new Promise((resolve, reject) => {
       const ffmpeg: ChildProcess = spawn('ffmpeg', [
         '-y',
-        '-i', videoPath,
-        '-ss', '00:00:02',
-        '-vframes', '1',
-        '-vf', 'scale=320:180:force_original_aspect_ratio=decrease,pad=320:180:(ow-iw)/2:(oh-ih)/2',
-        '-q:v', '2',
-        outputPath
+        '-i',
+        videoPath,
+        '-ss',
+        '00:00:02',
+        '-vframes',
+        '1',
+        '-vf',
+        'scale=320:180:force_original_aspect_ratio=decrease,pad=320:180:(ow-iw)/2:(oh-ih)/2',
+        '-q:v',
+        '2',
+        outputPath,
       ]);
 
       let stderr = '';

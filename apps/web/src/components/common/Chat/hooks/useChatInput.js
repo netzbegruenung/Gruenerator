@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+
 import useVoiceRecorder from '../../../../features/voice/hooks/useVoiceRecorder';
 
 /**
@@ -22,24 +23,27 @@ const useChatInput = ({
   autoSubmitVoice = true,
   enableVoiceRecording = true,
   onVoiceTranscription,
-  onFileSelect
+  onFileSelect,
 }) => {
   // Voice recording - single instance
-  const handleTranscription = useCallback((text) => {
-    if (!text) return;
+  const handleTranscription = useCallback(
+    (text) => {
+      if (!text) return;
 
-    const newValue = inputValue ? `${inputValue} ${text}`.trim() : text;
-    onInputChange?.(newValue);
+      const newValue = inputValue ? `${inputValue} ${text}`.trim() : text;
+      onInputChange?.(newValue);
 
-    if (autoSubmitVoice && onSubmit) {
-      setTimeout(() => {
-        onSubmit(newValue);
-        onInputChange?.('');
-      }, 100);
-    }
+      if (autoSubmitVoice && onSubmit) {
+        setTimeout(() => {
+          onSubmit(newValue);
+          onInputChange?.('');
+        }, 100);
+      }
 
-    onVoiceTranscription?.(text);
-  }, [inputValue, onInputChange, onSubmit, autoSubmitVoice, onVoiceTranscription]);
+      onVoiceTranscription?.(text);
+    },
+    [inputValue, onInputChange, onSubmit, autoSubmitVoice, onVoiceTranscription]
+  );
 
   const voiceRecorder = useVoiceRecorder(handleTranscription, { removeTimestamps: true });
 
@@ -58,17 +62,20 @@ const useChatInput = ({
     fileInputRef.current?.click();
   }, []);
 
-  const handleFileChange = useCallback((event) => {
-    const files = Array.from(event.target.files);
-    if (files.length > 0) {
-      setInternalAttachedFiles(files);
-      onFileSelect?.(files);
-    }
-    event.target.value = '';
-  }, [onFileSelect]);
+  const handleFileChange = useCallback(
+    (event) => {
+      const files = Array.from(event.target.files);
+      if (files.length > 0) {
+        setInternalAttachedFiles(files);
+        onFileSelect?.(files);
+      }
+      event.target.value = '';
+    },
+    [onFileSelect]
+  );
 
   const handleRemoveFile = useCallback((index) => {
-    setInternalAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    setInternalAttachedFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const clearFiles = useCallback(() => {
@@ -89,7 +96,7 @@ const useChatInput = ({
     handleFileUploadClick,
     handleFileChange,
     handleRemoveFile,
-    clearFiles
+    clearFiles,
   };
 };
 

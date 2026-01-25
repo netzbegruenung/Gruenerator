@@ -1,6 +1,8 @@
 import { HiX } from 'react-icons/hi';
-import type { JSX } from 'react';
+
 import { truncateWithSuffix } from '../../utils/textUtils';
+
+import type { JSX } from 'react';
 import '../../assets/styles/components/ui/AttachedFilesList.css';
 
 interface AttachedFile {
@@ -30,7 +32,7 @@ const AttachedFilesList = ({
   className = '',
   fileMetadata = {},
   privacyModeActive = false,
-  compact = false
+  compact = false,
 }: AttachedFilesListProps): JSX.Element | null => {
   if (!files || files.length === 0) {
     return null;
@@ -48,7 +50,9 @@ const AttachedFilesList = ({
   const hasMore = compact && files.length > 5;
 
   return (
-    <div className={`attached-files-list ${compact ? 'attached-files-list--compact' : ''} ${className}`}>
+    <div
+      className={`attached-files-list ${compact ? 'attached-files-list--compact' : ''} ${className}`}
+    >
       {displayFiles.map((file, index) => {
         const metadata = fileMetadata[index] || {};
         const hasWarning = privacyModeActive && metadata.hasPrivacyConflict;
@@ -66,9 +70,10 @@ const AttachedFilesList = ({
         const displayName = truncatedName + pageSuffix;
 
         // Build tooltip text
-        const tooltipText = hasWarning && metadata.conflictReason
-          ? `${file.name} - ${metadata.conflictReason}`
-          : file.name;
+        const tooltipText =
+          hasWarning && metadata.conflictReason
+            ? `${file.name} - ${metadata.conflictReason}`
+            : file.name;
 
         return (
           <div
@@ -76,9 +81,7 @@ const AttachedFilesList = ({
             className={`file-tag ${hasWarning ? 'file-tag--warning' : ''}`}
             title={tooltipText}
           >
-            <span className="file-name">
-              {displayName}
-            </span>
+            <span className="file-name">{displayName}</span>
             <button
               type="button"
               className="file-remove-btn"
@@ -90,11 +93,7 @@ const AttachedFilesList = ({
           </div>
         );
       })}
-      {hasMore && (
-        <div className="attached-files-list__more">
-          +{files.length - 5} weitere
-        </div>
-      )}
+      {hasMore && <div className="attached-files-list__more">+{files.length - 5} weitere</div>}
     </div>
   );
 };

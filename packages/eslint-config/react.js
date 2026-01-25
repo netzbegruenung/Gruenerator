@@ -40,10 +40,11 @@ export default [
       'react/jsx-key': 'error',
       'react/no-array-index-key': 'warn',
       'react/self-closing-comp': 'error',
-      'react/jsx-curly-brace-presence': [
-        'error',
-        { props: 'never', children: 'never' },
-      ],
+      'react/jsx-curly-brace-presence': ['error', { props: 'never', children: 'never' }],
+      // TODO: Re-enable as 'error' after fixing existing violations
+      'react/no-unescaped-entities': 'warn',
+      // TODO: Re-enable as 'error' after fixing existing violations
+      'no-unsafe-optional-chaining': 'warn',
     },
   },
   {

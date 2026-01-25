@@ -2,7 +2,14 @@
  * Universal Edit KI type configuration
  */
 import { HiPencil } from 'react-icons/hi';
-import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, KI_SUBCATEGORIES, FORM_STEPS } from '../constants';
+
+import {
+  IMAGE_STUDIO_CATEGORIES,
+  IMAGE_STUDIO_TYPES,
+  KI_SUBCATEGORIES,
+  FORM_STEPS,
+} from '../constants';
+
 import type { KiTypeConfig, TemplateFieldConfig } from '../types';
 
 export const universalEditTypeConfig: KiTypeConfig = {
@@ -21,20 +28,25 @@ export const universalEditTypeConfig: KiTypeConfig = {
   hasPrecisionMode: true,
   alwaysPrecision: true,
   endpoints: {
-    generate: '/flux/green-edit/prompt'
+    generate: '/flux/green-edit/prompt',
   },
   formComponent: 'EditInstructionForm',
   steps: [FORM_STEPS.IMAGE_UPLOAD, FORM_STEPS.INPUT, FORM_STEPS.RESULT],
   formProps: {
     label: 'Bearbeitungsanweisungen',
-    placeholder: 'Beschreibe detailliert, wie das Bild bearbeitet werden soll. Z.B. "Ersetze den Himmel durch einen Sonnenuntergang" oder "Füge Nebel im Hintergrund hinzu"...',
+    placeholder:
+      'Beschreibe detailliert, wie das Bild bearbeitet werden soll. Z.B. "Ersetze den Himmel durch einen Sonnenuntergang" oder "Füge Nebel im Hintergrund hinzu"...',
     helpText: 'Erkläre genau, was geändert werden soll - je präziser, desto besser.',
-    rows: 2
+    rows: 2,
   },
   validation: {
     uploadedImage: { required: true, message: 'Bitte lade ein Bild hoch' },
-    precisionInstruction: { required: true, minLength: 15, message: 'Bitte gib eine Bearbeitungsanweisung ein (min. 15 Zeichen)' }
-  }
+    precisionInstruction: {
+      required: true,
+      minLength: 15,
+      message: 'Bitte gib eine Bearbeitungsanweisung ein (min. 15 Zeichen)',
+    },
+  },
 };
 
 export const universalEditFieldConfig: TemplateFieldConfig = {
@@ -43,13 +55,15 @@ export const universalEditFieldConfig: TemplateFieldConfig = {
       name: 'precisionInstruction',
       type: 'textarea',
       label: 'Bearbeitungsanweisungen',
-      subtitle: 'Sag der KI genau, was am Bild geändert werden soll (z.B. Himmel ändern, Objekte hinzufügen)',
-      placeholder: 'Beschreibe detailliert, wie das Bild bearbeitet werden soll. Z.B. "Ersetze den Himmel durch einen Sonnenuntergang" oder "Füge Nebel im Hintergrund hinzu"...',
+      subtitle:
+        'Sag der KI genau, was am Bild geändert werden soll (z.B. Himmel ändern, Objekte hinzufügen)',
+      placeholder:
+        'Beschreibe detailliert, wie das Bild bearbeitet werden soll. Z.B. "Ersetze den Himmel durch einen Sonnenuntergang" oder "Füge Nebel im Hintergrund hinzu"...',
       helpText: 'Erkläre genau, was geändert werden soll - je präziser, desto besser.',
       required: true,
       minLength: 15,
-      rows: 2
-    }
+      rows: 2,
+    },
   ],
   previewFields: [],
   resultFields: [],
@@ -62,5 +76,5 @@ export const universalEditFieldConfig: TemplateFieldConfig = {
   showAlternatives: false,
   showEditPanel: false,
   showAutoSave: true,
-  showSocialGeneration: true
+  showSocialGeneration: true,
 };

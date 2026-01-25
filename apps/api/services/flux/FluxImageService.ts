@@ -118,19 +118,27 @@ class FluxImageService {
       baseDelay: options.baseDelay || parseInt(process.env.FLUX_BASE_DELAY || '1000', 10),
       maxDelay: options.maxDelay || parseInt(process.env.FLUX_MAX_DELAY || '30000', 10),
       jitterFactor: options.jitterFactor || 0.1,
-      networkTimeoutMs: options.networkTimeoutMs || 60000
+      networkTimeoutMs: options.networkTimeoutMs || 60000,
     };
 
     this.retryableErrors = new Set([
-      'ENETUNREACH', 'ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED',
-      '429', '500', '502', '503', '504'
+      'ENETUNREACH',
+      'ENOTFOUND',
+      'ECONNRESET',
+      'ETIMEDOUT',
+      'ECONNREFUSED',
+      '429',
+      '500',
+      '502',
+      '503',
+      '504',
     ]);
 
     this.circuitBreaker = {
       failures: 0,
       lastFailureTime: null,
       threshold: 5,
-      timeout: 60000
+      timeout: 60000,
     };
 
     if (!this.apiKey) {
@@ -144,7 +152,7 @@ class FluxImageService {
     const headers = {
       accept: 'application/json',
       'Content-Type': 'application/json',
-      'x-key': this.apiKey
+      'x-key': this.apiKey,
     };
     const body = {
       prompt,
@@ -153,7 +161,7 @@ class FluxImageService {
       ...(options.aspect_ratio && { aspect_ratio: options.aspect_ratio }),
       output_format: options.output_format || 'jpeg',
       safety_tolerance: options.safety_tolerance ?? 2,
-      prompt_upsampling: options.prompt_upsampling ?? false
+      prompt_upsampling: options.prompt_upsampling ?? false,
     };
 
     console.log(`[FluxImageService] Submitting text-to-image request to ${url}`);
@@ -161,12 +169,14 @@ class FluxImageService {
     return await this.executeWithRetry(async (family?: number) => {
       const axiosConfig: any = {
         headers,
-        timeout: this.retryConfig.networkTimeoutMs
+        timeout: this.retryConfig.networkTimeoutMs,
       };
       if (family) axiosConfig.family = family;
 
       const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
-      console.log(`[FluxImageService] Text-to-image request submitted successfully, ID: ${res.data?.id}`);
+      console.log(
+        `[FluxImageService] Text-to-image request submitted successfully, ID: ${res.data?.id}`
+      );
       return res.data;
     }, 'submit');
   }
@@ -176,7 +186,9 @@ class FluxImageService {
     operationType: string = 'unknown'
   ): Promise<T> {
     if (this.isCircuitBreakerOpen()) {
-      throw new Error(`Circuit breaker is open for ${operationType}. Service temporarily unavailable.`);
+      throw new Error(
+        `Circuit breaker is open for ${operationType}. Service temporarily unavailable.`
+      );
     }
 
     let lastError: any;
@@ -191,19 +203,28 @@ class FluxImageService {
           const result = await operation(family);
           this.resetCircuitBreaker();
           if (family && lastError?.code) {
-            console.log(`[FluxImageService] ${operationType} succeeded using IPv${family} after network error`);
+            console.log(
+              `[FluxImageService] ${operationType} succeeded using IPv${family} after network error`
+            );
           }
           return result;
         } catch (error: any) {
           lastError = error;
           const errorInfo = this.classifyError(error);
 
-          if (errorInfo.type === 'network' && family !== networkOptions[networkOptions.length - 1]) {
-            console.log(`[FluxImageService] ${operationType} failed with IPv${family || 'default'}, trying next network option`);
+          if (
+            errorInfo.type === 'network' &&
+            family !== networkOptions[networkOptions.length - 1]
+          ) {
+            console.log(
+              `[FluxImageService] ${operationType} failed with IPv${family || 'default'}, trying next network option`
+            );
             continue;
           }
 
-          console.log(`[FluxImageService] ${operationType} failed (attempt ${attempt + 1}/${this.retryConfig.maxRetries + 1}), error: ${errorInfo.type} - ${error.message}`);
+          console.log(
+            `[FluxImageService] ${operationType} failed (attempt ${attempt + 1}/${this.retryConfig.maxRetries + 1}), error: ${errorInfo.type} - ${error.message}`
+          );
           break;
         }
       }
@@ -234,7 +255,11 @@ class FluxImageService {
 
     if (status) {
       if (status === '402') {
-        return { type: 'billing', retryable: false, userMessage: 'Insufficient credits. Please add credits to your account.' };
+        return {
+          type: 'billing',
+          retryable: false,
+          userMessage: 'Insufficient credits. Please add credits to your account.',
+        };
       }
       if (status === '400') {
         return { type: 'validation', retryable: false, userMessage: 'Invalid request parameters' };
@@ -281,7 +306,11 @@ class FluxImageService {
     return error;
   }
 
-  async poll(pollingUrl: string, requestId: string, options: PollOptions = {}): Promise<PollResponse> {
+  async poll(
+    pollingUrl: string,
+    requestId: string,
+    options: PollOptions = {}
+  ): Promise<PollResponse> {
     const headers = { accept: 'application/json', 'x-key': this.apiKey };
     const intervalMs = options.intervalMs || 500;
     const timeoutMs = options.timeoutMs || 120000;
@@ -297,7 +326,7 @@ class FluxImageService {
           const axiosConfig: any = {
             headers,
             params: requestId ? { id: requestId } : undefined,
-            timeout: 30000
+            timeout: 30000,
           };
           if (family) axiosConfig.family = family;
 
@@ -323,9 +352,11 @@ class FluxImageService {
   async download(resultUrl: string, options: DownloadOptions = {}): Promise<DownloadResult> {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    const baseDir = options.baseDir || path.join(process.cwd(), 'uploads', 'flux', 'results', today);
+    const baseDir =
+      options.baseDir || path.join(process.cwd(), 'uploads', 'flux', 'results', today);
     const extension = options.extension || 'jpg';
-    const nameBase = options.fileNameBase || `generated_image_${now.toISOString().replace(/[:.]/g, '-')}`;
+    const nameBase =
+      options.fileNameBase || `generated_image_${now.toISOString().replace(/[:.]/g, '-')}`;
     const filename = `${nameBase}.${extension}`;
     const filePath = path.join(baseDir, filename);
     fs.mkdirSync(baseDir, { recursive: true });
@@ -335,7 +366,7 @@ class FluxImageService {
         method: 'GET',
         url: resultUrl,
         responseType: 'stream',
-        timeout: this.retryConfig.networkTimeoutMs
+        timeout: this.retryConfig.networkTimeoutMs,
       };
       if (family) axiosConfig.family = family;
 
@@ -355,14 +386,19 @@ class FluxImageService {
     return { filePath, relativePath, filename, size: stats.size, base64 };
   }
 
-  async generateFromPrompt(prompt: string, options: GenerateFromPromptOptions = {}): Promise<GenerateResult> {
+  async generateFromPrompt(
+    prompt: string,
+    options: GenerateFromPromptOptions = {}
+  ): Promise<GenerateResult> {
     const request = await this.submit(prompt, options);
     const { id, polling_url } = request;
     const result = await this.poll(polling_url, id, options);
     if (result?.status !== 'Ready' || !result?.result?.sample) {
       throw new Error('No sample URL in result');
     }
-    const stored = await this.download(result.result.sample, { extension: options.output_format === 'png' ? 'png' : 'jpg' });
+    const stored = await this.download(result.result.sample, {
+      extension: options.output_format === 'png' ? 'png' : 'jpg',
+    });
     return { request, result, stored };
   }
 
@@ -377,7 +413,7 @@ class FluxImageService {
     const headers = {
       accept: 'application/json',
       'Content-Type': 'application/json',
-      'x-key': this.apiKey
+      'x-key': this.apiKey,
     };
     const base64 = imageBuffer.toString('base64');
     const imageDataUrl = `data:${mimeType};base64,${base64}`;
@@ -389,15 +425,17 @@ class FluxImageService {
       safety_tolerance: options.safety_tolerance ?? 2,
       ...(options.width && { width: options.width }),
       ...(options.height && { height: options.height }),
-      ...(options.seed && { seed: options.seed })
+      ...(options.seed && { seed: options.seed }),
     };
 
-    console.log(`[FluxImageService] Submitting image-to-image request to ${url}, image size: ${Math.round(imageBuffer.length / 1024)}KB`);
+    console.log(
+      `[FluxImageService] Submitting image-to-image request to ${url}, image size: ${Math.round(imageBuffer.length / 1024)}KB`
+    );
 
     const request = await this.executeWithRetry(async (family?: number) => {
       const axiosConfig: any = {
         headers,
-        timeout: this.retryConfig.networkTimeoutMs
+        timeout: this.retryConfig.networkTimeoutMs,
       };
       if (family) axiosConfig.family = family;
 
@@ -415,7 +453,9 @@ class FluxImageService {
     }
 
     console.log(`[FluxImageService] Image-to-image generation completed successfully`);
-    const stored = await this.download(result.result.sample, { extension: options.output_format === 'png' ? 'png' : 'jpg' });
+    const stored = await this.download(result.result.sample, {
+      extension: options.output_format === 'png' ? 'png' : 'jpg',
+    });
     return { request, result, stored };
   }
 }

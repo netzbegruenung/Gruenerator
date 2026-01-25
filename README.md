@@ -1,19 +1,19 @@
 <div align="center">
   <img src="apps/web/public/images/gruenerator_logo_gruen.svg" alt="Grünerator" width="200"/>
 
-  # Grünerator
+# Grünerator
 
-  **The Green AI — AI-powered content creation for sustainable politics**
+**The Green AI — AI-powered content creation for sustainable politics**
 
-  [![Version](https://img.shields.io/badge/version-2.5.0-046A38?style=flat-square)](CHANGELOG.md)
-  [![Node.js](https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
-  [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
-  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-  [![Mistral AI](https://img.shields.io/badge/Mistral-AI-FF7000?style=flat-square&logo=mistral&logoColor=white)](https://mistral.ai/)
-  [![License](https://img.shields.io/badge/license-Proprietary-blue?style=flat-square)](LICENSE.md)
-  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
+[![Version](https://img.shields.io/badge/version-2.5.0-046A38?style=flat-square)](CHANGELOG.md)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Mistral AI](https://img.shields.io/badge/Mistral-AI-FF7000?style=flat-square&logo=mistral&logoColor=white)](https://mistral.ai/)
+[![License](https://img.shields.io/badge/license-Proprietary-blue?style=flat-square)](LICENSE.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
 
-  [Live Demo](https://gruenerator.de) · [Documentation](https://doku.services.moritz-waechter.de/) · [Report Bug](https://github.com/netzbegruenung/Gruenerator/issues) · [Request Feature](https://github.com/netzbegruenung/Gruenerator/issues)
+[Live Demo](https://gruenerator.de) · [Documentation](https://doku.services.moritz-waechter.de/) · [Report Bug](https://github.com/netzbegruenung/Gruenerator/issues) · [Request Feature](https://github.com/netzbegruenung/Gruenerator/issues)
 
 </div>
 
@@ -48,22 +48,22 @@ Political organizations need to create compelling, consistent content across mul
 
 Grünerator is built on **100% European infrastructure** with a commitment to digital sovereignty:
 
-| Principle | Implementation |
-|-----------|----------------|
-| **100% EU Hosting** | All servers located exclusively in the European Union |
+| Principle                 | Implementation                                                    |
+| ------------------------- | ----------------------------------------------------------------- |
+| **100% EU Hosting**       | All servers located exclusively in the European Union             |
 | **European AI Providers** | Default: Mistral AI (France), Images: Black Forest Labs (Germany) |
-| **Privacy Mode** | Self-hosted by netzbegrünung e.V. on German servers |
-| **75% EU Target** | Minimum 75% of spending with European companies |
+| **Privacy Mode**          | Self-hosted by netzbegrünung e.V. on German servers               |
+| **75% EU Target**         | Minimum 75% of spending with European companies                   |
 
 ### Key Features
 
-| Feature | Description |
-|---------|-------------|
-| **AI Modes** | Kreativ (Mistral), Reasoning (Magistral), Ultra (Claude via EU Bedrock), Self-hosted (LiteLLM) |
-| **Web Search** | Real-time integration of facts, statistics, and political developments |
-| **Privacy Mode** | Maximum data protection — self-hosted AI on German servers |
-| **Knowledge Base** | Custom instructions and organizational knowledge for tailored outputs |
-| **EU Compliance** | GDPR-focused design with transparency guidelines |
+| Feature            | Description                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| **AI Modes**       | Kreativ (Mistral), Reasoning (Magistral), Ultra (Claude via EU Bedrock), Self-hosted (LiteLLM) |
+| **Web Search**     | Real-time integration of facts, statistics, and political developments                         |
+| **Privacy Mode**   | Maximum data protection — self-hosted AI on German servers                                     |
+| **Knowledge Base** | Custom instructions and organizational knowledge for tailored outputs                          |
+| **EU Compliance**  | GDPR-focused design with transparency guidelines                                               |
 
 ### Built With
 
@@ -83,33 +83,42 @@ Grünerator is built on **100% European infrastructure** with a commitment to di
 ## Features
 
 ### Text Generation
+
 Generate professional political content with AI assistance:
+
 - Press releases and statements
 - Social media posts (optimized per platform)
 - Policy documents and motions
 - Accessible language translations
 
 ### Sharepic Generator
+
 Create branded social media graphics:
+
 - Quote cards and infographics
 - Campaign visuals
 - Consistent party branding
 - Multiple export formats
 
 ### Video Subtitler
+
 Professional subtitle generation for videos:
+
 - AI-powered transcription
 - Multiple styling options
 - Instagram/TikTok optimized formats
 - HD+ resolution support
 
 ### Real-time Collaboration
+
 Y.js-powered collaborative editing:
+
 - Multi-user document editing
 - Conflict-free synchronization
 - Persistent document storage
 
 ### Additional Features
+
 - **Grüne Wolke** — Nextcloud integration for file sharing
 - **Custom Instructions** — Personalized AI guidelines
 - **Multi-domain Support** — .de, .at, .eu domains
@@ -166,18 +175,21 @@ Y.js-powered collaborative editing:
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/netzbegruenung/Gruenerator.git
    cd gruenerator
    ```
 
 2. **Install dependencies**
+
    ```bash
    # Install all dependencies with pnpm
    pnpm install
    ```
 
 3. **Configure environment**
+
    ```bash
    # Copy example configs
    cp apps/api/.env.example apps/api/.env
@@ -187,12 +199,14 @@ Y.js-powered collaborative editing:
    ```
 
 4. **Initialize database**
+
    ```bash
    # Run PostgreSQL schema
    psql -d gruenerator -f apps/api/database/postgres/schema.sql
    ```
 
 5. **Start development servers**
+
    ```bash
    # Terminal 1: Backend
    pnpm dev:backend
@@ -269,11 +283,13 @@ npm run test:auth   # Authentication tests
 ### Mobile Installation (PWA)
 
 **Android (Chrome)**
+
 1. Open https://gruenerator.de
 2. Tap menu (⋮)
 3. Select "Add to Home Screen"
 
 **iOS (Safari)**
+
 1. Open https://gruenerator.de
 2. Tap Share button
 3. Select "Add to Home Screen"
@@ -285,12 +301,14 @@ npm run test:auth   # Authentication tests
 User-facing documentation is maintained in the `/documentation` directory using Docusaurus.
 
 ### Development
+
 ```bash
 pnpm run dev:documentation     # Start documentation dev server (localhost:3000)
 pnpm run build:documentation   # Build documentation site
 ```
 
 ### Documentation Structure
+
 ```
 documentation/
 ├── docs/           # Main documentation pages
@@ -305,6 +323,7 @@ documentation/
 ```
 
 ### Deployment
+
 Documentation is deployed to: https://xgwok08o0ccgo4g4cgcoksc8.services.moritz-waechter.de
 
 ---

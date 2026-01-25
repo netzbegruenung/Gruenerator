@@ -26,9 +26,14 @@ export function isInfoValid(info: InfoData): boolean {
   const subheaderLength = info.subheader.length;
   const bodyLength = info.body.length;
 
-  return headerLength >= 45 && headerLength <= 65 &&
-         subheaderLength >= 75 && subheaderLength <= 125 &&
-         bodyLength >= 145 && bodyLength <= 255;
+  return (
+    headerLength >= 45 &&
+    headerLength <= 65 &&
+    subheaderLength >= 75 &&
+    subheaderLength <= 125 &&
+    bodyLength >= 145 &&
+    bodyLength <= 255
+  );
 }
 
 /**
@@ -37,11 +42,13 @@ export function isInfoValid(info: InfoData): boolean {
 export function isThrottlingError(error: string | null | undefined): boolean {
   if (!error || typeof error !== 'string') return false;
   const errorLower = error.toLowerCase();
-  return errorLower.includes('throttl') ||
-         errorLower.includes('rate limit') ||
-         errorLower.includes('capacity') ||
-         errorLower.includes('too many requests') ||
-         errorLower.includes('service unavailable');
+  return (
+    errorLower.includes('throttl') ||
+    errorLower.includes('rate limit') ||
+    errorLower.includes('capacity') ||
+    errorLower.includes('too many requests') ||
+    errorLower.includes('service unavailable')
+  );
 }
 
 /**

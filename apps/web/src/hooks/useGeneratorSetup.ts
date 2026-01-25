@@ -1,5 +1,7 @@
 import { useShallow } from 'zustand/react/shallow';
+
 import { useGeneratorSelectionStore } from '../stores/core/generatorSelectionStore';
+
 import { useUserInstructions } from './useUserInstructions';
 
 /**
@@ -143,10 +145,7 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
 
   // Fetch user's custom instructions based on instruction type
   // Only fetches if instructions are active
-  const customPrompt = useUserInstructions(
-    config.instructionType,
-    isInstructionsActive
-  );
+  const customPrompt = useUserInstructions(config.instructionType, isInstructionsActive);
 
   // Build feature state from reactive store values
   const features: FeatureState = {

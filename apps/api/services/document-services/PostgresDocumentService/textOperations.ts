@@ -42,18 +42,19 @@ export async function storeDocumentText(
         ...existingMetadata,
         full_text: text,
         text_length: text.length,
-        stored_at: new Date().toISOString()
-      })
+        stored_at: new Date().toISOString(),
+      }),
     };
 
     await postgres.update('documents', updates, {
       id: documentId,
-      user_id: userId
+      user_id: userId,
     });
 
-    console.log(`[PostgresDocumentService] Stored full text for document ${documentId} (${text.length} chars)`);
+    console.log(
+      `[PostgresDocumentService] Stored full text for document ${documentId} (${text.length} chars)`
+    );
     return { success: true, textLength: text.length };
-
   } catch (error) {
     console.error('[PostgresDocumentService] Error storing document text:', error);
     throw error;
@@ -95,9 +96,8 @@ export async function getDocumentText(
       success: true,
       text: fullText,
       textLength: fullText.length,
-      storedAt: metadata.stored_at || document.created_at
+      storedAt: metadata.stored_at || document.created_at,
     };
-
   } catch (error) {
     console.error('[PostgresDocumentService] Error retrieving document text:', error);
     throw error;
@@ -130,8 +130,8 @@ export async function createDocumentWithText(
         ...metadata.additionalMetadata,
         full_text: text,
         text_length: text ? text.length : 0,
-        created_at: new Date().toISOString()
-      })
+        created_at: new Date().toISOString(),
+      }),
     };
 
     const document = await postgres.insert('documents', documentData);

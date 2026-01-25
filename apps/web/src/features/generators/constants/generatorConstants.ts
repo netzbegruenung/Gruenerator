@@ -3,7 +3,7 @@
  * Consolidates magic numbers and repeated constants
  */
 
-import { GeneratorFormData } from '../types/generatorTypes';
+import { type GeneratorFormData } from '../types/generatorTypes';
 
 /**
  * Step definitions for the generator creation wizard
@@ -13,7 +13,7 @@ export const STEPS = {
   BASICS: 1,
   FIELDS: 2,
   PROMPT: 3,
-  REVIEW: 4
+  REVIEW: 4,
 } as const;
 
 /**
@@ -33,7 +33,7 @@ export const INITIAL_GENERATOR_FORM_DATA: GeneratorFormData = {
   prompt: '',
   title: '',
   description: '',
-  contact_email: ''
+  contact_email: '',
 };
 
 /**
@@ -58,5 +58,5 @@ export const SLUG_CHECK_DEBOUNCE_MS = 750;
 export const FIELD_TYPE_LABELS: Record<string, string> = {
   text: 'Kurzer Text',
   textarea: 'Langer Text',
-  select: 'Auswahlfeld'
+  select: 'Auswahlfeld',
 };

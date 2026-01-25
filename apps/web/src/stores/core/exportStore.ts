@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import apiClient from '../../components/utils/apiClient';
 
 interface ExportState {
@@ -14,7 +15,12 @@ interface ExportState {
   loadDOCXLibrary: () => Promise<null>;
   generatePDF: (content: string, title: string) => Promise<void>;
   generateDOCX: (content: string, title: string) => Promise<void>;
-  generateNotebookDOCX: (content: string, title: string, citations: unknown[], sources?: unknown[]) => Promise<void>;
+  generateNotebookDOCX: (
+    content: string,
+    title: string,
+    citations: unknown[],
+    sources?: unknown[]
+  ) => Promise<void>;
 }
 
 // Export store for managing PDF and DOCX generation
@@ -43,9 +49,13 @@ export const useExportStore = create<ExportState>((set, get) => ({
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.pdf`;
-      const response = await apiClient.post('/exports/pdf', { content, title }, {
-        responseType: 'blob'
-      });
+      const response = await apiClient.post(
+        '/exports/pdf',
+        { content, title },
+        {
+          responseType: 'blob',
+        }
+      );
       const blob = response.data;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -62,16 +72,20 @@ export const useExportStore = create<ExportState>((set, get) => ({
       setTimeout(() => set({ isGenerating: false }), 500);
     }
   },
-  
+
   // DOCX Generation via backend
   generateDOCX: async (content: string, title: string) => {
     set({ isGenerating: true });
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.docx`;
-      const response = await apiClient.post('/exports/docx', { content, title }, {
-        responseType: 'blob'
-      });
+      const response = await apiClient.post(
+        '/exports/docx',
+        { content, title },
+        {
+          responseType: 'blob',
+        }
+      );
       const blob = response.data;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -90,19 +104,28 @@ export const useExportStore = create<ExportState>((set, get) => ({
   },
 
   // Notebook DOCX Generation with citations and sources
-  generateNotebookDOCX: async (content: string, title: string, citations: unknown[], sources?: unknown[]) => {
+  generateNotebookDOCX: async (
+    content: string,
+    title: string,
+    citations: unknown[],
+    sources?: unknown[]
+  ) => {
     set({ isGenerating: true });
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.docx`;
-      const response = await apiClient.post('/exports/docx', {
-        content,
-        title,
-        citations,
-        sources
-      }, {
-        responseType: 'blob'
-      });
+      const response = await apiClient.post(
+        '/exports/docx',
+        {
+          content,
+          title,
+          citations,
+          sources,
+        },
+        {
+          responseType: 'blob',
+        }
+      );
       const blob = response.data;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -118,5 +141,5 @@ export const useExportStore = create<ExportState>((set, get) => ({
     } finally {
       setTimeout(() => set({ isGenerating: false }), 500);
     }
-  }
+  },
 }));

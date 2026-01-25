@@ -66,7 +66,9 @@ export const INFO_CONFIG = {
     klee: '#008939',
     grashalm: '#8ABD24',
     sand: '#F5F1E9',
-    himmel: '#009EE3',
+    himmel: '#0BA1DD',
+    hellgruen: '#6CCD87',
+    dunkelgrau: '#2E2E3D',
   },
 } as const;
 

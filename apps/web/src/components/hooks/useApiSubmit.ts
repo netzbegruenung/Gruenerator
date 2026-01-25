@@ -1,24 +1,25 @@
 import { useState } from 'react';
-import { processText } from '../utils/apiClient';
+
 import { parseEndpointResponse } from '../../utils/responseParser';
+import { processText } from '../utils/apiClient';
 
 // Helper function to determine generator type from endpoint
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const getGeneratorTypeFromEndpoint = (endpoint: string): string | undefined => {
   const endpointMap: Record<string, string> = {
     '/claude_social': 'social_media',
-    'claude_social': 'social_media',
+    claude_social: 'social_media',
     '/claude_gruene_jugend': 'gruenejugend',
-    'claude_gruene_jugend': 'gruenejugend',
+    claude_gruene_jugend: 'gruenejugend',
     'claude/antrag': 'antrag',
     'claude/antrag-simple': 'antrag',
     'antraege/generate-simple': 'antrag',
     '/claude_universal': 'universal',
-    'claude_universal': 'universal',
+    claude_universal: 'universal',
     '/claude_rede': 'universal',
-    'claude_rede': 'universal',
+    claude_rede: 'universal',
     '/claude_wahlprogramm': 'universal',
-    'claude_wahlprogramm': 'universal'
+    claude_wahlprogramm: 'universal',
   };
   return endpointMap[endpoint];
 };
@@ -37,8 +38,10 @@ const useApiSubmit = (endpoint: string) => {
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
 
-  const submitForm = async (formData: Record<string, unknown>, options: ApiSubmitOptions = {}): Promise<ApiSubmitResponse> => {
-
+  const submitForm = async (
+    formData: Record<string, unknown>,
+    options: ApiSubmitOptions = {}
+  ): Promise<ApiSubmitResponse> => {
     setLoading(true);
     setSuccess(false);
     setError('');
@@ -50,7 +53,6 @@ const useApiSubmit = (endpoint: string) => {
       const proMode = !!formData.useProMode;
       const useBedrock = !!formData.useBedrock;
 
-
       // Pass only intent flags; provider/model selection remains on the backend.
       const requestData: Record<string, unknown> = {
         ...formData,
@@ -60,10 +62,11 @@ const useApiSubmit = (endpoint: string) => {
         useBedrock: useBedrock,
         onRetry: (attempt: number, delay: number) => {
           setRetryCount(attempt);
-          setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay / 1000)} Sekunden... (Versuch ${attempt}/3)`);
-        }
+          setError(
+            `Verbindungsprobleme. Neuer Versuch in ${Math.round(delay / 1000)} Sekunden... (Versuch ${attempt}/3)`
+          );
+        },
       };
-
 
       const response = (await processText(endpoint, requestData)) as ApiSubmitResponse;
 
@@ -77,8 +80,13 @@ const useApiSubmit = (endpoint: string) => {
       // Special validation for /claude_social endpoint to catch raw AI responses
       if (endpoint === '/claude_social' && response && typeof response === 'object') {
         if ('tool_calls' in response) {
-          console.error('[useApiSubmit] Received raw AI response with tool_calls - this should have been handled by backend:', response);
-          throw new Error('Unexpected response format. Please try again without web search enabled.');
+          console.error(
+            '[useApiSubmit] Received raw AI response with tool_calls - this should have been handled by backend:',
+            response
+          );
+          throw new Error(
+            'Unexpected response format. Please try again without web search enabled.'
+          );
         }
         if ('stop_reason' in response || 'raw_content_blocks' in response) {
           console.error('[useApiSubmit] Received raw AI worker response structure:', response);
@@ -142,7 +150,7 @@ const useApiSubmit = (endpoint: string) => {
     retryCount,
     submitForm,
     resetSuccess,
-    resetState
+    resetState,
   };
 };
 

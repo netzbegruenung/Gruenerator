@@ -21,11 +21,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 
 // --- UI Primitives ---
 import { Spacer } from '@/components/tiptap-ui-primitive/spacer';
-import {
-  Toolbar,
-  ToolbarGroup,
-  ToolbarSeparator,
-} from '@/components/tiptap-ui-primitive/toolbar';
+import { Toolbar, ToolbarGroup, ToolbarSeparator } from '@/components/tiptap-ui-primitive/toolbar';
 
 // --- Tiptap Node ---
 import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension';
@@ -44,11 +40,7 @@ import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button';
 import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu';
 import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button';
 import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button';
-import {
-  LinkPopover,
-  LinkContent,
-  LinkButton,
-} from '@/components/tiptap-ui/link-popover';
+import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/link-popover';
 import { MarkButton } from '@/components/tiptap-ui/mark-button';
 import { TextAlignButton } from '@/components/tiptap-ui/text-align-button';
 import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button';
@@ -110,10 +102,7 @@ const MainToolbarContent = ({
 
       <ToolbarGroup>
         <HeadingDropdownMenu levels={[1, 2, 3, 4, 5, 6]} portal={isMobile} />
-        <ListDropdownMenu
-          types={['bulletList', 'orderedList', 'taskList']}
-          portal={isMobile}
-        />
+        <ListDropdownMenu types={['bulletList', 'orderedList', 'taskList']} portal={isMobile} />
         <BlockquoteButton />
         <CodeBlockButton />
       </ToolbarGroup>
@@ -156,11 +145,7 @@ const MainToolbarContent = ({
   );
 };
 
-const MobileToolbarContent = ({
-  onBack,
-}: {
-  onBack: () => void;
-}) => (
+const MobileToolbarContent = ({ onBack }: { onBack: () => void }) => (
   <>
     <LinkContent />
   </>
@@ -181,74 +166,77 @@ export const CollaborativeEditor = ({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        autocomplete: 'off',
-        autocorrect: 'off',
-        autocapitalize: 'off',
-        'aria-label': 'Hauptbereich, beginne zu tippen.',
-        class: 'simple-editor',
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      editorProps: {
+        attributes: {
+          autocomplete: 'off',
+          autocorrect: 'off',
+          autocapitalize: 'off',
+          'aria-label': 'Hauptbereich, beginne zu tippen.',
+          class: 'simple-editor',
+        },
+      },
+      extensions: [
+        StarterKit.configure({
+          horizontalRule: false,
+          history: ydoc ? false : undefined, // Disable history when using Y.js
+        }),
+        HorizontalRule,
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        Highlight.configure({ multicolor: true }),
+        Image,
+        Typography,
+        Superscript,
+        Subscript,
+        Underline,
+        Link.configure({
+          openOnClick: false,
+        }),
+        Placeholder.configure({
+          placeholder: 'Beginne zu schreiben...',
+        }),
+        ImageUploadNode.configure({
+          accept: 'image/*',
+          maxSize: MAX_FILE_SIZE,
+          limit: 3,
+          upload: handleImageUpload,
+          onError: (error) => console.error('Upload failed:', error),
+        }),
+        // Add Collaboration extension only if ydoc is provided
+        ...(ydoc
+          ? [
+              Collaboration.configure({
+                document: ydoc,
+              }),
+            ]
+          : []),
+        // Add CollaborationCursor only if provider with awareness is available
+        ...(provider?.awareness
+          ? [
+              CollaborationCursor.configure({
+                provider: provider,
+                user: provider.awareness.getLocalState()?.user || {
+                  name: 'Anonymous',
+                  color: '#808080',
+                },
+              }),
+            ]
+          : []),
+      ],
+      content: ydoc ? undefined : initialContent,
+      editable,
+      onUpdate: ({ editor }) => {
+        if (onUpdate && !ydoc) {
+          onUpdate(editor.getHTML());
+        }
       },
     },
-    extensions: [
-      StarterKit.configure({
-        horizontalRule: false,
-        history: ydoc ? false : undefined, // Disable history when using Y.js
-      }),
-      HorizontalRule,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Highlight.configure({ multicolor: true }),
-      Image,
-      Typography,
-      Superscript,
-      Subscript,
-      Underline,
-      Link.configure({
-        openOnClick: false,
-      }),
-      Placeholder.configure({
-        placeholder: 'Beginne zu schreiben...',
-      }),
-      ImageUploadNode.configure({
-        accept: 'image/*',
-        maxSize: MAX_FILE_SIZE,
-        limit: 3,
-        upload: handleImageUpload,
-        onError: (error) => console.error('Upload failed:', error),
-      }),
-      // Add Collaboration extension only if ydoc is provided
-      ...(ydoc
-        ? [
-            Collaboration.configure({
-              document: ydoc,
-            }),
-          ]
-        : []),
-      // Add CollaborationCursor only if provider with awareness is available
-      ...(provider?.awareness
-        ? [
-            CollaborationCursor.configure({
-              provider: provider,
-              user: provider.awareness.getLocalState()?.user || {
-                name: 'Anonymous',
-                color: '#808080',
-              },
-            }),
-          ]
-        : []),
-    ],
-    content: ydoc ? undefined : initialContent,
-    editable,
-    onUpdate: ({ editor }) => {
-      if (onUpdate && !ydoc) {
-        onUpdate(editor.getHTML());
-      }
-    },
-  }, [ydoc, provider]);
+    [ydoc, provider]
+  );
 
   const rect = useCursorVisibility({
     editor,
@@ -279,13 +267,7 @@ export const CollaborativeEditor = ({
   // Initialize Y.js document with HTML content from export (only once on first load)
   const hasInitialized = useRef(false);
   useEffect(() => {
-    if (
-      editor &&
-      ydoc &&
-      initialContent &&
-      !hasInitialized.current &&
-      provider?.isSynced
-    ) {
+    if (editor && ydoc && initialContent && !hasInitialized.current && provider?.isSynced) {
       // Check if Y.js document is empty
       const fragment = ydoc.getXmlFragment('default');
       const isEmpty = fragment.length === 0;
@@ -319,17 +301,11 @@ export const CollaborativeEditor = ({
               isMobile={isMobile}
             />
           ) : (
-            <MobileToolbarContent
-              onBack={() => setMobileView('main')}
-            />
+            <MobileToolbarContent onBack={() => setMobileView('main')} />
           )}
         </Toolbar>
 
-        <EditorContent
-          editor={editor}
-          role="presentation"
-          className="simple-editor-content"
-        />
+        <EditorContent editor={editor} role="presentation" className="simple-editor-content" />
       </EditorContext.Provider>
     </div>
   );

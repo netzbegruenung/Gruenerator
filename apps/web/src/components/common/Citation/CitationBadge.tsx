@@ -1,5 +1,7 @@
-import { JSX, useState, useRef } from 'react';
+import { type JSX, useState, useRef } from 'react';
+
 import useCitationStore, { type LinkConfig } from '../../../stores/citationStore';
+
 import CitationPopup from './CitationPopup';
 
 export interface CitationData {
@@ -22,7 +24,11 @@ interface CitationBadgeProps {
   linkConfig?: LinkConfig;
 }
 
-const CitationBadge = ({ citationIndex, citation, linkConfig }: CitationBadgeProps): JSX.Element => {
+const CitationBadge = ({
+  citationIndex,
+  citation,
+  linkConfig,
+}: CitationBadgeProps): JSX.Element => {
   const [showPopup, setShowPopup] = useState(false);
   const badgeRef = useRef<HTMLSpanElement>(null);
   const { setSelectedCitation, fetchChunkContext } = useCitationStore();
@@ -32,7 +38,7 @@ const CitationBadge = ({ citationIndex, citation, linkConfig }: CitationBadgePro
 
     // If we have document_id and chunk_index, fetch context (same as CitationSourcesDisplay)
     if (citation.document_id && citation.chunk_index !== undefined) {
-      fetchChunkContext(
+      void fetchChunkContext(
         citation.document_id,
         citation.chunk_index,
         citation as CitationData,
@@ -63,9 +69,7 @@ const CitationBadge = ({ citationIndex, citation, linkConfig }: CitationBadgePro
       >
         {citationIndex}
       </span>
-      {showPopup && citation && (
-        <CitationPopup citation={citation} badgeRef={badgeRef} />
-      )}
+      {showPopup && citation && <CitationPopup citation={citation} badgeRef={badgeRef} />}
     </span>
   );
 };

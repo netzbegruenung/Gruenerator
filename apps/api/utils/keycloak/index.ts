@@ -10,7 +10,7 @@ export type {
   FederatedIdentity,
   UserCredential,
   CreateUserData,
-  UpdateUserData
+  UpdateUserData,
 } from './apiClient.js';
 
 // JWT Validator exports

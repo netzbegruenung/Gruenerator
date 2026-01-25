@@ -22,7 +22,7 @@ import type {
   KeywordExtractionResult,
   SearchPatternResult,
   KeywordExtractionOptions,
-  KeywordExtractorStats
+  KeywordExtractorStats,
 } from './keyword-extractor-types.js';
 
 /**
@@ -32,21 +32,131 @@ import type {
  */
 const GERMAN_STOPWORDS: ReadonlySet<string> = new Set([
   // Articles
-  'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einer', 'einem', 'eines',
+  'der',
+  'die',
+  'das',
+  'den',
+  'dem',
+  'des',
+  'ein',
+  'eine',
+  'einer',
+  'einem',
+  'eines',
   // Prepositions
-  'in', 'auf', 'an', 'bei', 'mit', 'von', 'zu', 'für', 'über', 'unter', 'durch', 'gegen', 'ohne', 'um',
+  'in',
+  'auf',
+  'an',
+  'bei',
+  'mit',
+  'von',
+  'zu',
+  'für',
+  'über',
+  'unter',
+  'durch',
+  'gegen',
+  'ohne',
+  'um',
   // Pronouns
-  'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'sie', 'mich', 'dich', 'sich', 'uns', 'euch',
-  'mein', 'dein', 'sein', 'ihr', 'unser', 'euer', 'dieser', 'diese', 'dieses', 'jener', 'jene', 'jenes',
+  'ich',
+  'du',
+  'er',
+  'sie',
+  'es',
+  'wir',
+  'ihr',
+  'sie',
+  'mich',
+  'dich',
+  'sich',
+  'uns',
+  'euch',
+  'mein',
+  'dein',
+  'sein',
+  'ihr',
+  'unser',
+  'euer',
+  'dieser',
+  'diese',
+  'dieses',
+  'jener',
+  'jene',
+  'jenes',
   // Auxiliary verbs
-  'ist', 'sind', 'war', 'waren', 'bin', 'bist', 'hat', 'haben', 'hatte', 'hatten', 'wird', 'werden',
+  'ist',
+  'sind',
+  'war',
+  'waren',
+  'bin',
+  'bist',
+  'hat',
+  'haben',
+  'hatte',
+  'hatten',
+  'wird',
+  'werden',
   // Conjunctions
-  'und', 'oder', 'aber', 'denn', 'sondern', 'doch', 'jedoch', 'sowie', 'als', 'wenn', 'weil', 'da', 'dass',
+  'und',
+  'oder',
+  'aber',
+  'denn',
+  'sondern',
+  'doch',
+  'jedoch',
+  'sowie',
+  'als',
+  'wenn',
+  'weil',
+  'da',
+  'dass',
   // Common words
-  'nicht', 'auch', 'nur', 'noch', 'schon', 'mehr', 'sehr', 'so', 'wie', 'was', 'wo', 'wann', 'warum', 'wie',
-  'hier', 'dort', 'heute', 'gestern', 'morgen', 'immer', 'nie', 'oft', 'manchmal', 'bereits', 'dann',
+  'nicht',
+  'auch',
+  'nur',
+  'noch',
+  'schon',
+  'mehr',
+  'sehr',
+  'so',
+  'wie',
+  'was',
+  'wo',
+  'wann',
+  'warum',
+  'wie',
+  'hier',
+  'dort',
+  'heute',
+  'gestern',
+  'morgen',
+  'immer',
+  'nie',
+  'oft',
+  'manchmal',
+  'bereits',
+  'dann',
   // English stopwords (fallback)
-  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were'
+  'the',
+  'a',
+  'an',
+  'and',
+  'or',
+  'but',
+  'in',
+  'on',
+  'at',
+  'to',
+  'for',
+  'of',
+  'with',
+  'by',
+  'from',
+  'is',
+  'are',
+  'was',
+  'were',
 ]);
 
 /**
@@ -60,7 +170,7 @@ const CONFIG: Readonly<KeywordExtractionConfig> = {
   maxNgramSize: 3,
   keywordWeightThreshold: 0.1,
   phraseBoostFactor: 1.5,
-  exactMatchBoostFactor: 2.0
+  exactMatchBoostFactor: 2.0,
 } as const;
 
 /**
@@ -87,8 +197,8 @@ class KeywordExtractor {
         originalQuery: query?.trim() || '',
         metadata: {
           queryLength: 0,
-          language: 'unknown'
-        }
+          language: 'unknown',
+        },
       };
     }
 
@@ -102,8 +212,8 @@ class KeywordExtractor {
         originalQuery: query.trim(),
         metadata: {
           queryLength: 0,
-          language: 'unknown'
-        }
+          language: 'unknown',
+        },
       };
     }
 
@@ -112,8 +222,12 @@ class KeywordExtractor {
     const phrases = this.extractPhrases(tokens, options.maxNgramSize || CONFIG.maxNgramSize);
     const weightedKeywords = this.calculateKeywordWeights(keywords, tokens.length);
     const weightedPhrases = this.calculatePhraseWeights(phrases, tokens.length);
-    const filteredKeywords = weightedKeywords.filter(kw => kw.weight >= CONFIG.keywordWeightThreshold);
-    const filteredPhrases = weightedPhrases.filter(phrase => phrase.weight >= CONFIG.keywordWeightThreshold);
+    const filteredKeywords = weightedKeywords.filter(
+      (kw) => kw.weight >= CONFIG.keywordWeightThreshold
+    );
+    const filteredPhrases = weightedPhrases.filter(
+      (phrase) => phrase.weight >= CONFIG.keywordWeightThreshold
+    );
 
     return {
       keywords: filteredKeywords,
@@ -123,8 +237,8 @@ class KeywordExtractor {
         queryLength: tokens.length,
         language: language,
         totalKeywords: filteredKeywords.length,
-        totalPhrases: filteredPhrases.length
-      }
+        totalPhrases: filteredPhrases.length,
+      },
     };
   }
 
@@ -140,32 +254,28 @@ class KeywordExtractor {
       exact: query.trim(),
       keywords: [],
       phrases: [],
-      fuzzy: []
+      fuzzy: [],
     };
 
-    extraction.keywords.forEach(kw => {
+    extraction.keywords.forEach((kw) => {
       patternData.keywords.push(kw.term);
       if (kw.term.length > 4) {
         patternData.fuzzy.push(kw.term);
       }
     });
 
-    extraction.phrases.forEach(phrase => {
+    extraction.phrases.forEach((phrase) => {
       patternData.phrases.push(phrase.term);
       patternData.phrases.push(`"${phrase.term}"`);
     });
 
     // Combine all patterns into a single array for metadata
-    const allPatterns = [
-      ...patternData.keywords,
-      ...patternData.phrases,
-      ...patternData.fuzzy
-    ];
+    const allPatterns = [...patternData.keywords, ...patternData.phrases, ...patternData.fuzzy];
 
     return {
       ...patternData,
       patterns: [...new Set(allPatterns)], // Remove duplicates
-      metadata: extraction.metadata
+      metadata: extraction.metadata,
     };
   }
 
@@ -177,7 +287,7 @@ class KeywordExtractor {
     return {
       stopwordsCount: this.stopwords.size,
       config: CONFIG,
-      version: '1.0.0'
+      version: '1.0.0',
     };
   }
 
@@ -191,12 +301,13 @@ class KeywordExtractor {
       .toLowerCase()
       .replace(/[^\w\säöüß-]/g, ' ')
       .split(/\s+/)
-      .map(token => token.trim())
-      .filter(token =>
-        token.length >= CONFIG.minKeywordLength &&
-        token.length <= CONFIG.maxKeywordLength &&
-        !this.stopwords.has(token) &&
-        !/^\d+$/.test(token)
+      .map((token) => token.trim())
+      .filter(
+        (token) =>
+          token.length >= CONFIG.minKeywordLength &&
+          token.length <= CONFIG.maxKeywordLength &&
+          !this.stopwords.has(token) &&
+          !/^\d+$/.test(token)
       );
   }
 
@@ -207,7 +318,7 @@ class KeywordExtractor {
    */
   private extractIndividualKeywords(tokens: string[]): string[] {
     const uniqueTokens = [...new Set(tokens)];
-    return uniqueTokens.filter(token => this.isValidKeyword(token));
+    return uniqueTokens.filter((token) => this.isValidKeyword(token));
   }
 
   /**
@@ -238,7 +349,7 @@ class KeywordExtractor {
    * @returns Keywords with weights
    */
   private calculateKeywordWeights(keywords: string[], totalTokens: number): WeightedKeyword[] {
-    return keywords.map(keyword => {
+    return keywords.map((keyword) => {
       let weight = 1.0;
 
       if (keyword.length > 6) {
@@ -254,7 +365,7 @@ class KeywordExtractor {
       return {
         term: keyword,
         weight: Math.min(1.0, weight),
-        type: 'keyword'
+        type: 'keyword',
       };
     });
   }
@@ -266,7 +377,7 @@ class KeywordExtractor {
    * @returns Phrases with weights
    */
   private calculatePhraseWeights(phrases: string[], totalTokens: number): WeightedKeyword[] {
-    return phrases.map(phrase => {
+    return phrases.map((phrase) => {
       const phraseTokens = phrase.split(' ').length;
       let weight = phraseTokens * 0.4;
       weight = weight / Math.log(totalTokens + 1);
@@ -275,7 +386,7 @@ class KeywordExtractor {
         term: phrase,
         weight: Math.min(1.0, weight),
         type: 'phrase',
-        tokenCount: phraseTokens
+        tokenCount: phraseTokens,
       };
     });
   }
@@ -286,13 +397,24 @@ class KeywordExtractor {
    * @returns Detected language
    */
   private detectLanguage(tokens: string[]): Language {
-    const germanIndicators = ['der', 'die', 'das', 'und', 'oder', 'ist', 'sind', 'haben', 'für', 'mit'];
+    const germanIndicators = [
+      'der',
+      'die',
+      'das',
+      'und',
+      'oder',
+      'ist',
+      'sind',
+      'haben',
+      'für',
+      'mit',
+    ];
     const englishIndicators = ['the', 'and', 'or', 'is', 'are', 'have', 'for', 'with'];
 
     let germanScore = 0;
     let englishScore = 0;
 
-    tokens.forEach(token => {
+    tokens.forEach((token) => {
       if (germanIndicators.includes(token)) germanScore++;
       if (englishIndicators.includes(token)) englishScore++;
     });
@@ -308,10 +430,12 @@ class KeywordExtractor {
    * @returns Whether token is valid
    */
   private isValidKeyword(token: string): boolean {
-    return token.length >= CONFIG.minKeywordLength &&
-           !this.stopwords.has(token) &&
-           !/^\d+$/.test(token) &&
-           /[a-zäöüß]/i.test(token);
+    return (
+      token.length >= CONFIG.minKeywordLength &&
+      !this.stopwords.has(token) &&
+      !/^\d+$/.test(token) &&
+      /[a-zäöüß]/i.test(token)
+    );
   }
 
   /**
@@ -323,7 +447,7 @@ class KeywordExtractor {
     if (phrase.length > CONFIG.maxKeywordLength) return false;
 
     const tokens = phrase.split(' ');
-    return tokens.some(token => !this.stopwords.has(token));
+    return tokens.some((token) => !this.stopwords.has(token));
   }
 }
 

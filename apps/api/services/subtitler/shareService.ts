@@ -99,7 +99,14 @@ class SubtitlerShareService {
   async createShare(userId: string, params: CreateShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
 
-    const { videoPath, title, thumbnailPath, duration, projectId, expiresInDays = DEFAULT_EXPIRATION_DAYS } = params;
+    const {
+      videoPath,
+      title,
+      thumbnailPath,
+      duration,
+      projectId,
+      expiresInDays = DEFAULT_EXPIRATION_DAYS,
+    } = params;
     const shareToken = this.generateShareToken();
     const shareDir = path.join(SHARED_VIDEOS_PATH, shareToken);
 
@@ -143,20 +150,24 @@ class SubtitlerShareService {
         title || 'Untertiteltes Video',
         relativeThumbnailPath,
         duration || null,
-        expiresAt.toISOString()
+        expiresAt.toISOString(),
       ]);
 
       log.info(`[SubtitlerShareService] Created share ${shareToken} for user ${userId}`);
 
-      const typedResult = result as { id: string; share_token: string; created_at: Date; expires_at: Date };
+      const typedResult = result as {
+        id: string;
+        share_token: string;
+        created_at: Date;
+        expires_at: Date;
+      };
       return {
         id: typedResult.id,
         shareToken: typedResult.share_token,
         shareUrl: `/subtitler/share/${shareToken}`,
         createdAt: typedResult.created_at,
-        expiresAt: typedResult.expires_at
+        expiresAt: typedResult.expires_at,
       };
-
     } catch (error: any) {
       try {
         await fs.rm(shareDir, { recursive: true, force: true });
@@ -191,7 +202,6 @@ class SubtitlerShareService {
       const expired = now > expiresAt;
 
       return { ...typedResult, expired };
-
     } catch (error: any) {
       log.error('[SubtitlerShareService] Failed to get share:', error);
       throw new Error(`Failed to get share: ${error.message}`);
@@ -216,9 +226,8 @@ class SubtitlerShareService {
       const now = new Date();
       return results.map((row: any) => ({
         ...row,
-        expired: new Date(row.expires_at) < now
+        expired: new Date(row.expires_at) < now,
       }));
-
     } catch (error: any) {
       log.error('[SubtitlerShareService] Failed to get user shares:', error);
       throw new Error(`Failed to get user shares: ${error.message}`);
@@ -250,7 +259,6 @@ class SubtitlerShareService {
       log.info(`[SubtitlerShareService] Recorded download for ${shareToken} by ${email}`);
 
       return true;
-
     } catch (error: any) {
       log.error('[SubtitlerShareService] Failed to record download:', error);
       throw new Error(`Failed to record download: ${error.message}`);
@@ -285,7 +293,6 @@ class SubtitlerShareService {
       log.info(`[SubtitlerShareService] Deleted share ${shareToken}`);
 
       return true;
-
     } catch (error: any) {
       log.error('[SubtitlerShareService] Failed to delete share:', error);
       throw new Error(`Failed to delete share: ${error.message}`);
@@ -295,7 +302,13 @@ class SubtitlerShareService {
   async createPendingShare(userId: string, params: CreatePendingShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
 
-    const { title, thumbnailPath, duration, projectId, expiresInDays = DEFAULT_EXPIRATION_DAYS } = params;
+    const {
+      title,
+      thumbnailPath,
+      duration,
+      projectId,
+      expiresInDays = DEFAULT_EXPIRATION_DAYS,
+    } = params;
     const shareToken = this.generateShareToken();
     const shareDir = path.join(SHARED_VIDEOS_PATH, shareToken);
 
@@ -331,21 +344,25 @@ class SubtitlerShareService {
         title || 'Untertiteltes Video',
         relativeThumbnailPath,
         duration || null,
-        expiresAt.toISOString()
+        expiresAt.toISOString(),
       ]);
 
       log.info(`[SubtitlerShareService] Created pending share ${shareToken} for user ${userId}`);
 
-      const typedResult = result as { id: string; share_token: string; created_at: Date; expires_at: Date };
+      const typedResult = result as {
+        id: string;
+        share_token: string;
+        created_at: Date;
+        expires_at: Date;
+      };
       return {
         id: typedResult.id,
         shareToken: typedResult.share_token,
         shareUrl: `/subtitler/share/${shareToken}`,
         createdAt: typedResult.created_at,
         expiresAt: typedResult.expires_at,
-        status: 'rendering'
+        status: 'rendering',
       };
-
     } catch (error: any) {
       try {
         await fs.rm(shareDir, { recursive: true, force: true });
@@ -371,7 +388,6 @@ class SubtitlerShareService {
       await this.postgres!.query(query, [`${shareToken}/video.mp4`, shareToken]);
 
       log.info(`[SubtitlerShareService] Finalized share ${shareToken}`);
-
     } catch (error: any) {
       log.error('[SubtitlerShareService] Failed to finalize share:', error);
       throw new Error(`Failed to finalize share: ${error.message}`);

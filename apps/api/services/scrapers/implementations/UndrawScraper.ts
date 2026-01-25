@@ -105,16 +105,23 @@ export class UndrawScraper extends BaseScraper {
     const batches: number[][] = [];
 
     for (let i = 1; i <= this.maxPages; i += batchSize) {
-      batches.push(Array.from({ length: Math.min(batchSize, this.maxPages - i + 1) }, (_, j) => i + j));
+      batches.push(
+        Array.from({ length: Math.min(batchSize, this.maxPages - i + 1) }, (_, j) => i + j)
+      );
     }
 
     for (const [batchIndex, batch] of batches.entries()) {
-      this.log(`Fetching batch ${batchIndex + 1}/${batches.length} (pages ${batch[0]}-${batch[batch.length - 1]})`);
+      this.log(
+        `Fetching batch ${batchIndex + 1}/${batches.length} (pages ${batch[0]}-${batch[batch.length - 1]})`
+      );
 
       const results = await Promise.all(
         batch.map(async (page) => {
           try {
-            const pageUrl = page === 1 ? `${this.baseUrl}/illustrations` : `${this.baseUrl}/illustrations/${page}`;
+            const pageUrl =
+              page === 1
+                ? `${this.baseUrl}/illustrations`
+                : `${this.baseUrl}/illustrations/${page}`;
 
             const response = await this.fetchWithRetry(pageUrl, {
               timeout: 30000,
@@ -213,7 +220,9 @@ export class UndrawScraper extends BaseScraper {
 
     for (const [index, chunk] of chunks.entries()) {
       if (index % 10 === 0) {
-        this.log(`Progress: ${this.stats.documentsProcessed}/${this.illustrations.length} files downloaded`);
+        this.log(
+          `Progress: ${this.stats.documentsProcessed}/${this.illustrations.length} files downloaded`
+        );
       }
 
       await Promise.all(
@@ -258,7 +267,9 @@ export class UndrawScraper extends BaseScraper {
 
       this.log(`Downloaded: ${filename}`);
     } catch (error) {
-      throw new Error(`Download failed for ${illustration.slug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Download failed for ${illustration.slug}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 

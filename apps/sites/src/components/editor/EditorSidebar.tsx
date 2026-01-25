@@ -1,5 +1,6 @@
-import { SectionNavigation } from './SectionNavigation';
 import { SectionEditorContainer } from './SectionEditorContainer';
+import { SectionNavigation } from './SectionNavigation';
+
 import type { CandidateData } from '../../types/candidate';
 import '../../styles/components/section-editor.css';
 
@@ -14,7 +15,7 @@ export function EditorSidebar({
   candidateData,
   onUpdate,
   onSave,
-  isSaving = false
+  isSaving = false,
 }: EditorSidebarProps) {
   return (
     <>

@@ -19,12 +19,14 @@ export function useStartMode(params: UseStartModeParams) {
     storeIsFormVisible,
     toggleStoreFormVisibility,
     fallbackFormVisibility,
-    setIsStartMode: setStoreIsStartMode
+    setIsStartMode: setStoreIsStartMode,
   } = params;
 
   const isStartMode = useStartPageLayout && !hasAnyContent;
-  const isFormVisible = storeIsFormVisible !== undefined ? storeIsFormVisible : fallbackFormVisibility.isFormVisible;
-  const toggleFormVisibility = toggleStoreFormVisibility || fallbackFormVisibility.toggleFormVisibility;
+  const isFormVisible =
+    storeIsFormVisible !== undefined ? storeIsFormVisible : fallbackFormVisibility.isFormVisible;
+  const toggleFormVisibility =
+    toggleStoreFormVisibility || fallbackFormVisibility.toggleFormVisibility;
 
   // Sync isStartMode to store for child components
   useEffect(() => {
@@ -34,6 +36,6 @@ export function useStartMode(params: UseStartModeParams) {
   return {
     isStartMode,
     isFormVisible,
-    toggleFormVisibility
+    toggleFormVisibility,
   };
 }

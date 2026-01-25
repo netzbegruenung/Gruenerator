@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import { FaUsers, FaChevronDown, FaChevronUp, FaFolder } from 'react-icons/fa';
-import type { IconType } from 'react-icons';
 import { SiCanva } from 'react-icons/si';
+import { Link, useLocation } from 'react-router-dom';
+
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
+
+import type { IconType } from 'react-icons';
 
 interface MenuItem {
   key: string;
@@ -27,22 +29,29 @@ interface ProfileMenuProps {
 }
 
 const PROFILE_MENU_ITEMS: MenuItem[] = [
-  { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers, hasSubmenu: true },
+  {
+    key: 'gruppen',
+    label: 'Gruppen',
+    path: '/profile/gruppen',
+    betaFeature: 'groups',
+    icon: FaUsers,
+    hasSubmenu: true,
+  },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
-  { key: 'canva', label: 'Canva', path: '/profile/canva', betaFeature: 'canva', icon: SiCanva }
+  { key: 'canva', label: 'Canva', path: '/profile/canva', betaFeature: 'canva', icon: SiCanva },
 ];
 
 const ProfileMenu = ({
   onNavigate,
   variant = 'dropdown',
   className = '',
-  groups = []
+  groups = [],
 }: ProfileMenuProps): React.ReactElement => {
   const location = useLocation();
   const { shouldShowTab } = useBetaFeatures();
   const [expandedSubmenu, setExpandedSubmenu] = useState<string | null>(null);
 
-  const filteredItems = PROFILE_MENU_ITEMS.filter(item => {
+  const filteredItems = PROFILE_MENU_ITEMS.filter((item) => {
     if (item.betaFeature) {
       return shouldShowTab(item.betaFeature);
     }
@@ -70,8 +79,9 @@ const ProfileMenu = ({
 
   return (
     <div className={`profile-menu profile-menu--${variant} ${className}`}>
-      {filteredItems.map(item => {
-        const hasGroups = item.key === 'gruppen' && item.hasSubmenu && variant === 'dropdown' && groups.length > 0;
+      {filteredItems.map((item) => {
+        const hasGroups =
+          item.key === 'gruppen' && item.hasSubmenu && variant === 'dropdown' && groups.length > 0;
         const isExpanded = expandedSubmenu === item.key;
 
         if (hasGroups) {
@@ -90,14 +100,10 @@ const ProfileMenu = ({
               </button>
               {isExpanded && (
                 <div className="profile-menu-submenu">
-                  <Link
-                    to={item.path}
-                    className="profile-menu-submenu-item"
-                    onClick={handleClick}
-                  >
+                  <Link to={item.path} className="profile-menu-submenu-item" onClick={handleClick}>
                     Übersicht
                   </Link>
-                  {groups.map(group => (
+                  {groups.map((group) => (
                     <Link
                       key={group.id}
                       to={`/profile/gruppen?group=${group.id}`}

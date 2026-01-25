@@ -156,7 +156,10 @@ declare module 'react-native-gifted-chat' {
     renderDay?: (props: DayProps<TMessage>) => ReactNode;
     renderSystemMessage?: (props: SystemMessageProps<TMessage>) => ReactNode;
     renderAvatar?: (props: AvatarProps<TMessage>) => ReactNode;
-    shouldUpdateMessage?: (props: MessageProps<TMessage>, nextProps: MessageProps<TMessage>) => boolean;
+    shouldUpdateMessage?: (
+      props: MessageProps<TMessage>,
+      nextProps: MessageProps<TMessage>
+    ) => boolean;
     onMessageLayout?: (event: object) => void;
   }
 

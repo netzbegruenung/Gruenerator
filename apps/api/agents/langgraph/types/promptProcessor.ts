@@ -70,17 +70,23 @@ export interface PromptConfig {
     customPromptFromDb?: boolean;
     notebookEnrich?: boolean;
   };
-  platforms?: Record<string, {
-    style?: string;
-    focus?: string;
-    additionalGuidelines?: string;
-    maxLength?: number;
-  }>;
-  types?: Record<string, {
-    systemRole?: string;
-    requestTemplate?: string;
-    options?: Record<string, unknown>;
-  }>;
+  platforms?: Record<
+    string,
+    {
+      style?: string;
+      focus?: string;
+      additionalGuidelines?: string;
+      maxLength?: number;
+    }
+  >;
+  types?: Record<
+    string,
+    {
+      systemRole?: string;
+      requestTemplate?: string;
+      options?: Record<string, unknown>;
+    }
+  >;
   tools?: Array<Record<string, unknown>>;
   [key: string]: unknown;
 }

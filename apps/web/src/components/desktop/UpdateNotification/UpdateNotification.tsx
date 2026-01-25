@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isDesktopApp } from '../../../utils/platform';
+
 import {
   useDesktopUpdateStore,
   useUpdateStatus,
@@ -13,6 +13,7 @@ import {
   installUpdate,
   checkForUpdates,
 } from '../../../utils/desktopUpdater';
+import { isDesktopApp } from '../../../utils/platform';
 import './update-notification.css';
 
 interface UpdateNotificationProps {
@@ -29,7 +30,7 @@ export function UpdateNotification({ onDismiss }: UpdateNotificationProps) {
   useEffect(() => {
     if (!isDesktopApp()) return;
 
-    initAutoUpdater();
+    void initAutoUpdater();
 
     return () => {
       cleanupAutoUpdater();
@@ -68,7 +69,14 @@ export function UpdateNotification({ onDismiss }: UpdateNotificationProps) {
         {status === 'available' && (
           <>
             <div className="update-notification__icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
@@ -102,7 +110,14 @@ export function UpdateNotification({ onDismiss }: UpdateNotificationProps) {
         {status === 'downloading' && (
           <>
             <div className="update-notification__icon update-notification__icon--spinning">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
             </div>
@@ -123,15 +138,20 @@ export function UpdateNotification({ onDismiss }: UpdateNotificationProps) {
         {status === 'ready' && (
           <>
             <div className="update-notification__icon update-notification__icon--success">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
             <div className="update-notification__text">
-              <span className="update-notification__title">
-                Update bereit zur Installation
-              </span>
+              <span className="update-notification__title">Update bereit zur Installation</span>
               <span className="update-notification__description">
                 Die App wird neu gestartet, um das Update zu installieren.
               </span>
@@ -156,16 +176,21 @@ export function UpdateNotification({ onDismiss }: UpdateNotificationProps) {
         {status === 'error' && (
           <>
             <div className="update-notification__icon update-notification__icon--error">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
             <div className="update-notification__text">
-              <span className="update-notification__title">
-                Update fehlgeschlagen
-              </span>
+              <span className="update-notification__title">Update fehlgeschlagen</span>
             </div>
             <div className="update-notification__actions">
               <button

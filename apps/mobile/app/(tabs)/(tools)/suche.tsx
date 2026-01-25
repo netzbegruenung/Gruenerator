@@ -39,8 +39,12 @@ export default function SucheScreen() {
   } = useSearch();
 
   const setTextWithHistory = useGeneratedTextStore((state) => state.setTextWithHistory);
-  const webContent = useGeneratedTextStore((state) => state.generatedTexts[COMPONENT_NAME_WEB] || '');
-  const deepContent = useGeneratedTextStore((state) => state.generatedTexts[COMPONENT_NAME_DEEP] || '');
+  const webContent = useGeneratedTextStore(
+    (state) => state.generatedTexts[COMPONENT_NAME_WEB] || ''
+  );
+  const deepContent = useGeneratedTextStore(
+    (state) => state.generatedTexts[COMPONENT_NAME_DEEP] || ''
+  );
 
   const hasWebResults = webResults !== null;
   const hasDeepResults = dossier !== null;
@@ -107,9 +111,7 @@ export default function SucheScreen() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary[600]} />
             <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-              {currentMode === 'deep'
-                ? 'Führe Tiefenrecherche durch...'
-                : 'Durchsuche das Web...'}
+              {currentMode === 'deep' ? 'Führe Tiefenrecherche durch...' : 'Durchsuche das Web...'}
             </Text>
           </View>
         )}
@@ -126,9 +128,7 @@ export default function SucheScreen() {
             <View style={[styles.summaryCard, { backgroundColor: theme.surface }]}>
               <View style={styles.sectionHeader}>
                 <Ionicons name="sparkles" size={20} color={colors.primary[600]} />
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                  AI-Zusammenfassung
-                </Text>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>AI-Zusammenfassung</Text>
               </View>
               <ContentDisplay
                 componentName={COMPONENT_NAME_WEB}
@@ -149,9 +149,7 @@ export default function SucheScreen() {
 
             {webResults.suggestions && webResults.suggestions.length > 0 && (
               <View style={styles.suggestionsContainer}>
-                <Text style={[styles.suggestionsTitle, { color: theme.text }]}>
-                  Suchvorschläge
-                </Text>
+                <Text style={[styles.suggestionsTitle, { color: theme.text }]}>Suchvorschläge</Text>
                 <View style={styles.suggestionsList}>
                   {webResults.suggestions.map((suggestion, index) => (
                     <Text
@@ -173,9 +171,7 @@ export default function SucheScreen() {
             <View style={[styles.dossierCard, { backgroundColor: theme.surface }]}>
               <View style={styles.sectionHeader}>
                 <Ionicons name="document-text" size={20} color={colors.primary[600]} />
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                  Recherche-Dossier
-                </Text>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>Recherche-Dossier</Text>
               </View>
               <ContentDisplay
                 componentName={COMPONENT_NAME_DEEP}
@@ -189,11 +185,7 @@ export default function SucheScreen() {
                   Quellen nach Themenbereichen
                 </Text>
                 {Object.entries(categorizedSources).map(([category, sources]) => (
-                  <SourceList
-                    key={category}
-                    sources={sources}
-                    title={category}
-                  />
+                  <SourceList key={category} sources={sources} title={category} />
                 ))}
               </View>
             )}

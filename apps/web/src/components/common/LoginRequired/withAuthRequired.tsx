@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+
 import LoginRequired from './LoginRequired';
 
 interface AuthRequiredOptions {
@@ -32,11 +34,7 @@ const withAuthRequired = <P extends Record<string, unknown>>(
           <div className="protected-content-blur">
             <Component {...props} user={null} />
           </div>
-          <LoginRequired
-            title={title}
-            message={message}
-            variant="fullpage"
-          />
+          <LoginRequired title={title} message={message} variant="fullpage" />
         </>
       );
     }

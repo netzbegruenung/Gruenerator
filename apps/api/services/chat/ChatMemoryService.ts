@@ -19,7 +19,7 @@ import type {
   MessageRole,
   PendingRequest,
   ExperimentalSession,
-  SessionSummary
+  SessionSummary,
 } from './types.js';
 
 // Configuration
@@ -45,7 +45,9 @@ export async function getConversation(userId: string): Promise<Conversation> {
     }
 
     const conversation: Conversation = JSON.parse(String(data));
-    console.log(`[ChatMemory] Retrieved conversation for ${userId}: ${conversation.messages?.length || 0} messages`);
+    console.log(
+      `[ChatMemory] Retrieved conversation for ${userId}: ${conversation.messages?.length || 0} messages`
+    );
 
     return conversation;
   } catch (error) {
@@ -82,7 +84,7 @@ export async function addMessage(
       role,
       content,
       timestamp: Date.now(),
-      ...(agent && { agent })
+      ...(agent && { agent }),
     };
 
     // Add to conversation
@@ -107,7 +109,6 @@ export async function addMessage(
 
     console.log(`[ChatMemory] Added ${role} message for ${userId} (agent: ${agent || 'none'})`);
     return conversation;
-
   } catch (error) {
     console.error('[ChatMemory] Error adding message:', error);
     return { messages: [], metadata: {} };
@@ -129,9 +130,10 @@ export async function clearConversation(userId: string): Promise<boolean> {
     const result = await redisClient.del(key);
     const numDeleted = typeof result === 'number' ? result : parseInt(result, 10);
 
-    console.log(`[ChatMemory] Cleared conversation for ${userId}: ${numDeleted > 0 ? 'success' : 'no data found'}`);
+    console.log(
+      `[ChatMemory] Cleared conversation for ${userId}: ${numDeleted > 0 ? 'success' : 'no data found'}`
+    );
     return numDeleted > 0;
-
   } catch (error) {
     console.error('[ChatMemory] Error clearing conversation:', error);
     return false;
@@ -155,7 +157,7 @@ export async function getConversationStats(userId: string): Promise<Conversation
       messageCount: conversation.messages?.length || 0,
       lastAgent: conversation.metadata?.lastAgent || null,
       lastUpdated: conversation.metadata?.lastUpdated || null,
-      expiresIn: ttlNum > 0 ? ttlNum : null
+      expiresIn: ttlNum > 0 ? ttlNum : null,
     };
   } catch (error) {
     console.error('[ChatMemory] Error getting stats:', error);
@@ -174,7 +176,10 @@ export async function setPendingRequest(
   pendingRequest: Omit<PendingRequest, 'timestamp'>
 ): Promise<Conversation> {
   if (!userId || !pendingRequest) {
-    console.warn('[ChatMemory] Missing required parameters for setPendingRequest:', { userId, pendingRequest });
+    console.warn('[ChatMemory] Missing required parameters for setPendingRequest:', {
+      userId,
+      pendingRequest,
+    });
     return { messages: [], metadata: {} };
   }
 
@@ -184,7 +189,7 @@ export async function setPendingRequest(
     // Add pending request to metadata
     conversation.metadata.pendingRequest = {
       ...pendingRequest,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     } as PendingRequest;
     conversation.metadata.lastUpdated = Date.now();
 
@@ -194,7 +199,6 @@ export async function setPendingRequest(
 
     console.log(`[ChatMemory] Set pending request for ${userId}:`, pendingRequest.type);
     return conversation;
-
   } catch (error) {
     console.error('[ChatMemory] Error setting pending request:', error);
     return { messages: [], metadata: {} };
@@ -220,7 +224,6 @@ export async function getPendingRequest(userId: string): Promise<PendingRequest 
     }
 
     return pendingRequest || null;
-
   } catch (error) {
     console.error('[ChatMemory] Error getting pending request:', error);
     return null;
@@ -252,7 +255,6 @@ export async function clearPendingRequest(userId: string): Promise<Conversation>
     }
 
     return conversation;
-
   } catch (error) {
     console.error('[ChatMemory] Error clearing pending request:', error);
     return { messages: [], metadata: {} };
@@ -276,7 +278,7 @@ export async function acquirePendingLock(userId: string): Promise<boolean> {
     // SET with NX (only if not exists) and EX (expiry in seconds)
     const result = await redisClient.set(lockKey, Date.now().toString(), {
       NX: true,
-      EX: PENDING_LOCK_TTL
+      EX: PENDING_LOCK_TTL,
     });
     const acquired = result === 'OK';
     if (acquired) {
@@ -371,7 +373,8 @@ export async function setExperimentalSession(
 
   try {
     // Generate session ID if not provided
-    const sessionId = sessionData.sessionId || `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId =
+      sessionData.sessionId || `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Add timestamps if not present
     const now = Date.now();
@@ -382,7 +385,7 @@ export async function setExperimentalSession(
       conversationState: sessionData.conversationState || '',
       createdAt: sessionData.createdAt || now,
       updatedAt: now,
-      expiresAt: now + (EXPERIMENTAL_SESSION_TTL * 1000)
+      expiresAt: now + EXPERIMENTAL_SESSION_TTL * 1000,
     };
 
     // Store in Redis with TTL
@@ -391,7 +394,6 @@ export async function setExperimentalSession(
 
     console.log(`[ChatMemory] Created/updated experimental session for ${userId}: ${sessionId}`);
     return sessionId;
-
   } catch (error) {
     console.error('[ChatMemory] Error setting experimental session:', error);
     throw error;
@@ -431,9 +433,10 @@ export async function getExperimentalSession(
       return null;
     }
 
-    console.log(`[ChatMemory] Retrieved experimental session for ${userId}: ${sessionId} (state: ${sessionData.conversationState})`);
+    console.log(
+      `[ChatMemory] Retrieved experimental session for ${userId}: ${sessionId} (state: ${sessionData.conversationState})`
+    );
     return sessionData;
-
   } catch (error) {
     console.error('[ChatMemory] Error retrieving experimental session:', error);
     return null;
@@ -469,16 +472,17 @@ export async function updateExperimentalSession(
     const updatedSession: ExperimentalSession = {
       ...existingSession,
       ...updates,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
 
     // Save back to Redis
     const key = `experimental_session:${userId}:${sessionId}`;
     await redisClient.setEx(key, EXPERIMENTAL_SESSION_TTL, JSON.stringify(updatedSession));
 
-    console.log(`[ChatMemory] Updated experimental session ${userId}:${sessionId} (state: ${updatedSession.conversationState})`);
+    console.log(
+      `[ChatMemory] Updated experimental session ${userId}:${sessionId} (state: ${updatedSession.conversationState})`
+    );
     return true;
-
   } catch (error) {
     console.error('[ChatMemory] Error updating experimental session:', error);
     return false;
@@ -504,9 +508,10 @@ export async function deleteExperimentalSession(
     const result = await redisClient.del(key);
     const numDeleted = typeof result === 'number' ? result : parseInt(result, 10);
 
-    console.log(`[ChatMemory] Deleted experimental session ${userId}:${sessionId}: ${numDeleted > 0 ? 'success' : 'not found'}`);
+    console.log(
+      `[ChatMemory] Deleted experimental session ${userId}:${sessionId}: ${numDeleted > 0 ? 'success' : 'not found'}`
+    );
     return numDeleted > 0;
-
   } catch (error) {
     console.error('[ChatMemory] Error deleting experimental session:', error);
     return false;
@@ -546,7 +551,7 @@ export async function getUserExperimentalSessions(userId: string): Promise<Sessi
             thema: session.thema,
             requestType: session.requestType,
             createdAt: session.createdAt,
-            expiresAt: session.expiresAt
+            expiresAt: session.expiresAt,
           };
           return summary;
         } catch (error) {
@@ -563,7 +568,6 @@ export async function getUserExperimentalSessions(userId: string): Promise<Sessi
 
     console.log(`[ChatMemory] Found ${validSessions.length} experimental sessions for ${userId}`);
     return validSessions;
-
   } catch (error) {
     console.error('[ChatMemory] Error getting user sessions:', error);
     return [];
@@ -609,7 +613,6 @@ export async function cleanupExpiredSessions(): Promise<number> {
     }
 
     return cleanedCount;
-
   } catch (error) {
     console.error('[ChatMemory] Error during cleanup:', error);
     return 0;

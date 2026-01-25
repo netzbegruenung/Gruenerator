@@ -1,8 +1,10 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useSaveToLibrary } from './useSaveToLibrary';
+
 import useGeneratedTextStore from '../stores/core/generatedTextStore';
 import { getDocumentType } from '../utils/documentTypeMapper';
 import { extractTitleFromContent } from '../utils/titleExtractor';
+
+import { useSaveToLibrary } from './useSaveToLibrary';
 
 /**
  * Options for useTextAutoSave hook
@@ -33,21 +35,15 @@ export interface UseTextAutoSaveReturn {
  * @returns Auto-save status and manual trigger function
  */
 export function useTextAutoSave(options: UseTextAutoSaveOptions): UseTextAutoSaveReturn {
-  const {
-    componentName,
-    enabled = true,
-    debounceMs = 3000,
-    onSaveSuccess,
-    onSaveError
-  } = options;
+  const { componentName, enabled = true, debounceMs = 3000, onSaveSuccess, onSaveError } = options;
 
   // Get store functions and content
-  const content = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  const metadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata(componentName));
-  const setAutoSaveStatus = useGeneratedTextStore(state => state.setAutoSaveStatus);
-  const setLastAutoSaveTime = useGeneratedTextStore(state => state.setLastAutoSaveTime);
-  const status = useGeneratedTextStore(state => state.getAutoSaveStatus(componentName));
-  const lastSaved = useGeneratedTextStore(state => state.getLastAutoSaveTime(componentName));
+  const content = useGeneratedTextStore((state) => state.getGeneratedText(componentName));
+  const metadata = useGeneratedTextStore((state) => state.getGeneratedTextMetadata(componentName));
+  const setAutoSaveStatus = useGeneratedTextStore((state) => state.setAutoSaveStatus);
+  const setLastAutoSaveTime = useGeneratedTextStore((state) => state.setLastAutoSaveTime);
+  const status = useGeneratedTextStore((state) => state.getAutoSaveStatus(componentName));
+  const lastSaved = useGeneratedTextStore((state) => state.getLastAutoSaveTime(componentName));
 
   // Save to library hook
   const { saveToLibrary, isLoading, error: saveError } = useSaveToLibrary();
@@ -60,54 +56,66 @@ export function useTextAutoSave(options: UseTextAutoSaveOptions): UseTextAutoSav
   /**
    * Perform the actual save operation
    */
-  const performSave = useCallback(async (contentToSave: string) => {
-    if (!contentToSave || contentToSave.trim().length < 50) {
-      console.log('[useTextAutoSave] Content too short, skipping save');
-      return;
-    }
+  const performSave = useCallback(
+    async (contentToSave: string) => {
+      if (!contentToSave || contentToSave.trim().length < 50) {
+        console.log('[useTextAutoSave] Content too short, skipping save');
+        return;
+      }
 
-    // Skip if content hasn't changed
-    if (contentToSave === lastSavedContentRef.current) {
-      console.log('[useTextAutoSave] Content unchanged, skipping save');
-      return;
-    }
+      // Skip if content hasn't changed
+      if (contentToSave === lastSavedContentRef.current) {
+        console.log('[useTextAutoSave] Content unchanged, skipping save');
+        return;
+      }
 
-    try {
-      console.log('[useTextAutoSave] Starting save for', componentName);
-      setAutoSaveStatus(componentName, 'saving');
+      try {
+        console.log('[useTextAutoSave] Starting save for', componentName);
+        setAutoSaveStatus(componentName, 'saving');
 
-      // Extract title from content or metadata
-      const title = (metadata as { title?: string })?.title || extractTitleFromContent(contentToSave);
+        // Extract title from content or metadata
+        const title =
+          (metadata as { title?: string })?.title || extractTitleFromContent(contentToSave);
 
-      // Get document type from component name
-      const documentType = getDocumentType(componentName);
+        // Get document type from component name
+        const documentType = getDocumentType(componentName);
 
-      // Save to library
-      const result = await saveToLibrary(contentToSave, title, documentType);
+        // Save to library
+        const result = await saveToLibrary(contentToSave, title, documentType);
 
-      if (isMountedRef.current) {
-        setAutoSaveStatus(componentName, 'saved');
-        setLastAutoSaveTime(componentName, Date.now());
-        lastSavedContentRef.current = contentToSave;
+        if (isMountedRef.current) {
+          setAutoSaveStatus(componentName, 'saved');
+          setLastAutoSaveTime(componentName, Date.now());
+          lastSavedContentRef.current = contentToSave;
 
-        console.log('[useTextAutoSave] Save successful for', componentName);
+          console.log('[useTextAutoSave] Save successful for', componentName);
 
-        if (onSaveSuccess && result) {
-          onSaveSuccess(result);
+          if (onSaveSuccess && result) {
+            onSaveSuccess(result);
+          }
+        }
+      } catch (error) {
+        console.error('[useTextAutoSave] Save failed:', error);
+
+        if (isMountedRef.current) {
+          setAutoSaveStatus(componentName, 'error');
+
+          if (onSaveError && error instanceof Error) {
+            onSaveError(error);
+          }
         }
       }
-    } catch (error) {
-      console.error('[useTextAutoSave] Save failed:', error);
-
-      if (isMountedRef.current) {
-        setAutoSaveStatus(componentName, 'error');
-
-        if (onSaveError && error instanceof Error) {
-          onSaveError(error);
-        }
-      }
-    }
-  }, [componentName, metadata, saveToLibrary, setAutoSaveStatus, setLastAutoSaveTime, onSaveSuccess, onSaveError]);
+    },
+    [
+      componentName,
+      metadata,
+      saveToLibrary,
+      setAutoSaveStatus,
+      setLastAutoSaveTime,
+      onSaveSuccess,
+      onSaveError,
+    ]
+  );
 
   /**
    * Manual save trigger (no debounce)
@@ -184,6 +192,6 @@ export function useTextAutoSave(options: UseTextAutoSaveOptions): UseTextAutoSav
     status,
     lastSaved,
     error: saveError,
-    triggerManualSave
+    triggerManualSave,
   };
 }

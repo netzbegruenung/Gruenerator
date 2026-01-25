@@ -1,6 +1,8 @@
-import React from 'react';
 import { motion } from 'motion/react';
+import React from 'react';
+
 import { formatDate } from '../utils/documentOverviewUtils';
+
 import { Markdown } from './Markdown';
 
 import '../../assets/styles/pages/AntragDetailPage.css';
@@ -37,7 +39,12 @@ interface DocumentPreviewModalProps {
   onClose: () => void;
 }
 
-const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {}, onClose }: DocumentPreviewModalProps) => {
+const DocumentPreviewModal = ({
+  item,
+  itemType = 'document',
+  documentTypes = {},
+  onClose,
+}: DocumentPreviewModalProps) => {
   if (!item) return null;
 
   const isNotebook = itemType === 'notebook';
@@ -51,7 +58,13 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
       return notebook.description || notebook.custom_prompt || 'Keine Beschreibung verfügbar';
     }
     if (document) {
-      return document.markdown_content || document.full_content || document.content_preview || document.ocr_text || 'Kein Inhalt verfügbar';
+      return (
+        document.markdown_content ||
+        document.full_content ||
+        document.content_preview ||
+        document.ocr_text ||
+        'Kein Inhalt verfügbar'
+      );
     }
     return 'Kein Inhalt verfügbar';
   };
@@ -84,7 +97,9 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
           <div className="document-preview-meta">
             {isNotebook && notebook ? (
               <>
-                {notebook.document_count !== undefined && <span>Dokumente: {notebook.document_count}</span>}
+                {notebook.document_count !== undefined && (
+                  <span>Dokumente: {notebook.document_count}</span>
+                )}
                 {notebook.is_public && <span>Öffentlich</span>}
                 {notebook.view_count !== undefined && <span>Aufrufe: {notebook.view_count}</span>}
                 {notebook.created_at && <span>Erstellt: {formatDate(notebook.created_at)}</span>}
@@ -98,7 +113,7 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
               </>
             ) : null}
           </div>
-          <div className={isMarkdownContent ? "markdown-content" : "document-preview-text"}>
+          <div className={isMarkdownContent ? 'markdown-content' : 'document-preview-text'}>
             {isMarkdownContent ? (
               <Markdown fallback={<div>Loading markdown...</div>}>{previewContent}</Markdown>
             ) : (
@@ -114,4 +129,3 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
 };
 
 export default DocumentPreviewModal;
-
