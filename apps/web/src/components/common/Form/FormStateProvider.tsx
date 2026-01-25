@@ -535,11 +535,15 @@ export const useFormState = (): FormStateStoreType => {
 
 /**
  * Hook to access specific form state selectors
+ * Returns null when used outside a FormStateProvider (safe for conditional usage)
  * @param selector - Function to select specific state from the store
- * @returns Selected state value with proper type inference
+ * @returns Selected state value or null if outside provider
  */
-export function useFormStateSelector<T>(selector: (state: FormStateStore) => T): T {
-  const store = useFormState();
+export function useFormStateSelector<T>(selector: (state: FormStateStore) => T): T | null {
+  const store = useContext(FormStateContext);
+  if (!store) {
+    return null;
+  }
   return store(selector);
 }
 

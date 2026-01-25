@@ -49,11 +49,12 @@ const FormInput: React.FC<FormInputProps> = ({
   const inputId = `form-input-${name}`;
   const inputClassName = `form-input ${className}`.trim();
 
-  if (!control) {
-    const rawValue = useSimpleFormStore((state) => state.fields[name]);
-    const value = (rawValue as string) ?? defaultValue;
-    const setField = useSimpleFormStore((state) => state.setField);
+  // Hooks must be called unconditionally
+  const rawValue = useSimpleFormStore((state) => state.fields[name]);
+  const setField = useSimpleFormStore((state) => state.setField);
+  const value = (rawValue as string) ?? defaultValue;
 
+  if (!control) {
     return (
       <FormFieldWrapper
         label={label}
