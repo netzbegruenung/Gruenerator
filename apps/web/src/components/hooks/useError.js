@@ -1,3 +1,4 @@
+/* global process */
 import { useState, useCallback, useEffect } from 'react';
 
 const ERROR_TIMEOUT = 5000; // 5 Sekunden für automatisches Ausblenden

@@ -1,4 +1,5 @@
 // useAccessibility.js
+/* global process */
 import { useEffect, useCallback, useRef } from 'react';
 
 import {
