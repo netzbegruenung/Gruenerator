@@ -1,4 +1,12 @@
-import { type JSX, useState, useCallback, useEffect, useRef, type ReactNode, type MouseEvent } from 'react';
+import {
+  type JSX,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type MouseEvent,
+} from 'react';
 import { CiMemoPad } from 'react-icons/ci';
 import { FaCloud } from 'react-icons/fa';
 import { FaFileWord } from 'react-icons/fa6';
@@ -27,7 +35,14 @@ import { extractTitleFromContent } from '../../utils/titleExtractor';
 import useApiSubmit from '../hooks/useApiSubmit';
 import apiClient from '../utils/apiClient';
 import { copyFormattedContent } from '../utils/commonFunctions';
-import { extractPlainText, extractFormattedText } from '../utils/contentExtractor';
+import {
+  extractPlainText as extractPlainTextJs,
+  extractFormattedText as extractFormattedTextJs,
+} from '../utils/contentExtractor';
+
+// Type assertions for JS functions that return Promises
+const extractPlainText = extractPlainTextJs as (content: unknown) => Promise<string>;
+const extractFormattedText = extractFormattedTextJs as (content: unknown) => Promise<string>;
 import '../../assets/styles/components/actions/exportToDocument.css';
 
 interface ExportDropdownProps {
@@ -115,52 +130,48 @@ const ExportDropdown = ({
   const handleExportWithAutoSave = useCallback(
     async (exportFn: () => Promise<void>, exportName: string = 'Export') => {
       console.log('[DEBUG] handleExportWithAutoSave called', exportName);
+      console.log('[DEBUG] About to call exportFn');
+      await exportFn();
+      console.log('[DEBUG] exportFn completed');
+
+      const isAutoSaveEnabled = canAccessBetaFeature('autoSaveOnExport');
+
+      console.log('[Auto-save check]', {
+        enabled: isAutoSaveEnabled,
+        authenticated: isAuthenticated,
+        hasContent: !!content,
+      });
+
+      if (!isAutoSaveEnabled || !isAuthenticated || !content) {
+        return;
+      }
+
+      const contentHash = hashContent(content, title);
+
+      if (exportedContentHashes.current.has(contentHash)) {
+        console.log('[Auto-save] Skipping duplicate content');
+        return;
+      }
+
       try {
-        console.log('[DEBUG] About to call exportFn');
-        await exportFn();
-        console.log('[DEBUG] exportFn completed');
+        const componentName = getComponentName();
+        const generatedTextMetadata = useGeneratedTextStore
+          .getState()
+          .getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
+        const contentType = generatedTextMetadata?.contentType || 'universal';
 
-        const isAutoSaveEnabled = canAccessBetaFeature('autoSaveOnExport');
+        console.log('[Auto-save] Saving to library', { exportName, contentType });
 
-        console.log('[Auto-save check]', {
-          enabled: isAutoSaveEnabled,
-          authenticated: isAuthenticated,
-          hasContent: !!content,
-        });
+        await autoSaveToLibrary(
+          content,
+          title || extractTitleFromContent(content) || `Auto-gespeichert: ${exportName}`,
+          contentType
+        );
 
-        if (!isAutoSaveEnabled || !isAuthenticated || !content) {
-          return;
-        }
-
-        const contentHash = hashContent(content, title);
-
-        if (exportedContentHashes.current.has(contentHash)) {
-          console.log('[Auto-save] Skipping duplicate content');
-          return;
-        }
-
-        try {
-          const componentName = getComponentName();
-          const generatedTextMetadata = useGeneratedTextStore
-            .getState()
-            .getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
-          const contentType = generatedTextMetadata?.contentType || 'universal';
-
-          console.log('[Auto-save] Saving to library', { exportName, contentType });
-
-          await autoSaveToLibrary(
-            content,
-            title || extractTitleFromContent(content) || `Auto-gespeichert: ${exportName}`,
-            contentType
-          );
-
-          exportedContentHashes.current.add(contentHash);
-          console.log('[Auto-save] Successfully saved');
-        } catch (error) {
-          console.warn('[Auto-save on export] Failed to auto-save:', error);
-        }
+        exportedContentHashes.current.add(contentHash);
+        console.log('[Auto-save] Successfully saved');
       } catch (error) {
-        throw error;
+        console.warn('[Auto-save on export] Failed to auto-save:', error);
       }
     },
     [canAccessBetaFeature, isAuthenticated, content, title, autoSaveToLibrary]
@@ -473,28 +484,18 @@ const ExportDropdown = ({
   };
 
   const handleWolkeSetup = async (shareLink: string, label: string) => {
-    try {
-      const parsed = NextcloudShareManager.parseShareLink(shareLink);
-      if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
-      await NextcloudShareManager.saveShareLink(
-        shareLink,
-        label,
-        parsed.baseUrl,
-        parsed.shareToken
-      );
-      // Reload share links after successful setup
-      await loadShareLinks();
-      // Close modal and proceed with upload if we now have links
-      setShowWolkeSetupModal(false);
+    const parsed = NextcloudShareManager.parseShareLink(shareLink);
+    if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
+    await NextcloudShareManager.saveShareLink(shareLink, label, parsed.baseUrl, parsed.shareToken);
+    // Reload share links after successful setup
+    await loadShareLinks();
+    // Close modal and proceed with upload if we now have links
+    setShowWolkeSetupModal(false);
 
-      // Small delay to ensure state updates, then retry the upload
-      setTimeout(() => {
-        handleWolkeClick();
-      }, 100);
-    } catch (error) {
-      // Error will be handled by the modal component
-      throw error;
-    }
+    // Small delay to ensure state updates, then retry the upload
+    setTimeout(() => {
+      handleWolkeClick();
+    }, 100);
   };
 
   if (!content) {

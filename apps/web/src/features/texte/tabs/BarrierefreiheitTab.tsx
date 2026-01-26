@@ -18,8 +18,7 @@ import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
 import AltTextForm from '../accessibility/components/AltTextForm';
 import LeichteSpracheForm from '../accessibility/components/LeichteSpracheForm';
 
-import type { HelpContent } from '../../../types/baseform';
-
+import type { HelpContent, GeneratedContent } from '../../../types/baseform';
 
 interface FormRef {
   getFormData: () => Record<string, unknown> | null;
@@ -304,10 +303,7 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
   return (
     <BaseForm
       {...form.generator?.baseFormProps}
-      generatedContent={
-        (storeGeneratedText ||
-          generatedContent) as import('../../../types/baseform').GeneratedContent
-      }
+      generatedContent={(storeGeneratedText || generatedContent) as GeneratedContent}
       onSubmit={handleSubmit}
       firstExtrasChildren={renderTypeSelector()}
       useFeatureIcons={false}

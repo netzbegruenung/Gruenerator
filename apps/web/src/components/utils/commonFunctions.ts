@@ -3,7 +3,14 @@ import { useEffect } from 'react';
 
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
-import { extractPlainText, extractHTMLContent } from './contentExtractor';
+import {
+  extractPlainText as extractPlainTextJs,
+  extractHTMLContent as extractHTMLContentJs,
+} from './contentExtractor';
+
+// Type assertions for JS functions that return Promises
+const extractPlainText = extractPlainTextJs as (content: unknown) => Promise<string>;
+const extractHTMLContent = extractHTMLContentJs as (content: unknown) => Promise<string>;
 
 // Type definitions
 type SetStateAction<T> = T | ((prevState: T) => T);

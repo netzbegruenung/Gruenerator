@@ -43,6 +43,9 @@ const RouteComponent = ({
       : (routes.standard as RouteConfig[]).find((r) => r.path === path);
   }
 
+  // Call hook unconditionally (Rules of Hooks)
+  const CachedComponent = useRouteCache(route?.component ?? null);
+
   if (!route) {
     if (process.env.NODE_ENV === 'development') {
       console.warn('Keine Route gefunden für:', path);
@@ -50,15 +53,12 @@ const RouteComponent = ({
     return null;
   }
 
-  let ComponentToRender;
   // Überprüfen, ob es sich um die CollabEditor-Route handelt
   // Der genaue Pfadstring muss mit dem in routes.js übereinstimmen
-  if (route.path === '/editor/collab/:documentId') {
-    // Bypassing useRouteCache for CollabEditorPage
-    ComponentToRender = route.component; // Direkt die lazy Komponente verwenden
-  } else {
-    ComponentToRender = useRouteCache(route.component);
-  }
+  const ComponentToRender =
+    route.path === '/editor/collab/:documentId'
+      ? route.component // Bypassing useRouteCache for CollabEditorPage
+      : (CachedComponent ?? route.component);
 
   return (
     <AppProviders

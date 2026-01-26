@@ -183,17 +183,12 @@ const CanvaSelector = ({
 
       setSelectedDesign(design);
 
-      try {
-        await onImageSelect({
-          type: 'canva',
-          design: design,
-          imageUrl: design.thumbnail_url,
-          title: design.title || '',
-        });
-      } catch (error) {
-        console.error('[CanvaSelector] Error selecting design:', error);
-        setSelectedDesign(null);
-      }
+      onImageSelect({
+        type: 'canva',
+        design: design,
+        imageUrl: design.thumbnail_url,
+        title: design.title || '',
+      });
     },
     [onImageSelect, externalLoading]
   );

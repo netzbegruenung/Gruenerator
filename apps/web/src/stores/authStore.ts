@@ -481,7 +481,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (state._supabaseAuthCleanup) {
         try {
           state._supabaseAuthCleanup();
-        } catch (error) {}
+        } catch {
+          // Intentionally swallow cleanup errors during logout
+        }
       }
 
       // Step 3: Call backend logout API FIRST (before clearing local state)

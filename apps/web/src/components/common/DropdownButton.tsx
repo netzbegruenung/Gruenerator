@@ -193,7 +193,7 @@ const DropdownButton = ({
             <button
               className="dropdown-button-option"
               onClick={() => {
-                onCreateCustomGenerator && onCreateCustomGenerator();
+                onCreateCustomGenerator?.();
                 handleClose();
               }}
               aria-label="Neuen Custom Grünerator erstellen"

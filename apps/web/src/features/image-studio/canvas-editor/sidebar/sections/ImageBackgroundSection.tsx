@@ -3,7 +3,6 @@ import { FaCheck } from 'react-icons/fa';
 import { HiUpload, HiAdjustments } from 'react-icons/hi';
 import { HiMagnifyingGlass, HiXMark, HiPhoto } from 'react-icons/hi2';
 
-
 import UnsplashAttribution from '../../../../../components/common/UnsplashAttribution';
 import { useUnsplashSearch } from '../../../hooks/useUnsplashSearch';
 import {
@@ -159,8 +158,8 @@ function UnsplashSearchSection({
   }, [debouncedQuery, searchUnsplash, clearSearch]);
 
   const handleImageClick = useCallback(
-    async (image: StockImage) => {
-      await onImageSelect(image);
+    (image: StockImage) => {
+      onImageSelect(image);
       setSearchQuery('');
     },
     [onImageSelect]

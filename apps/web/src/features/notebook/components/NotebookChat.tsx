@@ -58,6 +58,13 @@ const NotebookChat = () => {
     persistMessages: true,
   });
 
+  // Hooks must be called before early returns (Rules of Hooks)
+  const renderMessage = useCallback((msg: unknown, i: number) => {
+    const timestamp = (msg as Record<string, unknown>)?.timestamp;
+    const key = typeof timestamp === 'number' ? timestamp.toString() : `msg-${i}`;
+    return <NotebookChatMessage key={key} msg={msg as any} index={i} />;
+  }, []);
+
   if (loading)
     return (
       <div className="notebook-chat-error">
@@ -110,12 +117,6 @@ const NotebookChat = () => {
   );
 
   const effectiveMode = 'chat';
-
-  const renderMessage = useCallback((msg: unknown, i: number) => {
-    const timestamp = (msg as Record<string, unknown>)?.timestamp;
-    const key = typeof timestamp === 'number' ? timestamp.toString() : `msg-${i}`;
-    return <NotebookChatMessage key={key} msg={msg as any} index={i} />;
-  }, []);
 
   return (
     <>

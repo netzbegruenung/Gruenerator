@@ -162,7 +162,8 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       setGeneratePostLoading(true);
       try {
         await onGeneratePost();
-      } catch (error) {
+      } catch {
+        // Error handled by onGeneratePost
       } finally {
         setGeneratePostLoading(false);
       }

@@ -25,7 +25,7 @@ const ChatVoiceControls = ({
       if (autoSubmit && onSubmit) {
         onSubmit(text);
       }
-      onTranscription && onTranscription(text, transcriptionMode);
+      onTranscription?.(text, transcriptionMode);
     },
     [autoSubmit, onSubmit, onTranscription, transcriptionMode]
   );

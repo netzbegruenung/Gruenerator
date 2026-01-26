@@ -15,7 +15,6 @@ import ChatFileUploadButton from './ChatFileUploadButton';
 import ChatSubmitButton from './ChatSubmitButton';
 import useChatInput from './hooks/useChatInput';
 
-
 interface ChatMessage {
   type: 'user' | 'assistant' | 'error';
   content: string;
@@ -185,7 +184,7 @@ const ChatUI = ({
   const handleSubmit = (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || disabled) return;
-    onSubmit && onSubmit(inputValue);
+    onSubmit?.(inputValue);
   };
 
   const defaultRenderMessage = (msg: ChatMessage, index: number) => {

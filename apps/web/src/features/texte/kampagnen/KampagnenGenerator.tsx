@@ -23,8 +23,8 @@ import { getActiveCampaigns, getCampaign } from '../../../utils/campaignLoader';
 import CampaignSharepicEditor from './components/CampaignSharepicEditor';
 import useCampaignSharepicEdit from './hooks/useCampaignSharepicEdit';
 
-
 import type { GeneratedContent } from '../../../types/baseform';
+import type { Control } from 'react-hook-form';
 import './KampagnenGenerator.css';
 
 // =============================================================================
@@ -239,9 +239,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
   const { control, handleSubmit, getValues, errors } = form;
 
   // Type assertion for control to work with form components
-  const typedControl = control as unknown as import('react-hook-form').Control<
-    Record<string, unknown>
-  >;
+  const typedControl = control as unknown as Control<Record<string, unknown>>;
   const typedGetValues = getValues as unknown as () => CampaignFormData;
   const typedErrors = errors as {
     location?: { message?: string };

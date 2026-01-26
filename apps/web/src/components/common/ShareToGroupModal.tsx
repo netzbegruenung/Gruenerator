@@ -93,29 +93,23 @@ const ShareToGroupModal: React.FC<ShareToGroupModalProps> = ({
     }
   };
 
-  const handleShare = async (): Promise<void> => {
+  const handleShare = (): void => {
     if (!selectedGroupId || !contentType || !contentId) {
       onError?.('Bitte wähle eine Gruppe aus.');
       return;
     }
 
-    try {
-      await shareContent(contentType, contentId, {
-        permissions,
-        targetGroupId: selectedGroupId,
-        onSuccess: (_result: ShareResult): void => {
-          onSuccess?.(`"${contentTitle}" wurde erfolgreich mit der Gruppe geteilt.`);
-          onClose();
-        },
-        onError: (error: ShareError): void => {
-          onError?.(error.message || 'Fehler beim Teilen des Inhalts.');
-        },
-      });
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Fehler beim Teilen des Inhalts.';
-      onError?.(errorMessage);
-    }
+    shareContent(contentType, contentId, {
+      permissions,
+      targetGroupId: selectedGroupId,
+      onSuccess: (_result: ShareResult): void => {
+        onSuccess?.(`"${contentTitle}" wurde erfolgreich mit der Gruppe geteilt.`);
+        onClose();
+      },
+      onError: (error: ShareError): void => {
+        onError?.(error.message || 'Fehler beim Teilen des Inhalts.');
+      },
+    });
   };
 
   const handlePermissionChange = (permissionType: PermissionType, value: boolean): void => {

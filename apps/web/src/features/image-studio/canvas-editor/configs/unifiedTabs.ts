@@ -20,9 +20,8 @@
  * | share       | GenericShareSection      | GenericShareSection       |
  */
 
-import { HiPhotograph } from 'react-icons/hi';
-import { HiSparkles } from 'react-icons/hi';
 import { FaShare } from 'react-icons/fa';
+import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import type { SidebarTab } from '../sidebar/types';

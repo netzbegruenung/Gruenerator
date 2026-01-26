@@ -24,7 +24,6 @@ import { Markdown } from './Markdown';
 import Spinner from './Spinner';
 import WolkeFilePicker from './WolkeFilePicker/WolkeFilePicker';
 
-
 // Import button styles for modal
 import '../../assets/styles/components/ui/button.css';
 import '../../assets/styles/common/markdown-styles.css';
@@ -583,7 +582,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   if (e.target === e.currentTarget) {
                     if (forceShowUploadForm) {
                       // When controlled by parent, notify parent to close
-                      onUploadComplete && onUploadComplete(null);
+                      onUploadComplete?.(null);
                     } else {
                       setShowUploadForm(false);
                       setSelectedFile(null);
@@ -600,7 +599,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       onClick={() => {
                         if (forceShowUploadForm) {
                           // When controlled by parent, notify parent to close
-                          onUploadComplete && onUploadComplete(null);
+                          onUploadComplete?.(null);
                         } else {
                           setShowUploadForm(false);
                           setSelectedFile(null);
@@ -802,7 +801,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       onClick={() => {
                         if (forceShowUploadForm) {
                           // When controlled by parent, notify parent to close
-                          onUploadComplete && onUploadComplete(null);
+                          onUploadComplete?.(null);
                         } else {
                           resetForm();
                         }
@@ -1016,7 +1015,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                     onClick={() => {
                       if (forceShowUploadForm) {
                         // When controlled by parent, notify parent to close
-                        onUploadComplete && onUploadComplete(null);
+                        onUploadComplete?.(null);
                       } else {
                         resetForm();
                       }

@@ -31,11 +31,10 @@ const ImageStudioTypeSelector: React.FC = () => {
     return getTypesForCategory(category);
   }, [category]);
 
-  // Wait for category to be set
-  if (!category) return null;
-
+  // Hook must be called before early return (Rules of Hooks)
   const handleTypeSelect = useCallback(
     (selectedType: string) => {
+      if (!category) return;
       setType(selectedType);
       const config = getTypeConfig(selectedType) as TypeConfig | null;
       const urlSegment = config?.urlSlug || selectedType;
@@ -43,6 +42,9 @@ const ImageStudioTypeSelector: React.FC = () => {
     },
     [setType, navigate, category]
   );
+
+  // Wait for category to be set
+  if (!category) return null;
 
   // KI category - show all variants and edit types in one grid
   if (category === IMAGE_STUDIO_CATEGORIES.KI) {

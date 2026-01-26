@@ -4,10 +4,10 @@ import '../../../assets/styles/components/ui/image-slider.css';
 
 // Lazy load react-image-gallery and its styles
 const loadImageGallery = async () => {
-  const [galleryModule, styleSheet] = await Promise.all([
-    // @ts-ignore - react-image-gallery types are missing
+  const [galleryModule, _styleSheet] = await Promise.all([
+    // @ts-expect-error - react-image-gallery types are missing
     import('react-image-gallery'),
-    // @ts-ignore - CSS import
+    // @ts-expect-error - CSS import
     import('react-image-gallery/styles/css/image-gallery.css'),
   ]);
 

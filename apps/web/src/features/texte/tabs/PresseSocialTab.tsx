@@ -9,7 +9,7 @@ import React, {
   Suspense,
   memo,
 } from 'react';
-import { useWatch } from 'react-hook-form';
+import { useWatch, type Control } from 'react-hook-form';
 
 import BaseForm from '../../../components/common/BaseForm';
 import CorrectionSection from '../../../components/common/Form/BaseForm/CorrectionSection';
@@ -40,6 +40,7 @@ import {
 } from '../presse/hooks/usePresseSocialSubmit';
 
 import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
+import type { GeneratedContent, ExamplePrompt } from '../../../types/baseform';
 
 import '../presse/presse-social.css';
 
@@ -211,7 +212,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     defaultMode: 'balanced' as never,
     disableKnowledgeSystem: false,
   }) as unknown as {
-    control: import('react-hook-form').Control<Record<string, unknown>>;
+    control: Control<Record<string, unknown>>;
     handleSubmit: (cb: (data: Record<string, unknown>) => Promise<void>) => () => Promise<void>;
     reset: () => void;
     setValue: (name: string, value: unknown) => void;
@@ -226,7 +227,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
 
   const { control, handleSubmit, setValue, getValues } = form;
 
-  const typedControl = control as unknown as import('react-hook-form').Control<{
+  const typedControl = control as unknown as Control<{
     platforms: string[];
     inhalt: string;
   }>;
@@ -762,8 +763,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         error={planMode.state.error || submitHandler.error}
         showNextButton={!isPlanModeActive || planMode.state.status === 'idle'}
         generatedContent={
-          displayContent?.content ||
-          (generatedContentWithHandler as import('../../../types/baseform').GeneratedContent)
+          displayContent?.content || (generatedContentWithHandler as GeneratedContent)
         }
         useMarkdown={displayContent?.useMarkdown ?? false}
         enableEditMode={!isPlanModeActive}
@@ -793,12 +793,8 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
             ?.submitButtonTabIndex
         }
         contextualTip={activeTip}
-        examplePrompts={platformTags as import('../../../types/baseform').ExamplePrompt[]}
-        onExamplePromptClick={
-          handlePlatformTagClick as (
-            prompt: import('../../../types/baseform').ExamplePrompt
-          ) => void
-        }
+        examplePrompts={platformTags as ExamplePrompt[]}
+        onExamplePromptClick={handlePlatformTagClick as (prompt: ExamplePrompt) => void}
         selectedPlatforms={watchPlatforms}
         nextButtonText={getSubmitButtonText()}
         hideFormExtras={isPlanModeActive && planMode.state.status !== 'idle'}
