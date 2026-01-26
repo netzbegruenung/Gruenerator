@@ -7,9 +7,10 @@ import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/us
 import './EigeneTab.css';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
-const PromptsTab = lazy(() => import('../../prompts/PromptsTab'));
+// TEMPORARILY HIDDEN - Prompts tab
+// const PromptsTab = lazy(() => import('../../prompts/PromptsTab'));
 
-type SubTabType = 'generators' | 'prompts';
+type SubTabType = 'generators'; // | 'prompts' - TEMPORARILY HIDDEN
 
 interface EigeneTabProps {
   isActive: boolean;
@@ -54,7 +55,7 @@ const LoadingSpinner = memo(() => (
 LoadingSpinner.displayName = 'LoadingSpinner';
 
 const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
-  const [activeSubTab, setActiveSubTab] = useState<SubTabType>('prompts');
+  const [activeSubTab, setActiveSubTab] = useState<SubTabType>('generators');
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
 
   const { query: generatorsQuery } = useCustomGeneratorsData({
@@ -87,7 +88,8 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
     window.location.href = '/login';
   }, []);
 
-  const switchToPrompts = useCallback(() => setActiveSubTab('prompts'), []);
+  // TEMPORARILY HIDDEN - Prompts tab switch
+  // const switchToPrompts = useCallback(() => setActiveSubTab('prompts'), []);
   const switchToGenerators = useCallback(() => setActiveSubTab('generators'), []);
 
   if (authLoading || isLoading) {
@@ -102,6 +104,7 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
     <div className="eigene-container">
       <EarlyAccessBanner />
 
+      {/* TEMPORARILY HIDDEN - Subtabs UI (only one tab now)
       <div className="eigene-subtabs" role="tablist">
         <button
           type="button"
@@ -122,18 +125,20 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
           Grüneratoren
         </button>
       </div>
+      */}
 
       <Suspense fallback={<LoadingSpinner />}>
+        {/* TEMPORARILY HIDDEN - Prompts tab content
         {activeSubTab === 'prompts' ? (
           <PromptsTab isActive={isActive && activeSubTab === 'prompts'} />
-        ) : (
-          <CreateCustomGeneratorPage
-            onCompleted={handleCreateCompleted}
-            generators={generators}
-            savedGenerators={savedGenerators}
-            onSelectGenerator={handleSelectGenerator}
-          />
-        )}
+        ) : ( */}
+        <CreateCustomGeneratorPage
+          onCompleted={handleCreateCompleted}
+          generators={generators}
+          savedGenerators={savedGenerators}
+          onSelectGenerator={handleSelectGenerator}
+        />
+        {/* )} */}
       </Suspense>
     </div>
   );
