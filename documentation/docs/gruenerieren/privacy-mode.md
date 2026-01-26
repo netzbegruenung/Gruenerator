@@ -9,7 +9,7 @@ Wenn du den Privacy Mode aktivierst, werden deine Anfragen an deutsche Server de
 ## Vorteile
 
 - **100% deutsche Server** - Deine Daten verlassen Deutschland nicht
-- **Open Source** - Vollständig transparente und quelloffene Technologie  
+- **Open Source** - Vollständig transparente und quelloffene Technologie
 - **Keine Drittanbieter** - Direkte Verarbeitung ohne externe KI-Dienste
 - **Ideal für sensible Daten** - Perfekt geeignet für vertrauliche Inhalte
 

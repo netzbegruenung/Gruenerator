@@ -35,7 +35,11 @@ import { SUBTITLE_CATEGORIES, type SubtitleEditCategory } from '../../config/sub
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 import type { Project } from '@gruenerator/shared';
-import type { SubtitleSegment, SubtitleStylePreference, SubtitleHeightPreference } from '@gruenerator/shared/subtitle-editor';
+import type {
+  SubtitleSegment,
+  SubtitleStylePreference,
+  SubtitleHeightPreference,
+} from '@gruenerator/shared/subtitle-editor';
 
 interface SubtitleEditorScreenProps {
   project: Project;
@@ -190,21 +194,24 @@ export function SubtitleEditorScreen({
     onBack();
   }, [hasUnsavedChanges, confirmDiscardChanges, onBack]);
 
-  const handleCategorySelect = useCallback((categoryId: SubtitleEditCategory) => {
-    if (categoryId === 'text') {
-      // Text tool - start editing a segment
-      if (selectedSegmentId !== null) {
-        handleSegmentTap(selectedSegmentId);
-      } else if (activeSegmentId !== null) {
-        handleSegmentTap(activeSegmentId);
-      } else if (segments.length > 0) {
-        handleSegmentTap(segments[0].id);
+  const handleCategorySelect = useCallback(
+    (categoryId: SubtitleEditCategory) => {
+      if (categoryId === 'text') {
+        // Text tool - start editing a segment
+        if (selectedSegmentId !== null) {
+          handleSegmentTap(selectedSegmentId);
+        } else if (activeSegmentId !== null) {
+          handleSegmentTap(activeSegmentId);
+        } else if (segments.length > 0) {
+          handleSegmentTap(segments[0].id);
+        }
+      } else {
+        // Style or position - show inline editor
+        setInlineCategory(categoryId);
       }
-    } else {
-      // Style or position - show inline editor
-      setInlineCategory(categoryId);
-    }
-  }, [selectedSegmentId, activeSegmentId, segments, handleSegmentTap]);
+    },
+    [selectedSegmentId, activeSegmentId, segments, handleSegmentTap]
+  );
 
   const handleInlineClose = useCallback(() => {
     setInlineCategory(null);
@@ -212,20 +219,17 @@ export function SubtitleEditorScreen({
 
   if (isLoadingProject) {
     return (
-      <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <View
+        style={[styles.container, styles.loadingContainer, { backgroundColor: theme.background }]}
+      >
         <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.text }]}>
-          Projekt wird geladen...
-        </Text>
+        <Text style={[styles.loadingText, { color: theme.text }]}>Projekt wird geladen...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={['top']}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -245,66 +249,61 @@ export function SubtitleEditorScreen({
             (isKeyboardVisible ? 0 : TOOLBAR_HEIGHT) -
             (error ? ERROR_BANNER_HEIGHT : 0)
           }
-        initialRatio={splitRatio}
-        minTopRatio={0.25}
-        maxTopRatio={0.65}
-        onRatioChange={setSplitRatio}
-        topContent={
-          <View style={styles.previewSection}>
-            <VideoPreviewWithSubtitle
-              videoUri={videoUri}
-              isRemoteVideo={true}
-              requiresAuth={!isTempProject}
-              segments={segments}
-              currentTime={currentTime}
-              stylePreference={stylePreference}
-              heightPreference={heightPreference}
-              onTogglePlayback={togglePlayback}
-              isPlaying={isPlaying}
-            />
-          </View>
-        }
-        bottomContent={
-          <View style={styles.timelineSection}>
-            <View style={[styles.timelineHeader, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.timelineTitle, { color: theme.text }]}>
-                Untertitel ({segments.length})
-              </Text>
-              {hasUnsavedChanges && (
-                <View style={styles.unsavedBadge}>
-                  <Text style={styles.unsavedBadgeText}>Ungespeichert</Text>
-                </View>
-              )}
+          initialRatio={splitRatio}
+          minTopRatio={0.25}
+          maxTopRatio={0.65}
+          onRatioChange={setSplitRatio}
+          topContent={
+            <View style={styles.previewSection}>
+              <VideoPreviewWithSubtitle
+                videoUri={videoUri}
+                isRemoteVideo={true}
+                requiresAuth={!isTempProject}
+                segments={segments}
+                currentTime={currentTime}
+                stylePreference={stylePreference}
+                heightPreference={heightPreference}
+                onTogglePlayback={togglePlayback}
+                isPlaying={isPlaying}
+              />
             </View>
-            <SubtitleTimeline
-              ref={timelineRef}
-              segments={segments}
-              activeSegmentId={activeSegmentId}
-              selectedSegmentId={selectedSegmentId}
-              editingSegmentId={editingSegmentId}
-              onSegmentTap={handleSegmentTap}
-              onTextChange={handleTextChange}
-              onEditComplete={handleEditComplete}
-            />
-          </View>
-        }
-      />
+          }
+          bottomContent={
+            <View style={styles.timelineSection}>
+              <View style={[styles.timelineHeader, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.timelineTitle, { color: theme.text }]}>
+                  Untertitel ({segments.length})
+                </Text>
+                {hasUnsavedChanges && (
+                  <View style={styles.unsavedBadge}>
+                    <Text style={styles.unsavedBadgeText}>Ungespeichert</Text>
+                  </View>
+                )}
+              </View>
+              <SubtitleTimeline
+                ref={timelineRef}
+                segments={segments}
+                activeSegmentId={activeSegmentId}
+                selectedSegmentId={selectedSegmentId}
+                editingSegmentId={editingSegmentId}
+                onSegmentTap={handleSegmentTap}
+                onTextChange={handleTextChange}
+                onEditComplete={handleEditComplete}
+              />
+            </View>
+          }
+        />
 
-        {!isKeyboardVisible && (
-          inlineCategory ? (
+        {!isKeyboardVisible &&
+          (inlineCategory ? (
             <InlineBar onClose={handleInlineClose}>
               {inlineCategory === 'style' && <StyleControl disabled={isSaving} />}
               {inlineCategory === 'position' && <PositionControl disabled={isSaving} />}
             </InlineBar>
           ) : (
-            <CategoryBar
-              categories={SUBTITLE_CATEGORIES}
-              onSelectCategory={handleCategorySelect}
-            />
-          )
-        )}
+            <CategoryBar categories={SUBTITLE_CATEGORIES} onSelectCategory={handleCategorySelect} />
+          ))}
       </KeyboardAvoidingView>
-
     </SafeAreaView>
   );
 }

@@ -5,11 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { getGlobalApiClient } from '../../api/client.js';
-import {
-  SHAREPIC_ENDPOINT,
-  DEFAULT_SHAREPICS_ENDPOINT,
-  SHAREPIC_TYPE_MAP,
-} from '../constants.js';
+import { SHAREPIC_ENDPOINT, DEFAULT_SHAREPICS_ENDPOINT, SHAREPIC_TYPE_MAP } from '../constants.js';
 import type {
   SharepicType,
   SharepicGenerationOptions,
@@ -28,7 +24,9 @@ export interface UseSharepicGenerationOptions {
 
 export interface UseSharepicGenerationReturn {
   /** Generate a sharepic with the given options */
-  generateSharepic: (options: SharepicGenerationOptions) => Promise<SharepicResult | SharepicResult[]>;
+  generateSharepic: (
+    options: SharepicGenerationOptions
+  ) => Promise<SharepicResult | SharepicResult[]>;
   /** Whether generation is in progress */
   loading: boolean;
   /** The last error that occurred, if any */

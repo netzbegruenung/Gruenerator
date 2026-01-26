@@ -1,6 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiDownload, FiShare2, FiClock, FiChevronLeft, FiMoreVertical, FiUsers } from 'react-icons/fi';
+import {
+  FiDownload,
+  FiShare2,
+  FiClock,
+  FiChevronLeft,
+  FiMoreVertical,
+  FiUsers,
+} from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 import { useDocumentStore } from '../stores/documentStore';
 import { useCollaboration, useCollaborators } from '../hooks/useCollaboration';
@@ -27,8 +34,8 @@ export const EditorPage = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [editor, setEditor] = useState<any>(null);
-  const [darkMode, setDarkMode] = useState(() =>
-    document.documentElement.getAttribute('data-theme') === 'dark'
+  const [darkMode, setDarkMode] = useState(
+    () => document.documentElement.getAttribute('data-theme') === 'dark'
   );
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const { updateDocument } = useDocumentStore();
@@ -82,7 +89,6 @@ export const EditorPage = () => {
     fetchDocument();
   }, [id]);
 
-
   const handleTitleChange = async (newTitle: string) => {
     if (!id || !newTitle.trim()) return;
 
@@ -102,16 +108,20 @@ export const EditorPage = () => {
       const content = editor ? editor.getHTML() : documentData.content || '';
 
       // Make POST request to DOCX export endpoint
-      const response = await apiClient.post('/exports/docx', {
-        content: content,
-        title: documentData.title,
-      }, {
-        responseType: 'blob'
-      });
+      const response = await apiClient.post(
+        '/exports/docx',
+        {
+          content: content,
+          title: documentData.title,
+        },
+        {
+          responseType: 'blob',
+        }
+      );
 
       // Create download link
       const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -146,8 +156,8 @@ export const EditorPage = () => {
     return <div className="error-container">Dokument nicht gefunden</div>;
   }
 
-  const connectionStatus = !isConnected ? 'disconnected' : (!isSynced ? 'syncing' : 'connected');
-  const connectionTitle = !isConnected ? 'Getrennt' : (!isSynced ? 'Synchronisiert...' : 'Verbunden');
+  const connectionStatus = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
+  const connectionTitle = !isConnected ? 'Getrennt' : !isSynced ? 'Synchronisiert...' : 'Verbunden';
   const collaboratorCount = collaborators.length;
 
   return (
@@ -170,7 +180,11 @@ export const EditorPage = () => {
             aria-label="Zur Startseite"
           >
             <img
-              src={darkMode ? "/images/gruenerator_logo_weiss.svg" : "/images/gruenerator_logo_gruen.svg"}
+              src={
+                darkMode
+                  ? '/images/gruenerator_logo_weiss.svg'
+                  : '/images/gruenerator_logo_gruen.svg'
+              }
               alt="Grünerator Logo"
             />
           </button>
@@ -272,12 +286,7 @@ export const EditorPage = () => {
         />
       )}
 
-      {showShareModal && (
-        <ShareModal
-          documentId={id!}
-          onClose={() => setShowShareModal(false)}
-        />
-      )}
+      {showShareModal && <ShareModal documentId={id!} onClose={() => setShowShareModal(false)} />}
 
       {/* Mobile Action Sheet */}
       <ActionSheet

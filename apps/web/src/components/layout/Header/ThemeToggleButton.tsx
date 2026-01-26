@@ -10,7 +10,7 @@ const ThemeToggleButton = ({ darkMode, toggleDarkMode }: ThemeToggleButtonProps)
     <button
       className={`theme-toggle-button ${darkMode ? 'dark' : 'light'}`}
       onClick={toggleDarkMode}
-      aria-label={darkMode ? "Zum hellen Modus wechseln" : "Zum dunklen Modus wechseln"}
+      aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
     >
       <div className="theme-toggle-icon-wrapper">
         <PiSun className="theme-icon sun" aria-hidden="true" />

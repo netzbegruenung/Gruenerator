@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+
 import { ALL_ICONS, type IconDef } from '../utils/canvasIcons';
 
 const PAGE_SIZE = 32;
@@ -29,7 +30,7 @@ export function usePaginatedIcons(isExpanded: boolean): UsePaginatedIconsReturn 
 
   const loadMore = useCallback(() => {
     if (hasMore) {
-      setLoadedCount(prev => Math.min(prev + PAGE_SIZE, ALL_ICONS.length));
+      setLoadedCount((prev) => Math.min(prev + PAGE_SIZE, ALL_ICONS.length));
     }
   }, [hasMore]);
 

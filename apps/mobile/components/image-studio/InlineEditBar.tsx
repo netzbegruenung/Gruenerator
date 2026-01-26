@@ -17,11 +17,7 @@ interface InlineEditBarProps {
   disabled?: boolean;
 }
 
-export function InlineEditBar({
-  category,
-  onClose,
-  disabled = false,
-}: InlineEditBarProps) {
+export function InlineEditBar({ category, onClose, disabled = false }: InlineEditBarProps) {
   const renderControl = () => {
     switch (category) {
       case 'fontSize':
@@ -35,9 +31,5 @@ export function InlineEditBar({
     }
   };
 
-  return (
-    <InlineBar onClose={onClose}>
-      {renderControl()}
-    </InlineBar>
-  );
+  return <InlineBar onClose={onClose}>{renderControl()}</InlineBar>;
 }

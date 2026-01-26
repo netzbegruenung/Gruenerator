@@ -60,12 +60,7 @@ export function VariantSelector({ selected, onSelect }: VariantSelectorProps) {
                 color={isSelected ? colors.white : theme.textSecondary}
               />
               <View style={styles.chipContent}>
-                <Text
-                  style={[
-                    styles.chipLabel,
-                    { color: isSelected ? colors.white : theme.text },
-                  ]}
-                >
+                <Text style={[styles.chipLabel, { color: isSelected ? colors.white : theme.text }]}>
                   {variant.label}
                 </Text>
                 <Text
@@ -78,9 +73,7 @@ export function VariantSelector({ selected, onSelect }: VariantSelectorProps) {
                   {variant.description}
                 </Text>
               </View>
-              {isSelected && (
-                <Ionicons name="checkmark-circle" size={18} color={colors.white} />
-              )}
+              {isSelected && <Ionicons name="checkmark-circle" size={18} color={colors.white} />}
             </Pressable>
           );
         })}

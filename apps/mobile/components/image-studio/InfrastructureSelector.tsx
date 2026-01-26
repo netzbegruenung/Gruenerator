@@ -66,17 +66,12 @@ export function InfrastructureSelector({ selected, onToggle }: InfrastructureSel
                 color={isSelected ? colors.white : theme.textSecondary}
               />
               <Text
-                style={[
-                  styles.chipLabel,
-                  { color: isSelected ? colors.white : theme.text },
-                ]}
+                style={[styles.chipLabel, { color: isSelected ? colors.white : theme.text }]}
                 numberOfLines={1}
               >
                 {option.label}
               </Text>
-              {isSelected && (
-                <Ionicons name="checkmark" size={16} color={colors.white} />
-              )}
+              {isSelected && <Ionicons name="checkmark" size={16} color={colors.white} />}
             </Pressable>
           );
         })}

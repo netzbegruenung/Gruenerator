@@ -11,7 +11,7 @@ import type {
   PersonPattern,
   PersonSearchParams,
   PersonSearchResult,
-  CacheStats
+  CacheStats,
 } from './types.js';
 
 // MP cache: normalizedName -> person object
@@ -25,45 +25,53 @@ const PERSON_PATTERNS: PersonPattern[] = [
   {
     type: 'explicit',
     re: /\b(?:abgeordnete[r]?|mdb)\s+([A-ZÄÖÜ][a-zäöüß]+(?:[\s-][A-ZÄÖÜ][a-zäöüß]+){0,2})\b/i,
-    nameGroup: 1
+    nameGroup: 1,
   },
   // "Anträge/Reden/Anfragen von/durch Name"
   {
     type: 'activity_query',
     re: /\b(?:anträge?|reden?|anfragen?|aktivitäten?|abstimmungen?)\s+(?:von|durch|des|der)\s+([A-ZÄÖÜ][a-zäöüß]+(?:[\s-][A-ZÄÖÜ][a-zäöüß]+){0,2})\b/i,
-    nameGroup: 1
+    nameGroup: 1,
   },
   // "Was hat Name gemacht/beantragt/gesagt"
   {
     type: 'action_query',
     re: /\b(?:was\s+hat|wie\s+hat|hat)\s+([A-ZÄÖÜ][a-zäöüß]+(?:[\s-][A-ZÄÖÜ][a-zäöüß]+){0,2})\s+(?:gemacht|beantragt|gesagt|gefordert|vorgeschlagen|abgestimmt)/i,
-    nameGroup: 1
+    nameGroup: 1,
   },
   // "Wer ist Name"
   {
     type: 'who_is',
     re: /\bwer\s+ist\s+([A-ZÄÖÜ][a-zäöüß]+(?:[\s-][A-ZÄÖÜ][a-zäöüß]+){0,2})\b/i,
-    nameGroup: 1
+    nameGroup: 1,
   },
   // Title prefix: "Dr./Prof. Name"
   {
     type: 'title',
     re: /\b(?:Dr\.|Prof\.)\s+([A-ZÄÖÜ][a-zäöüß]+(?:[\s-][A-ZÄÖÜ][a-zäöüß]+){0,2})\b/i,
-    nameGroup: 1
+    nameGroup: 1,
   },
   // Direct name at start with context words
   {
     type: 'direct_name',
     re: /^([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+){1,2})(?:\s+(?:grüne?|bundestag|fraktion|partei|politik)|\s*$)/i,
-    nameGroup: 1
-  }
+    nameGroup: 1,
+  },
 ];
 
 // Well-known Green MPs for quick detection (subset, cache will have full list)
 const KNOWN_GREEN_MPS = [
-  'Ricarda Lang', 'Omid Nouripour', 'Robert Habeck', 'Annalena Baerbock',
-  'Katrin Göring-Eckardt', 'Anton Hofreiter', 'Britta Haßelmann',
-  'Cem Özdemir', 'Steffi Lemke', 'Lisa Badum', 'Katharina Dröge'
+  'Ricarda Lang',
+  'Omid Nouripour',
+  'Robert Habeck',
+  'Annalena Baerbock',
+  'Katrin Göring-Eckardt',
+  'Anton Hofreiter',
+  'Britta Haßelmann',
+  'Cem Özdemir',
+  'Steffi Lemke',
+  'Lisa Badum',
+  'Katharina Dröge',
 ];
 
 export class PersonDetectionService {
@@ -90,20 +98,24 @@ export class PersonDetectionService {
       return { detected: false, confidence: 0 };
     }
 
-    console.log(`[PersonDetection] Extracted name: "${extractedName}" from query: "${trimmed.substring(0, 50)}..."`);
+    console.log(
+      `[PersonDetection] Extracted name: "${extractedName}" from query: "${trimmed.substring(0, 50)}..."`
+    );
 
     // Try cache lookup first
     await this.ensureCachePopulated();
     const cachedMatch = this.findMatchingMP(extractedName);
 
     if (cachedMatch && cachedMatch.confidence >= 0.85) {
-      console.log(`[PersonDetection] Cache hit: ${cachedMatch.person.titel || ''} ${cachedMatch.person.vorname} ${cachedMatch.person.nachname} (${cachedMatch.confidence.toFixed(2)})`);
+      console.log(
+        `[PersonDetection] Cache hit: ${cachedMatch.person.titel || ''} ${cachedMatch.person.vorname} ${cachedMatch.person.nachname} (${cachedMatch.confidence.toFixed(2)})`
+      );
       return {
         detected: true,
         person: cachedMatch.person,
         confidence: cachedMatch.confidence,
         source: 'cache',
-        extractedName
+        extractedName,
       };
     }
 
@@ -112,7 +124,7 @@ export class PersonDetectionService {
       const result: PersonSearchResult = await this.mcpClient.searchPersonen({
         query: extractedName,
         fraktion: 'GRÜNE',
-        limit: 5
+        limit: 5,
       });
 
       if (result.documents && result.documents.length > 0) {
@@ -131,7 +143,7 @@ export class PersonDetectionService {
             person: bestMatch,
             confidence,
             source: 'api',
-            extractedName
+            extractedName,
           };
         }
       }
@@ -141,13 +153,15 @@ export class PersonDetectionService {
 
     // Weak cache match (0.7-0.85) as last resort
     if (cachedMatch && cachedMatch.confidence >= 0.7) {
-      console.log(`[PersonDetection] Weak cache match: ${cachedMatch.person.vorname} ${cachedMatch.person.nachname} (${cachedMatch.confidence.toFixed(2)})`);
+      console.log(
+        `[PersonDetection] Weak cache match: ${cachedMatch.person.vorname} ${cachedMatch.person.nachname} (${cachedMatch.confidence.toFixed(2)})`
+      );
       return {
         detected: true,
         person: cachedMatch.person,
         confidence: cachedMatch.confidence,
         source: 'cache_weak',
-        extractedName
+        extractedName,
       };
     }
 
@@ -185,9 +199,26 @@ export class PersonDetectionService {
    */
   isCommonWord(word: string): boolean {
     const commonWords = new Set([
-      'der', 'die', 'das', 'und', 'oder', 'aber', 'wie', 'was', 'wer',
-      'grüne', 'grünen', 'partei', 'bundestag', 'fraktion', 'antrag',
-      'politik', 'deutschland', 'berlin', 'thema', 'frage'
+      'der',
+      'die',
+      'das',
+      'und',
+      'oder',
+      'aber',
+      'wie',
+      'was',
+      'wer',
+      'grüne',
+      'grünen',
+      'partei',
+      'bundestag',
+      'fraktion',
+      'antrag',
+      'politik',
+      'deutschland',
+      'berlin',
+      'thema',
+      'frage',
     ]);
     return commonWords.has(word.toLowerCase());
   }
@@ -202,7 +233,7 @@ export class PersonDetectionService {
     const fraktion = person.fraktion;
     if (fraktion) {
       const fraktionArray = Array.isArray(fraktion) ? fraktion : [fraktion];
-      if (fraktionArray.some(f => gruenePatterns.some(p => f.includes(p)))) {
+      if (fraktionArray.some((f) => gruenePatterns.some((p) => f.includes(p)))) {
         return true;
       }
     }
@@ -210,7 +241,7 @@ export class PersonDetectionService {
     // Check nested person_roles
     if (person.person_roles && Array.isArray(person.person_roles)) {
       for (const role of person.person_roles) {
-        if (role.fraktion && gruenePatterns.some(p => role.fraktion!.includes(p))) {
+        if (role.fraktion && gruenePatterns.some((p) => role.fraktion!.includes(p))) {
           return true;
         }
       }
@@ -256,7 +287,7 @@ export class PersonDetectionService {
     if (n1.includes(n2) || n2.includes(n1)) {
       const shorter = n1.length < n2.length ? n1 : n2;
       const longer = n1.length >= n2.length ? n1 : n2;
-      return shorter.length / longer.length * 0.95; // Partial match penalty
+      return (shorter.length / longer.length) * 0.95; // Partial match penalty
     }
 
     // Levenshtein distance
@@ -264,7 +295,7 @@ export class PersonDetectionService {
     if (maxLen === 0) return 1.0;
 
     const distance = this.levenshteinDistance(n1, n2);
-    return 1 - (distance / maxLen);
+    return 1 - distance / maxLen;
   }
 
   /**
@@ -273,7 +304,9 @@ export class PersonDetectionService {
   levenshteinDistance(s1: string, s2: string): number {
     const m = s1.length;
     const n = s2.length;
-    const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+    const dp: number[][] = Array(m + 1)
+      .fill(null)
+      .map(() => Array(n + 1).fill(0));
 
     for (let i = 0; i <= m; i++) dp[i][0] = i;
     for (let j = 0; j <= n; j++) dp[0][j] = j;
@@ -282,8 +315,8 @@ export class PersonDetectionService {
       for (let j = 1; j <= n; j++) {
         const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
         dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,      // deletion
-          dp[i][j - 1] + 1,      // insertion
+          dp[i - 1][j] + 1, // deletion
+          dp[i][j - 1] + 1, // insertion
           dp[i - 1][j - 1] + cost // substitution
         );
       }
@@ -311,7 +344,7 @@ export class PersonDetectionService {
    */
   async ensureCachePopulated(): Promise<void> {
     const now = Date.now();
-    if (mpCache.size > 0 && (now - cacheLastUpdated) < CACHE_TTL) {
+    if (mpCache.size > 0 && now - cacheLastUpdated < CACHE_TTL) {
       return;
     }
 
@@ -328,7 +361,7 @@ export class PersonDetectionService {
       const result: PersonSearchResult = await this.mcpClient.searchPersonen({
         fraktion: 'GRÜNE',
         wahlperiode: 20,
-        limit: 100
+        limit: 100,
       });
 
       if (result.documents && result.documents.length > 0) {
@@ -379,7 +412,7 @@ export class PersonDetectionService {
     return {
       size: mpCache.size,
       lastUpdated: cacheLastUpdated ? new Date(cacheLastUpdated).toISOString() : null,
-      ttlRemaining: cacheLastUpdated ? Math.max(0, CACHE_TTL - (Date.now() - cacheLastUpdated)) : 0
+      ttlRemaining: cacheLastUpdated ? Math.max(0, CACHE_TTL - (Date.now() - cacheLastUpdated)) : 0,
     };
   }
 }

@@ -1,7 +1,10 @@
 import { FaInstagram } from 'react-icons/fa';
+
 import { useEmbedConsent } from '../hooks/useEmbedConsent';
+
 import { EmbedConsentPlaceholder } from './consent/EmbedConsentPlaceholder';
 import { InstagramEmbed } from './consent/InstagramEmbed';
+
 import type { SocialFeedSection as SocialFeedSectionType } from '../types/candidate';
 import '../styles/components/social-feed.css';
 
@@ -30,12 +33,7 @@ export function SocialFeedSection({ data }: SocialFeedSectionProps) {
       return <InstagramEmbed username={data.instagramUsername} />;
     }
 
-    return (
-      <EmbedConsentPlaceholder
-        platform="instagram"
-        onConsent={grantConsent}
-      />
-    );
+    return <EmbedConsentPlaceholder platform="instagram" onConsent={grantConsent} />;
   };
 
   return (
@@ -45,9 +43,7 @@ export function SocialFeedSection({ data }: SocialFeedSectionProps) {
           <FaInstagram />
           <h2 className="social-feed-title">{data.title || 'Instagram'}</h2>
         </div>
-        <div className="social-feed-content">
-          {renderContent()}
-        </div>
+        <div className="social-feed-content">{renderContent()}</div>
       </div>
     </section>
   );

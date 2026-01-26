@@ -8,7 +8,7 @@ import type {
   SubtitleSegment,
   StylePreference,
   SubtitlePreference,
-  StyleCalculationResult
+  StyleCalculationResult,
 } from '../types';
 
 interface AverageTextMetrics {
@@ -45,7 +45,7 @@ export class SubtitleStylingService {
       fontSize = Math.floor(fontSize * 1.2); // +20% for manual mode
     }
     if (stylePreference?.startsWith('gj_')) {
-      fontSize = Math.floor(fontSize * 0.70); // -30% for GJ styles
+      fontSize = Math.floor(fontSize * 0.7); // -30% for GJ styles
     }
     if (stylePreference?.startsWith('at_')) {
       fontSize = Math.floor(fontSize * 0.85); // -15% for AT styles
@@ -68,7 +68,7 @@ export class SubtitleStylingService {
     } else {
       const range = longCharThreshold - shortCharThreshold;
       const position = avgChars - shortCharThreshold;
-      charFactor = 1.35 - ((1.35 - 0.95) * (position / range));
+      charFactor = 1.35 - (1.35 - 0.95) * (position / range);
     }
 
     let wordFactor: number;
@@ -79,10 +79,10 @@ export class SubtitleStylingService {
     } else {
       const range = longWordThreshold - shortWordThreshold;
       const position = avgWords - shortWordThreshold;
-      wordFactor = 1.25 - ((1.25 - 0.95) * (position / range));
+      wordFactor = 1.25 - (1.25 - 0.95) * (position / range);
     }
 
-    return (charFactor * 0.7) + (wordFactor * 0.3);
+    return charFactor * 0.7 + wordFactor * 0.3;
   }
 
   static calculateAverageTextMetrics(segments: SubtitleSegment[]): AverageTextMetrics {
@@ -93,14 +93,14 @@ export class SubtitleStylingService {
     let totalChars = 0;
     let totalWords = 0;
 
-    segments.forEach(segment => {
+    segments.forEach((segment) => {
       totalChars += segment.text.length;
       totalWords += segment.text.split(' ').length;
     });
 
     return {
       avgLength: totalChars / segments.length,
-      avgWords: totalWords / segments.length
+      avgWords: totalWords / segments.length,
     };
   }
 
@@ -126,23 +126,23 @@ export class SubtitleStylingService {
     if (referenceDimension >= 2160) {
       minFontSize = 80;
       maxFontSize = 180;
-      basePercentage = isVertical ? 0.070 : 0.065;
+      basePercentage = isVertical ? 0.07 : 0.065;
     } else if (referenceDimension >= 1440) {
       minFontSize = 60;
       maxFontSize = 140;
-      basePercentage = isVertical ? 0.065 : 0.060;
+      basePercentage = isVertical ? 0.065 : 0.06;
     } else if (referenceDimension >= 1080) {
       minFontSize = 45;
       maxFontSize = 100;
-      basePercentage = isVertical ? 0.060 : 0.055;
+      basePercentage = isVertical ? 0.06 : 0.055;
     } else if (referenceDimension >= 720) {
       minFontSize = 35;
       maxFontSize = 70;
-      basePercentage = isVertical ? 0.055 : 0.050;
+      basePercentage = isVertical ? 0.055 : 0.05;
     } else {
       minFontSize = 32;
       maxFontSize = 65;
-      basePercentage = isVertical ? 0.065 : 0.060;
+      basePercentage = isVertical ? 0.065 : 0.06;
     }
 
     // Pixel factor adjustment
@@ -159,9 +159,18 @@ export class SubtitleStylingService {
     const scaledFontSize = Math.floor(baseFontSize * scaleFactor);
 
     // Apply mode/style adjustments via calculateFontSize
-    const finalFontSize = Math.max(minFontSize, Math.min(maxFontSize,
-      this.calculateFontSize({ width, height }, scaledFontSize / 20, subtitlePreference, stylePreference)
-    ));
+    const finalFontSize = Math.max(
+      minFontSize,
+      Math.min(
+        maxFontSize,
+        this.calculateFontSize(
+          { width, height },
+          scaledFontSize / 20,
+          subtitlePreference,
+          stylePreference
+        )
+      )
+    );
 
     const marginL = 10;
     const marginR = 10;
@@ -176,7 +185,7 @@ export class SubtitleStylingService {
       outline,
       width,
       height,
-      isVertical
+      isVertical,
     };
   }
 
@@ -188,7 +197,7 @@ export class SubtitleStylingService {
       outline: 2,
       width: 1080,
       height: 1920,
-      isVertical: true
+      isVertical: true,
     };
   }
 
@@ -200,9 +209,11 @@ export class SubtitleStylingService {
       return null;
     }
 
-    return segments.find(segment =>
-      currentTime >= segment.startTime && currentTime <= segment.endTime
-    ) ?? null;
+    return (
+      segments.find(
+        (segment) => currentTime >= segment.startTime && currentTime <= segment.endTime
+      ) ?? null
+    );
   }
 }
 

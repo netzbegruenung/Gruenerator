@@ -43,9 +43,7 @@ export interface UseFontLoaderResult {
  * // Skip font loading
  * const { fontLoaded } = useFontLoader(null); // Both true immediately
  */
-export function useFontLoader(
-  options: UseFontLoaderOptions | null
-): UseFontLoaderResult {
+export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoaderResult {
   // Always true - never block rendering!
   const [fontLoaded] = useState(true);
   const [isFontAvailable, setIsFontAvailable] = useState(false);

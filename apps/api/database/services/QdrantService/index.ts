@@ -23,7 +23,7 @@ export type {
   ScrollResult,
   QdrantFilter,
   FilterCondition,
-  ChunkData
+  ChunkData,
 } from './types.js';
 
 // Connection utilities
@@ -31,7 +31,7 @@ export {
   createQdrantClient,
   testConnection,
   testConnectionWithRetry,
-  checkConnectionHealth
+  checkConnectionHealth,
 } from './connection.js';
 
 // Collection management
@@ -45,7 +45,7 @@ export {
   type CollectionConfig,
   type IndexDefinition,
   type IndexSchema,
-  type SnapshotResult
+  type SnapshotResult,
 } from './collections.js';
 
 // Indexing functions
@@ -60,14 +60,14 @@ export {
   type DocumentChunk,
   type GrundsatzChunk,
   type WebContentChunk,
-  type WebContentMetadata
+  type WebContentMetadata,
 } from './indexing.js';
 
 // Search filter utilities (kept for backward compatibility and random sampling)
 export {
   buildContentExampleFilter,
   buildSocialMediaFilter,
-  extractMultiFieldContent
+  extractMultiFieldContent,
 } from './search.js';
 
 // Deprecated search functions removed - use QdrantService methods instead
@@ -82,7 +82,7 @@ export {
   deleteBundestagContentByUrl,
   deleteGrueneDeContentByUrl,
   deleteGrueneAtContentByUrl,
-  deleteContentExample
+  deleteContentExample,
 } from './deletion.js';
 
 // Faceted search utilities
@@ -93,7 +93,7 @@ export {
   getAllUrls,
   deleteByUrl,
   type FieldValueCount,
-  type DateRange
+  type DateRange,
 } from './facets.js';
 
 // Random sampling
@@ -101,14 +101,11 @@ export {
   calculateRandomOffset,
   shuffleAndLimit,
   getRandomContentExamples,
-  getRandomSocialMediaExamples
+  getRandomSocialMediaExamples,
 } from './random.js';
 
 // Operations (high-level search algorithms)
 export { QdrantOperations } from './operations/index.js';
 
 // Utility functions
-export {
-  stringToNumericId,
-  chunkToNumericId
-} from './utils.js';
+export { stringToNumericId, chunkToNumericId } from './utils.js';

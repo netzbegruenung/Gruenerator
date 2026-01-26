@@ -11,5 +11,5 @@ export {
   markdownToHtml,
   markdownToPlainText,
   markdownForExport,
-  isMarkdownContent
+  isMarkdownContent,
 } from './MarkdownService.js';

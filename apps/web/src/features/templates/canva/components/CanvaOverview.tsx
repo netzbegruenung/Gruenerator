@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { HiRefresh, HiTemplate, HiCheck, HiX, HiExclamationCircle, HiEye } from 'react-icons/hi';
+
 import CanvaButton from './CanvaButton';
 
 // Canva Overview Feature CSS - Loaded only when this feature is accessed
@@ -12,25 +13,25 @@ import { useCanvaStore, useCanvaConnection, useCanvaDesigns } from '../../../../
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
 
 interface CanvaUserInfo {
-    name?: string;
-    email?: string;
-    avatar?: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
 }
 
 interface CanvaConnectionBadge {
-    type: string;
-    text: string;
-    color: string;
-    icon: string;
-    className: string;
-    userInfo?: CanvaUserInfo;
+  type: string;
+  text: string;
+  color: string;
+  icon: string;
+  className: string;
+  userInfo?: CanvaUserInfo;
 }
 
 interface CanvaOverviewProps {
-    isAuthenticated?: boolean;
-    onSuccessMessage?: (message: string) => void;
-    onErrorMessage?: (message: string) => void;
-    onNavigateToSubtab?: (subsection: string) => void;
+  isAuthenticated?: boolean;
+  onSuccessMessage?: (message: string) => void;
+  onErrorMessage?: (message: string) => void;
+  onNavigateToSubtab?: (subsection: string) => void;
 }
 
 /**
@@ -38,15 +39,19 @@ interface CanvaOverviewProps {
  * Uses canvaStore for better performance and state management
  * Memoized to prevent unnecessary re-renders
  */
-const CanvaOverview = memo(({
+const CanvaOverview = memo(
+  ({
     isAuthenticated = false,
     onSuccessMessage,
     onErrorMessage,
-    onNavigateToSubtab
-}: CanvaOverviewProps) => {
-
+    onNavigateToSubtab,
+  }: CanvaOverviewProps) => {
     // Store-based state (memoized selectors)
-    const { connected: canvaConnected, user: canvaUser, loading: canvaLoading } = useCanvaConnection();
+    const {
+      connected: canvaConnected,
+      user: canvaUser,
+      loading: canvaLoading,
+    } = useCanvaConnection();
     const { designs, loading: designsLoading } = useCanvaDesigns();
     const canvaStore = useCanvaStore();
 
@@ -58,226 +63,231 @@ const CanvaOverview = memo(({
 
     // Handle login
     const handleLogin = useCallback(async () => {
-        try {
-            await canvaStore.initiateLogin();
-        } catch (error) {
-            if (error instanceof Error) {
-                onErrorMessage?.(error.message);
-            }
+      try {
+        await canvaStore.initiateLogin();
+      } catch (error) {
+        if (error instanceof Error) {
+          onErrorMessage?.(error.message);
         }
+      }
     }, [canvaStore, onErrorMessage]);
 
     // Handle disconnect
     const handleDisconnect = useCallback(async () => {
-        if (!window.confirm('Möchtest du die Verbindung zu Canva wirklich trennen?')) {
-            return;
-        }
+      if (!window.confirm('Möchtest du die Verbindung zu Canva wirklich trennen?')) {
+        return;
+      }
 
-        try {
-            await canvaStore.disconnect();
-            onSuccessMessage?.('Canva-Verbindung wurde getrennt.');
-        } catch (error) {
-            if (error instanceof Error) {
-                onErrorMessage?.(error.message);
-            }
+      try {
+        await canvaStore.disconnect();
+        onSuccessMessage?.('Canva-Verbindung wurde getrennt.');
+      } catch (error) {
+        if (error instanceof Error) {
+          onErrorMessage?.(error.message);
         }
+      }
     }, [canvaStore, onSuccessMessage, onErrorMessage]);
 
     // Initialize store when component mounts and user is authenticated
     useEffect(() => {
-        if (isAuthenticated && !canvaStore.initialized) {
-            canvaStore.initialize();
-        }
+      if (isAuthenticated && !canvaStore.initialized) {
+        canvaStore.initialize();
+      }
     }, [isAuthenticated, canvaStore]);
 
     // Reset store when user logs out
     useEffect(() => {
-        if (!isAuthenticated && canvaStore.initialized) {
-            canvaStore.reset();
-        }
+      if (!isAuthenticated && canvaStore.initialized) {
+        canvaStore.reset();
+      }
     }, [isAuthenticated, canvaStore]);
 
     // Generate UI configurations using utility functions
-    const connectionBadge = canvaUtils.getCanvaConnectionBadge(canvaConnected, canvaUser ?? undefined, canvaLoading) as CanvaConnectionBadge;
+    const connectionBadge = canvaUtils.getCanvaConnectionBadge(
+      canvaConnected,
+      canvaUser ?? undefined,
+      canvaLoading
+    ) as CanvaConnectionBadge;
     // Stats section removed
 
     // Render connection status section
     const renderConnectionStatus = () => (
-        <div className="canva-connection-section">
-            <div className="connection-status-content">
-                {canvaConnected && (
-                    <button
-                        type="button"
-                        className={`${connectionBadge.className} canva-connection-badge-button`}
-                        style={{ color: isConnectionHovered ? 'var(--error-red)' : connectionBadge.color }}
-                        onClick={handleDisconnect}
-                        onMouseEnter={() => setIsConnectionHovered(true)}
-                        onMouseLeave={() => setIsConnectionHovered(false)}
-                    >
-                        {getStatusIcon(connectionBadge.icon)}
-                        <span>{isConnectionHovered ? 'Ausloggen' : connectionBadge.text}</span>
-                    </button>
-                )}
+      <div className="canva-connection-section">
+        <div className="connection-status-content">
+          {canvaConnected && (
+            <button
+              type="button"
+              className={`${connectionBadge.className} canva-connection-badge-button`}
+              style={{ color: isConnectionHovered ? 'var(--error-red)' : connectionBadge.color }}
+              onClick={handleDisconnect}
+              onMouseEnter={() => setIsConnectionHovered(true)}
+              onMouseLeave={() => setIsConnectionHovered(false)}
+            >
+              {getStatusIcon(connectionBadge.icon)}
+              <span>{isConnectionHovered ? 'Ausloggen' : connectionBadge.text}</span>
+            </button>
+          )}
 
-                {canvaConnected ? (
-                    <div>
-                        <p className="connection-status-description">
-                            Deine Designs und Assets werden automatisch synchronisiert und können direkt im Grünerator verwendet werden.
-                        </p>
+          {canvaConnected ? (
+            <div>
+              <p className="connection-status-description">
+                Deine Designs und Assets werden automatisch synchronisiert und können direkt im
+                Grünerator verwendet werden.
+              </p>
 
-                        {connectionBadge.userInfo && (
-                            <div className="connection-user-info" style={{ display: 'none' }}>
-                                {connectionBadge.userInfo.avatar && (
-                                    <img
-                                        src={connectionBadge.userInfo.avatar}
-                                        alt="Canva Avatar"
-                                        className="connection-user-avatar"
-                                    />
-                                )}
-                                <div className="connection-user-details">
-                                    {connectionBadge.userInfo.name && (
-                                        <div className="connection-user-name">{connectionBadge.userInfo.name}</div>
-                                    )}
-                                    {connectionBadge.userInfo.email && (
-                                        <div className="connection-user-email">{connectionBadge.userInfo.email}</div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                    </div>
-                ) : (
-                    <div>
-                        <p className="connection-status-description">
-                            Verbinde dich mit Canva, um deine Vorlagen direkt im Grünerator zu verwalten und beispielsweise Alt-Texte anhand deiner Vorlagen zu erstellen.
-                        </p>
-
-                        <CanvaButton
-                            onClick={handleLogin}
-                            loading={canvaLoading}
-                            size="medium"
-                            style={{ marginTop: 'var(--spacing-medium)' }}
-                            ariaLabel="Mit Canva verbinden"
-                        >
-                            Mit Canva verbinden
-                        </CanvaButton>
-                    </div>
-                )}
+              {connectionBadge.userInfo && (
+                <div className="connection-user-info" style={{ display: 'none' }}>
+                  {connectionBadge.userInfo.avatar && (
+                    <img
+                      src={connectionBadge.userInfo.avatar}
+                      alt="Canva Avatar"
+                      className="connection-user-avatar"
+                    />
+                  )}
+                  <div className="connection-user-details">
+                    {connectionBadge.userInfo.name && (
+                      <div className="connection-user-name">{connectionBadge.userInfo.name}</div>
+                    )}
+                    {connectionBadge.userInfo.email && (
+                      <div className="connection-user-email">{connectionBadge.userInfo.email}</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+          ) : (
+            <div>
+              <p className="connection-status-description">
+                Verbinde dich mit Canva, um deine Vorlagen direkt im Grünerator zu verwalten und
+                beispielsweise Alt-Texte anhand deiner Vorlagen zu erstellen.
+              </p>
+
+              <CanvaButton
+                onClick={handleLogin}
+                loading={canvaLoading}
+                size="medium"
+                style={{ marginTop: 'var(--spacing-medium)' }}
+                ariaLabel="Mit Canva verbinden"
+              >
+                Mit Canva verbinden
+              </CanvaButton>
+            </div>
+          )}
         </div>
+      </div>
     );
 
     // Render statistics cards
     const renderStatistics = () => {
-        return null;
+      return null;
     };
 
     // Render recent designs
     const renderRecentDesigns = () => {
-        if (!canvaConnected) return null;
+      if (!canvaConnected) return null;
 
-        return (
-            <div className="canva-recent-designs">
-                <h3 className="canva-recent-title">Aktuelle Designs</h3>
+      return (
+        <div className="canva-recent-designs">
+          <h3 className="canva-recent-title">Aktuelle Designs</h3>
 
-                {designsLoading ? (
-                    <div className="canva-recent-empty">
-                        <HiTemplate className="canva-recent-empty-icon" />
-                        <p className="canva-recent-empty-text">Designs werden geladen...</p>
-                    </div>
-                ) : recentDesigns.length === 0 ? (
-                    <div className="canva-recent-empty">
-                        <HiTemplate className="canva-recent-empty-icon" />
-                        <p className="canva-recent-empty-text">
-                            Noch keine Designs vorhanden. Erstelle dein erstes Design in Canva!
-                        </p>
-                    </div>
-                ) : (
-                    <>
-                        <div className="canva-recent-grid">
-                            {recentDesigns.slice(0, 4).map(design => (
-                                <div
-                                    key={design.id}
-                                    className="canva-recent-design"
-                                    onClick={() => {
-                                        if (design.canva_url) {
-                                            window.open(design.canva_url, '_blank');
-                                        }
-                                    }}
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e: React.KeyboardEvent) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            if (design.canva_url) {
-                                                window.open(design.canva_url, '_blank');
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <div className="canva-recent-thumbnail">
-                                        {design.thumbnail_url ? (
-                                            <img src={design.thumbnail_url} alt={design.title} />
-                                        ) : (
-                                            <HiTemplate style={{ width: '32px', height: '32px' }} />
-                                        )}
-                                    </div>
-                                    <div className="canva-recent-info">
-                                        <h4 className="canva-recent-name" title={design.title}>
-                                            {design.title}
-                                        </h4>
-                                        <div className="canva-recent-date">
-                                            {design.updated_at ?
-                                                new Date(design.updated_at).toLocaleDateString('de-DE') :
-                                                'Unbekanntes Datum'
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <a
-                            href="#"
-                            className="canva-view-all-link"
-                            onClick={(e: React.MouseEvent) => {
-                                e.preventDefault();
-                                onNavigateToSubtab?.('vorlagen');
-                            }}
-                            style={{ color: 'var(--font-color)' }}
-                        >
-                            <span>Alle Designs anzeigen</span>
-                            <HiEye style={{ color: 'var(--font-color)' }} />
-                        </a>
-                    </>
-                )}
+          {designsLoading ? (
+            <div className="canva-recent-empty">
+              <HiTemplate className="canva-recent-empty-icon" />
+              <p className="canva-recent-empty-text">Designs werden geladen...</p>
             </div>
-        );
+          ) : recentDesigns.length === 0 ? (
+            <div className="canva-recent-empty">
+              <HiTemplate className="canva-recent-empty-icon" />
+              <p className="canva-recent-empty-text">
+                Noch keine Designs vorhanden. Erstelle dein erstes Design in Canva!
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="canva-recent-grid">
+                {recentDesigns.slice(0, 4).map((design) => (
+                  <div
+                    key={design.id}
+                    className="canva-recent-design"
+                    onClick={() => {
+                      if (design.canva_url) {
+                        window.open(design.canva_url, '_blank');
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e: React.KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (design.canva_url) {
+                          window.open(design.canva_url, '_blank');
+                        }
+                      }
+                    }}
+                  >
+                    <div className="canva-recent-thumbnail">
+                      {design.thumbnail_url ? (
+                        <img src={design.thumbnail_url} alt={design.title} />
+                      ) : (
+                        <HiTemplate style={{ width: '32px', height: '32px' }} />
+                      )}
+                    </div>
+                    <div className="canva-recent-info">
+                      <h4 className="canva-recent-name" title={design.title}>
+                        {design.title}
+                      </h4>
+                      <div className="canva-recent-date">
+                        {design.updated_at
+                          ? new Date(design.updated_at).toLocaleDateString('de-DE')
+                          : 'Unbekanntes Datum'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <a
+                href="#"
+                className="canva-view-all-link"
+                onClick={(e: React.MouseEvent) => {
+                  e.preventDefault();
+                  onNavigateToSubtab?.('vorlagen');
+                }}
+                style={{ color: 'var(--font-color)' }}
+              >
+                <span>Alle Designs anzeigen</span>
+                <HiEye style={{ color: 'var(--font-color)' }} />
+              </a>
+            </>
+          )}
+        </div>
+      );
     };
 
     // Helper function to render status icons
     const getStatusIcon = (iconType: string): React.ReactNode => {
-        const iconProps = { style: { width: '16px', height: '16px' } };
-        switch (iconType) {
-            case 'check':
-                return <HiCheck {...iconProps} />;
-            case 'disconnect':
-                return <HiX {...iconProps} />;
-            case 'loading':
-                return <HiRefresh {...iconProps} className="animate-spin" />;
-            default:
-                return <HiExclamationCircle {...iconProps} />;
-        }
+      const iconProps = { style: { width: '16px', height: '16px' } };
+      switch (iconType) {
+        case 'check':
+          return <HiCheck {...iconProps} />;
+        case 'disconnect':
+          return <HiX {...iconProps} />;
+        case 'loading':
+          return <HiRefresh {...iconProps} className="animate-spin" />;
+        default:
+          return <HiExclamationCircle {...iconProps} />;
+      }
     };
 
     return (
-        <div className="canva-overview" role="main" aria-label="Canva Integration Overview">
-            {renderConnectionStatus()}
-            {renderStatistics()}
-            {renderRecentDesigns()}
-        </div>
+      <div className="canva-overview" role="main" aria-label="Canva Integration Overview">
+        {renderConnectionStatus()}
+        {renderStatistics()}
+        {renderRecentDesigns()}
+      </div>
     );
-});
+  }
+);
 
 // Add display name for debugging
 CanvaOverview.displayName = 'CanvaOverview';

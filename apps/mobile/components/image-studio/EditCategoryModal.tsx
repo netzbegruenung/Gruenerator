@@ -8,7 +8,14 @@
 
 import { useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { TextFieldsSection } from './editing';
-import { FontSizeControl, ColorSchemeSelector, BalkenOffsetControl, BalkenGruppeControl, SonnenblumenControl, CreditInput } from '../image-modification';
+import {
+  FontSizeControl,
+  ColorSchemeSelector,
+  BalkenOffsetControl,
+  BalkenGruppeControl,
+  SonnenblumenControl,
+  CreditInput,
+} from '../image-modification';
 import { EditorModal, type EditorModalRef } from '../common/editor-toolbar';
 import { getEditSheetConfig, type EditCategory } from '../../config/editSheetConfig';
 import { useImageStudioStore } from '../../stores/imageStudioStore';
@@ -38,10 +45,7 @@ export const EditCategoryModal = forwardRef<EditCategoryModalRef, EditCategoryMo
       return ['35%', '50%'];
     }, [category]);
 
-    const config = useMemo(
-      () => (type ? getEditSheetConfig(type) : null),
-      [type]
-    );
+    const config = useMemo(() => (type ? getEditSheetConfig(type) : null), [type]);
 
     useImperativeHandle(ref, () => ({
       open: () => {
@@ -92,11 +96,7 @@ export const EditCategoryModal = forwardRef<EditCategoryModalRef, EditCategoryMo
     };
 
     return (
-      <EditorModal
-        ref={editorModalRef}
-        onClose={onClose}
-        snapPoints={snapPoints}
-      >
+      <EditorModal ref={editorModalRef} onClose={onClose} snapPoints={snapPoints}>
         {renderContent()}
       </EditorModal>
     );

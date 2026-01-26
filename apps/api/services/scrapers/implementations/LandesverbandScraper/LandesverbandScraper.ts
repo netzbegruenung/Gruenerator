@@ -7,10 +7,19 @@
 import { BaseScraper } from '../../base/BaseScraper.js';
 import type { ScraperResult } from '../../types.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
-import { scrollDocuments, batchDelete } from '../../../../database/services/QdrantService/operations/batchOperations.js';
+import {
+  scrollDocuments,
+  batchDelete,
+} from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
-import { getSourceById, getSourcesByType, getSourcesByLandesverband, LANDESVERBAENDE_CONFIG, type SourceType } from '../../../../config/landesverbaendeConfig.js';
+import {
+  getSourceById,
+  getSourcesByType,
+  getSourcesByLandesverband,
+  LANDESVERBAENDE_CONFIG,
+  type SourceType,
+} from '../../../../config/landesverbaendeConfig.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -198,21 +207,31 @@ export class LandesverbandScraper extends BaseScraper {
             }
           }
 
-          const storeResult = await this.documentProcessor.processAndStoreDocument(source, contentPath.type, pdf.url, {
-            title: pdf.title,
-            text,
-            publishedAt: pdf.dateInfo.dateString,
-            categories: [],
-          }, targetCollection, source.maxAgeYears);
+          const storeResult = await this.documentProcessor.processAndStoreDocument(
+            source,
+            contentPath.type,
+            pdf.url,
+            {
+              title: pdf.title,
+              text,
+              publishedAt: pdf.dateInfo.dateString,
+              categories: [],
+            },
+            targetCollection,
+            source.maxAgeYears
+          );
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;
             else result.stored++;
             result.totalVectors += storeResult.vectors || 0;
-            this.log(`✓ PDF [${i + 1}/${toProcess.length}] ${pdf.title} (${pdf.dateInfo.dateString || 'no date'})`);
+            this.log(
+              `✓ PDF [${i + 1}/${toProcess.length}] ${pdf.title} (${pdf.dateInfo.dateString || 'no date'})`
+            );
           } else {
             result.skipped++;
-            result.skipReasons[storeResult.reason || 'unknown'] = (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
+            result.skipReasons[storeResult.reason || 'unknown'] =
+              (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
           }
 
           await this.delay(this.crawlDelay);
@@ -234,7 +253,11 @@ export class LandesverbandScraper extends BaseScraper {
           this.log.bind(this)
         );
       } else {
-        articleLinks = await this.linkExtractor.extractArticleLinks(source, contentPath, this.log.bind(this));
+        articleLinks = await this.linkExtractor.extractArticleLinks(
+          source,
+          contentPath,
+          this.log.bind(this)
+        );
       }
       this.log(`Found ${articleLinks.length} article links`);
 
@@ -256,8 +279,19 @@ export class LandesverbandScraper extends BaseScraper {
             }
           }
 
-          const content = await ContentExtractor.extractPageContent(url, source, this.#fetchUrl.bind(this));
-          const storeResult = await this.documentProcessor.processAndStoreDocument(source, contentPath.type, url, content, targetCollection, source.maxAgeYears);
+          const content = await ContentExtractor.extractPageContent(
+            url,
+            source,
+            this.#fetchUrl.bind(this)
+          );
+          const storeResult = await this.documentProcessor.processAndStoreDocument(
+            source,
+            contentPath.type,
+            url,
+            content,
+            targetCollection,
+            source.maxAgeYears
+          );
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;
@@ -266,7 +300,8 @@ export class LandesverbandScraper extends BaseScraper {
             this.log(`✓ [${i + 1}/${toProcess.length}] ${content.title?.substring(0, 60) || url}`);
           } else {
             result.skipped++;
-            result.skipReasons[storeResult.reason || 'unknown'] = (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
+            result.skipReasons[storeResult.reason || 'unknown'] =
+              (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
           }
 
           await this.delay(this.crawlDelay);
@@ -284,7 +319,10 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Scrape a single source
    */
-  async scrapeSource(sourceId: string, options: LandesverbandScrapeOptions = {}): Promise<SourceResult> {
+  async scrapeSource(
+    sourceId: string,
+    options: LandesverbandScrapeOptions = {}
+  ): Promise<SourceResult> {
     const source = getSourceById(sourceId);
     if (!source) {
       throw new Error(`Source not found: ${sourceId}`);
@@ -328,7 +366,9 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Scrape all sources or filtered subset
    */
-  async scrapeAllSources(options: LandesverbandScrapeOptions = {}): Promise<LandesverbandFullResult> {
+  async scrapeAllSources(
+    options: LandesverbandScrapeOptions = {}
+  ): Promise<LandesverbandFullResult> {
     const startTime = Date.now();
     const { sourceType = null, landesverband = null, contentType = null } = options;
 
@@ -414,7 +454,7 @@ export class LandesverbandScraper extends BaseScraper {
   async clearSource(sourceId: string): Promise<void> {
     this.log(`Clearing source: ${sourceId}`);
     const filter = {
-      must: [{ key: 'source_id', match: { value: sourceId } }]
+      must: [{ key: 'source_id', match: { value: sourceId } }],
     };
     await batchDelete(this.qdrantClient, this.config.collectionName, filter);
     this.log(`Source ${sourceId} cleared`);
@@ -493,7 +533,7 @@ export class LandesverbandScraper extends BaseScraper {
     let hash = 0;
     for (let i = 0; i < combinedString.length; i++) {
       const char = combinedString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash);

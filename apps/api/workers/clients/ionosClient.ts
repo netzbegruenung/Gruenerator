@@ -64,9 +64,9 @@ function getIonosClient(): IonosClient {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
+              Authorization: `Bearer ${apiKey}`,
             },
-            body: JSON.stringify(config)
+            body: JSON.stringify(config),
           });
 
           if (!response.ok) {
@@ -82,9 +82,9 @@ function getIonosClient(): IonosClient {
           }
 
           return response.json() as Promise<ChatCompletionResponse>;
-        }
-      }
-    }
+        },
+      },
+    },
   };
 }
 

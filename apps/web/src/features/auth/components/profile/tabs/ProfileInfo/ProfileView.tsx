@@ -1,10 +1,13 @@
-import React, { FormEvent } from 'react';
 import { motion } from 'motion/react';
+import React, { type FormEvent } from 'react';
 import { GiHedgehog } from 'react-icons/gi';
-import Spinner from '../../../../../../components/common/Spinner';
+
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
+import Spinner from '../../../../../../components/common/Spinner';
+import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
+
 import SettingsSection from './SettingsSection';
-import { useAuthStore, SupportedLocale } from '../../../../../../stores/authStore';
+
 
 interface User {
   id: string;
@@ -169,9 +172,7 @@ const ProfileView = ({
               {(email || user?.email || user?.username) && (
                 <div className="profile-card-email">{email || user?.email || user?.username}</div>
               )}
-              {username && (
-                <div className="profile-card-username">@{username}</div>
-              )}
+              {username && <div className="profile-card-username">@{username}</div>}
             </div>
 
             <div className="profile-card-actions">
@@ -209,20 +210,22 @@ const ProfileView = ({
           </div>
 
           <div className="profile-card-anweisungen">
-            <label htmlFor="customPrompt" className="profile-card-section-title">Persönliche Anweisungen</label>
+            <label htmlFor="customPrompt" className="profile-card-section-title">
+              Persönliche Anweisungen
+            </label>
             <textarea
               id="customPrompt"
               value={customPrompt}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomPrompt(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setCustomPrompt(e.target.value)
+              }
               placeholder="Diese Anweisungen werden bei allen Text-Generierungen berücksichtigt, z.B. dein Schreibstil oder Infos zu dir und deinem Wahlkreis..."
               className="profile-card-textarea"
               rows={4}
               maxLength={2000}
               disabled={isLoading}
             />
-            <div className="profile-card-char-count">
-              {customPrompt.length}/2000
-            </div>
+            <div className="profile-card-char-count">{customPrompt.length}/2000</div>
           </div>
 
           {/* Hidden profile fields - only shown when not from Keycloak */}
@@ -251,7 +254,9 @@ const ProfileView = ({
                     id="displayName"
                     type="text"
                     value={displayName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setDisplayName(e.target.value)
+                    }
                     placeholder="Dein vollständiger Name"
                     aria-label="Name"
                     disabled={isLoading}
@@ -265,7 +270,9 @@ const ProfileView = ({
                     id="username"
                     type="text"
                     value={username}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setUsername(e.target.value)
+                    }
                     placeholder="Dein Benutzername"
                     aria-label="Benutzername"
                     disabled={isLoading}
@@ -288,49 +295,61 @@ const ProfileView = ({
         />
       </div>
 
-        {showDeleteAccountForm && (
-          <form className="auth-form" onSubmit={onDeleteAccountSubmit}>
-            <div className="form-group">
-              <div className="form-group-title">Konto löschen</div>
-              <p className="warning-text">
-                <strong>Warnung:</strong> Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden permanent gelöscht.
-              </p>
-              {deleteAccountError && <div className="auth-error-message">{deleteAccountError}</div>}
-              <div className="form-field-wrapper">
-                <label htmlFor="deleteConfirmText">Um fortzufahren, gib "löschen" ein:</label>
-                <TextInput
-                  id="deleteConfirmText"
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmText(e.target.value)}
-                  placeholder="löschen"
-                  aria-label="Bestätigung: löschen"
-                  disabled={isDeletingAccount}
-                />
-              </div>
+      {showDeleteAccountForm && (
+        <form className="auth-form" onSubmit={onDeleteAccountSubmit}>
+          <div className="form-group">
+            <div className="form-group-title">Konto löschen</div>
+            <p className="warning-text">
+              <strong>Warnung:</strong> Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre
+              Daten werden permanent gelöscht.
+            </p>
+            {deleteAccountError && <div className="auth-error-message">{deleteAccountError}</div>}
+            <div className="form-field-wrapper">
+              <label htmlFor="deleteConfirmText">Um fortzufahren, gib "löschen" ein:</label>
+              <TextInput
+                id="deleteConfirmText"
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setDeleteConfirmText(e.target.value)
+                }
+                placeholder="löschen"
+                aria-label="Bestätigung: löschen"
+                disabled={isDeletingAccount}
+              />
             </div>
-            <div className="profile-actions">
-              <button type="submit" className="profile-action-button profile-danger-button" disabled={isDeletingAccount}>
-                {isDeletingAccount ? <Spinner size="small" /> : 'Konto unwiderruflich löschen'}
-              </button>
-              <button type="button" className="profile-action-button" onClick={onToggleDeleteAccountForm} disabled={isDeletingAccount}>
-                Abbrechen
-              </button>
-            </div>
-          </form>
-        )}
+          </div>
+          <div className="profile-actions">
+            <button
+              type="submit"
+              className="profile-action-button profile-danger-button"
+              disabled={isDeletingAccount}
+            >
+              {isDeletingAccount ? <Spinner size="small" /> : 'Konto unwiderruflich löschen'}
+            </button>
+            <button
+              type="button"
+              className="profile-action-button"
+              onClick={onToggleDeleteAccountForm}
+              disabled={isDeletingAccount}
+            >
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      )}
 
-        {/* Konto löschen link - at bottom of page */}
-        {canManageCurrentAccount && !showDeleteAccountForm && (
-          <button
-            type="button"
-            className="profile-delete-link-bottom"
-            onClick={onToggleDeleteAccountForm}
-            disabled={isLoading}
-          >
-            Konto löschen
-          </button>
-        )}
+      {/* Konto löschen link - at bottom of page */}
+      {canManageCurrentAccount && !showDeleteAccountForm && (
+        <button
+          type="button"
+          className="profile-delete-link-bottom"
+          onClick={onToggleDeleteAccountForm}
+          disabled={isLoading}
+        >
+          Konto löschen
+        </button>
+      )}
     </motion.div>
   );
 };

@@ -50,7 +50,7 @@ router.post('/create', async (req: Request, res: Response<CreatePadResponse | Er
     const result = await createPadWithText({
       padId,
       text,
-      documentType
+      documentType,
     });
 
     return res.json({ padURL: result.padUrl });

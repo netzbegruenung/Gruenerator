@@ -1,4 +1,9 @@
-import { loadPromptConfig, buildConstraints, buildRequestContent, SimpleTemplateEngine } from '../../PromptProcessor.js';
+import {
+  loadPromptConfig,
+  buildConstraints,
+  buildRequestContent,
+  SimpleTemplateEngine,
+} from '../../PromptProcessor.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest, SocialPlatformConfig } from '../types.js';
@@ -37,7 +42,7 @@ export async function generatePlatformContent(
       platforms: [platform],
       zitatgeber: request.zitatgeber,
       was: request.was,
-      wie: request.wie
+      wie: request.wie,
     });
 
     const promptResult = await assemblePromptGraphAsync({
@@ -47,23 +52,25 @@ export async function generatePlatformContent(
       request: requestContent,
       taskInstructions: socialConfig.taskInstructions
         ? SimpleTemplateEngine.render(socialConfig.taskInstructions, { platforms: platform })
-        : null
+        : null,
     });
 
-    const aiResult = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'social',
-      usePrivacyMode: request.usePrivacyMode || false,
-      systemPrompt: promptResult.system,
-      messages: promptResult.messages,
-      options: {
-        max_tokens: platformConfig.maxLength * 2,
-        temperature: socialConfig.options?.temperature || 0.6,
-        top_p: platformConfig.top_p || 0.9
-      }
-    }, req);
+    const aiResult = await req.app.locals.aiWorkerPool.processRequest(
+      {
+        type: 'social',
+        usePrivacyMode: request.usePrivacyMode || false,
+        systemPrompt: promptResult.system,
+        messages: promptResult.messages,
+        options: {
+          max_tokens: platformConfig.maxLength * 2,
+          temperature: socialConfig.options?.temperature || 0.6,
+          top_p: platformConfig.top_p || 0.9,
+        },
+      },
+      req
+    );
 
     return aiResult.content || aiResult.data?.content || '';
-
   } catch (error) {
     console.error(`[PR Agent] Error generating ${platform} content:`, error);
     return `[Fehler bei der Generierung des ${platform} Inhalts]`;

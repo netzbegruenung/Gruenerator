@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import apiClient from '../../utils/apiClient';
+
 import {
   ANTRAEGE_TYPES,
   DEFAULT_GALLERY_TYPE,
   GENERATOR_TYPES,
   GALLERY_CONTENT_TYPES,
   ORDERED_CONTENT_TYPE_IDS,
-  PR_TYPES
+  PR_TYPES,
 } from './config';
 import { parseSearchQuery, addTagToSearch } from './searchUtils';
-import apiClient from '../../utils/apiClient';
+
 
 const DEBOUNCE_DELAY = 500;
 
@@ -25,7 +28,12 @@ interface FetchOptions {
   tags?: string[];
 }
 
-const fetchAntraege = async ({ searchTerm, searchMode, selectedCategory, signal }: FetchOptions) => {
+const fetchAntraege = async ({
+  searchTerm,
+  searchMode,
+  selectedCategory,
+  signal,
+}: FetchOptions) => {
   const params: Record<string, unknown> = {};
   if (searchTerm) {
     params.searchTerm = searchTerm;
@@ -52,7 +60,12 @@ const fetchGenerators = async ({ searchTerm, selectedCategory, signal }: FetchOp
   return [];
 };
 
-const fetchSemanticResults = async ({ searchTerm, contentType, selectedCategory, signal }: FetchOptions) => {
+const fetchSemanticResults = async ({
+  searchTerm,
+  contentType,
+  selectedCategory,
+  signal,
+}: FetchOptions) => {
   if (!searchTerm) return [];
 
   let typeParam: string | undefined;
@@ -68,7 +81,7 @@ const fetchSemanticResults = async ({ searchTerm, contentType, selectedCategory,
   const payload: Record<string, unknown> = {
     query: String(searchTerm).trim(),
     limit: 200,
-    ...(typeParam ? { type: typeParam } : {})
+    ...(typeParam ? { type: typeParam } : {}),
   };
 
   const response = await apiClient.post('/auth/examples/similar', payload, { signal });
@@ -79,17 +92,26 @@ const fetchSemanticResults = async ({ searchTerm, contentType, selectedCategory,
   return [];
 };
 
-const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentType, signal, filterTypes, sectionOrder, sectionTypeMap }: FetchOptions) => {
+const fetchUnified = async ({
+  searchTerm,
+  searchMode,
+  selectedCategory,
+  contentType,
+  signal,
+  filterTypes,
+  sectionOrder,
+  sectionTypeMap,
+}: FetchOptions) => {
   if (searchMode === 'semantic' && searchTerm) {
     return {
-      items: await fetchSemanticResults({ searchTerm, contentType, selectedCategory, signal })
+      items: await fetchSemanticResults({ searchTerm, contentType, selectedCategory, signal }),
     };
   }
 
   const params: Record<string, unknown> = {
     onlyExamples: 'true',
     status: 'published',
-    limit: '200'
+    limit: '200',
   };
   if (searchTerm) {
     params.searchTerm = searchTerm;
@@ -109,7 +131,9 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
   if (!Array.isArray(sectionOrder) || !sectionTypeMap) {
     if (Array.isArray(filterTypes) && filterTypes.length > 0) {
       const allowed = new Set(filterTypes);
-      return { items: list.filter((item: Record<string, unknown>) => allowed.has(item.type as string)) };
+      return {
+        items: list.filter((item: Record<string, unknown>) => allowed.has(item.type as string)),
+      };
     }
     return { items: list };
   }
@@ -123,7 +147,13 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
   return { items: list, sections };
 };
 
-const fetchVorlagen = async ({ searchTerm, searchMode, selectedCategory, tags, signal }: FetchOptions) => {
+const fetchVorlagen = async ({
+  searchTerm,
+  searchMode,
+  selectedCategory,
+  tags,
+  signal,
+}: FetchOptions) => {
   const params: Record<string, unknown> = {};
   if (searchTerm) {
     params.searchTerm = searchTerm;
@@ -161,7 +191,7 @@ const categoryQueryOptions = {
       const data = response.data;
       const categories = Array.isArray(data?.categories) ? data.categories : [];
       return [{ id: 'all', label: 'Alle Kategorien' }, ...categories];
-    }
+    },
   },
   vorlagen: {
     queryKey: ['vorlagenCategories'],
@@ -170,8 +200,8 @@ const categoryQueryOptions = {
       const data = response.data;
       const categories = Array.isArray(data?.categories) ? data.categories : [];
       return [{ id: 'all', label: 'Alle Typen' }, ...categories];
-    }
-  }
+    },
+  },
 };
 
 const fetcherMap = {
@@ -179,7 +209,7 @@ const fetcherMap = {
   fetchGenerators: fetchGenerators,
   fetchUnified: fetchUnified,
   fetchVorlagen: fetchVorlagen,
-  fetchPublicPrompts: fetchPublicPrompts
+  fetchPublicPrompts: fetchPublicPrompts,
 };
 
 interface UseGalleryControllerProps {
@@ -189,14 +219,16 @@ interface UseGalleryControllerProps {
 
 export const useGalleryController = ({
   contentType,
-  availableContentTypeIds = ORDERED_CONTENT_TYPE_IDS
+  availableContentTypeIds = ORDERED_CONTENT_TYPE_IDS,
 }: UseGalleryControllerProps) => {
   const resolvedType = GALLERY_CONTENT_TYPES[contentType] ? contentType : DEFAULT_GALLERY_TYPE;
   const config = GALLERY_CONTENT_TYPES[resolvedType];
 
   const [inputValue, setInputValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchMode, setSearchMode] = useState(config.defaultSearchMode || config.searchModes?.[0]?.value || 'title');
+  const [searchMode, setSearchMode] = useState(
+    config.defaultSearchMode || config.searchModes?.[0]?.value || 'title'
+  );
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   useEffect(() => {
@@ -216,18 +248,13 @@ export const useGalleryController = ({
   }, [inputValue]);
 
   const categoriesQuery = useQuery({
-    ...(categoryQueryOptions[resolvedType as keyof typeof categoryQueryOptions] || categoryQueryOptions.antraege),
-    enabled: config.categorySource?.type === 'api'
+    ...(categoryQueryOptions[resolvedType as keyof typeof categoryQueryOptions] ||
+      categoryQueryOptions.antraege),
+    enabled: config.categorySource?.type === 'api',
   });
 
   const dataQuery = useQuery({
-    queryKey: [
-      'gallery-data',
-      resolvedType,
-      searchTerm,
-      searchMode,
-      selectedCategory
-    ],
+    queryKey: ['gallery-data', resolvedType, searchTerm, searchMode, selectedCategory],
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: 'always',
@@ -245,7 +272,7 @@ export const useGalleryController = ({
           signal,
           filterTypes: config.filterTypes,
           sectionOrder: config.sectionOrder,
-          sectionTypeMap: config.sectionTypeMap
+          sectionTypeMap: config.sectionTypeMap,
         });
       }
 
@@ -264,12 +291,12 @@ export const useGalleryController = ({
         selectedCategory,
         contentType: resolvedType,
         tags,
-        signal
+        signal,
       });
 
       return { items };
     },
-    placeholderData: (previousData) => previousData
+    placeholderData: (previousData) => previousData,
   });
 
   const baseCategories = useMemo(() => {
@@ -282,7 +309,7 @@ export const useGalleryController = ({
     }
 
     if (config.allowCategoryFilter === false) return [];
-    const sourceItems = (dataQuery.data as Record<string, unknown>)?.items as unknown[] || [];
+    const sourceItems = ((dataQuery.data as Record<string, unknown>)?.items as unknown[]) || [];
     const categorySet = new Set<string>();
     sourceItems.forEach((item: unknown) => {
       const itemObj = item as Record<string, unknown>;
@@ -292,11 +319,9 @@ export const useGalleryController = ({
       });
     });
 
-    return ['all', ...Array.from(categorySet).sort()].map((value) => (
-      value === 'all'
-        ? { id: 'all', label: 'Alle Kategorien' }
-        : { id: value, label: value }
-    ));
+    return ['all', ...Array.from(categorySet).sort()].map((value) =>
+      value === 'all' ? { id: 'all', label: 'Alle Kategorien' } : { id: value, label: value }
+    );
   }, [config.categorySource, config.allowCategoryFilter, dataQuery.data, categoriesQuery.data]);
 
   useEffect(() => {
@@ -307,15 +332,17 @@ export const useGalleryController = ({
     }
   }, [baseCategories, selectedCategory]);
 
-  const typeOptions = useMemo(() => (
-    availableContentTypeIds
-      .map((id) => GALLERY_CONTENT_TYPES[id])
-      .filter(Boolean)
-  ), [availableContentTypeIds]);
+  const typeOptions = useMemo(
+    () => availableContentTypeIds.map((id) => GALLERY_CONTENT_TYPES[id]).filter(Boolean),
+    [availableContentTypeIds]
+  );
 
-  const handleTagClick = useCallback((tag: string) => {
-    setInputValue(addTagToSearch(inputValue, tag));
-  }, [inputValue]);
+  const handleTagClick = useCallback(
+    (tag: string) => {
+      setInputValue(addTagToSearch(inputValue, tag));
+    },
+    [inputValue]
+  );
 
   return {
     config,
@@ -335,6 +362,6 @@ export const useGalleryController = ({
     typeOptions,
     isFetching: dataQuery.isFetching,
     refetch: dataQuery.refetch,
-    handleTagClick
+    handleTagClick,
   };
 };

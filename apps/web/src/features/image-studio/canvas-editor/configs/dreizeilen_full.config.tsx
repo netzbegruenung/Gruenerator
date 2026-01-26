@@ -6,35 +6,31 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
-import { PiTextT, PiSquaresFourFill } from 'react-icons/pi';
+import { PiSquaresFourFill } from 'react-icons/pi';
 
 import { BalkenIcon } from '../icons';
-import {
-  DreizeilenTextAndFontSection,
-  DreizeilenPositionSection,
-  AssetsSection,
-  ImageBackgroundSection,
-} from '../sidebar';
-import {
-  CANVAS_RECOMMENDED_ASSETS,
-  SYSTEM_ASSETS,
-  createAssetInstance,
-} from '../utils/canvasAssets';
+import { DreizeilenPositionSection, AssetsSection, ImageBackgroundSection } from '../sidebar';
+import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
   COLOR_SCHEMES,
   getColorScheme,
   DREIZEILEN_CONFIG,
 } from '../utils/dreizeilenLayout';
-import { createIllustration } from '../utils/illustrations/registry';
-import { createShape } from '../utils/shapes';
 
 import {
   alternativesTab,
   createAlternativesSection,
   isAlternativesEmpty,
 } from './alternativesSection';
-import { ICON_DEFAULTS, SHAPE_DEFAULTS, ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
+import { ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
+import { PLACEHOLDER_TEXT } from './placeholders';
+import {
+  createAssetActions,
+  createIconActions,
+  createShapeActions,
+  createIllustrationActions,
+} from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { shareTab, createShareSection } from './shareSection';
 
@@ -52,7 +48,7 @@ import type { StockImageAttribution } from '../../services/imageSourceService';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { ShapeType, ShapeInstance } from '../utils/shapes';
+import type { ShapeInstance } from '../utils/shapes';
 
 // ============================================================================
 // CONSTANTS
@@ -160,6 +156,17 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     illustrations: true,
   },
 
+  multiPage: {
+    enabled: true,
+    maxPages: 10,
+    heterogeneous: true,
+    defaultNewPageState: {
+      line1: PLACEHOLDER_TEXT.line1,
+      line2: PLACEHOLDER_TEXT.line2,
+      line3: PLACEHOLDER_TEXT.line3,
+    },
+  },
+
   fonts: {
     primary: 'GrueneTypeNeue',
     fontSize: 75,
@@ -167,7 +174,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   },
 
   tabs: [
-    { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
     {
       id: 'image-background',
       icon: HiPhotograph,
@@ -181,33 +187,13 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   ],
 
   getVisibleTabs: (_state) => {
-    return ['text', 'image-background', 'position', 'assets', 'alternatives', 'share'];
+    return ['image-background', 'position', 'assets', 'alternatives', 'share'];
   },
 
   getDisabledTabs: (state) =>
     isAlternativesEmpty(state, (s) => s.alternatives) ? ['alternatives'] : [],
 
   sections: {
-    text: {
-      component: DreizeilenTextAndFontSection,
-      propsFactory: (state, actions) => ({
-        line1: state.line1,
-        line2: state.line2,
-        line3: state.line3,
-        onLine1Change: actions.setLine1,
-        onLine2Change: actions.setLine2,
-        onLine3Change: actions.setLine3,
-        fontSize: state.fontSize,
-        onFontSizeChange: actions.setFontSize,
-        additionalTexts: state.additionalTexts || [],
-        onAddHeader: actions.addHeader,
-        onAddText: actions.addText,
-        onUpdateAdditionalText: (id: string, text: string) =>
-          actions.updateAdditionalText(id, { text }),
-        onRemoveAdditionalText: actions.removeAdditionalText,
-      }),
-    },
-
     position: {
       component: DreizeilenPositionSection,
       propsFactory: (state, actions) => ({
@@ -247,6 +233,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     assets: {
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
+        // Text creation callbacks
+        onAddHeader: actions.addHeader,
+        onAddText: actions.addText,
+
         // Asset instance props
         onAddAsset: actions.addAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
@@ -444,7 +434,50 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       return [createBalkenInstance(state)];
     };
 
+    // Use common action creators for shared functionality
+    const assetActions = createAssetActions(
+      getState,
+      setState,
+      saveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
+    );
+
+    const iconActions = createIconActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT,
+      { defaultColor: '#005538', defaultOpacity: 1 }
+    );
+
+    const shapeActions = createShapeActions(
+      getState,
+      setState,
+      saveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT,
+      '#005538'
+    );
+
+    const illustrationActions = createIllustrationActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
+    );
+
     return {
+      // === Spread common actions ===
+      ...assetActions,
+      ...iconActions,
+      ...shapeActions,
+      ...illustrationActions,
+
       // === Text Actions ===
       setLine1: (text: string) => {
         setState((prev) => {
@@ -578,34 +611,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         saveToHistory({ ...getState(), sunflowerSize: { w: width, h: height } });
       },
 
-      // === Asset Actions ===
-      addAsset: (assetId: string) => {
-        const newAsset = createAssetInstance(
-          assetId,
-          DREIZEILEN_CONFIG.canvas.width,
-          DREIZEILEN_CONFIG.canvas.height
-        );
-        setState((prev) => ({
-          ...prev,
-          assetInstances: [...prev.assetInstances, newAsset],
-        }));
-        saveToHistory({ ...getState(), assetInstances: [...getState().assetInstances, newAsset] });
-      },
-      updateAsset: (id: string, partial: Partial<AssetInstance>) => {
-        setState((prev) => ({
-          ...prev,
-          assetInstances: prev.assetInstances.map((a) => (a.id === id ? { ...a, ...partial } : a)),
-        }));
-        debouncedSaveToHistory({ ...getState() });
-      },
-      removeAsset: (id: string) => {
-        setState((prev) => ({
-          ...prev,
-          assetInstances: prev.assetInstances.filter((a) => a.id !== id),
-        }));
-        saveToHistory({ ...getState() });
-      },
-
       // === Background Image Actions ===
       setCurrentImageSrc: (
         file: File | null,
@@ -645,183 +650,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         saveToHistory({ ...getState(), bgImageDimensions: { width, height } });
       },
 
-      // === Icon Actions ===
-      toggleIcon: (iconId: string, selected: boolean) => {
-        setState((prev) => {
-          if (selected && !prev.iconStates[iconId]) {
-            return {
-              ...prev,
-              selectedIcons: [...prev.selectedIcons, iconId],
-              iconStates: {
-                ...prev.iconStates,
-                [iconId]: {
-                  x: ICON_DEFAULTS.x(CANVAS_WIDTH),
-                  y: ICON_DEFAULTS.y(CANVAS_HEIGHT),
-                  scale: ICON_DEFAULTS.scale,
-                  rotation: ICON_DEFAULTS.rotation,
-                  color: ICON_DEFAULTS.color,
-                  opacity: ICON_DEFAULTS.opacity,
-                },
-              },
-            };
-          } else if (!selected) {
-            const newSelectedIcons = prev.selectedIcons.filter((id) => id !== iconId);
-            const newIconStates = { ...prev.iconStates };
-            delete newIconStates[iconId];
-            return {
-              ...prev,
-              selectedIcons: newSelectedIcons,
-              iconStates: newIconStates,
-            };
-          }
-          return prev;
-        });
-        saveToHistory(getState());
-      },
-
-      updateIcon: (iconId: string, partial: Partial<DreizeilenFullState['iconStates'][string]>) => {
-        setState((prev) => ({
-          ...prev,
-          iconStates: {
-            ...prev.iconStates,
-            [iconId]: { ...prev.iconStates[iconId], ...partial },
-          },
-        }));
-        debouncedSaveToHistory(getState());
-      },
-
-      handleIconDragEnd: (iconId: string, x: number, y: number) => {
-        setState((prev) => ({
-          ...prev,
-          iconStates: {
-            ...prev.iconStates,
-            [iconId]: { ...prev.iconStates[iconId], x, y },
-          },
-        }));
-        saveToHistory(getState());
-      },
-
-      // === Shape Actions ===
-      addShape: (type: ShapeType) => {
-        const x = SHAPE_DEFAULTS.x(CANVAS_WIDTH);
-        const y = SHAPE_DEFAULTS.y(CANVAS_HEIGHT);
-        const newShape = createShape(type, x, y, SHAPE_DEFAULTS.fill);
-        setState((prev) => ({
-          ...prev,
-          shapeInstances: [...prev.shapeInstances, newShape],
-          selectedShapeId: newShape.id,
-        }));
-        saveToHistory({
-          ...getState(),
-          shapeInstances: [...getState().shapeInstances, newShape],
-        });
-      },
-
-      updateShape: (shapeId: string, partial) => {
-        setState((prev) => ({
-          ...prev,
-          shapeInstances: prev.shapeInstances.map((s) =>
-            s.id === shapeId ? { ...s, ...partial } : s
-          ),
-        }));
-        debouncedSaveToHistory(getState());
-      },
-
-      removeShape: (shapeId: string) => {
-        setState((prev) => ({
-          ...prev,
-          shapeInstances: prev.shapeInstances.filter((s) => s.id !== shapeId),
-          selectedShapeId: prev.selectedShapeId === shapeId ? null : prev.selectedShapeId,
-        }));
-        saveToHistory(getState());
-      },
-
-      // === Illustration Actions ===
-      addIllustration: async (id: string) => {
-        const newIllustration = await createIllustration(id, CANVAS_WIDTH, CANVAS_HEIGHT);
-        setState((prev) => ({
-          ...prev,
-          illustrationInstances: [...prev.illustrationInstances, newIllustration],
-          selectedIllustrationId: newIllustration.id,
-        }));
-        saveToHistory({
-          ...getState(),
-          illustrationInstances: [...getState().illustrationInstances, newIllustration],
-          selectedIllustrationId: newIllustration.id,
-        });
-      },
-
-      updateIllustration: (illustrationId: string, partial: Partial<IllustrationInstance>) => {
-        setState((prev) => ({
-          ...prev,
-          illustrationInstances: prev.illustrationInstances.map(
-            (i): IllustrationInstance =>
-              i.id === illustrationId ? ({ ...i, ...partial } as IllustrationInstance) : i
-          ),
-        }));
-        debouncedSaveToHistory(getState());
-      },
-
-      removeIllustration: (illustrationId: string) => {
-        setState((prev) => ({
-          ...prev,
-          illustrationInstances: prev.illustrationInstances.filter((i) => i.id !== illustrationId),
-          selectedIllustrationId:
-            prev.selectedIllustrationId === illustrationId ? null : prev.selectedIllustrationId,
-        }));
-        saveToHistory(getState());
-      },
-
-      duplicateIllustration: (illustrationId: string) => {
-        const original = getState().illustrationInstances.find((i) => i.id === illustrationId);
-        if (!original) return;
-
-        const duplicate: IllustrationInstance = {
-          ...original,
-          id: `illustration-${Date.now()}`,
-          x: original.x + 20,
-          y: original.y + 20,
-        };
-
-        setState((prev) => ({
-          ...prev,
-          illustrationInstances: [...prev.illustrationInstances, duplicate],
-          selectedIllustrationId: duplicate.id,
-        }));
-        saveToHistory({
-          ...getState(),
-          illustrationInstances: [...getState().illustrationInstances, duplicate],
-        });
-      },
-
-      handleIllustrationDragEnd: (illustrationId: string, x: number, y: number) => {
-        setState((prev) => ({
-          ...prev,
-          illustrationInstances: prev.illustrationInstances.map((i) =>
-            i.id === illustrationId ? { ...i, x, y } : i
-          ),
-        }));
-        saveToHistory(getState());
-      },
-
-      handleIllustrationTransformEnd: (
-        illustrationId: string,
-        width: number,
-        height: number,
-        rotation?: number
-      ) => {
-        setState((prev) => ({
-          ...prev,
-          illustrationInstances: prev.illustrationInstances.map((i) =>
-            i.id === illustrationId
-              ? { ...i, width, height, ...(rotation !== undefined ? { rotation } : {}) }
-              : i
-          ),
-        }));
-        saveToHistory(getState());
-      },
-
-      // === Additional Text Actions ===
+      // === Additional Text Actions (Dreizeilen-specific with Arvo font) ===
       addHeader: () => {
         const id = `text-${Date.now()}`;
         const layout = calculateLayout(getState());
@@ -837,7 +666,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           y: ADDITIONAL_TEXT_DEFAULTS.header.offsetY,
           width: ADDITIONAL_TEXT_DEFAULTS.header.width,
           fontSize: ADDITIONAL_TEXT_DEFAULTS.header.fontSize,
-          fontFamily: 'Arvo, serif',
+          fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
           fontStyle: ADDITIONAL_TEXT_DEFAULTS.header.fontStyle,
           fill: colorScheme?.fontColor ?? '#FFFFFF',
           rotation: 0,
@@ -869,7 +698,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           y: ADDITIONAL_TEXT_DEFAULTS.body.offsetY,
           width: ADDITIONAL_TEXT_DEFAULTS.body.width,
           fontSize: ADDITIONAL_TEXT_DEFAULTS.body.fontSize,
-          fontFamily: 'Arvo, serif',
+          fontFamily: 'PT Sans, Arial, sans-serif',
           fontStyle: ADDITIONAL_TEXT_DEFAULTS.body.fontStyle,
           fill: colorScheme?.fontColor ?? '#FFFFFF',
           rotation: 0,
@@ -886,7 +715,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         });
       },
 
-      updateAdditionalText: (textId: string, partial) => {
+      updateAdditionalText: (textId: string, partial: Partial<AdditionalText>) => {
         setState((prev) => ({
           ...prev,
           additionalTexts: prev.additionalTexts.map((t) =>

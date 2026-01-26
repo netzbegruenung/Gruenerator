@@ -46,20 +46,23 @@ Analysiere diese Kommunikation auf Risiken und bereite Counter-Speech vor.`;
     systemRole,
     request: userMessage,
     constraints: 'Antwort: 1-2 kompakte Absätze, maximal 1000 Zeichen.',
-    formatting: MARKDOWN_FORMATTING_INSTRUCTIONS
+    formatting: MARKDOWN_FORMATTING_INSTRUCTIONS,
   });
 
-  const aiResult = await req.app.locals.aiWorkerPool.processRequest({
-    type: 'social',
-    usePrivacyMode: request.usePrivacyMode || false,
-    systemPrompt: promptResult.system,
-    messages: promptResult.messages,
-    options: {
-      max_tokens: 800,
-      temperature: 0.6,
-      top_p: 0.85
-    }
-  }, req);
+  const aiResult = await req.app.locals.aiWorkerPool.processRequest(
+    {
+      type: 'social',
+      usePrivacyMode: request.usePrivacyMode || false,
+      systemPrompt: promptResult.system,
+      messages: promptResult.messages,
+      options: {
+        max_tokens: 800,
+        temperature: 0.6,
+        top_p: 0.85,
+      },
+    },
+    req
+  );
 
   return aiResult.content || aiResult.data?.content || '';
 }

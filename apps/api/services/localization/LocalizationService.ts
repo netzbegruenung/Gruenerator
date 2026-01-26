@@ -8,7 +8,7 @@ import type { Locale, LocalizationKey, LocaleMappings, RequestWithLocale } from 
 // Party name mappings based on locale
 export const PARTY_NAMES: Record<Locale, string> = {
   'de-DE': 'Bündnis 90/Die Grünen',
-  'de-AT': 'Die Grünen – Die Grüne Alternative'
+  'de-AT': 'Die Grünen – Die Grüne Alternative',
 };
 
 // All available localized text mappings
@@ -16,13 +16,13 @@ export const LOCALE_MAPPINGS: LocaleMappings = {
   'de-DE': {
     partyName: PARTY_NAMES['de-DE'],
     partyNameGenitive: 'von Bündnis 90/Die Grünen',
-    partyNameShort: 'Die Grünen'
+    partyNameShort: 'Die Grünen',
   },
   'de-AT': {
     partyName: PARTY_NAMES['de-AT'],
     partyNameGenitive: 'von Die Grünen – Die Grüne Alternative',
-    partyNameShort: 'Die Grünen'
-  }
+    partyNameShort: 'Die Grünen',
+  },
 };
 
 export class LocalizationService {

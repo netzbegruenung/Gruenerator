@@ -2,28 +2,28 @@
  * Options for useEditableDetail hook
  */
 export interface UseEditableDetailOptions {
-    entityId: string;
-    entity: unknown;
-    updateFn: (entityId: string, data: unknown) => Promise<unknown>;
-    onSuccessMessage: (message: string) => void;
-    onErrorMessage: (message: string) => void;
-    entityType?: 'generator' | 'notebook';
+  entityId: string;
+  entity: unknown;
+  updateFn: (entityId: string, data: unknown) => Promise<unknown>;
+  onSuccessMessage: (message: string) => void;
+  onErrorMessage: (message: string) => void;
+  entityType?: 'generator' | 'notebook';
 }
 
 /**
  * Return value from useEditableDetail hook
  */
 export interface UseEditableDetailReturn {
-    isEditing: boolean;
-    editData: Record<string, unknown> | null;
-    isLoading: boolean;
-    validationErrors: Record<string, string> | null;
-    startEdit: () => void;
-    cancelEdit: () => void;
-    saveEdit: () => Promise<void>;
-    updateField: (field: string, value: unknown) => void;
-    getDisplayValue: (field: string) => unknown;
-    hasChanges: boolean;
+  isEditing: boolean;
+  editData: Record<string, unknown> | null;
+  isLoading: boolean;
+  validationErrors: Record<string, string> | null;
+  startEdit: () => void;
+  cancelEdit: () => void;
+  saveEdit: () => Promise<void>;
+  updateField: (field: string, value: unknown) => void;
+  getDisplayValue: (field: string) => unknown;
+  hasChanges: boolean;
 }
 
 /**

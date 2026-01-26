@@ -101,14 +101,22 @@ export interface ShareStoreState {
  */
 export interface ShareStoreActions {
   createVideoShare: (params: CreateVideoShareParams) => Promise<Share>;
-  createVideoShareFromToken: (exportToken: string, title?: string, projectId?: string) => Promise<Share>;
+  createVideoShareFromToken: (
+    exportToken: string,
+    title?: string,
+    projectId?: string
+  ) => Promise<Share>;
   createImageShare: (params: CreateImageShareParams) => Promise<Share>;
   updateImageShare: (params: UpdateImageShareParams) => Promise<Share>;
   fetchUserShares: (mediaType?: ShareMediaType) => Promise<Share[]>;
   fetchImageShares: () => Promise<Share[]>;
   fetchVideoShares: () => Promise<Share[]>;
   deleteShare: (shareToken: string) => Promise<boolean>;
-  saveAsTemplate: (shareToken: string, title: string, visibility: 'private' | 'unlisted' | 'public') => Promise<SaveAsTemplateResponse>;
+  saveAsTemplate: (
+    shareToken: string,
+    title: string,
+    visibility: 'private' | 'unlisted' | 'public'
+  ) => Promise<SaveAsTemplateResponse>;
   clearCurrentShare: () => void;
   clearError: () => void;
   reset: () => void;

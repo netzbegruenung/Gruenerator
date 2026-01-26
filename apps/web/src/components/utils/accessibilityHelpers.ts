@@ -163,7 +163,7 @@ export const getFocusableElements = (container: HTMLElement): HTMLElement[] => {
     'textarea:not([disabled]):not([hidden])',
     'button:not([disabled]):not([hidden])',
     'a[href]:not([disabled]):not([hidden])',
-    '[tabindex]:not([tabindex="-1"]):not([disabled]):not([hidden])'
+    '[tabindex]:not([tabindex="-1"]):not([disabled]):not([hidden])',
   ].join(',');
 
   return Array.from(container.querySelectorAll<HTMLElement>(focusableSelectors)).filter(
@@ -212,14 +212,8 @@ export const enhanceAriaSupport = (formElement: HTMLElement | null): void => {
     }
   });
 
-  if (
-    formElement.tagName === 'FORM' &&
-    !formElement.getAttribute('role')
-  ) {
-    if (
-      !formElement.getAttribute('aria-label') &&
-      !formElement.getAttribute('aria-labelledby')
-    ) {
+  if (formElement.tagName === 'FORM' && !formElement.getAttribute('role')) {
+    if (!formElement.getAttribute('aria-label') && !formElement.getAttribute('aria-labelledby')) {
       const formTitle = formElement.querySelector('h1, h2, h3, .form-title');
       if (formTitle) {
         if (!formTitle.id) {
@@ -278,7 +272,7 @@ export const detectAccessibilityPreferences = (): AccessibilityPreferences => {
     prefersReducedMotion,
     prefersHighContrast,
     prefersDarkMode,
-    forcedColors
+    forcedColors,
   };
 };
 

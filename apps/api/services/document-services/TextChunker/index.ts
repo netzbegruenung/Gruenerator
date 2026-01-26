@@ -19,14 +19,14 @@ export {
   sentenceSegments,
   findPageMarkers,
   createSentenceOverlap,
-  resolvePageNumberForOffset
+  resolvePageNumberForOffset,
 } from './sentenceSegmentation.js';
 
 // Post-processing utilities
 export {
   sentenceRepack,
   enrichChunkWithMetadata,
-  createSlidingWindows
+  createSlidingWindows,
 } from './chunkPostProcessing.js';
 
 // Page marker processing
@@ -39,7 +39,7 @@ export {
   prepareTextForEmbedding,
   isValidText,
   tokensToChars,
-  estimateWords
+  estimateWords,
 } from './validation.js';
 
 // German language rules
@@ -60,5 +60,5 @@ export type {
   DocumentStructure,
   ChunkContext,
   SentenceOverlap,
-  MarkdownMetadata
+  MarkdownMetadata,
 } from './types.js';

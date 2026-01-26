@@ -1,4 +1,5 @@
 import { isDesktopApp } from './platform';
+
 import type { Tab } from '../stores/desktopTabsStore';
 
 const TABS_STORAGE_KEY = 'gruenerator_desktop_tabs';
@@ -32,6 +33,7 @@ export const saveTabs = async (tabs: Tab[], activeTabId: string | null): Promise
         const { mkdir } = await import('@tauri-apps/plugin-fs');
         await mkdir(configDir, { recursive: true });
       } catch {
+        // Directory may already exist, ignore
       }
 
       await writeTextFile(TABS_FILE_NAME, JSON.stringify(state, null, 2), {

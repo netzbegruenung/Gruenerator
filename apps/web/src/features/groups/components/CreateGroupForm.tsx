@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import TextInput from '../../../components/common/Form/Input/TextInput';
 import Spinner from '../../../components/common/Spinner';
 import { useGroups } from '../hooks/useGroups';
@@ -17,7 +18,7 @@ const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onCancel, onSuccess }
     isCreatingGroup,
     isCreateGroupError,
     createGroupError,
-    isCreateGroupSuccess
+    isCreateGroupSuccess,
   } = useGroups({ isActive: true });
 
   // Handle form submission
@@ -35,7 +36,7 @@ const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onCancel, onSuccess }
     createGroup(groupName, {
       onSuccess: (groupId: string) => {
         if (onSuccess) onSuccess(groupId);
-      }
+      },
     });
   };
 
@@ -44,8 +45,8 @@ const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onCancel, onSuccess }
       <div className="create-group-header">
         <h2>Neue Gruppe erstellen</h2>
         <p>
-          Erstelle eine neue Gruppe, um Anweisungen und Wissen mit anderen zu teilen.
-          Als Ersteller wirst du automatisch als Admin hinzugefügt.
+          Erstelle eine neue Gruppe, um Anweisungen und Wissen mit anderen zu teilen. Als Ersteller
+          wirst du automatisch als Admin hinzugefügt.
         </p>
       </div>
 
@@ -79,11 +80,7 @@ const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onCancel, onSuccess }
           >
             Abbrechen
           </button>
-          <button
-            type="submit"
-            className="button primary"
-            disabled={isCreatingGroup}
-          >
+          <button type="submit" className="button primary" disabled={isCreatingGroup}>
             {isCreatingGroup ? <Spinner size="small" /> : 'Gruppe erstellen'}
           </button>
         </div>

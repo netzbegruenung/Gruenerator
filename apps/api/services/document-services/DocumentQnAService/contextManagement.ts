@@ -9,11 +9,7 @@ import type { AgentType } from './types.js';
 /**
  * Generate cache key for document extraction
  */
-export function generateCacheKey(
-  documentIds: string[],
-  agent: AgentType,
-  message: string
-): string {
+export function generateCacheKey(documentIds: string[], agent: AgentType, message: string): string {
   const sortedIds = [...documentIds].sort();
   const messageHash = crypto.createHash('md5').update(message.substring(0, 100)).digest('hex');
   const idsHash = crypto.createHash('md5').update(sortedIds.join(':')).digest('hex');
@@ -24,10 +20,7 @@ export function generateCacheKey(
 /**
  * Get cached knowledge from Redis
  */
-export async function getCachedKnowledge(
-  redis: any,
-  cacheKey: string
-): Promise<string | null> {
+export async function getCachedKnowledge(redis: any, cacheKey: string): Promise<string | null> {
   try {
     const cached = await redis.get(cacheKey);
     if (cached) {

@@ -37,7 +37,9 @@ export function ContentPicker({ visible, onClose }: ContentPickerProps) {
   const selectedDocumentIds = useGeneratorSelectionStore((state) => state.selectedDocumentIds);
   const selectedTextIds = useGeneratorSelectionStore((state) => state.selectedTextIds);
   const attachedFiles = useGeneratorSelectionStore((state) => state.attachedFiles);
-  const toggleDocumentSelection = useGeneratorSelectionStore((state) => state.toggleDocumentSelection);
+  const toggleDocumentSelection = useGeneratorSelectionStore(
+    (state) => state.toggleDocumentSelection
+  );
   const toggleTextSelection = useGeneratorSelectionStore((state) => state.toggleTextSelection);
   const addAttachedFile = useGeneratorSelectionStore((state) => state.addAttachedFile);
   const useAutomaticSearch = useGeneratorSelectionStore((state) => state.useAutomaticSearch);
@@ -51,7 +53,10 @@ export function ContentPicker({ visible, onClose }: ContentPickerProps) {
 
   const handleFilePick = useCallback(async () => {
     if (!DocumentPicker || !FileSystem) {
-      Alert.alert('Nicht verfügbar', 'Datei-Upload ist in diesem Build nicht verfügbar. Bitte App neu bauen.');
+      Alert.alert(
+        'Nicht verfügbar',
+        'Datei-Upload ist in diesem Build nicht verfügbar. Bitte App neu bauen.'
+      );
       return;
     }
 
@@ -90,12 +95,7 @@ export function ContentPicker({ visible, onClose }: ContentPickerProps) {
   const isTextSelected = (id: string) => selectedTextIds.includes(id);
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={[styles.modal, { backgroundColor: theme.background }]}>
           <View style={styles.header}>

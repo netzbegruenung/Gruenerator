@@ -31,7 +31,7 @@ async function compressImageForProcessing(imageSource: string | Blob): Promise<B
     maxWidthOrHeight: MAX_IMAGE_SIZE,
     useWebWorker: true,
     preserveExif: false,
-    fileType: 'image/png'
+    fileType: 'image/png',
   });
 
   return compressedFile;
@@ -44,7 +44,7 @@ export async function removeBackground(
   onProgress?.({
     phase: 'compressing',
     progress: 0,
-    message: 'Bild wird optimiert...'
+    message: 'Bild wird optimiert...',
   });
 
   const compressedBlob = await compressImageForProcessing(imageSource);
@@ -52,13 +52,14 @@ export async function removeBackground(
   onProgress?.({
     phase: 'compressing',
     progress: 1,
-    message: 'Bild wurde optimiert'
+    message: 'Bild wurde optimiert',
   });
 
   const config = {
     progress: (key: string, current: number, total: number) => {
       if (onProgress) {
-        const isDownloading = key.includes('fetch') || key.includes('model') || key.includes('download');
+        const isDownloading =
+          key.includes('fetch') || key.includes('model') || key.includes('download');
         const phase = isDownloading ? 'downloading' : 'processing';
         const percentage = Math.round((current / total) * 100);
 
@@ -69,10 +70,10 @@ export async function removeBackground(
         onProgress({
           phase,
           progress: current / total,
-          message
+          message,
         });
       }
-    }
+    },
   };
 
   const blob = await imglyRemoveBackground(compressedBlob, config);

@@ -1,4 +1,10 @@
-import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
+import {
+  createCanvas,
+  loadImage,
+  type Canvas,
+  type SKRSContext2D as CanvasRenderingContext2D,
+  type Image,
+} from '@napi-rs/canvas';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { Router, Request, Response } from 'express';
@@ -7,7 +13,10 @@ import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import {
+  optimizeCanvasBuffer,
+  bufferToBase64,
+} from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,10 +58,10 @@ async function addTextToImage(
 ): Promise<void> {
   try {
     log.debug('Lade Bild:', imagePath);
-    const [image, quotationMark] = await Promise.all([
+    const [image, quotationMark] = (await Promise.all([
       loadImage(imagePath),
-      loadImage(quotationMarkPath)
-    ]) as [Image, Image];
+      loadImage(quotationMarkPath),
+    ])) as [Image, Image];
     log.debug('Bilder erfolgreich geladen');
 
     const canvas: Canvas = createCanvas(1080, 1350);
@@ -131,48 +140,52 @@ async function addTextToImage(
   }
 }
 
-router.post('/', upload.single('image'), async (req: MulterRequest, res: Response): Promise<void> => {
-  let outputImagePath: string | undefined;
-  try {
-    const { quote, name, fontSize: fontSizeParam } = req.body as ZitatRequestBody;
+router.post(
+  '/',
+  upload.single('image'),
+  async (req: MulterRequest, res: Response): Promise<void> => {
+    let outputImagePath: string | undefined;
+    try {
+      const { quote, name, fontSize: fontSizeParam } = req.body as ZitatRequestBody;
 
-    if (!quote || typeof quote !== 'string') {
-      throw new Error('Zitat ist erforderlich');
-    }
-    if (!name || typeof name !== 'string') {
-      throw new Error('Name ist erforderlich');
-    }
-    if (!req.file) {
-      throw new Error('Bild ist erforderlich');
-    }
+      if (!quote || typeof quote !== 'string') {
+        throw new Error('Zitat ist erforderlich');
+      }
+      if (!name || typeof name !== 'string') {
+        throw new Error('Name ist erforderlich');
+      }
+      if (!req.file) {
+        throw new Error('Bild ist erforderlich');
+      }
 
-    const fontSize = Math.max(45, Math.min(80, parseInt(fontSizeParam || '60', 10) || 60));
+      const fontSize = Math.max(45, Math.min(80, parseInt(fontSizeParam || '60', 10) || 60));
 
-    const imagePath = req.file.path;
-    outputImagePath = path.join('uploads', `output-${uuidv4()}.png`);
+      const imagePath = req.file.path;
+      outputImagePath = path.join('uploads', `output-${uuidv4()}.png`);
 
-    await addTextToImage(imagePath, outputImagePath, quote, name, fontSize);
+      await addTextToImage(imagePath, outputImagePath, quote, name, fontSize);
 
-    const imageBuffer = fs.readFileSync(outputImagePath);
-    const base64Image = bufferToBase64(imageBuffer);
+      const imageBuffer = fs.readFileSync(outputImagePath);
+      const base64Image = bufferToBase64(imageBuffer);
 
-    res.json({ image: base64Image });
-  } catch (err) {
-    const error = err as Error;
-    log.error('Fehler bei der Anfrage:', error);
-    res.status(500).send('Fehler beim Erstellen des Bildes: ' + error.message);
-  } finally {
-    if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
-      });
-    }
-    if (outputImagePath) {
-      fs.unlink(outputImagePath, (err) => {
-        if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
-      });
+      res.json({ image: base64Image });
+    } catch (err) {
+      const error = err as Error;
+      log.error('Fehler bei der Anfrage:', error);
+      res.status(500).send('Fehler beim Erstellen des Bildes: ' + error.message);
+    } finally {
+      if (req.file) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
+        });
+      }
+      if (outputImagePath) {
+        fs.unlink(outputImagePath, (err) => {
+          if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
+        });
+      }
     }
   }
-});
+);
 
 export default router;

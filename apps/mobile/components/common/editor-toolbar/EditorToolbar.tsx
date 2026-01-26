@@ -40,18 +40,21 @@ export function EditorToolbar({
 
   const [activeTool, setActiveTool] = useState<ToolType | null>(initialActiveTool);
 
-  const handleToolPress = useCallback((tool: ToolConfig) => {
-    if (tool.onPress && !tool.hasPanel) {
-      tool.onPress();
-      return;
-    }
+  const handleToolPress = useCallback(
+    (tool: ToolConfig) => {
+      if (tool.onPress && !tool.hasPanel) {
+        tool.onPress();
+        return;
+      }
 
-    const newActiveTool = activeTool === tool.id ? null : tool.id;
-    setActiveTool(newActiveTool);
-    onActiveToolChange?.(newActiveTool);
-  }, [activeTool, onActiveToolChange]);
+      const newActiveTool = activeTool === tool.id ? null : tool.id;
+      setActiveTool(newActiveTool);
+      onActiveToolChange?.(newActiveTool);
+    },
+    [activeTool, onActiveToolChange]
+  );
 
-  const activeToolConfig = tools.find(t => t.id === activeTool && t.hasPanel);
+  const activeToolConfig = tools.find((t) => t.id === activeTool && t.hasPanel);
 
   return (
     <View

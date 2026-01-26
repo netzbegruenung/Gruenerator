@@ -15,4 +15,4 @@ export const useSimpleFormStore = create<SimpleFormState>((set, get) => ({
     set((state) => ({ fields: { ...state.fields, [name]: value } })),
   getField: (name: string) => get().fields[name],
   reset: () => set({ fields: {} }),
-})); 
+}));

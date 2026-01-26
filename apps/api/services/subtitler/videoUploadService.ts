@@ -47,19 +47,19 @@ async function getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
         return;
       }
 
-      const videoStream = metadata.streams.find(s => s.codec_type === 'video');
+      const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
       if (!videoStream) {
         reject(new Error('Kein Video-Stream gefunden'));
         return;
       }
 
-      const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+      const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
       const rotation = videoStream.tags?.rotate || '0';
       const isVertical = rotation === '90' || rotation === '270';
 
-      const width = isVertical ? (videoStream.height || 0) : (videoStream.width || 0);
-      const height = isVertical ? (videoStream.width || 0) : (videoStream.height || 0);
+      const width = isVertical ? videoStream.height || 0 : videoStream.width || 0;
+      const height = isVertical ? videoStream.width || 0 : videoStream.height || 0;
 
       let fps = 0;
       if (videoStream.r_frame_rate) {
@@ -82,8 +82,8 @@ async function getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
           level: videoStream.level,
           videoBitrate: videoStream.bit_rate ? parseInt(videoStream.bit_rate) : null,
           audioCodec: audioStream?.codec_name || null,
-          audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) : null
-        }
+          audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) : null,
+        },
       });
     });
   });
@@ -97,15 +97,18 @@ async function extractAudio(videoPath: string, outputPath: string): Promise<stri
   }
 
   return new Promise((resolve, reject) => {
-    const command = ffmpeg(videoPath)
-      .outputOptions([
-        '-vn',
-        '-ar', '16000',
-        '-ac', '1',
-        '-c:a', 'libmp3lame',
-        '-q:a', '4',
-        '-y'
-      ]);
+    const command = ffmpeg(videoPath).outputOptions([
+      '-vn',
+      '-ar',
+      '16000',
+      '-ac',
+      '1',
+      '-c:a',
+      'libmp3lame',
+      '-q:a',
+      '4',
+      '-y',
+    ]);
 
     command.on('start', (commandLine: string) => {
       log.debug('FFmpeg Befehl:', commandLine);

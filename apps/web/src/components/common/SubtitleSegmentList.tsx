@@ -1,4 +1,4 @@
-import { JSX, useState, useRef, useEffect } from 'react';
+import { type JSX, useState, useRef, useEffect } from 'react';
 
 import './SubtitleSegmentList.css';
 
@@ -7,7 +7,7 @@ interface SubtitleSegmentListProps {
     id?: number;
     startTime?: number;
     endTime: number;
-    text: string
+    text: string;
   }[];
   currentTime?: number;
   selectedSegmentId?: number;
@@ -19,7 +19,8 @@ interface SubtitleSegmentListProps {
   columns?: number;
 }
 
-const SubtitleSegmentList = ({ segments,
+const SubtitleSegmentList = ({
+  segments,
   currentTime,
   selectedSegmentId,
   correctedSegmentIds = new Set<number>(),
@@ -27,14 +28,17 @@ const SubtitleSegmentList = ({ segments,
   onTextChange,
   onSeek,
   formatTime,
-  columns = 3 }: SubtitleSegmentListProps): JSX.Element => {
+  columns = 3,
+}: SubtitleSegmentListProps): JSX.Element => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const segmentRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const getActiveSegmentId = () => {
     if (currentTime === undefined) return null;
-    const active = segments.find(s => s.startTime !== undefined && currentTime >= s.startTime && currentTime < s.endTime);
+    const active = segments.find(
+      (s) => s.startTime !== undefined && currentTime >= s.startTime && currentTime < s.endTime
+    );
     return active?.id ?? null;
   };
 
@@ -78,10 +82,7 @@ const SubtitleSegmentList = ({ segments,
   const timeFormatter = formatTime || defaultFormatTime;
 
   return (
-    <div
-      className="subtitle-segment-list"
-      style={{ '--columns': columns }}
-    >
+    <div className="subtitle-segment-list" style={{ '--columns': columns }}>
       {segments.map((segment) => {
         const isActive = activeSegmentId === segment.id;
         const isSelected = selectedSegmentId === segment.id;
@@ -91,7 +92,9 @@ const SubtitleSegmentList = ({ segments,
         return (
           <div
             key={segment.id}
-            ref={(el: HTMLDivElement | null) => { if (segment.id !== undefined) segmentRefs.current[segment.id] = el; }}
+            ref={(el: HTMLDivElement | null) => {
+              if (segment.id !== undefined) segmentRefs.current[segment.id] = el;
+            }}
             className={`subtitle-segment ${isActive ? 'subtitle-segment--active' : ''} ${isSelected ? 'subtitle-segment--selected' : ''} ${isEditing ? 'subtitle-segment--editing' : ''} ${isCorrected ? 'subtitle-segment--corrected' : ''}`}
             onClick={() => handleSegmentClick(segment)}
           >
@@ -101,7 +104,9 @@ const SubtitleSegmentList = ({ segments,
                 type="text"
                 className="subtitle-segment__input"
                 value={segment.text}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => segment.id !== undefined && onTextChange?.(segment.id, e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  segment.id !== undefined && onTextChange?.(segment.id, e.target.value)
+                }
                 onBlur={handleInputBlur}
                 onKeyDown={handleInputKeyDown}
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
@@ -109,9 +114,7 @@ const SubtitleSegmentList = ({ segments,
             ) : (
               <span className="subtitle-segment__text">{segment.text}</span>
             )}
-            <span className="subtitle-segment__time">
-              {timeFormatter(segment.startTime || 0)}
-            </span>
+            <span className="subtitle-segment__time">{timeFormatter(segment.startTime || 0)}</span>
           </div>
         );
       })}

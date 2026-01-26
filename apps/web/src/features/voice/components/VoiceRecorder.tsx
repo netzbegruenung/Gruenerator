@@ -1,8 +1,9 @@
-import { JSX, useEffect } from 'react';
+import { type JSX, useEffect } from 'react';
 import { FaMicrophone, FaStop, FaRedo } from 'react-icons/fa';
-import useVoiceRecorder from '../hooks/useVoiceRecorder';
+
 import Spinner from '../../../components/common/Spinner';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import useVoiceRecorder from '../hooks/useVoiceRecorder';
 
 // Voice Feature CSS - Loaded only when this feature is accessed
 import '../styles/VoiceRecorder.css';
@@ -19,7 +20,7 @@ const VoiceRecorder = ({ onTranscriptionComplete }: VoiceRecorderProps): JSX.Ele
     startRecording,
     stopRecording,
     processRecording,
-    retryTranscription
+    retryTranscription,
   } = useVoiceRecorder(onTranscriptionComplete);
 
   // Verarbeite die Aufnahme automatisch, wenn sie gestoppt wurde

@@ -26,19 +26,27 @@ const AntragDetailView = ({ antrag, onClose }: AntragDetailViewProps) => {
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '–';
     return new Date(dateString).toLocaleString('de-DE', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit'
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
   const getStatusClass = (status: string | undefined) => {
     const statusLower = status?.toLowerCase() || 'unbekannt';
     switch (statusLower) {
-      case 'angenommen': return 'status-angenommen';
-      case 'in bearbeitung': return 'status-in-bearbeitung';
-      case 'abgelehnt': return 'status-abgelehnt';
-      case 'neu': return 'status-neu';
-      default: return 'status-unbekannt';
+      case 'angenommen':
+        return 'status-angenommen';
+      case 'in bearbeitung':
+        return 'status-in-bearbeitung';
+      case 'abgelehnt':
+        return 'status-abgelehnt';
+      case 'neu':
+        return 'status-neu';
+      default:
+        return 'status-unbekannt';
     }
   };
 
@@ -62,25 +70,26 @@ const AntragDetailView = ({ antrag, onClose }: AntragDetailViewProps) => {
             {antrag.tags && antrag.tags.length > 0 && (
               <div className="header-tags-container">
                 {antrag.tags.map((tag: string) => (
-                  <span key={tag} className="tag-chip">{tag}</span>
+                  <span key={tag} className="tag-chip">
+                    {tag}
+                  </span>
                 ))}
               </div>
             )}
           </div>
           {/* Right side for Status Badge */}
           {antrag.status && (
-             <span className={`status-badge ${getStatusClass(antrag.status)}`}>
-               {/* Optionally add "Status: " text if needed, concept only shows value */}
-               {antrag.status}
-             </span>
-           )}
+            <span className={`status-badge ${getStatusClass(antrag.status)}`}>
+              {/* Optionally add "Status: " text if needed, concept only shows value */}
+              {antrag.status}
+            </span>
+          )}
         </div>
         {/* --- End Header Section --- */}
 
         {/* --- Container for Meta Layout (No Tags Section anymore) --- */}
         {/* Renamed container class for clarity */}
         <div className="antrag-detail-meta-cards-container">
-
           {/* --- Row 1: Grid for Cards --- */}
           <div className="meta-cards-row-1">
             {/* Card 1: Timestamps */}
@@ -113,16 +122,14 @@ const AntragDetailView = ({ antrag, onClose }: AntragDetailViewProps) => {
                   </div>
                 )}
               </div>
-             )}
-             {/* Placeholder if contact info is missing, to keep grid layout stable? Or let it collapse? */}
-             {/* For now, let it collapse if contact info is missing */}
-
+            )}
+            {/* Placeholder if contact info is missing, to keep grid layout stable? Or let it collapse? */}
+            {/* For now, let it collapse if contact info is missing */}
           </div>
           {/* --- End Row 1 --- */}
 
           {/* --- Section 2: Tags (Removed) --- */}
           {/* The .meta-tags-section div is completely removed */}
-
         </div>
         {/* --- End Meta Cards Container --- */}
 
@@ -140,7 +147,9 @@ const AntragDetailView = ({ antrag, onClose }: AntragDetailViewProps) => {
           {antrag.antragstext ? (
             <Markdown>{antrag.antragstext}</Markdown>
           ) : (
-            <p><em>Kein Text vorhanden.</em></p>
+            <p>
+              <em>Kein Text vorhanden.</em>
+            </p>
           )}
         </div>
 

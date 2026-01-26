@@ -9,10 +9,10 @@ services:
       context: ../../..
       dockerfile: apps/sites/docker/Dockerfile
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - '${PORT:-3000}:${PORT:-3000}'
     environment:
       - PORT=${PORT:-3000}
       - API_BASE_URL=${API_BASE_URL:-http://host.docker.internal:3001}
     restart: unless-stopped
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'

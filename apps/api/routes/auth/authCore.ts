@@ -9,7 +9,12 @@ import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 import { getOriginDomain, isAllowedDomain, buildDomainUrl } from '../../utils/domainUtils.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
-import type { AuthRequest, AuthSessionRequest, LocaleUpdateBody, AuthStatusResponse } from './types.js';
+import type {
+  AuthRequest,
+  AuthSessionRequest,
+  LocaleUpdateBody,
+  AuthStatusResponse,
+} from './types.js';
 
 const log = createLogger('authCore');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -114,7 +119,7 @@ router.get('/test', (_req: AuthRequest, res: Response): void => {
   res.json({
     success: true,
     message: 'Auth routes are working',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -122,88 +127,89 @@ router.get('/test', (_req: AuthRequest, res: Response): void => {
 // Login Flow
 // ============================================================================
 
-router.get('/login', checkSessionHealth, async (
-  req: AuthSessionRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  const source = req.query.source as string | undefined;
-  const redirectTo = req.query.redirectTo as string | undefined;
-  const prompt = req.query.prompt as string | undefined;
+router.get(
+  '/login',
+  checkSessionHealth,
+  async (req: AuthSessionRequest, res: Response, next: NextFunction): Promise<void> => {
+    const source = req.query.source as string | undefined;
+    const redirectTo = req.query.redirectTo as string | undefined;
+    const prompt = req.query.prompt as string | undefined;
 
-  const originDomain = getOriginDomain(req);
-  if (isAllowedDomain(originDomain)) {
-    req.session.originDomain = originDomain;
-    log.debug(`[Auth Login] Stored origin domain: ${originDomain}`);
-  }
-
-  if (redirectTo) {
-    req.session.redirectTo = redirectTo;
-  }
-
-  if (source) {
-    req.session.preferredSource = source;
-  }
-
-  if (prompt === 'register') {
-    req.session.isRegistration = true;
-  }
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Session save timeout before auth'));
-      }, 3000);
-
-      req.session.save((err) => {
-        clearTimeout(timeout);
-        if (err) {
-          log.error('[Auth Login] Failed to save session before auth:', err);
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-  } catch (error) {
-    log.error('[Auth Login] Session save error:', error);
-    res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
-    return;
-  }
-
-  const options: Record<string, string> = {
-    scope: 'openid profile email offline_access',
-  };
-
-  if (source === 'netzbegruenung-login') {
-    options.kc_idp_hint = 'netzbegruenung';
-    options.prompt = 'login';
-  } else if (source === 'gruenes-netz-login') {
-    options.kc_idp_hint = 'gruenes-netz';
-    options.prompt = 'login';
-  } else if (source === 'gruene-oesterreich-login') {
-    options.kc_idp_hint = 'gruene-at-login';
-    options.prompt = 'login';
-  } else if (source === 'gruenerator-login') {
-    options.kc_idp_hint = 'gruenerator-user';
-    if (prompt === 'register') {
-      options.prompt = 'register';
-    } else {
-      options.prompt = 'login';
+    const originDomain = getOriginDomain(req);
+    if (isAllowedDomain(originDomain)) {
+      req.session.originDomain = originDomain;
+      log.debug(`[Auth Login] Stored origin domain: ${originDomain}`);
     }
-  }
 
-  passport.authenticate('oidc', options)(req, res, next);
-});
+    if (redirectTo) {
+      req.session.redirectTo = redirectTo;
+    }
+
+    if (source) {
+      req.session.preferredSource = source;
+    }
+
+    if (prompt === 'register') {
+      req.session.isRegistration = true;
+    }
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Session save timeout before auth'));
+        }, 3000);
+
+        req.session.save((err) => {
+          clearTimeout(timeout);
+          if (err) {
+            log.error('[Auth Login] Failed to save session before auth:', err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+    } catch (error) {
+      log.error('[Auth Login] Session save error:', error);
+      res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
+      return;
+    }
+
+    const options: Record<string, string> = {
+      scope: 'openid profile email offline_access',
+    };
+
+    if (source === 'netzbegruenung-login') {
+      options.kc_idp_hint = 'netzbegruenung';
+      options.prompt = 'login';
+    } else if (source === 'gruenes-netz-login') {
+      options.kc_idp_hint = 'gruenes-netz';
+      options.prompt = 'login';
+    } else if (source === 'gruene-oesterreich-login') {
+      options.kc_idp_hint = 'gruene-at-login';
+      options.prompt = 'login';
+    } else if (source === 'gruenerator-login') {
+      options.kc_idp_hint = 'gruenerator-user';
+      if (prompt === 'register') {
+        options.prompt = 'register';
+      } else {
+        options.prompt = 'login';
+      }
+    }
+
+    passport.authenticate('oidc', options)(req, res, next);
+  }
+);
 
 // ============================================================================
 // OIDC Callback
 // ============================================================================
 
-router.get('/callback',
+router.get(
+  '/callback',
   passport.authenticate('oidc', {
     failureRedirect: '/auth/error',
-    failureMessage: true
+    failureMessage: true,
   }),
   async (req: AuthSessionRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -229,7 +235,7 @@ router.get('/callback',
             token_use: 'app_login_code',
             sub: req.user?.id,
             keycloak_id: req.user?.keycloak_id || null,
-            jti
+            jti,
           })
             .setProtectedHeader({ alg: 'HS256' })
             .setIssuedAt()
@@ -252,12 +258,17 @@ router.get('/callback',
       }
 
       const originDomain = req.user?._originDomain || req.session.originDomain;
-      const originSource = req.user?._originDomain ? 'user._originDomain' : (req.session.originDomain ? 'session' : 'none');
+      const originSource = req.user?._originDomain
+        ? 'user._originDomain'
+        : req.session.originDomain
+          ? 'session'
+          : 'none';
       log.debug(`[AuthCallback] originDomain=${originDomain} (source: ${originSource})`);
 
-      const isSecure = process.env.NODE_ENV === 'production' ||
-                       req.secure ||
-                       req.headers['x-forwarded-proto'] === 'https';
+      const isSecure =
+        process.env.NODE_ENV === 'production' ||
+        req.secure ||
+        req.headers['x-forwarded-proto'] === 'https';
 
       if (req.user && req.user._originDomain) {
         delete req.user._originDomain;
@@ -293,7 +304,6 @@ router.get('/callback',
         }
         res.redirect(absoluteRedirect);
       });
-
     } catch (error) {
       log.error('[AuthCallback] General error in OIDC callback:', error);
       next(error);
@@ -307,7 +317,7 @@ router.get('/callback',
 
 router.get('/status', async (req: AuthSessionRequest, res: Response): Promise<void> => {
   if (req.session && !req.user && req.session.passport?.user) {
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
   }
 
   const finalIsAuth = req.isAuthenticated() && req.user;
@@ -315,7 +325,7 @@ router.get('/status', async (req: AuthSessionRequest, res: Response): Promise<vo
   if (finalIsAuth) {
     const userWithLocale = {
       ...req.user,
-      locale: req.user!.locale || 'de-DE'
+      locale: req.user!.locale || 'de-DE',
     };
     res.json({ isAuthenticated: true, user: userWithLocale } as AuthStatusResponse);
     return;
@@ -327,7 +337,7 @@ router.get('/status-test', (req: AuthRequest, res: Response): void => {
   res.json({
     message: 'Status test route works',
     timestamp: new Date().toISOString(),
-    sessionID: req.sessionID
+    sessionID: req.sessionID,
   });
 });
 
@@ -341,9 +351,15 @@ router.get('/error', (req: AuthSessionRequest, res: Response): void => {
   const keycloakError = req.session?.messages?.slice(-1)[0];
   if (req.session?.messages) delete req.session.messages;
 
-  log.error(`[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}, Keycloak: ${keycloakError || 'none'}`);
+  log.error(
+    `[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}, Keycloak: ${keycloakError || 'none'}`
+  );
 
-  res.status(401).send(`Authentication Error: ${errorCode}. Please try again or contact support with correlation ID: ${correlationId}`);
+  res
+    .status(401)
+    .send(
+      `Authentication Error: ${errorCode}. Please try again or contact support with correlation ID: ${correlationId}`
+    );
 });
 
 // ============================================================================
@@ -360,20 +376,20 @@ router.get('/logout', async (req: AuthRequest, res: Response): Promise<void> => 
     }
   }
 
-  req.logout(function(err) {
+  req.logout(function (err) {
     if (err) {
-      log.error("Failed to logout user:", err);
+      log.error('Failed to logout user:', err);
     }
 
     req.session.destroy((destroyErr) => {
       if (destroyErr) {
-        log.error("[Auth Core GET /logout] Session destruction error:", destroyErr);
+        log.error('[Auth Core GET /logout] Session destruction error:', destroyErr);
       }
 
       res.clearCookie('gruenerator.sid', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
+        sameSite: 'lax',
       });
 
       res.status(200).json({ success: true, message: 'Logout completed', sessionCleared: true });
@@ -382,7 +398,8 @@ router.get('/logout', async (req: AuthRequest, res: Response): Promise<void> => 
 });
 
 router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> => {
-  const keycloakBaseUrl = process.env.KEYCLOAK_BASE_URL || 'https://auth.services.moritz-waechter.de';
+  const keycloakBaseUrl =
+    process.env.KEYCLOAK_BASE_URL || 'https://auth.services.moritz-waechter.de';
   const keycloakLogoutUrl = `${keycloakBaseUrl}/realms/Gruenerator/protocol/openid-connect/logout`;
 
   const originalSessionId = req.sessionID;
@@ -405,19 +422,19 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
       sessionCleared: true,
       redirectToHome: true,
       alreadyLoggedOut: true,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
     return;
   }
 
-  req.logout(function(err) {
+  req.logout(function (err) {
     if (err) {
-      log.error("[Auth Core POST /logout] Passport logout error:", err);
+      log.error('[Auth Core POST /logout] Passport logout error:', err);
     }
 
     req.session.destroy((destroyErr) => {
       if (destroyErr) {
-        log.error("[Auth Core POST /logout] Session destruction error:", destroyErr);
+        log.error('[Auth Core POST /logout] Session destruction error:', destroyErr);
 
         res.status(500).json({
           success: false,
@@ -427,8 +444,10 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
           cookieCleared: false,
           originalSessionId: originalSessionId,
           timestamp: Date.now(),
-          keycloakBackgroundLogoutUrl: idToken ? `${keycloakLogoutUrl}?id_token_hint=${idToken}` : null,
-          recoveryInstructions: 'Clear browser cookies manually and try again'
+          keycloakBackgroundLogoutUrl: idToken
+            ? `${keycloakLogoutUrl}?id_token_hint=${idToken}`
+            : null,
+          recoveryInstructions: 'Clear browser cookies manually and try again',
         });
         return;
       }
@@ -436,7 +455,7 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
       res.clearCookie('gruenerator.sid', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
+        sameSite: 'lax',
       });
 
       let keycloakBackgroundLogoutUrl: string | null = null;
@@ -454,7 +473,7 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
         originalSessionId: originalSessionId,
         timestamp: Date.now(),
         keycloakBackgroundLogoutUrl: keycloakBackgroundLogoutUrl,
-        authentikBackgroundLogoutUrl: keycloakBackgroundLogoutUrl
+        authentikBackgroundLogoutUrl: keycloakBackgroundLogoutUrl,
       });
     });
   });
@@ -473,50 +492,53 @@ router.get('/locale', ensureAuthenticated as any, (req: AuthRequest, res: Respon
     const userLocale = req.user?.locale || 'de-DE';
     res.json({
       success: true,
-      locale: userLocale
+      locale: userLocale,
     });
   } catch (error) {
     log.error('[Auth /locale GET] Error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get locale'
+      error: 'Failed to get locale',
     });
   }
 });
 
-router.put('/locale', ensureAuthenticated as any, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { locale } = req.body as LocaleUpdateBody;
+router.put(
+  '/locale',
+  ensureAuthenticated as any,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { locale } = req.body as LocaleUpdateBody;
 
-    if (!locale || !['de-DE', 'de-AT'].includes(locale)) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid locale. Must be de-DE or de-AT'
+      if (!locale || !['de-DE', 'de-AT'].includes(locale)) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid locale. Must be de-DE or de-AT',
+        });
+        return;
+      }
+
+      const { getProfileService } = await import('../../services/user/ProfileService.js');
+      const profileService = getProfileService();
+
+      await profileService.updateProfile(req.user!.id, { locale });
+
+      req.user!.locale = locale;
+
+      res.json({
+        success: true,
+        message: 'Locale updated successfully',
+        locale: locale,
       });
-      return;
+    } catch (error) {
+      log.error('[Auth /locale PUT] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update locale',
+      });
     }
-
-    const { getProfileService } = await import('../../services/user/ProfileService.js');
-    const profileService = getProfileService();
-
-    await profileService.updateProfile(req.user!.id, { locale });
-
-    req.user!.locale = locale;
-
-    res.json({
-      success: true,
-      message: 'Locale updated successfully',
-      locale: locale
-    });
-
-  } catch (error) {
-    log.error('[Auth /locale PUT] Error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update locale'
-    });
   }
-});
+);
 
 // ============================================================================
 // Debug Routes (Development Only)
@@ -531,17 +553,17 @@ if (process.env.NODE_ENV !== 'production') {
         user: req.user || null,
         cookie: req.session.cookie,
         maxAge: req.session.cookie.maxAge,
-        sessionData: req.session
+        sessionData: req.session,
       },
       headers: {
         'user-agent': req.headers['user-agent'],
         'x-forwarded-for': req.headers['x-forwarded-for'],
-        'x-real-ip': req.headers['x-real-ip']
+        'x-real-ip': req.headers['x-real-ip'],
       },
       environment: {
         NODE_ENV: process.env.NODE_ENV,
-        BASE_URL: process.env.BASE_URL
-      }
+        BASE_URL: process.env.BASE_URL,
+      },
     });
   });
 }

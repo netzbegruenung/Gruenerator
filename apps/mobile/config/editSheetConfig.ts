@@ -36,18 +36,14 @@ export const EDIT_SHEET_CONFIGS: Record<ImageStudioTemplateType, EditSheetConfig
     showCredit: true,
   },
   zitat: {
-    textFields: [
-      { key: 'quote', label: 'Zitat', multiline: true, maxLength: 300 },
-    ],
+    textFields: [{ key: 'quote', label: 'Zitat', multiline: true, maxLength: 300 }],
     showFontSize: true,
     fontSizeType: 'zitat',
     showColorScheme: false,
     showAdvanced: false,
   },
   'zitat-pure': {
-    textFields: [
-      { key: 'quote', label: 'Zitat', multiline: true, maxLength: 300 },
-    ],
+    textFields: [{ key: 'quote', label: 'Zitat', multiline: true, maxLength: 300 }],
     showFontSize: true,
     fontSizeType: 'zitat',
     showColorScheme: false,

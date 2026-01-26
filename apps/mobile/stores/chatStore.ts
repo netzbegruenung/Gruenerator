@@ -35,7 +35,8 @@ type ChatStore = ChatState & ChatActions;
 const initialWelcomeMessage: GrueneratorChatMessage = {
   id: 'welcome',
   type: 'assistant',
-  content: 'Hallo! Ich bin der Grünerator. Wie kann ich dir helfen? Du kannst mich bitten, Texte zu erstellen, Sharepics zu grünerieren, oder einfach Fragen stellen.',
+  content:
+    'Hallo! Ich bin der Grünerator. Wie kann ich dir helfen? Du kannst mich bitten, Texte zu erstellen, Sharepics zu grünerieren, oder einfach Fragen stellen.',
   timestamp: Date.now(),
   agent: 'conversation',
 };
@@ -50,7 +51,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const { messages, pendingAttachments } = get();
     const allAttachments = [...(attachments || []), ...pendingAttachments];
 
-    const userMessage = createUserMessage(text, allAttachments.length > 0 ? allAttachments : undefined);
+    const userMessage = createUserMessage(
+      text,
+      allAttachments.length > 0 ? allAttachments : undefined
+    );
 
     set({
       messages: [...messages, userMessage],

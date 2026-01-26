@@ -16,8 +16,9 @@ import {
   type ReactNode,
 } from 'react';
 import { Stage, Layer } from 'react-konva';
-import type Konva from 'konva';
+
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
+import type Konva from 'konva';
 import './CanvasStage.css';
 
 export interface CanvasStageProps {

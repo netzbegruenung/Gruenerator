@@ -9,7 +9,7 @@ import type {
   PlanWorkflowState,
   PlanWorkflowInput,
   PlanWorkflowOutput,
-  PromptConfiguration
+  PromptConfiguration,
 } from './types.js';
 import {
   enrichmentNode,
@@ -17,7 +17,7 @@ import {
   questionsNode,
   revisionNode,
   correctionNode,
-  productionNode
+  productionNode,
 } from './nodes/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -58,7 +58,7 @@ const PlanWorkflowStateAnnotation = Annotation.Root({
 
   // Error handling
   error: Annotation<string | undefined>,
-  success: Annotation<boolean>
+  success: Annotation<boolean>,
 });
 
 /**
@@ -130,7 +130,7 @@ export function createPlanWorkflowGraph() {
       production: 'production',
       revision: 'revision',
       correction: 'correction',
-      [END]: END
+      [END]: END,
     })
     .addEdge('revision', 'production')
     .addEdge('correction', END)
@@ -171,7 +171,7 @@ export function initializePlanWorkflow(
     phasesExecuted: [],
     totalAICalls: 0,
     error: undefined,
-    success: false
+    success: false,
   };
 }
 
@@ -186,7 +186,7 @@ export function resumeWithAnswers(
     ...previousState,
     userAnswers,
     currentPhase: 'revision',
-    phasesExecuted: [...previousState.phasesExecuted, 'answers-provided']
+    phasesExecuted: [...previousState.phasesExecuted, 'answers-provided'],
   };
 }
 
@@ -201,7 +201,7 @@ export function resumeWithCorrections(
     ...previousState,
     userCorrections,
     currentPhase: 'correction',
-    phasesExecuted: [...previousState.phasesExecuted, 'corrections-provided']
+    phasesExecuted: [...previousState.phasesExecuted, 'corrections-provided'],
   };
 }
 
@@ -232,9 +232,9 @@ export async function executePlanWorkflow(
         executionTimeMs,
         phasesExecuted: result.phasesExecuted,
         totalAICalls: result.totalAICalls,
-        generatorType: result.generatorType
+        generatorType: result.generatorType,
       },
-      error: result.error
+      error: result.error,
     };
   } catch (error: any) {
     console.error('[PlanWorkflow] Execution error:', error);
@@ -245,9 +245,9 @@ export async function executePlanWorkflow(
         executionTimeMs: Date.now() - initialState.startTime,
         phasesExecuted: initialState.phasesExecuted,
         totalAICalls: initialState.totalAICalls,
-        generatorType: initialState.generatorType
+        generatorType: initialState.generatorType,
       },
-      error: `Workflow execution failed: ${error.message}`
+      error: `Workflow execution failed: ${error.message}`,
     };
   }
 }
@@ -265,7 +265,7 @@ export async function resumePlanWorkflowWithAnswers(
   try {
     // Continue from revision node
     const result = await graph.invoke(resumedState, {
-      recursionLimit: 10
+      recursionLimit: 10,
     });
 
     const executionTimeMs = Date.now() - result.startTime;
@@ -281,9 +281,9 @@ export async function resumePlanWorkflowWithAnswers(
         executionTimeMs,
         phasesExecuted: result.phasesExecuted,
         totalAICalls: result.totalAICalls,
-        generatorType: result.generatorType
+        generatorType: result.generatorType,
       },
-      error: result.error
+      error: result.error,
     };
   } catch (error: any) {
     console.error('[PlanWorkflow] Resume execution error:', error);
@@ -294,9 +294,9 @@ export async function resumePlanWorkflowWithAnswers(
         executionTimeMs: Date.now() - resumedState.startTime,
         phasesExecuted: resumedState.phasesExecuted,
         totalAICalls: resumedState.totalAICalls,
-        generatorType: resumedState.generatorType
+        generatorType: resumedState.generatorType,
       },
-      error: `Workflow resume failed: ${error.message}`
+      error: `Workflow resume failed: ${error.message}`,
     };
   }
 }

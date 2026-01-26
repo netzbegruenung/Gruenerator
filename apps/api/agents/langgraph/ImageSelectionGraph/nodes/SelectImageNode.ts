@@ -7,7 +7,9 @@ import type { ImageSelectionState, CatalogImage, AISelectionResponse } from '../
 /**
  * AI selects best image from catalog based on text and sharepic type
  */
-export async function selectImageNode(state: ImageSelectionState): Promise<Partial<ImageSelectionState>> {
+export async function selectImageNode(
+  state: ImageSelectionState
+): Promise<Partial<ImageSelectionState>> {
   const { text, sharepicType, imageCatalog, aiWorkerPool, req } = state;
 
   try {
@@ -35,11 +37,14 @@ Antworte NUR mit einem JSON-Objekt (OHNE Markdown-Wrapper):
 WICHTIG: Gib nur das JSON zurück, keine Code-Blöcke mit \`\`\`json\`\`\`!`;
 
     // Create image descriptions with index numbers
-    const imageDescriptions = imageCatalog.images.map((img, index) =>
-      `${index + 1}. ${img.filename}
+    const imageDescriptions = imageCatalog.images
+      .map(
+        (img, index) =>
+          `${index + 1}. ${img.filename}
    Beschreibung: ${img.alt_text}
    Tags: ${img.tags.join(', ')}`
-    ).join('\n\n');
+      )
+      .join('\n\n');
 
     const userPrompt = `Text für Sharepic: "${text}"
 Sharepic-Typ: ${sharepicType}
@@ -49,18 +54,23 @@ ${imageDescriptions}
 
 Wähle den besten Hintergrund aus (gib die Nummer an).`;
 
-    console.log(`[ImageSelection] AI selecting from ${imageCatalog.images.length} images for: "${text.substring(0, 50)}..."`);
+    console.log(
+      `[ImageSelection] AI selecting from ${imageCatalog.images.length} images for: "${text.substring(0, 50)}..."`
+    );
 
-    const result = await aiWorkerPool.processRequest({
-      type: 'image_picker',
-      systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      options: {
-        temperature: 0.6, // Increased for more variety
-        max_tokens: 200,
-        provider: 'mistral'
-      }
-    }, req);
+    const result = await aiWorkerPool.processRequest(
+      {
+        type: 'image_picker',
+        systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        options: {
+          temperature: 0.6, // Increased for more variety
+          max_tokens: 200,
+          provider: 'mistral',
+        },
+      },
+      req
+    );
 
     // Debug logging to see exact AI response
     console.log(`[ImageSelection] Raw AI response:`, result.content);
@@ -97,7 +107,9 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
         .filter((img, index) => index !== selectedIndex)
         .slice(0, 3);
 
-      console.log(`[ImageSelection] Selected: ${selectedImage.filename} (confidence: ${selection.confidence})`);
+      console.log(
+        `[ImageSelection] Selected: ${selectedImage.filename} (confidence: ${selection.confidence})`
+      );
 
       return {
         selectedImage,
@@ -108,17 +120,15 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
           ...state.metadata,
           selectionMethod: 'direct_ai_selection',
           aiConfidence: selection.confidence,
-          totalImagesConsidered: imageCatalog.images.length
-        }
+          totalImagesConsidered: imageCatalog.images.length,
+        },
       };
-
     } catch (parseError) {
       console.warn('[ImageSelection] Failed to parse AI selection, using smart fallback');
 
       // Smart fallback: pick a thematically relevant image
       return performSmartFallback(text, imageCatalog.images, state);
     }
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[ImageSelection] Error in image selection:', errorMessage);
@@ -140,21 +150,35 @@ function performSmartFallback(
   let fallbackImage: CatalogImage | undefined;
 
   // Try to find thematically relevant image based on keywords
-  if (textLower.includes('klima') || textLower.includes('energie') || textLower.includes('umwelt')) {
-    fallbackImage = images.find(img =>
-      img.tags.some(tag => ['solar-energy', 'wind-energy', 'renewable-energy', 'environment'].includes(tag))
+  if (
+    textLower.includes('klima') ||
+    textLower.includes('energie') ||
+    textLower.includes('umwelt')
+  ) {
+    fallbackImage = images.find((img) =>
+      img.tags.some((tag) =>
+        ['solar-energy', 'wind-energy', 'renewable-energy', 'environment'].includes(tag)
+      )
     );
-  } else if (textLower.includes('bahn') || textLower.includes('transport') || textLower.includes('öffentlich')) {
-    fallbackImage = images.find(img =>
-      img.tags.some(tag => ['train', 'public-transport', 'transport'].includes(tag))
+  } else if (
+    textLower.includes('bahn') ||
+    textLower.includes('transport') ||
+    textLower.includes('öffentlich')
+  ) {
+    fallbackImage = images.find((img) =>
+      img.tags.some((tag) => ['train', 'public-transport', 'transport'].includes(tag))
     );
   } else if (textLower.includes('europa') || textLower.includes('demokratie')) {
-    fallbackImage = images.find(img =>
-      img.tags.some(tag => ['european-union', 'eu', 'politics'].includes(tag))
+    fallbackImage = images.find((img) =>
+      img.tags.some((tag) => ['european-union', 'eu', 'politics'].includes(tag))
     );
-  } else if (textLower.includes('vielfalt') || textLower.includes('respekt') || textLower.includes('gleichberechtigung')) {
-    fallbackImage = images.find(img =>
-      img.tags.some(tag => ['pride', 'equality', 'diversity'].includes(tag))
+  } else if (
+    textLower.includes('vielfalt') ||
+    textLower.includes('respekt') ||
+    textLower.includes('gleichberechtigung')
+  ) {
+    fallbackImage = images.find((img) =>
+      img.tags.some((tag) => ['pride', 'equality', 'diversity'].includes(tag))
     );
   }
 
@@ -163,9 +187,7 @@ function performSmartFallback(
     fallbackImage = images[0];
   }
 
-  const alternatives = images
-    .filter(img => img.filename !== fallbackImage!.filename)
-    .slice(0, 3);
+  const alternatives = images.filter((img) => img.filename !== fallbackImage!.filename).slice(0, 3);
 
   return {
     selectedImage: fallbackImage,
@@ -174,8 +196,8 @@ function performSmartFallback(
     alternatives,
     metadata: {
       ...state.metadata,
-      selectionMethod: 'smart_fallback'
-    }
+      selectionMethod: 'smart_fallback',
+    },
   };
 }
 
@@ -192,8 +214,8 @@ function performErrorFallback(
       error: 'No images available for fallback',
       metadata: {
         ...state.metadata,
-        selectionMethod: 'error_fallback'
-      }
+        selectionMethod: 'error_fallback',
+      },
     };
   }
 
@@ -208,7 +230,7 @@ function performErrorFallback(
     error: errorMessage,
     metadata: {
       ...state.metadata,
-      selectionMethod: 'error_fallback'
-    }
+      selectionMethod: 'error_fallback',
+    },
   };
 }

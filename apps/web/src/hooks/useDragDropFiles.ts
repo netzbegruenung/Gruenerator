@@ -1,14 +1,14 @@
-import { useDropzone, Accept } from 'react-dropzone';
+import { useDropzone, type Accept } from 'react-dropzone';
 
 const DEFAULT_ACCEPT: Accept = {
   'application/pdf': ['.pdf'],
   'image/jpeg': ['.jpg', '.jpeg'],
   'image/png': ['.png'],
-  'image/webp': ['.webp']
+  'image/webp': ['.webp'],
 };
 
 export const VIDEO_ACCEPT: Accept = {
-  'video/*': ['.mp4', '.mov', '.avi', '.mkv']
+  'video/*': ['.mp4', '.mov', '.avi', '.mkv'],
 };
 
 interface UseDragDropFilesOptions {
@@ -26,7 +26,7 @@ export const useDragDropFiles = ({
   multiple = true,
   disabled = false,
   noClick = true,
-  noKeyboard = true
+  noKeyboard = true,
 }: UseDragDropFilesOptions) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: onFilesAccepted,
@@ -34,7 +34,7 @@ export const useDragDropFiles = ({
     multiple,
     disabled,
     noClick,
-    noKeyboard
+    noKeyboard,
   });
 
   return { getRootProps, getInputProps, isDragActive };

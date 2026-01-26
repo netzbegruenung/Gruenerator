@@ -1,7 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
+
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
+
 import type { HeroSection, SocialLinks } from '../../../types/candidate';
 
 interface HeroSectionEditorProps {
@@ -30,9 +32,9 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
   // Track which additional platforms are visible
   const [visiblePlatforms, setVisiblePlatforms] = useState<string[]>(() => {
     // Start with defaults + any that already have values
-    const withValues = ALL_PLATFORMS
-      .filter(p => data.socialLinks?.[p.key as keyof SocialLinks])
-      .map(p => p.key);
+    const withValues = ALL_PLATFORMS.filter(
+      (p) => data.socialLinks?.[p.key as keyof SocialLinks]
+    ).map((p) => p.key);
     return [...new Set([...DEFAULT_PLATFORMS, ...withValues])];
   });
 
@@ -53,12 +55,12 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
   };
 
   const addPlatform = (key: string) => {
-    setVisiblePlatforms(prev => [...prev, key]);
+    setVisiblePlatforms((prev) => [...prev, key]);
   };
 
   const removePlatform = (key: string) => {
     // Remove from visible and clear value
-    setVisiblePlatforms(prev => prev.filter(p => p !== key));
+    setVisiblePlatforms((prev) => prev.filter((p) => p !== key));
     const newLinks = { ...data.socialLinks };
     delete newLinks[key as keyof SocialLinks];
     onChange({ ...data, socialLinks: newLinks });
@@ -68,7 +70,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
     return highlightedElement?.section === 'hero' && highlightedElement?.field === field;
   };
 
-  const availableToAdd = ALL_PLATFORMS.filter(p => !visiblePlatforms.includes(p.key));
+  const availableToAdd = ALL_PLATFORMS.filter((p) => !visiblePlatforms.includes(p.key));
 
   return (
     <div className="hero-section-editor">
@@ -85,7 +87,9 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
         </div>
 
         <div className="hero-profile-info">
-          <div className={`editor-form-group ${isFieldHighlighted('name') ? 'editor-field-highlighted' : ''}`}>
+          <div
+            className={`editor-form-group ${isFieldHighlighted('name') ? 'editor-field-highlighted' : ''}`}
+          >
             <label htmlFor="hero-name">Name</label>
             <input
               ref={nameRef}
@@ -99,7 +103,9 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
             />
           </div>
 
-          <div className={`editor-form-group ${isFieldHighlighted('tagline') ? 'editor-field-highlighted' : ''}`}>
+          <div
+            className={`editor-form-group ${isFieldHighlighted('tagline') ? 'editor-field-highlighted' : ''}`}
+          >
             <label htmlFor="hero-tagline">Tagline / Slogan</label>
             <textarea
               ref={taglineRef}
@@ -118,17 +124,31 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
       <div className="editor-section-divider" />
 
       <div className="editor-social-links-section">
-        <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--grey-700)' }}>
+        <h4
+          style={{
+            fontSize: '14px',
+            fontWeight: 600,
+            marginBottom: '12px',
+            color: 'var(--grey-700)',
+          }}
+        >
           Social Media
         </h4>
         <div className="editor-social-links">
-          {ALL_PLATFORMS
-            .filter(p => visiblePlatforms.includes(p.key))
-            .map(({ key, label, placeholder }) => (
-              <div key={key} className="editor-form-group editor-social-field" style={{ marginBottom: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <label htmlFor={`social-${key}`} style={{ fontSize: '12px' }}>{label}</label>
-                  {!DEFAULT_PLATFORMS.includes(key as typeof DEFAULT_PLATFORMS[number]) && (
+          {ALL_PLATFORMS.filter((p) => visiblePlatforms.includes(p.key)).map(
+            ({ key, label, placeholder }) => (
+              <div
+                key={key}
+                className="editor-form-group editor-social-field"
+                style={{ marginBottom: '10px' }}
+              >
+                <div
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                >
+                  <label htmlFor={`social-${key}`} style={{ fontSize: '12px' }}>
+                    {label}
+                  </label>
+                  {!DEFAULT_PLATFORMS.includes(key as (typeof DEFAULT_PLATFORMS)[number]) && (
                     <button
                       type="button"
                       onClick={() => removePlatform(key)}
@@ -154,7 +174,8 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
                   placeholder={placeholder}
                 />
               </div>
-            ))}
+            )
+          )}
         </div>
 
         {availableToAdd.length > 0 && (
@@ -177,9 +198,13 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
               }}
               defaultValue=""
             >
-              <option value="" disabled>+ Weiteres Netzwerk hinzufügen</option>
+              <option value="" disabled>
+                + Weiteres Netzwerk hinzufügen
+              </option>
               {availableToAdd.map(({ key, label }) => (
-                <option key={key} value={key}>{label}</option>
+                <option key={key} value={key}>
+                  {label}
+                </option>
               ))}
             </select>
           </div>

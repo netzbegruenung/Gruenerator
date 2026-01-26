@@ -37,10 +37,14 @@ Für Personensuche mit Anreicherung → DIESES Tool.
 - "Was hat Dröge im Bundestag gemacht?" → gruenerator_person_search({ query: "Katharina Dröge" })`,
 
   inputSchema: {
-    query: z.string().describe('Name oder Frage über einen Abgeordneten (z.B. "Robert Habeck", "Anträge von Baerbock")'),
+    query: z
+      .string()
+      .describe(
+        'Name oder Frage über einen Abgeordneten (z.B. "Robert Habeck", "Anträge von Baerbock")'
+      ),
     contentLimit: z.number().default(15).describe('Max. Erwähnungen auf gruene-bundestag.de'),
     drucksachenLimit: z.number().default(20).describe('Max. Drucksachen (Anträge, Anfragen)'),
-    aktivitaetenLimit: z.number().default(30).describe('Max. Aktivitäten (Reden, Abstimmungen)')
+    aktivitaetenLimit: z.number().default(30).describe('Max. Aktivitäten (Reden, Abstimmungen)'),
   },
 
   async handler({ query, contentLimit = 15, drucksachenLimit = 20, aktivitaetenLimit = 30 }) {
@@ -49,7 +53,7 @@ Für Personensuche mit Anreicherung → DIESES Tool.
       const result = await service.search(query, {
         contentLimit,
         drucksachenLimit,
-        aktivitaetenLimit
+        aktivitaetenLimit,
       });
 
       return result;
@@ -58,8 +62,8 @@ Für Personensuche mit Anreicherung → DIESES Tool.
       return {
         error: true,
         message: error.message,
-        isPersonQuery: false
+        isPersonQuery: false,
       };
     }
-  }
+  },
 };

@@ -22,10 +22,7 @@ interface UseFormTipsResult {
   hasTip: boolean;
 }
 
-const useFormTips = (
-  conditions: Conditions = {},
-  tipConfig: TipConfig = {}
-): UseFormTipsResult => {
+const useFormTips = (conditions: Conditions = {}, tipConfig: TipConfig = {}): UseFormTipsResult => {
   const activeTip = useMemo(() => {
     const activeKeys = Object.entries(conditions)
       .filter(([, value]) => value)
@@ -42,7 +39,7 @@ const useFormTips = (
 
   return {
     activeTip,
-    hasTip: !!activeTip
+    hasTip: !!activeTip,
   };
 };
 

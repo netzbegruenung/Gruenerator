@@ -3,7 +3,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 48px;
+  height: var(--titlebar-height);
   background: var(--bar-background);
   display: flex;
   align-items: center;
@@ -39,7 +39,7 @@
   padding: 0 12px;
   display: flex;
   align-items: center;
-  height: 48px;
+  height: var(--titlebar-height);
   -webkit-app-region: no-drag;
 }
 
@@ -78,7 +78,7 @@
 
 .desktop-titlebar-profile .login-button {
   padding: 0;
-  height: 48px;
+  height: var(--titlebar-height);
   display: flex;
   align-items: center;
   background: none;
@@ -110,7 +110,7 @@
 
 .titlebar-button {
   width: 46px;
-  height: 48px;
+  height: var(--titlebar-height);
   display: flex;
   align-items: center;
   justify-content: center;

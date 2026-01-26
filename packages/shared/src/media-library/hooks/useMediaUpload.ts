@@ -50,7 +50,7 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
       };
     }
 
-    if (!SUPPORTED_MIME_TYPES.includes(file.type as typeof SUPPORTED_MIME_TYPES[number])) {
+    if (!SUPPORTED_MIME_TYPES.includes(file.type as (typeof SUPPORTED_MIME_TYPES)[number])) {
       return {
         valid: false,
         error: 'Dateityp nicht unterstützt. Erlaubt: JPEG, PNG, WebP, GIF, MP4, WebM',
@@ -60,58 +60,61 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
     return { valid: true };
   }, []);
 
-  const upload = useCallback(async (
-    file: File | Blob,
-    uploadOptions: UploadOptions = {}
-  ): Promise<MediaUploadResult | null> => {
-    const validation = validateFile(file);
-    if (!validation.valid) {
-      setState(prev => ({ ...prev, error: validation.error || 'Invalid file' }));
-      options.onError?.(validation.error || 'Invalid file');
-      return null;
-    }
-
-    setState({
-      isUploading: true,
-      progress: 0,
-      error: null,
-      result: null,
-    });
-
-    try {
-      const response = await mediaApi.uploadMedia(file, {
-        title: uploadOptions.title,
-        altText: uploadOptions.altText,
-        uploadSource: uploadOptions.uploadSource,
-        onProgress: (progress) => {
-          setState(prev => ({ ...prev, progress }));
-        },
-      });
-
-      if (response.success && response.data) {
-        setState({
-          isUploading: false,
-          progress: 100,
-          error: null,
-          result: response.data,
-        });
-        options.onSuccess?.(response.data);
-        return response.data;
-      } else {
-        throw new Error(response.error || 'Upload failed');
+  const upload = useCallback(
+    async (
+      file: File | Blob,
+      uploadOptions: UploadOptions = {}
+    ): Promise<MediaUploadResult | null> => {
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        setState((prev) => ({ ...prev, error: validation.error || 'Invalid file' }));
+        options.onError?.(validation.error || 'Invalid file');
+        return null;
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+
       setState({
-        isUploading: false,
+        isUploading: true,
         progress: 0,
-        error: errorMessage,
+        error: null,
         result: null,
       });
-      options.onError?.(errorMessage);
-      return null;
-    }
-  }, [validateFile, options]);
+
+      try {
+        const response = await mediaApi.uploadMedia(file, {
+          title: uploadOptions.title,
+          altText: uploadOptions.altText,
+          uploadSource: uploadOptions.uploadSource,
+          onProgress: (progress) => {
+            setState((prev) => ({ ...prev, progress }));
+          },
+        });
+
+        if (response.success && response.data) {
+          setState({
+            isUploading: false,
+            progress: 100,
+            error: null,
+            result: response.data,
+          });
+          options.onSuccess?.(response.data);
+          return response.data;
+        } else {
+          throw new Error(response.error || 'Upload failed');
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+        setState({
+          isUploading: false,
+          progress: 0,
+          error: errorMessage,
+          result: null,
+        });
+        options.onError?.(errorMessage);
+        return null;
+      }
+    },
+    [validateFile, options]
+  );
 
   const reset = useCallback(() => {
     setState(initialState);

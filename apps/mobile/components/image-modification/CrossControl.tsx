@@ -19,7 +19,9 @@ interface BalkenGruppeControlProps {
 export function BalkenGruppeControl({ disabled = false }: BalkenGruppeControlProps) {
   // Zustand selectors - only re-render when these specific values change
   const offset = useImageStudioStore(
-    (s) => (s.modifications as { balkenGruppenOffset?: Offset2D } | null)?.balkenGruppenOffset ?? ([0, 0] as Offset2D)
+    (s) =>
+      (s.modifications as { balkenGruppenOffset?: Offset2D } | null)?.balkenGruppenOffset ??
+      ([0, 0] as Offset2D)
   );
   const updateModification = useImageStudioStore((s) => s.updateModification);
 
@@ -49,7 +51,9 @@ interface SonnenblumenControlProps {
 export function SonnenblumenControl({ disabled = false }: SonnenblumenControlProps) {
   // Zustand selectors - only re-render when these specific values change
   const offset = useImageStudioStore(
-    (s) => (s.modifications as { sunflowerOffset?: Offset2D } | null)?.sunflowerOffset ?? ([0, 0] as Offset2D)
+    (s) =>
+      (s.modifications as { sunflowerOffset?: Offset2D } | null)?.sunflowerOffset ??
+      ([0, 0] as Offset2D)
   );
   const updateModification = useImageStudioStore((s) => s.updateModification);
 

@@ -3,9 +3,16 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'path';
 import fs from 'fs';
-import { parseResponse, type ParserConfig, type ParsedResponse } from '../../../utils/campaign/responseParser.js';
+import {
+  parseResponse,
+  type ParserConfig,
+  type ParsedResponse,
+} from '../../../utils/campaign/responseParser.js';
 import { generateCampaignCanvas } from '../sharepic_canvas/campaign_canvas.js';
-import { validateCampaignInputsOrThrow, ValidationError } from '../../../utils/campaign/validator.js';
+import {
+  validateCampaignInputsOrThrow,
+  ValidationError,
+} from '../../../utils/campaign/validator.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -118,12 +125,15 @@ interface CampaignGenerateRequest extends Request {
   app: Request['app'] & {
     locals: {
       aiWorkerPool: {
-        processRequest(payload: {
-          type: string;
-          systemPrompt: string;
-          messages: Array<{ role: string; content: string }>;
-          options?: Record<string, unknown>;
-        }, req: Request): Promise<{ success?: boolean; content?: string; error?: string }>;
+        processRequest(
+          payload: {
+            type: string;
+            systemPrompt: string;
+            messages: Array<{ role: string; content: string }>;
+            options?: Record<string, unknown>;
+          },
+          req: Request
+        ): Promise<{ success?: boolean; content?: string; error?: string }>;
       };
     };
   };
@@ -196,9 +206,9 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
       canvasConfig = JSON.parse(JSON.stringify(campaign.defaultCanvas)) as CanvasConfig;
 
       if (canvasConfig.textLines) {
-        canvasConfig.textLines = canvasConfig.textLines.map(line => ({
+        canvasConfig.textLines = canvasConfig.textLines.map((line) => ({
           ...line,
-          color: theme.textColor
+          color: theme.textColor,
         }));
       }
 
@@ -206,13 +216,15 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
         canvasConfig.credit = {
           ...canvasConfig.credit,
           color: theme.creditColor,
-          y: theme.creditY
+          y: theme.creditY,
         };
       }
 
       canvasConfig.backgroundImage = typeConfig.backgroundImage;
 
-      log.debug(`[Campaign] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`);
+      log.debug(
+        `[Campaign] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`
+      );
     } else {
       canvasConfig = typeConfig.canvas;
     }
@@ -222,14 +234,16 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
       responseParser: typeConfig.responseParser || campaign.defaultResponseParser,
       multiResponseParser: typeConfig.multiResponseParser || campaign.defaultMultiResponseParser,
       canvas: canvasConfig,
-      basedOn: typeConfig.basedOn
+      basedOn: typeConfig.basedOn,
     };
 
-    log.debug(`[Campaign] Loaded config for ${campaignId}/${typeId} (using ${mergedConfig.prompt === campaign.defaultPrompt ? 'default' : 'custom'} prompt)`);
+    log.debug(
+      `[Campaign] Loaded config for ${campaignId}/${typeId} (using ${mergedConfig.prompt === campaign.defaultPrompt ? 'default' : 'custom'} prompt)`
+    );
 
     return {
       config: mergedConfig,
-      campaign: campaign
+      campaign: campaign,
     };
   } catch (error) {
     log.error(`[Campaign] Failed to load config:`, error);
@@ -246,7 +260,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       details,
       count = 5,
       lineOverrides,
-      generateCampaignText = false
+      generateCampaignText = false,
     } = (req as CampaignGenerateRequest).body;
 
     log.debug(`[Campaign Generate] Request: ${campaignId}/${campaignTypeId}`, {
@@ -254,13 +268,13 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       details,
       count,
       hasLineOverrides: !!lineOverrides,
-      generateCampaignText
+      generateCampaignText,
     });
 
     if (!campaignId || !campaignTypeId) {
       res.status(400).json({
         success: false,
-        error: 'Missing required parameters: campaignId and campaignTypeId'
+        error: 'Missing required parameters: campaignId and campaignTypeId',
       } as CampaignGenerateResponse);
       return;
     }
@@ -269,7 +283,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     if (!loadedConfig) {
       res.status(404).json({
         success: false,
-        error: `Campaign configuration not found: ${campaignId}/${campaignTypeId}`
+        error: `Campaign configuration not found: ${campaignId}/${campaignTypeId}`,
       } as CampaignGenerateResponse);
       return;
     }
@@ -280,16 +294,19 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       try {
         const inputs = {
           location: thema,
-          details: details
+          details: details,
         };
         validateCampaignInputsOrThrow(inputs, fullCampaign as any);
       } catch (validationError) {
         if (validationError instanceof ValidationError) {
-          log.warn(`[Campaign Generate] Validation failed for ${validationError.field}:`, validationError.message);
+          log.warn(
+            `[Campaign Generate] Validation failed for ${validationError.field}:`,
+            validationError.message
+          );
           res.status(400).json({
             success: false,
             error: validationError.message,
-            field: validationError.field
+            field: validationError.field,
           } as CampaignGenerateResponse);
           return;
         }
@@ -305,7 +322,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         line2: lineOverrides.line2 || '',
         line3: lineOverrides.line3 || '',
         line4: lineOverrides.line4 || '',
-        line5: lineOverrides.line5 || ''
+        line5: lineOverrides.line5 || '',
       };
 
       const { image, creditText } = await generateCampaignCanvas(
@@ -329,12 +346,12 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         line3: textData.line3 || '',
         line4: textData.line4 || '',
         line5: textData.line5 || '',
-        creditText: creditText
+        creditText: creditText,
       };
 
       log.debug('[Campaign Generate] Sharepic with creditText:', {
         hasCreditText: !!sharepic.creditText,
-        creditText: sharepic.creditText
+        creditText: sharepic.creditText,
       });
 
       res.json({
@@ -346,8 +363,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
           campaignId,
           campaignTypeId,
           timestamp: new Date().toISOString(),
-          usedLineOverrides: true
-        }
+          usedLineOverrides: true,
+        },
       } as CampaignGenerateResponse);
       return;
     }
@@ -355,7 +372,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     if (!campaignConfig.responseParser) {
       res.status(400).json({
         success: false,
-        error: 'Campaign configuration missing responseParser'
+        error: 'Campaign configuration missing responseParser',
       } as CampaignGenerateResponse);
       return;
     }
@@ -364,7 +381,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     if (!promptConfig) {
       res.status(400).json({
         success: false,
-        error: 'Campaign configuration missing prompt'
+        error: 'Campaign configuration missing prompt',
       } as CampaignGenerateResponse);
       return;
     }
@@ -373,7 +390,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       location: thema,
       thema,
       details,
-      count
+      count,
     };
 
     let allPoems: PoemContent[] = [];
@@ -382,7 +399,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     const aiReq = req as CampaignGenerateRequest;
 
     if (count > 1 && promptConfig.multiItemTemplate && campaignConfig.multiResponseParser) {
-      log.debug(`[Campaign Generate] Using multiItemTemplate to generate ${count} poems in single AI call`);
+      log.debug(
+        `[Campaign Generate] Using multiItemTemplate to generate ${count} poems in single AI call`
+      );
 
       let requestText = promptConfig.multiItemTemplate;
 
@@ -391,7 +410,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         log.debug('[Campaign Generate] Added campaign text suffix to prompt');
       }
 
-      Object.keys(variables).forEach(key => {
+      Object.keys(variables).forEach((key) => {
         const placeholder = `{{${key}}}`;
         if (requestText.includes(placeholder)) {
           requestText = requestText.replace(
@@ -404,15 +423,18 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       log.debug(`[Campaign Generate] Calling AI with multi-item prompt:`, {
         systemRole: promptConfig.systemRole.substring(0, 100) + '...',
         requestLength: requestText.length,
-        expectedPoems: count
+        expectedPoems: count,
       });
 
-      const aiResult = await aiReq.app.locals.aiWorkerPool.processRequest({
-        type: `campaign_${campaignTypeId}`,
-        systemPrompt: promptConfig.systemRole,
-        messages: [{ role: 'user', content: requestText }],
-        options: promptConfig.options
-      }, req);
+      const aiResult = await aiReq.app.locals.aiWorkerPool.processRequest(
+        {
+          type: `campaign_${campaignTypeId}`,
+          systemPrompt: promptConfig.systemRole,
+          messages: [{ role: 'user', content: requestText }],
+          options: promptConfig.options,
+        },
+        req
+      );
 
       if (!aiResult?.content) {
         throw new Error('AI response empty or invalid');
@@ -434,15 +456,16 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       }
 
       const parsedResult = parseResponse(contentForParsing, campaignConfig.multiResponseParser);
-      allPoems = Array.isArray(parsedResult) ? parsedResult as PoemContent[] : [parsedResult as PoemContent];
+      allPoems = Array.isArray(parsedResult)
+        ? (parsedResult as PoemContent[])
+        : [parsedResult as PoemContent];
       log.debug(`[Campaign Generate] Parsed ${allPoems.length} poems from single AI response`);
-
     } else {
       log.debug(`[Campaign Generate] Using singleItemTemplate for single poem generation`);
 
       let requestText = promptConfig.singleItemTemplate || promptConfig.requestTemplate || '';
 
-      Object.keys(variables).forEach(key => {
+      Object.keys(variables).forEach((key) => {
         const placeholder = `{{${key}}}`;
         if (requestText.includes(placeholder)) {
           requestText = requestText.replace(
@@ -454,15 +477,18 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
       log.debug(`[Campaign Generate] Calling AI with single-item prompt:`, {
         systemRole: promptConfig.systemRole.substring(0, 100) + '...',
-        requestLength: requestText.length
+        requestLength: requestText.length,
       });
 
-      const aiResult = await aiReq.app.locals.aiWorkerPool.processRequest({
-        type: `campaign_${campaignTypeId}`,
-        systemPrompt: promptConfig.systemRole,
-        messages: [{ role: 'user', content: requestText }],
-        options: promptConfig.options
-      }, req);
+      const aiResult = await aiReq.app.locals.aiWorkerPool.processRequest(
+        {
+          type: `campaign_${campaignTypeId}`,
+          systemPrompt: promptConfig.systemRole,
+          messages: [{ role: 'user', content: requestText }],
+          options: promptConfig.options,
+        },
+        req
+      );
 
       if (!aiResult?.content) {
         throw new Error('AI response empty or invalid');
@@ -471,7 +497,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       log.debug(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
 
       const singleResult = parseResponse(aiResult.content, campaignConfig.responseParser);
-      const mainContent = Array.isArray(singleResult) ? singleResult[0] as PoemContent : singleResult as PoemContent;
+      const mainContent = Array.isArray(singleResult)
+        ? (singleResult[0] as PoemContent)
+        : (singleResult as PoemContent);
       log.debug(`[Campaign Generate] Parsed single poem:`, mainContent);
       allPoems = [mainContent];
     }
@@ -486,10 +514,15 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
             line2: poem.line2 || '',
             line3: poem.line3 || '',
             line4: poem.line4 || '',
-            line5: poem.line5 || ''
+            line5: poem.line5 || '',
           };
 
-          const { image, creditText } = await generateCampaignCanvas(campaignId, campaignTypeId, textData, thema || '');
+          const { image, creditText } = await generateCampaignCanvas(
+            campaignId,
+            campaignTypeId,
+            textData,
+            thema || ''
+          );
 
           return {
             id: `campaign-sharepic-${Date.now()}-${index}-${Math.random().toString(16).slice(2)}`,
@@ -504,15 +537,20 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
             line3: poem.line3 || '',
             line4: poem.line4 || '',
             line5: poem.line5 || '',
-            creditText: creditText
+            creditText: creditText,
           } as Sharepic;
         } catch (canvasError) {
-          log.error(`[Campaign Generate] Failed to generate canvas for poem ${index}:`, (canvasError as Error).message);
+          log.error(
+            `[Campaign Generate] Failed to generate canvas for poem ${index}:`,
+            (canvasError as Error).message
+          );
           return null;
         }
       });
 
-      const sharepics = (await Promise.all(canvasPromises)).filter((sp): sp is Sharepic => sp !== null);
+      const sharepics = (await Promise.all(canvasPromises)).filter(
+        (sp): sp is Sharepic => sp !== null
+      );
       log.debug(`[Campaign Generate] Successfully generated ${sharepics.length} sharepics`);
       log.debug('[Campaign Generate] First sharepic creditText:', sharepics[0]?.creditText);
 
@@ -524,8 +562,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
           generatedCount: sharepics.length,
           campaignId,
           campaignTypeId,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       };
 
       if (campaignText) {
@@ -541,14 +579,13 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       success: true,
       mainContent: allPoems[0] || {},
       alternatives: allPoems.slice(1),
-      searchTerms: []
+      searchTerms: [],
     } as CampaignGenerateResponse);
-
   } catch (error) {
     log.error('[Campaign Generate] Error:', error);
     res.status(500).json({
       success: false,
-      error: (error as Error).message || 'Failed to generate campaign text'
+      error: (error as Error).message || 'Failed to generate campaign text',
     } as CampaignGenerateResponse);
   }
 });

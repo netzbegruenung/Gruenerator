@@ -1,6 +1,8 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { useAutoSaveStore } from '../../hooks/useAutoSaveStore';
 import { useShareStore } from '@gruenerator/shared/share';
+import { useEffect, useRef, useCallback } from 'react';
+
+import { useAutoSaveStore } from '../../hooks/useAutoSaveStore';
+
 import type { ShareMetadata } from '../../types/templateResultTypes';
 
 /**

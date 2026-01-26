@@ -112,7 +112,9 @@ export class PdfCrawler {
       return fullText;
     } catch (error) {
       console.error('[PdfCrawler] Error extracting PDF text:', error);
-      throw new Error(`PDF text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `PDF text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 }

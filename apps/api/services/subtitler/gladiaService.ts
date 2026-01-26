@@ -70,8 +70,8 @@ async function uploadAudioFile(filePath: string): Promise<string> {
       method: 'POST',
       headers: {
         'x-gladia-key': GLADIA_API_KEY,
-        ...form.getHeaders()
-      }
+        ...form.getHeaders(),
+      },
     };
 
     const req = https.request(options, (res) => {
@@ -110,11 +110,11 @@ async function submitTranscriptionRequest(audioUrl: string): Promise<Transcripti
       audio_url: audioUrl,
       language_config: {
         languages: ['de'],
-        code_switching: false
+        code_switching: false,
       },
       diarization: false,
       subtitles: false,
-      punctuation_enhanced: true
+      punctuation_enhanced: true,
     });
 
     const options = {
@@ -125,8 +125,8 @@ async function submitTranscriptionRequest(audioUrl: string): Promise<Transcripti
       headers: {
         'x-gladia-key': GLADIA_API_KEY,
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(requestBody)
-      }
+        'Content-Length': Buffer.byteLength(requestBody),
+      },
     };
 
     const req = https.request(options, (res) => {
@@ -143,7 +143,7 @@ async function submitTranscriptionRequest(audioUrl: string): Promise<Transcripti
             log.debug(`Transcription submitted with ID: ${response.id}`);
             resolve({
               id: response.id,
-              resultUrl: response.result_url
+              resultUrl: response.result_url,
             });
           } catch (error: any) {
             reject(new Error(`Failed to parse transcription response: ${error.message}`));
@@ -173,8 +173,8 @@ async function getTranscriptionResult(resultUrl: string): Promise<GladiaResponse
       path: url.pathname,
       method: 'GET',
       headers: {
-        'x-gladia-key': GLADIA_API_KEY
-      }
+        'x-gladia-key': GLADIA_API_KEY,
+      },
     };
 
     const req = https.request(options, (res) => {
@@ -219,8 +219,8 @@ async function deleteTranscript(transcriptId: string): Promise<boolean> {
       path: `/v2/pre-recorded/${transcriptId}`,
       method: 'DELETE',
       headers: {
-        'x-gladia-key': GLADIA_API_KEY
-      }
+        'x-gladia-key': GLADIA_API_KEY,
+      },
     };
 
     const req = https.request(options, (res) => {
@@ -290,9 +290,11 @@ async function pollForCompletion(
         throw new Error(`Transcription failed: ${result.error_message || 'Unknown error'}`);
       } else if (result.status === 'processing' || result.status === 'queued') {
         const delay = Math.min(baseDelay * Math.pow(1.5, attempt), 30000);
-        log.debug(`Transcription ${result.status}, waiting ${delay}ms (attempt ${attempt + 1}/${maxAttempts})`);
+        log.debug(
+          `Transcription ${result.status}, waiting ${delay}ms (attempt ${attempt + 1}/${maxAttempts})`
+        );
 
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
         attempt++;
       } else {
         throw new Error(`Unknown transcription status: ${result.status}`);
@@ -303,7 +305,7 @@ async function pollForCompletion(
         throw error;
       }
       log.warn(`Polling attempt ${attempt + 1} failed, retrying: ${error.message}`);
-      await new Promise(resolve => setTimeout(resolve, baseDelay));
+      await new Promise((resolve) => setTimeout(resolve, baseDelay));
       attempt++;
     }
   }
@@ -321,7 +323,7 @@ function transformToOpenAIFormat(
 
   const transcription = gladiaResponse.result.transcription;
   const result: TranscriptionResult = {
-    text: transcription.full_transcript
+    text: transcription.full_transcript,
   };
 
   if (requestWordTimestamps) {
@@ -334,7 +336,7 @@ function transformToOpenAIFormat(
             words.push({
               word: word.word.trim(),
               start: word.start,
-              end: word.end
+              end: word.end,
             });
           }
         }
@@ -362,7 +364,9 @@ async function transcribeWithGladia(
   try {
     const stats = fs.statSync(filePath);
     const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-    log.debug(`Starting transcription (${fileSizeMB} MB)${uploadId ? ` for upload ${uploadId}` : ''}`);
+    log.debug(
+      `Starting transcription (${fileSizeMB} MB)${uploadId ? ` for upload ${uploadId}` : ''}`
+    );
 
     const audioUrl = await uploadAudioFile(filePath);
 
@@ -378,10 +382,11 @@ async function transcribeWithGladia(
       log.warn(`ZDR: Failed to delete transcript ${transcriptId}, but continuing with result`);
     }
 
-    log.info(`Transcription completed: ${result.text.length} chars, ${result.words?.length || 0} words`);
+    log.info(
+      `Transcription completed: ${result.text.length} chars, ${result.words?.length || 0} words`
+    );
 
     return result;
-
   } catch (error: any) {
     log.error(`Gladia transcription error: ${error.message}`);
 
@@ -408,9 +413,9 @@ async function checkServiceHealth(): Promise<boolean> {
         path: '/v2/pre-recorded',
         method: 'GET',
         headers: {
-          'x-gladia-key': GLADIA_API_KEY
+          'x-gladia-key': GLADIA_API_KEY,
         },
-        timeout: 5000
+        timeout: 5000,
       };
 
       const req = https.request(options, (res) => {
@@ -441,7 +446,7 @@ export {
   pollForCompletion,
   getTranscriptionResult,
   deleteTranscript,
-  transformToOpenAIFormat
+  transformToOpenAIFormat,
 };
 
 export type { TranscriptionResult, WordTimestamp, GladiaResponse };

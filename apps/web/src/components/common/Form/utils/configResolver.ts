@@ -36,7 +36,7 @@ export function useResolvedConfig<T extends Record<string, unknown>>(
     const resolved: T = { ...defaults };
 
     // Apply store values (medium priority)
-    (Object.keys(storeConfig) as Array<keyof T>).forEach(key => {
+    (Object.keys(storeConfig) as Array<keyof T>).forEach((key) => {
       if (storeConfig[key] !== undefined) {
         resolved[key] = storeConfig[key] as T[keyof T];
       }
@@ -44,7 +44,7 @@ export function useResolvedConfig<T extends Record<string, unknown>>(
 
     // Apply prop values (highest priority)
     if (propConfig) {
-      (Object.keys(propConfig) as Array<keyof T>).forEach(key => {
+      (Object.keys(propConfig) as Array<keyof T>).forEach((key) => {
         if (propConfig[key] !== undefined) {
           resolved[key] = propConfig[key] as T[keyof T];
         }
@@ -78,15 +78,12 @@ export function useResolvedConfig<T extends Record<string, unknown>>(
  * }
  * ```
  */
-export function isValidConfig<T>(
-  value: unknown,
-  requiredKeys: readonly (keyof T)[]
-): value is T {
+export function isValidConfig<T>(value: unknown, requiredKeys: readonly (keyof T)[]): value is T {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
 
-  return requiredKeys.every(key => key in value);
+  return requiredKeys.every((key) => key in value);
 }
 
 /**
@@ -122,7 +119,7 @@ export function mergeConfigs<T extends Record<string, unknown>>(
   for (const config of configs) {
     if (!config) continue;
 
-    (Object.keys(config) as Array<keyof T>).forEach(key => {
+    (Object.keys(config) as Array<keyof T>).forEach((key) => {
       if (config[key] !== undefined) {
         result[key] = config[key];
       }
@@ -155,10 +152,7 @@ export function mergeConfigs<T extends Record<string, unknown>>(
  * );
  * ```
  */
-export function extractConfigValue<
-  T extends Record<string, unknown>,
-  K extends keyof T
->(
+export function extractConfigValue<T extends Record<string, unknown>, K extends keyof T>(
   key: K,
   fallback: T[K],
   ...configs: Array<Partial<T> | null | undefined>

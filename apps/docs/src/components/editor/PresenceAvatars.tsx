@@ -11,7 +11,7 @@ interface PresenceAvatarsProps {
 export const PresenceAvatars = ({
   provider,
   compact = false,
-  maxVisible = compact ? 2 : 5
+  maxVisible = compact ? 2 : 5,
 }: PresenceAvatarsProps) => {
   const collaborators = useCollaborators(provider);
 
@@ -32,7 +32,7 @@ export const PresenceAvatars = ({
             className="presence-avatar"
             style={{
               backgroundColor: collaborator.color,
-              zIndex: visibleCollaborators.length - index
+              zIndex: visibleCollaborators.length - index,
             }}
             title={collaborator.name}
           >

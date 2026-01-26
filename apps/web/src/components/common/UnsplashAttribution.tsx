@@ -13,7 +13,7 @@ const UnsplashAttribution = ({
   profileUrl,
   photoUrl,
   compact = false,
-  className = ''
+  className = '',
 }: UnsplashAttributionProps) => {
   if (!photographer) return null;
 
@@ -35,19 +35,11 @@ const UnsplashAttribution = ({
   return (
     <div className={`unsplash-attribution ${className}`}>
       <span>Foto von </span>
-      <a
-        href={profileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href={profileUrl} target="_blank" rel="noopener noreferrer">
         {photographer}
       </a>
       <span> auf </span>
-      <a
-        href="https://unsplash.com"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer">
         Unsplash
       </a>
     </div>

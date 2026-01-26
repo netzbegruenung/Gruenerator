@@ -1,13 +1,19 @@
 import React, { useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
+
 import Spinner from '../../../components/common/Spinner';
 import { useCanvasEditorStore } from '../../../stores/canvasEditorStore';
 import { ControllableCanvasWrapper } from '../../image-studio/canvas-editor/ControllableCanvasWrapper';
+
+import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
 import type { DreizeilenAlternative } from '../../image-studio/canvas-editor/configs/dreizeilen.types';
 import './SharepicEditorModal.css';
 
 // Lazy load DreizeilenCanvas (kept as special case)
-const DreizeilenCanvas = lazy(() => import('../../image-studio/canvas-editor/composed/DreizeilenCanvas').then(m => ({ default: m.DreizeilenCanvas })));
+const DreizeilenCanvas = lazy(() =>
+  import('../../image-studio/canvas-editor/composed/DreizeilenCanvas').then((m) => ({
+    default: m.DreizeilenCanvas,
+  }))
+);
 
 type SharepicType = 'dreizeilen' | 'headline' | 'zitat' | 'zitat_pure' | 'info' | 'veranstaltung';
 
@@ -20,7 +26,7 @@ interface SharepicEditorModalProps {
 
 function parseLines(text: string | undefined): string[] {
   if (!text) return ['', '', ''];
-  return text.split('\n').filter(line => line.trim());
+  return text.split('\n').filter((line) => line.trim());
 }
 
 function parseQuote(text: string | undefined): { quote: string; name: string } {
@@ -35,7 +41,7 @@ function parseQuote(text: string | undefined): { quote: string; name: string } {
   if (lastDash !== -1) {
     return {
       quote: text.substring(0, lastDash),
-      name: text.substring(lastDash + 3)
+      name: text.substring(lastDash + 3),
     };
   }
 
@@ -43,19 +49,23 @@ function parseQuote(text: string | undefined): { quote: string; name: string } {
   if (lastEnDash !== -1) {
     return {
       quote: text.substring(0, lastEnDash),
-      name: text.substring(lastEnDash + 3)
+      name: text.substring(lastEnDash + 3),
     };
   }
 
   return { quote: text, name: '' };
 }
 
-function parseInfoLines(text: string | undefined): { header: string; subheader: string; body: string } {
+function parseInfoLines(text: string | undefined): {
+  header: string;
+  subheader: string;
+  body: string;
+} {
   const lines = parseLines(text);
   return {
     header: lines[0] || '',
     subheader: lines[1] || '',
-    body: lines.slice(2).join('\n') || ''
+    body: lines.slice(2).join('\n') || '',
   };
 }
 
@@ -65,7 +75,7 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
   onExport,
   onCancel,
 }) => {
-  const resetStore = useCanvasEditorStore(state => state.resetStore);
+  const resetStore = useCanvasEditorStore((state) => state.resetStore);
 
   useEffect(() => {
     if (isOpen) {
@@ -94,16 +104,19 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
     };
   }, [isOpen, onCancel]);
 
-  const handleExport = useCallback((base64: string) => {
-    onExport(base64);
-  }, [onExport]);
+  const handleExport = useCallback(
+    (base64: string) => {
+      onExport(base64);
+    },
+    [onExport]
+  );
 
   const handleCancel = useCallback(() => {
     onCancel();
   }, [onCancel]);
 
   const imageSrc = useMemo(() => {
-    return sharepic.originalImage as string || sharepic.image || '';
+    return (sharepic.originalImage as string) || sharepic.image || '';
   }, [sharepic.originalImage, sharepic.image]);
 
   const renderCanvas = useCallback(() => {
@@ -115,17 +128,19 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
         const lines = parseLines(sharepic.text);
         const rawAlternatives = (sharepic.alternatives || []) as unknown[];
         // Map alternatives to add required id field
-        const alternatives: DreizeilenAlternative[] = rawAlternatives.map((alt: unknown, index: number) => ({
-          id: `alt-${index}`,
-          line1: (alt as Record<string, unknown>).line1 as string || '',
-          line2: (alt as Record<string, unknown>).line2 as string || '',
-          line3: (alt as Record<string, unknown>).line3 as string || ''
-        }));
+        const alternatives: DreizeilenAlternative[] = rawAlternatives.map(
+          (alt: unknown, index: number) => ({
+            id: `alt-${index}`,
+            line1: ((alt as Record<string, unknown>).line1 as string) || '',
+            line2: ((alt as Record<string, unknown>).line2 as string) || '',
+            line3: ((alt as Record<string, unknown>).line3 as string) || '',
+          })
+        );
         return (
           <DreizeilenCanvas
-            line1={sharepic.line1 as string || lines[0] || ''}
-            line2={sharepic.line2 as string || lines[1] || ''}
-            line3={sharepic.line3 as string || lines[2] || ''}
+            line1={(sharepic.line1 as string) || lines[0] || ''}
+            line2={(sharepic.line2 as string) || lines[1] || ''}
+            line3={(sharepic.line3 as string) || lines[2] || ''}
             imageSrc={imageSrc}
             alternatives={alternatives}
             onExport={handleExport}
@@ -141,8 +156,8 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
           <ControllableCanvasWrapper
             type="zitat"
             initialState={{
-              quote: sharepic.quote as string || quote,
-              name: sharepic.name as string || sharepic.zitatAuthor as string || name,
+              quote: (sharepic.quote as string) || quote,
+              name: (sharepic.name as string) || (sharepic.zitatAuthor as string) || name,
               alternatives: alternatives,
             }}
             imageSrc={imageSrc}
@@ -159,8 +174,8 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
           <ControllableCanvasWrapper
             type="zitat-pure"
             initialState={{
-              quote: sharepic.quote as string || quote,
-              name: sharepic.name as string || sharepic.zitatAuthor as string || name,
+              quote: (sharepic.quote as string) || quote,
+              name: (sharepic.name as string) || (sharepic.zitatAuthor as string) || name,
               alternatives: alternatives,
             }}
             onExport={handleExport}
@@ -171,13 +186,18 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
 
       case 'info': {
         const { header, body } = parseInfoLines(sharepic.text);
-        const alternatives = (sharepic.alternatives as Array<{ header?: string; subheader?: string; body?: string }>) || [];
+        const alternatives =
+          (sharepic.alternatives as Array<{
+            header?: string;
+            subheader?: string;
+            body?: string;
+          }>) || [];
         return (
           <ControllableCanvasWrapper
             type="info"
             initialState={{
-              header: sharepic.header as string || header,
-              body: sharepic.body as string || body,
+              header: (sharepic.header as string) || header,
+              body: (sharepic.body as string) || body,
               alternatives: alternatives,
             }}
             onExport={handleExport}
@@ -187,26 +207,27 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
       }
 
       case 'veranstaltung': {
-        const alternatives = (sharepic.alternatives as Array<{
-          eventTitle?: string;
-          beschreibung?: string;
-          weekday?: string;
-          date?: string;
-          time?: string;
-          locationName?: string;
-          address?: string;
-        }>) || [];
+        const alternatives =
+          (sharepic.alternatives as Array<{
+            eventTitle?: string;
+            beschreibung?: string;
+            weekday?: string;
+            date?: string;
+            time?: string;
+            locationName?: string;
+            address?: string;
+          }>) || [];
         return (
           <ControllableCanvasWrapper
             type="veranstaltung"
             initialState={{
-              eventTitle: sharepic.eventTitle as string || '',
-              beschreibung: sharepic.beschreibung as string || '',
-              weekday: sharepic.weekday as string || '',
-              date: sharepic.date as string || '',
-              time: sharepic.time as string || '',
-              locationName: sharepic.locationName as string || '',
-              address: sharepic.address as string || '',
+              eventTitle: (sharepic.eventTitle as string) || '',
+              beschreibung: (sharepic.beschreibung as string) || '',
+              weekday: (sharepic.weekday as string) || '',
+              date: (sharepic.date as string) || '',
+              time: (sharepic.time as string) || '',
+              locationName: (sharepic.locationName as string) || '',
+              address: (sharepic.address as string) || '',
               alternatives: alternatives,
             }}
             imageSrc={imageSrc}
@@ -240,12 +261,14 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
   return (
     <div className="sharepic-editor-modal-overlay">
       <div className="sharepic-editor-modal">
-        <Suspense fallback={
-          <div className="canvas-loading">
-            <Spinner size="large" />
-            <span>Canvas wird geladen...</span>
-          </div>
-        }>
+        <Suspense
+          fallback={
+            <div className="canvas-loading">
+              <Spinner size="large" />
+              <span>Canvas wird geladen...</span>
+            </div>
+          }
+        >
           {renderCanvas()}
         </Suspense>
       </div>

@@ -1,5 +1,7 @@
 // useAccessibility.js
+/* global process */
 import { useEffect, useCallback, useRef } from 'react';
+
 import {
   announceToScreenReader,
   setFocus,
@@ -10,7 +12,7 @@ import {
   announceFormSuccess,
   detectAccessibilityPreferences,
   applyAccessibilityPreferences,
-  createAriaLiveRegion
+  createAriaLiveRegion,
 } from '../utils/accessibilityHelpers';
 
 const useAccessibility = (options = {}) => {
@@ -22,7 +24,7 @@ const useAccessibility = (options = {}) => {
     enableAriaSupport = true,
     enableErrorAnnouncements = true,
     enableSuccessAnnouncements = true,
-    keyboardNavigationOptions = {}
+    keyboardNavigationOptions = {},
   } = options;
 
   // Initialize essential accessibility features only
@@ -30,7 +32,7 @@ const useAccessibility = (options = {}) => {
     // Only create essential aria-live regions - reduce duplication
     // Most screen readers handle form announcements natively
     createAriaLiveRegion('form-error-announcer', 'assertive');
-    
+
     // Remove duplicate sr-announcer - form-error-announcer serves the same purpose
     const existingSrAnnouncer = document.getElementById('sr-announcer');
     if (existingSrAnnouncer) {
@@ -62,7 +64,7 @@ const useAccessibility = (options = {}) => {
 
     // Cleanup function
     return () => {
-      cleanupFunctions.current.forEach(cleanup => {
+      cleanupFunctions.current.forEach((cleanup) => {
         if (typeof cleanup === 'function') {
           cleanup();
         }
@@ -93,18 +95,24 @@ const useAccessibility = (options = {}) => {
   }, []);
 
   // Enhanced error handling with announcements
-  const handleFormError = useCallback((errorMessage, fieldName = '') => {
-    if (enableErrorAnnouncements) {
-      announceFormError(errorMessage, fieldName);
-    }
-  }, [enableErrorAnnouncements]);
+  const handleFormError = useCallback(
+    (errorMessage, fieldName = '') => {
+      if (enableErrorAnnouncements) {
+        announceFormError(errorMessage, fieldName);
+      }
+    },
+    [enableErrorAnnouncements]
+  );
 
   // Enhanced success handling with announcements
-  const handleFormSuccess = useCallback((message) => {
-    if (enableSuccessAnnouncements) {
-      announceFormSuccess(message);
-    }
-  }, [enableSuccessAnnouncements]);
+  const handleFormSuccess = useCallback(
+    (message) => {
+      if (enableSuccessAnnouncements) {
+        announceFormSuccess(message);
+      }
+    },
+    [enableSuccessAnnouncements]
+  );
 
   // Function to register form element
   const registerFormElement = useCallback((element) => {
@@ -119,11 +127,13 @@ const useAccessibility = (options = {}) => {
   // Minimal focus management - use sparingly to avoid screen reader conflicts
   const manageFocusSequence = useCallback((elements, startIndex = 0) => {
     if (!elements || elements.length === 0) return;
-    
-    console.warn('manageFocusSequence: Programmatic focus management can interfere with screen readers - use browser native focus instead');
-    
+
+    console.warn(
+      'manageFocusSequence: Programmatic focus management can interfere with screen readers - use browser native focus instead'
+    );
+
     let currentIndex = startIndex;
-    
+
     const focusNext = () => {
       // Only move focus if user explicitly requested it, don't auto-focus
       if (currentIndex < elements.length - 1) {
@@ -132,20 +142,20 @@ const useAccessibility = (options = {}) => {
         setTimeout(() => elements[currentIndex]?.focus(), 0);
       }
     };
-    
+
     const focusPrevious = () => {
       if (currentIndex > 0) {
         currentIndex--;
         setTimeout(() => elements[currentIndex]?.focus(), 0);
       }
     };
-    
+
     const focusCurrent = () => {
       setTimeout(() => elements[currentIndex]?.focus(), 0);
     };
-    
+
     // Don't auto-focus on creation - let screen reader maintain current position
-    
+
     return {
       focusNext,
       focusPrevious,
@@ -156,71 +166,71 @@ const useAccessibility = (options = {}) => {
           currentIndex = index;
           // Don't auto-focus, just update index
         }
-      }
+      },
     };
   }, []);
 
   // Accessibility testing helpers (for development)
   const testAccessibility = useCallback(() => {
     if (process.env.NODE_ENV !== 'development') return;
-    
+
     const formElement = formRef.current;
     if (!formElement) return;
-    
+
     const report = {
       hasAriaLabels: [],
       missingLabels: [],
       hasRoles: [],
       missingRoles: [],
       focusableElements: [],
-      accessibilityPreferences: getAccessibilityPreferences()
+      accessibilityPreferences: getAccessibilityPreferences(),
     };
-    
+
     // Check ARIA labels
     const labeledElements = formElement.querySelectorAll('[aria-label], [aria-labelledby]');
-    report.hasAriaLabels = Array.from(labeledElements).map(el => ({
+    report.hasAriaLabels = Array.from(labeledElements).map((el) => ({
       tag: el.tagName,
       id: el.id,
-      label: el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')
+      label: el.getAttribute('aria-label') || el.getAttribute('aria-labelledby'),
     }));
-    
+
     // Check for missing labels on inputs
     const inputs = formElement.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-      const hasLabel = input.labels?.length > 0 || 
-                     input.getAttribute('aria-label') || 
-                     input.getAttribute('aria-labelledby');
+    inputs.forEach((input) => {
+      const hasLabel =
+        input.labels?.length > 0 ||
+        input.getAttribute('aria-label') ||
+        input.getAttribute('aria-labelledby');
       if (!hasLabel) {
         report.missingLabels.push({
           tag: input.tagName,
           type: input.type,
           id: input.id,
-          name: input.name
+          name: input.name,
         });
       }
     });
-    
+
     // Check roles
     const elementsWithRoles = formElement.querySelectorAll('[role]');
-    report.hasRoles = Array.from(elementsWithRoles).map(el => ({
+    report.hasRoles = Array.from(elementsWithRoles).map((el) => ({
       tag: el.tagName,
       role: el.getAttribute('role'),
-      id: el.id
+      id: el.id,
     }));
-    
+
     // Check focusable elements
-    const focusableSelectors = 'input, select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])';
+    const focusableSelectors =
+      'input, select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])';
     const focusableElements = formElement.querySelectorAll(focusableSelectors);
-    report.focusableElements = Array.from(focusableElements).map(el => ({
+    report.focusableElements = Array.from(focusableElements).map((el) => ({
       tag: el.tagName,
       type: el.type,
       id: el.id,
       tabIndex: el.tabIndex,
-      disabled: el.disabled
+      disabled: el.disabled,
     }));
-    
 
-    
     return report;
   }, [getAccessibilityPreferences]);
 
@@ -233,7 +243,7 @@ const useAccessibility = (options = {}) => {
     registerFormElement,
     getAccessibilityPreferences,
     manageFocusSequence,
-    testAccessibility
+    testAccessibility,
   };
 };
 

@@ -34,7 +34,8 @@ export const extractEditableText = (content: Content): string => {
   if (!content) return '';
   if (typeof content === 'string') return content;
   if (typeof content === 'object') {
-    if (content?.social?.content && typeof content.social.content === 'string') return content.social.content;
+    if (content?.social?.content && typeof content.social.content === 'string')
+      return content.social.content;
     if (typeof content.content === 'string') return content.content;
     if (typeof content.text === 'string') return content.text;
   }
@@ -42,7 +43,10 @@ export const extractEditableText = (content: Content): string => {
 };
 
 // Apply changes to a content object or string, return updated structure with metadata
-export const applyChangesToContent = (content: Content, changes: TextChange[] = []): ApplyChangesResult => {
+export const applyChangesToContent = (
+  content: Content,
+  changes: TextChange[] = []
+): ApplyChangesResult => {
   const current = extractEditableText(content);
   if (!current) {
     return { content, appliedCount: 0, totalCount: changes.length };
@@ -77,7 +81,11 @@ export const applyChangesToContent = (content: Content, changes: TextChange[] = 
     updatedContent = updatedText;
   } else if (typeof content === 'object' && content !== null) {
     const updated = { ...content };
-    if (updated.social && typeof updated.social === 'object' && typeof updated.social.content === 'string') {
+    if (
+      updated.social &&
+      typeof updated.social === 'object' &&
+      typeof updated.social.content === 'string'
+    ) {
       updated.social = { ...updated.social, content: updatedText };
       if (typeof updated.content === 'string') {
         updated.content = updatedText;
@@ -92,15 +100,15 @@ export const applyChangesToContent = (content: Content, changes: TextChange[] = 
   return {
     content: updatedContent,
     appliedCount: changesApplied,
-    totalCount: changes.length
+    totalCount: changes.length,
   };
 };
 
 // Hook exposing high-level text edit actions while keeping the store simple
 const useTextEditActions = (componentName: string) => {
-  const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
-  const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
-  const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
+  const storeContent = useGeneratedTextStore((state) => state.generatedTexts[componentName] || '');
+  const setTextWithHistory = useGeneratedTextStore((state) => state.setTextWithHistory);
+  const pushToHistory = useGeneratedTextStore((state) => state.pushToHistory);
 
   const getEditableText = (): string => {
     // Read directly from store to get latest value after applyEdits
@@ -120,7 +128,7 @@ const useTextEditActions = (componentName: string) => {
     setTextWithHistory(componentName, textToStore);
     return {
       appliedCount: result.appliedCount,
-      totalCount: result.totalCount
+      totalCount: result.totalCount,
     };
   };
 
@@ -131,4 +139,3 @@ const useTextEditActions = (componentName: string) => {
 };
 
 export default useTextEditActions;
-

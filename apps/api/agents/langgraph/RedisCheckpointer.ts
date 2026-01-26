@@ -32,8 +32,14 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
   private _createReplacer(): (key: string, value: unknown) => unknown {
     const seen = new WeakSet();
     const nonSerializableTypes = [
-      'IncomingMessage', 'ServerResponse', 'Socket', 'Server',
-      'TLSSocket', 'HTTPParser', 'ReadableState', 'WritableState'
+      'IncomingMessage',
+      'ServerResponse',
+      'Socket',
+      'Server',
+      'TLSSocket',
+      'HTTPParser',
+      'ReadableState',
+      'WritableState',
     ];
 
     return (key: string, value: unknown): unknown => {
@@ -58,8 +64,10 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
       }
 
       // Check for non-serializable object types
-      if ((value as Record<string, unknown>).constructor &&
-          nonSerializableTypes.includes((value as Record<string, unknown>).constructor.name)) {
+      if (
+        (value as Record<string, unknown>).constructor &&
+        nonSerializableTypes.includes((value as Record<string, unknown>).constructor.name)
+      ) {
         return undefined;
       }
 
@@ -111,7 +119,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
       const [checkpointData, metadataData, writesData] = await Promise.all([
         this.client.get(checkpointKey),
         this.client.get(metadataKey),
-        this.client.get(writesKey)
+        this.client.get(writesKey),
       ]);
 
       if (!checkpointData) return undefined;
@@ -145,7 +153,11 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
 
       await Promise.all([
         this.client.setEx(checkpointKey, CHECKPOINT_TTL, JSON.stringify(checkpoint, replacer)),
-        this.client.setEx(metadataKey, CHECKPOINT_TTL, JSON.stringify(metadata || {}, this._createReplacer()))
+        this.client.setEx(
+          metadataKey,
+          CHECKPOINT_TTL,
+          JSON.stringify(metadata || {}, this._createReplacer())
+        ),
       ]);
 
       return config;
@@ -172,7 +184,11 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
       const existingWrites = existingData ? JSON.parse(existingData as string) : [];
       const allWrites = [...existingWrites, ...writes];
 
-      await this.client.setEx(writesKey, CHECKPOINT_TTL, JSON.stringify(allWrites, this._createReplacer()));
+      await this.client.setEx(
+        writesKey,
+        CHECKPOINT_TTL,
+        JSON.stringify(allWrites, this._createReplacer())
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       log.debug(`putWrites error for ${threadId}: ${errorMessage}`);
@@ -220,7 +236,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
       const patterns = [
         `langgraph:checkpoint:${threadId}:*`,
         `langgraph:metadata:${threadId}:*`,
-        `langgraph:writes:${threadId}:*`
+        `langgraph:writes:${threadId}:*`,
       ];
 
       for (const pattern of patterns) {

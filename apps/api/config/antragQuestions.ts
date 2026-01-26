@@ -50,28 +50,25 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
         text: 'Handlung oder Prüfung? (Der Kern des Beschlusses)',
         type: 'action_type',
         questionFormat: 'yes_no',
-        options: [
-          'Handlungsantrag (direkte Umsetzung)',
-          'Prüfantrag (Machbarkeit klären)'
-        ],
+        options: ['Handlungsantrag (direkte Umsetzung)', 'Prüfantrag (Machbarkeit klären)'],
         optionEmojis: ['🚀', '🔍'],
         allowCustom: false,
-        allowMultiSelect: false
+        allowMultiSelect: false,
       },
       {
         id: 'q2_pain_point',
-        text: 'Was ist das exakte Problem (\'Pain Point\')?',
+        text: "Was ist das exakte Problem ('Pain Point')?",
         type: 'pain_point',
         questionFormat: 'multiple_choice',
         options: [
           'Aktuelle Situation ist unzureichend',
           'Dringender Handlungsbedarf besteht',
-          'Verbesserungspotenzial vorhanden'
+          'Verbesserungspotenzial vorhanden',
         ],
         optionEmojis: ['⚠️', '🚨', '📈'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'Eigenes Problem beschreiben...'
+        placeholder: 'Eigenes Problem beschreiben...',
       },
       {
         id: 'q3_beneficiaries',
@@ -81,12 +78,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
         options: [
           'Alle Bürger*innen',
           'Spezifische Bevölkerungsgruppen',
-          'Übergeordnete Ziele (Klimaschutz, Verkehrssicherheit)'
+          'Übergeordnete Ziele (Klimaschutz, Verkehrssicherheit)',
         ],
         optionEmojis: ['👥', '👨‍👩‍👧‍👦', '🌍'],
         allowCustom: true,
         allowMultiSelect: true,
-        placeholder: 'Weitere Nutznießer...'
+        placeholder: 'Weitere Nutznießer...',
       },
       {
         id: 'q4_budget',
@@ -97,12 +94,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'Ja, konkrete Kostenschätzung vorhanden',
           'Ja, Deckungsvorschlag soll genannt werden',
           'Verwaltung soll Kosten im Rahmen der Prüfung ermitteln',
-          'Überspringen'
+          'Überspringen',
         ],
         optionEmojis: ['💶', '💰', '🔍', '⏭️'],
         allowCustom: false,
         allowMultiSelect: false,
-        skipOption: 'Überspringen'
+        skipOption: 'Überspringen',
       },
       {
         id: 'q5_history',
@@ -113,12 +110,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'Keine bekannte Vorgeschichte',
           'Thema wurde bereits diskutiert',
           'Reaktion auf Bürgeranfragen',
-          'Anknüpfung an bestehendes Programm'
+          'Anknüpfung an bestehendes Programm',
         ],
         optionEmojis: ['❌', '💬', '👥', '🔄'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'Eigene Vorgeschichte angeben...'
+        placeholder: 'Eigene Vorgeschichte angeben...',
       },
       {
         id: 'q6_urgency',
@@ -130,14 +127,14 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'In den nächsten 3 Monaten',
           'In den nächsten 6 Monaten',
           'Bis zum Jahresende',
-          'Langfristig (über 1 Jahr)'
+          'Langfristig (über 1 Jahr)',
         ],
         optionEmojis: ['⚡', '📅', '📆', '🗓️', '🕐'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. \'Vor Beginn der Sommerferien\', \'Vor Haushaltsverabschiedung\'...'
-      }
-    ]
+        placeholder: "z.B. 'Vor Beginn der Sommerferien', 'Vor Haushaltsverabschiedung'...",
+      },
+    ],
   },
   kleine_anfrage: {
     round1: [
@@ -146,28 +143,25 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
         text: 'Handlung oder Prüfung? (Der Kern des Beschlusses)',
         type: 'action_type',
         questionFormat: 'yes_no',
-        options: [
-          'Handlungsantrag (direkte Umsetzung)',
-          'Prüfantrag (Machbarkeit klären)'
-        ],
+        options: ['Handlungsantrag (direkte Umsetzung)', 'Prüfantrag (Machbarkeit klären)'],
         optionEmojis: ['🚀', '🔍'],
         allowCustom: false,
-        allowMultiSelect: false
+        allowMultiSelect: false,
       },
       {
         id: 'q2_pain_point',
-        text: 'Was ist das exakte Problem (\'Pain Point\')?',
+        text: "Was ist das exakte Problem ('Pain Point')?",
         type: 'pain_point',
         questionFormat: 'multiple_choice',
         options: [
           'Fehlende Informationen und Transparenz',
           'Unklare Zuständigkeiten oder Prozesse',
-          'Kritische Entwicklung beobachtet'
+          'Kritische Entwicklung beobachtet',
         ],
         optionEmojis: ['❓', '🔄', '📊'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'Eigenes Problem beschreiben...'
+        placeholder: 'Eigenes Problem beschreiben...',
       },
       {
         id: 'q3_beneficiaries',
@@ -177,12 +171,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
         options: [
           'Transparenz für alle Bürger*innen',
           'Grundlage für weitere politische Arbeit',
-          'Aufklärung von Missständen'
+          'Aufklärung von Missständen',
         ],
         optionEmojis: ['👥', '📋', '🔍'],
         allowCustom: true,
         allowMultiSelect: true,
-        placeholder: 'Weitere Nutznießer...'
+        placeholder: 'Weitere Nutznießer...',
       },
       {
         id: 'q4_budget',
@@ -193,12 +187,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'Ja, konkrete Kostenschätzung vorhanden',
           'Ja, Deckungsvorschlag soll genannt werden',
           'Verwaltung soll Kosten im Rahmen der Prüfung ermitteln',
-          'Überspringen'
+          'Überspringen',
         ],
         optionEmojis: ['💶', '💰', '🔍', '⏭️'],
         allowCustom: false,
         allowMultiSelect: false,
-        skipOption: 'Überspringen'
+        skipOption: 'Überspringen',
       },
       {
         id: 'q5_history',
@@ -209,12 +203,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'Keine bekannte Vorgeschichte',
           'Frühere Anfrage zu diesem Thema',
           'Reaktion auf Medienberichte',
-          'Bürgeranfragen oder -beschwerden'
+          'Bürgeranfragen oder -beschwerden',
         ],
         optionEmojis: ['❌', '📋', '📰', '👥'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'Eigene Vorgeschichte angeben...'
+        placeholder: 'Eigene Vorgeschichte angeben...',
       },
       {
         id: 'q6_urgency',
@@ -226,14 +220,14 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'In den nächsten 3 Monaten',
           'In den nächsten 6 Monaten',
           'Bis zum Jahresende',
-          'Langfristig (über 1 Jahr)'
+          'Langfristig (über 1 Jahr)',
         ],
         optionEmojis: ['⚡', '📅', '📆', '🗓️', '🕐'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. \'Vor Beginn der Sommerferien\', \'Vor Haushaltsverabschiedung\'...'
-      }
-    ]
+        placeholder: "z.B. 'Vor Beginn der Sommerferien', 'Vor Haushaltsverabschiedung'...",
+      },
+    ],
   },
   grosse_anfrage: {
     round1: [
@@ -242,28 +236,25 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
         text: 'Handlung oder Prüfung? (Der Kern des Beschlusses)',
         type: 'action_type',
         questionFormat: 'yes_no',
-        options: [
-          'Handlungsantrag (direkte Umsetzung)',
-          'Prüfantrag (Machbarkeit klären)'
-        ],
+        options: ['Handlungsantrag (direkte Umsetzung)', 'Prüfantrag (Machbarkeit klären)'],
         optionEmojis: ['🚀', '🔍'],
         allowCustom: false,
-        allowMultiSelect: false
+        allowMultiSelect: false,
       },
       {
         id: 'q2_pain_point',
-        text: 'Was ist das exakte Problem (\'Pain Point\')?',
+        text: "Was ist das exakte Problem ('Pain Point')?",
         type: 'pain_point',
         questionFormat: 'multiple_choice',
         options: [
           'Grundsätzliche strategische Defizite',
           'Mangelnde politische Aufmerksamkeit',
-          'Komplexe Problemlage erfordert umfassende Debatte'
+          'Komplexe Problemlage erfordert umfassende Debatte',
         ],
         optionEmojis: ['📉', '🎯', '💬'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'Eigenes Problem beschreiben...'
+        placeholder: 'Eigenes Problem beschreiben...',
       },
       {
         id: 'q3_beneficiaries',
@@ -273,12 +264,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
         options: [
           'Gesamte Stadtgesellschaft',
           'Langfristige strategische Entwicklung',
-          'Politische Meinungsbildung'
+          'Politische Meinungsbildung',
         ],
         optionEmojis: ['🏙️', '🎯', '💬'],
         allowCustom: true,
         allowMultiSelect: true,
-        placeholder: 'Weitere Nutznießer...'
+        placeholder: 'Weitere Nutznießer...',
       },
       {
         id: 'q4_budget',
@@ -289,12 +280,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'Ja, konkrete Kostenschätzung vorhanden',
           'Ja, Deckungsvorschlag soll genannt werden',
           'Verwaltung soll Kosten im Rahmen der Prüfung ermitteln',
-          'Überspringen'
+          'Überspringen',
         ],
         optionEmojis: ['💶', '💰', '🔍', '⏭️'],
         allowCustom: false,
         allowMultiSelect: false,
-        skipOption: 'Überspringen'
+        skipOption: 'Überspringen',
       },
       {
         id: 'q5_history',
@@ -305,12 +296,12 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'Keine bekannte Vorgeschichte',
           'Langjährige politische Debatte',
           'Reaktion auf gesellschaftliche Entwicklungen',
-          'Aufgriff von überregionalen Themen'
+          'Aufgriff von überregionalen Themen',
         ],
         optionEmojis: ['❌', '📋', '🌍', '📰'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'Eigene Vorgeschichte angeben...'
+        placeholder: 'Eigene Vorgeschichte angeben...',
       },
       {
         id: 'q6_urgency',
@@ -322,15 +313,15 @@ const ANTRAG_QUESTIONS_V2: QuestionSet = {
           'In den nächsten 3 Monaten',
           'In den nächsten 6 Monaten',
           'Bis zum Jahresende',
-          'Langfristig (über 1 Jahr)'
+          'Langfristig (über 1 Jahr)',
         ],
         optionEmojis: ['⚡', '📅', '📆', '🗓️', '🕐'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. \'Vor Beginn der Sommerferien\', \'Vor Haushaltsverabschiedung\'...'
-      }
-    ]
-  }
+        placeholder: "z.B. 'Vor Beginn der Sommerferien', 'Vor Haushaltsverabschiedung'...",
+      },
+    ],
+  },
 };
 
 /**
@@ -348,35 +339,29 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         type: 'scope',
         options: [
           'Alle genannten Aspekte gleichwertig behandeln',
-          'Schwerpunkt auf konkrete Umsetzung und Maßnahmen'
+          'Schwerpunkt auf konkrete Umsetzung und Maßnahmen',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Klimaschutz, Mobilität, Soziales...'
+        placeholder: 'z.B. Klimaschutz, Mobilität, Soziales...',
       },
       {
         id: 'q2_audience',
         text: 'An welches Gremium richtet sich der Antrag?',
         type: 'audience',
-        options: [
-          'Gemeinderat',
-          'Stadtrat'
-        ],
+        options: ['Gemeinderat', 'Stadtrat'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Kreistag, Ausschuss, Fraktion...'
+        placeholder: 'z.B. Kreistag, Ausschuss, Fraktion...',
       },
       {
         id: 'q3_tone',
         text: 'Welche Tonalität bevorzugst du?',
         type: 'tone',
-        options: [
-          'Sachlich-neutral',
-          'Appellativ und motivierend'
-        ],
+        options: ['Sachlich-neutral', 'Appellativ und motivierend'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Fachlich-detailliert, Politisch-programmatisch...'
+        placeholder: 'z.B. Fachlich-detailliert, Politisch-programmatisch...',
       },
       {
         id: 'q4_structure',
@@ -384,12 +369,12 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         type: 'structure',
         options: [
           'Standardgliederung mit Begründung und Antragsteil',
-          'Schwerpunkt auf ausführliche Begründung mit Fakten'
+          'Schwerpunkt auf ausführliche Begründung mit Fakten',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. bestimmte Abschnitte, Schwerpunkte...'
-      }
+        placeholder: 'z.B. bestimmte Abschnitte, Schwerpunkte...',
+      },
     ],
     round2: [
       {
@@ -399,13 +384,13 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         refersTo: 'q1_scope',
         options: [
           'Der erste genannte Aspekt soll Priorität haben',
-          'Alle Aspekte gleichwertig, chronologisch aufbauen'
+          'Alle Aspekte gleichwertig, chronologisch aufbauen',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Klimaschutz zuerst, dann Mobilität...'
-      }
-    ]
+        placeholder: 'z.B. Klimaschutz zuerst, dann Mobilität...',
+      },
+    ],
   },
 
   /**
@@ -419,11 +404,11 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         type: 'facts',
         options: [
           'Statistische Daten und Zahlen zum Thema',
-          'Planungen und Zeitrahmen für Umsetzung'
+          'Planungen und Zeitrahmen für Umsetzung',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Budgets, Beschlüsse, Entwicklungen...'
+        placeholder: 'z.B. Budgets, Beschlüsse, Entwicklungen...',
       },
       {
         id: 'q2_background',
@@ -431,36 +416,30 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         type: 'scope',
         options: [
           'Aktuelle Entwicklung oder Ereignis',
-          'Bürgeranfragen oder öffentliches Interesse'
+          'Bürgeranfragen oder öffentliches Interesse',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Zeitungsartikel, Beschwerden, Beobachtungen...'
+        placeholder: 'z.B. Zeitungsartikel, Beschwerden, Beobachtungen...',
       },
       {
         id: 'q3_audience',
         text: 'An wen richtet sich die Anfrage?',
         type: 'audience',
-        options: [
-          'Bürgermeister:in',
-          'Verwaltung allgemein'
-        ],
+        options: ['Bürgermeister:in', 'Verwaltung allgemein'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Bestimmtes Dezernat, Ausschuss...'
+        placeholder: 'z.B. Bestimmtes Dezernat, Ausschuss...',
       },
       {
         id: 'q4_format',
         text: 'Bevorzugst du eine bestimmte Antwortform?',
         type: 'structure',
-        options: [
-          'Tabellarische Übersicht',
-          'Ausführliche Erläuterung'
-        ],
+        options: ['Tabellarische Übersicht', 'Ausführliche Erläuterung'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Zahlen und Statistiken, Keine Präferenz...'
-      }
+        placeholder: 'z.B. Zahlen und Statistiken, Keine Präferenz...',
+      },
     ],
     round2: [
       {
@@ -470,13 +449,13 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         refersTo: 'q1_info_goal',
         options: [
           'Ja, bitte so spezifisch wie möglich formulieren',
-          'Nein, allgemeine Formulierung ist ausreichend'
+          'Nein, allgemeine Formulierung ist ausreichend',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Nur für bestimmten Zeitraum, Nur für bestimmte Stadtteile...'
-      }
-    ]
+        placeholder: 'z.B. Nur für bestimmten Zeitraum, Nur für bestimmte Stadtteile...',
+      },
+    ],
   },
 
   /**
@@ -490,11 +469,11 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         type: 'scope',
         options: [
           'Gesamtstrategie zu einem übergreifenden Thema',
-          'Mehrere zusammenhängende Themenbereiche'
+          'Mehrere zusammenhängende Themenbereiche',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Spezifische Politikfelder, Querschnittsthemen...'
+        placeholder: 'z.B. Spezifische Politikfelder, Querschnittsthemen...',
       },
       {
         id: 'q2_debate_focus',
@@ -502,23 +481,20 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         type: 'scope',
         options: [
           'Kritische Analyse bestehender Missstände',
-          'Chancen und Zukunftsvisionen entwickeln'
+          'Chancen und Zukunftsvisionen entwickeln',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Konkrete Lösungsvorschläge, Politische Forderungen...'
+        placeholder: 'z.B. Konkrete Lösungsvorschläge, Politische Forderungen...',
       },
       {
         id: 'q3_tone',
         text: 'Welcher Stil ist für die öffentliche Debatte gewünscht?',
         type: 'tone',
-        options: [
-          'Konstruktiv-lösungsorientiert',
-          'Kritisch-analytisch'
-        ],
+        options: ['Konstruktiv-lösungsorientiert', 'Kritisch-analytisch'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Visionär-zukunftsorientiert, Fordernd-appellativ...'
+        placeholder: 'z.B. Visionär-zukunftsorientiert, Fordernd-appellativ...',
       },
       {
         id: 'q4_data_focus',
@@ -526,12 +502,12 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         type: 'facts',
         options: [
           'Vergleichszahlen und Entwicklungen über Zeit',
-          'Kosten und finanzielle Auswirkungen'
+          'Kosten und finanzielle Auswirkungen',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Benchmarks mit anderen Städten, Prognosen...'
-      }
+        placeholder: 'z.B. Benchmarks mit anderen Städten, Prognosen...',
+      },
     ],
     round2: [
       {
@@ -541,26 +517,23 @@ const ANTRAG_QUESTIONS: QuestionSet = {
         refersTo: 'q1_main_topic',
         options: [
           'Ja, Unterthemen mit jeweils eigenen Fragen gliedern',
-          'Nein, übergreifende Fragen ohne Untergliederung'
+          'Nein, übergreifende Fragen ohne Untergliederung',
         ],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Spezifische Unterthemen die besonders wichtig sind...'
+        placeholder: 'z.B. Spezifische Unterthemen die besonders wichtig sind...',
       },
       {
         id: 'f2_political_context',
         text: 'Gibt es aktuelle politische Anlässe die eingebunden werden sollen?',
         type: 'clarification',
-        options: [
-          'Ja, es gibt konkrete aktuelle Anlässe',
-          'Nein, allgemeine strategische Anfrage'
-        ],
+        options: ['Ja, es gibt konkrete aktuelle Anlässe', 'Nein, allgemeine strategische Anfrage'],
         allowCustom: true,
         allowMultiSelect: false,
-        placeholder: 'z.B. Beschlüsse, Ereignisse, Medienberichte...'
-      }
-    ]
-  }
+        placeholder: 'z.B. Beschlüsse, Ereignisse, Medienberichte...',
+      },
+    ],
+  },
 };
 
 /**
@@ -575,14 +548,18 @@ export function getQuestionsForType(
   const questionSet = version === 2 ? ANTRAG_QUESTIONS_V2 : ANTRAG_QUESTIONS;
 
   if (!questionSet[requestType]) {
-    console.warn(`[AntragQuestions] Unknown request type: ${requestType}, using 'antrag' as fallback`);
+    console.warn(
+      `[AntragQuestions] Unknown request type: ${requestType}, using 'antrag' as fallback`
+    );
     return questionSet.antrag[roundKey] || [];
   }
 
   const questions = questionSet[requestType][roundKey];
 
   if (!questions) {
-    console.warn(`[AntragQuestions] No questions defined for ${requestType} round ${round} version ${version}`);
+    console.warn(
+      `[AntragQuestions] No questions defined for ${requestType} round ${round} version ${version}`
+    );
     const fallbackSet = version === 2 ? ANTRAG_QUESTIONS : ANTRAG_QUESTIONS_V2;
     return fallbackSet[requestType]?.[roundKey] || [];
   }

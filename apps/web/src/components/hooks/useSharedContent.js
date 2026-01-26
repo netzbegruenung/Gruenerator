@@ -2,7 +2,7 @@ import { useLocation } from 'react-router-dom';
 
 export const useSharedContent = () => {
   const location = useLocation();
-  
+
   const getInitialContent = () => {
     // Prüfe URL-Parameter
     const urlParams = new URLSearchParams(window.location.search);
@@ -14,7 +14,7 @@ export const useSharedContent = () => {
       return {
         thema: themaFromUrl || '',
         details: detailsFromUrl || '',
-        isFromSharepic: true
+        isFromSharepic: true,
       };
     }
 
@@ -23,7 +23,7 @@ export const useSharedContent = () => {
       return {
         thema: location.state.thema || '',
         details: location.state.details || '',
-        isFromSharepic: true
+        isFromSharepic: true,
       };
     }
 
@@ -31,11 +31,11 @@ export const useSharedContent = () => {
     return {
       thema: '',
       details: '',
-      isFromSharepic: false
+      isFromSharepic: false,
     };
   };
 
   return {
-    initialContent: getInitialContent()
+    initialContent: getInitialContent(),
   };
-}; 
+};

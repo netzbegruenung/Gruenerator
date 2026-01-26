@@ -11,9 +11,13 @@ import type {
   ClaudeContentBlock,
   ClaudeDocument,
   AttachmentSummary,
-  AttachmentProcessingResult
+  AttachmentProcessingResult,
 } from './types.js';
-import { validateAttachmentStructure, isFileAttachment, isCrawledUrlAttachment } from './validation.js';
+import {
+  validateAttachmentStructure,
+  isFileAttachment,
+  isCrawledUrlAttachment,
+} from './validation.js';
 import { ALLOWED_ATTACHMENT_TYPES, MAX_FILE_SIZE, MAX_TOTAL_SIZE } from './constants.js';
 
 /**
@@ -92,7 +96,7 @@ export class AttachmentProcessor {
           );
           contentBlocks.push({
             type: 'text',
-            text: `[Inhalt von ${file.displayUrl || file.url}]\n\n${file.content}`
+            text: `[Inhalt von ${file.displayUrl || file.url}]\n\n${file.content}`,
           });
         } else if (file.type === 'application/pdf') {
           contentBlocks.push({
@@ -100,8 +104,8 @@ export class AttachmentProcessor {
             source: {
               type: 'base64',
               media_type: file.type,
-              data: file.data
-            }
+              data: file.data,
+            },
           });
         } else if (file.type.startsWith('image/')) {
           contentBlocks.push({
@@ -109,8 +113,8 @@ export class AttachmentProcessor {
             source: {
               type: 'base64',
               media_type: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
-              data: file.data
-            }
+              data: file.data,
+            },
           });
         } else {
           console.warn(
@@ -124,21 +128,21 @@ export class AttachmentProcessor {
     if (textContent && textContent.trim()) {
       contentBlocks.push({
         type: 'text',
-        text: textContent
+        text: textContent,
       });
     } else {
       // Even if no text content, we need at least one text block for Claude API
       contentBlocks.push({
         type: 'text',
-        text: 'Please analyze the attached files.'
+        text: 'Please analyze the attached files.',
       });
     }
 
     return [
       {
         role: 'user',
-        content: contentBlocks
-      }
+        content: contentBlocks,
+      },
     ];
   }
 
@@ -175,7 +179,7 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
         count: 0,
         totalSizeMB: 0,
         types: [],
-        files: []
+        files: [],
       };
     }
 
@@ -189,8 +193,8 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
       files: attachments.map((file) => ({
         name: file.name,
         type: file.type,
-        sizeMB: Math.round((file.size / (1024 * 1024)) * 100) / 100
-      }))
+        sizeMB: Math.round((file.size / (1024 * 1024)) * 100) / 100,
+      })),
     };
   }
 
@@ -221,7 +225,12 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
     usePrivacyMode: boolean,
     routeName: string,
     userId: string = 'unknown'
-  ): { hasAttachments: boolean; summary: AttachmentSummary | null; validated: boolean; error: string | null } {
+  ): {
+    hasAttachments: boolean;
+    summary: AttachmentSummary | null;
+    validated: boolean;
+    error: string | null;
+  } {
     const result: {
       hasAttachments: boolean;
       summary: AttachmentSummary | null;
@@ -231,7 +240,7 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
       hasAttachments: false,
       summary: null,
       validated: false,
-      error: null
+      error: null,
     };
 
     // Check if attachments are present
@@ -252,7 +261,10 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
       this.logAttachmentProcessing(result.summary, routeName, userId, usePrivacyMode);
     } catch (error) {
       result.error = (error as Error).message;
-      console.error(`[${routeName}] Attachment validation failed for user ${userId}:`, (error as Error).message);
+      console.error(
+        `[${routeName}] Attachment validation failed for user ${userId}:`,
+        (error as Error).message
+      );
     }
 
     return result;
@@ -284,9 +296,9 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
               url: att.url,
               name: att.name,
               wordCount: att.metadata?.wordCount,
-              crawledAt: att.metadata?.extractedAt
-            }
-          }
+              crawledAt: att.metadata?.extractedAt,
+            },
+          },
         };
       } else {
         // Handle regular file attachments
@@ -295,8 +307,8 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
           source: {
             type: 'base64',
             media_type: att.type,
-            data: att.data
-          }
+            data: att.data,
+          },
         };
       }
     });
@@ -356,7 +368,7 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
     if (!processResult.hasAttachments || processResult.error) {
       return {
         ...processResult,
-        documents: []
+        documents: [],
       };
     }
 
@@ -368,7 +380,7 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
 
     return {
       ...processResult,
-      documents
+      documents,
     };
   }
 }

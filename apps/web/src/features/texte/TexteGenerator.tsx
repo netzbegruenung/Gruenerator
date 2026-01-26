@@ -1,13 +1,15 @@
 import React, { useEffect, Suspense, lazy, useMemo, memo, useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+
+import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import TabSelector from './components/TabSelector';
-import { useTabPersistence } from './hooks/useTabPersistence';
+import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useAuthStore } from '../../stores/authStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useProfileData } from '../../stores/profileStore';
-import { useAuthStore } from '../../stores/authStore';
-import { useOptimizedAuth } from '../../hooks/useAuth';
-import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
+
+import TabSelector from './components/TabSelector';
+import { useTabPersistence } from './hooks/useTabPersistence';
 import { type TabId, type UniversalSubType } from './types';
 import './components/TabSelector.css';
 
@@ -34,7 +36,7 @@ const LEGACY_ROUTE_MAP: Record<string, TabId> = {
   '/wahlprogramm': 'universal',
   '/buergerinnenanfragen': 'universal',
   '/barrierefreiheit': 'barrierefreiheit',
-  '/texteditor': 'texteditor'
+  '/texteditor': 'texteditor',
 };
 
 const LOADING_FALLBACK_STYLE: React.CSSProperties = {
@@ -42,7 +44,7 @@ const LOADING_FALLBACK_STYLE: React.CSSProperties = {
   justifyContent: 'center',
   alignItems: 'center',
   minHeight: '400px',
-  color: 'var(--font-color-secondary)'
+  color: 'var(--font-color-secondary)',
 };
 
 const LoadingFallback = memo(() => (
@@ -53,13 +55,13 @@ const LoadingFallback = memo(() => (
 LoadingFallback.displayName = 'LoadingFallback';
 
 const TAB_COMPONENT_NAMES: Record<TabId, string> = {
-  'texte': 'texte-generator',
+  texte: 'texte-generator',
   'presse-social': 'presse-social',
-  'antrag': 'antrag-generator',
-  'universal': 'universal-text',
-  'barrierefreiheit': 'accessibility-generator',
-  'texteditor': 'text-editor',
-  'eigene': 'eigene-generators'
+  antrag: 'antrag-generator',
+  universal: 'universal-text',
+  barrierefreiheit: 'accessibility-generator',
+  texteditor: 'text-editor',
+  eigene: 'eigene-generators',
 };
 
 const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true }) => {
@@ -77,7 +79,6 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
   // Show login screen when user is on a protected tab and not authenticated
   const requiresAuth = !PUBLIC_TABS.includes(activeTab);
   const showLoginRequired = requiresAuth && !isAuthenticated && !authLoading;
-
 
   const firstName = useMemo(() => {
     if (profile?.first_name) return profile.first_name;
@@ -102,9 +103,12 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
     }
   }, [location.pathname, navigate]);
 
-  const handleTabChange = useCallback((tab: TabId) => {
-    setActiveTab(tab);
-  }, [setActiveTab]);
+  const handleTabChange = useCallback(
+    (tab: TabId) => {
+      setActiveTab(tab);
+    },
+    [setActiveTab]
+  );
 
   const handleUniversalSubTypeChange = useCallback((subType: UniversalSubType) => {
     setUniversalSubType(subType);
@@ -156,7 +160,10 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
                 <AntragTab isActive={activeTab === 'antrag'} />
               </div>
               <div className="tab-panel" data-active={activeTab === 'universal'}>
-                <UniversalTab isActive={activeTab === 'universal'} selectedType={universalSubType} />
+                <UniversalTab
+                  isActive={activeTab === 'universal'}
+                  selectedType={universalSubType}
+                />
               </div>
               <div className="tab-panel" data-active={activeTab === 'barrierefreiheit'}>
                 <BarrierefreiheitTab isActive={activeTab === 'barrierefreiheit'} />

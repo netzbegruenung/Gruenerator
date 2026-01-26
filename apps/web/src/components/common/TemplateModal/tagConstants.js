@@ -1,5 +1,9 @@
 // Re-export from centralized location
-export { TAG_DICTIONARY, PLATFORM_DICTIONARY, COMBINED_DICTIONARY } from '../../../hooks/useTextAutocomplete';
+export {
+  TAG_DICTIONARY,
+  PLATFORM_DICTIONARY,
+  COMBINED_DICTIONARY,
+} from '../../../hooks/useTextAutocomplete';
 
 export const DIMENSION_TAG_MAP = {
   '1080x1920': 'story',

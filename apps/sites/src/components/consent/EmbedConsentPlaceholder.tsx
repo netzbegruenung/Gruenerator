@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FaInstagram } from 'react-icons/fa';
+
 import type { EmbedPlatform } from '../../types/consent';
 import '../../styles/components/embed-consent.css';
 
@@ -34,8 +35,7 @@ const PLATFORM_CONTENT: Record<EmbedPlatform, { icon: React.ReactNode; text: Con
       title: 'YouTube-Inhalte laden',
       description:
         'Durch Klicken auf "YouTube-Inhalte laden" werden Inhalte von YouTube eingebettet. Dabei werden Daten an Google Ireland Ltd. übermittelt.',
-      warning:
-        'Die USA gelten nach EU-Recht als Land mit unzureichendem Datenschutzniveau.',
+      warning: 'Die USA gelten nach EU-Recht als Land mit unzureichendem Datenschutzniveau.',
       rememberLabel: 'Meine Auswahl für diesen Browser merken',
       loadButton: 'YouTube-Inhalte laden',
       privacyLink: 'Mehr erfahren',
@@ -48,8 +48,7 @@ const PLATFORM_CONTENT: Record<EmbedPlatform, { icon: React.ReactNode; text: Con
       title: 'X/Twitter-Inhalte laden',
       description:
         'Durch Klicken auf "X-Inhalte laden" werden Inhalte von X (Twitter) eingebettet. Dabei werden Daten an X Corp. in den USA übermittelt.',
-      warning:
-        'Die USA gelten nach EU-Recht als Land mit unzureichendem Datenschutzniveau.',
+      warning: 'Die USA gelten nach EU-Recht als Land mit unzureichendem Datenschutzniveau.',
       rememberLabel: 'Meine Auswahl für diesen Browser merken',
       loadButton: 'X-Inhalte laden',
       privacyLink: 'Mehr erfahren',

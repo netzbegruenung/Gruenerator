@@ -1,8 +1,10 @@
-import React, { forwardRef, memo, ReactNode } from 'react';
+import React, { forwardRef, memo, type ReactNode } from 'react';
 import { FormProvider, Control, FieldValues, useForm } from 'react-hook-form';
-import SubmitButton from '../../SubmitButton';
-import PlatformSelector from '../../../common/PlatformSelector';
+
 import FileUpload from '../../../common/FileUpload';
+import PlatformSelector from '../../../common/PlatformSelector';
+import SubmitButton from '../../SubmitButton';
+
 import type { FormInputSectionProps, PlatformOption, FormControl } from '@/types/baseform';
 
 const hasFormErrors = (formErrors: Record<string, string> = {}): boolean =>
@@ -16,143 +18,151 @@ const getButtonContainerClasses = (showBackButton?: boolean): string =>
 
 // Property definition is imported from @/types/baseform above
 
-const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
-  formErrors = {},
-  isMultiStep = false,
-  onBack,
-  showBackButton = false,
-  children,
-  defaultValues = {},
-  validationRules = {},
-  useModernForm = true,
-  onFormChange = null,
-  showSubmitButton = false,
-  onSubmit,
-  loading = false,
-  success = false,
-  nextButtonText = null,
-  submitButtonProps = {},
-  enablePlatformSelector = false,
-  platformOptions = [],
-  platformSelectorLabel,
-  platformSelectorPlaceholder,
-  platformSelectorHelpText,
-  platformSelectorTabIndex = 12,
-  formControl = null,
-  showImageUpload = false,
-  uploadedImage = null,
-  onImageChange = null,
-  isStartMode = false,
-  inputHeaderContent = null
-}, ref) => {
-  const formContentClasses = getFormContentClasses(hasFormErrors(formErrors as Record<string, string>));
-  const buttonContainerClasses = getButtonContainerClasses(showBackButton);
+const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(
+  (
+    {
+      formErrors = {},
+      isMultiStep = false,
+      onBack,
+      showBackButton = false,
+      children,
+      defaultValues = {},
+      validationRules = {},
+      useModernForm = true,
+      onFormChange = null,
+      showSubmitButton = false,
+      onSubmit,
+      loading = false,
+      success = false,
+      nextButtonText = null,
+      submitButtonProps = {},
+      enablePlatformSelector = false,
+      platformOptions = [],
+      platformSelectorLabel,
+      platformSelectorPlaceholder,
+      platformSelectorHelpText,
+      platformSelectorTabIndex = 12,
+      formControl = null,
+      showImageUpload = false,
+      uploadedImage = null,
+      onImageChange = null,
+      isStartMode = false,
+      inputHeaderContent = null,
+    },
+    ref
+  ) => {
+    const formContentClasses = getFormContentClasses(
+      hasFormErrors(formErrors as Record<string, string>)
+    );
+    const buttonContainerClasses = getButtonContainerClasses(showBackButton);
 
-  const modernForm = useForm({
-    defaultValues
-  });
+    const modernForm = useForm({
+      defaultValues,
+    });
 
-  const handleFormChange = (name: string, value: unknown): void => {
-    if (useModernForm) {
-      modernForm.setValue(name, value);
-    }
-    if (onFormChange) {
-      onFormChange(useModernForm ? modernForm.getValues() : {});
-    }
-  };
+    const handleFormChange = (name: string, value: unknown): void => {
+      if (useModernForm) {
+        modernForm.setValue(name, value);
+      }
+      if (onFormChange) {
+        onFormChange(useModernForm ? modernForm.getValues() : {});
+      }
+    };
 
-  const renderChildren = (): ReactNode => {
-    if (useModernForm) {
-      return (
-        <FormProvider {...modernForm}>
-          {typeof children === 'function'
-            ? children({
-              control: modernForm.control,
-              register: modernForm.register,
-              setValue: modernForm.setValue,
-              getValues: modernForm.getValues,
-              formState: {
-                errors: modernForm.formState.errors,
-                isDirty: modernForm.formState.isDirty,
-                isValid: modernForm.formState.isValid
-              }
-            } as FormControl)
-            : children
-          }
-        </FormProvider>
-      );
-    }
-    return children as ReactNode;
-  };
+    const renderChildren = (): ReactNode => {
+      if (useModernForm) {
+        return (
+          <FormProvider {...modernForm}>
+            {typeof children === 'function'
+              ? children({
+                  control: modernForm.control,
+                  register: modernForm.register,
+                  setValue: modernForm.setValue,
+                  getValues: modernForm.getValues,
+                  formState: {
+                    errors: modernForm.formState.errors,
+                    isDirty: modernForm.formState.isDirty,
+                    isValid: modernForm.formState.isValid,
+                  },
+                } as FormControl)
+              : children}
+          </FormProvider>
+        );
+      }
+      return children as ReactNode;
+    };
 
-  return (
-    <div className={`form-section__inputs ${isStartMode ? 'form-section__inputs--start-mode' : ''}`} ref={ref}>
-      <div className="form-inputs__content">
-        {inputHeaderContent && (
-          <div className="form-inputs__header">
-            {inputHeaderContent}
+    return (
+      <div
+        className={`form-section__inputs ${isStartMode ? 'form-section__inputs--start-mode' : ''}`}
+        ref={ref}
+      >
+        <div className="form-inputs__content">
+          {inputHeaderContent && <div className="form-inputs__header">{inputHeaderContent}</div>}
+          <div className={`form-inputs__fields ${formContentClasses}`}>
+            {enablePlatformSelector && useModernForm && platformOptions.length > 0 && (
+              <div className="form-inputs__platform-selector">
+                <PlatformSelector
+                  name="platforms"
+                  control={(formControl as FormControl)?.control || modernForm.control}
+                  platformOptions={platformOptions}
+                  label={platformSelectorLabel}
+                  placeholder={platformSelectorPlaceholder}
+                  required={true}
+                  helpText={platformSelectorHelpText}
+                  tabIndex={platformSelectorTabIndex}
+                />
+              </div>
+            )}
+
+            {showImageUpload && (
+              <div className="form-inputs__image-upload">
+                <FileUpload
+                  handleChange={(file: File | null) => onImageChange?.(file)}
+                  allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
+                  file={uploadedImage instanceof File ? uploadedImage : null}
+                  loading={loading}
+                  label="Bild für Sharepic (optional)"
+                />
+              </div>
+            )}
+
+            {renderChildren()}
           </div>
-        )}
-        <div className={`form-inputs__fields ${formContentClasses}`}>
-          {enablePlatformSelector && useModernForm && platformOptions.length > 0 && (
-            <div className="form-inputs__platform-selector">
-              <PlatformSelector
-                name="platforms"
-                control={(formControl as FormControl)?.control || modernForm.control}
-                platformOptions={platformOptions}
-                label={platformSelectorLabel}
-                placeholder={platformSelectorPlaceholder}
-                required={true}
-                helpText={platformSelectorHelpText}
-                tabIndex={platformSelectorTabIndex}
-              />
-            </div>
-          )}
 
-          {showImageUpload && (
-            <div className="form-inputs__image-upload">
-              <FileUpload
-                handleChange={(file: File | null) => onImageChange?.(file)}
-                allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
-                file={uploadedImage instanceof File ? uploadedImage : null}
-                loading={loading}
-                label="Bild für Sharepic (optional)"
-              />
+          {(isMultiStep && showBackButton) || showSubmitButton ? (
+            <div className={`form-inputs__buttons ${buttonContainerClasses}`}>
+              {isMultiStep && showBackButton && (
+                <button type="button" onClick={onBack} className="form-inputs__back-button">
+                  Zurück
+                </button>
+              )}
+              {showSubmitButton && (
+                <SubmitButton
+                  onClick={(e: React.MouseEvent) => {
+                    e.preventDefault();
+                    onSubmit?.();
+                  }}
+                  loading={loading}
+                  success={success}
+                  text={
+                    isMultiStep
+                      ? nextButtonText || 'Weiter'
+                      : (submitButtonProps as Record<string, string>)?.defaultText || 'Grünerieren'
+                  }
+                  className="form-inputs__submit-button button-primary"
+                  ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
+                  type="submit"
+                  {...submitButtonProps}
+                />
+              )}
             </div>
-          )}
-
-          {renderChildren()}
+          ) : null}
         </div>
-
-        {(isMultiStep && showBackButton) || showSubmitButton ? (
-          <div className={`form-inputs__buttons ${buttonContainerClasses}`}>
-            {isMultiStep && showBackButton && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="form-inputs__back-button"
-              >
-                Zurück
-              </button>
-            )}
-            {showSubmitButton && (
-              <SubmitButton
-                onClick={(e: React.MouseEvent) => { e.preventDefault(); onSubmit?.(); }}
-                loading={loading}
-                success={success}
-                text={isMultiStep ? (nextButtonText || 'Weiter') : ((submitButtonProps as Record<string, string>)?.defaultText || "Grünerieren")}
-                className="form-inputs__submit-button button-primary"
-                ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
-                type="submit"
-                {...submitButtonProps}
-              />
-            )}
-          </div>
-        ) : null}
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 FormInputSection.displayName = 'FormInputSection';
 

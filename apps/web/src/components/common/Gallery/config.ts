@@ -4,14 +4,10 @@ export const PR_TYPES = [
   'twitter',
   'linkedin',
   'pressemitteilung',
-  'pr_text'
+  'pr_text',
 ];
 
-export const ANTRAEGE_TYPES = [
-  'antrag',
-  'kleine_anfrage',
-  'grosse_anfrage'
-];
+export const ANTRAEGE_TYPES = ['antrag', 'kleine_anfrage', 'grosse_anfrage'];
 
 export const GENERATOR_TYPES = ['template'];
 
@@ -49,7 +45,7 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
       { value: 'title', label: 'Titel' },
       { value: 'fulltext', label: 'Volltext' },
       { value: 'examples', label: 'Beispiele (AI)' },
-      { value: 'semantic', label: 'Semantisch' }
+      { value: 'semantic', label: 'Semantisch' },
     ],
     defaultSearchMode: 'title',
     fetcher: 'fetchUnified',
@@ -57,14 +53,14 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
     sectionLabels: {
       antraege: 'Anträge',
       generators: 'Grüneratoren',
-      pr: 'Öffentlichkeitsarbeit'
+      pr: 'Öffentlichkeitsarbeit',
     },
     sectionTypeMap: {
       antraege: ANTRAEGE_TYPES,
       generators: GENERATOR_TYPES,
-      pr: PR_TYPES
+      pr: PR_TYPES,
     },
-    allowCategoryFilter: false
+    allowCategoryFilter: false,
   },
   antraege: {
     id: 'antraege',
@@ -73,16 +69,16 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
     intro: 'Durchsuchen und verwalten Sie hier eingereichte Anträge.',
     searchModes: [
       { value: 'title', label: 'Titel' },
-      { value: 'fulltext', label: 'Volltext' }
+      { value: 'fulltext', label: 'Volltext' },
     ],
     defaultSearchMode: 'title',
     fetcher: 'fetchAntraege',
     categorySource: {
       type: 'api',
       queryKey: ['antraegeCategories'],
-      endpoint: '/auth/antraege-categories'
+      endpoint: '/auth/antraege-categories',
     },
-    cardRenderer: 'antraege'
+    cardRenderer: 'antraege',
   },
   generators: {
     id: 'generators',
@@ -91,7 +87,7 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
     intro: 'Durchsuchen und verwalten Sie hier benutzerdefinierte Grüneratoren.',
     searchModes: [
       { value: 'title', label: 'Titel' },
-      { value: 'fulltext', label: 'Volltext' }
+      { value: 'fulltext', label: 'Volltext' },
     ],
     defaultSearchMode: 'title',
     fetcher: 'fetchGenerators',
@@ -101,10 +97,10 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
         { id: 'all', label: 'Alle Kategorien' },
         { id: 'own', label: 'Eigene Generatoren' },
         { id: 'shared', label: 'Geteilte Generatoren' },
-        { id: 'popular', label: 'Beliebt' }
-      ]
+        { id: 'popular', label: 'Beliebt' },
+      ],
     },
-    cardRenderer: 'generators'
+    cardRenderer: 'generators',
   },
   pr: {
     id: 'pr',
@@ -115,13 +111,13 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
       { value: 'title', label: 'Titel' },
       { value: 'fulltext', label: 'Volltext' },
       { value: 'examples', label: 'Beispiele (AI)' },
-      { value: 'semantic', label: 'Semantisch' }
+      { value: 'semantic', label: 'Semantisch' },
     ],
     defaultSearchMode: 'title',
     fetcher: 'fetchUnified',
     filterTypes: PR_TYPES,
     allowCategoryFilter: true,
-    cardRenderer: 'pr'
+    cardRenderer: 'pr',
   },
   vorlagen: {
     id: 'vorlagen',
@@ -130,17 +126,17 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
     intro: 'Durchsuchen Sie hier Design-Vorlagen für Canva, InDesign und mehr.',
     searchModes: [
       { value: 'title', label: 'Titel' },
-      { value: 'fulltext', label: 'Volltext' }
+      { value: 'fulltext', label: 'Volltext' },
     ],
     defaultSearchMode: 'title',
     fetcher: 'fetchVorlagen',
     categorySource: {
       type: 'api',
       queryKey: ['vorlagenCategories'],
-      endpoint: '/auth/vorlagen-categories'
+      endpoint: '/auth/vorlagen-categories',
     },
     cardRenderer: 'vorlagen',
-    allowCategoryFilter: true
+    allowCategoryFilter: true,
   },
   prompts: {
     id: 'prompts',
@@ -150,13 +146,20 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
     searchModes: [
       { value: 'title', label: 'Titel' },
       { value: 'fulltext', label: 'Volltext' },
-      { value: 'semantic', label: 'Semantisch' }
+      { value: 'semantic', label: 'Semantisch' },
     ],
     defaultSearchMode: 'title',
     fetcher: 'fetchPublicPrompts',
     cardRenderer: 'prompts',
-    allowCategoryFilter: false
-  }
+    allowCategoryFilter: false,
+  },
 };
 
-export const ORDERED_CONTENT_TYPE_IDS = ['antraege', 'generators', 'pr', 'vorlagen', 'prompts', 'all'];
+export const ORDERED_CONTENT_TYPE_IDS = [
+  'antraege',
+  'generators',
+  'pr',
+  'vorlagen',
+  'prompts',
+  'all',
+];

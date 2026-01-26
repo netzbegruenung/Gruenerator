@@ -5,14 +5,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  useColorScheme,
-  ViewStyle,
-} from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, useColorScheme, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, lightTheme, darkTheme } from '../../theme';
 
@@ -28,24 +21,13 @@ interface FloatingBadgeTabsProps {
   style?: ViewStyle;
 }
 
-export function FloatingBadgeTabs({
-  tabs,
-  activeTab,
-  onTabPress,
-  style,
-}: FloatingBadgeTabsProps) {
+export function FloatingBadgeTabs({ tabs, activeTab, onTabPress, style }: FloatingBadgeTabsProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
 
   return (
-    <View
-      style={[
-        styles.container,
-        { top: insets.top + 8 },
-        style,
-      ]}
-    >
+    <View style={[styles.container, { top: insets.top + 8 }, style]}>
       {tabs.map((tab) => {
         const isActive = tab.key === activeTab;
         return (
@@ -57,17 +39,18 @@ export function FloatingBadgeTabs({
               styles.badge,
               isActive
                 ? styles.activeBadge
-                : [styles.inactiveBadge, { backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)' }],
+                : [
+                    styles.inactiveBadge,
+                    {
+                      backgroundColor:
+                        colorScheme === 'dark'
+                          ? 'rgba(255, 255, 255, 0.15)'
+                          : 'rgba(0, 0, 0, 0.08)',
+                    },
+                  ],
             ]}
           >
-            <Text
-              style={[
-                styles.label,
-                isActive
-                  ? styles.activeLabel
-                  : { color: theme.text },
-              ]}
-            >
+            <Text style={[styles.label, isActive ? styles.activeLabel : { color: theme.text }]}>
               {tab.label}
             </Text>
           </TouchableOpacity>

@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
+
 import { searchUnsplashImages, type StockImage } from '../services/imageSourceService';
 
 interface UseUnsplashSearchReturn {

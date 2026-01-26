@@ -37,7 +37,8 @@ export function parseSubtitlesText(text: string | null | undefined): SubtitleSeg
     return [];
   }
 
-  const safeText = text.length > MAX_SUBTITLE_TEXT_LENGTH ? text.slice(0, MAX_SUBTITLE_TEXT_LENGTH) : text;
+  const safeText =
+    text.length > MAX_SUBTITLE_TEXT_LENGTH ? text.slice(0, MAX_SUBTITLE_TEXT_LENGTH) : text;
   const segments: SubtitleSegment[] = [];
   const blocks = safeText.split('\n\n').filter((block) => block.trim() !== '');
 
@@ -134,10 +135,7 @@ export function findActiveSegment(
  * @param currentTime - Current playback time in seconds
  * @returns Index of active segment or -1 if none found
  */
-export function findActiveSegmentIndex(
-  segments: SubtitleSegment[],
-  currentTime: number
-): number {
+export function findActiveSegmentIndex(segments: SubtitleSegment[], currentTime: number): number {
   return segments.findIndex(
     (segment) => currentTime >= segment.startTime && currentTime <= segment.endTime
   );

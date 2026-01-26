@@ -12,7 +12,7 @@ const MAX_PATH_LENGTH = 4096;
 
 function containsDangerousChars(input: string): boolean {
   const dangerousChars = ['..', ';', '&', '|', '`', '$', '(', ')', '<', '>', ':', '"', '?', '*'];
-  return dangerousChars.some(char => input.includes(char));
+  return dangerousChars.some((char) => input.includes(char));
 }
 
 /**
@@ -91,5 +91,5 @@ export function generateSecureId(bytes: number = 16): string {
 export default {
   sanitizePath,
   sanitizeFilename,
-  generateSecureId
+  generateSecureId,
 };

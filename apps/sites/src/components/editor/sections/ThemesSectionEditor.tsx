@@ -1,8 +1,10 @@
 import { useRef, useCallback } from 'react';
+
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
-import { MarkdownEditor } from '../common/MarkdownEditor';
 import { ImageUpload } from '../common/ImageUpload';
+import { MarkdownEditor } from '../common/MarkdownEditor';
+
 import type { ThemesSection, ThemeCard } from '../../../types/candidate';
 
 interface ThemesSectionEditorProps {
@@ -26,12 +28,15 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
 
   const titleRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
-  const setTitleRef = useCallback((index: number, el: HTMLInputElement | null) => {
-    if (el) {
-      titleRefs.current.set(index, el);
-      registerField('themes', 'title', el, index);
-    }
-  }, [registerField]);
+  const setTitleRef = useCallback(
+    (index: number, el: HTMLInputElement | null) => {
+      if (el) {
+        titleRefs.current.set(index, el);
+        registerField('themes', 'title', el, index);
+      }
+    },
+    [registerField]
+  );
 
   const updateTheme = (index: number, field: keyof ThemeCard, value: string) => {
     const newThemes = [...data.themes];
@@ -59,7 +64,7 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
   };
 
   const getTextLength = (markdown: string) => {
-    return markdown.replace(/[#*_\[\]()]/g, '').length;
+    return markdown.replace(/[#*_[\]()]/g, '').length;
   };
 
   return (
@@ -94,7 +99,9 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
                 </div>
               </div>
 
-              <div className={`editor-form-group ${isFieldHighlighted(index, 'title') ? 'editor-field-highlighted' : ''}`}>
+              <div
+                className={`editor-form-group ${isFieldHighlighted(index, 'title') ? 'editor-field-highlighted' : ''}`}
+              >
                 <label htmlFor={`theme-${index}-title`}>Titel</label>
                 <input
                   ref={(el) => setTitleRef(index, el)}
@@ -109,7 +116,9 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
                 />
               </div>
 
-              <div className={`editor-form-group ${isFieldHighlighted(index, 'content') ? 'editor-field-highlighted' : ''}`}>
+              <div
+                className={`editor-form-group ${isFieldHighlighted(index, 'content') ? 'editor-field-highlighted' : ''}`}
+              >
                 <label>Beschreibung</label>
                 <MarkdownEditor
                   value={theme.content}
@@ -119,7 +128,9 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
                   placeholder="Beschreibe dein Engagement für dieses Thema..."
                   minHeight="120px"
                 />
-                <div className={`editor-char-count ${contentLength > MAX_CONTENT_LENGTH * 0.9 ? 'editor-char-count--warning' : ''}`}>
+                <div
+                  className={`editor-char-count ${contentLength > MAX_CONTENT_LENGTH * 0.9 ? 'editor-char-count--warning' : ''}`}
+                >
                   {contentLength} / {MAX_CONTENT_LENGTH}
                 </div>
               </div>

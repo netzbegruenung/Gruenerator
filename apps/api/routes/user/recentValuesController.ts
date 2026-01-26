@@ -5,7 +5,7 @@ import {
   saveRecentValue,
   getRecentValues,
   clearRecentValues,
-  getFieldTypesWithCounts
+  getFieldTypesWithCounts,
 } from '../../services/chat/RecentValuesService.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
@@ -25,7 +25,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
 
     if (!fieldType || !fieldValue) {
       return res.status(400).json({
-        error: 'fieldType and fieldValue are required'
+        error: 'fieldType and fieldValue are required',
       });
     }
 
@@ -34,12 +34,12 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     return res.status(201).json({
       success: true,
       data: result,
-      message: 'Recent value saved successfully'
+      message: 'Recent value saved successfully',
     });
   } catch (error) {
     log.error('[RecentValues API] Error saving recent value:', error);
     return res.status(500).json({
-      error: (error as Error).message || 'Failed to save recent value'
+      error: (error as Error).message || 'Failed to save recent value',
     });
   }
 });
@@ -52,22 +52,26 @@ router.get('/:fieldType', requireAuth, async (req: AuthenticatedRequest, res: Re
 
     if (!fieldType) {
       return res.status(400).json({
-        error: 'fieldType parameter is required'
+        error: 'fieldType parameter is required',
       });
     }
 
-    const values = await getRecentValues(userId, fieldType, limit ? parseInt(limit as string, 10) : undefined);
+    const values = await getRecentValues(
+      userId,
+      fieldType,
+      limit ? parseInt(limit as string, 10) : undefined
+    );
 
     return res.json({
       success: true,
       data: values,
       fieldType,
-      count: values.length
+      count: values.length,
     });
   } catch (error) {
     log.error('[RecentValues API] Error retrieving recent values:', error);
     return res.status(500).json({
-      error: (error as Error).message || 'Failed to retrieve recent values'
+      error: (error as Error).message || 'Failed to retrieve recent values',
     });
   }
 });
@@ -79,7 +83,7 @@ router.delete('/:fieldType', requireAuth, async (req: AuthenticatedRequest, res:
 
     if (!fieldType) {
       return res.status(400).json({
-        error: 'fieldType parameter is required'
+        error: 'fieldType parameter is required',
       });
     }
 
@@ -88,12 +92,12 @@ router.delete('/:fieldType', requireAuth, async (req: AuthenticatedRequest, res:
     return res.json({
       success: true,
       message: `Cleared ${deletedCount} recent values for ${fieldType}`,
-      deletedCount
+      deletedCount,
     });
   } catch (error) {
     log.error('[RecentValues API] Error clearing recent values:', error);
     return res.status(500).json({
-      error: (error as Error).message || 'Failed to clear recent values'
+      error: (error as Error).message || 'Failed to clear recent values',
     });
   }
 });
@@ -107,12 +111,12 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
     res.json({
       success: true,
       data: fieldTypes,
-      count: fieldTypes.length
+      count: fieldTypes.length,
     });
   } catch (error) {
     log.error('[RecentValues API] Error retrieving field types:', error);
     res.status(500).json({
-      error: (error as Error).message || 'Failed to retrieve field types'
+      error: (error as Error).message || 'Failed to retrieve field types',
     });
   }
 });

@@ -3,11 +3,12 @@
  * Similar to anweisungenWissen but for groups functionality
  */
 
-import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+
+import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroupsStore } from '../../../stores/auth/groupsStore';
-import apiClient from '../../../components/utils/apiClient';
 
 // Request deduplication cache to prevent duplicate API calls
 const requestCache = new Map();
@@ -22,12 +23,11 @@ const deduplicatedFetch = (key, fetcher) => {
   if (requestCache.has(key)) {
     return requestCache.get(key);
   }
-  
-  const promise = fetcher()
-    .finally(() => {
-      requestCache.delete(key);
-    });
-  
+
+  const promise = fetcher().finally(() => {
+    requestCache.delete(key);
+  });
+
   requestCache.set(key, promise);
   return promise;
 };
@@ -39,14 +39,20 @@ const deduplicatedFetch = (key, fetcher) => {
 export const useGroups = ({ isActive } = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  
+
   // Zustand store for UI state
   const {
-    isSaving, setSaving,
-    isDeleting, setDeleting, deletingGroupId, setDeletingGroupId,
-    isCreating, setCreating,
-    isJoining, setJoining,
-    clearMessages
+    isSaving,
+    setSaving,
+    isDeleting,
+    setDeleting,
+    deletingGroupId,
+    setDeletingGroupId,
+    isCreating,
+    setCreating,
+    isJoining,
+    setJoining,
+    clearMessages,
   } = useGroupsStore();
 
   // Query key for user's groups
@@ -77,7 +83,7 @@ export const useGroups = ({ isActive } = {}) => {
     refetchOnMount: 'always', // Always refetch on mount for fresh data
     refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: false
+    refetchInterval: false,
   });
 
   // Create group mutation
@@ -104,7 +110,7 @@ export const useGroups = ({ isActive } = {}) => {
     },
     onError: (error) => {
       setCreating(false);
-    }
+    },
   });
 
   // Delete group mutation
@@ -131,7 +137,7 @@ export const useGroups = ({ isActive } = {}) => {
     onError: (error) => {
       setDeleting(false);
       setDeletingGroupId(null);
-    }
+    },
   });
 
   // Update group info (name and description) mutation
@@ -157,7 +163,7 @@ export const useGroups = ({ isActive } = {}) => {
     },
     onError: (error) => {
       setSaving(false);
-    }
+    },
   });
 
   // Legacy update group name mutation for backward compatibility
@@ -183,7 +189,7 @@ export const useGroups = ({ isActive } = {}) => {
     },
     onError: (error) => {
       setSaving(false);
-    }
+    },
   });
 
   // Join group mutation
@@ -207,7 +213,7 @@ export const useGroups = ({ isActive } = {}) => {
     },
     onError: (error) => {
       setJoining(false);
-    }
+    },
   });
 
   // Wrapper functions for mutations
@@ -218,7 +224,7 @@ export const useGroups = ({ isActive } = {}) => {
       },
       onError: (error) => {
         options.onError?.(error);
-      }
+      },
     });
   };
 
@@ -229,30 +235,36 @@ export const useGroups = ({ isActive } = {}) => {
       },
       onError: (error) => {
         options.onError?.(error);
-      }
+      },
     });
   };
 
   const updateGroupInfo = (groupId, { name, description }, options = {}) => {
-    updateGroupInfoMutation.mutate({ groupId, name, description }, {
-      onSuccess: (result) => {
-        options.onSuccess?.(result);
-      },
-      onError: (error) => {
-        options.onError?.(error);
+    updateGroupInfoMutation.mutate(
+      { groupId, name, description },
+      {
+        onSuccess: (result) => {
+          options.onSuccess?.(result);
+        },
+        onError: (error) => {
+          options.onError?.(error);
+        },
       }
-    });
+    );
   };
 
   const updateGroupName = (groupId, name, options = {}) => {
-    updateGroupNameMutation.mutate({ groupId, name }, {
-      onSuccess: (result) => {
-        options.onSuccess?.(result);
-      },
-      onError: (error) => {
-        options.onError?.(error);
+    updateGroupNameMutation.mutate(
+      { groupId, name },
+      {
+        onSuccess: (result) => {
+          options.onSuccess?.(result);
+        },
+        onError: (error) => {
+          options.onError?.(error);
+        },
       }
-    });
+    );
   };
 
   const joinGroup = (joinToken, options = {}) => {
@@ -262,7 +274,7 @@ export const useGroups = ({ isActive } = {}) => {
       },
       onError: (error) => {
         options.onError?.(error);
-      }
+      },
     });
   };
 
@@ -308,7 +320,7 @@ export const useGroups = ({ isActive } = {}) => {
 
     // UI State management
     isSaving,
-    clearMessages
+    clearMessages,
   };
 };
 
@@ -317,7 +329,7 @@ export const useGroups = ({ isActive } = {}) => {
  */
 export const useGroupMembers = (groupId, { isActive } = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
-  
+
   // Query key for group members
   const membersQueryKey = ['groupMembers', groupId];
 
@@ -346,7 +358,7 @@ export const useGroupMembers = (groupId, { isActive } = {}) => {
     refetchOnMount: false, // Only fetch on explicit actions
     refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: false // Disable auto-refetch
+    refetchInterval: false, // Disable auto-refetch
   });
 
   return {
@@ -365,12 +377,9 @@ export const useGroupMembers = (groupId, { isActive } = {}) => {
 export const useGroupSharing = (groupId, { isActive } = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  
+
   // Zustand store for UI state
-  const {
-    isSaving, setSaving,
-    clearMessages
-  } = useGroupsStore();
+  const { isSaving, setSaving, clearMessages } = useGroupsStore();
 
   // Query key for group content
   const groupContentQueryKey = ['groupContent', groupId];
@@ -396,7 +405,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     groupId,
     isAuthenticated,
     authLoading,
-    isActive
+    isActive,
   });
 
   // React Query for fetching group content
@@ -410,7 +419,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     refetchOnMount: 'always', // Always fetch on mount
     refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: false
+    refetchInterval: false,
   });
 
   // Log query status
@@ -419,7 +428,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     isFetching: groupContentQuery.isFetching,
     isStale: groupContentQuery.isStale,
     dataUpdatedAt: groupContentQuery.dataUpdatedAt,
-    hasData: !!groupContentQuery.data
+    hasData: !!groupContentQuery.data,
   });
 
   // Share content mutation
@@ -430,7 +439,11 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       }
 
       const shareGroupId = targetGroupId || groupId;
-      const response = await apiClient.post(`/auth/groups/${shareGroupId}/share`, { contentType, contentId, permissions });
+      const response = await apiClient.post(`/auth/groups/${shareGroupId}/share`, {
+        contentType,
+        contentId,
+        permissions,
+      });
       return response.data;
     },
     onMutate: () => {
@@ -448,7 +461,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     },
     onError: (error) => {
       setSaving(false);
-    }
+    },
   });
 
   // Unshare content mutation
@@ -459,7 +472,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       }
 
       const response = await apiClient.delete(`/auth/groups/${groupId}/content/${contentId}`, {
-        data: { contentType }
+        data: { contentType },
       });
       return response.data;
     },
@@ -474,7 +487,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     },
     onError: (error) => {
       setSaving(false);
-    }
+    },
   });
 
   // Update permissions mutation
@@ -484,7 +497,10 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-      const response = await apiClient.put(`/auth/groups/${groupId}/content/${contentId}/permissions`, { contentType, permissions });
+      const response = await apiClient.put(
+        `/auth/groups/${groupId}/content/${contentId}/permissions`,
+        { contentType, permissions }
+      );
       return response.data;
     },
     onMutate: () => {
@@ -498,42 +514,51 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     },
     onError: (error) => {
       setSaving(false);
-    }
+    },
   });
 
   // Wrapper functions for mutations
   const shareContent = (contentType, contentId, options = {}) => {
     const { permissions, targetGroupId, onSuccess, onError } = options;
-    shareContentMutation.mutate({ contentType, contentId, permissions, targetGroupId }, {
-      onSuccess: (result) => {
-        onSuccess?.(result);
-      },
-      onError: (error) => {
-        onError?.(error);
+    shareContentMutation.mutate(
+      { contentType, contentId, permissions, targetGroupId },
+      {
+        onSuccess: (result) => {
+          onSuccess?.(result);
+        },
+        onError: (error) => {
+          onError?.(error);
+        },
       }
-    });
+    );
   };
 
   const unshareContent = (contentType, contentId, options = {}) => {
-    unshareContentMutation.mutate({ contentType, contentId }, {
-      onSuccess: (result) => {
-        options.onSuccess?.(result);
-      },
-      onError: (error) => {
-        options.onError?.(error);
+    unshareContentMutation.mutate(
+      { contentType, contentId },
+      {
+        onSuccess: (result) => {
+          options.onSuccess?.(result);
+        },
+        onError: (error) => {
+          options.onError?.(error);
+        },
       }
-    });
+    );
   };
 
   const updatePermissions = (contentType, contentId, permissions, options = {}) => {
-    updatePermissionsMutation.mutate({ contentType, contentId, permissions }, {
-      onSuccess: (result) => {
-        options.onSuccess?.(result);
-      },
-      onError: (error) => {
-        options.onError?.(error);
+    updatePermissionsMutation.mutate(
+      { contentType, contentId, permissions },
+      {
+        onSuccess: (result) => {
+          options.onSuccess?.(result);
+        },
+        onError: (error) => {
+          options.onError?.(error);
+        },
       }
-    });
+    );
   };
 
   return {
@@ -574,7 +599,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
 
     // UI State management
     isSaving,
-    clearMessages
+    clearMessages,
   };
 };
 
@@ -585,15 +610,15 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
 export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const { userGroups: groups, isLoadingGroups } = useGroups({ isActive });
-  
+
   // We'll use individual useGroupSharing hooks for each group
   // This ensures we reuse the existing, working logic
   const groupContentQueries = useMemo(() => {
     if (!groups?.length) return [];
-    
-    return groups.map(group => ({
+
+    return groups.map((group) => ({
       groupId: group.id,
-      groupName: group.name
+      groupName: group.name,
     }));
   }, [groups]);
 
@@ -601,17 +626,16 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
   // We can't use multiple useGroupSharing hooks dynamically, so we'll implement
   // a similar pattern but for multiple groups
   const queryClient = useQueryClient();
-  
+
   // Query key for all groups content
   const allGroupsContentQueryKey = ['allGroupsContent', user?.id];
-  
+
   // Fetch content from all groups in parallel for better performance
   const fetchAllGroupsContentFn = async () => {
     if (!user?.id || !groups?.length) {
       return { allContent: [], errors: [] };
     }
 
-    
     // Create parallel fetch promises for all groups
     const groupFetchPromises = groups.map(async (group) => {
       const requestKey = `group_content_${group.id}_${user.id}`;
@@ -624,56 +648,56 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
 
         if (result.content) {
           // Add group context to all items
-          const groupKnowledge = (result.content.knowledge || []).map(item => ({
+          const groupKnowledge = (result.content.knowledge || []).map((item) => ({
             ...item,
             sourceType: 'group',
             groupId: group.id,
-            groupName: group.name
+            groupName: group.name,
           }));
-          
-          const groupDocuments = (result.content.documents || []).map(item => ({
+
+          const groupDocuments = (result.content.documents || []).map((item) => ({
             ...item,
             sourceType: 'group',
             groupId: group.id,
-            groupName: group.name
+            groupName: group.name,
           }));
-          
-          const groupTexts = (result.content.texts || []).map(item => ({
+
+          const groupTexts = (result.content.texts || []).map((item) => ({
             ...item,
             sourceType: 'group',
             groupId: group.id,
-            groupName: group.name
+            groupName: group.name,
           }));
-          
+
           const groupContent = [...groupKnowledge, ...groupDocuments, ...groupTexts];
-          
+
           return {
             success: true,
             content: groupContent,
-            groupName: group.name
+            groupName: group.name,
           };
         }
-        
+
         return {
           success: true,
           content: [],
-          groupName: group.name
+          groupName: group.name,
         };
       } catch (error) {
         return {
           success: false,
           error: error.message,
-          groupName: group.name
+          groupName: group.name,
         };
       }
     });
 
     // Wait for all requests to complete
     const results = await Promise.allSettled(groupFetchPromises);
-    
+
     const allContent = [];
     const errors = [];
-    
+
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         const groupResult = result.value;
@@ -686,14 +710,14 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
         errors.push({ groupName: groups[index]?.name || 'Unknown', error: result.reason.message });
       }
     });
-    
-    
+
     return { allContent, errors };
   };
 
   // React Query for fetching all groups content
   // Enable query when user is authenticated and groups are loaded (even if empty)
-  const shouldFetchGroupContent = enabled && !!user?.id && isAuthenticated && !authLoading && !isLoadingGroups;
+  const shouldFetchGroupContent =
+    enabled && !!user?.id && isAuthenticated && !authLoading && !isLoadingGroups;
   const hasGroups = groups?.length > 0;
 
   const query = useQuery({
@@ -706,7 +730,7 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
     refetchOnMount: false, // Only fetch on explicit actions
     refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: false // Disable auto-refetch
+    refetchInterval: false, // Disable auto-refetch
   });
 
   // Only refetch when tab becomes active if data is very stale (>10 minutes)
@@ -746,7 +770,7 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
     // Invalidate cache when needed
     invalidateAllGroupsContent: () => {
       queryClient.invalidateQueries({ queryKey: allGroupsContentQueryKey });
-    }
+    },
   };
 };
 
@@ -755,11 +779,11 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
  */
 export const getGroupInitials = (groupName) => {
   if (!groupName) return 'G';
-  
+
   if (!groupName.includes(' ')) {
     return groupName.substring(0, 2).toUpperCase();
   }
-  
+
   const words = groupName.split(' ');
   return (words[0][0] + (words[1] ? words[1][0] : '')).toUpperCase();
 };

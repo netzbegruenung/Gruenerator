@@ -1,4 +1,3 @@
-
 # Beitragende Richtlinien
 
 Vielen Dank, dass du dich für eine Mitwirkung an Grünerator interessierst! Wir schätzen deine Hilfe und möchten sicherstellen, dass der Beitrag reibungslos verläuft.

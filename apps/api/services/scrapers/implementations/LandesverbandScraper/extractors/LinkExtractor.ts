@@ -37,7 +37,10 @@ export class LinkExtractor {
       if (currentPage === 1) {
         pageUrl = source.baseUrl + contentPath.path;
       } else {
-        const paginationPath = contentPath.paginationPattern.replace('{page}', currentPage.toString());
+        const paginationPath = contentPath.paginationPattern.replace(
+          '{page}',
+          currentPage.toString()
+        );
         pageUrl = source.baseUrl + contentPath.path + paginationPath;
       }
 
@@ -63,7 +66,10 @@ export class LinkExtractor {
           if (!normalized.startsWith(source.baseUrl)) return;
 
           // Exclude the list page itself
-          if (normalized !== source.baseUrl + contentPath.path && normalized !== source.baseUrl + contentPath.path + '/') {
+          if (
+            normalized !== source.baseUrl + contentPath.path &&
+            normalized !== source.baseUrl + contentPath.path + '/'
+          ) {
             links.add(normalized);
           }
         });
@@ -114,7 +120,9 @@ export class LinkExtractor {
           }
         });
 
-        log?.(`Sitemap ${sitemapUrl}: found ${links.size} URLs${filter ? ` (filtered by '${filter}')` : ''}`);
+        log?.(
+          `Sitemap ${sitemapUrl}: found ${links.size} URLs${filter ? ` (filtered by '${filter}')` : ''}`
+        );
         await this.delay(300);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -129,10 +137,7 @@ export class LinkExtractor {
    * Extract PDF links from archive page
    * Returns links with title and context for date extraction
    */
-  async extractPdfLinks(
-    source: any,
-    contentPath: any
-  ): Promise<PdfLink[]> {
+  async extractPdfLinks(source: any, contentPath: any): Promise<PdfLink[]> {
     const pageUrl = source.baseUrl + contentPath.path;
     const response = await this.fetchUrl(pageUrl);
     const html = await response.text();

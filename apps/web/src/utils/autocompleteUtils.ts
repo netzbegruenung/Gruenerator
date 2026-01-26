@@ -15,7 +15,7 @@ export const PLATFORM_ALIASES = {
   pressemitteilung: ['presse', 'pm', 'press'],
   sharepic: ['share', 'pic', 'bild'],
   actionIdeas: ['action', 'aktion', 'ideen', 'idee'],
-  reelScript: ['reel', 'tiktok', 'script', 'skript', 'video']
+  reelScript: ['reel', 'tiktok', 'script', 'skript', 'video'],
 };
 
 /**
@@ -24,7 +24,10 @@ export const PLATFORM_ALIASES = {
  * @param target - Target string to match against
  * @returns Score from 0 to 1 (1 = exact match)
  */
-export const fuzzyMatch = (input: string | null | undefined, target: string | null | undefined): number => {
+export const fuzzyMatch = (
+  input: string | null | undefined,
+  target: string | null | undefined
+): number => {
   if (!input || !target) return 0;
 
   const inputLower = input.toLowerCase().trim();
@@ -70,7 +73,11 @@ interface OptionItem {
   [key: string]: unknown;
 }
 
-export const findMatches = (input: string, options: OptionItem[], config: FindMatchesConfig = {}) => {
+export const findMatches = (
+  input: string,
+  options: OptionItem[],
+  config: FindMatchesConfig = {}
+) => {
   const { aliases = PLATFORM_ALIASES, threshold = 0.5, minChars = 1 } = config;
 
   if (!input || input.length < minChars) {
@@ -81,20 +88,18 @@ export const findMatches = (input: string, options: OptionItem[], config: FindMa
 
   for (const [value, aliasArray] of Object.entries(aliases)) {
     if ((aliasArray as string[]).some((alias: string) => alias.toLowerCase() === inputLower)) {
-      const exactMatch = options.find(opt =>
-        (opt.value || opt.id) === value
-      );
+      const exactMatch = options.find((opt) => (opt.value || opt.id) === value);
       if (exactMatch) {
         return {
           matches: [exactMatch],
           bestMatch: exactMatch,
-          isUniqueMatch: true
+          isUniqueMatch: true,
         };
       }
     }
   }
 
-  const scored = options.map(option => {
+  const scored = options.map((option) => {
     const label = option.label || '';
     const value = option.value || option.id || '';
     const optionAliases = (aliases as Record<string, string[]>)[value] || [];
@@ -102,24 +107,24 @@ export const findMatches = (input: string, options: OptionItem[], config: FindMa
     const scores = [
       fuzzyMatch(input, label as string),
       fuzzyMatch(input, value as string),
-      ...optionAliases.map((alias: string) => fuzzyMatch(input, alias))
+      ...optionAliases.map((alias: string) => fuzzyMatch(input, alias)),
     ];
 
     return {
       option,
-      score: Math.max(...scores)
+      score: Math.max(...scores),
     };
   });
 
   const matches = scored
-    .filter(s => s.score >= threshold)
+    .filter((s) => s.score >= threshold)
     .sort((a, b) => b.score - a.score)
-    .map(s => s.option);
+    .map((s) => s.option);
 
   return {
     matches,
     bestMatch: matches[0] || null,
-    isUniqueMatch: matches.length === 1
+    isUniqueMatch: matches.length === 1,
   };
 };
 
@@ -139,7 +144,7 @@ export const createFilterOption = (aliases: Record<string, string[]> = PLATFORM_
 
     const optionData = {
       value: option.value,
-      label: option.label
+      label: option.label,
     };
 
     const { matches } = findMatches(inputValue, [optionData], { aliases, threshold: 0.5 });
@@ -153,13 +158,16 @@ export const createFilterOption = (aliases: Record<string, string[]> = PLATFORM_
  * @param aliases - Alias map
  * @returns Matched platform value or null
  */
-export const getExactAliasMatch = (input: string | null | undefined, aliases: Record<string, string[]> = PLATFORM_ALIASES): string | null => {
+export const getExactAliasMatch = (
+  input: string | null | undefined,
+  aliases: Record<string, string[]> = PLATFORM_ALIASES
+): string | null => {
   if (!input) return null;
 
   const inputLower = input.toLowerCase().trim();
 
   for (const [value, aliasArray] of Object.entries(aliases)) {
-    if (aliasArray.some(alias => alias.toLowerCase() === inputLower)) {
+    if (aliasArray.some((alias) => alias.toLowerCase() === inputLower)) {
       return value;
     }
   }
@@ -174,7 +182,10 @@ export const getExactAliasMatch = (input: string | null | undefined, aliases: Re
  * @param aliases - Alias map (defaults to PLATFORM_ALIASES)
  * @returns Array of detected platform IDs
  */
-export const detectPlatformsInText = (text: string | null | undefined, aliases: Record<string, string[]> = PLATFORM_ALIASES): string[] => {
+export const detectPlatformsInText = (
+  text: string | null | undefined,
+  aliases: Record<string, string[]> = PLATFORM_ALIASES
+): string[] => {
   if (!text) return [];
 
   const textLower = text.toLowerCase();

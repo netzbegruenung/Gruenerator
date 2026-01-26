@@ -1,5 +1,6 @@
-import type { JSX, ReactNode, MouseEvent } from 'react';
 import { IoHeart, IoHeartOutline } from 'react-icons/io5';
+
+import type { JSX, ReactNode, MouseEvent } from 'react';
 import '../../assets/styles/components/common/index-card.css';
 
 export interface IndexCardProps {
@@ -38,7 +39,8 @@ const IndexCard = ({
   onTagClick,
   isLiked = false,
   onLikeToggle,
-  ...props }: IndexCardProps): JSX.Element => {
+  ...props
+}: IndexCardProps): JSX.Element => {
   const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (onClick && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
@@ -94,15 +96,11 @@ const IndexCard = ({
       <div className="index-card__body">
         <div className="index-card__header">
           <h3 className="index-card__title">{title}</h3>
-          {headerActions && (
-            <div className="index-card__header-actions">{headerActions}</div>
-          )}
+          {headerActions && <div className="index-card__header-actions">{headerActions}</div>}
         </div>
 
         <div className="index-card__content">
-          {description && (
-            <p className="index-card__description">{description}</p>
-          )}
+          {description && <p className="index-card__description">{description}</p>}
         </div>
 
         {tags.length > 0 && (
@@ -124,7 +122,10 @@ const IndexCard = ({
         {authorName && (
           <div className="index-card__author">
             {authorEmail ? (
-              <a href={`mailto:${authorEmail}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+              <a
+                href={`mailto:${authorEmail}`}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              >
                 {authorName}
               </a>
             ) : (

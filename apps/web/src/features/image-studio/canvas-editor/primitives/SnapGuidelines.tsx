@@ -4,6 +4,7 @@
 
 import { memo } from 'react';
 import { Line } from 'react-konva';
+
 import type { SnapLine } from '../utils/snapping';
 
 export interface SnapGuidelinesProps {

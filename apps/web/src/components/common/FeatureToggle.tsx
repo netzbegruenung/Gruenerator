@@ -1,5 +1,6 @@
-import type { JSX, ComponentType } from 'react';
 import * as Switch from '@radix-ui/react-switch';
+
+import type { JSX, ComponentType } from 'react';
 import '../../assets/styles/components/ui/FeatureToggle.css';
 
 interface IconProps {
@@ -18,7 +19,8 @@ interface FeatureToggleProps {
   noBorder?: boolean;
 }
 
-const FeatureToggle = ({ isActive,
+const FeatureToggle = ({
+  isActive,
   onToggle,
   label,
   icon: Icon,
@@ -26,7 +28,8 @@ const FeatureToggle = ({ isActive,
   className,
   tabIndex,
   disabled = false,
-  noBorder = false }: FeatureToggleProps): JSX.Element => {
+  noBorder = false,
+}: FeatureToggleProps): JSX.Element => {
   const handleToggle = (checked: boolean) => {
     if (!disabled && onToggle) {
       onToggle(checked);
@@ -34,7 +37,9 @@ const FeatureToggle = ({ isActive,
   };
 
   return (
-    <div className={`feature-toggle ${className || ''} ${disabled ? 'feature-toggle-disabled' : ''} ${noBorder ? 'feature-toggle-no-border' : ''}`}>
+    <div
+      className={`feature-toggle ${className || ''} ${disabled ? 'feature-toggle-disabled' : ''} ${noBorder ? 'feature-toggle-no-border' : ''}`}
+    >
       <div className="feature-header">
         <Switch.Root
           className="feature-switch"
@@ -47,15 +52,15 @@ const FeatureToggle = ({ isActive,
           <Switch.Thumb className="feature-switch-thumb" />
         </Switch.Root>
         <div className="feature-label">
-          <Icon className={`feature-toggle-icon ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`} />
+          <Icon
+            className={`feature-toggle-icon ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
+          />
           {label} {isActive ? '' : ''}
         </div>
       </div>
 
       {description && description.trim() && (
-        <div className="feature-description">
-          {description}
-        </div>
+        <div className="feature-description">{description}</div>
       )}
     </div>
   );

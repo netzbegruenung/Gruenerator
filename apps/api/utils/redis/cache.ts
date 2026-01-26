@@ -36,7 +36,7 @@ class LRUCache<T = any> {
       misses: 0,
       sets: 0,
       deletes: 0,
-      cleanups: 0
+      cleanups: 0,
     };
   }
 
@@ -88,7 +88,7 @@ class LRUCache<T = any> {
     // Add new entry
     this.cache.set(key, {
       data: value,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     this.stats.sets++;
@@ -170,7 +170,7 @@ class LRUCache<T = any> {
       size: this.cache.size,
       maxSize: this.maxSize,
       ttl: this.ttl,
-      name: this.name
+      name: this.name,
     };
   }
 
@@ -193,38 +193,42 @@ const createCache = {
   /**
    * Create search query enhancement cache
    */
-  searchEnhancement: (): LRUCache<any> => new LRUCache({
-    name: 'SearchEnhancement',
-    maxSize: parseInt(process.env.SEARCH_CACHE_SIZE || '100'),
-    ttl: parseInt(process.env.SEARCH_CACHE_TTL || '1800000') // 30 minutes
-  }),
+  searchEnhancement: (): LRUCache<any> =>
+    new LRUCache({
+      name: 'SearchEnhancement',
+      maxSize: parseInt(process.env.SEARCH_CACHE_SIZE || '100'),
+      ttl: parseInt(process.env.SEARCH_CACHE_TTL || '1800000'), // 30 minutes
+    }),
 
   /**
    * Create autonomous search results cache
    */
-  searchResults: (): LRUCache<any> => new LRUCache({
-    name: 'SearchResults',
-    maxSize: parseInt(process.env.RESULTS_CACHE_SIZE || '200'),
-    ttl: parseInt(process.env.RESULTS_CACHE_TTL || '900000') // 15 minutes
-  }),
+  searchResults: (): LRUCache<any> =>
+    new LRUCache({
+      name: 'SearchResults',
+      maxSize: parseInt(process.env.RESULTS_CACHE_SIZE || '200'),
+      ttl: parseInt(process.env.RESULTS_CACHE_TTL || '900000'), // 15 minutes
+    }),
 
   /**
    * Create embedding cache
    */
-  embeddings: (): LRUCache<any> => new LRUCache({
-    name: 'Embeddings',
-    maxSize: parseInt(process.env.EMBEDDING_CACHE_SIZE || '500'),
-    ttl: parseInt(process.env.EMBEDDING_CACHE_TTL || '3600000') // 1 hour
-  }),
+  embeddings: (): LRUCache<any> =>
+    new LRUCache({
+      name: 'Embeddings',
+      maxSize: parseInt(process.env.EMBEDDING_CACHE_SIZE || '500'),
+      ttl: parseInt(process.env.EMBEDDING_CACHE_TTL || '3600000'), // 1 hour
+    }),
 
   /**
    * Create general purpose cache
    */
-  general: (options: CacheOptions = {}): LRUCache<any> => new LRUCache({
-    name: options.name || 'General',
-    maxSize: options.maxSize || 50,
-    ttl: options.ttl || 1800000 // 30 minutes
-  })
+  general: (options: CacheOptions = {}): LRUCache<any> =>
+    new LRUCache({
+      name: options.name || 'General',
+      maxSize: options.maxSize || 50,
+      ttl: options.ttl || 1800000, // 30 minutes
+    }),
 };
 
 export { LRUCache, createCache };

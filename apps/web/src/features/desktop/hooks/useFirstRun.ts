@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 const FIRST_RUN_CONFIG = {
   REQUIRE_LOGIN: false,
   STORAGE_KEY: 'gruenerator_desktop_first_run_completed',
-  VERSION_KEY: 'gruenerator_desktop_version'
+  VERSION_KEY: 'gruenerator_desktop_version',
 };
 
 interface UseFirstRunReturn {
@@ -41,7 +41,7 @@ export function useFirstRun(): UseFirstRunReturn {
     setIsFirstRun(false);
 
     if (typeof window !== 'undefined' && '__TAURI__' in window) {
-      import('@tauri-apps/api/core').then(({ invoke }) => {
+      void import('@tauri-apps/api/core').then(({ invoke }) => {
         invoke('close_splashscreen').catch(console.error);
       });
     }
@@ -57,7 +57,7 @@ export function useFirstRun(): UseFirstRunReturn {
     isFirstRun,
     requireLogin: FIRST_RUN_CONFIG.REQUIRE_LOGIN,
     completeFirstRun,
-    resetFirstRun
+    resetFirstRun,
   };
 }
 

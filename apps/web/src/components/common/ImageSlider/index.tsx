@@ -1,14 +1,14 @@
-import { JSX, useState, useEffect, useCallback } from 'react';
+import { type JSX, useState, useEffect, useCallback } from 'react';
 import { HiRefresh } from 'react-icons/hi';
 import '../../../assets/styles/components/ui/image-slider.css';
 
 // Lazy load react-image-gallery and its styles
 const loadImageGallery = async () => {
-  const [galleryModule, styleSheet] = await Promise.all([
-    // @ts-ignore - react-image-gallery types are missing
+  const [galleryModule, _styleSheet] = await Promise.all([
+    // @ts-expect-error - react-image-gallery types are missing
     import('react-image-gallery'),
-    // @ts-ignore - CSS import
-    import('react-image-gallery/styles/css/image-gallery.css')
+    // @ts-expect-error - CSS import
+    import('react-image-gallery/styles/css/image-gallery.css'),
   ]);
 
   return galleryModule.default;
@@ -18,7 +18,7 @@ interface ImageSliderProps {
   images: {
     url?: string;
     src?: string;
-    alt?: string
+    alt?: string;
   }[];
   onImageClick?: (event?: React.MouseEvent) => void;
   onLoad?: () => void;
@@ -27,14 +27,18 @@ interface ImageSliderProps {
   showControls?: boolean;
 }
 
-const ImageSlider = ({ images,
+const ImageSlider = ({
+  images,
   onImageClick,
   onLoad,
   onError,
   className = '',
-  showControls = true }: ImageSliderProps): JSX.Element => {
+  showControls = true,
+}: ImageSliderProps): JSX.Element => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [ImageGallery, setImageGallery] = useState<React.ComponentType<Record<string, unknown>> | null>(null);
+  const [ImageGallery, setImageGallery] = useState<React.ComponentType<
+    Record<string, unknown>
+  > | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<Error | unknown | null>(null);
 
@@ -61,9 +65,9 @@ const ImageSlider = ({ images,
     handleLoadGallery();
   }, [handleLoadGallery]);
 
-  const galleryImages = images.map(img => ({
+  const galleryImages = images.map((img) => ({
     original: img.url || img.src,
-    originalAlt: img.alt
+    originalAlt: img.alt,
   }));
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>): void => {
@@ -79,13 +83,16 @@ const ImageSlider = ({ images,
   // Loading state
   if (isLoading) {
     return (
-      <div className={`image-slider ${className}`} style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '200px',
-        opacity: 0.7
-      }}>
+      <div
+        className={`image-slider ${className}`}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '200px',
+          opacity: 0.7,
+        }}
+      >
         <HiRefresh className="spinning" size={24} />
         <span style={{ marginLeft: '8px', fontSize: '14px' }}>Bildergalerie wird geladen...</span>
       </div>
@@ -95,14 +102,17 @@ const ImageSlider = ({ images,
   // Error state
   if (loadError || !ImageGallery) {
     return (
-      <div className={`image-slider ${className}`} style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '200px',
-        opacity: 0.5,
-        flexDirection: 'column'
-      }}>
+      <div
+        className={`image-slider ${className}`}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '200px',
+          opacity: 0.5,
+          flexDirection: 'column',
+        }}
+      >
         <p style={{ fontSize: '14px', textAlign: 'center' }}>
           Bildergalerie konnte nicht geladen werden
         </p>
@@ -116,7 +126,7 @@ const ImageSlider = ({ images,
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           Erneut versuchen

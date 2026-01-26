@@ -98,7 +98,17 @@ export default function ResultScreen() {
     } finally {
       setKiLoading(false);
     }
-  }, [kiType, kiInstruction, kiVariant, kiInfrastructureOptions, uploadedImageBase64, generatePureCreate, generateKiEdit, setKiLoading, setError]);
+  }, [
+    kiType,
+    kiInstruction,
+    kiVariant,
+    kiInfrastructureOptions,
+    uploadedImageBase64,
+    generatePureCreate,
+    generateKiEdit,
+    setKiLoading,
+    setError,
+  ]);
 
   const handleGenerateCanvas = useCallback(async () => {
     if (!type) return;
@@ -119,7 +129,15 @@ export default function ResultScreen() {
     } finally {
       setCanvasLoading(false);
     }
-  }, [type, formData, uploadedImageUri, uploadedImageBase64, generateCanvas, setCanvasLoading, setError]);
+  }, [
+    type,
+    formData,
+    uploadedImageUri,
+    uploadedImageBase64,
+    generateCanvas,
+    setCanvasLoading,
+    setError,
+  ]);
 
   const handleGenerate = useCallback(() => {
     if (isKiMode) {

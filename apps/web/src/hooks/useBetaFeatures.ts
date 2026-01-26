@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
-import { useOptimizedAuth } from './useAuth';
+
 import { useBetaFeaturesStore } from '../stores/betaFeaturesStore';
+
+import { useOptimizedAuth } from './useAuth';
 
 // Types for beta features store
 interface BetaFeaturesState {
@@ -22,8 +24,9 @@ interface BetaFeatureConfig {
   isProfileSetting?: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface UseBetaFeaturesOptions {
-  // Add any options here if needed in the future
+  // Placeholder for future options
 }
 
 interface UseBetaFeaturesReturn {
@@ -53,8 +56,18 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
   // { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true }, // Removed - outdated
   { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
-  { key: 'interactiveAntrag', label: 'Interaktiver Antrag', isAdminOnly: false, defaultEnabled: true },
-  { key: 'automatischPlanMode', label: 'Automatisch Plan-Modus', isAdminOnly: false, defaultEnabled: false },
+  {
+    key: 'interactiveAntrag',
+    label: 'Interaktiver Antrag',
+    isAdminOnly: false,
+    defaultEnabled: true,
+  },
+  {
+    key: 'automatischPlanMode',
+    label: 'Automatisch Plan-Modus',
+    isAdminOnly: false,
+    defaultEnabled: false,
+  },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
   { key: 'videoEditor', label: 'Video Editor', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
@@ -63,7 +76,7 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
 ];
 
 // Dynamically generated arrays from config
-const ADMIN_ONLY_FEATURES = BETA_FEATURES_CONFIG.filter(f => f.isAdminOnly).map(f => f.key);
+const ADMIN_ONLY_FEATURES = BETA_FEATURES_CONFIG.filter((f) => f.isAdminOnly).map((f) => f.key);
 
 // Unified hook for managing beta features using Zustand store
 export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaFeaturesReturn => {
@@ -88,64 +101,77 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
 
   // Memoize isAdmin to prevent unnecessary recalculations
   const isAdmin = React.useMemo(() => user?.is_admin === true, [user?.is_admin]);
-  
+
   // Helper functions - memoized with stable dependencies
-  const getBetaFeatureState = React.useCallback((key: string): boolean => {
-    if (betaFeatures?.[key] !== undefined) {
-      return !!betaFeatures[key];
-    }
-    const featureConfig = BETA_FEATURES_CONFIG.find(f => f.key === key);
-    return featureConfig?.defaultEnabled ?? false;
-  }, [betaFeatures]);
-  
-  const canAccessBetaFeature = React.useCallback((featureKey: string): boolean => {
-    const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
+  const getBetaFeatureState = React.useCallback(
+    (key: string): boolean => {
+      if (betaFeatures?.[key] !== undefined) {
+        return !!betaFeatures[key];
+      }
+      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === key);
+      return featureConfig?.defaultEnabled ?? false;
+    },
+    [betaFeatures]
+  );
 
-    if (isAdminOnlyFeature && !isAdmin) {
-      return false;
-    }
+  const canAccessBetaFeature = React.useCallback(
+    (featureKey: string): boolean => {
+      const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
 
-    const isDev = import.meta.env.DEV;
-    const featureConfig = BETA_FEATURES_CONFIG.find(f => f.key === featureKey);
-    if (isDev && featureConfig?.devOnly) {
-      return true;
-    }
+      if (isAdminOnlyFeature && !isAdmin) {
+        return false;
+      }
 
-    if (betaFeatures?.[featureKey] !== undefined) {
-      return !!betaFeatures[featureKey];
-    }
-    return featureConfig?.defaultEnabled ?? false;
-  }, [betaFeatures, isAdmin]);
+      const isDev = import.meta.env.DEV;
+      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === featureKey);
+      if (isDev && featureConfig?.devOnly) {
+        return true;
+      }
 
-  const shouldShowTab = React.useCallback((featureKey: string): boolean => {
-    const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
+      if (betaFeatures?.[featureKey] !== undefined) {
+        return !!betaFeatures[featureKey];
+      }
+      return featureConfig?.defaultEnabled ?? false;
+    },
+    [betaFeatures, isAdmin]
+  );
 
-    if (isAdminOnlyFeature && !isAdmin) {
-      return false;
-    }
+  const shouldShowTab = React.useCallback(
+    (featureKey: string): boolean => {
+      const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
 
-    const isDev = import.meta.env.DEV;
-    const featureConfig = BETA_FEATURES_CONFIG.find(f => f.key === featureKey);
-    if (isDev && featureConfig?.devOnly) {
-      return true;
-    }
+      if (isAdminOnlyFeature && !isAdmin) {
+        return false;
+      }
 
-    if (betaFeatures?.[featureKey] !== undefined) {
-      return !!betaFeatures[featureKey];
-    }
-    return featureConfig?.defaultEnabled ?? false;
-  }, [betaFeatures, isAdmin]);
+      const isDev = import.meta.env.DEV;
+      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === featureKey);
+      if (isDev && featureConfig?.devOnly) {
+        return true;
+      }
+
+      if (betaFeatures?.[featureKey] !== undefined) {
+        return !!betaFeatures[featureKey];
+      }
+      return featureConfig?.defaultEnabled ?? false;
+    },
+    [betaFeatures, isAdmin]
+  );
 
   const getAvailableFeatures = React.useCallback((): BetaFeatureConfig[] => {
     const isDev = import.meta.env.DEV;
-    return BETA_FEATURES_CONFIG.filter(feature =>
-      (!feature.isAdminOnly || isAdmin) &&
-      !feature.isProfileSetting &&
-      (!feature.devOnly || isDev)
+    return BETA_FEATURES_CONFIG.filter(
+      (feature) =>
+        (!feature.isAdminOnly || isAdmin) &&
+        !feature.isProfileSetting &&
+        (!feature.devOnly || isDev)
     );
   }, [isAdmin]);
 
-  const updateUserBetaFeatures = React.useCallback((featureKey: string, isEnabled: boolean): Promise<void> => toggle(featureKey, isEnabled), [toggle]);
+  const updateUserBetaFeatures = React.useCallback(
+    (featureKey: string, isEnabled: boolean): Promise<void> => toggle(featureKey, isEnabled),
+    [toggle]
+  );
 
   return {
     // Data
@@ -153,20 +179,20 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
     isLoading: !isHydrated,
     isError: !!error,
     error,
-    
+
     // Helper functions
     getBetaFeatureState,
     canAccessBetaFeature,
     shouldShowTab,
     getAvailableFeatures,
-    
+
     // Actions
     updateUserBetaFeatures,
-    
+
     // Admin status
     isAdmin,
     adminOnlyFeatures: ADMIN_ONLY_FEATURES,
-    
+
     // Mutation state
     isUpdating,
     updateError: error,

@@ -27,7 +27,7 @@ export type {
   QueryOptions,
   TransactionCallback,
   Pool,
-  PoolClient
+  PoolClient,
 } from './types.js';
 
 export { loadConfig, getSafeConfigForLog } from './config.js';
@@ -40,7 +40,7 @@ export {
   validateTableName,
   validateColumnNames,
   generateAlterStatements,
-  sanitizeBackupPath
+  sanitizeBackupPath,
 } from './schema.js';
 
 export { runMigrations, createDatabaseIfNotExists } from './migrations.js';
@@ -53,7 +53,7 @@ export {
   buildBulkInsertQuery,
   transactionQuery,
   transactionQueryOne,
-  transactionExec
+  transactionExec,
 } from './queries.js';
 
 import { PostgresService } from './PostgresService.js';

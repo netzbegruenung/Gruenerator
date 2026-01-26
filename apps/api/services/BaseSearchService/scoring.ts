@@ -6,12 +6,7 @@
  */
 
 import { vectorConfig } from '../../config/vectorConfig.js';
-import type {
-  ChunkData,
-  EnhancedScore,
-  HybridMetadata,
-  DocumentResult
-} from './types.js';
+import type { ChunkData, EnhancedScore, HybridMetadata, DocumentResult } from './types.js';
 
 interface VectorScoringConfig {
   maxSimilarityWeight?: number;
@@ -41,26 +36,24 @@ export function calculateEnhancedDocumentScore(chunks: ChunkData[]): EnhancedSco
       maxSimilarity: 0,
       avgSimilarity: 0,
       positionScore: 0,
-      diversityBonus: 0
+      diversityBonus: 0,
     };
   }
 
   // Extract similarities (prefer adjusted if available)
-  const similarities = chunks.map(c => c.similarity_adjusted ?? c.similarity ?? 0);
+  const similarities = chunks.map((c) => c.similarity_adjusted ?? c.similarity ?? 0);
   const maxSimilarity = Math.max(...similarities);
   const avgSimilarity = similarities.reduce((a, b) => a + b, 0) / similarities.length;
 
   // Position-aware scoring
-  const minPositionWeight = (typeof scoringConfig.minPositionWeight === 'number')
-    ? scoringConfig.minPositionWeight
-    : 0.1;
-  const positionDecayRate = (typeof scoringConfig.positionDecayRate === 'number')
-    ? scoringConfig.positionDecayRate
-    : 0.05;
+  const minPositionWeight =
+    typeof scoringConfig.minPositionWeight === 'number' ? scoringConfig.minPositionWeight : 0.1;
+  const positionDecayRate =
+    typeof scoringConfig.positionDecayRate === 'number' ? scoringConfig.positionDecayRate : 0.05;
 
   let positionScore = 0;
   for (const chunk of chunks) {
-    const positionWeight = Math.max(minPositionWeight, 1 - (chunk.chunk_index * positionDecayRate));
+    const positionWeight = Math.max(minPositionWeight, 1 - chunk.chunk_index * positionDecayRate);
     positionScore += (chunk.similarity_adjusted ?? chunk.similarity ?? 0) * positionWeight;
   }
   positionScore = positionScore / chunks.length;
@@ -72,28 +65,26 @@ export function calculateEnhancedDocumentScore(chunks: ChunkData[]): EnhancedSco
   );
 
   // Weighted final score
-  const maxW = (typeof scoringConfig.maxSimilarityWeight === 'number')
-    ? scoringConfig.maxSimilarityWeight
-    : 0.6;
-  const avgW = (typeof scoringConfig.avgSimilarityWeight === 'number')
-    ? scoringConfig.avgSimilarityWeight
-    : 0.4;
-  const posW = (typeof scoringConfig.positionWeight === 'number')
-    ? scoringConfig.positionWeight
-    : 0.0;
+  const maxW =
+    typeof scoringConfig.maxSimilarityWeight === 'number' ? scoringConfig.maxSimilarityWeight : 0.6;
+  const avgW =
+    typeof scoringConfig.avgSimilarityWeight === 'number' ? scoringConfig.avgSimilarityWeight : 0.4;
+  const posW =
+    typeof scoringConfig.positionWeight === 'number' ? scoringConfig.positionWeight : 0.0;
 
-  const finalScore = (maxSimilarity * maxW) + (avgSimilarity * avgW) + (positionScore * posW) + diversityBonus;
-  const maxFinalScore = (typeof scoringConfig.maxFinalScore === 'number')
-    ? scoringConfig.maxFinalScore
-    : 1.0;
+  const finalScore =
+    maxSimilarity * maxW + avgSimilarity * avgW + positionScore * posW + diversityBonus;
+  const maxFinalScore =
+    typeof scoringConfig.maxFinalScore === 'number' ? scoringConfig.maxFinalScore : 1.0;
 
   // Compute average quality if present
   const qualityScores = chunks
-    .filter(c => typeof c.quality_score === 'number')
-    .map(c => c.quality_score as number);
-  const qualityAvg = qualityScores.length > 0
-    ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
-    : undefined;
+    .filter((c) => typeof c.quality_score === 'number')
+    .map((c) => c.quality_score as number);
+  const qualityAvg =
+    qualityScores.length > 0
+      ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
+      : undefined;
 
   return {
     finalScore: Math.min(maxFinalScore, finalScore),
@@ -101,7 +92,7 @@ export function calculateEnhancedDocumentScore(chunks: ChunkData[]): EnhancedSco
     avgSimilarity,
     positionScore,
     diversityBonus,
-    qualityAvg
+    qualityAvg,
   };
 }
 
@@ -128,7 +119,7 @@ export function calculateHybridDocumentScore(
   return {
     ...baseScore,
     finalScore: Math.min(1.0, baseScore.finalScore + hybridBonus),
-    hybridBonus
+    hybridBonus,
   };
 }
 
@@ -170,7 +161,9 @@ export function calculateDynamicThreshold(
   );
 
   if (vectorConfig.isVerboseMode()) {
-    console.log(`[${serviceName}] Dynamic threshold: base=${actualBaseThreshold}, length_adj=${lengthAdjustment}, final=${clampedThreshold}`);
+    console.log(
+      `[${serviceName}] Dynamic threshold: base=${actualBaseThreshold}, length_adj=${lengthAdjustment}, final=${clampedThreshold}`
+    );
   }
 
   return clampedThreshold;
@@ -190,18 +183,18 @@ export function calculateStaticDocumentScore(chunks: ChunkData[]): EnhancedScore
       maxSimilarity: 0,
       avgSimilarity: 0,
       positionScore: 0,
-      diversityBonus: 0
+      diversityBonus: 0,
     };
   }
 
-  const similarities = chunks.map(c => c.similarity_adjusted ?? c.similarity ?? 0);
+  const similarities = chunks.map((c) => c.similarity_adjusted ?? c.similarity ?? 0);
   const maxSimilarity = Math.max(...similarities);
   const avgSimilarity = similarities.reduce((a, b) => a + b, 0) / similarities.length;
 
   // Position-aware scoring with default values
   let positionScore = 0;
   for (const chunk of chunks) {
-    const positionWeight = Math.max(0.1, 1 - (chunk.chunk_index * 0.05));
+    const positionWeight = Math.max(0.1, 1 - chunk.chunk_index * 0.05);
     positionScore += (chunk.similarity_adjusted ?? chunk.similarity ?? 0) * positionWeight;
   }
   positionScore = positionScore / chunks.length;
@@ -210,14 +203,15 @@ export function calculateStaticDocumentScore(chunks: ChunkData[]): EnhancedScore
   const diversityBonus = Math.min(0.1, chunks.length * 0.02);
 
   // Weighted final score
-  const finalScore = (maxSimilarity * 0.6) + (avgSimilarity * 0.3) + (positionScore * 0.1) + diversityBonus;
+  const finalScore =
+    maxSimilarity * 0.6 + avgSimilarity * 0.3 + positionScore * 0.1 + diversityBonus;
 
   return {
     finalScore: Math.min(1.0, finalScore),
     maxSimilarity,
     avgSimilarity,
     positionScore,
-    diversityBonus
+    diversityBonus,
   };
 }
 
@@ -277,7 +271,7 @@ export function applyMMRSelection(
       .toLowerCase()
       .replace(/[^a-zäöüß0-9\s]/gi, ' ')
       .split(/\s+/)
-      .filter(t => t.length >= 4);
+      .filter((t) => t.length >= 4);
 
     const set = new Set(tokens);
     tokenCache.set(text, set);

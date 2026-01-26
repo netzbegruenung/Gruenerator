@@ -1,16 +1,20 @@
 import { AssistantIcon } from '../../../config/icons';
+
 import type { JSX } from 'react';
 
 interface AssistantAvatarProps {
   avatarProps?: {
     type?: string;
     src?: string;
-    alt?: string
+    alt?: string;
   };
   className?: string;
 }
 
-const AssistantAvatar = ({ avatarProps, className = 'assistant-icon' }: AssistantAvatarProps): JSX.Element => {
+const AssistantAvatar = ({
+  avatarProps,
+  className = 'assistant-icon',
+}: AssistantAvatarProps): JSX.Element => {
   if (!avatarProps) {
     return <AssistantIcon className={className} />;
   }

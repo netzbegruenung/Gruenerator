@@ -1,13 +1,14 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { HomePage } from './pages/HomePage';
-import { EditPage } from './pages/EditPage';
-import { DemoPage } from './pages/DemoPage';
+
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { SiteMediaPicker } from './components/media/SiteMediaPicker';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastContainer } from './components/common/Toast';
+import { SiteMediaPicker } from './components/media/SiteMediaPicker';
+import { DemoPage } from './pages/DemoPage';
+import { EditPage } from './pages/EditPage';
+import { HomePage } from './pages/HomePage';
 import { reportError } from './utils/errorReporter';
 import './styles/index.css';
 import './lib/apiClient';
@@ -26,10 +27,10 @@ const RouteLogger = () => {
   const location = useLocation();
   useEffect(() => {
     if (window.umami) {
-      window.umami.track(props => ({
+      window.umami.track((props) => ({
         ...props,
         url: window.location.href,
-        title: document.title
+        title: document.title,
       }));
     }
   }, [location]);

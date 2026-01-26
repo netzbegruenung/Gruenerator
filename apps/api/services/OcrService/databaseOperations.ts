@@ -43,7 +43,7 @@ export async function updateDocumentWithResults(
       textLength: text.length,
       confidence: extractionInfo.confidence,
       extractedAt: new Date().toISOString(),
-      stats: extractionInfo.stats
+      stats: extractionInfo.stats,
     };
 
     await postgres.query(
@@ -82,7 +82,7 @@ export async function generateAndStoreEmbeddings(
     const chunks = await smartChunkDocument(text, {
       minChunkSize: 100,
       maxChunkSize: 1000,
-      chunkOverlap: 200
+      chunkOverlap: 200,
     });
 
     if (!chunks || chunks.length === 0) {
@@ -132,8 +132,8 @@ export async function generateAndStoreEmbeddings(
           source_type: metadata.sourceType || 'manual',
           created_at: new Date().toISOString(),
           // Include chunk metadata if available
-          ...(chunk.metadata || {})
-        }
+          ...(chunk.metadata || {}),
+        },
       };
     });
 
@@ -141,7 +141,9 @@ export async function generateAndStoreEmbeddings(
     const collectionName = vectorConfig.documentCollection || 'user_documents';
     await qdrant.upsert(collectionName, points);
 
-    console.log(`[OcrService] Stored ${points.length} vectors in Qdrant collection: ${collectionName}`);
+    console.log(
+      `[OcrService] Stored ${points.length} vectors in Qdrant collection: ${collectionName}`
+    );
 
     // Step 6: Update document vector count in PostgreSQL
     await postgres.query(
@@ -153,11 +155,13 @@ export async function generateAndStoreEmbeddings(
       [points.length, documentId]
     );
 
-    console.log(`[OcrService] Document ${documentId} marked as completed with ${points.length} vectors`);
+    console.log(
+      `[OcrService] Document ${documentId} marked as completed with ${points.length} vectors`
+    );
 
     return {
       chunksProcessed: qualityChunks.length,
-      embeddings: embeddings.length
+      embeddings: embeddings.length,
     };
   } catch (error) {
     console.error(`[OcrService] Failed to generate/store embeddings:`, (error as Error).message);
@@ -166,7 +170,10 @@ export async function generateAndStoreEmbeddings(
     try {
       await updateDocumentStatus(documentId, 'failed', postgres);
     } catch (statusError) {
-      console.error('[OcrService] Failed to update document status to failed:', (statusError as Error).message);
+      console.error(
+        '[OcrService] Failed to update document status to failed:',
+        (statusError as Error).message
+      );
     }
 
     throw error;

@@ -28,7 +28,9 @@ interface AuthenticationResult {
  * 1. User has valid session (via cookie)
  * 2. User has permission to access the document
  */
-export async function authenticateConnection(data: AuthenticationData): Promise<AuthenticationResult> {
+export async function authenticateConnection(
+  data: AuthenticationData
+): Promise<AuthenticationResult> {
   const { documentName, requestHeaders } = data;
 
   console.log(`[Auth] ========== Starting authentication ==========`);
@@ -109,7 +111,9 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
       };
     }
 
-    const sessionData = JSON.parse(typeof sessionString === 'string' ? sessionString : JSON.stringify(sessionString));
+    const sessionData = JSON.parse(
+      typeof sessionString === 'string' ? sessionString : JSON.stringify(sessionString)
+    );
     log.info(`[Auth] Session data keys: ${JSON.stringify(Object.keys(sessionData))}`);
 
     const userId = sessionData?.passport?.user?.id || sessionData?.passport?.user;
@@ -136,13 +140,14 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
 
     if (docResult.length === 0) {
       // Document doesn't exist yet - allow creation if user is authenticated
-      log.info(`[Auth] Document ${documentName} doesn't exist, allowing authenticated user ${userId} to create it`);
+      log.info(
+        `[Auth] Document ${documentName} doesn't exist, allowing authenticated user ${userId} to create it`
+      );
 
       // Get user display name
-      const userResult = await db.query(
-        'SELECT display_name FROM profiles WHERE id = $1',
-        [userId]
-      );
+      const userResult = await db.query('SELECT display_name FROM profiles WHERE id = $1', [
+        userId,
+      ]);
 
       log.info(`[Auth] SUCCESS: User ${userId} authenticated for new document (read-write)`);
       return {
@@ -170,7 +175,10 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
     // Check if user has access
     const isOwner = document.created_by === userId;
     const isPublic = document.is_public;
-    const permissions = (document.permissions || {}) as Record<string, { level?: string } | undefined>;
+    const permissions = (document.permissions || {}) as Record<
+      string,
+      { level?: string } | undefined
+    >;
     const userPermission = permissions[userId];
 
     log.info(`[Auth] isOwner: ${isOwner}`);
@@ -192,10 +200,7 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
     const readOnly = permissionLevel === 'viewer';
 
     // Get user display name
-    const userResult = await db.query(
-      'SELECT display_name FROM profiles WHERE id = $1',
-      [userId]
-    );
+    const userResult = await db.query('SELECT display_name FROM profiles WHERE id = $1', [userId]);
 
     log.info(
       `[Auth] SUCCESS: User ${userId} authenticated for document ${documentName} (${readOnly ? 'read-only' : 'read-write'})`
@@ -208,7 +213,6 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
       userName: (userResult[0]?.display_name as string) || 'Unknown User',
       readOnly,
     };
-
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     log.error(`[Auth] EXCEPTION: ${err.message}`);
@@ -238,10 +242,20 @@ export async function canEditDocument(documentId: string, userId: string): Promi
 
     const document = result[0];
     const isOwner = document.created_by === userId;
-    const permissions = (document.permissions || {}) as Record<string, { level?: string } | undefined>;
+    const permissions = (document.permissions || {}) as Record<
+      string,
+      { level?: string } | undefined
+    >;
     const userPermission = permissions[userId];
 
-    return isOwner || !!(userPermission && userPermission.level !== undefined && ['owner', 'editor'].includes(userPermission.level));
+    return (
+      isOwner ||
+      !!(
+        userPermission &&
+        userPermission.level !== undefined &&
+        ['owner', 'editor'].includes(userPermission.level)
+      )
+    );
   } catch (error) {
     log.error(`[CanEdit] Error checking edit permission: ${error}`);
     return false;

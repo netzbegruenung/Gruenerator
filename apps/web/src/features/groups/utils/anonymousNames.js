@@ -6,16 +6,48 @@
 
 // German animal names for anonymization
 const animals = [
-  'Fuchs', 'Igel', 'Eule', 'Dachs', 'Hase', 'Reh', 'Eichhörnchen', 
-  'Bär', 'Wolf', 'Hirsch', 'Fischotter', 'Marder', 'Biber', 'Luchs',
-  'Wildkatze', 'Feldhamster', 'Spitzmaus', 'Fledermaus', 'Maulwurf', 'Wiesel'
+  'Fuchs',
+  'Igel',
+  'Eule',
+  'Dachs',
+  'Hase',
+  'Reh',
+  'Eichhörnchen',
+  'Bär',
+  'Wolf',
+  'Hirsch',
+  'Fischotter',
+  'Marder',
+  'Biber',
+  'Luchs',
+  'Wildkatze',
+  'Feldhamster',
+  'Spitzmaus',
+  'Fledermaus',
+  'Maulwurf',
+  'Wiesel',
 ];
 
 // German adjectives for anonymization
 const adjectives = [
-  'Grüner', 'Flinker', 'Weiser', 'Mutiger', 'Freundlicher', 'Stiller', 
-  'Bunter', 'Neugieriger', 'Tapferer', 'Kluger', 'Sanfter', 'Lebhafter',
-  'Aufmerksamer', 'Beherzter', 'Geschickter', 'Ruhiger', 'Wilder', 'Zarter'
+  'Grüner',
+  'Flinker',
+  'Weiser',
+  'Mutiger',
+  'Freundlicher',
+  'Stiller',
+  'Bunter',
+  'Neugieriger',
+  'Tapferer',
+  'Kluger',
+  'Sanfter',
+  'Lebhafter',
+  'Aufmerksamer',
+  'Beherzter',
+  'Geschickter',
+  'Ruhiger',
+  'Wilder',
+  'Zarter',
 ];
 
 /**
@@ -26,10 +58,10 @@ const adjectives = [
 function simpleHash(str) {
   let hash = 0;
   if (!str || str.length === 0) return hash;
-  
+
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
@@ -47,14 +79,14 @@ export function generateAnonymousName(userId) {
   }
 
   const hash = simpleHash(userId);
-  
+
   // Use hash to consistently select adjective and animal
   const animalIndex = hash % animals.length;
   const adjectiveIndex = Math.floor(hash / animals.length) % adjectives.length;
-  
+
   const animal = animals[animalIndex];
   const adjective = adjectives[adjectiveIndex];
-  
+
   return `Anonymer ${adjective} ${animal}`;
 }
 
@@ -125,14 +157,14 @@ export function sortMembersByName(members) {
   return members.sort((a, b) => {
     const nameA = getMemberDisplayName(a);
     const nameB = getMemberDisplayName(b);
-    
+
     // Real names come before anonymous names
     const aIsAnonymous = nameA.startsWith('Anonymer');
     const bIsAnonymous = nameB.startsWith('Anonymer');
-    
+
     if (aIsAnonymous && !bIsAnonymous) return 1;
     if (!aIsAnonymous && bIsAnonymous) return -1;
-    
+
     // Within each category, sort alphabetically
     return nameA.localeCompare(nameB, 'de');
   });
@@ -142,5 +174,5 @@ export default {
   generateAnonymousName,
   getMemberDisplayName,
   getMemberInitials,
-  sortMembersByName
+  sortMembersByName,
 };

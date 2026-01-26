@@ -163,11 +163,7 @@ export function applyWeightedCombination(
  * @param {Object} config - Hybrid search configuration
  * @returns {Array} Filtered results
  */
-export function applyQualityGate(
-  results,
-  hasTextMatches,
-  config = DEFAULT_HYBRID_CONFIG
-) {
+export function applyQualityGate(results, hasTextMatches, config = DEFAULT_HYBRID_CONFIG) {
   if (!config.enableQualityGate || !results || results.length === 0) {
     return results;
   }

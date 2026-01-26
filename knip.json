@@ -41,11 +41,7 @@
       "project": ["src/**/*.{ts,tsx}"]
     }
   },
-  "ignoreDependencies": [
-    "@semantic-release/*",
-    "cross-env",
-    "@gruenerator/*"
-  ],
+  "ignoreDependencies": ["@semantic-release/*", "cross-env", "@gruenerator/*"],
   "ignoreWorkspaces": ["apps/desktop"],
   "rules": {
     "binaries": "off"

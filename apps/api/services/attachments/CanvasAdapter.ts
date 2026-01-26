@@ -68,7 +68,7 @@ export class CanvasAdapter {
       encoding: '7bit',
       mimetype: attachment.type,
       buffer: buffer,
-      size: buffer.length
+      size: buffer.length,
     };
   }
 
@@ -132,7 +132,7 @@ export class CanvasAdapter {
             (error as Error).message
           );
         }
-      }
+      },
     };
   }
 
@@ -209,5 +209,4 @@ export const convertToTempFile = (attachment: ImageAttachment) =>
 export const validateImageAttachment = (attachment: ImageAttachment) =>
   canvasAdapter.validateImageAttachment(attachment);
 
-export const getFileExtension = (mimeType: string) =>
-  canvasAdapter.getFileExtension(mimeType);
+export const getFileExtension = (mimeType: string) => canvasAdapter.getFileExtension(mimeType);

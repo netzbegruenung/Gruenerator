@@ -1,7 +1,9 @@
 import { useRef, useCallback } from 'react';
+
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
+
 import type { ActionsSection, ActionTile } from '../../../types/candidate';
 
 interface ActionsSectionEditorProps {
@@ -32,19 +34,25 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
   const textRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const linkRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
-  const setTextRef = useCallback((index: number, el: HTMLInputElement | null) => {
-    if (el) {
-      textRefs.current.set(index, el);
-      registerField('actions', 'text', el, index);
-    }
-  }, [registerField]);
+  const setTextRef = useCallback(
+    (index: number, el: HTMLInputElement | null) => {
+      if (el) {
+        textRefs.current.set(index, el);
+        registerField('actions', 'text', el, index);
+      }
+    },
+    [registerField]
+  );
 
-  const setLinkRef = useCallback((index: number, el: HTMLInputElement | null) => {
-    if (el) {
-      linkRefs.current.set(index, el);
-      registerField('actions', 'link', el, index);
-    }
-  }, [registerField]);
+  const setLinkRef = useCallback(
+    (index: number, el: HTMLInputElement | null) => {
+      if (el) {
+        linkRefs.current.set(index, el);
+        registerField('actions', 'link', el, index);
+      }
+    },
+    [registerField]
+  );
 
   const updateAction = (index: number, field: keyof ActionTile, value: string) => {
     const newActions = [...data.actions];
@@ -101,7 +109,9 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
               </div>
             </div>
 
-            <div className={`editor-form-group ${isFieldHighlighted(index, 'text') ? 'editor-field-highlighted' : ''}`}>
+            <div
+              className={`editor-form-group ${isFieldHighlighted(index, 'text') ? 'editor-field-highlighted' : ''}`}
+            >
               <label htmlFor={`action-${index}-text`}>Button-Text</label>
               <input
                 ref={(el) => setTextRef(index, el)}
@@ -116,7 +126,9 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
               />
             </div>
 
-            <div className={`editor-form-group ${isFieldHighlighted(index, 'link') ? 'editor-field-highlighted' : ''}`}>
+            <div
+              className={`editor-form-group ${isFieldHighlighted(index, 'link') ? 'editor-field-highlighted' : ''}`}
+            >
               <label htmlFor={`action-${index}-link`}>Link</label>
               <input
                 ref={(el) => setLinkRef(index, el)}

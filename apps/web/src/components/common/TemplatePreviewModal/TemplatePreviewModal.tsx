@@ -10,7 +10,7 @@ const formatDate = (value: string | number | Date | null | undefined) => {
     return new Date(value).toLocaleDateString('de-DE', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     });
   } catch {
     return '';
@@ -56,7 +56,7 @@ const TemplatePreviewModal = ({
   isOpen,
   onClose,
   template,
-  onTagClick
+  onTagClick,
 }: TemplatePreviewModalProps): React.ReactNode => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -65,18 +65,18 @@ const TemplatePreviewModal = ({
     const images_array = (template as Record<string, unknown>)?.images;
     if (Array.isArray(images_array)) {
       const sorted = [...images_array].sort((a, b) => {
-        const aOrder = (a as Record<string, unknown>)?.display_order as number | undefined || 0;
-        const bOrder = (b as Record<string, unknown>)?.display_order as number | undefined || 0;
+        const aOrder = ((a as Record<string, unknown>)?.display_order as number | undefined) || 0;
+        const bOrder = ((b as Record<string, unknown>)?.display_order as number | undefined) || 0;
         return aOrder - bOrder;
       });
-      sorted.forEach(img => {
+      sorted.forEach((img) => {
         const url = (img as Record<string, unknown>)?.url;
         const title = (img as Record<string, unknown>)?.title as string | undefined;
         if (url) images.push({ url: url as string, title: title || '' });
       });
     }
     const thumbnail = (template as Record<string, unknown>)?.thumbnail_url as string | undefined;
-    if (thumbnail && !images.some(img => img.url === thumbnail)) {
+    if (thumbnail && !images.some((img) => img.url === thumbnail)) {
       images.unshift({ url: thumbnail, title: 'Vorschau' });
     }
     return images;
@@ -89,23 +89,29 @@ const TemplatePreviewModal = ({
     setActiveImageIndex(0);
   }, [template?.id]);
 
-  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }, [onClose]);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    } else if (hasMultipleImages) {
-      if (e.key === 'ArrowLeft') {
-        setActiveImageIndex(prev => (prev > 0 ? prev - 1 : allImages.length - 1));
-      } else if (e.key === 'ArrowRight') {
-        setActiveImageIndex(prev => (prev < allImages.length - 1 ? prev + 1 : 0));
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) {
+        onClose();
       }
-    }
-  }, [onClose, hasMultipleImages, allImages.length]);
+    },
+    [onClose]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (hasMultipleImages) {
+        if (e.key === 'ArrowLeft') {
+          setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
+        } else if (e.key === 'ArrowRight') {
+          setActiveImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
+        }
+      }
+    },
+    [onClose, hasMultipleImages, allImages.length]
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -125,22 +131,31 @@ const TemplatePreviewModal = ({
     }
   }, [template]);
 
-  const handleTagClick = useCallback((tag: string) => {
-    if (onTagClick) {
-      onClose();
-      onTagClick(tag);
-    }
-  }, [onTagClick, onClose]);
+  const handleTagClick = useCallback(
+    (tag: string) => {
+      if (onTagClick) {
+        onClose();
+        onTagClick(tag);
+      }
+    },
+    [onTagClick, onClose]
+  );
 
-  const handlePrevImage = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveImageIndex(prev => (prev > 0 ? prev - 1 : allImages.length - 1));
-  }, [allImages.length]);
+  const handlePrevImage = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
+    },
+    [allImages.length]
+  );
 
-  const handleNextImage = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveImageIndex(prev => (prev < allImages.length - 1 ? prev + 1 : 0));
-  }, [allImages.length]);
+  const handleNextImage = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setActiveImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
+    },
+    [allImages.length]
+  );
 
   if (!isOpen || !template) return null;
 
@@ -161,11 +176,7 @@ const TemplatePreviewModal = ({
       >
         <div className="template-preview-modal-header">
           <h2 id="template-preview-title">{template.title || 'Vorlage'}</h2>
-          <button
-            className="template-preview-modal-close"
-            onClick={onClose}
-            aria-label="Schließen"
-          >
+          <button className="template-preview-modal-close" onClick={onClose} aria-label="Schließen">
             <HiX />
           </button>
         </div>
@@ -188,7 +199,9 @@ const TemplatePreviewModal = ({
                     src={currentImage.url}
                     alt={currentImage.title || template.title || 'Vorschau'}
                     className="template-preview-main-image"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
                   />
                   {hasMultipleImages && (
                     <button
@@ -270,9 +283,7 @@ const TemplatePreviewModal = ({
                   </span>
                 )}
                 {template.created_at && (
-                  <span className="template-preview-date">
-                    {formatDate(template.created_at)}
-                  </span>
+                  <span className="template-preview-date">{formatDate(template.created_at)}</span>
                 )}
               </div>
             </div>
@@ -280,10 +291,7 @@ const TemplatePreviewModal = ({
         </div>
 
         <div className="template-preview-modal-footer">
-          <button
-            className="pabtn pabtn--m pabtn--primary"
-            onClick={handleOpenExternal}
-          >
+          <button className="pabtn pabtn--m pabtn--primary" onClick={handleOpenExternal}>
             {isCanva ? (
               <>
                 <SiCanva />

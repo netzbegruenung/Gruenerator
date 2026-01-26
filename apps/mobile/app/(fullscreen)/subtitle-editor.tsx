@@ -12,9 +12,7 @@ export default function FullscreenSubtitleEditor() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ projectId: string; projectData: string }>();
 
-  const project: Project | null = params.projectData
-    ? JSON.parse(params.projectData)
-    : null;
+  const project: Project | null = params.projectData ? JSON.parse(params.projectData) : null;
 
   if (!project) {
     router.back();
@@ -27,11 +25,7 @@ export default function FullscreenSubtitleEditor() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <SubtitleEditorScreen
-        project={project}
-        onBack={handleClose}
-        onSaved={handleClose}
-      />
+      <SubtitleEditorScreen project={project} onBack={handleClose} onSaved={handleClose} />
       <Pressable
         style={[styles.closeButton, { top: insets.top + 8 }]}
         onPress={handleClose}

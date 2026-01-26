@@ -4,7 +4,8 @@
  */
 
 // Enhanced regex for detecting URLs in text - supports various URL formats
-const URL_REGEX = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+const URL_REGEX =
+  /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/gi;
 
 /** URL with context information */
 export interface UrlWithContext {
@@ -67,7 +68,10 @@ const sanitizeExtractedUrl = (url: string): string => {
     }
 
     // Handle trailing period after closing paren like "url)."
-    if (sanitized.match(/[)\]]\.$/) && !sanitized.match(/\.(html?|php|aspx?|jsp|pdf|doc|txt)\.$/i)) {
+    if (
+      sanitized.match(/[)\]]\.$/) &&
+      !sanitized.match(/\.(html?|php|aspx?|jsp|pdf|doc|txt)\.$/i)
+    ) {
       sanitized = sanitized.slice(0, -1);
       changed = true;
     }
@@ -101,7 +105,7 @@ export const detectUrls = (text: string): string[] => {
  */
 export const getNewUrls = (text: string, processedUrls: string[] = []): string[] => {
   const allUrls = detectUrls(text);
-  return allUrls.filter(url => !processedUrls.includes(url));
+  return allUrls.filter((url) => !processedUrls.includes(url));
 };
 
 /**
@@ -157,14 +161,22 @@ export const sanitizeUrlForDisplay = (url: string): string => {
     const urlObj = new URL(url);
     // Remove common tracking parameters
     const trackingParams = [
-      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-      'fbclid', 'gclid', 'msclkid', '_ga', 'mc_eid'
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_term',
+      'utm_content',
+      'fbclid',
+      'gclid',
+      'msclkid',
+      '_ga',
+      'mc_eid',
     ];
-    
-    trackingParams.forEach(param => {
+
+    trackingParams.forEach((param) => {
       urlObj.searchParams.delete(param);
     });
-    
+
     return urlObj.toString();
   } catch {
     return url;
@@ -188,20 +200,20 @@ export const countUrls = (text: string): number => {
  */
 export const getTextPreviewWithUrls = (text: string, maxLength: number = 150): string => {
   if (!text) return '';
-  
+
   const urls = detectUrls(text);
   let preview = text;
-  
+
   // Replace URLs with [URL] markers for preview
-  urls.forEach(url => {
+  urls.forEach((url) => {
     const domain = getUrlDomain(url);
     preview = preview.replace(url, `[Link: ${domain}]`);
   });
-  
+
   if (preview.length > maxLength) {
     return preview.substring(0, maxLength - 3) + '...';
   }
-  
+
   return preview;
 };
 
@@ -211,21 +223,24 @@ export const getTextPreviewWithUrls = (text: string, maxLength: number = 150): s
  * @param {number} contextLength - Characters of context around each URL
  * @returns {Array<UrlWithContext>} Array of URL objects with context
  */
-export const extractUrlsWithContext = (text: string, contextLength: number = 50): UrlWithContext[] => {
+export const extractUrlsWithContext = (
+  text: string,
+  contextLength: number = 50
+): UrlWithContext[] => {
   if (!text) return [];
-  
+
   const urls = detectUrls(text);
-  
-  return urls.map(url => {
+
+  return urls.map((url) => {
     const index = text.indexOf(url);
     const start = Math.max(0, index - contextLength);
     const end = Math.min(text.length, index + url.length + contextLength);
-    
+
     return {
       url,
       domain: getUrlDomain(url),
       context: text.substring(start, end),
-      position: index
+      position: index,
     };
   });
 };
@@ -236,7 +251,10 @@ export const extractUrlsWithContext = (text: string, contextLength: number = 50)
  * @param {number} delay - Debounce delay in milliseconds
  * @returns {Function} Function that accepts text and returns a cleanup function
  */
-export const createDebouncedUrlDetection = (callback: UrlDetectionCallback, delay: number = 1000): ((text: string) => () => void) => {
+export const createDebouncedUrlDetection = (
+  callback: UrlDetectionCallback,
+  delay: number = 1000
+): ((text: string) => () => void) => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let lastUrls: string[] = [];
 
@@ -247,14 +265,14 @@ export const createDebouncedUrlDetection = (callback: UrlDetectionCallback, dela
 
     timeoutId = setTimeout(() => {
       const currentUrls = detectUrls(text);
-      const newUrls = currentUrls.filter(url => !lastUrls.includes(url));
-      
+      const newUrls = currentUrls.filter((url) => !lastUrls.includes(url));
+
       if (newUrls.length > 0) {
         callback(newUrls, currentUrls);
         lastUrls = currentUrls;
       }
     }, delay);
-    
+
     // Return cleanup function
     return () => {
       if (timeoutId) {
@@ -270,10 +288,10 @@ export const createDebouncedUrlDetection = (callback: UrlDetectionCallback, dela
  */
 export const URL_STATUS = {
   DETECTED: 'detected',
-  CRAWLING: 'crawling', 
+  CRAWLING: 'crawling',
   CRAWLED: 'crawled',
   ERROR: 'error',
-  SKIPPED: 'skipped'
+  SKIPPED: 'skipped',
 };
 
 /**
@@ -286,40 +304,44 @@ export const detectUrlType = (url: string): UrlType => {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.toLowerCase();
     const path = urlObj.pathname.toLowerCase();
-    
+
     // News sites
-    if (domain.includes('news') || 
-        domain.includes('zeit') || 
-        domain.includes('spiegel') || 
-        domain.includes('tagesschau') ||
-        domain.includes('faz') ||
-        domain.includes('sueddeutsche')) {
+    if (
+      domain.includes('news') ||
+      domain.includes('zeit') ||
+      domain.includes('spiegel') ||
+      domain.includes('tagesschau') ||
+      domain.includes('faz') ||
+      domain.includes('sueddeutsche')
+    ) {
       return 'news';
     }
-    
+
     // Social media
-    if (domain.includes('twitter') || 
-        domain.includes('facebook') || 
-        domain.includes('instagram') ||
-        domain.includes('linkedin')) {
+    if (
+      domain.includes('twitter') ||
+      domain.includes('facebook') ||
+      domain.includes('instagram') ||
+      domain.includes('linkedin')
+    ) {
       return 'social';
     }
-    
+
     // PDFs
     if (path.endsWith('.pdf')) {
       return 'pdf';
     }
-    
+
     // Images
     if (path.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
       return 'image';
     }
-    
+
     // Government sites
     if (domain.endsWith('.gov') || domain.endsWith('.gov.de')) {
       return 'government';
     }
-    
+
     return 'webpage';
   } catch {
     return 'unknown';

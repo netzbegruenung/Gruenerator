@@ -6,18 +6,21 @@ import type { ArgumentResult } from './argumentsGenerator.js';
  * Summarizes the key findings from Green Party knowledge bases
  */
 export async function summarizeArguments(
-    topic: string,
-    argumentsList: ArgumentResult[]
+  topic: string,
+  argumentsList: ArgumentResult[]
 ): Promise<string> {
-    if (!argumentsList || argumentsList.length === 0) {
-        return 'Keine relevanten Argumente gefunden.';
-    }
+  if (!argumentsList || argumentsList.length === 0) {
+    return 'Keine relevanten Argumente gefunden.';
+  }
 
-    const argumentsText = argumentsList.map((arg, idx) =>
+  const argumentsText = argumentsList
+    .map(
+      (arg, idx) =>
         `${idx + 1}. **${arg.source}** (Relevanz: ${Math.round(arg.relevance * 100)}%)\n   ${arg.text}`
-    ).join('\n\n');
+    )
+    .join('\n\n');
 
-    const prompt = `Du bist ein grüner Kommunikationsberater.
+  const prompt = `Du bist ein grüner Kommunikationsberater.
 
 **Aufgabe**: Fasse die folgenden recherchierten Argumente aus grünen Wissensdatenbanken zu einem prägnanten, übersichtlichen Summary zusammen.
 
@@ -35,24 +38,24 @@ Erstelle eine strukturierte Zusammenfassung mit:
 
 Halte die Zusammenfassung kurz (max. 200 Wörter), präzise und sofort nutzbar.`;
 
-    try {
-        const response = await mistralClient.chat.complete({
-            model: 'mistral-small-latest',
-            messages: [
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            maxTokens: 500,
-            temperature: 0.3
-        });
+  try {
+    const response = await mistralClient.chat.complete({
+      model: 'mistral-small-latest',
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      maxTokens: 500,
+      temperature: 0.3,
+    });
 
-        const content = response.choices?.[0]?.message?.content;
-        const summary = typeof content === 'string' ? content : '';
-        return summary || 'Zusammenfassung konnte nicht erstellt werden.';
-    } catch (error) {
-        console.error('[ArgumentsSummarizer] Failed to generate summary:', error);
-        return `**Recherchierte Argumente (${argumentsList.length})**\n\nDie Recherche hat ${argumentsList.length} relevante Argumente aus grünen Wissensdatenbanken gefunden. Bitte siehe Details unten.`;
-    }
+    const content = response.choices?.[0]?.message?.content;
+    const summary = typeof content === 'string' ? content : '';
+    return summary || 'Zusammenfassung konnte nicht erstellt werden.';
+  } catch (error) {
+    console.error('[ArgumentsSummarizer] Failed to generate summary:', error);
+    return `**Recherchierte Argumente (${argumentsList.length})**\n\nDie Recherche hat ${argumentsList.length} relevante Argumente aus grünen Wissensdatenbanken gefunden. Bitte siehe Details unten.`;
+  }
 }

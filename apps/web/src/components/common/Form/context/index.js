@@ -3,4 +3,4 @@
 console.warn('FormContext is deprecated. Use useGeneratedTextStore instead.');
 
 export const FormContext = null;
-export const FormProvider = ({ children }) => children; 
+export const FormProvider = ({ children }) => children;

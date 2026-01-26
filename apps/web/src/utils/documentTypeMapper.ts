@@ -9,9 +9,9 @@ export const DOCUMENT_TYPE_MAP: Record<string, string> = {
 
   // Universal generators
   'universal-text': 'universal',
-  'rede': 'rede',
-  'wahlprogramm': 'wahlprogramm',
-  'buergeranfragen': 'buergeranfragen',
+  rede: 'rede',
+  wahlprogramm: 'wahlprogramm',
+  buergeranfragen: 'buergeranfragen',
 
   // Antrag generators
   'antrag-generator': 'antrag',
@@ -20,23 +20,23 @@ export const DOCUMENT_TYPE_MAP: Record<string, string> = {
 
   // Press and social
   'presse-social': 'press',
-  'pressemitteilung': 'pressemitteilung',
+  pressemitteilung: 'pressemitteilung',
 
   // Campaign generators
   'kampagnen-generator': 'social',
-  'weihnachten': 'social',
+  weihnachten: 'social',
 
   // Accessibility generators
   'leichte-sprache': 'text',
   'alt-text': 'text',
   'accessibility-generator': 'accessibility',
-  'barrierefreiheit': 'accessibility',
+  barrierefreiheit: 'accessibility',
 
   // Other generators
   'website-generator': 'text',
-  'texteditor': 'text',
-  'notebook': 'text',
-  'ask': 'text',
+  texteditor: 'text',
+  notebook: 'text',
+  ask: 'text',
   'ask-grundsatz': 'text',
 
   // Youth generators
@@ -60,5 +60,9 @@ export function getDocumentType(componentName: string): string {
  */
 export function supportsAutoSave(componentName: string): boolean {
   // All generators in the map support auto-save
-  return componentName in DOCUMENT_TYPE_MAP || componentName.includes('generator') || componentName.includes('text');
+  return (
+    componentName in DOCUMENT_TYPE_MAP ||
+    componentName.includes('generator') ||
+    componentName.includes('text')
+  );
 }

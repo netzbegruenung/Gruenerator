@@ -20,7 +20,7 @@ export function parseSchemaFile(schemaContent: string): SchemaCache {
 
   if (!tableMatches) return tables;
 
-  tableMatches.forEach(tableMatch => {
+  tableMatches.forEach((tableMatch) => {
     const tableNameMatch = tableMatch.match(/CREATE TABLE IF NOT EXISTS (\w+)/);
     if (!tableNameMatch) return;
 
@@ -32,25 +32,32 @@ export function parseSchemaFile(schemaContent: string): SchemaCache {
     const columnSection = columnSectionMatch[1];
     const columns: ColumnDefinition[] = [];
 
-    const lines = columnSection.split('\n').map(line => line.trim()).filter(line => line);
+    const lines = columnSection
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line);
 
     for (const line of lines) {
-      if (line.startsWith('--') ||
-          line.startsWith('CONSTRAINT') ||
-          line.startsWith('UNIQUE(') ||
-          line.startsWith('CHECK(') ||
-          line.startsWith('PRIMARY KEY(') ||
-          line.startsWith('FOREIGN KEY')) {
+      if (
+        line.startsWith('--') ||
+        line.startsWith('CONSTRAINT') ||
+        line.startsWith('UNIQUE(') ||
+        line.startsWith('CHECK(') ||
+        line.startsWith('PRIMARY KEY(') ||
+        line.startsWith('FOREIGN KEY')
+      ) {
         continue;
       }
 
-      const columnMatch = line.match(/^([a-zA-Z_]\w*)\s+([A-Z]+(?:\([^)]+\))?(?:\s*\[\])?)\s*(.*?)(?:,\s*)?$/);
+      const columnMatch = line.match(
+        /^([a-zA-Z_]\w*)\s+([A-Z]+(?:\([^)]+\))?(?:\s*\[\])?)\s*(.*?)(?:,\s*)?$/
+      );
       if (columnMatch) {
         const [, columnName, dataType, constraints] = columnMatch;
         columns.push({
           name: columnName,
           type: dataType,
-          constraints: constraints.trim()
+          constraints: constraints.trim(),
         });
       }
     }
@@ -92,10 +99,15 @@ export function loadSchemaCache(): SchemaCache | null {
     const schemaContent = fs.readFileSync(schemaPath, 'utf8');
     const cache = parseSchemaFile(schemaContent);
 
-    console.log(`[PostgresService] Schema validation initialized with ${Object.keys(cache).length} tables`);
+    console.log(
+      `[PostgresService] Schema validation initialized with ${Object.keys(cache).length} tables`
+    );
     return cache;
   } catch (error) {
-    console.error('[PostgresService] Failed to initialize schema validation:', (error as Error).message);
+    console.error(
+      '[PostgresService] Failed to initialize schema validation:',
+      (error as Error).message
+    );
     return null;
   }
 }
@@ -123,11 +135,13 @@ export function validateColumnNames(
 
   validateTableName(schemaCache, tableName);
 
-  const validColumns = schemaCache[tableName].map(col => col.name);
+  const validColumns = schemaCache[tableName].map((col) => col.name);
 
   for (const columnName of columnNames) {
     if (!validColumns.includes(columnName)) {
-      throw new Error(`Invalid column name: ${columnName} for table ${tableName}. Column not found in schema.`);
+      throw new Error(
+        `Invalid column name: ${columnName} for table ${tableName}. Column not found in schema.`
+      );
     }
   }
 }
@@ -143,7 +157,7 @@ export function generateAlterStatements(
 
   for (const [tableName, expectedColumns] of Object.entries(expectedTables)) {
     const existingColumns = existingTables[tableName] || [];
-    const existingColumnNames = existingColumns.map(col => col.name);
+    const existingColumnNames = existingColumns.map((col) => col.name);
 
     for (const expectedColumn of expectedColumns) {
       if (!existingColumnNames.includes(expectedColumn.name)) {
@@ -154,7 +168,9 @@ export function generateAlterStatements(
             if (expectedColumn.constraints.includes('DEFAULT')) {
               alterStatement += ` ${expectedColumn.constraints}`;
             } else {
-              const constraintsWithoutNotNull = expectedColumn.constraints.replace(/NOT NULL/g, '').trim();
+              const constraintsWithoutNotNull = expectedColumn.constraints
+                .replace(/NOT NULL/g, '')
+                .trim();
               if (constraintsWithoutNotNull) {
                 alterStatement += ` ${constraintsWithoutNotNull}`;
               }
@@ -167,7 +183,7 @@ export function generateAlterStatements(
         alterStatements.push({
           table: tableName,
           column: expectedColumn.name,
-          statement: alterStatement
+          statement: alterStatement,
         });
       }
     }
@@ -198,12 +214,7 @@ export function sanitizeBackupPath(backupPath: string): string {
     throw new Error(`Invalid backup path: must be within ${allowedBackupDir}`);
   }
 
-  const dangerousPatterns = [
-    /\.\./,
-    /[;&|`$()]/,
-    /\s*>/,
-    /\s*</,
-  ];
+  const dangerousPatterns = [/\.\./, /[;&|`$()]/, /\s*>/, /\s*</];
 
   for (const pattern of dangerousPatterns) {
     if (pattern.test(backupPath)) {

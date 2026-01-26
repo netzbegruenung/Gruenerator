@@ -37,9 +37,7 @@ export const ActionSheetItem = ({
       )}
       <span className="action-sheet-item-content">
         <span className="action-sheet-item-label">{label}</span>
-        {description && (
-          <span className="action-sheet-item-description">{description}</span>
-        )}
+        {description && <span className="action-sheet-item-description">{description}</span>}
       </span>
       {badge && <span className="action-sheet-item-badge">{badge}</span>}
     </button>
@@ -50,12 +48,7 @@ export const ActionSheetDivider = () => {
   return <div className="action-sheet-divider" />;
 };
 
-export const ActionSheet = ({
-  isOpen,
-  onClose,
-  title,
-  children,
-}: ActionSheetProps) => {
+export const ActionSheet = ({ isOpen, onClose, title, children }: ActionSheetProps) => {
   const handleEscape = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === 'Escape') {

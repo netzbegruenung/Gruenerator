@@ -1,5 +1,6 @@
-import type { AxiosError } from 'axios';
 import { getErrorMessage } from './errorMessages';
+
+import type { AxiosError } from 'axios';
 
 /**
  * Error state structure used throughout the application
@@ -35,7 +36,7 @@ export const handleError = (error: unknown, setError: SetErrorFn): void => {
     message: errorInfo.message,
     details: errorInfo.details || (error as Error)?.message,
     status: axiosError?.response?.status,
-    requestId: axiosError?.response?.headers?.['request-id'] as string | undefined
+    requestId: axiosError?.response?.headers?.['request-id'] as string | undefined,
   };
 
   console.log('Final error object:', finalError);

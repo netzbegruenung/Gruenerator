@@ -115,8 +115,8 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
                     index === currentIndex
                       ? colors.primary[600]
                       : isDark
-                      ? colors.grey[700]
-                      : colors.grey[300],
+                        ? colors.grey[700]
+                        : colors.grey[300],
                 },
               ]}
             />
@@ -144,11 +144,7 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
       >
         {sharepics.map((sharepic, index) => (
           <View key={sharepic.id || index} style={styles.imageContainer}>
-            <Image
-              source={{ uri: sharepic.image }}
-              style={styles.image}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: sharepic.image }} style={styles.image} resizeMode="contain" />
             {savedIndices.has(index) && (
               <View style={styles.savedBadge}>
                 <Ionicons name="checkmark-circle" size={16} color={colors.white} />
@@ -160,7 +156,12 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
       </ScrollView>
 
       {currentSharepic?.text && (
-        <View style={[styles.textContainer, { backgroundColor: isDark ? colors.grey[900] : colors.grey[50] }]}>
+        <View
+          style={[
+            styles.textContainer,
+            { backgroundColor: isDark ? colors.grey[900] : colors.grey[50] },
+          ]}
+        >
           <Text style={[styles.text, { color: theme.text }]} numberOfLines={3}>
             {currentSharepic.text}
           </Text>
@@ -180,7 +181,9 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
               size={18}
               color={isSaved ? colors.primary[600] : colors.white}
             />
-            <Text style={[styles.buttonText, { color: isSaved ? colors.primary[600] : colors.white }]}>
+            <Text
+              style={[styles.buttonText, { color: isSaved ? colors.primary[600] : colors.white }]}
+            >
               {isSaved ? 'Gespeichert' : 'Speichern'}
             </Text>
           </View>

@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+
 import { type TabId, DEFAULT_TAB, TAB_CONFIGS } from '../types';
 
 interface UseTabPersistenceReturn {
@@ -8,7 +9,7 @@ interface UseTabPersistenceReturn {
   isValidTab: (tab: string) => tab is TabId;
 }
 
-const VALID_TAB_IDS = TAB_CONFIGS.map(config => config.id);
+const VALID_TAB_IDS = TAB_CONFIGS.map((config) => config.id);
 
 export function useTabPersistence(defaultTab: TabId = DEFAULT_TAB): UseTabPersistenceReturn {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,7 +33,7 @@ export function useTabPersistence(defaultTab: TabId = DEFAULT_TAB): UseTabPersis
       '/universal': 'universal',
       '/rede': 'universal',
       '/wahlprogramm': 'universal',
-      '/buergerinnenanfragen': 'universal'
+      '/buergerinnenanfragen': 'universal',
     };
 
     const tabFromPath = pathToTab[location.pathname];
@@ -43,20 +44,23 @@ export function useTabPersistence(defaultTab: TabId = DEFAULT_TAB): UseTabPersis
     return defaultTab;
   }, [searchParams, location.pathname, defaultTab, isValidTab]);
 
-  const setActiveTab = useCallback((tab: TabId) => {
-    if (!isValidTab(tab)) return;
+  const setActiveTab = useCallback(
+    (tab: TabId) => {
+      if (!isValidTab(tab)) return;
 
-    if (location.pathname !== '/texte') {
-      navigate(`/texte?tab=${tab}`, { replace: true });
-    } else {
-      setSearchParams({ tab }, { replace: true });
-    }
-  }, [navigate, setSearchParams, location.pathname, isValidTab]);
+      if (location.pathname !== '/texte') {
+        navigate(`/texte?tab=${tab}`, { replace: true });
+      } else {
+        setSearchParams({ tab }, { replace: true });
+      }
+    },
+    [navigate, setSearchParams, location.pathname, isValidTab]
+  );
 
   return {
     activeTab,
     setActiveTab,
-    isValidTab
+    isValidTab,
   };
 }
 

@@ -1,6 +1,6 @@
-import { useRef, type ChangeEvent } from 'react';
-import { motion } from 'motion/react';
 import * as Checkbox from '@radix-ui/react-checkbox';
+import { motion } from 'motion/react';
+import { useRef, type ChangeEvent } from 'react';
 import '../../assets/styles/components/ui/animatedcheckbox.css';
 
 export type CheckboxVariant = 'default' | 'simple';
@@ -31,7 +31,7 @@ const AnimatedCheckbox = ({
   checked,
   onChange,
   label,
-  variant = 'default'
+  variant = 'default',
 }: AnimatedCheckboxProps) => {
   const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
   const hasInteracted = useRef(false);
@@ -42,13 +42,13 @@ const AnimatedCheckbox = ({
       target: {
         checked: newChecked,
         type: 'checkbox',
-        id: checkboxId
+        id: checkboxId,
       },
       currentTarget: {
         checked: newChecked,
         type: 'checkbox',
-        id: checkboxId
-      }
+        id: checkboxId,
+      },
     };
     onChange(syntheticEvent);
   };
@@ -75,12 +75,12 @@ const AnimatedCheckbox = ({
             animate={{
               scale: 0.8,
               opacity: checked ? 1 : 0,
-              rotate: checked ? 3 : 0
+              rotate: checked ? 3 : 0,
             }}
             transition={{
               type: 'spring',
               stiffness: 300,
-              damping: 20
+              damping: 20,
             }}
           >
             <motion.path
@@ -95,7 +95,7 @@ const AnimatedCheckbox = ({
               transition={{
                 duration: hasInteracted.current ? 0.3 : 0,
                 ease: 'easeOut',
-                delay: checked && hasInteracted.current ? 0.1 : 0
+                delay: checked && hasInteracted.current ? 0.1 : 0,
               }}
             />
           </motion.svg>

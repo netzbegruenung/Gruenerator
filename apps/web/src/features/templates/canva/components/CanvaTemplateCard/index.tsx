@@ -1,4 +1,5 @@
-import { JSX, useState } from 'react';
+import { type JSX, useState } from 'react';
+
 import ImageSlider from '../../../../../components/common/ImageSlider';
 import VerifyFeature from '../../../../../components/common/VerifyFeature';
 
@@ -45,21 +46,24 @@ const CanvaTemplateCard = ({ template }: CanvaTemplateCardProps): JSX.Element =>
     }
   };
 
-  const sliderImages = Array.isArray(template.images) && template.images.length > 0
-    ? template.images.map(image => ({
-        url: image.url,
-        alt: image.alt || template.title || 'Template Bild'
-      }))
-    : [{ url: template.thumbnail_url, alt: template.title || 'Template Vorschau' }];
+  const sliderImages =
+    Array.isArray(template.images) && template.images.length > 0
+      ? template.images.map((image) => ({
+          url: image.url,
+          alt: image.alt || template.title || 'Template Bild',
+        }))
+      : [{ url: template.thumbnail_url, alt: template.title || 'Template Vorschau' }];
 
   if (sliderImages.length === 0 || !sliderImages[0].url) {
-      sliderImages[0] = { url: "/assets/images/placeholder-image.svg", alt: "Kein Bild verfügbar" };
+    sliderImages[0] = { url: '/assets/images/placeholder-image.svg', alt: 'Kein Bild verfügbar' };
   }
 
   return (
     <>
       <div className="template-card">
-        <div className={`template-card-image ${imageLoading ? 'loading' : ''} ${imageError ? 'error' : ''}`}>
+        <div
+          className={`template-card-image ${imageLoading ? 'loading' : ''} ${imageError ? 'error' : ''}`}
+        >
           {!imageError ? (
             <ImageSlider
               images={sliderImages}
@@ -78,7 +82,7 @@ const CanvaTemplateCard = ({ template }: CanvaTemplateCardProps): JSX.Element =>
           )}
           {imageLoading && (
             <div className="image-loading">
-              <div className="loading-spinner"></div>
+              <div className="loading-spinner" />
             </div>
           )}
         </div>

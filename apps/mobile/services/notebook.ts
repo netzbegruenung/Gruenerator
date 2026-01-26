@@ -66,15 +66,11 @@ export async function queryNotebook(params: NotebookQueryParams): Promise<Notebo
     answer: string;
     sources: ApiCitation[];
     citations?: ApiCitation[];
-  }>(
-    'post',
-    `/auth/notebook/${params.collectionId}/ask`,
-    {
-      question: params.question,
-      mode: 'dossier',
-      locale: params.locale || 'de-DE',
-    }
-  );
+  }>('post', `/auth/notebook/${params.collectionId}/ask`, {
+    question: params.question,
+    mode: 'dossier',
+    locale: params.locale || 'de-DE',
+  });
 
   return {
     resultId: response.resultId,
@@ -88,22 +84,20 @@ export async function queryNotebook(params: NotebookQueryParams): Promise<Notebo
 /**
  * Query multiple notebook collections in parallel
  */
-export async function queryMultiNotebook(params: MultiNotebookQueryParams): Promise<MultiNotebookQueryResponse> {
+export async function queryMultiNotebook(
+  params: MultiNotebookQueryParams
+): Promise<MultiNotebookQueryResponse> {
   const response = await apiRequest<{
     resultId: string;
     question: string;
     answer: string;
     sourcesByCollection: Record<string, ApiCitation[]>;
-  }>(
-    'post',
-    '/auth/notebook/multi/ask',
-    {
-      question: params.question,
-      collectionIds: params.collectionIds,
-      mode: 'dossier',
-      locale: params.locale || 'de-DE',
-    }
-  );
+  }>('post', '/auth/notebook/multi/ask', {
+    question: params.question,
+    collectionIds: params.collectionIds,
+    mode: 'dossier',
+    locale: params.locale || 'de-DE',
+  });
 
   const mappedSourcesByCollection: Record<string, NotebookSource[]> = {};
   for (const [collectionId, sources] of Object.entries(response.sourcesByCollection || {})) {

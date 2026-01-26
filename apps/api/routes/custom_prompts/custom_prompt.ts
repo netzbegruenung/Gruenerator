@@ -49,77 +49,82 @@ interface PromptResponse {
 /**
  * GET /:slug - Fetch prompt configuration by slug
  */
-router.get('/:slug', requireAuth, async (req: AuthenticatedRequest, res: Response<PromptResponse>): Promise<void> => {
-  try {
-    const { slug } = req.params;
-    const userId = req.user?.id;
+router.get(
+  '/:slug',
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response<PromptResponse>): Promise<void> => {
+    try {
+      const { slug } = req.params;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      res.status(401).json({
-        success: false,
-        message: 'Nicht autorisiert.'
-      });
-      return;
-    }
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Nicht autorisiert.',
+        });
+        return;
+      }
 
-    log.debug(`[custom_prompt] GET /:slug - Fetching prompt with slug: ${slug} for user: ${userId}`);
+      log.debug(
+        `[custom_prompt] GET /:slug - Fetching prompt with slug: ${slug} for user: ${userId}`
+      );
 
-    const promptData = await postgres.queryOne(
-      `SELECT cp.id, cp.name, cp.slug, cp.prompt, cp.description, cp.is_public,
+      const promptData = (await postgres.queryOne(
+        `SELECT cp.id, cp.name, cp.slug, cp.prompt, cp.description, cp.is_public,
               cp.created_at, cp.updated_at, cp.is_active, cp.usage_count, cp.user_id as owner_id,
               p.first_name as owner_first_name, p.last_name as owner_last_name
        FROM custom_prompts cp
        LEFT JOIN profiles p ON p.id = cp.user_id
        WHERE cp.slug = $1 AND cp.is_active = true`,
-      [slug],
-      { table: 'custom_prompts' }
-    ) as unknown as CustomPromptRow | null;
+        [slug],
+        { table: 'custom_prompts' }
+      )) as unknown as CustomPromptRow | null;
 
-    if (!promptData) {
-      log.debug(`[custom_prompt] Prompt not found for slug: ${slug}`);
-      res.status(404).json({
-        success: false,
-        message: 'Prompt nicht gefunden.'
-      });
-      return;
-    }
-
-    const isOwner = promptData.owner_id === userId;
-
-    let isSaved = false;
-    if (!isOwner) {
-      const savedCheck = await postgres.queryOne(
-        `SELECT id FROM saved_prompts WHERE user_id = $1 AND prompt_id = $2`,
-        [userId, promptData.id],
-        { table: 'saved_prompts' }
-      ) as unknown as SavedPromptRow | null;
-      isSaved = !!savedCheck;
-    }
-
-    await postgres.query(
-      `UPDATE custom_prompts SET usage_count = usage_count + 1 WHERE id = $1`,
-      [promptData.id],
-      { table: 'custom_prompts' }
-    );
-
-    res.json({
-      success: true,
-      prompt: {
-        ...promptData,
-        is_owner: isOwner,
-        is_saved: isSaved
+      if (!promptData) {
+        log.debug(`[custom_prompt] Prompt not found for slug: ${slug}`);
+        res.status(404).json({
+          success: false,
+          message: 'Prompt nicht gefunden.',
+        });
+        return;
       }
-    });
 
-  } catch (error) {
-    const err = error as Error;
-    log.error('[custom_prompt] Error fetching prompt:', err);
-    res.status(500).json({
-      success: false,
-      message: err.message || 'Fehler beim Laden des Prompts.'
-    });
+      const isOwner = promptData.owner_id === userId;
+
+      let isSaved = false;
+      if (!isOwner) {
+        const savedCheck = (await postgres.queryOne(
+          `SELECT id FROM saved_prompts WHERE user_id = $1 AND prompt_id = $2`,
+          [userId, promptData.id],
+          { table: 'saved_prompts' }
+        )) as unknown as SavedPromptRow | null;
+        isSaved = !!savedCheck;
+      }
+
+      await postgres.query(
+        `UPDATE custom_prompts SET usage_count = usage_count + 1 WHERE id = $1`,
+        [promptData.id],
+        { table: 'custom_prompts' }
+      );
+
+      res.json({
+        success: true,
+        prompt: {
+          ...promptData,
+          is_owner: isOwner,
+          is_saved: isSaved,
+        },
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[custom_prompt] Error fetching prompt:', err);
+      res.status(500).json({
+        success: false,
+        message: err.message || 'Fehler beim Laden des Prompts.',
+      });
+    }
   }
-});
+);
 
 /**
  * POST / - Execute custom prompt via promptProcessor
@@ -134,32 +139,35 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
  */
 router.post('/search', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { query, limit = 10, threshold = 0.3 } = req.body as { query: string; limit?: number; threshold?: number };
+    const {
+      query,
+      limit = 10,
+      threshold = 0.3,
+    } = req.body as { query: string; limit?: number; threshold?: number };
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       res.status(400).json({
         success: false,
-        message: 'Suchbegriff ist erforderlich.'
+        message: 'Suchbegriff ist erforderlich.',
       });
       return;
     }
 
-    const searchResult = await promptVectorService.searchPublicPrompts(
-      query.trim(),
-      { limit: Math.min(limit, 50), threshold }
-    );
+    const searchResult = await promptVectorService.searchPublicPrompts(query.trim(), {
+      limit: Math.min(limit, 50),
+      threshold,
+    });
 
     res.json({
       ...searchResult,
-      success: true
+      success: true,
     });
-
   } catch (error) {
     const err = error as Error;
     log.error('[custom_prompt] Search error:', err);
     res.status(500).json({
       success: false,
-      message: err.message || 'Fehler bei der Suche.'
+      message: err.message || 'Fehler bei der Suche.',
     });
   }
 });

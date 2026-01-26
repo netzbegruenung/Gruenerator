@@ -1,8 +1,8 @@
-import React, { useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import React, { useCallback } from 'react';
 import { FaTimes, FaChevronDown, FaExchangeAlt, FaImage, FaRedo } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi';
-import ConfigDrivenFields from './ConfigDrivenFields';
+
 import {
   ColorSchemeControl,
   FontSizeControl,
@@ -10,9 +10,15 @@ import {
   CreditControl,
   BalkenOffsetControl,
   BalkenGruppeControl,
-  SonnenblumenControl
+  SonnenblumenControl,
 } from '../../../components/utils/ImageModificationForm';
-import type { TemplateResultEditPanelProps, SloganAlternativeWithIndex } from '../types/templateResultTypes';
+
+import ConfigDrivenFields from './ConfigDrivenFields';
+
+import type {
+  TemplateResultEditPanelProps,
+  SloganAlternativeWithIndex,
+} from '../types/templateResultTypes';
 import './EditPanel.css';
 
 export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
@@ -44,13 +50,16 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
   loading,
   onRegenerate,
   onGenerateAlternatives,
-  alternativesLoading
+  alternativesLoading,
 }) => {
   const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
 
-  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  }, [onClose]);
+  const handleOverlayClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    [onClose]
+  );
 
   if (!isOpen) return null;
 
@@ -72,11 +81,7 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
       >
         <div className="edit-panel__header">
           <h3 className="edit-panel__title">Bild bearbeiten</h3>
-          <button
-            className="edit-panel__close"
-            onClick={onClose}
-            aria-label="Panel schließen"
-          >
+          <button className="edit-panel__close" onClick={onClose} aria-label="Panel schließen">
             <FaTimes />
           </button>
         </div>
@@ -119,12 +124,15 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
             <h4>Text</h4>
             {fieldConfig?.showGroupedFontSizeControl ? (
               <div className="veranstaltung-fields-with-fontsize">
-                {(fieldConfig?.previewFields || []).map(field => {
+                {(fieldConfig?.previewFields || []).map((field) => {
                   const baseFontSizes: Record<string, number> = {
                     eventTitle: 94,
                     beschreibung: 62,
-                    weekday: 57, date: 55, time: 55,
-                    locationName: 42, address: 42
+                    weekday: 57,
+                    date: 55,
+                    time: 55,
+                    locationName: 42,
+                    address: 42,
                   };
                   const base = baseFontSizes[field.name] || 60;
                   return (
@@ -134,7 +142,11 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
                       name={field.name}
                       value={previewValues[field.name] || ''}
                       onChange={handleChange}
-                      fontSizePx={veranstaltungFieldFontSizes?.[field.name as keyof typeof veranstaltungFieldFontSizes] || base}
+                      fontSizePx={
+                        veranstaltungFieldFontSizes?.[
+                          field.name as keyof typeof veranstaltungFieldFontSizes
+                        ] || base
+                      }
                       baseFontSize={base}
                       onFontSizeChange={handleFieldFontSizeChange}
                       placeholder={field.placeholder || ''}
@@ -208,7 +220,8 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
             </div>
           )}
 
-          {(fieldConfig?.showCredit || (fieldConfig?.showFontSizeControl && !fieldConfig?.showGroupedFontSizeControl)) && (
+          {(fieldConfig?.showCredit ||
+            (fieldConfig?.showFontSizeControl && !fieldConfig?.showGroupedFontSizeControl)) && (
             <div className="edit-panel__row">
               {fieldConfig?.showCredit && (
                 <div className="edit-panel__section edit-panel__section--flex">
@@ -232,7 +245,12 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
           {fieldConfig?.showColorControls && (
             <div className="edit-panel__section">
               <h4>Farbschema</h4>
-              <ColorSchemeControl colorScheme={(Array.isArray(colorScheme) ? colorScheme : []) as Array<{ background: string }>} onControlChange={handleControlChange} />
+              <ColorSchemeControl
+                colorScheme={
+                  (Array.isArray(colorScheme) ? colorScheme : []) as Array<{ background: string }>
+                }
+                onControlChange={handleControlChange}
+              />
             </div>
           )}
 
@@ -259,14 +277,14 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
                   <div className="advanced-control-item">
                     <h5>Gruppe</h5>
                     <BalkenGruppeControl
-                      offset={balkenGruppenOffset || [0, 0] as [number, number]}
+                      offset={balkenGruppenOffset || ([0, 0] as [number, number])}
                       onOffsetChange={(value) => handleControlChange('balkenGruppenOffset', value)}
                     />
                   </div>
                   <div className="advanced-control-item">
                     <h5>Sonnenblume</h5>
                     <SonnenblumenControl
-                      offset={sunflowerOffset || [0, 0] as [number, number]}
+                      offset={sunflowerOffset || ([0, 0] as [number, number])}
                       onOffsetChange={(value) => handleControlChange('sunflowerOffset', value)}
                     />
                   </div>

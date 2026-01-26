@@ -4,7 +4,7 @@ import { requireAuth } from '../../middleware/authMiddleware.js';
 import { AuthenticatedRequest } from '../../middleware/types.js';
 import {
   validateAndSanitizeHtml,
-  extractTitleFromHtml
+  extractTitleFromHtml,
 } from '../../services/tiptap/contentConverter.js';
 
 const router = Router();
@@ -67,22 +67,24 @@ router.post('/from-export', requireAuth, async (req: AuthenticatedRequest, res: 
         JSON.stringify({
           [userId]: {
             level: 'owner',
-            granted_at: new Date().toISOString()
-          }
-        })
+            granted_at: new Date().toISOString(),
+          },
+        }),
       ]
     );
 
     const document = result[0];
 
     // Log the export for analytics
-    console.log(`[Docs Export] User ${userId} created document ${document.id} from export (type: ${documentType || 'unknown'})`);
+    console.log(
+      `[Docs Export] User ${userId} created document ${document.id} from export (type: ${documentType || 'unknown'})`
+    );
 
     // Return response
     const response: ExportToDocsResponse = {
       documentId: document.id as string,
       url: `/document/${document.id}`,
-      success: true
+      success: true,
     };
 
     return res.status(201).json(response);
@@ -93,13 +95,13 @@ router.post('/from-export', requireAuth, async (req: AuthenticatedRequest, res: 
     if (error.message?.includes('too large')) {
       return res.status(413).json({
         error: 'Content too large',
-        message: 'The content exceeds the maximum size limit of 1MB'
+        message: 'The content exceeds the maximum size limit of 1MB',
       });
     }
 
     return res.status(500).json({
       error: 'Failed to create document',
-      message: 'An error occurred while creating the document. Please try again.'
+      message: 'An error occurred while creating the document. Please try again.',
     });
   }
 });

@@ -1,5 +1,6 @@
-import { useEffect, useCallback } from 'react';
 import { useProjectsStore } from '@gruenerator/shared';
+import { useEffect, useCallback } from 'react';
+
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 
 /**
@@ -26,7 +27,7 @@ export const useSubtitlerProjects = () => {
     setCurrentProject,
     clearCurrentProject,
     clearError,
-    reset
+    reset,
   } = useProjectsStore();
 
   const isReady = isAuthenticated && isAuthResolved;
@@ -45,28 +46,40 @@ export const useSubtitlerProjects = () => {
   }, [isReady, storeFetchProjects]);
 
   // Guarded load project
-  const loadProject = useCallback(async (projectId) => {
-    if (!isReady) return Promise.resolve(null);
-    return storeLoadProject(projectId);
-  }, [isReady, storeLoadProject]);
+  const loadProject = useCallback(
+    async (projectId) => {
+      if (!isReady) return Promise.resolve(null);
+      return storeLoadProject(projectId);
+    },
+    [isReady, storeLoadProject]
+  );
 
   // Guarded save project
-  const saveProject = useCallback(async (projectData) => {
-    if (!isReady) return Promise.resolve(null);
-    return storeSaveProject(projectData);
-  }, [isReady, storeSaveProject]);
+  const saveProject = useCallback(
+    async (projectData) => {
+      if (!isReady) return Promise.resolve(null);
+      return storeSaveProject(projectData);
+    },
+    [isReady, storeSaveProject]
+  );
 
   // Guarded update project
-  const updateProject = useCallback(async (projectId, updates) => {
-    if (!isReady) return Promise.resolve(null);
-    return storeUpdateProject(projectId, updates);
-  }, [isReady, storeUpdateProject]);
+  const updateProject = useCallback(
+    async (projectId, updates) => {
+      if (!isReady) return Promise.resolve(null);
+      return storeUpdateProject(projectId, updates);
+    },
+    [isReady, storeUpdateProject]
+  );
 
   // Guarded delete project
-  const deleteProject = useCallback(async (projectId) => {
-    if (!isReady) return Promise.resolve();
-    return storeDeleteProject(projectId);
-  }, [isReady, storeDeleteProject]);
+  const deleteProject = useCallback(
+    async (projectId) => {
+      if (!isReady) return Promise.resolve();
+      return storeDeleteProject(projectId);
+    },
+    [isReady, storeDeleteProject]
+  );
 
   return {
     // State
@@ -90,7 +103,7 @@ export const useSubtitlerProjects = () => {
     setCurrentProject,
     clearCurrentProject,
     clearError,
-    reset
+    reset,
   };
 };
 

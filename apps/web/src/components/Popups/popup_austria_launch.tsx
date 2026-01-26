@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+
 import Icon from '../common/Icon';
 import { BasePopup } from '../common/Popup';
 
@@ -8,7 +9,8 @@ const AUSTRIA_LAUNCH_CONFIG = {
   title: 'GRÜNERATOR',
   titleHighlight: 'FÜR ÖSTERREICH',
   subtitle: 'Ab jetzt auch in Österreich verfügbar!',
-  content: 'Der Grünerator ist jetzt auch für die österreichischen Grünen verfügbar! Erstelle Texte und mehr mit österreichischer Lokalisierung.',
+  content:
+    'Der Grünerator ist jetzt auch für die österreichischen Grünen verfügbar! Erstelle Texte und mehr mit österreichischer Lokalisierung.',
 };
 
 const PopupAustriaLaunch = () => {
@@ -35,10 +37,7 @@ const PopupAustriaLaunch = () => {
   }, []);
 
   return (
-    <BasePopup
-      storageKey={AUSTRIA_LAUNCH_CONFIG.storageKey}
-      variant="single"
-    >
+    <BasePopup storageKey={AUSTRIA_LAUNCH_CONFIG.storageKey} variant="single">
       {({ onClose }) => (
         <div className="popup-single-container">
           <div className="popup-slide start-screen gradient-primary">

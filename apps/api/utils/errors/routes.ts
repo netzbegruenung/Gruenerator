@@ -17,7 +17,7 @@ import {
   CacheError,
   TimeoutError,
   ResourceError,
-  isVectorBackendError
+  isVectorBackendError,
 } from './classes.js';
 
 /**
@@ -59,44 +59,69 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   const message = error.message?.toLowerCase() || '';
 
   // Validation errors
-  if (message.includes('validation') || message.includes('invalid') ||
-      message.includes('required') || message.includes('missing')) {
+  if (
+    message.includes('validation') ||
+    message.includes('invalid') ||
+    message.includes('required') ||
+    message.includes('missing')
+  ) {
     return { type: 'VALIDATION_ERROR', statusCode: 400 };
   }
 
   // Attachment errors
-  if (message.includes('attachment') || message.includes('file') ||
-      message.includes('upload') || message.includes('size')) {
+  if (
+    message.includes('attachment') ||
+    message.includes('file') ||
+    message.includes('upload') ||
+    message.includes('size')
+  ) {
     return { type: 'ATTACHMENT_ERROR', statusCode: 400 };
   }
 
   // AI Worker errors
-  if (message.includes('ai worker') || message.includes('claude api') ||
-      message.includes('openai') || message.includes('anthropic')) {
+  if (
+    message.includes('ai worker') ||
+    message.includes('claude api') ||
+    message.includes('openai') ||
+    message.includes('anthropic')
+  ) {
     return { type: 'AI_WORKER_ERROR', statusCode: 503 };
   }
 
   // Authentication errors
-  if (message.includes('unauthorized') || message.includes('authentication') ||
-      (error as any).status === 401) {
+  if (
+    message.includes('unauthorized') ||
+    message.includes('authentication') ||
+    (error as any).status === 401
+  ) {
     return { type: 'AUTHENTICATION_ERROR', statusCode: 401 };
   }
 
   // Authorization errors
-  if (message.includes('forbidden') || message.includes('authorization') ||
-      (error as any).status === 403) {
+  if (
+    message.includes('forbidden') ||
+    message.includes('authorization') ||
+    (error as any).status === 403
+  ) {
     return { type: 'AUTHORIZATION_ERROR', statusCode: 403 };
   }
 
   // Network errors
-  if (message.includes('network') || message.includes('connection') ||
-      message.includes('enotfound') || message.includes('timeout')) {
+  if (
+    message.includes('network') ||
+    message.includes('connection') ||
+    message.includes('enotfound') ||
+    message.includes('timeout')
+  ) {
     return { type: 'NETWORK_ERROR', statusCode: 503 };
   }
 
   // Rate limiting
-  if (message.includes('rate limit') || message.includes('too many') ||
-      (error as any).status === 429) {
+  if (
+    message.includes('rate limit') ||
+    message.includes('too many') ||
+    (error as any).status === 429
+  ) {
     return { type: 'RATE_LIMIT_ERROR', statusCode: 429 };
   }
 
@@ -120,7 +145,8 @@ export function handleRouteError(
   // Add request context for detailed logging
   const routeName = routePath.replace('/api/', '').replace('/', '_');
   const userId = (req as any)?.user?.id || 'unknown';
-  const requestId = (req as RequestWithCorrelation)?.correlationId || (req as any)?.sessionID || 'unknown';
+  const requestId =
+    (req as RequestWithCorrelation)?.correlationId || (req as any)?.sessionID || 'unknown';
 
   // Enhanced logging with context
   console.error(`[${routeName}] Error Details:`, {
@@ -129,7 +155,7 @@ export function handleRouteError(
     requestId,
     message: error.message,
     stack: error.stack?.split('\n').slice(0, 3).join('\n'), // First 3 lines of stack
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 
   // Send secure response
@@ -155,7 +181,11 @@ export function handleAttachmentError(res: Response, routePath: string, message:
 /**
  * Handle AI Worker errors specifically
  */
-export function handleAIWorkerError(res: Response, routePath: string, aiResult: AIWorkerErrorResult): void {
+export function handleAIWorkerError(
+  res: Response,
+  routePath: string,
+  aiResult: AIWorkerErrorResult
+): void {
   const error = new AIWorkerError(`AI Worker failed: ${aiResult.error || 'Unknown AI error'}`);
   handleRouteError(error, routePath, res);
 }
@@ -181,8 +211,9 @@ export function withErrorHandler(
  */
 export function addCorrelationId(req: Request, res: Response, next: NextFunction): void {
   const extendedReq = req as RequestWithCorrelation;
-  extendedReq.correlationId = req.headers['x-correlation-id'] as string ||
-                              (req as any).sessionID ||
-                              `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  extendedReq.correlationId =
+    (req.headers['x-correlation-id'] as string) ||
+    (req as any).sessionID ||
+    `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   next();
 }

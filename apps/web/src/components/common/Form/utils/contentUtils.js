@@ -8,7 +8,9 @@ import React from 'react';
  */
 export const getExportableContent = (generatedContent, value) => {
   if (generatedContent) {
-    return typeof generatedContent === 'string' ? generatedContent : generatedContent?.content || '';
+    return typeof generatedContent === 'string'
+      ? generatedContent
+      : generatedContent?.content || '';
   }
   return value || '';
 };
@@ -23,16 +25,19 @@ export const getBaseContainerClasses = ({
   title,
   generatedContent,
   isMultiPlatform,
-  isFormVisible
+  isFormVisible,
 }) => {
   const classes = [
     'base-container',
     isEditing ? 'editing-mode' : '',
-    generatedContent && (
-      typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
-    ) ? 'has-generated-content' : '',
+    generatedContent &&
+    (typeof generatedContent === 'string'
+      ? generatedContent.length > 0
+      : generatedContent?.content?.length > 0)
+      ? 'has-generated-content'
+      : '',
     isMultiPlatform ? 'multi-platform' : '',
-    !isFormVisible ? 'form-hidden' : ''
+    !isFormVisible ? 'form-hidden' : '',
   ];
 
   return classes.filter(Boolean).join(' ');
@@ -45,25 +50,25 @@ export const getBaseContainerClasses = ({
  */
 export const isMarkdownContent = (content) => {
   if (!content || typeof content !== 'string') return false;
-  
+
   // Check for common markdown patterns
   const markdownPatterns = [
-    /^#{1,6}\s+/m,           // Headers (# ## ###)
-    /\*\*.*?\*\*/,           // Bold text
-    /\*.*?\*/,               // Italic text (but not bold)
-    /^\s*[-*+]\s+/m,         // Unordered lists
-    /^\s*\d+\.\s+/m,         // Ordered lists
-    /^>\s+/m,                // Blockquotes
-    /`.*?`/,                 // Inline code
-    /^\s*```/m,              // Code blocks
-    /\[.*?\]\(.*?\)/,        // Links
+    /^#{1,6}\s+/m, // Headers (# ## ###)
+    /\*\*.*?\*\*/, // Bold text
+    /\*.*?\*/, // Italic text (but not bold)
+    /^\s*[-*+]\s+/m, // Unordered lists
+    /^\s*\d+\.\s+/m, // Ordered lists
+    /^>\s+/m, // Blockquotes
+    /`.*?`/, // Inline code
+    /^\s*```/m, // Code blocks
+    /\[.*?\]\(.*?\)/, // Links
   ];
-  
+
   // Content is likely markdown if it contains multiple markdown patterns
   // or if it has headers (which are strong indicators)
-  const patternMatches = markdownPatterns.filter(pattern => pattern.test(content)).length;
+  const patternMatches = markdownPatterns.filter((pattern) => pattern.test(content)).length;
   const hasHeaders = /^#{1,6}\s+/m.test(content);
-  
+
   return hasHeaders || patternMatches >= 2;
 };
 
@@ -83,7 +88,7 @@ export const isReactElement = (content) => {
  */
 export const removeGruenTitleTags = (content) => {
   if (!content || typeof content !== 'string') return content;
-  
+
   // Remove GRUEN_TITLE tags that should have been processed by backend
   return content.replace(/<GRUEN_TITLE>.*?<\/GRUEN_TITLE>/gs, '').trim();
 };
@@ -116,21 +121,21 @@ export const stripWrappingCodeFence = (content) => {
  */
 export const normalizeLineBreaks = (content) => {
   if (!content || typeof content !== 'string') return content;
-  
+
   // Detect if content is HTML
   const isHtml = /<[^>]+>/.test(content);
-  
+
   if (isHtml) {
     // For HTML: Remove newlines between tags to prevent double spacing
     return content
-      .replace(/>\s*\n+\s*</g, '><')  // Remove all newlines between tags
+      .replace(/>\s*\n+\s*</g, '><') // Remove all newlines between tags
       .replace(/(<\/p>|<\/div>|<\/h\d>)\s*\n+/gi, '$1') // Remove newlines after block elements
       .trim();
   } else {
     // For plain text/markdown: Current normalization
     return content
-      .replace(/\n{3,}/g, '\n\n')  // Mehr als 2 Zeilenumbrüche -> 2
-      .replace(/\r\n{3,}/g, '\r\n\r\n')  // Windows Zeilenumbrüche
+      .replace(/\n{3,}/g, '\n\n') // Mehr als 2 Zeilenumbrüche -> 2
+      .replace(/\r\n{3,}/g, '\r\n\r\n') // Windows Zeilenumbrüche
       .replace(/(\r?\n\s*){3,}/g, '\n\n'); // Zeilenumbrüche mit Whitespace
   }
-}; 
+};

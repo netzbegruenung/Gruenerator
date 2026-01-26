@@ -41,7 +41,7 @@ export const ICON_DEFAULTS = {
 export const SHAPE_DEFAULTS = {
   x: (canvasWidth: number) => canvasWidth / 2,
   y: (canvasHeight: number) => canvasHeight / 2,
-  fill: '#316049',
+  fill: '#005538',
 } as const;
 
 export const BALKEN_TRANSFORMER_CONFIG = {

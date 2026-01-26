@@ -28,7 +28,9 @@ async function loadPromptConfig(configName: string): Promise<any> {
 function extractCorrectionSummary(correctedPlan: string, originalPlan: string): string {
   const originalLength = originalPlan.length;
   const correctedLength = correctedPlan.length;
-  const changePercentage = Math.round(Math.abs(correctedLength - originalLength) / originalLength * 100);
+  const changePercentage = Math.round(
+    (Math.abs(correctedLength - originalLength) / originalLength) * 100
+  );
 
   const korrigiertMatches = (correctedPlan.match(/KORRIGIERT:/g) || []).length;
 
@@ -44,10 +46,12 @@ function extractCorrectionSummary(correctedPlan: string, originalPlan: string): 
  * Priority: correctedPlan > revisedPlan > originalPlan
  */
 function getCurrentPlan(state: PlanWorkflowState): string {
-  return state.correctedPlanData?.correctedPlan
-    || state.revisedPlanData?.revisedPlan
-    || state.planData?.originalPlan
-    || '';
+  return (
+    state.correctedPlanData?.correctedPlan ||
+    state.revisedPlanData?.revisedPlan ||
+    state.planData?.originalPlan ||
+    ''
+  );
 }
 
 /**
@@ -78,26 +82,29 @@ export async function correctionNode(state: PlanWorkflowState): Promise<Correcti
         inhalt: input.inhalt,
         gliederung: input.gliederung,
         requestType: input.subType || input.generatorType,
-        locale: input.locale || 'de-DE'
+        locale: input.locale || 'de-DE',
       },
       knowledge: [
         `## Aktueller Plan\n${currentPlan}`,
-        `## Gewünschte Korrekturen\n${userCorrections}`
-      ]
+        `## Gewünschte Korrekturen\n${userCorrections}`,
+      ],
     };
 
     const assembledPrompt = await assemblePromptGraphAsync(promptContext);
 
-    const aiResponse = await input.aiWorkerPool.processRequest({
-      type: `${state.generatorType}_plan_correction`,
-      usePrivacyMode: input.usePrivacyMode || false,
-      systemPrompt: assembledPrompt.system,
-      messages: assembledPrompt.messages as never,
-      options: {
-        max_tokens: promptConfigData.options?.max_tokens || 3000,
-        temperature: promptConfigData.options?.temperature || 0.4
-      }
-    }, input.req);
+    const aiResponse = await input.aiWorkerPool.processRequest(
+      {
+        type: `${state.generatorType}_plan_correction`,
+        usePrivacyMode: input.usePrivacyMode || false,
+        systemPrompt: assembledPrompt.system,
+        messages: assembledPrompt.messages as never,
+        options: {
+          max_tokens: promptConfigData.options?.max_tokens || 3000,
+          temperature: promptConfigData.options?.temperature || 0.4,
+        },
+      },
+      input.req
+    );
 
     const correctedPlan = aiResponse.content ?? '';
     const correctionSummary = extractCorrectionSummary(correctedPlan, currentPlan);
@@ -109,19 +116,19 @@ export async function correctionNode(state: PlanWorkflowState): Promise<Correcti
       correctedPlanData: {
         correctedPlan,
         correctionSummary,
-        correctionTimeMs
+        correctionTimeMs,
       },
       currentPhase: 'plan' as const,
       phasesExecuted: [...state.phasesExecuted, 'correction'],
       totalAICalls: state.totalAICalls + 1,
-      userCorrections: undefined
+      userCorrections: undefined,
     };
   } catch (error: any) {
     console.error('[PlanWorkflow] Plan correction error:', error);
     return {
       error: `Plan correction failed: ${error.message}`,
       currentPhase: 'error',
-      success: false
+      success: false,
     };
   }
 }

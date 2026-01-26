@@ -20,7 +20,7 @@ const hybridConfig = {
   minFinalScore: 0.01,
   minVectorOnlyFinalScore: 0.02,
   confidenceBoost: 1.1,
-  confidencePenalty: 0.9
+  confidencePenalty: 0.9,
 };
 
 export async function getQdrantClient() {
@@ -32,10 +32,10 @@ export async function getQdrantClient() {
 
   const clientConfig: Record<string, unknown> = {
     host: url.hostname,
-    port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
+    port: url.port ? parseInt(url.port) : url.protocol === 'https:' ? 443 : 80,
     https: url.protocol === 'https:',
     apiKey: config.qdrant.apiKey,
-    timeout: 30000
+    timeout: 30000,
   };
 
   if (config.qdrant.basicAuth?.username && config.qdrant.basicAuth?.password) {
@@ -43,7 +43,7 @@ export async function getQdrantClient() {
       `${config.qdrant.basicAuth.username}:${config.qdrant.basicAuth.password}`
     ).toString('base64');
     clientConfig.headers = {
-      'Authorization': `Basic ${basicAuth}`
+      Authorization: `Basic ${basicAuth}`,
     };
   }
 
@@ -67,10 +67,7 @@ function mergeFilters(baseFilter, additionalFilter) {
   if (!additionalFilter) return baseFilter;
   if (!baseFilter) return additionalFilter;
 
-  const must = [
-    ...(baseFilter.must || []),
-    ...(additionalFilter.must || [])
-  ];
+  const must = [...(baseFilter.must || []), ...(additionalFilter.must || [])];
 
   return must.length > 0 ? { must } : undefined;
 }
@@ -78,13 +75,18 @@ function mergeFilters(baseFilter, additionalFilter) {
 /**
  * Vector similarity search
  */
-export async function searchCollection(collectionName: string, embedding: number[], limit = 5, filter: Record<string, unknown> | null = null) {
+export async function searchCollection(
+  collectionName: string,
+  embedding: number[],
+  limit = 5,
+  filter: Record<string, unknown> | null = null
+) {
   const qdrant = await getQdrantClient();
 
   const searchParams: Record<string, unknown> = {
     vector: embedding,
     limit: limit,
-    with_payload: true
+    with_payload: true,
   };
 
   if (filter) {
@@ -93,14 +95,14 @@ export async function searchCollection(collectionName: string, embedding: number
 
   const results = await qdrant.search(collectionName, searchParams);
 
-  return results.map(hit => ({
+  return results.map((hit) => ({
     score: hit.score,
     title: hit.payload?.title || hit.payload?.metadata?.title || 'Unbekannt',
     text: hit.payload?.chunk_text || '',
     url: hit.payload?.url || hit.payload?.source_url || hit.payload?.metadata?.url || null,
     documentId: hit.payload?.document_id,
     filename: hit.payload?.filename || hit.payload?.metadata?.filename,
-    qualityScore: hit.payload?.quality_score
+    qualityScore: hit.payload?.quality_score,
   }));
 }
 
@@ -116,7 +118,7 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
   const variantSearchPromises = variants.map(async (variant) => {
     try {
       const textFilter = {
-        must: [{ key: 'chunk_text', match: { text: variant } }]
+        must: [{ key: 'chunk_text', match: { text: variant } }],
       };
       const combinedFilter = mergeFilters(textFilter, baseFilter);
 
@@ -124,12 +126,12 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
         filter: combinedFilter,
         limit: Math.ceil(limit / variants.length) + 5,
         with_payload: true,
-        with_vector: false
+        with_vector: false,
       });
       return {
         variant,
         points: scrollResult.points || [],
-        matchType: variant === searchTerm.toLowerCase() ? 'exact' : 'variant'
+        matchType: variant === searchTerm.toLowerCase() ? 'exact' : 'variant',
       };
     } catch (err) {
       console.error(`[TextSearch] Variant "${variant}" failed:`, err.message);
@@ -160,7 +162,7 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
   // Token fallback if no results
   if (mergedPoints.length === 0) {
     const normalizedTerm = normalizeQuery(searchTerm);
-    const tokens = tokenizeQuery(normalizedTerm || searchTerm).filter(t => t.length >= 4);
+    const tokens = tokenizeQuery(normalizedTerm || searchTerm).filter((t) => t.length >= 4);
 
     if (tokens.length > 1) {
       console.error(`[TextSearch] Token fallback for: ${tokens.join(', ')}`);
@@ -174,7 +176,7 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
             filter: combinedFilter,
             limit: Math.ceil(limit / tokens.length) + 3,
             with_payload: true,
-            with_vector: false
+            with_vector: false,
           });
           return tokRes.points || [];
         } catch {
@@ -198,13 +200,15 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
     }
   }
 
-  console.error(`[TextSearch] Found ${mergedPoints.length} unique results (matchType: ${matchType})`);
+  console.error(
+    `[TextSearch] Found ${mergedPoints.length} unique results (matchType: ${matchType})`
+  );
 
   return mergedPoints.map(({ point }, index) => ({
     id: point.id,
     score: calculateTextSearchScore(searchTerm, point.payload?.chunk_text, index),
     payload: point.payload,
-    matchType
+    matchType,
   }));
 }
 
@@ -220,7 +224,13 @@ function applyRRF(vectorResults, textResults, limit, k = 60) {
 /**
  * Apply weighted combination - uses shared implementation
  */
-function applyWeightedCombinationLocal(vectorResults, textResults, vectorWeight, textWeight, limit) {
+function applyWeightedCombinationLocal(
+  vectorResults,
+  textResults,
+  vectorWeight,
+  textWeight,
+  limit
+) {
   return applyWeightedCombination(vectorResults, textResults, vectorWeight, textWeight, limit);
 }
 
@@ -234,14 +244,26 @@ function applyQualityGateLocal(results, hasTextMatches) {
 /**
  * Hybrid search combining vector and text search
  */
-export async function hybridSearchCollection(collectionName: string, embedding: number[], query: string, limit = 5, options: Record<string, unknown> = {}) {
+export async function hybridSearchCollection(
+  collectionName: string,
+  embedding: number[],
+  query: string,
+  limit = 5,
+  options: Record<string, unknown> = {}
+) {
   const {
     vectorWeight = 0.7,
     textWeight = 0.3,
     useRRF = true,
     rrfK = 60,
-    filter = null
-  } = options as { vectorWeight?: number; textWeight?: number; useRRF?: boolean; rrfK?: number; filter?: Record<string, unknown> | null };
+    filter = null,
+  } = options as {
+    vectorWeight?: number;
+    textWeight?: number;
+    useRRF?: boolean;
+    rrfK?: number;
+    filter?: Record<string, unknown> | null;
+  };
 
   const qdrant = await getQdrantClient();
 
@@ -252,12 +274,16 @@ export async function hybridSearchCollection(collectionName: string, embedding: 
   const textResults = await performTextSearch(collectionName, query, textLimit, filter);
 
   // Calculate dynamic threshold
-  const hasTextMatches = textResults.some(r => r.matchType && r.matchType !== 'token_fallback');
+  const hasTextMatches = textResults.some((r) => r.matchType && r.matchType !== 'token_fallback');
   const threshold = hybridConfig.enableDynamicThresholds
-    ? (hasTextMatches ? hybridConfig.minVectorWithTextThreshold : hybridConfig.minVectorOnlyThreshold)
+    ? hasTextMatches
+      ? hybridConfig.minVectorWithTextThreshold
+      : hybridConfig.minVectorOnlyThreshold
     : 0.3;
 
-  console.error(`[HybridSearch] Dynamic threshold: ${threshold} (hasTextMatches: ${hasTextMatches})`);
+  console.error(
+    `[HybridSearch] Dynamic threshold: ${threshold} (hasTextMatches: ${hasTextMatches})`
+  );
 
   // Vector search
   const vectorLimit = limit * 6;
@@ -265,7 +291,7 @@ export async function hybridSearchCollection(collectionName: string, embedding: 
     vector: embedding,
     limit: vectorLimit,
     score_threshold: threshold,
-    with_payload: true
+    with_payload: true,
   };
 
   if (filter) {
@@ -274,17 +300,19 @@ export async function hybridSearchCollection(collectionName: string, embedding: 
 
   const vectorResults = await qdrant.search(collectionName, vectorSearchParams);
 
-  const mappedVectorResults = vectorResults.map(hit => ({
+  const mappedVectorResults = vectorResults.map((hit) => ({
     id: hit.id,
     score: hit.score,
     payload: hit.payload,
     title: hit.payload?.title || hit.payload?.metadata?.title || 'Unbekannt',
     text: hit.payload?.chunk_text || '',
     url: hit.payload?.url || hit.payload?.source_url || hit.payload?.metadata?.url || null,
-    qualityScore: hit.payload?.quality_score
+    qualityScore: hit.payload?.quality_score,
   }));
 
-  console.error(`[HybridSearch] Vector: ${mappedVectorResults.length}, Text: ${textResults.length}`);
+  console.error(
+    `[HybridSearch] Vector: ${mappedVectorResults.length}, Text: ${textResults.length}`
+  );
 
   // Determine fusion method
   let shouldUseRRF = useRRF;
@@ -314,23 +342,30 @@ export async function hybridSearchCollection(collectionName: string, embedding: 
   combinedResults = applyQualityGateLocal(combinedResults, hasTextMatches);
 
   // Apply quality-weighted scoring
-  const finalResults = combinedResults.slice(0, limit).map(result => {
+  const finalResults = combinedResults.slice(0, limit).map((result) => {
     const qualityScore = Number(result.qualityScore ?? result.payload?.quality_score ?? 1.0);
-    const qualityBoost = 1 + ((qualityScore - 0.5) * 0.4);
+    const qualityBoost = 1 + (qualityScore - 0.5) * 0.4;
 
     return {
       score: result.score * qualityBoost,
       title: result.title || result.payload?.title || 'Unbekannt',
       text: result.text || result.payload?.chunk_text || '',
-      url: result.url || result.payload?.url || result.payload?.source_url || (result.payload?.metadata as Record<string, unknown>)?.url || null,
+      url:
+        result.url ||
+        result.payload?.url ||
+        result.payload?.source_url ||
+        (result.payload?.metadata as Record<string, unknown>)?.url ||
+        null,
       documentId: result.documentId || result.payload?.document_id,
       filename: result.filename || result.payload?.filename,
       searchMethod: result.searchMethod,
-      qualityScore
+      qualityScore,
     };
   });
 
-  console.error(`[HybridSearch] Returning ${finalResults.length} results (fusion: ${shouldUseRRF ? 'RRF' : 'weighted'})`);
+  console.error(
+    `[HybridSearch] Returning ${finalResults.length} results (fusion: ${shouldUseRRF ? 'RRF' : 'weighted'})`
+  );
 
   return {
     results: finalResults,
@@ -338,8 +373,8 @@ export async function hybridSearchCollection(collectionName: string, embedding: 
       vectorResults: mappedVectorResults.length,
       textResults: textResults.length,
       fusionMethod: shouldUseRRF ? 'RRF' : 'weighted',
-      hasTextMatches
-    }
+      hasTextMatches,
+    },
   };
 }
 
@@ -349,7 +384,7 @@ export async function hybridSearchCollection(collectionName: string, embedding: 
 export async function textSearchCollection(collectionName, query, limit = 5, filter = null) {
   const textResults = await performTextSearch(collectionName, query, limit * 2, filter);
 
-  return textResults.slice(0, limit).map(result => ({
+  return textResults.slice(0, limit).map((result) => ({
     score: result.score,
     title: result.payload?.title || result.payload?.metadata?.title || 'Unbekannt',
     text: result.payload?.chunk_text || '',
@@ -357,7 +392,7 @@ export async function textSearchCollection(collectionName, query, limit = 5, fil
     documentId: result.payload?.document_id,
     filename: result.payload?.filename || result.payload?.metadata?.filename,
     searchMethod: 'text',
-    matchType: result.matchType
+    matchType: result.matchType,
   }));
 }
 
@@ -369,12 +404,12 @@ export async function getCollectionInfo(collectionName) {
     return {
       name: collectionName,
       pointsCount: info.points_count,
-      status: info.status
+      status: info.status,
     };
   } catch (error) {
     return {
       name: collectionName,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -390,7 +425,7 @@ async function _getUniqueFieldValues(collectionName: string, fieldName: string, 
     const scrollResult = await qdrant.scroll(collectionName, {
       limit: 1000,
       with_payload: { include: [fieldName] },
-      with_vector: false
+      with_vector: false,
     });
 
     const values = new Set();
@@ -419,7 +454,12 @@ async function _getUniqueFieldValues(collectionName: string, fieldName: string, 
  * Get unique field values with document counts (faceted search)
  * Returns values sorted by count (most common first)
  */
-export async function getFieldValueCounts(collectionName, fieldName, maxValues = 50, baseFilter = null) {
+export async function getFieldValueCounts(
+  collectionName,
+  fieldName,
+  maxValues = 50,
+  baseFilter = null
+) {
   const qdrant = await getQdrantClient();
 
   try {
@@ -433,7 +473,7 @@ export async function getFieldValueCounts(collectionName, fieldName, maxValues =
         limit: 100,
         offset: offset,
         with_payload: { include: [fieldName] },
-        with_vector: false
+        with_vector: false,
       };
 
       if (baseFilter) {

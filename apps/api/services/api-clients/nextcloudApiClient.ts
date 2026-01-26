@@ -67,8 +67,8 @@ class NextcloudApiClient {
       timeout: 30000, // 30 seconds timeout
       headers: {
         'User-Agent': 'Gruenerator/1.0',
-        'Content-Type': 'application/octet-stream'
-      }
+        'Content-Type': 'application/octet-stream',
+      },
     });
 
     // Set authentication exactly as cloudsend.sh does:
@@ -76,18 +76,18 @@ class NextcloudApiClient {
     this.axiosInstance.defaults.headers['X-Requested-With'] = 'XMLHttpRequest';
     this.axiosInstance.defaults.auth = {
       username: this.shareToken,
-      password: ''
+      password: '',
     };
 
     // Add response interceptor for error handling
     this.axiosInstance.interceptors.response.use(
-      response => response,
-      error => {
+      (response) => response,
+      (error) => {
         console.error('[NextcloudApiClient] Nextcloud API error:', error.message, {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
-          url: error.config?.url
+          url: error.config?.url,
         });
         return Promise.reject(this.normalizeError(error));
       }
@@ -95,7 +95,7 @@ class NextcloudApiClient {
 
     console.log('[NextcloudApiClient] NextcloudApiClient initialized', {
       baseUrl: this.baseURL,
-      shareToken: this.shareToken.substring(0, 8) + '...'
+      shareToken: this.shareToken.substring(0, 8) + '...',
     });
   }
 
@@ -114,11 +114,14 @@ class NextcloudApiClient {
       return {
         baseUrl: `${urlObj.protocol}//${urlObj.host}`,
         shareToken: pathMatch[1],
-        fullPath: urlObj.pathname + urlObj.search
+        fullPath: urlObj.pathname + urlObj.search,
       };
     } catch (error) {
       const err = error as Error;
-      console.error('[NextcloudApiClient] Error parsing share link', { shareLink, error: err.message });
+      console.error('[NextcloudApiClient] Error parsing share link', {
+        shareLink,
+        error: err.message,
+      });
       return null;
     }
   }
@@ -135,8 +138,8 @@ class NextcloudApiClient {
         method: 'PROPFIND',
         url: this.webdavUrl,
         headers: {
-          'Depth': '0',
-          'Content-Type': 'application/xml'
+          Depth: '0',
+          'Content-Type': 'application/xml',
         },
         data: `<?xml version="1.0" encoding="utf-8" ?>
                <propfind xmlns="DAV:">
@@ -146,7 +149,7 @@ class NextcloudApiClient {
                        <getlastmodified/>
                        <getetag/>
                    </prop>
-               </propfind>`
+               </propfind>`,
       });
 
       if (response.status === 207 || response.status === 200) {
@@ -154,15 +157,14 @@ class NextcloudApiClient {
         return {
           success: true,
           message: 'Connection successful',
-          writable: true // Assume writable for now, could be enhanced
+          writable: true, // Assume writable for now, could be enhanced
         };
       }
 
       return {
         success: false,
-        message: `Unexpected response: ${response.status}`
+        message: `Unexpected response: ${response.status}`,
       };
-
     } catch (error) {
       const err = error as AxiosError;
       console.error('[NextcloudApiClient] Connection test failed', { error: err.message });
@@ -170,23 +172,23 @@ class NextcloudApiClient {
       if (err.response?.status === 401) {
         return {
           success: false,
-          message: 'Authentication failed - invalid share token'
+          message: 'Authentication failed - invalid share token',
         };
       } else if (err.response?.status === 403) {
         return {
           success: false,
-          message: 'Access forbidden - share may not be active or writable'
+          message: 'Access forbidden - share may not be active or writable',
         };
       } else if (err.response?.status === 404) {
         return {
           success: false,
-          message: 'Share not found - check the share link'
+          message: 'Share not found - check the share link',
         };
       }
 
       return {
         success: false,
-        message: err.message || 'Connection test failed'
+        message: err.message || 'Connection test failed',
       };
     }
   }
@@ -196,7 +198,10 @@ class NextcloudApiClient {
    */
   async uploadFile(content: string | Buffer, filename: string): Promise<UploadFileResult> {
     try {
-      console.log('[NextcloudApiClient] Uploading file to Nextcloud', { filename, contentLength: content.length });
+      console.log('[NextcloudApiClient] Uploading file to Nextcloud', {
+        filename,
+        contentLength: content.length,
+      });
 
       // Ensure filename is safe
       const safeFilename = this.sanitizeFilename(filename);
@@ -209,10 +214,11 @@ class NextcloudApiClient {
 
       // Check if content is base64-encoded (common pattern for binary files)
       const base64Pattern = /^[A-Za-z0-9+/]+=*$/;
-      const isBase64 = typeof content === 'string' &&
-                     content.length > 100 && // Reasonable minimum for base64 files
-                     content.length % 4 === 0 && // Base64 strings are multiples of 4
-                     base64Pattern.test(content);
+      const isBase64 =
+        typeof content === 'string' &&
+        content.length > 100 && // Reasonable minimum for base64 files
+        content.length % 4 === 0 && // Base64 strings are multiples of 4
+        base64Pattern.test(content);
 
       if (isBase64) {
         try {
@@ -234,11 +240,13 @@ class NextcloudApiClient {
           console.log('[NextcloudApiClient] Detected base64 content, decoded for upload', {
             originalLength: content.length,
             decodedLength: uploadContent.length,
-            contentType
+            contentType,
           });
         } catch (decodeError) {
           const err = decodeError as Error;
-          console.warn('[NextcloudApiClient] Base64 decode failed, uploading as text', { error: err.message });
+          console.warn('[NextcloudApiClient] Base64 decode failed, uploading as text', {
+            error: err.message,
+          });
           // Fall back to original content if base64 decoding fails
         }
       }
@@ -246,35 +254,34 @@ class NextcloudApiClient {
       const response = await this.axiosInstance.put(uploadUrl, uploadContent, {
         headers: {
           'Content-Type': contentType,
-          'Content-Length': contentLength.toString()
-        }
+          'Content-Length': contentLength.toString(),
+        },
       });
 
       if (response.status === 201 || response.status === 204) {
         console.log('[NextcloudApiClient] File uploaded successfully', {
           filename: safeFilename,
-          status: response.status
+          status: response.status,
         });
 
         return {
           success: true,
           message: 'File uploaded successfully',
           filename: safeFilename,
-          url: this.generateFileUrl(safeFilename)
+          url: this.generateFileUrl(safeFilename),
         };
       }
 
       return {
         success: false,
-        message: `Upload failed with status: ${response.status}`
+        message: `Upload failed with status: ${response.status}`,
       };
-
     } catch (error) {
       const err = error as AxiosError;
       console.error('[NextcloudApiClient] File upload failed', {
         filename,
         error: err.message,
-        status: err.response?.status
+        status: err.response?.status,
       });
 
       if (err.response?.status === 401) {
@@ -302,8 +309,8 @@ class NextcloudApiClient {
         method: 'PROPFIND',
         url: this.webdavUrl,
         headers: {
-          'Depth': '1',
-          'Content-Type': 'application/xml'
+          Depth: '1',
+          'Content-Type': 'application/xml',
         },
         data: `<?xml version="1.0" encoding="utf-8" ?>
                <propfind xmlns="DAV:">
@@ -314,7 +321,7 @@ class NextcloudApiClient {
                        <displayname/>
                        <getetag/>
                    </prop>
-               </propfind>`
+               </propfind>`,
       });
 
       if (response.status === 207) {
@@ -324,15 +331,14 @@ class NextcloudApiClient {
         return {
           success: true,
           files: files,
-          totalFiles: files.length
+          totalFiles: files.length,
         };
       }
 
       return {
         success: false,
-        message: 'Failed to get share information'
+        message: 'Failed to get share information',
       };
-
     } catch (error) {
       const err = error as Error;
       console.error('[NextcloudApiClient] Failed to get share info', { error: err.message });
@@ -368,11 +374,15 @@ class NextcloudApiClient {
       const responseMatches = xmlData.match(/<d:response[^>]*>(.*?)<\/d:response>/gs);
 
       if (responseMatches) {
-        responseMatches.forEach(responseXml => {
+        responseMatches.forEach((responseXml) => {
           const hrefMatch = responseXml.match(/<d:href[^>]*>(.*?)<\/d:href>/);
           const displayNameMatch = responseXml.match(/<d:displayname[^>]*>(.*?)<\/d:displayname>/);
-          const contentLengthMatch = responseXml.match(/<d:getcontentlength[^>]*>(.*?)<\/d:getcontentlength>/);
-          const lastModifiedMatch = responseXml.match(/<d:getlastmodified[^>]*>(.*?)<\/d:getlastmodified>/);
+          const contentLengthMatch = responseXml.match(
+            /<d:getcontentlength[^>]*>(.*?)<\/d:getcontentlength>/
+          );
+          const lastModifiedMatch = responseXml.match(
+            /<d:getlastmodified[^>]*>(.*?)<\/d:getlastmodified>/
+          );
           const etagMatch = responseXml.match(/<d:getetag[^>]*>(.*?)<\/d:getetag>/);
 
           if (hrefMatch && hrefMatch[1]) {
@@ -394,7 +404,7 @@ class NextcloudApiClient {
               name: displayNameMatch ? displayNameMatch[1].trim() : href.split('/').pop() || '',
               size: contentLengthMatch ? parseInt(contentLengthMatch[1]) : null,
               lastModified: lastModifiedMatch ? new Date(lastModifiedMatch[1]) : null,
-              etag: etag
+              etag: etag,
             });
           }
         });
@@ -423,7 +433,10 @@ class NextcloudApiClient {
       // If the path doesn't start with WebDAV, prepend it
       if (!filePath.startsWith('/public.php/webdav/')) {
         // Handle relative paths - encode each segment properly
-        const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        const encodedPath = filePath
+          .split('/')
+          .map((segment) => encodeURIComponent(segment))
+          .join('/');
         fileUrl = `${this.webdavUrl}/${encodedPath}`;
       }
 
@@ -432,29 +445,32 @@ class NextcloudApiClient {
       const response = await this.axiosInstance.get<ArrayBuffer>(fileUrl, {
         responseType: 'arraybuffer',
         headers: {
-          'Accept': '*/*'
-        }
+          Accept: '*/*',
+        },
       });
 
       if (response.status === 200) {
         const buffer = Buffer.from(response.data);
-        console.log(`[NextcloudApiClient] Successfully downloaded file: ${filePath} (${buffer.length} bytes)`);
+        console.log(
+          `[NextcloudApiClient] Successfully downloaded file: ${filePath} (${buffer.length} bytes)`
+        );
 
         return {
           buffer: buffer,
           mimeType: response.headers['content-type'] || null,
-          size: response.headers['content-length'] ? parseInt(response.headers['content-length']) : buffer.length
+          size: response.headers['content-length']
+            ? parseInt(response.headers['content-length'])
+            : buffer.length,
         };
       } else {
         throw new Error(`Download failed with status: ${response.status}`);
       }
-
     } catch (error) {
       const err = error as AxiosError;
       console.error(`[NextcloudApiClient] File download failed:`, {
         filePath,
         error: err.message,
-        status: err.response?.status
+        status: err.response?.status,
       });
 
       if (err.response?.status === 401) {

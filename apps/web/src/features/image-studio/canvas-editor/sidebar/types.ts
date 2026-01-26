@@ -1,6 +1,35 @@
 import type { IconType } from 'react-icons';
 
-export type SidebarTabId = 'text' | 'fontsize' | 'background' | 'assets' | 'alternatives' | 'image' | 'position' | 'image-background' | 'share';
+/**
+ * All possible sidebar tab IDs.
+ *
+ * Unified tabs (used in heterogeneous multi-page):
+ * - 'background': Hintergrund (image or color based on template)
+ * - 'text': Text editing section
+ * - 'elements': Decorative elements (icons, shapes, illustrations)
+ * - 'alternatives': AI-generated alternatives
+ * - 'share': Export and sharing options
+ *
+ * Legacy tabs (template-specific, being migrated):
+ * - 'image-background': Image background section (→ 'background')
+ * - 'image': Image controls (→ 'background')
+ * - 'assets': Elements section (→ 'elements')
+ * - 'position': Dreizeilen-specific balken controls
+ * - 'fontsize': Deprecated - merged into 'text'
+ */
+export type SidebarTabId =
+  // Unified tab IDs (used in heterogeneous multi-page mode)
+  | 'background'
+  | 'text'
+  | 'elements'
+  | 'alternatives'
+  | 'share'
+  // Legacy/template-specific tab IDs (for backwards compatibility)
+  | 'fontsize'
+  | 'assets'
+  | 'image'
+  | 'position'
+  | 'image-background';
 
 export interface SidebarTab {
   id: SidebarTabId;
@@ -53,7 +82,11 @@ export interface BackgroundSectionProps {
 
   // Image props (optional - enables image subsection)
   currentImageSrc?: string;
-  onImageChange?: (file: File | null, objectUrl?: string, attribution?: StockImageAttribution | null) => void;
+  onImageChange?: (
+    file: File | null,
+    objectUrl?: string,
+    attribution?: StockImageAttribution | null
+  ) => void;
 
   // Context for AI suggestions (optional)
   textContext?: string;

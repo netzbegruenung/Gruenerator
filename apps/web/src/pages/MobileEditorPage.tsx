@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import { MasterCanvasEditor } from '../features/image-studio/canvas-editor/MasterCanvasEditor';
 import { useAuthStore } from '../stores/authStore';
 
@@ -63,7 +64,15 @@ export default function MobileEditorPage() {
 
   if (!isReady || !data) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: 'var(--background-color)' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          backgroundColor: 'var(--background-color)',
+        }}
+      >
         Lade Editor...
       </div>
     );

@@ -32,7 +32,8 @@ export class MistralEmbeddingClient {
   }
 
   async generateBatchEmbeddings(texts: string[]): Promise<number[][]> {
-    if (!Array.isArray(texts) || texts.length === 0) throw new Error('Texts must be non-empty array');
+    if (!Array.isArray(texts) || texts.length === 0)
+      throw new Error('Texts must be non-empty array');
 
     // Conservative limits based on Mistral API constraints
     const MAX_BATCH_SIZE = 16; // Maximum number of texts per batch
@@ -45,13 +46,17 @@ export class MistralEmbeddingClient {
 
     // Split into smaller batches
     const batches = this.createOptimalBatches(texts, MAX_BATCH_SIZE, MAX_TOKENS_PER_BATCH);
-    console.log(`[MistralEmbeddingClient] Splitting ${texts.length} texts into ${batches.length} batches`);
+    console.log(
+      `[MistralEmbeddingClient] Splitting ${texts.length} texts into ${batches.length} batches`
+    );
 
     const allEmbeddings: number[][] = [];
 
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
-      console.log(`[MistralEmbeddingClient] Processing batch ${i + 1}/${batches.length} (${batch.length} texts)`);
+      console.log(
+        `[MistralEmbeddingClient] Processing batch ${i + 1}/${batches.length} (${batch.length} texts)`
+      );
 
       try {
         const batchEmbeddings = await this.processSingleBatch(batch);
@@ -62,7 +67,9 @@ export class MistralEmbeddingClient {
 
         // If batch still fails, try processing texts individually
         if (batch.length > 1) {
-          console.log(`[MistralEmbeddingClient] Falling back to individual processing for batch ${i + 1}`);
+          console.log(
+            `[MistralEmbeddingClient] Falling back to individual processing for batch ${i + 1}`
+          );
           for (const text of batch) {
             try {
               const embedding = await this.generateEmbedding(text);
@@ -80,7 +87,7 @@ export class MistralEmbeddingClient {
 
       // Add small delay between batches to avoid rate limiting
       if (i < batches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
@@ -94,8 +101,9 @@ export class MistralEmbeddingClient {
         inputs: texts,
       });
       const arr = resp?.data;
-      if (!Array.isArray(arr) || arr.length !== texts.length) throw new Error('Embedding batch size mismatch');
-      return arr.map(d => d.embedding as number[]);
+      if (!Array.isArray(arr) || arr.length !== texts.length)
+        throw new Error('Embedding batch size mismatch');
+      return arr.map((d) => d.embedding as number[]);
     }, 'processSingleBatch');
   }
 
@@ -108,7 +116,11 @@ export class MistralEmbeddingClient {
     return texts.reduce((total, text) => total + this.estimateTokens(text), 0);
   }
 
-  private createOptimalBatches(texts: string[], maxBatchSize: number, maxTokensPerBatch: number): string[][] {
+  private createOptimalBatches(
+    texts: string[],
+    maxBatchSize: number,
+    maxTokensPerBatch: number
+  ): string[][] {
     const batches: string[][] = [];
     let currentBatch: string[] = [];
     let currentTokenCount = 0;
@@ -117,8 +129,10 @@ export class MistralEmbeddingClient {
       const textTokens = this.estimateTokens(text);
 
       // If adding this text would exceed limits, start a new batch
-      if (currentBatch.length >= maxBatchSize ||
-          (currentBatch.length > 0 && currentTokenCount + textTokens > maxTokensPerBatch)) {
+      if (
+        currentBatch.length >= maxBatchSize ||
+        (currentBatch.length > 0 && currentTokenCount + textTokens > maxTokensPerBatch)
+      ) {
         if (currentBatch.length > 0) {
           batches.push(currentBatch);
           currentBatch = [];
@@ -157,15 +171,21 @@ export class MistralEmbeddingClient {
         const isRetryable = this.isRetryableError(error as RetryableError);
 
         if (!isRetryable || attempt === maxRetries) {
-          console.error(`[MistralEmbeddingClient] ${operationName} failed after ${attempt + 1} attempts:`, lastError.message);
+          console.error(
+            `[MistralEmbeddingClient] ${operationName} failed after ${attempt + 1} attempts:`,
+            lastError.message
+          );
           throw lastError;
         }
 
         // Calculate backoff delay: 1s, 2s, 4s
         const delay = Math.pow(2, attempt) * 1000;
-        console.warn(`[MistralEmbeddingClient] ${operationName} attempt ${attempt + 1} failed, retrying in ${delay}ms:`, lastError.message);
+        console.warn(
+          `[MistralEmbeddingClient] ${operationName} attempt ${attempt + 1} failed, retrying in ${delay}ms:`,
+          lastError.message
+        );
 
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
@@ -184,22 +204,29 @@ export class MistralEmbeddingClient {
     // - Server errors (5xx)
     // - Temporary API errors
     // - Network errors
-    if (statusCode !== undefined && (statusCode === 429 || (statusCode >= 500 && statusCode < 600))) {
+    if (
+      statusCode !== undefined &&
+      (statusCode === 429 || (statusCode >= 500 && statusCode < 600))
+    ) {
       return true;
     }
 
     // Don't retry on specific batch size errors - these need different handling
-    if (errorMessage.includes('Batch size too large') ||
-        errorMessage.includes('Too many tokens overall')) {
+    if (
+      errorMessage.includes('Batch size too large') ||
+      errorMessage.includes('Too many tokens overall')
+    ) {
       return false;
     }
 
     // Retry on network and temporary errors
-    if (errorMessage.includes('network') ||
-        errorMessage.includes('timeout') ||
-        errorMessage.includes('connection') ||
-        errorMessage.includes('ECONNRESET') ||
-        errorMessage.includes('ETIMEDOUT')) {
+    if (
+      errorMessage.includes('network') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('ECONNRESET') ||
+      errorMessage.includes('ETIMEDOUT')
+    ) {
       return true;
     }
 

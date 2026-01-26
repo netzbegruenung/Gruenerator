@@ -1,4 +1,3 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo, ReactNode, lazy, Suspense } from 'react';
 import type {
   BaseFormProps,
   FeatureToggle,
@@ -8,12 +7,28 @@ import type {
   CustomExportOption,
   PlatformOption,
   FormControl,
-  GeneratedContent
+  GeneratedContent,
 } from '@/types/baseform';
-import { motion, AnimatePresence } from 'motion/react';
+
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import FormStateProvider, { useFormState, useFormStateSelector, useFormStateSelectors } from '../FormStateProvider';
+import FormStateProvider, {
+  useFormState,
+  useFormStateSelector,
+  useFormStateSelectors,
+} from '../FormStateProvider';
+
 import isEqual from 'fast-deep-equal';
+import { motion, AnimatePresence } from 'motion/react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+  ReactNode,
+  lazy,
+  Suspense,
+} from 'react';
 
 // Import all form-related CSS
 import '../../../../assets/styles/components/ui/forms.css';
@@ -40,33 +55,34 @@ import '../../../../assets/styles/pages/baseform.css';
 import '../../../../assets/styles/components/baseform/start-page.css';
 
 // Importiere die Komponenten
-import FormSection from './FormSection';
-import DisplaySection from './DisplaySection';
 
 // Import hooks
-import { useErrorHandling, useResponsive, useAutoScrollToContent } from '../hooks';
-import { useFormVisibility } from '../hooks/useFormVisibility';
-import { useFormConfiguration } from '../hooks/useFormConfiguration';
-import { useFeatureConfigs } from '../hooks/useFeatureConfigs';
-import { useContentManagement } from '../hooks/useContentManagement';
-import { useEditMode } from '../hooks/useEditMode';
-import { useStartMode } from '../hooks/useStartMode';
-import { useFormStateSyncing } from '../hooks/useFormStateSyncing';
-import { useFormEventHandlers } from '../hooks/useFormEventHandlers';
-import { useBaseFormAccessibility } from '../hooks/useBaseFormAccessibility';
 
 // Import utilities
-import { getExportableContent } from '../utils/contentUtils';
-import { getBaseContainerClasses } from '../utils/classNameUtils';
-import { FormToggleButtonFAB } from './FormToggleButtonFAB';
 
 // Auto-save and Recent Texts
 import { useTextAutoSave } from '../../../../hooks/useTextAutoSave';
-import RecentTextsSection from '../../RecentTexts/RecentTextsSection';
 import { getDocumentType } from '../../../../utils/documentTypeMapper';
+import RecentTextsSection from '../../RecentTexts/RecentTextsSection';
+import { useErrorHandling, useResponsive, useAutoScrollToContent } from '../hooks';
+import { useBaseFormAccessibility } from '../hooks/useBaseFormAccessibility';
+import { useContentManagement } from '../hooks/useContentManagement';
+import { useEditMode } from '../hooks/useEditMode';
+import { useFeatureConfigs } from '../hooks/useFeatureConfigs';
+import { useFormConfiguration } from '../hooks/useFormConfiguration';
+import { useFormEventHandlers } from '../hooks/useFormEventHandlers';
+import { useFormStateSyncing } from '../hooks/useFormStateSyncing';
+import { useFormVisibility } from '../hooks/useFormVisibility';
+import { useStartMode } from '../hooks/useStartMode';
+import { getBaseContainerClasses } from '../utils/classNameUtils';
+import { getExportableContent } from '../utils/contentUtils';
+
+import DisplaySection from './DisplaySection';
+import FormSection from './FormSection';
+import { FormToggleButtonFAB } from './FormToggleButtonFAB';
 
 // Lazy load react-tooltip (only used on desktop, ~15KB)
-const Tooltip = lazy(() => import('react-tooltip').then(mod => ({ default: mod.Tooltip })));
+const Tooltip = lazy(() => import('react-tooltip').then((mod) => ({ default: mod.Tooltip })));
 
 /**
  * Internal BaseForm component that uses the FormStateProvider context
@@ -144,7 +160,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   featureIconsTabIndex = {
     webSearch: 11,
     privacyMode: 12,
-    attachment: 13
+    attachment: 13,
   },
   platformSelectorTabIndex = 12,
   knowledgeSelectorTabIndex = 14,
@@ -168,13 +184,14 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   onExamplePromptClick = null, // Callback when example prompt is clicked
   contextualTip = null, // Tip shown below example prompts { icon, text }
   selectedPlatforms = [], // Array of selected platform IDs for highlighting platform tags
-  inputHeaderContent = null // Content rendered above the textarea inside the form card
+  inputHeaderContent = null, // Content rendered above the textarea inside the form card
 }) => {
-
   const baseFormRef = useRef<HTMLDivElement>(null);
   const formSectionRef = useRef<HTMLDivElement>(null);
   const displaySectionRef = useRef<HTMLDivElement>(null);
-  const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState<HelpContent | null>(null);
+  const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState<HelpContent | null>(
+    null
+  );
   const editSubmitHandlerRef = useRef<(() => void | Promise<void>) | null>(null);
 
   // Batched store selectors using useShallow for optimal performance
@@ -191,8 +208,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     storeUseFeatureIcons,
     storeAttachedFiles,
     storeUploadedImage,
-    storeIsFormVisible
-  } = useFormStateSelectors(state => ({
+    storeIsFormVisible,
+  } = useFormStateSelectors((state) => ({
     storeLoading: state.loading,
     storeSuccess: state.success,
     storeError: state.error,
@@ -204,7 +221,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     storeUseFeatureIcons: state.useFeatureIcons,
     storeAttachedFiles: state.attachedFiles,
     storeUploadedImage: state.uploadedImage,
-    storeIsFormVisible: state.isFormVisible
+    storeIsFormVisible: state.isFormVisible,
   }));
 
   // Configuration selectors (batched with shallow comparison)
@@ -213,18 +230,18 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     storePlatformConfig,
     storeSubmitConfig,
     storeUIConfig,
-    storeHelpConfig
-  } = useFormStateSelectors(state => ({
+    storeHelpConfig,
+  } = useFormStateSelectors((state) => ({
     storeTabIndexConfig: state.tabIndexConfig,
     storePlatformConfig: state.platformConfig,
     storeSubmitConfig: state.submitConfig,
     storeUIConfig: state.uiConfig,
-    storeHelpConfig: state.helpConfig
+    storeHelpConfig: state.helpConfig,
   }));
 
   // Store helper functions (these are stable references, single selector is fine)
-  const setIsStartMode = useFormStateSelector(state => state.setIsStartMode);
-  const getFeatureState = useFormStateSelector(state => state.getFeatureState);
+  const setIsStartMode = useFormStateSelector((state) => state.setIsStartMode);
+  const getFeatureState = useFormStateSelector((state) => state.getFeatureState);
 
   // Store actions (batched - functions are stable references)
   const {
@@ -239,8 +256,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     setStoreUseFeatureIcons,
     setStoreAttachedFiles,
     setStoreUploadedImage,
-    toggleStoreFormVisibility
-  } = useFormStateSelectors(state => ({
+    toggleStoreFormVisibility,
+  } = useFormStateSelectors((state) => ({
     setStoreLoading: state.setLoading,
     setStoreSuccess: state.setSuccess,
     setStoreError: state.setError,
@@ -252,7 +269,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     setStoreUseFeatureIcons: state.setUseFeatureIcons,
     setStoreAttachedFiles: state.setAttachedFiles,
     setStoreUploadedImage: state.setUploadedImage,
-    toggleStoreFormVisibility: state.toggleFormVisibility
+    toggleStoreFormVisibility: state.toggleFormVisibility,
   }));
 
   const errorHandling = useErrorHandling() as {
@@ -300,7 +317,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     showNextButton,
     nextButtonText,
     submitButtonProps,
-    isEditModeActive: false // Will be updated below after edit mode hook
+    isEditModeActive: false, // Will be updated below after edit mode hook
   });
 
   const {
@@ -308,7 +325,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     resolvedPlatformConfig,
     resolvedUIConfig,
     resolvedSubmitConfig,
-    effectiveSubmitButtonProps
+    effectiveSubmitButtonProps,
   } = configs;
 
   // Feature configuration hooks
@@ -331,21 +348,21 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     storeProModeConfig,
     interactiveModeToggle,
     useInteractiveModeToggle,
-    interactiveModeConfig
+    interactiveModeConfig,
   });
 
   const {
     resolvedWebSearchConfig,
     resolvedPrivacyModeConfig,
     resolvedProModeConfig,
-    resolvedInteractiveModeConfig
+    resolvedInteractiveModeConfig,
   } = featureConfigs;
 
   // Content management hook
   const content = useContentManagement({
     componentName,
     generatedContent,
-    initialContent
+    initialContent,
   });
 
   const {
@@ -354,14 +371,18 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     hasEditableContent,
     hasSharepicContent,
     hasAnyContent,
-    handleLoadRecentText
+    handleLoadRecentText,
   } = content;
 
   // Responsive hook
   const responsiveState = useResponsive() as {
     isMobileView: boolean;
     updateMobileState: () => void;
-    getDisplayTitle: (title: string, isEditing: boolean, generatedContent: GeneratedContent | undefined) => string;
+    getDisplayTitle: (
+      title: string,
+      isEditing: boolean,
+      generatedContent: GeneratedContent | undefined
+    ) => string;
   };
   const { isMobileView, getDisplayTitle } = responsiveState;
 
@@ -370,7 +391,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     enableEditMode: resolvedUIConfig.enableEditMode,
     hasEditableContent,
     isMobileView,
-    onImageEditModeChange
+    onImageEditModeChange,
   });
 
   const {
@@ -378,7 +399,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     isEditModeActive,
     isImageEditActive,
     handleToggleEditMode,
-    handleToggleImageEdit
+    handleToggleImageEdit,
   } = editMode;
 
   // Update configs with actual isEditModeActive value
@@ -402,7 +423,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     storeIsFormVisible,
     toggleStoreFormVisibility,
     fallbackFormVisibility,
-    setIsStartMode
+    setIsStartMode,
   });
 
   const { isStartMode, isFormVisible, toggleFormVisibility } = startModeState;
@@ -430,26 +451,27 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     mobileBreakpoint: 768,
     delay: 100,
     topOffset: 80,
-    centerThreshold: 0.8
+    centerThreshold: 0.8,
   });
 
   // Function to get exportable content
   // Convert StoredContent to string for type safety
-  const valueAsString = typeof value === 'string' ? value : (value ? JSON.stringify(value) : '');
-  const getExportableContentCallback = useCallback((content: unknown) => {
-    const safeContent = typeof content === 'string' ? content : (content ? JSON.stringify(content) : '');
-    return getExportableContent(safeContent, valueAsString);
-  }, [valueAsString]);
+  const valueAsString = typeof value === 'string' ? value : value ? JSON.stringify(value) : '';
+  const getExportableContentCallback = useCallback(
+    (content: unknown) => {
+      const safeContent =
+        typeof content === 'string' ? content : content ? JSON.stringify(content) : '';
+      return getExportableContent(safeContent, valueAsString);
+    },
+    [valueAsString]
+  );
 
   // Accessibility hook - provides error/success handlers
-  const {
-    handleFormError,
-    handleFormSuccess
-  } = useBaseFormAccessibility({
+  const { handleFormError, handleFormSuccess } = useBaseFormAccessibility({
     baseFormRef,
     generatedContent,
     children,
-    accessibilityOptions
+    accessibilityOptions,
   });
 
   // Form state syncing hook - syncs props to store
@@ -480,7 +502,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     setStoreAttachedFiles,
     setStoreUploadedImage,
     handleFormError,
-    setError
+    setError,
   });
 
   // Event handlers hook
@@ -489,7 +511,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     handleExamplePromptClick,
     handlePrivacyInfoClick,
     handleWebSearchInfoClick,
-    handleErrorDismiss
+    handleErrorDismiss,
   } = useFormEventHandlers({
     onSubmit,
     onExamplePromptClick,
@@ -499,14 +521,14 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     handleFormError,
     setInlineHelpContentOverride,
     clearStoreError,
-    setError
+    setError,
   });
 
   // Auto-save hook
   useTextAutoSave({
     componentName,
     enabled: true,
-    debounceMs: 3000
+    debounceMs: 3000,
   });
 
   // Berechne den Anzeigetitel (memoized for performance)
@@ -516,20 +538,24 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }, [getDisplayTitle, generatedContent]);
 
   // Berechne die Klassennamen für den Container (memoized for performance)
-  const baseContainerClasses = React.useMemo(() => getBaseContainerClasses({
-    title: typeof title === 'string' ? title : undefined,
-    generatedContent,
-    isFormVisible,
-    isEditModeActive,
-    isStartMode
-  }), [title, generatedContent, isFormVisible, isEditModeActive, isStartMode]);
+  const baseContainerClasses = React.useMemo(
+    () =>
+      getBaseContainerClasses({
+        title: typeof title === 'string' ? title : undefined,
+        generatedContent,
+        isFormVisible,
+        isEditModeActive,
+        isStartMode,
+      }),
+    [title, generatedContent, isFormVisible, isEditModeActive, isStartMode]
+  );
 
   return (
     <div className="base-form-wrapper">
       {headerContent}
       <motion.div
         /* layout */
-        transition={{ duration: 0.25, ease: "easeOut" }}
+        transition={{ duration: 0.25, ease: 'easeOut' }}
         ref={baseFormRef}
         className={baseContainerClasses}
         role="main"
@@ -558,7 +584,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
               exit={{ opacity: 0, y: -8 }}
               transition={{
                 duration: 0.25,
-                ease: "easeOut"
+                ease: 'easeOut',
               }}
               className="form-section-motion-wrapper"
             >
@@ -566,14 +592,24 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 ref={formSectionRef}
                 title={title}
                 subtitle={subtitle}
-                onSubmit={isEditModeActive && onEditSubmit ? (() => onEditSubmit('')) : (useModernForm ? handleEnhancedSubmit : onSubmit)}
+                onSubmit={
+                  isEditModeActive && onEditSubmit
+                    ? () => onEditSubmit('')
+                    : useModernForm
+                      ? handleEnhancedSubmit
+                      : onSubmit
+                }
                 isFormVisible={isFormVisible}
                 isMultiStep={isMultiStep}
                 onBack={onBack}
                 showBackButton={showBackButton}
                 nextButtonText={resolvedSubmitConfig.buttonText}
                 submitButtonProps={effectiveSubmitButtonProps}
-                interactiveModeToggle={resolvedInteractiveModeConfig.enabled ? resolvedInteractiveModeConfig.toggle : null}
+                interactiveModeToggle={
+                  resolvedInteractiveModeConfig.enabled
+                    ? resolvedInteractiveModeConfig.toggle
+                    : null
+                }
                 useInteractiveModeToggle={resolvedInteractiveModeConfig.enabled}
                 onAttachmentClick={onAttachmentClick}
                 onRemoveFile={onRemoveFile}
@@ -610,7 +646,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 onCloseEditMode={handleToggleEditMode}
                 isImageEditActive={isImageEditActive}
                 customEditContent={customEditContent}
-                registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
+                registerEditHandler={(fn) => {
+                  editSubmitHandlerRef.current = fn;
+                }}
                 enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
                 hideExtrasSection={hideFormExtras}
                 isStartMode={isStartMode}
@@ -632,7 +670,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         {(!isEditModeActive || !isMobileView) && !isStartMode && hasAnyContent && (
           <motion.div
             /* layout */
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
             className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
           >
             <DisplaySection
@@ -704,43 +742,45 @@ const BaseForm: React.FC<BaseFormProps> = (props) => {
   // Create initial state from props for the store
   // Convert ErrorValue to string for FormStateStore compatibility
   const errorString: string | null = propError
-    ? (typeof propError === 'string' ? propError : (propError as Error)?.message || String(propError))
+    ? typeof propError === 'string'
+      ? propError
+      : (propError as Error)?.message || String(propError)
     : null;
 
-  const initialFormState = React.useMemo(() => ({
-    loading: propLoading || false,
-    success: propSuccess || false,
-    error: errorString,
-    formErrors: propFormErrors,
-    webSearchConfig: {
-      isActive: false,
-      isSearching: false,
-      statusMessage: '',
-      enabled: useWebSearchFeatureToggle
-    },
-    privacyModeConfig: {
-      isActive: false,
-      enabled: usePrivacyModeToggle
-    },
-    proModeConfig: {
-      isActive: false,
-      enabled: true
-    },
-    interactiveModeConfig: {
-      isActive: false,
-      enabled: useInteractiveModeToggle
-    },
-    useFeatureIcons: propUseFeatureIcons,
-    attachedFiles: propAttachedFiles,
-    uploadedImage: propUploadedImage,
-    isFormVisible: true
-  }), []); // Only use initial values on mount
+  const initialFormState = React.useMemo(
+    () => ({
+      loading: propLoading || false,
+      success: propSuccess || false,
+      error: errorString,
+      formErrors: propFormErrors,
+      webSearchConfig: {
+        isActive: false,
+        isSearching: false,
+        statusMessage: '',
+        enabled: useWebSearchFeatureToggle,
+      },
+      privacyModeConfig: {
+        isActive: false,
+        enabled: usePrivacyModeToggle,
+      },
+      proModeConfig: {
+        isActive: false,
+        enabled: true,
+      },
+      interactiveModeConfig: {
+        isActive: false,
+        enabled: useInteractiveModeToggle,
+      },
+      useFeatureIcons: propUseFeatureIcons,
+      attachedFiles: propAttachedFiles,
+      uploadedImage: propUploadedImage,
+      isFormVisible: true,
+    }),
+    []
+  ); // Only use initial values on mount
 
   return (
-    <FormStateProvider
-      formId={componentName}
-      initialState={initialFormState}
-    >
+    <FormStateProvider formId={componentName} initialState={initialFormState}>
       <BaseFormInternal {...props} />
     </FormStateProvider>
   );
@@ -750,9 +790,16 @@ const BaseForm: React.FC<BaseFormProps> = (props) => {
 const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean => {
   // Skip re-render if only callback functions changed (they're stable with useCallback)
   const callbackProps = [
-    'onSubmit', 'onGeneratedContentChange', 'onAttachmentClick', 'onRemoveFile',
-    'onFormChange', 'onImageChange', 'onSave', 'onBack', 'onEditSubmit',
-    'onGeneratePost'
+    'onSubmit',
+    'onGeneratedContentChange',
+    'onAttachmentClick',
+    'onRemoveFile',
+    'onFormChange',
+    'onImageChange',
+    'onSave',
+    'onBack',
+    'onEditSubmit',
+    'onGeneratePost',
   ];
 
   // Type-safe accessor for BaseFormProps
@@ -792,7 +839,12 @@ const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean =
       } else if (prevValue !== value) {
         return false;
       }
-    } else if (typeof value === 'object' && value !== null && typeof prevValue === 'object' && prevValue !== null) {
+    } else if (
+      typeof value === 'object' &&
+      value !== null &&
+      typeof prevValue === 'object' &&
+      prevValue !== null
+    ) {
       // Shallow object comparison for feature toggles, tab indices, etc.
       const prevObj = prevValue as Record<string, unknown>;
       const nextObj = value as Record<string, unknown>;

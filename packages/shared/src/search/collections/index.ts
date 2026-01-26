@@ -10,7 +10,7 @@ export type {
   FilterFieldConfig,
   CollectionConfig,
   CollectionConfigMap,
-  CollectionKey
+  CollectionKey,
 } from './types.js';
 
 // Config and utilities
@@ -21,5 +21,5 @@ export {
   getQdrantCollectionName,
   isValidCollectionKey,
   getFilterableFields,
-  getCollectionsWithField
+  getCollectionsWithField,
 } from './config.js';

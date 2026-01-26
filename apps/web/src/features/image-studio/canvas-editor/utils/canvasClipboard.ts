@@ -8,35 +8,35 @@
 export type ClipboardItemType = 'balken' | 'shape' | 'illustration' | 'additional-text' | 'asset';
 
 export interface ClipboardItem {
-    type: ClipboardItemType;
-    data: Record<string, unknown>;
+  type: ClipboardItemType;
+  data: Record<string, unknown>;
 }
 
 export class CanvasClipboard {
-    private static instance: ClipboardItem | null = null;
+  private static instance: ClipboardItem | null = null;
 
-    static copy(type: ClipboardItemType, data: object): void {
-        CanvasClipboard.instance = { type, data: data as Record<string, unknown> };
-    }
+  static copy(type: ClipboardItemType, data: object): void {
+    CanvasClipboard.instance = { type, data: data as Record<string, unknown> };
+  }
 
-    /**
-     * Paste the clipboard contents (returns null if empty)
-     */
-    static paste(): ClipboardItem | null {
-        return CanvasClipboard.instance;
-    }
+  /**
+   * Paste the clipboard contents (returns null if empty)
+   */
+  static paste(): ClipboardItem | null {
+    return CanvasClipboard.instance;
+  }
 
-    /**
-     * Clear the clipboard
-     */
-    static clear(): void {
-        CanvasClipboard.instance = null;
-    }
+  /**
+   * Clear the clipboard
+   */
+  static clear(): void {
+    CanvasClipboard.instance = null;
+  }
 
-    /**
-     * Check if clipboard has content
-     */
-    static hasContent(): boolean {
-        return CanvasClipboard.instance !== null;
-    }
+  /**
+   * Check if clipboard has content
+   */
+  static hasContent(): boolean {
+    return CanvasClipboard.instance !== null;
+  }
 }

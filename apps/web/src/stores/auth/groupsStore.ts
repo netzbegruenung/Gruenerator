@@ -130,55 +130,60 @@ export const useGroupsStore = create<GroupsStoreState>((set) => ({
   setErrorMessage: (message: string) => set({ errorMessage: message }),
 
   // Navigation actions
-  setSelectedGroup: (groupId: string | null) => set({
-    selectedGroupId: groupId,
-    currentView: groupId ? 'group' : 'overview'
-  }),
+  setSelectedGroup: (groupId: string | null) =>
+    set({
+      selectedGroupId: groupId,
+      currentView: groupId ? 'group' : 'overview',
+    }),
 
   setCurrentView: (view: CurrentView) => set({ currentView: view }),
 
   // Auto-selection tracking
-  setHasInitialAutoSelection: (hasSelected: boolean) => set({ hasInitialAutoSelection: hasSelected }),
+  setHasInitialAutoSelection: (hasSelected: boolean) =>
+    set({ hasInitialAutoSelection: hasSelected }),
 
-  clearMessages: () => set({
-    successMessage: '',
-    errorMessage: '',
-    saveError: null,
-    createError: null,
-    deleteError: null,
-    joinError: null,
-    saveSuccess: false,
-    createSuccess: false,
-    deleteSuccess: false,
-    joinSuccess: false
-  }),
+  clearMessages: () =>
+    set({
+      successMessage: '',
+      errorMessage: '',
+      saveError: null,
+      createError: null,
+      deleteError: null,
+      joinError: null,
+      saveSuccess: false,
+      createSuccess: false,
+      deleteSuccess: false,
+      joinSuccess: false,
+    }),
 
   // Reset all state
-  reset: () => set({
-    isSaving: false,
-    isDeleting: false,
-    isCreating: false,
-    isJoining: false,
-    deletingGroupId: null,
-    saveSuccess: false,
-    createSuccess: false,
-    deleteSuccess: false,
-    joinSuccess: false,
-    saveError: null,
-    createError: null,
-    deleteError: null,
-    joinError: null,
-    successMessage: '',
-    errorMessage: '',
-    selectedGroupId: null,
-    currentView: 'overview',
-    hasInitialAutoSelection: false
-  }),
+  reset: () =>
+    set({
+      isSaving: false,
+      isDeleting: false,
+      isCreating: false,
+      isJoining: false,
+      deletingGroupId: null,
+      saveSuccess: false,
+      createSuccess: false,
+      deleteSuccess: false,
+      joinSuccess: false,
+      saveError: null,
+      createError: null,
+      deleteError: null,
+      joinError: null,
+      successMessage: '',
+      errorMessage: '',
+      selectedGroupId: null,
+      currentView: 'overview',
+      hasInitialAutoSelection: false,
+    }),
 
   // Reset only navigation state (useful for logout scenarios)
-  resetNavigation: () => set({
-    selectedGroupId: null,
-    currentView: 'overview',
-    hasInitialAutoSelection: false
-  })
+  resetNavigation: () =>
+    set({
+      selectedGroupId: null,
+      currentView: 'overview',
+      hasInitialAutoSelection: false,
+    }),
 }));

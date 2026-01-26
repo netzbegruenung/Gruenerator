@@ -15,11 +15,7 @@ import type {
   UseImageStudioReturn,
   ImageStudioFormData,
 } from '../types.js';
-import {
-  getTypeConfig,
-  getTextEndpoint,
-  mapTextResponse,
-} from '../constants.js';
+import { getTypeConfig, getTextEndpoint, mapTextResponse } from '../constants.js';
 import {
   validateTextGenerationInput,
   validateTextResponse,
@@ -52,9 +48,7 @@ import { useImageStudioCanvas } from './useImageStudioCanvas.js';
  * });
  * ```
  */
-export function useImageStudio(
-  options: UseImageStudioOptions = {}
-): UseImageStudioReturn {
+export function useImageStudio(options: UseImageStudioOptions = {}): UseImageStudioReturn {
   const { onTextGenerated, onImageGenerated, onError } = options;
 
   // Text generation state
@@ -98,7 +92,10 @@ export function useImageStudio(
         }
 
         // Validate input - cast TextGenerationRequest to ImageStudioFormData for validation
-        const validation = validateTextGenerationInput(type, formData as unknown as ImageStudioFormData);
+        const validation = validateTextGenerationInput(
+          type,
+          formData as unknown as ImageStudioFormData
+        );
         if (!validation.valid) {
           throw new Error(validation.error);
         }
@@ -157,10 +154,7 @@ export function useImageStudio(
    * Generate canvas image
    */
   const generateCanvas = useCallback(
-    async (
-      type: ImageStudioTemplateType,
-      request: CanvasGenerationRequest
-    ): Promise<string> => {
+    async (type: ImageStudioTemplateType, request: CanvasGenerationRequest): Promise<string> => {
       return canvasGenerate(type, request);
     },
     [canvasGenerate]

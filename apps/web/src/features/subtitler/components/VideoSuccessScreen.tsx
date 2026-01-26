@@ -1,11 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes, FaDownload, FaFileAlt } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  FaPlus,
+  FaEdit,
+  FaShareAlt,
+  FaInstagram,
+  FaTimes,
+  FaDownload,
+  FaFileAlt,
+} from 'react-icons/fa';
+
 import CopyButton from '../../../components/common/CopyButton';
-import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
-import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import { Markdown } from '../../../components/common/Markdown';
+import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
+import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import '../../../assets/styles/components/ui/button.css';
 import '../styles/VideoSuccessScreen.css';
 
@@ -31,10 +40,10 @@ const AnimatedCheckmark = () => {
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}
       transition={{
-        type: "spring",
+        type: 'spring',
         stiffness: 300,
         damping: 20,
-        delay: 0.2
+        delay: 0.2,
       }}
     >
       <motion.circle
@@ -48,7 +57,7 @@ const AnimatedCheckmark = () => {
         animate={{ pathLength: 1 }}
         transition={{
           duration: 0.6,
-          ease: "easeInOut"
+          ease: 'easeInOut',
         }}
       />
       <motion.path
@@ -62,15 +71,26 @@ const AnimatedCheckmark = () => {
         animate={{ pathLength: 1 }}
         transition={{
           duration: 0.8,
-          ease: "easeInOut",
-          delay: 0.4
+          ease: 'easeInOut',
+          delay: 0.4,
         }}
       />
     </motion.svg>
   );
 };
 
-const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText, videoUrl }) => {
+const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
+  onReset,
+  onEditAgain,
+  isLoading,
+  socialText,
+  uploadId,
+  projectTitle,
+  projectId,
+  onGenerateSocialText,
+  isGeneratingSocialText,
+  videoUrl,
+}) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
   const [showShareModal, setShowShareModal] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
@@ -81,7 +101,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
     status: exportStatus,
     progress: exportProgress,
     error: exportError,
-    subscribe
+    subscribe,
   } = exportStore;
 
   useEffect(() => {
@@ -90,7 +110,8 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
   }, [subscribe]);
 
   useEffect(() => {
-    const shouldShowSpinner = isLoading || exportStatus === 'starting' || exportStatus === 'exporting';
+    const shouldShowSpinner =
+      isLoading || exportStatus === 'starting' || exportStatus === 'exporting';
 
     if (!shouldShowSpinner) {
       const timer = setTimeout(() => {
@@ -104,8 +125,11 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
 
   useEffect(() => {
     const checkShareCapability = async () => {
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        || (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
+      const isMobile =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) ||
+        (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
 
       if (!isMobile || !navigator.share || !navigator.canShare) {
         setCanNativeShare(false);
@@ -166,9 +190,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
                 <div className="spinner-container">
                   <div className="video-success-spinner" />
                   {exportProgress > 0 && (
-                    <div className="video-spinner-percentage">
-                      {exportProgress}%
-                    </div>
+                    <div className="video-spinner-percentage">{exportProgress}%</div>
                   )}
                 </div>
               </div>
@@ -187,11 +209,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
             <>
               {videoUrl && (
                 <div className="video-preview-container">
-                  <video
-                    className="video-preview"
-                    controls
-                    src={videoUrl}
-                  />
+                  <video className="video-preview" controls src={videoUrl} />
                 </div>
               )}
               <div className="video-success-info">
@@ -205,10 +223,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
 
                 <div className="action-buttons">
                   {videoUrl && (
-                    <button
-                      className="btn-primary"
-                      onClick={handleDownload}
-                    >
+                    <button className="btn-primary" onClick={handleDownload}>
                       <FaDownload />
                       Herunterladen
                     </button>
@@ -220,26 +235,16 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
                       disabled={isSharing}
                       title="Auf Instagram posten"
                     >
-                      {isSharing ? (
-                        <div className="button-spinner" />
-                      ) : (
-                        <FaInstagram />
-                      )}
+                      {isSharing ? <div className="button-spinner" /> : <FaInstagram />}
                       Posten
                     </button>
                   )}
-                  <button
-                    className="btn-primary"
-                    onClick={onEditAgain}
-                  >
+                  <button className="btn-primary" onClick={onEditAgain}>
                     <FaEdit />
                     Bearbeiten
                   </button>
                   {(exportStore.projectId || projectId) && (
-                    <button
-                      className="btn-primary"
-                      onClick={() => setShowShareModal(true)}
-                    >
+                    <button className="btn-primary" onClick={() => setShowShareModal(true)}>
                       <FaShareAlt />
                       Video Teilen
                     </button>
@@ -260,11 +265,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
                     disabled={isGeneratingSocialText || !!socialText}
                     title="Beitragstext erstellen"
                   >
-                    {isGeneratingSocialText ? (
-                      <div className="button-spinner" />
-                    ) : (
-                      <FaFileAlt />
-                    )}
+                    {isGeneratingSocialText ? <div className="button-spinner" /> : <FaFileAlt />}
                   </button>
                 </div>
               </div>

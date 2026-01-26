@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
+
 import { announceToScreenReader } from '../utils/focusManagement';
 
 interface TabConfig {
-    key: string;
-    label: string;
+  key: string;
+  label: string;
 }
 
 type OnTabChangeCallback = ((tabKey: string) => void) | null;
@@ -16,36 +17,39 @@ type OnTabChangeCallback = ((tabKey: string) => void) | null;
  * @returns Tab navigation state and handlers
  */
 export const useTabNavigation = (
-    initialTab: string,
-    availableTabs: TabConfig[] = [],
-    onTabChange: OnTabChangeCallback = null
+  initialTab: string,
+  availableTabs: TabConfig[] = [],
+  onTabChange: OnTabChangeCallback = null
 ) => {
-    const [currentTab, setCurrentTab] = useState(initialTab);
+  const [currentTab, setCurrentTab] = useState(initialTab);
 
-    const handleTabClick = useCallback((tabKey: string) => {
-        if (currentTab !== tabKey) {
-            setCurrentTab(tabKey);
-
-            // Find tab label for screen reader announcement
-            const tab = availableTabs.find(t => t.key === tabKey);
-            const tabLabel = tab?.label || tabKey;
-            announceToScreenReader(`${tabLabel} Tab ausgewählt`);
-
-            // Call optional callback
-            if (onTabChange) {
-                onTabChange(tabKey);
-            }
-        }
-    }, [currentTab, availableTabs, onTabChange]);
-
-    const setCurrentTabDirect = useCallback((tabKey: string | ((prev: string) => string)) => {
+  const handleTabClick = useCallback(
+    (tabKey: string) => {
+      if (currentTab !== tabKey) {
         setCurrentTab(tabKey);
-    }, []);
 
-    return {
-        currentTab,
-        setCurrentTab: setCurrentTabDirect,
-        handleTabClick,
-        availableTabs
-    };
+        // Find tab label for screen reader announcement
+        const tab = availableTabs.find((t) => t.key === tabKey);
+        const tabLabel = tab?.label || tabKey;
+        announceToScreenReader(`${tabLabel} Tab ausgewählt`);
+
+        // Call optional callback
+        if (onTabChange) {
+          onTabChange(tabKey);
+        }
+      }
+    },
+    [currentTab, availableTabs, onTabChange]
+  );
+
+  const setCurrentTabDirect = useCallback((tabKey: string | ((prev: string) => string)) => {
+    setCurrentTab(tabKey);
+  }, []);
+
+  return {
+    currentTab,
+    setCurrentTab: setCurrentTabDirect,
+    handleTabClick,
+    availableTabs,
+  };
 };

@@ -1,7 +1,8 @@
-import { defineConfig, type Plugin } from 'vite';
-import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import react from '@vitejs/plugin-react';
+import { defineConfig, type Plugin } from 'vite';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,7 +19,7 @@ const tauriPackages = [
   '@tauri-apps/plugin-opener',
   '@tauri-apps/plugin-shell',
   '@tauri-apps/plugin-updater',
-  '@tauri-apps/plugin-process'
+  '@tauri-apps/plugin-process',
 ];
 
 // Plugin to provide stub modules for Tauri packages in web context
@@ -27,7 +28,7 @@ function tauriStubPlugin(): Plugin {
     name: 'tauri-stub',
     enforce: 'pre',
     resolveId(id) {
-      if (tauriPackages.some(pkg => id === pkg || id.startsWith(pkg + '/'))) {
+      if (tauriPackages.some((pkg) => id === pkg || id.startsWith(pkg + '/'))) {
         return `\0tauri-stub:${id}`;
       }
       return null;
@@ -38,7 +39,7 @@ function tauriStubPlugin(): Plugin {
         return 'export default {}; export const check = () => Promise.resolve(null); export const getVersion = () => Promise.resolve("web"); export const relaunch = () => Promise.resolve();';
       }
       return null;
-    }
+    },
   };
 }
 
@@ -48,31 +49,40 @@ export default defineConfig(({ command }) => ({
   plugins: [
     // Only use stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
-    react({ jsxRuntime: 'automatic' })
+    react({ jsxRuntime: 'automatic' }),
   ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '~': path.resolve(__dirname, './'),
-      '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src')
-    }
+      '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
+    },
   },
   optimizeDeps: {
     include: [
-      'react', 'react-dom', 'react-router-dom',
-      '@tanstack/react-query', 'zustand',
-      'axios', 'uuid', 'dompurify', 'file-saver',
-      'prop-types', '@mdxeditor/editor'
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+      'zustand',
+      'axios',
+      'uuid',
+      'dompurify',
+      'file-saver',
+      'prop-types',
+      '@mdxeditor/editor',
     ],
     exclude: [
-      'motion', 'lodash', 'browser-image-compression',
+      'motion',
+      'lodash',
+      'browser-image-compression',
       '@imgly/background-removal',
-      'onnxruntime-web'
+      'onnxruntime-web',
     ],
     esbuildOptions: {
       target: 'es2022',
-      treeShaking: true
-    }
+      treeShaking: true,
+    },
   },
   build: {
     // Use compatible targets for Tauri WebViews (Chrome=Edge WebView2, Safari=WKWebView)
@@ -126,9 +136,9 @@ export default defineConfig(({ command }) => ({
           'shared-vendor': ['@gruenerator/shared'],
           'canvas-vendor': ['konva', 'react-konva', 'use-image'],
           'ai-vendor': ['onnxruntime-web', '@imgly/background-removal'],
-          'editor-vendor': ['@mdxeditor/editor', 'marked', 'react-markdown']
-        }
-      }
+          'editor-vendor': ['@mdxeditor/editor', 'marked', 'react-markdown'],
+        },
+      },
     },
   },
   server: {
@@ -145,9 +155,15 @@ export default defineConfig(({ command }) => ({
         '**/coverage/**',
         '**/.nyc_output/**',
         '**/tmp/**',
-        '**/temp/**'
-      ]
+        '**/temp/**',
+      ],
     },
-    hmr: { overlay: false }
-  }
+    hmr: { overlay: false },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
 }));

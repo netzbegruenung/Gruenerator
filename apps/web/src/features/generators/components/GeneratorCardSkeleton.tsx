@@ -7,9 +7,9 @@ import React, { memo } from 'react';
 const GeneratorCardSkeleton: React.FC = memo(() => {
   return (
     <div className="gallery-item-card generator-card skeleton">
-      <div className="skeleton-title"></div>
-      <div className="skeleton-description"></div>
-      <div className="skeleton-date"></div>
+      <div className="skeleton-title" />
+      <div className="skeleton-description" />
+      <div className="skeleton-date" />
     </div>
   );
 });

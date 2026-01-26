@@ -18,16 +18,23 @@ export function getIntelligentSearchOptions(
     language: 'de-DE',
     safesearch: 0,
     categories: 'general',
-    ...baseOptions
+    ...baseOptions,
   };
 
   const queryLower = query.toLowerCase();
 
   // German regional search detection
   const isGermanRegional = [
-    'rhein-sieg', 'deutschland', 'nrw', 'nordrhein-westfalen',
-    'bonn', 'köln', 'landkreis', 'germany', 'german'
-  ].some(term => queryLower.includes(term));
+    'rhein-sieg',
+    'deutschland',
+    'nrw',
+    'nordrhein-westfalen',
+    'bonn',
+    'köln',
+    'landkreis',
+    'germany',
+    'german',
+  ].some((term) => queryLower.includes(term));
 
   if (isGermanRegional) {
     options.categories = 'general,news';
@@ -35,10 +42,20 @@ export function getIntelligentSearchOptions(
   }
 
   // News search for current developments
-  if ([
-    'aktuelle', 'entwicklung', 'derzeit', 'momentan', 'heute',
-    '2024', '2025', 'situation', 'stand', 'status'
-  ].some(term => queryLower.includes(term))) {
+  if (
+    [
+      'aktuelle',
+      'entwicklung',
+      'derzeit',
+      'momentan',
+      'heute',
+      '2024',
+      '2025',
+      'situation',
+      'stand',
+      'status',
+    ].some((term) => queryLower.includes(term))
+  ) {
     options.categories = 'news';
     options.time_range = 'year';
     console.log(`[WebSearchGraph] Using news search for current developments: "${query}"`);

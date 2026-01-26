@@ -20,11 +20,7 @@ export interface SubtitleSegment {
  * - clean: Transparent, no shadow
  * - tanne: Green background (#005538)
  */
-export type SubtitleStylePreference =
-  | 'shadow'
-  | 'standard'
-  | 'clean'
-  | 'tanne';
+export type SubtitleStylePreference = 'shadow' | 'standard' | 'clean' | 'tanne';
 
 /**
  * Subtitle vertical position on screen

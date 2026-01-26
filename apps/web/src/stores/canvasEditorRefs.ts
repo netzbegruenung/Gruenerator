@@ -11,8 +11,8 @@
  * for operations like export, that need direct stage access.
  */
 
-import type Konva from 'konva';
 import type { ExportOptions, ExportResult, ExportFormat } from '@gruenerator/shared/canvas-editor';
+import type Konva from 'konva';
 
 type StageRefGetter = () => Konva.Stage | null;
 

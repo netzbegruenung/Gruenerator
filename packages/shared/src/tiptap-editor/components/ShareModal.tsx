@@ -22,12 +22,7 @@ interface ShareModalProps {
   baseUrl?: string;
 }
 
-export const ShareModal = ({
-  documentId,
-  onClose,
-  apiClient,
-  baseUrl,
-}: ShareModalProps) => {
+export const ShareModal = ({ documentId, onClose, apiClient, baseUrl }: ShareModalProps) => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +65,10 @@ export const ShareModal = ({
     }
   };
 
-  const handleUpdatePermission = async (userId: string, newLevel: 'owner' | 'editor' | 'viewer') => {
+  const handleUpdatePermission = async (
+    userId: string,
+    newLevel: 'owner' | 'editor' | 'viewer'
+  ) => {
     if (!apiClient) return;
 
     try {
@@ -131,15 +129,17 @@ export const ShareModal = ({
           </button>
         </div>
 
-        {error && (
-          <div className="share-error">
-            {error}
-          </div>
-        )}
+        {error && <div className="share-error">{error}</div>}
 
         <div className="share-link-section">
           <h3>Link teilen</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--font-color-secondary)', marginBottom: '0.75rem' }}>
+          <p
+            style={{
+              fontSize: '0.875rem',
+              color: 'var(--font-color-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
             Jeder mit diesem Link kann das Dokument öffnen
           </p>
           <div className="link-container">

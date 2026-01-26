@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { HiX, HiExclamationCircle, HiTrash } from 'react-icons/hi';
+
 import Spinner from './Spinner';
 
 /**
@@ -28,7 +29,7 @@ const BulkDeleteConfirmModal = ({
   onConfirm,
   itemCount,
   itemType = 'Elemente',
-  isDeleting = false
+  isDeleting = false,
 }: BulkDeleteConfirmModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [confirmText, setConfirmText] = useState('');
@@ -76,33 +77,38 @@ const BulkDeleteConfirmModal = ({
 
   const getItemTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      'document': 'Dokument',
-      'documents': 'Dokumente',
-      'text': 'Text',
-      'texts': 'Texte',
-      'notebook': 'Notebook',
-      'qas': 'Notebooks',
-      'template': 'Vorlage',
-      'templates': 'Vorlagen'
+      document: 'Dokument',
+      documents: 'Dokumente',
+      text: 'Text',
+      texts: 'Texte',
+      notebook: 'Notebook',
+      qas: 'Notebooks',
+      template: 'Vorlage',
+      templates: 'Vorlagen',
     };
     return labels[type] || type;
   };
 
   const getSingularType = () => {
     const singular: Record<string, string> = {
-      'documents': 'document',
-      'texts': 'text',
-      'qas': 'notebook',
-      'templates': 'template'
+      documents: 'document',
+      texts: 'text',
+      qas: 'notebook',
+      templates: 'template',
     };
     return singular[itemType] || itemType;
   };
 
-  const displayType = itemCount === 1 ? getItemTypeLabel(getSingularType()) : getItemTypeLabel(itemType);
+  const displayType =
+    itemCount === 1 ? getItemTypeLabel(getSingularType()) : getItemTypeLabel(itemType);
 
   return (
     <div className="citation-modal-overlay" onClick={handleOverlayClick}>
-      <div className="citation-modal bulk-delete-modal" ref={modalRef} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+      <div
+        className="citation-modal bulk-delete-modal"
+        ref={modalRef}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      >
         <div className="citation-modal-header">
           <div className="bulk-delete-modal-title">
             <HiExclamationCircle className="bulk-delete-warning-icon" />
@@ -123,10 +129,15 @@ const BulkDeleteConfirmModal = ({
           <div className="bulk-delete-warning">
             <div className="bulk-delete-warning-text">
               <p>
-                <strong>Achtung:</strong> Du bist dabei, <strong>{itemCount} {displayType}</strong> zu löschen.
+                <strong>Achtung:</strong> Du bist dabei,{' '}
+                <strong>
+                  {itemCount} {displayType}
+                </strong>{' '}
+                zu löschen.
               </p>
               <p>
-                Diese Aktion kann <strong>nicht rückgängig gemacht werden</strong> und alle Daten gehen dauerhaft verloren.
+                Diese Aktion kann <strong>nicht rückgängig gemacht werden</strong> und alle Daten
+                gehen dauerhaft verloren.
               </p>
             </div>
           </div>
@@ -156,11 +167,7 @@ const BulkDeleteConfirmModal = ({
 
           {/* Actions */}
           <div className="bulk-delete-actions">
-            <button
-              className="bulk-delete-cancel-button"
-              onClick={onClose}
-              disabled={isDeleting}
-            >
+            <button className="bulk-delete-cancel-button" onClick={onClose} disabled={isDeleting}>
               Abbrechen
             </button>
             <button

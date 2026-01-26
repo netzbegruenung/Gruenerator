@@ -17,7 +17,7 @@ export const getRobotAvatarPath = (robotId) => {
  */
 export const validateRobotId = (robotId) => {
   const id = parseInt(robotId);
-  return (id >= 1 && id <= 9) ? id : 1;
+  return id >= 1 && id <= 9 ? id : 1;
 };
 
 /**
@@ -43,4 +43,4 @@ export const getAllRobotIds = () => {
  */
 export const getRandomRobotId = () => {
   return Math.floor(Math.random() * 9) + 1;
-}; 
+};

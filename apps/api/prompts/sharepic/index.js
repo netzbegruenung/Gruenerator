@@ -9,15 +9,7 @@ const info = require('./info.json');
 const veranstaltung = require('./veranstaltung.json');
 const simple = require('./simple.json');
 
-export {
-  dreizeilen,
-  zitat,
-  zitat_pure,
-  headline,
-  info,
-  veranstaltung,
-  simple
-};
+export { dreizeilen, zitat, zitat_pure, headline, info, veranstaltung, simple };
 
 export default {
   dreizeilen,
@@ -26,5 +18,5 @@ export default {
   headline,
   info,
   veranstaltung,
-  simple
+  simple,
 };

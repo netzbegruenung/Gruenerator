@@ -1,4 +1,14 @@
-import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator, ViewStyle, TextStyle, ImageStyle } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  Pressable,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
+  ImageStyle,
+} from 'react-native';
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +25,12 @@ interface VideoUploaderProps {
 const MAX_FILE_SIZE_MB = 500;
 const MAX_DURATION_SECONDS = 600; // 10 minutes
 
-export function VideoUploader({ onVideoSelected, uploadProgress, isUploading, onBack }: VideoUploaderProps) {
+export function VideoUploader({
+  onVideoSelected,
+  uploadProgress,
+  isUploading,
+  onBack,
+}: VideoUploaderProps) {
   const [selectedVideo, setSelectedVideo] = useState<{
     uri: string;
     duration?: number;

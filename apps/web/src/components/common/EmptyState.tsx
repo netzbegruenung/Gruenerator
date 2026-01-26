@@ -22,7 +22,7 @@ const EmptyState = ({
   description,
   children,
   className = '',
-  centered = true
+  centered = true,
 }: EmptyStateProps) => {
   return (
     <div className={`knowledge-empty-state ${centered ? 'centered' : ''} ${className}`}>

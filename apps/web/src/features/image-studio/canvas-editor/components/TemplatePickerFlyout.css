@@ -1,0 +1,199 @@
+/**
+ * TemplatePickerFlyout styles
+ * Flyout for selecting templates when adding pages in heterogeneous multi-page mode
+ */
+
+.template-picker-flyout {
+    background: var(--background-primary, #ffffff);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    z-index: 1000;
+    min-width: 320px;
+    max-width: 400px;
+    animation: flyout-enter 0.15s ease-out;
+}
+
+@keyframes flyout-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.template-picker-flyout__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.template-picker-flyout__header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+}
+
+.template-picker-flyout__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.template-picker-flyout__close:hover {
+    background: var(--hover-background, #f0f0f0);
+    color: var(--text-primary, #1a1a1a);
+}
+
+.template-picker-flyout__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+/* Template Card */
+.template-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    background: var(--background-secondary, #f5f5f5);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.template-card:hover {
+    border-color: var(--primary-color, #46962b);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(70, 150, 43, 0.15);
+}
+
+.template-card--current {
+    border-color: var(--primary-color, #46962b);
+    background: rgba(70, 150, 43, 0.08);
+}
+
+.template-card__preview {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.template-card__preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.template-card__info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.template-card__label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-primary, #1a1a1a);
+    text-align: center;
+    line-height: 1.2;
+}
+
+.template-card__badge {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--primary-color, #46962b);
+    background: rgba(70, 150, 43, 0.12);
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+/* Divider */
+.template-picker-flyout__divider {
+    height: 1px;
+    background: var(--border-color, #e0e0e0);
+    margin: 12px 0;
+}
+
+/* Duplicate button */
+.template-picker-flyout__duplicate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--background-secondary, #f5f5f5);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary, #1a1a1a);
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.template-picker-flyout__duplicate:hover {
+    background: var(--hover-background, #eaeaea);
+    border-color: var(--text-secondary, #999);
+}
+
+.template-picker-flyout__duplicate svg {
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary, #666);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+    .template-picker-flyout {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        top: auto !important;
+        right: 0;
+        min-width: 100%;
+        max-width: 100%;
+        border-radius: 16px 16px 0 0;
+        max-height: 70vh;
+        overflow-y: auto;
+        animation: flyout-enter-mobile 0.2s ease-out;
+    }
+
+    @keyframes flyout-enter-mobile {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .template-picker-flyout__grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+}

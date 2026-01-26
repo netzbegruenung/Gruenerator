@@ -8,43 +8,39 @@ const ContentManagementView = lazy(() => import('./ContentManagementView'));
 
 // Loading fallback component
 const ContentManagementLoadingFallback = (): React.ReactElement => (
-    <div className="profile-tab-loading">
-    </div>
+  <div className="profile-tab-loading" />
 );
 
 interface ContentManagementTabContainerProps {
-    isActive: boolean;
-    onSuccessMessage: (message: string) => void;
-    onErrorMessage: (message: string) => void;
-    initialTab?: string;
-    canvaSubsection?: string;
-    onTabChange?: (tab: string, subsection?: string) => void;
+  isActive: boolean;
+  onSuccessMessage: (message: string) => void;
+  onErrorMessage: (message: string) => void;
+  initialTab?: string;
+  canvaSubsection?: string;
+  onTabChange?: (tab: string, subsection?: string) => void;
 }
 
 const ContentManagementTabContainer = ({
-    isActive,
-    onSuccessMessage,
-    onErrorMessage
+  isActive,
+  onSuccessMessage,
+  onErrorMessage,
 }: ContentManagementTabContainerProps): React.ReactElement => {
-    const { user } = useOptimizedAuth();
+  const { user } = useOptimizedAuth();
 
-    // Early return for non-authenticated users
-    if (!user) {
-        return (
-            <div className="profile-tab-loading">
-            </div>
-        );
-    }
+  // Early return for non-authenticated users
+  if (!user) {
+    return <div className="profile-tab-loading" />;
+  }
 
-    return (
-        <Suspense fallback={<ContentManagementLoadingFallback />}>
-            <ContentManagementView
-                isActive={isActive}
-                onSuccessMessage={onSuccessMessage}
-                onErrorMessage={onErrorMessage}
-            />
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={<ContentManagementLoadingFallback />}>
+      <ContentManagementView
+        isActive={isActive}
+        onSuccessMessage={onSuccessMessage}
+        onErrorMessage={onErrorMessage}
+      />
+    </Suspense>
+  );
 };
 
 export default ContentManagementTabContainer;

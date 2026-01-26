@@ -43,11 +43,7 @@ export async function setUserDocumentMode(
       throw new Error('Invalid document mode. Must be "manual" or "wolke"');
     }
 
-    const result = await postgres.update(
-      'profiles',
-      { document_mode: mode },
-      { id: userId }
-    );
+    const result = await postgres.update('profiles', { document_mode: mode }, { id: userId });
 
     if (result.changes === 0) {
       throw new Error('User not found or mode not updated');

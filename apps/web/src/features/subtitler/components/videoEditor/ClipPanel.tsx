@@ -1,25 +1,23 @@
 import { useCallback } from 'react';
 import { FiTrash2, FiFilm } from 'react-icons/fi';
+
 import useVideoEditorStore from '../../../../stores/videoEditorStore';
 import './ClipPanel.css';
 
 const ClipPanel = () => {
-
-  const {
-    activeClipId,
-    setActiveClip,
-    removeClip,
-    getClipsArray,
-    getClipCount
-  } = useVideoEditorStore();
+  const { activeClipId, setActiveClip, removeClip, getClipsArray, getClipCount } =
+    useVideoEditorStore();
 
   const clipsArray = getClipsArray();
   const clipCount = getClipCount();
 
-  const handleRemoveClip = useCallback((e: React.MouseEvent, clipId: string) => {
-    e.stopPropagation();
-    removeClip(clipId);
-  }, [removeClip]);
+  const handleRemoveClip = useCallback(
+    (e: React.MouseEvent, clipId: string) => {
+      e.stopPropagation();
+      removeClip(clipId);
+    },
+    [removeClip]
+  );
 
   const handleDragStart = useCallback((e: React.DragEvent, clipId: string) => {
     e.dataTransfer.setData('application/clip-id', clipId);
@@ -42,7 +40,8 @@ const ClipPanel = () => {
               style={{
                 backgroundImage: clip.thumbnail ? `url(${clip.thumbnail})` : 'none',
                 backgroundColor: clip.thumbnail ? 'transparent' : clip.color,
-                aspectRatio: clip.width && clip.height ? `${clip.width} / ${clip.height}` : '16 / 9'
+                aspectRatio:
+                  clip.width && clip.height ? `${clip.width} / ${clip.height}` : '16 / 9',
               }}
             >
               {!clip.thumbnail && <FiFilm />}

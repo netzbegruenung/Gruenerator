@@ -1,5 +1,5 @@
-import { useState, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
+import { useState, type CSSProperties } from 'react';
 
 export interface GrueneratorGPTIconProps {
   size?: number | string;
@@ -7,11 +7,7 @@ export interface GrueneratorGPTIconProps {
   style?: CSSProperties;
 }
 
-const GrueneratorGPTIcon = ({
-  size,
-  className = '',
-  style = {}
-}: GrueneratorGPTIconProps) => {
+const GrueneratorGPTIcon = ({ size, className = '', style = {} }: GrueneratorGPTIconProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
   const centerX = 12;
@@ -26,7 +22,7 @@ const GrueneratorGPTIcon = ({
     const angle = (i * 45 - 90) * (Math.PI / 180);
     circlePositions.push({
       x: centerX + radius * Math.cos(angle),
-      y: centerY + radius * Math.sin(angle)
+      y: centerY + radius * Math.sin(angle),
     });
   }
 
@@ -40,7 +36,7 @@ const GrueneratorGPTIcon = ({
       style={{
         display: 'inline-block',
         verticalAlign: '-0.125em',
-        ...style
+        ...style,
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -48,7 +44,7 @@ const GrueneratorGPTIcon = ({
       <motion.g
         animate={{
           opacity: isHovered ? 0 : 1,
-          rotate: isHovered ? 45 : 0
+          rotate: isHovered ? 45 : 0,
         }}
         transition={{ duration: 0.35, ease: 'easeInOut' }}
         style={{ transformOrigin: '12px 12px' }}
@@ -60,7 +56,7 @@ const GrueneratorGPTIcon = ({
       <motion.g
         animate={{
           opacity: isHovered ? 1 : 0,
-          rotate: isHovered ? 0 : -30
+          rotate: isHovered ? 0 : -30,
         }}
         transition={{ duration: 0.35, ease: 'easeInOut' }}
         style={{ transformOrigin: '12px 12px' }}

@@ -1,7 +1,9 @@
 import React, { memo } from 'react';
 import { HiX } from 'react-icons/hi';
-import type { FormCardProps, HelpContent } from '@/types/baseform';
+
 import HelpIconPopover from '../../HelpIconPopover';
+
+import type { FormCardProps, HelpContent } from '@/types/baseform';
 
 interface ExtendedFormCardProps extends FormCardProps {
   helpContent?: HelpContent | null;
@@ -27,8 +29,10 @@ const FormCard: React.FC<ExtendedFormCardProps> = ({
     `form-card--${size}`,
     hover ? 'form-card--hover' : '',
     isStartMode ? 'form-card--start-mode' : '',
-    className
-  ].filter(Boolean).join(' ');
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div className={cardClasses} {...rest}>
@@ -54,9 +58,7 @@ const FormCard: React.FC<ExtendedFormCardProps> = ({
           </div>
         </div>
       )}
-      <div className="form-card__content">
-        {children}
-      </div>
+      <div className="form-card__content">{children}</div>
     </div>
   );
 };

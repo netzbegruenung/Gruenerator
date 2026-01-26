@@ -47,7 +47,7 @@ export function buildPreviewValues(storeState: StoreState): PreviewValues {
     date: storeState.date,
     time: storeState.time,
     locationName: storeState.locationName,
-    address: storeState.address
+    address: storeState.address,
   };
 }
 

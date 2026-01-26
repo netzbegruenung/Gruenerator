@@ -17,7 +17,7 @@ import type {
   FullTextResult,
   AutoSearchOptions,
   EnrichmentTaskResult,
-  HybridSearchResult
+  HybridSearchResult,
 } from './types/requestEnrichment.js';
 
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
@@ -36,7 +36,11 @@ const require = createRequire(import.meta.url);
 
 // Import services with fallback handling
 const { urlCrawlerService } = (() => {
-  try { return require('../services/urlCrawlerService.js'); } catch (_) { return { urlCrawlerService: null }; }
+  try {
+    return require('../services/urlCrawlerService.js');
+  } catch (_) {
+    return { urlCrawlerService: null };
+  }
 })();
 
 const searxngWebSearchService = (() => {
@@ -70,7 +74,7 @@ class RequestEnricher {
       return [];
     }
 
-    return knowledgeData.map(entry => {
+    return knowledgeData.map((entry) => {
       return `## ${entry.title}\n${entry.content}`;
     });
   }
@@ -89,18 +93,18 @@ class RequestEnricher {
     }
 
     const typeDisplayNames: Record<string, string> = {
-      'antrag': 'Antrag',
-      'social': 'Social Media',
-      'universal': 'Universal',
-      'press': 'Pressemitteilung',
-      'gruene_jugend': 'Grüne Jugend',
-      'text': 'Allgemeiner Text'
+      antrag: 'Antrag',
+      social: 'Social Media',
+      universal: 'Universal',
+      press: 'Pressemitteilung',
+      gruene_jugend: 'Grüne Jugend',
+      text: 'Allgemeiner Text',
     };
 
     const formatted: string[] = [];
     const references: import('./types/requestEnrichment.js').TextReference[] = [];
 
-    textData.forEach(text => {
+    textData.forEach((text) => {
       const textType = text.document_type || 'text';
       const typeDisplayName = typeDisplayNames[textType] || textType;
 
@@ -113,14 +117,16 @@ class RequestEnricher {
         : 'Unbekannt';
 
       // Add formatted string for AI knowledge array
-      formatted.push(`## Text: ${text.title}\n**Typ:** ${typeDisplayName}\n**Wörter:** ${text.word_count || 'Unbekannt'}\n**Erstellt:** ${createdDate}\n\n${plainContent}`);
+      formatted.push(
+        `## Text: ${text.title}\n**Typ:** ${typeDisplayName}\n**Wörter:** ${text.word_count || 'Unbekannt'}\n**Erstellt:** ${createdDate}\n\n${plainContent}`
+      );
 
       // Add reference metadata for bibliography display
       references.push({
         title: text.title || 'Unbekannt',
         type: typeDisplayName,
         wordCount: text.word_count || 0,
-        createdAt: createdDate
+        createdAt: createdDate,
       });
     });
 
@@ -143,12 +149,18 @@ class RequestEnricher {
     const formatted: string[] = [];
     const references: import('./types/requestEnrichment.js').DocumentReference[] = [];
 
-    searchResults.forEach(doc => {
-      const contentType = doc.content_type === 'vector_search' ? 'Vector Search' :
-                        doc.content_type === 'full_text' ? 'Volltext' : 'Intelligenter Auszug';
+    searchResults.forEach((doc) => {
+      const contentType =
+        doc.content_type === 'vector_search'
+          ? 'Vector Search'
+          : doc.content_type === 'full_text'
+            ? 'Volltext'
+            : 'Intelligenter Auszug';
 
       // Add formatted string for AI knowledge array
-      formatted.push(`## Dokument: ${doc.title}\n**Datei:** ${doc.filename}\n**Seiten:** ${doc.page_count || 'Unbekannt'}\n**Inhalt:** ${contentType}\n**Info:** ${doc.search_info}\n\n${doc.content}`);
+      formatted.push(
+        `## Dokument: ${doc.title}\n**Datei:** ${doc.filename}\n**Seiten:** ${doc.page_count || 'Unbekannt'}\n**Inhalt:** ${contentType}\n**Info:** ${doc.search_info}\n\n${doc.content}`
+      );
 
       // Add reference metadata for bibliography display
       references.push({
@@ -156,7 +168,7 @@ class RequestEnricher {
         filename: doc.filename,
         pageCount: doc.page_count,
         retrievalMethod: 'vector_search',
-        relevance: doc.similarity_score ? Math.round(doc.similarity_score * 100) : undefined
+        relevance: doc.similarity_score ? Math.round(doc.similarity_score * 100) : undefined,
       });
     });
 
@@ -169,7 +181,10 @@ class RequestEnricher {
    * @param {Array} docsMetadata - Document metadata from PostgreSQL
    * @returns {Object} Formatted document strings and reference metadata
    */
-  formatFullDocuments(fullTextResults: FullTextResult[], docsMetadata: any[]): {
+  formatFullDocuments(
+    fullTextResults: FullTextResult[],
+    docsMetadata: any[]
+  ): {
     formatted: string[];
     references: import('./types/requestEnrichment.js').DocumentReference[];
   } {
@@ -180,8 +195,8 @@ class RequestEnricher {
     const formatted: string[] = [];
     const references: import('./types/requestEnrichment.js').DocumentReference[] = [];
 
-    fullTextResults.forEach(result => {
-      const meta = docsMetadata.find(d => d.id === result.id);
+    fullTextResults.forEach((result) => {
+      const meta = docsMetadata.find((d) => d.id === result.id);
       if (!meta) {
         console.warn(`[RequestEnricher] Metadata not found for document ${result.id}`);
         return;
@@ -191,17 +206,19 @@ class RequestEnricher {
       const estimatedPages = Math.ceil(result.chunkCount / 2.5);
 
       // Calculate word count for better context understanding
-      const wordCount = result.fullText.split(/\s+/).filter(w => w.length > 0).length;
+      const wordCount = result.fullText.split(/\s+/).filter((w) => w.length > 0).length;
 
       // Add formatted string for AI knowledge array
-      formatted.push(`## Dokument: ${meta.title}\n**Datei:** ${meta.filename || 'Unbekannt'}\n**Seiten:** ~${estimatedPages}\n**Wörter:** ~${wordCount}\n**Inhalt:** Volltext (${result.chunkCount} Abschnitte)\n**Info:** Dokument vollständig übermittelt - ${result.chunkCount} Chunks zusammengefügt\n\n${result.fullText}`);
+      formatted.push(
+        `## Dokument: ${meta.title}\n**Datei:** ${meta.filename || 'Unbekannt'}\n**Seiten:** ~${estimatedPages}\n**Wörter:** ~${wordCount}\n**Inhalt:** Volltext (${result.chunkCount} Abschnitte)\n**Info:** Dokument vollständig übermittelt - ${result.chunkCount} Chunks zusammengefügt\n\n${result.fullText}`
+      );
 
       // Add reference metadata for bibliography display
       references.push({
         title: meta.title,
         filename: meta.filename || 'Unbekannt',
         pageCount: estimatedPages,
-        retrievalMethod: 'full_text'
+        retrievalMethod: 'full_text',
       });
     });
 
@@ -227,7 +244,8 @@ class RequestEnricher {
     const startTime = Date.now();
 
     // Build minimal context from request
-    const theme = requestData.thema || requestData.theme || requestData.details || requestData.inhalt || '';
+    const theme =
+      requestData.thema || requestData.theme || requestData.details || requestData.inhalt || '';
     const platforms = requestData.platforms?.join(', ') || '';
     const requestType = requestData.requestType || options.type || '';
 
@@ -238,17 +256,20 @@ class RequestEnricher {
 
     const systemPrompt = `Du bist ein schneller Entwurfsassistent. Erstelle eine kurze, prägnante Vorlage als Ausgangspunkt für einen längeren Text. Fokussiere dich auf die Kernaussage und Struktur.`;
 
-    const userPrompt = options.notebookEnrichPrompt ||
+    const userPrompt =
+      options.notebookEnrichPrompt ||
       `Thema: ${theme}\n${platforms ? `Plattformen: ${platforms}\n` : ''}${requestType ? `Texttyp: ${requestType}\n` : ''}Erstelle einen kurzen Entwurf (max 200 Wörter) als Grundlage für eine ausführlichere Ausarbeitung.`;
 
     try {
-      console.log(`🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`);
+      console.log(
+        `🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`
+      );
 
       const result = await options.aiWorkerPool.processRequest({
         type: 'notebook_enrich',
         messages: [{ role: 'user', content: userPrompt }],
         systemPrompt,
-        options: { max_tokens: 500, temperature: 0.4, top_p: 0.9 }
+        options: { max_tokens: 500, temperature: 0.4, top_p: 0.9 },
       });
 
       const content = result.content || '';
@@ -262,7 +283,7 @@ class RequestEnricher {
 
       return {
         preAnswer: content,
-        timeMs
+        timeMs,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -278,7 +299,11 @@ class RequestEnricher {
    * @param {Object} req - Express request object (for locale extraction)
    * @returns {Object} Enriched state ready for prompt assembly
    */
-  async enrichRequest(requestBody: any, options: Partial<EnrichmentOptions> = {}, req: any = null): Promise<EnrichedState> {
+  async enrichRequest(
+    requestBody: any,
+    options: Partial<EnrichmentOptions> = {},
+    req: any = null
+  ): Promise<EnrichedState> {
     const {
       type = 'universal',
       enableUrls = true,
@@ -302,12 +327,14 @@ class RequestEnricher {
       useAutomaticSearch = false,
       // Fast mode pre-answer options
       enableNotebookEnrich = false,
-      notebookEnrichPrompt = undefined
+      notebookEnrichPrompt = undefined,
     } = options;
 
     // Extract user locale for localization
     const userLocale = req ? extractLocaleFromRequest(req) : 'de-DE';
-    console.log(`🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`);
+    console.log(
+      `🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`
+    );
 
     // Initialize state with content selection and locale
     const state: EnrichedState = {
@@ -332,7 +359,7 @@ class RequestEnricher {
       // Pro Mode flag for reasoning
       useProMode,
       // Initialize enrichment metadata
-      enrichmentMetadata: undefined
+      enrichmentMetadata: undefined,
     };
 
     // Check if document knowledge was already processed (from chat route)
@@ -367,8 +394,8 @@ class RequestEnricher {
     if (enableUrls && !usePrivacyMode) {
       enrichmentTasks.push(
         this.detectAndCrawlUrls(requestBody, state.documents)
-          .then(docs => ({ type: 'urls' as const, documents: docs }))
-          .catch(error => {
+          .then((docs) => ({ type: 'urls' as const, documents: docs }))
+          .catch((error) => {
             console.log('🎯 [RequestEnricher] URL enrichment failed:', error.message);
             return { type: 'urls' as const, documents: [] as Document[] };
           })
@@ -379,8 +406,12 @@ class RequestEnricher {
     if (enableWebSearch && webSearchQuery) {
       enrichmentTasks.push(
         this.performWebSearch(webSearchQuery, options.aiWorkerPool, options.req)
-          .then(result => ({ type: 'websearch' as const, knowledge: result.knowledge, sources: result.sources }))
-          .catch(error => {
+          .then((result) => ({
+            type: 'websearch' as const,
+            knowledge: result.knowledge,
+            sources: result.sources,
+          }))
+          .catch((error) => {
             console.log('🎯 [RequestEnricher] Web search failed:', error.message);
             return { type: 'websearch' as const, knowledge: [] as string[], sources: null };
           })
@@ -391,10 +422,18 @@ class RequestEnricher {
     if (selectedDocumentIds.length > 0 && searchQuery && !usePrivacyMode) {
       enrichmentTasks.push(
         this.performDocumentVectorSearch(selectedDocumentIds, searchQuery, options.req)
-          .then(result => ({ type: 'vectorsearch' as const, knowledge: result.knowledge, documentReferences: result.documentReferences || [] }))
-          .catch(error => {
+          .then((result) => ({
+            type: 'vectorsearch' as const,
+            knowledge: result.knowledge,
+            documentReferences: result.documentReferences || [],
+          }))
+          .catch((error) => {
             console.log('🎯 [RequestEnricher] Vector search failed:', error.message);
-            return { type: 'vectorsearch' as const, knowledge: [] as string[], documentReferences: [] as import('./types/requestEnrichment.js').DocumentReference[] };
+            return {
+              type: 'vectorsearch' as const,
+              knowledge: [] as string[],
+              documentReferences: [] as import('./types/requestEnrichment.js').DocumentReference[],
+            };
           })
       );
     }
@@ -403,40 +442,54 @@ class RequestEnricher {
     if (selectedTextIds.length > 0) {
       enrichmentTasks.push(
         this.fetchTextsByIds(selectedTextIds, options.req)
-          .then(result => ({ type: 'texts' as const, knowledge: result.knowledge, textReferences: result.textReferences || [] }))
-          .catch(error => {
+          .then((result) => ({
+            type: 'texts' as const,
+            knowledge: result.knowledge,
+            textReferences: result.textReferences || [],
+          }))
+          .catch((error) => {
             console.log('🎯 [RequestEnricher] Texts fetch failed:', error.message);
-            return { type: 'texts' as const, knowledge: [] as string[], textReferences: [] as import('./types/requestEnrichment.js').TextReference[] };
+            return {
+              type: 'texts' as const,
+              knowledge: [] as string[],
+              textReferences: [] as import('./types/requestEnrichment.js').TextReference[],
+            };
           })
       );
     }
 
     // Automatic vector search (if enabled and NO manual selections - manual takes priority)
     // Now works in privacy mode too (with local-only search, no AI query enhancement)
-    if (useAutomaticSearch &&
-        selectedDocumentIds.length === 0 &&
-        selectedTextIds.length === 0 &&
-        searchQuery) {
-
-      console.log(`🎯 [RequestEnricher] Automatic search mode enabled - searching all user documents${usePrivacyMode ? ' (privacy mode: local only)' : ''}`);
+    if (
+      useAutomaticSearch &&
+      selectedDocumentIds.length === 0 &&
+      selectedTextIds.length === 0 &&
+      searchQuery
+    ) {
+      console.log(
+        `🎯 [RequestEnricher] Automatic search mode enabled - searching all user documents${usePrivacyMode ? ' (privacy mode: local only)' : ''}`
+      );
 
       enrichmentTasks.push(
         this.performAutomaticVectorSearch(searchQuery, options.req, {
           limit: 3,
           threshold: 0.6,
-          usePrivacyMode: usePrivacyMode
+          usePrivacyMode: usePrivacyMode,
         })
-          .then(result => ({
+          .then((result) => ({
             type: 'autovectorsearch' as const,
             knowledge: result.knowledge,
-            metadata: result.metadata
+            metadata: result.metadata,
           }))
-          .catch(error => {
+          .catch((error) => {
             console.log('🎯 [RequestEnricher] Auto vector search failed:', error.message);
             return { type: 'autovectorsearch' as const, knowledge: [] as string[], metadata: null };
           })
       );
-    } else if (useAutomaticSearch && (selectedDocumentIds.length > 0 || selectedTextIds.length > 0)) {
+    } else if (
+      useAutomaticSearch &&
+      (selectedDocumentIds.length > 0 || selectedTextIds.length > 0)
+    ) {
       console.log('🎯 [RequestEnricher] Automatic search skipped: manual selections take priority');
     }
 
@@ -445,12 +498,12 @@ class RequestEnricher {
     if (enableNotebookEnrich && !usePrivacyMode) {
       enrichmentTasks.push(
         this.generateNotebookEnrich(requestBody, options)
-          .then(result => ({
+          .then((result) => ({
             type: 'notebook_enrich' as const,
             preAnswer: result?.preAnswer ?? null,
-            timeMs: result?.timeMs ?? 0
+            timeMs: result?.timeMs ?? 0,
           }))
-          .catch(error => {
+          .catch((error) => {
             console.log('🎯 [RequestEnricher] Fast pre-answer failed:', error.message);
             return { type: 'notebook_enrich' as const, preAnswer: null, timeMs: 0 };
           })
@@ -460,17 +513,24 @@ class RequestEnricher {
     // Execute all enrichment tasks in parallel
     let enrichmentResults: EnrichmentTaskResult[] = [];
     if (enrichmentTasks.length > 0) {
-      console.log(`🎯 [RequestEnricher] Running ${enrichmentTasks.length} enrichment tasks in parallel`);
+      console.log(
+        `🎯 [RequestEnricher] Running ${enrichmentTasks.length} enrichment tasks in parallel`
+      );
       const results = await Promise.allSettled(enrichmentTasks);
       enrichmentResults = results
-        .filter((result): result is PromiseFulfilledResult<EnrichmentTaskResult> => result.status === 'fulfilled')
-        .map(result => result.value);
+        .filter(
+          (result): result is PromiseFulfilledResult<EnrichmentTaskResult> =>
+            result.status === 'fulfilled'
+        )
+        .map((result) => result.value);
     }
 
     // Aggregate results
     let totalDocuments = 0;
     let webSearchSources: import('./types/requestEnrichment.js').WebSearchSource[] | null = null;
-    let autoSearchMetadata: { autoSelectedDocuments: import('./types/requestEnrichment.js').AutoSelectedDocument[] } | null = null;
+    let autoSearchMetadata: {
+      autoSelectedDocuments: import('./types/requestEnrichment.js').AutoSelectedDocument[];
+    } | null = null;
     let notebookEnrichMetadata: { preAnswer: string; timeMs: number } | null = null;
     let allDocumentReferences: import('./types/requestEnrichment.js').DocumentReference[] = [];
     let allTextReferences: import('./types/requestEnrichment.js').TextReference[] = [];
@@ -487,12 +547,16 @@ class RequestEnricher {
         }
         webSearchSources = result.sources;
         if (result.knowledge.length > 0) {
-          state.toolInstructions.push('Hinweis: Aktuelle Informationen aus einer Websuche sind als Hintergrundwissen verfügbar. Du kannst diese bei Bedarf nutzen.');
+          state.toolInstructions.push(
+            'Hinweis: Aktuelle Informationen aus einer Websuche sind als Hintergrundwissen verfügbar. Du kannst diese bei Bedarf nutzen.'
+          );
         }
       } else if (result.type === 'vectorsearch') {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
-          console.log(`🎯 [RequestEnricher] Added vector search knowledge from ${selectedDocumentIds.length} documents`);
+          console.log(
+            `🎯 [RequestEnricher] Added vector search knowledge from ${selectedDocumentIds.length} documents`
+          );
         }
         if (result.documentReferences && result.documentReferences.length > 0) {
           allDocumentReferences.push(...result.documentReferences);
@@ -514,21 +578,31 @@ class RequestEnricher {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
           autoSearchMetadata = result.metadata;
-          console.log(`🎯 [RequestEnricher] Added automatic vector search knowledge (${result.knowledge.length} documents)`);
+          console.log(
+            `🎯 [RequestEnricher] Added automatic vector search knowledge (${result.knowledge.length} documents)`
+          );
           if (autoSearchMetadata?.autoSelectedDocuments) {
-            console.log(`   - Auto-selected: ${autoSearchMetadata.autoSelectedDocuments.map(d => d.title).join(', ')}`);
+            console.log(
+              `   - Auto-selected: ${autoSearchMetadata.autoSelectedDocuments.map((d) => d.title).join(', ')}`
+            );
           }
         }
       } else if (result.type === 'notebook_enrich') {
         if (result.preAnswer) {
           // Inject fast pre-answer as first knowledge entry (before other context)
-          state.knowledge.unshift(`<vorarbeit>\nSCHNELLER VORENTWURF:\n${result.preAnswer}\n</vorarbeit>`);
+          state.knowledge.unshift(
+            `<vorarbeit>\nSCHNELLER VORENTWURF:\n${result.preAnswer}\n</vorarbeit>`
+          );
           notebookEnrichMetadata = {
             preAnswer: result.preAnswer,
-            timeMs: result.timeMs
+            timeMs: result.timeMs,
           };
-          console.log(`🎯 [RequestEnricher] Added fast pre-answer (${result.timeMs}ms, ${result.preAnswer.length} chars)`);
-          state.toolInstructions.push('Hinweis: Ein schneller Vorentwurf wurde als Ausgangspunkt bereitgestellt. Du kannst diesen verfeinern, erweitern oder komplett neu formulieren.');
+          console.log(
+            `🎯 [RequestEnricher] Added fast pre-answer (${result.timeMs}ms, ${result.preAnswer.length} chars)`
+          );
+          state.toolInstructions.push(
+            'Hinweis: Ein schneller Vorentwurf wurde als Ausgangspunkt bereitgestellt. Du kannst diesen verfeinern, erweitern oder komplett neu formulieren.'
+          );
         }
       }
     }
@@ -541,15 +615,18 @@ class RequestEnricher {
       usePrivacyMode,
       autoSearchUsed: useAutomaticSearch && autoSearchMetadata !== null,
       autoSelectedDocuments: autoSearchMetadata?.autoSelectedDocuments || [],
-      documentsPreProcessed: (state as { _documentsPreProcessed?: boolean })._documentsPreProcessed ?? false,
+      documentsPreProcessed:
+        (state as { _documentsPreProcessed?: boolean })._documentsPreProcessed ?? false,
       documentsReferences: allDocumentReferences.length > 0 ? allDocumentReferences : undefined,
       textsReferences: allTextReferences.length > 0 ? allTextReferences : undefined,
       notebookEnrichUsed: !!notebookEnrichMetadata,
       notebookEnrichLength: notebookEnrichMetadata?.preAnswer?.length || 0,
-      notebookEnrichTimeMs: notebookEnrichMetadata?.timeMs || 0
+      notebookEnrichTimeMs: notebookEnrichMetadata?.timeMs || 0,
     };
 
-    console.log(`🎯 [RequestEnricher] Enrichment complete (documents=${state.documents.length}, knowledge=${state.knowledge.length})`);
+    console.log(
+      `🎯 [RequestEnricher] Enrichment complete (documents=${state.documents.length}, knowledge=${state.knowledge.length})`
+    );
 
     return state;
   }
@@ -557,7 +634,12 @@ class RequestEnricher {
   /**
    * Process attachments using existing attachment utilities
    */
-  async processRequestAttachments(attachments: any, usePrivacyMode: boolean, routeName: string, userId?: string): Promise<AttachmentProcessingResult> {
+  async processRequestAttachments(
+    attachments: any,
+    usePrivacyMode: boolean,
+    routeName: string,
+    userId?: string
+  ): Promise<AttachmentProcessingResult> {
     try {
       return await processAndBuildAttachments(attachments, usePrivacyMode, routeName, userId);
     } catch (error) {
@@ -568,7 +650,10 @@ class RequestEnricher {
   /**
    * Detect URLs in request and crawl them
    */
-  async detectAndCrawlUrls(requestBody: any, existingDocuments: Document[] = []): Promise<Document[]> {
+  async detectAndCrawlUrls(
+    requestBody: any,
+    existingDocuments: Document[] = []
+  ): Promise<Document[]> {
     if (!urlCrawlerService) {
       console.log('🎯 [RequestEnricher] URL crawling skipped: service not available');
       return [];
@@ -586,11 +671,15 @@ class RequestEnricher {
       const newUrls = filterNewUrls(detectedUrls, existingDocuments);
 
       if (newUrls.length === 0) {
-        console.log(`🎯 [RequestEnricher] Found ${detectedUrls.length} URLs but all already processed`);
+        console.log(
+          `🎯 [RequestEnricher] Found ${detectedUrls.length} URLs but all already processed`
+        );
         return [];
       }
 
-      console.log(`🎯 [RequestEnricher] Processing ${newUrls.length} new URLs: ${newUrls.map(url => getUrlDomain(url)).join(', ')}`);
+      console.log(
+        `🎯 [RequestEnricher] Processing ${newUrls.length} new URLs: ${newUrls.map((url) => getUrlDomain(url)).join(', ')}`
+      );
 
       // Crawl URLs with concurrency limit
       const urlsToProcess = newUrls.slice(0, this.maxConcurrentUrls);
@@ -600,7 +689,7 @@ class RequestEnricher {
           console.log(`🎯 [RequestEnricher] Crawling: ${url}`);
           const result = await urlCrawlerService.crawlUrl(url, {
             enhancedMetadata: true,
-            timeout: this.urlCrawlTimeout
+            timeout: this.urlCrawlTimeout,
           });
 
           if (result.success) {
@@ -614,12 +703,14 @@ class RequestEnricher {
                   url: result.data.originalUrl,
                   wordCount: result.data.wordCount,
                   extractedAt: result.data.extractedAt,
-                  contentSource: 'url_crawl' as const
-                }
-              }
+                  contentSource: 'url_crawl' as const,
+                },
+              },
             };
 
-            console.log(`🎯 [RequestEnricher] Successfully crawled: ${url} (${result.data.wordCount || 0} words)`);
+            console.log(
+              `🎯 [RequestEnricher] Successfully crawled: ${url} (${result.data.wordCount || 0} words)`
+            );
             return crawledDocument;
           } else {
             console.log(`🎯 [RequestEnricher] Failed to crawl: ${url} - ${result.error}`);
@@ -633,16 +724,20 @@ class RequestEnricher {
 
       const results = await Promise.allSettled(crawlPromises);
       const crawledDocuments = results
-        .filter((result): result is PromiseFulfilledResult<Document | null> => result.status === 'fulfilled')
-        .map(result => result.value)
+        .filter(
+          (result): result is PromiseFulfilledResult<Document | null> =>
+            result.status === 'fulfilled'
+        )
+        .map((result) => result.value)
         .filter((doc): doc is Document => doc !== null);
 
       if (crawledDocuments.length > 0) {
-        console.log(`🎯 [RequestEnricher] Successfully crawled ${crawledDocuments.length}/${urlsToProcess.length} URLs`);
+        console.log(
+          `🎯 [RequestEnricher] Successfully crawled ${crawledDocuments.length}/${urlsToProcess.length} URLs`
+        );
       }
 
       return crawledDocuments;
-
     } catch (error) {
       console.log('🎯 [RequestEnricher] URL detection failed:', getErrorMessage(error));
       return [];
@@ -652,7 +747,11 @@ class RequestEnricher {
   /**
    * Perform web search and generate summary
    */
-  async performWebSearch(searchQuery: string, aiWorkerPool: any, req: any): Promise<WebSearchResult> {
+  async performWebSearch(
+    searchQuery: string,
+    aiWorkerPool: any,
+    req: any
+  ): Promise<WebSearchResult> {
     if (!searxngWebSearchService) {
       console.log('🎯 [RequestEnricher] Web search skipped: service not available');
       return { knowledge: [], sources: null };
@@ -675,7 +774,7 @@ class RequestEnricher {
       try {
         if (aiWorkerPool) {
           // Add small delay to allow connection cleanup before next AI request
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
 
           const summary = await searxngWebSearchService.generateAISummary(
             searchResults,
@@ -695,17 +794,20 @@ class RequestEnricher {
 
       // Extract source list for frontend
       if (Array.isArray(searchResults.results)) {
-        sources = searchResults.results.slice(0, 10).map((r: { title: string; url: string; domain?: string }) => ({
-          title: r.title,
-          url: r.url,
-          domain: r.domain
-        }));
+        sources = searchResults.results
+          .slice(0, 10)
+          .map((r: { title: string; url: string; domain?: string }) => ({
+            title: r.title,
+            url: r.url,
+            domain: r.domain,
+          }));
       }
 
-      console.log(`🎯 [RequestEnricher] Web search complete (knowledge=${knowledge.length > 0 ? 'yes' : 'no'}, sources=${sources?.length || 0})`);
+      console.log(
+        `🎯 [RequestEnricher] Web search complete (knowledge=${knowledge.length > 0 ? 'yes' : 'no'}, sources=${sources?.length || 0})`
+      );
 
       return { knowledge, sources };
-
     } catch (error) {
       console.log('🎯 [RequestEnricher] Web search error:', getErrorMessage(error));
       return { knowledge: [], sources: null };
@@ -716,7 +818,11 @@ class RequestEnricher {
    * Perform intelligent document retrieval using full text or vector search
    * Automatically decides based on document size (vector_count)
    */
-  async performDocumentVectorSearch(selectedDocumentIds: string[], searchQuery: string, req: any): Promise<DocumentSearchResult> {
+  async performDocumentVectorSearch(
+    selectedDocumentIds: string[],
+    searchQuery: string,
+    req: any
+  ): Promise<DocumentSearchResult> {
     if (!selectedDocumentIds || selectedDocumentIds.length === 0 || !searchQuery) {
       console.log('🎯 [RequestEnricher] Document search skipped: no documents or query');
       return { knowledge: [] };
@@ -731,7 +837,9 @@ class RequestEnricher {
     }
 
     try {
-      console.log(`🎯 [RequestEnricher] Smart document retrieval for ${selectedDocumentIds.length} documents: "${searchQuery}"`);
+      console.log(
+        `🎯 [RequestEnricher] Smart document retrieval for ${selectedDocumentIds.length} documents: "${searchQuery}"`
+      );
 
       // Step 1: Fetch metadata from PostgreSQL to determine document sizes
       const { getPostgresInstance } = await import('../database/services/PostgresService.js');
@@ -748,13 +856,18 @@ class RequestEnricher {
             );
             return doc;
           } catch (error) {
-            console.warn(`🎯 [RequestEnricher] Failed to fetch metadata for document ${docId}:`, getErrorMessage(error));
+            console.warn(
+              `🎯 [RequestEnricher] Failed to fetch metadata for document ${docId}:`,
+              getErrorMessage(error)
+            );
             return null;
           }
         })
       );
 
-      const validDocs = documentsMetadata.filter((doc): doc is NonNullable<typeof doc> => doc !== null && doc !== undefined);
+      const validDocs = documentsMetadata.filter(
+        (doc): doc is NonNullable<typeof doc> => doc !== null && doc !== undefined
+      );
 
       if (validDocs.length === 0) {
         console.log('🎯 [RequestEnricher] No accessible documents found');
@@ -766,7 +879,9 @@ class RequestEnricher {
       const smallDocs = validDocs.filter((doc: any) => (doc.vector_count || 0) <= CHUNK_THRESHOLD);
       const largeDocs = validDocs.filter((doc: any) => (doc.vector_count || 0) > CHUNK_THRESHOLD);
 
-      console.log(`🎯 [RequestEnricher] Document classification: ${smallDocs.length} small (full text), ${largeDocs.length} large (vector search)`);
+      console.log(
+        `🎯 [RequestEnricher] Document classification: ${smallDocs.length} small (full text), ${largeDocs.length} large (vector search)`
+      );
 
       // Step 3: Process in parallel
       const documentSearchService = await getQdrantDocumentService();
@@ -774,8 +889,12 @@ class RequestEnricher {
       const [fullTextResults, vectorSearchResults] = await Promise.all([
         // Small documents: fetch full text from Qdrant
         smallDocs.length > 0
-          ? documentSearchService.getMultipleDocumentsFullText(userId, smallDocs.map((d: any) => d.id))
-              .catch(error => {
+          ? documentSearchService
+              .getMultipleDocumentsFullText(
+                userId,
+                smallDocs.map((d: any) => d.id)
+              )
+              .catch((error) => {
                 console.warn('🎯 [RequestEnricher] Full text retrieval failed:', error.message);
                 return { documents: [], errors: [] };
               })
@@ -787,23 +906,23 @@ class RequestEnricher {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                ...(req?.headers?.cookie && { 'Cookie': req.headers.cookie }),
-                ...(req?.headers?.authorization && { 'Authorization': req.headers.authorization })
+                ...(req?.headers?.cookie && { Cookie: req.headers.cookie }),
+                ...(req?.headers?.authorization && { Authorization: req.headers.authorization }),
               },
               body: JSON.stringify({
                 query: searchQuery.trim(),
-                documentIds: largeDocs.map(d => d.id),
+                documentIds: largeDocs.map((d) => d.id),
                 limit: 5,
-                mode: 'hybrid'
-              })
+                mode: 'hybrid',
+              }),
             })
-              .then(res => res.ok ? res.json() : { success: false, results: [] })
-              .then(result => result.success ? result.results : [])
-              .catch(error => {
+              .then((res) => (res.ok ? res.json() : { success: false, results: [] }))
+              .then((result) => (result.success ? result.results : []))
+              .catch((error) => {
                 console.warn('🎯 [RequestEnricher] Vector search failed:', error.message);
                 return [];
               })
-          : Promise.resolve([])
+          : Promise.resolve([]),
       ]);
 
       // Step 4: Format results consistently
@@ -818,13 +937,16 @@ class RequestEnricher {
 
       // Enhanced logging with performance metrics
       console.log(`🎯 [RequestEnricher] Smart retrieval complete (${elapsedTime}ms):`);
-      console.log(`   - Full text: ${fullTextResults.documents.length} docs, ${fullTextResults.errors.length} errors`);
+      console.log(
+        `   - Full text: ${fullTextResults.documents.length} docs, ${fullTextResults.errors.length} errors`
+      );
       console.log(`   - Vector search: ${vectorSearchResults.length} excerpts`);
       console.log(`   - Total knowledge entries: ${allKnowledge.length}`);
-      console.log(`   - Estimated tokens saved: ~${smallDocs.length * 200} (no vector search overhead)`);
+      console.log(
+        `   - Estimated tokens saved: ~${smallDocs.length * 200} (no vector search overhead)`
+      );
 
       return { knowledge: allKnowledge, documentReferences: allReferences };
-
     } catch (error) {
       console.error('🎯 [RequestEnricher] Smart document retrieval error:', error);
       return { knowledge: [], documentReferences: [] };
@@ -861,12 +983,15 @@ class RequestEnricher {
       }
 
       // Format as knowledge content using new formatter
-      const knowledgeEntries = this.formatKnowledgeEntries(knowledgeData as unknown as KnowledgeEntry[]);
+      const knowledgeEntries = this.formatKnowledgeEntries(
+        knowledgeData as unknown as KnowledgeEntry[]
+      );
 
-      console.log(`🎯 [RequestEnricher] Successfully fetched ${knowledgeEntries.length} knowledge entries`);
+      console.log(
+        `🎯 [RequestEnricher] Successfully fetched ${knowledgeEntries.length} knowledge entries`
+      );
 
       return { knowledge: knowledgeEntries };
-
     } catch (error) {
       console.log('🎯 [RequestEnricher] Knowledge fetch error:', getErrorMessage(error));
       return { knowledge: [] };
@@ -905,10 +1030,11 @@ class RequestEnricher {
       // Format as knowledge content using new formatter
       const textsResult = this.formatSavedTexts(textData as unknown as SavedText[]);
 
-      console.log(`🎯 [RequestEnricher] Successfully fetched ${textsResult.formatted.length} saved texts`);
+      console.log(
+        `🎯 [RequestEnricher] Successfully fetched ${textsResult.formatted.length} saved texts`
+      );
 
       return { knowledge: textsResult.formatted, textReferences: textsResult.references };
-
     } catch (error) {
       console.log('🎯 [RequestEnricher] Texts fetch error:', getErrorMessage(error));
       return { knowledge: [], textReferences: [] };
@@ -923,7 +1049,11 @@ class RequestEnricher {
    * @param {Object} options - Search options (limit, threshold)
    * @returns {Object} { knowledge: [], metadata: { autoSelectedDocuments: [] } }
    */
-  async performAutomaticVectorSearch(searchQuery: string, req: any, options: AutoSearchOptions = {}): Promise<DocumentSearchResult & { metadata?: any }> {
+  async performAutomaticVectorSearch(
+    searchQuery: string,
+    req: any,
+    options: AutoSearchOptions = {}
+  ): Promise<DocumentSearchResult & { metadata?: any }> {
     const { limit = 3, threshold = 0.6, usePrivacyMode = false } = options;
     const userId = req?.user?.id;
 
@@ -940,7 +1070,9 @@ class RequestEnricher {
     const startTime = Date.now();
 
     try {
-      console.log(`🎯 [RequestEnricher] AUTO VECTOR SEARCH: "${searchQuery}" (limit=${limit}, threshold=${threshold}, privacyMode=${usePrivacyMode})`);
+      console.log(
+        `🎯 [RequestEnricher] AUTO VECTOR SEARCH: "${searchQuery}" (limit=${limit}, threshold=${threshold}, privacyMode=${usePrivacyMode})`
+      );
 
       let searchQueries = [searchQuery];
       let enhancementMetadata: {
@@ -962,7 +1094,7 @@ class RequestEnricher {
               contentType: 'general',
               limit: 3,
               includeContext: true,
-              useCache: true
+              useCache: true,
             },
             req
           );
@@ -974,17 +1106,27 @@ class RequestEnricher {
               enhancedQueries: enhancement.enhancedQueries,
               confidence: enhancement.confidence,
               source: enhancement.source,
-              semanticContext: enhancement.semanticContext
+              semanticContext: enhancement.semanticContext,
             };
             console.log(`🎯 [RequestEnricher] Query enhanced: ${searchQueries.length} variants`);
             console.log(`   - Original: "${enhancement.originalQuery}"`);
-            console.log(`   - Enhanced: ${searchQueries.slice(0, 3).map(q => `"${q}"`).join(', ')}`);
+            console.log(
+              `   - Enhanced: ${searchQueries
+                .slice(0, 3)
+                .map((q) => `"${q}"`)
+                .join(', ')}`
+            );
           }
         } catch (enhanceError) {
-          console.warn('🎯 [RequestEnricher] Query enhancement failed, using original:', getErrorMessage(enhanceError));
+          console.warn(
+            '🎯 [RequestEnricher] Query enhancement failed, using original:',
+            getErrorMessage(enhanceError)
+          );
         }
       } else {
-        console.log('🎯 [RequestEnricher] Privacy mode: Skipping AI query enhancement, using original query only');
+        console.log(
+          '🎯 [RequestEnricher] Privacy mode: Skipping AI query enhancement, using original query only'
+        );
       }
 
       const documentSearchService = await getQdrantDocumentService();
@@ -1004,16 +1146,12 @@ class RequestEnricher {
       const seenDocumentIds = new Set<string>();
 
       for (const query of searchQueries) {
-        const searchResult = await documentSearchService.hybridSearch(
-          query.trim(),
-          userId,
-          {
-            limit: limit * 2,
-            threshold: threshold,
-            vectorWeight: 0.7,
-            textWeight: 0.3
-          }
-        );
+        const searchResult = await documentSearchService.hybridSearch(query.trim(), userId, {
+          limit: limit * 2,
+          threshold: threshold,
+          vectorWeight: 0.7,
+          textWeight: 0.3,
+        });
 
         if (searchResult.success && searchResult.results) {
           for (const result of searchResult.results) {
@@ -1021,14 +1159,19 @@ class RequestEnricher {
               seenDocumentIds.add(result.document_id);
               allResults.push({
                 ...result,
-                matched_query: query
+                matched_query: query,
               } as SearchResultItem);
             } else {
-              const existingIndex = allResults.findIndex(r => r.document_id === result.document_id);
-              if (existingIndex >= 0 && result.similarity_score > allResults[existingIndex].similarity_score) {
+              const existingIndex = allResults.findIndex(
+                (r) => r.document_id === result.document_id
+              );
+              if (
+                existingIndex >= 0 &&
+                result.similarity_score > allResults[existingIndex].similarity_score
+              ) {
                 allResults[existingIndex] = {
                   ...result,
-                  matched_query: query
+                  matched_query: query,
                 } as SearchResultItem;
               }
             }
@@ -1044,9 +1187,10 @@ class RequestEnricher {
         return { knowledge: [], metadata: null };
       }
 
-      const formattedKnowledge = topResults.map(doc => {
+      const formattedKnowledge = topResults.map((doc) => {
         const relevancePercent = Math.round((doc.similarity_score || 0) * 100);
-        const matchInfo = doc.matched_query !== searchQuery ? ` (Variante: "${doc.matched_query}")` : '';
+        const matchInfo =
+          doc.matched_query !== searchQuery ? ` (Variante: "${doc.matched_query}")` : '';
 
         return `## Dokument (Auto-ausgewählt): ${doc.title}
 **Datei:** ${doc.filename}
@@ -1058,31 +1202,36 @@ ${doc.relevant_content}`;
       });
 
       const metadata = {
-        autoSelectedDocuments: topResults.map(r => ({
+        autoSelectedDocuments: topResults.map((r) => ({
           id: r.document_id,
           title: r.title,
           filename: r.filename,
           relevance_score: r.similarity_score,
           relevance_percent: Math.round((r.similarity_score || 0) * 100),
-          matched_query: r.matched_query
+          matched_query: r.matched_query,
         })),
-        enhancement: enhancementMetadata
+        enhancement: enhancementMetadata,
       };
 
       const elapsedTime = Date.now() - startTime;
       console.log(`🎯 [RequestEnricher] Auto vector search complete (${elapsedTime}ms):`);
       console.log(`   - Documents found: ${topResults.length}`);
-      console.log(`   - Avg relevance: ${Math.round(metadata.autoSelectedDocuments.reduce((sum, d) => sum + d.relevance_percent, 0) / metadata.autoSelectedDocuments.length)}%`);
-      console.log(`   - Top match: ${metadata.autoSelectedDocuments[0]?.title} (${metadata.autoSelectedDocuments[0]?.relevance_percent}%)`);
+      console.log(
+        `   - Avg relevance: ${Math.round(metadata.autoSelectedDocuments.reduce((sum, d) => sum + d.relevance_percent, 0) / metadata.autoSelectedDocuments.length)}%`
+      );
+      console.log(
+        `   - Top match: ${metadata.autoSelectedDocuments[0]?.title} (${metadata.autoSelectedDocuments[0]?.relevance_percent}%)`
+      );
       if (enhancementMetadata) {
-        console.log(`   - AI Enhancement: ${enhancementMetadata.source} (confidence: ${Math.round(enhancementMetadata.confidence * 100)}%)`);
+        console.log(
+          `   - AI Enhancement: ${enhancementMetadata.source} (confidence: ${Math.round(enhancementMetadata.confidence * 100)}%)`
+        );
       }
 
       return {
         knowledge: formattedKnowledge,
-        metadata
+        metadata,
       };
-
     } catch (error) {
       console.error('🎯 [RequestEnricher] Auto vector search error:', error);
       return { knowledge: [], metadata: null };
@@ -1097,7 +1246,11 @@ ${doc.relevant_content}`;
  * @param {Object} req - Express request object (for locale extraction)
  * @returns {Object} Enriched state ready for prompt assembly
  */
-async function enrichRequest(requestBody: unknown, options: Partial<EnrichmentOptions> = {}, req: unknown = null): Promise<EnrichedState> {
+async function enrichRequest(
+  requestBody: unknown,
+  options: Partial<EnrichmentOptions> = {},
+  req: unknown = null
+): Promise<EnrichedState> {
   const enricher = new RequestEnricher();
   return await enricher.enrichRequest(requestBody, options, req);
 }

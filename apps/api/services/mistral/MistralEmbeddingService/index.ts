@@ -21,7 +21,7 @@ export type {
   CacheConfig,
   CacheStats,
   RedisClient,
-  ServiceState
+  ServiceState,
 } from './types.js';
 
 // Export validation utilities and embedding operations (if needed externally)
@@ -32,7 +32,7 @@ export {
   generateSingleEmbedding,
   generateBatchEmbeddings,
   generateMockEmbedding,
-  generateMockBatchEmbeddings
+  generateMockBatchEmbeddings,
 } from './embeddingOperations.js';
 
 // Export embedding cache singleton and class

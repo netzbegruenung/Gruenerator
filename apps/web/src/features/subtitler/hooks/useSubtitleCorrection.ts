@@ -7,9 +7,11 @@
  * Reduced from ~40 lines to ~20 lines by eliminating duplicate pattern.
  */
 
-import { useApiAction } from './useApiAction';
-import type { SubtitleSegment, CorrectionResponse } from '../types';
 import { isCorrectionResponse } from '../utils/validators';
+
+import { useApiAction } from './useApiAction';
+
+import type { SubtitleSegment, CorrectionResponse } from '../types';
 
 interface CorrectSubtitlesRequest {
   segments: SubtitleSegment[];
@@ -41,7 +43,7 @@ export const useSubtitleCorrection = () => {
         throw new Error('Invalid correction response format');
       }
       return response;
-    }
+    },
   });
 
   /**
@@ -59,7 +61,7 @@ export const useSubtitleCorrection = () => {
     success,
     correctSubtitles,
     clearCorrections: clearData,
-    reset
+    reset,
   };
 };
 

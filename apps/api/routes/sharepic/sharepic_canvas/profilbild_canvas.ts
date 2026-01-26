@@ -33,9 +33,10 @@ router.post('/', upload.single('image'), async (req: MulterRequest, res: Respons
       return res.status(400).json({ error: 'Bild ist erforderlich' });
     }
 
-    const backgroundColor = body.backgroundColor && isValidHexColor(body.backgroundColor)
-      ? body.backgroundColor
-      : COLORS.TANNE;
+    const backgroundColor =
+      body.backgroundColor && isValidHexColor(body.backgroundColor)
+        ? body.backgroundColor
+        : COLORS.TANNE;
 
     log.info('Creating profilbild with canvas', { backgroundColor });
 

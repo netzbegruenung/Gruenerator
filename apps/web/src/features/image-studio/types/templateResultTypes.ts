@@ -1,8 +1,11 @@
-import type { RefObject, ChangeEvent } from 'react';
-import type { VeranstaltungFieldFontSizes, SloganAlternative } from '../../../stores/imageStudioStore';
-
-import type { InputField } from '../utils/typeConfig';
 import type { ColorScheme, ColorSchemeItem } from './shared';
+import type {
+  VeranstaltungFieldFontSizes,
+  SloganAlternative,
+} from '../../../stores/imageStudioStore';
+import type { InputField } from '../utils/typeConfig';
+import type { RefObject, ChangeEvent } from 'react';
+
 
 export interface FieldConfig {
   showImageUpload?: boolean;

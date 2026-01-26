@@ -9,7 +9,7 @@ import type { BalkenLayer } from '../types/freeCanvasTypes.js';
 import {
   calculateParallelogramPoints,
   getColorScheme,
-  BALKEN_CONFIG
+  BALKEN_CONFIG,
 } from '../utils/balkenMath.js';
 
 /**

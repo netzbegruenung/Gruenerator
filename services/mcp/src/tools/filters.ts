@@ -36,16 +36,18 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
 4. Du rufst auf: gruenerator_search({ query: "Haushalt", collection: "kommunalwiki", filters: { content_type: "praxishilfe" } })`,
 
   inputSchema: {
-    collection: z.enum([
-      'oesterreich',
-      'deutschland',
-      'bundestagsfraktion',
-      'gruene-de',
-      'gruene-at',
-      'kommunalwiki',
-      'boell-stiftung',
-      'examples'
-    ]).describe('Sammlung für die Filterwerte - muss vor gefilterter Suche aufgerufen werden')
+    collection: z
+      .enum([
+        'oesterreich',
+        'deutschland',
+        'bundestagsfraktion',
+        'gruene-de',
+        'gruene-at',
+        'kommunalwiki',
+        'boell-stiftung',
+        'examples',
+      ])
+      .describe('Sammlung für die Filterwerte - muss vor gefilterter Suche aufgerufen werden'),
   },
 
   async handler({ collection }) {
@@ -53,7 +55,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
     if (!col) {
       return {
         error: true,
-        message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${Object.keys(config.collections).join(', ')}`
+        message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${Object.keys(config.collections).join(', ')}`,
       };
     }
 
@@ -62,7 +64,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
         collection: col.displayName,
         collectionId: collection,
         message: 'Keine Filter für diese Sammlung verfügbar',
-        filters: {}
+        filters: {},
       };
     }
 
@@ -77,7 +79,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
           label: fieldConfig.label,
           type: fieldConfig.type,
           values: valuesWithCounts,
-          totalUniqueValues: valuesWithCounts.length
+          totalUniqueValues: valuesWithCounts.length,
         };
       }
 
@@ -85,7 +87,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
         collection: col.displayName,
         collectionId: collection,
         description: col.description,
-        filters
+        filters,
       };
     } catch (error) {
       console.error('[Filters] Error:', error.message);
@@ -93,8 +95,8 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
         error: true,
         message: `Fehler beim Abrufen der Filter: ${error.message}`,
         collection: col.displayName,
-        collectionId: collection
+        collectionId: collection,
       };
     }
-  }
+  },
 };

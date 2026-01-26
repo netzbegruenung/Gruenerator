@@ -23,7 +23,7 @@ import type {
   WolkeFileInfo,
   WolkeImportResult,
   WolkeBrowseFile,
-  AuthenticatedRequest
+  AuthenticatedRequest,
 } from './types.js';
 
 const log = createLogger('documents:wolke');
@@ -51,13 +51,13 @@ router.get('/sync-status', async (req: DocumentRequest, res: Response): Promise<
 
     res.json({
       success: true,
-      syncStatuses
+      syncStatuses,
     });
   } catch (error) {
     log.error('[GET /sync-status] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to get sync status'
+      message: (error as Error).message || 'Failed to get sync status',
     });
   }
 });
@@ -74,22 +74,22 @@ router.post('/sync', async (req: DocumentRequest, res: Response): Promise<void> 
       return;
     }
 
-
     // Validate share link ID
     if (!shareLinkId) {
       res.status(400).json({
         success: false,
-        message: 'Share link ID is required'
+        message: 'Share link ID is required',
       });
       return;
     }
 
     // Start sync in background (fire and forget)
-    wolkeSyncService.syncFolder(userId, shareLinkId, folderPath)
-      .then(result => {
+    wolkeSyncService
+      .syncFolder(userId, shareLinkId, folderPath)
+      .then((result) => {
         log.debug(`[POST /sync] Sync completed:`, result);
       })
-      .catch(error => {
+      .catch((error) => {
         log.error(`[POST /sync] Sync failed:`, error);
       });
 
@@ -97,13 +97,13 @@ router.post('/sync', async (req: DocumentRequest, res: Response): Promise<void> 
       success: true,
       message: 'Folder sync started',
       shareLinkId,
-      folderPath
+      folderPath,
     });
   } catch (error) {
     log.error('[POST /sync] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to start folder sync'
+      message: (error as Error).message || 'Failed to start folder sync',
     });
   }
 });
@@ -120,12 +120,11 @@ router.post('/auto-sync', async (req: DocumentRequest, res: Response): Promise<v
       return;
     }
 
-
     // Validate required parameters
     if (!shareLinkId || typeof enabled !== 'boolean') {
       res.status(400).json({
         success: false,
-        message: 'Share link ID and enabled flag are required'
+        message: 'Share link ID and enabled flag are required',
       });
       return;
     }
@@ -134,13 +133,13 @@ router.post('/auto-sync', async (req: DocumentRequest, res: Response): Promise<v
 
     res.json({
       ...result,
-      success: true
+      success: true,
     });
   } catch (error) {
     log.error('[POST /auto-sync] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to set auto-sync'
+      message: (error as Error).message || 'Failed to set auto-sync',
     });
   }
 });
@@ -157,11 +156,10 @@ router.get('/browse/:shareLinkId', async (req: DocumentRequest, res: Response): 
       return;
     }
 
-
     if (!shareLinkId) {
       res.status(400).json({
         success: false,
-        message: 'Share link ID is required'
+        message: 'Share link ID is required',
       });
       return;
     }
@@ -175,11 +173,14 @@ router.get('/browse/:shareLinkId', async (req: DocumentRequest, res: Response): 
     const files = await wolkeSyncService.listFolderContents(shareLink);
 
     // Filter and enrich files with additional metadata for UI
-    const enrichedFiles = files.map(file => {
+    const enrichedFiles = files.map((file) => {
       const fileExtension = path.extname(file.name).toLowerCase();
       const lastModified = file.lastModified;
       const lastModifiedStr = lastModified
-        ? (typeof lastModified === 'string' ? new Date(lastModified) : lastModified).toLocaleDateString('de-DE')
+        ? (typeof lastModified === 'string'
+            ? new Date(lastModified)
+            : lastModified
+          ).toLocaleDateString('de-DE')
         : 'Unknown';
 
       return {
@@ -187,7 +188,7 @@ router.get('/browse/:shareLinkId', async (req: DocumentRequest, res: Response): 
         fileExtension,
         isSupported: SUPPORTED_FILE_TYPES.includes(fileExtension),
         sizeFormatted: file.size ? formatFileSize(file.size) : 'Unknown',
-        lastModifiedFormatted: lastModifiedStr
+        lastModifiedFormatted: lastModifiedStr,
       };
     });
 
@@ -196,18 +197,17 @@ router.get('/browse/:shareLinkId', async (req: DocumentRequest, res: Response): 
       shareLink: {
         id: shareLink.id,
         label: shareLink.label,
-        baseUrl: shareLink.base_url
+        baseUrl: shareLink.base_url,
       },
       files: enrichedFiles,
       totalFiles: enrichedFiles.length,
-      supportedFiles: enrichedFiles.filter(f => f.isSupported).length
+      supportedFiles: enrichedFiles.filter((f) => f.isSupported).length,
     });
-
   } catch (error) {
     log.error('[GET /browse/:shareLinkId] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to browse Wolke files'
+      message: (error as Error).message || 'Failed to browse Wolke files',
     });
   }
 });
@@ -224,12 +224,11 @@ router.post('/import', async (req: DocumentRequest, res: Response): Promise<void
       return;
     }
 
-
     // Validate required parameters
     if (!shareLinkId || !Array.isArray(files) || files.length === 0) {
       res.status(400).json({
         success: false,
-        message: 'Share link ID and files array are required'
+        message: 'Share link ID and files array are required',
       });
       return;
     }
@@ -262,13 +261,18 @@ router.post('/import', async (req: DocumentRequest, res: Response): Promise<void
             success: false,
             skipped: true,
             reason: 'already_imported',
-            documentId: existingDoc.id
+            documentId: existingDoc.id,
           });
           continue;
         }
 
         // Use the wolke sync service to process the file
-        const result = await wolkeSyncService.processFile(userId, shareLinkId, fileInfo as any, shareLink);
+        const result = await wolkeSyncService.processFile(
+          userId,
+          shareLinkId,
+          fileInfo as any,
+          shareLink
+        );
 
         if (result.success) {
           successCount++;
@@ -276,24 +280,23 @@ router.post('/import', async (req: DocumentRequest, res: Response): Promise<void
             filename: fileInfo.name,
             success: true,
             documentId: result.documentId,
-            vectorsCreated: result.vectorsCreated
+            vectorsCreated: result.vectorsCreated,
           });
         } else if (result.skipped) {
           results.push({
             filename: fileInfo.name,
             success: false,
             skipped: true,
-            reason: result.reason
+            reason: result.reason,
           });
         }
-
       } catch (error) {
         failedCount++;
         log.error(`[POST /import] Failed to process file ${fileInfo.name}:`, error);
         results.push({
           filename: fileInfo.name,
           success: false,
-          error: (error as Error).message
+          error: (error as Error).message,
         });
       }
     }
@@ -308,15 +311,14 @@ router.post('/import', async (req: DocumentRequest, res: Response): Promise<void
         total: files.length,
         successful: successCount,
         failed: failedCount,
-        skipped: results.filter(r => r.skipped).length
-      }
+        skipped: results.filter((r) => r.skipped).length,
+      },
     });
-
   } catch (error) {
     log.error('[POST /import] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to import Wolke files'
+      message: (error as Error).message || 'Failed to import Wolke files',
     });
   }
 });

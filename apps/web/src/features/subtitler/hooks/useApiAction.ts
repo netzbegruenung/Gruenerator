@@ -12,8 +12,10 @@
  */
 
 import { useState, useCallback } from 'react';
+
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { handleError } from '../../../components/utils/errorHandling';
+
 import type { ErrorState } from '../../../components/utils/errorHandling';
 
 interface UseApiActionOptions<TRequest, TResponse> {
@@ -98,7 +100,13 @@ export function useApiAction<TRequest = unknown, TResponse = unknown>(
   const [errorState, setErrorState] = useState<ErrorState | null>(null);
 
   // Use existing app-wide useApiSubmit hook
-  const { submitForm, loading, error: apiError, success, resetState } = useApiSubmit(options.endpoint);
+  const {
+    submitForm,
+    loading,
+    error: apiError,
+    success,
+    resetState,
+  } = useApiSubmit(options.endpoint);
 
   /**
    * Execute the API action with type-safe request/response
@@ -158,10 +166,14 @@ export function useApiAction<TRequest = unknown, TResponse = unknown>(
   }, [resetState]);
 
   // Return error from either errorState or fallback to apiError string
-  const finalError = errorState || (apiError ? {
-    title: 'Fehler',
-    message: apiError
-  } as ErrorState : null);
+  const finalError =
+    errorState ||
+    (apiError
+      ? ({
+          title: 'Fehler',
+          message: apiError,
+        } as ErrorState)
+      : null);
 
   return {
     data,
@@ -170,7 +182,7 @@ export function useApiAction<TRequest = unknown, TResponse = unknown>(
     success,
     execute,
     clearData,
-    reset
+    reset,
   };
 }
 

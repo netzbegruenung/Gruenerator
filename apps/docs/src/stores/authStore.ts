@@ -23,17 +23,19 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isAuthenticated: false,
   isLoading: true,
 
-  setAuthState: (data) => set({
-    user: data.user,
-    isAuthenticated: data.isAuthenticated,
-    isLoading: false,
-  }),
+  setAuthState: (data) =>
+    set({
+      user: data.user,
+      isAuthenticated: data.isAuthenticated,
+      isLoading: false,
+    }),
 
-  clearAuth: () => set({
-    user: null,
-    isAuthenticated: false,
-    isLoading: false,
-  }),
+  clearAuth: () =>
+    set({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    }),
 
   login: (redirectTo) => {
     const redirect = redirectTo || window.location.pathname;

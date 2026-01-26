@@ -72,8 +72,16 @@ interface QualitySettings {
   videoCodec: string;
 }
 
-async function generateDownloadToken(exportParams: ExportParams): Promise<{ downloadToken: string; downloadUrl: string }> {
-  const { uploadId, subtitles, subtitlePreference = 'manual', stylePreference = 'standard', heightPreference = 'standard' } = exportParams;
+async function generateDownloadToken(
+  exportParams: ExportParams
+): Promise<{ downloadToken: string; downloadUrl: string }> {
+  const {
+    uploadId,
+    subtitles,
+    subtitlePreference = 'manual',
+    stylePreference = 'standard',
+    heightPreference = 'standard',
+  } = exportParams;
 
   if (!uploadId || !subtitles) {
     throw new Error('Upload-ID und Untertitel werden benötigt');
@@ -87,7 +95,7 @@ async function generateDownloadToken(exportParams: ExportParams): Promise<{ down
     subtitlePreference,
     stylePreference,
     heightPreference,
-    createdAt: Date.now()
+    createdAt: Date.now(),
   };
 
   await redisClient.set(`download:${downloadToken}`, JSON.stringify(tokenData), { EX: 300 });
@@ -96,7 +104,7 @@ async function generateDownloadToken(exportParams: ExportParams): Promise<{ down
 
   return {
     downloadToken,
-    downloadUrl: `/api/subtitler/download/${downloadToken}`
+    downloadUrl: `/api/subtitler/download/${downloadToken}`,
   };
 }
 
@@ -114,7 +122,11 @@ async function processDirectDownload(token: string, res: Response): Promise<void
   await processVideoExport(exportParams, res);
 }
 
-async function processChunkedDownload(uploadId: string, chunkIndex: number, res: Response): Promise<void> {
+async function processChunkedDownload(
+  uploadId: string,
+  chunkIndex: number,
+  res: Response
+): Promise<void> {
   const CHUNK_SIZE = 5 * 1024 * 1024;
 
   const videoPath = await getProcessedVideoPath(uploadId);
@@ -150,7 +162,7 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
     subtitles,
     subtitlePreference = 'manual',
     stylePreference = 'standard',
-    heightPreference = 'standard'
+    heightPreference = 'standard',
   } = exportParams;
 
   let inputPath: string | null = null;
@@ -158,7 +170,9 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
   let originalFilename = 'video.mp4';
   const exportToken = uuidv4();
 
-  log.debug(`[Export] Starting export with stylePreference: ${stylePreference}, heightPreference: ${heightPreference}`);
+  log.debug(
+    `[Export] Starting export with stylePreference: ${stylePreference}, heightPreference: ${heightPreference}`
+  );
 
   try {
     inputPath = getFilePathFromUploadId(uploadId);
@@ -181,7 +195,7 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
       uploadId,
       inputGröße: `${(fileStats.size / 1024 / 1024).toFixed(2)}MB`,
       dimensionen: `${metadata.width}x${metadata.height}`,
-      rotation: metadata.rotation || 'keine'
+      rotation: metadata.rotation || 'keine',
     });
 
     log.debug('Starte Video-Export');
@@ -191,7 +205,10 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
     await fsPromises.mkdir(outputDir, { recursive: true });
 
     const outputBaseName = path.basename(originalFilename, path.extname(originalFilename));
-    outputPath = path.join(outputDir, `subtitled_${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
+    outputPath = path.join(
+      outputDir,
+      `subtitled_${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`
+    );
     log.debug('Ausgabepfad:', outputPath);
 
     const localMetadata: VideoMetadata = {
@@ -199,16 +216,26 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
       height: metadata.height,
       duration: metadata.duration ?? 0,
       rotation: metadata.rotation,
-      originalFormat: metadata.originalFormat ? {
-        codec: metadata.originalFormat.codec,
-        audioCodec: metadata.originalFormat.audioCodec ?? undefined,
-        audioBitrate: metadata.originalFormat.audioBitrate ?? undefined
-      } : undefined
+      originalFormat: metadata.originalFormat
+        ? {
+            codec: metadata.originalFormat.codec,
+            audioCodec: metadata.originalFormat.audioCodec ?? undefined,
+            audioBitrate: metadata.originalFormat.audioBitrate ?? undefined,
+          }
+        : undefined,
     };
-    await processVideoWithSubtitles(inputPath, outputPath, subtitles, localMetadata, subtitlePreference, stylePreference, heightPreference, exportToken);
+    await processVideoWithSubtitles(
+      inputPath,
+      outputPath,
+      subtitles,
+      localMetadata,
+      subtitlePreference,
+      stylePreference,
+      heightPreference,
+      exportToken
+    );
 
     await streamVideoFile(outputPath, originalFilename, uploadId, res);
-
   } catch (error: any) {
     log.error('Export-Fehler in downloadUtils:', error);
     if (outputPath) {
@@ -232,15 +259,28 @@ async function processVideoWithSubtitles(
 
   const segments = processSubtitleSegments(subtitles);
 
-  const { assFilePath, tempFontPath } = await generateAssSubtitles(segments, metadata, subtitlePreference, stylePreference, heightPreference, finalFontSize);
+  const { assFilePath, tempFontPath } = await generateAssSubtitles(
+    segments,
+    metadata,
+    subtitlePreference,
+    stylePreference,
+    heightPreference,
+    finalFontSize
+  );
 
   const useHwAccel = await hwaccel.detectVaapi();
 
   await new Promise<void>((resolve, reject) => {
-    const command = ffmpeg(inputPath)
-      .setDuration(parseFloat(String(metadata.duration)) || 0);
+    const command = ffmpeg(inputPath).setDuration(parseFloat(String(metadata.duration)) || 0);
 
-    const { crf, preset, tune, audioCodec, audioBitrate, videoCodec: cpuVideoCodec } = calculateQualitySettings(metadata);
+    const {
+      crf,
+      preset,
+      tune,
+      audioCodec,
+      audioBitrate,
+      videoCodec: cpuVideoCodec,
+    } = calculateQualitySettings(metadata);
 
     const isVertical = metadata.width < metadata.height;
     const referenceDimension = isVertical ? metadata.width : metadata.height;
@@ -259,10 +299,13 @@ async function processVideoWithSubtitles(
       outputOptions = [
         '-y',
         ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-        '-c:a', audioCodec,
+        '-c:a',
+        audioCodec,
         ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-        '-movflags', '+faststart',
-        '-avoid_negative_ts', 'make_zero'
+        '-movflags',
+        '+faststart',
+        '-avoid_negative_ts',
+        'make_zero',
       ];
 
       log.debug(`[FFmpeg] Using VAAPI: ${referenceDimension}p, encoder: ${videoCodec}, QP: ${qp}`);
@@ -271,16 +314,25 @@ async function processVideoWithSubtitles(
 
       outputOptions = [
         '-y',
-        '-c:v', videoCodec,
-        '-preset', preset,
-        '-crf', crf.toString(),
-        '-tune', tune,
-        '-profile:v', videoCodec === 'libx264' ? 'high' : 'main',
-        '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
-        '-c:a', audioCodec,
+        '-c:v',
+        videoCodec,
+        '-preset',
+        preset,
+        '-crf',
+        crf.toString(),
+        '-tune',
+        tune,
+        '-profile:v',
+        videoCodec === 'libx264' ? 'high' : 'main',
+        '-level',
+        videoCodec === 'libx264' ? '4.1' : '4.0',
+        '-c:a',
+        audioCodec,
         ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-        '-movflags', '+faststart',
-        '-avoid_negative_ts', 'make_zero'
+        '-movflags',
+        '+faststart',
+        '-avoid_negative_ts',
+        'make_zero',
       ];
 
       if (videoCodec === 'libx264') {
@@ -304,7 +356,9 @@ async function processVideoWithSubtitles(
     } else if (assFilePath) {
       const fontDir = path.dirname(tempFontPath || assFilePath);
       command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
-      log.debug(`[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`);
+      log.debug(
+        `[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`
+      );
     }
 
     command
@@ -318,22 +372,37 @@ async function processVideoWithSubtitles(
         const progressData = {
           status: 'exporting',
           progress: progressPercent,
-          timeRemaining: progress.timemark
+          timeRemaining: progress.timemark,
         };
         try {
-          await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), { EX: 60 * 60 });
+          await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), {
+            EX: 60 * 60,
+          });
         } catch (redisError: any) {
           log.warn('Redis Progress Update Fehler:', redisError.message);
         }
       })
       .on('error', (err: Error) => {
         log.error('FFmpeg Fehler:', err);
-        redisClient.del(`export:${exportToken}`).catch((delErr: any) => log.warn(`[FFmpeg Error Cleanup] Failed to delete progress key export:${exportToken}`, delErr));
+        redisClient
+          .del(`export:${exportToken}`)
+          .catch((delErr: any) =>
+            log.warn(
+              `[FFmpeg Error Cleanup] Failed to delete progress key export:${exportToken}`,
+              delErr
+            )
+          );
 
         if (assFilePath) {
-          assService.cleanupTempFile(assFilePath).catch((cleanupErr: any) => log.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr));
+          assService
+            .cleanupTempFile(assFilePath)
+            .catch((cleanupErr: any) => log.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr));
           if (tempFontPath) {
-            fsPromises.unlink(tempFontPath).catch((fontErr: any) => log.warn('[FFmpeg Error] Font cleanup failed:', fontErr.message));
+            fsPromises
+              .unlink(tempFontPath)
+              .catch((fontErr: any) =>
+                log.warn('[FFmpeg Error] Font cleanup failed:', fontErr.message)
+              );
           }
         }
         reject(err);
@@ -348,9 +417,17 @@ async function processVideoWithSubtitles(
         }
 
         if (assFilePath) {
-          await assService.cleanupTempFile(assFilePath).catch((cleanupErr: any) => log.warn('[FFmpeg Success] ASS cleanup failed:', cleanupErr));
+          await assService
+            .cleanupTempFile(assFilePath)
+            .catch((cleanupErr: any) =>
+              log.warn('[FFmpeg Success] ASS cleanup failed:', cleanupErr)
+            );
           if (tempFontPath) {
-            await fsPromises.unlink(tempFontPath).catch((fontErr: any) => log.warn('[FFmpeg Success] Font cleanup failed:', fontErr.message));
+            await fsPromises
+              .unlink(tempFontPath)
+              .catch((fontErr: any) =>
+                log.warn('[FFmpeg Success] Font cleanup failed:', fontErr.message)
+              );
           }
         }
         resolve();
@@ -360,14 +437,21 @@ async function processVideoWithSubtitles(
   });
 }
 
-async function streamVideoFile(outputPath: string, originalFilename: string, uploadId: string, res: Response): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 1000));
+async function streamVideoFile(
+  outputPath: string,
+  originalFilename: string,
+  uploadId: string,
+  res: Response
+): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   const stats = await fsPromises.stat(outputPath);
   const fileSize = stats.size;
 
-  const sanitizedFilename = path.basename(originalFilename, path.extname(originalFilename))
-    .replace(/[^a-zA-Z0-9_-]/g, '_') + '_mit_untertiteln.mp4';
+  const sanitizedFilename =
+    path
+      .basename(originalFilename, path.extname(originalFilename))
+      .replace(/[^a-zA-Z0-9_-]/g, '_') + '_mit_untertiteln.mp4';
 
   res.setHeader('Content-Type', 'video/mp4');
   res.setHeader('Content-Length', fileSize);
@@ -379,7 +463,7 @@ async function streamVideoFile(outputPath: string, originalFilename: string, upl
   const clientInfo = {
     ip: req?.ip || (req?.socket as any)?.remoteAddress,
     userAgent: req?.get?.('User-Agent'),
-    fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`
+    fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`,
   };
   log.debug(`[Export] Starting stream for ${uploadId}: ${clientInfo.fileSize} to ${clientInfo.ip}`);
 
@@ -391,11 +475,15 @@ async function streamVideoFile(outputPath: string, originalFilename: string, upl
 
   res.on('close', () => {
     isClientConnected = false;
-    log.debug(`[Export] Client disconnected for ${uploadId} after ${(streamedBytes / 1024 / 1024).toFixed(2)}MB`);
+    log.debug(
+      `[Export] Client disconnected for ${uploadId} after ${(streamedBytes / 1024 / 1024).toFixed(2)}MB`
+    );
   });
 
   res.on('finish', () => {
-    log.debug(`[Export] Response finished for ${uploadId}: ${(streamedBytes / 1024 / 1024).toFixed(2)}MB sent`);
+    log.debug(
+      `[Export] Response finished for ${uploadId}: ${(streamedBytes / 1024 / 1024).toFixed(2)}MB sent`
+    );
   });
 
   fileStream.on('data', (chunk: Buffer) => {
@@ -411,7 +499,9 @@ async function streamVideoFile(outputPath: string, originalFilename: string, upl
     setTimeout(async () => {
       await cleanupFiles(null, outputPath);
       const success = streamedBytes === fileSize;
-      log.debug(`[Export] Cleanup completed for ${uploadId} (${reason}): ${success ? 'SUCCESS' : 'PARTIAL'} - ${(streamedBytes / 1024 / 1024).toFixed(2)}MB/${(fileSize / 1024 / 1024).toFixed(2)}MB`);
+      log.debug(
+        `[Export] Cleanup completed for ${uploadId} (${reason}): ${success ? 'SUCCESS' : 'PARTIAL'} - ${(streamedBytes / 1024 / 1024).toFixed(2)}MB/${(fileSize / 1024 / 1024).toFixed(2)}MB`
+      );
     }, 2000);
   };
 
@@ -448,37 +538,43 @@ function calculateFontSizes(subtitles: string, metadata: VideoMetadata): FontSiz
   if (referenceDimension >= 2160) {
     minFontSize = 80;
     maxFontSize = 180;
-    basePercentage = isVertical ? 0.070 : 0.065;
+    basePercentage = isVertical ? 0.07 : 0.065;
   } else if (referenceDimension >= 1440) {
     minFontSize = 60;
     maxFontSize = 140;
-    basePercentage = isVertical ? 0.065 : 0.060;
+    basePercentage = isVertical ? 0.065 : 0.06;
   } else if (referenceDimension >= 1080) {
     minFontSize = 45;
     maxFontSize = 100;
-    basePercentage = isVertical ? 0.060 : 0.055;
+    basePercentage = isVertical ? 0.06 : 0.055;
   } else if (referenceDimension >= 720) {
     minFontSize = 35;
     maxFontSize = 70;
-    basePercentage = isVertical ? 0.055 : 0.050;
+    basePercentage = isVertical ? 0.055 : 0.05;
   } else {
     minFontSize = 32;
     maxFontSize = 65;
-    basePercentage = isVertical ? 0.065 : 0.060;
+    basePercentage = isVertical ? 0.065 : 0.06;
   }
 
   const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1;
   const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4);
-  const fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage)));
+  const fontSize = Math.max(
+    minFontSize,
+    Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage))
+  );
 
   const minSpacing = 40;
   const maxSpacing = fontSize * 1.25;
-  const spacing = Math.max(minSpacing, Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize / 48))));
+  const spacing = Math.max(
+    minSpacing,
+    Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize / 48)))
+  );
 
   const segments = processSubtitleSegments(subtitles);
   let totalChars = 0;
   let totalWords = 0;
-  segments.forEach(segment => {
+  segments.forEach((segment) => {
     totalChars += segment.text.length;
     totalWords += segment.text.split(' ').length;
   });
@@ -486,16 +582,22 @@ function calculateFontSizes(subtitles: string, metadata: VideoMetadata): FontSiz
   const avgWords = segments.length > 0 ? totalWords / segments.length : 5;
 
   const scaleFactor = calculateScaleFactor(avgLength, avgWords);
-  const finalFontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(fontSize * scaleFactor)));
+  const finalFontSize = Math.max(
+    minFontSize,
+    Math.min(maxFontSize, Math.floor(fontSize * scaleFactor))
+  );
   const scaledMaxSpacing = maxSpacing * (scaleFactor > 1 ? scaleFactor : 1);
-  const finalSpacing = Math.max(minSpacing, Math.min(scaledMaxSpacing, Math.floor(spacing * scaleFactor)));
+  const finalSpacing = Math.max(
+    minSpacing,
+    Math.min(scaledMaxSpacing, Math.floor(spacing * scaleFactor))
+  );
 
   log.debug('Font calculation:', {
     videoDimensionen: `${metadata.width}x${metadata.height}`,
     avgTextLength: avgLength.toFixed(1),
     scaleFactor: scaleFactor.toFixed(2),
     finalFontSize: `${finalFontSize}px`,
-    finalSpacing: `${finalSpacing}px`
+    finalSpacing: `${finalSpacing}px`,
   });
 
   return { finalFontSize, finalSpacing };
@@ -515,7 +617,7 @@ function calculateScaleFactor(avgChars: number, avgWords: number): number {
   } else {
     const range = longCharThreshold - shortCharThreshold;
     const position = avgChars - shortCharThreshold;
-    charFactor = 1.35 - ((1.35 - 0.95) * (position / range));
+    charFactor = 1.35 - (1.35 - 0.95) * (position / range);
   }
 
   let wordFactor: number;
@@ -526,10 +628,10 @@ function calculateScaleFactor(avgChars: number, avgWords: number): number {
   } else {
     const range = longWordThreshold - shortWordThreshold;
     const position = avgWords - shortWordThreshold;
-    wordFactor = 1.25 - ((1.25 - 0.95) * (position / range));
+    wordFactor = 1.25 - (1.25 - 0.95) * (position / range);
   }
 
-  return (charFactor * 0.7) + (wordFactor * 0.3);
+  return charFactor * 0.7 + wordFactor * 0.3;
 }
 
 function processSubtitleSegments(subtitles: string): SubtitleSegment[] {
@@ -561,8 +663,8 @@ function processSubtitleSegments(subtitles: string): SubtitleSegment[] {
         endSec = endSec % 60;
       }
 
-      const startTime = startMin * 60 + startSec + (startFrac / 10);
-      const endTime = endMin * 60 + endSec + (endFrac / 10);
+      const startTime = startMin * 60 + startSec + startFrac / 10;
+      const endTime = endMin * 60 + endSec + endFrac / 10;
 
       if (startTime >= endTime) return null;
 
@@ -600,15 +702,21 @@ async function generateAssSubtitles(
       fontSize: Math.floor(finalFontSize / 2),
       marginL: 10,
       marginR: 10,
-      marginV: subtitlePreference === 'word'
-        ? Math.floor(metadata.height * 0.50)
-        : (heightPreference === 'tief'
-          ? Math.floor(metadata.height * 0.20)
-          : Math.floor(metadata.height * 0.33)),
-      alignment: subtitlePreference === 'word' ? 5 : 2
+      marginV:
+        subtitlePreference === 'word'
+          ? Math.floor(metadata.height * 0.5)
+          : heightPreference === 'tief'
+            ? Math.floor(metadata.height * 0.2)
+            : Math.floor(metadata.height * 0.33),
+      alignment: subtitlePreference === 'word' ? 5 : 2,
     };
 
-    const assMetadata = { width: metadata.width, height: metadata.height, duration: typeof metadata.duration === 'string' ? parseFloat(metadata.duration) : metadata.duration };
+    const assMetadata = {
+      width: metadata.width,
+      height: metadata.height,
+      duration:
+        typeof metadata.duration === 'string' ? parseFloat(metadata.duration) : metadata.duration,
+    };
     const { content: assContent } = assService.generateAssContent(
       segments,
       assMetadata,
@@ -630,8 +738,9 @@ async function generateAssSubtitles(
       tempFontPath = null;
     }
 
-    log.debug(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}, height: ${heightPreference}`);
-
+    log.debug(
+      `[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}, height: ${heightPreference}`
+    );
   } catch (assError: any) {
     log.error('[ASS] Error generating ASS subtitles:', assError);
     assFilePath = null;
@@ -640,7 +749,10 @@ async function generateAssSubtitles(
   return { assFilePath, tempFontPath };
 }
 
-function calculateQualitySettings(metadata: VideoMetadata, fileSizeMB: number = 0): QualitySettings {
+function calculateQualitySettings(
+  metadata: VideoMetadata,
+  fileSizeMB: number = 0
+): QualitySettings {
   const isVertical = metadata.width < metadata.height;
   const referenceDimension = isVertical ? metadata.width : metadata.height;
   const isLargeFile = fileSizeMB > 200;
@@ -682,7 +794,7 @@ export {
   processDirectDownload,
   processChunkedDownload,
   processVideoExport,
-  processSubtitleSegments
+  processSubtitleSegments,
 };
 
 export type { ExportParams, SubtitleSegment, VideoMetadata, FontSizes, QualitySettings };

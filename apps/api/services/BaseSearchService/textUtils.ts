@@ -21,7 +21,7 @@ export function looksLikeTOC(text: string | null | undefined): boolean {
 
   // Check for many short lines with numbers (typical TOC pattern)
   const lines = t.split(/\n/);
-  const shortLines = lines.filter(l => l.trim().length > 0 && l.trim().length <= 60);
+  const shortLines = lines.filter((l) => l.trim().length > 0 && l.trim().length <= 60);
   const digits = (t.match(/\d/g) || []).length;
   if (shortLines.length >= 2 && digits >= 6) return true;
 
@@ -38,7 +38,10 @@ export function escapeRegExp(s: string): string {
 /**
  * Highlight a search term in text using markdown bold
  */
-export function highlightTerm(text: string | null | undefined, term: string | null | undefined): string {
+export function highlightTerm(
+  text: string | null | undefined,
+  term: string | null | undefined
+): string {
   if (!text || !term) return text || '';
   try {
     const re = new RegExp(`(${escapeRegExp(term)})`, 'gi');

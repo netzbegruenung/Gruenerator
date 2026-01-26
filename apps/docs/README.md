@@ -14,6 +14,7 @@ A real-time collaborative documentation editor powered by TipTap and Y.js, desig
 ## Architecture
 
 ### Frontend
+
 - **Framework**: React 18 + Vite
 - **Editor**: TipTap (extensible rich text editor)
 - **Collaboration**: Y.js CRDT for conflict-free collaborative editing
@@ -21,6 +22,7 @@ A real-time collaborative documentation editor powered by TipTap and Y.js, desig
 - **Styling**: SCSS modules with responsive design
 
 ### Backend
+
 - **WebSocket Server**: Hocuspocus (Y.js WebSocket provider)
 - **Persistence**: PostgreSQL for document storage
 - **Authentication**: Session-based auth via Redis + Keycloak
@@ -29,6 +31,7 @@ A real-time collaborative documentation editor powered by TipTap and Y.js, desig
 ## Development
 
 ### Prerequisites
+
 - Node.js 20+
 - pnpm 9+
 - PostgreSQL database (shared with main Grünerator API)
@@ -37,23 +40,27 @@ A real-time collaborative documentation editor powered by TipTap and Y.js, desig
 ### Setup
 
 1. Install dependencies:
+
 ```bash
 cd apps/docs
 pnpm install
 ```
 
 2. Configure environment:
+
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
 ```
 
 3. Start development server:
+
 ```bash
 pnpm dev
 ```
 
 This will start:
+
 - Vite dev server on `http://localhost:3000`
 - Hot module reloading for frontend
 - API proxying to the backend
@@ -71,12 +78,14 @@ This creates an optimized production build in `dist/`.
 ### Docker Deployment (Recommended)
 
 #### Build Docker Image
+
 ```bash
 # From the docs directory
 docker build -t gruenerator-docs -f Dockerfile ../..
 ```
 
 #### Run with Docker Compose
+
 ```bash
 # Configure environment variables in .env.production
 cp .env.production.example .env.production
@@ -87,6 +96,7 @@ docker compose up -d
 ```
 
 The service will be available at:
+
 - Frontend: `http://localhost:3000`
 - WebSocket: `ws://localhost:1240`
 
@@ -99,6 +109,7 @@ The service will be available at:
    - Compose File: `docker-compose.yml`
 
 2. **Configure Environment Variables**:
+
    ```env
    NODE_ENV=production
    PORT=3000
@@ -125,6 +136,7 @@ The service will be available at:
    - Port 1240: WebSocket traffic (Hocuspocus)
 
    Example Nginx config:
+
    ```nginx
    # HTTP traffic
    location / {
@@ -156,16 +168,19 @@ The service will be available at:
 ### Manual Deployment
 
 1. Build the frontend:
+
 ```bash
 pnpm build
 ```
 
 2. Start the production server:
+
 ```bash
 pnpm start:prod
 ```
 
 The server will:
+
 - Serve static files from `dist/`
 - Run Hocuspocus WebSocket server
 - Handle SPA routing
@@ -218,25 +233,25 @@ CREATE INDEX IF NOT EXISTS idx_yjs_snapshots_document ON yjs_document_snapshots(
 
 ### Required
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment | `production` |
-| `PORT` | HTTP server port | `3000` |
-| `HOCUSPOCUS_PORT` | WebSocket server port | `1240` |
-| `POSTGRES_HOST` | PostgreSQL host | `postgres.example.com` |
-| `POSTGRES_DB` | Database name | `gruenerator` |
-| `POSTGRES_USER` | Database user | `gruenerator_user` |
-| `POSTGRES_PASSWORD` | Database password | `secure_password` |
+| Variable              | Description                | Example                          |
+| --------------------- | -------------------------- | -------------------------------- |
+| `NODE_ENV`            | Environment                | `production`                     |
+| `PORT`                | HTTP server port           | `3000`                           |
+| `HOCUSPOCUS_PORT`     | WebSocket server port      | `1240`                           |
+| `POSTGRES_HOST`       | PostgreSQL host            | `postgres.example.com`           |
+| `POSTGRES_DB`         | Database name              | `gruenerator`                    |
+| `POSTGRES_USER`       | Database user              | `gruenerator_user`               |
+| `POSTGRES_PASSWORD`   | Database password          | `secure_password`                |
 | `VITE_HOCUSPOCUS_URL` | WebSocket URL for frontend | `wss://docs.gruenerator.de:1240` |
 
 ### Optional
 
-| Variable | Description | Default |
-|----------|-------------|---------|
+| Variable          | Description            | Default   |
+| ----------------- | ---------------------- | --------- |
 | `HOCUSPOCUS_HOST` | WebSocket bind address | `0.0.0.0` |
-| `POSTGRES_PORT` | PostgreSQL port | `5432` |
-| `LOG_LEVEL` | Logging level | `info` |
-| `LOG_FORMAT` | Log format | `json` |
+| `POSTGRES_PORT`   | PostgreSQL port        | `5432`    |
+| `LOG_LEVEL`       | Logging level          | `info`    |
+| `LOG_FORMAT`      | Log format             | `json`    |
 
 ## Monitoring
 
@@ -249,6 +264,7 @@ curl https://docs.gruenerator.de/health
 ```
 
 Response:
+
 ```json
 {
   "status": "healthy",
@@ -262,6 +278,7 @@ Response:
 Logs are written to stdout in JSON format (configurable via `LOG_FORMAT`).
 
 View logs in Docker:
+
 ```bash
 docker compose logs -f docs
 ```
@@ -271,11 +288,13 @@ docker compose logs -f docs
 ### WebSocket Connection Fails
 
 1. Check WebSocket URL configuration:
+
    ```env
    VITE_HOCUSPOCUS_URL=wss://docs.gruenerator.de:1240
    ```
 
 2. Ensure reverse proxy allows WebSocket upgrades:
+
    ```nginx
    proxy_http_version 1.1;
    proxy_set_header Upgrade $http_upgrade;

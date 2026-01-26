@@ -6,27 +6,24 @@
  */
 
 // DocumentSearchService - Vector and hybrid search
-export {
-  DocumentSearchService,
-  getQdrantDocumentService
-} from './DocumentSearchService/index.js';
+export { DocumentSearchService, getQdrantDocumentService } from './DocumentSearchService/index.js';
 
 // DocumentContentService - Content operations
 export {
   DocumentContentService,
-  getDocumentContentService
+  getDocumentContentService,
 } from './DocumentContentService/index.js';
 
 // DocumentProcessingService - Processing and extraction
 export {
   DocumentProcessingService,
-  getDocumentProcessingService
+  getDocumentProcessingService,
 } from './DocumentProcessingService/index.js';
 
 // PostgresDocumentService - Database operations
 export {
   PostgresDocumentService,
-  getPostgresDocumentService
+  getPostgresDocumentService,
 } from './PostgresDocumentService/index.js';
 
 // DocumentQnAService - Question-answering capabilities
@@ -39,7 +36,7 @@ export {
   hierarchicalChunkDocument,
   estimateTokens,
   LangChainChunker,
-  langChainChunker
+  langChainChunker,
 } from './TextChunker/index.js';
 
 // Re-export types from all submodules
@@ -53,7 +50,7 @@ export type {
   VectorStoreResult,
   DeleteResult as SearchDeleteResult, // Renamed to avoid conflict with PostgresDocumentService
   ChunkWithMetadata,
-  VectorMetadata
+  VectorMetadata,
 } from './DocumentSearchService/types.js';
 
 // DocumentContentService types
@@ -63,7 +60,7 @@ export type * from './DocumentContentService/types.js';
 export type {
   ChunkingOptions,
   ProcessingResult,
-  ChunkAndEmbedResult
+  ChunkAndEmbedResult,
 } from './DocumentProcessingService/types.js';
 
 // PostgresDocumentService types
@@ -74,7 +71,7 @@ export type {
   UserTextDocument,
   DocumentStats,
   BulkDeleteResult,
-  DeleteResult as PostgresDeleteResult // Renamed to avoid conflict with DocumentSearchService
+  DeleteResult as PostgresDeleteResult, // Renamed to avoid conflict with DocumentSearchService
 } from './PostgresDocumentService/types.js';
 
 // DocumentQnAService types
@@ -84,5 +81,5 @@ export type * from './DocumentQnAService/types.js';
 export type {
   Chunk,
   ChunkMetadata,
-  ChunkingOptions as TextChunkerChunkingOptions // Renamed to avoid conflict
+  ChunkingOptions as TextChunkerChunkingOptions, // Renamed to avoid conflict
 } from './TextChunker/types.js';

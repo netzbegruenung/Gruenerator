@@ -33,9 +33,7 @@ export function GeneratedTextDisplay({ text, onNewGeneration }: GeneratedTextDis
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>
-          Grünerierter Text
-        </Text>
+        <Text style={[styles.title, { color: theme.text }]}>Grünerierter Text</Text>
         <View style={styles.actions}>
           <Pressable
             onPress={handleCopy}
@@ -55,15 +53,16 @@ export function GeneratedTextDisplay({ text, onNewGeneration }: GeneratedTextDis
               { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
             ]}
           >
-            <Text style={[styles.actionText, { color: theme.text }]}>
-              Teilen
-            </Text>
+            <Text style={[styles.actionText, { color: theme.text }]}>Teilen</Text>
           </Pressable>
         </View>
       </View>
 
       <ScrollView
-        style={[styles.textContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        style={[
+          styles.textContainer,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
         contentContainerStyle={styles.textContent}
       >
         <Text style={[styles.text, { color: theme.text }]} selectable>

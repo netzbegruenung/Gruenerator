@@ -1,4 +1,6 @@
-import sharepicClaudeRouter, { handleClaudeRequest as sharepicClaudeHandler } from '../../routes/sharepic/sharepic_claude/index.js';
+import sharepicClaudeRouter, {
+  handleClaudeRequest as sharepicClaudeHandler,
+} from '../../routes/sharepic/sharepic_claude/index.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
@@ -6,7 +8,12 @@ import zitatPureCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_p
 import zitatCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
 import campaignCanvasRouter from '../../routes/sharepic/sharepic_canvas/campaign_canvas.js';
-import { getFirstImageAttachment, convertToBuffer, convertToTempFile, validateImageAttachment } from '../../services/attachments/index.js';
+import {
+  getFirstImageAttachment,
+  convertToBuffer,
+  convertToTempFile,
+  validateImageAttachment,
+} from '../../services/attachments/index.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import { parseResponse, type ParserConfig } from '../../utils/campaign/index.js';
 import fs from 'fs/promises';
@@ -16,7 +23,10 @@ import { createLogger } from '../../utils/logger.js';
 import type { Request, Response } from 'express';
 import type { Router } from 'express';
 import type { UserProfile } from '../../services/user/types.js';
-import type { ImageAttachment as AttachmentsImageAttachment, Attachment } from '../../services/attachments/types.js';
+import type {
+  ImageAttachment as AttachmentsImageAttachment,
+  Attachment,
+} from '../../services/attachments/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -196,7 +206,7 @@ const createImageAttachmentFromFile = async (filename: string): Promise<ImageAtt
       data: dataUrl,
       name: filename,
       size: imageBuffer.length,
-      source: 'ai-selected'
+      source: 'ai-selected',
     };
   } catch (error) {
     log.error(`[SharepicGeneration] Failed to load image ${filename}:`, error);
@@ -220,28 +230,32 @@ const selectAndPrepareImage = async (
       req
     );
 
-    log.debug(`[SharepicGeneration] Selected image: ${selection.selectedImage.filename} (confidence: ${selection.confidence})`);
+    log.debug(
+      `[SharepicGeneration] Selected image: ${selection.selectedImage.filename} (confidence: ${selection.confidence})`
+    );
     log.debug(`[SharepicGeneration] Selection reasoning: ${selection.reasoning}`);
 
     const imageAttachment = await createImageAttachmentFromFile(selection.selectedImage.filename);
 
     return {
       attachment: imageAttachment,
-      selection: selection
+      selection: selection,
     };
   } catch (error) {
     log.error('[SharepicGeneration] Failed to select image:', error);
 
     try {
       log.debug('[SharepicGeneration] Using fallback image');
-      const fallbackImage = await createImageAttachmentFromFile('mike-marrah-XNCv-DcTLx4-unsplash.jpg');
+      const fallbackImage = await createImageAttachmentFromFile(
+        'mike-marrah-XNCv-DcTLx4-unsplash.jpg'
+      );
       return {
         attachment: fallbackImage,
         selection: {
           selectedImage: { filename: 'mike-marrah-XNCv-DcTLx4-unsplash.jpg' },
           confidence: 0.1,
-          reasoning: 'Fallback after selection failed'
-        }
+          reasoning: 'Fallback after selection failed',
+        },
       };
     } catch (fallbackError) {
       log.error('[SharepicGeneration] Even fallback image failed:', fallbackError);
@@ -251,8 +265,16 @@ const selectAndPrepareImage = async (
 };
 
 const getRouteHandler = (router: Router): Function => {
-  const stack = (router as unknown as { stack?: Array<{ route?: { path: string; methods?: { post?: boolean }; stack: Array<{ handle: Function }> } }> }).stack;
-  const layer = stack?.find((entry) => entry.route && entry.route.path === '/' && entry.route.methods?.post);
+  const stack = (
+    router as unknown as {
+      stack?: Array<{
+        route?: { path: string; methods?: { post?: boolean }; stack: Array<{ handle: Function }> };
+      }>;
+    }
+  ).stack;
+  const layer = stack?.find(
+    (entry) => entry.route && entry.route.path === '/' && entry.route.methods?.post
+  );
   if (!layer) {
     throw new Error('Canvas route handler not found');
   }
@@ -280,7 +302,7 @@ const createMockResponse = (
     },
     set() {
       return this;
-    }
+    },
   };
   return res;
 };
@@ -301,8 +323,8 @@ const callSharepicClaude = async (
     correlationId: expressReq.correlationId,
     body: {
       ...body,
-      count: 1
-    }
+      count: 1,
+    },
   };
 
   return new Promise<CanvasResult>((resolve, reject) => {
@@ -312,7 +334,7 @@ const callSharepicClaude = async (
     if (maybePromise && typeof maybePromise.then === 'function') {
       maybePromise.catch(reject);
     }
-  }).then(result => result.payload as Record<string, unknown>);
+  }).then((result) => result.payload as Record<string, unknown>);
 };
 
 const callCanvasRoute = async (
@@ -328,7 +350,7 @@ const callCanvasRoute = async (
       file: file,
       params: {},
       query: {},
-      headers: {}
+      headers: {},
     };
 
     const res = createMockResponse(resolve, reject);
@@ -349,15 +371,26 @@ const callCanvasRoute = async (
   });
 };
 
-const buildInfoCanvasPayload = ({ header, subheader, body }: { header?: string; subheader?: string; body?: string }): { header?: string; body: string } => {
+const buildInfoCanvasPayload = ({
+  header,
+  subheader,
+  body,
+}: {
+  header?: string;
+  subheader?: string;
+  body?: string;
+}): { header?: string; body: string } => {
   const combinedBody = subheader && body ? `${subheader}. ${body}` : subheader || body || '';
   return {
     header,
-    body: combinedBody
+    body: combinedBody,
   };
 };
 
-const generateInfoSharepic = async (expressReq: ExpressRequest, requestBody: RequestBody): Promise<SharepicResult> => {
+const generateInfoSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
   const textResponse = await callSharepicClaude(expressReq, 'info', requestBody);
 
   if (!textResponse?.success) {
@@ -368,7 +401,10 @@ const generateInfoSharepic = async (expressReq: ExpressRequest, requestBody: Req
   const alternatives = (textResponse.alternatives as unknown[]) || [];
   const { header, subheader, body } = mainInfo;
 
-  const { payload: canvasPayload } = await callCanvasRoute(infoCanvasRouter, buildInfoCanvasPayload({ header, subheader, body }));
+  const { payload: canvasPayload } = await callCanvasRoute(
+    infoCanvasRouter,
+    buildInfoCanvasPayload({ header, subheader, body })
+  );
 
   if (!canvasPayload?.image) {
     throw new Error('Info canvas did not return an image');
@@ -379,7 +415,7 @@ const generateInfoSharepic = async (expressReq: ExpressRequest, requestBody: Req
     agent: 'info',
     content: {
       metadata: {
-        sharepicType: 'info'
+        sharepicType: 'info',
       },
       sharepic: {
         image: canvasPayload.image,
@@ -388,19 +424,23 @@ const generateInfoSharepic = async (expressReq: ExpressRequest, requestBody: Req
         header,
         subheader,
         body,
-        alternatives
+        alternatives,
       },
       sharepicTitle: 'Sharepic Vorschau',
       sharepicDownloadText: 'Sharepic herunterladen',
-      sharepicDownloadFilename: `sharepic-info-${Date.now()}.png`
-    }
+      sharepicDownloadFilename: `sharepic-info-${Date.now()}.png`,
+    },
   };
 };
 
-const generateZitatPureSharepic = async (expressReq: ExpressRequest, requestBody: RequestBody): Promise<SharepicResult> => {
+const generateZitatPureSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
   const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
     ...requestBody,
-    preserveName: requestBody.preserveName !== undefined ? requestBody.preserveName : !!requestBody.name
+    preserveName:
+      requestBody.preserveName !== undefined ? requestBody.preserveName : !!requestBody.name,
   });
 
   if (!textResponse?.success) {
@@ -409,9 +449,10 @@ const generateZitatPureSharepic = async (expressReq: ExpressRequest, requestBody
 
   const quote = textResponse.quote as string;
   const alternatives = (textResponse.alternatives as unknown[]) || [];
-  const name = (requestBody.preserveName && requestBody.name)
-    ? requestBody.name
-    : (textResponse.name as string) || '';
+  const name =
+    requestBody.preserveName && requestBody.name
+      ? requestBody.name
+      : (textResponse.name as string) || '';
 
   const { payload: canvasPayload } = await callCanvasRoute(zitatPureCanvasRouter, { quote, name });
 
@@ -425,7 +466,7 @@ const generateZitatPureSharepic = async (expressReq: ExpressRequest, requestBody
     content: {
       metadata: {
         sharepicType: 'zitat_pure',
-        quoteAuthor: name
+        quoteAuthor: name,
       },
       sharepic: {
         image: canvasPayload.image,
@@ -433,16 +474,19 @@ const generateZitatPureSharepic = async (expressReq: ExpressRequest, requestBody
         text: `"${quote}" - ${name}`,
         quote,
         name,
-        alternatives
+        alternatives,
       },
       sharepicTitle: 'Sharepic Vorschau',
       sharepicDownloadText: 'Sharepic herunterladen',
-      sharepicDownloadFilename: `sharepic-zitat_pure-${Date.now()}.png`
-    }
+      sharepicDownloadFilename: `sharepic-zitat_pure-${Date.now()}.png`,
+    },
   };
 };
 
-const generateDreizeilenSharepic = async (expressReq: ExpressRequest, requestBody: RequestBody): Promise<SharepicResult> => {
+const generateDreizeilenSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
   const textResponse = await callSharepicClaude(expressReq, 'dreizeilen', requestBody);
 
   if (!textResponse?.success) {
@@ -453,7 +497,10 @@ const generateDreizeilenSharepic = async (expressReq: ExpressRequest, requestBod
   const alternatives = (textResponse.alternatives as unknown[]) || [];
   log.debug('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
 
-  const { payload: canvasPayload } = await callCanvasRoute(dreizeilenCanvasRouter, mainSlogan as unknown as Record<string, unknown>);
+  const { payload: canvasPayload } = await callCanvasRoute(
+    dreizeilenCanvasRouter,
+    mainSlogan as unknown as Record<string, unknown>
+  );
 
   if (!canvasPayload?.image) {
     throw new Error('Dreizeilen canvas did not return an image');
@@ -464,23 +511,26 @@ const generateDreizeilenSharepic = async (expressReq: ExpressRequest, requestBod
     agent: 'dreizeilen',
     content: {
       metadata: {
-        sharepicType: 'dreizeilen'
+        sharepicType: 'dreizeilen',
       },
       sharepic: {
         image: canvasPayload.image,
         type: 'dreizeilen',
         text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
         mainSlogan,
-        alternatives
+        alternatives,
       },
       sharepicTitle: 'Sharepic Vorschau',
       sharepicDownloadText: 'Sharepic herunterladen',
-      sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`
-    }
+      sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`,
+    },
   };
 };
 
-const generateZitatWithImageSharepic = async (expressReq: ExpressRequest, requestBody: RequestBody): Promise<SharepicResult> => {
+const generateZitatWithImageSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
   log.debug('[SharepicGeneration] Generating zitat with image');
 
   let imageAttachment: ImageAttachment | null = null;
@@ -506,7 +556,7 @@ const generateZitatWithImageSharepic = async (expressReq: ExpressRequest, reques
   try {
     const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
       ...requestBody,
-      preserveName: true
+      preserveName: true,
     });
     if (!textResponse?.success) {
       throw new Error((textResponse?.error as string) || 'Zitat text generation failed');
@@ -516,14 +566,18 @@ const generateZitatWithImageSharepic = async (expressReq: ExpressRequest, reques
     const alternatives = (textResponse.alternatives as unknown[]) || [];
     const name = requestBody.name || (textResponse.name as string) || '';
 
-    tempFile = await convertToTempFile(imageAttachment) as TempFile;
+    tempFile = (await convertToTempFile(imageAttachment)) as TempFile;
 
     const mockReq = {
       body: { quote, name },
-      file: tempFile
+      file: tempFile,
     };
 
-    const { payload: canvasPayload } = await callCanvasRoute(zitatCanvasRouter, mockReq.body, mockReq.file);
+    const { payload: canvasPayload } = await callCanvasRoute(
+      zitatCanvasRouter,
+      mockReq.body,
+      mockReq.file
+    );
 
     if (!canvasPayload?.image) {
       throw new Error('Zitat canvas did not return an image');
@@ -535,7 +589,7 @@ const generateZitatWithImageSharepic = async (expressReq: ExpressRequest, reques
       content: {
         metadata: {
           sharepicType: 'zitat',
-          quoteAuthor: name
+          quoteAuthor: name,
         },
         sharepic: {
           image: canvasPayload.image,
@@ -543,12 +597,12 @@ const generateZitatWithImageSharepic = async (expressReq: ExpressRequest, reques
           text: `"${quote}" - ${name}`,
           quote,
           name,
-          alternatives
+          alternatives,
         },
         sharepicTitle: 'Sharepic Vorschau',
         sharepicDownloadText: 'Sharepic herunterladen',
-        sharepicDownloadFilename: `sharepic-zitat-${Date.now()}.png`
-      }
+        sharepicDownloadFilename: `sharepic-zitat-${Date.now()}.png`,
+      },
     };
   } finally {
     if (tempFile && tempFile.cleanup) {
@@ -557,7 +611,10 @@ const generateZitatWithImageSharepic = async (expressReq: ExpressRequest, reques
   }
 };
 
-const generateDreizeilenWithImageSharepic = async (expressReq: ExpressRequest, requestBody: RequestBody): Promise<SharepicResult> => {
+const generateDreizeilenWithImageSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
   log.debug('[SharepicGeneration] Generating dreizeilen with image');
 
   let imageAttachment: ImageAttachment | null = null;
@@ -592,7 +649,7 @@ const generateDreizeilenWithImageSharepic = async (expressReq: ExpressRequest, r
 
     const mockReq = {
       body: mainSlogan,
-      file: mockFile
+      file: mockFile,
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
@@ -610,19 +667,19 @@ const generateDreizeilenWithImageSharepic = async (expressReq: ExpressRequest, r
       agent: 'dreizeilen',
       content: {
         metadata: {
-          sharepicType: 'dreizeilen'
+          sharepicType: 'dreizeilen',
         },
         sharepic: {
           image: canvasPayload.image,
           type: 'dreizeilen',
           text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
           mainSlogan,
-          alternatives
+          alternatives,
         },
         sharepicTitle: 'Sharepic Vorschau',
         sharepicDownloadText: 'Sharepic herunterladen',
-        sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`
-      }
+        sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`,
+      },
     };
   } catch (error) {
     log.error('[SharepicGeneration] Error in dreizeilen with image:', error);
@@ -630,7 +687,10 @@ const generateDreizeilenWithImageSharepic = async (expressReq: ExpressRequest, r
   }
 };
 
-const generateDreizeilenWithAIImageSharepic = async (expressReq: ExpressRequest, requestBody: RequestBody): Promise<SharepicResult> => {
+const generateDreizeilenWithAIImageSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
   log.debug('[SharepicGeneration] Generating dreizeilen with AI-selected image');
 
   const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
@@ -653,7 +713,8 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq: ExpressRequest,
     const mainSlogan = textResponse.mainSlogan as MainSlogan;
     const alternatives = (textResponse.alternatives as unknown[]) || [];
 
-    const textForAnalysis = `${mainSlogan.line1 || ''} ${mainSlogan.line2 || ''} ${mainSlogan.line3 || ''}`.trim();
+    const textForAnalysis =
+      `${mainSlogan.line1 || ''} ${mainSlogan.line2 || ''} ${mainSlogan.line3 || ''}`.trim();
     const { attachment: aiImageAttachment, selection } = await selectAndPrepareImage(
       textForAnalysis,
       'dreizeilen',
@@ -665,7 +726,7 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq: ExpressRequest,
 
     const mockReq = {
       body: mainSlogan,
-      file: mockFile
+      file: mockFile,
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
@@ -687,8 +748,8 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq: ExpressRequest,
           aiSelectedImage: {
             filename: selection.selectedImage.filename,
             confidence: selection.confidence,
-            reasoning: selection.reasoning
-          }
+            reasoning: selection.reasoning,
+          },
         },
         sharepic: {
           image: canvasPayload.image,
@@ -696,12 +757,12 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq: ExpressRequest,
           text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
           mainSlogan,
           alternatives,
-          selectedImage: selection.selectedImage.filename
+          selectedImage: selection.selectedImage.filename,
         },
         sharepicTitle: 'Sharepic Vorschau',
         sharepicDownloadText: 'Sharepic herunterladen',
-        sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`
-      }
+        sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`,
+      },
     };
   } catch (error) {
     log.error('[SharepicGeneration] Error in dreizeilen with AI image:', error);
@@ -712,7 +773,9 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq: ExpressRequest,
         const hasRemainingImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
         if (hasRemainingImage) {
           await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
-          log.debug('[SharepicGeneration] Cleaned up remaining uploaded image after dreizeilen AI generation');
+          log.debug(
+            '[SharepicGeneration] Cleaned up remaining uploaded image after dreizeilen AI generation'
+          );
         }
       } catch (cleanupError) {
         log.warn('[SharepicGeneration] Error during image cleanup:', cleanupError);
@@ -721,7 +784,10 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq: ExpressRequest,
   }
 };
 
-const generateCampaignSharepic = async (expressReq: ExpressRequest, requestBody: RequestBody): Promise<SharepicResult> => {
+const generateCampaignSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
   const { campaignId, campaignTypeId } = requestBody;
 
   log.debug(`[Campaign] Generating ${campaignId}/${campaignTypeId} sharepic`);
@@ -744,19 +810,25 @@ const generateCampaignSharepic = async (expressReq: ExpressRequest, requestBody:
     const promptConfig = campaignConfig.prompt;
 
     let requestText = promptConfig?.requestTemplate || promptConfig?.singleItemTemplate || '';
-    Object.keys(requestBody).forEach(key => {
+    Object.keys(requestBody).forEach((key) => {
       const placeholder = `{{${key}}}`;
       if (requestText.includes(placeholder)) {
-        requestText = requestText.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), String(requestBody[key]) || '');
+        requestText = requestText.replace(
+          new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+          String(requestBody[key]) || ''
+        );
       }
     });
 
-    const aiResult = await expressReq.app.locals!.aiWorkerPool!.processRequest({
-      type: `campaign_${campaignTypeId}`,
-      systemPrompt: promptConfig?.systemRole || '',
-      messages: [{ role: 'user', content: requestText }],
-      options: promptConfig?.options
-    }, expressReq);
+    const aiResult = await expressReq.app.locals!.aiWorkerPool!.processRequest(
+      {
+        type: `campaign_${campaignTypeId}`,
+        systemPrompt: promptConfig?.systemRole || '',
+        messages: [{ role: 'user', content: requestText }],
+        options: promptConfig?.options,
+      },
+      expressReq
+    );
 
     if (!aiResult?.content) {
       throw new Error('AI response empty or invalid');
@@ -776,7 +848,7 @@ const generateCampaignSharepic = async (expressReq: ExpressRequest, requestBody:
 
     textResponse = await callSharepicClaude(expressReq, baseType, {
       ...requestBody,
-      _campaignPrompt: campaignConfig.prompt
+      _campaignPrompt: campaignConfig.prompt,
     } as RequestBody);
 
     if (!textResponse?.success) {
@@ -789,7 +861,7 @@ const generateCampaignSharepic = async (expressReq: ExpressRequest, requestBody:
         textData = {
           line1: mainSlogan?.line1,
           line2: mainSlogan?.line2,
-          line3: mainSlogan?.line3
+          line3: mainSlogan?.line3,
         };
         break;
       }
@@ -797,15 +869,19 @@ const generateCampaignSharepic = async (expressReq: ExpressRequest, requestBody:
       case 'zitat_pure':
         textData = {
           quote: textResponse.quote as string,
-          name: (textResponse.name as string) || ''
+          name: (textResponse.name as string) || '',
         };
         break;
       case 'info': {
-        const mainInfo = textResponse.mainInfo as { header?: string; subheader?: string; body?: string };
+        const mainInfo = textResponse.mainInfo as {
+          header?: string;
+          subheader?: string;
+          body?: string;
+        };
         textData = {
           header: mainInfo?.header,
           subheader: mainInfo?.subheader,
-          body: mainInfo?.body
+          body: mainInfo?.body,
         };
         break;
       }
@@ -818,7 +894,7 @@ const generateCampaignSharepic = async (expressReq: ExpressRequest, requestBody:
 
   const { payload: canvasPayload } = await callCanvasRoute(campaignCanvasRouter, {
     campaignConfig: campaignConfig,
-    textData: textData
+    textData: textData,
   });
 
   if (!canvasPayload?.image) {
@@ -834,18 +910,18 @@ const generateCampaignSharepic = async (expressReq: ExpressRequest, requestBody:
       metadata: {
         sharepicType: 'campaign',
         campaignId,
-        campaignTypeId
+        campaignTypeId,
       },
       sharepic: {
         image: canvasPayload.image,
         type: campaignTypeId!,
         textData,
-        alternatives: (textResponse.alternatives as unknown[]) || []
+        alternatives: (textResponse.alternatives as unknown[]) || [],
       },
       sharepicTitle: `${campaignName} Sharepic`,
       sharepicDownloadText: 'Sharepic herunterladen',
-      sharepicDownloadFilename: `sharepic-${campaignId}-${campaignTypeId}-${Date.now()}.png`
-    }
+      sharepicDownloadFilename: `sharepic-${campaignId}-${campaignTypeId}-${Date.now()}.png`,
+    },
   };
 };
 
@@ -855,7 +931,9 @@ const generateSharepicForChat = async (
   requestBody: RequestBody
 ): Promise<SharepicResult> => {
   if (requestBody.campaignId && requestBody.campaignTypeId) {
-    log.debug(`[SharepicGeneration] Campaign sharepic requested: ${requestBody.campaignId}/${requestBody.campaignTypeId}`);
+    log.debug(
+      `[SharepicGeneration] Campaign sharepic requested: ${requestBody.campaignId}/${requestBody.campaignTypeId}`
+    );
     return await generateCampaignSharepic(expressReq, requestBody);
   }
 
@@ -873,9 +951,11 @@ const generateSharepicForChat = async (
   }
 
   if (!hasImageAttachment) {
-    hasImageAttachment = !!(requestBody.attachments &&
+    hasImageAttachment = !!(
+      requestBody.attachments &&
       Array.isArray(requestBody.attachments) &&
-      requestBody.attachments.some(att => att.type && att.type.startsWith('image/')));
+      requestBody.attachments.some((att) => att.type && att.type.startsWith('image/'))
+    );
   }
 
   switch (type) {

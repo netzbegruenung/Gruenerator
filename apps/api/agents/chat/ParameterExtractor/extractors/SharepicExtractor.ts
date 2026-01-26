@@ -3,13 +3,18 @@
  * Handles zitat, info, headline, and dreizeilen sharepics
  */
 
-import type { SharepicParameters, ZitatParameters, DreiZeilenParameters, BaseParameters } from '../types.js';
+import type {
+  SharepicParameters,
+  ZitatParameters,
+  DreiZeilenParameters,
+  BaseParameters,
+} from '../types.js';
 import type { ChatContext } from '../../types.js';
 import {
   extractTheme,
   extractDetails,
   extractQuoteAuthor,
-  extractLines
+  extractLines,
 } from '../utils/extractionUtils.js';
 
 /**
@@ -29,7 +34,7 @@ export function extractSharepicParams(
     ...baseParams,
     thema: thema || 'Grüne Politik',
     details: details || message,
-    type: agent
+    type: agent,
   };
 
   // Agent-specific additions

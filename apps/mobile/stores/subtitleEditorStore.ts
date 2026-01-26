@@ -18,10 +18,11 @@ import {
   DEFAULT_SUBTITLE_PARAMS,
 } from '@gruenerator/shared/subtitle-editor';
 
-type SubtitleEditorStore = SubtitleEditorState & SubtitleEditorActions & {
-  isSaving: boolean;
-  error: string | null;
-};
+type SubtitleEditorStore = SubtitleEditorState &
+  SubtitleEditorActions & {
+    isSaving: boolean;
+    error: string | null;
+  };
 
 const initialState: SubtitleEditorState & { isSaving: boolean; error: string | null } = {
   projectId: null,
@@ -148,9 +149,11 @@ export const useSubtitleEditorStore = create<SubtitleEditorStore>()((set, get) =
  * Selector for the active segment at current time
  */
 export const selectActiveSegment = (state: SubtitleEditorStore): SubtitleSegment | null => {
-  return state.segments.find(
-    (segment) => state.currentTime >= segment.startTime && state.currentTime <= segment.endTime
-  ) || null;
+  return (
+    state.segments.find(
+      (segment) => state.currentTime >= segment.startTime && state.currentTime <= segment.endTime
+    ) || null
+  );
 };
 
 /**

@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { HiOutlineClipboardCopy } from 'react-icons/hi';
 import { FaCheck } from 'react-icons/fa';
+import { HiOutlineClipboardCopy } from 'react-icons/hi';
 
 interface ClipboardFeedbackIconProps {
   copied: boolean;

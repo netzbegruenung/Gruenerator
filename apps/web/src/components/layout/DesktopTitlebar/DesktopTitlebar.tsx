@@ -1,4 +1,5 @@
-import { Suspense, lazy, Component, ReactNode } from 'react';
+import { Suspense, lazy, Component, type ReactNode } from 'react';
+
 import { isDesktopApp } from '../../../utils/platform';
 import { minimizeWindow, toggleMaximizeWindow, closeWindow } from '../../../utils/tauriWindow';
 import ProfileButton from '../Header/ProfileButton';
@@ -52,7 +53,7 @@ const DesktopTitlebar = () => {
     if (target.closest('.tab-bar-container') || target.closest('.titlebar-controls')) {
       return;
     }
-    toggleMaximizeWindow();
+    void toggleMaximizeWindow();
   };
 
   return (
@@ -69,7 +70,7 @@ const DesktopTitlebar = () => {
         </div>
         <button
           className="titlebar-button minimize"
-          onClick={minimizeWindow}
+          onClick={() => void minimizeWindow()}
           aria-label="Minimieren"
         >
           <svg width="10" height="1" viewBox="0 0 10 1">
@@ -78,18 +79,14 @@ const DesktopTitlebar = () => {
         </button>
         <button
           className="titlebar-button maximize"
-          onClick={toggleMaximizeWindow}
+          onClick={() => void toggleMaximizeWindow()}
           aria-label="Maximieren"
         >
           <svg width="10" height="10" viewBox="0 0 10 10">
             <rect width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
           </svg>
         </button>
-        <button
-          className="titlebar-button close"
-          onClick={closeWindow}
-          aria-label="Schließen"
-        >
+        <button className="titlebar-button close" onClick={() => void closeWindow()} aria-label="Schließen">
           <svg width="10" height="10" viewBox="0 0 10 10">
             <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.2" />
             <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.2" />

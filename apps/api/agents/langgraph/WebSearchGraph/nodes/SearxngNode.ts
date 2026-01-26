@@ -23,7 +23,7 @@ function normalizeMistralResults(mistralResult: any): SearchResult[] {
     content: source.snippet || mistralResult.textContent || '',
     snippet: source.snippet || '',
     domain: source.domain,
-    score: source.relevance || 1.0
+    score: source.relevance || 1.0,
   }));
 }
 
@@ -31,7 +31,9 @@ function normalizeMistralResults(mistralResult: any): SearchResult[] {
  * Searxng Node: Execute web searches with fallback
  */
 export async function searxngNode(state: WebSearchState): Promise<Partial<WebSearchState>> {
-  console.log(`[WebSearchGraph] Executing web searches for ${state.subqueries?.length || 0} queries`);
+  console.log(
+    `[WebSearchGraph] Executing web searches for ${state.subqueries?.length || 0} queries`
+  );
 
   try {
     let useMistralFallback = false;
@@ -47,7 +49,9 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
 
         // Use Mistral if fallback was triggered for previous query (batch fallback)
         if (useMistralFallback) {
-          console.log(`[WebSearchGraph] Using Mistral (fallback mode) for query ${index + 1}: "${query}"`);
+          console.log(
+            `[WebSearchGraph] Using Mistral (fallback mode) for query ${index + 1}: "${query}"`
+          );
           provider = 'mistral';
           const mistralResult = await mistralSearchService.performWebSearch(query, 'content');
           results = normalizeMistralResults(mistralResult);
@@ -63,9 +67,8 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
           query,
           success: true,
           results,
-          provider
+          provider,
         });
-
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -74,7 +77,9 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
           useMistralFallback = true;
           fallbackReason = errorMessage;
           console.warn(`[WebSearchGraph] SearXNG failed for query ${index + 1}: ${errorMessage}`);
-          console.log(`[WebSearchGraph] Activating Mistral fallback for this and all remaining queries`);
+          console.log(
+            `[WebSearchGraph] Activating Mistral fallback for this and all remaining queries`
+          );
 
           // Retry this query with Mistral
           try {
@@ -86,35 +91,44 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
               query,
               success: true,
               results,
-              provider
+              provider,
             });
             continue;
           } catch (mistralError) {
-            const mistralErrorMsg = mistralError instanceof Error ? mistralError.message : String(mistralError);
-            console.error(`[WebSearchGraph] Mistral fallback also failed for query ${index + 1}:`, mistralErrorMsg);
+            const mistralErrorMsg =
+              mistralError instanceof Error ? mistralError.message : String(mistralError);
+            console.error(
+              `[WebSearchGraph] Mistral fallback also failed for query ${index + 1}:`,
+              mistralErrorMsg
+            );
           }
         }
 
         // Both providers failed or Mistral failed during fallback mode
-        console.error(`[WebSearchGraph] Search ${index + 1} failed (provider: ${provider}):`, errorMessage);
+        console.error(
+          `[WebSearchGraph] Search ${index + 1} failed (provider: ${provider}):`,
+          errorMessage
+        );
         searchResults.push({
           query,
           success: false,
           error: errorMessage,
           results: [],
-          provider
+          provider,
         });
       }
     }
 
-    const successfulSearches = searchResults.filter(r => r.success);
+    const successfulSearches = searchResults.filter((r) => r.success);
     const providerCounts = searchResults.reduce((acc: Record<string, number>, r) => {
       const p = r.provider || 'unknown';
       acc[p] = (acc[p] || 0) + 1;
       return acc;
     }, {});
 
-    console.log(`[WebSearchGraph] Search completed: ${successfulSearches.length}/${searchResults.length} successful`);
+    console.log(
+      `[WebSearchGraph] Search completed: ${successfulSearches.length}/${searchResults.length} successful`
+    );
     console.log(`[WebSearchGraph] Providers used: ${JSON.stringify(providerCounts)}`);
     if (useMistralFallback) {
       console.log(`[WebSearchGraph] Fallback activated: ${fallbackReason}`);
@@ -129,8 +143,8 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
         totalWebResults: successfulSearches.reduce((sum, r) => sum + r.results.length, 0),
         providersUsed: providerCounts,
         fallbackActivated: useMistralFallback,
-        fallbackReason: fallbackReason || undefined
-      }
+        fallbackReason: fallbackReason || undefined,
+      },
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -138,7 +152,12 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
     return {
       webResults: [],
       error: `Web search failed: ${errorMessage}`,
-      metadata: { ...state.metadata, webSearches: 0, successfulWebSearches: 0, criticalFailure: true }
+      metadata: {
+        ...state.metadata,
+        webSearches: 0,
+        successfulWebSearches: 0,
+        criticalFailure: true,
+      },
     };
   }
 }

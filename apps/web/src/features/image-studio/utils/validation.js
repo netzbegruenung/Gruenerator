@@ -23,7 +23,8 @@ export const validateFormData = (type, formData) => {
 
     // Required check
     if (rules.required) {
-      const isEmpty = value === null ||
+      const isEmpty =
+        value === null ||
         value === undefined ||
         (typeof value === 'string' && value.trim().length === 0);
 
@@ -75,5 +76,5 @@ export const getFieldValidation = (type, field) => {
 export default {
   validateFormData,
   isFormValid,
-  getFieldValidation
+  getFieldValidation,
 };

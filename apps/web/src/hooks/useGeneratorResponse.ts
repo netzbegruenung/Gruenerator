@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+
 import useGeneratedTextStore from '../stores/core/generatedTextStore';
 
 /**
@@ -58,10 +59,7 @@ export interface ResponseParserReturn {
    * }
    * ```
    */
-  parseResponse: <T = string>(
-    response: unknown,
-    endpoint: string
-  ) => ParsedResponse<T>;
+  parseResponse: <T = string>(response: unknown, endpoint: string) => ParsedResponse<T>;
 
   /**
    * Updates generated text in store
@@ -80,10 +78,7 @@ export interface ResponseParserReturn {
    * }
    * ```
    */
-  updateGeneratedText: (
-    content: string,
-    metadata?: Record<string, unknown>
-  ) => void;
+  updateGeneratedText: (content: string, metadata?: Record<string, unknown>) => void;
 }
 
 /**
@@ -137,9 +132,7 @@ export interface ResponseParserReturn {
  * };
  * ```
  */
-export function useGeneratorResponse(
-  config: ResponseParserConfig
-): ResponseParserReturn {
+export function useGeneratorResponse(config: ResponseParserConfig): ResponseParserReturn {
   const { setGeneratedText } = useGeneratedTextStore();
 
   /**

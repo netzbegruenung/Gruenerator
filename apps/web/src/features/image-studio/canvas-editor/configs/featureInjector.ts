@@ -13,31 +13,31 @@
  * This eliminates 60+ lines of manual prop passing per config (83% code reduction).
  */
 
-import type { ExtendedAssetsSectionProps } from '../sidebar/sections/AssetsSection';
 import type { SectionContext } from './types';
-import type { ShapeInstance } from '../utils/shapes';
-import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { ExtendedAssetsSectionProps } from '../sidebar/sections/AssetsSection';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { ShapeInstance } from '../utils/shapes';
 
 interface FeatureStateWithIcons {
-    selectedIcons?: string[];
-    iconStates?: Record<string, unknown>;
+  selectedIcons?: string[];
+  iconStates?: Record<string, unknown>;
 }
 
 interface FeatureStateWithShapes {
-    shapeInstances?: ShapeInstance[];
+  shapeInstances?: ShapeInstance[];
 }
 
 interface FeatureStateWithIllustrations {
-    illustrationInstances?: IllustrationInstance[];
+  illustrationInstances?: IllustrationInstance[];
 }
 
 interface FeatureStateWithBalken {
-    balkenInstances?: BalkenInstance[];
+  balkenInstances?: BalkenInstance[];
 }
 
 interface FeatureActionsBase {
-    [key: string]: ((...args: unknown[]) => unknown) | undefined;
+  [key: string]: ((...args: unknown[]) => unknown) | undefined;
 }
 
 /**
@@ -63,88 +63,91 @@ interface FeatureActionsBase {
  * ```
  */
 export function injectFeatureProps<S extends object, A extends object>(
-    state: S,
-    actions: A,
-    context?: SectionContext
+  state: S,
+  actions: A,
+  context?: SectionContext
 ): Partial<ExtendedAssetsSectionProps> {
-    const injected: Partial<ExtendedAssetsSectionProps> = {};
+  const injected: Partial<ExtendedAssetsSectionProps> = {};
 
-    // === ICONS FEATURE ===
-    // Convention: state.selectedIcons + state.iconStates + actions.toggleIcon
-    if ('selectedIcons' in state && 'toggleIcon' in actions) {
-        const stateWithIcons = state as FeatureStateWithIcons;
-        injected.selectedIcons = stateWithIcons.selectedIcons;
-        injected.onIconToggle = actions.toggleIcon as (id: string, selected: boolean) => void;
-        injected.maxIconSelections = 3; // Standard max
+  // === ICONS FEATURE ===
+  // Convention: state.selectedIcons + state.iconStates + actions.toggleIcon
+  if ('selectedIcons' in state && 'toggleIcon' in actions) {
+    const stateWithIcons = state as FeatureStateWithIcons;
+    injected.selectedIcons = stateWithIcons.selectedIcons;
+    injected.onIconToggle = actions.toggleIcon as (id: string, selected: boolean) => void;
+    injected.maxIconSelections = 3; // Standard max
 
-        // Optional: icon update handler
-        if ('updateIcon' in actions) {
-            // Not directly passed to AssetsSection, but available via IconsSection
-        }
+    // Optional: icon update handler
+    if ('updateIcon' in actions) {
+      // Not directly passed to AssetsSection, but available via IconsSection
+    }
+  }
+
+  // === SHAPES FEATURE ===
+  // Convention: state.shapeInstances + actions.addShape/updateShape/removeShape
+  if ('shapeInstances' in state && 'addShape' in actions) {
+    const stateWithShapes = state as FeatureStateWithShapes;
+    injected.shapeInstances = stateWithShapes.shapeInstances;
+    injected.selectedShapeId = context?.selectedElement || null;
+    injected.onAddShape = actions.addShape as (type: string) => void;
+
+    if ('updateShape' in actions) {
+      injected.onUpdateShape = actions.updateShape as (id: string, partial: unknown) => void;
     }
 
-    // === SHAPES FEATURE ===
-    // Convention: state.shapeInstances + actions.addShape/updateShape/removeShape
-    if ('shapeInstances' in state && 'addShape' in actions) {
-        const stateWithShapes = state as FeatureStateWithShapes;
-        injected.shapeInstances = stateWithShapes.shapeInstances;
-        injected.selectedShapeId = context?.selectedElement || null;
-        injected.onAddShape = actions.addShape as (type: string) => void;
-
-        if ('updateShape' in actions) {
-            injected.onUpdateShape = actions.updateShape as (id: string, partial: unknown) => void;
-        }
-
-        if ('removeShape' in actions) {
-            injected.onRemoveShape = actions.removeShape as (id: string) => void;
-        }
-
-        if ('duplicateShape' in actions) {
-            injected.onDuplicateShape = actions.duplicateShape as (id: string) => void;
-        }
+    if ('removeShape' in actions) {
+      injected.onRemoveShape = actions.removeShape as (id: string) => void;
     }
 
-    // === ILLUSTRATIONS FEATURE ===
-    // Convention: state.illustrationInstances + actions.addIllustration/updateIllustration/removeIllustration
-    if ('illustrationInstances' in state && 'addIllustration' in actions) {
-        const stateWithIllustrations = state as FeatureStateWithIllustrations;
-        injected.illustrationInstances = stateWithIllustrations.illustrationInstances;
-        injected.selectedIllustrationId = context?.selectedElement || null;
-        injected.onAddIllustration = actions.addIllustration as (id: string) => void;
+    if ('duplicateShape' in actions) {
+      injected.onDuplicateShape = actions.duplicateShape as (id: string) => void;
+    }
+  }
 
-        if ('updateIllustration' in actions) {
-            injected.onUpdateIllustration = actions.updateIllustration as (id: string, partial: unknown) => void;
-        }
+  // === ILLUSTRATIONS FEATURE ===
+  // Convention: state.illustrationInstances + actions.addIllustration/updateIllustration/removeIllustration
+  if ('illustrationInstances' in state && 'addIllustration' in actions) {
+    const stateWithIllustrations = state as FeatureStateWithIllustrations;
+    injected.illustrationInstances = stateWithIllustrations.illustrationInstances;
+    injected.selectedIllustrationId = context?.selectedElement || null;
+    injected.onAddIllustration = actions.addIllustration as (id: string) => void;
 
-        if ('removeIllustration' in actions) {
-            injected.onRemoveIllustration = actions.removeIllustration as (id: string) => void;
-        }
-
-        if ('duplicateIllustration' in actions) {
-            injected.onDuplicateIllustration = actions.duplicateIllustration as (id: string) => void;
-        }
+    if ('updateIllustration' in actions) {
+      injected.onUpdateIllustration = actions.updateIllustration as (
+        id: string,
+        partial: unknown
+      ) => void;
     }
 
-    // === BALKEN FEATURE ===
-    // Convention: state.balkenInstances + actions.addBalken/updateBalken/removeBalken
-    if ('balkenInstances' in state && 'addBalken' in actions) {
-        const stateWithBalken = state as FeatureStateWithBalken;
-        injected.balkenInstances = stateWithBalken.balkenInstances;
-        injected.selectedBalkenId = context?.selectedElement || null;
-        injected.onAddBalken = actions.addBalken as (mode: string) => void;
-
-        if ('updateBalken' in actions) {
-            injected.onUpdateBalken = actions.updateBalken as (id: string, partial: unknown) => void;
-        }
-
-        if ('removeBalken' in actions) {
-            injected.onRemoveBalken = actions.removeBalken as (id: string) => void;
-        }
-
-        if ('duplicateBalken' in actions) {
-            injected.onDuplicateBalken = actions.duplicateBalken as (id: string) => void;
-        }
+    if ('removeIllustration' in actions) {
+      injected.onRemoveIllustration = actions.removeIllustration as (id: string) => void;
     }
 
-    return injected;
+    if ('duplicateIllustration' in actions) {
+      injected.onDuplicateIllustration = actions.duplicateIllustration as (id: string) => void;
+    }
+  }
+
+  // === BALKEN FEATURE ===
+  // Convention: state.balkenInstances + actions.addBalken/updateBalken/removeBalken
+  if ('balkenInstances' in state && 'addBalken' in actions) {
+    const stateWithBalken = state as FeatureStateWithBalken;
+    injected.balkenInstances = stateWithBalken.balkenInstances;
+    injected.selectedBalkenId = context?.selectedElement || null;
+    injected.onAddBalken = actions.addBalken as (mode: string) => void;
+
+    if ('updateBalken' in actions) {
+      injected.onUpdateBalken = actions.updateBalken as (id: string, partial: unknown) => void;
+    }
+
+    if ('removeBalken' in actions) {
+      injected.onRemoveBalken = actions.removeBalken as (id: string) => void;
+    }
+
+    if ('duplicateBalken' in actions) {
+      injected.onDuplicateBalken = actions.duplicateBalken as (id: string) => void;
+    }
+  }
+
+  return injected;
 }

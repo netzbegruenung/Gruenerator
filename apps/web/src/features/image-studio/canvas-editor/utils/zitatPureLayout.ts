@@ -3,8 +3,8 @@
  * Exact values extracted from apps/api/routes/sharepic/sharepic_canvas/zitat_pure_canvas.ts
  * to ensure 1:1 visual match between frontend and backend rendering
  */
-import { wrapText } from './textUtils';
 import { SYSTEM_ASSETS } from './canvasAssets';
+import { wrapText } from './textUtils';
 
 export const ZITAT_PURE_CONFIG = {
   canvas: {
@@ -73,8 +73,6 @@ export interface LayoutResult {
   quoteLines: string[];
 }
 
-
-
 export function calculateDynamicFontSize(
   text: string,
   baseFontSize: number,
@@ -114,8 +112,7 @@ export function calculateVerticalLayout(
     authorFontSize;
 
   const verticalOffset =
-    config.layout.topBoundary +
-    (config.layout.availableHeight - totalContentHeight) / 2;
+    config.layout.topBoundary + (config.layout.availableHeight - totalContentHeight) / 2;
 
   const quoteMarkY = Math.max(config.layout.topBoundary, verticalOffset);
   const quoteY = quoteMarkY + config.quotationMark.size + config.quotationMark.gapToText;
@@ -147,9 +144,9 @@ export function calculateZitatPureLayout(quoteText: string): LayoutResult {
   const authorFontSize =
     quoteLines.length <= config.dynamicScaling.lineThreshold
       ? Math.min(
-        config.author.fontSize * config.dynamicScaling.scaleFactor,
-        config.dynamicScaling.maxAuthorFont
-      )
+          config.author.fontSize * config.dynamicScaling.scaleFactor,
+          config.dynamicScaling.maxAuthorFont
+        )
       : config.author.fontSize;
 
   return calculateVerticalLayout(quoteText, quoteFontSize, authorFontSize);

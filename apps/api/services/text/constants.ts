@@ -15,7 +15,7 @@ export const SUBSCRIPT_MAP: Record<string, string> = {
   '\u2086': '6',
   '\u2087': '7',
   '\u2088': '8',
-  '\u2089': '9'
+  '\u2089': '9',
 } as const;
 
 /**
@@ -31,7 +31,7 @@ export const SUPERSCRIPT_MAP: Record<string, string> = {
   '\u2076': '6',
   '\u2077': '7',
   '\u2078': '8',
-  '\u2079': '9'
+  '\u2079': '9',
 } as const;
 
 /**

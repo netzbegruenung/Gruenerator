@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export function useLoadingProgress(
-  isLoading: boolean,
-  estimatedDuration: number = 30000
-) {
+export function useLoadingProgress(isLoading: boolean, estimatedDuration: number = 30000) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {

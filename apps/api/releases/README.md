@@ -1,1 +1,1 @@
-# Desktop Release Files\n\nPlace Tauri update bundles here:\n- gruenerator_{version}_amd64.AppImage.tar.gz\n- Gruenerator_{version}_x64.app.tar.gz\n- Gruenerator_{version}_aarch64.app.tar.gz\n- Gruenerator_{version}_x64-setup.nsis.zip\n\nAnd their signatures (.sig files)
+# Desktop Release Files\n\nPlace Tauri update bundles here:\n- gruenerator*{version}\_amd64.AppImage.tar.gz\n- Gruenerator*{version}_x64.app.tar.gz\n- Gruenerator_{version}_aarch64.app.tar.gz\n- Gruenerator_{version}\_x64-setup.nsis.zip\n\nAnd their signatures (.sig files)

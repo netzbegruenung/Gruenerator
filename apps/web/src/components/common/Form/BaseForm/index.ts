@@ -35,5 +35,5 @@ export type {
   FormSectionProps,
   DisplaySectionProps,
   FormInputSectionProps,
-  FormExtrasSectionProps
-} from '@/types/baseform'; 
+  FormExtrasSectionProps,
+} from '@/types/baseform';

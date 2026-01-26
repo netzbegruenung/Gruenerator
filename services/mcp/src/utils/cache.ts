@@ -7,10 +7,10 @@ import { normalizeQuery } from '@gruenerator/shared/utils';
 
 // Cache configuration
 const CACHE_CONFIG = {
-  embeddingTTL: 10 * 60 * 1000,  // 10 minutes for embeddings
-  searchTTL: 5 * 60 * 1000,       // 5 minutes for search results
+  embeddingTTL: 10 * 60 * 1000, // 10 minutes for embeddings
+  searchTTL: 5 * 60 * 1000, // 5 minutes for search results
   maxEmbeddingEntries: 100,
-  maxSearchEntries: 200
+  maxSearchEntries: 200,
 };
 
 // In-memory caches
@@ -22,7 +22,7 @@ const stats = {
   embeddingHits: 0,
   embeddingMisses: 0,
   searchHits: 0,
-  searchMisses: 0
+  searchMisses: 0,
 };
 
 /**
@@ -58,8 +58,7 @@ function cleanCache(cache, ttl) {
  */
 function evictIfFull(cache, maxEntries) {
   if (cache.size >= maxEntries) {
-    const sortedEntries = [...cache.entries()]
-      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const sortedEntries = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
 
     const toRemove = Math.ceil(maxEntries * 0.2);
     for (let i = 0; i < toRemove && i < sortedEntries.length; i++) {
@@ -77,7 +76,7 @@ export function getCachedEmbedding(query) {
   const key = getEmbeddingKey(query);
   const entry = embeddingCache.get(key);
 
-  if (entry && (Date.now() - entry.timestamp) < CACHE_CONFIG.embeddingTTL) {
+  if (entry && Date.now() - entry.timestamp < CACHE_CONFIG.embeddingTTL) {
     stats.embeddingHits++;
     return entry.embedding;
   }
@@ -95,7 +94,7 @@ export function cacheEmbedding(query, embedding) {
   const key = getEmbeddingKey(query);
   embeddingCache.set(key, {
     embedding,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 }
 
@@ -108,7 +107,7 @@ export function getCachedSearch(collection, query, searchMode, filters = null) {
   const key = getSearchKey(collection, query, searchMode, filters);
   const entry = searchCache.get(key);
 
-  if (entry && (Date.now() - entry.timestamp) < CACHE_CONFIG.searchTTL) {
+  if (entry && Date.now() - entry.timestamp < CACHE_CONFIG.searchTTL) {
     stats.searchHits++;
     return entry.results;
   }
@@ -126,7 +125,7 @@ export function cacheSearch(collection, query, searchMode, results, filters = nu
   const key = getSearchKey(collection, query, searchMode, filters);
   searchCache.set(key, {
     results,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 }
 
@@ -134,27 +133,29 @@ export function cacheSearch(collection, query, searchMode, results, filters = nu
  * Get cache statistics
  */
 export function getCacheStats() {
-  const embeddingHitRate = stats.embeddingHits + stats.embeddingMisses > 0
-    ? (stats.embeddingHits / (stats.embeddingHits + stats.embeddingMisses) * 100).toFixed(1)
-    : 0;
+  const embeddingHitRate =
+    stats.embeddingHits + stats.embeddingMisses > 0
+      ? ((stats.embeddingHits / (stats.embeddingHits + stats.embeddingMisses)) * 100).toFixed(1)
+      : 0;
 
-  const searchHitRate = stats.searchHits + stats.searchMisses > 0
-    ? (stats.searchHits / (stats.searchHits + stats.searchMisses) * 100).toFixed(1)
-    : 0;
+  const searchHitRate =
+    stats.searchHits + stats.searchMisses > 0
+      ? ((stats.searchHits / (stats.searchHits + stats.searchMisses)) * 100).toFixed(1)
+      : 0;
 
   return {
     embeddings: {
       entries: embeddingCache.size,
       hits: stats.embeddingHits,
       misses: stats.embeddingMisses,
-      hitRate: `${embeddingHitRate}%`
+      hitRate: `${embeddingHitRate}%`,
     },
     search: {
       entries: searchCache.size,
       hits: stats.searchHits,
       misses: stats.searchMisses,
-      hitRate: `${searchHitRate}%`
-    }
+      hitRate: `${searchHitRate}%`,
+    },
   };
 }
 

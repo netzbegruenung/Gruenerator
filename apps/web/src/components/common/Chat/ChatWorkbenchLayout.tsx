@@ -1,13 +1,16 @@
-import type { JSX, ReactNode, FormEvent } from 'react';
 import { motion } from 'motion/react';
-import ChatUI from './ChatUI';
-import ChatStartPage from './ChatStartPage';
-import ModeSelector from './ModeSelector';
-import useChatInput from './hooks/useChatInput';
+
 import AttachedFilesList from '../AttachedFilesList';
-import ChatSubmitButton from './ChatSubmitButton';
+
 import ChatFileUploadButton from './ChatFileUploadButton';
+import ChatStartPage from './ChatStartPage';
+import ChatSubmitButton from './ChatSubmitButton';
+import ChatUI from './ChatUI';
+import useChatInput from './hooks/useChatInput';
+import ModeSelector from './ModeSelector';
 import { handleEnterKeySubmit } from './utils/chatMessageUtils';
+
+import type { JSX, ReactNode, FormEvent } from 'react';
 import '../../../assets/styles/components/chat/chat-workbench.css';
 
 interface ChatMessage {
@@ -86,7 +89,8 @@ interface ChatWorkbenchLayoutProps {
   onReset?: () => void;
 }
 
-const ChatWorkbenchLayout = ({ mode,
+const ChatWorkbenchLayout = ({
+  mode,
   modes,
   onModeChange,
   title,
@@ -115,27 +119,23 @@ const ChatWorkbenchLayout = ({ mode,
   onRemoveFile,
   singleLine = false,
   showStartPage = false,
-  startPageTitle = "Was möchtest du wissen?",
+  startPageTitle = 'Was möchtest du wissen?',
   exampleQuestions = [],
   sources = [],
   onSourceToggle,
   filterBar = null,
   filterButton = null,
-  onReset }: ChatWorkbenchLayoutProps): JSX.Element => {
+  onReset,
+}: ChatWorkbenchLayoutProps): JSX.Element => {
   // Consolidated voice recording via useChatInput hook
-  const {
-    isVoiceRecording,
-    isVoiceProcessing,
-    startRecording,
-    stopRecording
-  } = useChatInput({
+  const { isVoiceRecording, isVoiceProcessing, startRecording, stopRecording } = useChatInput({
     inputValue,
     onInputChange,
     onSubmit,
     autoSubmitVoice,
     enableVoiceRecording: true,
     onVoiceTranscription: onVoiceRecorderTranscription,
-    onFileSelect
+    onFileSelect,
   });
 
   const handleSubmit = (event: React.FormEvent | React.KeyboardEvent) => {
@@ -158,10 +158,7 @@ const ChatWorkbenchLayout = ({ mode,
 
   const renderInputWrapper = () => {
     return (
-      <form
-        className="qa-chat-dossier-input-wrapper"
-        onSubmit={handleSubmit}
-      >
+      <form className="qa-chat-dossier-input-wrapper" onSubmit={handleSubmit}>
         <div className="textarea-wrapper">
           {enableFileUpload && attachedFiles.length > 0 && (
             <AttachedFilesList
@@ -206,16 +203,14 @@ const ChatWorkbenchLayout = ({ mode,
       <div className="chat-header">
         <div className="chat-header-content">
           {headerContent || (title ? <h2>{title}</h2> : null)}
-          {isEditModeActive && (
-            <span className="qa-chat-edit-badge">Edit-Modus aktiv</span>
-          )}
+          {isEditModeActive && <span className="qa-chat-edit-badge">Edit-Modus aktiv</span>}
         </div>
       </div>
     );
   };
 
   const renderDossierMode = () => {
-    const hasUserMessage = messages?.some(msg => msg.type === 'user');
+    const hasUserMessage = messages?.some((msg) => msg.type === 'user');
 
     if (showStartPage && !hasUserMessage) {
       return (
@@ -281,7 +276,7 @@ const ChatWorkbenchLayout = ({ mode,
   };
 
   const renderChatMode = () => {
-    const hasUserMessage = messages?.some(msg => msg.type === 'user');
+    const hasUserMessage = messages?.some((msg) => msg.type === 'user');
 
     if (showStartPage && !hasUserMessage) {
       return (

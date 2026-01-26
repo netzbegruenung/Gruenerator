@@ -34,31 +34,33 @@ router.get('/:resourceType', async (req: Request, res: Response) => {
     if (!resourceType || typeof resourceType !== 'string') {
       return res.status(400).json({
         success: false,
-        error: 'Invalid resource type'
+        error: 'Invalid resource type',
       });
     }
 
     const userType = rateLimiter.getUserType(req as unknown as RequestWithUser);
     const identifier = rateLimiter.getIdentifier(req as unknown as RequestWithUser, userType);
 
-    const status = await rateLimiter.checkLimit(resourceType, identifier, userType) as RateLimitStatus;
+    const status = (await rateLimiter.checkLimit(
+      resourceType,
+      identifier,
+      userType
+    )) as RateLimitStatus;
 
-    const timeUntilReset = status.window
-      ? rateLimiter.getTimeUntilReset(status.window)
-      : null;
+    const timeUntilReset = status.window ? rateLimiter.getTimeUntilReset(status.window) : null;
 
     return res.json({
       success: true,
       data: {
         ...status,
-        timeUntilReset
-      }
+        timeUntilReset,
+      },
     });
   } catch (error) {
     log.error('[RateLimitAPI] Error getting status:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to get rate limit status'
+      error: 'Failed to get rate limit status',
     });
   }
 });
@@ -70,14 +72,14 @@ router.post('/bulk', async (req: Request, res: Response) => {
     if (!Array.isArray(resourceTypes) || resourceTypes.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'resourceTypes must be a non-empty array'
+        error: 'resourceTypes must be a non-empty array',
       });
     }
 
     if (resourceTypes.length > 10) {
       return res.status(400).json({
         success: false,
-        error: 'Maximum 10 resource types per bulk request'
+        error: 'Maximum 10 resource types per bulk request',
       });
     }
 
@@ -92,26 +94,28 @@ router.post('/bulk', async (req: Request, res: Response) => {
         continue;
       }
 
-      const status = await rateLimiter.checkLimit(resourceType, identifier, userType) as RateLimitStatus;
-      const timeUntilReset = status.window
-        ? rateLimiter.getTimeUntilReset(status.window)
-        : null;
+      const status = (await rateLimiter.checkLimit(
+        resourceType,
+        identifier,
+        userType
+      )) as RateLimitStatus;
+      const timeUntilReset = status.window ? rateLimiter.getTimeUntilReset(status.window) : null;
 
       results[resourceType] = {
         ...status,
-        timeUntilReset
+        timeUntilReset,
       };
     }
 
     return res.json({
       success: true,
-      data: results
+      data: results,
     });
   } catch (error) {
     log.error('[RateLimitAPI] Error in bulk status:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to get bulk rate limit status'
+      error: 'Failed to get bulk rate limit status',
     });
   }
 });
@@ -126,7 +130,7 @@ router.post('/reset/:resourceType', async (req: Request, res: Response) => {
     if (process.env.NODE_ENV === 'production' && userType === 'anonymous') {
       return res.status(403).json({
         success: false,
-        error: 'Anonymous users cannot reset counters in production'
+        error: 'Anonymous users cannot reset counters in production',
       });
     }
 
@@ -138,19 +142,19 @@ router.post('/reset/:resourceType', async (req: Request, res: Response) => {
     if (success) {
       return res.json({
         success: true,
-        message: `Counter reset successfully for ${resourceType}`
+        message: `Counter reset successfully for ${resourceType}`,
       });
     } else {
       return res.status(500).json({
         success: false,
-        error: 'Failed to reset counter'
+        error: 'Failed to reset counter',
       });
     }
   } catch (error) {
     log.error('[RateLimitAPI] Error resetting counter:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to reset counter'
+      error: 'Failed to reset counter',
     });
   }
 });
@@ -167,8 +171,9 @@ if (process.env.NODE_ENV === 'development') {
         resourceType,
         userType,
         config: config || 'No configuration found',
-        allConfigs: ((rateLimiter as unknown as { config: { resources: Record<string, unknown> } }).config).resources[resourceType]
-      }
+        allConfigs: (rateLimiter as unknown as { config: { resources: Record<string, unknown> } })
+          .config.resources[resourceType],
+      },
     });
   });
 }

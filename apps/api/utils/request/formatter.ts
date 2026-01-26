@@ -12,7 +12,7 @@ import type {
   AttachmentInfo,
   SuccessResponse,
   ErrorResponse,
-  ErrorResponseWithStatus
+  ErrorResponseWithStatus,
 } from './types.js';
 
 /**
@@ -25,9 +25,8 @@ export function createSuccessResponse(
   additionalMetadata: Record<string, any> = {}
 ): SuccessResponse {
   // Process response with title extraction if it's an AI result
-  let processedResult: AIWorkerResult = typeof result === 'string'
-    ? { success: true, content: result }
-    : result;
+  let processedResult: AIWorkerResult =
+    typeof result === 'string' ? { success: true, content: result } : result;
 
   if (typeof result === 'object' && result.success && result.content) {
     processedResult = processResponseWithTitle(result as AIWorkerResult, routePath, formData);
@@ -40,8 +39,8 @@ export function createSuccessResponse(
     metadata: {
       ...processedResult.metadata,
       ...additionalMetadata,
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   };
 
   const agent = processedResult.agent || (result as AIWorkerResult).agent || formData.agent;
@@ -65,7 +64,8 @@ export function createSuccessResponseWithAttachments(
 ): SuccessResponse {
   // Extract web search sources from result metadata
   const webSearchSources = result?.metadata?.webSearchSources || null;
-  const hasWebSearchSources = webSearchSources && Array.isArray(webSearchSources) && webSearchSources.length > 0;
+  const hasWebSearchSources =
+    webSearchSources && Array.isArray(webSearchSources) && webSearchSources.length > 0;
 
   // Extract enrichment summary (includes sources and auto-selected documents)
   const enrichmentSummary = attachmentInfo.enrichmentSummary || null;
@@ -82,7 +82,7 @@ export function createSuccessResponseWithAttachments(
     // Preserve sources for frontend display
     webSearchSources: webSearchSources,
     // Add enrichment summary (includes all source types including auto-selected documents)
-    enrichmentSummary: enrichmentSummary
+    enrichmentSummary: enrichmentSummary,
   };
 
   return createSuccessResponse(result, routePath, formData, attachmentMetadata);
@@ -99,7 +99,7 @@ export function createErrorResponse(
   const response: ErrorResponse = {
     success: false,
     error: userMessage,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
   // Add error code for debugging if provided
@@ -157,7 +157,9 @@ export function sendSuccessResponseWithAttachments(
   const sourcesInfo = response.metadata?.webSearchUsed
     ? ` with ${response.metadata.webSearchSourcesCount} web search sources`
     : '';
-  console.log(`[${routeName}] Success: ${response.content?.length || 0} chars generated${sourcesInfo}`);
+  console.log(
+    `[${routeName}] Success: ${response.content?.length || 0} chars generated${sourcesInfo}`
+  );
 
   res.json(response);
 }
@@ -193,5 +195,5 @@ export default {
   createErrorResponse,
   sendSuccessResponse,
   sendSuccessResponseWithAttachments,
-  sendErrorResponse
+  sendErrorResponse,
 };

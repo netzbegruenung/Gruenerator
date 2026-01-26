@@ -20,7 +20,7 @@ const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
 const CLEANUP_CONFIG = {
   MAX_AGE_MS: 24 * 60 * 60 * 1000,
   CLEANUP_INTERVAL_MS: 60 * 60 * 1000,
-  VIDEO_EXTENSIONS: ['.mp4', '.webm', '.mov', '.avi'] as string[]
+  VIDEO_EXTENSIONS: ['.mp4', '.webm', '.mov', '.avi'] as string[],
 };
 
 let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -38,7 +38,7 @@ async function cleanupOldExports(): Promise<CleanupStats> {
     checked: 0,
     deleted: 0,
     freedBytes: 0,
-    errors: 0
+    errors: 0,
   };
 
   try {
@@ -72,7 +72,9 @@ async function cleanupOldExports(): Promise<CleanupStats> {
 
     if (stats.deleted > 0) {
       const freedMB = (stats.freedBytes / (1024 * 1024)).toFixed(2);
-      log.info(`Export cleanup: deleted ${stats.deleted}/${stats.checked} files, freed ${freedMB}MB`);
+      log.info(
+        `Export cleanup: deleted ${stats.deleted}/${stats.checked} files, freed ${freedMB}MB`
+      );
     }
   } catch (err: any) {
     log.error(`Export cleanup failed: ${err.message}`);
@@ -103,7 +105,9 @@ function startCleanupScheduler(): void {
   process.on('SIGINT', shutdownHandler);
 
   isInitialized = true;
-  log.info(`Export cleanup scheduler started (interval: ${CLEANUP_CONFIG.CLEANUP_INTERVAL_MS / 60000}min, max age: ${CLEANUP_CONFIG.MAX_AGE_MS / 3600000}h)`);
+  log.info(
+    `Export cleanup scheduler started (interval: ${CLEANUP_CONFIG.CLEANUP_INTERVAL_MS / 60000}min, max age: ${CLEANUP_CONFIG.MAX_AGE_MS / 3600000}h)`
+  );
 }
 
 function stopCleanupScheduler(): void {
@@ -120,7 +124,7 @@ export {
   startCleanupScheduler,
   stopCleanupScheduler,
   EXPORTS_DIR,
-  CLEANUP_CONFIG
+  CLEANUP_CONFIG,
 };
 
 export type { CleanupStats };

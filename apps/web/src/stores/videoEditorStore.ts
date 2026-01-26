@@ -2,8 +2,14 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
 const CLIP_COLORS = [
-  '#46962b', '#0088cc', '#f5a623', '#9b59b6',
-  '#e74c3c', '#1abc9c', '#f39c12', '#3498db'
+  '#46962b',
+  '#0088cc',
+  '#f5a623',
+  '#9b59b6',
+  '#e74c3c',
+  '#1abc9c',
+  '#f39c12',
+  '#3498db',
 ];
 
 const generateClipId = () => `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -89,7 +95,12 @@ interface VideoEditorStore {
   width: number;
   height: number;
 
-  addClip: (url: string, file: File | null, metadata: VideoMetadata, uploadId?: string | null) => string;
+  addClip: (
+    url: string,
+    file: File | null,
+    metadata: VideoMetadata,
+    uploadId?: string | null
+  ) => string;
   removeClip: (clipId: string) => boolean;
   setActiveClip: (clipId: string) => void;
   getClipById: (clipId: string) => VideoClip | null;
@@ -99,7 +110,12 @@ interface VideoEditorStore {
   addSegmentFromClip: (clipId: string, start?: number | null, end?: number | null) => number | null;
   setClipThumbnail: (clipId: string, thumbnail: string) => void;
   setClipUploadId: (clipId: string, uploadId: string) => void;
-  initializeVideo: (videoUrl: string, videoFile: File | null, metadata: VideoMetadata, uploadId?: string | null) => void;
+  initializeVideo: (
+    videoUrl: string,
+    videoFile: File | null,
+    metadata: VideoMetadata,
+    uploadId?: string | null
+  ) => void;
   resetEditor: () => void;
   splitAtPlayhead: () => void;
   deleteSegment: (segmentId: number) => void;
@@ -176,7 +192,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
           name: file?.name || `Clip ${clipCount + 1}`,
           color,
           thumbnail: null,
-          order: clipCount
+          order: clipCount,
         };
 
         if (clipCount === 0) {
@@ -192,15 +208,14 @@ const useVideoEditorStore = create<VideoEditorStore>()(
           state.height = metadata.height || 0;
         }
 
-        const maxId = state.segments.length > 0
-          ? Math.max(...state.segments.map(s => s.id), 0)
-          : 0;
+        const maxId =
+          state.segments.length > 0 ? Math.max(...state.segments.map((s) => s.id), 0) : 0;
 
         state.segments.push({
           id: maxId + 1,
           clipId,
           start: 0,
-          end: metadata.duration || 0
+          end: metadata.duration || 0,
         });
 
         state.isEditorActive = true;
@@ -217,7 +232,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
       set((state) => {
         delete state.clips[clipId];
-        state.segments = state.segments.filter(seg => seg.clipId !== clipId);
+        state.segments = state.segments.filter((seg) => seg.clipId !== clipId);
 
         if (activeClipId === clipId) {
           const remainingClips = Object.keys(state.clips);
@@ -267,16 +282,15 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
       let newSegmentId: number | null = null;
       set((state) => {
-        const maxId = state.segments.length > 0
-          ? Math.max(...state.segments.map(s => s.id), 0)
-          : 0;
+        const maxId =
+          state.segments.length > 0 ? Math.max(...state.segments.map((s) => s.id), 0) : 0;
 
         newSegmentId = maxId + 1;
         state.segments.push({
           id: newSegmentId,
           clipId,
           start: start !== null ? start : 0,
-          end: end !== null ? end : clip.duration
+          end: end !== null ? end : clip.duration,
         });
       });
 
@@ -360,20 +374,20 @@ const useVideoEditorStore = create<VideoEditorStore>()(
       saveToHistory();
 
       set((state) => {
-        const maxId = Math.max(...state.segments.map(s => s.id), 0);
+        const maxId = Math.max(...state.segments.map((s) => s.id), 0);
 
         const firstHalf: VideoSegment = {
           id: segment.id,
           clipId: segment.clipId,
           start: segment.start,
-          end: splitPoint
+          end: splitPoint,
         };
 
         const secondHalf: VideoSegment = {
           id: maxId + 1,
           clipId: segment.clipId,
           start: splitPoint,
-          end: segment.end
+          end: segment.end,
         };
 
         state.segments.splice(segmentIndex, 1, firstHalf, secondHalf);
@@ -387,7 +401,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
       saveToHistory();
 
       set((state) => {
-        state.segments = state.segments.filter(seg => seg.id !== segmentId);
+        state.segments = state.segments.filter((seg) => seg.id !== segmentId);
         if (state.selectedSegmentId === segmentId) {
           state.selectedSegmentId = null;
         }
@@ -426,7 +440,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
     trimSegmentStart: (segmentId, newStart) => {
       const { clips, segments, saveToHistory } = get();
-      const segment = segments.find(s => s.id === segmentId);
+      const segment = segments.find((s) => s.id === segmentId);
       if (!segment) return;
 
       const clip = clips[segment.clipId];
@@ -435,7 +449,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
       if (newStart >= 0 && newStart < segment.end - 0.5 && newStart <= maxStart) {
         saveToHistory();
         set((state) => {
-          const seg = state.segments.find(s => s.id === segmentId);
+          const seg = state.segments.find((s) => s.id === segmentId);
           if (seg) seg.start = newStart;
         });
       }
@@ -443,7 +457,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
     trimSegmentEnd: (segmentId, newEnd) => {
       const { clips, segments, saveToHistory } = get();
-      const segment = segments.find(s => s.id === segmentId);
+      const segment = segments.find((s) => s.id === segmentId);
       if (!segment) return;
 
       const clip = clips[segment.clipId];
@@ -452,7 +466,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
       if (newEnd <= maxEnd && newEnd > segment.start + 0.5) {
         saveToHistory();
         set((state) => {
-          const seg = state.segments.find(s => s.id === segmentId);
+          const seg = state.segments.find((s) => s.id === segmentId);
           if (seg) seg.end = newEnd;
         });
       }
@@ -511,7 +525,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
         newHistory.push({
           clips: JSON.parse(JSON.stringify(clips)),
           segments: JSON.parse(JSON.stringify(segments)),
-          textOverlays: JSON.parse(JSON.stringify(textOverlays))
+          textOverlays: JSON.parse(JSON.stringify(textOverlays)),
         });
 
         if (newHistory.length > maxHistorySize) {
@@ -535,7 +549,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
           state.history.push({
             clips: JSON.parse(JSON.stringify(clips)),
             segments: JSON.parse(JSON.stringify(segments)),
-            textOverlays: JSON.parse(JSON.stringify(textOverlays))
+            textOverlays: JSON.parse(JSON.stringify(textOverlays)),
           });
           state.historyIndex = state.history.length - 1;
         }
@@ -588,33 +602,33 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
     getSegmentsForExport: () => {
       const { clips, segments } = get();
-      return segments.map(seg => {
+      return segments.map((seg) => {
         const clip = clips[seg.clipId];
         return {
           clipId: seg.clipId,
           uploadId: clip?.uploadId || null,
           start: seg.start,
-          end: seg.end
+          end: seg.end,
         };
       });
     },
 
     getClipsForExport: () => {
       const { clips, segments } = get();
-      const usedClipIds = [...new Set(segments.map(s => s.clipId))];
+      const usedClipIds = [...new Set(segments.map((s) => s.clipId))];
 
-      return usedClipIds.map(clipId => {
+      return usedClipIds.map((clipId) => {
         const clip = clips[clipId];
         return {
           clipId,
-          uploadId: clip?.uploadId || null
+          uploadId: clip?.uploadId || null,
         };
       });
     },
 
     getSegmentsByClip: (clipId) => {
       const { segments } = get();
-      return segments.filter(seg => seg.clipId === clipId);
+      return segments.filter((seg) => seg.clipId === clipId);
     },
 
     addTextOverlay: (type) => {
@@ -624,9 +638,8 @@ const useVideoEditorStore = create<VideoEditorStore>()(
       saveToHistory();
 
       set((state) => {
-        const maxId = state.textOverlays.length > 0
-          ? Math.max(...state.textOverlays.map(o => o.id), 0)
-          : 0;
+        const maxId =
+          state.textOverlays.length > 0 ? Math.max(...state.textOverlays.map((o) => o.id), 0) : 0;
 
         const defaultYPosition = type === 'header' ? 20 : 35;
         const defaultText = type === 'header' ? 'Header' : 'Subheader';
@@ -634,13 +647,13 @@ const useVideoEditorStore = create<VideoEditorStore>()(
         const proposedStart = currentTime;
         const proposedEnd = Math.min(currentTime + 5, composedDuration);
 
-        const overlappingOverlays = state.textOverlays.filter(overlay =>
-          overlay.startTime < proposedEnd && overlay.endTime > proposedStart
+        const overlappingOverlays = state.textOverlays.filter(
+          (overlay) => overlay.startTime < proposedEnd && overlay.endTime > proposedStart
         );
 
         let actualStart = proposedStart;
         if (overlappingOverlays.length > 0) {
-          const latestEnd = Math.max(...overlappingOverlays.map(o => o.endTime));
+          const latestEnd = Math.max(...overlappingOverlays.map((o) => o.endTime));
           actualStart = latestEnd;
         }
 
@@ -654,7 +667,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
           yPosition: defaultYPosition,
           width: 60,
           startTime: actualStart,
-          endTime: endTime > actualStart ? endTime : composedDuration
+          endTime: endTime > actualStart ? endTime : composedDuration,
         });
 
         state.selectedOverlayId = maxId + 1;
@@ -665,9 +678,13 @@ const useVideoEditorStore = create<VideoEditorStore>()(
       const { saveToHistory } = get();
 
       set((state) => {
-        const overlay = state.textOverlays.find(o => o.id === id);
+        const overlay = state.textOverlays.find((o) => o.id === id);
         if (overlay) {
-          if (updates.text !== undefined || updates.startTime !== undefined || updates.endTime !== undefined) {
+          if (
+            updates.text !== undefined ||
+            updates.startTime !== undefined ||
+            updates.endTime !== undefined
+          ) {
             saveToHistory();
           }
           Object.assign(overlay, updates);
@@ -677,7 +694,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
     updateOverlayPosition: (id, xPosition, yPosition) => {
       set((state) => {
-        const overlay = state.textOverlays.find(o => o.id === id);
+        const overlay = state.textOverlays.find((o) => o.id === id);
         if (overlay) {
           if (xPosition !== undefined) {
             overlay.xPosition = Math.max(0, Math.min(100, xPosition));
@@ -691,7 +708,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
     updateOverlayWidth: (id, width) => {
       set((state) => {
-        const overlay = state.textOverlays.find(o => o.id === id);
+        const overlay = state.textOverlays.find((o) => o.id === id);
         if (overlay) {
           overlay.width = Math.max(10, Math.min(90, width));
         }
@@ -700,7 +717,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
     updateOverlayTiming: (id, startTime, endTime) => {
       set((state) => {
-        const overlay = state.textOverlays.find(o => o.id === id);
+        const overlay = state.textOverlays.find((o) => o.id === id);
         if (overlay) {
           const duration = overlay.endTime - overlay.startTime;
           overlay.startTime = Math.max(0, startTime);
@@ -719,7 +736,7 @@ const useVideoEditorStore = create<VideoEditorStore>()(
       saveToHistory();
 
       set((state) => {
-        state.textOverlays = state.textOverlays.filter(o => o.id !== id);
+        state.textOverlays = state.textOverlays.filter((o) => o.id !== id);
         if (state.selectedOverlayId === id) {
           state.selectedOverlayId = null;
         }
@@ -737,8 +754,8 @@ const useVideoEditorStore = create<VideoEditorStore>()(
 
     getSelectedOverlay: () => {
       const { textOverlays, selectedOverlayId } = get();
-      return textOverlays.find(o => o.id === selectedOverlayId) || null;
-    }
+      return textOverlays.find((o) => o.id === selectedOverlayId) || null;
+    },
   }))
 );
 

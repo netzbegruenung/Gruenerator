@@ -1,43 +1,38 @@
-import { forwardRef, useCallback } from "react"
+import { forwardRef, useCallback } from 'react';
 
 // --- Hooks ---
-import { useTiptapEditor } from "../../hooks/use-tiptap-editor"
+import { useTiptapEditor } from '../../hooks/use-tiptap-editor';
 
 // --- Lib ---
-import { parseShortcutKeys } from "../../utils/tiptap-utils"
+import { parseShortcutKeys } from '../../utils/tiptap-utils';
 
 // --- Tiptap UI ---
-import type { UseCodeBlockConfig } from "../code-block-button"
-import {
-  CODE_BLOCK_SHORTCUT_KEY,
-  useCodeBlock,
-} from "../code-block-button"
+import type { UseCodeBlockConfig } from '../code-block-button';
+import { CODE_BLOCK_SHORTCUT_KEY, useCodeBlock } from '../code-block-button';
 
 // --- UI Primitives ---
-import type { ButtonProps } from "../primitives/button"
-import { Button } from "../primitives/button"
-import { Badge } from "../primitives/badge"
+import type { ButtonProps } from '../primitives/button';
+import { Button } from '../primitives/button';
+import { Badge } from '../primitives/badge';
 
-export interface CodeBlockButtonProps
-  extends Omit<ButtonProps, "type">,
-    UseCodeBlockConfig {
+export interface CodeBlockButtonProps extends Omit<ButtonProps, 'type'>, UseCodeBlockConfig {
   /**
    * Optional text to display alongside the icon.
    */
-  text?: string
+  text?: string;
   /**
    * Optional show shortcut keys in the button.
    * @default false
    */
-  showShortcut?: boolean
+  showShortcut?: boolean;
 }
 
 export function CodeBlockShortcutBadge({
   shortcutKeys = CODE_BLOCK_SHORTCUT_KEY,
 }: {
-  shortcutKeys?: string
+  shortcutKeys?: string;
 }) {
-  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>
+  return <Badge>{parseShortcutKeys({ shortcutKeys })}</Badge>;
 }
 
 /**
@@ -45,10 +40,7 @@ export function CodeBlockShortcutBadge({
  *
  * For custom button implementations, use the `useCodeBlock` hook instead.
  */
-export const CodeBlockButton = forwardRef<
-  HTMLButtonElement,
-  CodeBlockButtonProps
->(
+export const CodeBlockButton = forwardRef<HTMLButtonElement, CodeBlockButtonProps>(
   (
     {
       editor: providedEditor,
@@ -62,39 +54,32 @@ export const CodeBlockButton = forwardRef<
     },
     ref
   ) => {
-    const { editor } = useTiptapEditor(providedEditor)
-    const {
-      isVisible,
-      canToggle,
-      isActive,
-      handleToggle,
-      label,
-      shortcutKeys,
-      Icon,
-    } = useCodeBlock({
-      editor,
-      hideWhenUnavailable,
-      onToggled,
-    })
+    const { editor } = useTiptapEditor(providedEditor);
+    const { isVisible, canToggle, isActive, handleToggle, label, shortcutKeys, Icon } =
+      useCodeBlock({
+        editor,
+        hideWhenUnavailable,
+        onToggled,
+      });
 
     const handleClick = useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
-        onClick?.(event)
-        if (event.defaultPrevented) return
-        handleToggle()
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        handleToggle();
       },
       [handleToggle, onClick]
-    )
+    );
 
     if (!isVisible) {
-      return null
+      return null;
     }
 
     return (
       <Button
         type="button"
         data-style="ghost"
-        data-active-state={isActive ? "on" : "off"}
+        data-active-state={isActive ? 'on' : 'off'}
         role="button"
         disabled={!canToggle}
         data-disabled={!canToggle}
@@ -110,14 +95,12 @@ export const CodeBlockButton = forwardRef<
           <>
             <Icon className="tiptap-button-icon" />
             {text && <span className="tiptap-button-text">{text}</span>}
-            {showShortcut && (
-              <CodeBlockShortcutBadge shortcutKeys={shortcutKeys} />
-            )}
+            {showShortcut && <CodeBlockShortcutBadge shortcutKeys={shortcutKeys} />}
           </>
         )}
       </Button>
-    )
+    );
   }
-)
+);
 
-CodeBlockButton.displayName = "CodeBlockButton"
+CodeBlockButton.displayName = 'CodeBlockButton';

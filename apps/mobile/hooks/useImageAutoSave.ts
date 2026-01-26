@@ -16,8 +16,11 @@ interface AutoSaveResult {
 /**
  * Builds metadata for saving images based on type (template or KI)
  */
-function buildMetadata(state: ReturnType<typeof useImageStudioStore.getState>): Record<string, unknown> {
-  const { type, kiType, formData, modifications, kiInstruction, kiVariant, uploadedImageBase64 } = state;
+function buildMetadata(
+  state: ReturnType<typeof useImageStudioStore.getState>
+): Record<string, unknown> {
+  const { type, kiType, formData, modifications, kiInstruction, kiVariant, uploadedImageBase64 } =
+    state;
 
   const metadata: Record<string, unknown> = {
     hasOriginalImage: !!uploadedImageBase64,
@@ -90,11 +93,7 @@ export function useImageAutoSave(): AutoSaveResult {
     try {
       const state = useImageStudioStore.getState();
       const metadata = buildMetadata(state);
-      const title = kiType
-        ? `KI ${kiType}`
-        : type
-          ? `Sharepic ${type}`
-          : 'Sharepic';
+      const title = kiType ? `KI ${kiType}` : type ? `Sharepic ${type}` : 'Sharepic';
 
       const share = await createImageShare({
         imageData: generatedImage,

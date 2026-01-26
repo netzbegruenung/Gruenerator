@@ -7,7 +7,7 @@ export const DEFAULT_ACCEPTED_FILE_TYPES = [
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.oasis.opendocument.text'
+  'application/vnd.oasis.opendocument.text',
 ] as const;
 
 /**

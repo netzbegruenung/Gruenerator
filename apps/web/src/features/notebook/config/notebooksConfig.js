@@ -37,15 +37,15 @@ export const SYSTEM_NOTEBOOKS = [
     tags: ['Österreich', 'Grundsatzprogramm', 'Nationalrat'],
     order: 3,
   },
-  {
-    id: 'hamburg-notebook',
-    path: '/gruene-hamburg',
-    title: 'Frag Grüne Hamburg',
-    description: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
-    meta: 'Archiv',
-    tags: ['Hamburg', 'Beschlüsse', 'Presse'],
-    order: 4,
-  },
+  // {
+  //   id: 'hamburg-notebook',
+  //   path: '/gruene-hamburg',
+  //   title: 'Frag Grüne Hamburg',
+  //   description: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
+  //   meta: 'Archiv',
+  //   tags: ['Hamburg', 'Beschlüsse', 'Presse'],
+  //   order: 4,
+  // },
 ];
 
 export const getOrderedNotebooks = () => [...SYSTEM_NOTEBOOKS].sort((a, b) => a.order - b.order);

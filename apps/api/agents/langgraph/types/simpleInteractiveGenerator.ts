@@ -10,10 +10,7 @@ import type { PromptAssemblyResult, Locale } from './promptAssembly.js';
  * AI Worker Pool interface for processing AI requests
  */
 export interface AIWorkerPool {
-  processRequest(
-    request: AIWorkerRequest,
-    req?: Request
-  ): Promise<AIWorkerResponse>;
+  processRequest(request: AIWorkerRequest, req?: Request): Promise<AIWorkerResponse>;
 }
 
 /**

@@ -42,7 +42,8 @@ try {
 let contentExamplesService: ContentExamplesService | null = null;
 try {
   const imported = await import('../../services/contentExamplesService.js');
-  contentExamplesService = (imported.contentExamplesService as unknown as ContentExamplesService) || null;
+  contentExamplesService =
+    (imported.contentExamplesService as unknown as ContentExamplesService) || null;
 } catch {
   contentExamplesService = null;
 }
@@ -154,7 +155,17 @@ function formatRequestObject(request: RequestObject, locale: Locale = 'de-DE'): 
   if (request.textForm) parts.push(`Textform: ${request.textForm}`);
 
   for (const [k, v] of Object.entries(request)) {
-    if (['theme', 'thema', 'details', 'platforms', 'zitatgeber', 'textForm', 'presseabbinder'].includes(k)) {
+    if (
+      [
+        'theme',
+        'thema',
+        'details',
+        'platforms',
+        'zitatgeber',
+        'textForm',
+        'presseabbinder',
+      ].includes(k)
+    ) {
       continue;
     }
     if (v) {
@@ -276,7 +287,10 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
 
   // Only include examples for Facebook and Instagram platforms
   const reqPlatforms =
-    state && state.request && typeof state.request === 'object' && Array.isArray((state.request as RequestObject).platforms)
+    state &&
+    state.request &&
+    typeof state.request === 'object' &&
+    Array.isArray((state.request as RequestObject).platforms)
       ? (state.request as RequestObject).platforms!.map((p) => String(p || '').toLowerCase())
       : [];
   const useExamples = reqPlatforms.some((p) => EXAMPLES_ALLOWED_PLATFORMS.has(p));
@@ -302,7 +316,9 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
   }
 
   const tools = Array.isArray(state.tools) ? [...state.tools] : [];
-  console.log(`📋 [PromptAssembly] Completed with ${messages.length} messages, ${tools.length} tools`);
+  console.log(
+    `📋 [PromptAssembly] Completed with ${messages.length} messages, ${tools.length} tools`
+  );
   return { system, messages, tools };
 }
 
@@ -366,7 +382,12 @@ async function uploadDocAndGetUrl(doc: DocumentBlock): Promise<string | null> {
 function deriveDocQnAQuestions(state: PromptAssemblyState): string[] {
   const req = state.request;
   const theme =
-    req && typeof req === 'object' ? ((req as RequestObject).thema || (req as RequestObject).theme || (req as RequestObject).details || '') : String(req || '');
+    req && typeof req === 'object'
+      ? (req as RequestObject).thema ||
+        (req as RequestObject).theme ||
+        (req as RequestObject).details ||
+        ''
+      : String(req || '');
   const base = theme ? String(theme).substring(0, 200) : '';
   const routeType = state.type || 'social';
 
@@ -447,7 +468,10 @@ async function runDocumentQnA(
       if (error && typeof error === 'object' && 'response' in error) {
         const errorResponse = error as { response?: { data?: unknown } };
         if (errorResponse.response?.data) {
-          console.log('📋 [DocQnA] Provider error body:', JSON.stringify(errorResponse.response.data));
+          console.log(
+            '📋 [DocQnA] Provider error body:',
+            JSON.stringify(errorResponse.response.data)
+          );
         }
       }
     } catch (_) {}
@@ -479,7 +503,8 @@ async function assemblePromptGraphAsync(
     enrichedState.selectedDocumentIds && enrichedState.selectedDocumentIds.length > 0;
 
   // Only apply DocQnA to attachment documents, not KnowledgeSelector documents
-  const shouldUseDocQnA = docQnAEnabled && effectiveDocuments.length > 0 && !hasKnowledgeSelectorDocuments;
+  const shouldUseDocQnA =
+    docQnAEnabled && effectiveDocuments.length > 0 && !hasKnowledgeSelectorDocuments;
 
   if (shouldUseDocQnA) {
     console.log(
@@ -503,9 +528,7 @@ async function assemblePromptGraphAsync(
     );
 
     // Upload documents in parallel for better performance
-    const uploadResults = await Promise.all(
-      fileAttachmentDocs.map((d) => uploadDocAndGetUrl(d))
-    );
+    const uploadResults = await Promise.all(fileAttachmentDocs.map((d) => uploadDocAndGetUrl(d)));
     const urlList = uploadResults.filter((url): url is string => url !== null);
 
     if (urlList.length > 0) {
@@ -532,9 +555,7 @@ async function assemblePromptGraphAsync(
         console.log(`🧭 [LangGraph] DocQnA used: docs=${urlList.length}`);
         effectiveDocuments = crawledUrlDocs; // keep crawled URLs, remove file attachments
       } else {
-        console.log(
-          '📋 [PromptAssemblyAsync] DocQnA returned no capsule; retaining all documents'
-        );
+        console.log('📋 [PromptAssemblyAsync] DocQnA returned no capsule; retaining all documents');
       }
     } else if (fileAttachmentDocs.length > 0) {
       // Fallback when no URLs could be prepared (e.g., upload error): send direct document blocks
@@ -579,8 +600,13 @@ async function assemblePromptGraphAsync(
 
   // Only include examples for Facebook and Instagram platforms
   const reqPlatforms =
-    enrichedState && enrichedState.request && typeof enrichedState.request === 'object' && Array.isArray((enrichedState.request as RequestObject).platforms)
-      ? (enrichedState.request as RequestObject).platforms!.map((p) => String(p || '').toLowerCase())
+    enrichedState &&
+    enrichedState.request &&
+    typeof enrichedState.request === 'object' &&
+    Array.isArray((enrichedState.request as RequestObject).platforms)
+      ? (enrichedState.request as RequestObject).platforms!.map((p) =>
+          String(p || '').toLowerCase()
+        )
       : [];
   const useExamples = reqPlatforms.some((p) => EXAMPLES_ALLOWED_PLATFORMS.has(p));
   console.log(
@@ -598,7 +624,9 @@ async function assemblePromptGraphAsync(
     // Get theme/topic for example search
     const searchQuery =
       (enrichedState.request && typeof enrichedState.request === 'object'
-        ? (enrichedState.request as RequestObject).thema || (enrichedState.request as RequestObject).details || (enrichedState.request as RequestObject).theme
+        ? (enrichedState.request as RequestObject).thema ||
+          (enrichedState.request as RequestObject).details ||
+          (enrichedState.request as RequestObject).theme
         : null) || '';
 
     // Fetch examples for each platform
@@ -651,9 +679,7 @@ async function assemblePromptGraphAsync(
   }
 
   if (effectiveDocuments.length > 0) {
-    console.log(
-      `📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`
-    );
+    console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
     messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) as any });
   }
 
@@ -711,7 +737,9 @@ async function precomputeDocumentQnA(state: PromptAssemblyState): Promise<DocQnA
     );
     console.log(`📋 [DocQnA] URLs prepared (count=${urlList.length}, kinds=${kinds.join(',')})`);
     if (kinds.every((k) => k === 'data')) {
-      console.log('⚠️ [DocQnA] All URLs are data: URIs; provider may reject them. Skipping DocQnA.');
+      console.log(
+        '⚠️ [DocQnA] All URLs are data: URIs; provider may reject them. Skipping DocQnA.'
+      );
       return { knowledgeCapsule: null, suppressDocs: false };
     }
 

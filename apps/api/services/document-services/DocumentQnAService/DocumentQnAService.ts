@@ -9,7 +9,7 @@ import type {
   Attachment,
   StoredDocument,
   KnowledgeExtractionOptions,
-  ClearUserDataResult
+  ClearUserDataResult,
 } from './types.js';
 
 // Import module functions
@@ -18,22 +18,14 @@ import {
   storeAttachment,
   storeAttachments,
   getRecentDocuments,
-  clearUserDocuments
+  clearUserDocuments,
 } from './redisOperations.js';
 
-import {
-  generateQuestionsForIntent
-} from './contextExtraction.js';
+import { generateQuestionsForIntent } from './contextExtraction.js';
 
-import {
-  askMistralAboutDocuments
-} from './mistralIntegration.js';
+import { askMistralAboutDocuments } from './mistralIntegration.js';
 
-import {
-  generateCacheKey,
-  getCachedKnowledge,
-  cacheKnowledge
-} from './contextManagement.js';
+import { generateCacheKey, getCachedKnowledge, cacheKnowledge } from './contextManagement.js';
 
 /**
  * Main DocumentQnAService class
@@ -65,7 +57,9 @@ export class DocumentQnAService {
       return null;
     }
 
-    console.log(`[DocumentQnAService] Extracting knowledge for intent: ${intent.agent}, documents: ${documentIds.length}`);
+    console.log(
+      `[DocumentQnAService] Extracting knowledge for intent: ${intent.agent}, documents: ${documentIds.length}`
+    );
 
     // Check cache first
     const cacheKey = generateCacheKey(documentIds, intent.agent, message);
@@ -92,9 +86,10 @@ export class DocumentQnAService {
       // Cache the result for 1 hour
       await cacheKnowledge(this.redis, cacheKey, knowledge, 3600);
 
-      console.log(`[DocumentQnAService] Extracted knowledge for ${intent.agent}: ${knowledge.length} chars`);
+      console.log(
+        `[DocumentQnAService] Extracted knowledge for ${intent.agent}: ${knowledge.length} chars`
+      );
       return knowledge;
-
     } catch (error) {
       console.error(`[DocumentQnAService] Error extracting knowledge:`, error);
       return null;

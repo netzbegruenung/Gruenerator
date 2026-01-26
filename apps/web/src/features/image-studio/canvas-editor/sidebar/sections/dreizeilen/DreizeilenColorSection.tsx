@@ -1,6 +1,8 @@
 import { FaCheck } from 'react-icons/fa';
-import type { ColorScheme } from '../../../utils/dreizeilenLayout';
+
 import { SidebarHint } from '../../components/SidebarHint';
+
+import type { ColorScheme } from '../../../utils/dreizeilenLayout';
 import './DreizeilenColorSection.css';
 
 export interface DreizeilenColorSectionProps {
@@ -47,7 +49,9 @@ export function DreizeilenColorSection({
         })}
       </div>
       <SidebarHint>
-        Wähle ein Farbschema, das die Lesbarkeit deiner Balken optimiert. Die Vorschau zeigt dir, wie die drei Balken eingefärbt werden. Achte auf guten Kontrast zwischen Balkenfarbe und Text.
+        Wähle ein Farbschema, das die Lesbarkeit deiner Balken optimiert. Die Vorschau zeigt dir,
+        wie die drei Balken eingefärbt werden. Achte auf guten Kontrast zwischen Balkenfarbe und
+        Text.
       </SidebarHint>
     </div>
   );

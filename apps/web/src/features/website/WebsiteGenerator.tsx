@@ -1,66 +1,78 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import type { Control } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { HiCode, HiDownload, HiCheck } from 'react-icons/hi';
+
+import BetaFeatureWrapper from '../../components/common/BetaFeatureWrapper';
 import BaseForm from '../../components/common/Form/BaseForm/BaseForm';
 import { FormInput, FormTextarea } from '../../components/common/Form/Input';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import useApiSubmit from '../../components/hooks/useApiSubmit';
+import { useAuthStore } from '../../stores/authStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
-import { useAuthStore } from '../../stores/authStore';
-import useApiSubmit from '../../components/hooks/useApiSubmit';
-import ErrorBoundary from '../../components/ErrorBoundary';
-import BetaFeatureWrapper from '../../components/common/BetaFeatureWrapper';
+
+import type { Control } from 'react-hook-form';
 import './website.css';
 
 const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
   const componentName = 'website-generator';
   const { setGeneratedText } = useGeneratedTextStore();
-  const user = useAuthStore(state => state.user);
+  const user = useAuthStore((state) => state.user);
 
   const [copySuccess, setCopySuccess] = useState(false);
 
   const { loading, success, error, submitForm, resetSuccess } = useApiSubmit('/claude_website');
 
-  const storeGeneratedTextRaw = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  const storeGeneratedText = typeof storeGeneratedTextRaw === 'string' ? storeGeneratedTextRaw : (storeGeneratedTextRaw ? JSON.stringify(storeGeneratedTextRaw, null, 2) : '');
+  const storeGeneratedTextRaw = useGeneratedTextStore((state) =>
+    state.getGeneratedText(componentName)
+  );
+  const storeGeneratedText =
+    typeof storeGeneratedTextRaw === 'string'
+      ? storeGeneratedTextRaw
+      : storeGeneratedTextRaw
+        ? JSON.stringify(storeGeneratedTextRaw, null, 2)
+        : '';
   const { getFeatureState } = useGeneratorSelectionStore();
 
   const {
     control,
     handleSubmit,
-    formState: { errors }
+    formState: { errors },
   } = useForm({
     defaultValues: {
       description: '',
-      email: user?.email || ''
-    }
+      email: user?.email || '',
+    },
   });
 
-  const onSubmitRHF = useCallback(async (formData: { description: string; email?: string }) => {
-    if (!formData.description) {
-      return;
-    }
-
-    try {
-      const features = getFeatureState();
-
-      const response = await submitForm({
-        description: formData.description,
-        email: formData.email || null,
-        usePrivacyMode: features.usePrivacyMode,
-        useProMode: features.useProMode
-      });
-
-      if (response?.json) {
-        const jsonString = JSON.stringify(response.json, null, 2);
-        setGeneratedText(componentName, jsonString);
+  const onSubmitRHF = useCallback(
+    async (formData: { description: string; email?: string }) => {
+      if (!formData.description) {
+        return;
       }
 
-      setTimeout(resetSuccess, 3000);
-    } catch (err) {
-      console.error('[WebsiteGenerator] Error generating content:', err);
-    }
-  }, [submitForm, setGeneratedText, resetSuccess, getFeatureState]);
+      try {
+        const features = getFeatureState();
+
+        const response = await submitForm({
+          description: formData.description,
+          email: formData.email || null,
+          usePrivacyMode: features.usePrivacyMode,
+          useProMode: features.useProMode,
+        });
+
+        if (response?.json) {
+          const jsonString = JSON.stringify(response.json, null, 2);
+          setGeneratedText(componentName, jsonString);
+        }
+
+        setTimeout(resetSuccess, 3000);
+      } catch (err) {
+        console.error('[WebsiteGenerator] Error generating content:', err);
+      }
+    },
+    [submitForm, setGeneratedText, resetSuccess, getFeatureState]
+  );
 
   const handleCopyJson = useCallback(() => {
     if (storeGeneratedText) {
@@ -85,32 +97,36 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
   }, [storeGeneratedText]);
 
   const helpContent = {
-    content: "Erstelle JSON-Inhalte für eine WordPress-Landingpage. Das generierte JSON kann direkt in das WordPress-Plugin eingefügt werden.",
+    content:
+      'Erstelle JSON-Inhalte für eine WordPress-Landingpage. Das generierte JSON kann direkt in das WordPress-Plugin eingefügt werden.',
     tips: [
-      "Nenne deinen Namen, Rolle und politische Schwerpunkte",
-      "Je detaillierter die Beschreibung, desto besser das Ergebnis",
-      "Das JSON folgt einem festen Schema für das WordPress-Plugin"
-    ]
+      'Nenne deinen Namen, Rolle und politische Schwerpunkte',
+      'Je detaillierter die Beschreibung, desto besser das Ergebnis',
+      'Das JSON folgt einem festen Schema für das WordPress-Plugin',
+    ],
   };
 
-  const customExportOptions = useMemo(() => [
-    {
-      id: 'copy-json',
-      label: copySuccess ? 'Kopiert!' : 'JSON kopieren',
-      subtitle: 'In Zwischenablage kopieren',
-      icon: copySuccess ? <HiCheck size={16} /> : <HiCode size={16} />,
-      onClick: handleCopyJson,
-      disabled: !storeGeneratedText
-    },
-    {
-      id: 'download-json',
-      label: 'JSON herunterladen',
-      subtitle: 'Als .json Datei speichern',
-      icon: <HiDownload size={16} />,
-      onClick: handleDownloadJson,
-      disabled: !storeGeneratedText
-    }
-  ], [copySuccess, handleCopyJson, handleDownloadJson, storeGeneratedText]);
+  const customExportOptions = useMemo(
+    () => [
+      {
+        id: 'copy-json',
+        label: copySuccess ? 'Kopiert!' : 'JSON kopieren',
+        subtitle: 'In Zwischenablage kopieren',
+        icon: copySuccess ? <HiCheck size={16} /> : <HiCode size={16} />,
+        onClick: handleCopyJson,
+        disabled: !storeGeneratedText,
+      },
+      {
+        id: 'download-json',
+        label: 'JSON herunterladen',
+        subtitle: 'Als .json Datei speichern',
+        icon: <HiDownload size={16} />,
+        onClick: handleDownloadJson,
+        disabled: !storeGeneratedText,
+      },
+    ],
+    [copySuccess, handleCopyJson, handleDownloadJson, storeGeneratedText]
+  );
 
   const renderFormInputs = () => (
     <>
@@ -123,7 +139,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
         maxRows={14}
         className="form-textarea-large"
         rules={{
-          required: 'Beschreibung ist erforderlich'
+          required: 'Beschreibung ist erforderlich',
         }}
         error={errors.description}
       />
@@ -182,7 +198,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
         useFeatureIcons={true}
         features={{
           privacyMode: { enabled: true },
-          proMode: { enabled: true }
+          proMode: { enabled: true },
         }}
         customRenderer={customRenderer}
         customExportOptions={customExportOptions}

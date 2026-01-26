@@ -14,7 +14,7 @@ export type {
   CatalogImage,
   ImageCatalog,
   SelectionMetadata,
-  AISelectionResponse
+  AISelectionResponse,
 } from './types.js';
 
 // Node exports (for advanced use cases)

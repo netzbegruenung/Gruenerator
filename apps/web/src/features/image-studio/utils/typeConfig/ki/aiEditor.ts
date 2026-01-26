@@ -3,8 +3,15 @@
  * Simplified image creation with undo/redo functionality
  */
 import { HiPencilAlt } from 'react-icons/hi';
-import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, KI_SUBCATEGORIES, FORM_STEPS } from '../constants';
+
+import {
+  IMAGE_STUDIO_CATEGORIES,
+  IMAGE_STUDIO_TYPES,
+  KI_SUBCATEGORIES,
+  FORM_STEPS,
+} from '../constants';
 import { createVariants } from '../variants';
+
 import type { KiTypeConfig, TemplateFieldConfig } from '../types';
 
 export const aiEditorTypeConfig: KiTypeConfig = {
@@ -21,14 +28,18 @@ export const aiEditorTypeConfig: KiTypeConfig = {
   usesFluxApi: true,
   hasRateLimit: true,
   endpoints: {
-    generate: '/imagine/pure'
+    generate: '/imagine/pure',
   },
   formComponent: 'PureCreateForm',
   steps: [FORM_STEPS.INPUT, FORM_STEPS.IMAGE_SIZE_SELECT, FORM_STEPS.RESULT],
   variants: createVariants('pure'),
   validation: {
-    purePrompt: { required: true, minLength: 5, message: 'Bitte beschreibe dein Bild (min. 5 Zeichen)' }
-  }
+    purePrompt: {
+      required: true,
+      minLength: 5,
+      message: 'Bitte beschreibe dein Bild (min. 5 Zeichen)',
+    },
+  },
 };
 
 export const aiEditorFieldConfig: TemplateFieldConfig = {
@@ -37,13 +48,14 @@ export const aiEditorFieldConfig: TemplateFieldConfig = {
       name: 'purePrompt',
       type: 'textarea',
       label: 'Bildbeschreibung',
-      subtitle: 'Beschreibe dein Wunschbild. Du kannst den Prompt später bearbeiten und neu generieren.',
+      subtitle:
+        'Beschreibe dein Wunschbild. Du kannst den Prompt später bearbeiten und neu generieren.',
       placeholder: 'Schreibe hier...',
       required: true,
       minLength: 5,
       maxLength: 500,
-      rows: 3
-    }
+      rows: 3,
+    },
   ],
   previewFields: [],
   resultFields: [],
@@ -56,5 +68,5 @@ export const aiEditorFieldConfig: TemplateFieldConfig = {
   showAlternatives: false,
   showEditPanel: false,
   showAutoSave: true,
-  showSocialGeneration: false
+  showSocialGeneration: false,
 };

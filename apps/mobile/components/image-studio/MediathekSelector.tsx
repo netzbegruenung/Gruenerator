@@ -32,11 +32,7 @@ interface MediathekSelectorProps {
   onImageSelect: (uri: string, base64: string) => void;
 }
 
-export function MediathekSelector({
-  visible,
-  onClose,
-  onImageSelect,
-}: MediathekSelectorProps) {
+export function MediathekSelector({ visible, onClose, onImageSelect }: MediathekSelectorProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
@@ -46,11 +42,10 @@ export function MediathekSelector({
 
   // Filter for images with originals or AI-generated
   const mediathekImages = useMemo(() => {
-    return shares.filter(share =>
-      share.mediaType === 'image' && (
-        share.imageMetadata?.hasOriginalImage === true ||
-        share.imageType === 'pure-create'
-      )
+    return shares.filter(
+      (share) =>
+        share.mediaType === 'image' &&
+        (share.imageMetadata?.hasOriginalImage === true || share.imageType === 'pure-create')
     );
   }, [shares]);
 
@@ -60,65 +55,63 @@ export function MediathekSelector({
     }
   }, [visible, fetchUserShares]);
 
-  const handleImagePress = useCallback(async (share: Share) => {
-    setSelectedToken(share.shareToken);
-    setLoadingImage(true);
+  const handleImagePress = useCallback(
+    async (share: Share) => {
+      setSelectedToken(share.shareToken);
+      setLoadingImage(true);
 
-    try {
-      const result = await fetchMediathekImage(share);
-      if (result) {
-        onImageSelect(result.uri, result.base64);
-        onClose();
+      try {
+        const result = await fetchMediathekImage(share);
+        if (result) {
+          onImageSelect(result.uri, result.base64);
+          onClose();
+        }
+      } catch (error) {
+        console.error('[MediathekSelector] Failed to load image:', error);
+      } finally {
+        setLoadingImage(false);
+        setSelectedToken(null);
       }
-    } catch (error) {
-      console.error('[MediathekSelector] Failed to load image:', error);
-    } finally {
-      setLoadingImage(false);
-      setSelectedToken(null);
-    }
-  }, [onImageSelect, onClose]);
+    },
+    [onImageSelect, onClose]
+  );
 
-  const renderItem = useCallback(({ item }: { item: Share }) => {
-    const isSelected = selectedToken === item.shareToken;
-    const thumbnailUrl = item.thumbnailUrl || `https://gruenerator.eu/share/${item.shareToken}/thumbnail`;
-    const isOriginal = item.imageMetadata?.hasOriginalImage === true;
+  const renderItem = useCallback(
+    ({ item }: { item: Share }) => {
+      const isSelected = selectedToken === item.shareToken;
+      const thumbnailUrl =
+        item.thumbnailUrl || `https://gruenerator.eu/share/${item.shareToken}/thumbnail`;
+      const isOriginal = item.imageMetadata?.hasOriginalImage === true;
 
-    return (
-      <Pressable
-        style={[
-          styles.imageItem,
-          isSelected && styles.imageItemSelected,
-        ]}
-        onPress={() => handleImagePress(item)}
-        disabled={loadingImage}
-      >
-        <Image
-          source={{ uri: thumbnailUrl }}
-          style={styles.thumbnail}
-          resizeMode="cover"
-        />
-        {isSelected && loadingImage && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="small" color={colors.white} />
+      return (
+        <Pressable
+          style={[styles.imageItem, isSelected && styles.imageItemSelected]}
+          onPress={() => handleImagePress(item)}
+          disabled={loadingImage}
+        >
+          <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} resizeMode="cover" />
+          {isSelected && loadingImage && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="small" color={colors.white} />
+            </View>
+          )}
+          <View style={styles.typeIndicator}>
+            <Ionicons
+              name={isOriginal ? 'image-outline' : 'sparkles'}
+              size={12}
+              color={colors.white}
+            />
           </View>
-        )}
-        <View style={styles.typeIndicator}>
-          <Ionicons
-            name={isOriginal ? 'image-outline' : 'sparkles'}
-            size={12}
-            color={colors.white}
-          />
-        </View>
-      </Pressable>
-    );
-  }, [selectedToken, loadingImage, handleImagePress]);
+        </Pressable>
+      );
+    },
+    [selectedToken, loadingImage, handleImagePress]
+  );
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="images-outline" size={48} color={theme.textSecondary} />
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>
-        Keine Bilder verfügbar
-      </Text>
+      <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Bilder verfügbar</Text>
       <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
         Erstelle zuerst Sharepics, um sie hier wiederzuverwenden.
       </Text>
@@ -135,9 +128,7 @@ export function MediathekSelector({
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <View style={styles.headerLeft} />
-          <Text style={[styles.headerTitle, { color: theme.text }]}>
-            Mediathek
-          </Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Mediathek</Text>
           <Pressable onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={24} color={theme.text} />
           </Pressable>
@@ -146,15 +137,11 @@ export function MediathekSelector({
         <View style={styles.infoBar}>
           <View style={styles.infoItem}>
             <Ionicons name="image-outline" size={14} color={theme.textSecondary} />
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              Original
-            </Text>
+            <Text style={[styles.infoText, { color: theme.textSecondary }]}>Original</Text>
           </View>
           <View style={styles.infoItem}>
             <Ionicons name="sparkles" size={14} color={theme.textSecondary} />
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              KI-generiert
-            </Text>
+            <Text style={[styles.infoText, { color: theme.textSecondary }]}>KI-generiert</Text>
           </View>
         </View>
 

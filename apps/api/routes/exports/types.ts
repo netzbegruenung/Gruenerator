@@ -3,51 +3,51 @@
  */
 
 export interface FormattedSegment {
-    text: string;
-    bold: boolean;
-    italic: boolean;
+  text: string;
+  bold: boolean;
+  italic: boolean;
 }
 
 export interface FormattedParagraph {
-    segments: FormattedSegment[];
-    isHeader: boolean;
-    headerLevel: number | null;
+  segments: FormattedSegment[];
+  isHeader: boolean;
+  headerLevel: number | null;
 }
 
 export interface ParsedElement {
-    content: string;
-    isHeader: boolean;
-    headerLevel: number | null;
-    tag: string;
+  content: string;
+  isHeader: boolean;
+  headerLevel: number | null;
+  tag: string;
 }
 
 export interface ContentSection {
-    header: string | null;
-    content: string[];
+  header: string | null;
+  content: string[];
 }
 
 export interface CitationSegment {
-    text: string;
-    isCitation: boolean;
-    citationIndex?: string;
+  text: string;
+  isCitation: boolean;
+  citationIndex?: string;
 }
 
 export interface Citation {
-    index: string;
-    document_title?: string;
-    cited_text?: string;
-    similarity_score?: number;
-    source_url?: string;
+  index: string;
+  document_title?: string;
+  cited_text?: string;
+  similarity_score?: number;
+  source_url?: string;
 }
 
 export interface ExportRequestBody {
-    content: string;
-    title?: string;
-    citations?: Citation[];
+  content: string;
+  title?: string;
+  citations?: Citation[];
 }
 
 export interface ExportResponse {
-    success: boolean;
-    message?: string;
-    error?: string;
+  success: boolean;
+  message?: string;
+  error?: string;
 }

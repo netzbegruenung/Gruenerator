@@ -36,8 +36,8 @@ const client: RedisClient = createClient({
       // while still allowing recovery from extended outages
       const delay = Math.min(retries * 500, 30000);
       return delay;
-    }
-  }
+    },
+  },
 });
 
 client.on('error', (err) => console.error('Redis Client Fehler:', err.message));
@@ -54,11 +54,14 @@ export function ensureConnected(): Promise<void> {
     return Promise.resolve();
   }
   if (!connectPromise) {
-    connectPromise = client.connect().then(() => {}).catch(err => {
-      console.error(`Redis connection failed (${maskedUrl}):`, err.message);
-      connectPromise = null;
-      throw err;
-    });
+    connectPromise = client
+      .connect()
+      .then(() => {})
+      .catch((err) => {
+        console.error(`Redis connection failed (${maskedUrl}):`, err.message);
+        connectPromise = null;
+        throw err;
+      });
   }
   return connectPromise;
 }
@@ -80,7 +83,7 @@ export async function checkRedisHealth(): Promise<{ connected: boolean; error?: 
   } catch (error) {
     return {
       connected: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

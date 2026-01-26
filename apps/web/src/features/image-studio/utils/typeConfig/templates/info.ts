@@ -2,7 +2,9 @@
  * Info-Sharepic type configuration
  */
 import { PiInfo } from 'react-icons/pi';
+
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../constants';
+
 import type { TemplateTypeConfig, TemplateFieldConfig } from '../types';
 
 export const infoTypeConfig: TemplateTypeConfig = {
@@ -19,11 +21,11 @@ export const infoTypeConfig: TemplateTypeConfig = {
   hasRateLimit: false,
   endpoints: {
     text: '/info_claude',
-    canvas: '/info_canvas'
+    canvas: '/info_canvas',
   },
   formComponent: 'InfoForm',
   steps: [FORM_STEPS.INPUT, FORM_STEPS.CANVAS_EDIT, FORM_STEPS.RESULT],
-  legacyType: 'Info'
+  legacyType: 'Info',
 };
 
 interface InfoResult {
@@ -48,25 +50,25 @@ export const infoFieldConfig: TemplateFieldConfig = {
       subtitle: 'Beschreibe dein Info-Thema für eine strukturierte Darstellung',
       placeholder: 'Beschreibe dein Thema, z.B. Klimaschutz mit Fokus auf erneuerbare Energien...',
       required: true,
-      minLength: 3
-    }
+      minLength: 3,
+    },
   ],
   previewFields: [
     { name: 'header', type: 'text', label: 'Header' },
     { name: 'subheader', type: 'text', label: 'Subheader' },
-    { name: 'body', type: 'textarea', label: 'Body' }
+    { name: 'body', type: 'textarea', label: 'Body' },
   ],
   resultFields: ['header', 'subheader', 'body'],
   responseMapping: (result: InfoResult) => ({
     header: result.header || '',
     subheader: result.subheader || '',
     body: result.body || '',
-    searchTerms: result.searchTerms || []
+    searchTerms: result.searchTerms || [],
   }),
   alternativesMapping: (alt: InfoAlternative) => ({
     header: alt.header || '',
     subheader: alt.subheader || '',
-    body: alt.body || ''
+    body: alt.body || '',
   }),
   showImageUpload: false,
   showColorControls: false,
@@ -77,5 +79,5 @@ export const infoFieldConfig: TemplateFieldConfig = {
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Andere Varianten'
+  alternativesButtonText: 'Andere Varianten',
 };

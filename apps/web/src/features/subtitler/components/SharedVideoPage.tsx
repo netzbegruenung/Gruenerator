@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import QRCode from 'react-qr-code';
 import { FaInstagram } from 'react-icons/fa';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import QRCode from 'react-qr-code';
+import { useParams } from 'react-router-dom';
+
 import LoginRequired from '../../../components/common/LoginRequired/LoginRequired';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
-import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
 import { buildUrl } from '../../../config/domains';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
 import '../styles/SharedVideoPage.css';
 import '../../../assets/styles/components/ui/button.css';
 
@@ -43,8 +44,11 @@ const SharedVideoPage = () => {
 
   useEffect(() => {
     const checkShareCapability = async () => {
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        || (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
+      const isMobile =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) ||
+        (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
 
       if (!isMobile || !navigator.share || !navigator.canShare) {
         setCanNativeShare(false);
@@ -64,14 +68,16 @@ const SharedVideoPage = () => {
     const fetchShareData = async () => {
       try {
         const response = await apiClient.get(`/subtitler/share/${shareToken}`, {
-          skipAuthRedirect: true
+          skipAuthRedirect: true,
         } as Record<string, unknown>);
         if (response.data.success) {
           setShareData(response.data.share);
           if (response.data.share.status === 'rendering') {
             setIsRendering(true);
           } else if (response.data.share.status === 'failed') {
-            setError('Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.');
+            setError(
+              'Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.'
+            );
           }
         }
       } catch (err) {
@@ -97,7 +103,7 @@ const SharedVideoPage = () => {
     const pollStatus = async () => {
       try {
         const response = await apiClient.get(`/subtitler/share/${shareToken}`, {
-          skipAuthRedirect: true
+          skipAuthRedirect: true,
         } as Record<string, unknown>);
         if (response.data.success) {
           const newStatus = response.data.share.status;
@@ -106,7 +112,9 @@ const SharedVideoPage = () => {
             setShareData(response.data.share);
           } else if (newStatus === 'failed') {
             setIsRendering(false);
-            setError('Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.');
+            setError(
+              'Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.'
+            );
           }
         }
       } catch (_err) {
@@ -125,17 +133,19 @@ const SharedVideoPage = () => {
     setIsDownloading(true);
 
     try {
-      const response = await apiClient.get(
-        `/subtitler/share/${shareToken}/download`,
-        { responseType: 'blob' }
-      );
+      const response = await apiClient.get(`/subtitler/share/${shareToken}/download`, {
+        responseType: 'blob',
+      });
 
       const blob = new Blob([response.data], { type: 'video/mp4' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
 
-      const filename = `${shareData?.title || 'video'}_gruenerator.mp4`.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `${shareData?.title || 'video'}_gruenerator.mp4`.replace(
+        /[^a-zA-Z0-9_-]/g,
+        '_'
+      );
       link.download = filename;
 
       document.body.appendChild(link);
@@ -184,7 +194,7 @@ const SharedVideoPage = () => {
     setIsSharing(true);
     try {
       const response = await apiClient.get(`/subtitler/share/${shareToken}/preview`, {
-        responseType: 'blob'
+        responseType: 'blob',
       });
       const blob = response.data;
       const file = new File([blob], 'gruenerator_video.mp4', { type: 'video/mp4' });
@@ -210,7 +220,7 @@ const SharedVideoPage = () => {
     return date.toLocaleDateString('de-DE', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -232,7 +242,14 @@ const SharedVideoPage = () => {
       <div className="shared-video-page">
         <div className="shared-video-container">
           <div className="shared-video-expired">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="12" cy="12" r="10" />
               <polyline points="12,6 12,12 16,14" />
             </svg>
@@ -249,7 +266,14 @@ const SharedVideoPage = () => {
       <div className="shared-video-page">
         <div className="shared-video-container">
           <div className="shared-video-error">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="15" y1="9" x2="9" y2="15" />
               <line x1="9" y1="9" x2="15" y2="15" />
@@ -285,19 +309,11 @@ const SharedVideoPage = () => {
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
-          <QRCode
-            value={window.location.href}
-            size={64}
-            level="M"
-          />
+          <QRCode value={window.location.href} size={64} level="M" />
           {copied && <span className="shared-video-qr-copied">Kopiert!</span>}
         </button>
         <div className="shared-video-left">
-          <video
-            controls
-            preload="metadata"
-            playsInline
-          >
+          <video controls preload="metadata" playsInline>
             <source src={`${baseURL}/subtitler/share/${shareToken}/preview`} type="video/mp4" />
             Dein Browser unterstützt keine Video-Wiedergabe.
           </video>
@@ -319,7 +335,14 @@ const SharedVideoPage = () => {
                 />
               ) : downloadSuccess ? (
                 <div className="download-success-inline">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                     <polyline points="22,4 12,14.01 9,11.01" />
                   </svg>
@@ -335,10 +358,7 @@ const SharedVideoPage = () => {
                     >
                       {isDownloading ? 'Wird geladen...' : 'Video herunterladen'}
                     </button>
-                    <button
-                      className="btn-primary"
-                      onClick={handleShare}
-                    >
+                    <button className="btn-primary" onClick={handleShare}>
                       {copied ? 'Link kopiert!' : 'Link teilen'}
                     </button>
                     {canNativeShare && (
@@ -348,19 +368,13 @@ const SharedVideoPage = () => {
                         disabled={isSharing}
                         title="Auf Instagram posten"
                       >
-                        {isSharing ? (
-                          <Spinner size="small" white />
-                        ) : (
-                          <FaInstagram />
-                        )}
+                        {isSharing ? <Spinner size="small" white /> : <FaInstagram />}
                         Posten
                       </button>
                     )}
                   </div>
 
-                  {downloadError && (
-                    <div className="download-error">{downloadError}</div>
-                  )}
+                  {downloadError && <div className="download-error">{downloadError}</div>}
                 </>
               )}
 
@@ -373,7 +387,11 @@ const SharedVideoPage = () => {
 
             <div className="shared-video-footer">
               <p>
-                Willst du auch solche Videos erstellen? Mit dem <a href={buildUrl('/subtitler')} target="_blank" rel="noopener noreferrer">Grünerator</a> kannst du Reels mit automatischen Untertiteln und grünem Design erstellen!
+                Willst du auch solche Videos erstellen? Mit dem{' '}
+                <a href={buildUrl('/subtitler')} target="_blank" rel="noopener noreferrer">
+                  Grünerator
+                </a>{' '}
+                kannst du Reels mit automatischen Untertiteln und grünem Design erstellen!
               </p>
             </div>
           </div>

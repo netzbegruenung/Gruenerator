@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import apiClient from '../components/utils/apiClient';
 
 interface Citation {
@@ -49,7 +50,12 @@ interface CitationState {
   setSelectedCitation: (citation: Citation | null, linkConfig?: LinkConfig) => void;
   closeCitationModal: () => void;
   isModalOpen: () => boolean;
-  fetchChunkContext: (documentId: string, chunkIndex: number, citation: Citation, linkConfig?: LinkConfig) => Promise<void>;
+  fetchChunkContext: (
+    documentId: string,
+    chunkIndex: number,
+    citation: Citation,
+    linkConfig?: LinkConfig
+  ) => Promise<void>;
   clearContext: () => void;
 
   // Centralized linking helpers
@@ -69,28 +75,40 @@ const isValidUUID = (str: string): boolean => {
 
 // System collections don't have viewable document pages (they link to external sources)
 const SYSTEM_COLLECTIONS = [
-  'grundsatz', 'grundsatz-system', 'grundsatz_documents',
-  'gruene_de', 'gruene_de_documents',
-  'gruene_at', 'gruene_at_documents',
-  'bundestag', 'bundestag_content',
-  'boell', 'boell_stiftung', 'boell_stiftung_documents',
-  'kommunalwiki', 'kommunalwiki_documents',
-  'oparl', 'oparl_papers',
-  'satzungen', 'satzungen_documents',
-  'oesterreich', 'oesterreich_gruene_documents'
+  'grundsatz',
+  'grundsatz-system',
+  'grundsatz_documents',
+  'gruene_de',
+  'gruene_de_documents',
+  'gruene_at',
+  'gruene_at_documents',
+  'bundestag',
+  'bundestag_content',
+  'boell',
+  'boell_stiftung',
+  'boell_stiftung_documents',
+  'kommunalwiki',
+  'kommunalwiki_documents',
+  'oparl',
+  'oparl_papers',
+  'satzungen',
+  'satzungen_documents',
+  'oesterreich',
+  'oesterreich_gruene_documents',
 ];
 
 // Fallback URLs for known official documents (used when source_url is missing from Qdrant)
 const KNOWN_DOCUMENT_URLS: Record<string, string> = {
   // Human-readable patterns
   'Gruenes-Grundsatzprogramm': 'https://www.gruene.de/grundsatzprogramm',
-  'Grundsatzprogramm': 'https://www.gruene.de/grundsatzprogramm',
+  Grundsatzprogramm: 'https://www.gruene.de/grundsatzprogramm',
   'EU-Wahlprogramm-2024': 'https://www.gruene.de/artikel/europawahlprogramm-2024',
   'Regierungsprogramm-2025': 'https://www.gruene.de/artikel/regierungsprogramm-2025',
   // Actual file-based document IDs from Qdrant
   '20200125_Grundsatzprogramm': 'https://www.gruene.de/grundsatzprogramm',
-  '20250318_Regierungsprogramm_DIGITAL_DINA5': 'https://www.gruene.de/artikel/regierungsprogramm-2025',
-  '20240306_Reader_EU-Wahlprogramm2024_A4': 'https://www.gruene.de/artikel/europawahlprogramm-2024'
+  '20250318_Regierungsprogramm_DIGITAL_DINA5':
+    'https://www.gruene.de/artikel/regierungsprogramm-2025',
+  '20240306_Reader_EU-Wahlprogramm2024_A4': 'https://www.gruene.de/artikel/europawahlprogramm-2024',
 };
 
 const getKnownDocumentUrl = (citation: Citation): string | null => {
@@ -109,7 +127,7 @@ const getKnownDocumentUrl = (citation: Citation): string | null => {
 
 const isSystemCollection = (collectionId: string | undefined): boolean => {
   if (!collectionId) return false;
-  return SYSTEM_COLLECTIONS.some(c => collectionId.toLowerCase().includes(c));
+  return SYSTEM_COLLECTIONS.some((c) => collectionId.toLowerCase().includes(c));
 };
 
 const useCitationStore = create<CitationState>((set, get) => ({
@@ -119,17 +137,19 @@ const useCitationStore = create<CitationState>((set, get) => ({
   contextError: null,
   linkConfig: DEFAULT_LINK_CONFIG,
 
-  setSelectedCitation: (citation, linkConfig) => set({
-    selectedCitation: citation,
-    linkConfig: linkConfig || DEFAULT_LINK_CONFIG
-  }),
+  setSelectedCitation: (citation, linkConfig) =>
+    set({
+      selectedCitation: citation,
+      linkConfig: linkConfig || DEFAULT_LINK_CONFIG,
+    }),
 
-  closeCitationModal: () => set({
-    selectedCitation: null,
-    contextData: null,
-    contextError: null,
-    linkConfig: DEFAULT_LINK_CONFIG
-  }),
+  closeCitationModal: () =>
+    set({
+      selectedCitation: null,
+      contextData: null,
+      contextError: null,
+      linkConfig: DEFAULT_LINK_CONFIG,
+    }),
 
   isModalOpen: () => !!get().selectedCitation,
 
@@ -139,13 +159,13 @@ const useCitationStore = create<CitationState>((set, get) => ({
       linkConfig: linkConfig || DEFAULT_LINK_CONFIG,
       isLoadingContext: true,
       contextError: null,
-      contextData: null
+      contextData: null,
     });
 
     try {
       const collection = citation.collection_id || 'user';
       const response = await apiClient.get(`/documents/qdrant/${documentId}/chunk-context`, {
-        params: { chunkIndex, window: 2, collection }
+        params: { chunkIndex, window: 2, collection },
       });
 
       if (response.data?.success && response.data?.data) {
@@ -153,7 +173,7 @@ const useCitationStore = create<CitationState>((set, get) => ({
       } else {
         set({
           contextError: response.data?.message || 'Kontext konnte nicht geladen werden',
-          isLoadingContext: false
+          isLoadingContext: false,
         });
       }
     } catch (error) {
@@ -162,11 +182,12 @@ const useCitationStore = create<CitationState>((set, get) => ({
     }
   },
 
-  clearContext: () => set({
-    contextData: null,
-    contextError: null,
-    isLoadingContext: false
-  }),
+  clearContext: () =>
+    set({
+      contextData: null,
+      contextError: null,
+      isLoadingContext: false,
+    }),
 
   // Centralized: Get internal document URL based on linkConfig
   // Returns null for system collections (they don't have viewable pages)
@@ -238,7 +259,7 @@ const useCitationStore = create<CitationState>((set, get) => ({
     if (!selectedCitation || linkConfig.type === 'none') return false;
 
     return !!get().getNavigationUrl(selectedCitation);
-  }
+  },
 }));
 
 export default useCitationStore;

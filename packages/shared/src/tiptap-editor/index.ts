@@ -9,17 +9,11 @@ export {
 } from './components';
 
 // Hooks
-export {
-  useCollaboration,
-  useCollaborators,
-} from './hooks';
+export { useCollaboration, useCollaborators } from './hooks';
 export type { CollaborationUser, UseCollaborationOptions } from './hooks';
 
 // Stores
-export {
-  useEditorStore,
-  useAiEditStore,
-} from './stores';
+export { useEditorStore, useAiEditStore } from './stores';
 export type { AiEditEntry, ChatMessage } from './stores';
 
 // Utils

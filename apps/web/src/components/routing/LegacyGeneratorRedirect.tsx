@@ -6,4 +6,3 @@ const LegacyGeneratorRedirect = () => {
 };
 
 export default LegacyGeneratorRedirect;
-

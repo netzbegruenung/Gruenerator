@@ -3,35 +3,39 @@
   align-items: center;
   gap: var(--spacing-medium);
   padding: var(--spacing-medium) var(--spacing-large);
-  background: linear-gradient(135deg, rgba(0, 92, 65, 0.1) 0%, rgba(255, 241, 122, 0.15) 100%);
-  border: 1px solid var(--klee);
+  background: var(--background-color);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-small);
   margin-bottom: var(--spacing-large);
 }
 
 .early-access-banner__icon {
   font-size: 1.5rem;
-  color: var(--klee);
+  color: var(--link-color);
   flex-shrink: 0;
 }
 
 .early-access-banner__content {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
 }
 
 .early-access-banner__title {
   font-weight: 600;
   font-size: var(--font-size-sm);
   color: var(--font-color);
-  margin: 0 0 var(--spacing-xxsmall) 0;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: var(--spacing-small);
+  flex-shrink: 0;
 }
 
 .early-access-banner__text {
   font-size: var(--font-size-xs);
-  color: var(--font-color-secondary);
+  color: var(--font-color);
   margin: 0;
 }
 
@@ -56,6 +60,11 @@
   .early-access-banner {
     flex-direction: column;
     text-align: center;
+    gap: var(--spacing-small);
+  }
+
+  .early-access-banner__content {
+    flex-direction: column;
     gap: var(--spacing-small);
   }
 

@@ -1,6 +1,8 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { MarkdownContent } from '@/utils/markdown';
+
 import type { ThemesSection as ThemesSectionType } from '@/types/candidate';
+
+import { MarkdownContent } from '@/utils/markdown';
 
 interface ThemesSectionProps {
   data: ThemesSectionType;

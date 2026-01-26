@@ -1,5 +1,14 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, View, Pressable, Text, useColorScheme } from 'react-native';
+import {
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  View,
+  Pressable,
+  Text,
+  useColorScheme,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../theme';
@@ -63,7 +72,8 @@ export function PresseSocialForm({ onResult, onError }: PresseSocialFormProps) {
   const showSharepicAuthor = showSharepic && sharepicTypeRequiresAuthor(sharepicType);
   const showSharepicImage = showSharepic && sharepicTypeSupportsImage(sharepicType);
 
-  const currentSharepicTypeLabel = SHAREPIC_TYPES.find((t) => t.id === sharepicType)?.shortLabel || 'Standard';
+  const currentSharepicTypeLabel =
+    SHAREPIC_TYPES.find((t) => t.id === sharepicType)?.shortLabel || 'Standard';
 
   const { generate, loading: textLoading } = useTextGeneration({
     endpoint: GENERATOR_ENDPOINTS.PRESSE_SOCIAL,
@@ -197,7 +207,10 @@ export function PresseSocialForm({ onResult, onError }: PresseSocialFormProps) {
   ]);
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.header, { color: theme.text }]}>
           Welche Botschaft willst du teilen?
@@ -228,7 +241,9 @@ export function PresseSocialForm({ onResult, onError }: PresseSocialFormProps) {
                 hitSlop={8}
               >
                 <Ionicons name="image-outline" size={12} color={theme.textSecondary} />
-                <Text style={[styles.configButtonText, { color: theme.text }]}>{currentSharepicTypeLabel}</Text>
+                <Text style={[styles.configButtonText, { color: theme.text }]}>
+                  {currentSharepicTypeLabel}
+                </Text>
                 <Ionicons name="chevron-down" size={12} color={theme.textSecondary} />
               </Pressable>
             )}
@@ -252,11 +267,18 @@ export function PresseSocialForm({ onResult, onError }: PresseSocialFormProps) {
         )}
 
         {showSharepicImage && (
-          <View style={[styles.imagePickerContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View
+            style={[
+              styles.imagePickerContainer,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
             <ImagePicker
               onImageSelected={handleImageSelected}
               onError={(error) => console.warn('[PresseSocialForm] Image error:', error)}
-              selectedImage={sharepicImageData ? { uri: sharepicImageData, fileName: 'Ausgewähltes Bild' } : null}
+              selectedImage={
+                sharepicImageData ? { uri: sharepicImageData, fileName: 'Ausgewähltes Bild' } : null
+              }
               onClear={handleImageClear}
             />
           </View>

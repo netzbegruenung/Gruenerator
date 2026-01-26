@@ -1,8 +1,9 @@
-import axios from 'axios';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import axios from 'axios';
+
 import { buildLoginUrl } from '../../utils/authRedirect';
-import { isDesktopApp } from '../../utils/platform';
 import { getDesktopToken } from '../../utils/desktopAuth';
+import { isDesktopApp } from '../../utils/platform';
 
 // Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
 // This works because frontend is served by backend on same port
@@ -32,7 +33,7 @@ const apiClient = axios.create({
   baseURL: baseURL,
   timeout: 900000,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: useCredentials
+  withCredentials: useCredentials,
 });
 
 // Request interceptor for debugging and header setup
@@ -48,7 +49,7 @@ apiClient.interceptors.request.use(
     // Web app uses session cookies automatically with withCredentials: true
     return config;
   },
-  error => {
+  (error) => {
     console.error('[apiClient Interceptor] Request Error:', error);
     return Promise.reject(error);
   }
@@ -56,8 +57,8 @@ apiClient.interceptors.request.use(
 
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
-  response => response,
-  error => {
+  (response) => response,
+  (error) => {
     // Check if this request should skip auth redirect
     if (error.config?.skipAuthRedirect) {
       return Promise.reject(error);
@@ -83,16 +84,21 @@ async function retryWithExponentialBackoff(operation, retryCount = 0, onRetry) {
   try {
     return await operation();
   } catch (error) {
-    if ((error.response?.status === 503 || error.response?.status === 529 || error.response?.status === 429) && retryCount < MAX_RETRIES) {
+    if (
+      (error.response?.status === 503 ||
+        error.response?.status === 529 ||
+        error.response?.status === 429) &&
+      retryCount < MAX_RETRIES
+    ) {
       const delay = BASE_DELAY * Math.pow(2, retryCount);
       const jitter = Math.random() * 1000;
       const totalDelay = delay + jitter;
-      
+
       if (onRetry) {
         onRetry(retryCount + 1, totalDelay, error);
       }
-      
-      await new Promise(resolve => setTimeout(resolve, totalDelay));
+
+      await new Promise((resolve) => setTimeout(resolve, totalDelay));
       return retryWithExponentialBackoff(operation, retryCount + 1, onRetry);
     }
     throw error;
@@ -105,7 +111,7 @@ export const uploadFileAndGetText = async (endpoint, file) => {
 
   try {
     const uploadResponse = await apiClient.post(`${endpoint}/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return uploadResponse.data.text;
   } catch (error) {
@@ -141,7 +147,6 @@ export const processText = async (endpoint, formData) => {
   }
 };
 
-
 const handleApiError = (error) => {
   if (error.response) {
     const { status, data, config } = error.response;
@@ -150,7 +155,7 @@ const handleApiError = (error) => {
       status,
       data,
       url: config?.url,
-      method: config?.method
+      method: config?.method,
     });
 
     if (typeof data === 'object' && data !== null && data.message) {
@@ -183,7 +188,7 @@ const handleApiError = (error) => {
   } else {
     console.error('Request Setup Error:', {
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
 
     const requestSetupError = new Error('Fehler beim Erstellen der Anfrage: ' + error.message);

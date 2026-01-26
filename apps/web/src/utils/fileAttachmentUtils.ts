@@ -40,7 +40,7 @@ const ALLOWED_FILE_TYPES: Record<AllowedMimeType, string> = {
   'image/jpeg': 'JPEG Image',
   'image/jpg': 'JPEG Image',
   'image/png': 'PNG Image',
-  'image/webp': 'WebP Image'
+  'image/webp': 'WebP Image',
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file (conservative for 32MB total Claude limit)
@@ -100,7 +100,13 @@ export const validateFiles = (files: File[]): boolean => {
   if (totalSize > MAX_TOTAL_SIZE) {
     const totalSizeMB = Math.round(totalSize / (1024 * 1024));
     const maxTotalSizeMB = Math.round(MAX_TOTAL_SIZE / (1024 * 1024));
-    console.error('[fileAttachmentUtils] Total size too large:', totalSizeMB, 'MB >', maxTotalSizeMB, 'MB');
+    console.error(
+      '[fileAttachmentUtils] Total size too large:',
+      totalSizeMB,
+      'MB >',
+      maxTotalSizeMB,
+      'MB'
+    );
     throw new Error(`Gesamtgröße zu groß: ${totalSizeMB}MB. Maximum: ${maxTotalSizeMB}MB`);
   }
 
@@ -143,7 +149,10 @@ export const fileToBase64 = (file: File): Promise<string> => {
  */
 export const prepareFilesForSubmission = async (files: File[]): Promise<ProcessedFile[]> => {
   console.log('[fileAttachmentUtils] Starting file preparation:', files?.length || 0, 'files');
-  console.log('[fileAttachmentUtils] Files to process:', files?.map((f: File) => ({ name: f.name, type: f.type, size: f.size })) || []);
+  console.log(
+    '[fileAttachmentUtils] Files to process:',
+    files?.map((f: File) => ({ name: f.name, type: f.type, size: f.size })) || []
+  );
 
   // Validate all files first
   validateFiles(files);
@@ -156,10 +165,17 @@ export const prepareFilesForSubmission = async (files: File[]): Promise<Processe
       const file = files[i];
 
       console.log(`[fileAttachmentUtils] Processing file ${i + 1}/${files.length}: ${file.name}`);
-      console.log(`[fileAttachmentUtils] File details:`, { name: file.name, type: file.type, size: file.size });
+      console.log(`[fileAttachmentUtils] File details:`, {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
 
       const base64Data = await fileToBase64(file);
-      console.log(`[fileAttachmentUtils] File ${file.name} converted to base64, size:`, base64Data?.length || 0);
+      console.log(
+        `[fileAttachmentUtils] File ${file.name} converted to base64, size:`,
+        base64Data?.length || 0
+      );
 
       processedFiles.push({
         name: file.name,
@@ -169,13 +185,12 @@ export const prepareFilesForSubmission = async (files: File[]): Promise<Processe
         // Add metadata for UI display
         displayName: file.name,
         displayType: ALLOWED_FILE_TYPES[file.type as AllowedMimeType] || file.type,
-        displaySize: formatFileSize(file.size)
+        displaySize: formatFileSize(file.size),
       });
     }
 
     console.log(`Successfully processed ${processedFiles.length} files`);
     return processedFiles;
-
   } catch (error) {
     console.error('File processing error:', error);
     throw error;
@@ -226,7 +241,7 @@ export const createFilesSummary = (processedFiles: ProcessedFile[]): FileSummary
       count: 0,
       types: [],
       totalSize: '0 B',
-      files: []
+      files: [],
     };
   }
 
@@ -240,8 +255,8 @@ export const createFilesSummary = (processedFiles: ProcessedFile[]): FileSummary
     files: processedFiles.map((file: ProcessedFile) => ({
       name: file.displayName,
       type: file.displayType,
-      size: file.displaySize
-    }))
+      size: file.displaySize,
+    })),
   };
 };
 
@@ -269,7 +284,10 @@ export const getPDFPageCount = async (file: File): Promise<number> => {
  * @param privacyModeActive - Whether privacy mode is active
  * @returns Validation result
  */
-export const validateFilesForPrivacyMode = async (files: File[], privacyModeActive: boolean): Promise<PrivacyValidationResult> => {
+export const validateFilesForPrivacyMode = async (
+  files: File[],
+  privacyModeActive: boolean
+): Promise<PrivacyValidationResult> => {
   if (!privacyModeActive) {
     return { valid: true };
   }
@@ -284,14 +302,14 @@ export const validateFilesForPrivacyMode = async (files: File[], privacyModeActi
         if (pageCount > MAX_PDF_PAGES) {
           return {
             valid: false,
-            error: `PDF "${file.name}" hat ${pageCount} Seiten. Im Privacy Mode sind maximal ${MAX_PDF_PAGES} Seiten erlaubt. Bitte deaktivieren Sie den Privacy Mode oder verwenden Sie ein kürzeres PDF.`
+            error: `PDF "${file.name}" hat ${pageCount} Seiten. Im Privacy Mode sind maximal ${MAX_PDF_PAGES} Seiten erlaubt. Bitte deaktivieren Sie den Privacy Mode oder verwenden Sie ein kürzeres PDF.`,
           };
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return {
           valid: false,
-          error: `Fehler beim Verarbeiten von "${file.name}": ${errorMessage}`
+          error: `Fehler beim Verarbeiten von "${file.name}": ${errorMessage}`,
         };
       }
     }
@@ -299,7 +317,7 @@ export const validateFilesForPrivacyMode = async (files: File[], privacyModeActi
     else if (file.type.startsWith('image/')) {
       return {
         valid: false,
-        error: `Bilder können im Privacy Mode nicht verarbeitet werden. Bitte deaktivieren Sie den Privacy Mode oder entfernen Sie "${file.name}".`
+        error: `Bilder können im Privacy Mode nicht verarbeitet werden. Bitte deaktivieren Sie den Privacy Mode oder entfernen Sie "${file.name}".`,
       };
     }
   }
@@ -312,7 +330,7 @@ export const FILE_LIMITS = {
   MAX_FILE_SIZE,
   MAX_TOTAL_SIZE,
   ALLOWED_FILE_TYPES,
-  MAX_PDF_PAGES_PRIVACY_MODE: 10
+  MAX_PDF_PAGES_PRIVACY_MODE: 10,
 };
 
 // Export types for external use

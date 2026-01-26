@@ -28,7 +28,7 @@ export {
   CacheError,
   TimeoutError,
   ResourceError,
-  isVectorBackendError
+  isVectorBackendError,
 } from './classes.js';
 
 // ============================================================================
@@ -39,7 +39,7 @@ export {
   createErrorHandler,
   withErrorHandling,
   getErrorMessage,
-  toError
+  toError,
 } from './handlers.js';
 
 // ============================================================================
@@ -52,7 +52,7 @@ export {
   handleAttachmentError,
   handleAIWorkerError,
   withErrorHandler,
-  addCorrelationId
+  addCorrelationId,
 } from './routes.js';
 
 // ============================================================================

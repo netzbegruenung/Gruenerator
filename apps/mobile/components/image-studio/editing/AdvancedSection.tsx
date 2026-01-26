@@ -5,9 +5,23 @@
  */
 
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, useColorScheme, LayoutAnimation, Platform, UIManager } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  useColorScheme,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BalkenOffsetControl, BalkenGruppeControl, SonnenblumenControl, CreditInput } from '../../image-modification';
+import {
+  BalkenOffsetControl,
+  BalkenGruppeControl,
+  SonnenblumenControl,
+  CreditInput,
+} from '../../image-modification';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -19,10 +33,7 @@ interface AdvancedSectionProps {
   disabled?: boolean;
 }
 
-export function AdvancedSection({
-  showCredit = true,
-  disabled = false,
-}: AdvancedSectionProps) {
+export function AdvancedSection({ showCredit = true, disabled = false }: AdvancedSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -40,14 +51,8 @@ export function AdvancedSection({
         disabled={disabled}
       >
         <View style={styles.headerContent}>
-          <Ionicons
-            name="settings-outline"
-            size={18}
-            color={theme.text}
-          />
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Erweitert
-          </Text>
+          <Ionicons name="settings-outline" size={18} color={theme.text} />
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Erweitert</Text>
         </View>
         <Ionicons
           name={isExpanded ? 'chevron-up' : 'chevron-down'}

@@ -1,7 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
-import { processStrategyGeneration, processProductionGeneration } from '../../agents/langgraph/PRAgent/index.js';
+import {
+  processStrategyGeneration,
+  processProductionGeneration,
+} from '../../agents/langgraph/PRAgent/index.js';
 import { prAgentWorkflow } from '../../services/WorkflowService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import type { User } from '../../types/auth.js';
@@ -28,7 +31,7 @@ router.post('/strategy', async (req: Request, res: Response): Promise<void> => {
     log.error('[claude_social/strategy] Error:', error);
     res.status(500).json({
       success: false,
-      error: 'Interner Serverfehler'
+      error: 'Interner Serverfehler',
     });
   }
 });
@@ -43,34 +46,27 @@ router.post('/production', async (req: Request, res: Response): Promise<void> =>
   if (!workflow_id || !approved_platforms) {
     res.status(400).json({
       success: false,
-      error: 'workflow_id und approved_platforms erforderlich'
+      error: 'workflow_id und approved_platforms erforderlich',
     });
     return;
   }
 
   try {
-    log.debug('[claude_social/production] Production generation requested for workflow:', workflow_id);
+    log.debug(
+      '[claude_social/production] Production generation requested for workflow:',
+      workflow_id
+    );
 
     // Update workflow with approval
-    await prAgentWorkflow.approve(
-      workflow_id,
-      approved_platforms,
-      user_feedback
-    );
+    await prAgentWorkflow.approve(workflow_id, approved_platforms, user_feedback);
 
     // Generate production
-    await processProductionGeneration(
-      workflow_id,
-      approved_platforms,
-      user_feedback,
-      req,
-      res
-    );
+    await processProductionGeneration(workflow_id, approved_platforms, user_feedback, req, res);
   } catch (error) {
     log.error('[claude_social/production] Error:', error);
     res.status(500).json({
       success: false,
-      error: 'Interner Serverfehler'
+      error: 'Interner Serverfehler',
     });
   }
 });
@@ -89,20 +85,20 @@ router.get('/workflow/:id', async (req: Request, res: Response): Promise<void> =
     if (!workflow) {
       res.status(404).json({
         success: false,
-        error: 'Workflow nicht gefunden'
+        error: 'Workflow nicht gefunden',
       });
       return;
     }
 
     res.json({
       success: true,
-      workflow
+      workflow,
     });
   } catch (error) {
     log.error('[claude_social/workflow] Error:', error);
     res.status(500).json({
       success: false,
-      error: 'Interner Serverfehler'
+      error: 'Interner Serverfehler',
     });
   }
 });

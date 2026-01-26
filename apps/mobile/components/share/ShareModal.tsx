@@ -158,8 +158,8 @@ export function ShareModal({
               </Button>
 
               <Button onPress={handleDirectShare} variant="outline">
-                <Ionicons name="share-outline" size={18} color={colors.primary[600]} />
-                {' '}Direkt teilen
+                <Ionicons name="share-outline" size={18} color={colors.primary[600]} /> Direkt
+                teilen
               </Button>
             </View>
           </View>
@@ -193,8 +193,8 @@ export function ShareModal({
             />
 
             <Button onPress={handleDirectShare} variant="outline" style={styles.directShareButton}>
-              <Ionicons name="videocam-outline" size={18} color={colors.primary[600]} />
-              {' '}Video direkt teilen
+              <Ionicons name="videocam-outline" size={18} color={colors.primary[600]} /> Video
+              direkt teilen
             </Button>
           </View>
         );
@@ -236,10 +236,7 @@ export function ShareModal({
           </Pressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {renderContent()}
         </ScrollView>
       </KeyboardAvoidingView>

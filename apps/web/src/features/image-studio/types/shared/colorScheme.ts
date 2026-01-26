@@ -48,9 +48,7 @@ export function isColorScheme(obj: unknown): obj is ColorScheme {
   const scheme = obj as Record<string, unknown>;
 
   // Check that all properties are either undefined or strings
-  return Object.values(scheme).every(
-    value => value === undefined || typeof value === 'string'
-  );
+  return Object.values(scheme).every((value) => value === undefined || typeof value === 'string');
 }
 
 /**

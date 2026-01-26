@@ -1,6 +1,7 @@
 import React from 'react';
-import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
+
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
+import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 
 /**
@@ -25,12 +26,9 @@ const EditInstructionForm = ({
   rows = 5,
   maxLength = 500,
   loading = false,
-  formErrors = {}
+  formErrors = {},
 }: EditInstructionFormProps) => {
-  const {
-    precisionInstruction,
-    setPrecisionInstruction
-  } = useImageStudioStore();
+  const { precisionInstruction, setPrecisionInstruction } = useImageStudioStore();
 
   const hasError = formErrors.precisionInstruction;
   const charCount = precisionInstruction?.length || 0;
@@ -47,7 +45,9 @@ const EditInstructionForm = ({
         <TextAreaInput
           id="edit-instruction"
           value={precisionInstruction}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPrecisionInstruction(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setPrecisionInstruction(e.target.value)
+          }
           placeholder={placeholder}
           rows={rows}
           maxLength={maxLength}
@@ -55,17 +55,17 @@ const EditInstructionForm = ({
           className={hasError ? 'error-input' : ''}
         />
       </FormFieldWrapper>
-      {hasError && (
-        <span className="error-message">{formErrors.precisionInstruction}</span>
-      )}
+      {hasError && <span className="error-message">{formErrors.precisionInstruction}</span>}
       {!hasError && showCharCount && (
-        <div style={{
-          fontSize: 'var(--font-size-small)',
-          color: 'var(--font-color)',
-          opacity: 0.6,
-          textAlign: 'right',
-          marginTop: 'var(--spacing-xsmall)'
-        }}>
+        <div
+          style={{
+            fontSize: 'var(--font-size-small)',
+            color: 'var(--font-color)',
+            opacity: 0.6,
+            textAlign: 'right',
+            marginTop: 'var(--spacing-xsmall)',
+          }}
+        >
           {charCount}/{maxLength} Zeichen
         </div>
       )}

@@ -3,11 +3,7 @@
  * Combines vector and text search using RRF or weighted fusion
  */
 
-import type {
-  VectorSearchResult,
-  TextSearchResult,
-  HybridConfig,
-} from './types.js';
+import type { VectorSearchResult, TextSearchResult, HybridConfig } from './types.js';
 import {
   DEFAULT_HYBRID_CONFIG,
   RRF_K,

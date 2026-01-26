@@ -94,7 +94,7 @@ export const lineExtractor = (rawResponse: string, config: LineExtractorConfig):
     trimLines = true,
     filterEmpty = true,
     minCharsPerLine = 0,
-    maxCharsPerLine = Infinity
+    maxCharsPerLine = Infinity,
   } = config;
 
   // Split response into lines
@@ -161,7 +161,7 @@ export const multiLineExtractor = (
     trimLines = true,
     filterEmpty = true,
     minCharsPerLine = 0,
-    maxCharsPerLine = Infinity
+    maxCharsPerLine = Infinity,
   } = config;
 
   const poemSections = rawResponse.split(separator);
@@ -193,9 +193,7 @@ export const multiLineExtractor = (
   }
 
   if (poems.length < expectedPoems) {
-    console.warn(
-      `[multiLineExtractor] Expected ${expectedPoems} poems but got ${poems.length}`
-    );
+    console.warn(`[multiLineExtractor] Expected ${expectedPoems} poems but got ${poems.length}`);
   }
 
   return poems;

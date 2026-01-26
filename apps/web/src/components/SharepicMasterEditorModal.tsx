@@ -1,7 +1,9 @@
 import React, { lazy, Suspense, useCallback, useMemo } from 'react';
+
 import { MasterCanvasEditor } from '../features/image-studio/canvas-editor/MasterCanvasEditor';
-import type { ImageStudioTemplateType } from '@gruenerator/shared/image-studio';
+
 import type { SharepicDataItem } from './common/ImageDisplay';
+import type { ImageStudioTemplateType } from '@gruenerator/shared/image-studio';
 
 // Lazily load the actual modal component (assuming it exists or will be created)
 // For now, let's assume a generic Modal wrapper.
@@ -21,7 +23,6 @@ export function SharepicMasterEditorModal({
   onExport,
   onCancel,
 }: SharepicMasterEditorModalProps) {
-
   // Extract relevant data for the MasterCanvasEditor
   // This mapping logic needs to be robust for all sharepic types
   const editorType = (sharepic.sharepicType as string) || (sharepic.type as string) || 'dreizeilen';
@@ -74,11 +75,11 @@ export function SharepicMasterEditorModal({
     };
 
     // Filter out undefined values to avoid overwriting defaults in canvas components
-    Object.keys(state).forEach(key => state[key] === undefined && delete state[key]);
+    Object.keys(state).forEach((key) => state[key] === undefined && delete state[key]);
     return state;
   }, [sharepic]);
 
-  // Determine the image source for the editor. 
+  // Determine the image source for the editor.
   // If the sharepic has an original_image (uploaded), use that.
   // Otherwise, use the generated image (sharepic.image) for contexts that require it.
   const editorImageSrc = useMemo(() => {

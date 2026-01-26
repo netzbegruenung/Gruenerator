@@ -467,13 +467,15 @@ export interface BaseFormProps {
   initialContent?: string;
   /** @deprecated Use `uiConfig.hideDisplayContainer` instead */
   hideDisplayContainer?: boolean;
-  customRenderer?: ((props: {
-    content: unknown;
-    generatedContent: unknown;
-    componentName: string;
-    helpContent?: HelpContent | null;
-    onEditModeToggle?: () => void;
-  }) => ReactNode) | null;
+  customRenderer?:
+    | ((props: {
+        content: unknown;
+        generatedContent: unknown;
+        componentName: string;
+        helpContent?: HelpContent | null;
+        onEditModeToggle?: () => void;
+      }) => ReactNode)
+    | null;
   /** @deprecated Use `uiConfig.useMarkdown` instead */
   useMarkdown?: boolean | null;
 

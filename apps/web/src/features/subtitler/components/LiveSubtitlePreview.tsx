@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
-import SubtitleStylingService from '../utils/subtitleStylingService';
+
 import { useAuthStore } from '../../../stores/authStore';
+import SubtitleStylingService from '../utils/subtitleStylingService';
+
 import type {
   SubtitleSegment,
   VideoMetadata,
   StylePreference,
   HeightPreference,
-  SubtitlePreference
+  SubtitlePreference,
 } from '../types';
 
 interface LiveSubtitlePreviewProps {
@@ -24,7 +26,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
   videoMetadata,
   stylePreference = 'standard',
   heightPreference = 'tief',
-  subtitlePreference = 'manual'
+  subtitlePreference = 'manual',
 }) => {
   // Get user locale for Austria-specific styling
   const locale = useAuthStore((state) => state.locale);
@@ -35,20 +37,27 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
   }, [editableSubtitles, currentTimeInSeconds]);
 
   const calculatedStyles = useMemo(() => {
-    return SubtitleStylingService.calculateStyles(videoMetadata, editableSubtitles, subtitlePreference, stylePreference);
+    return SubtitleStylingService.calculateStyles(
+      videoMetadata,
+      editableSubtitles,
+      subtitlePreference,
+      stylePreference
+    );
   }, [videoMetadata, editableSubtitles, subtitlePreference, stylePreference]);
 
   const getStyleForPreference = useMemo((): React.CSSProperties => {
     // Base styles - use GrueneType as default, Montserrat for Austrian users
     const baseStyles: React.CSSProperties = {
-      fontFamily: isAustrian ? "'Montserrat', Arial, sans-serif" : "'GrueneType', Arial, sans-serif",
+      fontFamily: isAustrian
+        ? "'Montserrat', Arial, sans-serif"
+        : "'GrueneType', Arial, sans-serif",
       fontWeight: 'bold',
       color: '#ffffff',
       textAlign: 'center',
       lineHeight: '1.2',
       maxWidth: '100%',
       wordWrap: 'break-word',
-      hyphens: 'auto'
+      hyphens: 'auto',
     };
 
     switch (stylePreference) {
@@ -58,7 +67,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           backgroundColor: 'transparent',
           textShadow: 'none',
           padding: '0',
-          borderRadius: '0'
+          borderRadius: '0',
         };
 
       case 'shadow':
@@ -67,7 +76,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           backgroundColor: 'transparent',
           textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)',
           padding: '0',
-          borderRadius: '0'
+          borderRadius: '0',
         };
 
       case 'tanne':
@@ -77,7 +86,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           backgroundColor: isAustrian ? '#6baa25' : '#005538',
           textShadow: 'none',
           padding: '0.2em 0.4em',
-          borderRadius: '0.1em'
+          borderRadius: '0.1em',
         };
 
       // Grüne Jugend styles with GJFontRegular
@@ -89,7 +98,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           backgroundColor: 'transparent',
           textShadow: 'none',
           padding: '0',
-          borderRadius: '0'
+          borderRadius: '0',
         };
 
       case 'gj_shadow':
@@ -100,7 +109,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           backgroundColor: 'transparent',
           textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)',
           padding: '0',
-          borderRadius: '0'
+          borderRadius: '0',
         };
 
       case 'gj_lavendel':
@@ -112,7 +121,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           color: '#ffffff',
           textShadow: 'none',
           padding: '0.2em 0.4em',
-          borderRadius: '0.1em'
+          borderRadius: '0.1em',
         };
 
       case 'gj_hellgruen':
@@ -124,7 +133,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           color: '#000000', // Black text for contrast on light background
           textShadow: 'none',
           padding: '0.2em 0.4em',
-          borderRadius: '0.1em'
+          borderRadius: '0.1em',
         };
 
       case 'standard':
@@ -132,9 +141,10 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
         return {
           ...baseStyles,
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000',
+          textShadow:
+            '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000',
           padding: '0.2em 0.4em',
-          borderRadius: '0.1em'
+          borderRadius: '0.1em',
         };
     }
   }, [stylePreference, isAustrian]);
@@ -168,12 +178,12 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
     pointerEvents: 'none',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'flex-end'
+    alignItems: 'flex-end',
   };
 
   const textStyles: React.CSSProperties = {
     ...getStyleForPreference,
-    fontSize: `${relativeFontSize}vw`
+    fontSize: `${relativeFontSize}vw`,
   };
 
   // Mobile specific adjustments

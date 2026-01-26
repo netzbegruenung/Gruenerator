@@ -113,11 +113,7 @@ export function createIntelligentExcerpt(
 /**
  * Helper function to extract relevant text around search terms
  */
-export function extractRelevantText(
-  text: string,
-  query: string,
-  maxLength: number = 300
-): string {
+export function extractRelevantText(text: string, query: string, maxLength: number = 300): string {
   if (!text) return '';
 
   const queryLower = query.toLowerCase();

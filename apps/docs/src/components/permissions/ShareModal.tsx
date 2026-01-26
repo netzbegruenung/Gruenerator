@@ -60,7 +60,10 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     }
   };
 
-  const handleUpdatePermission = async (userId: string, newLevel: 'owner' | 'editor' | 'viewer') => {
+  const handleUpdatePermission = async (
+    userId: string,
+    newLevel: 'owner' | 'editor' | 'viewer'
+  ) => {
     try {
       await apiClient.put(`/docs/${documentId}/permissions/${userId}`, {
         permission_level: newLevel,
@@ -118,15 +121,17 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
           </button>
         </div>
 
-        {error && (
-          <div className="share-error">
-            {error}
-          </div>
-        )}
+        {error && <div className="share-error">{error}</div>}
 
         <div className="share-link-section">
           <h3>Link teilen</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--font-color-secondary)', marginBottom: '0.75rem' }}>
+          <p
+            style={{
+              fontSize: '0.875rem',
+              color: 'var(--font-color-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
             Jeder mit diesem Link kann das Dokument öffnen
           </p>
           <div className="link-container">

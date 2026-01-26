@@ -1,7 +1,8 @@
-import { JSX, useCallback, useEffect, FormEvent } from 'react';
+import { type JSX, useCallback, useEffect, FormEvent } from 'react';
 import { FaMicrophone, FaStop, FaRedo } from 'react-icons/fa';
-import Spinner from '../Spinner';
+
 import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
+import Spinner from '../Spinner';
 
 interface ChatVoiceControlsProps {
   onTranscription?: (text: string, mode: 'append' | 'replace') => void;
@@ -11,18 +12,23 @@ interface ChatVoiceControlsProps {
   transcriptionMode?: 'append' | 'replace';
 }
 
-const ChatVoiceControls = ({ onTranscription,
+const ChatVoiceControls = ({
+  onTranscription,
   disabled = false,
   autoSubmit = false,
   onSubmit,
-  transcriptionMode = 'append' }: ChatVoiceControlsProps): JSX.Element => {
-  const handleTranscriptionComplete = useCallback((text: string) => {
-    if (!text) return;
-    if (autoSubmit && onSubmit) {
-      onSubmit(text);
-    }
-    onTranscription && onTranscription(text, transcriptionMode);
-  }, [autoSubmit, onSubmit, onTranscription, transcriptionMode]);
+  transcriptionMode = 'append',
+}: ChatVoiceControlsProps): JSX.Element => {
+  const handleTranscriptionComplete = useCallback(
+    (text: string) => {
+      if (!text) return;
+      if (autoSubmit && onSubmit) {
+        onSubmit(text);
+      }
+      onTranscription?.(text, transcriptionMode);
+    },
+    [autoSubmit, onSubmit, onTranscription, transcriptionMode]
+  );
 
   const {
     isRecording,
@@ -32,7 +38,7 @@ const ChatVoiceControls = ({ onTranscription,
     startRecording,
     stopRecording,
     retryTranscription,
-    processRecording
+    processRecording,
   } = useVoiceRecorder(handleTranscriptionComplete, { removeTimestamps: true });
 
   useEffect(() => {
@@ -44,9 +50,9 @@ const ChatVoiceControls = ({ onTranscription,
   const handleToggleRecording = () => {
     if (disabled) return;
     if (isRecording) {
-      stopRecording();
+      void stopRecording();
     } else {
-      startRecording();
+      void startRecording();
     }
   };
 
@@ -59,13 +65,7 @@ const ChatVoiceControls = ({ onTranscription,
         disabled={disabled || isProcessing}
         aria-label={isRecording ? 'Aufnahme stoppen' : 'Spracheingabe starten'}
       >
-        {isProcessing ? (
-          <Spinner size="small" />
-        ) : isRecording ? (
-          <FaStop />
-        ) : (
-          <FaMicrophone />
-        )}
+        {isProcessing ? <Spinner size="small" /> : isRecording ? <FaStop /> : <FaMicrophone />}
       </button>
       {hasTranscriptionFailed && (
         <button
@@ -78,14 +78,12 @@ const ChatVoiceControls = ({ onTranscription,
         </button>
       )}
       {error && (
-        <span className="chat-voice-error" role="alert">{error}</span>
+        <span className="chat-voice-error" role="alert">
+          {error}
+        </span>
       )}
-      {isRecording && !isProcessing && (
-        <span className="chat-voice-status">Aufnahme läuft…</span>
-      )}
-      {isProcessing && (
-        <span className="chat-voice-status">Transkription…</span>
-      )}
+      {isRecording && !isProcessing && <span className="chat-voice-status">Aufnahme läuft…</span>}
+      {isProcessing && <span className="chat-voice-status">Transkription…</span>}
     </div>
   );
 };

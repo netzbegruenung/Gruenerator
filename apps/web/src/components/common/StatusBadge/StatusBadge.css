@@ -18,8 +18,7 @@
 
 /* Early Access - Gradient (klee to sonne) */
 .status-badge--early-access {
-  background: linear-gradient(135deg, var(--klee) 0%, var(--sonne) 100%);
-  color: var(--white);
+  color: var(--font-color);
   box-shadow: var(--shadow-md);
 }
 

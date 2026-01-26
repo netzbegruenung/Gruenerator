@@ -41,8 +41,7 @@ export function buildEditContextSummary(generationContext: EditGenerationContext
   }
 
   if (ctx.theme) {
-    const themePreview =
-      ctx.theme.length > 80 ? ctx.theme.substring(0, 80) + '...' : ctx.theme;
+    const themePreview = ctx.theme.length > 80 ? ctx.theme.substring(0, 80) + '...' : ctx.theme;
     parts.push(`- Thema: ${themePreview}`);
   }
 
@@ -85,7 +84,9 @@ export function buildEditContextSummary(generationContext: EditGenerationContext
 /**
  * Validate generation context structure
  */
-export function isValidGenerationContext(generationContext: any): generationContext is EditGenerationContext {
+export function isValidGenerationContext(
+  generationContext: any
+): generationContext is EditGenerationContext {
   return (
     generationContext &&
     typeof generationContext === 'object' &&

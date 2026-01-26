@@ -2,7 +2,9 @@
  * Profilbild (Profile Picture) type configuration
  */
 import { PiUser } from 'react-icons/pi';
+
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../constants';
+
 import type { TemplateTypeConfig, TemplateFieldConfig } from '../types';
 
 export const profilbildTypeConfig: TemplateTypeConfig = {
@@ -21,10 +23,10 @@ export const profilbildTypeConfig: TemplateTypeConfig = {
   excludeFromTemplates: true,
   endpoints: {
     canvas: '/profilbild_canvas',
-    backgroundRemoval: '/background-removal'
+    backgroundRemoval: '/background-removal',
   },
   steps: [FORM_STEPS.INPUT, FORM_STEPS.RESULT],
-  legacyType: 'Profilbild'
+  legacyType: 'Profilbild',
 };
 
 export const profilbildFieldConfig: TemplateFieldConfig = {
@@ -41,5 +43,5 @@ export const profilbildFieldConfig: TemplateFieldConfig = {
   showEditPanel: false,
   showAutoSave: true,
   showSocialGeneration: true,
-  minimalLayout: true
+  minimalLayout: true,
 };

@@ -2,6 +2,7 @@ import { useScrollSync } from '../../../hooks/useScrollSync';
 import { useClickToEdit } from '../../../hooks/useSectionFocus';
 import { useEditorStore, type SectionType } from '../../../stores/editorStore';
 import { MarkdownContent } from '../../../utils/markdown';
+
 import type { CandidateData } from '../../../types/candidate';
 
 import '../../../styles/components/editable-preview.css';
@@ -99,7 +100,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
             data-field="content"
             className={`${getElementClass('about', 'content')} about-block-text`}
           >
-            <MarkdownContent content={candidateData.about.content || 'Deine Biografie wird hier erscheinen...'} />
+            <MarkdownContent
+              content={candidateData.about.content || 'Deine Biografie wird hier erscheinen...'}
+            />
           </div>
         </div>
       </section>
@@ -145,9 +148,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         className="editable-section editable-section-anchor themes-section"
         onClick={handlePreviewClick}
       >
-        <h2 className="preview-section-title">
-          {candidateData.themes.title || 'Meine Themen'}
-        </h2>
+        <h2 className="preview-section-title">{candidateData.themes.title || 'Meine Themen'}</h2>
         <div className="themes-grid">
           {candidateData.themes.themes.length > 0 ? (
             candidateData.themes.themes.map((theme, index) => (
@@ -159,11 +160,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                     data-index={index}
                     className={`${getElementClass('themes', 'imageUrl', index)} editable-element--image theme-image-wrapper`}
                   >
-                    <img
-                      src={theme.imageUrl}
-                      alt={theme.title}
-                      className="theme-image"
-                    />
+                    <img src={theme.imageUrl} alt={theme.title} className="theme-image" />
                   </div>
                 )}
                 <div className="theme-content">
@@ -187,9 +184,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
               </div>
             ))
           ) : (
-            <div className="preview-empty-state">
-              Noch keine Themen hinzugefügt
-            </div>
+            <div className="preview-empty-state">Noch keine Themen hinzugefügt</div>
           )}
         </div>
       </section>
@@ -218,9 +213,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                   backgroundPosition: 'center',
                 }}
               >
-                <span className="preview-action-text">
-                  {action.text || `Aktion ${index + 1}`}
-                </span>
+                <span className="preview-action-text">{action.text || `Aktion ${index + 1}`}</span>
               </div>
             ))
           ) : (
@@ -281,7 +274,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
           backgroundImage: candidateData.contact.backgroundImageUrl
             ? `url(${candidateData.contact.backgroundImageUrl})`
             : undefined,
-          backgroundColor: !candidateData.contact.backgroundImageUrl ? 'var(--grey-800)' : undefined,
+          backgroundColor: !candidateData.contact.backgroundImageUrl
+            ? 'var(--grey-800)'
+            : undefined,
         }}
       >
         <div className="contact-overlay">

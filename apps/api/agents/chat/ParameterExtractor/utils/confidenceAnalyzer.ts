@@ -15,20 +15,20 @@ export function analyzeParameterConfidence(
   const analysis: ConfidenceAnalysis = {
     allRequiredPresent: true,
     lowConfidenceFields: [],
-    missingFields: []
+    missingFields: [],
   };
 
   // Define minimum confidence thresholds for different fields
   const confidenceThresholds: Record<string, number> = {
     name: 0.7,
     thema: 0.5,
-    details: 0.3
+    details: 0.3,
   };
 
   // Define required fields per agent
   const requiredFields: Record<string, string[]> = {
-    'zitat': ['name'],
-    'zitat_pure': ['name']
+    zitat: ['name'],
+    zitat_pure: ['name'],
   };
 
   const requiredForAgent = requiredFields[agent] || [];
@@ -47,7 +47,7 @@ export function analyzeParameterConfidence(
         field,
         value,
         confidence,
-        threshold
+        threshold,
       });
       analysis.allRequiredPresent = false;
     }

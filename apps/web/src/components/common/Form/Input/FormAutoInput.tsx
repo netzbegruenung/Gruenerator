@@ -1,15 +1,18 @@
-import type { TextareaHTMLAttributes, LabelHTMLAttributes, FocusEvent } from 'react';
 import {
   Controller,
   type Control,
   type RegisterOptions,
   type FieldValues,
-  type Path
+  type Path,
 } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
-import FormFieldWrapper from './FormFieldWrapper';
+
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 import { useFormStateSelector } from '../FormStateProvider';
+
+import FormFieldWrapper from './FormFieldWrapper';
+
+import type { TextareaHTMLAttributes, LabelHTMLAttributes, FocusEvent } from 'react';
 
 interface TextStatsProps {
   value: string;
@@ -34,7 +37,7 @@ const TextStats = ({ value, showCharacterCount, showWordCount, maxLength }: Text
         display: 'flex',
         justifyContent: 'space-between',
         marginTop: 'var(--spacing-xxsmall)',
-        fontSize: '13px'
+        fontSize: '13px',
       }}
     >
       {showCharacterCount && (
@@ -45,7 +48,7 @@ const TextStats = ({ value, showCharacterCount, showWordCount, maxLength }: Text
               ? 'var(--error-red)'
               : isNearLimit
                 ? 'var(--warning-color, orange)'
-                : 'var(--font-color-disabled)'
+                : 'var(--font-color-disabled)',
           }}
         >
           {charCount}
@@ -61,8 +64,10 @@ const TextStats = ({ value, showCharacterCount, showWordCount, maxLength }: Text
   );
 };
 
-export interface FormAutoInputProps<T extends FieldValues = FieldValues>
-  extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'name' | 'defaultValue' | 'onChange'> {
+export interface FormAutoInputProps<T extends FieldValues = FieldValues> extends Omit<
+  TextareaHTMLAttributes<HTMLTextAreaElement>,
+  'name' | 'defaultValue' | 'onChange'
+> {
   name: Path<T>;
   label?: string;
   placeholder?: string;
@@ -116,12 +121,14 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
   onChange: onChangeProp,
   ...rest
 }: FormAutoInputProps<T>) {
-  let storeIsStartMode = false;
-  try {
-    storeIsStartMode = useFormStateSelector((state) => state.isStartMode);
-  } catch {
-    // Not inside FormStateProvider - use default
-  }
+  // All hooks must be called unconditionally at the top
+  const formState = useFormStateSelector((state) => state);
+  const storeIsStartMode = formState?.isStartMode ?? false;
+
+  // Simple form store hooks - called unconditionally
+  const rawValue = useSimpleFormStore((state) => state.fields[String(name)]);
+  const setField = useSimpleFormStore((state) => state.setField);
+  const simpleFormValue = (rawValue as string) ?? defaultValue;
 
   const minRows = storeIsStartMode ? 2 : minRowsProp;
   const autoInputId = `form-auto-input-${String(name)}`;
@@ -134,7 +141,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
         control={control}
         rules={{
           required: required ? 'Dieses Feld ist erforderlich' : false,
-          ...rules
+          ...rules,
         }}
         defaultValue={defaultValue as never}
         render={({ field, fieldState: { error } }) => (
@@ -181,10 +188,6 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
   }
 
   // Zustand fallback controlled component
-  const rawValue = useSimpleFormStore((state) => state.fields[String(name)]);
-  const value = (rawValue as string) ?? defaultValue;
-  const setField = useSimpleFormStore((state) => state.setField);
-
   return (
     <FormFieldWrapper
       label={label}
@@ -205,7 +208,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
           maxRows={maxRows}
           maxLength={maxLength}
           className={autoInputClassName}
-          value={value}
+          value={simpleFormValue}
           style={undefined}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             let newVal = e.target.value;
@@ -219,7 +222,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
           }}
         />
         <TextStats
-          value={value}
+          value={simpleFormValue}
           showCharacterCount={showCharacterCount}
           showWordCount={showWordCount}
           maxLength={maxLength}

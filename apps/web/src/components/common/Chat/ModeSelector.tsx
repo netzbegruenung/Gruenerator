@@ -1,4 +1,4 @@
-import { JSX, useRef, useCallback, ComponentType } from 'react';
+import { type JSX, useRef, useCallback, type ComponentType } from 'react';
 
 interface ModeConfig {
   label?: string;
@@ -15,12 +15,14 @@ interface ModeSelectorProps {
   disabled?: boolean;
 }
 
-const ModeSelector = ({ currentMode,
+const ModeSelector = ({
+  currentMode,
   modes,
   onModeChange,
   onReviewMode,
   className = '',
-  disabled = false }: ModeSelectorProps): JSX.Element => {
+  disabled = false,
+}: ModeSelectorProps): JSX.Element => {
   const modeKeys = Object.keys(modes);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPress = useRef<boolean>(false);
@@ -31,7 +33,7 @@ const ModeSelector = ({ currentMode,
 
     if (modeKeys.length === 2) {
       // Toggle between two modes
-      const otherMode = modeKeys.find(key => key !== currentMode);
+      const otherMode = modeKeys.find((key) => key !== currentMode);
       onModeChange(otherMode as string);
     } else {
       // Cycle through multiple modes

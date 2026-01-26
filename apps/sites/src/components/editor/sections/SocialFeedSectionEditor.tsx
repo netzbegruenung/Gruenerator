@@ -1,7 +1,9 @@
 import { useRef, useEffect } from 'react';
 import { FaInstagram } from 'react-icons/fa';
+
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
+
 import type { SocialFeedSection } from '../../../types/candidate';
 
 interface SocialFeedSectionEditorProps {
@@ -21,7 +23,10 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
     registerField('socialFeed', 'instagramUsername', usernameRef.current);
   }, [registerField]);
 
-  const updateField = <K extends keyof SocialFeedSection>(field: K, value: SocialFeedSection[K]) => {
+  const updateField = <K extends keyof SocialFeedSection>(
+    field: K,
+    value: SocialFeedSection[K]
+  ) => {
     onChange({ ...data, [field]: value });
   };
 
@@ -53,7 +58,9 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
 
       {data.showFeed && (
         <>
-          <div className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}>
+          <div
+            className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}
+          >
             <label htmlFor="socialfeed-title">Abschnittstitel</label>
             <input
               ref={titleRef}
@@ -67,7 +74,9 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
             />
           </div>
 
-          <div className={`editor-form-group ${isFieldHighlighted('instagramUsername') ? 'editor-field-highlighted' : ''}`}>
+          <div
+            className={`editor-form-group ${isFieldHighlighted('instagramUsername') ? 'editor-field-highlighted' : ''}`}
+          >
             <label htmlFor="socialfeed-username">Instagram-Benutzername</label>
             <div className="editor-input-with-prefix">
               <span className="editor-input-prefix">@</span>
@@ -89,9 +98,9 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
 
           <div className="editor-info-box">
             <p>
-              <strong>Datenschutz-Hinweis:</strong> Der Instagram-Feed wird erst geladen,
-              nachdem Besucher*innen der Datenübertragung an Meta zugestimmt haben
-              (DSGVO-konforme Zwei-Klick-Lösung).
+              <strong>Datenschutz-Hinweis:</strong> Der Instagram-Feed wird erst geladen, nachdem
+              Besucher*innen der Datenübertragung an Meta zugestimmt haben (DSGVO-konforme
+              Zwei-Klick-Lösung).
             </p>
           </div>
         </>

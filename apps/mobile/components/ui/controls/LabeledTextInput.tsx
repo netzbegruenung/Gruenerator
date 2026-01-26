@@ -3,7 +3,14 @@
  * Reusable component for labeled text input fields
  */
 
-import { View, Text, TextInput, StyleSheet, useColorScheme, type KeyboardTypeOptions } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  useColorScheme,
+  type KeyboardTypeOptions,
+} from 'react-native';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../theme';
 
 interface LabeledTextInputProps {
@@ -34,9 +41,7 @@ export function LabeledTextInput({
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
 
       <TextInput
         value={value}

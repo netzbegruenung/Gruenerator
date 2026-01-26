@@ -21,7 +21,7 @@ export function removeUnwantedElements(
     '#comments',
   ]
 ): void {
-  selectors.forEach(selector => $(selector).remove());
+  selectors.forEach((selector) => $(selector).remove());
 }
 
 /**
@@ -54,9 +54,7 @@ export function extractCleanText(html: string, removeSelectors?: string[]): stri
  * Remove TYPO3 search markers
  */
 export function removeTypo3Markers(text: string): string {
-  return text
-    .replace(/###TYPO3SEARCH_begin###/g, '')
-    .replace(/###TYPO3SEARCH_end###/g, '');
+  return text.replace(/###TYPO3SEARCH_begin###/g, '').replace(/###TYPO3SEARCH_end###/g, '');
 }
 
 /**
@@ -87,9 +85,11 @@ export function stripHtmlTags(html: string): string {
  */
 export function extractMetaDescription(html: string): string | null {
   const $ = cheerio.load(html);
-  return $('meta[name="description"]').attr('content') ||
-         $('meta[property="og:description"]').attr('content') ||
-         null;
+  return (
+    $('meta[name="description"]').attr('content') ||
+    $('meta[property="og:description"]').attr('content') ||
+    null
+  );
 }
 
 /**
@@ -97,10 +97,12 @@ export function extractMetaDescription(html: string): string | null {
  */
 export function extractTitle(html: string): string | null {
   const $ = cheerio.load(html);
-  return $('title').text().trim() ||
-         $('meta[property="og:title"]').attr('content') ||
-         $('h1').first().text().trim() ||
-         null;
+  return (
+    $('title').text().trim() ||
+    $('meta[property="og:title"]').attr('content') ||
+    $('h1').first().text().trim() ||
+    null
+  );
 }
 
 /**

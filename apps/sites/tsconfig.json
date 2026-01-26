@@ -16,6 +16,6 @@
     "noImplicitOverride": false,
     "noImplicitReturns": false
   },
-  "include": ["src/**/*", "vite.config.ts", "data/**/*"],
+  "include": ["src/**/*", "vite.config.ts", "data/**/*", "eslint.config.js"],
   "exclude": ["node_modules", "dist"]
 }

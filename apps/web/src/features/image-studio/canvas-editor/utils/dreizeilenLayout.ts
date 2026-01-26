@@ -53,7 +53,9 @@ export const COLORS = {
   KLEE: '#008939',
   GRASHALM: '#8ABD24',
   SAND: '#F5F1E9',
-  HIMMEL: '#009EE3',
+  HIMMEL: '#0BA1DD',
+  HELLGRUEN: '#6CCD87',
+  DUNKELGRAU: '#2E2E3D',
 } as const;
 
 // Configuration matching backend exactly (config.ts and dreizeilen_canvas.ts)
@@ -261,7 +263,8 @@ export function calculateDreizeilenLayout(
   };
 
   // Calculate sunflower size - backend lines 181-183
-  const baseSunflowerSize = Math.min(textBlockBounds.width, textBlockBounds.height) * config.sunflower.sizeFactor;
+  const baseSunflowerSize =
+    Math.min(textBlockBounds.width, textBlockBounds.height) * config.sunflower.sizeFactor;
   const sizeFactor = Math.max(0.5, Math.min(1, fontSize / config.text.defaultFontSize));
   const sunflowerSize = baseSunflowerSize * sizeFactor;
 

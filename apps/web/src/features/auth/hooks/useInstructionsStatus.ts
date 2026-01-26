@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { profileApiService } from '../services/profileApiService';
+
 import { useAuth } from '../../../hooks/useAuth';
+import { profileApiService } from '../services/profileApiService';
 
 /**
  * Hook to check if user has instructions for a specific generator type
@@ -8,7 +9,10 @@ import { useAuth } from '../../../hooks/useAuth';
  * @param {object} options - Query options
  * @returns {object} Query result with instruction status data
  */
-export const useInstructionsStatusForType = (instructionType: string | undefined, options: Record<string, unknown> = {}) => {
+export const useInstructionsStatusForType = (
+  instructionType: string | undefined,
+  options: Record<string, unknown> = {}
+) => {
   const { user, isAuthenticated } = useAuth();
 
   return useQuery({
@@ -20,7 +24,7 @@ export const useInstructionsStatusForType = (instructionType: string | undefined
     refetchOnWindowFocus: false,
     retry: 2,
     retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    ...options
+    ...options,
   });
 };
 

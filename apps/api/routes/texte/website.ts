@@ -20,12 +20,12 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     hasDescription: !!description,
     descriptionLength: description?.length || 0,
     hasEmail: !!email,
-    userId: req.user?.id || 'No user'
+    userId: req.user?.id || 'No user',
   });
 
   if (!description) {
     res.status(400).json({
-      error: 'Bitte gib eine Beschreibung an'
+      error: 'Bitte gib eine Beschreibung an',
     });
     return;
   }
@@ -105,34 +105,39 @@ ${description}`;
     const payload = {
       systemPrompt,
       provider: useProMode ? 'claude' : 'mistral',
-      messages: [{
-        role: 'user',
-        content: userPrompt
-      }],
+      messages: [
+        {
+          role: 'user',
+          content: userPrompt,
+        },
+      ],
       options: {
         max_tokens: 4000,
-        temperature: 0.7
-      }
+        temperature: 0.7,
+      },
     };
 
     log.debug('[claude_website] Payload overview:', {
       systemPromptLength: systemPrompt.length,
       userPromptLength: userPrompt.length,
       provider: payload.provider,
-      userId: req.user?.id
+      userId: req.user?.id,
     });
 
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'website',
-      usePrivacyMode: usePrivacyMode || false,
-      ...payload
-    }, req);
+    const result = await req.app.locals.aiWorkerPool.processRequest(
+      {
+        type: 'website',
+        usePrivacyMode: usePrivacyMode || false,
+        ...payload,
+      },
+      req
+    );
 
     log.debug('[claude_website] AI Worker response received:', {
       success: result.success,
       contentLength: result.content?.length,
       error: result.error,
-      userId: req.user?.id
+      userId: req.user?.id,
     });
 
     if (!result.success) {
@@ -158,7 +163,14 @@ ${description}`;
       throw new Error('Die KI hat kein valides JSON generiert. Bitte versuche es erneut.');
     }
 
-    const requiredFields: (keyof WebsiteContent)[] = ['hero', 'about', 'hero_image', 'themes', 'actions', 'contact'];
+    const requiredFields: (keyof WebsiteContent)[] = [
+      'hero',
+      'about',
+      'hero_image',
+      'themes',
+      'actions',
+      'contact',
+    ];
     for (const field of requiredFields) {
       if (!parsedJson[field]) {
         throw new Error(`Fehlendes Feld im JSON: ${field}`);
@@ -200,9 +212,9 @@ ${description}`;
 
     const imagePromises = [
       pickImage(`${parsedJson.hero_image.title} ${parsedJson.hero_image.subtitle}`),
-      ...parsedJson.themes.map(theme => pickImage(`${theme.title} ${theme.content}`)),
-      ...parsedJson.actions.map(action => pickImage(action.text)),
-      pickImage(`${parsedJson.contact.title} Kontakt Politik Grüne`)
+      ...parsedJson.themes.map((theme) => pickImage(`${theme.title} ${theme.content}`)),
+      ...parsedJson.actions.map((action) => pickImage(action.text)),
+      pickImage(`${parsedJson.contact.title} Kontakt Politik Grüne`),
     ];
 
     const imageResults = await Promise.all(imagePromises);
@@ -215,11 +227,11 @@ ${description}`;
     parsedJson.hero_image.imageUrl = heroImageUrl;
     parsedJson.themes = parsedJson.themes.map((theme, i) => ({
       ...theme,
-      imageUrl: themeImageUrls[i] || ''
+      imageUrl: themeImageUrls[i] || '',
     }));
     parsedJson.actions = parsedJson.actions.map((action, i) => ({
       ...action,
-      imageUrl: actionImageUrls[i] || ''
+      imageUrl: actionImageUrls[i] || '',
     }));
     parsedJson.contact.backgroundImageUrl = contactImageUrl;
 
@@ -227,27 +239,26 @@ ${description}`;
       heroImage: !!heroImageUrl,
       themeImages: themeImageUrls.filter(Boolean).length,
       actionImages: actionImageUrls.filter(Boolean).length,
-      contactImage: !!contactImageUrl
+      contactImage: !!contactImageUrl,
     });
 
     const response = {
       json: parsedJson,
-      metadata: result.metadata
+      metadata: result.metadata,
     };
 
     log.debug('[claude_website] Sending successful response:', {
       hasJson: !!response.json,
       hasMetadata: !!response.metadata,
-      userId: req.user?.id
+      userId: req.user?.id,
     });
 
     res.json(response);
-
   } catch (error) {
     log.error('[claude_website] Error creating website content:', error);
     res.status(500).json({
       error: 'Fehler bei der Erstellung der Website-Inhalte',
-      details: (error as Error).message
+      details: (error as Error).message,
     });
   }
 });

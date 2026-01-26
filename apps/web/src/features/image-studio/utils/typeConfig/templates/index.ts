@@ -10,12 +10,13 @@ export { profilbildTypeConfig, profilbildFieldConfig } from './profilbild';
 export { simpleTypeConfig, simpleFieldConfig } from './simple';
 
 import { dreizeilenTypeConfig, dreizeilenFieldConfig } from './dreizeilen';
-import { zitatTypeConfig, zitatFieldConfig } from './zitat';
-import { zitatPureTypeConfig, zitatPureFieldConfig } from './zitatPure';
 import { infoTypeConfig, infoFieldConfig } from './info';
-import { veranstaltungTypeConfig, veranstaltungFieldConfig } from './veranstaltung';
 import { profilbildTypeConfig, profilbildFieldConfig } from './profilbild';
 import { simpleTypeConfig, simpleFieldConfig } from './simple';
+import { veranstaltungTypeConfig, veranstaltungFieldConfig } from './veranstaltung';
+import { zitatTypeConfig, zitatFieldConfig } from './zitat';
+import { zitatPureTypeConfig, zitatPureFieldConfig } from './zitatPure';
+
 import type { TypeConfig, TemplateFieldConfig } from '../types';
 
 export const templateTypeConfigs: Record<string, TypeConfig> = {
@@ -25,7 +26,7 @@ export const templateTypeConfigs: Record<string, TypeConfig> = {
   [infoTypeConfig.id]: infoTypeConfig,
   [veranstaltungTypeConfig.id]: veranstaltungTypeConfig,
   [profilbildTypeConfig.id]: profilbildTypeConfig,
-  [simpleTypeConfig.id]: simpleTypeConfig
+  [simpleTypeConfig.id]: simpleTypeConfig,
 };
 
 export const templateFieldConfigs: Record<string, TemplateFieldConfig> = {
@@ -35,5 +36,5 @@ export const templateFieldConfigs: Record<string, TemplateFieldConfig> = {
   [infoTypeConfig.id]: infoFieldConfig,
   [veranstaltungTypeConfig.id]: veranstaltungFieldConfig,
   [profilbildTypeConfig.id]: profilbildFieldConfig,
-  [simpleTypeConfig.id]: simpleFieldConfig
+  [simpleTypeConfig.id]: simpleFieldConfig,
 };

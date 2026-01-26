@@ -1,11 +1,7 @@
 {
   "index_name": "Gruenerator Dokumentation",
-  "start_urls": [
-    "https://xgwok08o0ccgo4g4cgcoksc8.services.moritz-waechter.de"
-  ],
-  "sitemap_urls": [
-    "https://xgwok08o0ccgo4g4cgcoksc8.services.moritz-waechter.de/sitemap.xml"
-  ],
+  "start_urls": ["https://xgwok08o0ccgo4g4cgcoksc8.services.moritz-waechter.de"],
+  "sitemap_urls": ["https://xgwok08o0ccgo4g4cgcoksc8.services.moritz-waechter.de/sitemap.xml"],
   "sitemap_alternate_links": true,
   "stop_urls": [],
   "selectors": {
@@ -25,31 +21,11 @@
   },
   "strip_chars": " .,;:#",
   "custom_settings": {
-    "attributesForFaceting": [
-      "type",
-      "lang"
-    ],
-    "attributesToRetrieve": [
-      "hierarchy",
-      "content",
-      "anchor",
-      "url",
-      "url_without_anchor",
-      "type"
-    ],
-    "attributesToHighlight": [
-      "hierarchy",
-      "hierarchy_camel_case",
-      "content"
-    ],
-    "attributesToSnippet": [
-      "content:10"
-    ],
-    "camelCaseAttributes": [
-      "hierarchy",
-      "hierarchy_radio",
-      "content"
-    ],
+    "attributesForFaceting": ["type", "lang"],
+    "attributesToRetrieve": ["hierarchy", "content", "anchor", "url", "url_without_anchor", "type"],
+    "attributesToHighlight": ["hierarchy", "hierarchy_camel_case", "content"],
+    "attributesToSnippet": ["content:10"],
+    "camelCaseAttributes": ["hierarchy", "hierarchy_radio", "content"],
     "searchableAttributes": [
       "unordered(hierarchy_radio_camel.lvl0)",
       "unordered(hierarchy_radio.lvl0)",
@@ -69,20 +45,8 @@
     ],
     "distinct": true,
     "attributeForDistinct": "url",
-    "customRanking": [
-      "desc(weight.pageRank)",
-      "desc(weight.level)",
-      "asc(weight.position)"
-    ],
-    "ranking": [
-      "words",
-      "filters",
-      "typo",
-      "attribute",
-      "proximity",
-      "exact",
-      "custom"
-    ],
+    "customRanking": ["desc(weight.pageRank)", "desc(weight.level)", "asc(weight.position)"],
+    "ranking": ["words", "filters", "typo", "attribute", "proximity", "exact", "custom"],
     "highlightPreTag": "<span class=\"algolia-docsearch-suggestion--highlight\">",
     "highlightPostTag": "</span>",
     "minWordSizefor1Typo": 3,
@@ -94,8 +58,6 @@
     "attributeCriteriaComputedByMinProximity": true,
     "removeWordsIfNoResults": "allOptional"
   },
-  "conversation_id": [
-    "833762294"
-  ],
+  "conversation_id": ["833762294"],
   "nb_hits": 46250
 }

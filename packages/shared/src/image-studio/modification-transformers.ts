@@ -62,9 +62,7 @@ export function normalizeColorScheme(scheme: DreizeilenColorScheme): ColorScheme
 /**
  * Convert grouped percentage-based font sizes to per-field pixel sizes
  */
-export function groupedToFieldFontSizes(
-  grouped: GroupedFontSizes
-): VeranstaltungFontSizes {
+export function groupedToFieldFontSizes(grouped: GroupedFontSizes): VeranstaltungFontSizes {
   const result: VeranstaltungFontSizes = {};
 
   // Main fields
@@ -88,9 +86,7 @@ export function groupedToFieldFontSizes(
 /**
  * Convert per-field pixel sizes to grouped percentages (approximate)
  */
-export function fieldToGroupedFontSizes(
-  fieldSizes: VeranstaltungFontSizes
-): GroupedFontSizes {
+export function fieldToGroupedFontSizes(fieldSizes: VeranstaltungFontSizes): GroupedFontSizes {
   const calculateGroupAverage = (fields: readonly (keyof VeranstaltungFontSizes)[]) => {
     let total = 0;
     let count = 0;
@@ -164,7 +160,11 @@ export function applyVeranstaltungParams(
 export function applyModificationParams(
   request: CanvasGenerationRequest,
   type: string,
-  params: DreizeilenModificationParams | ZitatModificationParams | VeranstaltungModificationParams | null
+  params:
+    | DreizeilenModificationParams
+    | ZitatModificationParams
+    | VeranstaltungModificationParams
+    | null
 ): CanvasGenerationRequest {
   if (!params) return request;
 
@@ -217,10 +217,7 @@ export function cloneModificationParams<T extends object>(params: T): T {
 /**
  * Check if two color schemes are equal
  */
-export function areColorSchemesEqual(
-  a: DreizeilenColorScheme,
-  b: DreizeilenColorScheme
-): boolean {
+export function areColorSchemesEqual(a: DreizeilenColorScheme, b: DreizeilenColorScheme): boolean {
   if (!a || !b || a.length !== b.length) return false;
 
   for (let i = 0; i < a.length; i++) {
@@ -237,6 +234,6 @@ export function findColorSchemePresetId(
   scheme: DreizeilenColorScheme,
   presets: { id: string; colors: DreizeilenColorScheme }[]
 ): string | null {
-  const match = presets.find(preset => areColorSchemesEqual(preset.colors, scheme));
+  const match = presets.find((preset) => areColorSchemesEqual(preset.colors, scheme));
   return match?.id || null;
 }

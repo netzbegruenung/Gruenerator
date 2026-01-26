@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  ReactCompareSlider,
-  ReactCompareSliderImage
-} from 'react-compare-slider';
-import ImagineOld from '../../../assets/images/startseite/imagine_old.jpg';
+import { ReactCompareSlider, ReactCompareSliderImage } from 'react-compare-slider';
+
 import GrueneratorImagine from '../../../assets/images/startseite/gruenerator_imagine.png';
+import ImagineOld from '../../../assets/images/startseite/imagine_old.jpg';
 import '../../../assets/styles/components/image-comparison.css';
 
 const ImageComparisonMock = () => {
@@ -33,9 +31,7 @@ const ImageComparisonMock = () => {
       const clampedProgress = Math.min(Math.max(rawProgress, 0), 1);
       const targetPosition = (1 - clampedProgress) * 100;
 
-      setSliderPosition((prev) => (
-        Math.abs(prev - targetPosition) < 0.5 ? prev : targetPosition
-      ));
+      setSliderPosition((prev) => (Math.abs(prev - targetPosition) < 0.5 ? prev : targetPosition));
     };
 
     const scheduleUpdate = () => {
@@ -63,12 +59,7 @@ const ImageComparisonMock = () => {
   return (
     <div className="image-comparison-container" ref={containerRef}>
       <ReactCompareSlider
-        itemOne={
-          <ReactCompareSliderImage
-            src={ImagineOld}
-            alt="Originalbild - Vorher"
-          />
-        }
+        itemOne={<ReactCompareSliderImage src={ImagineOld} alt="Originalbild - Vorher" />}
         itemTwo={
           <ReactCompareSliderImage
             src={GrueneratorImagine}

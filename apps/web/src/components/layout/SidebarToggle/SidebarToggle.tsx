@@ -1,4 +1,5 @@
 import { memo } from 'react';
+
 import useSidebarStore from '../../../stores/sidebarStore';
 import './SidebarToggle.css';
 
@@ -10,7 +11,7 @@ const SidebarToggle = memo(() => {
     <button
       className={`sidebar-toggle ${isOpen ? 'active' : ''}`}
       onClick={toggle}
-      aria-label={isOpen ? "Menü schließen" : "Menü öffnen"}
+      aria-label={isOpen ? 'Menü schließen' : 'Menü öffnen'}
       aria-expanded={isOpen}
     >
       <div className="sidebar-toggle__hamburger" aria-hidden="true">

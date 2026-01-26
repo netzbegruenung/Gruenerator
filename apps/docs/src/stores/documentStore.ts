@@ -23,7 +23,10 @@ interface DocumentStore {
   error: string | null;
   fetchDocuments: () => Promise<void>;
   createDocument: (title?: string, folderId?: string | null) => Promise<Document>;
-  updateDocument: (id: string, updates: Partial<Pick<Document, 'title' | 'folder_id'>>) => Promise<void>;
+  updateDocument: (
+    id: string,
+    updates: Partial<Pick<Document, 'title' | 'folder_id'>>
+  ) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
   duplicateDocument: (id: string) => Promise<Document>;
   clearError: () => void;
@@ -43,7 +46,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       console.error('Failed to fetch documents:', error);
       set({
         error: 'Fehler beim Laden der Dokumente',
-        isLoading: false
+        isLoading: false,
       });
     }
   },
@@ -53,7 +56,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     try {
       const response = await apiClient.post('/docs', {
         title,
-        folder_id: folderId
+        folder_id: folderId,
       });
       const newDocument = response.data;
 
@@ -76,9 +79,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       const updatedDocument = response.data;
 
       set((state) => ({
-        documents: state.documents.map((doc) =>
-          doc.id === id ? updatedDocument : doc
-        ),
+        documents: state.documents.map((doc) => (doc.id === id ? updatedDocument : doc)),
       }));
     } catch (error) {
       console.error('Failed to update document:', error);

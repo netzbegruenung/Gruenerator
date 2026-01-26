@@ -124,7 +124,7 @@ function generateFallbackTitle(): string {
   const dateStr = now.toLocaleDateString('de-DE', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   });
   return `Gespeicherter Text vom ${dateStr}`;
 }

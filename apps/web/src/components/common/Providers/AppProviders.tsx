@@ -9,7 +9,7 @@ interface AppProvidersProps {
 }
 
 const AppProviders = ({ children, withSharepic = false, pathname }: AppProvidersProps) => {
-  let wrapped = children;
+  const wrapped = children;
 
   // FormProvider removed - no global form state needed anymore
   // SharepicGeneratorProvider removed - using Zustand store directly

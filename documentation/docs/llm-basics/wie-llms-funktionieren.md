@@ -17,7 +17,7 @@ Der wichtigste Bestandteil eines LLM ist ein **neuronales Netzwerk**. Stellt euc
 Damit ein LLM menschenähnlich sprechen kann, muss es "lernen". Dieser Lernprozess, das **Training**, ist entscheidend:
 
 - **Riesige Datenmengen:** Modelle wie GPT-4, das lange Zeit die Basis für ChatGPT bildete, wurden mit gigantischen Textmengen trainiert – für GPT-4 waren das 300 Milliarden Wörter. Diese Texte stammen aus dem Internet, aber das Modell weiß nicht, welche spezifischen Dokumente Teil seines Trainings waren. Es lernt daraus Sprachmuster, Grammatik, Fakten und Zusammenhänge, ohne diese explizit als Regeln programmiert bekommen zu haben.
-- **Menschliche Aufsicht:** Der Lernprozess wird oft durch menschliches Feedback verbessert. Das Modell erhält positives oder negatives Feedback zu seinen Antworten, wodurch es seine Fähigkeiten weiter verfeinert, kohärentere und passendere Texte zu erzeugen. 
+- **Menschliche Aufsicht:** Der Lernprozess wird oft durch menschliches Feedback verbessert. Das Modell erhält positives oder negatives Feedback zu seinen Antworten, wodurch es seine Fähigkeiten weiter verfeinert, kohärentere und passendere Texte zu erzeugen.
 - **Hyperparameter:** Das sind wie die "Lernregeln" des Modells. Sie beeinflussen, wie schnell und präzise das Modell lernt, indem sie ihm helfen, den Kontext besser zu erkennen und verschiedene Eingaben und Ausgaben zu verwalten.
 
 Das **Transformer-Modell** ist die spezielle Architektur eines neuronalen Netzwerks, die bei ChatGPT zum Einsatz kommt und besonders gut darin ist, zusammenhängende Textsequenzen zu verarbeiten und zu generieren.
@@ -60,4 +60,4 @@ Zuletzt werden die vom Decoder erzeugten Zahlencodes durch weitere Schichten gel
 
 Dieser Grünerator-Guide basiert auf wissenschaftlichen Erkenntnissen aus:
 
-Briganti, G. (2024). [How ChatGPT works: a mini review](https://link.springer.com/article/10.1007/s00405-023-08337-7). *European Archives of Oto-Rhino-Laryngology*, 281, 1565–1569.
+Briganti, G. (2024). [How ChatGPT works: a mini review](https://link.springer.com/article/10.1007/s00405-023-08337-7). _European Archives of Oto-Rhino-Laryngology_, 281, 1565–1569.

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
+
 import { FormInput, FormTextarea, FormAutoInput, FormSelect, FormCheckbox } from '../Input';
 
 /**
@@ -17,16 +18,18 @@ export const useFormFields = () => {
   }
 
   // helper to bind component
-  const bind = (Cmp) => ({ control, ...rest }) =>
-    React.createElement(Cmp, { control: control || ctxControl, ...rest });
+  const bind =
+    (Cmp) =>
+    ({ control, ...rest }) =>
+      React.createElement(Cmp, { control: control || ctxControl, ...rest });
 
   return {
     Input: bind(FormInput),
     Textarea: bind(FormTextarea),
     AutoInput: bind(FormAutoInput),
     Select: bind(FormSelect),
-    Checkbox: bind(FormCheckbox)
+    Checkbox: bind(FormCheckbox),
   };
 };
 
-export default useFormFields; 
+export default useFormFields;

@@ -16,10 +16,7 @@ export class ContentExtractor {
    * Extract content from WordPress page
    * Handles Elementor, Gutenberg, and classic themes
    */
-  static extractContentWordPress(
-    $: cheerio.CheerioAPI,
-    selectors: any
-  ): ExtractedContent {
+  static extractContentWordPress($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
     // Remove unwanted elements
     $('script, style, noscript, iframe, nav, header, footer').remove();
     $('.navigation, .sidebar, .cookie-banner, .cookie-notice, .popup, .modal').remove();
@@ -87,10 +84,7 @@ export class ContentExtractor {
    * Extract content from Neos page
    * Handles Neos CMS-specific structure
    */
-  static extractContentNeos(
-    $: cheerio.CheerioAPI,
-    selectors: any
-  ): ExtractedContent {
+  static extractContentNeos($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
     // Remove unwanted elements
     $('script, style, noscript, iframe, nav, header, footer').remove();
     $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();

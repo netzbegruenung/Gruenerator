@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
+
 import { useDesktopTabsStore } from '../stores/desktopTabsStore';
-import { saveTabs, loadTabs } from '../utils/tabPersistence';
 import { isDesktopApp } from '../utils/platform';
+import { saveTabs, loadTabs } from '../utils/tabPersistence';
 
 const SAVE_DEBOUNCE_MS = 1000;
 
@@ -36,7 +37,7 @@ export const useTabPersistence = () => {
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      saveTabs(tabs, activeTabId).catch(error => {
+      saveTabs(tabs, activeTabId).catch((error) => {
         console.error('[TabPersistence] Failed to save tabs:', error);
       });
     }, SAVE_DEBOUNCE_MS);

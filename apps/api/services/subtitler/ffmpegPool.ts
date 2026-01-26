@@ -28,7 +28,7 @@ class FFmpegPool {
   async run<T>(fn: () => Promise<T>, label: string = 'unknown'): Promise<T> {
     if (this.running >= this.max) {
       log.debug(`[${label}] Queued (running: ${this.running}, queued: ${this.queue.length})`);
-      await new Promise<void>(resolve => this.queue.push(resolve));
+      await new Promise<void>((resolve) => this.queue.push(resolve));
     }
 
     this.running++;
@@ -51,7 +51,7 @@ class FFmpegPool {
     return {
       running: this.running,
       queued: this.queue.length,
-      max: this.max
+      max: this.max,
     };
   }
 }

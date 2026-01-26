@@ -18,11 +18,7 @@ export class DateExtractor {
    * Cost optimization: This runs BEFORE expensive Mistral OCR
    * Saved ~96% of OCR costs on test data by filtering old PDFs
    */
-  static extractDateFromPdfInfo(
-    url: string,
-    title: string,
-    context: string
-  ): DateExtractionResult {
+  static extractDateFromPdfInfo(url: string, title: string, context: string): DateExtractionResult {
     const tenYearsAgo = new Date();
     tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
     const currentYear = new Date().getFullYear();

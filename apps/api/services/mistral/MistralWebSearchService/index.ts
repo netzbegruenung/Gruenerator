@@ -9,17 +9,12 @@ export { MistralWebSearchService } from './MistralWebSearchService.js';
 export { default } from './MistralWebSearchService.js';
 
 // Re-export types
-export type {
-  SearchSource,
-  SearchResults,
-  AgentConfig,
-  AgentType
-} from './types.js';
+export type { SearchSource, SearchResults, AgentConfig, AgentType } from './types.js';
 
 // Re-export utilities
 export { getAgentConfig } from './agentConfig.js';
 export {
   extractSearchResults,
   extractDomainFromUrl,
-  extractSnippetFromContent
+  extractSnippetFromContent,
 } from './resultExtraction.js';

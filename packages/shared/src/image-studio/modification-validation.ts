@@ -13,9 +13,7 @@ import type {
   ZitatModificationParams,
   VeranstaltungModificationParams,
 } from './modification-types.js';
-import {
-  MODIFICATION_CONTROLS_CONFIG,
-} from './modification-constants.js';
+import { MODIFICATION_CONTROLS_CONFIG } from './modification-constants.js';
 
 // ============================================================================
 // VALIDATION RESULT TYPE
@@ -46,7 +44,9 @@ export function validateRange(
   if (value < min || value > max) {
     return {
       valid: true,
-      warnings: [`${fieldName} (${value}) liegt außerhalb des empfohlenen Bereichs (${min}-${max})`],
+      warnings: [
+        `${fieldName} (${value}) liegt außerhalb des empfohlenen Bereichs (${min}-${max})`,
+      ],
     };
   }
   return { valid: true };
@@ -69,9 +69,7 @@ export function validateFontSize(
 /**
  * Validate balken offset array
  */
-export function validateBalkenOffset(
-  offset: BalkenOffset
-): ModificationValidationResult {
+export function validateBalkenOffset(offset: BalkenOffset): ModificationValidationResult {
   if (!Array.isArray(offset) || offset.length !== 3) {
     return { valid: false, error: 'Balken-Offset muss ein Array mit 3 Werten sein' };
   }
@@ -111,10 +109,7 @@ export function validateOffset2D(
 /**
  * Validate hex color string
  */
-export function validateHexColor(
-  color: string,
-  fieldName: string
-): ModificationValidationResult {
+export function validateHexColor(color: string, fieldName: string): ModificationValidationResult {
   if (typeof color !== 'string') {
     return { valid: false, error: `${fieldName} muss ein Text sein` };
   }
@@ -129,10 +124,7 @@ export function validateHexColor(
 /**
  * Validate bar color
  */
-export function validateBarColor(
-  barColor: BarColor,
-  index: number
-): ModificationValidationResult {
+export function validateBarColor(barColor: BarColor, index: number): ModificationValidationResult {
   if (!barColor || typeof barColor !== 'object') {
     return { valid: false, error: `Farbe ${index + 1} ist ungültig` };
   }
@@ -142,9 +134,7 @@ export function validateBarColor(
 /**
  * Validate color scheme (3 bars)
  */
-export function validateColorScheme(
-  scheme: DreizeilenColorScheme
-): ModificationValidationResult {
+export function validateColorScheme(scheme: DreizeilenColorScheme): ModificationValidationResult {
   if (!Array.isArray(scheme) || scheme.length !== 3) {
     return { valid: false, error: 'Farbschema muss 3 Farben enthalten' };
   }
@@ -160,9 +150,7 @@ export function validateColorScheme(
 /**
  * Validate grouped font sizes (percentage)
  */
-export function validateGroupedFontSizes(
-  sizes: GroupedFontSizes
-): ModificationValidationResult {
+export function validateGroupedFontSizes(sizes: GroupedFontSizes): ModificationValidationResult {
   const { min, max } = MODIFICATION_CONTROLS_CONFIG.groupedFontSize;
   const warnings: string[] = [];
 
@@ -183,7 +171,10 @@ export function validateCredit(credit: string): ModificationValidationResult {
     return { valid: false, error: 'Credit muss ein Text sein' };
   }
   if (credit.length > 50) {
-    return { valid: true, warnings: ['Credit ist länger als 50 Zeichen und wird möglicherweise abgeschnitten'] };
+    return {
+      valid: true,
+      warnings: ['Credit ist länger als 50 Zeichen und wird möglicherweise abgeschnitten'],
+    };
   }
   return { valid: true };
 }
@@ -233,9 +224,7 @@ export function validateDreizeilenParams(
 /**
  * Validate zitat modification params
  */
-export function validateZitatParams(
-  params: ZitatModificationParams
-): ModificationValidationResult {
+export function validateZitatParams(params: ZitatModificationParams): ModificationValidationResult {
   return validateFontSize(params.fontSize, true);
 }
 

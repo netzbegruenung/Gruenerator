@@ -1,7 +1,9 @@
 import { useRef, useEffect } from 'react';
+
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
+
 import type { ContactSection } from '../../../types/candidate';
 
 interface ContactSectionEditorProps {
@@ -37,7 +39,9 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
     <div className="contact-section-editor">
       <h3 className="section-editor-title">Kontakt</h3>
 
-      <div className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}>
+      <div
+        className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}
+      >
         <label htmlFor="contact-title">Titel</label>
         <input
           ref={titleRef}
@@ -51,7 +55,9 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
         />
       </div>
 
-      <div className={`editor-form-group ${isFieldHighlighted('email') ? 'editor-field-highlighted' : ''}`}>
+      <div
+        className={`editor-form-group ${isFieldHighlighted('email') ? 'editor-field-highlighted' : ''}`}
+      >
         <label htmlFor="contact-email">E-Mail *</label>
         <input
           ref={emailRef}
@@ -66,7 +72,9 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
         />
       </div>
 
-      <div className={`editor-form-group ${isFieldHighlighted('phone') ? 'editor-field-highlighted' : ''}`}>
+      <div
+        className={`editor-form-group ${isFieldHighlighted('phone') ? 'editor-field-highlighted' : ''}`}
+      >
         <label htmlFor="contact-phone">Telefon</label>
         <input
           ref={phoneRef}
@@ -80,7 +88,9 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
         />
       </div>
 
-      <div className={`editor-form-group ${isFieldHighlighted('address') ? 'editor-field-highlighted' : ''}`}>
+      <div
+        className={`editor-form-group ${isFieldHighlighted('address') ? 'editor-field-highlighted' : ''}`}
+      >
         <label htmlFor="contact-address">Adresse</label>
         <textarea
           ref={addressRef}

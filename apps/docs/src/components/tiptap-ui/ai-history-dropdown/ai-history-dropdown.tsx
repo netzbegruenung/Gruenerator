@@ -1,21 +1,17 @@
-"use client";
+'use client';
 
-import { useAiEditHistory } from "@/hooks/useAiEditHistory";
-import { useEditorStore } from "@/stores/editorStore";
-import { Button } from "@/components/tiptap-ui-primitive/button";
-import { Badge } from "@/components/tiptap-ui-primitive/badge";
+import { useAiEditHistory } from '@/hooks/useAiEditHistory';
+import { useEditorStore } from '@/stores/editorStore';
+import { Button } from '@/components/tiptap-ui-primitive/button';
+import { Badge } from '@/components/tiptap-ui-primitive/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/tiptap-ui-primitive/dropdown-menu";
-import { Separator } from "@/components/tiptap-ui-primitive/separator";
-import {
-  Card,
-  CardBody,
-  CardItemGroup,
-} from "@/components/tiptap-ui-primitive/card";
+} from '@/components/tiptap-ui-primitive/dropdown-menu';
+import { Separator } from '@/components/tiptap-ui-primitive/separator';
+import { Card, CardBody, CardItemGroup } from '@/components/tiptap-ui-primitive/card';
 
 export interface AiHistoryDropdownProps {
   documentId: string;
@@ -59,9 +55,7 @@ export const AiHistoryDropdown = ({ documentId }: AiHistoryDropdownProps) => {
         >
           <ClockIcon />
           {hasHistory && (
-            <Badge
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs"
-            >
+            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs">
               {history.length}
             </Badge>
           )}
@@ -79,7 +73,11 @@ export const AiHistoryDropdown = ({ documentId }: AiHistoryDropdownProps) => {
               <DropdownMenuItem
                 onClick={undoAiEdit}
                 disabled={!canUndo}
-                style={{ padding: '0.5rem 0.75rem', cursor: canUndo ? 'pointer' : 'not-allowed', opacity: canUndo ? 1 : 0.5 }}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  cursor: canUndo ? 'pointer' : 'not-allowed',
+                  opacity: canUndo ? 1 : 0.5,
+                }}
               >
                 <span style={{ marginRight: '0.5rem' }}>↩</span>
                 Rückgängig (Ctrl+Alt+Z)
@@ -87,7 +85,11 @@ export const AiHistoryDropdown = ({ documentId }: AiHistoryDropdownProps) => {
               <DropdownMenuItem
                 onClick={redoAiEdit}
                 disabled={!canRedo}
-                style={{ padding: '0.5rem 0.75rem', cursor: canRedo ? 'pointer' : 'not-allowed', opacity: canRedo ? 1 : 0.5 }}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  cursor: canRedo ? 'pointer' : 'not-allowed',
+                  opacity: canRedo ? 1 : 0.5,
+                }}
               >
                 <span style={{ marginRight: '0.5rem' }}>↪</span>
                 Wiederholen (Ctrl+Alt+Y)
@@ -104,27 +106,52 @@ export const AiHistoryDropdown = ({ documentId }: AiHistoryDropdownProps) => {
                         style={{
                           padding: '0.5rem 0.75rem',
                           cursor: 'pointer',
-                          backgroundColor: index === currentIndex ? 'var(--tt-gray-light-a-50)' : 'transparent'
+                          backgroundColor:
+                            index === currentIndex ? 'var(--tt-gray-light-a-50)' : 'transparent',
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '0.25rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            width: '100%',
+                            gap: '0.25rem',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
                             <span style={{ fontWeight: 500, fontSize: '0.75rem' }}>
                               #{index + 1}
-                              {index === currentIndex && " (aktuell)"}
+                              {index === currentIndex && ' (aktuell)'}
                             </span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--tt-gray-light-a-600)' }}>
-                              {new Date(entry.timestamp).toLocaleTimeString("de-DE", {
-                                hour: "2-digit",
-                                minute: "2-digit",
+                            <span
+                              style={{ fontSize: '0.75rem', color: 'var(--tt-gray-light-a-600)' }}
+                            >
+                              {new Date(entry.timestamp).toLocaleTimeString('de-DE', {
+                                hour: '2-digit',
+                                minute: '2-digit',
                               })}
                             </span>
                           </div>
-                          <span style={{ fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span
+                            style={{
+                              fontSize: '0.875rem',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
                             {entry.instruction}
                           </span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--tt-gray-light-a-600)' }}>
-                            {entry.changes.length} Änderung{entry.changes.length !== 1 ? "en" : ""}
+                          <span
+                            style={{ fontSize: '0.75rem', color: 'var(--tt-gray-light-a-600)' }}
+                          >
+                            {entry.changes.length} Änderung{entry.changes.length !== 1 ? 'en' : ''}
                           </span>
                         </div>
                       </DropdownMenuItem>

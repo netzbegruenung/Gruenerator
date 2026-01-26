@@ -9,7 +9,9 @@ import { parseAIJsonResponse } from '../../../../services/search/index.js';
 /**
  * Intelligent Crawler Agent Node: AI decides which URLs to crawl
  */
-export async function intelligentCrawlerNode(state: WebSearchState): Promise<Partial<WebSearchState>> {
+export async function intelligentCrawlerNode(
+  state: WebSearchState
+): Promise<Partial<WebSearchState>> {
   console.log('[WebSearchGraph] Running intelligent crawler agent');
 
   try {
@@ -18,7 +20,7 @@ export async function intelligentCrawlerNode(state: WebSearchState): Promise<Par
       console.log('[IntelligentCrawler] No web results available for analysis');
       return {
         crawlDecisions: [],
-        crawlMetadata: { noResultsToAnalyze: true }
+        crawlMetadata: { noResultsToAnalyze: true },
       };
     }
 
@@ -29,7 +31,7 @@ export async function intelligentCrawlerNode(state: WebSearchState): Promise<Par
       console.log('[IntelligentCrawler] No individual results to analyze');
       return {
         crawlDecisions: [],
-        crawlMetadata: { emptyResults: true }
+        crawlMetadata: { emptyResults: true },
       };
     }
 
@@ -38,19 +40,26 @@ export async function intelligentCrawlerNode(state: WebSearchState): Promise<Par
     const timeout = state.mode === 'deep' ? 5000 : 3000;
 
     // Build the analysis prompt
-    const analysisContent = results.map((r, i) => `
-[${i+1}] ${r.title}
+    const analysisContent = results
+      .map(
+        (r, i) => `
+[${i + 1}] ${r.title}
 URL: ${r.url}
 Domain: ${r.domain || 'unknown'}
 Snippet: ${r.snippet || r.content || 'No preview available'}
-`).join('\n');
+`
+      )
+      .join('\n');
 
-    console.log(`[IntelligentCrawler] Analyzing ${results.length} results to select max ${maxCrawls} for crawling`);
+    console.log(
+      `[IntelligentCrawler] Analyzing ${results.length} results to select max ${maxCrawls} for crawling`
+    );
 
     // AI analyzes snippets and decides which URLs to crawl
-    const crawlDecision = await state.aiWorkerPool.processRequest({
-      type: 'crawler_agent',
-      systemPrompt: `You are an intelligent web research agent. Based on search snippets, decide which URLs to crawl for full content.
+    const crawlDecision = await state.aiWorkerPool.processRequest(
+      {
+        type: 'crawler_agent',
+        systemPrompt: `You are an intelligent web research agent. Based on search snippets, decide which URLs to crawl for full content.
 
 Evaluation criteria:
 - RELEVANCE: How directly does the snippet address the query?
@@ -62,9 +71,10 @@ Evaluation criteria:
 Select up to ${maxCrawls} URLs maximum that would provide the most value.
 Prioritize quality over quantity - fewer high-quality sources are better than many mediocre ones.`,
 
-      messages: [{
-        role: "user",
-        content: `Query: "${state.query}"
+        messages: [
+          {
+            role: 'user',
+            content: `Query: "${state.query}"
 Mode: ${state.mode} research
 
 Available search results:
@@ -83,15 +93,18 @@ Respond with JSON:
     }
   ],
   "reasoning": "Overall strategy for this query and why these sources were chosen"
-}`
-      }],
-      options: {
-        provider: 'litellm',
-        model: 'gpt-oss:120b',
-        max_tokens: 600,
-        temperature: 0.1
-      }
-    }, state.req);
+}`,
+          },
+        ],
+        options: {
+          provider: 'litellm',
+          model: 'gpt-oss:120b',
+          max_tokens: 600,
+          temperature: 0.1,
+        },
+      },
+      state.req
+    );
 
     if (!crawlDecision.success) {
       throw new Error(`AI crawler agent failed: ${crawlDecision.error}`);
@@ -105,9 +118,9 @@ Respond with JSON:
         reason: 'Fallback selection - top ranked result',
         expectedValue: 'medium',
         priority: i,
-        shouldCrawl: true
+        shouldCrawl: true,
       })),
-      reasoning: 'Fallback due to JSON parsing error'
+      reasoning: 'Fallback due to JSON parsing error',
     };
     const decision = parseAIJsonResponse(crawlDecision.content, fallbackDecision) as any;
 
@@ -115,10 +128,12 @@ Respond with JSON:
       url: sel.url,
       shouldCrawl: true,
       reason: sel.reason,
-      priority: sel.index
+      priority: sel.index,
     }));
 
-    console.log(`[IntelligentCrawler] Selected ${crawlDecisions.length} URLs to crawl: ${decision.reasoning}`);
+    console.log(
+      `[IntelligentCrawler] Selected ${crawlDecisions.length} URLs to crawl: ${decision.reasoning}`
+    );
 
     // Log selected URLs for debugging
     decision.selections.forEach((sel: any) => {
@@ -132,17 +147,16 @@ Respond with JSON:
         totalResultsAnalyzed: results.length,
         maxCrawlsAllowed: maxCrawls,
         selectedCount: crawlDecisions.length,
-        timeout
-      }
+        timeout,
+      },
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[WebSearchGraph] Intelligent crawler agent error:', errorMessage);
     return {
       crawlDecisions: [],
       error: `Crawler agent failed: ${errorMessage}`,
-      crawlMetadata: { failed: true }
+      crawlMetadata: { failed: true },
     };
   }
 }

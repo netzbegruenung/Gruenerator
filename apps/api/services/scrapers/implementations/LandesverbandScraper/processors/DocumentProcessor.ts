@@ -6,7 +6,11 @@
 
 import { smartChunkDocument } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
-import { scrollDocuments, batchDelete, batchUpsert } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
+import {
+  scrollDocuments,
+  batchDelete,
+  batchUpsert,
+} from '../../../../../database/services/QdrantService/operations/batchOperations.js';
 import { CONTENT_TYPE_LABELS } from '../../../../../config/landesverbaendeConfig.js';
 import type { ProcessResult, ExtractedContent } from '../types.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
@@ -71,10 +75,13 @@ export class DocumentProcessor {
       }
     );
 
-    const existing = existingPoints.length > 0 ? {
-      content_hash: existingPoints[0].payload.content_hash as string,
-      indexed_at: existingPoints[0].payload.indexed_at as string,
-    } : null;
+    const existing =
+      existingPoints.length > 0
+        ? {
+            content_hash: existingPoints[0].payload.content_hash as string,
+            indexed_at: existingPoints[0].payload.indexed_at as string,
+          }
+        : null;
 
     if (existing && existing.content_hash === contentHash) {
       return { stored: false, reason: 'unchanged' };
@@ -82,17 +89,14 @@ export class DocumentProcessor {
 
     // STEP 4: Delete old version if exists (update scenario)
     if (existing) {
-      await batchDelete(
-        this.qdrantClient,
-        targetCollection,
-        {
-          must: [{ key: 'source_url', match: { value: url } }],
-        }
-      );
+      await batchDelete(this.qdrantClient, targetCollection, {
+        must: [{ key: 'source_url', match: { value: url } }],
+      });
     }
 
     // STEP 5: Build document title
-    const documentTitle = title || `${source.name} - ${(CONTENT_TYPE_LABELS as any)[contentType] || contentType}`;
+    const documentTitle =
+      title || `${source.name} - ${(CONTENT_TYPE_LABELS as any)[contentType] || contentType}`;
 
     // STEP 6: Chunk document
     const chunks = await smartChunkDocument(text, {

@@ -28,16 +28,21 @@ export interface UseCollaborationOptions {
 
 const generateUserColor = () => {
   const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-    '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788'
+    '#FF6B6B',
+    '#4ECDC4',
+    '#45B7D1',
+    '#FFA07A',
+    '#98D8C8',
+    '#F7DC6F',
+    '#BB8FCE',
+    '#85C1E2',
+    '#F8B739',
+    '#52B788',
   ];
   return colors[Math.floor(Math.random() * colors.length)];
 };
 
-export const useCollaboration = (
-  documentId: string,
-  options?: UseCollaborationOptions
-) => {
+export const useCollaboration = (documentId: string, options?: UseCollaborationOptions) => {
   const authUser = useAuthStore((state) => state.user);
   const user = options?.user || authUser;
 
@@ -54,7 +59,8 @@ export const useCollaboration = (
     if (!documentId || !user) return;
 
     // Support various environment configurations
-    const hocuspocusUrl = options?.url ||
+    const hocuspocusUrl =
+      options?.url ||
       (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_HOCUSPOCUS_URL) ||
       (typeof window !== 'undefined' ? (window as any).__HOCUSPOCUS_URL__ : undefined) ||
       (typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_HOCUSPOCUS_URL : undefined) ||

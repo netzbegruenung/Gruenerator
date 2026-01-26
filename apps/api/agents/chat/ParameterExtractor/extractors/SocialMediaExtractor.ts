@@ -9,7 +9,7 @@ import {
   extractTheme,
   extractDetails,
   extractPlatforms,
-  extractQuoteAuthor
+  extractQuoteAuthor,
 } from '../utils/extractionUtils.js';
 
 /**
@@ -31,7 +31,7 @@ export function extractSocialParams(
     platforms: platforms.length > 0 ? platforms : ['facebook'], // Default platform
     was: null, // For press releases
     wie: null,
-    zitatgeber: extractQuoteAuthor(message)
+    zitatgeber: extractQuoteAuthor(message),
   };
 }
 
@@ -51,6 +51,6 @@ export function extractGrueneJugendParams(
     ...baseParams,
     thema: thema || 'Aktivismus und Politik',
     details: details || message,
-    platforms: platforms.length > 0 ? platforms : ['instagram', 'twitter'] // Default youth platforms
+    platforms: platforms.length > 0 ? platforms : ['instagram', 'twitter'], // Default youth platforms
   };
 }

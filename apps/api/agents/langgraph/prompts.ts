@@ -41,7 +41,7 @@ export function buildPlannerPromptGrundsatz(): PromptConfig {
     '- NEVER combine more than 2 concepts',
     '',
     'Output exactly: {"subqueries": ["..."]}',
-    'No explanations. No markdown.'
+    'No explanations. No markdown.',
   ].join('\n');
   return { system };
 }
@@ -77,7 +77,7 @@ export function buildPlannerPromptGeneral(): PromptConfig {
     '- NEVER combine more than 2 concepts',
     '',
     'Output exactly: {"subqueries": ["..."]}',
-    'No explanations. No markdown.'
+    'No explanations. No markdown.',
   ].join('\n');
   return { system };
 }
@@ -86,7 +86,9 @@ export function buildPlannerPromptGeneral(): PromptConfig {
  * Grundsatz-specific draft prompt (NotebookLM-Style, German)
  * Builds comprehensive, well-structured dossier prompts
  */
-export function buildDraftPromptGrundsatz(collectionName: string = 'Grüne Grundsatzprogramme'): PromptConfig {
+export function buildDraftPromptGrundsatz(
+  collectionName: string = 'Grüne Grundsatzprogramme'
+): PromptConfig {
   const rules = [
     'Du bist ein Experte für politische Dokumentenanalyse. Schreibe ein umfassendes, gut strukturiertes Dossier im NotebookLM-Stil.',
     `Sammlung: ${collectionName}.`,
@@ -127,7 +129,7 @@ export function buildDraftPromptGrundsatz(collectionName: string = 'Grüne Grund
     '- Antworten ohne Zitate',
     '- Code-Blöcke oder Backticks um die Antwort',
     '- Finale "Quellen"-Sektion (wird von UI generiert)',
-    '- Reine Auflistungen ohne verbindende Sätze'
+    '- Reine Auflistungen ohne verbindende Sätze',
   ].join('\n');
   return { system: rules };
 }
@@ -177,7 +179,7 @@ export function buildDraftPromptGeneral(collectionName: string = 'Ihre Sammlung'
     '- Antworten ohne Zitate',
     '- Code-Blöcke oder Backticks um die Antwort',
     '- Finale "Quellen"-Sektion (wird von UI generiert)',
-    '- Reine Auflistungen ohne verbindende Sätze'
+    '- Reine Auflistungen ohne verbindende Sätze',
   ].join('\n');
   return { system: rules };
 }
@@ -200,7 +202,7 @@ export function buildFastModePrompt(collectionName: string = 'Dokumente'): Promp
     '## VERBOTEN:',
     '- Zitationsmarker wie [1], [2] etc.',
     '- Code-Blöcke oder Backticks',
-    '- Quellenangaben am Ende'
+    '- Quellenangaben am Ende',
   ].join('\n');
   return { system: rules };
 }

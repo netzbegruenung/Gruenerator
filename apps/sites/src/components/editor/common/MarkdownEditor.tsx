@@ -38,7 +38,7 @@ export function MarkdownEditor({
           quotePlugin(),
           markdownShortcutPlugin(),
           toolbarPlugin({
-            toolbarContents: () => <BoldItalicUnderlineToggles />
+            toolbarContents: () => <BoldItalicUnderlineToggles />,
           }),
         ]}
       />

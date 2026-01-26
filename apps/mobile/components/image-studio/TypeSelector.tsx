@@ -77,11 +77,7 @@ export function TypeSelector({ onSelectTemplate, onSelectKi }: TypeSelectorProps
               style={[
                 styles.tabText,
                 {
-                  color: isActive
-                    ? colors.white
-                    : isDark
-                      ? colors.grey[300]
-                      : colors.grey[600],
+                  color: isActive ? colors.white : isDark ? colors.grey[300] : colors.grey[600],
                 },
               ]}
             >
@@ -181,7 +177,10 @@ export function TypeSelector({ onSelectTemplate, onSelectKi }: TypeSelectorProps
                 <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
                   {typeConfig.label}
                 </Text>
-                <Text style={[styles.cardDescription, { color: theme.textSecondary }]} numberOfLines={2}>
+                <Text
+                  style={[styles.cardDescription, { color: theme.textSecondary }]}
+                  numberOfLines={2}
+                >
                   {typeConfig.description}
                 </Text>
                 <View style={styles.kiBadge}>
@@ -231,7 +230,10 @@ export function TypeSelector({ onSelectTemplate, onSelectKi }: TypeSelectorProps
                 <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
                   {typeConfig.label}
                 </Text>
-                <Text style={[styles.cardDescription, { color: theme.textSecondary }]} numberOfLines={2}>
+                <Text
+                  style={[styles.cardDescription, { color: theme.textSecondary }]}
+                  numberOfLines={2}
+                >
                   {typeConfig.description}
                 </Text>
                 <View style={styles.kiBadge}>
@@ -244,7 +246,12 @@ export function TypeSelector({ onSelectTemplate, onSelectKi }: TypeSelectorProps
         </View>
       )}
 
-      <View style={[styles.rateLimitNote, { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] }]}>
+      <View
+        style={[
+          styles.rateLimitNote,
+          { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] },
+        ]}
+      >
         <Ionicons name="information-circle-outline" size={16} color={theme.textSecondary} />
         <Text style={[styles.rateLimitText, { color: theme.textSecondary }]}>
           KI-Funktionen sind limitiert. Bei hoher Auslastung kann es zu Wartezeiten kommen.

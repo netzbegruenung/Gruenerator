@@ -17,10 +17,7 @@ config.watcher = {
   ...config.watcher,
   additionalExts: config.watcher?.additionalExts || [],
 };
-config.resolver.blockList = [
-  ...(config.resolver.blockList || []),
-  /_tmp_\d+/,
-];
+config.resolver.blockList = [...(config.resolver.blockList || []), /_tmp_\d+/];
 
 // Handle pnpm's symlinked node_modules structure
 config.resolver.nodeModulesPaths = [

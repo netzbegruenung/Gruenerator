@@ -65,7 +65,7 @@ function queueRender<T>(renderFn: () => Promise<T>): Promise<T> {
         } catch (error) {
           reject(error);
         }
-      }
+      },
     };
 
     renderQueue.push(task);
@@ -104,7 +104,7 @@ export async function renderVideo(options: RenderVideoOptions): Promise<RenderVi
     videoHeight = 1080,
     fps = 30,
     exportToken,
-    outputFilename
+    outputFilename,
   } = options;
 
   return queueRender(async () => {
@@ -117,7 +117,9 @@ export async function renderVideo(options: RenderVideoOptions): Promise<RenderVi
       const totalDuration = segments.reduce((acc, seg) => acc + (seg.end - seg.start), 0);
       const durationInFrames = Math.ceil(totalDuration * fps);
 
-      log.debug(`[${exportToken}] Composition: ${durationInFrames} frames, ${totalDuration.toFixed(2)}s`);
+      log.debug(
+        `[${exportToken}] Composition: ${durationInFrames} frames, ${totalDuration.toFixed(2)}s`
+      );
 
       await updateProgress(exportToken, 5, 'Loading fonts...');
 
@@ -144,16 +146,18 @@ export async function renderVideo(options: RenderVideoOptions): Promise<RenderVi
         videoWidth,
         videoHeight,
         fps,
-        durationInFrames
+        durationInFrames,
       };
 
       const composition = await selectComposition({
         serveUrl: bundleLocation,
         id: COMPOSITION_ID,
-        inputProps
+        inputProps,
       });
 
-      log.info(`[${exportToken}] Composition: ${composition.width}x${composition.height}, target: ${videoWidth}x${videoHeight}`);
+      log.info(
+        `[${exportToken}] Composition: ${composition.width}x${composition.height}, target: ${videoWidth}x${videoHeight}`
+      );
 
       const outputPath = path.join(
         EXPORTS_DIR,
@@ -188,11 +192,11 @@ export async function renderVideo(options: RenderVideoOptions): Promise<RenderVi
         onProgress: async ({ progress }: { progress: number }) => {
           const now = Date.now();
           if (now - lastProgressUpdate > PROGRESS_THROTTLE_MS) {
-            const overallProgress = Math.round(20 + (progress * 75));
+            const overallProgress = Math.round(20 + progress * 75);
             await updateProgress(exportToken, overallProgress, 'Rendering...');
             lastProgressUpdate = now;
           }
-        }
+        },
       });
 
       await updateProgress(exportToken, 95, 'Finalizing...');
@@ -200,27 +204,28 @@ export async function renderVideo(options: RenderVideoOptions): Promise<RenderVi
       const stats = await fs.stat(outputPath);
       const renderDuration = Date.now() - renderStartTime;
 
-      log.info(`[${exportToken}] Render complete: ${(stats.size / 1024 / 1024).toFixed(2)}MB in ${(renderDuration / 1000).toFixed(1)}s`);
+      log.info(
+        `[${exportToken}] Render complete: ${(stats.size / 1024 / 1024).toFixed(2)}MB in ${(renderDuration / 1000).toFixed(1)}s`
+      );
 
       await updateProgress(exportToken, 100, 'Complete', {
         status: 'complete',
         outputPath,
-        fileSize: stats.size
+        fileSize: stats.size,
       });
 
       return {
         success: true,
         outputPath,
         fileSize: stats.size,
-        renderTime: renderDuration
+        renderTime: renderDuration,
       };
-
     } catch (error: any) {
       log.error(`[${exportToken}] Render failed: ${error.message}`);
 
       await updateProgress(exportToken, 0, 'Error', {
         status: 'error',
-        error: error.message
+        error: error.message,
       });
 
       throw error;
@@ -241,7 +246,7 @@ async function updateProgress(
       status: additionalData.status || 'exporting',
       progress,
       message,
-      ...additionalData
+      ...additionalData,
     };
 
     await redisClient.set(`export:${exportToken}`, JSON.stringify(data), { EX: 3600 });
@@ -271,6 +276,6 @@ export function getRenderQueueStatus(): RenderQueueStatus {
   return {
     currentRenders,
     queueLength: renderQueue.length,
-    maxConcurrent: MAX_CONCURRENT_RENDERS
+    maxConcurrent: MAX_CONCURRENT_RENDERS,
   };
 }

@@ -15,7 +15,7 @@ import type {
   ValidationResult,
   ReferencesMap,
   CrawlMetadata,
-  SearchOptions
+  SearchOptions,
 } from './types.js';
 
 import { runWebSearch } from './WebSearchGraph.js';
@@ -30,10 +30,10 @@ const testInput: WebSearchInput = {
   searchOptions: {
     maxResults: 10,
     language: 'de-DE',
-    categories: 'general' // String, not array
+    categories: 'general', // String, not array
   },
   aiWorkerPool: {} as any,
-  req: {} as any
+  req: {} as any,
 };
 
 // Verify NormalSearchOutput structure
@@ -46,8 +46,8 @@ const testNormalOutput: NormalSearchOutput = {
   citationSources: [] as Source[], // Source[], not SearchResult[]
   metadata: {
     searchType: 'normal_web_search',
-    duration: 100
-  }
+    duration: 100,
+  },
 };
 
 // Verify DeepSearchOutput structure
@@ -58,7 +58,7 @@ const testDeepOutput: DeepSearchOutput = {
     executiveSummary: 'test',
     detailedAnalysis: 'test',
     methodology: 'test',
-    sources: [] as SearchResult[]
+    sources: [] as SearchResult[],
   },
   researchQuestions: ['q1'],
   searchResults: [],
@@ -69,8 +69,8 @@ const testDeepOutput: DeepSearchOutput = {
   citationSources: [] as Source[], // Source[], not SearchResult[]
   metadata: {
     searchType: 'deep_research',
-    duration: 100
-  }
+    duration: 100,
+  },
 };
 
 // Verify CrawlMetadata has all required properties
@@ -85,13 +85,13 @@ const testCrawlMetadata: CrawlMetadata = {
   failed: false,
   noResultsToAnalyze: false,
   emptyResults: false,
-  nothingToCrawl: false
+  nothingToCrawl: false,
 };
 
 // Verify SearchOptions categories is string
 const testSearchOptions: SearchOptions = {
   categories: 'general,news', // String, not array
-  maxResults: 10
+  maxResults: 10,
 };
 
 // Verify Citation and Source are imported from search services
@@ -104,7 +104,7 @@ const testCitation: Citation = {
   similarity_score: 0.9,
   chunk_index: 0,
   filename: 'file',
-  page_number: 1
+  page_number: 1,
 };
 
 const testSource: Source = {
@@ -113,7 +113,7 @@ const testSource: Source = {
   source_url: 'url',
   chunk_text: 'text',
   similarity_score: 0.9,
-  citations: []
+  citations: [],
 };
 
 // Verify ValidationResult structure
@@ -121,7 +121,7 @@ const testValidationResult: ValidationResult = {
   cleanDraft: 'text',
   citations: [] as Citation[],
   sources: [] as Source[], // Has 'sources', not 'citationSources'
-  errors: null
+  errors: null,
 };
 
 // Verify ReferencesMap type
@@ -137,8 +137,8 @@ const testReferencesMap: ReferencesMap = {
     filename: null,
     similarity_score: 0.9,
     chunk_index: 0,
-    page_number: null
-  }
+    page_number: null,
+  },
 };
 
 console.log('✅ All type definitions compile successfully!');

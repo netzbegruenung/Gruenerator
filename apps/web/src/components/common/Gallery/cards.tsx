@@ -1,4 +1,3 @@
-
 const formatDate = (value: string | Date | null | undefined): string => {
   if (!value) return '';
   try {
@@ -78,8 +77,8 @@ export const cardAdapters: Record<string, CardAdapter> = {
         meta: item.created_at ? `Erstellt am: ${formatDate(item.created_at)}` : '',
         tags: hasMoreTags ? [...tags, '...'] : tags,
         onClick: handleNavigation,
-        className: 'antrag-card'
-      }
+        className: 'antrag-card',
+      },
     };
   },
   generators: (item) => ({
@@ -92,11 +91,12 @@ export const cardAdapters: Record<string, CardAdapter> = {
         if (typeof window === 'undefined') return;
         window.open(`/gruenerator/${item.slug || item.id}`, '_blank', 'noopener,noreferrer');
       },
-      className: 'generator-card'
-    }
+      className: 'generator-card',
+    },
   }),
   pr: (item) => {
-    const rawText = item?.content_data?.content || item?.content_data?.caption || item?.description || '';
+    const rawText =
+      item?.content_data?.content || item?.content_data?.caption || item?.description || '';
     const preview = String(rawText).slice(0, 180);
 
     return {
@@ -104,9 +104,11 @@ export const cardAdapters: Record<string, CardAdapter> = {
       props: {
         title: item.title || '',
         description: rawText ? `${preview}${String(rawText).length > 180 ? '...' : ''}` : '',
-        meta: item.type ? `${item.type} · ${formatDate(item.created_at)}` : formatDate(item.created_at),
-        className: 'pr-card'
-      }
+        meta: item.type
+          ? `${item.type} · ${formatDate(item.created_at)}`
+          : formatDate(item.created_at),
+        className: 'pr-card',
+      },
     };
   },
   vorlagen: (item, options = {}) => {
@@ -140,15 +142,16 @@ export const cardAdapters: Record<string, CardAdapter> = {
         onClick: handleClick,
         className: 'vorlagen-card',
         authorName,
-        authorEmail
-      }
+        authorEmail,
+      },
     };
   },
   prompts: (item) => {
     const promptText = item.prompt_preview || item.prompt || '';
-    const preview = String(promptText).length > 150
-      ? String(promptText).substring(0, 150) + '...'
-      : String(promptText);
+    const preview =
+      String(promptText).length > 150
+        ? String(promptText).substring(0, 150) + '...'
+        : String(promptText);
 
     return {
       key: String(item.prompt_id || item.id),
@@ -160,8 +163,8 @@ export const cardAdapters: Record<string, CardAdapter> = {
           if (typeof window === 'undefined') return;
           window.location.href = `/prompt/${item.slug}`;
         },
-        className: 'prompt-card'
-      }
+        className: 'prompt-card',
+      },
     };
   },
   default: (item) => ({
@@ -169,7 +172,7 @@ export const cardAdapters: Record<string, CardAdapter> = {
     props: {
       title: item.title || '',
       description: item.description || '',
-      meta: item.created_at ? formatDate(item.created_at) : ''
-    }
-  })
+      meta: item.created_at ? formatDate(item.created_at) : '',
+    },
+  }),
 };

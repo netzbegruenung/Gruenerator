@@ -11,7 +11,7 @@ const SOCIAL_LIKE_TYPES = new Set([
   'press',
   'pressemitteilung',
   'actionIdeas',
-  'reelScript'
+  'reelScript',
 ]);
 
 export function sanitizeMarkdownForDisplay(text: string): string {
@@ -36,11 +36,14 @@ export function sanitizeMarkdownForDisplay(text: string): string {
   }
 
   const lines = out.split(/\r?\n/);
-  const nonEmpty = lines.filter(l => l.trim().length > 0);
+  const nonEmpty = lines.filter((l) => l.trim().length > 0);
   if (nonEmpty.length >= 3) {
-    const indented = nonEmpty.filter(l => /^\s{4,}/.test(l)).length;
+    const indented = nonEmpty.filter((l) => /^\s{4,}/.test(l)).length;
     if (indented / nonEmpty.length >= 0.75) {
-      out = lines.map(l => l.replace(/^\s{4}/, '')).join('\n').trim();
+      out = lines
+        .map((l) => l.replace(/^\s{4}/, ''))
+        .join('\n')
+        .trim();
     }
   }
 
@@ -79,7 +82,10 @@ export function processResponseWithTitle(
   }
 
   if (contentType === 'twitter') {
-    cleanContent = cleanContent.replace(/[ \t]*[\r\n]+[ \t]*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    cleanContent = cleanContent
+      .replace(/[ \t]*[\r\n]+[ \t]*/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   }
 
   return {
@@ -88,7 +94,7 @@ export function processResponseWithTitle(
     metadata: {
       ...result.metadata,
       title: extractedTitle,
-      contentType: contentType
-    }
+      contentType: contentType,
+    },
   };
 }

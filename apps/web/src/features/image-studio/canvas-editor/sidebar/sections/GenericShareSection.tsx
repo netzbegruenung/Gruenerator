@@ -1,12 +1,13 @@
-import { useCallback, useState, useMemo } from 'react';
-import { SubsectionTabBar } from '../SubsectionTabBar';
-import { FaDownload, FaImages, FaSave, FaCheck, FaInstagram, FaCopy } from 'react-icons/fa';
-import { MdTextFields } from 'react-icons/md';
-import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
-import Spinner from '../../../../../components/common/Spinner';
 import { useShareStore } from '@gruenerator/shared/share';
-import { useAutoSaveStore } from '../../../hooks/useAutoSaveStore';
+import { useCallback, useState, useMemo } from 'react';
+import { FaDownload, FaImages, FaSave, FaCheck, FaInstagram, FaCopy } from 'react-icons/fa';
+import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
+import { MdTextFields } from 'react-icons/md';
+
+import Spinner from '../../../../../components/common/Spinner';
 import { useGenerateSocialPost } from '../../../../../components/hooks/useGenerateSocialPost';
+import { useAutoSaveStore } from '../../../hooks/useAutoSaveStore';
+import { SubsectionTabBar } from '../SubsectionTabBar';
 import '../../../../../assets/styles/features/templates.css';
 
 export interface GenericShareSectionProps {
@@ -17,6 +18,11 @@ export interface GenericShareSectionProps {
   onNavigateToGallery: () => void;
   canvasText: string;
   canvasType: string;
+  // Multi-page export props
+  pageCount?: number;
+  onDownloadAllZip?: () => Promise<void>;
+  isMultiExporting?: boolean;
+  exportProgress?: { current: number; total: number };
 }
 
 // Download & Share Subsection - combined with 2 icon buttons
@@ -27,6 +33,10 @@ function DownloadShareSubsection({
   onDownload,
   onNavigateToGallery,
   canvasText,
+  pageCount = 1,
+  onDownloadAllZip,
+  isMultiExporting = false,
+  exportProgress,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
   const [isSharing, setIsSharing] = useState(false);
@@ -38,8 +48,8 @@ function DownloadShareSubsection({
   const handleDownloadClick = async () => {
     setDownloadState('capturing');
     try {
-      await onCaptureCanvas();
-      await new Promise(resolve => setTimeout(resolve, 150));
+      onCaptureCanvas();
+      await new Promise((resolve) => setTimeout(resolve, 150));
       onDownload();
       setDownloadState('success');
       setTimeout(() => setDownloadState('idle'), 1500);
@@ -52,8 +62,8 @@ function DownloadShareSubsection({
   const handleNativeShare = useCallback(async () => {
     if (!exportedImage) {
       // Auto-capture if no image yet
-      await onCaptureCanvas();
-      await new Promise(resolve => setTimeout(resolve, 150));
+      onCaptureCanvas();
+      await new Promise((resolve) => setTimeout(resolve, 150));
     }
 
     const imageToShare = exportedImage || useAutoSaveStore.getState().autoSavedShareToken;
@@ -100,8 +110,13 @@ function DownloadShareSubsection({
           aria-label="Bild herunterladen"
           type="button"
         >
-          {downloadState === 'capturing' ? <Spinner size="small" /> :
-           downloadState === 'success' ? <FaCheck /> : <FaDownload />}
+          {downloadState === 'capturing' ? (
+            <Spinner size="small" />
+          ) : downloadState === 'success' ? (
+            <FaCheck />
+          ) : (
+            <FaDownload />
+          )}
         </button>
 
         {canUseNativeShare && (
@@ -118,6 +133,43 @@ function DownloadShareSubsection({
         )}
       </div>
 
+      {/* Multi-page ZIP download */}
+      {pageCount > 1 && onDownloadAllZip && (
+        <div className="multi-page-download">
+          <hr className="share-divider" />
+          <button
+            className="btn btn-primary multi-page-download__btn"
+            onClick={onDownloadAllZip}
+            disabled={isMultiExporting}
+            type="button"
+          >
+            {isMultiExporting ? (
+              <>
+                <Spinner size="small" />
+                Exportiere...
+              </>
+            ) : (
+              <>
+                <FaDownload />
+                Alle {pageCount} Seiten (ZIP)
+              </>
+            )}
+          </button>
+
+          {isMultiExporting && exportProgress && exportProgress.total > 0 && (
+            <div className="multi-page-download__progress">
+              <div
+                className="multi-page-download__progress-bar"
+                style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
+              />
+              <span className="multi-page-download__progress-text">
+                {exportProgress.current}/{exportProgress.total} Seiten
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {downloadState === 'success' && autoSaveStatus === 'saving' && (
         <div className="share-status">
           <Spinner size="small" />
@@ -131,11 +183,7 @@ function DownloadShareSubsection({
             <IoCheckmarkOutline />
             <span>In Galerie gesichert</span>
           </div>
-          <button
-            className="btn btn-secondary"
-            onClick={onNavigateToGallery}
-            type="button"
-          >
+          <button className="btn btn-secondary" onClick={onNavigateToGallery} type="button">
             <FaImages />
             Zur Galerie
           </button>
@@ -155,7 +203,7 @@ function DownloadShareSubsection({
 function TemplateSubsection({
   shareToken,
   onCaptureCanvas,
-  canvasType
+  canvasType,
 }: Pick<GenericShareSectionProps, 'shareToken' | 'onCaptureCanvas' | 'canvasType'>) {
   const [isSaving, setIsSaving] = useState(false);
   const [templateUrl, setTemplateUrl] = useState<string | null>(null);
@@ -170,7 +218,7 @@ function TemplateSubsection({
 
       // Auto-capture if no shareToken exists
       if (!tokenToUse) {
-        await onCaptureCanvas();
+        onCaptureCanvas();
         // Wait for auto-save to complete
         await new Promise<void>((resolve, reject) => {
           const checkStatus = () => {
@@ -193,11 +241,7 @@ function TemplateSubsection({
         throw new Error('Kein Share-Token verfügbar');
       }
 
-      const result = await saveAsTemplate(
-        tokenToUse,
-        `${canvasType} Vorlage`,
-        'public'
-      );
+      const result = await saveAsTemplate(tokenToUse, `${canvasType} Vorlage`, 'public');
       if (result.success) {
         setTemplateUrl(`${window.location.origin}${result.templateUrl}`);
       }
@@ -211,8 +255,7 @@ function TemplateSubsection({
 
   const copyTemplateLink = () => {
     if (templateUrl) {
-      navigator.clipboard.writeText(templateUrl);
-      // Optional: Show toast notification
+      void navigator.clipboard.writeText(templateUrl);
     }
   };
 
@@ -258,11 +301,7 @@ function TemplateSubsection({
             />
           </div>
 
-          <button
-            className="btn btn-secondary"
-            onClick={copyTemplateLink}
-            type="button"
-          >
+          <button className="btn btn-secondary" onClick={copyTemplateLink} type="button">
             Link kopieren
           </button>
         </>
@@ -284,7 +323,12 @@ function InstagramTextSubsection({
   const [copied, setCopied] = useState(false);
   const socialPostHook = useGenerateSocialPost() as unknown as {
     generatedPosts: GeneratedPosts;
-    generatePost: (thema: string, details: string, platforms: string[], includeActionIdeas: boolean) => Promise<unknown>;
+    generatePost: (
+      thema: string,
+      details: string,
+      platforms: string[],
+      includeActionIdeas: boolean
+    ) => Promise<unknown>;
     loading: boolean;
   };
   const { generatedPosts, generatePost, loading } = socialPostHook;
@@ -334,11 +378,7 @@ function InstagramTextSubsection({
             rows={6}
             onClick={(e) => e.currentTarget.select()}
           />
-          <button
-            className="btn btn-secondary"
-            onClick={handleCopy}
-            type="button"
-          >
+          <button className="btn btn-secondary" onClick={handleCopy} type="button">
             {copied ? <FaCheck /> : <FaCopy />}
             {copied ? 'Kopiert!' : 'Kopieren'}
           </button>
@@ -356,47 +396,65 @@ export function GenericShareSection({
   onNavigateToGallery,
   canvasText,
   canvasType,
+  pageCount,
+  onDownloadAllZip,
+  isMultiExporting,
+  exportProgress,
 }: GenericShareSectionProps) {
-  const subsections = useMemo(() => [
-    {
-      id: 'download',
-      icon: FaDownload,
-      label: 'Download',
-      content: (
-        <DownloadShareSubsection
-          exportedImage={exportedImage}
-          shareToken={shareToken}
-          onCaptureCanvas={onCaptureCanvas}
-          onDownload={onDownload}
-          onNavigateToGallery={onNavigateToGallery}
-          canvasText={canvasText}
-        />
-      ),
-    },
-    {
-      id: 'template',
-      icon: FaSave,
-      label: 'Vorlage',
-      content: (
-        <TemplateSubsection
-          shareToken={shareToken}
-          onCaptureCanvas={onCaptureCanvas}
-          canvasType={canvasType}
-        />
-      ),
-    },
-    {
-      id: 'instagram-text',
-      icon: MdTextFields,
-      label: 'Text',
-      content: (
-        <InstagramTextSubsection
-          canvasText={canvasText}
-          canvasType={canvasType}
-        />
-      ),
-    },
-  ], [exportedImage, shareToken, onCaptureCanvas, onDownload, onNavigateToGallery, canvasText, canvasType]);
+  const subsections = useMemo(
+    () => [
+      {
+        id: 'download',
+        icon: FaDownload,
+        label: 'Download',
+        content: (
+          <DownloadShareSubsection
+            exportedImage={exportedImage}
+            shareToken={shareToken}
+            onCaptureCanvas={onCaptureCanvas}
+            onDownload={onDownload}
+            onNavigateToGallery={onNavigateToGallery}
+            canvasText={canvasText}
+            pageCount={pageCount}
+            onDownloadAllZip={onDownloadAllZip}
+            isMultiExporting={isMultiExporting}
+            exportProgress={exportProgress}
+          />
+        ),
+      },
+      {
+        id: 'template',
+        icon: FaSave,
+        label: 'Vorlage',
+        content: (
+          <TemplateSubsection
+            shareToken={shareToken}
+            onCaptureCanvas={onCaptureCanvas}
+            canvasType={canvasType}
+          />
+        ),
+      },
+      {
+        id: 'instagram-text',
+        icon: MdTextFields,
+        label: 'Text',
+        content: <InstagramTextSubsection canvasText={canvasText} canvasType={canvasType} />,
+      },
+    ],
+    [
+      exportedImage,
+      shareToken,
+      onCaptureCanvas,
+      onDownload,
+      onNavigateToGallery,
+      canvasText,
+      canvasType,
+      pageCount,
+      onDownloadAllZip,
+      isMultiExporting,
+      exportProgress,
+    ]
+  );
 
   return <SubsectionTabBar subsections={subsections} defaultSubsection="download" />;
 }

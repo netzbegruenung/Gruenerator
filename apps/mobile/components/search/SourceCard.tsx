@@ -17,7 +17,8 @@ export function SourceCard({ source }: SourceCardProps) {
   };
 
   const snippet = source.content_snippets || source.snippet || source.content;
-  const displaySnippet = snippet && snippet.length > 150 ? `${snippet.substring(0, 150)}...` : snippet;
+  const displaySnippet =
+    snippet && snippet.length > 150 ? `${snippet.substring(0, 150)}...` : snippet;
 
   return (
     <Pressable

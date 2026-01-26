@@ -12,6 +12,12 @@ export {
   PLATFORM_MAPPINGS,
 } from '@gruenerator/shared';
 
+// Import for internal use
+import {
+  getPlatformShareUrl as getShareUrl,
+  PLATFORM_CONFIGS as platformConfigs,
+} from '@gruenerator/shared';
+
 // Share content interface
 interface ShareContentOptions {
   title?: string;
@@ -81,7 +87,9 @@ export const isMobileDevice = (): boolean => {
   if (typeof navigator === 'undefined') return false;
 
   const userAgent = navigator.userAgent || '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    userAgent
+  );
   const hasTouchAndSmallScreen = navigator.maxTouchPoints > 0 && window.innerWidth <= 768;
 
   return isMobileUA || hasTouchAndSmallScreen;
@@ -146,13 +154,9 @@ export const copyImageToClipboard = async (base64Image: string): Promise<boolean
     const response = await fetch(base64Image);
     const blob = await response.blob();
 
-    const pngBlob: Blob = blob.type === 'image/png'
-      ? blob
-      : await convertToPng(blob);
+    const pngBlob: Blob = blob.type === 'image/png' ? blob : await convertToPng(blob);
 
-    await navigator.clipboard.write([
-      new ClipboardItem({ 'image/png': pngBlob })
-    ]);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
     return true;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -194,9 +198,7 @@ const convertToPng = async (blob: Blob): Promise<Blob> => {
  * Uses getPlatformShareUrl from shared package
  */
 export const openPlatformShare = (platformId: string, text: string): boolean => {
-  // Import dynamically to avoid circular dependency issues
-  const { getPlatformShareUrl } = require('@gruenerator/shared');
-  const url = getPlatformShareUrl(platformId, text);
+  const url = getShareUrl(platformId, text);
   if (url) {
     window.open(url, '_blank', 'width=600,height=400,noopener,noreferrer');
     return true;
@@ -208,6 +210,5 @@ export const openPlatformShare = (platformId: string, text: string): boolean => 
  * Check if a platform has a share URL
  */
 export const hasPlatformShareUrl = (platformId: string): boolean => {
-  const { PLATFORM_CONFIGS } = require('@gruenerator/shared');
-  return PLATFORM_CONFIGS[platformId]?.hasShareUrl === true;
+  return platformConfigs[platformId]?.hasShareUrl === true;
 };

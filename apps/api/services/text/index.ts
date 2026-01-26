@@ -4,11 +4,7 @@
  */
 
 // Cleaning exports
-export {
-  cleanTextForEmbedding,
-  removeMarkdownImages,
-  collapseBlankLines
-} from './cleaning.js';
+export { cleanTextForEmbedding, removeMarkdownImages, collapseBlankLines } from './cleaning.js';
 
 // Normalization exports
 export {
@@ -18,7 +14,7 @@ export {
   normalizeText,
   tokenizeQuery,
   generateQueryVariants,
-  containsNormalized
+  containsNormalized,
 } from './normalization.js';
 
 // Type exports
@@ -30,5 +26,5 @@ export {
   SUPERSCRIPT_MAP,
   GERMAN_CHARS,
   DASH_CHARS,
-  SOFT_HYPHEN
+  SOFT_HYPHEN,
 } from './constants.js';

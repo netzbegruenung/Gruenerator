@@ -11,8 +11,8 @@
  */
 export interface SubtitleSegment {
   id: number;
-  startTime: number;  // Time in seconds
-  endTime: number;    // Time in seconds
+  startTime: number; // Time in seconds
+  endTime: number; // Time in seconds
   text: string;
 }
 
@@ -53,12 +53,7 @@ export type SubtitlePreference = 'manual' | 'auto';
 /**
  * Export process status
  */
-export type ExportStatus =
-  | 'idle'
-  | 'starting'
-  | 'exporting'
-  | 'complete'
-  | 'error';
+export type ExportStatus = 'idle' | 'starting' | 'exporting' | 'complete' | 'error';
 
 /**
  * Single correction item from AI correction response

@@ -63,6 +63,9 @@ const ImageStudioCategorySelector: React.FC = () => {
   // Only show section after initial load completes (lastFetch !== null means data was loaded)
   const showRecentTypesSection = lastFetch !== null && recentTypeConfigs.length > 0;
 
+  // Check if user is Austrian (used to redirect Sharepics to external tool and hide prompt)
+  const isAustrianUser = user?.locale === 'de-AT';
+
   const handleCategorySelect = useCallback(
     (cat: string | null, subcat: string | null, directType?: string) => {
       if (directType) {
@@ -172,54 +175,52 @@ const ImageStudioCategorySelector: React.FC = () => {
     [promptInput, isGenerating, loadFromAIGeneration, navigate]
   );
 
-  // Skip category selector for Austrian users (they're auto-routed to KI)
-  // This check must be AFTER all hooks to comply with React's rules of hooks
-  const isAustrianUser = user?.locale === 'de-AT';
-  if (isAustrianUser) {
-    return null; // Category selector is skipped, routing handled by ImageStudioPage
-  }
-
-  const startOptions: StartOption[] = [
-    {
-      id: 'sharepics',
-      category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
-      subcategory: null,
-      label: 'Sharepics',
-      description: 'Erstelle Sharepics mit vorgefertigten Designs',
-      Icon: PiLayout,
-      previewImage: '/imagine/previews/dreizeilen-preview.png',
-    },
-    {
-      id: 'imagine',
-      category: IMAGE_STUDIO_CATEGORIES.KI,
-      subcategory: null,
-      label: 'Imagine (KI)',
-      description: 'Erstelle oder bearbeite Bilder mit KI',
-      Icon: HiSparkles,
-      previewImage: '/imagine/variants-pure/soft-illustration.png',
-    },
-    {
-      id: 'vorlagen',
-      category: null,
-      subcategory: null,
-      label: 'Vorlagen',
-      description: 'Durchsuche vorgefertigte Vorlagen',
-      Icon: PiFolder,
-      previewImage: '/imagine/previews/vorlagen-preview.jpg',
-      isEarlyAccess: true,
-    },
-    {
-      id: 'profilbild',
-      category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
-      subcategory: null,
-      label: 'Profilbild',
-      description: 'Erstelle ein Porträt mit grünem Hintergrund',
-      Icon: PiUser,
-      previewImage: '/imagine/previews/profilbild-preview.png',
-      directType: IMAGE_STUDIO_TYPES.PROFILBILD,
-      isComingSoon: true,
-    },
-  ];
+  const startOptions: StartOption[] = useMemo(
+    () => [
+      {
+        id: 'sharepics',
+        category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
+        subcategory: null,
+        label: 'Sharepics',
+        description: 'Erstelle Sharepics mit vorgefertigten Designs',
+        Icon: PiLayout,
+        previewImage: '/imagine/previews/dreizeilen-preview.png',
+      },
+      {
+        id: 'imagine',
+        category: IMAGE_STUDIO_CATEGORIES.KI,
+        subcategory: null,
+        label: 'Imagine (KI)',
+        description: 'Erstelle oder bearbeite Bilder mit KI',
+        Icon: HiSparkles,
+        previewImage: '/imagine/variants-pure/soft-illustration.png',
+      },
+      {
+        id: 'vorlagen',
+        category: null,
+        subcategory: null,
+        label: 'Vorlagen',
+        description: 'Durchsuche vorgefertigte Vorlagen',
+        Icon: PiFolder,
+        previewImage: '/imagine/previews/vorlagen-preview.jpg',
+        // Austrian users see "coming soon", others see "early access" with link
+        isEarlyAccess: !isAustrianUser,
+        isComingSoon: isAustrianUser,
+      },
+      {
+        id: 'profilbild',
+        category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
+        subcategory: null,
+        label: 'Profilbild',
+        description: 'Erstelle ein Porträt mit grünem Hintergrund',
+        Icon: PiUser,
+        previewImage: '/imagine/previews/profilbild-preview.png',
+        directType: IMAGE_STUDIO_TYPES.PROFILBILD,
+        isComingSoon: true,
+      },
+    ],
+    [isAustrianUser]
+  );
 
   return (
     <div className="type-selector-screen">
@@ -237,17 +238,19 @@ const ImageStudioCategorySelector: React.FC = () => {
 
         <EarlyAccessBanner />
 
-        {/* AI Prompt Input Section */}
-        <PromptInput
-          value={promptInput}
-          onChange={setPromptInput}
-          onSubmit={handlePromptSubmit}
-          placeholder="Beschreibe dein Sharepic..."
-          isLoading={isGenerating}
-          error={generationError}
-          examples={EXAMPLE_PROMPTS}
-          submitLabel="Sharepic generieren"
-        />
+        {/* AI Prompt Input Section - Hidden for Austrian users */}
+        {!isAustrianUser && (
+          <PromptInput
+            value={promptInput}
+            onChange={setPromptInput}
+            onSubmit={handlePromptSubmit}
+            placeholder="Beschreibe dein Sharepic..."
+            isLoading={isGenerating}
+            error={generationError}
+            examples={EXAMPLE_PROMPTS}
+            submitLabel="Sharepic generieren"
+          />
+        )}
 
         {/* Recent Sections - Side by side when both exist */}
         {(showGallerySection || showRecentTypesSection) &&
@@ -377,21 +380,32 @@ const ImageStudioCategorySelector: React.FC = () => {
             <div
               key={option.id}
               className={`type-card ${option.previewImage ? 'type-card--image gradient-dark' : ''} ${option.isComingSoon ? 'coming-soon' : ''}`}
-              onClick={() =>
-                !option.isComingSoon &&
-                (option.isEarlyAccess
-                  ? navigate('/datenbank/vorlagen')
-                  : handleCategorySelect(option.category, option.subcategory, option.directType))
-              }
+              onClick={() => {
+                if (option.isComingSoon) return;
+                if (option.id === 'sharepics' && isAustrianUser) {
+                  window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                if (option.isEarlyAccess) {
+                  void navigate('/datenbank/vorlagen');
+                  return;
+                }
+                handleCategorySelect(option.category, option.subcategory, option.directType);
+              }}
               role="button"
               tabIndex={option.isComingSoon ? -1 : 0}
-              onKeyDown={(e: React.KeyboardEvent) =>
-                e.key === 'Enter' &&
-                !option.isComingSoon &&
-                (option.isEarlyAccess
-                  ? navigate('/datenbank/vorlagen')
-                  : handleCategorySelect(option.category, option.subcategory, option.directType))
-              }
+              onKeyDown={(e: React.KeyboardEvent) => {
+                if (e.key !== 'Enter' || option.isComingSoon) return;
+                if (option.id === 'sharepics' && isAustrianUser) {
+                  window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                if (option.isEarlyAccess) {
+                  void navigate('/datenbank/vorlagen');
+                  return;
+                }
+                handleCategorySelect(option.category, option.subcategory, option.directType);
+              }}
             >
               {option.isComingSoon && <StatusBadge type="coming-soon" variant="card" />}
               {option.isEarlyAccess && <StatusBadge type="early-access" variant="card" />}

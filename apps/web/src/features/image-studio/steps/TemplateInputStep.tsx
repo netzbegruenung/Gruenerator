@@ -1,13 +1,15 @@
-import React, { useState, useCallback, useMemo, useEffect, ChangeEvent } from 'react';
 import { motion } from 'motion/react';
+import React, { useState, useCallback, useMemo, useEffect, ChangeEvent } from 'react';
 import { HiArrowLeft, HiCog } from 'react-icons/hi';
-import useImageStudioStore from '../../../stores/imageStudioStore';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
-import Button from '../../../components/common/SubmitButton';
-import ConfigDrivenFields from '../components/ConfigDrivenFields';
+
 import { TypeformWizard } from '../../../components/common/Form';
-import type { TypeformField } from '../../../components/common/Form';
+import Button from '../../../components/common/SubmitButton';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import ConfigDrivenFields from '../components/ConfigDrivenFields';
 import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
+
+import type { TypeformField } from '../../../components/common/Form';
 
 import './TemplateInputStep.css';
 
@@ -30,24 +32,28 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
   onBack,
   loading = false,
   error = null,
-  typeformMode = false
+  typeformMode = false,
 }) => {
-  const {
-    type,
-    thema,
-    name,
-    handleChange
-  } = useImageStudioStore();
+  const { type, thema, name, handleChange } = useImageStudioStore();
 
   const { user } = useOptimizedAuth();
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Prefill name with user's full name for ZITAT types
   useEffect(() => {
-    if (!name && user && (type === IMAGE_STUDIO_TYPES.ZITAT || type === IMAGE_STUDIO_TYPES.ZITAT_PURE)) {
-      const fullName = (user as unknown as { display_name?: string; name?: string }).display_name || (user as unknown as { display_name?: string; name?: string }).name || '';
+    if (
+      !name &&
+      user &&
+      (type === IMAGE_STUDIO_TYPES.ZITAT || type === IMAGE_STUDIO_TYPES.ZITAT_PURE)
+    ) {
+      const fullName =
+        (user as unknown as { display_name?: string; name?: string }).display_name ||
+        (user as unknown as { display_name?: string; name?: string }).name ||
+        '';
       if (fullName) {
-        handleChange({ target: { name: 'name', value: fullName } } as React.ChangeEvent<HTMLInputElement>);
+        handleChange({
+          target: { name: 'name', value: fullName },
+        } as React.ChangeEvent<HTMLInputElement>);
       }
     }
   }, [user, type, name, handleChange]);
@@ -55,17 +61,20 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
   const typeConfig = useMemo(() => (type ? getTypeConfig(type) : null), [type]);
   const fieldConfig = useMemo(() => (type ? getTemplateFieldConfig(type) : null), [type]);
 
-  const values = useMemo<Record<string, string>>(() => ({
-    thema: thema || '',
-    name: name || '',
-    type: type || ''
-  }), [thema, name, type]);
+  const values = useMemo<Record<string, string>>(
+    () => ({
+      thema: thema || '',
+      name: name || '',
+      type: type || '',
+    }),
+    [thema, name, type]
+  );
 
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
 
     if (fieldConfig?.inputFields) {
-      fieldConfig.inputFields.forEach(field => {
+      fieldConfig.inputFields.forEach((field) => {
         const value = values[field.name] || '';
         if (field.required && !value.trim()) {
           errors[field.name] = `${field.label} ist erforderlich`;
@@ -89,9 +98,16 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
   }, [onSubmit]);
 
   // Adapter for handleChange to match ConfigDrivenFields and TypeformWizard expectations
-  const handleFieldChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | { target: { name: string; value: string } }) => {
-    handleChange(e as React.ChangeEvent<HTMLInputElement>);
-  }, [handleChange]);
+  const handleFieldChange = useCallback(
+    (
+      e:
+        | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+        | { target: { name: string; value: string } }
+    ) => {
+      handleChange(e as React.ChangeEvent<HTMLInputElement>);
+    },
+    [handleChange]
+  );
 
   if (typeformMode) {
     return (
@@ -112,7 +128,9 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
         />
 
         {error && (
-          <p className="error-message typeform-global-error" role="alert">{error}</p>
+          <p className="error-message typeform-global-error" role="alert">
+            {error}
+          </p>
         )}
       </motion.div>
     );
@@ -137,7 +155,9 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
         />
 
         {error && (
-          <p className="error-message" role="alert">{error}</p>
+          <p className="error-message" role="alert">
+            {error}
+          </p>
         )}
 
         <div className="template-input-step__actions">

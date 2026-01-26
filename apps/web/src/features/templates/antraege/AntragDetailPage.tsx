@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, FC, ChangeEvent } from 'react';
+import React, { useState, useEffect, useRef, type FC, type ChangeEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
+
 import { Markdown } from '../../../components/common/Markdown';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
 import apiClient from '../../../components/utils/apiClient';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 
 // Antrag Detail Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/pages/AntragDetailPage.css';
@@ -28,7 +29,9 @@ interface AntragData {
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return '–';
   return new Date(dateString).toLocaleString('de-DE', {
-    year: 'numeric', month: '2-digit', day: '2-digit'
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   });
 };
 
@@ -36,11 +39,16 @@ const getStatusClass = (status: string | undefined): string => {
   const statusLower = status?.toLowerCase() || 'unbekannt';
   // Statusklassen bleiben gleich, da sie in der neuen CSS wiederverwendet werden
   switch (statusLower) {
-    case 'angenommen': return 'status-angenommen';
-    case 'in bearbeitung': return 'status-in-bearbeitung';
-    case 'abgelehnt': return 'status-abgelehnt';
-    case 'neu': return 'status-neu';
-    default: return 'status-unbekannt';
+    case 'angenommen':
+      return 'status-angenommen';
+    case 'in bearbeitung':
+      return 'status-in-bearbeitung';
+    case 'abgelehnt':
+      return 'status-abgelehnt';
+    case 'neu':
+      return 'status-neu';
+    default:
+      return 'status-unbekannt';
   }
 };
 
@@ -76,10 +84,9 @@ const AntragDetailPage: FC = () => {
           throw new Error('Antrag nicht gefunden.');
         }
 
-        console.log("[AntragDetailPage] Antrag erfolgreich geladen:", antragData);
+        console.log('[AntragDetailPage] Antrag erfolgreich geladen:', antragData);
         setAntrag(antragData);
         setEditedAntrag(antragData);
-
       } catch (err) {
         console.error('[AntragDetailPage] Fehler beim Laden des Antrags:', err);
         const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
@@ -123,8 +130,7 @@ const AntragDetailPage: FC = () => {
       const result = response.data as { antrag?: AntragData };
       setAntrag(result.antrag || editedAntrag);
       setIsEditing(false);
-      console.log("[AntragDetailPage] Antrag erfolgreich aktualisiert.");
-
+      console.log('[AntragDetailPage] Antrag erfolgreich aktualisiert.');
     } catch (err) {
       console.error('[AntragDetailPage] Fehler beim Speichern des Antrags:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
@@ -136,11 +142,11 @@ const AntragDetailPage: FC = () => {
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
     const { name, value } = event.target;
-    setEditedAntrag(prev => prev ? { ...prev, [name]: value } : null);
+    setEditedAntrag((prev) => (prev ? { ...prev, [name]: value } : null));
   };
 
   const handleMarkdownChange = (markdown: string): void => {
-    setEditedAntrag(prev => prev ? { ...prev, antragstext: markdown } : null);
+    setEditedAntrag((prev) => (prev ? { ...prev, antragstext: markdown } : null));
   };
 
   // --- Render Logic ---
@@ -165,11 +171,11 @@ const AntragDetailPage: FC = () => {
 
   if (!antrag) {
     return (
-       <div className="antrag-detail-page-container antrag-detail-error">
-         <h2>Antrag nicht gefunden</h2>
-         <p>Der angeforderte Antrag konnte nicht gefunden werden.</p>
-         <Link to="/datenbank/antraege">Zurück zur Übersicht</Link>
-       </div>
+      <div className="antrag-detail-page-container antrag-detail-error">
+        <h2>Antrag nicht gefunden</h2>
+        <p>Der angeforderte Antrag konnte nicht gefunden werden.</p>
+        <Link to="/datenbank/antraege">Zurück zur Übersicht</Link>
+      </div>
     );
   }
 
@@ -180,11 +186,12 @@ const AntragDetailPage: FC = () => {
   return (
     <div className="antrag-detail-page-wrapper">
       <div className="antrag-detail-page-container">
-
         {/* Conditional Edit/Cancel/Save buttons */}
         <div className="antrag-detail-actions">
           {canEdit && !isEditing && (
-            <button onClick={handleEditClick} className="button button-primary">Bearbeiten</button>
+            <button onClick={handleEditClick} className="button button-primary">
+              Bearbeiten
+            </button>
           )}
         </div>
 
@@ -197,53 +204,51 @@ const AntragDetailPage: FC = () => {
                 <h1>{antrag.title || 'Unbenannter Antrag'}</h1>
               </div>
             </header>
-
             {/* 2. Tags Section (Moved here) */}
             {antrag.tags && antrag.tags.length > 0 && (
               <div className="antrag-detail-page-tags">
                 <div className="tags-list">
-                  {antrag.tags.map(tag => (
-                    <span key={tag} className="tag-chip">{tag}</span>
+                  {antrag.tags.map((tag) => (
+                    <span key={tag} className="tag-chip">
+                      {tag}
+                    </span>
                   ))}
                 </div>
               </div>
             )}
-
             {/* 3. Main Info Wrapper (Description & Meta side-by-side on Desktop) */}
             <div className="antrag-detail-main-info">
+              {antrag.description && (
+                <div className="antrag-detail-description-box">
+                  <p>{antrag.description}</p>
+                </div>
+              )}
 
-                {antrag.description && (
-                  <div className="antrag-detail-description-box">
-                    <p>{antrag.description}</p>
+              {/* Meta Info Section */}
+              <section className="antrag-detail-page-meta">
+                {/* Meta items */}
+                <div className="meta-item">
+                  <span className="meta-label">Zuletzt aktualisiert:</span>
+                  <span className="meta-value">{formatDate(antrag.updated_at)}</span>
+                </div>
+
+                {/* Combined Antragsteller & Kontakt */}
+                {(antrag.antragsteller || antrag.kontakt_email) && ( // Show item if at least one exists
+                  <div className="meta-item">
+                    {antrag.antragsteller && <span className="meta-label">Antragsteller*in:</span>}
+
+                    <span className="meta-value">
+                      {antrag.antragsteller}
+                      {antrag.antragsteller && antrag.kontakt_email && ', '}
+                      {antrag.kontakt_email && (
+                        <a href={`mailto:${antrag.kontakt_email}`}>{antrag.kontakt_email}</a>
+                      )}
+                    </span>
                   </div>
                 )}
-
-                {/* Meta Info Section */}
-                <section className="antrag-detail-page-meta">
-                   {/* Meta items */}
-                   <div className="meta-item">
-                     <span className="meta-label">Zuletzt aktualisiert:</span>
-                     <span className="meta-value">{formatDate(antrag.updated_at)}</span>
-                   </div>
-
-                   {/* Combined Antragsteller & Kontakt */}
-                   {(antrag.antragsteller || antrag.kontakt_email) && ( // Show item if at least one exists
-                     <div className="meta-item">
-                       {antrag.antragsteller && <span className="meta-label">Antragsteller*in:</span>}
-
-                       <span className="meta-value">
-                         {antrag.antragsteller}
-                         {antrag.antragsteller && antrag.kontakt_email && ', '}
-                         {antrag.kontakt_email && (
-                           <a href={`mailto:${antrag.kontakt_email}`}>{antrag.kontakt_email}</a>
-                         )}
-                       </span>
-                     </div>
-                   )}
-                </section>
-
-            </div> {/* End of main-info */}
-
+              </section>
+            </div>{' '}
+            {/* End of main-info */}
             {/* 4. Content Section (Antragstext) */}
             <section className="antrag-detail-page-content">
               {/* <h2>Antragstext</h2> */}
@@ -251,7 +256,9 @@ const AntragDetailPage: FC = () => {
                 {antrag.antragstext ? (
                   <Markdown>{antrag.antragstext}</Markdown>
                 ) : (
-                  <p><em>Kein Antragstext vorhanden.</em></p>
+                  <p>
+                    <em>Kein Antragstext vorhanden.</em>
+                  </p>
                 )}
               </div>
             </section>
@@ -268,11 +275,10 @@ const AntragDetailPage: FC = () => {
 
         {/* Optional: Link zurück zur Übersicht */}
         <div className="antrag-detail-page-footer">
-            <Link to="/datenbank/antraege" className="back-link">
-                &larr; Zurück zur Antragsübersicht
-            </Link>
+          <Link to="/datenbank/antraege" className="back-link">
+            &larr; Zurück zur Antragsübersicht
+          </Link>
         </div>
-
       </div>
     </div>
   );
