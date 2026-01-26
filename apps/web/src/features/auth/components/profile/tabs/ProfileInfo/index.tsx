@@ -1,5 +1,13 @@
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import React, { useState, useEffect, useCallback, useRef, Suspense, lazy, type FormEvent } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  Suspense,
+  lazy,
+  type FormEvent,
+} from 'react';
 
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
 import { useAutosave } from '../../../../../../hooks/useAutosave';
@@ -45,7 +53,7 @@ const ProfileInfoTabContainer = ({
   const { user: authUser } = useOptimizedAuth();
   const user = userProp || authUser;
 
-  // Move all hooks before conditional returns to avoid React hooks violation
+  // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
   const queryClient = useQueryClient();
   const {
     data: profileData,
@@ -65,18 +73,18 @@ const ProfileInfoTabContainer = ({
 
   const igelActive = getBetaFeatureState('igel');
 
-  const handleToggleIgelModus = async (checked: boolean) => {
-    await updateUserBetaFeatures('igel', checked);
-    onSuccessMessage(`Igel-Modus ${checked ? 'aktiviert' : 'deaktiviert'}.`);
-  };
-
-  if (!user) {
-    return (
-      <div className="profile-tab-loading">
-        <div>Benutzerinformationen werden geladen...</div>
-      </div>
-    );
-  }
+  // State hooks - must be called unconditionally
+  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [errorProfile, setErrorProfile] = useState('');
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showDeleteAccountForm, setShowDeleteAccountForm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState('');
+  const isInitialized = useRef(false);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData: ProfileUpdateData) => {
@@ -145,18 +153,6 @@ const ProfileInfoTabContainer = ({
   const updateProfile = updateProfileMutation.mutateAsync;
   const updateAvatar = updateAvatarMutation.mutateAsync;
   const profileUpdateError = updateProfileMutation.error;
-
-  const [displayName, setDisplayName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [customPrompt, setCustomPrompt] = useState('');
-  const [errorProfile, setErrorProfile] = useState('');
-  const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [showDeleteAccountForm, setShowDeleteAccountForm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const [deleteAccountError, setDeleteAccountError] = useState('');
-  const isInitialized = useRef(false);
 
   const canManageCurrentAccount = user ? canManageAccount() : false;
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
@@ -308,6 +304,16 @@ const ProfileInfoTabContainer = ({
       onErrorProfileMessage(msg);
     } finally {
       setIsDeletingAccount(false);
+    }
+  };
+
+  const handleToggleIgelModus = async () => {
+    try {
+      await updateUserBetaFeatures({ igel: !igelActive });
+      onSuccessMessage(igelActive ? 'IGEL-Modus deaktiviert' : 'IGEL-Modus aktiviert');
+    } catch (error) {
+      console.error('Failed to toggle IGEL mode:', error);
+      onErrorProfileMessage('Fehler beim Umschalten des IGEL-Modus');
     }
   };
 

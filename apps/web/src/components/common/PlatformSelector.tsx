@@ -1,4 +1,11 @@
-import React, { useState, useRef, useCallback, useMemo, useEffect, type ComponentType } from 'react';
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  useEffect,
+  type ComponentType,
+} from 'react';
 import { Controller, type Control } from 'react-hook-form';
 
 import { createFilterOption, findMatches, PLATFORM_ALIASES } from '../../utils/autocompleteUtils';
@@ -7,7 +14,6 @@ import EnhancedSelect, { type EnhancedSelectOption } from './EnhancedSelect/Enha
 import Icon from './Icon';
 
 import type { MultiValue, SingleValue, ActionMeta, StylesConfig, GroupBase } from 'react-select';
-
 
 interface SelectRefLike {
   inputRef?: { blur: () => void } | null;
@@ -246,7 +252,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   };
 
   if (isUncontrolled) {
-    const selectRef = useRef<SelectRefLike | null>(null);
+    // Use selectRefInternal which is already defined unconditionally above
     const selectedValue = isMulti
       ? value
         ? (value as (string | number)[])
@@ -270,7 +276,6 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
       <div className={`platform-selector ${className}`.trim()}>
         <EnhancedSelect
           ref={(ref) => {
-            selectRef.current = ref as SelectRefLike | null;
             selectRefInternal.current = ref as SelectRefLike | null;
           }}
           inputId={`${name}-select`}

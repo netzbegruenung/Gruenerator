@@ -32,7 +32,9 @@ export const saveTabs = async (tabs: Tab[], activeTabId: string | null): Promise
       try {
         const { mkdir } = await import('@tauri-apps/plugin-fs');
         await mkdir(configDir, { recursive: true });
-      } catch {}
+      } catch {
+        // Directory may already exist, ignore
+      }
 
       await writeTextFile(TABS_FILE_NAME, JSON.stringify(state, null, 2), {
         baseDir: BaseDirectory.AppConfig,

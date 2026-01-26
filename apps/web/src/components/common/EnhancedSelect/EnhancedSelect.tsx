@@ -17,13 +17,13 @@ import type {
   MultiValueProps,
   PlaceholderProps,
 } from 'react-select';
+import type SelectType from 'react-select';
+import type CreatableSelectType from 'react-select/creatable';
 
-const Select = lazy(
-  () => import('react-select')
-) as unknown as typeof import('react-select').default;
+const Select = lazy(() => import('react-select')) as unknown as typeof SelectType;
 const CreatableSelect = lazy(
   () => import('react-select/creatable')
-) as unknown as typeof import('react-select/creatable').default;
+) as unknown as typeof CreatableSelectType;
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 
 import OptionIcon from './OptionIcon';

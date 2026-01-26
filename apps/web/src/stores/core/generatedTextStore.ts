@@ -156,7 +156,6 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
       const currentIndex = state.historyIndex[componentName] ?? -1;
 
       let newHistory;
-      let newIndex;
 
       if (currentIndex === -1 || currentIndex === currentHistory.length - 1) {
         // We're at the end, add new state
@@ -168,7 +167,7 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
         );
       }
 
-      newIndex = newHistory.length - 1;
+      const newIndex = newHistory.length - 1;
 
       const newState = {
         ...state,
@@ -326,7 +325,6 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
       }
 
       let newHistory;
-      let newIndex;
 
       if (currentIndex === -1 || currentIndex === currentHistory.length - 1) {
         // We're at the latest state, just add to history
@@ -338,7 +336,7 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
         );
       }
 
-      newIndex = newHistory.length - 1;
+      const newIndex = newHistory.length - 1;
 
       return {
         ...state,

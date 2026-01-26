@@ -250,14 +250,14 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     // This prevents race condition where old token is used before API response
     if (exportStatus === 'exporting' && exportToken) {
       console.log('[SubtitleEditor] Export started with new token:', exportToken);
-      onExportSuccess && onExportSuccess(exportToken);
+      onExportSuccess?.(exportToken);
     } else if (exportStatus === 'complete') {
       console.log('[SubtitleEditor] Export completed');
-      onExportComplete && onExportComplete();
+      onExportComplete?.();
     } else if (exportStatus === 'error' && exportError) {
       console.error('[SubtitleEditor] Export failed:', exportError);
       setError(exportError);
-      onExportComplete && onExportComplete();
+      onExportComplete?.();
     }
   }, [exportStatus, exportToken, exportError, onExportSuccess, onExportComplete]);
 
