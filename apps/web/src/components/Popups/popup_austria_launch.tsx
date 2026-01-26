@@ -1,6 +1,5 @@
 import React from 'react';
 
-import Icon from '../common/Icon';
 import { BasePopup } from '../common/Popup';
 import './popup_austria_launch.css';
 
@@ -18,15 +17,6 @@ const PopupAustriaLaunch = () => {
               onEnded={onClose}
               className="video-popup-player"
             />
-            <div className="video-popup-controls">
-              <button
-                className="video-popup-button video-popup-button--skip"
-                onClick={onClose}
-              >
-                <span>Überspringen</span>
-                <Icon category="actions" name="arrowRight" />
-              </button>
-            </div>
           </div>
         </div>
       )}
