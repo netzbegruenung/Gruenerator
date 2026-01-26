@@ -6,6 +6,12 @@ export default [
     languageOptions: {
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
+        projectService: {
+          allowDefaultProject: [
+            'src/components/utils/errorMessages.tsx',
+            'apps/web/src/components/utils/errorMessages.tsx',
+          ],
+        },
       },
     },
   },

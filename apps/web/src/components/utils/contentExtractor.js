@@ -5,6 +5,7 @@
  * Note: For search exports with complex formatting requirements, the existing
  * formatExportContent from exportUtils.jsx is used to maintain specific functionality.
  */
+/* global process */
 
 import { isMarkdownContent } from '../common/Form/utils/contentUtils';
 
