@@ -10,7 +10,7 @@ import type {
   OffboardingUser,
   UserProfile,
   ProcessUserResult,
-  AnonymizationData
+  AnonymizationData,
 } from './types.js';
 
 const log = createLogger('GrueneratorOffboarding');
@@ -71,14 +71,13 @@ export class GrueneratorOffboarding {
 
       const queries = [
         { column: 'username', value: user.username },
-        { column: 'sherpa_id', value: user.sherpa_id } // If sherpa_id is a separate field
-      ].filter(q => q.value);
+        { column: 'sherpa_id', value: user.sherpa_id }, // If sherpa_id is a separate field
+      ].filter((q) => q.value);
 
       for (const query of queries) {
-        const result = await (await this.getDb()).queryOne(
-          `SELECT * FROM profiles WHERE ${query.column} = $1`,
-          [query.value]
-        );
+        const result = await (
+          await this.getDb()
+        ).queryOne(`SELECT * FROM profiles WHERE ${query.column} = $1`, [query.value]);
         if (result) return result as UserProfile;
       }
 
@@ -137,7 +136,7 @@ export class GrueneratorOffboarding {
         first_name: null,
         last_name: null,
         avatar_url: null,
-        anonymized_at: new Date().toISOString()
+        anonymized_at: new Date().toISOString(),
       };
 
       await this.profileService.updateProfile(userId, anonymizationData);
@@ -163,7 +162,7 @@ export class GrueneratorOffboarding {
       if (!grueneratorUser) {
         return {
           status: 'not_found',
-          message: 'User not found in Grünerator database'
+          message: 'User not found in Grünerator database',
         };
       }
 
@@ -172,23 +171,26 @@ export class GrueneratorOffboarding {
         await this.deleteUser(grueneratorUser.id);
         return {
           status: 'deleted',
-          message: `Successfully deleted user ${grueneratorUser.id}`
+          message: `Successfully deleted user ${grueneratorUser.id}`,
         };
       } catch (deleteError: any) {
-        log.warn(`Could not delete user ${grueneratorUser.id}, attempting anonymization:`, deleteError.message);
+        log.warn(
+          `Could not delete user ${grueneratorUser.id}, attempting anonymization:`,
+          deleteError.message
+        );
 
         // If deletion fails, try anonymization
         try {
           await this.anonymizeUser(grueneratorUser.id);
           return {
             status: 'anonymized',
-            message: `Successfully anonymized user ${grueneratorUser.id}`
+            message: `Successfully anonymized user ${grueneratorUser.id}`,
           };
         } catch (anonymizeError: any) {
           log.error(`Failed to anonymize user ${grueneratorUser.id}:`, anonymizeError.message);
           return {
             status: 'failed',
-            message: `Failed to delete or anonymize user: ${anonymizeError.message}`
+            message: `Failed to delete or anonymize user: ${anonymizeError.message}`,
           };
         }
       }
@@ -196,7 +198,7 @@ export class GrueneratorOffboarding {
       log.error(`Error processing user ${user.username}:`, error.message);
       return {
         status: 'failed',
-        message: `Processing error: ${error.message}`
+        message: `Processing error: ${error.message}`,
       };
     }
   }

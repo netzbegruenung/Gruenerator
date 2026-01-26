@@ -1,16 +1,16 @@
-import { motion, type HTMLMotionProps } from "motion/react";
+import { motion, type HTMLMotionProps } from 'motion/react';
 
 const AntragCardSkeleton = () => {
   // Animation for pulsing effect
-  const pulseAnimation: Partial<HTMLMotionProps<"div">> = {
+  const pulseAnimation: Partial<HTMLMotionProps<'div'>> = {
     initial: { opacity: 0.3 },
     animate: { opacity: 0.7 },
     transition: {
       duration: 1.2,
       repeat: Infinity,
-      repeatType: "reverse",
-      ease: "easeInOut"
-    }
+      repeatType: 'reverse',
+      ease: 'easeInOut',
+    },
   };
 
   return (
@@ -25,7 +25,7 @@ const AntragCardSkeleton = () => {
             width: '80%',
             backgroundColor: '#e2e8f0',
             borderRadius: '4px',
-            marginBottom: '12px'
+            marginBottom: '12px',
           }}
         />
 
@@ -38,7 +38,7 @@ const AntragCardSkeleton = () => {
             width: '95%',
             backgroundColor: '#e2e8f0',
             borderRadius: '4px',
-            marginBottom: '8px'
+            marginBottom: '8px',
           }}
         />
 
@@ -50,7 +50,7 @@ const AntragCardSkeleton = () => {
             width: '70%',
             backgroundColor: '#e2e8f0',
             borderRadius: '4px',
-            marginBottom: '16px'
+            marginBottom: '16px',
           }}
         />
 
@@ -65,7 +65,7 @@ const AntragCardSkeleton = () => {
               backgroundColor: '#e2e8f0',
               borderRadius: '12px',
               display: 'inline-block',
-              marginRight: '8px'
+              marginRight: '8px',
             }}
           />
           <motion.div
@@ -77,7 +77,7 @@ const AntragCardSkeleton = () => {
               backgroundColor: '#e2e8f0',
               borderRadius: '12px',
               display: 'inline-block',
-              marginRight: '8px'
+              marginRight: '8px',
             }}
           />
           <motion.div
@@ -88,7 +88,7 @@ const AntragCardSkeleton = () => {
               width: '70px',
               backgroundColor: '#e2e8f0',
               borderRadius: '12px',
-              display: 'inline-block'
+              display: 'inline-block',
             }}
           />
         </div>
@@ -103,7 +103,7 @@ const AntragCardSkeleton = () => {
           width: '120px',
           backgroundColor: '#e2e8f0',
           borderRadius: '4px',
-          marginTop: '16px'
+          marginTop: '16px',
         }}
       />
     </div>

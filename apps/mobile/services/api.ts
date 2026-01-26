@@ -1,4 +1,9 @@
-import { createApiClient, setGlobalApiClient, getGlobalApiClient, apiRequest } from '@gruenerator/shared/api';
+import {
+  createApiClient,
+  setGlobalApiClient,
+  getGlobalApiClient,
+  apiRequest,
+} from '@gruenerator/shared/api';
 import { secureStorage } from './storage';
 import { useAuthStore } from '@gruenerator/shared/stores';
 

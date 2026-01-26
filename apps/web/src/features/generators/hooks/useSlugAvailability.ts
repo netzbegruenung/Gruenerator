@@ -6,8 +6,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import apiClient from '../../../components/utils/apiClient';
+
 import useDebounce from '../../../components/hooks/useDebounce';
+import apiClient from '../../../components/utils/apiClient';
 import { SLUG_CHECK_DEBOUNCE_MS, MIN_SLUG_LENGTH } from '../constants/generatorConstants';
 
 interface UseSlugAvailabilityOptions {
@@ -33,7 +34,7 @@ interface UseSlugAvailabilityResult {
  */
 export const useSlugAvailability = ({
   slug,
-  minLength = MIN_SLUG_LENGTH
+  minLength = MIN_SLUG_LENGTH,
 }: UseSlugAvailabilityOptions): UseSlugAvailabilityResult => {
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);

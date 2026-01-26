@@ -10,7 +10,7 @@
 
 import { isDesktopApp } from './platform';
 
-type TauriWindow = Awaited<ReturnType<typeof import('@tauri-apps/api/window').getCurrentWindow>>;
+import type { Window as TauriWindow } from '@tauri-apps/api/window';
 
 /**
  * Checks if Tauri internals are fully initialized.

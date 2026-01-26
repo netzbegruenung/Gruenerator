@@ -41,9 +41,9 @@ export const useMediaPickerStore = create<MediaPickerState & MediaPickerActions>
     const { allowMultiple, selectedItems } = get();
 
     if (allowMultiple) {
-      const isSelected = selectedItems.some(i => i.id === item.id);
+      const isSelected = selectedItems.some((i) => i.id === item.id);
       if (isSelected) {
-        set({ selectedItems: selectedItems.filter(i => i.id !== item.id) });
+        set({ selectedItems: selectedItems.filter((i) => i.id !== item.id) });
       } else {
         set({ selectedItems: [...selectedItems, item] });
       }
@@ -53,8 +53,8 @@ export const useMediaPickerStore = create<MediaPickerState & MediaPickerActions>
   },
 
   deselectItem: (item: MediaItem) => {
-    set(state => ({
-      selectedItems: state.selectedItems.filter(i => i.id !== item.id),
+    set((state) => ({
+      selectedItems: state.selectedItems.filter((i) => i.id !== item.id),
     }));
   },
 

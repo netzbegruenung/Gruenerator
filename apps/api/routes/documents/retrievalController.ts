@@ -36,7 +36,6 @@ router.get('/user', async (req: DocumentRequest, res: Response): Promise<void> =
       return;
     }
 
-
     // Get user's document mode preference (defaults to manual)
     const userMode = await postgresDocumentService.getUserDocumentMode(userId);
 
@@ -44,15 +43,20 @@ router.get('/user', async (req: DocumentRequest, res: Response): Promise<void> =
     const documents = await postgresDocumentService.getDocumentsBySourceType(userId, null);
 
     // Get first chunks from Qdrant for documents that need previews
-    const documentIds = documents.map(doc => doc.id);
-    const firstChunksResult = await documentSearchService.getDocumentFirstChunks(userId, documentIds);
+    const documentIds = documents.map((doc) => doc.id);
+    const firstChunksResult = await documentSearchService.getDocumentFirstChunks(
+      userId,
+      documentIds
+    );
     const firstChunks = firstChunksResult.chunks || {};
 
     // Enrich with all content fields for frontend access
-    const enrichedDocs = documents.map(doc => enrichDocumentWithPreview(doc, firstChunks));
+    const enrichedDocs = documents.map((doc) => enrichDocumentWithPreview(doc, firstChunks));
 
     // Sort documents by created_at
-    enrichedDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    enrichedDocs.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 
     res.json({
       success: true,
@@ -60,16 +64,15 @@ router.get('/user', async (req: DocumentRequest, res: Response): Promise<void> =
       meta: {
         count: enrichedDocs.length,
         userMode: userMode,
-        source: 'postgres'
+        source: 'postgres',
       },
-      message: `Found ${enrichedDocs.length} documents`
+      message: `Found ${enrichedDocs.length} documents`,
     });
-
   } catch (error) {
     log.error('[GET /user] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to fetch documents'
+      message: (error as Error).message || 'Failed to fetch documents',
     });
   }
 });
@@ -90,43 +93,49 @@ router.get('/combined-content', async (req: DocumentRequest, res: Response): Pro
     // Fetch documents and texts in parallel for better performance
     const [documents, texts] = await Promise.all([
       postgresDocumentService.getDocumentsBySourceType(userId, null),
-      postgresDocumentService.getUserTexts(userId)
+      postgresDocumentService.getUserTexts(userId),
     ]);
 
     // Get first chunks from Qdrant for documents that need previews
-    const documentIds = documents.map(doc => doc.id);
-    const firstChunksResult = await documentSearchService.getDocumentFirstChunks(userId, documentIds);
+    const documentIds = documents.map((doc) => doc.id);
+    const firstChunksResult = await documentSearchService.getDocumentFirstChunks(
+      userId,
+      documentIds
+    );
     const firstChunks = firstChunksResult.chunks || {};
 
     // Enrich documents with all content fields for frontend access
-    const enrichedDocs = documents.map(doc => enrichDocumentWithPreview(doc, firstChunks));
+    const enrichedDocs = documents.map((doc) => enrichDocumentWithPreview(doc, firstChunks));
 
     // Sort both documents and texts by created_at
-    enrichedDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    enrichedDocs.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
     texts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    log.debug(`[GET /combined-content] Returning ${enrichedDocs.length} documents and ${texts.length} texts`);
+    log.debug(
+      `[GET /combined-content] Returning ${enrichedDocs.length} documents and ${texts.length} texts`
+    );
 
     res.json({
       success: true,
       data: {
         documents: enrichedDocs,
-        texts: texts
+        texts: texts,
       },
       meta: {
         documentCount: enrichedDocs.length,
         textCount: texts.length,
         totalCount: enrichedDocs.length + texts.length,
-        source: 'postgres'
+        source: 'postgres',
       },
-      message: `Found ${enrichedDocs.length} documents and ${texts.length} texts`
+      message: `Found ${enrichedDocs.length} documents and ${texts.length} texts`,
     });
-
   } catch (error) {
     log.error('[GET /combined-content] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to fetch combined content'
+      message: (error as Error).message || 'Failed to fetch combined content',
     });
   }
 });
@@ -143,30 +152,32 @@ router.get('/by-source/:sourceType', async (req: DocumentRequest, res: Response)
       return;
     }
 
-
     // Validate source type
     if (sourceType && !['manual', 'wolke'].includes(sourceType)) {
       res.status(400).json({
         success: false,
-        message: 'Invalid source type. Must be "manual" or "wolke"'
+        message: 'Invalid source type. Must be "manual" or "wolke"',
       });
       return;
     }
 
-    const documents = await postgresDocumentService.getDocumentsBySourceType(userId, sourceType as any);
+    const documents = await postgresDocumentService.getDocumentsBySourceType(
+      userId,
+      sourceType as any
+    );
     const enriched = documents.map((doc) => enrichDocumentWithPreview(doc, {}));
 
     res.json({
       success: true,
       data: enriched,
       sourceType,
-      count: enriched.length
+      count: enriched.length,
     });
   } catch (error) {
     log.error('[GET /by-source/:sourceType] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to get documents by source type'
+      message: (error as Error).message || 'Failed to get documents by source type',
     });
   }
 });
@@ -186,13 +197,13 @@ router.get('/stats', async (req: DocumentRequest, res: Response): Promise<void> 
 
     res.json({
       success: true,
-      stats
+      stats,
     });
   } catch (error) {
     log.error('[GET /stats] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to get document statistics'
+      message: (error as Error).message || 'Failed to get document statistics',
     });
   }
 });
@@ -209,14 +220,13 @@ router.get('/:id/content', async (req: DocumentRequest, res: Response): Promise<
       return;
     }
 
-
     // Get document metadata from PostgreSQL
     const document = await postgresDocumentService.getDocumentById(id, userId);
 
     if (!document) {
       res.status(404).json({
         success: false,
-        message: 'Document not found or access denied'
+        message: 'Document not found or access denied',
       });
       return;
     }
@@ -228,12 +238,17 @@ router.get('/:id/content', async (req: DocumentRequest, res: Response): Promise<
       const qdrantResult = await documentSearchService.getDocumentFullText(userId, id);
       if (qdrantResult.success && qdrantResult.fullText) {
         ocrText = qdrantResult.fullText;
-        log.debug(`[GET /:id/content] Successfully retrieved ${qdrantResult.chunkCount} chunks from Qdrant for document ${id}`);
+        log.debug(
+          `[GET /:id/content] Successfully retrieved ${qdrantResult.chunkCount} chunks from Qdrant for document ${id}`
+        );
       } else {
         log.warn(`[GET /:id/content] No text found in Qdrant for document ${id}`);
       }
     } catch (qdrantError) {
-      log.error(`[GET /:id/content] Error retrieving text from Qdrant for document ${id}:`, qdrantError);
+      log.error(
+        `[GET /:id/content] Error retrieving text from Qdrant for document ${id}:`,
+        qdrantError
+      );
       // Continue with empty text - don't fail the request
     }
 
@@ -247,15 +262,14 @@ router.get('/:id/content', async (req: DocumentRequest, res: Response): Promise<
         vector_count: document.vector_count || 0,
         source_type: document.source_type,
         ocr_text: ocrText, // Always from Qdrant
-        created_at: document.created_at
-      }
+        created_at: document.created_at,
+      },
     });
-
   } catch (error) {
     log.error('[GET /:id/content] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to get document content'
+      message: (error as Error).message || 'Failed to get document content',
     });
   }
 });
@@ -272,7 +286,6 @@ router.delete('/:id', async (req: DocumentRequest, res: Response): Promise<void>
       return;
     }
 
-
     // Delete document metadata from PostgreSQL (includes ownership check)
     await postgresDocumentService.deleteDocument(id, userId);
 
@@ -287,23 +300,25 @@ router.delete('/:id', async (req: DocumentRequest, res: Response): Promise<void>
 
     res.json({
       success: true,
-      message: 'Document deleted successfully'
+      message: 'Document deleted successfully',
     });
-
   } catch (error) {
     log.error('[DELETE /:id] Error:', error);
 
-    if ((error as Error).message.includes('not found') || (error as Error).message.includes('access denied')) {
+    if (
+      (error as Error).message.includes('not found') ||
+      (error as Error).message.includes('access denied')
+    ) {
       res.status(404).json({
         success: false,
-        message: 'Document not found or access denied'
+        message: 'Document not found or access denied',
       });
       return;
     }
 
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to delete document'
+      message: (error as Error).message || 'Failed to delete document',
     });
   }
 });
@@ -327,12 +342,11 @@ router.delete('/bulk', async (req: DocumentRequest, res: Response): Promise<void
       return;
     }
 
-
     // Validate input
     if (!Array.isArray(ids) || ids.length === 0) {
       res.status(400).json({
         success: false,
-        message: 'Array of document IDs is required'
+        message: 'Array of document IDs is required',
       });
       return;
     }
@@ -356,30 +370,31 @@ router.delete('/bulk', async (req: DocumentRequest, res: Response): Promise<void
     });
 
     const vectorDeleteResults = await Promise.allSettled(vectorDeletePromises);
-    const vectorDeleteSuccesses = vectorDeleteResults.filter(result =>
-      result.status === 'fulfilled' && result.value.success
+    const vectorDeleteSuccesses = vectorDeleteResults.filter(
+      (result) => result.status === 'fulfilled' && result.value.success
     ).length;
 
-    log.debug(`[DELETE /bulk] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`);
+    log.debug(
+      `[DELETE /bulk] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`
+    );
 
     res.json({
       success: true,
       message: `Bulk delete completed: ${deleteResult.deletedCount} of ${ids.length} documents deleted successfully`,
       deleted_count: deleteResult.deletedCount,
-      failed_ids: ids.filter(id => !deleteResult.deletedIds.includes(id)),
+      failed_ids: ids.filter((id) => !deleteResult.deletedIds.includes(id)),
       total_requested: ids.length,
       deleted_ids: deleteResult.deletedIds,
       vector_cleanup: {
         vectors_deleted: vectorDeleteSuccesses,
-        total_documents: deleteResult.deletedIds.length
-      }
+        total_documents: deleteResult.deletedIds.length,
+      },
     });
-
   } catch (error) {
     log.error('[DELETE /bulk] Error in bulk delete:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to perform bulk delete'
+      message: (error as Error).message || 'Failed to perform bulk delete',
     });
   }
 });

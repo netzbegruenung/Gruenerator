@@ -6,10 +6,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { VideoPlayer } from 'expo-video';
 import { FlatList, Alert } from 'react-native';
-import {
-  useSubtitleEditorStore,
-  selectActiveSegmentId,
-} from '../stores/subtitleEditorStore';
+import { useSubtitleEditorStore, selectActiveSegmentId } from '../stores/subtitleEditorStore';
 import { updateProject, saveProject, useProjectsStore } from '@gruenerator/shared';
 import {
   formatSubtitlesToText,

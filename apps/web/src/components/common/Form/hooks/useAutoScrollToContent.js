@@ -14,17 +14,13 @@ import { useEffect, useRef } from 'react';
  * @param {number} options.centerThreshold - Content height threshold for centering (default: 0.8)
  * @returns {void}
  */
-const useAutoScrollToContent = (
-  contentRef,
-  shouldScroll,
-  options = {}
-) => {
+const useAutoScrollToContent = (contentRef, shouldScroll, options = {}) => {
   const {
     mobileOnly = true,
     mobileBreakpoint = 768,
     delay = 100,
     topOffset = 80,
-    centerThreshold = 0.8
+    centerThreshold = 0.8,
   } = options;
 
   const prevShouldScrollRef = useRef(shouldScroll);
@@ -37,12 +33,7 @@ const useAutoScrollToContent = (
     // 1. On mobile device (or mobileOnly is false)
     // 2. shouldScroll just changed from false to true
     // 3. Content ref exists
-    if (
-      isMobileDevice &&
-      !prevShouldScrollRef.current &&
-      shouldScroll &&
-      contentRef.current
-    ) {
+    if (isMobileDevice && !prevShouldScrollRef.current && shouldScroll && contentRef.current) {
       // Small delay to ensure content is fully rendered
       setTimeout(() => {
         const element = contentRef.current;
@@ -57,7 +48,7 @@ const useAutoScrollToContent = (
           // Short content: center it to avoid showing footer
           element.scrollIntoView({
             behavior: 'smooth',
-            block: 'center'
+            block: 'center',
           });
         } else {
           // Tall content: scroll with top padding for comfortable reading
@@ -66,7 +57,7 @@ const useAutoScrollToContent = (
 
           window.scrollTo({
             top: scrollPosition,
-            behavior: 'smooth'
+            behavior: 'smooth',
           });
         }
       }, delay);

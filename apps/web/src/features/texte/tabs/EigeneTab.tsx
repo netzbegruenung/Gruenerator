@@ -1,7 +1,9 @@
 import React, { useState, useCallback, lazy, Suspense, memo, useMemo } from 'react';
+
+import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
+import Icon from '../../../components/common/Icon';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/useProfileData';
-import Icon from '../../../components/common/Icon';
 import './EigeneTab.css';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
@@ -55,16 +57,19 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('prompts');
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
 
-  const { query: generatorsQuery } = useCustomGeneratorsData({ isActive, enabled: isAuthenticated } as any);
+  const { query: generatorsQuery } = useCustomGeneratorsData({
+    isActive,
+    enabled: isAuthenticated,
+  } as any);
   const { query: savedQuery } = useSavedGenerators({ isActive, enabled: isAuthenticated } as any);
 
-  const generators = useMemo(() =>
-    (generatorsQuery.data || []) as GeneratorListItem[],
+  const generators = useMemo(
+    () => (generatorsQuery.data || []) as GeneratorListItem[],
     [generatorsQuery.data]
   );
 
-  const savedGenerators = useMemo(() =>
-    (savedQuery.data || []) as GeneratorListItem[],
+  const savedGenerators = useMemo(
+    () => (savedQuery.data || []) as GeneratorListItem[],
     [savedQuery.data]
   );
 
@@ -95,6 +100,8 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
 
   return (
     <div className="eigene-container">
+      <EarlyAccessBanner />
+
       <div className="eigene-subtabs" role="tablist">
         <button
           type="button"

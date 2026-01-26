@@ -63,7 +63,8 @@ const parseSubtitleTime = (timeStr: string): number => {
 const parseSubtitles = (subtitleString: string): ParsedSubtitle[] => {
   if (!subtitleString) return [];
 
-  return subtitleString.split('\n\n')
+  return subtitleString
+    .split('\n\n')
     .map((block) => {
       const lines = block.trim().split('\n');
       if (lines.length < 2) return null;
@@ -77,7 +78,7 @@ const parseSubtitles = (subtitleString: string): ParsedSubtitle[] => {
       return {
         startTime: parseSubtitleTime(timeMatch[1]),
         endTime: parseSubtitleTime(timeMatch[2]),
-        text
+        text,
       };
     })
     .filter((item): item is ParsedSubtitle => item !== null);
@@ -92,7 +93,7 @@ const TEXT_OVERLAY_STYLES = {
     textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.5)',
     whiteSpace: 'pre-wrap',
     letterSpacing: 'normal',
-    lineHeight: 1.2
+    lineHeight: 1.2,
   },
   subheader: {
     fontFamily: "'PTSans', 'PT Sans', Arial, sans-serif",
@@ -102,8 +103,8 @@ const TEXT_OVERLAY_STYLES = {
     textShadow: '1px 1px 3px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.4)',
     whiteSpace: 'pre-wrap',
     letterSpacing: 'normal',
-    lineHeight: 1.2
-  }
+    lineHeight: 1.2,
+  },
 };
 
 /**
@@ -119,7 +120,7 @@ const VideoComposition = ({
   videoUrl,
   textOverlays = [],
   selectedOverlayId = null,
-  editingOverlayId = null
+  editingOverlayId = null,
 }: VideoCompositionProps): React.ReactElement => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -141,18 +142,18 @@ const VideoComposition = ({
       fontSize: '1.5em',
       fontWeight: '700',
       lineHeight: 1.3,
-      fontFamily: "'GrueneType', Arial, sans-serif"
+      fontFamily: "'GrueneType', Arial, sans-serif",
     };
 
     const gjBaseStyle = {
       ...baseStyle,
       fontFamily: "'GJFontRegular', Arial, sans-serif",
-      fontWeight: 'normal'
+      fontWeight: 'normal',
     };
 
     const atBaseStyle = {
       ...baseStyle,
-      fontFamily: "'Montserrat', Arial, sans-serif"
+      fontFamily: "'Montserrat', Arial, sans-serif",
     };
 
     switch (stylePreference) {
@@ -168,19 +169,19 @@ const VideoComposition = ({
       case 'shadow':
         return {
           ...baseStyle,
-          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)'
+          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)',
         };
 
       case 'gj_shadow':
         return {
           ...gjBaseStyle,
-          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)'
+          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)',
         };
 
       case 'at_shadow':
         return {
           ...atBaseStyle,
-          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)'
+          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)',
         };
 
       case 'tanne':
@@ -189,7 +190,7 @@ const VideoComposition = ({
           backgroundColor: '#005538',
           padding: '0.2em 0.4em',
           borderRadius: '0.1em',
-          textShadow: 'none'
+          textShadow: 'none',
         };
 
       case 'at_gruen':
@@ -198,7 +199,7 @@ const VideoComposition = ({
           backgroundColor: '#6baa25',
           padding: '0.2em 0.4em',
           borderRadius: '0.1em',
-          textShadow: 'none'
+          textShadow: 'none',
         };
 
       case 'gj_lavendel':
@@ -207,7 +208,7 @@ const VideoComposition = ({
           backgroundColor: '#9f88ff',
           padding: '0.2em 0.4em',
           borderRadius: '0.1em',
-          textShadow: 'none'
+          textShadow: 'none',
         };
 
       case 'gj_hellgruen':
@@ -217,7 +218,7 @@ const VideoComposition = ({
           backgroundColor: '#c7ff7a',
           padding: '0.2em 0.4em',
           borderRadius: '0.1em',
-          textShadow: 'none'
+          textShadow: 'none',
         };
 
       case 'at_standard':
@@ -226,7 +227,7 @@ const VideoComposition = ({
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
           textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000',
           padding: '0.2em 0.4em',
-          borderRadius: '0.1em'
+          borderRadius: '0.1em',
         };
 
       case 'standard':
@@ -236,7 +237,7 @@ const VideoComposition = ({
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
           textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000',
           padding: '0.2em 0.4em',
-          borderRadius: '0.1em'
+          borderRadius: '0.1em',
         };
     }
   }, [stylePreference]);
@@ -248,13 +249,15 @@ const VideoComposition = ({
   if (!hasValidSource || !segments || segments.length === 0) {
     return (
       <AbsoluteFill style={{ backgroundColor: '#1a1a1a' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          color: '#666'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: '#666',
+          }}
+        >
           Kein Video geladen
         </div>
       </AbsoluteFill>
@@ -280,7 +283,7 @@ const VideoComposition = ({
 
   const currentOriginalTime = getCurrentOriginalTime();
   const currentSubtitle = parsedSubtitles.find(
-    sub => currentOriginalTime >= sub.startTime && currentOriginalTime < sub.endTime
+    (sub) => currentOriginalTime >= sub.startTime && currentOriginalTime < sub.endTime
   );
 
   let accumulatedFrames = 0;
@@ -302,11 +305,7 @@ const VideoComposition = ({
         accumulatedFrames += segmentDurationFrames;
 
         return (
-          <Sequence
-            key={segment.id}
-            from={startFrame}
-            durationInFrames={segmentDurationFrames}
-          >
+          <Sequence key={segment.id} from={startFrame} durationInFrames={segmentDurationFrames}>
             <Video
               src={clipUrl}
               startFrom={Math.round(segment.start * clipFps)}
@@ -314,7 +313,7 @@ const VideoComposition = ({
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain'
+                objectFit: 'contain',
               }}
             />
           </Sequence>
@@ -329,17 +328,16 @@ const VideoComposition = ({
             left: '50%',
             transform: 'translateX(-50%)',
             maxWidth: '90%',
-            textAlign: 'center'
+            textAlign: 'center',
           }}
         >
-          <span style={getSubtitleStyle}>
-            {currentSubtitle.text}
-          </span>
+          <span style={getSubtitleStyle}>{currentSubtitle.text}</span>
         </div>
       )}
 
       {textOverlays.map((overlay) => {
-        const isVisible = currentOriginalTime >= overlay.startTime && currentOriginalTime < overlay.endTime;
+        const isVisible =
+          currentOriginalTime >= overlay.startTime && currentOriginalTime < overlay.endTime;
         if (!isVisible) return null;
         if (overlay.id === editingOverlayId) return null;
 
@@ -360,11 +358,13 @@ const VideoComposition = ({
               maxWidth: '90%',
               pointerEvents: 'none',
               ...overlayStyle,
-              ...(isSelected ? {
-                outline: '2px solid var(--klee, #46962b)',
-                outlineOffset: '4px',
-                borderRadius: '4px'
-              } : {})
+              ...(isSelected
+                ? {
+                    outline: '2px solid var(--klee, #46962b)',
+                    outlineOffset: '4px',
+                    borderRadius: '4px',
+                  }
+                : {}),
             }}
           >
             {overlay.text}

@@ -6,7 +6,7 @@ import type {
   TimelineRow,
   TotalStatsRow,
   StatsQueryOptions,
-  TimelineQueryOptions
+  TimelineQueryOptions,
 } from './types.js';
 
 export class GenerationStatsService {
@@ -24,7 +24,7 @@ export class GenerationStatsService {
     generationType,
     platform,
     tokensUsed,
-    success = true
+    success = true,
   }: LogGenerationParams): Promise<void> {
     try {
       const postgres = this.getPostgres();
@@ -41,17 +41,16 @@ export class GenerationStatsService {
         generationType,
         platform || null,
         tokensUsed || null,
-        success
+        success,
       ]);
     } catch (error) {
       console.error('[GenerationStats] Failed to log generation:', (error as Error).message);
     }
   }
 
-  async getGenerationStats({
-    days = 30,
-    limit = 50
-  }: StatsQueryOptions = {}): Promise<GenerationStatsRow[]> {
+  async getGenerationStats({ days = 30, limit = 50 }: StatsQueryOptions = {}): Promise<
+    GenerationStatsRow[]
+  > {
     try {
       const postgres = this.getPostgres();
       await postgres.ensureInitialized();
@@ -80,9 +79,9 @@ export class GenerationStatsService {
     }
   }
 
-  async getGenerationStatsByType({
-    days = 30
-  }: StatsQueryOptions = {}): Promise<GenerationStatsByTypeRow[]> {
+  async getGenerationStatsByType({ days = 30 }: StatsQueryOptions = {}): Promise<
+    GenerationStatsByTypeRow[]
+  > {
     try {
       const postgres = this.getPostgres();
       await postgres.ensureInitialized();
@@ -109,7 +108,7 @@ export class GenerationStatsService {
 
   async getGenerationTimeline({
     days = 30,
-    generationType = null
+    generationType = null,
   }: TimelineQueryOptions = {}): Promise<TimelineRow[]> {
     try {
       const postgres = this.getPostgres();

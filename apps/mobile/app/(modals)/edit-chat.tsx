@@ -1,5 +1,15 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, StyleSheet, useColorScheme, Pressable, Text, ScrollView, Platform, LayoutAnimation, UIManager } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  useColorScheme,
+  Pressable,
+  Text,
+  ScrollView,
+  Platform,
+  LayoutAnimation,
+  UIManager,
+} from 'react-native';
 import { GiftedChat, IMessage } from 'react-native-gifted-chat';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +23,12 @@ import {
   type EditChange,
 } from '@gruenerator/shared/generators';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
-import { FloatingGlassMenu, createChatRenderers, ASSISTANT_USER, CURRENT_USER } from '../../components/chat';
+import {
+  FloatingGlassMenu,
+  createChatRenderers,
+  ASSISTANT_USER,
+  CURRENT_USER,
+} from '../../components/chat';
 import { getErrorMessage } from '../../utils/errors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -102,14 +117,13 @@ export default function EditChatModal() {
 
     const existingChat = getEditChat(componentName);
     if (existingChat.length > 0) {
-      const giftedMessages: IMessage[] = existingChat
-        .map((msg, index) => ({
-          _id: msg.timestamp || index,
-          text: msg.content,
-          createdAt: new Date(msg.timestamp || Date.now()),
-          user: msg.type === 'user' ? CURRENT_USER : ASSISTANT_USER,
-          system: msg.type === 'error',
-        }));
+      const giftedMessages: IMessage[] = existingChat.map((msg, index) => ({
+        _id: msg.timestamp || index,
+        text: msg.content,
+        createdAt: new Date(msg.timestamp || Date.now()),
+        user: msg.type === 'user' ? CURRENT_USER : ASSISTANT_USER,
+        system: msg.type === 'error',
+      }));
       setMessages(giftedMessages);
     } else {
       setMessages([
@@ -126,35 +140,37 @@ export default function EditChatModal() {
   useEffect(() => {
     if (!componentName || messages.length === 0) return;
 
-    const chatMessages: ChatMessage[] = messages
-      .map((msg) => ({
-        type: msg.user._id === CURRENT_USER._id ? 'user' : msg.system ? 'error' : 'assistant',
-        content: msg.text,
-        timestamp: new Date(msg.createdAt).getTime(),
-      }));
+    const chatMessages: ChatMessage[] = messages.map((msg) => ({
+      type: msg.user._id === CURRENT_USER._id ? 'user' : msg.system ? 'error' : 'assistant',
+      content: msg.text,
+      timestamp: new Date(msg.createdAt).getTime(),
+    }));
 
     setEditChat(componentName, chatMessages);
   }, [messages, componentName, setEditChat]);
 
-  const attemptFrontendParsing = useCallback((rawData: SuggestEditsResponse): EditChange[] | null => {
-    if (!rawData?.raw) return null;
+  const attemptFrontendParsing = useCallback(
+    (rawData: SuggestEditsResponse): EditChange[] | null => {
+      if (!rawData?.raw) return null;
 
-    try {
-      let cleaned = rawData.raw
-        .replace(/```json\s*|\s*```/g, '')
-        .replace(/(\*\*|__|~~)\s*"/g, '"')
-        .replace(/"\s*(\*\*|__|~~)/g, '"')
-        .trim();
+      try {
+        let cleaned = rawData.raw
+          .replace(/```json\s*|\s*```/g, '')
+          .replace(/(\*\*|__|~~)\s*"/g, '"')
+          .replace(/"\s*(\*\*|__|~~)/g, '"')
+          .trim();
 
-      const parsed = JSON.parse(cleaned);
-      if (parsed.changes && Array.isArray(parsed.changes)) {
-        return parsed.changes;
+        const parsed = JSON.parse(cleaned);
+        if (parsed.changes && Array.isArray(parsed.changes)) {
+          return parsed.changes;
+        }
+      } catch {
+        console.warn('[EditChat] Frontend parsing failed');
       }
-    } catch {
-      console.warn('[EditChat] Frontend parsing failed');
-    }
-    return null;
-  }, []);
+      return null;
+    },
+    []
+  );
 
   const onSend = useCallback(
     async (newMessages: IMessage[] = []) => {
@@ -305,10 +321,7 @@ export default function EditChatModal() {
         <View style={styles.floatingDivider} />
         <Pressable
           onPress={() => router.back()}
-          style={({ pressed }) => [
-            styles.floatingButton,
-            { opacity: pressed ? 0.7 : 1 },
-          ]}
+          style={({ pressed }) => [styles.floatingButton, { opacity: pressed ? 0.7 : 1 }]}
         >
           <Ionicons name="checkmark" size={22} color={colors.primary[600]} />
         </Pressable>

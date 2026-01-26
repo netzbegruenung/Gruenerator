@@ -128,11 +128,7 @@ export const VersionHistory = ({ documentId, onClose, onRestore }: VersionHistor
           </button>
         </div>
 
-        {error && (
-          <div className="version-error">
-            {error}
-          </div>
-        )}
+        {error && <div className="version-error">{error}</div>}
 
         <div className="versions-list">
           {isLoading ? (
@@ -145,13 +141,9 @@ export const VersionHistory = ({ documentId, onClose, onRestore }: VersionHistor
                 <div className="version-info">
                   <div className="version-header">
                     <span className="version-number">Version {version.version}</span>
-                    {!version.is_auto_save && (
-                      <span className="version-badge">Manuell</span>
-                    )}
+                    {!version.is_auto_save && <span className="version-badge">Manuell</span>}
                   </div>
-                  {version.label && (
-                    <div className="version-label">{version.label}</div>
-                  )}
+                  {version.label && <div className="version-label">{version.label}</div>}
                   <div className="version-meta">
                     {formatDate(version.created_at)}
                     {version.created_by_name && ` • ${version.created_by_name}`}

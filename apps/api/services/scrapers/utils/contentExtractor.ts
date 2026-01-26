@@ -149,7 +149,7 @@ export function extractCategories(html: string): string[] {
   // Try meta keywords
   const metaKeywords = $('meta[name="keywords"]').attr('content');
   if (metaKeywords) {
-    categories.push(...metaKeywords.split(',').map(k => k.trim()));
+    categories.push(...metaKeywords.split(',').map((k) => k.trim()));
   }
 
   // Try category links

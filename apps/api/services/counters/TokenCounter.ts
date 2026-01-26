@@ -94,7 +94,7 @@ export class TokenCounter {
         averageTokensPerMessage: 0,
         systemMessages: 0,
         userMessages: 0,
-        assistantMessages: 0
+        assistantMessages: 0,
       };
     }
 
@@ -108,7 +108,7 @@ export class TokenCounter {
       averageTokensPerMessage,
       systemMessages: messages.filter((m) => m.role === 'system').length,
       userMessages: messages.filter((m) => m.role === 'user').length,
-      assistantMessages: messages.filter((m) => m.role === 'assistant').length
+      assistantMessages: messages.filter((m) => m.role === 'assistant').length,
     };
   }
 

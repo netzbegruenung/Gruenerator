@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Controller, Control } from 'react-hook-form';
+import { Controller, type Control } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
-import FormFieldWrapper from './FormFieldWrapper';
+
+import useDebounce from '../../../../components/hooks/useDebounce';
+import { COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 import { detectUrls } from '../../../../utils/urlDetection';
-import useDebounce from '../../../../components/hooks/useDebounce';
 import { useFormStateSelector } from '../FormStateProvider';
-import { COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
+
+import FormFieldWrapper from './FormFieldWrapper';
 import TextareaWithAutocomplete from './TextareaWithAutocomplete';
 import '../../../../assets/styles/components/form/form-inputs.css';
 
@@ -73,13 +75,15 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   onChange,
   ...rest
 }) => {
-  let storeIsStartMode = false;
-  try {
-    storeIsStartMode = useFormStateSelector(state => state.isStartMode);
-  } catch {
-    // Not inside FormStateProvider - use default
-  }
+  // All hooks must be called unconditionally at the top
+  const formState = useFormStateSelector((state) => state);
+  const storeIsStartMode = formState?.isStartMode ?? false;
   const minRows = storeIsStartMode ? 2 : minRowsProp;
+
+  // Simple form store hooks - called unconditionally
+  const rawValue = useSimpleFormStore((state) => state.fields[name]);
+  const setField = useSimpleFormStore((state) => state.setField);
+  const simpleFormValue = (rawValue as string) ?? defaultValue;
 
   const textareaId = `form-textarea-${name}`;
   const textareaClassName = `form-textarea ${className}`.trim();
@@ -115,10 +119,15 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
         className={`form-field-help character-count ${isNearLimit ? 'near-limit' : ''} ${isOverLimit ? 'over-limit' : ''}`}
         style={{
           textAlign: 'right',
-          color: isOverLimit ? 'var(--error-red)' : isNearLimit ? 'var(--warning-color, orange)' : undefined
+          color: isOverLimit
+            ? 'var(--error-red)'
+            : isNearLimit
+              ? 'var(--warning-color, orange)'
+              : undefined,
         }}
       >
-        {currentLength}{maxLength ? `/${maxLength}` : ''} Zeichen
+        {currentLength}
+        {maxLength ? `/${maxLength}` : ''} Zeichen
       </small>
     );
   };
@@ -189,7 +198,9 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                   }}
                   {...textareaProps}
                 />
-                <CharacterCount value={typeof field.value === 'string' ? field.value : String(field.value ?? '')} />
+                <CharacterCount
+                  value={typeof field.value === 'string' ? field.value : String(field.value ?? '')}
+                />
               </div>
             )}
           </FormFieldWrapper>
@@ -197,10 +208,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
       />
     );
   }
-
-  const rawValue = useSimpleFormStore((state) => state.fields[name]);
-  const value = (rawValue as string) ?? defaultValue;
-  const setField = useSimpleFormStore((state) => state.setField);
 
   return (
     <FormFieldWrapper
@@ -220,7 +227,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
           maxRows={maxRows}
           maxLength={maxLength}
           className={textareaClassName}
-          value={value}
+          value={simpleFormValue}
           tabIndex={tabIndex}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             const newVal = e.target.value;
@@ -237,7 +244,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
           {...textareaProps}
           {...rest}
         />
-        <CharacterCount value={value} />
+        <CharacterCount value={simpleFormValue} />
       </div>
     </FormFieldWrapper>
   );

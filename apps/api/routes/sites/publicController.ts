@@ -8,7 +8,7 @@ import {
   type SitesRequest,
   type UserSite,
   type SiteSection,
-  type ThemeColors
+  type ThemeColors,
 } from './types.js';
 
 type SitesHandler = RequestHandler<any, any, any, any>;
@@ -20,7 +20,7 @@ const SOCIAL_ICONS: Record<string, string> = {
   instagram: '📷',
   linkedin: 'in',
   github: 'gh',
-  website: '🌐'
+  website: '🌐',
 };
 
 function renderNotFoundPage(): string {
@@ -71,22 +71,24 @@ function renderSocialLinks(socialLinks: Record<string, string>, primaryColor: st
 }
 
 function renderSections(sections: SiteSection[], contactEmail?: string): string {
-  return sections.map(section => {
-    switch (section.type) {
-      case 'text':
-        return `<section class="content-section">
+  return sections
+    .map((section) => {
+      switch (section.type) {
+        case 'text':
+          return `<section class="content-section">
           ${section.title ? `<h2>${section.title}</h2>` : ''}
           <p>${section.content || ''}</p>
         </section>`;
-      case 'contact':
-        return `<section class="content-section contact-section">
+        case 'contact':
+          return `<section class="content-section contact-section">
           <h2>Kontakt</h2>
           ${contactEmail ? `<p>📧 <a href="mailto:${contactEmail}">${contactEmail}</a></p>` : ''}
         </section>`;
-      default:
-        return '';
-    }
-  }).join('');
+        default:
+          return '';
+      }
+    })
+    .join('');
 }
 
 function renderSitePage(site: UserSite): string {
@@ -98,7 +100,7 @@ function renderSitePage(site: UserSite): string {
   const baseColors = THEME_STYLES[theme] || THEME_STYLES.gruene;
   const colors: ThemeColors = {
     ...baseColors,
-    primary: accentColor
+    primary: accentColor,
   };
 
   const socialLinksHtml = renderSocialLinks(socialLinks, colors.primary);

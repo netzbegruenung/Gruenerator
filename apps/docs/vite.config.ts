@@ -7,14 +7,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base: './',
-  plugins: [
-    react({ jsxRuntime: 'automatic' })
-  ],
+  plugins: [react({ jsxRuntime: 'automatic' })],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
-    }
+    },
   },
   build: {
     target: 'es2022',
@@ -27,9 +25,9 @@ export default defineConfig({
       output: {
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash][extname]'
-      }
-    }
+        assetFileNames: 'assets/[name].[hash][extname]',
+      },
+    },
   },
   server: {
     port: 3002,
@@ -39,7 +37,7 @@ export default defineConfig({
         target: process.env.VITE_API_TARGET || 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
-      }
-    }
-  }
+      },
+    },
+  },
 });

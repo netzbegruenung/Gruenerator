@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
 import AnimatedCheckmark from './AnimatedCheckmark';
+
+import type { ReactNode } from 'react';
 import '../../assets/styles/components/ui/success-screen.css';
 
 export interface SuccessScreenProps {

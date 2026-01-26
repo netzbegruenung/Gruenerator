@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface FeatureErrorBoundaryProps {
   children: ReactNode;
@@ -95,9 +95,7 @@ export class FeatureErrorBoundary extends Component<
                 fontSize: '0.875rem',
               }}
             >
-              <summary style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
-                Fehlerdetails
-              </summary>
+              <summary style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>Fehlerdetails</summary>
               <pre
                 style={{
                   overflow: 'auto',

@@ -53,7 +53,10 @@ export function assertAsString(value: unknown, fallback = ''): string {
 /**
  * Safely extract a position object { x, y } from unknown state value
  */
-export function assertAsPosition(value: unknown, fallback = { x: 0, y: 0 }): { x: number; y: number } {
+export function assertAsPosition(
+  value: unknown,
+  fallback = { x: 0, y: 0 }
+): { x: number; y: number } {
   if (value && typeof value === 'object' && 'x' in value && 'y' in value) {
     const obj = value as { x: unknown; y: unknown };
     return {

@@ -26,7 +26,7 @@ const useKeyboardFocus = (options: UseKeyboardFocusOptions = {}): UseKeyboardFoc
     mobileOnly = true,
     mobileBreakpoint = 768,
     onKeyboardOpen,
-    onKeyboardClose
+    onKeyboardClose,
   } = options;
 
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
@@ -99,7 +99,7 @@ const useKeyboardFocus = (options: UseKeyboardFocusOptions = {}): UseKeyboardFoc
   }, [enabled, handleViewportResize]);
 
   const toggleFocusMode = useCallback(() => {
-    setIsFocusMode(prev => !prev);
+    setIsFocusMode((prev) => !prev);
   }, []);
 
   const exitFocusMode = useCallback(() => {
@@ -116,7 +116,7 @@ const useKeyboardFocus = (options: UseKeyboardFocusOptions = {}): UseKeyboardFoc
     keyboardHeight,
     toggleFocusMode,
     exitFocusMode,
-    enterFocusMode
+    enterFocusMode,
   };
 };
 

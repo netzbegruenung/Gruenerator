@@ -6,6 +6,7 @@
  */
 
 import { useRef, useEffect, type MutableRefObject } from 'react';
+
 import { useCanvasUndoRedo } from './useCanvasUndoRedo';
 
 export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> {
@@ -32,8 +33,10 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
 ): UseCanvasHistorySetupResult<T> {
   const initialHistorySavedRef = useRef(false);
 
-  const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } =
-    useCanvasUndoRedo(debounceMs, handleRestore);
+  const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } = useCanvasUndoRedo(
+    debounceMs,
+    handleRestore
+  );
 
   // Refs for stable access in callbacks without causing re-renders
   const saveToHistoryRef = useRef(saveToHistory);

@@ -22,5 +22,5 @@ export const URL_SCANNABLE_FIELDS = [
   'wie',
   'zitatgeber',
   'schwerpunkte',
-  'rolle'
+  'rolle',
 ] as const;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDocumentsStore } from '../../stores/documentsStore';
-import apiClient from '../../components/utils/apiClient';
+
 import ErrorBoundary from '../../components/ErrorBoundary';
+import apiClient from '../../components/utils/apiClient';
+import { useDocumentsStore } from '../../stores/documentsStore';
 
 // Document Feature CSS - Loaded only when this feature is accessed
 import '../../assets/styles/features/documents/document-view.css';
@@ -51,7 +52,7 @@ const DocumentViewPage = () => {
       }
     };
 
-    fetchDocument();
+    void fetchDocument();
   }, [documentId]);
 
   const handleGoBack = () => {
@@ -78,10 +79,7 @@ const DocumentViewPage = () => {
           <div className="document-view-error">
             <h2>Fehler beim Laden des Dokuments</h2>
             <p>{error}</p>
-            <button
-              onClick={handleGoBack}
-              className="button-primary"
-            >
+            <button onClick={handleGoBack} className="button-primary">
               Zurück
             </button>
           </div>
@@ -97,10 +95,7 @@ const DocumentViewPage = () => {
           <div className="document-view-error">
             <h2>Dokument nicht gefunden</h2>
             <p>Das angeforderte Dokument konnte nicht gefunden werden.</p>
-            <button
-              onClick={handleGoBack}
-              className="button-primary"
-            >
+            <button onClick={handleGoBack} className="button-primary">
               Zurück
             </button>
           </div>
@@ -114,16 +109,15 @@ const DocumentViewPage = () => {
       <div className="container with-header">
         <div className="document-view-page">
           <div className="document-view-header">
-            <button
-              onClick={handleGoBack}
-              className="document-view-back-button"
-            >
+            <button onClick={handleGoBack} className="document-view-back-button">
               ← Zurück
             </button>
             <h1 className="document-view-title">{document.title}</h1>
             <div className="document-view-meta">
               <span className="document-view-filename">Datei: {document.filename}</span>
-              <span className="document-view-pages">Seiten: {document.page_count || 'Unbekannt'}</span>
+              <span className="document-view-pages">
+                Seiten: {document.page_count || 'Unbekannt'}
+              </span>
               <span className="document-view-status">Status: {document.status}</span>
               <span className="document-view-date">
                 Erstellt: {new Date(document.created_at).toLocaleDateString('de-DE')}
@@ -134,9 +128,7 @@ const DocumentViewPage = () => {
           <div className="document-view-content">
             <h3>Dokumentinhalt</h3>
             {document.ocr_text ? (
-              <div className="document-view-text">
-                {document.ocr_text}
-              </div>
+              <div className="document-view-text">{document.ocr_text}</div>
             ) : (
               <div className="document-view-no-content">
                 <p>Für dieses Dokument ist noch kein Textinhalt verfügbar.</p>

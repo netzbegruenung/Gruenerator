@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+
 import apiClient from '../components/utils/apiClient';
 
 interface AxiosErrorResponse {
@@ -74,11 +75,11 @@ const initialState: RecentValuesState = {
     defaultLimit: 5,
     cacheTimeout: 5 * 60 * 1000, // 5 minutes
     autoSave: true,
-    showDropdown: true
+    showDropdown: true,
   },
   activeField: null,
   isGlobalLoading: false,
-  globalError: null
+  globalError: null,
 };
 
 /**
@@ -96,20 +97,20 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
           values: [],
           lastFetch: null,
           isLoading: false,
-          error: null
+          error: null,
         };
       }
       return state.recentValuesByField[fieldType];
     },
 
     setFieldState: (fieldType, updates) => {
-      set(state => {
+      set((state) => {
         if (!state.recentValuesByField[fieldType]) {
           state.recentValuesByField[fieldType] = {
             values: [],
             lastFetch: null,
             isLoading: false,
-            error: null
+            error: null,
           };
         }
         Object.assign(state.recentValuesByField[fieldType], updates);
@@ -120,13 +121,13 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
       const { settings } = get();
       const actualLimit = limit || settings.defaultLimit;
 
-      set(state => {
+      set((state) => {
         if (!state.recentValuesByField[fieldType]) {
           state.recentValuesByField[fieldType] = {
             values: [],
             lastFetch: null,
             isLoading: false,
-            error: null
+            error: null,
           };
         }
         state.recentValuesByField[fieldType].isLoading = true;
@@ -137,9 +138,11 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
         const response = await apiClient.get(`/recent-values/${fieldType}?limit=${actualLimit}`);
 
         if (response.data?.success && response.data?.data) {
-          const values = response.data.data.map((item: { field_value: string }) => item.field_value);
+          const values = response.data.data.map(
+            (item: { field_value: string }) => item.field_value
+          );
 
-          set(state => {
+          set((state) => {
             state.recentValuesByField[fieldType].values = values;
             state.recentValuesByField[fieldType].lastFetch = Date.now();
             state.recentValuesByField[fieldType].isLoading = false;
@@ -147,7 +150,7 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
 
           return values;
         } else {
-          set(state => {
+          set((state) => {
             state.recentValuesByField[fieldType].values = [];
             state.recentValuesByField[fieldType].lastFetch = Date.now();
             state.recentValuesByField[fieldType].isLoading = false;
@@ -163,7 +166,7 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
         }
         console.error(`[RecentValuesStore] Error fetching recent values for ${fieldType}:`, error);
 
-        set(state => {
+        set((state) => {
           state.recentValuesByField[fieldType].error = errorMessage;
           state.recentValuesByField[fieldType].isLoading = false;
         });
@@ -189,26 +192,32 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
         const response = await apiClient.post('/recent-values', {
           fieldType,
           fieldValue: trimmedValue,
-          formName
+          formName,
         });
 
         if (response.data?.success) {
-          set(state => {
+          set((state) => {
             if (!state.recentValuesByField[fieldType]) {
               state.recentValuesByField[fieldType] = {
                 values: [],
                 lastFetch: null,
                 isLoading: false,
-                error: null
+                error: null,
               };
             }
 
             const currentValues = state.recentValuesByField[fieldType].values;
-            const filtered = currentValues.filter(v => v !== trimmedValue);
-            state.recentValuesByField[fieldType].values = [trimmedValue, ...filtered].slice(0, settings.defaultLimit);
+            const filtered = currentValues.filter((v) => v !== trimmedValue);
+            state.recentValuesByField[fieldType].values = [trimmedValue, ...filtered].slice(
+              0,
+              settings.defaultLimit
+            );
           });
 
-          console.log(`[RecentValuesStore] Saved recent value for ${fieldType}:`, trimmedValue.substring(0, 50) + '...');
+          console.log(
+            `[RecentValuesStore] Saved recent value for ${fieldType}:`,
+            trimmedValue.substring(0, 50) + '...'
+          );
           return response.data.data;
         }
       } catch (error) {
@@ -221,7 +230,7 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
         const response = await apiClient.delete(`/recent-values/${fieldType}`);
 
         if (response.data?.success) {
-          set(state => {
+          set((state) => {
             if (state.recentValuesByField[fieldType]) {
               state.recentValuesByField[fieldType].values = [];
               state.recentValuesByField[fieldType].lastFetch = Date.now();
@@ -258,19 +267,19 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
     },
 
     setActiveField: (fieldType) => {
-      set(state => {
+      set((state) => {
         state.activeField = fieldType;
       });
     },
 
     clearActiveField: () => {
-      set(state => {
+      set((state) => {
         state.activeField = null;
       });
     },
 
     updateSettings: (newSettings) => {
-      set(state => {
+      set((state) => {
         Object.assign(state.settings, newSettings);
       });
     },
@@ -282,16 +291,18 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
     getFieldStats: () => {
       const { recentValuesByField } = get();
 
-      const stats: FieldStats[] = Object.entries(recentValuesByField).map(([fieldType, fieldState]) => ({
-        fieldType,
-        valueCount: fieldState.values.length,
-        lastFetch: fieldState.lastFetch,
-        isLoading: fieldState.isLoading,
-        hasError: !!fieldState.error
-      }));
+      const stats: FieldStats[] = Object.entries(recentValuesByField).map(
+        ([fieldType, fieldState]) => ({
+          fieldType,
+          valueCount: fieldState.values.length,
+          lastFetch: fieldState.lastFetch,
+          isLoading: fieldState.isLoading,
+          hasError: !!fieldState.error,
+        })
+      );
 
       return stats.sort((a, b) => (b.lastFetch || 0) - (a.lastFetch || 0));
-    }
+    },
   }))
 );
 

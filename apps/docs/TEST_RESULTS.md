@@ -6,6 +6,7 @@
 ## Build Results
 
 ### Frontend Build (Vite)
+
 ```bash
 ✓ Successfully built in 11.38s
 ✓ Generated files:
@@ -17,6 +18,7 @@
 **Build Status**: ✅ SUCCESS
 
 ### Dependencies Installation
+
 ```bash
 ✓ pnpm install completed
 ✓ All workspace dependencies resolved
@@ -30,6 +32,7 @@
 ## Server Tests
 
 ### Production Server Startup
+
 ```bash
 ✓ Server started successfully
 ✓ Environment variables loaded from .env.local
@@ -41,6 +44,7 @@
 **Server Status**: ✅ SUCCESS
 
 ### Port Binding
+
 ```bash
 ✓ Port 3002: HTTP server (Express)
 ✓ Port 1240: WebSocket server (Hocuspocus)
@@ -51,6 +55,7 @@
 ### Endpoints Tested
 
 #### 1. Health Check Endpoint
+
 ```bash
 $ curl http://localhost:3002/health
 {
@@ -59,9 +64,11 @@ $ curl http://localhost:3002/health
   "service": "gruenerator-docs"
 }
 ```
+
 **Status**: ✅ 200 OK
 
 #### 2. Frontend Serving
+
 ```bash
 $ curl http://localhost:3002/
 <!DOCTYPE html>
@@ -76,9 +83,11 @@ $ curl http://localhost:3002/
   </body>
 </html>
 ```
+
 **Status**: ✅ 200 OK (HTML served correctly)
 
 #### 3. WebSocket Server
+
 ```bash
 Hocuspocus v3.4.3 running at:
   > HTTP: http://0.0.0.0:1240
@@ -86,11 +95,13 @@ Hocuspocus v3.4.3 running at:
   Extensions: Logger
   Ready.
 ```
+
 **Status**: ✅ LISTENING
 
 ## Database & Services
 
 ### PostgreSQL Connection
+
 ```bash
 ✓ Connection successful
 ✓ Tables verified:
@@ -99,28 +110,34 @@ Hocuspocus v3.4.3 running at:
   - yjs_document_snapshots
   - yjs_document_updates
 ```
+
 **Database Status**: ✅ CONNECTED
 
 ### Redis Connection
+
 ```bash
 ✓ Connection successful
 ✓ Session store operational
 ```
+
 **Redis Status**: ✅ CONNECTED
 
 ## Issues Found & Fixed
 
 ### 1. Express 5 Wildcard Route
+
 **Issue**: `app.get('*', ...)` syntax not compatible with Express 5
 **Fix**: Changed to `app.use(...)` for SPA fallback
 **Status**: ✅ FIXED
 
 ### 2. Environment Variables
+
 **Issue**: `.env.local` not being loaded automatically
 **Fix**: Added `dotenv.config()` with explicit path
 **Status**: ✅ FIXED
 
 ### 3. Port Conflicts
+
 **Issue**: Ports 1240 and 3000 already in use during testing
 **Fix**: Killed conflicting processes and used port 3002 for testing
 **Status**: ✅ RESOLVED
@@ -135,6 +152,7 @@ Hocuspocus v3.4.3 running at:
 ```
 
 **Impact**: ⚠️ **Non-blocking**
+
 - These are type-checking warnings only
 - Code executes correctly with `tsx` runtime
 - Build succeeds despite TypeScript errors
@@ -145,11 +163,13 @@ Hocuspocus v3.4.3 running at:
 ## Performance Metrics
 
 ### Build Performance
+
 - Build time: **11.38s**
 - Minified CSS: **94.53 kB** (gzip: 14.08 kB)
 - Minified JS: **1,669.53 kB** (gzip: 505.89 kB)
 
 ### Server Startup
+
 - Startup time: **~3 seconds**
 - Memory usage: **~60-85 MB**
 - Database connection: **<100ms**
@@ -158,6 +178,7 @@ Hocuspocus v3.4.3 running at:
 ## Next Steps for Deployment
 
 ### Immediate Actions
+
 1. ✅ Build succeeds
 2. ✅ Server runs successfully
 3. ✅ All endpoints working
@@ -167,6 +188,7 @@ Hocuspocus v3.4.3 running at:
 ### Deployment Checklist
 
 #### Before Deploying to Coolify:
+
 - [ ] Create `.env.production` with production credentials
 - [ ] Update `VITE_HOCUSPOCUS_URL` to production WSS URL
 - [ ] Update `POSTGRES_HOST` to production database
@@ -175,6 +197,7 @@ Hocuspocus v3.4.3 running at:
 - [ ] Set up reverse proxy for WebSocket (if needed)
 
 #### Deploy to Coolify:
+
 - [ ] Create Docker Compose service
 - [ ] Set environment variables
 - [ ] Configure domain and HTTPS
@@ -182,6 +205,7 @@ Hocuspocus v3.4.3 running at:
 - [ ] Deploy and monitor logs
 
 #### Post-Deployment:
+
 - [ ] Verify health endpoint: `https://docs.gruenerator.de/health`
 - [ ] Test WebSocket connection: `wss://docs.gruenerator.de:1240`
 - [ ] Create test document
@@ -191,6 +215,7 @@ Hocuspocus v3.4.3 running at:
 ## Files Created
 
 ### Server & Configuration
+
 - ✅ `server.ts` - Production server
 - ✅ `package.json` - Updated with dependencies
 - ✅ `tsconfig.json` - Updated to include server.ts
@@ -199,12 +224,14 @@ Hocuspocus v3.4.3 running at:
 - ✅ `.env.production.example` - Production template
 
 ### Docker
+
 - ✅ `Dockerfile` - Multi-stage production build
 - ✅ `docker-compose.yml` - Service orchestration
 - ✅ `.dockerignore` - Build optimization
 - ✅ `.coolify.yml` - Coolify-specific config
 
 ### Documentation
+
 - ✅ `README.md` - Technical documentation
 - ✅ `QUICKSTART.md` - 10-minute deployment guide
 - ✅ `DEPLOYMENT.md` - Detailed deployment guide
@@ -216,6 +243,7 @@ Hocuspocus v3.4.3 running at:
 **Overall Status**: ✅ **PRODUCTION READY**
 
 The Grünerator Docs application has been successfully:
+
 1. ✅ Built with Vite (optimized production bundle)
 2. ✅ Tested locally with production server
 3. ✅ Verified all endpoints and connections
@@ -227,12 +255,14 @@ The Grünerator Docs application has been successfully:
 ## Quick Commands
 
 ### Local Development
+
 ```bash
 cd apps/docs
 pnpm dev                    # Start Vite dev server
 ```
 
 ### Local Production Testing
+
 ```bash
 cd apps/docs
 pnpm build                  # Build frontend
@@ -240,6 +270,7 @@ PORT=3002 pnpm start:prod   # Start production server
 ```
 
 ### Docker Testing
+
 ```bash
 cd apps/docs
 docker build -t gruenerator-docs -f Dockerfile ../..
@@ -247,11 +278,13 @@ docker run -p 3000:3000 -p 1240:1240 --env-file .env.production gruenerator-docs
 ```
 
 ### Deploy to Coolify
+
 See [QUICKSTART.md](./QUICKSTART.md)
 
 ## Contact & Support
 
 For deployment assistance, see:
+
 - [QUICKSTART.md](./QUICKSTART.md) - Quick deployment
 - [DEPLOYMENT.md](./DEPLOYMENT.md) - Detailed guide
 - [README.md](./README.md) - Technical docs

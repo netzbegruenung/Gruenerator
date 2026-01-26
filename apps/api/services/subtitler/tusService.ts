@@ -30,7 +30,7 @@ const TUS_CLEANUP_CONFIG = {
   ORPHANED_METADATA_TTL: 15 * 60 * 1000,
   CLEANUP_INTERVAL: 15 * 60 * 1000,
   EMERGENCY_CLEANUP_INTERVAL: 60 * 60 * 1000,
-  MAX_FILE_AGE: 24 * 60 * 60 * 1000
+  MAX_FILE_AGE: 24 * 60 * 60 * 1000,
 } as const;
 
 const activeUploads = new Set<string>();
@@ -79,8 +79,14 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
     const videoPath = path.join(TUS_UPLOAD_PATH, uploadId);
 
     const [metadataExists, videoExists] = await Promise.all([
-      fs.access(metadataPath).then(() => true).catch(() => false),
-      fs.access(videoPath).then(() => true).catch(() => false)
+      fs
+        .access(metadataPath)
+        .then(() => true)
+        .catch(() => false),
+      fs
+        .access(videoPath)
+        .then(() => true)
+        .catch(() => false),
     ]);
 
     if (!metadataExists && !videoExists) {
@@ -104,7 +110,7 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
       isComplete: metadata ? metadata.offset >= metadata.size : false,
       isIncomplete: metadata ? metadata.offset < metadata.size : false,
       isOrphaned: metadataExists && !videoExists,
-      metadata
+      metadata,
     };
   } catch (err: any) {
     log.debug(`Upload status error for ${uploadId}: ${err.message}`);
@@ -112,14 +118,17 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
   }
 }
 
-async function cleanupUploadFiles(uploadId: string, reason: string = 'TTL expired'): Promise<boolean> {
+async function cleanupUploadFiles(
+  uploadId: string,
+  reason: string = 'TTL expired'
+): Promise<boolean> {
   try {
     const metadataPath = path.join(TUS_UPLOAD_PATH, `${uploadId}.json`);
     const videoPath = path.join(TUS_UPLOAD_PATH, uploadId);
 
     await Promise.all([
       fs.unlink(metadataPath).catch(() => {}),
-      fs.unlink(videoPath).catch(() => {})
+      fs.unlink(videoPath).catch(() => {}),
     ]);
 
     activeUploads.delete(uploadId);
@@ -149,7 +158,10 @@ function isUploadPromoted(uploadId: string): boolean {
   return promotedUploads.has(uploadId);
 }
 
-async function scheduleImmediateCleanup(uploadId: string, reason: string = 'immediate'): Promise<void> {
+async function scheduleImmediateCleanup(
+  uploadId: string,
+  reason: string = 'immediate'
+): Promise<void> {
   if (promotedUploads.has(uploadId)) {
     log.debug(`Skipping cleanup for promoted upload: ${uploadId}`);
     return;
@@ -177,60 +189,67 @@ async function intelligentCleanup(): Promise<void> {
     const now = Date.now();
     let cleanedCount = 0;
 
-    const uploadIds = [...new Set(
-      files
-        .filter(file => file !== '.gitkeep')
-        .map(file => file.endsWith('.json') ? file.slice(0, -5) : file)
-    )];
+    const uploadIds = [
+      ...new Set(
+        files
+          .filter((file) => file !== '.gitkeep')
+          .map((file) => (file.endsWith('.json') ? file.slice(0, -5) : file))
+      ),
+    ];
 
     for (let i = 0; i < uploadIds.length; i += CLEANUP_BATCH_SIZE) {
       const batch = uploadIds.slice(i, i + CLEANUP_BATCH_SIZE);
 
-      const results = await Promise.all(batch.map(async (uploadId) => {
-        try {
-          const filePath = path.join(TUS_UPLOAD_PATH, uploadId);
-          const stats = await fs.stat(filePath).catch(() => null);
-          if (!stats) return false;
+      const results = await Promise.all(
+        batch.map(async (uploadId) => {
+          try {
+            const filePath = path.join(TUS_UPLOAD_PATH, uploadId);
+            const stats = await fs.stat(filePath).catch(() => null);
+            if (!stats) return false;
 
-          const fileAge = now - stats.mtime.getTime();
-          const status = await getUploadStatus(uploadId);
+            const fileAge = now - stats.mtime.getTime();
+            const status = await getUploadStatus(uploadId);
 
-          if (!status.exists) return false;
+            if (!status.exists) return false;
 
-          if (promotedUploads.has(uploadId)) {
+            if (promotedUploads.has(uploadId)) {
+              return false;
+            }
+
+            let shouldCleanup = false;
+            let reason = '';
+
+            if (status.isOrphaned && fileAge > TUS_CLEANUP_CONFIG.ORPHANED_METADATA_TTL) {
+              shouldCleanup = true;
+              reason = 'orphaned metadata';
+            } else if (status.isIncomplete && fileAge > TUS_CLEANUP_CONFIG.INCOMPLETE_UPLOAD_TTL) {
+              shouldCleanup = true;
+              reason = 'incomplete upload TTL';
+            } else if (
+              processedUploads.has(uploadId) &&
+              fileAge > TUS_CLEANUP_CONFIG.PROCESSED_FILE_TTL
+            ) {
+              shouldCleanup = true;
+              reason = 'processed file TTL';
+            } else if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE) {
+              shouldCleanup = true;
+              reason = 'maximum age exceeded';
+            }
+
+            if (shouldCleanup) {
+              return await cleanupUploadFiles(uploadId, reason);
+            }
+            return false;
+          } catch {
             return false;
           }
-
-          let shouldCleanup = false;
-          let reason = '';
-
-          if (status.isOrphaned && fileAge > TUS_CLEANUP_CONFIG.ORPHANED_METADATA_TTL) {
-            shouldCleanup = true;
-            reason = 'orphaned metadata';
-          } else if (status.isIncomplete && fileAge > TUS_CLEANUP_CONFIG.INCOMPLETE_UPLOAD_TTL) {
-            shouldCleanup = true;
-            reason = 'incomplete upload TTL';
-          } else if (processedUploads.has(uploadId) && fileAge > TUS_CLEANUP_CONFIG.PROCESSED_FILE_TTL) {
-            shouldCleanup = true;
-            reason = 'processed file TTL';
-          } else if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE) {
-            shouldCleanup = true;
-            reason = 'maximum age exceeded';
-          }
-
-          if (shouldCleanup) {
-            return await cleanupUploadFiles(uploadId, reason);
-          }
-          return false;
-        } catch {
-          return false;
-        }
-      }));
+        })
+      );
 
       cleanedCount += results.filter(Boolean).length;
 
       if (i + CLEANUP_BATCH_SIZE < uploadIds.length) {
-        await new Promise(resolve => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
       }
     }
 
@@ -246,40 +265,44 @@ async function emergencyCleanup(): Promise<void> {
     const now = Date.now();
     let cleanedCount = 0;
 
-    const uploadIds = [...new Set(
-      files
-        .filter(file => file !== '.gitkeep')
-        .map(file => file.endsWith('.json') ? file.slice(0, -5) : file)
-    )];
+    const uploadIds = [
+      ...new Set(
+        files
+          .filter((file) => file !== '.gitkeep')
+          .map((file) => (file.endsWith('.json') ? file.slice(0, -5) : file))
+      ),
+    ];
 
     for (let i = 0; i < uploadIds.length; i += CLEANUP_BATCH_SIZE) {
       const batch = uploadIds.slice(i, i + CLEANUP_BATCH_SIZE);
 
-      const results = await Promise.all(batch.map(async (uploadId) => {
-        try {
-          if (promotedUploads.has(uploadId)) {
+      const results = await Promise.all(
+        batch.map(async (uploadId) => {
+          try {
+            if (promotedUploads.has(uploadId)) {
+              return false;
+            }
+
+            const filePath = path.join(TUS_UPLOAD_PATH, uploadId);
+            const stats = await fs.stat(filePath).catch(() => null);
+            if (!stats) return false;
+
+            const fileAge = now - stats.mtime.getTime();
+
+            if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE / 2) {
+              return await cleanupUploadFiles(uploadId, 'emergency');
+            }
+            return false;
+          } catch {
             return false;
           }
-
-          const filePath = path.join(TUS_UPLOAD_PATH, uploadId);
-          const stats = await fs.stat(filePath).catch(() => null);
-          if (!stats) return false;
-
-          const fileAge = now - stats.mtime.getTime();
-
-          if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE / 2) {
-            return await cleanupUploadFiles(uploadId, 'emergency');
-          }
-          return false;
-        } catch {
-          return false;
-        }
-      }));
+        })
+      );
 
       cleanedCount += results.filter(Boolean).length;
 
       if (i + CLEANUP_BATCH_SIZE < uploadIds.length) {
-        await new Promise(resolve => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
       }
     }
 
@@ -322,7 +345,10 @@ if (!isInitialized) {
   intelligentCleanup();
 
   cleanupIntervalId = setInterval(intelligentCleanup, TUS_CLEANUP_CONFIG.CLEANUP_INTERVAL);
-  emergencyCleanupIntervalId = setInterval(emergencyCleanup, TUS_CLEANUP_CONFIG.EMERGENCY_CLEANUP_INTERVAL);
+  emergencyCleanupIntervalId = setInterval(
+    emergencyCleanup,
+    TUS_CLEANUP_CONFIG.EMERGENCY_CLEANUP_INTERVAL
+  );
 
   log.debug('Cleanup intervals configured');
 
@@ -352,7 +378,7 @@ export {
   scheduleImmediateCleanup,
   getUploadStatus,
   cleanupUploadFiles,
-  getOriginalFilename
+  getOriginalFilename,
 };
 
 export type { UploadStatus, UploadMetadata };

@@ -20,8 +20,8 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
         crawlMetadata: {
           ...state.crawlMetadata,
           crawledCount: 0,
-          nothingToCrawl: true
-        }
+          nothingToCrawl: true,
+        },
       };
     }
 
@@ -33,7 +33,7 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
 
     const crawlPromises = state.crawlDecisions.map(async (decision) => {
       try {
-        const originalResult = webResults.find(r => r.url === decision.url);
+        const originalResult = webResults.find((r) => r.url === decision.url);
         if (!originalResult) {
           console.warn(`[ContentEnricher] URL not found in results: ${decision.url}`);
           return null;
@@ -42,7 +42,7 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
         console.log(`[ContentEnricher] Crawling: ${originalResult.url}`);
 
         const crawlResult = await urlCrawlerService.crawlUrl(originalResult.url, {
-          timeout
+          timeout,
         });
 
         if (crawlResult.success && crawlResult.data?.content) {
@@ -51,7 +51,7 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
             content: crawlResult.data.content,
             crawled: true,
             fullContent: crawlResult.data.content,
-            keyParagraphs: crawlResult.data.content.substring(0, 400)
+            keyParagraphs: crawlResult.data.content.substring(0, 400),
           } as EnrichedResult;
         } else {
           const errorMsg = crawlResult.error || 'Unknown error';
@@ -59,39 +59,43 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
           return {
             ...originalResult,
             crawled: false,
-            crawlError: errorMsg
+            crawlError: errorMsg,
           } as EnrichedResult;
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.warn(`[ContentEnricher] Crawl error for ${decision.url}:`, errorMessage);
-        const originalResult = webResults.find(r => r.url === decision.url);
-        return originalResult ? {
-          ...originalResult,
-          crawled: false,
-          crawlError: errorMessage
-        } as EnrichedResult : null;
+        const originalResult = webResults.find((r) => r.url === decision.url);
+        return originalResult
+          ? ({
+              ...originalResult,
+              crawled: false,
+              crawlError: errorMessage,
+            } as EnrichedResult)
+          : null;
       }
     });
 
     const crawlResults = await Promise.all(crawlPromises);
     const validResults = crawlResults.filter((r): r is EnrichedResult => r !== null);
-    const successfulCrawls = validResults.filter(r => r.crawled).length;
+    const successfulCrawls = validResults.filter((r) => r.crawled).length;
 
     // Merge crawled results with non-crawled results
-    const enrichedResults: EnrichedResult[] = webResults.map(originalResult => {
-      const crawled = validResults.find(c => c.url === originalResult.url);
+    const enrichedResults: EnrichedResult[] = webResults.map((originalResult) => {
+      const crawled = validResults.find((c) => c.url === originalResult.url);
       if (crawled) {
         return crawled;
       }
       return {
         ...originalResult,
         crawled: false,
-        content: originalResult.snippet || originalResult.content || ''
+        content: originalResult.snippet || originalResult.content || '',
       };
     });
 
-    console.log(`[ContentEnricher] Crawl completed: ${successfulCrawls}/${state.crawlDecisions.length} successful`);
+    console.log(
+      `[ContentEnricher] Crawl completed: ${successfulCrawls}/${state.crawlDecisions.length} successful`
+    );
 
     return {
       enrichedResults,
@@ -99,10 +103,9 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
         ...state.crawlMetadata,
         crawledUrls: successfulCrawls,
         failedUrls: state.crawlDecisions.length - successfulCrawls,
-        totalUrls: enrichedResults.length
-      }
+        totalUrls: enrichedResults.length,
+      },
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[WebSearchGraph] Content enricher error:', errorMessage);
@@ -112,8 +115,8 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
       crawlMetadata: {
         ...state.crawlMetadata,
         crawledUrls: 0,
-        failed: true
-      }
+        failed: true,
+      },
     };
   }
 }

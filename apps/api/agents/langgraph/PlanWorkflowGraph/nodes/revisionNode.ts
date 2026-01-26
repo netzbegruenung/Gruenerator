@@ -26,10 +26,7 @@ async function loadPromptConfig(configName: string): Promise<any> {
 /**
  * Format Q&A pairs for context
  */
-function formatQAPairs(
-  questions: any[],
-  answers: Record<string, string | string[]>
-): string {
+function formatQAPairs(questions: any[], answers: Record<string, string | string[]>): string {
   return questions
     .map((q) => {
       const answer = answers[q.id];
@@ -44,11 +41,13 @@ function formatQAPairs(
  */
 function calculateDiff(originalPlan: string, revisedPlan: string): string {
   // Simple diff - count changed sections
-  const originalSections = originalPlan.split('\n\n').filter(s => s.trim());
-  const revisedSections = revisedPlan.split('\n\n').filter(s => s.trim());
+  const originalSections = originalPlan.split('\n\n').filter((s) => s.trim());
+  const revisedSections = revisedPlan.split('\n\n').filter((s) => s.trim());
 
   const addedSections = revisedSections.length - originalSections.length;
-  const changePercentage = Math.round((Math.abs(revisedPlan.length - originalPlan.length) / originalPlan.length) * 100);
+  const changePercentage = Math.round(
+    (Math.abs(revisedPlan.length - originalPlan.length) / originalPlan.length) * 100
+  );
 
   return `Plan wurde angepasst: ${changePercentage}% Änderungen, ${addedSections > 0 ? `${addedSections} neue Abschnitte` : 'keine neuen Abschnitte'}`;
 }
@@ -86,28 +85,31 @@ export async function revisionNode(state: PlanWorkflowState): Promise<RevisionNo
         inhalt: input.inhalt,
         gliederung: input.gliederung,
         requestType: input.subType || input.generatorType,
-        locale: input.locale || 'de-DE'
+        locale: input.locale || 'de-DE',
       },
       knowledge: [
         `## Ursprünglicher Plan\n${planData.originalPlan}`,
-        `## Beantwortete Fragen\n${qaContext}`
-      ]
+        `## Beantwortete Fragen\n${qaContext}`,
+      ],
     };
 
     // Assemble full prompt
     const assembledPrompt = await assemblePromptGraphAsync(promptContext);
 
     // Generate revised plan via AI worker pool
-    const aiResponse = await input.aiWorkerPool.processRequest({
-      type: `${state.generatorType}_plan_revision`,
-      usePrivacyMode: input.usePrivacyMode || false,
-      systemPrompt: assembledPrompt.system,
-      messages: assembledPrompt.messages as never,
-      options: {
-        max_tokens: promptConfigData.options?.max_tokens || 4000,
-        temperature: promptConfigData.options?.temperature || 0.6
-      }
-    }, input.req);
+    const aiResponse = await input.aiWorkerPool.processRequest(
+      {
+        type: `${state.generatorType}_plan_revision`,
+        usePrivacyMode: input.usePrivacyMode || false,
+        systemPrompt: assembledPrompt.system,
+        messages: assembledPrompt.messages as never,
+        options: {
+          max_tokens: promptConfigData.options?.max_tokens || 4000,
+          temperature: promptConfigData.options?.temperature || 0.6,
+        },
+      },
+      input.req
+    );
 
     const revisedPlan = aiResponse.content ?? '';
     const changes = calculateDiff(planData.originalPlan, revisedPlan);
@@ -119,18 +121,18 @@ export async function revisionNode(state: PlanWorkflowState): Promise<RevisionNo
       revisedPlanData: {
         revisedPlan,
         changes,
-        revisionTimeMs
+        revisionTimeMs,
       },
       currentPhase: 'production',
       phasesExecuted: [...state.phasesExecuted, 'revision'],
-      totalAICalls: state.totalAICalls + 1
+      totalAICalls: state.totalAICalls + 1,
     };
   } catch (error: any) {
     console.error('[PlanWorkflow] Plan revision error:', error);
     return {
       error: `Plan revision failed: ${error.message}`,
       currentPhase: 'error',
-      success: false
+      success: false,
     };
   }
 }

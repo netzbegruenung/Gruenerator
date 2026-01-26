@@ -44,7 +44,10 @@ const calculateReadingTimeFromText = (
   }
 
   // Count words (similar to reading-time package logic)
-  const words = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length;
   const minutes = words / wordsPerMinute;
 
   return { minutes, words };
@@ -64,7 +67,14 @@ const extractTextFromReactChildren = (children: React.ReactNode): string => {
       text += child.toString() + ' ';
     } else if (React.isValidElement(child)) {
       // Handle React elements by extracting props.children recursively
-      const props = child.props as { children?: React.ReactNode; text?: string; title?: string; subtitle?: string; author?: string; content?: string };
+      const props = child.props as {
+        children?: React.ReactNode;
+        text?: string;
+        title?: string;
+        subtitle?: string;
+        author?: string;
+        content?: string;
+      };
       if (props && props.children) {
         text += extractTextFromReactChildren(props.children) + ' ';
       }
@@ -111,7 +121,7 @@ const extractTextFromStructuredBlocks = (blocks: ContentBlock[]): string => {
         if (block.title) text += block.title + ' ';
         if (block.content) text += block.content + ' ';
         if (block.items && Array.isArray(block.items)) {
-          block.items.forEach(item => {
+          block.items.forEach((item) => {
             if (typeof item === 'string') {
               text += item + ' ';
             } else if ((item as { text?: string }).text) {
@@ -123,7 +133,7 @@ const extractTextFromStructuredBlocks = (blocks: ContentBlock[]): string => {
 
       case 'factBox':
         if (block.facts && Array.isArray(block.facts)) {
-          block.facts.forEach(fact => {
+          block.facts.forEach((fact) => {
             if (fact.number) text += fact.number + ' ';
             if (fact.label) text += fact.label + ' ';
           });
@@ -138,7 +148,7 @@ const extractTextFromStructuredBlocks = (blocks: ContentBlock[]): string => {
 
       case 'timeline':
         if (block.items && Array.isArray(block.items)) {
-          block.items.forEach(item => {
+          block.items.forEach((item) => {
             const timelineItem = item as { date?: string; title?: string; content?: string };
             if (timelineItem.date) text += timelineItem.date + ' ';
             if (timelineItem.title) text += timelineItem.title + ' ';
@@ -241,7 +251,7 @@ const formatReadingTime = (minutes: number): string => {
 const calculateReadingTime = (text: string, options: ReadingTimeOptions = {}): string => {
   const {
     wordsPerMinute = 200, // Average reading speed in German
-    includeSeconds = false
+    includeSeconds = false,
   } = options;
 
   if (!text || text.trim().length === 0) {
@@ -299,7 +309,7 @@ export const getReadingTimeStats = (
       text: '< 1 Min. Lesezeit',
       minutes: 0,
       time: 0,
-      words: 0
+      words: 0,
     };
   }
 
@@ -309,7 +319,7 @@ export const getReadingTimeStats = (
       text: formatReadingTime(stats.minutes),
       minutes: stats.minutes,
       time: Math.round(stats.minutes * 60 * 1000), // time in milliseconds
-      words: stats.words
+      words: stats.words,
     };
   } catch (error) {
     console.warn('Error calculating reading time stats:', error);
@@ -317,7 +327,7 @@ export const getReadingTimeStats = (
       text: '< 1 Min. Lesezeit',
       minutes: 0,
       time: 0,
-      words: 0
+      words: 0,
     };
   }
 };

@@ -1,4 +1,3 @@
-
 const groupLabels: Record<string, string> = {
   manual: 'Dokumente',
   wolke: 'Wolke Dokumente',
@@ -26,7 +25,13 @@ interface DocumentGroupedContentProps {
   renderDefaultCard: (item: DocumentItem) => React.ReactNode;
 }
 
-const DocumentGroupedContent = ({ groupedItems = {}, expandedGroups, onToggleGroup, cardRenderer, renderDefaultCard }: DocumentGroupedContentProps) => {
+const DocumentGroupedContent = ({
+  groupedItems = {},
+  expandedGroups,
+  onToggleGroup,
+  cardRenderer,
+  renderDefaultCard,
+}: DocumentGroupedContentProps) => {
   return (
     <div className="document-overview-grouped">
       {Object.entries(groupedItems).map(([groupKey, items]) => {
@@ -36,14 +41,21 @@ const DocumentGroupedContent = ({ groupedItems = {}, expandedGroups, onToggleGro
         const groupIcon = groupIcons[groupKey] || '📄';
 
         return (
-          <div key={groupKey} className={`document-group document-group-${groupKey} ${isExpanded ? 'expanded' : 'collapsed'}`}>
+          <div
+            key={groupKey}
+            className={`document-group document-group-${groupKey} ${isExpanded ? 'expanded' : 'collapsed'}`}
+          >
             <div className="document-group-header" onClick={() => onToggleGroup(groupKey)}>
               <span className="document-group-icon" aria-hidden>
                 {groupIcon}
               </span>
               <h3>{groupLabel}</h3>
               <span className="document-group-count">{items.length}</span>
-              <button className="document-group-chevron" aria-expanded={isExpanded} aria-controls={`group-${groupKey}`}>
+              <button
+                className="document-group-chevron"
+                aria-expanded={isExpanded}
+                aria-controls={`group-${groupKey}`}
+              >
                 {isExpanded ? '▼' : '▶'}
               </button>
             </div>
@@ -51,7 +63,9 @@ const DocumentGroupedContent = ({ groupedItems = {}, expandedGroups, onToggleGro
             {isExpanded && (
               <div id={`group-${groupKey}`} className="document-group-content">
                 <div className="document-overview-grid">
-                  {items.map((item) => (cardRenderer ? cardRenderer(item) : renderDefaultCard(item)))}
+                  {items.map((item) =>
+                    cardRenderer ? cardRenderer(item) : renderDefaultCard(item)
+                  )}
                 </div>
               </div>
             )}
@@ -63,4 +77,3 @@ const DocumentGroupedContent = ({ groupedItems = {}, expandedGroups, onToggleGro
 };
 
 export default DocumentGroupedContent;
-

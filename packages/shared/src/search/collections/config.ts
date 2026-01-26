@@ -16,9 +16,9 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Die Grünen Österreich',
     description: 'EU-Wahlprogramm, Grundsatzprogramm, Nationalratswahl-Programm',
     filterableFields: {
-      primary_category: { label: 'Programm', type: 'keyword' }
+      primary_category: { label: 'Programm', type: 'keyword' },
     },
-    defaultSearchMode: 'hybrid'
+    defaultSearchMode: 'hybrid',
   },
 
   deutschland: {
@@ -26,9 +26,9 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Bündnis 90/Die Grünen',
     description: 'Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025',
     filterableFields: {
-      primary_category: { label: 'Programm', type: 'keyword' }
+      primary_category: { label: 'Programm', type: 'keyword' },
     },
-    defaultSearchMode: 'hybrid'
+    defaultSearchMode: 'hybrid',
   },
 
   bundestagsfraktion: {
@@ -37,10 +37,10 @@ export const COLLECTIONS: CollectionConfigMap = {
     description: 'Fachtexte, Ziele und Positionen von gruene-bundestag.de',
     filterableFields: {
       primary_category: { label: 'Bereich', type: 'keyword' },
-      country: { label: 'Land', type: 'keyword' }
+      country: { label: 'Land', type: 'keyword' },
     },
     defaultSearchMode: 'hybrid',
-    supportsPersonDetection: true
+    supportsPersonDetection: true,
   },
 
   'gruene-de': {
@@ -49,9 +49,9 @@ export const COLLECTIONS: CollectionConfigMap = {
     description: 'Inhalte von gruene.de – Positionen, Themen und Aktuelles',
     filterableFields: {
       primary_category: { label: 'Bereich', type: 'keyword' },
-      country: { label: 'Land', type: 'keyword' }
+      country: { label: 'Land', type: 'keyword' },
     },
-    defaultSearchMode: 'hybrid'
+    defaultSearchMode: 'hybrid',
   },
 
   'gruene-at': {
@@ -60,9 +60,9 @@ export const COLLECTIONS: CollectionConfigMap = {
     description: 'Inhalte von gruene.at – Positionen, Themen und Aktuelles',
     filterableFields: {
       primary_category: { label: 'Bereich', type: 'keyword' },
-      country: { label: 'Land', type: 'keyword' }
+      country: { label: 'Land', type: 'keyword' },
     },
-    defaultSearchMode: 'hybrid'
+    defaultSearchMode: 'hybrid',
   },
 
   kommunalwiki: {
@@ -72,9 +72,9 @@ export const COLLECTIONS: CollectionConfigMap = {
     filterableFields: {
       content_type: { label: 'Artikeltyp', type: 'keyword' },
       primary_category: { label: 'Kategorie', type: 'keyword' },
-      subcategories: { label: 'Unterkategorien', type: 'keyword' }
+      subcategories: { label: 'Unterkategorien', type: 'keyword' },
     },
-    defaultSearchMode: 'hybrid'
+    defaultSearchMode: 'hybrid',
   },
 
   'boell-stiftung': {
@@ -85,9 +85,9 @@ export const COLLECTIONS: CollectionConfigMap = {
       content_type: { label: 'Inhaltstyp', type: 'keyword' },
       primary_category: { label: 'Thema', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
-      region: { label: 'Region', type: 'keyword' }
+      region: { label: 'Region', type: 'keyword' },
     },
-    defaultSearchMode: 'hybrid'
+    defaultSearchMode: 'hybrid',
   },
 
   examples: {
@@ -97,10 +97,10 @@ export const COLLECTIONS: CollectionConfigMap = {
     filterableFields: {
       platform: { label: 'Plattform', type: 'keyword' },
       country: { label: 'Land', type: 'keyword' },
-      content_type: { label: 'Inhaltstyp', type: 'keyword' }
+      content_type: { label: 'Inhaltstyp', type: 'keyword' },
     },
-    defaultSearchMode: 'hybrid'
-  }
+    defaultSearchMode: 'hybrid',
+  },
 };
 
 /**
@@ -151,7 +151,5 @@ export function getFilterableFields(key: string): string[] {
  * @returns Array of collection keys
  */
 export function getCollectionsWithField(fieldName: string): CollectionKey[] {
-  return COLLECTION_KEYS.filter(key =>
-    fieldName in COLLECTIONS[key].filterableFields
-  );
+  return COLLECTION_KEYS.filter((key) => fieldName in COLLECTIONS[key].filterableFields);
 }

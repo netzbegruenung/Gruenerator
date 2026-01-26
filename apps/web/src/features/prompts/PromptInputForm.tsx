@@ -1,5 +1,6 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { useForm, Control } from 'react-hook-form';
+import { useForm, type Control } from 'react-hook-form';
+
 import { FormTextarea } from '../../components/common/Form/Input';
 
 interface PromptInputFormProps {
@@ -16,19 +17,15 @@ interface PromptInputFormRef {
 
 const PromptInputForm = forwardRef<PromptInputFormRef, PromptInputFormProps>(
   ({ tabIndex = {} }, ref) => {
-    const {
-      control,
-      getValues,
-      reset
-    } = useForm({
+    const { control, getValues, reset } = useForm({
       defaultValues: {
-        userInput: ''
-      }
+        userInput: '',
+      },
     });
 
     useImperativeHandle(ref, () => ({
       getFormData: () => getValues(),
-      resetForm: (data) => reset(data)
+      resetForm: (data) => reset(data),
     }));
 
     return (

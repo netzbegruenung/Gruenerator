@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { HiX } from 'react-icons/hi';
-import type { SavedText } from '../../../hooks/useRecentTexts';
+
 import { createTextPreview } from '../../../utils/textPreview';
+
+import type { SavedText } from '../../../hooks/useRecentTexts';
 
 export interface RecentTextCardProps {
   text: SavedText;
@@ -9,11 +11,7 @@ export interface RecentTextCardProps {
   onDelete?: (id: string) => Promise<void>;
 }
 
-const RecentTextCard: React.FC<RecentTextCardProps> = ({
-  text,
-  onSelect,
-  onDelete
-}) => {
+const RecentTextCard: React.FC<RecentTextCardProps> = ({ text, onSelect, onDelete }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const preview = createTextPreview(text.content, 100);
 

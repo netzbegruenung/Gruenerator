@@ -7,14 +7,30 @@
 
 // Unicode subscript digits: 0123456789 -> 0123456789
 const SUBSCRIPT_MAP = {
-  '\u2080': '0', '\u2081': '1', '\u2082': '2', '\u2083': '3', '\u2084': '4',
-  '\u2085': '5', '\u2086': '6', '\u2087': '7', '\u2088': '8', '\u2089': '9'
+  '\u2080': '0',
+  '\u2081': '1',
+  '\u2082': '2',
+  '\u2083': '3',
+  '\u2084': '4',
+  '\u2085': '5',
+  '\u2086': '6',
+  '\u2087': '7',
+  '\u2088': '8',
+  '\u2089': '9',
 };
 
 // Unicode superscript digits: 0123456789 -> 0123456789
 const SUPERSCRIPT_MAP = {
-  '\u2070': '0', '\u00B9': '1', '\u00B2': '2', '\u00B3': '3', '\u2074': '4',
-  '\u2075': '5', '\u2076': '6', '\u2077': '7', '\u2078': '8', '\u2079': '9'
+  '\u2070': '0',
+  '\u00B9': '1',
+  '\u00B2': '2',
+  '\u00B3': '3',
+  '\u2074': '4',
+  '\u2075': '5',
+  '\u2076': '6',
+  '\u2077': '7',
+  '\u2078': '8',
+  '\u2079': '9',
 };
 
 /**
@@ -26,8 +42,12 @@ const SUPERSCRIPT_MAP = {
 export function foldUmlauts(s) {
   if (!s) return '';
   return s
-    .replace(/\u00E4/g, 'ae').replace(/\u00F6/g, 'oe').replace(/\u00FC/g, 'ue')
-    .replace(/\u00C4/g, 'Ae').replace(/\u00D6/g, 'Oe').replace(/\u00DC/g, 'Ue')
+    .replace(/\u00E4/g, 'ae')
+    .replace(/\u00F6/g, 'oe')
+    .replace(/\u00FC/g, 'ue')
+    .replace(/\u00C4/g, 'Ae')
+    .replace(/\u00D6/g, 'Oe')
+    .replace(/\u00DC/g, 'Ue')
     .replace(/\u00DF/g, 'ss');
 }
 
@@ -66,7 +86,10 @@ export function normalizeQuery(q) {
   if (!q) return '';
   let out = q.replace(/\u00AD/g, ''); // soft hyphen
   // dehyphenate across spaces: "Warm- ewende" -> "Warmewende"
-  out = out.replace(/([A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF])\s*[-\u2013\u2014]\s*([A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF])/g, '$1$2');
+  out = out.replace(
+    /([A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF])\s*[-\u2013\u2014]\s*([A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF])/g,
+    '$1$2'
+  );
   // collapse whitespace
   out = out.replace(/\s+/g, ' ').trim();
   // normalize unicode numbers
@@ -84,7 +107,10 @@ export function normalizeQuery(q) {
 export function normalizeText(t) {
   if (!t) return '';
   let out = t.replace(/\u00AD/g, '');
-  out = out.replace(/([A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF])\s*[-\u2013\u2014]\s*([A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF])/g, '$1$2');
+  out = out.replace(
+    /([A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF])\s*[-\u2013\u2014]\s*([A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF])/g,
+    '$1$2'
+  );
   out = normalizeUnicodeNumbers(out);
   out = foldUmlauts(out).toLowerCase();
   return out;
@@ -100,7 +126,7 @@ export function tokenizeQuery(q) {
     .replace(/[\u00AD]/g, '')
     .replace(/[^A-Za-z\u00C4\u00D6\u00DC\u00E4\u00F6\u00FC\u00DF0-9\-\s]/g, ' ')
     .split(/\s+/)
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 }
 
@@ -119,7 +145,10 @@ export function generateQueryVariants(query) {
   variants.add(q);
 
   // Variant: Space-separated (for "open-source" -> "open source")
-  const spaceSeparated = q.replace(/[-\u2013\u2014]/g, ' ').replace(/\s+/g, ' ').trim();
+  const spaceSeparated = q
+    .replace(/[-\u2013\u2014]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (spaceSeparated) variants.add(spaceSeparated);
 
   // Variant: Hyphenated (for "open source" -> "open-source")
@@ -143,10 +172,10 @@ export function generateQueryVariants(query) {
   if (germanDecimal !== q) variants.add(germanDecimal);
 
   // Umlaut-folded versions of all variants
-  const folded = [...variants].map(v => foldUmlauts(v)).filter(Boolean);
-  folded.forEach(f => variants.add(f));
+  const folded = [...variants].map((v) => foldUmlauts(v)).filter(Boolean);
+  folded.forEach((f) => variants.add(f));
 
-  return [...variants].filter(v => v && v.trim().length >= 2);
+  return [...variants].filter((v) => v && v.trim().length >= 2);
 }
 
 /**
@@ -162,16 +191,20 @@ export function containsNormalized(text, query) {
 
   // Generate variants and check if any match as exact phrase
   const variants = generateQueryVariants(query);
-  if (variants.some(v => normText.includes(v))) {
+  if (variants.some((v) => normText.includes(v))) {
     return true;
   }
 
   // For multi-word queries: check if ALL individual words are present
-  const words = query.toLowerCase().trim().split(/\s+/).filter(w => w.length >= 3);
+  const words = query
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length >= 3);
   if (words.length > 1) {
-    const allWordsPresent = words.every(word => {
+    const allWordsPresent = words.every((word) => {
       const wordVariants = generateQueryVariants(word);
-      return wordVariants.some(v => normText.includes(v));
+      return wordVariants.some((v) => normText.includes(v));
     });
     if (allWordsPresent) return true;
   }

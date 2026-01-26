@@ -1,16 +1,17 @@
-import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import { AnimatePresence } from 'motion/react';
-import useImageStudioStore from '../../../stores/imageStudioStore';
-import { useStepFlow } from '../hooks/useStepFlow';
-import { useDraftAutoSave } from '../hooks/useDraftAutoSave';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
+
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import { useDraftAutoSave } from '../hooks/useDraftAutoSave';
+import { useStepFlow } from '../hooks/useStepFlow';
 import '../../../assets/styles/components/image-studio/typeform-fields.css';
 
 // Import extracted steps
-import InputStep from '../steps/InputStep';
-import ImageUploadStep from '../steps/ImageUploadStep';
-import ImageSizeSelectStep from '../steps/ImageSizeSelectStep';
 import CanvasEditStep from '../steps/CanvasEditStep';
+import ImageSizeSelectStep from '../steps/ImageSizeSelectStep';
+import ImageUploadStep from '../steps/ImageUploadStep';
+import InputStep from '../steps/InputStep';
 
 // Types (Keep StepFlowProps, but maybe move others if needed by steps)
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
@@ -44,20 +45,27 @@ interface InputStepData {
 export const slideVariants = {
   enter: (direction: AnimationDirection) => ({
     y: direction > 0 ? 40 : -40,
-    opacity: 0
+    opacity: 0,
   }),
   center: {
     y: 0,
-    opacity: 1
+    opacity: 1,
   },
   exit: (direction: AnimationDirection) => ({
     y: direction < 0 ? 40 : -40,
-    opacity: 0
-  })
+    opacity: 0,
+  }),
 };
 
-const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, onStepChange, imageLimitData, startAtCanvasEdit }) => {
-  const { handleChange, updateFormData, name, sloganAlternatives, uploadedImage } = useImageStudioStore();
+const StepFlow: React.FC<StepFlowProps> = ({
+  onBack: parentOnBack,
+  onComplete,
+  onStepChange,
+  imageLimitData,
+  startAtCanvasEdit,
+}) => {
+  const { handleChange, updateFormData, name, sloganAlternatives, uploadedImage } =
+    useImageStudioStore();
   const { user } = useOptimizedAuth();
 
   const {
@@ -75,7 +83,7 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, o
     typeConfig,
     handleCanvasExport,
     handleCanvasSave,
-    bgRemovalProgress
+    bgRemovalProgress,
   } = useStepFlow({ startAtCanvasEdit });
 
   // Initialize auto-save behavior
@@ -126,11 +134,11 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, o
   // For template types: last input is before slogan step
   // For KI types: last input triggers image generation directly (afterComplete === 'generateImage')
   // For parallelPreload types: last input triggers parallel loading
-  const isLastInputStep = currentStep?.type === 'input' && (
-    currentStep?.afterComplete === 'generateText' ||
-    currentStep?.afterComplete === 'generateImage' ||
-    currentStep?.afterComplete === 'parallelPreload'
-  );
+  const isLastInputStep =
+    currentStep?.type === 'input' &&
+    (currentStep?.afterComplete === 'generateText' ||
+      currentStep?.afterComplete === 'generateImage' ||
+      currentStep?.afterComplete === 'parallelPreload');
 
   if (!currentStep) {
     return null;
@@ -195,14 +203,14 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, o
         </AnimatePresence>
 
         {imageLimitData && imageLimitData.count >= 8 && (
-          <div className={`image-limit-indicator ${!imageLimitData.canGenerate ? 'image-limit-indicator--blocked' : ''}`}>
+          <div
+            className={`image-limit-indicator ${!imageLimitData.canGenerate ? 'image-limit-indicator--blocked' : ''}`}
+          >
             <span className="image-limit-indicator__text">
               {imageLimitData.count}/10 Bilder heute
             </span>
             {!imageLimitData.canGenerate && (
-              <span className="image-limit-indicator__blocked">
-                Tageslimit erreicht
-              </span>
+              <span className="image-limit-indicator__blocked">Tageslimit erreicht</span>
             )}
           </div>
         )}

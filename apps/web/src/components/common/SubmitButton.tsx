@@ -1,4 +1,5 @@
-import { JSX, useState, useEffect, useRef, MouseEvent, ReactNode } from 'react';
+import { type JSX, useState, useEffect, useRef, MouseEvent, type ReactNode } from 'react';
+
 import Spinner from './Spinner';
 import '../../assets/styles/components/ui/button.css';
 
@@ -16,26 +17,28 @@ interface SubmitButtonProps {
   tabIndex?: number;
   imageLimitInfo?: {
     count?: number;
-    limit?: number
+    limit?: number;
   };
   iconOnly?: boolean;
   disabled?: boolean;
 }
 
-const SubmitButton = ({ onClick,
+const SubmitButton = ({
+  onClick,
   loading,
   success,
   text,
   icon,
   className = '',
   ariaLabel,
-  type = "submit",
+  type = 'submit',
   statusMessage,
   showStatus = false,
   tabIndex,
   imageLimitInfo,
   iconOnly = false,
-  disabled }: SubmitButtonProps): JSX.Element => {
+  disabled,
+}: SubmitButtonProps): JSX.Element => {
   const [internalSuccess, setInternalSuccess] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -61,11 +64,13 @@ const SubmitButton = ({ onClick,
     if (!loading && onClick) {
       const activeElement = document.activeElement as HTMLElement | null;
 
-      if (activeElement && (
-        activeElement.closest('.react-select') ||
-        activeElement.closest('.react-select__input') ||
-        (typeof activeElement.className === 'string' && activeElement.className.includes('react-select'))
-      )) {
+      if (
+        activeElement &&
+        (activeElement.closest('.react-select') ||
+          activeElement.closest('.react-select__input') ||
+          (typeof activeElement.className === 'string' &&
+            activeElement.className.includes('react-select')))
+      ) {
         return;
       }
 
@@ -78,7 +83,11 @@ const SubmitButton = ({ onClick,
       return statusMessage;
     }
 
-    if (imageLimitInfo && typeof imageLimitInfo.count !== 'undefined' && typeof imageLimitInfo.limit !== 'undefined') {
+    if (
+      imageLimitInfo &&
+      typeof imageLimitInfo.count !== 'undefined' &&
+      typeof imageLimitInfo.limit !== 'undefined'
+    ) {
       return `${text} (${imageLimitInfo.count}/${imageLimitInfo.limit})`;
     }
 

@@ -14,7 +14,7 @@ import {
   type CreateSiteBody,
   type UpdateSiteBody,
   type PublishBody,
-  type CheckSubdomainQuery
+  type CheckSubdomainQuery,
 } from './types.js';
 
 type SitesHandler = RequestHandler<any, any, any, any>;
@@ -24,10 +24,17 @@ const router: Router = express.Router();
 const db = getPostgresInstance();
 
 const ALLOWED_UPDATE_FIELDS = [
-  'site_title', 'tagline', 'bio', 'contact_email',
-  'social_links', 'accent_color',
-  'profile_image', 'background_image', 'sections', 'meta_description',
-  'meta_keywords'
+  'site_title',
+  'tagline',
+  'bio',
+  'contact_email',
+  'social_links',
+  'accent_color',
+  'profile_image',
+  'background_image',
+  'sections',
+  'meta_description',
+  'meta_keywords',
 ];
 
 /**
@@ -38,10 +45,10 @@ router.get('/public/:subdomain', (async (req: SitesRequest, res: Response): Prom
     const { subdomain } = req.params;
     const subdomainLower = subdomain.toLowerCase().trim();
 
-    const result = await db.query(
+    const result = (await db.query(
       'SELECT * FROM user_sites WHERE subdomain = $1 AND is_published = true',
       [subdomainLower]
-    ) as unknown as UserSite[];
+    )) as unknown as UserSite[];
 
     if (!result || result.length === 0) {
       res.status(404).json({ error: 'Site nicht gefunden oder nicht veröffentlicht' });
@@ -69,10 +76,9 @@ router.get('/my-site', (async (req: SitesRequest, res: Response): Promise<void> 
       return;
     }
 
-    const result = await db.query(
-      'SELECT * FROM user_sites WHERE user_id = $1',
-      [userId]
-    ) as unknown as UserSite[];
+    const result = (await db.query('SELECT * FROM user_sites WHERE user_id = $1', [
+      userId,
+    ])) as unknown as UserSite[];
 
     if (!result || result.length === 0) {
       res.json({ site: null });
@@ -106,7 +112,9 @@ router.post('/create', (async (req: SitesRequest, res: Response): Promise<void> 
 
     const subdomainLower = subdomain.toLowerCase().trim();
     if (!/^[a-z0-9-]+$/.test(subdomainLower)) {
-      res.status(400).json({ error: 'Subdomain darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten' });
+      res
+        .status(400)
+        .json({ error: 'Subdomain darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten' });
       return;
     }
 
@@ -115,22 +123,21 @@ router.post('/create', (async (req: SitesRequest, res: Response): Promise<void> 
       return;
     }
 
-    const existingCheck = await db.query(
-      'SELECT id FROM user_sites WHERE user_id = $1',
-      [userId]
-    ) as unknown as { id: string }[];
+    const existingCheck = (await db.query('SELECT id FROM user_sites WHERE user_id = $1', [
+      userId,
+    ])) as unknown as { id: string }[];
 
     if (existingCheck && existingCheck.length > 0) {
       res.status(400).json({ error: 'Sie haben bereits eine Site erstellt' });
       return;
     }
 
-    const result = await db.query(
+    const result = (await db.query(
       `INSERT INTO user_sites (user_id, subdomain, site_title, tagline, theme, is_published)
        VALUES ($1, $2, $3, $4, $5, false)
        RETURNING *`,
       [userId, subdomainLower, site_title, tagline, theme]
-    ) as unknown as UserSite[];
+    )) as unknown as UserSite[];
 
     res.json({ site: result[0] });
   } catch (error: any) {
@@ -176,13 +183,13 @@ router.put('/:id', (async (req: SitesRequest, res: Response): Promise<void> => {
 
     values.push(id, userId);
 
-    const result = await db.query(
+    const result = (await db.query(
       `UPDATE user_sites
        SET ${updateFields.join(', ')}
        WHERE id = $${paramCounter} AND user_id = $${paramCounter + 1}
        RETURNING *`,
       values
-    ) as unknown as UserSite[];
+    )) as unknown as UserSite[];
 
     if (!result || result.length === 0) {
       res.status(404).json({ error: 'Site nicht gefunden' });
@@ -210,13 +217,13 @@ router.post('/:id/publish', (async (req: SitesRequest, res: Response): Promise<v
     const { id } = req.params;
     const { publish } = req.body as PublishBody;
 
-    const result = await db.query(
+    const result = (await db.query(
       `UPDATE user_sites
        SET is_published = $1, last_published = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_published END
        WHERE id = $2 AND user_id = $3
        RETURNING *`,
       [publish, id, userId]
-    ) as unknown as UserSite[];
+    )) as unknown as UserSite[];
 
     if (!result || result.length === 0) {
       res.status(404).json({ error: 'Site nicht gefunden' });
@@ -254,10 +261,9 @@ router.get('/check-subdomain', (async (req: SitesRequest, res: Response): Promis
       return;
     }
 
-    const result = await db.query(
-      'SELECT id FROM user_sites WHERE subdomain = $1',
-      [subdomainLower]
-    ) as unknown as { id: string }[];
+    const result = (await db.query('SELECT id FROM user_sites WHERE subdomain = $1', [
+      subdomainLower,
+    ])) as unknown as { id: string }[];
 
     res.json({ available: !result || result.length === 0 });
   } catch (error) {
@@ -279,10 +285,10 @@ router.delete('/:id', (async (req: SitesRequest, res: Response): Promise<void> =
 
     const { id } = req.params;
 
-    const result = await db.query(
+    const result = (await db.query(
       'DELETE FROM user_sites WHERE id = $1 AND user_id = $2 RETURNING id',
       [id, userId]
-    ) as unknown as { id: string }[];
+    )) as unknown as { id: string }[];
 
     if (!result || result.length === 0) {
       res.status(404).json({ success: false, error: 'Site nicht gefunden' });

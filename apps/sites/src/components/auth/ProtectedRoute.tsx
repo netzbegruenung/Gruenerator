@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
+
 import { useAuth } from '../../hooks/useAuth';
 
 interface ProtectedRouteProps {

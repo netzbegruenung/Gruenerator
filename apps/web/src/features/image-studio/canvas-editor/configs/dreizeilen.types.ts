@@ -5,12 +5,12 @@
  * These types provide full type safety for the config-based architecture.
  */
 
-import type { StockImageAttribution } from '../sidebar/types';
-import type { ShapeInstance } from '../utils/shapes';
-import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { AdditionalText } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { StockImageAttribution } from '../sidebar/types';
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { ShapeInstance } from '../utils/shapes';
 
 /**
  * DreizeilenFullState
@@ -28,13 +28,13 @@ export interface DreizeilenFullState {
   colorSchemeId: string;
   fontSize: number;
   balkenWidthScale: number;
-  barOffsets: [number, number, number];  // Per-line horizontal offsets (Feinabstimmung)
+  barOffsets: [number, number, number]; // Per-line horizontal offsets (Feinabstimmung)
 
   // === Balken Position ===
-  balkenOffset: { x: number; y: number };  // Group offset
+  balkenOffset: { x: number; y: number }; // Group offset
   balkenOpacity: number;
-  balkenScale: number;      // Transform scale (from resize)
-  balkenRotation: number;   // Transform rotation (from rotate)
+  balkenScale: number; // Transform scale (from resize)
+  balkenRotation: number; // Transform rotation (from rotate)
 
   // === Assets ===
   assetInstances: AssetInstance[];
@@ -47,7 +47,7 @@ export interface DreizeilenFullState {
 
   // === Background Image ===
   currentImageSrc?: string;
-  backgroundImageFile?: File | Blob | null;  // Original file for base64 conversion when saving
+  backgroundImageFile?: File | Blob | null; // Original file for base64 conversion when saving
   imageOffset: { x: number; y: number };
   imageScale: number;
   imageAttribution?: StockImageAttribution | null;
@@ -57,14 +57,17 @@ export interface DreizeilenFullState {
 
   // === Icons & Shapes ===
   selectedIcons: string[];
-  iconStates: Record<string, {
-    x: number;
-    y: number;
-    scale: number;
-    rotation: number;
-    color?: string;
-    opacity?: number;
-  }>;
+  iconStates: Record<
+    string,
+    {
+      x: number;
+      y: number;
+      scale: number;
+      rotation: number;
+      color?: string;
+      opacity?: number;
+    }
+  >;
   shapeInstances: ShapeInstance[];
   selectedShapeId: string | null;
 
@@ -101,7 +104,12 @@ export interface DreizeilenFullActions {
   setLine3: (text: string) => void;
   setFontSize: (size: number) => void;
   setColorSchemeId: (id: string) => void;
-  handleSelectAlternative: (alt: { id: string; line1: string; line2: string; line3: string }) => void;
+  handleSelectAlternative: (alt: {
+    id: string;
+    line1: string;
+    line2: string;
+    line3: string;
+  }) => void;
 
   // === Balken Actions ===
   setBalkenWidthScale: (scale: number) => void;
@@ -122,7 +130,11 @@ export interface DreizeilenFullActions {
   removeAsset: (id: string) => void;
 
   // === Background Image Actions ===
-  setCurrentImageSrc: (file: File | null, objectUrl?: string, attribution?: StockImageAttribution | null) => void;
+  setCurrentImageSrc: (
+    file: File | null,
+    objectUrl?: string,
+    attribution?: StockImageAttribution | null
+  ) => void;
   setImageScale: (scale: number) => void;
   handleBackgroundImageDragEnd: (x: number, y: number) => void;
   handleBackgroundImageTransformEnd: (width: number, height: number) => void;
@@ -138,12 +150,17 @@ export interface DreizeilenFullActions {
   removeShape: (shapeId: string) => void;
 
   // === Illustration Actions ===
-  addIllustration: (id: string) => Promise<void>;
+  addIllustration: (id: string) => void;
   updateIllustration: (illustrationId: string, partial: Partial<IllustrationInstance>) => void;
   removeIllustration: (illustrationId: string) => void;
-  duplicateIllustration?: (illustrationId: string) => void;
-  handleIllustrationDragEnd?: (illustrationId: string, x: number, y: number) => void;
-  handleIllustrationTransformEnd?: (illustrationId: string, width: number, height: number, rotation?: number) => void;
+  duplicateIllustration: (illustrationId: string) => void;
+  handleIllustrationDragEnd: (illustrationId: string, x: number, y: number) => void;
+  handleIllustrationTransformEnd: (
+    illustrationId: string,
+    width: number,
+    height: number,
+    rotation?: number
+  ) => void;
 
   // === Additional Text Actions ===
   addHeader: () => void;

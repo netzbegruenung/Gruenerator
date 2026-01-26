@@ -16,54 +16,47 @@ function serializableState(state: any): any {
   const { input, ...restState } = state;
 
   // Extract only serializable parts of input
-  const serializableInput = input ? {
-    inhalt: input.inhalt,
-    gliederung: input.gliederung,
-    generatorType: input.generatorType,
-    subType: input.subType,
-    locale: input.locale,
-    useWebSearch: input.useWebSearch,
-    usePrivacyMode: input.usePrivacyMode,
-    useProMode: input.useProMode,
-    selectedDocumentIds: input.selectedDocumentIds,
-    selectedTextIds: input.selectedTextIds,
-    customPrompt: input.customPrompt,
-    platforms: input.platforms,
-    userId: input.userId,
-    workflowId: input.workflowId,
-    userAnswers: input.userAnswers
-  } : undefined;
+  const serializableInput = input
+    ? {
+        inhalt: input.inhalt,
+        gliederung: input.gliederung,
+        generatorType: input.generatorType,
+        subType: input.subType,
+        locale: input.locale,
+        useWebSearch: input.useWebSearch,
+        usePrivacyMode: input.usePrivacyMode,
+        useProMode: input.useProMode,
+        selectedDocumentIds: input.selectedDocumentIds,
+        selectedTextIds: input.selectedTextIds,
+        customPrompt: input.customPrompt,
+        platforms: input.platforms,
+        userId: input.userId,
+        workflowId: input.workflowId,
+        userAnswers: input.userAnswers,
+      }
+    : undefined;
 
   return {
     ...restState,
-    input: serializableInput
+    input: serializableInput,
   };
 }
 
 /**
  * Store workflow state in Redis
  */
-export async function saveWorkflowState(
-  workflowId: string,
-  state: any
-): Promise<void> {
+export async function saveWorkflowState(workflowId: string, state: any): Promise<void> {
   const key = `${WORKFLOW_STATE_PREFIX}${workflowId}`;
 
   const cleanState = serializableState(state);
 
-  await redisClient.setEx(
-    key,
-    WORKFLOW_STATE_TTL,
-    JSON.stringify(cleanState)
-  );
+  await redisClient.setEx(key, WORKFLOW_STATE_TTL, JSON.stringify(cleanState));
 }
 
 /**
  * Retrieve workflow state from Redis
  */
-export async function getWorkflowState(
-  workflowId: string
-): Promise<any | null> {
+export async function getWorkflowState(workflowId: string): Promise<any | null> {
   const key = `${WORKFLOW_STATE_PREFIX}${workflowId}`;
 
   const stateJson = await redisClient.get(key);
@@ -78,9 +71,7 @@ export async function getWorkflowState(
 /**
  * Delete workflow state from Redis
  */
-export async function deleteWorkflowState(
-  workflowId: string
-): Promise<void> {
+export async function deleteWorkflowState(workflowId: string): Promise<void> {
   const key = `${WORKFLOW_STATE_PREFIX}${workflowId}`;
 
   await redisClient.del(key);
@@ -101,7 +92,7 @@ export async function updateWorkflowState(
 
   const updatedState = {
     ...currentState,
-    ...updates
+    ...updates,
   };
 
   await saveWorkflowState(workflowId, updatedState);
@@ -110,9 +101,7 @@ export async function updateWorkflowState(
 /**
  * Check if workflow state exists
  */
-export async function workflowStateExists(
-  workflowId: string
-): Promise<boolean> {
+export async function workflowStateExists(workflowId: string): Promise<boolean> {
   const key = `${WORKFLOW_STATE_PREFIX}${workflowId}`;
   const exists = await redisClient.exists(key);
   return exists === 1;

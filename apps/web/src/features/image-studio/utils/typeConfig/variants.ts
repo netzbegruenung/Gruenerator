@@ -12,18 +12,18 @@ export const VARIANT_STYLES: Record<string, VariantStyle> = {
   illustration: {
     label: 'Illustration',
     imageName: 'soft-illustration.png',
-    description: 'Erstelle eine weiche, künstlerische Darstellung'
+    description: 'Erstelle eine weiche, künstlerische Darstellung',
   },
   realistic: {
     label: 'Realistisch',
     imageName: 'realistic-photo.png',
-    description: 'Erstelle ein fotorealistisches Bild'
+    description: 'Erstelle ein fotorealistisches Bild',
   },
   pixel: {
     label: 'Pixel Art',
     imageName: 'pixel-art.png',
-    description: 'Erstelle ein Bild im Retro-Pixelstil'
-  }
+    description: 'Erstelle ein Bild im Retro-Pixelstil',
+  },
 };
 
 /**
@@ -36,17 +36,17 @@ export const VARIANT_TYPES: Record<string, VariantTypeConfig> = {
     valueMap: {
       illustration: 'illustration-pure',
       realistic: 'realistic-pure',
-      pixel: 'pixel-pure'
-    }
+      pixel: 'pixel-pure',
+    },
   },
   sharepic: {
     basePath: '/imagine/variants',
     valueMap: {
       illustration: 'light-top',
       realistic: 'realistic-top',
-      pixel: 'pixel-top'
-    }
-  }
+      pixel: 'pixel-top',
+    },
+  },
 };
 
 /**
@@ -62,6 +62,6 @@ export const createVariants = (variantType: 'pure' | 'sharepic'): Variant[] => {
     value: typeConfig.valueMap[styleKey],
     label,
     description,
-    imageUrl: `${typeConfig.basePath}/${imageName}`
+    imageUrl: `${typeConfig.basePath}/${imageName}`,
   }));
 };

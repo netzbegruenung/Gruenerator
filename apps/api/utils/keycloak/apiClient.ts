@@ -115,9 +115,9 @@ export class KeycloakApiClient {
     this.axiosClient = axios.create({
       baseURL: `${this.baseUrl}/admin/realms/${this.realm}`,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      timeout: 10000
+      timeout: 10000,
     });
   }
 
@@ -144,12 +144,12 @@ export class KeycloakApiClient {
             new URLSearchParams({
               grant_type: 'client_credentials',
               client_id: this.clientId,
-              client_secret: this.clientSecret
+              client_secret: this.clientSecret,
             }),
             {
               headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-              }
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
             }
           );
           console.log('[KeycloakAPI] ✅ Client credentials flow successful');
@@ -168,12 +168,12 @@ export class KeycloakApiClient {
                 grant_type: 'password',
                 client_id: this.adminClientId,
                 username: this.adminUsername,
-                password: this.adminPassword
+                password: this.adminPassword,
               }),
               {
                 headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded'
-                }
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                },
               }
             );
             console.log('[KeycloakAPI] ✅ Username/password flow successful');
@@ -190,12 +190,12 @@ export class KeycloakApiClient {
             grant_type: 'password',
             client_id: this.adminClientId,
             username: this.adminUsername,
-            password: this.adminPassword
+            password: this.adminPassword,
           }),
           {
             headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            }
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
           }
         );
         console.log('[KeycloakAPI] ✅ Username/password flow successful');
@@ -244,8 +244,8 @@ export class KeycloakApiClient {
       const response = await this.axiosClient.get<KeycloakUser[]>('/users', {
         params: {
           email: email,
-          exact: true
-        }
+          exact: true,
+        },
       });
 
       if (response.data && response.data.length > 0) {
@@ -284,7 +284,10 @@ export class KeycloakApiClient {
       if (error.response && error.response.status === 404) {
         return null;
       }
-      console.error('[KeycloakAPI] Error getting user by ID:', error.response?.data || error.message);
+      console.error(
+        '[KeycloakAPI] Error getting user by ID:',
+        error.response?.data || error.message
+      );
       throw error;
     }
   }
@@ -313,10 +316,10 @@ export class KeycloakApiClient {
               {
                 type: 'password' as const,
                 value: userData.password,
-                temporary: false
-              }
+                temporary: false,
+              },
             ]
-          : []
+          : [],
       };
 
       const response = await this.axiosClient.post('/users', userRequest);
@@ -413,7 +416,9 @@ export class KeycloakApiClient {
       console.log(`[KeycloakAPI] Executing DELETE request to /users/${userId}`);
       const response = await this.axiosClient.delete(`/users/${userId}`);
 
-      console.log(`[KeycloakAPI] ✅ Delete request successful. Response status: ${response.status}`);
+      console.log(
+        `[KeycloakAPI] ✅ Delete request successful. Response status: ${response.status}`
+      );
       console.log(`[KeycloakAPI] User ${userId} deleted successfully from Keycloak`);
       return true;
     } catch (error: any) {
@@ -426,12 +431,14 @@ export class KeycloakApiClient {
         statusText: error.response?.statusText,
         data: error.response?.data,
         url: error.config?.url,
-        method: error.config?.method
+        method: error.config?.method,
       });
 
       // If user was already deleted (404), consider it successful
       if (error.response?.status === 404) {
-        console.log(`[KeycloakAPI] User ${userId} was already deleted (404) - considering successful`);
+        console.log(
+          `[KeycloakAPI] User ${userId} was already deleted (404) - considering successful`
+        );
         return true;
       }
 
@@ -454,13 +461,16 @@ export class KeycloakApiClient {
       await this.axiosClient.put(`/users/${userId}/reset-password`, {
         type: 'password',
         value: password,
-        temporary: false
+        temporary: false,
       });
 
       console.log('[KeycloakAPI] Password set successfully');
       return true;
     } catch (error: any) {
-      console.error('[KeycloakAPI] Error setting user password:', error.response?.data || error.message);
+      console.error(
+        '[KeycloakAPI] Error setting user password:',
+        error.response?.data || error.message
+      );
       throw error;
     }
   }
@@ -523,7 +533,10 @@ export class KeycloakApiClient {
       console.log('[KeycloakAPI] ✅ Connection successful');
       return true;
     } catch (error: any) {
-      console.error('[KeycloakAPI] ❌ Connection test failed:', error.response?.data || error.message);
+      console.error(
+        '[KeycloakAPI] ❌ Connection test failed:',
+        error.response?.data || error.message
+      );
       return false;
     }
   }

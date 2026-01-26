@@ -2,7 +2,14 @@
  * Green Edit KI type configuration
  */
 import { HiPhotograph } from 'react-icons/hi';
-import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, KI_SUBCATEGORIES, FORM_STEPS } from '../constants';
+
+import {
+  IMAGE_STUDIO_CATEGORIES,
+  IMAGE_STUDIO_TYPES,
+  KI_SUBCATEGORIES,
+  FORM_STEPS,
+} from '../constants';
+
 import type { KiTypeConfig, TemplateFieldConfig } from '../types';
 
 export const greenEditTypeConfig: KiTypeConfig = {
@@ -21,20 +28,25 @@ export const greenEditTypeConfig: KiTypeConfig = {
   hasPrecisionMode: true,
   alwaysPrecision: true,
   endpoints: {
-    generate: '/flux/green-edit/prompt'
+    generate: '/flux/green-edit/prompt',
   },
   formComponent: 'EditInstructionForm',
   steps: [FORM_STEPS.IMAGE_UPLOAD, FORM_STEPS.INPUT, FORM_STEPS.RESULT],
   formProps: {
     label: 'Was soll grüner werden?',
-    placeholder: 'Beschreibe detailliert, welche grüne Infrastruktur hinzugefügt werden soll. Z.B. Bäume, Fahrradwege, Solarpanels, Grünflächen...',
+    placeholder:
+      'Beschreibe detailliert, welche grüne Infrastruktur hinzugefügt werden soll. Z.B. Bäume, Fahrradwege, Solarpanels, Grünflächen...',
     helpText: 'Je detaillierter deine Beschreibung, desto besser das Ergebnis.',
-    rows: 2
+    rows: 2,
   },
   validation: {
     uploadedImage: { required: true, message: 'Bitte lade ein Bild hoch' },
-    precisionInstruction: { required: true, minLength: 15, message: 'Bitte gib eine detaillierte Anweisung ein (min. 15 Zeichen)' }
-  }
+    precisionInstruction: {
+      required: true,
+      minLength: 15,
+      message: 'Bitte gib eine detaillierte Anweisung ein (min. 15 Zeichen)',
+    },
+  },
 };
 
 export const greenEditFieldConfig: TemplateFieldConfig = {
@@ -43,13 +55,15 @@ export const greenEditFieldConfig: TemplateFieldConfig = {
       name: 'precisionInstruction',
       type: 'textarea',
       label: 'Was soll grüner werden?',
-      subtitle: 'Beschreibe, welche grünen Elemente hinzugefügt werden sollen (z.B. Bäume, Fahrradwege, Grünflächen)',
-      placeholder: 'Beschreibe detailliert, welche grüne Infrastruktur hinzugefügt werden soll. Z.B. Bäume, Fahrradwege, Solarpanels, Grünflächen...',
+      subtitle:
+        'Beschreibe, welche grünen Elemente hinzugefügt werden sollen (z.B. Bäume, Fahrradwege, Grünflächen)',
+      placeholder:
+        'Beschreibe detailliert, welche grüne Infrastruktur hinzugefügt werden soll. Z.B. Bäume, Fahrradwege, Solarpanels, Grünflächen...',
       helpText: 'Je detaillierter deine Beschreibung, desto besser das Ergebnis.',
       required: true,
       minLength: 15,
-      rows: 2
-    }
+      rows: 2,
+    },
   ],
   previewFields: [],
   resultFields: [],
@@ -62,5 +76,5 @@ export const greenEditFieldConfig: TemplateFieldConfig = {
   showAlternatives: false,
   showEditPanel: false,
   showAutoSave: true,
-  showSocialGeneration: true
+  showSocialGeneration: true,
 };

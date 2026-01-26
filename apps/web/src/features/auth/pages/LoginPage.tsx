@@ -1,7 +1,13 @@
-import { JSX, useState, useEffect, useCallback } from 'react';
+import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+
 import { useInstantAuth } from '../../../hooks/useAuth';
-import { getIntendedRedirect, getCurrentPath, isMobileAppContext, clearRedirectState } from '../../../utils/authRedirect';
+import {
+  getIntendedRedirect,
+  getCurrentPath,
+  isMobileAppContext,
+  clearRedirectState,
+} from '../../../utils/authRedirect';
 
 // Login Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/auth/login-page.css';
@@ -14,7 +20,7 @@ const LOGIN_PROVIDERS = {
   gruenesNetz: { enabled: true },
   grueneOesterreich: { enabled: true },
   netzbegruenung: { enabled: true },
-  gruenerator: { enabled: false }
+  gruenerator: { enabled: false },
 };
 
 // Page name mapping for context display
@@ -53,10 +59,12 @@ interface LoginPageProps {
   onClose?: () => void;
 }
 
-const LoginPage = ({ mode = 'standalone',
+const LoginPage = ({
+  mode = 'standalone',
   pageName,
   customMessage,
-  onClose }: LoginPageProps): JSX.Element => {
+  onClose,
+}: LoginPageProps): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -64,9 +72,8 @@ const LoginPage = ({ mode = 'standalone',
 
   // Get the intended redirect URL using the unified helper
   // When mode is 'required', use current pathname since we're blocking access to this page
-  const intendedRedirect = mode === 'required'
-    ? location.pathname
-    : getIntendedRedirect(location, '/profile');
+  const intendedRedirect =
+    mode === 'required' ? location.pathname : getIntendedRedirect(location, '/profile');
 
   // Check if this is a mobile app context
   const isMobileApp = isMobileAppContext(location);
@@ -75,7 +82,8 @@ const LoginPage = ({ mode = 'standalone',
   const successMessage = location.state?.message;
 
   // Auto-detect page name if not provided and in required mode
-  const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname) : undefined);
+  const displayPageName =
+    pageName || (mode === 'required' ? getPageName(location.pathname) : undefined);
 
   // Handle modal close
   const handleClose = useCallback(() => {
@@ -172,12 +180,12 @@ const LoginPage = ({ mode = 'standalone',
         <div className="auth-header auth-header--required">
           <h1 className="gradient-title">{displayPageName}</h1>
           <p className="auth-subtitle">
-            {customMessage || (isMobileApp
-              ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
-              : displayPageName === 'Diese Seite'
-                ? 'Melde dich an, um fortzufahren'
-                : `Melde dich an, um ${displayPageName} zu nutzen`
-            )}
+            {customMessage ||
+              (isMobileApp
+                ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
+                : displayPageName === 'Diese Seite'
+                  ? 'Melde dich an, um fortzufahren'
+                  : `Melde dich an, um ${displayPageName} zu nutzen`)}
           </p>
         </div>
       );
@@ -210,9 +218,7 @@ const LoginPage = ({ mode = 'standalone',
             />
             <div className="login-text-content">
               <h3 className="login-title">Grünes Netz Login</h3>
-              <p className="login-description">
-                Mit deinem Grünes Netz Account anmelden
-              </p>
+              <p className="login-description">Mit deinem Grünes Netz Account anmelden</p>
             </div>
           </div>
         </button>
@@ -235,9 +241,7 @@ const LoginPage = ({ mode = 'standalone',
             />
             <div className="login-text-content">
               <h3 className="login-title">Die Grünen – Die Grüne Alternative</h3>
-              <p className="login-description">
-                Mit deinem Die Grünen Account anmelden
-              </p>
+              <p className="login-description">Mit deinem Die Grünen Account anmelden</p>
             </div>
           </div>
         </button>
@@ -260,9 +264,7 @@ const LoginPage = ({ mode = 'standalone',
             />
             <div className="login-text-content">
               <h3 className="login-title">Netzbegrünung Login</h3>
-              <p className="login-description">
-                Mit deinem Netzbegrünung Account anmelden
-              </p>
+              <p className="login-description">Mit deinem Netzbegrünung Account anmelden</p>
             </div>
           </div>
         </button>
@@ -294,11 +296,7 @@ const LoginPage = ({ mode = 'standalone',
       <div className="auth-modal-overlay">
         <div className="auth-modal-backdrop" onClick={handleClose} />
         <div className="auth-container auth-container--modal">
-          <button
-            className="auth-modal-close"
-            onClick={handleClose}
-            aria-label="Login schließen"
-          >
+          <button className="auth-modal-close" onClick={handleClose} aria-label="Login schließen">
             ×
           </button>
           <div className="auth-content-wrapper">
@@ -306,17 +304,14 @@ const LoginPage = ({ mode = 'standalone',
               {getHeaderContent()}
 
               {/* Success Message */}
-              {successMessage && (
-                <div className="auth-success-message">
-                  {successMessage}
-                </div>
-              )}
+              {successMessage && <div className="auth-success-message">{successMessage}</div>}
 
               {/* Legal Notice for Desktop */}
               <div className="auth-legal auth-legal--desktop">
                 <p>
                   Mit der Anmeldung stimmst du unseren{' '}
-                  <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
+                  <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link>{' '}
+                  zu.
                 </p>
               </div>
             </div>
@@ -352,11 +347,7 @@ const LoginPage = ({ mode = 'standalone',
           {getHeaderContent()}
 
           {/* Success Message */}
-          {successMessage && (
-            <div className="auth-success-message">
-              {successMessage}
-            </div>
-          )}
+          {successMessage && <div className="auth-success-message">{successMessage}</div>}
 
           {/* Legal Notice for Desktop */}
           <div className="auth-legal auth-legal--desktop">

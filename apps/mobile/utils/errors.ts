@@ -109,9 +109,7 @@ export async function createApiErrorFromResponse(
  * Wrap an async function with standardized error handling
  * Returns [result, error] tuple for easy destructuring
  */
-export async function tryCatch<T>(
-  fn: () => Promise<T>
-): Promise<[T, null] | [null, Error]> {
+export async function tryCatch<T>(fn: () => Promise<T>): Promise<[T, null] | [null, Error]> {
   try {
     const result = await fn();
     return [result, null];

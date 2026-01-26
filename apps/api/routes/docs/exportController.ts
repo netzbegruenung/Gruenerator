@@ -71,18 +71,26 @@ function htmlToMarkdown(html: string): string {
   // Lists
   markdown = markdown.replace(/<ul>(.*?)<\/ul>/gis, (match, content) => {
     const items = content.match(/<li>(.*?)<\/li>/gi) || [];
-    return items.map((item: string) => {
-      const text = item.replace(/<li>(.*?)<\/li>/i, '$1');
-      return `- ${text}`;
-    }).join('\n') + '\n\n';
+    return (
+      items
+        .map((item: string) => {
+          const text = item.replace(/<li>(.*?)<\/li>/i, '$1');
+          return `- ${text}`;
+        })
+        .join('\n') + '\n\n'
+    );
   });
 
   markdown = markdown.replace(/<ol>(.*?)<\/ol>/gis, (match, content) => {
     const items = content.match(/<li>(.*?)<\/li>/gi) || [];
-    return items.map((item: string, index: number) => {
-      const text = item.replace(/<li>(.*?)<\/li>/i, '$1');
-      return `${index + 1}. ${text}`;
-    }).join('\n') + '\n\n';
+    return (
+      items
+        .map((item: string, index: number) => {
+          const text = item.replace(/<li>(.*?)<\/li>/i, '$1');
+          return `${index + 1}. ${text}`;
+        })
+        .join('\n') + '\n\n'
+    );
   });
 
   // Paragraphs
@@ -125,12 +133,12 @@ router.get('/:id/export/html', async (req: Request, res: Response) => {
     }
 
     // Check if user has access to this document
-    const documentResult = await db.query(
+    const documentResult = (await db.query(
       `SELECT id, title, permissions
        FROM collaborative_documents
        WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
       [id]
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -144,14 +152,14 @@ router.get('/:id/export/html', async (req: Request, res: Response) => {
     }
 
     // Get latest Y.js snapshot
-    const snapshotResult = await db.query(
+    const snapshotResult = (await db.query(
       `SELECT snapshot_data
        FROM yjs_document_snapshots
        WHERE document_id = $1
        ORDER BY version DESC
        LIMIT 1`,
       [id]
-    ) as YjsSnapshotRow[];
+    )) as YjsSnapshotRow[];
 
     let content = '<p>Empty document</p>';
 
@@ -244,12 +252,12 @@ router.get('/:id/export/markdown', async (req: Request, res: Response) => {
     }
 
     // Check if user has access to this document
-    const documentResult = await db.query(
+    const documentResult = (await db.query(
       `SELECT id, title, permissions
        FROM collaborative_documents
        WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
       [id]
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -263,14 +271,14 @@ router.get('/:id/export/markdown', async (req: Request, res: Response) => {
     }
 
     // Get latest Y.js snapshot
-    const snapshotResult = await db.query(
+    const snapshotResult = (await db.query(
       `SELECT snapshot_data
        FROM yjs_document_snapshots
        WHERE document_id = $1
        ORDER BY version DESC
        LIMIT 1`,
       [id]
-    ) as YjsSnapshotRow[];
+    )) as YjsSnapshotRow[];
 
     let content = 'Empty document';
 
@@ -313,12 +321,12 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
     }
 
     // Check if user has access to this document
-    const documentResult = await db.query(
+    const documentResult = (await db.query(
       `SELECT id, title, permissions
        FROM collaborative_documents
        WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
       [id]
-    ) as DocumentWithPermissions[];
+    )) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -332,14 +340,14 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
     }
 
     // Get latest Y.js snapshot
-    const snapshotResult = await db.query(
+    const snapshotResult = (await db.query(
       `SELECT snapshot_data
        FROM yjs_document_snapshots
        WHERE document_id = $1
        ORDER BY version DESC
        LIMIT 1`,
       [id]
-    ) as YjsSnapshotRow[];
+    )) as YjsSnapshotRow[];
 
     let content = 'Empty document';
 
@@ -353,7 +361,10 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
       const htmlContent = xmlFragment.toString();
 
       // Strip all HTML tags
-      content = htmlContent.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      content = htmlContent
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
 
     const text = `${document.title}\n\n${content}`;

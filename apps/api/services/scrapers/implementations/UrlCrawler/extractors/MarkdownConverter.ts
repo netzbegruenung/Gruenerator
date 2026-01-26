@@ -40,9 +40,15 @@ export class MarkdownConverter {
 
       return markdown;
     } catch (error) {
-      console.warn('[MarkdownConverter] Error converting HTML to Markdown:', error instanceof Error ? error.message : 'Unknown error');
+      console.warn(
+        '[MarkdownConverter] Error converting HTML to Markdown:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       // Fallback to plain text extraction if conversion fails
-      return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+      return html
+        .replace(/<[^>]*>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
   }
 

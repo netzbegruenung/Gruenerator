@@ -26,7 +26,9 @@ export function createAuthenticatedRouter(): Router {
  * @param requireAuthMiddleware - Optional middleware for additional authorization checks
  * @returns Express router with authentication and authorization
  */
-export function createAuthorizedRouter(requireAuthMiddleware: RequestHandler | null = null): Router {
+export function createAuthorizedRouter(
+  requireAuthMiddleware: RequestHandler | null = null
+): Router {
   const router = createAuthenticatedRouter();
 
   // Add additional authorization middleware if provided

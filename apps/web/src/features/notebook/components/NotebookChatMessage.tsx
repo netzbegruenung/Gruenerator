@@ -1,12 +1,14 @@
-import React, { memo, useMemo, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { HiChip } from 'react-icons/hi';
+import React, { memo, useMemo, useCallback } from 'react';
 import { FaFileWord } from 'react-icons/fa';
-import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
+import { HiChip } from 'react-icons/hi';
+
 import ActionButtons from '../../../components/common/ActionButtons';
-import { Markdown } from '../../../components/common/Markdown';
 import { MESSAGE_MOTION_PROPS } from '../../../components/common/Chat/utils/chatMessageUtils';
+import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
+import { Markdown } from '../../../components/common/Markdown';
 import { useExportStore } from '../../../stores/core/exportStore';
+
 import type { LinkConfig } from '../../../stores/citationStore';
 import '../../../assets/styles/features/qa/qa-mobile-message.css';
 import '../../../assets/styles/common/markdown-styles.css';
@@ -31,10 +33,10 @@ const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: numb
   const hasResultData = msg.type === 'assistant' && msg.resultData;
   const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
 
-  const hasSources = hasResultData && (
-    ((msg.resultData?.sources?.length ?? 0) > 0) ||
-    ((msg.resultData?.additionalSources?.length ?? 0) > 0)
-  );
+  const hasSources =
+    hasResultData &&
+    ((msg.resultData?.sources?.length ?? 0) > 0 ||
+      (msg.resultData?.additionalSources?.length ?? 0) > 0);
 
   const hasCitations = hasResultData && (msg.resultData?.citations?.length ?? 0) > 0;
 
@@ -52,13 +54,15 @@ const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: numb
   const customExportOptions = useMemo(() => {
     if (!hasCitations) return [];
 
-    return [{
-      id: 'notebook-docx',
-      label: 'Word mit Quellen',
-      subtitle: 'Inkl. Quellenangaben',
-      icon: <FaFileWord size={16} />,
-      onClick: handleNotebookDOCXExport
-    }];
+    return [
+      {
+        id: 'notebook-docx',
+        label: 'Word mit Quellen',
+        subtitle: 'Inkl. Quellenangaben',
+        icon: <FaFileWord size={16} />,
+        onClick: handleNotebookDOCXExport,
+      },
+    ];
   }, [hasCitations, handleNotebookDOCXExport]);
 
   return (

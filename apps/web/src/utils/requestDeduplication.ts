@@ -8,11 +8,11 @@ export const fetchWithDedup = async <T>(key: string, fetcher: () => Promise<T>):
 
   const promise = fetcher();
   pendingRequests.set(key, promise);
-  
+
   try {
     const result = await promise;
     return result;
   } finally {
     pendingRequests.delete(key);
   }
-}; 
+};

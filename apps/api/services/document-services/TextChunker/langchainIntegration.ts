@@ -30,7 +30,7 @@ export class LangChainChunker {
     const opts = {
       chunkSize: this.chunkSize,
       chunkOverlap: this.chunkOverlap,
-      separators: GERMAN_SEPARATORS
+      separators: GERMAN_SEPARATORS,
     };
 
     try {
@@ -74,15 +74,17 @@ export class LangChainChunker {
       rawChunks = this.fallbackSplit(input);
     }
 
-    let chunks = rawChunks.map((t, i) => ({
-      text: t.trim(),
-      index: i,
-      tokens: estimateTokens(t),
-      metadata: {
-        chunkingMethod: splitter ? 'langchain' : 'fallback-paragraph',
-        ...baseMetadata,
-      }
-    })).filter(c => c.text.length > 0);
+    let chunks = rawChunks
+      .map((t, i) => ({
+        text: t.trim(),
+        index: i,
+        tokens: estimateTokens(t),
+        metadata: {
+          chunkingMethod: splitter ? 'langchain' : 'fallback-paragraph',
+          ...baseMetadata,
+        },
+      }))
+      .filter((c) => c.text.length > 0);
 
     // Post-process: merge very short chunks to improve context
     chunks = this.mergeSmallChunks(chunks, { minChars: 800, maxMergedChars: 2400 });
@@ -94,7 +96,10 @@ export class LangChainChunker {
    * Fallback splitting strategy when LangChain is unavailable
    */
   private fallbackSplit(text: string): string[] {
-    const paras = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+    const paras = text
+      .split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter(Boolean);
     const chunks: string[] = [];
     let buf = '';
 
@@ -126,10 +131,9 @@ export class LangChainChunker {
   /**
    * Merge small chunks to improve context
    */
-  private mergeSmallChunks<T extends { text: string; index: number; tokens: number; metadata: any }>(
-    chunks: T[],
-    { minChars = 800, maxMergedChars = 2400 } = {}
-  ): T[] {
+  private mergeSmallChunks<
+    T extends { text: string; index: number; tokens: number; metadata: any },
+  >(chunks: T[], { minChars = 800, maxMergedChars = 2400 } = {}): T[] {
     if (!Array.isArray(chunks) || chunks.length === 0) return chunks;
 
     const merged: T[] = [];
@@ -141,7 +145,7 @@ export class LangChainChunker {
 
       while (cur.text.length < minChars && i + 1 < chunks.length) {
         const next = chunks[i + 1];
-        if ((cur.text.length + 1 + next.text.length) > maxMergedChars) break;
+        if (cur.text.length + 1 + next.text.length > maxMergedChars) break;
 
         const page = cur.metadata.page_number ?? next.metadata?.page_number ?? null;
         cur.text = `${cur.text}\n\n${(next.text || '').trim()}`.trim();

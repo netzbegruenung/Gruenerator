@@ -9,7 +9,7 @@ import {
   extractTextForm,
   extractStyle,
   extractTheme,
-  extractDetails
+  extractDetails,
 } from '../utils/extractionUtils.js';
 
 /**
@@ -30,7 +30,7 @@ export function extractUniversalParams(
     textForm: textForm || 'Allgemeiner Text',
     sprache: sprache || 'Sachlich und informativ',
     thema: thema || 'Politisches Thema',
-    details: details || message
+    details: details || message,
   };
 }
 
@@ -56,6 +56,6 @@ export function extractLeichteSpracheParams(
   return {
     ...baseParams,
     originalText,
-    targetLanguage: 'Leichte Sprache'
+    targetLanguage: 'Leichte Sprache',
   };
 }

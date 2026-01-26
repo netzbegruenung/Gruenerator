@@ -1,10 +1,21 @@
 import React, { useState, useMemo, useRef } from 'react';
-import type { JSX, ChangeEvent } from 'react';
-import { HiDocument, HiClipboardList, HiLightningBolt, HiUpload, HiX, HiCheck, HiFolder } from 'react-icons/hi';
+import {
+  HiDocument,
+  HiClipboardList,
+  HiLightningBolt,
+  HiUpload,
+  HiX,
+  HiCheck,
+  HiFolder,
+} from 'react-icons/hi';
 import { useShallow } from 'zustand/react/shallow';
-import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
+
 import { useAuth } from '../../hooks/useAuth';
+import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
+
 import AttachedFilesList from './AttachedFilesList';
+
+import type { JSX, ChangeEvent } from 'react';
 import '../../assets/styles/components/ui/ContentSelector.css';
 
 export interface AttachedFile {
@@ -25,11 +36,13 @@ interface ContentSelectorProps {
   onDropdownClose?: () => void;
 }
 
-const ContentSelector = ({ disabled = false,
+const ContentSelector = ({
+  disabled = false,
   onAttachmentClick,
   onRemoveFile,
   attachedFiles = [],
-  onDropdownClose }: ContentSelectorProps): JSX.Element | null => {
+  onDropdownClose,
+}: ContentSelectorProps): JSX.Element | null => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,7 +57,7 @@ const ContentSelector = ({ disabled = false,
     isLoadingDocuments,
     uiConfig,
     useAutomaticSearch,
-    toggleAutomaticSearch
+    toggleAutomaticSearch,
   } = useGeneratorSelectionStore(
     useShallow((state) => ({
       availableTexts: state.availableTexts,
@@ -57,15 +70,15 @@ const ContentSelector = ({ disabled = false,
       isLoadingDocuments: state.isLoadingDocuments,
       uiConfig: state.uiConfig,
       useAutomaticSearch: state.useAutomaticSearch,
-      toggleAutomaticSearch: state.toggleAutomaticSearch
+      toggleAutomaticSearch: state.toggleAutomaticSearch,
     }))
   );
 
   const { user } = useAuth();
   const { enableDocuments = false, enableTexts = false } = uiConfig;
 
-  const completedDocuments = useMemo(() =>
-    enableDocuments ? availableDocuments.filter(doc => doc.status === 'completed') : [],
+  const completedDocuments = useMemo(
+    () => (enableDocuments ? availableDocuments.filter((doc) => doc.status === 'completed') : []),
     [enableDocuments, availableDocuments]
   );
 
@@ -87,7 +100,8 @@ const ContentSelector = ({ disabled = false,
   const hasContent = completedDocuments.length > 0 || (enableTexts && availableTexts.length > 0);
 
   // Allow on localhost for debugging even without user
-  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const isLocalhost =
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   if (!user && !isLocalhost) return null;
 
   return (
@@ -128,16 +142,16 @@ const ContentSelector = ({ disabled = false,
 
       {/* Attached Files List */}
       {attachedFiles.length > 0 && (
-        <AttachedFilesList
-          files={attachedFiles}
-          onRemoveFile={onRemoveFile}
-        />
+        <AttachedFilesList files={attachedFiles} onRemoveFile={onRemoveFile} />
       )}
 
       {/* Selection Popup */}
       {isPopupOpen && (
         <div className="content-selector__popup-overlay" onClick={() => setIsPopupOpen(false)}>
-          <div className="content-selector__popup" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+          <div
+            className="content-selector__popup"
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
             <div className="content-selector__popup-header">
               <h3>Inhalte auswählen</h3>
               <button
@@ -160,7 +174,9 @@ const ContentSelector = ({ disabled = false,
                   <HiLightningBolt className="content-selector__popup-icon content-selector__popup-icon--auto" />
                   <div className="content-selector__popup-item-content">
                     <span className="content-selector__popup-item-title">Automatische Suche</span>
-                    <span className="content-selector__popup-item-desc">KI wählt relevante Inhalte</span>
+                    <span className="content-selector__popup-item-desc">
+                      KI wählt relevante Inhalte
+                    </span>
                   </div>
                   {useAutomaticSearch && <HiCheck className="content-selector__popup-check" />}
                 </button>
@@ -170,7 +186,7 @@ const ContentSelector = ({ disabled = false,
               {completedDocuments.length > 0 && (
                 <div className="content-selector__popup-section">
                   <div className="content-selector__popup-section-title">Dokumente</div>
-                  {completedDocuments.map(doc => (
+                  {completedDocuments.map((doc) => (
                     <button
                       key={doc.id}
                       type="button"
@@ -184,7 +200,9 @@ const ContentSelector = ({ disabled = false,
                           <span className="content-selector__popup-item-desc">{doc.filename}</span>
                         )}
                       </div>
-                      {selectedDocumentIds.includes(doc.id) && <HiCheck className="content-selector__popup-check" />}
+                      {selectedDocumentIds.includes(doc.id) && (
+                        <HiCheck className="content-selector__popup-check" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -194,7 +212,7 @@ const ContentSelector = ({ disabled = false,
               {enableTexts && availableTexts.length > 0 && (
                 <div className="content-selector__popup-section">
                   <div className="content-selector__popup-section-title">Texte</div>
-                  {availableTexts.map(text => (
+                  {availableTexts.map((text) => (
                     <button
                       key={text.id}
                       type="button"
@@ -208,15 +226,15 @@ const ContentSelector = ({ disabled = false,
                           <span className="content-selector__popup-item-desc">{text.type}</span>
                         )}
                       </div>
-                      {selectedTextIds.includes(text.id) && <HiCheck className="content-selector__popup-check" />}
+                      {selectedTextIds.includes(text.id) && (
+                        <HiCheck className="content-selector__popup-check" />
+                      )}
                     </button>
                   ))}
                 </div>
               )}
 
-              {isLoading && (
-                <div className="content-selector__popup-loading">Lade...</div>
-              )}
+              {isLoading && <div className="content-selector__popup-loading">Lade...</div>}
             </div>
 
             <div className="content-selector__popup-footer">

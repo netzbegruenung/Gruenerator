@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import apiClient from '../components/utils/apiClient';
 
 // Constants for export states
@@ -7,10 +8,10 @@ export const EXPORT_STATUS = {
   STARTING: 'starting',
   EXPORTING: 'exporting',
   COMPLETE: 'complete',
-  ERROR: 'error'
+  ERROR: 'error',
 } as const;
 
-type ExportStatusType = typeof EXPORT_STATUS[keyof typeof EXPORT_STATUS];
+type ExportStatusType = (typeof EXPORT_STATUS)[keyof typeof EXPORT_STATUS];
 
 // Constants for polling configuration
 const POLLING_CONFIG = {
@@ -100,10 +101,20 @@ interface SubtitlerExportStoreState {
   EXPORT_STATUS: typeof EXPORT_STATUS;
 }
 
-const initialState: Pick<SubtitlerExportStoreState,
-  'status' | 'progress' | 'exportToken' | 'projectId' | 'error' | 'timeRemaining' |
-  'pollingInterval' | 'pollingStartTime' | 'retryCount' | 'lastSuccessfulPoll' |
-  'exportParams' | 'subscriberCount'
+const initialState: Pick<
+  SubtitlerExportStoreState,
+  | 'status'
+  | 'progress'
+  | 'exportToken'
+  | 'projectId'
+  | 'error'
+  | 'timeRemaining'
+  | 'pollingInterval'
+  | 'pollingStartTime'
+  | 'retryCount'
+  | 'lastSuccessfulPoll'
+  | 'exportParams'
+  | 'subscriberCount'
 > = {
   // Export state
   status: EXPORT_STATUS.IDLE,
@@ -133,9 +144,9 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
   // Start export process
   startExport: async (subtitles: Subtitle[], preferences: ExportPreferences = {}) => {
     console.log('[SubtitlerExportStore] Starting export with preferences:', preferences);
-    
+
     const state = get();
-    
+
     // Prevent multiple concurrent exports
     if (state.status === EXPORT_STATUS.STARTING || state.status === EXPORT_STATUS.EXPORTING) {
       console.warn('[SubtitlerExportStore] Export already in progress, ignoring duplicate request');
@@ -145,7 +156,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     // Store export parameters for potential retry
     const exportParams = {
       subtitles,
-      ...preferences
+      ...preferences,
     };
 
     set({
@@ -181,11 +192,11 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
       // Start polling for progress
       get().startPolling();
-
     } catch (error: unknown) {
       const axiosError = error as AxiosErrorLike;
-      const errorMessage = axiosError.response?.data?.error
-        || (error instanceof Error ? error.message : 'Failed to start export');
+      const errorMessage =
+        axiosError.response?.data?.error ||
+        (error instanceof Error ? error.message : 'Failed to start export');
       console.error('[SubtitlerExportStore] Export start failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,
@@ -206,7 +217,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     }
 
     const exportParams = {
-      ...params
+      ...params,
     };
 
     set({
@@ -236,11 +247,11 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       });
 
       get().startPolling();
-
     } catch (error: unknown) {
       const axiosError = error as AxiosErrorLike;
-      const errorMessage = axiosError.response?.data?.error
-        || (error instanceof Error ? error.message : 'Failed to start Remotion export');
+      const errorMessage =
+        axiosError.response?.data?.error ||
+        (error instanceof Error ? error.message : 'Failed to start Remotion export');
       console.error('[SubtitlerExportStore] Remotion export start failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,
@@ -252,7 +263,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
   // Start polling for progress updates
   startPolling: () => {
     const state = get();
-    
+
     if (state.pollingInterval) {
       console.log('[SubtitlerExportStore] Polling already active');
       return;
@@ -264,20 +275,24 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     }
 
     console.log('[SubtitlerExportStore] Starting progress polling');
-    
+
     const poll = async () => {
       const currentState = get();
-      
+
       // Stop polling if export is complete or error occurred
-      if (currentState.status === EXPORT_STATUS.COMPLETE || 
-          currentState.status === EXPORT_STATUS.ERROR ||
-          currentState.status === EXPORT_STATUS.IDLE) {
+      if (
+        currentState.status === EXPORT_STATUS.COMPLETE ||
+        currentState.status === EXPORT_STATUS.ERROR ||
+        currentState.status === EXPORT_STATUS.IDLE
+      ) {
         get().stopPolling();
         return;
       }
 
       try {
-        const response = await apiClient.get(`/subtitler/export-progress/${currentState.exportToken}`);
+        const response = await apiClient.get(
+          `/subtitler/export-progress/${currentState.exportToken}`
+        );
         const progressData = response.data;
         console.log('[SubtitlerExportStore] Progress update:', progressData);
 
@@ -305,7 +320,6 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
           });
           get().stopPolling();
         }
-
       } catch (error: unknown) {
         console.error('[SubtitlerExportStore] Polling error:', error);
 
@@ -313,7 +327,9 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
         const newRetryCount = currentState.retryCount + 1;
 
         if (newRetryCount <= POLLING_CONFIG.MAX_RETRY_COUNT) {
-          console.log(`[SubtitlerExportStore] Retrying polling (${newRetryCount}/${POLLING_CONFIG.MAX_RETRY_COUNT})`);
+          console.log(
+            `[SubtitlerExportStore] Retrying polling (${newRetryCount}/${POLLING_CONFIG.MAX_RETRY_COUNT})`
+          );
           set({ retryCount: newRetryCount });
 
           // Use exponential backoff for retries
@@ -337,8 +353,8 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     // Calculate polling interval based on elapsed time
     const getPollingInterval = () => {
       const elapsed = Date.now() - (state.pollingStartTime || Date.now());
-      return elapsed > POLLING_CONFIG.EXTENDED_TIME_THRESHOLD 
-        ? POLLING_CONFIG.EXTENDED_INTERVAL 
+      return elapsed > POLLING_CONFIG.EXTENDED_TIME_THRESHOLD
+        ? POLLING_CONFIG.EXTENDED_INTERVAL
         : POLLING_CONFIG.INITIAL_INTERVAL;
     };
 
@@ -347,7 +363,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
     // Set up recurring polling with adaptive interval
     const intervalId = setInterval(poll, getPollingInterval());
-    
+
     set({ pollingInterval: intervalId });
   },
 
@@ -395,24 +411,24 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
   handleStreamingDownload: async (response: Response, exportParams: ExportParams) => {
     try {
       console.log('[SubtitlerExportStore] Processing streaming download');
-      
+
       const contentLength = response.headers.get('Content-Length');
       if (!response.body) {
         throw new Error('Response body is null');
       }
       const reader = response.body.getReader();
-      
+
       let receivedLength = 0;
       const chunks = [];
-      
+
       // Read stream with progress updates
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         chunks.push(value);
         receivedLength += value.length;
-        
+
         // Update progress if content length is known
         if (contentLength) {
           const progress = Math.round((receivedLength / parseInt(contentLength)) * 100);
@@ -420,21 +436,20 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
           console.log(`[SubtitlerExportStore] Streaming progress: ${progress}%`);
         }
       }
-      
+
       // Create blob from chunks
       const blob = new Blob(chunks, { type: 'video/mp4' });
-      
+
       // Trigger download
       await get().triggerBlobDownload(blob, exportParams);
-      
+
       // Mark as complete
       set({
         status: EXPORT_STATUS.COMPLETE,
         progress: 100,
       });
-      
+
       console.log('[SubtitlerExportStore] Streaming download completed successfully');
-      
     } catch (error: unknown) {
       console.error('[SubtitlerExportStore] Streaming download failed:', error);
       set({
@@ -448,33 +463,32 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
   triggerBlobDownload: async (blob: Blob, exportParams: ExportParams) => {
     try {
       const { uploadId } = exportParams;
-      
+
       // Generate filename
       const baseFilename = `video_${uploadId}`;
       const filename = `${baseFilename}_gruenerator.mp4`;
-      
+
       console.log(`[SubtitlerExportStore] Triggering download: ${filename}`);
-      
+
       // Create download URL
       const url = window.URL.createObjectURL(blob);
-      
+
       // Create and trigger download link
       const link = document.createElement('a');
       link.href = url;
       link.download = filename;
       link.style.display = 'none';
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // Clean up URL after delay
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
       }, 60000);
-      
+
       console.log(`[SubtitlerExportStore] Download triggered successfully: ${filename}`);
-      
     } catch (error) {
       console.error('[SubtitlerExportStore] Failed to trigger download:', error);
       throw new Error('Failed to start download');
@@ -507,7 +521,6 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       document.body.removeChild(link);
 
       console.log(`[SubtitlerExportStore] Download triggered for completed export: ${exportToken}`);
-
     } catch (error: unknown) {
       console.error('[SubtitlerExportStore] Failed to download completed export:', error);
       throw error;
@@ -517,10 +530,10 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
   // Reset export state
   resetExport: () => {
     console.log('[SubtitlerExportStore] Resetting export state');
-    
+
     // Stop any active polling
     get().stopPolling();
-    
+
     set({
       ...initialState,
       subscriberCount: get().subscriberCount, // Preserve subscriber count

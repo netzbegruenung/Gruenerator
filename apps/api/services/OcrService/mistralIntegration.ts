@@ -72,15 +72,15 @@ async function tryOCRWithDataUrl(
           content: [
             {
               type: 'image_url',
-              image_url: dataUrl
+              image_url: dataUrl,
             },
             {
               type: 'text',
-              text: 'Extract all text from this document. Return the text in markdown format, preserving structure and formatting.'
-            }
-          ]
-        }
-      ]
+              text: 'Extract all text from this document. Return the text in markdown format, preserving structure and formatting.',
+            },
+          ],
+        },
+      ],
     });
 
     if (!response?.pages || response.pages.length === 0) {
@@ -103,7 +103,7 @@ async function tryOCRWithDataUrl(
       text: allText,
       pageCount: response.pages.length,
       method: 'mistral-ocr',
-      confidence: response.confidence || 0.9
+      confidence: response.confidence || 0.9,
     };
   } catch (error) {
     console.warn('[OcrService] Data URL OCR failed:', (error as Error).message);
@@ -136,7 +136,7 @@ async function uploadFileToMistral(
         const blob = new Blob([fileBuffer], { type: mediaType });
         uploadResult = await mistralClient.files.upload({
           file: blob,
-          filename: filename
+          filename: filename,
         });
       } catch (error) {
         console.warn('[OcrService] files.upload() failed:', (error as Error).message);
@@ -150,7 +150,7 @@ async function uploadFileToMistral(
         uploadResult = await mistralClient.files.create({
           file: uint8Array,
           filename: filename,
-          contentType: mediaType
+          contentType: mediaType,
         });
       } catch (error) {
         console.warn('[OcrService] files.create() failed:', (error as Error).message);
@@ -162,7 +162,7 @@ async function uploadFileToMistral(
       try {
         uploadResult = await mistralClient.files.add({
           file: fileBuffer,
-          filename: filename
+          filename: filename,
         });
       } catch (error) {
         console.warn('[OcrService] files.add() failed:', (error as Error).message);
@@ -191,10 +191,7 @@ async function uploadFileToMistral(
 /**
  * Process OCR with uploaded file ID
  */
-async function processOCRWithFileId(
-  fileId: string,
-  mistralClient: any
-): Promise<ExtractionResult> {
+async function processOCRWithFileId(fileId: string, mistralClient: any): Promise<ExtractionResult> {
   try {
     console.log(`[OcrService] Processing OCR with file ID: ${fileId}`);
 
@@ -206,15 +203,15 @@ async function processOCRWithFileId(
           content: [
             {
               type: 'file',
-              file_id: fileId
+              file_id: fileId,
             },
             {
               type: 'text',
-              text: 'Extract all text from this document. Return the text in markdown format, preserving structure and formatting.'
-            }
-          ]
-        }
-      ]
+              text: 'Extract all text from this document. Return the text in markdown format, preserving structure and formatting.',
+            },
+          ],
+        },
+      ],
     });
 
     if (!response?.pages || response.pages.length === 0) {
@@ -231,7 +228,9 @@ async function processOCRWithFileId(
       throw new Error('No text extracted from document');
     }
 
-    console.log(`[OcrService] OCR processing successful: ${response.pages.length} pages, ${allText.length} characters`);
+    console.log(
+      `[OcrService] OCR processing successful: ${response.pages.length} pages, ${allText.length} characters`
+    );
 
     return {
       text: allText,
@@ -240,8 +239,8 @@ async function processOCRWithFileId(
       confidence: response.confidence || 0.9,
       stats: {
         pages: response.pages.length,
-        method: 'mistral-pixtral'
-      }
+        method: 'mistral-pixtral',
+      },
     };
   } catch (error) {
     console.error('[OcrService] OCR processing failed:', (error as Error).message);

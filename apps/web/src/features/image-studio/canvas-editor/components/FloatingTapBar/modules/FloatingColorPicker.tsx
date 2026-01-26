@@ -1,85 +1,94 @@
 import React from 'react';
+
 import { BRAND_COLORS } from '../../../utils/shapes';
 import '../FloatingTapBar.css';
 
 interface FloatingColorPickerProps {
-    currentColor: string;
-    onColorSelect: (color: string) => void;
-    isExpanded?: boolean;
-    onExpandChange?: (expanded: boolean) => void;
+  currentColor: string;
+  onColorSelect: (color: string) => void;
+  isExpanded?: boolean;
+  onExpandChange?: (expanded: boolean) => void;
+  colors?: typeof BRAND_COLORS;
 }
 
-export function FloatingColorPicker({ currentColor, onColorSelect, isExpanded: externalExpanded, onExpandChange }: FloatingColorPickerProps) {
-    const [internalExpanded, setInternalExpanded] = React.useState(false);
-    const isExpanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
-    const setIsExpanded = onExpandChange || setInternalExpanded;
-    const containerRef = React.useRef<HTMLDivElement>(null);
+export function FloatingColorPicker({
+  currentColor,
+  onColorSelect,
+  isExpanded: externalExpanded,
+  onExpandChange,
+  colors,
+}: FloatingColorPickerProps) {
+  const colorOptions = colors ?? BRAND_COLORS;
+  const [internalExpanded, setInternalExpanded] = React.useState(false);
+  const isExpanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
+  const setIsExpanded = onExpandChange || setInternalExpanded;
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
-    // Auto-collapse on click outside
-    React.useEffect(() => {
-        if (!isExpanded) return;
+  // Auto-collapse on click outside
+  React.useEffect(() => {
+    if (!isExpanded) return;
 
-        const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsExpanded(false);
-            }
-        };
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsExpanded(false);
+      }
+    };
 
-        const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setIsExpanded(false);
-            }
-        };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsExpanded(false);
+      }
+    };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('keydown', handleEscape);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-            document.removeEventListener('keydown', handleEscape);
-        };
-    }, [isExpanded]);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isExpanded]);
 
-    // Reset state if current color changes externally (optional, but good for sync)
-    // Actually, we probably want to keep it as is unless explicitly closed.
+  // Reset state if current color changes externally (optional, but good for sync)
+  // Actually, we probably want to keep it as is unless explicitly closed.
 
-    if (!isExpanded) {
-        return (
-            <div className="floating-color-picker floating-color-picker--collapsed" ref={containerRef}>
-                <button
-                    className="floating-color-btn floating-color-trigger"
-                    style={{ backgroundColor: currentColor }}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setIsExpanded(true);
-                    }}
-                    title="Farbe ändern"
-                    type="button"
-                    aria-expanded="false"
-                    aria-label="Farbpalette öffnen"
-                />
-            </div>
-        );
-    }
-
+  if (!isExpanded) {
     return (
-        <div className="floating-color-picker floating-color-picker--expanded" ref={containerRef}>
-            {BRAND_COLORS.map((color) => (
-                <button
-                    key={color.id}
-                    className={`floating-color-btn ${currentColor === color.value ? 'floating-color-btn--active' : ''}`}
-                    style={{ backgroundColor: color.value }}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onColorSelect(color.value);
-                        // Optional: Close on select? Or keep open for browsing?
-                        // "Best Practice" usually allows rapid browsing, so keeping open is better.
-                        // Can click trigger (which is now part of the list if we render it differently, or just the list itself) to close?
-                        // Let's rely on click-outside to close for a better UX.
-                    }}
-                    title={color.name}
-                    type="button"
-                />
-            ))}
-        </div>
+      <div className="floating-color-picker floating-color-picker--collapsed" ref={containerRef}>
+        <button
+          className="floating-color-btn floating-color-trigger"
+          style={{ backgroundColor: currentColor }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(true);
+          }}
+          title="Farbe ändern"
+          type="button"
+          aria-expanded="false"
+          aria-label="Farbpalette öffnen"
+        />
+      </div>
     );
+  }
+
+  return (
+    <div className="floating-color-picker floating-color-picker--expanded" ref={containerRef}>
+      {colorOptions.map((color) => (
+        <button
+          key={color.id}
+          className={`floating-color-btn ${currentColor === color.value ? 'floating-color-btn--active' : ''}`}
+          style={{ backgroundColor: color.value }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onColorSelect(color.value);
+            // Optional: Close on select? Or keep open for browsing?
+            // "Best Practice" usually allows rapid browsing, so keeping open is better.
+            // Can click trigger (which is now part of the list if we render it differently, or just the list itself) to close?
+            // Let's rely on click-outside to close for a better UX.
+          }}
+          title={color.name}
+          type="button"
+        />
+      ))}
+    </div>
+  );
 }

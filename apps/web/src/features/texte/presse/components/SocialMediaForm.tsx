@@ -1,5 +1,6 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
+
 import { FormTextarea } from '../../../../components/common/Form/Input';
 import { FORM_PLACEHOLDERS } from '../../../../components/utils/constants';
 
@@ -66,11 +67,11 @@ const SocialMediaForm = forwardRef<SocialMediaFormRef, SocialMediaFormProps>(
     const {
       control,
       getValues,
-      formState: { errors }
+      formState: { errors },
     } = useForm<SocialMediaFormData>({
       defaultValues: {
-        inhalt: defaultValues.inhalt || ''
-      }
+        inhalt: defaultValues.inhalt || '',
+      },
     });
 
     // Expose form data and validation to parent component
@@ -80,14 +81,14 @@ const SocialMediaForm = forwardRef<SocialMediaFormRef, SocialMediaFormProps>(
         getFormData: () => {
           const formData = getValues();
           return {
-            inhalt: formData.inhalt || ''
+            inhalt: formData.inhalt || '',
           };
         },
         isValid: () => {
           const formData = getValues();
           const hasContent = formData.inhalt && formData.inhalt.trim().length > 0;
           return Boolean(hasContent);
-        }
+        },
       }),
       [getValues]
     );

@@ -97,11 +97,11 @@ const useFormStateStore = create<FormStateStore>()(
       isActive: false,
       isSearching: false,
       statusMessage: '',
-      enabled: false
+      enabled: false,
     },
     privacyModeConfig: {
       isActive: false,
-      enabled: false
+      enabled: false,
     },
 
     // Feature presentation mode
@@ -123,78 +123,79 @@ const useFormStateStore = create<FormStateStore>()(
     setSaveLoading: (saveLoading) => set({ saveLoading }),
 
     // Clear all form state
-    clearFormState: () => set({
-      loading: false,
-      success: false,
-      error: null,
-      formErrors: {},
-      saveLoading: false
-    }),
+    clearFormState: () =>
+      set({
+        loading: false,
+        success: false,
+        error: null,
+        formErrors: {},
+        saveLoading: false,
+      }),
 
     // Actions for web search
-    setWebSearchActive: (isActive) => 
+    setWebSearchActive: (isActive) =>
       set((state) => ({
         webSearchConfig: {
           ...state.webSearchConfig,
-          isActive
-        }
+          isActive,
+        },
       })),
-    
+
     setWebSearchSearching: (isSearching) =>
       set((state) => ({
         webSearchConfig: {
           ...state.webSearchConfig,
-          isSearching
-        }
+          isSearching,
+        },
       })),
 
     setWebSearchStatusMessage: (statusMessage) =>
       set((state) => ({
         webSearchConfig: {
           ...state.webSearchConfig,
-          statusMessage
-        }
+          statusMessage,
+        },
       })),
 
     setWebSearchEnabled: (enabled) =>
       set((state) => ({
         webSearchConfig: {
           ...state.webSearchConfig,
-          enabled
-        }
+          enabled,
+        },
       })),
 
     toggleWebSearch: () =>
       set((state) => ({
         webSearchConfig: {
           ...state.webSearchConfig,
-          isActive: !state.webSearchConfig.isActive
-        }
+          isActive: !state.webSearchConfig.isActive,
+        },
       })),
 
     // Actions for privacy mode
-    setPrivacyModeActive: (isActive) => 
+    setPrivacyModeActive: (isActive) =>
       set((state) => ({
         privacyModeConfig: {
           ...state.privacyModeConfig,
-          isActive
-        }
+          isActive,
+        },
       })),
 
     setPrivacyModeEnabled: (enabled) =>
       set((state) => ({
         privacyModeConfig: {
           ...state.privacyModeConfig,
-          enabled
-        }
+          enabled,
+        },
       })),
 
     togglePrivacyMode: () =>
       set((state) => ({
         privacyModeConfig: {
           ...state.privacyModeConfig,
-          isActive: !state.privacyModeConfig.isActive
-        }
+          isActive: !state.privacyModeConfig.isActive,
+        },
       })),
 
     // Actions for feature presentation
@@ -202,13 +203,13 @@ const useFormStateStore = create<FormStateStore>()(
 
     // Actions for file attachments
     setAttachedFiles: (attachedFiles) => set({ attachedFiles }),
-    addAttachedFile: (file) => 
+    addAttachedFile: (file) =>
       set((state) => ({
-        attachedFiles: [...state.attachedFiles, file]
+        attachedFiles: [...state.attachedFiles, file],
       })),
     removeAttachedFile: (fileIndex) =>
       set((state) => ({
-        attachedFiles: state.attachedFiles.filter((_, index) => index !== fileIndex)
+        attachedFiles: state.attachedFiles.filter((_, index) => index !== fileIndex),
       })),
     clearAttachedFiles: () => set({ attachedFiles: [] }),
 
@@ -220,28 +221,29 @@ const useFormStateStore = create<FormStateStore>()(
     toggleFormVisibility: () => set((state) => ({ isFormVisible: !state.isFormVisible })),
 
     // Reset all form state to initial values
-    resetFormState: () => set({
-      loading: false,
-      success: false,
-      error: null,
-      formErrors: {},
-      saveLoading: false,
-      webSearchConfig: {
-        isActive: false,
-        isSearching: false,
-        statusMessage: '',
-        enabled: false
-      },
-      privacyModeConfig: {
-        isActive: false,
-        enabled: false
-      },
-      useFeatureIcons: false,
-      attachedFiles: [],
-      uploadedImage: null,
-      isFormVisible: true,
-      isStartMode: false
-    }),
+    resetFormState: () =>
+      set({
+        loading: false,
+        success: false,
+        error: null,
+        formErrors: {},
+        saveLoading: false,
+        webSearchConfig: {
+          isActive: false,
+          isSearching: false,
+          statusMessage: '',
+          enabled: false,
+        },
+        privacyModeConfig: {
+          isActive: false,
+          enabled: false,
+        },
+        useFeatureIcons: false,
+        attachedFiles: [],
+        uploadedImage: null,
+        isFormVisible: true,
+        isStartMode: false,
+      }),
 
     // Helper selectors
     getFormSubmissionState: () => {
@@ -251,7 +253,7 @@ const useFormStateStore = create<FormStateStore>()(
         success: state.success,
         error: state.error,
         formErrors: state.formErrors,
-        saveLoading: state.saveLoading
+        saveLoading: state.saveLoading,
       };
     },
 
@@ -260,7 +262,7 @@ const useFormStateStore = create<FormStateStore>()(
       return {
         webSearchConfig: state.webSearchConfig,
         privacyModeConfig: state.privacyModeConfig,
-        useFeatureIcons: state.useFeatureIcons
+        useFeatureIcons: state.useFeatureIcons,
       };
     },
 
@@ -268,9 +270,9 @@ const useFormStateStore = create<FormStateStore>()(
       const state = get();
       return {
         attachedFiles: state.attachedFiles,
-        uploadedImage: state.uploadedImage
+        uploadedImage: state.uploadedImage,
       };
-    }
+    },
   }))
 );
 

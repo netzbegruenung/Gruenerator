@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+
 import apiClient from '../../../components/utils/apiClient';
 
 export interface RecentGalleryItemMetadata {
@@ -39,14 +40,18 @@ export const useRecentGalleryItems = (
   const { limit = 6, cacheTimeout = 5 * 60 * 1000 } = options;
 
   const [initialCache] = useState(() => {
-    if (typeof window === 'undefined') return { items: [] as RecentGalleryItem[], timestamp: null as number | null };
+    if (typeof window === 'undefined')
+      return { items: [] as RecentGalleryItem[], timestamp: null as number | null };
     try {
       const cachedData = localStorage.getItem(CACHE_KEY);
       if (cachedData) {
         const parsed = JSON.parse(cachedData);
         const age = Date.now() - parsed.timestamp;
         if (age < cacheTimeout) {
-          return { items: (parsed.items || []) as RecentGalleryItem[], timestamp: parsed.timestamp as number };
+          return {
+            items: (parsed.items || []) as RecentGalleryItem[],
+            timestamp: parsed.timestamp as number,
+          };
         }
       }
     } catch {
@@ -66,23 +71,28 @@ export const useRecentGalleryItems = (
 
     try {
       const response = await apiClient.get(`/share/recent?limit=${limit}`, {
-        skipAuthRedirect: true
+        skipAuthRedirect: true,
       } as Record<string, unknown>);
 
       if (response.data?.success && response.data?.shares) {
-        const recentItems: RecentGalleryItem[] = response.data.shares.map((share: Record<string, unknown>) => ({
-          shareToken: share.shareToken as string,
-          title: share.title as string,
-          thumbnailPath: share.thumbnailPath as string | undefined,
-          createdAt: share.createdAt as string,
-          imageMetadata: share.imageMetadata as RecentGalleryItemMetadata | undefined
-        }));
+        const recentItems: RecentGalleryItem[] = response.data.shares.map(
+          (share: Record<string, unknown>) => ({
+            shareToken: share.shareToken as string,
+            title: share.title as string,
+            thumbnailPath: share.thumbnailPath as string | undefined,
+            createdAt: share.createdAt as string,
+            imageMetadata: share.imageMetadata as RecentGalleryItemMetadata | undefined,
+          })
+        );
 
         setItems(recentItems);
-        localStorage.setItem(CACHE_KEY, JSON.stringify({
-          items: recentItems,
-          timestamp: Date.now()
-        }));
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({
+            items: recentItems,
+            timestamp: Date.now(),
+          })
+        );
         setLastFetch(Date.now());
       } else {
         setItems([]);
@@ -120,7 +130,7 @@ export const useRecentGalleryItems = (
     error,
     refresh,
     isEmpty: items.length === 0,
-    lastFetch
+    lastFetch,
   };
 };
 

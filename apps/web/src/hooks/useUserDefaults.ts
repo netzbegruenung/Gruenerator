@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+
 import { useUserDefaultsStore } from '../stores/userDefaultsStore';
 
 // Types for user defaults store
@@ -62,7 +63,7 @@ export const useUserDefaults = <T = unknown>(generator: string): UseUserDefaults
     get,
     set,
     isLoading,
-    isHydrated
+    isHydrated,
   };
 };
 

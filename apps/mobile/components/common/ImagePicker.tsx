@@ -136,9 +136,7 @@ export function ImagePicker({
       </View>
 
       <Text style={styles.title}>Bild auswählen</Text>
-      <Text style={styles.subtitle}>
-        Wähle ein Bild aus deiner Galerie oder nimm ein Foto auf
-      </Text>
+      <Text style={styles.subtitle}>Wähle ein Bild aus deiner Galerie oder nimm ein Foto auf</Text>
 
       <View style={styles.buttonContainer}>
         <Pressable style={styles.optionButton} onPress={pickImage}>

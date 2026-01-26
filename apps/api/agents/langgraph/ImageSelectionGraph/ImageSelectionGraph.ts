@@ -5,7 +5,7 @@
  * 2. AI selects best image directly from all descriptions
  */
 
-import { StateGraph, Annotation } from "@langchain/langgraph";
+import { StateGraph, Annotation } from '@langchain/langgraph';
 import type { ImageSelectionState, ImageSelectionInput, ImageSelectionOutput } from './types.js';
 import { loadCatalogNode } from './nodes/LoadCatalogNode.js';
 import { selectImageNode } from './nodes/SelectImageNode.js';
@@ -57,11 +57,11 @@ const ImageSelectionStateAnnotation = Annotation.Root({
  */
 function createImageSelectionGraph() {
   const workflow = new StateGraph(ImageSelectionStateAnnotation)
-    .addNode("loadCatalog", loadCatalogNode as any)
-    .addNode("selectImage", selectImageNode as any)
-    .addEdge("__start__", "loadCatalog")
-    .addEdge("loadCatalog", "selectImage")
-    .addEdge("selectImage", "__end__");
+    .addNode('loadCatalog', loadCatalogNode as any)
+    .addNode('selectImage', selectImageNode as any)
+    .addEdge('__start__', 'loadCatalog')
+    .addEdge('loadCatalog', 'selectImage')
+    .addEdge('selectImage', '__end__');
 
   return workflow.compile();
 }
@@ -73,12 +73,7 @@ export const imageSelectionGraph = createImageSelectionGraph();
  * Execute image selection using the graph
  */
 export async function runImageSelection(input: ImageSelectionInput): Promise<ImageSelectionOutput> {
-  const {
-    text,
-    sharepicType,
-    aiWorkerPool,
-    req
-  } = input;
+  const { text, sharepicType, aiWorkerPool, req } = input;
 
   console.log(`[ImageSelectionGraph] Starting image selection for: "${text.substring(0, 50)}..."`);
 
@@ -88,7 +83,7 @@ export async function runImageSelection(input: ImageSelectionInput): Promise<Ima
       sharepicType,
       aiWorkerPool,
       req,
-      metadata: {}
+      metadata: {},
     };
 
     const result = await imageSelectionGraph.invoke(initialState);
@@ -98,7 +93,7 @@ export async function runImageSelection(input: ImageSelectionInput): Promise<Ima
       return {
         status: 'error',
         error: result.error,
-        metadata: result.metadata
+        metadata: result.metadata,
       };
     }
 
@@ -108,9 +103,8 @@ export async function runImageSelection(input: ImageSelectionInput): Promise<Ima
       confidence: result.confidence,
       reasoning: result.reasoning,
       alternatives: result.alternatives,
-      metadata: result.metadata
+      metadata: result.metadata,
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[ImageSelectionGraph] Execution error:', errorMessage);
@@ -119,8 +113,8 @@ export async function runImageSelection(input: ImageSelectionInput): Promise<Ima
       status: 'error',
       error: errorMessage,
       metadata: {
-        selectionMethod: 'error_fallback'
-      }
+        selectionMethod: 'error_fallback',
+      },
     };
   }
 }

@@ -1,13 +1,30 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { FiPlay, FiPause, FiScissors, FiRotateCcw, FiRotateCw, FiType, FiRefreshCw, FiAlertTriangle, FiPlus, FiFilm, FiDownload, FiX, FiCheck } from 'react-icons/fi';
+import {
+  FiPlay,
+  FiPause,
+  FiScissors,
+  FiRotateCcw,
+  FiRotateCw,
+  FiType,
+  FiRefreshCw,
+  FiAlertTriangle,
+  FiPlus,
+  FiFilm,
+  FiDownload,
+  FiX,
+  FiCheck,
+} from 'react-icons/fi';
 import { HiCog } from 'react-icons/hi';
+
 import Spinner from '../../../../components/common/Spinner';
-import VideoEditorPlayer from './VideoEditorPlayer';
-import Timeline from './Timeline';
+import useSubtitlerExportStore from '../../../../stores/subtitlerExportStore';
+import useVideoEditorStore from '../../../../stores/videoEditorStore';
+
 import ClipPanel from './ClipPanel';
 import TextOverlayPanel from './TextOverlayPanel';
-import useVideoEditorStore from '../../../../stores/videoEditorStore';
-import useSubtitlerExportStore from '../../../../stores/subtitlerExportStore';
+import Timeline from './Timeline';
+import VideoEditorPlayer from './VideoEditorPlayer';
+
 import '../../../../assets/styles/components/ui/button.css';
 import '../../styles/SubtitleEditor.css';
 import './VideoEditor.css';
@@ -34,7 +51,7 @@ const getVideoMetadataFromFile = (file: File): Promise<VideoMetadata> => {
         duration: video.duration,
         width: video.videoWidth,
         height: video.videoHeight,
-        fps: 30
+        fps: 30,
       });
       URL.revokeObjectURL(video.src);
     };
@@ -114,7 +131,7 @@ const VideoEditor = ({
   stylePreference,
   heightPreference,
   onSubtitleClick,
-  onSubtitleUpdate
+  onSubtitleUpdate,
 }: VideoEditorProps) => {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [showClipPanel, setShowClipPanel] = useState(true);
@@ -136,8 +153,8 @@ const VideoEditor = ({
         color: 'var(--font-color)',
         textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
         padding: '0',
-        borderRadius: '0'
-      }
+        borderRadius: '0',
+      },
     },
     {
       id: 'standard',
@@ -147,8 +164,8 @@ const VideoEditor = ({
         color: '#ffffff',
         textShadow: 'none',
         padding: '0.25em 0.5em',
-        borderRadius: '0.2em'
-      }
+        borderRadius: '0.2em',
+      },
     },
     {
       id: 'clean',
@@ -158,8 +175,8 @@ const VideoEditor = ({
         color: 'var(--font-color)',
         textShadow: 'none',
         padding: '0',
-        borderRadius: '0'
-      }
+        borderRadius: '0',
+      },
     },
     {
       id: 'tanne',
@@ -169,19 +186,19 @@ const VideoEditor = ({
         color: '#ffffff',
         textShadow: 'none',
         padding: '0.3em 0.6em',
-        borderRadius: '0.2em'
-      }
-    }
+        borderRadius: '0.2em',
+      },
+    },
   ];
 
   const heightOptions = [
     { id: 'tief', name: 'Tiefer', subtitle: 'Standard' },
-    { id: 'standard', name: 'Mittig', subtitle: 'Etwa auf 40% Höhe' }
+    { id: 'standard', name: 'Mittig', subtitle: 'Etwa auf 40% Höhe' },
   ];
 
   const qualityOptions = [
     { id: 'normal', name: 'Standard', subtitle: 'Perfekt für Reels' },
-    { id: 'hd', name: 'Volle Qualität', subtitle: 'Dauert länger' }
+    { id: 'hd', name: 'Volle Qualität', subtitle: 'Dauert länger' },
   ];
 
   const {
@@ -191,7 +208,7 @@ const VideoEditor = ({
     error: exportError,
     startRemotionExport,
     resetExport,
-    downloadCompletedExport
+    downloadCompletedExport,
   } = useSubtitlerExportStore();
 
   const {
@@ -212,19 +229,24 @@ const VideoEditor = ({
     getClipCount,
     hasMultipleClips,
     setClipThumbnail,
-    addTextOverlay
+    addTextOverlay,
   } = useVideoEditorStore();
 
   useEffect(() => {
     if (videoUrl && videoMetadata) {
-      initializeVideo(videoUrl, videoFile, {
-        duration: videoMetadata.duration,
-        fps: 30,
-        width: videoMetadata.width,
-        height: videoMetadata.height
-      }, uploadId);
+      initializeVideo(
+        videoUrl,
+        videoFile,
+        {
+          duration: videoMetadata.duration,
+          fps: 30,
+          width: videoMetadata.width,
+          height: videoMetadata.height,
+        },
+        uploadId
+      );
 
-      generateThumbnail(videoUrl, 1).then(thumbnail => {
+      generateThumbnail(videoUrl, 1).then((thumbnail) => {
         if (thumbnail) {
           const clips = useVideoEditorStore.getState().clips;
           const firstClipId = Object.keys(clips)[0] as string;
@@ -238,7 +260,15 @@ const VideoEditor = ({
     return () => {
       resetEditor();
     };
-  }, [videoUrl, videoFile, videoMetadata, uploadId, initializeVideo, resetEditor, setClipThumbnail]);
+  }, [
+    videoUrl,
+    videoFile,
+    videoMetadata,
+    uploadId,
+    initializeVideo,
+    resetEditor,
+    setClipThumbnail,
+  ]);
 
   useEffect(() => {
     if (onSegmentsChange && segments.length > 0) {
@@ -265,7 +295,7 @@ const VideoEditor = ({
       stylePreference: localStyle,
       heightPreference: localHeight,
       textOverlays: storeState.textOverlays,
-      maxResolution: localQuality === 'normal' ? 1080 : null
+      maxResolution: localQuality === 'normal' ? 1080 : null,
     });
   }, [subtitles, uploadId, localStyle, localHeight, localQuality, segments, startRemotionExport]);
 
@@ -290,36 +320,45 @@ const VideoEditor = ({
     redo();
   }, [redo]);
 
-  const handleAddClip = useCallback(async (file: File) => {
-    if (!file || !file.type.startsWith('video/')) return;
+  const handleAddClip = useCallback(
+    async (file: File) => {
+      if (!file || !file.type.startsWith('video/')) return;
 
-    try {
-      const metadata = await getVideoMetadataFromFile(file);
-      const url = URL.createObjectURL(file);
+      try {
+        const metadata = await getVideoMetadataFromFile(file);
+        const url = URL.createObjectURL(file);
 
-      const clipId = addClip(url, file, metadata, null);
+        const clipId = addClip(url, file, metadata, null);
 
-      // Generate thumbnail asynchronously
-      const thumbnail = await generateThumbnail(url, 1);
-      if (thumbnail && clipId) {
-        setClipThumbnail(clipId, thumbnail as string);
+        // Generate thumbnail asynchronously
+        const thumbnail = await generateThumbnail(url, 1);
+        if (thumbnail && clipId) {
+          setClipThumbnail(clipId, thumbnail as string);
+        }
+      } catch (err) {
+        console.error('Failed to add clip:', err);
       }
-    } catch (err) {
-      console.error('Failed to add clip:', err);
-    }
-  }, [addClip, setClipThumbnail]);
+    },
+    [addClip, setClipThumbnail]
+  );
 
-  const handleClipFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleAddClip(file);
-    }
-    e.target.value = '';
-  }, [handleAddClip]);
+  const handleClipFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleAddClip(file);
+      }
+      e.target.value = '';
+    },
+    [handleAddClip]
+  );
 
-  const handleAddTextOverlay = useCallback((type: 'header' | 'subheader') => {
-    addTextOverlay(type);
-  }, [addTextOverlay]);
+  const handleAddTextOverlay = useCallback(
+    (type: 'header' | 'subheader') => {
+      addTextOverlay(type);
+    },
+    [addTextOverlay]
+  );
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -400,20 +439,28 @@ const VideoEditor = ({
   }
 
   const clipCount = getClipCount();
-  const isVertical = videoMetadata && videoMetadata.width !== undefined && videoMetadata.height !== undefined && videoMetadata.width < videoMetadata.height;
+  const isVertical =
+    videoMetadata &&
+    videoMetadata.width !== undefined &&
+    videoMetadata.height !== undefined &&
+    videoMetadata.width < videoMetadata.height;
 
   const showClipPanelEffective = showClipPanel && clipCount > 1;
 
   return (
-    <div className={`video-editor ${showClipPanelEffective ? 'video-editor--with-panel' : ''} ${isVertical ? 'video-editor--vertical-video' : ''}`}>
+    <div
+      className={`video-editor ${showClipPanelEffective ? 'video-editor--with-panel' : ''} ${isVertical ? 'video-editor--vertical-video' : ''}`}
+    >
       <div className="video-editor__main-row">
         <div className="video-editor__left-column">
           <div className="video-editor__player-section">
-            {showClipPanelEffective && (
-              <ClipPanel />
-            )}
+            {showClipPanelEffective && <ClipPanel />}
             <div className="video-editor__player-wrapper">
-              <VideoEditorPlayer className="video-editor__player" subtitles={subtitles} stylePreference={localStyle} />
+              <VideoEditorPlayer
+                className="video-editor__player"
+                subtitles={subtitles}
+                stylePreference={localStyle}
+              />
               <button
                 className="video-editor__play-overlay"
                 onClick={handlePlayPause}
@@ -459,7 +506,7 @@ const VideoEditor = ({
                 aria-label="Video exportieren"
                 title="Video exportieren"
               >
-                {(exportStatus === 'starting' || exportStatus === 'exporting') ? (
+                {exportStatus === 'starting' || exportStatus === 'exporting' ? (
                   <Spinner size="small" white />
                 ) : (
                   <FiDownload />
@@ -536,7 +583,13 @@ const VideoEditor = ({
                     ) : (
                       <FiType />
                     )}
-                    <span>{isGeneratingSubtitles ? 'Generiere...' : subtitles ? 'Neu generieren' : 'Untertitel'}</span>
+                    <span>
+                      {isGeneratingSubtitles
+                        ? 'Generiere...'
+                        : subtitles
+                          ? 'Neu generieren'
+                          : 'Untertitel'}
+                    </span>
                   </button>
                 )}
               </div>
@@ -547,7 +600,7 @@ const VideoEditor = ({
                 <div className="style-options-compact">
                   <h4>Stil</h4>
                   <div className="style-options-grid style-grid-2x2">
-                    {styleOptions.map(option => (
+                    {styleOptions.map((option) => (
                       <label
                         key={option.id}
                         className={`style-option-card ${localStyle === option.id ? 'selected' : ''}`}
@@ -581,7 +634,7 @@ const VideoEditor = ({
                   <div className="setting-group">
                     <h4>Position</h4>
                     <div className="setting-buttons">
-                      {heightOptions.map(option => (
+                      {heightOptions.map((option) => (
                         <button
                           key={option.id}
                           type="button"
@@ -589,7 +642,9 @@ const VideoEditor = ({
                           onClick={() => handleLocalHeightChange(option.id)}
                         >
                           <span className="setting-button-title">{option.name}</span>
-                          {option.subtitle && <span className="setting-button-subtitle">{option.subtitle}</span>}
+                          {option.subtitle && (
+                            <span className="setting-button-subtitle">{option.subtitle}</span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -597,7 +652,7 @@ const VideoEditor = ({
                   <div className="setting-group">
                     <h4>Qualität</h4>
                     <div className="setting-buttons">
-                      {qualityOptions.map(option => (
+                      {qualityOptions.map((option) => (
                         <button
                           key={option.id}
                           type="button"
@@ -605,7 +660,9 @@ const VideoEditor = ({
                           onClick={() => handleLocalQualityChange(option.id)}
                         >
                           <span className="setting-button-title">{option.name}</span>
-                          {option.subtitle && <span className="setting-button-subtitle">{option.subtitle}</span>}
+                          {option.subtitle && (
+                            <span className="setting-button-subtitle">{option.subtitle}</span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -637,10 +694,7 @@ const VideoEditor = ({
       </div>
 
       {editingOverlayId !== null && (
-        <TextOverlayPanel
-          overlayId={editingOverlayId}
-          onClose={() => setEditingOverlayId(null)}
-        />
+        <TextOverlayPanel overlayId={editingOverlayId} onClose={() => setEditingOverlayId(null)} />
       )}
 
       <input
@@ -652,8 +706,14 @@ const VideoEditor = ({
       />
 
       {showRegenerateConfirm && (
-        <div className="video-editor__confirm-overlay" onClick={() => setShowRegenerateConfirm(false)}>
-          <div className="video-editor__confirm-popup" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+        <div
+          className="video-editor__confirm-overlay"
+          onClick={() => setShowRegenerateConfirm(false)}
+        >
+          <div
+            className="video-editor__confirm-popup"
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
             <div className="video-editor__confirm-icon">
               <FiAlertTriangle />
             </div>
@@ -665,10 +725,7 @@ const VideoEditor = ({
               Bitte nur neu generieren, wenn das Video fertig geschnitten ist.
             </p>
             <div className="video-editor__confirm-actions">
-              <button
-                className="btn-secondary"
-                onClick={() => setShowRegenerateConfirm(false)}
-              >
+              <button className="btn-secondary" onClick={() => setShowRegenerateConfirm(false)}>
                 Abbrechen
               </button>
               <button
@@ -688,7 +745,10 @@ const VideoEditor = ({
 
       {showExportModal && (
         <div className="video-editor__export-modal-overlay" onClick={handleCloseExportModal}>
-          <div className="video-editor__export-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+          <div
+            className="video-editor__export-modal"
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
             <button className="video-editor__export-modal-close" onClick={handleCloseExportModal}>
               <FiX />
             </button>

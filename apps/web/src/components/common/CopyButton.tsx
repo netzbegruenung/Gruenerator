@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
+
 import { copyFormattedContent } from '../utils/commonFunctions';
 
 export type CopyButtonVariant = 'default' | 'icon';
@@ -19,7 +20,7 @@ const CopyButton = ({
   variant = 'default',
   className = '',
   content,
-  directContent
+  directContent,
 }: CopyButtonProps) => {
   const [isCopied, setIsCopied] = useState(false);
   const isMobileView = window.innerWidth <= 768;
@@ -56,7 +57,7 @@ const CopyButton = ({
         aria-label={isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren'}
         {...(!isMobileView && {
           'data-tooltip-id': 'action-tooltip',
-          'data-tooltip-content': isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren'
+          'data-tooltip-content': isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren',
         })}
       >
         {isCopied ? <IoCheckmarkOutline size={16} /> : <IoCopyOutline size={16} />}

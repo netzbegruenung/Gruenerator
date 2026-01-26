@@ -4,19 +4,18 @@
  */
 
 import { useMemo, useEffect, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useEvent } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../../theme';
 import { SubtitleOverlay } from './SubtitleOverlay';
 import { secureStorage } from '../../services/storage';
-import type { SubtitleSegment, SubtitleStylePreference, SubtitleHeightPreference } from '@gruenerator/shared/subtitle-editor';
+import type {
+  SubtitleSegment,
+  SubtitleStylePreference,
+  SubtitleHeightPreference,
+} from '@gruenerator/shared/subtitle-editor';
 
 interface VideoPreviewWithSubtitleProps {
   videoUri: string;
@@ -119,12 +118,7 @@ function VideoPlayer({ source, onTogglePlayback, isPlaying }: VideoPlayerProps) 
 
   return (
     <>
-      <VideoView
-        player={player}
-        style={styles.video}
-        contentFit="contain"
-        nativeControls={false}
-      />
+      <VideoView player={player} style={styles.video} contentFit="contain" nativeControls={false} />
       <Pressable style={styles.playOverlay} onPress={onTogglePlayback}>
         {!isPlaying && (
           <View style={styles.playButton}>

@@ -9,12 +9,7 @@
 import { useState, useCallback } from 'react';
 import { mediaApi } from '../api/index.js';
 import { DEFAULT_PAGINATION } from '../constants.js';
-import type {
-  MediaItem,
-  MediaFilters,
-  MediaPagination,
-  MediaListResponse,
-} from '../types.js';
+import type { MediaItem, MediaFilters, MediaPagination, MediaListResponse } from '../types.js';
 
 interface UseMediaLibraryOptions {
   initialFilters?: MediaFilters;
@@ -63,7 +58,7 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
       const response: MediaListResponse = await mediaApi.getMediaLibrary(currentFilters);
 
       if (response.success) {
-        setItems(prev => append ? [...prev, ...response.data] : response.data);
+        setItems((prev) => (append ? [...prev, ...response.data] : response.data));
         setPagination(response.pagination);
       } else {
         throw new Error(response.error || 'Failed to fetch media');
@@ -76,11 +71,14 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
     }
   }, []);
 
-  const setFilters = useCallback((newFilters: Partial<MediaFilters>) => {
-    const updatedFilters = { ...filters, ...newFilters, offset: 0 };
-    setFiltersState(updatedFilters);
-    fetchMedia(updatedFilters);
-  }, [filters, fetchMedia]);
+  const setFilters = useCallback(
+    (newFilters: Partial<MediaFilters>) => {
+      const updatedFilters = { ...filters, ...newFilters, offset: 0 };
+      setFiltersState(updatedFilters);
+      fetchMedia(updatedFilters);
+    },
+    [filters, fetchMedia]
+  );
 
   const refetch = useCallback(async () => {
     await fetchMedia({ ...filters, offset: 0 });
@@ -99,8 +97,8 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
     try {
       const response = await mediaApi.deleteMedia(id);
       if (response.success) {
-        setItems(prev => prev.filter(item => item.id !== id));
-        setPagination(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+        setItems((prev) => prev.filter((item) => item.id !== id));
+        setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
         return true;
       }
       return false;
@@ -109,27 +107,31 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
     }
   }, []);
 
-  const updateItem = useCallback(async (
-    id: string,
-    updates: { title?: string; altText?: string }
-  ): Promise<boolean> => {
-    try {
-      const response = await mediaApi.updateMedia(id, updates);
-      if (response.success) {
-        setItems(prev =>
-          prev.map(item =>
-            item.id === id
-              ? { ...item, title: updates.title ?? item.title, altText: updates.altText ?? item.altText }
-              : item
-          )
-        );
-        return true;
+  const updateItem = useCallback(
+    async (id: string, updates: { title?: string; altText?: string }): Promise<boolean> => {
+      try {
+        const response = await mediaApi.updateMedia(id, updates);
+        if (response.success) {
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === id
+                ? {
+                    ...item,
+                    title: updates.title ?? item.title,
+                    altText: updates.altText ?? item.altText,
+                  }
+                : item
+            )
+          );
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
       }
-      return false;
-    } catch {
-      return false;
-    }
-  }, []);
+    },
+    []
+  );
 
   return {
     items,

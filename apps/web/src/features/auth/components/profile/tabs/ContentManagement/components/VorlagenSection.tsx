@@ -1,52 +1,63 @@
 import React, { useState, useCallback, memo, useMemo } from 'react';
-import { HiPlus, HiExternalLink, HiOutlineTrash, HiOutlineEye, HiOutlineEyeOff, HiOutlinePencil } from 'react-icons/hi';
+import {
+  HiPlus,
+  HiExternalLink,
+  HiOutlineTrash,
+  HiOutlineEye,
+  HiOutlineEyeOff,
+  HiOutlinePencil,
+} from 'react-icons/hi';
 
-import DocumentOverview, { type DocumentItem } from '../../../../../../../components/common/DocumentOverview';
 import AddTemplateModal from '../../../../../../../components/common/AddTemplateModal/AddTemplateModal';
+import DocumentOverview, {
+  type DocumentItem,
+} from '../../../../../../../components/common/DocumentOverview';
 import EditTemplateModal from '../../../../../../../components/common/EditTemplateModal';
 import { useUserTemplates } from '../../../../../hooks/useProfileData';
 
 interface Template extends DocumentItem {
-    id: string;
-    title: string;
-    is_private?: boolean;
-    template_type?: string;
-    external_url?: string;
-    content_data?: {
-        originalUrl?: string;
-    };
+  id: string;
+  title: string;
+  is_private?: boolean;
+  template_type?: string;
+  external_url?: string;
+  content_data?: {
+    originalUrl?: string;
+  };
 }
 
 interface ActionItem {
-    icon?: React.ComponentType<{ className?: string }>;
-    label?: string;
-    onClick?: () => void;
-    loading?: boolean;
-    danger?: boolean;
-    separator?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
+  label?: string;
+  onClick?: () => void;
+  loading?: boolean;
+  danger?: boolean;
+  separator?: boolean;
 }
 
 interface VorlagenSectionProps {
-    isActive: boolean;
-    onSuccessMessage: (message: string) => void;
-    onErrorMessage: (message: string) => void;
+  isActive: boolean;
+  onSuccessMessage: (message: string) => void;
+  onErrorMessage: (message: string) => void;
 }
 
 // Static constants moved outside component
 const EMPTY_STATE_CONFIG = {
-    noDocuments: 'Du hast noch keine Vorlagen gespeichert.',
-    createMessage: 'Füge Canva-Vorlagen über den Button oben hinzu oder durchsuche die öffentliche Galerie.'
+  noDocuments: 'Du hast noch keine Vorlagen gespeichert.',
+  createMessage:
+    'Füge Canva-Vorlagen über den Button oben hinzu oder durchsuche die öffentliche Galerie.',
 } as const;
 
-const VorlagenSection = memo(({ isActive, onSuccessMessage, onErrorMessage }: VorlagenSectionProps): React.ReactElement => {
+const VorlagenSection = memo(
+  ({ isActive, onSuccessMessage, onErrorMessage }: VorlagenSectionProps): React.ReactElement => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
 
     const {
-        query: templatesQuery,
-        deleteTemplate,
-        updateTemplateVisibility,
-        updateTemplate
+      query: templatesQuery,
+      deleteTemplate,
+      updateTemplateVisibility,
+      updateTemplate,
     } = useUserTemplates({ isActive });
 
     const { data: templatesData = [], isLoading } = templatesQuery;
@@ -55,94 +66,109 @@ const VorlagenSection = memo(({ isActive, onSuccessMessage, onErrorMessage }: Vo
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [togglingVisibilityId, setTogglingVisibilityId] = useState<string | null>(null);
 
-    const handleDeleteWithConfirm = useCallback(async (template: Template) => {
+    const handleDeleteWithConfirm = useCallback(
+      async (template: Template) => {
         if (!window.confirm(`Möchtest du die Vorlage "${template.title}" wirklich löschen?`)) {
-            return;
+          return;
         }
         setDeletingId(template.id);
         try {
-            await deleteTemplate(template.id);
-            onSuccessMessage('Vorlage wurde gelöscht.');
+          await deleteTemplate(template.id);
+          onSuccessMessage('Vorlage wurde gelöscht.');
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            onErrorMessage('Fehler beim Löschen: ' + errorMessage);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          onErrorMessage('Fehler beim Löschen: ' + errorMessage);
         } finally {
-            setDeletingId(null);
+          setDeletingId(null);
         }
-    }, [deleteTemplate, onSuccessMessage, onErrorMessage]);
+      },
+      [deleteTemplate, onSuccessMessage, onErrorMessage]
+    );
 
-    const handleToggleVisibility = useCallback(async (template: Template) => {
+    const handleToggleVisibility = useCallback(
+      async (template: Template) => {
         const newIsPrivate = !template.is_private;
         setTogglingVisibilityId(template.id);
         try {
-            await updateTemplateVisibility(template.id, newIsPrivate);
-            onSuccessMessage(newIsPrivate ? 'Vorlage ist jetzt privat.' : 'Vorlage wurde veröffentlicht.');
+          await updateTemplateVisibility(template.id, newIsPrivate);
+          onSuccessMessage(
+            newIsPrivate ? 'Vorlage ist jetzt privat.' : 'Vorlage wurde veröffentlicht.'
+          );
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            onErrorMessage('Fehler beim Ändern der Sichtbarkeit: ' + errorMessage);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          onErrorMessage('Fehler beim Ändern der Sichtbarkeit: ' + errorMessage);
         } finally {
-            setTogglingVisibilityId(null);
+          setTogglingVisibilityId(null);
         }
-    }, [updateTemplateVisibility, onSuccessMessage, onErrorMessage]);
+      },
+      [updateTemplateVisibility, onSuccessMessage, onErrorMessage]
+    );
 
-    const handleSaveTemplate = useCallback(async (templateId: string, data: Partial<Template>) => {
+    const handleSaveTemplate = useCallback(
+      async (templateId: string, data: Partial<Template>) => {
         await updateTemplate(templateId, data);
-    }, [updateTemplate]);
+      },
+      [updateTemplate]
+    );
 
-    const getTemplateActionItems = useCallback((item: DocumentItem): ActionItem[] => {
+    const getTemplateActionItems = useCallback(
+      (item: DocumentItem): ActionItem[] => {
         const template = item as Template;
         const actions: ActionItem[] = [];
 
         actions.push({
-            icon: HiOutlinePencil,
-            label: 'Bearbeiten',
-            onClick: () => setEditingTemplate(template)
+          icon: HiOutlinePencil,
+          label: 'Bearbeiten',
+          onClick: () => setEditingTemplate(template),
         });
 
         if (template.external_url || template.content_data?.originalUrl) {
-            actions.push({
-                icon: HiExternalLink,
-                label: 'In Canva öffnen',
-                onClick: () => window.open(template.content_data?.originalUrl || template.external_url, '_blank')
-            });
+          actions.push({
+            icon: HiExternalLink,
+            label: 'In Canva öffnen',
+            onClick: () =>
+              window.open(template.content_data?.originalUrl || template.external_url, '_blank'),
+          });
         }
 
         actions.push({
-            icon: template.is_private ? HiOutlineEye : HiOutlineEyeOff,
-            label: template.is_private ? 'Veröffentlichen' : 'Privat machen',
-            onClick: () => handleToggleVisibility(template),
-            loading: togglingVisibilityId === template.id
+          icon: template.is_private ? HiOutlineEye : HiOutlineEyeOff,
+          label: template.is_private ? 'Veröffentlichen' : 'Privat machen',
+          onClick: () => void handleToggleVisibility(template),
+          loading: togglingVisibilityId === template.id,
         });
 
         actions.push({ separator: true });
 
         actions.push({
-            icon: HiOutlineTrash,
-            label: 'Löschen',
-            onClick: () => handleDeleteWithConfirm(template),
-            danger: true,
-            loading: deletingId === template.id
+          icon: HiOutlineTrash,
+          label: 'Löschen',
+          onClick: () => void handleDeleteWithConfirm(template),
+          danger: true,
+          loading: deletingId === template.id,
         });
 
         return actions;
-    }, [deletingId, togglingVisibilityId, handleDeleteWithConfirm, handleToggleVisibility]);
+      },
+      [deletingId, togglingVisibilityId, handleDeleteWithConfirm, handleToggleVisibility]
+    );
 
     const renderTemplateMetadata = useCallback((item: DocumentItem) => {
-        const template = item as Template;
-        return (
-            <div style={{ display: 'flex', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
-                {template.template_type && (
-                    <span className="document-type">
-                        {template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)}
-                    </span>
-                )}
-                {template.is_private === false && (
-                    <span className="document-type" style={{ background: 'var(--klee)' }}>
-                        Öffentlich
-                    </span>
-                )}
-            </div>
-        );
+      const template = item as Template;
+      return (
+        <div style={{ display: 'flex', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
+          {template.template_type && (
+            <span className="document-type">
+              {template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)}
+            </span>
+          )}
+          {template.is_private === false && (
+            <span className="document-type" style={{ background: 'var(--klee)' }}>
+              Öffentlich
+            </span>
+          )}
+        </div>
+      );
     }, []);
 
     // Memoized handlers
@@ -151,74 +177,75 @@ const VorlagenSection = memo(({ isActive, onSuccessMessage, onErrorMessage }: Vo
     const handleCloseAddModal = useCallback(() => setShowAddModal(false), []);
     const handleCloseEditModal = useCallback(() => setEditingTemplate(null), []);
     const handleNavigateToGallery = useCallback(() => {
-        window.location.href = '/datenbank/vorlagen';
+      window.location.href = '/datenbank/vorlagen';
     }, []);
 
     const handleAddSuccess = useCallback(() => {
-        templatesQuery.refetch();
-        onSuccessMessage('Vorlage wurde hinzugefügt.');
-        setShowAddModal(false);
+      void templatesQuery.refetch();
+      onSuccessMessage('Vorlage wurde hinzugefügt.');
+      setShowAddModal(false);
     }, [templatesQuery, onSuccessMessage]);
 
     const handleEditSuccess = useCallback(() => {
-        templatesQuery.refetch();
-        onSuccessMessage('Vorlage wurde aktualisiert.');
+      void templatesQuery.refetch();
+      onSuccessMessage('Vorlage wurde aktualisiert.');
     }, [templatesQuery, onSuccessMessage]);
 
     // Memoized title
     const vorlagenTitle = useMemo(() => `Meine Vorlagen (${templates.length})`, [templates.length]);
 
     return (
-        <div className="vorlagen-section">
-            <DocumentOverview
-                items={templates}
-                loading={isLoading}
-                onFetch={handleFetch}
-                actionItems={getTemplateActionItems}
-                metaRenderer={renderTemplateMetadata}
-                emptyStateConfig={EMPTY_STATE_CONFIG}
-                searchPlaceholder="Vorlagen durchsuchen..."
-                title={vorlagenTitle}
-                enableBulkSelect={true}
-                headerActions={
-                    <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
-                        <button
-                            type="button"
-                            className="pabtn pabtn--primary pabtn--s"
-                            onClick={handleOpenAddModal}
-                        >
-                            <HiPlus className="pabtn__icon" />
-                            <span className="pabtn__label">Vorlage hinzufügen</span>
-                        </button>
-                        <button
-                            type="button"
-                            className="pabtn pabtn--secondary pabtn--s"
-                            onClick={handleNavigateToGallery}
-                        >
-                            <span className="pabtn__label">Zur Galerie</span>
-                        </button>
-                    </div>
-                }
-            />
+      <div className="vorlagen-section">
+        <DocumentOverview
+          items={templates}
+          loading={isLoading}
+          onFetch={handleFetch}
+          actionItems={getTemplateActionItems}
+          metaRenderer={renderTemplateMetadata}
+          emptyStateConfig={EMPTY_STATE_CONFIG}
+          searchPlaceholder="Vorlagen durchsuchen..."
+          title={vorlagenTitle}
+          enableBulkSelect={true}
+          headerActions={
+            <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
+              <button
+                type="button"
+                className="pabtn pabtn--primary pabtn--s"
+                onClick={handleOpenAddModal}
+              >
+                <HiPlus className="pabtn__icon" />
+                <span className="pabtn__label">Vorlage hinzufügen</span>
+              </button>
+              <button
+                type="button"
+                className="pabtn pabtn--secondary pabtn--s"
+                onClick={handleNavigateToGallery}
+              >
+                <span className="pabtn__label">Zur Galerie</span>
+              </button>
+            </div>
+          }
+        />
 
-            <AddTemplateModal
-                isOpen={showAddModal}
-                onClose={handleCloseAddModal}
-                onSuccess={handleAddSuccess}
-            />
+        <AddTemplateModal
+          isOpen={showAddModal}
+          onClose={handleCloseAddModal}
+          onSuccess={handleAddSuccess}
+        />
 
-            {editingTemplate && (
-                <EditTemplateModal
-                    isOpen={true}
-                    onClose={handleCloseEditModal}
-                    onSave={handleSaveTemplate}
-                    onSuccess={handleEditSuccess}
-                    template={editingTemplate}
-                />
-            )}
-        </div>
+        {editingTemplate && (
+          <EditTemplateModal
+            isOpen={true}
+            onClose={handleCloseEditModal}
+            onSave={handleSaveTemplate}
+            onSuccess={handleEditSuccess}
+            template={editingTemplate}
+          />
+        )}
+      </div>
     );
-});
+  }
+);
 
 VorlagenSection.displayName = 'VorlagenSection';
 

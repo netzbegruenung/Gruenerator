@@ -106,13 +106,9 @@ export function CrossControl({
 
   return (
     <View style={styles.container}>
-      {title && (
-        <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-      )}
+      {title && <Text style={[styles.title, { color: theme.text }]}>{title}</Text>}
       {description && (
-        <Text style={[styles.description, { color: theme.textSecondary }]}>
-          {description}
-        </Text>
+        <Text style={[styles.description, { color: theme.textSecondary }]}>{description}</Text>
       )}
 
       <View style={styles.crossGrid}>

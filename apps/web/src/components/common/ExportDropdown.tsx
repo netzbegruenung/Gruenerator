@@ -1,24 +1,48 @@
-import { JSX, useState, useCallback, useEffect, useRef, ReactNode, MouseEvent } from 'react';
-import { IoDownloadOutline, IoShareSocialSharp, IoEllipsisVertical, IoCheckmarkOutline, IoCloseOutline, IoCopyOutline, IoOpenOutline } from "react-icons/io5";
-import { FaCloud } from "react-icons/fa";
-import { FaFileWord } from "react-icons/fa6";
-import { CiMemoPad } from "react-icons/ci";
-import { HiRefresh, HiSave, HiCog } from "react-icons/hi";
-import { useExportStore } from '../../stores/core/exportStore';
-import { useLazyAuth } from '../../hooks/useAuth';
-import useApiSubmit from '../hooks/useApiSubmit';
-import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { extractPlainText, extractFormattedText } from '../utils/contentExtractor';
-import { extractTitleFromContent } from '../../utils/titleExtractor';
-import { copyFormattedContent } from '../utils/commonFunctions';
-import { NextcloudShareManager, ShareLink } from '../../utils/nextcloudShareManager';
-import { canShare, shareContent } from '../../utils/shareUtils';
-import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
+import {
+  type JSX,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type MouseEvent,
+} from 'react';
+import { CiMemoPad } from 'react-icons/ci';
+import { FaCloud } from 'react-icons/fa';
+import { FaFileWord } from 'react-icons/fa6';
+import { HiRefresh, HiSave, HiCog } from 'react-icons/hi';
+import {
+  IoDownloadOutline,
+  IoShareSocialSharp,
+  IoEllipsisVertical,
+  IoCheckmarkOutline,
+  IoCloseOutline,
+  IoCopyOutline,
+  IoOpenOutline,
+} from 'react-icons/io5';
 import { useLocation } from 'react-router-dom';
-import apiClient from '../utils/apiClient';
+
+import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
+import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
+import { useExportStore } from '../../stores/core/exportStore';
+import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { hashContent } from '../../utils/contentHash';
+import { NextcloudShareManager, type ShareLink } from '../../utils/nextcloudShareManager';
+import { canShare, shareContent } from '../../utils/shareUtils';
+import { extractTitleFromContent } from '../../utils/titleExtractor';
+import useApiSubmit from '../hooks/useApiSubmit';
+import apiClient from '../utils/apiClient';
+import { copyFormattedContent } from '../utils/commonFunctions';
+import {
+  extractPlainText as extractPlainTextJs,
+  extractFormattedText as extractFormattedTextJs,
+} from '../utils/contentExtractor';
+
+// Type assertions for JS functions that return Promises
+const extractPlainText = extractPlainTextJs as (content: unknown) => Promise<string>;
+const extractFormattedText = extractFormattedTextJs as (content: unknown) => Promise<string>;
 import '../../assets/styles/components/actions/exportToDocument.css';
 
 interface ExportDropdownProps {
@@ -33,14 +57,15 @@ interface ExportDropdownProps {
     subtitle?: string;
     icon?: ReactNode;
     onClick: (event: React.MouseEvent) => void;
-    disabled?: boolean
+    disabled?: boolean;
   }[];
   hideDefaultOptions?: boolean;
   showShareButton?: boolean;
   showMoreMenu?: boolean;
 }
 
-const ExportDropdown = ({ content,
+const ExportDropdown = ({
+  content,
   title,
   className = 'action-button',
   onSaveToLibrary,
@@ -48,7 +73,8 @@ const ExportDropdown = ({ content,
   customExportOptions = [],
   hideDefaultOptions = false,
   showShareButton = true,
-  showMoreMenu = true }: ExportDropdownProps): JSX.Element | null => {
+  showMoreMenu = true,
+}: ExportDropdownProps): JSX.Element | null => {
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
   const [selectedShareLinkId, setSelectedShareLinkId] = useState<string>('');
@@ -64,7 +90,7 @@ const ExportDropdown = ({ content,
   const { isAuthenticated } = useLazyAuth();
   const location = useLocation();
   const { submitForm, loading: docsLoading } = useApiSubmit('docs/from-export');
-  const getGeneratedText = useGeneratedTextStore(state => state.getGeneratedText);
+  const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
 
   const { isGenerating, generateDOCX } = useExportStore();
   const { canAccessBetaFeature } = useBetaFeatures();
@@ -81,7 +107,7 @@ const ExportDropdown = ({ content,
     setLoadingShareLinks(true);
     try {
       const links = await NextcloudShareManager.getShareLinks();
-      const activeLinks = links.filter(link => link.is_active);
+      const activeLinks = links.filter((link) => link.is_active);
       setShareLinks(activeLinks);
       if (activeLinks.length > 0 && !selectedShareLinkId) {
         setSelectedShareLinkId(activeLinks[0].id);
@@ -101,9 +127,9 @@ const ExportDropdown = ({ content,
     }
   };
 
-  const handleExportWithAutoSave = useCallback(async (exportFn: () => Promise<void>, exportName: string = 'Export') => {
-    console.log('[DEBUG] handleExportWithAutoSave called', exportName);
-    try {
+  const handleExportWithAutoSave = useCallback(
+    async (exportFn: () => Promise<void>, exportName: string = 'Export') => {
+      console.log('[DEBUG] handleExportWithAutoSave called', exportName);
       console.log('[DEBUG] About to call exportFn');
       await exportFn();
       console.log('[DEBUG] exportFn completed');
@@ -113,7 +139,7 @@ const ExportDropdown = ({ content,
       console.log('[Auto-save check]', {
         enabled: isAutoSaveEnabled,
         authenticated: isAuthenticated,
-        hasContent: !!content
+        hasContent: !!content,
       });
 
       if (!isAutoSaveEnabled || !isAuthenticated || !content) {
@@ -129,7 +155,9 @@ const ExportDropdown = ({ content,
 
       try {
         const componentName = getComponentName();
-        const generatedTextMetadata = useGeneratedTextStore.getState().getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
+        const generatedTextMetadata = useGeneratedTextStore
+          .getState()
+          .getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
         const contentType = generatedTextMetadata?.contentType || 'universal';
 
         console.log('[Auto-save] Saving to library', { exportName, contentType });
@@ -145,10 +173,9 @@ const ExportDropdown = ({ content,
       } catch (error) {
         console.warn('[Auto-save on export] Failed to auto-save:', error);
       }
-    } catch (error) {
-      throw error;
-    }
-  }, [canAccessBetaFeature, isAuthenticated, content, title, autoSaveToLibrary]);
+    },
+    [canAccessBetaFeature, isAuthenticated, content, title, autoSaveToLibrary]
+  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -158,7 +185,11 @@ const ExportDropdown = ({ content,
         setShowDropdown(false);
         setShowWolkeSubDropdown(false);
       }
-      if (showWolkeSubDropdown && !target.closest('.wolke-subdropdown') && !target.closest('.wolke-trigger')) {
+      if (
+        showWolkeSubDropdown &&
+        !target.closest('.wolke-subdropdown') &&
+        !target.closest('.wolke-trigger')
+      ) {
         setShowWolkeSubDropdown(false);
       }
     };
@@ -189,7 +220,8 @@ const ExportDropdown = ({ content,
     const path = location.pathname;
     if (path.includes('pressemitteilung') || path.includes('social')) return 'presse-social';
     if (path.includes('antrag')) return 'antrag-generator';
-    if (path.includes('universal') || path.includes('rede') || path.includes('wahlprogramm')) return 'universal-text';
+    if (path.includes('universal') || path.includes('rede') || path.includes('wahlprogramm'))
+      return 'universal-text';
     if (path.includes('gruene-jugend')) return 'gruene-jugend';
     if (path.includes('gruene-notebook')) return 'ask-grundsatz';
     if (path.includes('ask')) return 'ask';
@@ -214,7 +246,11 @@ const ExportDropdown = ({ content,
       fallbacks.push('presse-social', 'social', 'pressemitteilung');
     } else if (path.includes('antrag')) {
       fallbacks.push('antrag-generator', 'antrag');
-    } else if (path.includes('universal') || path.includes('rede') || path.includes('wahlprogramm')) {
+    } else if (
+      path.includes('universal') ||
+      path.includes('rede') ||
+      path.includes('wahlprogramm')
+    ) {
       fallbacks.push('universal-text', 'universal', 'rede', 'wahlprogramm');
     } else if (path.includes('gruene-jugend')) {
       fallbacks.push('gruene-jugend', 'gruene_jugend');
@@ -250,7 +286,9 @@ const ExportDropdown = ({ content,
 
       // Validate content
       if (!content) {
-        alert('Kein Text zum Exportieren verfügbar. Bitte generiere erst einen Text auf dieser Seite.');
+        alert(
+          'Kein Text zum Exportieren verfügbar. Bitte generiere erst einen Text auf dieser Seite.'
+        );
         return;
       }
 
@@ -262,13 +300,14 @@ const ExportDropdown = ({ content,
       }
 
       // Create document title
-      const documentTitle = title || `${getDocumentType()} - ${new Date().toLocaleDateString('de-DE')}`;
+      const documentTitle =
+        title || `${getDocumentType()} - ${new Date().toLocaleDateString('de-DE')}`;
 
       // Submit to backend
       const response = await submitForm({
         content: formattedContent,
         title: documentTitle,
-        documentType: getDocumentType()
+        documentType: getDocumentType(),
       });
 
       // Navigate to document
@@ -278,7 +317,6 @@ const ExportDropdown = ({ content,
       } else {
         throw new Error('Keine Dokument-ID in der Antwort erhalten.');
       }
-
     } catch (err) {
       console.error('Fehler beim Erstellen des Dokuments:', err);
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -297,7 +335,8 @@ const ExportDropdown = ({ content,
     }
   };
 
-  const handleDocsExport = async () => await handleExportWithAutoSave(handleDocsExportInner, 'Grünerator Docs');
+  const handleDocsExport = async () =>
+    await handleExportWithAutoSave(handleDocsExportInner, 'Grünerator Docs');
 
   const handleCopyTextInner = async () => {
     await copyFormattedContent(
@@ -337,7 +376,8 @@ const ExportDropdown = ({ content,
     }
   };
 
-  const handleNativeShare = async () => await handleExportWithAutoSave(handleNativeShareInner, 'Teilen');
+  const handleNativeShare = async () =>
+    await handleExportWithAutoSave(handleNativeShareInner, 'Teilen');
 
   const handleDOCXDownloadInner = useCallback(async () => {
     setShowDropdown(false);
@@ -351,7 +391,8 @@ const ExportDropdown = ({ content,
     }
   }, [generateDOCX, content, title]);
 
-  const handleDOCXDownload = async () => await handleExportWithAutoSave(handleDOCXDownloadInner, 'DOCX');
+  const handleDOCXDownload = async () =>
+    await handleExportWithAutoSave(handleDOCXDownloadInner, 'DOCX');
 
   const handleWolkeClick = async () => {
     if (!isAuthenticated) return;
@@ -384,12 +425,16 @@ const ExportDropdown = ({ content,
       const baseFileName = extractFilenameFromContent(formattedContent, title);
       const filename = `${baseFileName}.docx`;
 
-      const response = await apiClient.post('/exports/docx', {
-        content: formattedContent,
-        title
-      }, {
-        responseType: 'blob'
-      });
+      const response = await apiClient.post(
+        '/exports/docx',
+        {
+          content: formattedContent,
+          title,
+        },
+        {
+          responseType: 'blob',
+        }
+      );
       const blob = response.data;
 
       const reader = new FileReader();
@@ -415,7 +460,6 @@ const ExportDropdown = ({ content,
       };
 
       reader.readAsDataURL(blob);
-
     } catch (error) {
       console.error('Wolke upload failed:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -424,7 +468,8 @@ const ExportDropdown = ({ content,
     }
   };
 
-  const handleWolkeUpload = async (shareLinkId: string) => await handleExportWithAutoSave(() => handleWolkeUploadInner(shareLinkId), 'Wolke');
+  const handleWolkeUpload = async (shareLinkId: string) =>
+    await handleExportWithAutoSave(() => handleWolkeUploadInner(shareLinkId), 'Wolke');
 
   const handleSaveToLibrary = () => {
     setShowDropdown(false);
@@ -439,23 +484,18 @@ const ExportDropdown = ({ content,
   };
 
   const handleWolkeSetup = async (shareLink: string, label: string) => {
-    try {
-      const parsed = NextcloudShareManager.parseShareLink(shareLink);
-      if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
-      await NextcloudShareManager.saveShareLink(shareLink, label, parsed.baseUrl, parsed.shareToken);
-      // Reload share links after successful setup
-      await loadShareLinks();
-      // Close modal and proceed with upload if we now have links
-      setShowWolkeSetupModal(false);
+    const parsed = NextcloudShareManager.parseShareLink(shareLink);
+    if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
+    await NextcloudShareManager.saveShareLink(shareLink, label, parsed.baseUrl, parsed.shareToken);
+    // Reload share links after successful setup
+    await loadShareLinks();
+    // Close modal and proceed with upload if we now have links
+    setShowWolkeSetupModal(false);
 
-      // Small delay to ensure state updates, then retry the upload
-      setTimeout(() => {
-        handleWolkeClick();
-      }, 100);
-    } catch (error) {
-      // Error will be handled by the modal component
-      throw error;
-    }
+    // Small delay to ensure state updates, then retry the upload
+    setTimeout(() => {
+      handleWolkeClick();
+    }, 100);
   };
 
   if (!content) {
@@ -474,8 +514,8 @@ const ExportDropdown = ({ content,
           disabled={isLoading}
           aria-label="Teilen"
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': "Direkt teilen"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Direkt teilen',
           })}
         >
           <IoShareSocialSharp size={16} />
@@ -490,8 +530,8 @@ const ExportDropdown = ({ content,
           disabled={isLoading}
           aria-label="Weitere Optionen"
           {...(!isMobileView && {
-            'data-tooltip-id': "action-tooltip",
-            'data-tooltip-content': "Weitere Optionen"
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Weitere Optionen',
           })}
         >
           {isLoading ? (
@@ -507,7 +547,7 @@ const ExportDropdown = ({ content,
       {showDropdown && showMoreMenu && (
         <div className="format-dropdown">
           {/* Custom export options rendered first */}
-          {customExportOptions.map(option => (
+          {customExportOptions.map((option) => (
             <button
               key={option.id}
               className="format-option"
@@ -520,16 +560,14 @@ const ExportDropdown = ({ content,
               {option.icon}
               <div className="format-option-content">
                 <div className="format-option-title">{option.label}</div>
-                {option.subtitle && (
-                  <div className="format-option-subtitle">{option.subtitle}</div>
-                )}
+                {option.subtitle && <div className="format-option-subtitle">{option.subtitle}</div>}
               </div>
             </button>
           ))}
 
           {/* Divider if both custom and default options exist */}
           {customExportOptions.length > 0 && !hideDefaultOptions && (
-            <div className="format-divider"></div>
+            <div className="format-divider" />
           )}
 
           {/* Default options - conditionally rendered */}
@@ -545,9 +583,7 @@ const ExportDropdown = ({ content,
                   <div className="format-option-title">
                     {isGenerating ? 'Wird erstellt...' : 'Word-Datei herunterladen'}
                   </div>
-                  <div className="format-option-subtitle">
-                    Für Word und LibreOffice
-                  </div>
+                  <div className="format-option-subtitle">Für Word und LibreOffice</div>
                 </div>
               </button>
 
@@ -586,9 +622,7 @@ const ExportDropdown = ({ content,
                     <div className="format-option-title">
                       {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
                     </div>
-                    <div className="format-option-subtitle">
-                      Für später wiederverwenden
-                    </div>
+                    <div className="format-option-subtitle">Für später wiederverwenden</div>
                   </div>
                 </button>
               )}
@@ -602,11 +636,13 @@ const ExportDropdown = ({ content,
                   <FaCloud size={16} />
                   <div className="format-option-content">
                     <div className="format-option-title">
-                      {uploadingToWolke ? 'Uploade...' : loadingShareLinks ? 'Lade...' : 'Wolke Export'}
+                      {uploadingToWolke
+                        ? 'Uploade...'
+                        : loadingShareLinks
+                          ? 'Lade...'
+                          : 'Wolke Export'}
                     </div>
-                    <div className="format-option-subtitle">
-                      In der Grünen Wolke speichern
-                    </div>
+                    <div className="format-option-subtitle">In der Grünen Wolke speichern</div>
                   </div>
                   {uploadingToWolke && <HiRefresh className="spinning" size={14} />}
                 </button>
@@ -622,24 +658,24 @@ const ExportDropdown = ({ content,
           <div className="wolke-subdropdown-header">
             <span>Wolke-Verbindung wählen:</span>
           </div>
-          {shareLinks.map(link => link.id ? (
-            <button
-              key={link.id}
-              className="wolke-subdropdown-option"
-              onClick={() => handleWolkeUpload(link.id)}
-              disabled={uploadingToWolke}
-            >
-              <FaCloud size={14} />
-              <div className="wolke-subdropdown-content">
-                <div className="wolke-subdropdown-title">
-                  {link.label || 'Unbenannte Wolke'}
+          {shareLinks.map((link) =>
+            link.id ? (
+              <button
+                key={link.id}
+                className="wolke-subdropdown-option"
+                onClick={() => handleWolkeUpload(link.id)}
+                disabled={uploadingToWolke}
+              >
+                <FaCloud size={14} />
+                <div className="wolke-subdropdown-content">
+                  <div className="wolke-subdropdown-title">{link.label || 'Unbenannte Wolke'}</div>
+                  <div className="wolke-subdropdown-subtitle">
+                    {link.share_link ? new URL(link.share_link).hostname : 'Keine URL'}
+                  </div>
                 </div>
-                <div className="wolke-subdropdown-subtitle">
-                  {link.share_link ? new URL(link.share_link).hostname : 'Keine URL'}
-                </div>
-              </div>
-            </button>
-          ) : null)}
+              </button>
+            ) : null
+          )}
         </div>
       )}
 

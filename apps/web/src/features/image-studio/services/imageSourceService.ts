@@ -23,10 +23,13 @@ export interface FetchStockImagesResponse {
   error?: string;
 }
 
-export async function fetchStockImages(category?: string | null): Promise<FetchStockImagesResponse> {
-  const url = category && category !== 'all'
-    ? `/image-picker/stock-catalog?category=${category}`
-    : '/image-picker/stock-catalog';
+export async function fetchStockImages(
+  category?: string | null
+): Promise<FetchStockImagesResponse> {
+  const url =
+    category && category !== 'all'
+      ? `/image-picker/stock-catalog?category=${category}`
+      : '/image-picker/stock-catalog';
 
   const response = await apiClient.get(url);
 
@@ -34,7 +37,7 @@ export async function fetchStockImages(category?: string | null): Promise<FetchS
     return {
       success: true,
       images: response.data.images,
-      categories: response.data.categories || []
+      categories: response.data.categories || [],
     };
   }
 
@@ -72,7 +75,7 @@ export async function trackUnsplashDownload(image: StockImage): Promise<void> {
   try {
     await apiClient.post('/image-picker/download-track', {
       filename: image.filename,
-      downloadLocation: image.attribution.downloadLocation
+      downloadLocation: image.attribution.downloadLocation,
     });
   } catch (error) {
     console.warn('Failed to track Unsplash download:', error);

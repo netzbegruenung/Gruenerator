@@ -8,14 +8,12 @@ import type { DocumentStats, UserTextDocument } from './types.js';
 /**
  * Get user's document statistics
  */
-export async function getDocumentStats(
-  postgres: any,
-  userId: string
-): Promise<DocumentStats> {
+export async function getDocumentStats(postgres: any, userId: string): Promise<DocumentStats> {
   try {
     await postgres.ensureInitialized();
 
-    const stats = await postgres.queryOne(`
+    const stats = await postgres.queryOne(
+      `
       SELECT
         COUNT(*) as total_documents,
         COUNT(CASE WHEN source_type = 'manual' THEN 1 END) as manual_documents,
@@ -26,7 +24,9 @@ export async function getDocumentStats(
         SUM(vector_count) as total_vectors
       FROM documents
       WHERE user_id = $1
-    `, [userId]);
+    `,
+      [userId]
+    );
 
     return {
       totalDocuments: parseInt(stats.total_documents) || 0,
@@ -35,7 +35,7 @@ export async function getDocumentStats(
       completedDocuments: parseInt(stats.completed_documents) || 0,
       processingDocuments: parseInt(stats.processing_documents) || 0,
       failedDocuments: parseInt(stats.failed_documents) || 0,
-      totalVectorCount: parseInt(stats.total_vectors) || 0
+      totalVectorCount: parseInt(stats.total_vectors) || 0,
     };
   } catch (error) {
     console.error('[PostgresDocumentService] Error getting document stats:', error);
@@ -46,10 +46,7 @@ export async function getDocumentStats(
 /**
  * Get user texts from user_documents table
  */
-export async function getUserTexts(
-  postgres: any,
-  userId: string
-): Promise<UserTextDocument[]> {
+export async function getUserTexts(postgres: any, userId: string): Promise<UserTextDocument[]> {
   try {
     await postgres.ensureInitialized();
 
@@ -75,7 +72,7 @@ export async function getUserTexts(
         created_at: text.created_at,
         updated_at: text.updated_at,
         word_count: wordCount,
-        character_count: plainText.length
+        character_count: plainText.length,
       };
     });
 

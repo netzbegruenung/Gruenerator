@@ -24,10 +24,7 @@ export function generateCompositeHash(...fields: string[]): string {
  * Normalize text for comparison (remove extra whitespace, lowercase)
  */
 export function normalizeForComparison(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
+  return text.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -37,7 +34,7 @@ export function areSimilar(text1: string, text2: string, threshold: number = 0.8
   const words1 = new Set(normalizeForComparison(text1).split(' '));
   const words2 = new Set(normalizeForComparison(text2).split(' '));
 
-  const intersection = new Set([...words1].filter(w => words2.has(w)));
+  const intersection = new Set([...words1].filter((w) => words2.has(w)));
   const union = new Set([...words1, ...words2]);
 
   const similarity = intersection.size / union.size;
@@ -49,7 +46,7 @@ export function areSimilar(text1: string, text2: string, threshold: number = 0.8
  */
 export function deduplicateBy<T>(items: T[], hashFn: (item: T) => string): T[] {
   const seen = new Set<string>();
-  return items.filter(item => {
+  return items.filter((item) => {
     const hash = hashFn(item);
     if (seen.has(hash)) {
       return false;

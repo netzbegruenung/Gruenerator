@@ -28,9 +28,7 @@ export function generateContentPreview(text: string, limit: number = 600): strin
   }
 
   const lastSpace = truncated.lastIndexOf(' ');
-  return lastSpace > limit * 0.6
-    ? `${truncated.slice(0, lastSpace)}...`
-    : `${truncated}...`;
+  return lastSpace > limit * 0.6 ? `${truncated.slice(0, lastSpace)}...` : `${truncated}...`;
 }
 
 /**
@@ -44,7 +42,7 @@ export async function extractTextFromFile(file: UploadedFile): Promise<string> {
     'image/png',
     'image/jpeg',
     'image/jpg',
-    'image/avif'
+    'image/avif',
   ];
 
   if (supportedMistralTypes.includes(file.mimetype)) {

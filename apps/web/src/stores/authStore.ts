@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import { fetchWithDedup } from '../utils/requestDeduplication';
-import { isDesktopApp } from '../utils/platform';
-import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
+
 import apiClient from '../components/utils/apiClient';
+import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
+import { isDesktopApp } from '../utils/platform';
+import { fetchWithDedup } from '../utils/requestDeduplication';
 
 // =============================================================================
 // Type Definitions
@@ -108,7 +109,9 @@ export interface AuthStore {
   setLoginIntent: () => void;
   logout: () => Promise<void>;
   register: () => void;
-  deleteAccount: (confirmationData?: DeleteAccountConfirmation) => Promise<{ success: boolean; message: string }>;
+  deleteAccount: (
+    confirmationData?: DeleteAccountConfirmation
+  ) => Promise<{ success: boolean; message: string }>;
   sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; message: string }>;
   updatePassword: () => void;
   canManageAccount: () => boolean;
@@ -134,7 +137,11 @@ const legacyHelpers = {
   async updateUserBetaFeatures(featureKey: string, isEnabled: boolean): Promise<unknown> {
     // Delegate to new implementation
     const store = useAuthStore.getState();
-    return (store as unknown as { updateBetaFeature?: (key: string, enabled: boolean) => Promise<unknown> }).updateBetaFeature?.(featureKey, isEnabled);
+    return (
+      store as unknown as {
+        updateBetaFeature?: (key: string, enabled: boolean) => Promise<unknown>;
+      }
+    ).updateBetaFeature?.(featureKey, isEnabled);
   },
 
   /**
@@ -145,7 +152,7 @@ const legacyHelpers = {
     // Delegate to new implementation
     const store = useAuthStore.getState();
     return store.updateMessageColor(newColor);
-  }
+  },
 };
 
 // Helper to load persisted auth state
@@ -241,7 +248,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isLoading: persistedState ? false : true, // Don't start loading if we have persisted data
   error: null,
   isLoggingOut: false, // New state to track logout in progress
-  
+
   selectedMessageColor: persistedState?.selectedMessageColor || '#008939', // Default Klee
 
   // Igel-Modus (Grüne Jugend membership)
@@ -278,30 +285,45 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   setLoggingOut: (loggingOut: boolean) => set({ isLoggingOut: loggingOut }),
-  
+
   clearAuth: () => {
     // Cleanup Supabase auth listener
     const state = get();
     if (state._supabaseAuthCleanup) {
       state._supabaseAuthCleanup();
     }
-    
+
     // CRITICAL: Set logout timestamp to prevent immediate re-auth
     localStorage.setItem(LOGOUT_TIMESTAMP_KEY, Date.now().toString());
-    
+
     // CRITICAL: Clear ALL persisted auth data to prevent data leakage
     localStorage.removeItem(AUTH_STORAGE_KEY);
     localStorage.removeItem(AUTH_VERSION_KEY);
-    
+
     // Clear React Query cache to prevent stale auth data
-    if (typeof window !== 'undefined' && (window as Window & { queryClient?: { removeQueries: (options: { queryKey: string[] }) => void; clear: () => void } }).queryClient) {
-      const win = window as Window & { queryClient: { removeQueries: (options: { queryKey: string[] }) => void; clear: () => void } };
+    if (
+      typeof window !== 'undefined' &&
+      (
+        window as Window & {
+          queryClient?: {
+            removeQueries: (options: { queryKey: string[] }) => void;
+            clear: () => void;
+          };
+        }
+      ).queryClient
+    ) {
+      const win = window as Window & {
+        queryClient: {
+          removeQueries: (options: { queryKey: string[] }) => void;
+          clear: () => void;
+        };
+      };
       win.queryClient.removeQueries({ queryKey: ['authStatus'] });
       win.queryClient.clear();
     }
-    
+
     // Legacy cleanup - no longer needed with new auth system
-    
+
     // Reset store to default state
     set({
       user: null,
@@ -344,8 +366,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
 
     // Update user in store with new profile data
-    set(state => ({
-      user: state.user ? { ...state.user, ...result.profile } : null
+    set((state) => ({
+      user: state.user ? { ...state.user, ...result.profile } : null,
     }));
 
     return result.profile as ProfileData;
@@ -353,7 +375,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Avatar update via Backend API
   updateAvatar: async (avatarRobotId: string): Promise<ProfileData> => {
-    const response = await apiClient.patch('/auth/profile/avatar', { avatar_robot_id: avatarRobotId });
+    const response = await apiClient.patch('/auth/profile/avatar', {
+      avatar_robot_id: avatarRobotId,
+    });
     const result = response.data as ApiResponse<ProfileData> & { profile?: ProfileData };
 
     if (!result.success) {
@@ -361,13 +385,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
 
     // Update user in store with new avatar
-    set(state => ({
-      user: state.user ? { ...state.user, ...result.profile } : null
+    set((state) => ({
+      user: state.user ? { ...state.user, ...result.profile } : null,
     }));
 
     return result.profile as ProfileData;
   },
-
 
   // Message color management via Backend API
   updateMessageColor: async (color: string): Promise<string> => {
@@ -432,9 +455,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       openDesktopLogin(source || 'gruenerator-login');
     } else {
       const baseUrl = apiClient.defaults.baseURL || '/api';
-      const authUrl = source
-        ? `${baseUrl}/auth/login?source=${source}`
-        : `${baseUrl}/auth/login`;
+      const authUrl = source ? `${baseUrl}/auth/login?source=${source}` : `${baseUrl}/auth/login`;
       window.location.href = authUrl;
     }
   },
@@ -446,25 +467,25 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   logout: async () => {
     const state = get();
-    
+
     // Prevent multiple concurrent logout attempts
     if (state.isLoggingOut) {
       return;
     }
-    
+
     try {
-      
       // Step 1: Set logging out state immediately for smooth UX
       set({ isLoggingOut: true });
-      
+
       // Step 2: Cleanup Supabase auth listener immediately to prevent state conflicts
       if (state._supabaseAuthCleanup) {
         try {
           state._supabaseAuthCleanup();
-        } catch (error) {
+        } catch {
+          // Intentionally swallow cleanup errors during logout
         }
       }
-      
+
       // Step 3: Call backend logout API FIRST (before clearing local state)
       let backendResponse: Record<string, unknown> | null = null;
       try {
@@ -485,7 +506,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             throw new Error(`Backend logout failed: ${backendResponse.message || 'Unknown error'}`);
           }
         }
-
       } catch (error: unknown) {
         console.error('[AuthStore] Backend logout API error:', error);
 
@@ -495,32 +515,37 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           success: false,
           error: 'network_error',
           message: errorMessage,
-          sessionCleared: false
+          sessionCleared: false,
         };
       }
-      
+
       // Step 4: Clear local state after backend confirmation (or on backend failure)
       console.log('[AuthStore] Clearing local authentication state...');
       get().clearAuth();
-      
+
       // Step 5: Handle SSO logout if backend provided logout URL
-      const ssoLogoutUrlValue = backendResponse?.keycloakBackgroundLogoutUrl || backendResponse?.authentikBackgroundLogoutUrl;
+      const ssoLogoutUrlValue =
+        backendResponse?.keycloakBackgroundLogoutUrl ||
+        backendResponse?.authentikBackgroundLogoutUrl;
       const ssoLogoutUrl = typeof ssoLogoutUrlValue === 'string' ? ssoLogoutUrlValue : null;
       if (ssoLogoutUrl) {
         console.log('[AuthStore] Performing background SSO logout...');
-        
+
         // Method 1: Try fetch with no-cors (fire-and-forget)
         try {
-          fetch(ssoLogoutUrl, { 
+          fetch(ssoLogoutUrl, {
             mode: 'no-cors',
-            credentials: 'include'
-          }).catch(error => {
-            console.warn('[AuthStore] Background SSO logout fetch warning (expected for no-cors):', error);
+            credentials: 'include',
+          }).catch((error) => {
+            console.warn(
+              '[AuthStore] Background SSO logout fetch warning (expected for no-cors):',
+              error
+            );
           });
         } catch (error) {
           console.warn('[AuthStore] Background SSO logout fetch error:', error);
         }
-        
+
         // Method 2: Fallback with hidden iframe for better compatibility
         try {
           const iframe = document.createElement('iframe');
@@ -529,7 +554,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           iframe.style.height = '0';
           iframe.src = ssoLogoutUrl;
           document.body.appendChild(iframe);
-          
+
           // Clean up iframe after SSO logout
           setTimeout(() => {
             if (iframe.parentNode) {
@@ -540,7 +565,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           console.warn('[AuthStore] Background SSO iframe logout error:', error);
         }
       }
-      
+
       // Step 6: Verify logout completion (optional verification)
       try {
         console.log('[AuthStore] Verifying logout completion...');
@@ -548,34 +573,36 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
         const statusData = statusResponse.data;
         if (statusData.isAuthenticated) {
-          console.warn('[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.');
+          console.warn(
+            '[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.'
+          );
           // Note: Don't fail here as this could be due to SSO logout timing
         } else {
-          console.log('[AuthStore] Logout verification successful - user is no longer authenticated');
+          console.log(
+            '[AuthStore] Logout verification successful - user is no longer authenticated'
+          );
         }
       } catch (error: unknown) {
         console.warn('[AuthStore] Logout verification failed (non-critical):', error);
       }
-      
+
       // Step 7: Navigate to home page after successful logout
       console.log('[AuthStore] Logout process completed, redirecting to home page');
       window.location.href = '/';
-      
     } catch (error) {
       console.error('[AuthStore] Critical logout error:', error);
-      
+
       // Emergency cleanup: Clear local state even if everything else failed
       try {
         get().clearAuth();
       } catch (cleanupError) {
         console.error('[AuthStore] Emergency cleanup also failed:', cleanupError);
       }
-      
+
       // Always redirect to home page, even on complete failure
       setTimeout(() => {
         window.location.href = '/';
       }, 100);
-      
     } finally {
       // Always reset the logging out state
       set({ isLoggingOut: false });
@@ -588,13 +615,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   // Account deletion for gruenerator users
-  deleteAccount: async (confirmationData?: DeleteAccountConfirmation): Promise<{ success: boolean; message: string }> => {
+  deleteAccount: async (
+    confirmationData?: DeleteAccountConfirmation
+  ): Promise<{ success: boolean; message: string }> => {
     try {
       // Primary attempt: JSON body
       const response = await apiClient.delete('/auth/delete-account', {
         data: confirmationData || {},
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
@@ -607,17 +636,25 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         success: true,
         message: (data && data.message) || 'Konto erfolgreich gelöscht',
       };
-
     } catch (error: unknown) {
       // Try fallback with query param if the first attempt failed
-      if (confirmationData && (confirmationData.confirm || confirmationData.password || confirmationData.confirmation)) {
+      if (
+        confirmationData &&
+        (confirmationData.confirm || confirmationData.password || confirmationData.confirmation)
+      ) {
         try {
           const confirmVal = encodeURIComponent(
-            confirmationData.confirm || confirmationData.password || confirmationData.confirmation || ''
+            confirmationData.confirm ||
+              confirmationData.password ||
+              confirmationData.confirmation ||
+              ''
           );
-          const fallbackResponse = await apiClient.delete(`/auth/delete-account?confirm=${confirmVal}`, {
-            headers: { 'Accept': 'application/json' },
-          });
+          const fallbackResponse = await apiClient.delete(
+            `/auth/delete-account?confirm=${confirmVal}`,
+            {
+              headers: { Accept: 'application/json' },
+            }
+          );
 
           const fallbackData = fallbackResponse.data;
 
@@ -629,11 +666,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             message: (fallbackData && fallbackData.message) || 'Konto erfolgreich gelöscht',
           };
         } catch (fallbackError: unknown) {
-          const errorMessage = fallbackError instanceof Error
-            ? fallbackError.message
-            : (fallbackError && typeof fallbackError === 'object' && 'response' in fallbackError
-              ? (fallbackError.response as { data?: { message?: string } })?.data?.message
-              : 'Kontolöschung fehlgeschlagen');
+          const errorMessage =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : fallbackError && typeof fallbackError === 'object' && 'response' in fallbackError
+                ? (fallbackError.response as { data?: { message?: string } })?.data?.message
+                : 'Kontolöschung fehlgeschlagen';
           throw {
             success: false,
             message: errorMessage || 'Kontolöschung fehlgeschlagen',
@@ -641,11 +679,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
       }
 
-      const errorMessage = error instanceof Error
-        ? error.message
-        : (error && typeof error === 'object' && 'response' in error
-          ? (error.response as { data?: { message?: string } })?.data?.message
-          : 'Kontolöschung fehlgeschlagen');
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : error && typeof error === 'object' && 'response' in error
+            ? (error.response as { data?: { message?: string } })?.data?.message
+            : 'Kontolöschung fehlgeschlagen';
       throw {
         success: false,
         message: errorMessage || 'Kontolöschung fehlgeschlagen',
@@ -661,18 +700,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       return {
         success: true,
-        message: data.message || 'Passwort-Reset erfolgreich'
+        message: data.message || 'Passwort-Reset erfolgreich',
       };
-
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error
-        ? error.message
-        : (error && typeof error === 'object' && 'response' in error
-          ? (error.response as { data?: { message?: string } })?.data?.message
-          : 'Passwort-Reset fehlgeschlagen');
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : error && typeof error === 'object' && 'response' in error
+            ? (error.response as { data?: { message?: string } })?.data?.message
+            : 'Passwort-Reset fehlgeschlagen';
       throw {
         success: false,
-        message: errorMessage || 'Passwort-Reset fehlgeschlagen'
+        message: errorMessage || 'Passwort-Reset fehlgeschlagen',
       };
     }
   },
@@ -686,13 +725,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   canManageAccount: () => {
     const currentUser = get().user;
     if (!currentUser) return false;
-    
+
     const authEmail = currentUser.auth_email; // from auth.users
     const hasKeycloakId = !!currentUser.keycloak_id;
-    
+
     // SSO user with email from IdP = can't change email (managed externally)
     if (hasKeycloakId && authEmail) return false;
-    
+
     // SSO user without email OR local user = can manage email
     return true;
   },
@@ -722,11 +761,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       return true;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error
-        ? error.message
-        : (error && typeof error === 'object' && 'response' in error
-          ? (error.response as { data?: { error?: string } })?.data?.error
-          : 'Unknown error');
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : error && typeof error === 'object' && 'response' in error
+            ? (error.response as { data?: { error?: string } })?.data?.error
+            : 'Unknown error';
       console.error('[AuthStore] Error updating locale:', errorMessage);
       return false;
     }
@@ -734,7 +774,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 }));
 
 // Export legacy helpers for backward compatibility
-export { legacyHelpers as supabaseHelpers }; 
+export { legacyHelpers as supabaseHelpers };
 
 // Subscribe to changes and persist them to localStorage
 useAuthStore.subscribe((state) => {

@@ -19,7 +19,7 @@ export type {
   BulkDeleteResult,
   UserDocumentModeResult,
   DeleteResult,
-  DocumentWithText
+  DocumentWithText,
 } from './types.js';
 
 // Re-export module functions (for direct use if needed)
@@ -29,28 +29,16 @@ export {
   getDocumentsBySourceType,
   getDocumentById,
   deleteDocument,
-  bulkDeleteDocuments
+  bulkDeleteDocuments,
 } from './metadataOperations.js';
 
-export {
-  storeDocumentText,
-  getDocumentText,
-  createDocumentWithText
-} from './textOperations.js';
+export { storeDocumentText, getDocumentText, createDocumentWithText } from './textOperations.js';
 
-export {
-  getDocumentByWolkeFile
-} from './wolkeOperations.js';
+export { getDocumentByWolkeFile } from './wolkeOperations.js';
 
-export {
-  getUserDocumentMode,
-  setUserDocumentMode
-} from './userPreferences.js';
+export { getUserDocumentMode, setUserDocumentMode } from './userPreferences.js';
 
-export {
-  getDocumentStats,
-  getUserTexts
-} from './statistics.js';
+export { getDocumentStats, getUserTexts } from './statistics.js';
 
 // Singleton instance (for backward compatibility)
 import { PostgresDocumentService } from './PostgresDocumentService.js';

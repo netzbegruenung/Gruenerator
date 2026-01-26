@@ -13,7 +13,7 @@ export type {
   QdrantRangeCondition,
   QdrantTextCondition,
   FilterSpec,
-  CommonFilterField
+  CommonFilterField,
 } from './types.js';
 
 // Filter builder utilities
@@ -26,5 +26,5 @@ export {
   anyMatch,
   textMatch,
   rangeMatch,
-  hasConditions
+  hasConditions,
 } from './QdrantFilterBuilder.js';

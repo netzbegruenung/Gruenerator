@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import useGeneratedTextStore from './core/generatedTextStore';
 
 interface SharepicMetadata {
@@ -147,7 +148,10 @@ interface ChatStore {
   getResultById: (componentId: string) => MultiResult | undefined;
   setMultiResults: (results: AgentResponse[], options?: { runId?: string }) => void;
   clearMultiResults: () => void;
-  updateMultiResultContent: (componentId: string, updater: ((content: unknown) => unknown) | unknown) => void;
+  updateMultiResultContent: (
+    componentId: string,
+    updater: ((content: unknown) => unknown) | unknown
+  ) => void;
   clearMessages: () => void;
   getLastGeneratedText: () => string | null;
   getApiContext: () => Record<string, unknown>;
@@ -233,7 +237,7 @@ const persistChatState = (chatState: ChatStore) => {
         metadata: chatState.metadata,
         multiResults: chatState.multiResults,
         lastMultiRunId: chatState.lastMultiRunId,
-        activeResultId: chatState.activeResultId
+        activeResultId: chatState.activeResultId,
       },
       timestamp: Date.now(),
       cacheVersion: CHAT_CACHE_VERSION,
@@ -271,17 +275,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       agent: message.agent,
       metadata: message.metadata,
       suggestions: message.suggestions,
-      resultData: message.resultData
+      resultData: message.resultData,
     };
 
-    set(state => ({
-      messages: [...state.messages, newMessage]
+    set((state) => ({
+      messages: [...state.messages, newMessage],
     }));
   },
 
   updateContext: (newContext) => {
-    set(state => ({
-      context: { ...state.context, ...newContext }
+    set((state) => ({
+      context: { ...state.context, ...newContext },
     }));
   },
 
@@ -290,8 +294,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   updateMetadata: (newMetadata) => {
-    set(state => ({
-      metadata: { ...state.metadata, ...newMetadata }
+    set((state) => ({
+      metadata: { ...state.metadata, ...newMetadata },
     }));
   },
 
@@ -310,7 +314,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   getResultById: (componentId) => {
     if (!componentId) return undefined;
     const state = get();
-    return state.multiResults.find(result => result.componentId === componentId);
+    return state.multiResults.find((result) => result.componentId === componentId);
   },
 
   setMultiResults: (results, options = {}) => {
@@ -323,7 +327,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const metadata = {
             agent: result.agent,
             ...(result.content?.metadata || {}),
-            ...(result.content?.sharepicMeta ? { sharepicMeta: result.content.sharepicMeta } : {})
+            ...(result.content?.sharepicMeta ? { sharepicMeta: result.content.sharepicMeta } : {}),
           };
 
           const storePayload = result.content?.sharepic
@@ -334,9 +338,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 sharepicDownloadText: result.content.sharepicDownloadText,
                 sharepicDownloadFilename: result.content.sharepicDownloadFilename,
                 showEditButton: result.content.showEditButton !== false,
-                sharepicMeta: result.content.sharepicMeta
+                sharepicMeta: result.content.sharepicMeta,
               }
-            : result.content?.text ?? result.content;
+            : (result.content?.text ?? result.content);
 
           if (storePayload) {
             textStore.setGeneratedText(componentId, storePayload, metadata);
@@ -355,7 +359,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             metadata: result.metadata || result.content?.metadata || {},
             suggestions: result.suggestions || [],
             title: result.title,
-            runId
+            runId,
           };
         })
       : [];
@@ -363,7 +367,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({
       multiResults: normalizedResults,
       lastMultiRunId: runId,
-      activeResultId: null
+      activeResultId: null,
     });
   },
 
@@ -372,7 +376,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const textStore = useGeneratedTextStore.getState();
 
     if (Array.isArray(state.multiResults)) {
-      state.multiResults.forEach(result => {
+      state.multiResults.forEach((result) => {
         if (result?.componentId) {
           textStore.clearGeneratedText(result.componentId);
           textStore.clearGeneratedText(`${result.componentId}_text`);
@@ -387,7 +391,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!componentId) return;
 
     const state = get();
-    const target = state.multiResults.find(result => result.componentId === componentId);
+    const target = state.multiResults.find((result) => result.componentId === componentId);
     if (!target) {
       return;
     }
@@ -399,7 +403,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const metadata = {
       agent: target.agent,
       ...(nextContent?.metadata || {}),
-      ...(nextContent?.sharepicMeta ? { sharepicMeta: nextContent.sharepicMeta } : {})
+      ...(nextContent?.sharepicMeta ? { sharepicMeta: nextContent.sharepicMeta } : {}),
     };
 
     if (typeof textStore.pushToHistory === 'function') {
@@ -421,7 +425,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     const state = get();
     if (Array.isArray(state.multiResults)) {
-      state.multiResults.forEach(result => {
+      state.multiResults.forEach((result) => {
         if (result?.componentId) {
           textStore.clearGeneratedText(result.componentId);
           textStore.clearGeneratedText(`${result.componentId}_text`);
@@ -437,7 +441,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       error: null,
       multiResults: [],
       lastMultiRunId: null,
-      activeResultId: null
+      activeResultId: null,
     });
 
     textStore.clearGeneratedText('grueneratorChat');
@@ -451,9 +455,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   getLastGeneratedText: () => {
     const state = get();
-    const lastAssistantMessage = state.messages
-      .filter(msg => msg.type === 'assistant')
-      .pop();
+    const lastAssistantMessage = state.messages.filter((msg) => msg.type === 'assistant').pop();
     return lastAssistantMessage?.content || null;
   },
 
@@ -464,7 +466,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       topic: state.context.topic,
       details: state.context.details,
       lastGeneratedText: state.getLastGeneratedText(),
-      ...state.context
+      ...state.context,
     };
   },
 
@@ -481,7 +483,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     if (response.content?.text) {
       state.updateContext({
-        lastGeneratedText: response.content.text
+        lastGeneratedText: response.content.text,
       });
     }
 
@@ -490,7 +492,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const metadata = {
         agent: response.agent,
         ...(response.content?.metadata || {}),
-        ...(response.content?.sharepicMeta ? { sharepicMeta: response.content.sharepicMeta } : {})
+        ...(response.content?.sharepicMeta ? { sharepicMeta: response.content.sharepicMeta } : {}),
       };
 
       const storePayload = response.content.sharepic
@@ -502,7 +504,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             sharepicDownloadText: response.content.sharepicDownloadText,
             sharepicDownloadFilename: response.content.sharepicDownloadFilename,
             showEditButton: response.content.showEditButton !== false,
-            sharepicMeta: response.content.sharepicMeta
+            sharepicMeta: response.content.sharepicMeta,
           }
         : response.content.text;
 
@@ -539,7 +541,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       content: messageContent || 'Entschuldigung, ich konnte keine Antwort generieren.',
       agent: response.agent,
       metadata: response.content?.metadata,
-      suggestions: response.suggestions
+      suggestions: response.suggestions,
     });
   },
 
@@ -553,7 +555,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     const state = get();
     if (Array.isArray(state.multiResults)) {
-      state.multiResults.forEach(result => {
+      state.multiResults.forEach((result) => {
         if (result?.componentId) {
           textStore.clearGeneratedText(result.componentId);
           textStore.clearGeneratedText(`${result.componentId}_text`);
@@ -568,7 +570,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const metadata = {
         agent: response.agent,
         ...(response.content?.metadata || {}),
-        ...(response.content?.sharepicMeta ? { sharepicMeta: response.content.sharepicMeta } : {})
+        ...(response.content?.sharepicMeta ? { sharepicMeta: response.content.sharepicMeta } : {}),
       };
 
       const storePayload = response.content?.sharepic
@@ -579,9 +581,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             sharepicDownloadText: response.content.sharepicDownloadText,
             sharepicDownloadFilename: response.content.sharepicDownloadFilename,
             showEditButton: response.content.showEditButton !== false,
-            sharepicMeta: response.content.sharepicMeta
+            sharepicMeta: response.content.sharepicMeta,
           }
-        : response.content?.text ?? response.content;
+        : (response.content?.text ?? response.content);
 
       if (storePayload) {
         textStore.setGeneratedText(componentId, storePayload, metadata);
@@ -601,7 +603,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         suggestions: response.suggestions || [],
         error: response.error,
         title: response.title,
-        runId
+        runId,
       };
     });
 
@@ -610,7 +612,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   initializeChat: () => {
     // No welcome message needed - start page provides context
-  }
+  },
 }));
 
 let lastPersistedRefs: {
@@ -622,7 +624,7 @@ let lastPersistedRefs: {
   messages: null,
   context: null,
   currentAgent: null,
-  multiResults: null
+  multiResults: null,
 };
 
 useChatStore.subscribe((state) => {
@@ -638,7 +640,7 @@ useChatStore.subscribe((state) => {
         messages: state.messages,
         context: state.context,
         currentAgent: state.currentAgent,
-        multiResults: state.multiResults
+        multiResults: state.multiResults,
       };
       persistChatState(state);
     }

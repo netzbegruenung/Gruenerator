@@ -15,32 +15,32 @@ export const HTML_FORMATTING_INSTRUCTIONS = `
 export const PLATFORM_SPECIFIC_GUIDELINES: Record<string, PlatformGuideline> = {
   facebook: {
     maxLength: 600,
-    style: "Casual and conversational. Use emojis sparingly.",
-    focus: "Community engagement, longer-form content, visual storytelling.",
+    style: 'Casual and conversational. Use emojis sparingly.',
+    focus: 'Community engagement, longer-form content, visual storytelling.',
     additionalGuidelines: `
       - Use a personal, direct tone ("you").
       - Friendly and relaxed style encouraging discussions.
       - Include visual elements to support the text.
       - Use emojis and hashtags sparingly.
       - End the post with a clear call to action.
-    `
+    `,
   },
   instagram: {
     maxLength: 600,
-    style: "Visual, fun, and snappy.",
-    focus: "Visual appeal, lifestyle content, behind-the-scenes glimpses.",
+    style: 'Visual, fun, and snappy.',
+    focus: 'Visual appeal, lifestyle content, behind-the-scenes glimpses.',
     additionalGuidelines: `
       - Use a few emojis to visually emphasize emotions and messages, at the beginning or end of a sentence for accessibility.
       - Keep paragraphs short and scannable.
       - Share clear, engaging political messages that resonate emotionally.
       - Use hashtags strategically to increase reach.
       - End the post with a call to action or a question if useful.
-    `
+    `,
   },
   twitter: {
     maxLength: 280,
-    style: "Concise and witty. Use hashtags strategically.",
-    focus: "Real-time updates, quick facts, calls-to-action.",
+    style: 'Concise and witty. Use hashtags strategically.',
+    focus: 'Real-time updates, quick facts, calls-to-action.',
     additionalGuidelines: `
       - Use clear, direct language with no unnecessary elaboration.
       - Present clear political positions on current issues.
@@ -49,24 +49,24 @@ export const PLATFORM_SPECIFIC_GUIDELINES: Record<string, PlatformGuideline> = {
       - Sparing use of emojis.
       - Start with a hook or clear statement.
       - End the post with a call to action or a question.
-    `
+    `,
   },
   linkedin: {
     maxLength: 600,
-    style: "Professional yet approachable. Minimal use of emojis.",
-    focus: "policy discussions, professional development.",
+    style: 'Professional yet approachable. Minimal use of emojis.',
+    focus: 'policy discussions, professional development.',
     additionalGuidelines: `
       - Maintain a professional but approachable tone.
       - Share insights and analyses on current topics or trends.
       - Highlight the connection between politics and professional growth.
       - Use emojis sparingly and limit excessive hashtag use.
       - End the post with a call to action or a question geared towards professional engagement.
-    `
+    `,
   },
   reelScript: {
     maxLength: 1000,
-    style: "Einfach, authentisch und direkt",
-    focus: "Klare Botschaft mit minimalen technischen Anforderungen.",
+    style: 'Einfach, authentisch und direkt',
+    focus: 'Klare Botschaft mit minimalen technischen Anforderungen.',
     additionalGuidelines: `
       - Skript für 90 Sekunden Sprechzeit
       - Maximal 2-3 einfache Schnitte/Szenen
@@ -78,12 +78,12 @@ export const PLATFORM_SPECIFIC_GUIDELINES: Record<string, PlatformGuideline> = {
       - Natürliche, authentische Sprache wie in einem persönlichen Gespräch
       - Text sollte auch ohne visuelle Elemente funktionieren
       - Einblendungen nur für wichtige Zahlen oder Kernbotschaften verwenden
-    `
+    `,
   },
   actionIdeas: {
     maxLength: 1000,
-    style: "Konkret und umsetzbar",
-    focus: "Praktische Aktionen für Ortsverbände",
+    style: 'Konkret und umsetzbar',
+    focus: 'Praktische Aktionen für Ortsverbände',
     additionalGuidelines: `
       - 2-3 konkrete Aktionsideen
       - Mit wenig Budget umsetzbar
@@ -93,8 +93,8 @@ export const PLATFORM_SPECIFIC_GUIDELINES: Record<string, PlatformGuideline> = {
       - Klare Handlungsanweisungen
       - Materialanforderungen auflisten
       - Zeitaufwand einschätzen
-    `
-  }
+    `,
+  },
 };
 
 export const MARKDOWN_FORMATTING_INSTRUCTIONS = `
@@ -145,22 +145,25 @@ Erstelle ein VOLLSTÄNDIGES DOSSIER, das alle verfügbaren Informationen zu dem 
 
 export const SEARCH_DOCUMENTS_TOOL: SearchDocumentsTool = {
   name: 'search_documents',
-  description: 'Search through the user\'s uploaded documents for information relevant to answering their question. You can call this tool multiple times with different search queries to gather comprehensive information.',
+  description:
+    "Search through the user's uploaded documents for information relevant to answering their question. You can call this tool multiple times with different search queries to gather comprehensive information.",
   input_schema: {
     type: 'object',
     properties: {
       query: {
         type: 'string',
-        description: 'The search query to find relevant documents. Be specific and use keywords from the user\'s question.'
+        description:
+          "The search query to find relevant documents. Be specific and use keywords from the user's question.",
       },
       search_mode: {
         type: 'string',
         enum: ['vector', 'hybrid', 'keyword'],
-        description: 'Search mode: vector (semantic), hybrid (semantic + keyword), or keyword (text matching). Default is hybrid for best results.'
-      }
+        description:
+          'Search mode: vector (semantic), hybrid (semantic + keyword), or keyword (text matching). Default is hybrid for best results.',
+      },
     },
-    required: ['query']
-  }
+    required: ['query'],
+  },
 };
 
 export const TITLE_GENERATION_INSTRUCTION = `\n\nBeende mit: <GRUEN_TITLE>[Kurzer Titel]</GRUEN_TITLE>`;

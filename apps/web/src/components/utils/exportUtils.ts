@@ -21,19 +21,19 @@ interface ExportContentParams {
  */
 const processMarkdownContent = async (content: string | null | undefined): Promise<string> => {
   if (!content) return '';
-  
+
   // Check if content is markdown
   if (typeof content === 'string' && isMarkdownContent(content)) {
     // Dynamically import marked
     const { marked } = await import('marked');
-    
+
     // Convert markdown to HTML
     return marked(content, {
-      breaks: true,      // Convert line breaks to <br>
-      gfm: true        // GitHub Flavored Markdown
+      breaks: true, // Convert line breaks to <br>
+      gfm: true, // GitHub Flavored Markdown
     });
   }
-  
+
   // Return original content if not markdown
   return content;
 };
@@ -41,7 +41,11 @@ const processMarkdownContent = async (content: string | null | undefined): Promi
 /**
  * Formatiert den Export-Content für Etherpad mit HTML
  */
-export const formatExportContent = async ({ analysis, sourceRecommendations = [], unusedSources = [] }: ExportContentParams): Promise<string> => {
+export const formatExportContent = async ({
+  analysis,
+  sourceRecommendations = [],
+  unusedSources = [],
+}: ExportContentParams): Promise<string> => {
   // Hauptanalyse als HTML
   let content = analysis;
 
@@ -99,8 +103,8 @@ export const formatExportContent = async ({ analysis, sourceRecommendations = []
     content += '<p>&nbsp;</p>';
     content += '<div class="sources-section">';
     content += '<p>&nbsp;</p><p><strong>QUELLEN</strong></p>';
-    sourceRecommendations.forEach(source => {
-      const matchingSource = unusedSources.find(s => s.title === source.title);
+    sourceRecommendations.forEach((source) => {
+      const matchingSource = unusedSources.find((s) => s.title === source.title);
       content += '<div class="source-item">';
       content += `<p><strong>${source.title}</strong></p>`;
       if (matchingSource?.url) {
@@ -111,14 +115,14 @@ export const formatExportContent = async ({ analysis, sourceRecommendations = []
     });
     content += '</div>';
   }
-  
+
   // Ergänzende Quellen (7-10)
   const additionalSources = unusedSources.slice(6);
   if (additionalSources.length > 0) {
     content += '<p>&nbsp;</p>';
     content += '<div class="additional-sources-section">';
     content += '<p>&nbsp;</p><p><strong>ERGÄNZENDE QUELLEN</strong></p>';
-    additionalSources.forEach(source => {
+    additionalSources.forEach((source) => {
       content += '<div class="source-item">';
       content += `<p><strong>${source.title}</strong></p>`;
       content += `<p><a href="${source.url}">${source.url}</a></p>`;
@@ -126,7 +130,7 @@ export const formatExportContent = async ({ analysis, sourceRecommendations = []
     });
     content += '</div>';
   }
-  
+
   // Finale Bereinigung von mehrfachen Leerabsätzen
   content = content
     .replace(/(<p>\s*(&nbsp;)?\s*<\/p>\s*){2,}/g, '<p>&nbsp;</p>')
@@ -134,6 +138,6 @@ export const formatExportContent = async ({ analysis, sourceRecommendations = []
     .replace(/^(<p>\s*(&nbsp;)?\s*<\/p>\s*)+/, '')
     // Entferne Leerzeilen am Ende des Dokuments
     .replace(/(<p>\s*(&nbsp;)?\s*<\/p>\s*)+$/, '');
-  
+
   return content;
-}; 
+};

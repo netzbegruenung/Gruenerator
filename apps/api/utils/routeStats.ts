@@ -8,13 +8,15 @@
  * Normalize a route path by replacing dynamic segments with placeholders
  */
 export function normalizeRoute(path: string): string {
-  return path
-    // Replace UUIDs
-    .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/:uuid')
-    // Replace numeric IDs
-    .replace(/\/\d+/g, '/:id')
-    // Replace MongoDB ObjectIDs
-    .replace(/\/[0-9a-f]{24}/g, '/:objectid');
+  return (
+    path
+      // Replace UUIDs
+      .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/:uuid')
+      // Replace numeric IDs
+      .replace(/\/\d+/g, '/:id')
+      // Replace MongoDB ObjectIDs
+      .replace(/\/[0-9a-f]{24}/g, '/:objectid')
+  );
 }
 
 /**

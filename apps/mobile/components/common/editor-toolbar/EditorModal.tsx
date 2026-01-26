@@ -4,7 +4,14 @@
  * Used by image-studio and subtitle-editor for consistent modal behavior
  */
 
-import { useMemo, useRef, forwardRef, useImperativeHandle, useCallback, type ReactNode } from 'react';
+import {
+  useMemo,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+  useCallback,
+  type ReactNode,
+} from 'react';
 import { StyleSheet, useColorScheme, Keyboard } from 'react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
@@ -30,87 +37,79 @@ export interface EditorModalProps {
   keyboardBehavior?: 'interactive' | 'extend' | 'fillParent';
 }
 
-export const EditorModal = forwardRef<EditorModalRef, EditorModalProps>(
-  function EditorModal(
-    {
-      children,
-      onClose,
-      snapPoints: customSnapPoints,
-      enablePanDownToClose = true,
-      keyboardBehavior = 'interactive',
+export const EditorModal = forwardRef<EditorModalRef, EditorModalProps>(function EditorModal(
+  {
+    children,
+    onClose,
+    snapPoints: customSnapPoints,
+    enablePanDownToClose = true,
+    keyboardBehavior = 'interactive',
+  },
+  ref
+) {
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const insets = useSafeAreaInsets();
+
+  const snapPoints = useMemo(() => customSnapPoints ?? ['35%', '50%'], [customSnapPoints]);
+
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      bottomSheetRef.current?.snapToIndex(snapPoints.length - 1);
     },
-    ref
-  ) {
-    const bottomSheetRef = useRef<BottomSheet>(null);
-    const colorScheme = useColorScheme();
-    const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-    const insets = useSafeAreaInsets();
+    close: () => {
+      Keyboard.dismiss();
+      bottomSheetRef.current?.close();
+    },
+    snapToIndex: (index: number) => {
+      bottomSheetRef.current?.snapToIndex(index);
+    },
+  }));
 
-    const snapPoints = useMemo(
-      () => customSnapPoints ?? ['35%', '50%'],
-      [customSnapPoints]
-    );
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
 
-    useImperativeHandle(ref, () => ({
-      open: () => {
-        bottomSheetRef.current?.snapToIndex(snapPoints.length - 1);
-      },
-      close: () => {
-        Keyboard.dismiss();
-        bottomSheetRef.current?.close();
-      },
-      snapToIndex: (index: number) => {
-        bottomSheetRef.current?.snapToIndex(index);
-      },
-    }));
+  const handleSheetChange = useCallback(
+    (index: number) => {
+      if (index === -1) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
-    const renderBackdrop = useCallback(
-      (props: BottomSheetBackdropProps) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-          pressBehavior="close"
-        />
-      ),
-      []
-    );
-
-    const handleSheetChange = useCallback(
-      (index: number) => {
-        if (index === -1) {
-          onClose();
-        }
-      },
-      [onClose]
-    );
-
-    return (
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose={enablePanDownToClose}
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: theme.background }}
-        handleIndicatorStyle={{ backgroundColor: theme.border }}
-        keyboardBehavior={keyboardBehavior}
-        keyboardBlurBehavior="restore"
-        onChange={handleSheetChange}
+  return (
+    <BottomSheet
+      ref={bottomSheetRef}
+      index={-1}
+      snapPoints={snapPoints}
+      enablePanDownToClose={enablePanDownToClose}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={{ backgroundColor: theme.background }}
+      handleIndicatorStyle={{ backgroundColor: theme.border }}
+      keyboardBehavior={keyboardBehavior}
+      keyboardBlurBehavior="restore"
+      onChange={handleSheetChange}
+    >
+      <BottomSheetScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.large }]}
+        keyboardShouldPersistTaps="handled"
       >
-        <BottomSheetScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + spacing.large },
-          ]}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </BottomSheetScrollView>
-      </BottomSheet>
-    );
-  }
-);
+        {children}
+      </BottomSheetScrollView>
+    </BottomSheet>
+  );
+});
 
 const styles = StyleSheet.create({
   content: {

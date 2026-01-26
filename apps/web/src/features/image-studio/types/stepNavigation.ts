@@ -1,4 +1,4 @@
-import { FORM_STEPS } from '../utils/typeConfig';
+import { type FORM_STEPS } from '../utils/typeConfig';
 
 export type FormStep = (typeof FORM_STEPS)[keyof typeof FORM_STEPS];
 

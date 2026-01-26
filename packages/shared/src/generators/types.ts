@@ -24,7 +24,13 @@ export type UniversalTextType = 'universal' | 'rede' | 'wahlprogramm' | 'buerger
 export type AccessibilityMode = 'alt-text' | 'leichte-sprache';
 
 // Text improver action type
-export type TextImproverAction = 'improve' | 'rewrite' | 'summarize' | 'spellcheck' | 'formalize' | 'simplify';
+export type TextImproverAction =
+  | 'improve'
+  | 'rewrite'
+  | 'summarize'
+  | 'spellcheck'
+  | 'formalize'
+  | 'simplify';
 
 // Feature toggles shared across all generators
 export interface GeneratorFeatures {

@@ -23,7 +23,7 @@ interface CampaignVariant {
 }
 
 let cachedManifest: Manifest | null = null;
-let cachedCampaigns = new Map<string, Campaign | null>();
+const cachedCampaigns = new Map<string, Campaign | null>();
 let manifestLoadingPromise: Promise<Manifest> | null = null;
 
 /**
@@ -40,18 +40,18 @@ async function loadManifest(): Promise<Manifest> {
   }
 
   manifestLoadingPromise = fetch('/campaigns/manifest.json')
-    .then(response => {
+    .then((response) => {
       if (!response.ok) {
         throw new Error(`Failed to load campaign manifest: ${response.status}`);
       }
       return response.json();
     })
-    .then(manifest => {
+    .then((manifest) => {
       cachedManifest = manifest;
       manifestLoadingPromise = null;
       return manifest;
     })
-    .catch(error => {
+    .catch((error) => {
       manifestLoadingPromise = null;
       console.error('[Campaign Loader] Failed to load manifest:', error);
       throw error;
@@ -95,7 +95,7 @@ export async function getActiveCampaigns(): Promise<Campaign[]> {
   const manifest = await loadManifest();
   const campaignIds = manifest.campaigns || [];
 
-  const campaignPromises = campaignIds.map(id => loadCampaignConfig(id));
+  const campaignPromises = campaignIds.map((id) => loadCampaignConfig(id));
   const campaigns = await Promise.all(campaignPromises);
 
   return campaigns
@@ -130,7 +130,9 @@ export async function getCampaignVariants(campaignId: string): Promise<CampaignV
  * @param campaignId - Campaign identifier
  * @returns Form configuration object
  */
-export async function getCampaignFormConfig(campaignId: string): Promise<Record<string, unknown> | null> {
+export async function getCampaignFormConfig(
+  campaignId: string
+): Promise<Record<string, unknown> | null> {
   const campaign = await getCampaign(campaignId);
   return campaign?.form || null;
 }

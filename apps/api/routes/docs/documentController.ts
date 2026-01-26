@@ -55,7 +55,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const result = await db.query(
+    const result = (await db.query(
       `INSERT INTO collaborative_documents
         (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
        VALUES ($1, $2, $2, 'docs', $3, $4, false)
@@ -64,9 +64,9 @@ router.post('/', async (req: Request, res: Response) => {
         title,
         userId,
         folder_id,
-        JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } })
+        JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
       ]
-    ) as CollaborativeDocument[];
+    )) as CollaborativeDocument[];
 
     return res.status(201).json(result[0]);
   } catch (error: any) {
@@ -88,7 +88,7 @@ router.get('/', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const result = await db.query(
+    const result = (await db.query(
       `SELECT
         cd.*,
         p.display_name as creator_name,
@@ -106,7 +106,7 @@ router.get('/', async (req: Request, res: Response) => {
         )
        ORDER BY cd.updated_at DESC`,
       [userId]
-    ) as CollaborativeDocument[];
+    )) as CollaborativeDocument[];
 
     return res.json(result);
   } catch (error: any) {
@@ -129,7 +129,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const result = await db.query(
+    const result = (await db.query(
       `SELECT
         cd.*,
         p.display_name as creator_name,
@@ -142,7 +142,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         AND cd.document_subtype = 'docs'
         AND cd.is_deleted = false`,
       [id]
-    ) as CollaborativeDocument[];
+    )) as CollaborativeDocument[];
 
     if (result.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -181,10 +181,10 @@ router.put('/:id', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const checkResult = await db.query(
+    const checkResult = (await db.query(
       'SELECT permissions, created_by FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as CollaborativeDocument[];
+    )) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -193,7 +193,8 @@ router.put('/:id', async (req: Request, res: Response) => {
     const document = checkResult[0];
     const userPermission = document.permissions?.[userId];
     const isOwner = document.created_by === userId;
-    const canEdit = isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+    const canEdit =
+      isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
 
     if (!canEdit) {
       return res.status(403).json({ error: 'Insufficient permissions to edit document' });
@@ -224,13 +225,13 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     values.push(id);
 
-    const result = await db.query(
+    const result = (await db.query(
       `UPDATE collaborative_documents
        SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
        WHERE id = $${paramIndex}
        RETURNING *`,
       values
-    ) as CollaborativeDocument[];
+    )) as CollaborativeDocument[];
 
     return res.json(result[0]);
   } catch (error: any) {
@@ -253,10 +254,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const checkResult = await db.query(
+    const checkResult = (await db.query(
       'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as CollaborativeDocument[];
+    )) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -264,7 +265,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     const document = checkResult[0];
     const userPermission = document.permissions?.[userId];
-    const isOwner = document.created_by === userId || (userPermission && userPermission.level === 'owner');
+    const isOwner =
+      document.created_by === userId || (userPermission && userPermission.level === 'owner');
 
     if (!isOwner) {
       return res.status(403).json({ error: 'Only owners can delete documents' });
@@ -296,10 +298,10 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const checkResult = await db.query(
+    const checkResult = (await db.query(
       'SELECT * FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
       [id, 'docs']
-    ) as CollaborativeDocument[];
+    )) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -317,7 +319,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     }
 
     const newTitle = `${original.title} (Copy)`;
-    const newDoc = await db.query(
+    const newDoc = (await db.query(
       `INSERT INTO collaborative_documents
         (title, created_by, last_edited_by, document_subtype, permissions, is_public, content)
        VALUES ($1, $2, $2, 'docs', $3, false, $4)
@@ -326,9 +328,9 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
         newTitle,
         userId,
         JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
-        original.content || ''
+        original.content || '',
       ]
-    ) as CollaborativeDocument[];
+    )) as CollaborativeDocument[];
 
     return res.status(201).json(newDoc[0]);
   } catch (error: any) {

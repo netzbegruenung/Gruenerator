@@ -26,10 +26,8 @@ export async function getCollectionResources() {
           qdrantCollection: col.name,
           pointsCount: info.pointsCount || 0,
           status: info.status || 'unknown',
-          filterableFields: col.filterableFields
-            ? Object.keys(col.filterableFields)
-            : []
-        }
+          filterableFields: col.filterableFields ? Object.keys(col.filterableFields) : [],
+        },
       });
     } catch (err) {
       resources.push({
@@ -40,8 +38,8 @@ export async function getCollectionResources() {
         metadata: {
           collectionId: key,
           qdrantCollection: col.name,
-          error: err.message
-        }
+          error: err.message,
+        },
       });
     }
   }
@@ -72,54 +70,66 @@ export async function getCollectionResource(uri) {
       uri,
       name: col.displayName,
       mimeType: 'application/json',
-      contents: [{
-        uri,
-        mimeType: 'application/json',
-        text: JSON.stringify({
-          collection: {
-            id: collectionKey,
-            displayName: col.displayName,
-            description: col.description,
-            qdrantCollection: col.name
-          },
-          stats: {
-            pointsCount: info.pointsCount || 0,
-            status: info.status || 'unknown'
-          },
-          searchModes: ['hybrid', 'vector', 'text'],
-          filterableFields: col.filterableFields
-            ? Object.entries(col.filterableFields).map(([field, cfg]) => ({
-                field,
-                label: cfg.label,
-                type: cfg.type
-              }))
-            : [],
-          features: [
-            'Hybrid-Suche (Vector + Text)',
-            'Deutsche Umlaut-Unterstützung',
-            'Qualitäts-gewichtete Ergebnisse',
-            'Semantic Caching',
-            'Metadaten-Filter',
-            ...(col.filterableFields
-              ? [`Filter: ${Object.keys(col.filterableFields).join(', ')}`]
-              : [])
-          ]
-        }, null, 2)
-      }]
+      contents: [
+        {
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify(
+            {
+              collection: {
+                id: collectionKey,
+                displayName: col.displayName,
+                description: col.description,
+                qdrantCollection: col.name,
+              },
+              stats: {
+                pointsCount: info.pointsCount || 0,
+                status: info.status || 'unknown',
+              },
+              searchModes: ['hybrid', 'vector', 'text'],
+              filterableFields: col.filterableFields
+                ? Object.entries(col.filterableFields).map(([field, cfg]) => ({
+                    field,
+                    label: cfg.label,
+                    type: cfg.type,
+                  }))
+                : [],
+              features: [
+                'Hybrid-Suche (Vector + Text)',
+                'Deutsche Umlaut-Unterstützung',
+                'Qualitäts-gewichtete Ergebnisse',
+                'Semantic Caching',
+                'Metadaten-Filter',
+                ...(col.filterableFields
+                  ? [`Filter: ${Object.keys(col.filterableFields).join(', ')}`]
+                  : []),
+              ],
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   } catch (err) {
     return {
       uri,
       name: col.displayName,
       mimeType: 'application/json',
-      contents: [{
-        uri,
-        mimeType: 'application/json',
-        text: JSON.stringify({
-          error: err.message,
-          collection: collectionKey
-        }, null, 2)
-      }]
+      contents: [
+        {
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify(
+            {
+              error: err.message,
+              collection: collectionKey,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   }
 }
@@ -132,7 +142,7 @@ function _getServerInfoResource() {
     uri: 'gruenerator://info',
     name: 'Gruenerator MCP Server Info',
     description: 'Informationen über den MCP Server und seine Fähigkeiten',
-    mimeType: 'application/json'
+    mimeType: 'application/json',
   };
 }
 
@@ -144,33 +154,39 @@ export function readServerInfoResource() {
     uri: 'gruenerator://info',
     name: 'Gruenerator MCP Server Info',
     mimeType: 'application/json',
-    contents: [{
-      uri: 'gruenerator://info',
-      mimeType: 'application/json',
-      text: JSON.stringify({
-        name: 'Gruenerator MCP Server',
-        version: '1.0.0',
-        description: 'MCP Server für semantische Suche in Grünen Parteiprogrammen',
-        capabilities: {
-          searchModes: ['hybrid', 'vector', 'text'],
-          collections: Object.keys(config.collections),
-          features: [
-            'Hybrid-Suche mit RRF-Fusion',
-            'Deutsche Textoptimierung',
-            'Qualitäts-gewichtete Ergebnisse',
-            'Embedding- und Ergebnis-Caching',
-            'Metadaten-Filterung'
-          ]
-        },
-        tools: [
-          { name: 'gruenerator_search', readOnly: true },
-          { name: 'gruenerator_get_filters', readOnly: true },
-          { name: 'gruenerator_cache_stats', readOnly: true },
-          { name: 'gruenerator_person_search', readOnly: true },
-          { name: 'gruenerator_examples_search', readOnly: true },
-          { name: 'get_client_config', readOnly: true }
-        ]
-      }, null, 2)
-    }]
+    contents: [
+      {
+        uri: 'gruenerator://info',
+        mimeType: 'application/json',
+        text: JSON.stringify(
+          {
+            name: 'Gruenerator MCP Server',
+            version: '1.0.0',
+            description: 'MCP Server für semantische Suche in Grünen Parteiprogrammen',
+            capabilities: {
+              searchModes: ['hybrid', 'vector', 'text'],
+              collections: Object.keys(config.collections),
+              features: [
+                'Hybrid-Suche mit RRF-Fusion',
+                'Deutsche Textoptimierung',
+                'Qualitäts-gewichtete Ergebnisse',
+                'Embedding- und Ergebnis-Caching',
+                'Metadaten-Filterung',
+              ],
+            },
+            tools: [
+              { name: 'gruenerator_search', readOnly: true },
+              { name: 'gruenerator_get_filters', readOnly: true },
+              { name: 'gruenerator_cache_stats', readOnly: true },
+              { name: 'gruenerator_person_search', readOnly: true },
+              { name: 'gruenerator_examples_search', readOnly: true },
+              { name: 'get_client_config', readOnly: true },
+            ],
+          },
+          null,
+          2
+        ),
+      },
+    ],
   };
 }

@@ -142,7 +142,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     stylePreference,
     heightPreference,
     subtitlePreference,
-    exportToken
+    exportToken,
   } = params;
 
   const service = await getProjectService();
@@ -172,7 +172,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     videoMetadata: metadata,
     videoFilename: originalFilename,
     videoSize: fileStats?.size || 0,
-    videoSourcePath: originalVideoPath
+    videoSourcePath: originalVideoPath,
   });
 
   const result = await saveSubtitledVideo(userId, newProject.id, outputPath, null);
@@ -193,7 +193,7 @@ async function saveOrUpdateProject(
       subtitles: projectData.subtitles,
       title: projectData.title,
       style_preference: projectData.stylePreference,
-      height_preference: projectData.heightPreference
+      height_preference: projectData.heightPreference,
     });
     log.info(`Updated existing project ${existing.id} for video ${projectData.videoFilename}`);
     return { project: { ...existing, ...projectData }, isNew: false };

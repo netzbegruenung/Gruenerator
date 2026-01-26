@@ -8,11 +8,7 @@ import { createLogger } from '../../utils/logger.js';
 import { GrueneApiClient } from './GrueneApiClient.js';
 import { RetryManager } from './RetryManager.js';
 import { GrueneratorOffboarding } from './GrueneratorOffboarding.js';
-import type {
-  GrueneApiConfig,
-  OffboardingUser,
-  BatchUpdateEntry
-} from './types.js';
+import type { GrueneApiConfig, OffboardingUser, BatchUpdateEntry } from './types.js';
 
 const log = createLogger('OffboardingService');
 
@@ -23,7 +19,7 @@ export const DEFAULT_CONFIG: GrueneApiConfig = {
   GRUENE_API_PASSWORD: process.env.GRUENE_API_PASSWORD,
   GRUENE_API_KEY: process.env.GRUENE_API_KEY,
   BATCH_SIZE: 200,
-  REQUEST_LIMIT: 1000
+  REQUEST_LIMIT: 1000,
 };
 
 export class OffboardingService {
@@ -40,7 +36,7 @@ export class OffboardingService {
   /**
    * Generator function to fetch all users needing offboarding
    */
-  async* fetchOffboardingUsers(): AsyncGenerator<OffboardingUser> {
+  async *fetchOffboardingUsers(): AsyncGenerator<OffboardingUser> {
     let after: string | null = null;
 
     while (true) {
@@ -66,7 +62,7 @@ export class OffboardingService {
   /**
    * Process users in batches
    */
-  async* processUserBatches(): AsyncGenerator<BatchUpdateEntry[]> {
+  async *processUserBatches(): AsyncGenerator<BatchUpdateEntry[]> {
     const upserts: BatchUpdateEntry[] = [];
 
     for await (const user of this.fetchOffboardingUsers()) {
@@ -82,7 +78,7 @@ export class OffboardingService {
 
         upserts.push({
           id: user.id,
-          status: result.status
+          status: result.status,
         });
 
         if (upserts.length >= this.config.BATCH_SIZE) {

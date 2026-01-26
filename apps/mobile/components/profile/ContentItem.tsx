@@ -72,7 +72,12 @@ export function ContentItem({ item, onDelete, onPress }: ContentItemProps) {
       onLongPress={handleLongPress}
       delayLongPress={500}
     >
-      <View style={[styles.iconContainer, { backgroundColor: isText ? colors.primary[100] : colors.secondary[100] }]}>
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: isText ? colors.primary[100] : colors.secondary[100] },
+        ]}
+      >
         <Ionicons
           name={iconName}
           size={24}
@@ -86,8 +91,18 @@ export function ContentItem({ item, onDelete, onPress }: ContentItemProps) {
         </Text>
 
         <View style={styles.metaRow}>
-          <View style={[styles.typeBadge, { backgroundColor: isText ? colors.primary[50] : colors.secondary[50] }]}>
-            <Text style={[styles.typeText, { color: isText ? colors.primary[700] : colors.secondary[700] }]}>
+          <View
+            style={[
+              styles.typeBadge,
+              { backgroundColor: isText ? colors.primary[50] : colors.secondary[50] },
+            ]}
+          >
+            <Text
+              style={[
+                styles.typeText,
+                { color: isText ? colors.primary[700] : colors.secondary[700] },
+              ]}
+            >
               {getTypeLabel(item.type, item.itemType)}
             </Text>
           </View>

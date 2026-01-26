@@ -10,129 +10,132 @@ const log = createLogger('TexteIntentService');
 /**
  * Text type mappings with routing information
  */
-export const TEXT_TYPE_MAPPINGS: Record<string, {
-  route: string;
-  keywords: string[];
-  description: string;
-  params?: Record<string, unknown>;
-}> = {
+export const TEXT_TYPE_MAPPINGS: Record<
+  string,
+  {
+    route: string;
+    keywords: string[];
+    description: string;
+    params?: Record<string, unknown>;
+  }
+> = {
   // Social Media
-  'social_twitter': {
+  social_twitter: {
     route: 'social',
     keywords: ['tweet', 'twitter', 'x post', 'x.com'],
     description: 'Twitter/X Posts (max 280 Zeichen)',
-    params: { platforms: ['twitter'] }
+    params: { platforms: ['twitter'] },
   },
-  'social_instagram': {
+  social_instagram: {
     route: 'social',
     keywords: ['instagram', 'insta', 'ig'],
     description: 'Instagram Posts und Captions',
-    params: { platforms: ['instagram'] }
+    params: { platforms: ['instagram'] },
   },
-  'social_facebook': {
+  social_facebook: {
     route: 'social',
     keywords: ['facebook', 'fb'],
     description: 'Facebook Beiträge',
-    params: { platforms: ['facebook'] }
+    params: { platforms: ['facebook'] },
   },
-  'social_linkedin': {
+  social_linkedin: {
     route: 'social',
     keywords: ['linkedin', 'berufsnetzwerk'],
     description: 'LinkedIn professionelle Posts',
-    params: { platforms: ['linkedin'] }
+    params: { platforms: ['linkedin'] },
   },
-  'social_generic': {
+  social_generic: {
     route: 'social',
     keywords: ['social media', 'social post', 'beitrag'],
     description: 'Allgemeine Social Media Posts',
-    params: { platforms: ['instagram', 'facebook'] }
+    params: { platforms: ['instagram', 'facebook'] },
   },
 
   // Press
-  'pressemitteilung': {
+  pressemitteilung: {
     route: 'social',
     keywords: ['pressemitteilung', 'presse', 'pm', 'medien', 'presseverteiler'],
     description: 'Pressemitteilungen für Medienverteilung',
-    params: { platforms: ['pressemitteilung'] }
+    params: { platforms: ['pressemitteilung'] },
   },
 
   // Political documents
-  'antrag': {
+  antrag: {
     route: 'antrag_simple',
     keywords: ['antrag', 'beschluss', 'gemeinderat', 'stadtrat', 'kommunalpolitik'],
     description: 'Politische Anträge und Beschlüsse',
-    params: { requestType: 'default' }
+    params: { requestType: 'default' },
   },
-  'kleine_anfrage': {
+  kleine_anfrage: {
     route: 'antrag_simple',
     keywords: ['kleine anfrage', 'anfrage'],
     description: 'Kleine parlamentarische Anfragen',
-    params: { requestType: 'kleine_anfrage' }
+    params: { requestType: 'kleine_anfrage' },
   },
-  'grosse_anfrage': {
+  grosse_anfrage: {
     route: 'antrag_simple',
     keywords: ['große anfrage', 'grosse anfrage'],
     description: 'Große parlamentarische Anfragen',
-    params: { requestType: 'grosse_anfrage' }
+    params: { requestType: 'grosse_anfrage' },
   },
 
   // Speeches
-  'rede': {
+  rede: {
     route: 'rede',
     keywords: ['rede', 'ansprache', 'vortrag', 'grußwort', 'speech'],
     description: 'Reden und Ansprachen',
-    params: {}
+    params: {},
   },
 
   // Communication
-  'email': {
+  email: {
     route: 'universal',
     keywords: ['email', 'e-mail', 'mail', 'nachricht', 'anschreiben'],
     description: 'E-Mails und Anschreiben',
-    params: { textForm: 'email' }
+    params: { textForm: 'email' },
   },
-  'brief': {
+  brief: {
     route: 'universal',
     keywords: ['brief', 'schreiben', 'formell'],
     description: 'Formelle Briefe',
-    params: { textForm: 'brief' }
+    params: { textForm: 'brief' },
   },
 
   // Content transformation
-  'zusammenfassung': {
+  zusammenfassung: {
     route: 'universal',
     keywords: ['zusammenfassung', 'zusammenfassen', 'kürzen', 'summary'],
     description: 'Texte zusammenfassen',
-    params: { textForm: 'zusammenfassung' }
+    params: { textForm: 'zusammenfassung' },
   },
-  'leichte_sprache': {
+  leichte_sprache: {
     route: 'leichte_sprache',
     keywords: ['leichte sprache', 'einfach', 'vereinfachen', 'verständlich'],
     description: 'In Leichte Sprache übersetzen',
-    params: {}
+    params: {},
   },
 
   // Programs and documents
-  'wahlprogramm': {
+  wahlprogramm: {
     route: 'wahlprogramm',
     keywords: ['wahlprogramm', 'programm', 'wahlkampf'],
     description: 'Wahlprogramm-Texte',
-    params: {}
+    params: {},
   },
-  'buergeranfragen': {
+  buergeranfragen: {
     route: 'buergeranfragen',
     keywords: ['bürgeranfrage', 'bürgerinnenanfrage', 'bürger'],
     description: 'Antworten auf Bürgeranfragen',
-    params: {}
+    params: {},
   },
 
   // Universal fallback
-  'universal': {
+  universal: {
     route: 'universal',
     keywords: ['text', 'schreiben', 'erstellen'],
     description: 'Allgemeine Texte',
-    params: { textForm: 'universal' }
-  }
+    params: { textForm: 'universal' },
+  },
 };
 
 /**
@@ -152,7 +155,11 @@ export interface TextTypeDetectionResult {
 export function detectTypeByKeywords(message: string): TextTypeDetectionResult | null {
   const normalized = message.toLowerCase().trim();
 
-  const matches: Array<{ type: string; mapping: typeof TEXT_TYPE_MAPPINGS[string]; keywordLength: number }> = [];
+  const matches: Array<{
+    type: string;
+    mapping: (typeof TEXT_TYPE_MAPPINGS)[string];
+    keywordLength: number;
+  }> = [];
 
   for (const [typeName, mapping] of Object.entries(TEXT_TYPE_MAPPINGS)) {
     for (const keyword of mapping.keywords) {
@@ -160,7 +167,7 @@ export function detectTypeByKeywords(message: string): TextTypeDetectionResult |
         matches.push({
           type: typeName,
           mapping,
-          keywordLength: keyword.length
+          keywordLength: keyword.length,
         });
       }
     }
@@ -177,7 +184,7 @@ export function detectTypeByKeywords(message: string): TextTypeDetectionResult |
     route: best.mapping.route,
     confidence: 0.85,
     params: best.mapping.params || {},
-    method: 'keyword'
+    method: 'keyword',
   };
 }
 
@@ -226,8 +233,8 @@ Antworte NUR mit JSON:
       messages: [{ role: 'user', content: classificationPrompt }],
       options: {
         max_tokens: 150,
-        temperature: 0.2
-      }
+        temperature: 0.2,
+      },
     });
 
     if (!result.success) {
@@ -252,9 +259,8 @@ Antworte NUR mit JSON:
       route: mapping.route,
       confidence: parsed.confidence || 0.8,
       params: mapping.params || {},
-      method: 'ai'
+      method: 'ai',
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.warn('[TexteIntentService] AI detection error:', errorMessage);
@@ -294,6 +300,6 @@ export async function detectTextType(
     route: 'universal',
     confidence: 0.3,
     params: { textForm: 'universal' },
-    method: 'fallback'
+    method: 'fallback',
   };
 }

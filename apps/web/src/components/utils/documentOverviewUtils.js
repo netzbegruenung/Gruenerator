@@ -32,19 +32,19 @@ export const stripMarkdownForPreview = (content, maxLength = 300) => {
     return stripMarkdownCache.get(cacheKey);
   }
 
-  let cleaned = content
-    .replace(/^#{1,6}\s+/gm, '')              // # Headers
-    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')    // ***bold+italic***
-    .replace(/\*\*([^*]+)\*\*/g, '$1')        // **bold**
-    .replace(/\*([^*]+)\*/g, '$1')            // *italic*
-    .replace(/__([^_]+)__/g, '$1')            // __bold__
-    .replace(/_([^_]+)_/g, '$1')              // _italic_
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // [text](url)
-    .replace(/`([^`]+)`/g, '$1')              // `code`
-    .replace(/^[-*+]\s+/gm, '')               // - list items
-    .replace(/^\d+\.\s+/gm, '')               // 1. numbered lists
-    .replace(/^>\s+/gm, '')                   // > blockquotes
-    .replace(/~~([^~]+)~~/g, '$1')            // ~~strikethrough~~
+  const cleaned = content
+    .replace(/^#{1,6}\s+/gm, '') // # Headers
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1') // ***bold+italic***
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // **bold**
+    .replace(/\*([^*]+)\*/g, '$1') // *italic*
+    .replace(/__([^_]+)__/g, '$1') // __bold__
+    .replace(/_([^_]+)_/g, '$1') // _italic_
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url)
+    .replace(/`([^`]+)`/g, '$1') // `code`
+    .replace(/^[-*+]\s+/gm, '') // - list items
+    .replace(/^\d+\.\s+/gm, '') // 1. numbered lists
+    .replace(/^>\s+/gm, '') // > blockquotes
+    .replace(/~~([^~]+)~~/g, '$1') // ~~strikethrough~~
     .trim();
 
   const result = truncateForPreview(cleaned, maxLength);
@@ -53,7 +53,7 @@ export const stripMarkdownForPreview = (content, maxLength = 300) => {
   if (stripMarkdownCache.size >= CACHE_MAX_SIZE) {
     // Clear oldest entries (simple strategy: clear first 100)
     const keys = Array.from(stripMarkdownCache.keys()).slice(0, 100);
-    keys.forEach(key => stripMarkdownCache.delete(key));
+    keys.forEach((key) => stripMarkdownCache.delete(key));
   }
   stripMarkdownCache.set(cacheKey, result);
 
@@ -135,4 +135,3 @@ export const normalizeRemoteResults = (remoteResults = []) => {
     content_preview: item.content_preview || item.relevantText || item.full_content || '',
   }));
 };
-

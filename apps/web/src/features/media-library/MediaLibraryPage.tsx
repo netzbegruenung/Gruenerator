@@ -1,9 +1,21 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { FaImage, FaVideo, FaUpload, FaTrash, FaEdit, FaCheck, FaTimes, FaSearch } from 'react-icons/fa';
 import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/shared/media-library';
-import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  FaImage,
+  FaVideo,
+  FaUpload,
+  FaTrash,
+  FaEdit,
+  FaCheck,
+  FaTimes,
+  FaSearch,
+} from 'react-icons/fa';
+
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
+import { useOptimizedAuth } from '../../hooks/useAuth';
+
+import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
+
 import './MediaLibraryPage.css';
 import '../../assets/styles/components/ui/button.css';
 
@@ -42,7 +54,7 @@ const MediaCard: React.FC<MediaCardProps> = ({
   onEdit,
   isSelected,
   onSelect,
-  selectionMode
+  selectionMode,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -101,7 +113,11 @@ const MediaCard: React.FC<MediaCardProps> = ({
               <button className="btn-icon" onClick={() => onEdit(item)} title="Bearbeiten">
                 <FaEdit />
               </button>
-              <button className="btn-icon delete" onClick={() => setShowDeleteConfirm(true)} title="Löschen">
+              <button
+                className="btn-icon delete"
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Löschen"
+              >
                 <FaTrash />
               </button>
             </>
@@ -132,7 +148,7 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
 
   return (
     <div className="media-edit-modal-overlay" onClick={onClose}>
-      <div className="media-edit-modal" onClick={e => e.stopPropagation()}>
+      <div className="media-edit-modal" onClick={(e) => e.stopPropagation()}>
         <h2>Medium bearbeiten</h2>
         <div className="media-edit-preview">
           <img src={`${baseURL}/share/${item.shareToken}/preview`} alt="" />
@@ -143,7 +159,7 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
             <input
               type="text"
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="Titel eingeben..."
             />
           </label>
@@ -151,14 +167,16 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
             <span>Alt-Text (Barrierefreiheit)</span>
             <textarea
               value={altText}
-              onChange={e => setAltText(e.target.value)}
+              onChange={(e) => setAltText(e.target.value)}
               placeholder="Beschreibung für Screenreader..."
               rows={3}
             />
           </label>
         </div>
         <div className="media-edit-actions">
-          <button className="btn-secondary" onClick={onClose}>Abbrechen</button>
+          <button className="btn-secondary" onClick={onClose}>
+            Abbrechen
+          </button>
           <button className="btn-primary" onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Speichern...' : 'Speichern'}
           </button>
@@ -180,11 +198,17 @@ const MediaLibraryPage: React.FC = () => {
     refetch,
     loadMore,
     deleteItem,
-    updateItem
+    updateItem,
   } = useMediaLibrary();
 
-  const { upload, isUploading, progress, error: uploadError, reset: resetUpload } = useMediaUpload({
-    onSuccess: () => refetch()
+  const {
+    upload,
+    isUploading,
+    progress,
+    error: uploadError,
+    reset: resetUpload,
+  } = useMediaUpload({
+    onSuccess: () => refetch(),
   });
 
   const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
@@ -246,9 +270,7 @@ const MediaLibraryPage: React.FC = () => {
     <div className="media-library-page">
       <header className="media-library-header">
         <h1>Mediathek</h1>
-        <p className="media-library-count">
-          {pagination.total} von 50 Medien
-        </p>
+        <p className="media-library-count">{pagination.total} von 50 Medien</p>
       </header>
 
       <div className="media-library-toolbar">
@@ -278,8 +300,8 @@ const MediaLibraryPage: React.FC = () => {
             type="text"
             placeholder="Suchen..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
           <button onClick={handleSearch}>
             <FaSearch />
@@ -292,7 +314,7 @@ const MediaLibraryPage: React.FC = () => {
             type="file"
             accept="image/*,video/*"
             multiple
-            onChange={e => handleFileUpload(e.target.files)}
+            onChange={(e) => handleFileUpload(e.target.files)}
             hidden
           />
         </label>
@@ -305,11 +327,7 @@ const MediaLibraryPage: React.FC = () => {
         </div>
       )}
 
-      {(error || uploadError) && (
-        <div className="media-library-error">
-          {error || uploadError}
-        </div>
-      )}
+      {(error || uploadError) && <div className="media-library-error">{error || uploadError}</div>}
 
       <div
         className={`media-library-grid ${isDragging ? 'drag-active' : ''}`}
@@ -328,13 +346,8 @@ const MediaLibraryPage: React.FC = () => {
             <p>Lade Bilder oder Videos hoch oder erstelle sie mit dem Image Studio.</p>
           </div>
         ) : (
-          items.map(item => (
-            <MediaCard
-              key={item.id}
-              item={item}
-              onDelete={deleteItem}
-              onEdit={setEditingItem}
-            />
+          items.map((item) => (
+            <MediaCard key={item.id} item={item} onDelete={deleteItem} onEdit={setEditingItem} />
           ))
         )}
 
@@ -347,21 +360,13 @@ const MediaLibraryPage: React.FC = () => {
       </div>
 
       {pagination.hasMore && (
-        <button
-          className="load-more-btn btn-secondary"
-          onClick={loadMore}
-          disabled={isLoading}
-        >
+        <button className="load-more-btn btn-secondary" onClick={loadMore} disabled={isLoading}>
           {isLoading ? 'Laden...' : 'Mehr laden'}
         </button>
       )}
 
       {editingItem && (
-        <EditModal
-          item={editingItem}
-          onSave={updateItem}
-          onClose={() => setEditingItem(null)}
-        />
+        <EditModal item={editingItem} onSave={updateItem} onClose={() => setEditingItem(null)} />
       )}
     </div>
   );

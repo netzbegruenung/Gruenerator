@@ -1,25 +1,30 @@
-import { JSX, useCallback, useMemo } from 'react';
+import { type JSX, useCallback, useMemo } from 'react';
 import { Controller, type FieldValues } from 'react-hook-form';
-import BaseForm from '../../common/BaseForm';
-import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
-import useApiSubmit from '../../hooks/useApiSubmit';
-import { useSharedContent } from '../../hooks/useSharedContent';
-import ErrorBoundary from '../../ErrorBoundary';
-import { FormInput, FormTextarea } from '../../common/Form/Input';
+
+import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
+import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
-import PlatformSelector from '../../common/PlatformSelector';
-import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
+import BaseForm from '../../common/BaseForm';
 import useBaseForm from '../../common/Form/hooks/useBaseForm';
+import { FormInput, FormTextarea } from '../../common/Form/Input';
+import PlatformSelector from '../../common/PlatformSelector';
+import ErrorBoundary from '../../ErrorBoundary';
+import useApiSubmit from '../../hooks/useApiSubmit';
+import { useSharedContent } from '../../hooks/useSharedContent';
+import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
+
 import type { HelpContent } from '../../../types/baseform';
-import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
-import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
+
 
 interface GrueneJugendGeneratorProps {
   showHeaderFooter?: boolean;
 }
 
-const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGeneratorProps): JSX.Element => {
+const GrueneJugendGenerator = ({
+  showHeaderFooter = true,
+}: GrueneJugendGeneratorProps): JSX.Element => {
   const componentName = 'gruene-jugend';
   const { initialContent } = useSharedContent();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
@@ -27,20 +32,23 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
   // Consolidated setup using new hook
   const setup = useGeneratorSetup({
     instructionType: 'gruenejugend',
-    componentName: 'gruene-jugend'
+    componentName: 'gruene-jugend',
   });
 
   // Keep usePrivacyMode for backwards compatibility with existing code
-  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
+  const usePrivacyMode = useGeneratorSelectionStore((state) => state.usePrivacyMode);
 
-  const platformOptions = useMemo(() => [
-    { id: 'instagram', label: 'Instagram' },
-    { id: 'twitter', label: 'Twitter/X' },
-    { id: 'tiktok', label: 'TikTok' },
-    { id: 'messenger', label: 'Messenger' },
-    { id: 'reelScript', label: 'Skript für Reels & Tiktoks' },
-    { id: 'actionIdeas', label: 'Aktionsideen' }
-  ], []);
+  const platformOptions = useMemo(
+    () => [
+      { id: 'instagram', label: 'Instagram' },
+      { id: 'twitter', label: 'Twitter/X' },
+      { id: 'tiktok', label: 'TikTok' },
+      { id: 'messenger', label: 'Messenger' },
+      { id: 'reelScript', label: 'Skript für Reels & Tiktoks' },
+      { id: 'actionIdeas', label: 'Aktionsideen' },
+    ],
+    []
+  );
 
   const defaultPlatforms = useMemo(() => {
     // Default for sharepic content
@@ -53,13 +61,14 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
 
   // Initialize useBaseForm with knowledge system enabled
   const helpContent: HelpContent = {
-    content: "Der Grünerator für die Grüne Jugend erstellt jugendgerechte Social-Media-Inhalte für verschiedene Plattformen.",
+    content:
+      'Der Grünerator für die Grüne Jugend erstellt jugendgerechte Social-Media-Inhalte für verschiedene Plattformen.',
     tips: [
-      "Wähle die Plattformen aus, für die du Content erstellen möchtest",
-      "Gib ein klares Thema und relevante Details an",
-      "Der Grünerator passt Tonalität und Format automatisch an die Zielgruppe an",
-      "Nutze die Websuche für aktuelle Informationen"
-    ]
+      'Wähle die Plattformen aus, für die du Content erstellen möchtest',
+      'Gib ein klares Thema und relevante Details an',
+      'Der Grünerator passt Tonalität und Format automatisch an die Zielgruppe an',
+      'Nutze die Websuche für aktuelle Informationen',
+    ],
   };
 
   // Initialize useBaseForm with proper type casting
@@ -70,7 +79,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
       platforms: defaultPlatforms,
       useWebSearchTool: false,
       usePrivacyMode: false,
-      useProMode: false
+      useProMode: false,
     },
     generatorType: 'gruene-jugend',
     componentName: componentName,
@@ -79,14 +88,16 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
     features: ['webSearch', 'privacyMode'],
     tabIndexKey: 'GRUENE_JUGEND',
     defaultMode: 'privacy',
-    helpContent
+    helpContent,
   } as unknown as Parameters<typeof useBaseForm>[0]);
 
   const { control, handleSubmit, setValue } = form;
 
   // Use store for content management (no local state needed)
-  const socialMediaContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_gruene_jugend');
+  const socialMediaContent =
+    useGeneratedTextStore((state) => state.getGeneratedText(componentName)) || '';
+  const { submitForm, loading, success, resetSuccess, error } =
+    useApiSubmit('/claude_gruene_jugend');
 
   // Combine file attachments with crawled URLs
   const {
@@ -96,61 +107,73 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
     detectAndCrawlUrls,
     removeCrawledUrl,
     retryUrl,
-    isCrawling
+    isCrawling,
   } = useUrlCrawler();
 
   // Form data builder with all attachments
-  const allAttachments = useMemo(() => [
-    ...(form.generator?.attachedFiles || []),
-    ...crawledUrls
-  ], [form.generator?.attachedFiles, crawledUrls]);
+  const allAttachments = useMemo(
+    () => [...(form.generator?.attachedFiles || []), ...crawledUrls],
+    [form.generator?.attachedFiles, crawledUrls]
+  );
 
   const builder = useFormDataBuilder({
     ...setup,
     attachments: allAttachments,
-    searchQueryFields: ['thema', 'details'] as const
+    searchQueryFields: ['thema', 'details'] as const,
   });
 
-  const onSubmitRHF = useCallback(async (rhfData: Record<string, unknown>) => {
-    setStoreIsLoading(true);
-    try {
-      // Use platforms array directly from multi-select
-      const selectedPlatforms = (rhfData.platforms as string[]) || [];
+  const onSubmitRHF = useCallback(
+    async (rhfData: Record<string, unknown>) => {
+      setStoreIsLoading(true);
+      try {
+        // Use platforms array directly from multi-select
+        const selectedPlatforms = (rhfData.platforms as string[]) || [];
 
-      // Build submission data using new hook
-      const formDataToSubmit = builder.buildSubmissionData({
-        thema: String(rhfData.thema || ''),
-        details: String(rhfData.details || ''),
-        platforms: selectedPlatforms
-      } as Record<string, unknown>);
+        // Build submission data using new hook
+        const formDataToSubmit = builder.buildSubmissionData({
+          thema: String(rhfData.thema || ''),
+          details: String(rhfData.details || ''),
+          platforms: selectedPlatforms,
+        } as Record<string, unknown>);
 
-      console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
-      const content = await submitForm(formDataToSubmit);
-      console.log('[GrueneJugendGenerator] API Antwort erhalten:', content);
-      if (content) {
-        const contentString = typeof content === 'string' ? content : String(content);
-        console.log('[GrueneJugendGenerator] Setze generierten Content:', contentString.substring(0, 100) + '...');
-        setGeneratedText(componentName, contentString);
-        setTimeout(resetSuccess, 3000);
+        console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
+        const content = await submitForm(formDataToSubmit);
+        console.log('[GrueneJugendGenerator] API Antwort erhalten:', content);
+        if (content) {
+          const contentString = typeof content === 'string' ? content : String(content);
+          console.log(
+            '[GrueneJugendGenerator] Setze generierten Content:',
+            contentString.substring(0, 100) + '...'
+          );
+          setGeneratedText(componentName, contentString);
+          setTimeout(resetSuccess, 3000);
+        }
+      } catch (err) {
+        console.error('[GrueneJugendGenerator] Fehler beim Formular-Submit:', err);
+      } finally {
+        setStoreIsLoading(false);
       }
-    } catch (err) {
-      console.error('[GrueneJugendGenerator] Fehler beim Formular-Submit:', err);
-    } finally {
-      setStoreIsLoading(false);
-    }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, builder]);
+    },
+    [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, builder]
+  );
 
-  const handleGeneratedContentChange = useCallback((content: string) => {
-    setGeneratedText(componentName, content);
-  }, [setGeneratedText, componentName]);
+  const handleGeneratedContentChange = useCallback(
+    (content: string) => {
+      setGeneratedText(componentName, content);
+    },
+    [setGeneratedText, componentName]
+  );
 
   // Handle URL detection and crawling
-  const handleUrlsDetected = useCallback(async (urls: string[]) => {
-    // Only crawl if not already crawling and URLs are detected
-    if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
-    }
-  }, [detectAndCrawlUrls, isCrawling, usePrivacyMode]);
+  const handleUrlsDetected = useCallback(
+    async (urls: string[]) => {
+      // Only crawl if not already crawling and URLs are detected
+      if (!isCrawling && urls.length > 0) {
+        await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
+      }
+    },
+    [detectAndCrawlUrls, isCrawling, usePrivacyMode]
+  );
 
   const renderPlatformSection = () => {
     if (!form.generator?.baseFormTabIndex) {
@@ -164,7 +187,9 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
         label="Formate"
         placeholder="Formate auswählen..."
         required={true}
-        tabIndex={(form.generator.baseFormTabIndex as Record<string, number>)?.platformSelectorTabIndex}
+        tabIndex={
+          (form.generator.baseFormTabIndex as Record<string, number>)?.platformSelectorTabIndex
+        }
       />
     );
   };

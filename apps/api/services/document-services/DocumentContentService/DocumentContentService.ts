@@ -6,20 +6,17 @@
 import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
 import { getQdrantDocumentService } from '../DocumentSearchService/index.js';
 import type { ContentSearchOptions, ContentSearchResponse } from './types.js';
-import {
-  getAccessibleDocuments,
-  getAccessibleDocumentIds
-} from './accessControl.js';
+import { getAccessibleDocuments, getAccessibleDocumentIds } from './accessControl.js';
 import {
   determineContentStrategy,
   createIntelligentExcerpt,
-  extractRelevantText
+  extractRelevantText,
 } from './contentExtraction.js';
 import {
   performVectorSearch,
   processVectorSearchResults,
   fillMissingDocuments,
-  createSearchResponse
+  createSearchResponse,
 } from './searchOperations.js';
 
 /**
@@ -49,7 +46,9 @@ export class DocumentContentService {
     try {
       const trimmedQuery = query.trim();
 
-      console.log(`[DocumentContentService] Content search request: query="${trimmedQuery}", documentIds=[${documentIds.length} docs], user=${userId}`);
+      console.log(
+        `[DocumentContentService] Content search request: query="${trimmedQuery}", documentIds=[${documentIds.length} docs], user=${userId}`
+      );
 
       // Step 1: Verify user owns the requested documents
       const accessibleDocuments = await getAccessibleDocuments(
@@ -71,10 +70,7 @@ export class DocumentContentService {
       );
 
       // Step 3: Process results and create intelligent content extracts
-      const documentContents = processVectorSearchResults(
-        searchResults,
-        accessibleDocuments
-      );
+      const documentContents = processVectorSearchResults(searchResults, accessibleDocuments);
 
       // Step 4: For documents not found in vector search, get full text
       await fillMissingDocuments(
@@ -94,7 +90,6 @@ export class DocumentContentService {
         searchResults.length,
         startTime
       );
-
     } catch (error) {
       console.error('[DocumentContentService] Error in searchDocumentContent:', error);
       throw error;

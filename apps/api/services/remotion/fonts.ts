@@ -18,43 +18,43 @@ export const fontDefinitions: FontDefinition[] = [
   {
     family: 'GrueneTypeNeue',
     file: 'GrueneTypeNeue-Regular.ttf',
-    weight: '400'
+    weight: '400',
   },
   {
     family: 'GrueneType Neue',
     file: 'GrueneTypeNeue-Regular.ttf',
-    weight: '400'
+    weight: '400',
   },
   {
     family: 'PTSans',
     file: 'PTSans-Regular.ttf',
-    weight: '400'
+    weight: '400',
   },
   {
     family: 'PT Sans',
     file: 'PTSans-Regular.ttf',
-    weight: '400'
+    weight: '400',
   },
   {
     family: 'PTSans',
     file: 'PTSans-Bold.ttf',
-    weight: '700'
+    weight: '700',
   },
   {
     family: 'GJFontRegular',
     file: 'GJFontRegular.ttf',
-    weight: '400'
+    weight: '400',
   },
   {
     family: 'Wix Madefor Display',
     file: 'GJFontRegular.ttf',
-    weight: '400'
+    weight: '400',
   },
   {
     family: 'Montserrat',
     file: 'Montserrat-Bold.ttf',
-    weight: '700'
-  }
+    weight: '700',
+  },
 ];
 
 export async function loadAllFonts(): Promise<FontLoadResult> {
@@ -71,8 +71,8 @@ export async function loadAllFonts(): Promise<FontLoadResult> {
     }
   }
 
-  const loaded = results.filter(r => r.success).map(r => r.path);
-  const failed = results.filter(r => !r.success).map(r => r.path);
+  const loaded = results.filter((r) => r.success).map((r) => r.path);
+  const failed = results.filter((r) => !r.success).map((r) => r.path);
 
   if (failed.length > 0) {
     console.warn('Some font files not found:', failed);
@@ -82,7 +82,7 @@ export async function loadAllFonts(): Promise<FontLoadResult> {
 }
 
 export function getFontPath(fontFamily: string): string {
-  const font = fontDefinitions.find(f => f.family === fontFamily);
+  const font = fontDefinitions.find((f) => f.family === fontFamily);
   if (font) {
     return path.join(FONTS_DIR, font.file);
   }
@@ -90,6 +90,6 @@ export function getFontPath(fontFamily: string): string {
 }
 
 export function getAllFontPaths(): string[] {
-  const uniqueFiles = [...new Set(fontDefinitions.map(f => f.file))];
-  return uniqueFiles.map(file => path.join(FONTS_DIR, file));
+  const uniqueFiles = [...new Set(fontDefinitions.map((f) => f.file))];
+  return uniqueFiles.map((file) => path.join(FONTS_DIR, file));
 }

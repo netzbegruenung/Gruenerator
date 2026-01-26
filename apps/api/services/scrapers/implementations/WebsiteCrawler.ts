@@ -317,7 +317,10 @@ export class WebsiteCrawler extends BaseScraper {
       $('meta[property="og:title"]').attr('content') ||
       'Untitled';
 
-    const description = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
+    const description =
+      $('meta[name="description"]').attr('content') ||
+      $('meta[property="og:description"]').attr('content') ||
+      '';
 
     // Content extraction selectors (German-optimized)
     const contentSelectors = [
@@ -384,7 +387,12 @@ export class WebsiteCrawler extends BaseScraper {
         if (!href) return;
 
         // Skip anchors, javascript, mailto, tel
-        if (href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+        if (
+          href.startsWith('#') ||
+          href.startsWith('javascript:') ||
+          href.startsWith('mailto:') ||
+          href.startsWith('tel:')
+        ) {
           return;
         }
 

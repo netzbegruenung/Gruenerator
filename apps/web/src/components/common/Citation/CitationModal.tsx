@@ -1,4 +1,5 @@
-import { useRef, useEffect, JSX, MouseEvent } from 'react';
+import { useRef, useEffect, type JSX, type MouseEvent } from 'react';
+
 import useCitationStore from '../../../stores/citationStore';
 import { Markdown } from '../Markdown';
 
@@ -16,7 +17,7 @@ const CitationModal = (): JSX.Element | null => {
     isLoadingContext,
     contextError,
     getNavigationUrl,
-    canNavigate
+    canNavigate,
   } = useCitationStore();
 
   useEffect(() => {
@@ -61,11 +62,7 @@ const CitationModal = (): JSX.Element | null => {
     }
 
     if (contextError) {
-      return (
-        <div className="citation-text">
-          &ldquo;{selectedCitation.cited_text}&rdquo;
-        </div>
-      );
+      return <div className="citation-text">&ldquo;{selectedCitation.cited_text}&rdquo;</div>;
     }
 
     if (contextData && contextData.contextChunks && contextData.contextChunks.length > 0) {
@@ -110,14 +107,14 @@ const CitationModal = (): JSX.Element | null => {
             ×
           </button>
         </div>
-        <div className="citation-modal-content">
-          {renderContextView()}
-        </div>
+        <div className="citation-modal-content">{renderContextView()}</div>
         <div className="citation-modal-footer">
           <div className="citation-meta">
             <span className="citation-source">{selectedCitation.document_title}</span>
             {selectedCitation.similarity_score && (
-              <span className="citation-relevance">{Math.round(Number(selectedCitation.similarity_score) * 100)}%</span>
+              <span className="citation-relevance">
+                {Math.round(Number(selectedCitation.similarity_score) * 100)}%
+              </span>
             )}
           </div>
           {canNavigate() && (

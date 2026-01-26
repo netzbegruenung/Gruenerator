@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+
 import apiClient from '../../components/utils/apiClient';
 
 // Source types
@@ -110,7 +111,10 @@ interface GeneratorSelectionActions {
   setAvailableDocuments: (documents: Document[]) => void;
   setLoadingDocuments: (isLoading: boolean) => void;
   handleDocumentLoadError: (error: unknown) => void;
-  setExtractingDocumentContent: (isExtracting: boolean, info?: DocumentExtractionInfo | null) => void;
+  setExtractingDocumentContent: (
+    isExtracting: boolean,
+    info?: DocumentExtractionInfo | null
+  ) => void;
   toggleDocumentSelection: (documentId: string) => void;
   getSelectedDocuments: () => Document[];
   setAvailableTexts: (texts: Text[]) => void;
@@ -151,7 +155,7 @@ const initialState: GeneratorSelectionState = {
     universal: null,
     gruenejugend: null,
     rede: null,
-    buergeranfragen: null
+    buergeranfragen: null,
   },
   isInstructionsActive: false,
   availableDocuments: [],
@@ -165,7 +169,7 @@ const initialState: GeneratorSelectionState = {
   uiConfig: {
     enableDocuments: false,
     enableTexts: false,
-    enableSourceSelection: false
+    enableSourceSelection: false,
   },
   activeComponentName: null,
   defaultModes: {},
@@ -193,36 +197,40 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
   immer((set, get) => ({
     ...initialState,
 
-    setSource: (source) => set((state) => {
-      state.source = source;
-      state.isInstructionsActive = false;
-      if (source.type === 'neutral') {
-        state.availableDocuments = [];
-        state.selectedDocumentIds = [];
-        state.isLoadingDocuments = false;
-        state.availableTexts = [];
-        state.selectedTextIds = [];
-        state.isLoadingTexts = false;
-      }
-      state.useWebSearch = false;
-      state.usePrivacyMode = false;
-      state.useProMode = false;
-      state.useUltraMode = false;
-      state.useAutomaticSearch = false;
-      state.useNotebookEnrich = false;
-    }),
+    setSource: (source) =>
+      set((state) => {
+        state.source = source;
+        state.isInstructionsActive = false;
+        if (source.type === 'neutral') {
+          state.availableDocuments = [];
+          state.selectedDocumentIds = [];
+          state.isLoadingDocuments = false;
+          state.availableTexts = [];
+          state.selectedTextIds = [];
+          state.isLoadingTexts = false;
+        }
+        state.useWebSearch = false;
+        state.usePrivacyMode = false;
+        state.useProMode = false;
+        state.useUltraMode = false;
+        state.useAutomaticSearch = false;
+        state.useNotebookEnrich = false;
+      }),
 
-    setInstructions: (instructions) => set((state) => {
-      state.instructions = instructions;
-    }),
+    setInstructions: (instructions) =>
+      set((state) => {
+        state.instructions = instructions;
+      }),
 
-    setInstructionsActive: (active) => set((state) => {
-      state.isInstructionsActive = active;
-    }),
+    setInstructionsActive: (active) =>
+      set((state) => {
+        state.isInstructionsActive = active;
+      }),
 
-    setInstructionType: (type) => set((state) => {
-      state.instructionType = type;
-    }),
+    setInstructionType: (type) =>
+      set((state) => {
+        state.instructionType = type;
+      }),
 
     getActiveInstruction: (type) => {
       const state = get();
@@ -234,32 +242,36 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       const state = get();
       return {
         documentIds: state.selectedDocumentIds,
-        textIds: state.selectedTextIds
+        textIds: state.selectedTextIds,
       };
     },
 
-    setAvailableDocuments: (documents) => set((state) => {
-      state.availableDocuments = documents || [];
-      state.isLoadingDocuments = false;
-      state.isExtractingDocumentContent = false;
-      state.documentExtractionInfo = null;
-    }),
+    setAvailableDocuments: (documents) =>
+      set((state) => {
+        state.availableDocuments = documents || [];
+        state.isLoadingDocuments = false;
+        state.isExtractingDocumentContent = false;
+        state.documentExtractionInfo = null;
+      }),
 
-    setLoadingDocuments: (isLoading) => set((state) => {
-      state.isLoadingDocuments = isLoading;
-    }),
+    setLoadingDocuments: (isLoading) =>
+      set((state) => {
+        state.isLoadingDocuments = isLoading;
+      }),
 
-    handleDocumentLoadError: (error) => set((state) => {
-      console.error('[SelectionStore] Document loading error:', error);
-      state.isLoadingDocuments = false;
-      state.isExtractingDocumentContent = false;
-      state.documentExtractionInfo = null;
-    }),
+    handleDocumentLoadError: (error) =>
+      set((state) => {
+        console.error('[SelectionStore] Document loading error:', error);
+        state.isLoadingDocuments = false;
+        state.isExtractingDocumentContent = false;
+        state.documentExtractionInfo = null;
+      }),
 
-    setExtractingDocumentContent: (isExtracting, info = null) => set((state) => {
-      state.isExtractingDocumentContent = isExtracting;
-      state.documentExtractionInfo = info;
-    }),
+    setExtractingDocumentContent: (isExtracting, info = null) =>
+      set((state) => {
+        state.isExtractingDocumentContent = isExtracting;
+        state.documentExtractionInfo = info;
+      }),
 
     toggleDocumentSelection: (documentId) => {
       const currentState = get();
@@ -267,7 +279,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
 
       set((state) => {
         if (wasSelected) {
-          state.selectedDocumentIds = state.selectedDocumentIds.filter(id => id !== documentId);
+          state.selectedDocumentIds = state.selectedDocumentIds.filter((id) => id !== documentId);
         } else {
           state.selectedDocumentIds.push(documentId);
         }
@@ -276,24 +288,25 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
 
     getSelectedDocuments: () => {
       const state = get();
-      return state.availableDocuments.filter(doc =>
-        state.selectedDocumentIds.includes(doc.id)
-      );
+      return state.availableDocuments.filter((doc) => state.selectedDocumentIds.includes(doc.id));
     },
 
-    setAvailableTexts: (texts) => set((state) => {
-      state.availableTexts = texts || [];
-      state.isLoadingTexts = false;
-    }),
+    setAvailableTexts: (texts) =>
+      set((state) => {
+        state.availableTexts = texts || [];
+        state.isLoadingTexts = false;
+      }),
 
-    setLoadingTexts: (isLoading) => set((state) => {
-      state.isLoadingTexts = isLoading;
-    }),
+    setLoadingTexts: (isLoading) =>
+      set((state) => {
+        state.isLoadingTexts = isLoading;
+      }),
 
-    handleTextLoadError: (error) => set((state) => {
-      console.error('[SelectionStore] Text loading error:', error);
-      state.isLoadingTexts = false;
-    }),
+    handleTextLoadError: (error) =>
+      set((state) => {
+        console.error('[SelectionStore] Text loading error:', error);
+        state.isLoadingTexts = false;
+      }),
 
     toggleTextSelection: (textId) => {
       const currentState = get();
@@ -301,7 +314,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
 
       set((state) => {
         if (wasSelected) {
-          state.selectedTextIds = state.selectedTextIds.filter(id => id !== textId);
+          state.selectedTextIds = state.selectedTextIds.filter((id) => id !== textId);
         } else {
           state.selectedTextIds.push(textId);
         }
@@ -331,20 +344,19 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
 
     getSelectedTexts: () => {
       const state = get();
-      return state.availableTexts.filter(text =>
-        state.selectedTextIds.includes(text.id)
-      );
+      return state.availableTexts.filter((text) => state.selectedTextIds.includes(text.id));
     },
 
-    setUIConfig: (config) => set((state) => {
-      for (const key in config) {
-        const configValue = config as Record<string, unknown>;
-        const stateValue = state.uiConfig as Record<string, unknown>;
-        if (stateValue[key] !== configValue[key]) {
-          stateValue[key] = configValue[key];
+    setUIConfig: (config) =>
+      set((state) => {
+        for (const key in config) {
+          const configValue = config as Record<string, unknown>;
+          const stateValue = state.uiConfig as Record<string, unknown>;
+          if (stateValue[key] !== configValue[key]) {
+            stateValue[key] = configValue[key];
+          }
         }
-      }
-    }),
+      }),
 
     setActiveComponent: (componentName, defaultMode = null) => {
       const currentState = get();
@@ -357,7 +369,8 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
             state.defaultModes[componentName] = defaultMode;
           }
 
-          const modeToApply = (componentName && state.defaultModes[componentName]) || defaultMode || 'privacy';
+          const modeToApply =
+            (componentName && state.defaultModes[componentName]) || defaultMode || 'privacy';
 
           state.useWebSearch = false;
           state.usePrivacyMode = false;
@@ -376,67 +389,76 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       }
     },
 
-    setWebSearch: (enabled) => set((state) => {
-      state.useWebSearch = enabled;
-    }),
+    setWebSearch: (enabled) =>
+      set((state) => {
+        state.useWebSearch = enabled;
+      }),
 
-    setPrivacyMode: (enabled) => set((state) => {
-      state.usePrivacyMode = enabled;
-      if (enabled) {
-        state.useProMode = false;
-      }
-    }),
+    setPrivacyMode: (enabled) =>
+      set((state) => {
+        state.usePrivacyMode = enabled;
+        if (enabled) {
+          state.useProMode = false;
+        }
+      }),
 
-    setProMode: (enabled) => set((state) => {
-      state.useProMode = enabled;
-      if (enabled) {
-        state.usePrivacyMode = false;
-        state.useUltraMode = false;
-      }
-    }),
+    setProMode: (enabled) =>
+      set((state) => {
+        state.useProMode = enabled;
+        if (enabled) {
+          state.usePrivacyMode = false;
+          state.useUltraMode = false;
+        }
+      }),
 
-    setUltraMode: (enabled) => set((state) => {
-      state.useUltraMode = enabled;
-      if (enabled) {
-        state.usePrivacyMode = false;
-        state.useProMode = false;
-      }
-    }),
+    setUltraMode: (enabled) =>
+      set((state) => {
+        state.useUltraMode = enabled;
+        if (enabled) {
+          state.usePrivacyMode = false;
+          state.useProMode = false;
+        }
+      }),
 
-    toggleWebSearch: () => set((state) => {
-      state.useWebSearch = !state.useWebSearch;
-    }),
+    toggleWebSearch: () =>
+      set((state) => {
+        state.useWebSearch = !state.useWebSearch;
+      }),
 
-    togglePrivacyMode: () => set((state) => {
-      state.usePrivacyMode = !state.usePrivacyMode;
-      if (state.usePrivacyMode) {
-        state.useProMode = false;
-      }
-    }),
+    togglePrivacyMode: () =>
+      set((state) => {
+        state.usePrivacyMode = !state.usePrivacyMode;
+        if (state.usePrivacyMode) {
+          state.useProMode = false;
+        }
+      }),
 
-    toggleProMode: () => set((state) => {
-      state.useProMode = !state.useProMode;
-      if (state.useProMode) {
-        state.usePrivacyMode = false;
-        state.useUltraMode = false;
-      }
-    }),
+    toggleProMode: () =>
+      set((state) => {
+        state.useProMode = !state.useProMode;
+        if (state.useProMode) {
+          state.usePrivacyMode = false;
+          state.useUltraMode = false;
+        }
+      }),
 
-    toggleUltraMode: () => set((state) => {
-      state.useUltraMode = !state.useUltraMode;
-      if (state.useUltraMode) {
-        state.usePrivacyMode = false;
-        state.useProMode = false;
-      }
-    }),
+    toggleUltraMode: () =>
+      set((state) => {
+        state.useUltraMode = !state.useUltraMode;
+        if (state.useUltraMode) {
+          state.usePrivacyMode = false;
+          state.useProMode = false;
+        }
+      }),
 
-    setAutomaticSearch: (enabled) => set((state) => {
-      state.useAutomaticSearch = enabled;
-      if (enabled) {
-        state.selectedDocumentIds = [];
-        state.selectedTextIds = [];
-      }
-    }),
+    setAutomaticSearch: (enabled) =>
+      set((state) => {
+        state.useAutomaticSearch = enabled;
+        if (enabled) {
+          state.selectedDocumentIds = [];
+          state.selectedTextIds = [];
+        }
+      }),
 
     toggleAutomaticSearch: () => {
       const currentState = get();
@@ -451,13 +473,15 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       });
     },
 
-    setNotebookEnrich: (enabled) => set((state) => {
-      state.useNotebookEnrich = enabled;
-    }),
+    setNotebookEnrich: (enabled) =>
+      set((state) => {
+        state.useNotebookEnrich = enabled;
+      }),
 
-    toggleNotebookEnrich: () => set((state) => {
-      state.useNotebookEnrich = !state.useNotebookEnrich;
-    }),
+    toggleNotebookEnrich: () =>
+      set((state) => {
+        state.useNotebookEnrich = !state.useNotebookEnrich;
+      }),
 
     getFeatureState: () => {
       const state = get();
@@ -472,14 +496,15 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       };
     },
 
-    resetFeatures: () => set((state) => {
-      state.useWebSearch = false;
-      state.usePrivacyMode = false;
-      state.useProMode = false;
-      state.useUltraMode = false;
-      state.useAutomaticSearch = false;
-      state.useNotebookEnrich = false;
-    }),
+    resetFeatures: () =>
+      set((state) => {
+        state.useWebSearch = false;
+        state.usePrivacyMode = false;
+        state.useProMode = false;
+        state.useUltraMode = false;
+        state.useAutomaticSearch = false;
+        state.useNotebookEnrich = false;
+      }),
 
     reset: () => {
       return set(() => initialState);

@@ -52,24 +52,24 @@ const rateLimitConfig: RateLimitConfig = {
   resources: {
     // AI Image Generation (Flux)
     image: {
-      anonymous: { limit: 0, window: 'daily' },      // Anonymous users can't generate images
-      authenticated: { limit: 5, window: 'daily' },   // Logged-in users: 5 images per day
-      premium: { limit: 50, window: 'daily' }         // Future premium tier: 50 images per day
+      anonymous: { limit: 0, window: 'daily' }, // Anonymous users can't generate images
+      authenticated: { limit: 5, window: 'daily' }, // Logged-in users: 5 images per day
+      premium: { limit: 50, window: 'daily' }, // Future premium tier: 50 images per day
     },
 
     // AI Text Generation (Claude)
     text: {
-      anonymous: { limit: 5, window: 'daily' },       // Anonymous: 5 total generations per day
-      authenticated: { limit: Infinity, window: 'daily' },  // Unlimited for logged-in users
-      premium: { limit: Infinity, window: 'daily' }         // Unlimited for premium users
+      anonymous: { limit: 5, window: 'daily' }, // Anonymous: 5 total generations per day
+      authenticated: { limit: Infinity, window: 'daily' }, // Unlimited for logged-in users
+      premium: { limit: Infinity, window: 'daily' }, // Unlimited for premium users
     },
 
     // PDF Export
     pdf_export: {
-      anonymous: { limit: 2, window: 'daily' },       // Anonymous: 2 PDF exports per day
-      authenticated: { limit: 20, window: 'daily' },   // Authenticated: 20 exports per day
-      premium: { limit: 100, window: 'daily' }         // Premium: 100 exports per day
-    }
+      anonymous: { limit: 2, window: 'daily' }, // Anonymous: 2 PDF exports per day
+      authenticated: { limit: 20, window: 'daily' }, // Authenticated: 20 exports per day
+      premium: { limit: 100, window: 'daily' }, // Premium: 100 exports per day
+    },
 
     // Easy to add more resource types:
     // audio: { ... },
@@ -83,17 +83,17 @@ const rateLimitConfig: RateLimitConfig = {
   anonymousIdentifierStrategy: ['sessionID', 'ip'],
 
   // Global settings
-  enableAnalytics: process.env.ENABLE_RATE_LIMIT_ANALYTICS === 'true',  // Track usage for analytics
-  redisKeyPrefix: 'rate_limit',                                           // Prefix for all Redis keys
+  enableAnalytics: process.env.ENABLE_RATE_LIMIT_ANALYTICS === 'true', // Track usage for analytics
+  redisKeyPrefix: 'rate_limit', // Prefix for all Redis keys
 
   // Error handling
-  allowOnRedisError: true,  // If true, allow requests when Redis is down (fail-open)
+  allowOnRedisError: true, // If true, allow requests when Redis is down (fail-open)
 
   // Development overrides
   development: {
-    enabled: process.env.DISABLE_RATE_LIMITS !== 'true',  // Can disable in dev with env var
-    multiplier: 1  // Can multiply all limits by N in dev (e.g., 10x for testing)
-  }
+    enabled: process.env.DISABLE_RATE_LIMITS !== 'true', // Can disable in dev with env var
+    multiplier: 1, // Can multiply all limits by N in dev (e.g., 10x for testing)
+  },
 };
 
 export default rateLimitConfig;

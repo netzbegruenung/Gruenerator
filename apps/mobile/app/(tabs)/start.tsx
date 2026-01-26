@@ -1,11 +1,4 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  useColorScheme,
-  Pressable,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -18,18 +11,60 @@ import { route, type AppRoute } from '../../types/routes';
 interface QuickFeature {
   id: string;
   label: string;
-  icon: 'newspaper-outline' | 'document-text-outline' | 'videocam-outline' | 'search-outline' | 'image-outline' | 'create-outline' | 'construct-outline';
+  icon:
+    | 'newspaper-outline'
+    | 'document-text-outline'
+    | 'videocam-outline'
+    | 'search-outline'
+    | 'image-outline'
+    | 'create-outline'
+    | 'construct-outline';
   route: AppRoute;
 }
 
 const QUICK_FEATURES: QuickFeature[] = [
-  { id: 'presse', label: 'Öffentlichkeitsarbeit kreieren', icon: 'newspaper-outline', route: '/(tabs)/(texte)/presse' },
-  { id: 'antrag', label: 'Antrag erstellen', icon: 'document-text-outline', route: '/(tabs)/(texte)/antrag' },
-  { id: 'universal', label: 'Weitere Textformen', icon: 'create-outline', route: '/(tabs)/(texte)/universal' },
-  { id: 'reel', label: 'Reel untertiteln', icon: 'videocam-outline', route: '/(tabs)/(media)/reel' },
-  { id: 'image-studio', label: 'Bild erstellen', icon: 'image-outline', route: '/(tabs)/(media)/image-studio' },
-  { id: 'suche', label: 'Programm durchsuchen', icon: 'search-outline', route: '/(tabs)/(tools)/suche' },
-  { id: 'tools', label: 'Weitere Tools', icon: 'construct-outline', route: '/(tabs)/(tools)/barrierefreiheit' },
+  {
+    id: 'presse',
+    label: 'Öffentlichkeitsarbeit kreieren',
+    icon: 'newspaper-outline',
+    route: '/(tabs)/(texte)/presse',
+  },
+  {
+    id: 'antrag',
+    label: 'Antrag erstellen',
+    icon: 'document-text-outline',
+    route: '/(tabs)/(texte)/antrag',
+  },
+  {
+    id: 'universal',
+    label: 'Weitere Textformen',
+    icon: 'create-outline',
+    route: '/(tabs)/(texte)/universal',
+  },
+  {
+    id: 'reel',
+    label: 'Reel untertiteln',
+    icon: 'videocam-outline',
+    route: '/(tabs)/(media)/reel',
+  },
+  {
+    id: 'image-studio',
+    label: 'Bild erstellen',
+    icon: 'image-outline',
+    route: '/(tabs)/(media)/image-studio',
+  },
+  {
+    id: 'suche',
+    label: 'Programm durchsuchen',
+    icon: 'search-outline',
+    route: '/(tabs)/(tools)/suche',
+  },
+  {
+    id: 'tools',
+    label: 'Weitere Tools',
+    icon: 'construct-outline',
+    route: '/(tabs)/(tools)/barrierefreiheit',
+  },
 ];
 
 export default function StartScreen() {
@@ -47,9 +82,10 @@ export default function StartScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient
-        colors={colorScheme === 'dark'
-          ? [colors.grey[950], colors.grey[950]]
-          : [colors.secondary[50], colors.white]
+        colors={
+          colorScheme === 'dark'
+            ? [colors.grey[950], colors.grey[950]]
+            : [colors.secondary[50], colors.white]
         }
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}

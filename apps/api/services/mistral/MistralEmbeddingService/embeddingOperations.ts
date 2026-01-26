@@ -66,11 +66,16 @@ export async function generateBatchEmbeddings(
   try {
     const embeddings = await client.generateBatchEmbeddings(texts);
     const duration = Date.now() - startTime;
-    console.log(`[MistralEmbeddingService] Successfully generated ${embeddings.length} embeddings in ${duration}ms`);
+    console.log(
+      `[MistralEmbeddingService] Successfully generated ${embeddings.length} embeddings in ${duration}ms`
+    );
     return embeddings;
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[MistralEmbeddingService] Failed to generate embeddings after ${duration}ms:`, (error as Error).message);
+    console.error(
+      `[MistralEmbeddingService] Failed to generate embeddings after ${duration}ms:`,
+      (error as Error).message
+    );
     throw error;
   }
 }
@@ -86,13 +91,13 @@ export function generateMockEmbedding(text: string, dimensions: number = 1024): 
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
     const char = text.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
 
   // Generate mock embedding values based on hash
   for (let i = 0; i < dimensions; i++) {
-    mockEmbedding[i] = (Math.sin(hash + i) * 0.1); // Small values similar to real embeddings
+    mockEmbedding[i] = Math.sin(hash + i) * 0.1; // Small values similar to real embeddings
   }
 
   return mockEmbedding;
@@ -101,6 +106,9 @@ export function generateMockEmbedding(text: string, dimensions: number = 1024): 
 /**
  * Generate mock embeddings for multiple texts
  */
-export function generateMockBatchEmbeddings(texts: string[], dimensions: number = 1024): number[][] {
-  return texts.map(text => generateMockEmbedding(text, dimensions));
+export function generateMockBatchEmbeddings(
+  texts: string[],
+  dimensions: number = 1024
+): number[][] {
+  return texts.map((text) => generateMockEmbedding(text, dimensions));
 }

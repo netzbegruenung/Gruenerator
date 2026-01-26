@@ -67,7 +67,7 @@ export const createFocusTrap = (
     returnFocus = true,
     escapeDeactivates = true,
     clickOutsideDeactivates = false,
-    onDeactivate = () => {}
+    onDeactivate = () => {},
   } = options;
 
   const previousActiveElement = document.activeElement as HTMLElement | null;
@@ -79,13 +79,14 @@ export const createFocusTrap = (
     'input[type="radio"]:not([disabled])',
     'input[type="checkbox"]:not([disabled])',
     'select:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])'
+    '[tabindex]:not([tabindex="-1"])',
   ].join(',');
 
   // Get all focusable elements
   const getFocusableElements = (): HTMLElement[] => {
-    return Array.from(container.querySelectorAll<HTMLElement>(focusableSelectors))
-      .filter(el => el.offsetParent !== null); // Filter out hidden elements
+    return Array.from(container.querySelectorAll<HTMLElement>(focusableSelectors)).filter(
+      (el) => el.offsetParent !== null
+    ); // Filter out hidden elements
   };
 
   // Focus initial element
@@ -177,7 +178,7 @@ export const createInlineEditorFocus = (
     onEnter = () => {},
     onEscape = () => {},
     onTab = () => {},
-    selectAllOnFocus = true
+    selectAllOnFocus = true,
   } = options;
 
   const handleFocus = (event: FocusEvent): void => {
@@ -216,8 +217,8 @@ export const createInlineEditorFocus = (
     handleKeyDown,
     props: {
       onFocus: handleFocus,
-      onKeyDown: handleKeyDown
-    }
+      onKeyDown: handleKeyDown,
+    },
   };
 };
 
@@ -230,10 +231,7 @@ export const preserveFocus = async (
   updateFn: () => void | Promise<void>,
   options: PreserveFocusOptions = {}
 ): Promise<void> => {
-  const {
-    focusSelector = null,
-    fallbackSelector = null
-  } = options;
+  const { focusSelector = null, fallbackSelector = null } = options;
 
   // Store current focus
   const activeElement = document.activeElement as HTMLElement | null;
@@ -329,12 +327,16 @@ export const createSkipLink = (
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         // Remove tabindex after focus
-        target.addEventListener('blur', () => {
-          target.removeAttribute('tabindex');
-        }, { once: true });
+        target.addEventListener(
+          'blur',
+          () => {
+            target.removeAttribute('tabindex');
+          },
+          { once: true }
+        );
       }
     },
-    children: text
+    children: text,
   };
 };
 
@@ -371,5 +373,5 @@ export default {
   preserveFocus,
   announceToScreenReader,
   createSkipLink,
-  createFocusScope
+  createFocusScope,
 };

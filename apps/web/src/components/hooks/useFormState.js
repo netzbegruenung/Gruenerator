@@ -9,9 +9,9 @@ export const useFormState = (initialState) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevState => ({
+    setFormData((prevState) => ({
       ...prevState,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -26,6 +26,6 @@ export const useFormState = (initialState) => {
     setError,
     formErrors,
     setFormErrors,
-    handleChange
+    handleChange,
   };
 };

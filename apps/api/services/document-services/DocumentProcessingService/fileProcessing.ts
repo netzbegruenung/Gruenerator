@@ -36,8 +36,8 @@ export async function processFileUpload(
     fileSize: file.size,
     status: 'completed',
     additionalMetadata: {
-      content_preview: generateContentPreview(extractedText)
-    }
+      content_preview: generateContentPreview(extractedText),
+    },
   });
 
   await qdrantDocumentService.storeDocumentVectors(
@@ -48,16 +48,18 @@ export async function processFileUpload(
     {
       sourceType: sourceType,
       title: title.trim(),
-      filename: file.originalname
+      filename: file.originalname,
     }
   );
 
-  console.log(`[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`);
+  console.log(
+    `[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`
+  );
 
   return {
     id: documentMetadata.id,
     title: documentMetadata.title,
     vectorCount: chunks.length,
-    sourceType: sourceType
+    sourceType: sourceType,
   };
 }

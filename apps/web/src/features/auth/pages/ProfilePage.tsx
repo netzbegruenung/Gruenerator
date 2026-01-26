@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import Spinner from '../../../components/common/Spinner';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
-import Spinner from '../../../components/common/Spinner';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
-import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 
 import '../../../assets/styles/features/auth/auth.css';
 import '../../../assets/styles/features/auth/profile.css';
@@ -18,7 +18,9 @@ import '../../../assets/styles/components/auth/avatar-selection.css';
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/tabs/GroupsManagement'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
-const CanvaSection = lazy(() => import('../components/profile/tabs/ContentManagement/components/CanvaSection'));
+const CanvaSection = lazy(
+  () => import('../components/profile/tabs/ContentManagement/components/CanvaSection')
+);
 
 type TabMapping = Record<string, string>;
 
@@ -26,12 +28,7 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const { tab, subtab, subsubtab } = useParams();
 
-  const {
-    user,
-    isLoggingOut,
-    deleteAccount,
-    canManageAccount
-  } = useOptimizedAuth();
+  const { user, isLoggingOut, deleteAccount, canManageAccount } = useOptimizedAuth();
 
   const { shouldShowTab, canAccessBetaFeature } = useBetaFeatures();
 
@@ -44,7 +41,7 @@ const ProfilePage = () => {
   TAB_MAPPING['integrationen'] = 'integrationen';
 
   // Get active tab from URL path
-  const activeTab = tab ? (TAB_MAPPING[tab] || 'profile') : 'profile';
+  const activeTab = tab ? TAB_MAPPING[tab] || 'profile' : 'profile';
 
   // Message states
   const [successMessage, setSuccessMessage] = useState('');
@@ -140,12 +137,21 @@ const ProfilePage = () => {
               onErrorProfileMessage={handleErrorMessage}
               deleteAccount={async (options: { confirm: string }) => {
                 if (typeof deleteAccount === 'function') {
-                  const result = await deleteAccount({ confirm: options.confirm }) as { success?: boolean } | void;
-                  return { success: (result && typeof result === 'object' && 'success' in result) ? result.success ?? false : false };
+                  const result = (await deleteAccount({ confirm: options.confirm })) as {
+                    success?: boolean;
+                  } | void;
+                  return {
+                    success:
+                      result && typeof result === 'object' && 'success' in result
+                        ? (result.success ?? false)
+                        : false,
+                  };
                 }
                 return { success: false };
               }}
-              canManageAccount={() => typeof canManageAccount === 'function' ? canManageAccount() : !!canManageAccount}
+              canManageAccount={() =>
+                typeof canManageAccount === 'function' ? canManageAccount() : !!canManageAccount
+              }
             />
           )}
 
@@ -188,5 +194,5 @@ const ProfilePage = () => {
 
 export default withAuthRequired(ProfilePage, {
   title: 'Profil',
-  message: 'Melde dich an, um dein Profil zu verwalten und eigene Grüneratoren zu erstellen.'
+  message: 'Melde dich an, um dein Profil zu verwalten und eigene Grüneratoren zu erstellen.',
 });

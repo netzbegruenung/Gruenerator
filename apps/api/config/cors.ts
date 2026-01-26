@@ -42,7 +42,7 @@ export function validateCorsOrigin(
     return {
       allowed: true,
       effectiveOrigin: null,
-      reason: 'no-origin-same-site'
+      reason: 'no-origin-same-site',
     };
   }
 
@@ -50,14 +50,14 @@ export function validateCorsOrigin(
   if (allowedOrigins.includes(effectiveOrigin)) {
     return {
       allowed: true,
-      effectiveOrigin
+      effectiveOrigin,
     };
   }
 
   return {
     allowed: false,
     effectiveOrigin,
-    reason: 'origin-not-allowed'
+    reason: 'origin-not-allowed',
   };
 }
 
@@ -94,7 +94,7 @@ export function createCorsOptions(allowedOrigins: string[]): CorsOptions {
       'Tus-Resumable',
       'Upload-Metadata',
       'Upload-Defer-Length',
-      'Upload-Concat'
+      'Upload-Concat',
     ],
     exposedHeaders: [
       'Content-Range',
@@ -104,10 +104,10 @@ export function createCorsOptions(allowedOrigins: string[]): CorsOptions {
       // TUS specific headers
       'Upload-Offset',
       'Location',
-      'Tus-Resumable'
+      'Tus-Resumable',
     ],
     credentials: true,
-    optionsSuccessStatus: 204
+    optionsSuccessStatus: 204,
   };
 }
 

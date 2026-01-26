@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from 'react';
+
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { getTypeConfig } from '../utils/typeConfig';
 import { blobToBase64 } from '../utils/templateResultUtils';
+import { getTypeConfig } from '../utils/typeConfig';
+
 import type { ShareMetadata, ColorSchemeItem } from '../types/templateResultTypes';
 
 interface UseImageHelpersReturn {
@@ -42,7 +44,7 @@ export const useImageHelpers = (): UseImageHelpersReturn => {
     precisionInstruction,
     sharepicPrompt,
     variant,
-    imagineTitle
+    imagineTitle,
   } = useImageStudioStore();
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
@@ -108,17 +110,55 @@ export const useImageHelpers = (): UseImageHelpersReturn => {
     } else if (legacyType === 'Info') {
       metadata.content = { header, subheader, body };
     } else if (legacyType === 'Veranstaltung') {
-      metadata.content = { eventTitle, line1, line2, line3, weekday, date, time, locationName, address };
+      metadata.content = {
+        eventTitle,
+        line1,
+        line2,
+        line3,
+        weekday,
+        date,
+        time,
+        locationName,
+        address,
+      };
     } else {
       metadata.content = { line1, line2, line3 };
     }
 
     return metadata;
-  }, [typeConfig, type, fontSize, colorScheme, balkenOffset, balkenGruppenOffset,
-    sunflowerOffset, credit, searchTerms, sloganAlternatives, quote, name,
-    header, subheader, body, line1, line2, line3, uploadedImage, selectedImage,
-    eventTitle, weekday, date, time, locationName, address,
-    purePrompt, precisionInstruction, sharepicPrompt, variant, imagineTitle]);
+  }, [
+    typeConfig,
+    type,
+    fontSize,
+    colorScheme,
+    balkenOffset,
+    balkenGruppenOffset,
+    sunflowerOffset,
+    credit,
+    searchTerms,
+    sloganAlternatives,
+    quote,
+    name,
+    header,
+    subheader,
+    body,
+    line1,
+    line2,
+    line3,
+    uploadedImage,
+    selectedImage,
+    eventTitle,
+    weekday,
+    date,
+    time,
+    locationName,
+    address,
+    purePrompt,
+    precisionInstruction,
+    sharepicPrompt,
+    variant,
+    imagineTitle,
+  ]);
 
   const currentImagePreview = useMemo((): string | null => {
     if (uploadedImage && uploadedImage instanceof Blob) {
@@ -134,7 +174,7 @@ export const useImageHelpers = (): UseImageHelpersReturn => {
     blobToBase64,
     getOriginalImageBase64,
     buildShareMetadata,
-    currentImagePreview
+    currentImagePreview,
   };
 };
 

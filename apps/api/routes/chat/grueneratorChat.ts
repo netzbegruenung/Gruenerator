@@ -14,12 +14,23 @@ import { trimMessagesToTokenLimit } from '../../services/counters/index.js';
 import { DocumentQnAService } from '../../services/document-services/DocumentQnAService/index.js';
 import { redisClient } from '../../utils/redis/index.js';
 import mistralClient from '../../workers/mistralClient.js';
-import { detectSimpleMessage, generateSimpleResponse } from '../../services/chat/simple-messages/index.js';
+import {
+  detectSimpleMessage,
+  generateSimpleResponse,
+} from '../../services/chat/simple-messages/index.js';
 import { isWebSearchConfirmation } from '../../agents/chat/InformationRequestHandler.js';
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
-import { extractRequestedInformation, completePendingRequest } from '../../agents/chat/InformationRequestHandler.js';
+import {
+  extractRequestedInformation,
+  completePendingRequest,
+} from '../../agents/chat/InformationRequestHandler.js';
 import { processConversationRequest } from '../../services/chat/ConversationService.js';
-import { processMultiIntentRequest, processSingleIntentRequest, isSharepicIntent, isImagineIntent } from '../../services/chat/IntentService.js';
+import {
+  processMultiIntentRequest,
+  processSingleIntentRequest,
+  isSharepicIntent,
+  isImagineIntent,
+} from '../../services/chat/IntentService.js';
 import { generateSharepicForChat } from '../../services/chat/sharepicGenerationService.js';
 import type { UserProfile } from '../../services/user/types.js';
 
@@ -32,7 +43,7 @@ const router = createAuthenticatedRouter();
 // Configuration
 const CONFIG = {
   TOKEN_LIMIT: 6000,
-  MAX_RECENT_DOCUMENTS: 10
+  MAX_RECENT_DOCUMENTS: 10,
 };
 
 // Initialize DocumentQnA service
@@ -41,196 +52,216 @@ const documentQnAService = new DocumentQnAService(redisClient, mistralClient);
 /**
  * Main chat endpoint
  */
-router.post('/', withErrorHandler(async (req, res) => {
-  const {
-    message,
-    context = {},
-    attachments = [],
-    usePrivacyMode = false,
-    provider = null
-  } = req.body || {};
+router.post(
+  '/',
+  withErrorHandler(async (req, res) => {
+    const {
+      message,
+      context = {},
+      attachments = [],
+      usePrivacyMode = false,
+      provider = null,
+    } = req.body || {};
 
-  log.debug('[Chat] Processing request:', {
-    messageLength: message?.length || 0,
-    hasAttachments: attachments?.length || 0
-  });
-
-  // Validate required fields
-  if (!message || typeof message !== 'string' || !message.trim()) {
-    return res.status(400).json({
-      success: false,
-      error: 'Message is required and cannot be empty',
-      code: 'VALIDATION_ERROR'
+    log.debug('[Chat] Processing request:', {
+      messageLength: message?.length || 0,
+      hasAttachments: attachments?.length || 0,
     });
-  }
 
-  try {
-    // Get user ID and conversation history
-    const user = getUser(req);
-    const userId = user?.id || `anon_${req.ip}`;
-    await chatMemory.addMessage(userId, 'user', message);
-
-    const conversation = await chatMemory.getConversation(userId);
-    const trimmedHistory = trimMessagesToTokenLimit(conversation.messages as any, CONFIG.TOKEN_LIMIT);
-
-    // Check for simple messages (instant response)
-    const simpleCheck = detectSimpleMessage(message);
-    if (simpleCheck.isSimple && simpleCheck.category) {
-      const locale = user?.locale || 'de-DE';
-      const response = generateSimpleResponse(simpleCheck.category, locale);
-
-      return res.json({
-        success: true,
-        agent: 'simple_response',
-        content: { text: response }
+    // Validate required fields
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message is required and cannot be empty',
+        code: 'VALIDATION_ERROR',
       });
     }
 
-    // Process attachments
-    const requestId = crypto.randomBytes(8).toString('hex');
-    const { documentIds, sharepicImages, recentDocuments } = await processAttachments(
-      attachments,
-      userId,
-      requestId,
-      req.app.locals.sharepicImageManager
-    );
+    try {
+      // Get user ID and conversation history
+      const user = getUser(req);
+      const userId = user?.id || `anon_${req.ip}`;
+      await chatMemory.addMessage(userId, 'user', message);
 
-    // Build enhanced context
-    const allAttachments = [...(attachments || []), ...recentDocuments];
-    const hasImageAttachment = sharepicImages.length > 0;
-
-    const enhancedContext = {
-      ...context,
-      messageHistory: trimmedHistory,
-      lastAgent: conversation.metadata?.lastAgent,
-      documentIds: documentIds,
-      hasImageAttachment: hasImageAttachment,
-      sharepicRequestId: requestId
-    };
-
-    // Check for pending requests
-    const pendingRequest = await checkPendingRequests(userId);
-
-    // Handle web search confirmation
-    if (pendingRequest && pendingRequest.type === 'websearch_confirmation') {
-      return await handleWebSearchConfirmation(message, pendingRequest, userId, req, res);
-    }
-
-    // Handle pending information requests
-    if (pendingRequest && pendingRequest.type === 'missing_information') {
-      const completionResult = await handlePendingInformationRequest(
-        message,
-        pendingRequest,
-        userId,
-        enhancedContext,
-        req,
-        res
+      const conversation = await chatMemory.getConversation(userId);
+      const trimmedHistory = trimMessagesToTokenLimit(
+        conversation.messages as any,
+        CONFIG.TOKEN_LIMIT
       );
-      if (completionResult) return completionResult;
-    }
 
-    // Classify intent
-    const intentResult = await classifyIntent(message, enhancedContext, req.app.locals.aiWorkerPool);
+      // Check for simple messages (instant response)
+      const simpleCheck = detectSimpleMessage(message);
+      if (simpleCheck.isSimple && simpleCheck.category) {
+        const locale = user?.locale || 'de-DE';
+        const response = generateSimpleResponse(simpleCheck.category, locale);
 
-    if (!intentResult.intents || intentResult.intents.length === 0) {
-      throw new Error('Unable to classify intent from message');
-    }
+        return res.json({
+          success: true,
+          agent: 'simple_response',
+          content: { text: response },
+        });
+      }
 
-    log.debug('[Chat] Intent classified:', {
-      isMultiIntent: intentResult.isMultiIntent,
-      totalIntents: intentResult.intents.length,
-      agents: intentResult.intents.map((i: any) => i.agent)
-    });
-
-    // Setup response capture for memory
-    setupResponseCapture(res, intentResult);
-
-    // Route to appropriate handler
-    const baseContext = {
-      originalMessage: message,
-      chatContext: { ...enhancedContext, requestType: intentResult.requestType },
-      usePrivacyMode: usePrivacyMode || false,
-      provider: provider || null,
-      attachments: allAttachments || [],
-      documentIds: documentIds || [],
-      userId: userId,
-      requestType: intentResult.requestType,
-      subIntent: intentResult.subIntent
-    };
-
-    if (intentResult.requestType === 'conversation') {
-      log.debug('[Chat] Routing to conversation handler');
-      const result = await processConversationRequest({
-        message,
+      // Process attachments
+      const requestId = crypto.randomBytes(8).toString('hex');
+      const { documentIds, sharepicImages, recentDocuments } = await processAttachments(
+        attachments,
         userId,
-        locale: user?.locale as any,
-        subIntent: intentResult.subIntent,
+        requestId,
+        req.app.locals.sharepicImageManager
+      );
+
+      // Build enhanced context
+      const allAttachments = [...(attachments || []), ...recentDocuments];
+      const hasImageAttachment = sharepicImages.length > 0;
+
+      const enhancedContext = {
+        ...context,
         messageHistory: trimmedHistory,
-        aiWorkerPool: req.app.locals.aiWorkerPool,
-        req
-      });
-      return res.json(result);
-    }
-
-    // Handle text_edit requests
-    if (intentResult.requestType === 'text_edit') {
-      log.debug('[Chat] Routing to text edit handler');
-      const { processEditIntent } = await import('../../services/chat/EditIntentService.js');
-      const editResult = await processEditIntent(
-        message,
-        userId,
-        req.app.locals.aiWorkerPool,
-        req,
-        intentResult.editContext
-      );
-
-      // Store edited text in chat memory
-      if (editResult.success && editResult.content.text) {
-        await chatMemory.addMessage(userId, 'assistant', editResult.content.text, 'text_edit');
-      }
-
-      return res.json(editResult);
-    }
-
-    if (intentResult.isMultiIntent) {
-      log.debug('[Chat] Processing multi-intent request');
-      await processMultiIntentRequest(intentResult.intents, req, res, baseContext);
-
-      // Store response in memory
-      const responseContent = (res as any)._responseContent;
-      if (responseContent && responseContent.results) {
-        const agentList = responseContent.results.map((r: any) => r.agent).join(', ');
-        await chatMemory.addMessage(userId, 'assistant', `Multi-intent response: ${agentList}`, 'multi');
-      }
-    } else {
-      log.debug('[Chat] Processing single intent');
-      const intent = {
-        ...intentResult.intents[0],
-        requestType: intentResult.requestType
+        lastAgent: conversation.metadata?.lastAgent,
+        documentIds: documentIds,
+        hasImageAttachment: hasImageAttachment,
+        sharepicRequestId: requestId,
       };
 
-      await processSingleIntentRequest(intent, req, res, baseContext);
+      // Check for pending requests
+      const pendingRequest = await checkPendingRequests(userId);
 
-      // Store response in memory (skip sharepic and imagine)
-      const responseContent = (res as any)._responseContent;
-      if (responseContent && responseContent.content && !isSharepicIntent(intent.agent) && !isImagineIntent(intent.agent)) {
-        const responseText = typeof responseContent.content === 'string'
-          ? responseContent.content
-          : responseContent.content.text || 'Response generated';
-        await chatMemory.addMessage(userId, 'assistant', responseText, intent.agent);
+      // Handle web search confirmation
+      if (pendingRequest && pendingRequest.type === 'websearch_confirmation') {
+        return await handleWebSearchConfirmation(message, pendingRequest, userId, req, res);
       }
-    }
 
-  } catch (error) {
-    log.error('[Chat] Processing error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Bei der Verarbeitung ist ein Fehler aufgetreten. Bitte versuche es erneut.',
-      code: 'PROCESSING_ERROR',
-      details: { originalError: (error as Error).message }
-    });
-  }
-}));
+      // Handle pending information requests
+      if (pendingRequest && pendingRequest.type === 'missing_information') {
+        const completionResult = await handlePendingInformationRequest(
+          message,
+          pendingRequest,
+          userId,
+          enhancedContext,
+          req,
+          res
+        );
+        if (completionResult) return completionResult;
+      }
+
+      // Classify intent
+      const intentResult = await classifyIntent(
+        message,
+        enhancedContext,
+        req.app.locals.aiWorkerPool
+      );
+
+      if (!intentResult.intents || intentResult.intents.length === 0) {
+        throw new Error('Unable to classify intent from message');
+      }
+
+      log.debug('[Chat] Intent classified:', {
+        isMultiIntent: intentResult.isMultiIntent,
+        totalIntents: intentResult.intents.length,
+        agents: intentResult.intents.map((i: any) => i.agent),
+      });
+
+      // Setup response capture for memory
+      setupResponseCapture(res, intentResult);
+
+      // Route to appropriate handler
+      const baseContext = {
+        originalMessage: message,
+        chatContext: { ...enhancedContext, requestType: intentResult.requestType },
+        usePrivacyMode: usePrivacyMode || false,
+        provider: provider || null,
+        attachments: allAttachments || [],
+        documentIds: documentIds || [],
+        userId: userId,
+        requestType: intentResult.requestType,
+        subIntent: intentResult.subIntent,
+      };
+
+      if (intentResult.requestType === 'conversation') {
+        log.debug('[Chat] Routing to conversation handler');
+        const result = await processConversationRequest({
+          message,
+          userId,
+          locale: user?.locale as any,
+          subIntent: intentResult.subIntent,
+          messageHistory: trimmedHistory,
+          aiWorkerPool: req.app.locals.aiWorkerPool,
+          req,
+        });
+        return res.json(result);
+      }
+
+      // Handle text_edit requests
+      if (intentResult.requestType === 'text_edit') {
+        log.debug('[Chat] Routing to text edit handler');
+        const { processEditIntent } = await import('../../services/chat/EditIntentService.js');
+        const editResult = await processEditIntent(
+          message,
+          userId,
+          req.app.locals.aiWorkerPool,
+          req,
+          intentResult.editContext
+        );
+
+        // Store edited text in chat memory
+        if (editResult.success && editResult.content.text) {
+          await chatMemory.addMessage(userId, 'assistant', editResult.content.text, 'text_edit');
+        }
+
+        return res.json(editResult);
+      }
+
+      if (intentResult.isMultiIntent) {
+        log.debug('[Chat] Processing multi-intent request');
+        await processMultiIntentRequest(intentResult.intents, req, res, baseContext);
+
+        // Store response in memory
+        const responseContent = (res as any)._responseContent;
+        if (responseContent && responseContent.results) {
+          const agentList = responseContent.results.map((r: any) => r.agent).join(', ');
+          await chatMemory.addMessage(
+            userId,
+            'assistant',
+            `Multi-intent response: ${agentList}`,
+            'multi'
+          );
+        }
+      } else {
+        log.debug('[Chat] Processing single intent');
+        const intent = {
+          ...intentResult.intents[0],
+          requestType: intentResult.requestType,
+        };
+
+        await processSingleIntentRequest(intent, req, res, baseContext);
+
+        // Store response in memory (skip sharepic and imagine)
+        const responseContent = (res as any)._responseContent;
+        if (
+          responseContent &&
+          responseContent.content &&
+          !isSharepicIntent(intent.agent) &&
+          !isImagineIntent(intent.agent)
+        ) {
+          const responseText =
+            typeof responseContent.content === 'string'
+              ? responseContent.content
+              : responseContent.content.text || 'Response generated';
+          await chatMemory.addMessage(userId, 'assistant', responseText, intent.agent);
+        }
+      }
+    } catch (error) {
+      log.error('[Chat] Processing error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Bei der Verarbeitung ist ein Fehler aufgetreten. Bitte versuche es erneut.',
+        code: 'PROCESSING_ERROR',
+        details: { originalError: (error as Error).message },
+      });
+    }
+  })
+);
 
 /**
  * Process and separate attachments by type
@@ -283,7 +314,10 @@ async function processAttachments(
   // Retrieve recent documents (excluding images)
   const recentDocuments: any[] = [];
   try {
-    const recentDocIds = await documentQnAService.getRecentDocuments(userId, CONFIG.MAX_RECENT_DOCUMENTS);
+    const recentDocIds = await documentQnAService.getRecentDocuments(
+      userId,
+      CONFIG.MAX_RECENT_DOCUMENTS
+    );
 
     for (const docId of recentDocIds) {
       if (!docId.includes(userId)) continue;
@@ -351,7 +385,9 @@ async function handleWebSearchConfirmation(
         req
       );
 
-      const responseText = resultsWithSummary.summary?.text || 'Leider konnte ich keine relevanten Informationen finden.';
+      const responseText =
+        resultsWithSummary.summary?.text ||
+        'Leider konnte ich keine relevanten Informationen finden.';
       await chatMemory.addMessage(userId, 'assistant', responseText, 'websearch');
 
       return res.json({
@@ -359,17 +395,17 @@ async function handleWebSearchConfirmation(
         agent: 'websearch',
         content: {
           text: responseText,
-          type: 'websearch_answer'
+          type: 'websearch_answer',
         },
         sources: resultsWithSummary.results?.slice(0, 5).map((r: any) => ({
           title: r.title,
           url: r.url,
-          domain: r.domain
+          domain: r.domain,
         })),
         metadata: {
           searchQuery: pendingRequest.originalQuery,
-          resultCount: searchResults.resultCount || 0
-        }
+          resultCount: searchResults.resultCount || 0,
+        },
       });
     } catch (error) {
       log.error('[Chat] Web search failed:', error);
@@ -378,7 +414,7 @@ async function handleWebSearchConfirmation(
       return res.json({
         success: true,
         agent: 'universal',
-        content: { text: errorText, type: 'text' }
+        content: { text: errorText, type: 'text' },
       });
     }
   } else {
@@ -387,7 +423,7 @@ async function handleWebSearchConfirmation(
     return res.json({
       success: true,
       agent: 'universal',
-      content: { text: declineText, type: 'text' }
+      content: { text: declineText, type: 'text' },
     });
   }
 }
@@ -405,7 +441,7 @@ async function handlePendingInformationRequest(
 ): Promise<any> {
   // Check if this is a new command
   const commandKeywords = ['erstelle', 'mache', 'schreibe', 'generiere', 'sharepic', 'zitat'];
-  const isNewCommand = commandKeywords.some(keyword => message.toLowerCase().includes(keyword));
+  const isNewCommand = commandKeywords.some((keyword) => message.toLowerCase().includes(keyword));
 
   if (isNewCommand) {
     await chatMemory.clearPendingRequest(userId);
@@ -429,10 +465,11 @@ async function handlePendingInformationRequest(
       provider: completedRequest.provider || null,
       chatContext: enhancedContext,
       attachments: completedRequest.attachments || [],
-      documentIds: completedRequest.documentIds || []
+      documentIds: completedRequest.documentIds || [],
     };
 
-    const hasCompletedImageAttachment = completedRequest.attachments &&
+    const hasCompletedImageAttachment =
+      completedRequest.attachments &&
       Array.isArray(completedRequest.attachments) &&
       completedRequest.attachments.some((att: any) => att.type && att.type.startsWith('image/'));
 
@@ -442,12 +479,21 @@ async function handlePendingInformationRequest(
     }
 
     // Process completed sharepic request
-    if (finalAgent === 'zitat' || finalAgent === 'zitat_with_image' || finalAgent === 'dreizeilen') {
+    if (
+      finalAgent === 'zitat' ||
+      finalAgent === 'zitat_with_image' ||
+      finalAgent === 'dreizeilen'
+    ) {
       try {
-        const sharepicType = finalAgent === 'zitat_with_image' ? 'zitat' : (finalAgent === 'zitat' ? 'zitat_pure' : 'dreizeilen');
+        const sharepicType =
+          finalAgent === 'zitat_with_image'
+            ? 'zitat'
+            : finalAgent === 'zitat'
+              ? 'zitat_pure'
+              : 'dreizeilen';
         Object.assign(req.body, completedRequestContext, {
           count: 1,
-          preserveName: true
+          preserveName: true,
         });
         const sharepicResponse = await generateSharepicForChat(req, sharepicType, req.body);
         return res.json(sharepicResponse);
@@ -456,7 +502,7 @@ async function handlePendingInformationRequest(
         return res.status(500).json({
           success: false,
           error: 'Fehler beim Erstellen des Sharepics.',
-          code: 'COMPLETION_ERROR'
+          code: 'COMPLETION_ERROR',
         });
       }
     }
@@ -469,7 +515,7 @@ async function handlePendingInformationRequest(
     return res.status(500).json({
       success: false,
       error: `Handler für Agent "${finalAgent}" nicht implementiert.`,
-      code: 'UNHANDLED_AGENT_TYPE'
+      code: 'UNHANDLED_AGENT_TYPE',
     });
   } else {
     await chatMemory.clearPendingRequest(userId);
@@ -483,7 +529,7 @@ async function handlePendingInformationRequest(
 function setupResponseCapture(res: any, intentResult: any): void {
   const originalJson = res.json.bind(res);
 
-  res.json = function(data: any) {
+  res.json = function (data: any) {
     res._responseContent = data;
     return originalJson(data);
   };
@@ -492,33 +538,36 @@ function setupResponseCapture(res: any, intentResult: any): void {
 /**
  * Clear all user data
  */
-router.delete('/clear', withErrorHandler(async (req, res) => {
-  const user = getUser(req);
-  const userId = user?.id || `anon_${req.ip}`;
+router.delete(
+  '/clear',
+  withErrorHandler(async (req, res) => {
+    const user = getUser(req);
+    const userId = user?.id || `anon_${req.ip}`;
 
-  try {
-    const results = {
-      conversationCleared: await chatMemory.clearConversation(userId),
-      pendingRequestCleared: true,
-      documentsCleared: await documentQnAService.clearUserDocuments(userId)
-    };
+    try {
+      const results = {
+        conversationCleared: await chatMemory.clearConversation(userId),
+        pendingRequestCleared: true,
+        documentsCleared: await documentQnAService.clearUserDocuments(userId),
+      };
 
-    await chatMemory.clearPendingRequest(userId);
+      await chatMemory.clearPendingRequest(userId);
 
-    res.json({
-      success: true,
-      message: 'All user data cleared successfully',
-      details: results
-    });
-  } catch (error) {
-    log.error('[Chat] Clear error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Benutzerdaten konnten nicht gelöscht werden.',
-      code: 'CLEAR_DATA_ERROR'
-    });
-  }
-}));
+      res.json({
+        success: true,
+        message: 'All user data cleared successfully',
+        details: results,
+      });
+    } catch (error) {
+      log.error('[Chat] Clear error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Benutzerdaten konnten nicht gelöscht werden.',
+        code: 'CLEAR_DATA_ERROR',
+      });
+    }
+  })
+);
 
 /**
  * Health check
@@ -528,7 +577,7 @@ router.get('/health', (req, res) => {
     success: true,
     service: 'GrueneratorChat',
     timestamp: new Date().toISOString(),
-    status: 'healthy'
+    status: 'healthy',
   });
 });
 

@@ -53,7 +53,7 @@ const Timeline: React.FC<TimelineProps> = ({
     if (!isMobile && activeSegmentId !== null && segmentRefs.current[activeSegmentId]) {
       segmentRefs.current[activeSegmentId].scrollIntoView({
         behavior: 'smooth',
-        block: 'nearest'
+        block: 'nearest',
       });
     }
   }, [activeSegmentId]);
@@ -65,36 +65,42 @@ const Timeline: React.FC<TimelineProps> = ({
     }
   }, [editingSegmentId]);
 
-  const handleScrubStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (editingSegmentId !== null) return;
-    wasScrubbingRef.current = false;
-    setIsDragging(true);
-  }, [editingSegmentId]);
+  const handleScrubStart = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (editingSegmentId !== null) return;
+      wasScrubbingRef.current = false;
+      setIsDragging(true);
+    },
+    [editingSegmentId]
+  );
 
-  const handleScrubMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDragging) return;
+  const handleScrubMove = useCallback(
+    (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
 
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
-    const element = document.elementFromPoint(clientX, clientY);
-    const segmentEl = element?.closest('.timeline-segment');
+      const element = document.elementFromPoint(clientX, clientY);
+      const segmentEl = element?.closest('.timeline-segment');
 
-    if (segmentEl) {
-      const segmentId = parseInt((segmentEl as HTMLElement).dataset.segmentId || '0', 10);
-      const segment = segments.find((s: SubtitleSegment) => s.id === segmentId);
+      if (segmentEl) {
+        const segmentId = parseInt((segmentEl as HTMLElement).dataset.segmentId || '0', 10);
+        const segment = segments.find((s: SubtitleSegment) => s.id === segmentId);
 
-      if (segment) {
-        const rect = segmentEl.getBoundingClientRect();
-        const relativeX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        const segmentDuration = segment.endTime - segment.startTime;
-        const seekTime = segment.startTime + (relativeX * segmentDuration);
+        if (segment) {
+          const rect = segmentEl.getBoundingClientRect();
+          const relativeX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+          const segmentDuration = segment.endTime - segment.startTime;
+          const seekTime = segment.startTime + relativeX * segmentDuration;
 
-        wasScrubbingRef.current = true;
-        onSeek(seekTime);
+          wasScrubbingRef.current = true;
+          onSeek(seekTime);
+        }
       }
-    }
-  }, [isDragging, segments, onSeek]);
+    },
+    [isDragging, segments, onSeek]
+  );
 
   const handleScrubEnd = useCallback(() => {
     setIsDragging(false);
@@ -119,64 +125,73 @@ const Timeline: React.FC<TimelineProps> = ({
     };
   }, [isDragging, handleScrubMove, handleScrubEnd]);
 
-  const handleSegmentClick = useCallback((e: React.MouseEvent, segment: SubtitleSegment) => {
-    e.stopPropagation();
-    if (wasScrubbingRef.current) {
-      wasScrubbingRef.current = false;
-      return;
-    }
-    onSegmentClick(segment.id);
-    onSeek(segment.startTime);
-    setEditingSegmentId(segment.id);
-  }, [onSegmentClick, onSeek]);
+  const handleSegmentClick = useCallback(
+    (e: React.MouseEvent, segment: SubtitleSegment) => {
+      e.stopPropagation();
+      if (wasScrubbingRef.current) {
+        wasScrubbingRef.current = false;
+        return;
+      }
+      onSegmentClick(segment.id);
+      onSeek(segment.startTime);
+      setEditingSegmentId(segment.id);
+    },
+    [onSegmentClick, onSeek]
+  );
 
-  const handleSegmentKeyDown = useCallback((e: React.KeyboardEvent, currentSegmentId: number) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const currentIndex = segments.findIndex((s: SubtitleSegment) => s.id === currentSegmentId);
-      let targetIndex: number;
-      if (e.shiftKey) {
-        targetIndex = currentIndex > 0 ? currentIndex - 1 : segments.length - 1;
-      } else {
-        targetIndex = currentIndex < segments.length - 1 ? currentIndex + 1 : 0;
+  const handleSegmentKeyDown = useCallback(
+    (e: React.KeyboardEvent, currentSegmentId: number) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const currentIndex = segments.findIndex((s: SubtitleSegment) => s.id === currentSegmentId);
+        let targetIndex: number;
+        if (e.shiftKey) {
+          targetIndex = currentIndex > 0 ? currentIndex - 1 : segments.length - 1;
+        } else {
+          targetIndex = currentIndex < segments.length - 1 ? currentIndex + 1 : 0;
+        }
+        const targetSegment = segments[targetIndex];
+        onSegmentClick(targetSegment.id);
+        onSeek(targetSegment.startTime);
+        if (segmentRefs.current[targetSegment.id]) {
+          segmentRefs.current[targetSegment.id].focus();
+        }
       }
-      const targetSegment = segments[targetIndex];
-      onSegmentClick(targetSegment.id);
-      onSeek(targetSegment.startTime);
-      if (segmentRefs.current[targetSegment.id]) {
-        segmentRefs.current[targetSegment.id].focus();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setEditingSegmentId(currentSegmentId);
       }
-    }
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      setEditingSegmentId(currentSegmentId);
-    }
-  }, [segments, onSegmentClick, onSeek]);
+    },
+    [segments, onSegmentClick, onSeek]
+  );
 
   const handleInputBlur = useCallback(() => {
     setEditingSegmentId(null);
   }, []);
 
-  const handleInputKeyDown = useCallback((e: React.KeyboardEvent, currentSegmentId: number) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      setEditingSegmentId(null);
-    }
-    if (e.key === 'Escape') {
-      setEditingSegmentId(null);
-    }
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const currentIndex = segments.findIndex((s: SubtitleSegment) => s.id === currentSegmentId);
-      if (e.shiftKey) {
-        const prevIndex = currentIndex > 0 ? currentIndex - 1 : segments.length - 1;
-        setEditingSegmentId(segments[prevIndex].id);
-      } else {
-        const nextIndex = currentIndex < segments.length - 1 ? currentIndex + 1 : 0;
-        setEditingSegmentId(segments[nextIndex].id);
+  const handleInputKeyDown = useCallback(
+    (e: React.KeyboardEvent, currentSegmentId: number) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        setEditingSegmentId(null);
       }
-    }
-  }, [segments]);
+      if (e.key === 'Escape') {
+        setEditingSegmentId(null);
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const currentIndex = segments.findIndex((s: SubtitleSegment) => s.id === currentSegmentId);
+        if (e.shiftKey) {
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : segments.length - 1;
+          setEditingSegmentId(segments[prevIndex].id);
+        } else {
+          const nextIndex = currentIndex < segments.length - 1 ? currentIndex + 1 : 0;
+          setEditingSegmentId(segments[nextIndex].id);
+        }
+      }
+    },
+    [segments]
+  );
 
   if (duration <= 0) {
     return (
@@ -198,12 +213,16 @@ const Timeline: React.FC<TimelineProps> = ({
           return (
             <div
               key={segment.id}
-              ref={(el: HTMLDivElement | null) => { if (el) segmentRefs.current[segment.id] = el; }}
+              ref={(el: HTMLDivElement | null) => {
+                if (el) segmentRefs.current[segment.id] = el;
+              }}
               data-segment-id={segment.id}
               className={`timeline-segment ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isEditing ? 'editing' : ''} ${isCorrected ? 'corrected' : ''}`}
               tabIndex={0}
               onClick={(e: React.MouseEvent) => handleSegmentClick(e, segment)}
-              onKeyDown={(e: React.KeyboardEvent) => !isEditing && handleSegmentKeyDown(e, segment.id)}
+              onKeyDown={(e: React.KeyboardEvent) =>
+                !isEditing && handleSegmentKeyDown(e, segment.id)
+              }
               onMouseDown={handleScrubStart}
               onTouchStart={handleScrubStart}
             >
@@ -213,7 +232,9 @@ const Timeline: React.FC<TimelineProps> = ({
                   type="text"
                   className="segment-text-input"
                   value={segment.text}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => onTextChange(segment.id, e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    onTextChange(segment.id, e.target.value)
+                  }
                   onBlur={handleInputBlur}
                   onKeyDown={(e: React.KeyboardEvent) => handleInputKeyDown(e, segment.id)}
                   onClick={(e: React.MouseEvent) => e.stopPropagation()}

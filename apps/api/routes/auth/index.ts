@@ -39,7 +39,7 @@ export {
   userCustomPromptsRouter,
   contentRouter,
   templatesRouter,
-  groupsRouter
+  groupsRouter,
 };
 
 // Re-export types

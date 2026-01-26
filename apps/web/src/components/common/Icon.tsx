@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { getIcon, type IconCategory } from '../../config/icons';
 
 interface IconProps {
@@ -34,7 +35,7 @@ const Icon: React.FC<IconProps> = ({
     size,
     className: `icon ${className}`.trim(),
     'aria-label': ariaLabel || `${name} icon`,
-    ...rest
+    ...rest,
   };
 
   if (color) {

@@ -106,7 +106,7 @@ function sanitizeFieldOptions(
   if (!Array.isArray(options)) return [];
 
   return options
-    .map(opt => {
+    .map((opt) => {
       if (typeof opt === 'string') {
         return { label: opt, value: generateSanitizedName(opt) };
       } else if (opt && typeof opt === 'object') {
@@ -123,15 +123,18 @@ function sanitizeFields(fields: AIGeneratedConfig['fields']): GeneratorField[] {
   if (!Array.isArray(fields)) return [];
 
   const sanitized = fields
-    .map(field => {
+    .map((field) => {
       if (!field || typeof field !== 'object' || !field.label || typeof field.label !== 'string') {
-        log.warn('[generator_configurator] Invalid field object received from AI, skipping:', field);
+        log.warn(
+          '[generator_configurator] Invalid field object received from AI, skipping:',
+          field
+        );
         return null;
       }
 
       const sanitizedName = generateSanitizedName(field.label);
-      const fieldType = (['textarea', 'text', 'select'].includes(field.type || ''))
-        ? field.type as 'text' | 'textarea' | 'select'
+      const fieldType = ['textarea', 'text', 'select'].includes(field.type || '')
+        ? (field.type as 'text' | 'textarea' | 'select')
         : 'text';
 
       const result: GeneratorField = {
@@ -139,9 +142,10 @@ function sanitizeFields(fields: AIGeneratedConfig['fields']): GeneratorField[] {
         name: sanitizedName,
         type: fieldType,
         required: typeof field.required === 'boolean' ? field.required : false,
-        placeholder: (field.placeholder && typeof field.placeholder === 'string')
-          ? field.placeholder.trim()
-          : ''
+        placeholder:
+          field.placeholder && typeof field.placeholder === 'string'
+            ? field.placeholder.trim()
+            : '',
       };
 
       if (fieldType === 'select') {
@@ -155,7 +159,7 @@ function sanitizeFields(fields: AIGeneratedConfig['fields']): GeneratorField[] {
 
   // Deduplicate field names
   const counts: Record<string, number> = {};
-  return sanitized.map(f => {
+  return sanitized.map((f) => {
     counts[f.name] = (counts[f.name] || 0) + 1;
     if (counts[f.name] > 1) {
       f.name = `${f.name}_${counts[f.name] - 1}`;
@@ -181,13 +185,13 @@ function validateAndSanitizeConfig(raw: AIGeneratedConfig): GeneratorConfig {
     throw new Error('Felder fehlen oder sind kein Array.');
   }
 
-  const title = (raw.title && typeof raw.title === 'string' && raw.title.trim())
-    ? raw.title.trim()
-    : raw.name;
+  const title =
+    raw.title && typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : raw.name;
 
-  const description = (raw.description && typeof raw.description === 'string' && raw.description.trim())
-    ? raw.description.trim()
-    : `Ein Grünerator für: ${raw.name}`;
+  const description =
+    raw.description && typeof raw.description === 'string' && raw.description.trim()
+      ? raw.description.trim()
+      : `Ein Grünerator für: ${raw.name}`;
 
   let fields = sanitizeFields(raw.fields);
   if (fields.length > 5) {
@@ -195,7 +199,7 @@ function validateAndSanitizeConfig(raw: AIGeneratedConfig): GeneratorConfig {
     fields = fields.slice(0, 5);
   }
 
-  if (fields.some(f => !f.name)) {
+  if (fields.some((f) => !f.name)) {
     throw new Error('Ein Feld konnte keinen technischen Namen generieren.');
   }
 
@@ -205,7 +209,7 @@ function validateAndSanitizeConfig(raw: AIGeneratedConfig): GeneratorConfig {
     title,
     description,
     prompt: raw.prompt.trim(),
-    fields
+    fields,
   };
 }
 
@@ -228,7 +232,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
         type: 'generator_config',
         systemPrompt: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.1 }
+        options: { temperature: 0.1 },
       };
 
       if (providerOverride) {
@@ -245,7 +249,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
         provider: result?.metadata?.provider,
         model: result?.metadata?.model,
         contentLength: result?.content?.length,
-        providerOverride
+        providerOverride,
       });
 
       return result.content;
@@ -259,7 +263,9 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
 
     while (attempts < maxAttempts && !parsed) {
       attempts++;
-      log.debug(`[generator_configurator] Attempt ${attempts}/${maxAttempts} with default provider`);
+      log.debug(
+        `[generator_configurator] Attempt ${attempts}/${maxAttempts} with default provider`
+      );
       rawContent = await requestConfigFromAI(null);
       parsed = extractJsonObject<AIGeneratedConfig>(rawContent);
       if (!parsed) {
@@ -275,8 +281,13 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
     }
 
     if (!parsed) {
-      log.error('[generator_configurator] Failed to parse AI response as JSON after retries. Last raw content:', rawContent);
-      throw new Error(`Die KI hat keine gültige JSON-Konfiguration zurückgegeben (versucht: ${attempts}x, dann AWS Fallback).`);
+      log.error(
+        '[generator_configurator] Failed to parse AI response as JSON after retries. Last raw content:',
+        rawContent
+      );
+      throw new Error(
+        `Die KI hat keine gültige JSON-Konfiguration zurückgegeben (versucht: ${attempts}x, dann AWS Fallback).`
+      );
     }
 
     log.debug('[generator_configurator] Parsed AI Response:', parsed);
@@ -285,13 +296,12 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
 
     log.debug('[generator_configurator] Sending sanitized config to frontend:', config);
     res.json(config);
-
   } catch (error) {
     const err = error as Error;
     log.error('[generator_configurator] Fehler bei der Konfigurationserstellung:', err);
     res.status(500).json({
       error: 'Fehler bei der Erstellung der Generator-Konfiguration.',
-      details: err.message
+      details: err.message,
     });
   }
 });

@@ -1,7 +1,6 @@
+import { motion } from 'motion/react';
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { motion } from "motion/react";
-import { Markdown } from '../../../components/common/Markdown';
+import { type IconType } from 'react-icons';
 import {
   HiDocumentText,
   HiCollection,
@@ -11,12 +10,14 @@ import {
   HiOutlineSearch,
   HiOutlineViewGrid,
   HiOutlineViewList,
-  HiOutlinePlus
+  HiOutlinePlus,
 } from 'react-icons/hi';
-import { IconType } from 'react-icons';
-import { NotebookIcon } from '../../../config/icons';
+import { useNavigate, Link } from 'react-router-dom';
+
+import { Markdown } from '../../../components/common/Markdown';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
+import { NotebookIcon } from '../../../config/icons';
 import '../../../assets/styles/features/groups/shared-content-selector.css';
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
@@ -55,7 +56,12 @@ interface SharedContentItemBase {
 
 /** Extended content item with UI-specific properties */
 interface ContentItem extends SharedContentItemBase {
-  contentType: 'documents' | 'user_documents' | 'notebook_collections' | 'custom_generators' | 'database';
+  contentType:
+    | 'documents'
+    | 'user_documents'
+    | 'notebook_collections'
+    | 'custom_generators'
+    | 'database';
   icon: IconType;
   typeLabel: string;
 }
@@ -104,8 +110,8 @@ interface SharedContentSelectorProps {
 }
 
 const defaultConfig: Required<SharedContentSelectorConfig> = {
-  title: "Geteilte Inhalte",
-  description: "Hier findest du alle Inhalte, die mit dieser Gruppe geteilt wurden",
+  title: 'Geteilte Inhalte',
+  description: 'Hier findest du alle Inhalte, die mit dieser Gruppe geteilt wurden',
   contentFilter: null,
   excludeTypes: [],
   hideFilters: [],
@@ -113,8 +119,8 @@ const defaultConfig: Required<SharedContentSelectorConfig> = {
   cardStyle: 'default',
   gridConfig: {
     minCardWidth: '320px',
-    aspectRatio: 'auto'
-  }
+    aspectRatio: 'auto',
+  },
 };
 
 /**
@@ -128,7 +134,7 @@ const SharedContentSelector = ({
   isAdmin,
   onUnshare,
   isUnsharing,
-  config: configProp = {}
+  config: configProp = {},
 }: SharedContentSelectorProps) => {
   const config = { ...defaultConfig, ...configProp };
   const navigate = useNavigate();
@@ -174,7 +180,7 @@ const SharedContentSelector = ({
     try {
       const cacheData = {
         content,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
       sessionStorage.setItem(`doc_content_${documentId}`, JSON.stringify(cacheData));
     } catch (error) {
@@ -182,9 +188,12 @@ const SharedContentSelector = ({
     }
   }, []);
 
-  const isCached = useCallback((documentId: string): boolean => {
-    return getCachedContent(documentId) !== null;
-  }, [getCachedContent]);
+  const isCached = useCallback(
+    (documentId: string): boolean => {
+      return getCachedContent(documentId) !== null;
+    },
+    [getCachedContent]
+  );
 
   // Flatten all content into single array for unified handling
   const allContent = useMemo((): ContentItem[] => {
@@ -193,63 +202,93 @@ const SharedContentSelector = ({
     const content: ContentItem[] = [];
 
     // Add documents
-    if (groupContent.documents &&
-        (!config.contentFilter || config.contentFilter === 'documents') &&
-        !(config.excludeTypes && config.excludeTypes.includes('documents'))) {
-      content.push(...groupContent.documents.map((item): ContentItem => ({
-        ...item,
-        contentType: 'documents',
-        icon: HiDocumentText,
-        typeLabel: 'Dokument'
-      })));
+    if (
+      groupContent.documents &&
+      (!config.contentFilter || config.contentFilter === 'documents') &&
+      !(config.excludeTypes && config.excludeTypes.includes('documents'))
+    ) {
+      content.push(
+        ...groupContent.documents.map(
+          (item): ContentItem => ({
+            ...item,
+            contentType: 'documents',
+            icon: HiDocumentText,
+            typeLabel: 'Dokument',
+          })
+        )
+      );
     }
 
     // Add texts
-    if (groupContent.texts &&
-        (!config.contentFilter || config.contentFilter === 'user_documents') &&
-        !(config.excludeTypes && config.excludeTypes.includes('user_documents'))) {
-      content.push(...groupContent.texts.map((item): ContentItem => ({
-        ...item,
-        contentType: 'user_documents',
-        icon: HiDocumentText,
-        typeLabel: 'Text'
-      })));
+    if (
+      groupContent.texts &&
+      (!config.contentFilter || config.contentFilter === 'user_documents') &&
+      !(config.excludeTypes && config.excludeTypes.includes('user_documents'))
+    ) {
+      content.push(
+        ...groupContent.texts.map(
+          (item): ContentItem => ({
+            ...item,
+            contentType: 'user_documents',
+            icon: HiDocumentText,
+            typeLabel: 'Text',
+          })
+        )
+      );
     }
 
     // Add Notebooks
-    if (groupContent.notebooks &&
-        (!config.contentFilter || config.contentFilter === 'notebook_collections') &&
-        !(config.excludeTypes && config.excludeTypes.includes('notebook_collections'))) {
-      content.push(...groupContent.notebooks.map((item): ContentItem => ({
-        ...item,
-        contentType: 'notebook_collections',
-        icon: NotebookIcon as IconType,
-        typeLabel: 'Notebook'
-      })));
+    if (
+      groupContent.notebooks &&
+      (!config.contentFilter || config.contentFilter === 'notebook_collections') &&
+      !(config.excludeTypes && config.excludeTypes.includes('notebook_collections'))
+    ) {
+      content.push(
+        ...groupContent.notebooks.map(
+          (item): ContentItem => ({
+            ...item,
+            contentType: 'notebook_collections',
+            icon: NotebookIcon as IconType,
+            typeLabel: 'Notebook',
+          })
+        )
+      );
     }
 
     // Add custom generators
-    if (groupContent.generators &&
-        (!config.contentFilter || config.contentFilter === 'custom_generators') &&
-        !(config.excludeTypes && config.excludeTypes.includes('custom_generators'))) {
-      content.push(...groupContent.generators.map((item): ContentItem => ({
-        ...item,
-        contentType: 'custom_generators',
-        icon: HiCollection,
-        typeLabel: 'Generator'
-      })));
+    if (
+      groupContent.generators &&
+      (!config.contentFilter || config.contentFilter === 'custom_generators') &&
+      !(config.excludeTypes && config.excludeTypes.includes('custom_generators'))
+    ) {
+      content.push(
+        ...groupContent.generators.map(
+          (item): ContentItem => ({
+            ...item,
+            contentType: 'custom_generators',
+            icon: HiCollection,
+            typeLabel: 'Generator',
+          })
+        )
+      );
     }
 
     // Add templates
-    if (groupContent.templates &&
-        (!config.contentFilter || config.contentFilter === 'database') &&
-        !(config.excludeTypes && config.excludeTypes.includes('database'))) {
-      content.push(...groupContent.templates.map((item): ContentItem => ({
-        ...item,
-        contentType: 'database',
-        icon: HiCollection,
-        typeLabel: 'Template'
-      })));
+    if (
+      groupContent.templates &&
+      (!config.contentFilter || config.contentFilter === 'database') &&
+      !(config.excludeTypes && config.excludeTypes.includes('database'))
+    ) {
+      content.push(
+        ...groupContent.templates.map(
+          (item): ContentItem => ({
+            ...item,
+            contentType: 'database',
+            icon: HiCollection,
+            typeLabel: 'Template',
+          })
+        )
+      );
     }
 
     return content;
@@ -262,7 +301,7 @@ const SharedContentSelector = ({
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(item => {
+      filtered = filtered.filter((item) => {
         const title = (item.title || item.name || '').toLowerCase();
         const description = (item.description || '').toLowerCase();
         const sharedBy = (item.shared_by_name || '').toLowerCase();
@@ -272,18 +311,22 @@ const SharedContentSelector = ({
 
     // Apply content type filter
     if (contentTypeFilter !== 'all') {
-      filtered = filtered.filter(item => item.contentType === contentTypeFilter);
+      filtered = filtered.filter((item) => item.contentType === contentTypeFilter);
     }
 
     // Apply permission filter
     if (permissionFilter !== 'all') {
-      filtered = filtered.filter(item => {
+      filtered = filtered.filter((item) => {
         const permissions = item.group_permissions || {};
         switch (permissionFilter) {
-          case 'read': return permissions.read;
-          case 'write': return permissions.write;
-          case 'collaborative': return permissions.collaborative;
-          default: return true;
+          case 'read':
+            return permissions.read;
+          case 'write':
+            return permissions.write;
+          case 'collaborative':
+            return permissions.collaborative;
+          default:
+            return true;
         }
       });
     }
@@ -329,7 +372,7 @@ const SharedContentSelector = ({
 
     return {
       full_content: data.data.ocr_text || 'Kein Text extrahiert',
-      markdown_content: data.data.markdown_content
+      markdown_content: data.data.markdown_content,
     };
   }, []);
 
@@ -346,7 +389,7 @@ const SharedContentSelector = ({
       // Use cached content immediately - no loading state needed
       const enhancedItem: ContentItem = {
         ...item,
-        ...cachedContent
+        ...cachedContent,
       };
       setSelectedItem(enhancedItem);
       return;
@@ -364,7 +407,7 @@ const SharedContentSelector = ({
       // Update the selected item with the fetched content
       const enhancedItem: ContentItem = {
         ...item,
-        ...content
+        ...content,
       };
       setSelectedItem(enhancedItem);
     } catch (error) {
@@ -377,18 +420,21 @@ const SharedContentSelector = ({
   };
 
   // Silent preloading for hover/viewport optimization
-  const preloadDocumentContent = useCallback(async (documentId: string) => {
-    // Don't preload if already cached
-    if (isCached(documentId)) return;
+  const preloadDocumentContent = useCallback(
+    async (documentId: string) => {
+      // Don't preload if already cached
+      if (isCached(documentId)) return;
 
-    try {
-      const content = await fetchDocumentContent(documentId);
-      setCachedContent(documentId, content);
-    } catch (error) {
-      // Silent failure for preloading
-      console.debug('[SharedContentSelector] Preload failed for document:', documentId);
-    }
-  }, [fetchDocumentContent, isCached, setCachedContent]);
+      try {
+        const content = await fetchDocumentContent(documentId);
+        setCachedContent(documentId, content);
+      } catch (error) {
+        // Silent failure for preloading
+        console.debug('[SharedContentSelector] Preload failed for document:', documentId);
+      }
+    },
+    [fetchDocumentContent, isCached, setCachedContent]
+  );
 
   // Handle content click - navigate based on content type
   const handleContentClick = (item: ContentItem) => {
@@ -453,20 +499,23 @@ const SharedContentSelector = ({
   };
 
   // Hover handlers for preloading
-  const handleItemHover = useCallback((item: ContentItem) => {
-    // Only preload documents
-    if (item.contentType !== 'documents') return;
+  const handleItemHover = useCallback(
+    (item: ContentItem) => {
+      // Only preload documents
+      if (item.contentType !== 'documents') return;
 
-    // Clear any existing timeout
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
+      // Clear any existing timeout
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
 
-    // Start preloading after 500ms hover
-    hoverTimeoutRef.current = setTimeout(() => {
-      preloadDocumentContent(item.id);
-    }, 500);
-  }, [preloadDocumentContent]);
+      // Start preloading after 500ms hover
+      hoverTimeoutRef.current = setTimeout(() => {
+        preloadDocumentContent(item.id);
+      }, 500);
+    },
+    [preloadDocumentContent]
+  );
 
   const handleItemHoverLeave = useCallback(() => {
     // Cancel preloading if user moves away quickly
@@ -488,7 +537,7 @@ const SharedContentSelector = ({
   // Viewport-based preloading with Intersection Observer
   useEffect(() => {
     // Only set up intersection observer if we have documents to observe
-    const documentItems = filteredContent.filter(item => item.contentType === 'documents');
+    const documentItems = filteredContent.filter((item) => item.contentType === 'documents');
     if (documentItems.length === 0) return;
 
     // Create intersection observer
@@ -508,7 +557,7 @@ const SharedContentSelector = ({
       },
       {
         rootMargin: '50px', // Start preloading 50px before item comes into view
-        threshold: 0.1 // Trigger when 10% of item is visible
+        threshold: 0.1, // Trigger when 10% of item is visible
       }
     );
 
@@ -517,7 +566,7 @@ const SharedContentSelector = ({
     // Observe document cards after they're rendered
     const observeDocumentCards = () => {
       const documentCards = document.querySelectorAll('[data-document-id]');
-      documentCards.forEach(card => observer.observe(card));
+      documentCards.forEach((card) => observer.observe(card));
     };
 
     // Small delay to ensure DOM is updated
@@ -534,7 +583,7 @@ const SharedContentSelector = ({
   // Also preload first 3 visible documents immediately
   useEffect(() => {
     const documentItems = filteredContent
-      .filter(item => item.contentType === 'documents')
+      .filter((item) => item.contentType === 'documents')
       .slice(0, 3);
 
     documentItems.forEach((item, index) => {
@@ -550,19 +599,15 @@ const SharedContentSelector = ({
     return new Date(dateString).toLocaleDateString('de-DE', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
   // Get permission badges
   const getPermissionBadges = (permissions: ContentPermissions = {}) => (
     <div className="shared-content-permissions">
-      <span className={`permission-badge ${permissions.read ? 'active' : ''}`}>
-        Lesen
-      </span>
-      <span className={`permission-badge ${permissions.write ? 'active' : ''}`}>
-        Bearbeiten
-      </span>
+      <span className={`permission-badge ${permissions.read ? 'active' : ''}`}>Lesen</span>
+      <span className={`permission-badge ${permissions.write ? 'active' : ''}`}>Bearbeiten</span>
       <span className={`permission-badge ${permissions.collaborative ? 'active' : ''}`}>
         Kollaborativ
       </span>
@@ -576,7 +621,7 @@ const SharedContentSelector = ({
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -585,7 +630,8 @@ const SharedContentSelector = ({
     if (!selectedItem) return null;
 
     const itemTitle = selectedItem.title || selectedItem.name;
-    const previewContent = selectedItem.full_content || selectedItem.content_preview || 'Kein Inhalt verfügbar';
+    const previewContent =
+      selectedItem.full_content || selectedItem.content_preview || 'Kein Inhalt verfügbar';
 
     return (
       <motion.div
@@ -600,26 +646,19 @@ const SharedContentSelector = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="document-preview-header">
             <h3>{itemTitle}</h3>
-            <button
-              className="document-preview-close"
-              onClick={() => setShowPreview(false)}
-            >
+            <button className="document-preview-close" onClick={() => setShowPreview(false)}>
               ×
             </button>
           </div>
           <div className="document-preview-content">
             <div className="document-preview-meta">
               <span>Typ: {selectedItem.typeLabel}</span>
-              {selectedItem.word_count && (
-                <span>Wörter: {selectedItem.word_count}</span>
-              )}
-              {selectedItem.page_count && (
-                <span>Seiten: {selectedItem.page_count}</span>
-              )}
+              {selectedItem.word_count && <span>Wörter: {selectedItem.word_count}</span>}
+              {selectedItem.page_count && <span>Seiten: {selectedItem.page_count}</span>}
               <span>Geteilt von: {selectedItem.shared_by_name}</span>
               <span>Geteilt am: {formatDateDetailed(selectedItem.shared_at)}</span>
             </div>
@@ -639,9 +678,7 @@ const SharedContentSelector = ({
                   <Markdown>{selectedItem.markdown_content}</Markdown>
                 </div>
               ) : (
-                <div className="document-preview-plain-text">
-                  {previewContent}
-                </div>
+                <div className="document-preview-plain-text">{previewContent}</div>
               )}
             </div>
           </div>
@@ -670,10 +707,10 @@ const SharedContentSelector = ({
       <div className="shared-content-header">
         {!config.hideHeader && (
           <div className="shared-content-title-section">
-            <h3>{config.title} ({filteredContent.length})</h3>
-            <p className="shared-content-description">
-              {config.description}
-            </p>
+            <h3>
+              {config.title} ({filteredContent.length})
+            </h3>
+            <p className="shared-content-description">{config.description}</p>
           </div>
         )}
 
@@ -689,7 +726,9 @@ const SharedContentSelector = ({
                 className="search-input"
                 placeholder="Inhalte durchsuchen..."
                 value={searchQuery}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearchQuery(e.target.value)
+                }
               />
             </div>
 
@@ -699,7 +738,9 @@ const SharedContentSelector = ({
                 <select
                   className="filter-select"
                   value={contentTypeFilter}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setContentTypeFilter(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    setContentTypeFilter(e.target.value)
+                  }
                 >
                   <option value="all">Alle Typen</option>
                   <option value="documents">Dokumente</option>
@@ -711,7 +752,9 @@ const SharedContentSelector = ({
                 <select
                   className="filter-select"
                   value={permissionFilter}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPermissionFilter(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    setPermissionFilter(e.target.value)
+                  }
                 >
                   <option value="all">Alle Berechtigungen</option>
                   <option value="read">Nur Lesen</option>
@@ -735,7 +778,7 @@ const SharedContentSelector = ({
 
               <button
                 className="sort-order-button"
-                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
                 title={sortOrder === 'asc' ? 'Aufsteigend sortiert' : 'Absteigend sortiert'}
               >
                 {sortOrder === 'asc' ? '↑' : '↓'}
@@ -792,14 +835,18 @@ const SharedContentSelector = ({
           )}
         </div>
       ) : (
-        <div className={`shared-content-grid ${viewMode} ${config.cardStyle === 'template-square' ? 'template-square' : ''}`}>
+        <div
+          className={`shared-content-grid ${viewMode} ${config.cardStyle === 'template-square' ? 'template-square' : ''}`}
+        >
           {filteredContent.map((item) => {
             const IconComponent = item.icon;
             const permissions = item.group_permissions || {};
             const canEdit = permissions.write || permissions.collaborative;
 
             // Determine if this should use the special template card layout
-            const useTemplateCardLayout = config.cardStyle === 'template-square' && (item.preview_image_url || item.thumbnail_url);
+            const useTemplateCardLayout =
+              config.cardStyle === 'template-square' &&
+              (item.preview_image_url || item.thumbnail_url);
 
             return (
               <div
@@ -810,7 +857,8 @@ const SharedContentSelector = ({
                 onMouseLeave={handleItemHoverLeave}
                 data-document-id={item.contentType === 'documents' ? item.id : undefined}
               >
-                {config.cardStyle === 'template-square' && (item.preview_image_url || item.thumbnail_url) ? (
+                {config.cardStyle === 'template-square' &&
+                (item.preview_image_url || item.thumbnail_url) ? (
                   // Template card WITH preview image: Beautiful 1:1 square layout
                   <>
                     {/* Preview Image Section (75% height) */}
@@ -860,17 +908,13 @@ const SharedContentSelector = ({
 
                       {/* Overlay Type Badge */}
                       <div className="shared-content-item-header">
-                        <div className="shared-content-type-badge">
-                          {item.typeLabel}
-                        </div>
+                        <div className="shared-content-type-badge">{item.typeLabel}</div>
                       </div>
                     </div>
 
                     {/* Content Section (25% height) */}
                     <div className="shared-content-item-body">
-                      <h4 className="shared-content-item-title">
-                        {item.title || item.name}
-                      </h4>
+                      <h4 className="shared-content-item-title">{item.title || item.name}</h4>
 
                       <div className="shared-content-meta">
                         <span>Geteilt von: {item.shared_by_name}</span>
@@ -885,9 +929,7 @@ const SharedContentSelector = ({
                       <div className="shared-content-icon">
                         <IconComponent />
                       </div>
-                      <div className="shared-content-type-badge">
-                        {item.typeLabel}
-                      </div>
+                      <div className="shared-content-type-badge">{item.typeLabel}</div>
                       <div className="shared-content-actions">
                         <button
                           className="shared-content-action view"
@@ -922,9 +964,7 @@ const SharedContentSelector = ({
                     </div>
 
                     <div className="shared-content-item-body">
-                      <h4 className="shared-content-item-title">
-                        {item.title || item.name}
-                      </h4>
+                      <h4 className="shared-content-item-title">{item.title || item.name}</h4>
 
                       {/* Preview Image for Templates */}
                       {(item.preview_image_url || item.thumbnail_url) && (
@@ -942,9 +982,7 @@ const SharedContentSelector = ({
                       )}
 
                       {item.description && (
-                        <p className="shared-content-item-description">
-                          {item.description}
-                        </p>
+                        <p className="shared-content-item-description">{item.description}</p>
                       )}
 
                       <div className="shared-content-meta">

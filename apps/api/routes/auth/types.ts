@@ -163,7 +163,12 @@ export interface GroupKnowledgeBody {
 }
 
 export interface GroupContentShareBody {
-  contentType: 'documents' | 'custom_generators' | 'notebook_collections' | 'user_documents' | 'database';
+  contentType:
+    | 'documents'
+    | 'custom_generators'
+    | 'notebook_collections'
+    | 'user_documents'
+    | 'database';
   contentId: string;
   permissions?: {
     canEdit?: boolean;
@@ -255,8 +260,4 @@ export type AsyncRouteHandler = (
   next: NextFunction
 ) => Promise<void>;
 
-export type RouteHandler = (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => void;
+export type RouteHandler = (req: AuthRequest, res: Response, next: NextFunction) => void;

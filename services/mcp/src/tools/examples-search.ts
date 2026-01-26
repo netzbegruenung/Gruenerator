@@ -50,12 +50,14 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
     query: z.string().describe('Thema für Beispielsuche (z.B. "Klimaschutz", "Bildungspolitik")'),
     platform: z.enum(['instagram', 'facebook', 'all']).default('all').describe('Plattform filtern'),
     country: z.enum(['DE', 'AT', 'all']).default('all').describe('Land filtern'),
-    limit: z.number().min(1).max(20).default(5).describe('Anzahl der Ergebnisse')
+    limit: z.number().min(1).max(20).default(5).describe('Anzahl der Ergebnisse'),
   },
 
   async handler({ query, platform = 'all', country = 'all', limit = 5 }) {
     try {
-      console.log(`[ExamplesSearch] Searching for "${query}" (platform: ${platform}, country: ${country})`);
+      console.log(
+        `[ExamplesSearch] Searching for "${query}" (platform: ${platform}, country: ${country})`
+      );
 
       const qdrant = await getQdrantClient();
       const embedding = await generateEmbedding(query);
@@ -72,7 +74,7 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         vector: embedding,
         limit: limit,
         with_payload: true,
-        score_threshold: DEFAULT_THRESHOLD
+        score_threshold: DEFAULT_THRESHOLD,
       };
 
       if (filter) {
@@ -84,7 +86,7 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
       console.log(`[ExamplesSearch] Found ${results?.length || 0} examples`);
 
       // Format results
-      const examples = (results || []).map(r => ({
+      const examples = (results || []).map((r) => ({
         id: r.id,
         content: r.payload?.content || r.payload?.caption || r.payload?.text || '',
         platform: r.payload?.platform,
@@ -95,8 +97,8 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
           comments: r.payload?.comments_count || r.payload?.commentsCount,
           url: r.payload?.url || r.payload?.post_url,
           author: r.payload?.author || r.payload?.ownerUsername,
-          date: r.payload?.date || r.payload?.timestamp
-        }
+          date: r.payload?.date || r.payload?.timestamp,
+        },
       }));
 
       return {
@@ -104,9 +106,8 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         platform,
         country,
         resultsCount: examples.length,
-        examples
+        examples,
       };
-
     } catch (error) {
       console.error('[ExamplesSearch] Error:', error.message);
 
@@ -119,7 +120,7 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
           platform,
           country,
           resultsCount: 0,
-          examples: []
+          examples: [],
         };
       }
 
@@ -130,8 +131,8 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         platform,
         country,
         resultsCount: 0,
-        examples: []
+        examples: [],
       };
     }
-  }
+  },
 };

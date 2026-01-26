@@ -12,7 +12,7 @@ import {
   isTableLine,
   isPageBreak,
   calculateSectionLevel,
-  getPositionFromLine
+  getPositionFromLine,
 } from './detection.js';
 import { enhanceStructure } from './analysis.js';
 import { findSemanticBoundaries } from './boundaries.js';
@@ -49,12 +49,12 @@ export class DocumentStructureDetector {
         hasLists: false,
         hasTables: false,
         structureComplexity: 'simple',
-        documentType: 'article'
-      }
+        documentType: 'article',
+      },
     };
 
-    let currentChapter: typeof structure.chapters[number] | null = null;
-    let currentSection: typeof structure.sections[number] | null = null;
+    let currentChapter: (typeof structure.chapters)[number] | null = null;
+    let currentSection: (typeof structure.sections)[number] | null = null;
     let lineIndex = 0;
 
     for (const line of lines) {
@@ -74,7 +74,7 @@ export class DocumentStructureDetector {
           number: sectionMatch.number,
           startLine: lineIndex,
           startPosition: getPositionFromLine(text, lineIndex),
-          parentChapter: currentChapter?.title
+          parentChapter: currentChapter?.title,
         };
 
         structure.sections.push(section);
@@ -97,7 +97,7 @@ export class DocumentStructureDetector {
             number: chapterMatch.number,
             startLine: lineIndex,
             startPosition: getPositionFromLine(text, lineIndex),
-            sections: []
+            sections: [],
           };
           structure.chapters.push(currentChapter);
           structure.hierarchy.push(currentChapter);
@@ -115,7 +115,7 @@ export class DocumentStructureDetector {
           startLine: lineIndex,
           startPosition: getPositionFromLine(text, lineIndex),
           parentSection: currentSection?.title,
-          parentChapter: currentChapter?.title
+          parentChapter: currentChapter?.title,
         });
       }
 
@@ -126,7 +126,7 @@ export class DocumentStructureDetector {
           startLine: lineIndex,
           startPosition: getPositionFromLine(text, lineIndex),
           parentSection: currentSection?.title,
-          parentChapter: currentChapter?.title
+          parentChapter: currentChapter?.title,
         });
       }
 
@@ -135,7 +135,7 @@ export class DocumentStructureDetector {
         structure.pageBreaks.push({
           type: 'pageBreak',
           startLine: lineIndex,
-          startPosition: getPositionFromLine(text, lineIndex)
+          startPosition: getPositionFromLine(text, lineIndex),
         });
       }
 

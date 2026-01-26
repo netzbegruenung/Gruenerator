@@ -55,7 +55,9 @@ export const getRobotAvatarUrl = (robotId: number, baseUrl?: string): string => 
   return `${base}${getRobotAvatarPath(robotId)}`;
 };
 
-export const getAvatarDisplayProps = (profile: AvatarProfile | null | undefined): AvatarDisplayProps => {
+export const getAvatarDisplayProps = (
+  profile: AvatarProfile | null | undefined
+): AvatarDisplayProps => {
   const { avatar_robot_id, display_name, email } = profile || {};
 
   if (shouldShowRobotAvatar(avatar_robot_id)) {

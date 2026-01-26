@@ -1,5 +1,6 @@
-import { JSX, useState } from 'react';
+import { type JSX, useState } from 'react';
 import { HiPlus } from 'react-icons/hi';
+
 import SearchBar from '../../../features/search/components/SearchBar';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
 
@@ -22,7 +23,7 @@ interface GalleryControlsProps {
   placeholder?: string;
   contentTypes: {
     id?: string;
-    label?: string
+    label?: string;
   }[];
   activeContentType?: string;
   onContentTypeChange?: (id: string) => void;
@@ -36,7 +37,8 @@ interface GalleryControlsProps {
   onSearchModeChange?: (mode: string) => void;
 }
 
-const GalleryControls = ({ searchTerm,
+const GalleryControls = ({
+  searchTerm,
   onSearchChange,
   placeholder,
   contentTypes,
@@ -49,61 +51,65 @@ const GalleryControls = ({ searchTerm,
   onRefresh,
   searchModes,
   selectedSearchMode,
-  onSearchModeChange }: GalleryControlsProps): JSX.Element => {
+  onSearchModeChange,
+}: GalleryControlsProps): JSX.Element => {
   const [showAddModal, setShowAddModal] = useState(false);
 
   const handleTemplateAdded = () => {
     onRefresh?.();
   };
 
-  const searchModeContent = Array.isArray(searchModes) && searchModes.length > 1 ? (
-    <div className="gallery-settings-search-mode">
-      <label>Suchmodus</label>
-      <div className="category-chips">
-        {searchModes.map((mode) => (
-          <button
-            key={mode.value}
-            type="button"
-            className={`category-chip ${selectedSearchMode === mode.value ? 'active' : ''}`}
-            onClick={() => onSearchModeChange?.(mode.value)}
-          >
-            {mode.label}
-          </button>
-        ))}
+  const searchModeContent =
+    Array.isArray(searchModes) && searchModes.length > 1 ? (
+      <div className="gallery-settings-search-mode">
+        <label>Suchmodus</label>
+        <div className="category-chips">
+          {searchModes.map((mode) => (
+            <button
+              key={mode.value}
+              type="button"
+              className={`category-chip ${selectedSearchMode === mode.value ? 'active' : ''}`}
+              onClick={() => onSearchModeChange?.(mode.value)}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
-  ) : null;
+    ) : null;
 
-  const categorySettingsContent = showCategoryFilter && Array.isArray(categories) && categories.length > 0 ? (
-    <div className="gallery-settings-categories">
-      <label>Kategorie</label>
-      <div className="category-chips">
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            type="button"
-            className={`category-chip ${selectedCategory === category.id ? 'active' : ''}`}
-            onClick={() => onCategoryChange?.(category.id)}
-          >
-            {category.label}
-          </button>
-        ))}
+  const categorySettingsContent =
+    showCategoryFilter && Array.isArray(categories) && categories.length > 0 ? (
+      <div className="gallery-settings-categories">
+        <label>Kategorie</label>
+        <div className="category-chips">
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              type="button"
+              className={`category-chip ${selectedCategory === category.id ? 'active' : ''}`}
+              onClick={() => onCategoryChange?.(category.id)}
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
-  ) : null;
+    ) : null;
 
-  const settingsContent = (searchModeContent || categorySettingsContent) ? (
-    <>
-      {searchModeContent}
-      {categorySettingsContent}
-    </>
-  ) : null;
+  const settingsContent =
+    searchModeContent || categorySettingsContent ? (
+      <>
+        {searchModeContent}
+        {categorySettingsContent}
+      </>
+    ) : null;
 
   return (
     <div className="gallery-controls">
       <div className="gallery-controls-row">
         <SearchBar
-          onSearch={() => { }}
+          onSearch={() => {}}
           value={searchTerm}
           onChange={onSearchChange}
           placeholder={placeholder}

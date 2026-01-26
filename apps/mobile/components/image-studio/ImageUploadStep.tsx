@@ -18,7 +18,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../common';
-import { pickImageFromGallery, takePhoto, type ImagePickerResult } from '../../services/imageStudio';
+import {
+  pickImageFromGallery,
+  takePhoto,
+  type ImagePickerResult,
+} from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 import { MediathekSelector } from './MediathekSelector';
 
@@ -92,16 +96,12 @@ export function ImageUploadStep({
         }
       );
     } else {
-      Alert.alert(
-        'Bild auswählen',
-        'Wie möchtest du ein Bild hinzufügen?',
-        [
-          { text: 'Abbrechen', style: 'cancel' },
-          { text: 'Foto aufnehmen', onPress: handleTakePhoto },
-          { text: 'Aus Galerie', onPress: handlePickImage },
-          { text: 'Mediathek', onPress: handleOpenMediathek },
-        ]
-      );
+      Alert.alert('Bild auswählen', 'Wie möchtest du ein Bild hinzufügen?', [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Foto aufnehmen', onPress: handleTakePhoto },
+        { text: 'Aus Galerie', onPress: handlePickImage },
+        { text: 'Mediathek', onPress: handleOpenMediathek },
+      ]);
     }
   };
 
@@ -181,11 +181,7 @@ export function ImageUploadStep({
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button
-          onPress={handleNext}
-          variant="primary"
-          disabled={!uploadedImageUri || disabled}
-        >
+        <Button onPress={handleNext} variant="primary" disabled={!uploadedImageUri || disabled}>
           Weiter
         </Button>
       </View>

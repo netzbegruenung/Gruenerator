@@ -12,7 +12,7 @@ import {
   generateBatchEmbeddings,
   generateMockEmbedding,
   generateMockBatchEmbeddings,
-  estimateTokenCount
+  estimateTokenCount,
 } from './embeddingOperations.js';
 import type { ModelInfo } from './types.js';
 
@@ -54,7 +54,10 @@ export class MistralEmbeddingService {
   /**
    * Generate embeddings for multiple texts in a batch
    */
-  async generateBatchEmbeddings(texts: string[], inputType: string = 'search_document'): Promise<number[][]> {
+  async generateBatchEmbeddings(
+    texts: string[],
+    inputType: string = 'search_document'
+  ): Promise<number[][]> {
     return await generateBatchEmbeddings(this.client, texts, inputType);
   }
 
@@ -85,11 +88,15 @@ export class MistralEmbeddingService {
     }
 
     // Generate new embedding using client
-    console.log(`[MistralEmbeddingService] Generating embedding for "${query.substring(0, 50)}..."`);
+    console.log(
+      `[MistralEmbeddingService] Generating embedding for "${query.substring(0, 50)}..."`
+    );
     const startTime = Date.now();
     const embedding = await this.client.generateEmbedding(query);
     const duration = Date.now() - startTime;
-    console.log(`[MistralEmbeddingService] Embedding generated in ${duration}ms (${embedding.length} dims)`);
+    console.log(
+      `[MistralEmbeddingService] Embedding generated in ${duration}ms (${embedding.length} dims)`
+    );
 
     // Cache the result
     await embeddingCache.cacheEmbedding(query, embedding);
@@ -109,7 +116,7 @@ export class MistralEmbeddingService {
   getModelInfo(): ModelInfo {
     return {
       ...this.modelInfo,
-      isInitialized: this.isInitialized
+      isInitialized: this.isInitialized,
     };
   }
 

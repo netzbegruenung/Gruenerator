@@ -13,19 +13,19 @@ import apiClient from './apiClient';
 // =====================================================================
 
 export const DOCUMENT_TYPES = {
-    'pdf': 'PDF-Dokument',
-    'document': 'Dokument',
-    'text': 'Text',
-    'upload': 'Hochgeladene Datei'
+  pdf: 'PDF-Dokument',
+  document: 'Dokument',
+  text: 'Text',
+  upload: 'Hochgeladene Datei',
 };
 
 export const TEXT_DOCUMENT_TYPES = {
-    'text': 'Allgemeiner Text',
-    'antrag': 'Antrag',
-    'social': 'Social Media',
-    'universal': 'Universal',
-    'press': 'Pressemitteilung',
-    'gruene_jugend': 'Gruene Jugend'
+  text: 'Allgemeiner Text',
+  antrag: 'Antrag',
+  social: 'Social Media',
+  universal: 'Universal',
+  press: 'Pressemitteilung',
+  gruene_jugend: 'Gruene Jugend',
 };
 
 // =====================================================================
@@ -39,12 +39,12 @@ export const TEXT_DOCUMENT_TYPES = {
  * @returns {string} Formatted error message
  */
 export const formatApiError = (error, context = 'operation') => {
-    if (typeof error === 'string') {
-        return error;
-    }
-    
-    const message = error?.message || 'Ein unbekannter Fehler ist aufgetreten.';
-    return `Fehler beim ${context}: ${message}`;
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  const message = error?.message || 'Ein unbekannter Fehler ist aufgetreten.';
+  return `Fehler beim ${context}: ${message}`;
 };
 
 /**
@@ -55,23 +55,23 @@ export const formatApiError = (error, context = 'operation') => {
  * @returns {Object} Processed result with user-friendly messages
  */
 export const handleBulkOperationResult = (result, operation, itemType) => {
-    const { success = 0, failed = 0, errors = [] } = result;
-    
-    let message = '';
-    if (success > 0 && failed === 0) {
-        message = `${success} ${itemType} erfolgreich ${operation === 'delete' ? 'gelöscht' : 'verarbeitet'}.`;
-    } else if (success > 0 && failed > 0) {
-        message = `${success} ${itemType} erfolgreich ${operation === 'delete' ? 'gelöscht' : 'verarbeitet'}, ${failed} fehlgeschlagen.`;
-    } else if (failed > 0) {
-        message = `Fehler beim ${operation === 'delete' ? 'Löschen' : 'Verarbeiten'} von ${failed} ${itemType}.`;
-    }
-    
-    return {
-        ...result,
-        message,
-        hasErrors: failed > 0,
-        isComplete: success > 0
-    };
+  const { success = 0, failed = 0, errors = [] } = result;
+
+  let message = '';
+  if (success > 0 && failed === 0) {
+    message = `${success} ${itemType} erfolgreich ${operation === 'delete' ? 'gelöscht' : 'verarbeitet'}.`;
+  } else if (success > 0 && failed > 0) {
+    message = `${success} ${itemType} erfolgreich ${operation === 'delete' ? 'gelöscht' : 'verarbeitet'}, ${failed} fehlgeschlagen.`;
+  } else if (failed > 0) {
+    message = `Fehler beim ${operation === 'delete' ? 'Löschen' : 'Verarbeiten'} von ${failed} ${itemType}.`;
+  }
+
+  return {
+    ...result,
+    message,
+    hasErrors: failed > 0,
+    isComplete: success > 0,
+  };
 };
 
 // =====================================================================
@@ -84,21 +84,21 @@ export const handleBulkOperationResult = (result, operation, itemType) => {
  * @returns {Promise<Object>} Result of bulk delete operation
  */
 export const bulkDeleteDocuments = async (documentIds) => {
-    try {
-        console.log('[documentAndTextUtils] Bulk deleting documents:', documentIds);
+  try {
+    console.log('[documentAndTextUtils] Bulk deleting documents:', documentIds);
 
-        const response = await apiClient.delete('/documents/bulk', {
-            data: { ids: documentIds }
-        });
+    const response = await apiClient.delete('/documents/bulk', {
+      data: { ids: documentIds },
+    });
 
-        const result = response.data;
-        console.log('[documentAndTextUtils] Bulk delete documents result:', result);
+    const result = response.data;
+    console.log('[documentAndTextUtils] Bulk delete documents result:', result);
 
-        return handleBulkOperationResult(result, 'delete', 'Dokumente');
-    } catch (error) {
-        console.error('[documentAndTextUtils] Error in bulk delete documents:', error);
-        throw new Error(formatApiError(error, 'Bulk-Löschen der Dokumente'));
-    }
+    return handleBulkOperationResult(result, 'delete', 'Dokumente');
+  } catch (error) {
+    console.error('[documentAndTextUtils] Error in bulk delete documents:', error);
+    throw new Error(formatApiError(error, 'Bulk-Löschen der Dokumente'));
+  }
 };
 
 /**
@@ -107,21 +107,21 @@ export const bulkDeleteDocuments = async (documentIds) => {
  * @returns {Promise<Object>} Result of bulk delete operation
  */
 export const bulkDeleteTexts = async (textIds) => {
-    try {
-        console.log('[documentAndTextUtils] Bulk deleting texts:', textIds);
+  try {
+    console.log('[documentAndTextUtils] Bulk deleting texts:', textIds);
 
-        const response = await apiClient.delete('/saved-texts/bulk', {
-            data: { ids: textIds }
-        });
+    const response = await apiClient.delete('/saved-texts/bulk', {
+      data: { ids: textIds },
+    });
 
-        const result = response.data;
-        console.log('[documentAndTextUtils] Bulk delete texts result:', result);
+    const result = response.data;
+    console.log('[documentAndTextUtils] Bulk delete texts result:', result);
 
-        return handleBulkOperationResult(result, 'delete', 'Texte');
-    } catch (error) {
-        console.error('[documentAndTextUtils] Error in bulk delete texts:', error);
-        throw new Error(formatApiError(error, 'Bulk-Löschen der Texte'));
-    }
+    return handleBulkOperationResult(result, 'delete', 'Texte');
+  } catch (error) {
+    console.error('[documentAndTextUtils] Error in bulk delete texts:', error);
+    throw new Error(formatApiError(error, 'Bulk-Löschen der Texte'));
+  }
 };
 
 /**
@@ -130,21 +130,21 @@ export const bulkDeleteTexts = async (textIds) => {
  * @returns {Promise<Object>} Result of bulk delete operation
  */
 export const bulkDeleteQA = async (qaIds) => {
-    try {
-        console.log('[documentAndTextUtils] Bulk deleting QA collections:', qaIds);
+  try {
+    console.log('[documentAndTextUtils] Bulk deleting QA collections:', qaIds);
 
-        const response = await apiClient.delete('/qa-collections/bulk', {
-            data: { ids: qaIds }
-        });
+    const response = await apiClient.delete('/qa-collections/bulk', {
+      data: { ids: qaIds },
+    });
 
-        const result = response.data;
-        console.log('[documentAndTextUtils] Bulk delete QA result:', result);
+    const result = response.data;
+    console.log('[documentAndTextUtils] Bulk delete QA result:', result);
 
-        return handleBulkOperationResult(result, 'delete', 'Notebooks');
-    } catch (error) {
-        console.error('[documentAndTextUtils] Error in bulk delete QA:', error);
-        throw new Error(formatApiError(error, 'Bulk-Löschen der Notebooks'));
-    }
+    return handleBulkOperationResult(result, 'delete', 'Notebooks');
+  } catch (error) {
+    console.error('[documentAndTextUtils] Error in bulk delete QA:', error);
+    throw new Error(formatApiError(error, 'Bulk-Löschen der Notebooks'));
+  }
 };
 
 // =====================================================================
@@ -158,7 +158,7 @@ export const bulkDeleteQA = async (qaIds) => {
  * @returns {Function} Share action function
  */
 export const createShareAction = (contentType, shareHandler) => (item) => {
-    return shareHandler(contentType, item.id, item.title || item.name);
+  return shareHandler(contentType, item.id, item.title || item.name);
 };
 
 /**
@@ -168,24 +168,24 @@ export const createShareAction = (contentType, shareHandler) => (item) => {
  * @returns {Object} Validation result with canEdit and reason
  */
 export const validateItemEditability = (item, itemType) => {
-    if (itemType === 'template' && item.id && item.id.startsWith('canva_')) {
-        return {
-            canEdit: false,
-            reason: 'Canva Design Titel können nur in Canva selbst bearbeitet werden.'
-        };
-    }
-    
-    if (itemType === 'document' && item.status === 'processing') {
-        return {
-            canEdit: false,
-            reason: 'Dokument wird noch verarbeitet und kann nicht bearbeitet werden.'
-        };
-    }
-    
+  if (itemType === 'template' && item.id && item.id.startsWith('canva_')) {
     return {
-        canEdit: true,
-        reason: null
+      canEdit: false,
+      reason: 'Canva Design Titel können nur in Canva selbst bearbeitet werden.',
     };
+  }
+
+  if (itemType === 'document' && item.status === 'processing') {
+    return {
+      canEdit: false,
+      reason: 'Dokument wird noch verarbeitet und kann nicht bearbeitet werden.',
+    };
+  }
+
+  return {
+    canEdit: true,
+    reason: null,
+  };
 };
 
 /**
@@ -195,17 +195,17 @@ export const validateItemEditability = (item, itemType) => {
  * @returns {Object} Validation result with canDelete and reason
  */
 export const validateItemDeletability = (item, itemType) => {
-    if (itemType === 'template' && item.id && item.id.startsWith('canva_')) {
-        return {
-            canDelete: false,
-            reason: 'Canva Designs können nur in Canva selbst gelöscht werden.'
-        };
-    }
-    
+  if (itemType === 'template' && item.id && item.id.startsWith('canva_')) {
     return {
-        canDelete: true,
-        reason: null
+      canDelete: false,
+      reason: 'Canva Designs können nur in Canva selbst gelöscht werden.',
     };
+  }
+
+  return {
+    canDelete: true,
+    reason: null,
+  };
 };
 
 /**
@@ -215,67 +215,67 @@ export const validateItemDeletability = (item, itemType) => {
  * @returns {Object} Metadata object with display information
  */
 export const getItemDisplayMetadata = (item, itemType) => {
-    const metadata = {
-        badges: [],
-        details: [],
-        actions: []
+  const metadata = {
+    badges: [],
+    details: [],
+    actions: [],
+  };
+
+  // Add status badges
+  if (item.status) {
+    const statusConfig = {
+      processing: { text: 'Verarbeitung...', className: 'status-processing' },
+      completed: { text: 'Abgeschlossen', className: 'status-completed' },
+      failed: { text: 'Fehler', className: 'status-error' },
+      pending: { text: 'Wartend', className: 'status-pending' },
     };
-    
-    // Add status badges
-    if (item.status) {
-        const statusConfig = {
-            'processing': { text: 'Verarbeitung...', className: 'status-processing' },
-            'completed': { text: 'Abgeschlossen', className: 'status-completed' },
-            'failed': { text: 'Fehler', className: 'status-error' },
-            'pending': { text: 'Wartend', className: 'status-pending' }
-        };
-        
-        const config = statusConfig[item.status];
-        if (config) {
-            metadata.badges.push({
-                text: config.text,
-                className: config.className,
-                type: 'status'
-            });
-        }
+
+    const config = statusConfig[item.status];
+    if (config) {
+      metadata.badges.push({
+        text: config.text,
+        className: config.className,
+        type: 'status',
+      });
     }
-    
-    // Add type-specific metadata
-    if (itemType === 'document') {
-        if (item.file_type) {
-            const typeLabel = DOCUMENT_TYPES[item.file_type] || item.file_type;
-            metadata.details.push({
-                label: 'Typ',
-                value: typeLabel
-            });
-        }
-        
-        if (item.file_size) {
-            metadata.details.push({
-                label: 'Größe',
-                value: formatFileSize(item.file_size)
-            });
-        }
+  }
+
+  // Add type-specific metadata
+  if (itemType === 'document') {
+    if (item.file_type) {
+      const typeLabel = DOCUMENT_TYPES[item.file_type] || item.file_type;
+      metadata.details.push({
+        label: 'Typ',
+        value: typeLabel,
+      });
     }
-    
-    if (itemType === 'text') {
-        if (item.type) {
-            const typeLabel = TEXT_DOCUMENT_TYPES[item.type] || item.type;
-            metadata.details.push({
-                label: 'Typ',
-                value: typeLabel
-            });
-        }
-        
-        if (item.word_count) {
-            metadata.details.push({
-                label: 'Wörter',
-                value: item.word_count.toLocaleString()
-            });
-        }
+
+    if (item.file_size) {
+      metadata.details.push({
+        label: 'Größe',
+        value: formatFileSize(item.file_size),
+      });
     }
-    
-    return metadata;
+  }
+
+  if (itemType === 'text') {
+    if (item.type) {
+      const typeLabel = TEXT_DOCUMENT_TYPES[item.type] || item.type;
+      metadata.details.push({
+        label: 'Typ',
+        value: typeLabel,
+      });
+    }
+
+    if (item.word_count) {
+      metadata.details.push({
+        label: 'Wörter',
+        value: item.word_count.toLocaleString(),
+      });
+    }
+  }
+
+  return metadata;
 };
 
 /**
@@ -284,13 +284,13 @@ export const getItemDisplayMetadata = (item, itemType) => {
  * @returns {string} Formatted file size
  */
 export const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  if (bytes === 0) return '0 Bytes';
+
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 /**
@@ -299,19 +299,19 @@ export const formatFileSize = (bytes) => {
  * @returns {string} Formatted date string
  */
 export const formatDisplayDate = (date) => {
-    if (!date) return '';
-    
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
-    if (isNaN(dateObj.getTime())) return '';
-    
-    return new Intl.DateTimeFormat('de-DE', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(dateObj);
+  if (!date) return '';
+
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+  if (isNaN(dateObj.getTime())) return '';
+
+  return new Intl.DateTimeFormat('de-DE', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(dateObj);
 };
 
 // =====================================================================
@@ -326,30 +326,35 @@ export const formatDisplayDate = (date) => {
  * @param {Object} filters - Additional filters to apply
  * @returns {Array} Filtered items
  */
-export const filterItems = (items, searchQuery = '', searchFields = ['title', 'name'], filters = {}) => {
-    if (!items || !Array.isArray(items)) return [];
-    
-    let filteredItems = [...items];
-    
-    // Apply search query
-    if (searchQuery && searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        filteredItems = filteredItems.filter(item => {
-            return searchFields.some(field => {
-                const value = item[field];
-                return value && typeof value === 'string' && value.toLowerCase().includes(query);
-            });
-        });
-    }
-    
-    // Apply additional filters
-    Object.entries(filters).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-            filteredItems = filteredItems.filter(item => item[key] === value);
-        }
+export const filterItems = (
+  items,
+  searchQuery = '',
+  searchFields = ['title', 'name'],
+  filters = {}
+) => {
+  if (!items || !Array.isArray(items)) return [];
+
+  let filteredItems = [...items];
+
+  // Apply search query
+  if (searchQuery && searchQuery.trim()) {
+    const query = searchQuery.toLowerCase().trim();
+    filteredItems = filteredItems.filter((item) => {
+      return searchFields.some((field) => {
+        const value = item[field];
+        return value && typeof value === 'string' && value.toLowerCase().includes(query);
+      });
     });
-    
-    return filteredItems;
+  }
+
+  // Apply additional filters
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      filteredItems = filteredItems.filter((item) => item[key] === value);
+    }
+  });
+
+  return filteredItems;
 };
 
 /**
@@ -360,32 +365,32 @@ export const filterItems = (items, searchQuery = '', searchFields = ['title', 'n
  * @returns {Array} Sorted items
  */
 export const sortItems = (items, sortBy = 'created_at', sortOrder = 'desc') => {
-    if (!items || !Array.isArray(items)) return [];
-    
-    return [...items].sort((a, b) => {
-        let aValue = a[sortBy];
-        let bValue = b[sortBy];
-        
-        // Handle date fields
-        if (sortBy.includes('_at') || sortBy === 'date') {
-            aValue = new Date(aValue);
-            bValue = new Date(bValue);
-        }
-        
-        // Handle string fields
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-            aValue = aValue.toLowerCase();
-            bValue = bValue.toLowerCase();
-        }
-        
-        // Handle null/undefined values
-        if (aValue == null && bValue == null) return 0;
-        if (aValue == null) return sortOrder === 'asc' ? -1 : 1;
-        if (bValue == null) return sortOrder === 'asc' ? 1 : -1;
-        
-        // Compare values
-        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
-    });
+  if (!items || !Array.isArray(items)) return [];
+
+  return [...items].sort((a, b) => {
+    let aValue = a[sortBy];
+    let bValue = b[sortBy];
+
+    // Handle date fields
+    if (sortBy.includes('_at') || sortBy === 'date') {
+      aValue = new Date(aValue);
+      bValue = new Date(bValue);
+    }
+
+    // Handle string fields
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+
+    // Handle null/undefined values
+    if (aValue == null && bValue == null) return 0;
+    if (aValue == null) return sortOrder === 'asc' ? -1 : 1;
+    if (bValue == null) return sortOrder === 'asc' ? 1 : -1;
+
+    // Compare values
+    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 };

@@ -39,7 +39,9 @@ export async function getProject(projectId: string): Promise<Project> {
 /**
  * Save a new project
  */
-export async function saveProject(projectData: SaveProjectData): Promise<{ project: Project; isNew: boolean }> {
+export async function saveProject(
+  projectData: SaveProjectData
+): Promise<{ project: Project; isNew: boolean }> {
   const client = getGlobalApiClient();
   const response = await client.post<ProjectsApiResponse>(PROJECTS_ENDPOINT, projectData);
 
@@ -56,9 +58,15 @@ export async function saveProject(projectData: SaveProjectData): Promise<{ proje
 /**
  * Update an existing project
  */
-export async function updateProject(projectId: string, updates: UpdateProjectData): Promise<Project> {
+export async function updateProject(
+  projectId: string,
+  updates: UpdateProjectData
+): Promise<Project> {
   const client = getGlobalApiClient();
-  const response = await client.put<ProjectsApiResponse>(`${PROJECTS_ENDPOINT}/${projectId}`, updates);
+  const response = await client.put<ProjectsApiResponse>(
+    `${PROJECTS_ENDPOINT}/${projectId}`,
+    updates
+  );
 
   if (!response.data.success || !response.data.project) {
     throw new Error(response.data.error || 'Projekt konnte nicht aktualisiert werden');

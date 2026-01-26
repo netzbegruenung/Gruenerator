@@ -21,7 +21,7 @@ import type {
   QueryOptions,
   TransactionCallback,
   Pool as PoolType,
-  PoolClient
+  PoolClient,
 } from './types.js';
 
 import { loadConfig, getSafeConfigForLog } from './config.js';
@@ -32,7 +32,7 @@ import {
   validateTableName as schemaValidateTableName,
   validateColumnNames as schemaValidateColumnNames,
   generateAlterStatements,
-  sanitizeBackupPath
+  sanitizeBackupPath,
 } from './schema.js';
 import { runMigrations, createDatabaseIfNotExists } from './migrations.js';
 import {
@@ -43,7 +43,7 @@ import {
   buildBulkInsertQuery,
   transactionQuery,
   transactionQueryOne,
-  transactionExec
+  transactionExec,
 } from './queries.js';
 
 export class PostgresService {
@@ -82,7 +82,9 @@ export class PostgresService {
       this.isHealthy = true;
       this.healthStatus = 'healthy';
       this.lastError = null;
-      console.log('[PostgresService] PostgreSQL minimal initialization successful (connection only)');
+      console.log(
+        '[PostgresService] PostgreSQL minimal initialization successful (connection only)'
+      );
 
       // Auto-sync schema columns
       try {
@@ -90,9 +92,11 @@ export class PostgresService {
         console.log('[PostgresService] ✓ Schema columns synchronized');
       } catch (error) {
         // Graceful failure: log warning but don't throw
-        console.warn('[PostgresService] ⚠️ Schema column sync failed (non-critical):', (error as Error).message);
+        console.warn(
+          '[PostgresService] ⚠️ Schema column sync failed (non-critical):',
+          (error as Error).message
+        );
       }
-
     } catch (error) {
       this.isInitialized = false;
       this.isHealthy = false;
@@ -108,7 +112,9 @@ export class PostgresService {
       }, 5000);
       console.log('[PostgresService] Retry scheduled, continuing...');
 
-      console.warn('[PostgresService] Database connection failed, but application will continue. Some features may be unavailable.');
+      console.warn(
+        '[PostgresService] Database connection failed, but application will continue. Some features may be unavailable.'
+      );
     }
   }
 
@@ -146,11 +152,13 @@ export class PostgresService {
       isInitialized: this.isInitialized,
       status: this.healthStatus,
       lastError: this.lastError,
-      pool: this.pool ? {
-        totalCount: this.pool.totalCount,
-        idleCount: this.pool.idleCount,
-        waitingCount: this.pool.waitingCount
-      } : null
+      pool: this.pool
+        ? {
+            totalCount: this.pool.totalCount,
+            idleCount: this.pool.idleCount,
+            waitingCount: this.pool.waitingCount,
+          }
+        : null,
     };
   }
 
@@ -196,7 +204,7 @@ export class PostgresService {
         name: row.column_name as string,
         type: row.data_type as string,
         nullable: row.is_nullable === 'YES',
-        default: row.column_default as string | null
+        default: row.column_default as string | null,
       });
     });
 
@@ -232,7 +240,10 @@ export class PostgresService {
               console.log(`[PostgresService] ✅ Added column ${alter.table}.${alter.column}`);
               successCount++;
             } catch (error) {
-              console.warn(`[PostgresService] ⚠️ Failed to add column ${alter.table}.${alter.column}:`, (error as Error).message);
+              console.warn(
+                `[PostgresService] ⚠️ Failed to add column ${alter.table}.${alter.column}:`,
+                (error as Error).message
+              );
               failCount++;
             }
           }
@@ -240,11 +251,12 @@ export class PostgresService {
           client.release();
         }
 
-        console.log(`[PostgresService] Schema sync complete: ${successCount} added, ${failCount} failed`);
+        console.log(
+          `[PostgresService] Schema sync complete: ${successCount} added, ${failCount} failed`
+        );
       } else {
         console.log('[PostgresService] All schema columns are up to date');
       }
-
     } catch (error) {
       console.error('[PostgresService] Error during schema column sync:', error);
       throw error;
@@ -269,11 +281,19 @@ export class PostgresService {
         await client.query(schema);
         console.log('[PostgresService] Database schema initialized');
       } catch (error) {
-        if (!(error as Error).message.includes('already exists') &&
-            !(error as Error).message.includes('permission denied')) {
-          console.warn('[PostgresService] Schema initialization warning:', (error as Error).message);
+        if (
+          !(error as Error).message.includes('already exists') &&
+          !(error as Error).message.includes('permission denied')
+        ) {
+          console.warn(
+            '[PostgresService] Schema initialization warning:',
+            (error as Error).message
+          );
         } else if ((error as Error).message.includes('permission denied')) {
-          console.warn('[PostgresService] Schema initialization - permission issue (continuing):', (error as Error).message);
+          console.warn(
+            '[PostgresService] Schema initialization - permission issue (continuing):',
+            (error as Error).message
+          );
         }
       } finally {
         client.release();
@@ -286,7 +306,6 @@ export class PostgresService {
       console.log('[PostgresService] Syncing schema columns...');
       await this.syncSchemaColumns();
       console.log('[PostgresService] Schema column sync complete');
-
     } catch (error) {
       console.error('[PostgresService] Failed to initialize schema:', error);
       console.warn('[PostgresService] Schema initialization failed, but application will continue');
@@ -313,11 +332,17 @@ export class PostgresService {
     }
 
     if (!this.isInitialized) {
-      throw new Error(`PostgresService failed to initialize: ${this.lastError || 'Unknown error'}. Database operations are not available.`);
+      throw new Error(
+        `PostgresService failed to initialize: ${this.lastError || 'Unknown error'}. Database operations are not available.`
+      );
     }
   }
 
-  async query(sql: string, params: unknown[] = [], _options: QueryOptions = {}): Promise<Record<string, unknown>[]> {
+  async query(
+    sql: string,
+    params: unknown[] = [],
+    _options: QueryOptions = {}
+  ): Promise<Record<string, unknown>[]> {
     try {
       await this.ensureInitialized();
     } catch (initError) {
@@ -349,7 +374,11 @@ export class PostgresService {
     }
   }
 
-  async queryOne(sql: string, params: unknown[] = [], options: QueryOptions = {}): Promise<Record<string, unknown> | null> {
+  async queryOne(
+    sql: string,
+    params: unknown[] = [],
+    options: QueryOptions = {}
+  ): Promise<Record<string, unknown> | null> {
     const results = await this.query(sql, params, options);
     return results.length > 0 ? results[0] : null;
   }
@@ -384,7 +413,11 @@ export class PostgresService {
     }
   }
 
-  async update(table: string, data: Record<string, unknown>, whereConditions: Record<string, unknown>): Promise<UpdateResult> {
+  async update(
+    table: string,
+    data: Record<string, unknown>,
+    whereConditions: Record<string, unknown>
+  ): Promise<UpdateResult> {
     this.validateTableName(table);
     const dataColumns = Object.keys(data);
     const whereColumns = Object.keys(whereConditions);
@@ -417,7 +450,11 @@ export class PostgresService {
     }
   }
 
-  async upsert(table: string, data: Record<string, unknown>, conflictColumns: string[] = ['id']): Promise<Record<string, unknown>> {
+  async upsert(
+    table: string,
+    data: Record<string, unknown>,
+    conflictColumns: string[] = ['id']
+  ): Promise<Record<string, unknown>> {
     this.validateTableName(table);
     const columns = Object.keys(data);
     this.validateColumnNames(table, [...columns, ...conflictColumns]);
@@ -433,7 +470,10 @@ export class PostgresService {
     }
   }
 
-  async bulkInsert(table: string, records: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
+  async bulkInsert(
+    table: string,
+    records: Record<string, unknown>[]
+  ): Promise<Record<string, unknown>[]> {
     if (!records.length) return [];
 
     this.validateTableName(table);
@@ -445,7 +485,10 @@ export class PostgresService {
     try {
       return await this.query(sql, values);
     } catch (error) {
-      console.error('[PostgresService] Bulk insert error:', error, { table, count: records.length });
+      console.error('[PostgresService] Bulk insert error:', error, {
+        table,
+        count: records.length,
+      });
       throw new Error(`Bulk insert failed: ${(error as Error).message}`);
     }
   }
@@ -468,15 +511,27 @@ export class PostgresService {
     }
   }
 
-  async transactionQuery(client: PoolClient, sql: string, params: unknown[] = []): Promise<Record<string, unknown>[]> {
+  async transactionQuery(
+    client: PoolClient,
+    sql: string,
+    params: unknown[] = []
+  ): Promise<Record<string, unknown>[]> {
     return transactionQuery(client, sql, params);
   }
 
-  async transactionQueryOne(client: PoolClient, sql: string, params: unknown[] = []): Promise<Record<string, unknown> | null> {
+  async transactionQueryOne(
+    client: PoolClient,
+    sql: string,
+    params: unknown[] = []
+  ): Promise<Record<string, unknown> | null> {
     return transactionQueryOne(client, sql, params);
   }
 
-  async transactionExec(client: PoolClient, sql: string, params: unknown[] = []): Promise<ExecResult> {
+  async transactionExec(
+    client: PoolClient,
+    sql: string,
+    params: unknown[] = []
+  ): Promise<ExecResult> {
     return transactionExec(client, sql, params);
   }
 
@@ -486,16 +541,25 @@ export class PostgresService {
     const sanitizedPath = sanitizeBackupPath(backupPath);
 
     return new Promise((resolve, reject) => {
-      const pg_dump = spawn('pg_dump', [
-        '-h', this.config.host || 'localhost',
-        '-p', String(this.config.port || 5432),
-        '-U', this.config.user || 'gruenerator',
-        '-d', this.config.database || 'gruenerator',
-        '-f', sanitizedPath,
-        '--verbose'
-      ], {
-        env: { ...process.env, PGPASSWORD: this.config.password || '' }
-      });
+      const pg_dump = spawn(
+        'pg_dump',
+        [
+          '-h',
+          this.config.host || 'localhost',
+          '-p',
+          String(this.config.port || 5432),
+          '-U',
+          this.config.user || 'gruenerator',
+          '-d',
+          this.config.database || 'gruenerator',
+          '-f',
+          sanitizedPath,
+          '--verbose',
+        ],
+        {
+          env: { ...process.env, PGPASSWORD: this.config.password || '' },
+        }
+      );
 
       pg_dump.on('close', (code) => {
         if (code === 0) {
@@ -537,8 +601,8 @@ export class PostgresService {
         connections: {
           totalCount: this.pool?.totalCount || 0,
           idleCount: this.pool?.idleCount || 0,
-          waitingCount: this.pool?.waitingCount || 0
-        }
+          waitingCount: this.pool?.waitingCount || 0,
+        },
       };
     } catch (error) {
       console.error('[PostgresService] Failed to get stats:', error);
@@ -546,7 +610,7 @@ export class PostgresService {
         tables: [],
         database_size: 'unknown',
         connections: { totalCount: 0, idleCount: 0, waitingCount: 0 },
-        error: (error as Error).message
+        error: (error as Error).message,
       };
     }
   }
@@ -556,7 +620,7 @@ export class PostgresService {
       totalCount: this.pool?.totalCount || 0,
       idleCount: this.pool?.idleCount || 0,
       waitingCount: this.pool?.waitingCount || 0,
-      initialized: this.isInitialized
+      initialized: this.isInitialized,
     };
   }
 
@@ -614,7 +678,7 @@ export class PostgresService {
         LIMIT $1
       `;
 
-      return await this.query(sql, [limit]) as unknown as RouteUsageStat[];
+      return (await this.query(sql, [limit])) as unknown as RouteUsageStat[];
     } catch (error) {
       console.error('[PostgresService] Failed to get route stats:', error);
       return [];

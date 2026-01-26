@@ -1,5 +1,9 @@
 import type { Worker } from 'worker_threads';
-import type { ProviderName, ProviderOptions, RequestMetadata } from '../services/providers/types.js';
+import type {
+  ProviderName,
+  ProviderOptions,
+  RequestMetadata,
+} from '../services/providers/types.js';
 
 // ========================================
 // Worker Message Protocol Types
@@ -36,7 +40,10 @@ export type WorkerMessage =
   | WorkerProgressMessage;
 
 export type WorkerIncomingMessage = WorkerRequestMessage;
-export type WorkerOutgoingMessage = WorkerResponseMessage | WorkerErrorMessage | WorkerProgressMessage;
+export type WorkerOutgoingMessage =
+  | WorkerResponseMessage
+  | WorkerErrorMessage
+  | WorkerProgressMessage;
 
 // ========================================
 // AI Request/Response Types
@@ -244,4 +251,8 @@ export interface AIWorkerPool {
 }
 
 // Re-export provider types for convenience
-export type { ProviderName, ProviderOptions, RequestMetadata } from '../services/providers/types.js';
+export type {
+  ProviderName,
+  ProviderOptions,
+  RequestMetadata,
+} from '../services/providers/types.js';

@@ -1,0 +1,88 @@
+.config-multipage {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.config-multipage__page {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.config-multipage__page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+}
+
+.config-multipage__page-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+[data-theme="dark"] .config-multipage__page-label {
+    color: var(--text-secondary-dark, #aaa);
+}
+
+.config-multipage__delete-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.config-multipage__delete-btn:hover {
+    background: var(--error-100, #fde8e8);
+    color: var(--error-600, #dc2626);
+}
+
+/* Loading state */
+.config-multipage--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+}
+
+.config-multipage__loader {
+    font-size: 14px;
+    color: var(--text-secondary, #666);
+}
+
+/* Add page button container */
+.config-multipage__add-page {
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+    margin-top: 16px;
+}
+
+/* Heterogeneous mode specific styles */
+.config-multipage--heterogeneous .config-multipage__page {
+    position: relative;
+}
+
+.config-multipage--heterogeneous .config-multipage__page::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 1px;
+    background: var(--border-color, #e0e0e0);
+}
+
+.config-multipage--heterogeneous .config-multipage__page:first-child::before {
+    display: none;
+}

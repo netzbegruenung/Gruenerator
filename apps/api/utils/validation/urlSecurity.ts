@@ -49,7 +49,7 @@ export interface UrlValidationOptions {
 }
 
 function isPrivateIP(ip: string): boolean {
-  return PRIVATE_IP_RANGES.some(range => range.test(ip));
+  return PRIVATE_IP_RANGES.some((range) => range.test(ip));
 }
 
 function isBlockedHostname(hostname: string): boolean {

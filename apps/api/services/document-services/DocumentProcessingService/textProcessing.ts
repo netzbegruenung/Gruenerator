@@ -38,8 +38,8 @@ export async function processTextContent(
     fileSize: content.length,
     status: 'completed',
     additionalMetadata: {
-      content_preview: generateContentPreview(content)
-    }
+      content_preview: generateContentPreview(content),
+    },
   });
 
   await qdrantDocumentService.storeDocumentVectors(
@@ -50,16 +50,18 @@ export async function processTextContent(
     {
       sourceType: sourceType,
       title: title.trim(),
-      filename: 'manual_text_input.txt'
+      filename: 'manual_text_input.txt',
     }
   );
 
-  console.log(`[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`);
+  console.log(
+    `[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`
+  );
 
   return {
     id: documentMetadata.id,
     title: documentMetadata.title,
     vectorCount: chunks.length,
-    sourceType: sourceType
+    sourceType: sourceType,
   };
 }

@@ -17,7 +17,11 @@ interface PostgresService {
   ensureInitialized(): Promise<void>;
   query(sql: string, params?: unknown[], options?: { table: string }): Promise<any[]>;
   queryOne(sql: string, params?: unknown[], options?: { table: string }): Promise<any | null>;
-  update(table: string, data: Record<string, unknown>, where: Record<string, unknown>): Promise<{ data: any[] }>;
+  update(
+    table: string,
+    data: Record<string, unknown>,
+    where: Record<string, unknown>
+  ): Promise<{ data: any[] }>;
 }
 
 interface QdrantService {
@@ -26,13 +30,16 @@ interface QdrantService {
   client: {
     upsert(collection: string, data: { points: QdrantPoint[] }): Promise<unknown>;
     delete(collection: string, data: { filter: QdrantFilter }): Promise<unknown>;
-    search(collection: string, data: {
-      vector: number[];
-      filter?: QdrantFilter;
-      limit: number;
-      score_threshold: number;
-      with_payload: boolean;
-    }): Promise<SearchHit[]>;
+    search(
+      collection: string,
+      data: {
+        vector: number[];
+        filter?: QdrantFilter;
+        limit: number;
+        score_threshold: number;
+        with_payload: boolean;
+      }
+    ): Promise<SearchHit[]>;
   };
 }
 
@@ -158,7 +165,15 @@ class PromptVectorService {
     }
 
     try {
-      const { id: promptId, user_id: userId, name, slug, prompt: promptText, description, is_public } = prompt;
+      const {
+        id: promptId,
+        user_id: userId,
+        name,
+        slug,
+        prompt: promptText,
+        description,
+        is_public,
+      } = prompt;
 
       const contentToEmbed = `${name}\n\n${description || ''}\n\n${promptText}`;
       const contentHash = generateContentHash(contentToEmbed);
@@ -174,9 +189,12 @@ class PromptVectorService {
         return existing.embedding_id;
       }
 
-      const embedding = await (mistralEmbeddingService as unknown as MistralService).generateEmbedding(contentToEmbed);
+      const embedding = await (
+        mistralEmbeddingService as unknown as MistralService
+      ).generateEmbedding(contentToEmbed);
 
-      const promptPreview = promptText.length > 200 ? promptText.substring(0, 200) + '...' : promptText;
+      const promptPreview =
+        promptText.length > 200 ? promptText.substring(0, 200) + '...' : promptText;
 
       const point: QdrantPoint = {
         id: generatePointId('prompt', promptId, 0).toString(),
@@ -189,8 +207,8 @@ class PromptVectorService {
           prompt_preview: promptPreview,
           description: description || '',
           is_public: is_public,
-          created_at: new Date().toISOString()
-        }
+          created_at: new Date().toISOString(),
+        },
       };
 
       await this.qdrant!.client.upsert(COLLECTION_NAME, { points: [point] });
@@ -201,14 +219,13 @@ class PromptVectorService {
         {
           embedding_id: embeddingId,
           embedding_hash: contentHash,
-          vector_indexed_at: new Date().toISOString()
+          vector_indexed_at: new Date().toISOString(),
         },
         { id: promptId }
       );
 
       log.debug(`Indexed prompt ${promptId} in Qdrant`);
       return embeddingId;
-
     } catch (error: unknown) {
       const err = error as Error;
       log.error('Failed to index prompt:', err);
@@ -229,13 +246,12 @@ class PromptVectorService {
     try {
       await this.qdrant!.client.delete(COLLECTION_NAME, {
         filter: {
-          must: [{ key: 'prompt_id', match: { value: promptId } }]
-        }
+          must: [{ key: 'prompt_id', match: { value: promptId } }],
+        },
       });
 
       log.debug(`Deleted vectors for prompt ${promptId}`);
       return true;
-
     } catch (error: unknown) {
       const err = error as Error;
       log.warn('Failed to delete prompt vectors:', err.message);
@@ -256,16 +272,18 @@ class PromptVectorService {
 
     if (this.qdrant!.isAvailable()) {
       try {
-        const queryEmbedding = await (mistralEmbeddingService as unknown as MistralService).generateEmbedding(query);
+        const queryEmbedding = await (
+          mistralEmbeddingService as unknown as MistralService
+        ).generateEmbedding(query);
 
         const searchResult = await this.qdrant!.client.search(COLLECTION_NAME, {
           vector: queryEmbedding,
           filter: {
-            must: [{ key: 'user_id', match: { value: userId } }]
+            must: [{ key: 'user_id', match: { value: userId } }],
           },
           limit: limit,
           score_threshold: threshold,
-          with_payload: true
+          with_payload: true,
         });
 
         const results: PromptSearchResult[] = searchResult.map((hit: SearchHit) => ({
@@ -276,11 +294,10 @@ class PromptVectorService {
           prompt_preview: hit.payload.prompt_preview,
           description: hit.payload.description,
           is_public: hit.payload.is_public,
-          similarity_score: hit.score
+          similarity_score: hit.score,
         }));
 
         return { success: true, results, total: results.length, search_type: 'vector' };
-
       } catch (error: unknown) {
         const err = error as Error;
         log.warn('Vector search failed, falling back to text search:', err.message);
@@ -303,16 +320,18 @@ class PromptVectorService {
 
     if (this.qdrant!.isAvailable()) {
       try {
-        const queryEmbedding = await (mistralEmbeddingService as unknown as MistralService).generateEmbedding(query);
+        const queryEmbedding = await (
+          mistralEmbeddingService as unknown as MistralService
+        ).generateEmbedding(query);
 
         const searchResult = await this.qdrant!.client.search(COLLECTION_NAME, {
           vector: queryEmbedding,
           filter: {
-            must: [{ key: 'is_public', match: { value: true } }]
+            must: [{ key: 'is_public', match: { value: true } }],
           },
           limit: limit * 2,
           score_threshold: threshold,
-          with_payload: true
+          with_payload: true,
         });
 
         let results: PromptSearchResult[] = searchResult.map((hit: SearchHit) => ({
@@ -323,15 +342,19 @@ class PromptVectorService {
           prompt_preview: hit.payload.prompt_preview,
           description: hit.payload.description,
           is_public: hit.payload.is_public,
-          similarity_score: hit.score
+          similarity_score: hit.score,
         }));
 
         if (excludeUserId) {
-          results = results.filter(r => r.user_id !== excludeUserId);
+          results = results.filter((r) => r.user_id !== excludeUserId);
         }
 
-        return { success: true, results: results.slice(0, limit), total: results.length, search_type: 'vector' };
-
+        return {
+          success: true,
+          results: results.slice(0, limit),
+          total: results.length,
+          search_type: 'vector',
+        };
       } catch (error: unknown) {
         const err = error as Error;
         log.warn('Vector search failed, falling back to text search:', err.message);
@@ -367,7 +390,7 @@ class PromptVectorService {
 
       const rows = await this.postgres!.query(sql, params, { table: 'custom_prompts' });
 
-      const results: PromptSearchResult[] = rows.map(row => ({
+      const results: PromptSearchResult[] = rows.map((row) => ({
         prompt_id: row.id,
         user_id: row.user_id,
         name: row.name,
@@ -375,11 +398,10 @@ class PromptVectorService {
         prompt_preview: row.prompt.length > 200 ? row.prompt.substring(0, 200) + '...' : row.prompt,
         description: row.description || '',
         is_public: row.is_public,
-        similarity_score: 1.0
+        similarity_score: 1.0,
       }));
 
       return { success: true, results, total: results.length, search_type: 'text' };
-
     } catch (error: unknown) {
       const err = error as Error;
       log.error('Failed to get public prompts:', err);
@@ -436,7 +458,7 @@ class PromptVectorService {
 
       const rows = await this.postgres!.query(sql, params, { table: 'custom_prompts' });
 
-      const results: PromptSearchResult[] = rows.map(row => ({
+      const results: PromptSearchResult[] = rows.map((row) => ({
         prompt_id: row.id,
         user_id: row.user_id,
         name: row.name,
@@ -444,11 +466,10 @@ class PromptVectorService {
         prompt_preview: row.prompt.length > 200 ? row.prompt.substring(0, 200) + '...' : row.prompt,
         description: row.description || '',
         is_public: row.is_public,
-        similarity_score: row.rank || 0
+        similarity_score: row.rank || 0,
       }));
 
       return { success: true, results, total: results.length, search_type: 'text' };
-
     } catch (error: unknown) {
       const err = error as Error;
       log.error('Text search failed:', err);

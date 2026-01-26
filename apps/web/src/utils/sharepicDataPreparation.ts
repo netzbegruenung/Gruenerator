@@ -67,7 +67,8 @@ export const prepareDataForCanvas = (
       formDataToSend.append(`balkenOffset_${index}`, offset.toString());
     });
 
-    const balkenGruppenOffset = modificationData.balkenGruppenOffset || formData.balkenGruppenOffset || [0, 0];
+    const balkenGruppenOffset = modificationData.balkenGruppenOffset ||
+      formData.balkenGruppenOffset || [0, 0];
     formDataToSend.append('balkenGruppe_offset_x', balkenGruppenOffset[0].toString());
     formDataToSend.append('balkenGruppe_offset_y', balkenGruppenOffset[1].toString());
 
@@ -76,7 +77,8 @@ export const prepareDataForCanvas = (
     formDataToSend.append('sunflower_offset_y', sunflowerOffset[1].toString());
   }
 
-  const colorScheme = modificationData.colorScheme ?? formData.colorScheme ?? (DEFAULT_COLORS as ColorSchemeItem[]);
+  const colorScheme =
+    modificationData.colorScheme ?? formData.colorScheme ?? (DEFAULT_COLORS as ColorSchemeItem[]);
 
   if (type === 'quote') {
     formDataToSend.append('background_color', colorScheme[0].background);
@@ -91,9 +93,10 @@ export const prepareDataForCanvas = (
   const imageToUse = modificationData.image || formData.uploadedImage || formData.image;
 
   if (imageToUse && typeof imageToUse !== 'string') {
-    const imageFile = imageToUse instanceof File
-      ? imageToUse
-      : new File([imageToUse], 'image.jpg', { type: imageToUse.type });
+    const imageFile =
+      imageToUse instanceof File
+        ? imageToUse
+        : new File([imageToUse], 'image.jpg', { type: imageToUse.type });
     formDataToSend.append('image', imageFile);
   }
 

@@ -3,14 +3,18 @@ import { z } from 'zod';
 
 import { config, COLLECTION_KEYS } from '../config.ts';
 import { generateEmbedding } from '../embeddings.ts';
-import { searchCollection, hybridSearchCollection, textSearchCollection } from '../qdrant/client.ts';
+import {
+  searchCollection,
+  hybridSearchCollection,
+  textSearchCollection,
+} from '../qdrant/client.ts';
 import { getEnrichedPersonSearch } from '../services/enriched-person-search.ts';
 import {
   getCachedEmbedding,
   cacheEmbedding,
   getCachedSearch,
   cacheSearch,
-  getCacheStats
+  getCacheStats,
 } from '../utils/cache.ts';
 
 export const searchTool = {
@@ -58,34 +62,81 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
 
   inputSchema: {
     query: z.string().describe('Suchbegriff oder Frage auf Deutsch'),
-    collection: z.enum(COLLECTION_KEYS).describe('Exakte Sammlung wie vom Nutzer genannt. Bei mehreren Sammlungen: Tool mehrfach aufrufen.'),
-    searchMode: z.enum(['hybrid', 'vector', 'text']).default('hybrid').describe('hybrid=beste Ergebnisse, vector=semantisch, text=exakte Begriffe'),
+    collection: z
+      .enum(COLLECTION_KEYS)
+      .describe(
+        'Exakte Sammlung wie vom Nutzer genannt. Bei mehreren Sammlungen: Tool mehrfach aufrufen.'
+      ),
+    searchMode: z
+      .enum(['hybrid', 'vector', 'text'])
+      .default('hybrid')
+      .describe('hybrid=beste Ergebnisse, vector=semantisch, text=exakte Begriffe'),
     limit: z.number().min(1).max(20).default(5).describe('Anzahl Ergebnisse (1-20)'),
-    filters: z.object({
-      primary_category: z.string().optional().describe('Hauptkategorie (alle Sammlungen) - erst gruenerator_get_filters aufrufen!'),
-      content_type: z.string().optional().describe('Inhaltstyp (für kommunalwiki, boell-stiftung) - erst gruenerator_get_filters aufrufen!'),
-      subcategories: z.string().optional().describe('Unterkategorie (für kommunalwiki, boell-stiftung) - erst gruenerator_get_filters aufrufen!'),
-      region: z.string().optional().describe('Region (nur boell-stiftung: europa, asien, nahost, etc.) - erst gruenerator_get_filters aufrufen!'),
-      country: z.string().optional().describe('Land (DE oder AT für bundestagsfraktion, gruene-de, gruene-at, examples) - erst gruenerator_get_filters aufrufen!'),
-      platform: z.string().optional().describe('Plattform (instagram oder facebook, nur für examples) - erst gruenerator_get_filters aufrufen!')
-    }).optional().describe('Filter - IMMER erst gruenerator_get_filters aufrufen um gültige Werte zu erhalten'),
-    useCache: z.boolean().default(true).describe('Cache für schnellere Ergebnisse')
+    filters: z
+      .object({
+        primary_category: z
+          .string()
+          .optional()
+          .describe('Hauptkategorie (alle Sammlungen) - erst gruenerator_get_filters aufrufen!'),
+        content_type: z
+          .string()
+          .optional()
+          .describe(
+            'Inhaltstyp (für kommunalwiki, boell-stiftung) - erst gruenerator_get_filters aufrufen!'
+          ),
+        subcategories: z
+          .string()
+          .optional()
+          .describe(
+            'Unterkategorie (für kommunalwiki, boell-stiftung) - erst gruenerator_get_filters aufrufen!'
+          ),
+        region: z
+          .string()
+          .optional()
+          .describe(
+            'Region (nur boell-stiftung: europa, asien, nahost, etc.) - erst gruenerator_get_filters aufrufen!'
+          ),
+        country: z
+          .string()
+          .optional()
+          .describe(
+            'Land (DE oder AT für bundestagsfraktion, gruene-de, gruene-at, examples) - erst gruenerator_get_filters aufrufen!'
+          ),
+        platform: z
+          .string()
+          .optional()
+          .describe(
+            'Plattform (instagram oder facebook, nur für examples) - erst gruenerator_get_filters aufrufen!'
+          ),
+      })
+      .optional()
+      .describe(
+        'Filter - IMMER erst gruenerator_get_filters aufrufen um gültige Werte zu erhalten'
+      ),
+    useCache: z.boolean().default(true).describe('Cache für schnellere Ergebnisse'),
   },
 
-  async handler({ query, collection, searchMode = 'hybrid', limit = 5, filters = null, useCache = true }) {
+  async handler({
+    query,
+    collection,
+    searchMode = 'hybrid',
+    limit = 5,
+    filters = null,
+    useCache = true,
+  }) {
     const collectionConfig = config.collections[collection];
     if (!collectionConfig) {
       const available = Object.keys(config.collections).join(', ');
       return {
         error: true,
-        message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${available}`
+        message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${available}`,
       };
     }
 
     if (!query || query.trim().length === 0) {
       return {
         error: true,
-        message: 'Suchbegriff darf nicht leer sein'
+        message: 'Suchbegriff darf nicht leer sein',
       };
     }
 
@@ -99,11 +150,16 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
           const personResult = await enrichedService.search(query);
 
           if (personResult.isPersonQuery) {
-            console.error(`[Search] Enriched person search for: ${personResult.metadata.extractedName}`);
+            console.error(
+              `[Search] Enriched person search for: ${personResult.metadata.extractedName}`
+            );
             return formatPersonSearchResult(personResult, collectionConfig);
           }
         } catch (personError) {
-          console.error('[Search] Person detection failed, falling back to regular search:', personError.message);
+          console.error(
+            '[Search] Person detection failed, falling back to regular search:',
+            personError.message
+          );
         }
       }
 
@@ -114,7 +170,7 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
           console.error(`[Search] Cache hit for "${query.substring(0, 30)}..."`);
           return {
             ...cachedResults,
-            cached: true
+            cached: true,
           };
         }
       }
@@ -159,7 +215,7 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
         results = hybridResult.results;
         metadata = {
           searchType: 'hybrid',
-          ...hybridResult.metadata
+          ...hybridResult.metadata,
         };
       } else {
         // Vector search
@@ -188,7 +244,7 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
           message: 'Keine Ergebnisse gefunden',
           results: [],
           metadata,
-          filters: filters || null
+          filters: filters || null,
         };
         return response;
       }
@@ -205,11 +261,11 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
           source: r.title,
           url: r.url || null,
           excerpt: r.text.length > 800 ? r.text.substring(0, 800) + '...' : r.text,
-          searchMethod: r.searchMethod || searchMode
+          searchMethod: r.searchMethod || searchMode,
         })),
         metadata,
         filters: filters || null,
-        cached: false
+        cached: false,
       };
 
       // Cache the results
@@ -218,15 +274,14 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
       }
 
       return response;
-
     } catch (error) {
       console.error('[Search] Fehler:', error.message);
       return {
         error: true,
-        message: `Suchfehler: ${error.message}`
+        message: `Suchfehler: ${error.message}`,
       };
     }
-  }
+  },
 };
 
 /**
@@ -247,9 +302,11 @@ function formatPersonSearchResult(personResult, collectionConfig) {
       person.fraktion ? `Fraktion: ${person.fraktion}` : null,
       person.wahlkreis ? `Wahlkreis: ${person.wahlkreis}` : null,
       person.beruf ? `Beruf: ${person.beruf}` : null,
-      person.vita ? `\n${person.vita}` : null
-    ].filter(Boolean).join('\n'),
-    searchMethod: 'person_detection'
+      person.vita ? `\n${person.vita}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    searchMethod: 'person_detection',
   });
 
   // Add content mentions
@@ -261,7 +318,7 @@ function formatPersonSearchResult(personResult, collectionConfig) {
       url: mention.url,
       type: 'content_mention',
       excerpt: mention.snippet,
-      searchMethod: mention.searchMethod || 'hybrid'
+      searchMethod: mention.searchMethod || 'hybrid',
     });
   }
 
@@ -274,7 +331,7 @@ function formatPersonSearchResult(personResult, collectionConfig) {
       url: `https://dip.bundestag.de/drucksache/${d.dokumentnummer}`,
       type: 'drucksache',
       excerpt: `${d.dokumentnummer} vom ${d.datum}`,
-      searchMethod: 'dip_api'
+      searchMethod: 'dip_api',
     });
   }
 
@@ -286,7 +343,7 @@ function formatPersonSearchResult(personResult, collectionConfig) {
       source: `${a.aktivitaetsart}: ${a.titel || 'Aktivität'}`,
       type: 'aktivitaet',
       excerpt: `${a.aktivitaetsart} vom ${a.datum}`,
-      searchMethod: 'dip_api'
+      searchMethod: 'dip_api',
     });
   }
 
@@ -299,7 +356,7 @@ function formatPersonSearchResult(personResult, collectionConfig) {
     person: {
       name: person.name,
       fraktion: person.fraktion,
-      wahlkreis: person.wahlkreis
+      wahlkreis: person.wahlkreis,
     },
     resultsCount: results.length,
     results,
@@ -310,9 +367,9 @@ function formatPersonSearchResult(personResult, collectionConfig) {
       contentMentionsCount: metadata.contentMentionsCount,
       drucksachenCount: metadata.drucksachenCount,
       aktivitaetenCount: metadata.aktivitaetenCount,
-      fetchTimeMs: metadata.fetchTimeMs
+      fetchTimeMs: metadata.fetchTimeMs,
     },
-    cached: false
+    cached: false,
   };
 }
 
@@ -329,7 +386,7 @@ export const cacheStatsTool = {
     const stats = getCacheStats();
     return {
       message: 'Cache-Statistiken',
-      ...stats
+      ...stats,
     };
-  }
+  },
 };

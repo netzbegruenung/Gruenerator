@@ -21,7 +21,7 @@ const __dirname = path.dirname(__filename);
  * Configuration constants
  */
 const CONFIG = {
-  MAX_HISTORY_MESSAGES: 10
+  MAX_HISTORY_MESSAGES: 10,
 };
 
 /**
@@ -56,7 +56,7 @@ function buildConversationMessages(
     for (const msg of recentHistory) {
       messages.push({
         role: msg.role === 'user' ? 'user' : 'assistant',
-        content: msg.content
+        content: msg.content,
       });
     }
   }
@@ -79,18 +79,27 @@ export async function processConversationRequest(params: {
   aiWorkerPool: any;
   req?: any;
 }): Promise<any> {
-  const { message, userId, locale = 'de-DE', subIntent = 'general', messageHistory, aiWorkerPool, req } = params;
+  const {
+    message,
+    userId,
+    locale = 'de-DE',
+    subIntent = 'general',
+    messageHistory,
+    aiWorkerPool,
+    req,
+  } = params;
 
   log.debug('[ConversationService] Processing conversation request:', {
     subIntent,
     messageLength: message?.length,
-    hasHistory: (messageHistory?.length ?? 0) > 0
+    hasHistory: (messageHistory?.length ?? 0) > 0,
   });
 
   try {
     // Load conversation config
     const conversationConfig = loadConversationConfig();
-    const subIntentConfig = conversationConfig.subIntents[subIntent] || conversationConfig.subIntents.general;
+    const subIntentConfig =
+      conversationConfig.subIntents[subIntent] || conversationConfig.subIntents.general;
 
     // Determine if pro mode should be used for complex tasks
     const useProMode = subIntentConfig.useProMode || false;
@@ -115,18 +124,21 @@ export async function processConversationRequest(params: {
       useProMode,
       messageCount: messages.length,
       temperature: options.temperature,
-      maxTokens: options.max_tokens
+      maxTokens: options.max_tokens,
     });
 
-    const result = await aiWorkerPool.processRequest({
-      type: 'conversation',
-      systemPrompt: systemPrompt,
-      messages: messages,
-      options: {
-        ...options,
-        useProMode: useProMode
-      }
-    }, req);
+    const result = await aiWorkerPool.processRequest(
+      {
+        type: 'conversation',
+        systemPrompt: systemPrompt,
+        messages: messages,
+        options: {
+          ...options,
+          useProMode: useProMode,
+        },
+      },
+      req
+    );
 
     if (!result.success) {
       throw new Error(result.error || 'AI request failed');
@@ -138,7 +150,7 @@ export async function processConversationRequest(params: {
     log.debug('[ConversationService] Conversation response generated:', {
       subIntent,
       responseLength: result.content?.length,
-      useProMode
+      useProMode,
     });
 
     return {
@@ -147,12 +159,12 @@ export async function processConversationRequest(params: {
       subIntent: subIntent,
       content: {
         text: result.content,
-        type: 'conversation'
+        type: 'conversation',
       },
       metadata: {
         useProMode: useProMode,
-        subIntent: subIntent
-      }
+        subIntent: subIntent,
+      },
     };
   } catch (error) {
     log.error('[ConversationService] Error:', error);

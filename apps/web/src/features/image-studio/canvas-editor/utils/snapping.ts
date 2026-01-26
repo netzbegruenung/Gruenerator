@@ -121,7 +121,14 @@ export function calculateElementSnapPosition(
   stageWidth: number,
   stageHeight: number
 ): ElementSnapResult {
-  const baseResult = calculateSnapPosition(nodeX, nodeY, nodeWidth, nodeHeight, stageWidth, stageHeight);
+  const baseResult = calculateSnapPosition(
+    nodeX,
+    nodeY,
+    nodeWidth,
+    nodeHeight,
+    stageWidth,
+    stageHeight
+  );
   const result: ElementSnapResult = {
     ...baseResult,
     snapLines: [],

@@ -19,14 +19,14 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
     if (state.webResults) {
       state.webResults.forEach((searchResult, searchIndex) => {
         if (searchResult.success && searchResult.results) {
-          searchResult.results.forEach(source => {
+          searchResult.results.forEach((source) => {
             if (!sourceMap.has(source.url)) {
               sourceMap.set(source.url, {
                 ...source,
                 categories: [`Web Search ${searchIndex + 1}`],
                 questions: [searchResult.query],
                 source_type: 'web',
-                content_snippets: source.content || source.snippet || null
+                content_snippets: source.content || source.snippet || null,
               });
               allSources.push(sourceMap.get(source.url));
             } else {
@@ -49,18 +49,17 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
     const categorizedSources: CategorizedSources = {};
 
     if (state.grundsatzResults?.success && state.grundsatzResults.results?.length > 0) {
-      categorizedSources['official'] =
-        state.grundsatzResults.results.map(result => ({
-          ...result,
-          url: `#grundsatz-${(result as any).document_id}`,
-          title: result.title,
-          content: result.content || '',
-          snippet: result.snippet || ''
-        }));
+      categorizedSources['official'] = state.grundsatzResults.results.map((result) => ({
+        ...result,
+        url: `#grundsatz-${(result as any).document_id}`,
+        title: result.title,
+        content: result.content || '',
+        snippet: result.snippet || '',
+      }));
     }
 
     // Categorize external sources
-    allSources.forEach(source => {
+    allSources.forEach((source) => {
       const categories = (source as any).categories || [];
       categories.forEach((category: string) => {
         if (!categorizedSources[category]) {
@@ -68,12 +67,14 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
         }
         categorizedSources[category].push({
           ...source,
-          content: (source as any).content_snippets || source.content || ''
+          content: (source as any).content_snippets || source.content || '',
         });
       });
     });
 
-    console.log(`[WebSearchGraph] Aggregated ${allSources.length} unique sources into ${Object.keys(categorizedSources).length} categories`);
+    console.log(
+      `[WebSearchGraph] Aggregated ${allSources.length} unique sources into ${Object.keys(categorizedSources).length} categories`
+    );
 
     return {
       aggregatedResults: allSources,
@@ -83,8 +84,8 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
         totalSources: allSources.length + (state.grundsatzResults?.results?.length || 0),
         externalSources: allSources.length,
         officialSources: state.grundsatzResults?.results?.length || 0,
-        categories: Object.keys(categorizedSources)
-      }
+        categories: Object.keys(categorizedSources),
+      },
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -93,7 +94,7 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
       aggregatedResults: [],
       categorizedSources: {},
       error: `Aggregation failed: ${errorMessage}`,
-      metadata: { ...state.metadata, totalSources: 0 }
+      metadata: { ...state.metadata, totalSources: 0 },
     };
   }
 }

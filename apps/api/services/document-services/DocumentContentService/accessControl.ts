@@ -30,7 +30,9 @@ export async function getAccessibleDocuments(
     throw new Error('No accessible documents found');
   }
 
-  console.log(`[DocumentContentService] User has access to ${accessibleDocuments.length}/${documentIds.length} documents`);
+  console.log(
+    `[DocumentContentService] User has access to ${accessibleDocuments.length}/${documentIds.length} documents`
+  );
 
   return accessibleDocuments;
 }
@@ -39,5 +41,5 @@ export async function getAccessibleDocuments(
  * Extract accessible document IDs from document records
  */
 export function getAccessibleDocumentIds(documents: DocumentRecord[]): string[] {
-  return documents.map(doc => doc.id);
+  return documents.map((doc) => doc.id);
 }

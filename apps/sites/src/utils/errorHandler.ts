@@ -1,10 +1,8 @@
 import axios from 'axios';
-import { useToast } from '../hooks/useToast';
 
-export function handleApiError(
-  error: unknown,
-  toast: ReturnType<typeof useToast>
-): void {
+import { type useToast } from '../hooks/useToast';
+
+export function handleApiError(error: unknown, toast: ReturnType<typeof useToast>): void {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
     const message = error.response?.data?.error || error.message;
@@ -18,10 +16,7 @@ export function handleApiError(
         return;
 
       case 403:
-        toast.error(
-          'Keine Berechtigung',
-          'Du hast keine Rechte für diese Aktion'
-        );
+        toast.error('Keine Berechtigung', 'Du hast keine Rechte für diese Aktion');
         return;
 
       case 404:
@@ -29,10 +24,7 @@ export function handleApiError(
         return;
 
       case 429:
-        toast.error(
-          'Zu viele Anfragen',
-          'Bitte warte kurz und versuche es erneut'
-        );
+        toast.error('Zu viele Anfragen', 'Bitte warte kurz und versuche es erneut');
         return;
 
       case 500:
@@ -43,10 +35,7 @@ export function handleApiError(
         return;
 
       case 503:
-        toast.error(
-          'Dienst nicht verfügbar',
-          'Der Server ist vorübergehend nicht erreichbar'
-        );
+        toast.error('Dienst nicht verfügbar', 'Der Server ist vorübergehend nicht erreichbar');
         return;
 
       default:
@@ -65,10 +54,7 @@ export function handleApiError(
     }
 
     if (error.message.includes('Network Error')) {
-      toast.error(
-        'Netzwerkfehler',
-        'Bitte prüfe deine Internetverbindung'
-      );
+      toast.error('Netzwerkfehler', 'Bitte prüfe deine Internetverbindung');
       return;
     }
 

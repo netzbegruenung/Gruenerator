@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MdSearch, MdContentCut, MdSubtitles, MdCheck, MdError } from 'react-icons/md';
-import type { IconType } from 'react-icons';
+
 import apiClient from '../../../components/utils/apiClient';
+
+import type { IconType } from 'react-icons';
 import '../styles/AutoProcessingScreen.css';
 
 interface Stage {
@@ -15,7 +17,7 @@ const STAGES: Stage[] = [
   { id: 1, name: 'Video wird analysiert...', Icon: MdSearch },
   { id: 2, name: 'Stille Teile werden entfernt...', Icon: MdContentCut },
   { id: 3, name: 'Untertitel werden generiert...', Icon: MdSubtitles },
-  { id: 4, name: 'Wird fertiggestellt...', Icon: MdCheck }
+  { id: 4, name: 'Wird fertiggestellt...', Icon: MdCheck },
 ];
 
 const POLL_INTERVAL = 2000;
@@ -36,7 +38,11 @@ interface AutoProcessingScreenProps {
   onError?: (error: string) => void;
 }
 
-const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({ uploadId, onComplete, onError }) => {
+const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
+  uploadId,
+  onComplete,
+  onError,
+}) => {
   const [status, setStatus] = useState<'processing' | 'complete' | 'error'>('processing');
   const [currentStage, setCurrentStage] = useState<number>(1);
   const [stageProgress, setStageProgress] = useState<number>(0);
@@ -72,7 +78,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({ uploadId, o
             duration: data.duration,
             uploadId,
             projectId: data.projectId || null,
-            subtitles: data.subtitles || null
+            subtitles: data.subtitles || null,
           });
         }
         return;
@@ -96,7 +102,6 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({ uploadId, o
       if (data.stage) setCurrentStage(data.stage);
       if (data.stageProgress !== undefined) setStageProgress(data.stageProgress);
       if (data.overallProgress !== undefined) setOverallProgress(data.overallProgress);
-
     } catch (err) {
       console.error('[AutoProcessingScreen] Poll error:', err);
     }
@@ -186,9 +191,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({ uploadId, o
     <div className="auto-processing-screen">
       <div className="auto-processing-content">
         <h2>Automatische Verarbeitung</h2>
-        <p className="auto-processing-subtitle">
-          Dein Video wird automatisch optimiert
-        </p>
+        <p className="auto-processing-subtitle">Dein Video wird automatisch optimiert</p>
 
         <div className="progress-container">
           <div className="progress-bar-wrapper">
@@ -205,7 +208,8 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({ uploadId, o
         <div className="stages-container">
           {STAGES.map((stage) => {
             const isActive = stage.id === currentStage;
-            const isCompleted = stage.id < currentStage || (stage.id === currentStage && status === 'complete');
+            const isCompleted =
+              stage.id < currentStage || (stage.id === currentStage && status === 'complete');
 
             return (
               <motion.div
@@ -222,12 +226,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({ uploadId, o
                     <span className="stage-progress">{Math.round(stageProgress)}%</span>
                   )}
                 </div>
-                {isActive && (
-                  <motion.div
-                    className="stage-indicator"
-                    layoutId="activeIndicator"
-                  />
-                )}
+                {isActive && <motion.div className="stage-indicator" layoutId="activeIndicator" />}
               </motion.div>
             );
           })}

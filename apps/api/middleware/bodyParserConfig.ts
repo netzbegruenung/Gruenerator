@@ -13,7 +13,7 @@ export interface BodyParserSkipConfig {
 }
 
 const defaultSkipConfig: BodyParserSkipConfig = {
-  skipPaths: TUS_UPLOAD_PATHS
+  skipPaths: TUS_UPLOAD_PATHS,
 };
 
 /**
@@ -24,7 +24,7 @@ export function shouldSkipBodyParser(
   req: Request,
   config: BodyParserSkipConfig = defaultSkipConfig
 ): boolean {
-  return config.skipPaths.some(path => req.path.startsWith(path));
+  return config.skipPaths.some((path) => req.path.startsWith(path));
 }
 
 /**

@@ -38,7 +38,7 @@ export const useAutosave = ({
   enabled = true,
   debounceMs = 2000,
   getFieldsToTrack,
-  onError
+  onError,
 }: UseAutosaveConfig): UseAutosaveReturn => {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedValuesRef = useRef<Record<string, unknown>>({});
@@ -145,13 +145,15 @@ export const useAutosave = ({
     const fieldsToTrack = getFieldsToTrack ? getFieldsToTrack() : undefined;
 
     // Watch specific fields or all fields
-    const subscription = formRef.watch((value: Record<string, unknown>, { name }: { name?: string }) => {
-      if (fieldsToTrack && name && !fieldsToTrack.includes(name)) {
-        return;
-      }
+    const subscription = formRef.watch(
+      (value: Record<string, unknown>, { name }: { name?: string }) => {
+        if (fieldsToTrack && name && !fieldsToTrack.includes(name)) {
+          return;
+        }
 
-      handleFieldChange();
-    });
+        handleFieldChange();
+      }
+    );
 
     return (): void => {
       // Only unsubscribe if subscription exists and has unsubscribe method
@@ -180,7 +182,7 @@ export const useAutosave = ({
   return {
     triggerSave,
     resetTracking,
-    isAutoSaveInProgress
+    isAutoSaveInProgress,
   };
 };
 

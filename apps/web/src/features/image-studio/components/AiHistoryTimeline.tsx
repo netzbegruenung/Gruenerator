@@ -1,4 +1,5 @@
 import React from 'react';
+
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import './AiHistoryTimeline.css';
 
@@ -25,11 +26,7 @@ export const AiHistoryTimeline: React.FC = () => {
             title={`${entry.prompt.substring(0, 50)}${entry.prompt.length > 50 ? '...' : ''}`}
           >
             <div className="ai-history-item-thumbnail">
-              <img
-                src={entry.generatedImage}
-                alt={`Generation ${index + 1}`}
-                loading="lazy"
-              />
+              <img src={entry.generatedImage} alt={`Generation ${index + 1}`} loading="lazy" />
             </div>
             <div className="ai-history-item-number">#{index + 1}</div>
             {index === aiEditorHistoryIndex && (

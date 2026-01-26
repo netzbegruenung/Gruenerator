@@ -104,7 +104,6 @@ Universal rate limiting is implemented through a three-tier system (`middleware/
 
 **Rate Limit Implementation**: The RateLimiter class (`utils/RateLimiter.js`) manages Redis-based counters with daily, hourly, and monthly time windows that reset at midnight, top of hour, and first of month respectively. User identification uses multiple strategies in priority order: authenticated user ID from req.user, session ID from express-session, and IP address from req.ip or X-Forwarded-For header. Each resource type has dedicated Redis keys in format rate_limit:{resource}:{window}:{identifier}. The middleware attaches rate limit context to requests for manual increment calls and provides rateLimitInfo middleware for displaying remaining count in UI without blocking requests.
 
-
 ### API Routes Architecture
 
 The central route registration (`routes.js:1-384`) implements dynamic ES6 module imports for modern module compatibility and organizes routes into functional categories. Authentication routes (`/api/auth/*`) include core auth flows (login, callback, logout, status), user profile management, user content and templates, group memberships, custom generators, mobile authentication endpoints, and QA collection management. Text generation routes (`/api/claude_*`) support social media post generation, alt text generation, easy language conversion, chat-based generation, universal text generation, Grünerator Ask (knowledge base query), and specialized generators for political contexts. Sharepic generation routes (`/api/*_canvas`, `/api/*_claude`) include five canvas-based generators (dreizeilen, zitat, headline, info, imagine_label), AI-powered text suggestion for sharepics, unified generation endpoint combining text and image, and Abyssale integration for professional templates.
@@ -144,6 +143,7 @@ Each worker process implements a carefully ordered middleware stack (`server.mjs
 #### 1. CORS Configuration (`server.mjs:116-207`)
 
 The CORS middleware implements environment-based origin whitelisting:
+
 - **Production Origins**: Includes all production domains (gruenerator.de, beta subdomain, Punycode variants for grünerator.de, netzbegruenung domains)
 - **Development Origins**: Adds localhost and 127.0.0.1 on ports 3000/3001 when `NODE_ENV !== 'production'`
 - **Proxy Support**: Reconstructs origin from `X-Forwarded-Host` and `X-Forwarded-Proto` headers when nginx strips the Origin header
@@ -154,6 +154,7 @@ The CORS middleware implements environment-based origin whitelisting:
 #### 2. Request Size Limits (`server.mjs:209-214`)
 
 Security measure to prevent DoS attacks:
+
 - **JSON/Raw**: 10MB limit for API requests
 - **Videos**: 150MB limit via Multer (MP4, MOV, AVI formats)
 - **General Files**: 75MB limit for other uploads
@@ -162,18 +163,20 @@ Security measure to prevent DoS attacks:
 #### 3. Compression (`server.mjs:266-274`)
 
 Gzip compression with level 6 (balance between speed and ratio):
+
 - **Conditional**: Respects `x-no-compression` header
 - **Selective**: Applied after session middleware to avoid compressing sensitive data unnecessarily
 
 #### 4. Helmet Security Headers (`server.mjs:276-312`)
 
 Content Security Policy (CSP) configuration:
+
 - **Script Sources**: Allows self, unsafe-inline, unsafe-eval, and data URIs (required for dynamic AI-generated content)
 - **Style Sources**: Self and unsafe-inline (required for CSS-in-JS)
 - **Image Sources**: Self, data URIs, blob URIs, and Unsplash CDN
 - **Connect Sources**: Comprehensive whitelist including:
   - All gruenerator.de subdomains and Punycode variants
-  - WebSocket endpoints for Y.js collaborative editing (ws://localhost:*, ws://127.0.0.1:*)
+  - WebSocket endpoints for Y.js collaborative editing (ws://localhost:_, ws://127.0.0.1:_)
   - Netzbegrünung domains
   - Local development URLs
 - **Cross-Origin Policies**:
@@ -191,6 +194,7 @@ Passport is initialized globally but session handling is only applied to auth ro
 #### 7. Request Logging (`server.mjs:454-459`)
 
 Morgan logging with smart filtering:
+
 - **Skipped**: POST requests to /api/ routes and successful responses (status < 400)
 - **Logged**: Errors and non-API requests for debugging
 
@@ -262,24 +266,28 @@ This file initializes the Keycloak OIDC strategy and registers it with Passport.
 The system supports three distinct authentication sources, all federated through Keycloak:
 
 #### 1. Grünerator Login (Direct Keycloak)
+
 - **Type**: Native Keycloak realm users
 - **Hint**: `kc_idp_hint=gruenerator-user`
 - **Usage**: Primary authentication for users who register directly
 - **Route**: `/auth/login?source=gruenerator-login`
 
 #### 2. Netzbegrünung SAML
+
 - **Type**: External SAML Identity Provider
 - **Hint**: `kc_idp_hint=netzbegruenung`
 - **Usage**: Federation with Netzbegrünung network
 - **Route**: `/auth/login?source=netzbegruenung-login`
 
 #### 3. Grünes Netz SAML
+
 - **Type**: External SAML Identity Provider
 - **Hint**: `kc_idp_hint=gruenes-netz`
 - **Usage**: Federation with Green Party network
 - **Route**: `/auth/login?source=gruenes-netz-login`
 
 #### 4. Grüne Österreich (Austria)
+
 - **Type**: External SAML Identity Provider
 - **Hint**: `kc_idp_hint=gruene-at-login`
 - **Locale**: Automatically sets `de-AT` for Austrian users
@@ -363,6 +371,7 @@ The initialization method includes error handling that catches connection failur
 #### Profiles Table (Primary User Model)
 
 The `profiles` table is the central user entity (`database/postgres/schema.sql:8-64`). It includes:
+
 - **Primary Key**: UUID with automatic generation
 - **Identity fields**: keycloak_id (Keycloak subject identifier), username, email
 - **Display information**: first_name, last_name, display_name, avatar_url, avatar_robot_id (default 1)
@@ -492,6 +501,7 @@ The system supports TUS protocol for resumable video uploads:
 #### TUS Headers
 
 CORS configuration includes TUS-specific headers:
+
 - **Upload-Length**: Total file size
 - **Upload-Offset**: Current upload position
 - **Tus-Resumable**: Protocol version
@@ -514,6 +524,7 @@ Simple endpoint for availability monitoring:
 **Endpoint**: GET `/health`
 
 **Response Format**:
+
 - `status`: Always "healthy" if server is running
 - `timestamp`: ISO 8601 timestamp
 - `worker`: Process PID for load balancer debugging
@@ -530,12 +541,14 @@ The server implements an optimized static file delivery strategy for the Vite-bu
 Static files are served from `../gruenerator_frontend/build`:
 
 **Hashed Assets Route** (`/assets/*`)
+
 - Serves JavaScript and CSS bundles with content hashes in filenames
 - 1-day cache with `immutable` flag
 - ETag support for conditional requests
 - Optimal for long-term caching since content changes result in new filenames
 
 **Root Static Files**
+
 - Serves HTML, images, fonts, and other assets
 - 1-day cache with ETag validation
 - Directory listings disabled for security
@@ -544,6 +557,7 @@ Static files are served from `../gruenerator_frontend/build`:
 #### SPA Fallback Routing (`server.mjs:568-581`)
 
 All non-API GET requests fall back to `index.html` for client-side routing:
+
 - **API Routes**: Requests starting with `/api` skip to the next handler
 - **File Exists**: Returns `index.html` if found
 - **File Missing**: Passes error to error handler with specific message
@@ -552,12 +566,14 @@ All non-API GET requests fall back to `index.html` for client-side routing:
 #### Special Static Directories
 
 **Video Exports** (`/uploads/exports/*`)
+
 - Custom Content-Type headers for MOV and MP4 files
 - Accept-Ranges header for video streaming
 - Cross-origin allowed for video embedding
 - Cache disabled due to potentially sensitive content
 
 **Sharepic Assets** (`/public/*`)
+
 - Public background images for sharepic generator
 - 24-hour cache (86400 seconds)
 - Cross-origin allowed for image loading
@@ -566,6 +582,7 @@ All non-API GET requests fall back to `index.html` for client-side routing:
 #### Routing Order
 
 Critical middleware order to ensure correct routing:
+
 1. **TUS Upload Handler**: Must come before setupRoutes for resumable uploads
 2. **API Routes**: setupRoutes() registers all API endpoints
 3. **Multer Upload Middleware**: Applied after routes for specific upload endpoints
@@ -628,30 +645,30 @@ The system supports multiple locales with automatic detection (`config/passportS
 
 Beta features use both JSON and individual columns for flexibility (`services/ProfileService.mjs:353-377`). The `getMergedBetaFeatures` method combines features from both the beta_features JSONB column and individual boolean columns (igel_modus, bundestag_api_enabled, groups_enabled, etc.). It spreads the JSON features first, then overlays the individual column values, ensuring that boolean columns take precedence. This dual storage approach provides backward compatibility while allowing flexible feature flag management.
 
-
 ---
 
 ## Code Reference
 
 ### Key Files and Responsibilities
 
-| File Path | Responsibility | Key Functions |
-|-----------|---------------|---------------|
-| `config/passportSetup.mjs` | Passport initialization and user profile handling | `handleUserProfile()`, serialization/deserialization |
-| `config/keycloakOIDCStrategy.mjs` | Custom OIDC strategy implementation | `initiateAuthorization()`, `handleCallback()` |
-| `routes/auth/authCore.mjs` | Authentication endpoints and flows | Login, logout, callback, status endpoints |
-| `middleware/authMiddleware.js` | Request authentication middleware | `requireAuth()`, session/JWT validation |
-| `middleware/jwtAuthMiddleware.js` | JWT token validation | Mobile JWT and Keycloak JWT processing |
-| `utils/keycloakApiClient.js` | Keycloak Admin API operations | User CRUD, password management |
-| `database/services/PostgresService.js` | PostgreSQL abstraction layer | Connection pooling, query building, transactions |
-| `services/ProfileService.mjs` | User profile management | Profile CRUD, feature management |
-| `database/postgres/schema.sql` | Database schema definition | Table structures, indexes, triggers |
+| File Path                              | Responsibility                                    | Key Functions                                        |
+| -------------------------------------- | ------------------------------------------------- | ---------------------------------------------------- |
+| `config/passportSetup.mjs`             | Passport initialization and user profile handling | `handleUserProfile()`, serialization/deserialization |
+| `config/keycloakOIDCStrategy.mjs`      | Custom OIDC strategy implementation               | `initiateAuthorization()`, `handleCallback()`        |
+| `routes/auth/authCore.mjs`             | Authentication endpoints and flows                | Login, logout, callback, status endpoints            |
+| `middleware/authMiddleware.js`         | Request authentication middleware                 | `requireAuth()`, session/JWT validation              |
+| `middleware/jwtAuthMiddleware.js`      | JWT token validation                              | Mobile JWT and Keycloak JWT processing               |
+| `utils/keycloakApiClient.js`           | Keycloak Admin API operations                     | User CRUD, password management                       |
+| `database/services/PostgresService.js` | PostgreSQL abstraction layer                      | Connection pooling, query building, transactions     |
+| `services/ProfileService.mjs`          | User profile management                           | Profile CRUD, feature management                     |
+| `database/postgres/schema.sql`         | Database schema definition                        | Table structures, indexes, triggers                  |
 
 ### Important Configuration Parameters
 
 #### Environment Variables
 
 **Authentication**
+
 - `KEYCLOAK_BASE_URL`: Keycloak server URL (e.g., https://auth.services.moritz-waechter.de)
 - `KEYCLOAK_REALM`: Keycloak realm name (e.g., Gruenerator)
 - `KEYCLOAK_CLIENT_ID`: OAuth client ID
@@ -660,6 +677,7 @@ Beta features use both JSON and individual columns for flexibility (`services/Pr
 - `KEYCLOAK_ADMIN_PASSWORD`: Admin password for Keycloak API
 
 **Database**
+
 - `DATABASE_URL`: Full PostgreSQL connection string (postgres://user:pass@host:5432/gruenerator)
   - OR use discrete variables:
 - `POSTGRES_HOST`: Database host (default: localhost)
@@ -670,10 +688,12 @@ Beta features use both JSON and individual columns for flexibility (`services/Pr
 - `POSTGRES_SSL`: Enable SSL connection (true/false)
 
 **Session & Cache**
+
 - `SESSION_SECRET`: Session encryption secret (minimum 32 characters required)
 - `REDIS_URL`: Redis connection URL (e.g., redis://localhost:6379)
 
 **Application**
+
 - `BASE_URL`: Public base URL (e.g., https://gruenerator.de)
 - `AUTH_BASE_URL`: Authentication callback base URL (e.g., https://gruenerator.de)
 - `NODE_ENV`: Environment mode (production/development) - affects CORS, logging, error details
@@ -703,16 +723,19 @@ The error handler provides comprehensive error management with environment-aware
 #### Error Response Format
 
 Development mode (`NODE_ENV=development`):
+
 - Full error message
 - Complete stack trace
 - Error code and type
 
 Production mode:
+
 - User-friendly generic messages in German
 - No stack traces (security)
 - Error code and type preserved
 
 All responses include:
+
 - `success`: false
 - `error`: Generic error message
 - `message`: Specific error detail (environment-dependent)
@@ -725,22 +748,22 @@ All responses include:
 
 #### Authentication Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/auth/login` | GET | Initiate login flow | No |
-| `/auth/callback` | GET | OIDC callback handler | No |
-| `/auth/logout` | GET/POST | Logout user | Yes |
-| `/auth/status` | GET | Get authentication status | No |
-| `/auth/profile` | GET | Get user profile | Yes |
-| `/auth/locale` | GET/PUT | Get/Update user locale | Yes |
+| Endpoint         | Method   | Description               | Auth Required |
+| ---------------- | -------- | ------------------------- | ------------- |
+| `/auth/login`    | GET      | Initiate login flow       | No            |
+| `/auth/callback` | GET      | OIDC callback handler     | No            |
+| `/auth/logout`   | GET/POST | Logout user               | Yes           |
+| `/auth/status`   | GET      | Get authentication status | No            |
+| `/auth/profile`  | GET      | Get user profile          | Yes           |
+| `/auth/locale`   | GET/PUT  | Get/Update user locale    | Yes           |
 
 #### User Management Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/api/user/profile` | GET/PUT | Get/Update profile | Yes |
-| `/api/user/beta-features` | PUT | Update beta features | Yes |
-| `/api/user/avatar` | PUT | Update avatar | Yes |
-| `/api/user/delete` | DELETE | Delete user account | Yes |
+| Endpoint                  | Method  | Description          | Auth Required |
+| ------------------------- | ------- | -------------------- | ------------- |
+| `/api/user/profile`       | GET/PUT | Get/Update profile   | Yes           |
+| `/api/user/beta-features` | PUT     | Update beta features | Yes           |
+| `/api/user/avatar`        | PUT     | Update avatar        | Yes           |
+| `/api/user/delete`        | DELETE  | Delete user account  | Yes           |
 
 ---

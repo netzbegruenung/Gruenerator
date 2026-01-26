@@ -52,7 +52,10 @@ interface VideoFilterParams {
   useHwAccel: boolean;
 }
 
-function calculateScaleFilter(metadata: VideoMetadata, maxResolution: number | null): string | null {
+function calculateScaleFilter(
+  metadata: VideoMetadata,
+  maxResolution: number | null
+): string | null {
   if (!maxResolution) return null;
 
   const isVertical = metadata.width < metadata.height;
@@ -74,11 +77,16 @@ function calculateScaleFilter(metadata: VideoMetadata, maxResolution: number | n
   const finalWidth = targetWidth % 2 === 0 ? targetWidth : targetWidth - 1;
   const finalHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight - 1;
 
-  log.info(`Scaling video from ${metadata.width}x${metadata.height} to ${finalWidth}x${finalHeight}`);
+  log.info(
+    `Scaling video from ${metadata.width}x${metadata.height} to ${finalWidth}x${finalHeight}`
+  );
   return `scale=${finalWidth}:${finalHeight}`;
 }
 
-function getAudioCodecSettings(metadata: VideoMetadata, qualitySettings: hwaccel.QualitySettings): AudioCodecSettings {
+function getAudioCodecSettings(
+  metadata: VideoMetadata,
+  qualitySettings: hwaccel.QualitySettings
+): AudioCodecSettings {
   const originalAudioCodec = metadata.originalFormat?.audioCodec;
   const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
 
@@ -116,13 +124,16 @@ function buildFFmpegOutputOptions(params: FFmpegOutputParams): FFmpegOutputResul
     outputOptions = [
       '-y',
       ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-      '-c:a', audioCodec,
+      '-c:a',
+      audioCodec,
       ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-      '-movflags', '+faststart',
-      '-avoid_negative_ts', 'make_zero'
+      '-movflags',
+      '+faststart',
+      '-avoid_negative_ts',
+      'make_zero',
     ];
   } else {
-    videoCodec = isLarge ? 'libx264' : (is4K && isHevcSource ? 'libx265' : 'libx264');
+    videoCodec = isLarge ? 'libx264' : is4K && isHevcSource ? 'libx265' : 'libx264';
 
     const originalVideoBitrate = metadata.originalFormat?.videoBitrate;
     let bitrateOptions: string[] = [];
@@ -131,23 +142,37 @@ function buildFFmpegOutputOptions(params: FFmpegOutputParams): FFmpegOutputResul
       const targetBitrate = Math.ceil(originalVideoBitrate * 1.05);
       const maxBitrate = Math.ceil(originalVideoBitrate * 1.15);
       const bufSize = Math.ceil(originalVideoBitrate * 2);
-      bitrateOptions = ['-b:v', targetBitrate.toString(), '-maxrate', maxBitrate.toString(), '-bufsize', bufSize.toString()];
+      bitrateOptions = [
+        '-b:v',
+        targetBitrate.toString(),
+        '-maxrate',
+        maxBitrate.toString(),
+        '-bufsize',
+        bufSize.toString(),
+      ];
     } else {
       bitrateOptions = ['-crf', crf.toString()];
     }
 
     outputOptions = [
       '-y',
-      '-c:v', videoCodec,
-      '-preset', preset,
+      '-c:v',
+      videoCodec,
+      '-preset',
+      preset,
       ...bitrateOptions,
       ...(includeTune && videoCodec === 'libx264' ? ['-tune', 'film'] : []),
-      '-profile:v', isLarge ? 'main' : (videoCodec === 'libx264' ? 'high' : 'main'),
-      '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
-      '-c:a', audioCodec,
+      '-profile:v',
+      isLarge ? 'main' : videoCodec === 'libx264' ? 'high' : 'main',
+      '-level',
+      videoCodec === 'libx264' ? '4.1' : '4.0',
+      '-c:a',
+      audioCodec,
       ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-      '-movflags', '+faststart',
-      '-avoid_negative_ts', 'make_zero'
+      '-movflags',
+      '+faststart',
+      '-avoid_negative_ts',
+      'make_zero',
     ];
 
     if (videoCodec === 'libx264') {
@@ -190,8 +215,22 @@ function getReferenceDimension(metadata: VideoMetadata): number {
 }
 
 function isLargeFile(fileStats: FileStats): boolean {
-  return (fileStats.size / 1024 / 1024) > 200;
+  return fileStats.size / 1024 / 1024 > 200;
 }
 
-export { calculateScaleFilter, getAudioCodecSettings, buildFFmpegOutputOptions, buildVideoFilters, getReferenceDimension, isLargeFile };
-export type { VideoMetadata, FileStats, AudioCodecSettings, FFmpegOutputParams, FFmpegOutputResult, VideoFilterParams };
+export {
+  calculateScaleFilter,
+  getAudioCodecSettings,
+  buildFFmpegOutputOptions,
+  buildVideoFilters,
+  getReferenceDimension,
+  isLargeFile,
+};
+export type {
+  VideoMetadata,
+  FileStats,
+  AudioCodecSettings,
+  FFmpegOutputParams,
+  FFmpegOutputResult,
+  VideoFilterParams,
+};

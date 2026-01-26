@@ -29,10 +29,11 @@ export const usePreloadStore = create<PreloadStore>((set) => ({
 
   setPreloadedImageResult: (result) => set({ preloadedImageResult: result }),
   setSlogansReady: (ready) => set({ slogansReady: ready }),
-  clearPreloadState: () => set({
-    preloadedImageResult: null,
-    slogansReady: false
-  })
+  clearPreloadState: () =>
+    set({
+      preloadedImageResult: null,
+      slogansReady: false,
+    }),
 }));
 
 export default usePreloadStore;

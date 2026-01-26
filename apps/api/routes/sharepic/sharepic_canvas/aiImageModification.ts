@@ -10,7 +10,7 @@ const router: Router = Router();
 require('dotenv').config({ quiet: true });
 
 const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY
+  apiKey: process.env.CLAUDE_API_KEY,
 });
 
 interface ColorPair {
@@ -57,24 +57,26 @@ interface ImageModificationRequest {
   };
 }
 
-function flattenParams(params: DreizeilenParams): Omit<FlattenedParams, 'text_0' | 'text_1' | 'text_2'> {
+function flattenParams(
+  params: DreizeilenParams
+): Omit<FlattenedParams, 'text_0' | 'text_1' | 'text_2'> {
   log.debug('[AI Image Modification API] Flattening params:', params);
   return {
-    'fontSize': params.fontSize,
-    'colors_0_background': params.colors[0].background,
-    'colors_0_text': params.colors[0].text,
-    'colors_1_background': params.colors[1].background,
-    'colors_1_text': params.colors[1].text,
-    'colors_2_background': params.colors[2].background,
-    'colors_2_text': params.colors[2].text,
-    'balkenOffset_0': params.balkenOffset[0],
-    'balkenOffset_1': params.balkenOffset[1],
-    'balkenOffset_2': params.balkenOffset[2],
-    'sunflowerOffset_x': params.sunflowerOffset[0],
-    'sunflowerOffset_y': params.sunflowerOffset[1],
-    'sunflowerPosition': params.sunflowerPosition,
-    'balkenGruppenOffset_x': params.balkenGruppenOffset[0],
-    'balkenGruppenOffset_y': params.balkenGruppenOffset[1]
+    fontSize: params.fontSize,
+    colors_0_background: params.colors[0].background,
+    colors_0_text: params.colors[0].text,
+    colors_1_background: params.colors[1].background,
+    colors_1_text: params.colors[1].text,
+    colors_2_background: params.colors[2].background,
+    colors_2_text: params.colors[2].text,
+    balkenOffset_0: params.balkenOffset[0],
+    balkenOffset_1: params.balkenOffset[1],
+    balkenOffset_2: params.balkenOffset[2],
+    sunflowerOffset_x: params.sunflowerOffset[0],
+    sunflowerOffset_y: params.sunflowerOffset[1],
+    sunflowerPosition: params.sunflowerPosition,
+    balkenGruppenOffset_x: params.balkenGruppenOffset[0],
+    balkenGruppenOffset_y: params.balkenGruppenOffset[1],
   };
 }
 
@@ -86,37 +88,49 @@ function validateModifiedParams(params: Partial<DreizeilenParams>): DreizeilenPa
     colors: [],
     balkenOffset: [0, 0, 0],
     sunflowerPosition: 'bottomRight',
-    sunflowerOffset: [0, 0]
+    sunflowerOffset: [0, 0],
   };
 
-  validatedParams.balkenGruppenOffset = Array.isArray(params.balkenGruppenOffset) && params.balkenGruppenOffset.length === 2
-    ? params.balkenGruppenOffset.map(offset => Math.min(Math.max(offset, -100), 100)) as [number, number]
-    : [0, 0];
+  validatedParams.balkenGruppenOffset =
+    Array.isArray(params.balkenGruppenOffset) && params.balkenGruppenOffset.length === 2
+      ? (params.balkenGruppenOffset.map((offset) => Math.min(Math.max(offset, -100), 100)) as [
+          number,
+          number,
+        ])
+      : [0, 0];
 
   validatedParams.fontSize = Math.min(Math.max(params.fontSize || 85, 75), 110);
 
-  validatedParams.colors = Array.isArray(params.colors) && params.colors.length === 3
-    ? params.colors.map(color => ({
-        background: /^#[0-9A-F]{6}$/i.test(color.background) ? color.background : '#085f36',
-        text: /^#[0-9A-F]{6}$/i.test(color.text) ? color.text : '#f5f1e9'
-      }))
-    : [
-        { background: '#085f36', text: '#f5f1e9' },
-        { background: '#085f36', text: '#f5f1e9' },
-        { background: '#085f36', text: '#f5f1e9' }
-      ];
+  validatedParams.colors =
+    Array.isArray(params.colors) && params.colors.length === 3
+      ? params.colors.map((color) => ({
+          background: /^#[0-9A-F]{6}$/i.test(color.background) ? color.background : '#085f36',
+          text: /^#[0-9A-F]{6}$/i.test(color.text) ? color.text : '#f5f1e9',
+        }))
+      : [
+          { background: '#085f36', text: '#f5f1e9' },
+          { background: '#085f36', text: '#f5f1e9' },
+          { background: '#085f36', text: '#f5f1e9' },
+        ];
 
-  validatedParams.balkenOffset = Array.isArray(params.balkenOffset) && params.balkenOffset.length === 3
-    ? params.balkenOffset.map(offset => Math.min(Math.max(offset, -50), 50))
-    : [0, 0, 0];
+  validatedParams.balkenOffset =
+    Array.isArray(params.balkenOffset) && params.balkenOffset.length === 3
+      ? params.balkenOffset.map((offset) => Math.min(Math.max(offset, -50), 50))
+      : [0, 0, 0];
 
-  validatedParams.sunflowerPosition = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'].includes(params.sunflowerPosition || '')
+  validatedParams.sunflowerPosition = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'].includes(
+    params.sunflowerPosition || ''
+  )
     ? params.sunflowerPosition!
     : 'bottomRight';
 
-  validatedParams.sunflowerOffset = Array.isArray(params.sunflowerOffset) && params.sunflowerOffset.length === 2
-    ? params.sunflowerOffset.map(offset => Math.min(Math.max(offset, -100), 100)) as [number, number]
-    : [0, 0];
+  validatedParams.sunflowerOffset =
+    Array.isArray(params.sunflowerOffset) && params.sunflowerOffset.length === 2
+      ? (params.sunflowerOffset.map((offset) => Math.min(Math.max(offset, -100), 100)) as [
+          number,
+          number,
+        ])
+      : [0, 0];
 
   log.debug('[AI Image Modification API] Validated params:', validatedParams);
   return validatedParams;
@@ -126,7 +140,10 @@ async function generateImageModification(
   userInstruction: string,
   currentParams: DreizeilenParams
 ): Promise<Partial<DreizeilenParams>> {
-  log.debug('[AI Image Modification API] Generating image modification for instruction:', userInstruction);
+  log.debug(
+    '[AI Image Modification API] Generating image modification for instruction:',
+    userInstruction
+  );
   const prompt = `
   Du bist ein Experte für Bildmodifikation. Deine Aufgabe ist es, natürlichsprachliche Anweisungen genau wie vom User gewünscht in präzise Bildparameter umzuwandeln.
 
@@ -195,23 +212,26 @@ async function generateImageModification(
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307",
+      model: 'claude-3-haiku-20240307',
       max_tokens: 2000,
       temperature: 0.2,
-      system: "Du bist ein erfahrener Bildbearbeiter. Deine Aufgabe ist es, Benutzeranweisungen in konkrete Bildmodifikationsparameter umzuwandeln. Gib nur das resultierende JSON-Objekt zurück.",
-      messages: [{ role: "user", content: prompt }]
+      system:
+        'Du bist ein erfahrener Bildbearbeiter. Deine Aufgabe ist es, Benutzeranweisungen in konkrete Bildmodifikationsparameter umzuwandeln. Gib nur das resultierende JSON-Objekt zurück.',
+      messages: [{ role: 'user', content: prompt }],
     });
 
     if (!response.content || !Array.isArray(response.content)) {
       throw new Error('Unexpected response format from Claude API');
     }
 
-    const textContent = response.content.map(item => {
-      if ('text' in item) {
-        return item.text;
-      }
-      return '';
-    }).join("");
+    const textContent = response.content
+      .map((item) => {
+        if ('text' in item) {
+          return item.text;
+        }
+        return '';
+      })
+      .join('');
     log.debug('[AI Image Modification API] Processed text content:', textContent);
 
     return JSON.parse(textContent) as Partial<DreizeilenParams>;
@@ -232,7 +252,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       ...flattenParams(validatedParams),
       text_0: currentImageParams.line1,
       text_1: currentImageParams.line2,
-      text_2: currentImageParams.line3
+      text_2: currentImageParams.line3,
     };
 
     log.debug('[AI Image Modification API] Sending flattened params:', flattenedParams);

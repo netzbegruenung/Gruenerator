@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, CSSProperties } from 'react';
+import React, { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineTrash, HiExclamation } from 'react-icons/hi';
 
@@ -15,11 +15,11 @@ interface DeleteWarningTooltipProps {
 const DeleteWarningTooltip = ({
   onConfirm,
   disabled = false,
-  title = "Löschen bestätigen",
-  message = "Diese Aktion kann nicht rückgängig gemacht werden.",
-  confirmText = "Endgültig löschen",
-  cancelText = "Abbrechen",
-  className = ''
+  title = 'Löschen bestätigen',
+  message = 'Diese Aktion kann nicht rückgängig gemacht werden.',
+  confirmText = 'Endgültig löschen',
+  cancelText = 'Abbrechen',
+  className = '',
 }: DeleteWarningTooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // 0: closed, 1: first warning, 2: final confirmation
@@ -100,8 +100,12 @@ const DeleteWarningTooltip = ({
   };
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node) &&
-      triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+    if (
+      tooltipRef.current &&
+      !tooltipRef.current.contains(e.target as Node) &&
+      triggerRef.current &&
+      !triggerRef.current.contains(e.target as Node)
+    ) {
       handleCancel();
     }
   }, []);
@@ -126,66 +130,64 @@ const DeleteWarningTooltip = ({
       >
         <HiOutlineTrash />
       </button>
-      {isVisible && createPortal(
-        <div
-          ref={tooltipRef}
-          className="delete-warning-tooltip-content"
-          style={style}
-        >
-          <div className="delete-warning-arrow"></div>
-          <div className="delete-warning-header">
-            <HiExclamation className="delete-warning-icon" />
-            <h4 className="delete-warning-title">{title}</h4>
-          </div>
-
-          {confirmStep === 1 && (
-            <div className="delete-warning-body">
-              <p className="delete-warning-message">{message}</p>
-              <div className="delete-warning-actions">
-                <button
-                  className="delete-warning-button cancel"
-                  onClick={handleCancel}
-                  type="button"
-                >
-                  {cancelText}
-                </button>
-                <button
-                  className="delete-warning-button confirm-first"
-                  onClick={handleFirstConfirm}
-                  type="button"
-                >
-                  Weiter
-                </button>
-              </div>
+      {isVisible &&
+        createPortal(
+          <div ref={tooltipRef} className="delete-warning-tooltip-content" style={style}>
+            <div className="delete-warning-arrow" />
+            <div className="delete-warning-header">
+              <HiExclamation className="delete-warning-icon" />
+              <h4 className="delete-warning-title">{title}</h4>
             </div>
-          )}
 
-          {confirmStep === 2 && (
-            <div className="delete-warning-body">
-              <p className="delete-warning-message">
-                <strong>Letzte Warnung:</strong> Diese Aktion löscht die gesamte Gruppe für alle Mitglieder unwiderruflich.
-              </p>
-              <div className="delete-warning-actions">
-                <button
-                  className="delete-warning-button cancel"
-                  onClick={handleCancel}
-                  type="button"
-                >
-                  {cancelText}
-                </button>
-                <button
-                  className="delete-warning-button confirm-final"
-                  onClick={handleFinalConfirm}
-                  type="button"
-                >
-                  {confirmText}
-                </button>
+            {confirmStep === 1 && (
+              <div className="delete-warning-body">
+                <p className="delete-warning-message">{message}</p>
+                <div className="delete-warning-actions">
+                  <button
+                    className="delete-warning-button cancel"
+                    onClick={handleCancel}
+                    type="button"
+                  >
+                    {cancelText}
+                  </button>
+                  <button
+                    className="delete-warning-button confirm-first"
+                    onClick={handleFirstConfirm}
+                    type="button"
+                  >
+                    Weiter
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>,
-        document.body
-      )}
+            )}
+
+            {confirmStep === 2 && (
+              <div className="delete-warning-body">
+                <p className="delete-warning-message">
+                  <strong>Letzte Warnung:</strong> Diese Aktion löscht die gesamte Gruppe für alle
+                  Mitglieder unwiderruflich.
+                </p>
+                <div className="delete-warning-actions">
+                  <button
+                    className="delete-warning-button cancel"
+                    onClick={handleCancel}
+                    type="button"
+                  >
+                    {cancelText}
+                  </button>
+                  <button
+                    className="delete-warning-button confirm-final"
+                    onClick={handleFinalConfirm}
+                    type="button"
+                  >
+                    {confirmText}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

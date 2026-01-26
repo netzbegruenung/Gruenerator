@@ -9,44 +9,57 @@ type MessageHandler = (message: string) => void;
  * @returns {Object} - Message handlers
  */
 export const useMessageHandling = (
-    onSuccessMessage: MessageHandler = () => {},
-    onErrorMessage: MessageHandler = () => {}
+  onSuccessMessage: MessageHandler = () => {},
+  onErrorMessage: MessageHandler = () => {}
 ) => {
-    const clearMessages = useCallback(() => {
-        onSuccessMessage('');
-        onErrorMessage('');
-    }, [onSuccessMessage, onErrorMessage]);
+  const clearMessages = useCallback(() => {
+    onSuccessMessage('');
+    onErrorMessage('');
+  }, [onSuccessMessage, onErrorMessage]);
 
-    const showSuccess = useCallback((message: string) => {
-        onErrorMessage(''); // Clear error first
-        onSuccessMessage(message);
-    }, [onSuccessMessage, onErrorMessage]);
+  const showSuccess = useCallback(
+    (message: string) => {
+      onErrorMessage(''); // Clear error first
+      onSuccessMessage(message);
+    },
+    [onSuccessMessage, onErrorMessage]
+  );
 
-    const showError = useCallback((error: Error | string) => {
-        onSuccessMessage(''); // Clear success first
-        const message = error instanceof Error ? error.message : error;
-        onErrorMessage(message);
-    }, [onSuccessMessage, onErrorMessage]);
+  const showError = useCallback(
+    (error: Error | string) => {
+      onSuccessMessage(''); // Clear success first
+      const message = error instanceof Error ? error.message : error;
+      onErrorMessage(message);
+    },
+    [onSuccessMessage, onErrorMessage]
+  );
 
-    const handleAsyncAction = useCallback(async <T>(action: () => Promise<T>, successMessage: string | null = null, errorPrefix = 'Fehler'): Promise<T> => {
-        clearMessages();
-        try {
-            const result = await action();
-            if (successMessage) {
-                showSuccess(successMessage);
-            }
-            return result;
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
-            showError(`${errorPrefix}: ${errorMessage}`);
-            throw error;
+  const handleAsyncAction = useCallback(
+    async <T>(
+      action: () => Promise<T>,
+      successMessage: string | null = null,
+      errorPrefix = 'Fehler'
+    ): Promise<T> => {
+      clearMessages();
+      try {
+        const result = await action();
+        if (successMessage) {
+          showSuccess(successMessage);
         }
-    }, [clearMessages, showSuccess, showError]);
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+        showError(`${errorPrefix}: ${errorMessage}`);
+        throw error;
+      }
+    },
+    [clearMessages, showSuccess, showError]
+  );
 
-    return {
-        clearMessages,
-        showSuccess,
-        showError,
-        handleAsyncAction
-    };
+  return {
+    clearMessages,
+    showSuccess,
+    showError,
+    handleAsyncAction,
+  };
 };

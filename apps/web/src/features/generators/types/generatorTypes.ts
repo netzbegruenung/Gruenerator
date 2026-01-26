@@ -77,7 +77,7 @@ export interface FeatureToggles {
 export const DEFAULT_FEATURE_TOGGLES: FeatureToggles = {
   useWebSearchTool: false,
   usePrivacyMode: false,
-  useBedrock: false
+  useBedrock: false,
 };
 
 /**

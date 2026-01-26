@@ -56,4 +56,3 @@ const SelectAllCheckbox = ({
 };
 
 export default SelectAllCheckbox;
-

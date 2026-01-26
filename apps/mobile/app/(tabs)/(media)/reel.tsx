@@ -1,10 +1,25 @@
 import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, useColorScheme, ActivityIndicator, Text, BackHandler, ViewStyle, TextStyle } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  useColorScheme,
+  ActivityIndicator,
+  Text,
+  BackHandler,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
 import { useReelProcessing } from '../../../hooks/useReelProcessing';
-import { VideoUploader, ProcessingProgress, VideoResult, ProjectList, ModeSelector } from '../../../components/reel';
+import {
+  VideoUploader,
+  ProcessingProgress,
+  VideoResult,
+  ProjectList,
+  ModeSelector,
+} from '../../../components/reel';
 import { type Project, getVideoUrl, saveProject, useProjectsStore } from '@gruenerator/shared';
 import { shareService } from '../../../services/share';
 import type { ReelMode } from '../../../components/reel/ModeSelector';
@@ -70,17 +85,20 @@ export default function ReelScreen() {
     setScreenMode('mode-select');
   }, []);
 
-  const handleModeSelect = useCallback((mode: ReelMode) => {
-    if (!pendingVideoUri) return;
+  const handleModeSelect = useCallback(
+    (mode: ReelMode) => {
+      if (!pendingVideoUri) return;
 
-    if (mode === 'auto') {
-      setScreenMode('processing');
-      startProcessing(pendingVideoUri);
-    } else if (mode === 'subtitle') {
-      setScreenMode('transcribing');
-      startManualProcessing(pendingVideoUri);
-    }
-  }, [pendingVideoUri, startProcessing, startManualProcessing]);
+      if (mode === 'auto') {
+        setScreenMode('processing');
+        startProcessing(pendingVideoUri);
+      } else if (mode === 'subtitle') {
+        setScreenMode('transcribing');
+        startManualProcessing(pendingVideoUri);
+      }
+    },
+    [pendingVideoUri, startProcessing, startManualProcessing]
+  );
 
   const handleBackFromModeSelect = useCallback(() => {
     setPendingVideoUri(null);
@@ -88,7 +106,13 @@ export default function ReelScreen() {
   }, []);
 
   useEffect(() => {
-    if (screenMode === 'transcribing' && status === 'complete' && transcribedSubtitles && uploadId && !isSavingProject) {
+    if (
+      screenMode === 'transcribing' &&
+      status === 'complete' &&
+      transcribedSubtitles &&
+      uploadId &&
+      !isSavingProject
+    ) {
       const saveAndNavigate = async () => {
         setIsSavingProject(true);
         try {
@@ -194,12 +218,7 @@ export default function ReelScreen() {
 
     // Show mode selector after video is selected
     if (screenMode === 'mode-select') {
-      return (
-        <ModeSelector
-          onSelect={handleModeSelect}
-          onBack={handleBackFromModeSelect}
-        />
-      );
+      return <ModeSelector onSelect={handleModeSelect} onBack={handleBackFromModeSelect} />;
     }
 
     // Show transcribing state (manual mode)
@@ -292,7 +311,10 @@ export default function ReelScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={['bottom']}
+    >
       <View style={styles.content}>
         {renderContent()}
 

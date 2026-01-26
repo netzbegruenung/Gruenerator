@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { useAuthStore } from '../stores/authStore';
+
 import apiClient from '../lib/apiClient';
+import { useAuthStore } from '../stores/authStore';
 
 let authCheckPromise: Promise<void> | null = null;
 
@@ -19,7 +20,7 @@ export function useAuth() {
         } else {
           setAuth(null);
         }
-      } catch (err) {
+      } catch (_err) {
         setAuth(null);
         setError('Authentifizierung fehlgeschlagen');
       }

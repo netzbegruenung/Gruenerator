@@ -12,7 +12,7 @@ const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const PROD_URL = 'https://gruenerator.de';
 
 // You can override this via .env in a real app
-const WEB_APP_URL = __DEV__ 
+const WEB_APP_URL = __DEV__
   ? `http://${DEV_HOST}:5173${WEB_EDITOR_PATH}`
   : `${PROD_URL}${WEB_EDITOR_PATH}`;
 
@@ -34,41 +34,46 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
   }, []);
 
   // Send initialization data when the web app reports it is ready
-  const handleMessage = useCallback((event: WebViewMessageEvent) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      
-      switch (data.type) {
-        case 'EDITOR_READY':
-          setIsReady(true);
-          // Send initial state to the web editor
-          webViewRef.current?.postMessage(JSON.stringify({
-            type: 'INIT_DATA',
-            payload: {
-              ...initialData,
-              authToken, // Pass token for API calls within the web view if needed
-            },
-          }));
-          break;
-          
-        case 'SAVE_IMAGE':
-          if (data.payload?.image) {
-            onSave(data.payload.image);
-          }
-          break;
-          
-        case 'CANCEL':
-          onCancel();
-          break;
-          
-        case 'LOG':
-          console.log('[WebEditor]', data.payload);
-          break;
+  const handleMessage = useCallback(
+    (event: WebViewMessageEvent) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+
+        switch (data.type) {
+          case 'EDITOR_READY':
+            setIsReady(true);
+            // Send initial state to the web editor
+            webViewRef.current?.postMessage(
+              JSON.stringify({
+                type: 'INIT_DATA',
+                payload: {
+                  ...initialData,
+                  authToken, // Pass token for API calls within the web view if needed
+                },
+              })
+            );
+            break;
+
+          case 'SAVE_IMAGE':
+            if (data.payload?.image) {
+              onSave(data.payload.image);
+            }
+            break;
+
+          case 'CANCEL':
+            onCancel();
+            break;
+
+          case 'LOG':
+            console.log('[WebEditor]', data.payload);
+            break;
+        }
+      } catch (err) {
+        console.warn('[WebViewEditor] Failed to parse message', err);
       }
-    } catch (err) {
-      console.warn('[WebViewEditor] Failed to parse message', err);
-    }
-  }, [initialData, authToken, onSave, onCancel]);
+    },
+    [initialData, authToken, onSave, onCancel]
+  );
 
   // Inject token into localStorage before page loads
   const injectedJavaScript = `

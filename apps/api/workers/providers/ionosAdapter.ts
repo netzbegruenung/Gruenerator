@@ -38,11 +38,19 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     messages.forEach((msg: Message) => {
       ionosMessages.push({
         role: msg.role,
-        content: typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.content)
-            ? msg.content.map(c => (c as { text?: string; content?: string }).text || (c as { text?: string; content?: string }).content || '').join('\n')
-            : String(msg.content)
+        content:
+          typeof msg.content === 'string'
+            ? msg.content
+            : Array.isArray(msg.content)
+              ? msg.content
+                  .map(
+                    (c) =>
+                      (c as { text?: string; content?: string }).text ||
+                      (c as { text?: string; content?: string }).content ||
+                      ''
+                  )
+                  .join('\n')
+              : String(msg.content),
       });
     });
   }
@@ -53,7 +61,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     max_tokens: options.max_tokens || 4096,
     temperature: options.temperature || 0,
     top_p: options.top_p || 0.1,
-    stream: false
+    stream: false,
   };
 
   const toolsPayload = ToolHandler.prepareToolsPayload(options, 'ionos', requestId, type);
@@ -68,13 +76,14 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   const toolCalls = choice?.message?.tool_calls || [];
   const stopReason = choice?.finish_reason || 'stop';
 
-  const normalizedToolCalls: ToolCall[] | undefined = toolCalls.length > 0
-    ? toolCalls.map(tc => ({
-        id: tc.id,
-        name: tc.function.name,
-        input: JSON.parse(tc.function.arguments || '{}')
-      }))
-    : undefined;
+  const normalizedToolCalls: ToolCall[] | undefined =
+    toolCalls.length > 0
+      ? toolCalls.map((tc) => ({
+          id: tc.id,
+          name: tc.function.name,
+          input: JSON.parse(tc.function.arguments || '{}'),
+        }))
+      : undefined;
 
   return {
     content: responseContent,
@@ -87,8 +96,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       model: response.model || model,
       timestamp: new Date().toISOString(),
       requestId,
-      usage: response.usage
-    })
+      usage: response.usage,
+    }),
   };
 }
 

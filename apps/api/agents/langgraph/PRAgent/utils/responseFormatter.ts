@@ -48,11 +48,11 @@ export function formatStrategyApprovalResponse(
       // Show collection/database
       if (arg.metadata?.collection) {
         const collectionNames: Record<string, string> = {
-          'grundsatz_documents': 'Grundsatzprogramm',
-          'bundestag_content': 'Bundestagsfraktion',
-          'kommunalwiki_documents': 'KommunalWiki',
-          'gruene_de_documents': 'gruene.de',
-          'gruene_at_documents': 'gruene.at'
+          grundsatz_documents: 'Grundsatzprogramm',
+          bundestag_content: 'Bundestagsfraktion',
+          kommunalwiki_documents: 'KommunalWiki',
+          gruene_de_documents: 'gruene.de',
+          gruene_at_documents: 'gruene.at',
         };
         const displayName = collectionNames[arg.metadata.collection] || arg.metadata.collection;
         content += `- Quelle: ${displayName}\n`;
@@ -100,7 +100,7 @@ export function formatPRAgentResponse(
     `# Instagram\n\n${result.social.instagram}`,
     `# Facebook\n\n${result.social.facebook}`,
     `# Risiko-Analyse\n\n${result.riskAnalysis}`,
-    `# Visuelles Briefing\n\n${result.visualBriefing}`
+    `# Visuelles Briefing\n\n${result.visualBriefing}`,
   ];
 
   // Add sources bibliography before examples
@@ -126,7 +126,7 @@ export function formatPRAgentResponse(
     sharepic: result.sharepics || [],
     metadata: result.metadata || {},
     selectedPlatforms: ['instagram', 'facebook', 'pressemitteilung'],
-    onEditSharepic: async () => {}
+    onEditSharepic: async () => {},
   };
 }
 
@@ -135,15 +135,15 @@ export function formatPRAgentResponse(
  */
 function formatExamplesSection(examples: any[]): string {
   let section = '# Diese Beispiele dienten als Inspiration\n\n';
-  section += '*Die folgenden erfolgreichen Posts wurden als stilistische Orientierung verwendet:*\n\n';
+  section +=
+    '*Die folgenden erfolgreichen Posts wurden als stilistische Orientierung verwendet:*\n\n';
 
   for (const example of examples) {
     section += `## ${example.platform || 'Social Media'} - Beispiel\n\n`;
 
     if (example.content) {
-      const content = example.content.length > 300
-        ? example.content.substring(0, 300) + '...'
-        : example.content;
+      const content =
+        example.content.length > 300 ? example.content.substring(0, 300) + '...' : example.content;
       section += `${content}\n\n`;
     }
 
@@ -152,7 +152,8 @@ function formatExamplesSection(examples: any[]): string {
     }
   }
 
-  section += '*Hinweis: Die Beispiele wurden nicht kopiert, sondern dienten als Orientierung für Tonalität, Struktur und Stil.*';
+  section +=
+    '*Hinweis: Die Beispiele wurden nicht kopiert, sondern dienten als Orientierung für Tonalität, Struktur und Stil.*';
 
   return section;
 }

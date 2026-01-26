@@ -78,7 +78,15 @@ export interface PlanWorkflowState {
   promptConfig: PromptConfiguration;
 
   // Current workflow phase
-  currentPhase: 'enrich' | 'plan' | 'questions' | 'revision' | 'correction' | 'production' | 'completed' | 'error';
+  currentPhase:
+    | 'enrich'
+    | 'plan'
+    | 'questions'
+    | 'revision'
+    | 'correction'
+    | 'production'
+    | 'completed'
+    | 'error';
 
   // Phase 0: Enrichment (shared across phases)
   enrichedState?: EnrichedState;

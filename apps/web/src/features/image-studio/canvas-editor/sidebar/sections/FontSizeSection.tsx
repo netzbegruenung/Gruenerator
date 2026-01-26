@@ -1,4 +1,5 @@
 import { FaMinus, FaPlus } from 'react-icons/fa';
+
 import type { FontSizeSectionProps } from '../types';
 import './FontSizeSection.css';
 

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+
 import apiClient from '../components/utils/apiClient';
 
 /**
@@ -19,7 +20,7 @@ export const useSaveToLibrary = () => {
    */
   const saveToLibrary = useCallback(async (content: string, title: string, type = 'universal') => {
     if (!content || !content.trim()) {
-      console.warn("[useSaveToLibrary] No content provided for saving");
+      console.warn('[useSaveToLibrary] No content provided for saving');
       setError('Kein Inhalt zum Speichern vorhanden.');
       return null;
     }
@@ -29,17 +30,17 @@ export const useSaveToLibrary = () => {
     setSuccess(false);
 
     try {
-      console.log("[useSaveToLibrary] Saving content to library...");
-      
-      const response = await apiClient.post('/auth/save-to-library', { 
+      console.log('[useSaveToLibrary] Saving content to library...');
+
+      const response = await apiClient.post('/auth/save-to-library', {
         content: content.trim(),
         title: title || 'Unbenannter Text',
-        type: type
+        type: type,
       });
 
-      console.log("[useSaveToLibrary] Content successfully saved to library");
+      console.log('[useSaveToLibrary] Content successfully saved to library');
       setSuccess(true);
-      
+
       // Clear success state after 3 seconds
       setTimeout(() => {
         setSuccess(false);
@@ -47,7 +48,7 @@ export const useSaveToLibrary = () => {
 
       return response.data;
     } catch (error: unknown) {
-      console.error("[useSaveToLibrary] Error saving to library:", error);
+      console.error('[useSaveToLibrary] Error saving to library:', error);
 
       // Extract user-friendly error message
       let errorMessage = 'Fehler beim Speichern in der Bibliothek.';
@@ -86,7 +87,7 @@ export const useSaveToLibrary = () => {
     error,
     success,
     clearError,
-    clearSuccess
+    clearSuccess,
   };
 };
 

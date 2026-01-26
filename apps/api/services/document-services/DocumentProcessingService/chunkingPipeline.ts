@@ -14,11 +14,7 @@ export async function chunkAndEmbedText(
   text: string,
   options: ChunkingOptions = {}
 ): Promise<ChunkAndEmbedResult> {
-  const {
-    maxTokens = 400,
-    overlapTokens = 50,
-    preserveSentences = true
-  } = options;
+  const { maxTokens = 400, overlapTokens = 50, preserveSentences = true } = options;
 
   if (!text || text.trim().length === 0) {
     throw new Error('No text content provided');
@@ -27,7 +23,7 @@ export async function chunkAndEmbedText(
   const chunks = await smartChunkDocument(text, {
     maxTokens,
     overlapTokens,
-    preserveSentences
+    preserveSentences,
   });
 
   if (chunks.length === 0) {
@@ -35,11 +31,14 @@ export async function chunkAndEmbedText(
   }
 
   const texts = chunks.map((chunk: any) => chunk.text);
-  const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(texts, 'search_document');
+  const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
+    texts,
+    'search_document'
+  );
 
   return {
     chunks,
     embeddings,
-    vectorCount: chunks.length
+    vectorCount: chunks.length,
   };
 }

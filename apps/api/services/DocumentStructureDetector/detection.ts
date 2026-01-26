@@ -19,7 +19,7 @@ export function detectChapter(line: string): ChapterMatch | null {
       if (title) {
         return {
           number: number,
-          title: title
+          title: title,
         };
       }
     }
@@ -39,7 +39,7 @@ export function detectSection(line: string): SectionMatch | null {
       if (title.length >= 3 && title !== title.toUpperCase()) {
         return {
           number: (match[1] || '').trim(),
-          title: title
+          title: title,
         };
       }
     }
@@ -51,7 +51,7 @@ export function detectSection(line: string): SectionMatch | null {
     if (match && match[2]) {
       return {
         number: match[1].length.toString(), // # count as level
-        title: match[2].trim()
+        title: match[2].trim(),
       };
     }
   }
@@ -68,7 +68,7 @@ export function detectList(line: string): ListMatch | null {
     if (match && match[1]) {
       return {
         content: match[1].trim(),
-        type: getListType(line)
+        type: getListType(line),
       };
     }
   }
@@ -79,14 +79,14 @@ export function detectList(line: string): ListMatch | null {
  * Check if line is part of a table
  */
 export function isTableLine(line: string): boolean {
-  return patterns.table.some(pattern => pattern.test(line));
+  return patterns.table.some((pattern) => pattern.test(line));
 }
 
 /**
  * Check if line is a page break
  */
 export function isPageBreak(line: string): boolean {
-  return patterns.pageBreak.some(pattern => pattern.test(line));
+  return patterns.pageBreak.some((pattern) => pattern.test(line));
 }
 
 /**

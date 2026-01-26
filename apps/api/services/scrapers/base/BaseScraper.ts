@@ -55,7 +55,7 @@ export abstract class BaseScraper {
    * Rate limiting delay
    */
   protected async delay(ms: number = this.config.delayMs || 1000): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

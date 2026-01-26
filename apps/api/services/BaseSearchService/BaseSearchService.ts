@@ -10,10 +10,7 @@ import { InputValidator, ValidationError } from '../../utils/validation/index.js
 import { createCache } from '../../utils/redis/index.js';
 import { SearchError, DatabaseError, createErrorHandler } from '../../utils/errors/index.js';
 import { vectorConfig } from '../../config/vectorConfig.js';
-import {
-  normalizeQuery,
-  containsNormalized
-} from '../text/index.js';
+import { normalizeQuery, containsNormalized } from '../text/index.js';
 import { simpleHash as hashString } from '../../utils/validation/index.js';
 
 import {
@@ -21,7 +18,7 @@ import {
   extractMatchedExcerpt,
   needsTrailingEllipsis,
   trimToSentenceBoundary,
-  deduplicateParagraphs
+  deduplicateParagraphs,
 } from './textUtils.js';
 
 import {
@@ -30,7 +27,7 @@ import {
   calculateDynamicThreshold,
   calculateStaticDocumentScore,
   calculateStaticThreshold,
-  applyMMRSelection
+  applyMMRSelection,
 } from './scoring.js';
 
 import type {
@@ -53,7 +50,7 @@ import type {
   Cache,
   ErrorHandler,
   BaseSearchServiceOptions,
-  MMROptions
+  MMROptions,
 } from './types.js';
 
 // Re-export SearchError for backward compatibility
@@ -84,18 +81,24 @@ export class BaseSearchService {
     this.chunkMultiplier = searchConfig.chunkMultiplier;
 
     // Initialize error handler
-    const logLevel = (options.logLevel || loggingConfig.level || 'error') as 'error' | 'warn' | 'info' | 'debug';
+    const logLevel = (options.logLevel || loggingConfig.level || 'error') as
+      | 'error'
+      | 'warn'
+      | 'info'
+      | 'debug';
     this.errorHandler = createErrorHandler(this.serviceName, {
       enableTelemetry: options.enableTelemetry !== false && loggingConfig.enableTelemetry,
-      logLevel
+      logLevel,
     }) as ErrorHandler;
 
     // Initialize cache for search results
-    const cacheConfig = vectorConfig.getCacheConfig((options.cacheType || 'baseService') as 'searchResults' | 'baseService');
+    const cacheConfig = vectorConfig.getCacheConfig(
+      (options.cacheType || 'baseService') as 'searchResults' | 'baseService'
+    );
     this.cache = createCache.general({
       name: `${this.serviceName}Cache`,
       maxSize: options.cacheSize || cacheConfig.maxSize,
-      ttl: options.cacheTTL || cacheConfig.ttl
+      ttl: options.cacheTTL || cacheConfig.ttl,
     });
   }
 
@@ -122,7 +125,9 @@ export class BaseSearchService {
 
       // Generate query embedding
       const queryEmbedding = await this.generateQueryEmbedding(query, options);
-      console.log(`[${this.serviceName}] Query embedding generated (dims=${queryEmbedding?.length || 'n/a'})`);
+      console.log(
+        `[${this.serviceName}] Query embedding generated (dims=${queryEmbedding?.length || 'n/a'})`
+      );
 
       // Calculate dynamic threshold
       const threshold = options.threshold ?? this.calculateDynamicThreshold(query);
@@ -134,7 +139,7 @@ export class BaseSearchService {
         filters,
         limit: Math.round(options.limit * this.chunkMultiplier),
         threshold,
-        query
+        query,
       });
       console.log(`[${this.serviceName}] Retrieved ${chunks.length} chunks from vector search`);
 
@@ -157,8 +162,8 @@ export class BaseSearchService {
           searchService: this.serviceName,
           totalChunks: chunks.length,
           threshold,
-          cached: false
-        }
+          cached: false,
+        },
       };
 
       // Cache the result
@@ -174,7 +179,7 @@ export class BaseSearchService {
         operation: 'similarity_search',
         query: params.query,
         userId: params.userId,
-        returnResponse: true
+        returnResponse: true,
       });
     }
   }
@@ -192,7 +197,10 @@ export class BaseSearchService {
 
       // Check cache first
       if (options.useCache) {
-        const cacheKey = this.generateCacheKey({ ...validatedParams, searchType: 'hybrid' } as ValidatedSearchParams & { searchType: string });
+        const cacheKey = this.generateCacheKey({
+          ...validatedParams,
+          searchType: 'hybrid',
+        } as ValidatedSearchParams & { searchType: string });
         const cached = this.cache.get(cacheKey) as SearchResponse | undefined;
         if (cached) {
           console.log(`[${this.serviceName}] Cache hit for hybrid query: "${query}"`);
@@ -224,8 +232,8 @@ export class BaseSearchService {
           textWeight: options.textWeight ?? 0.5,
           useRRF: options.useRRF ?? false,
           rrfK: options.rrfK ?? 60,
-          recallLimit: options.recallLimit
-        }
+          recallLimit: options.recallLimit,
+        },
       });
 
       // Handle empty results
@@ -236,7 +244,7 @@ export class BaseSearchService {
       // Group and rank results with hybrid scoring
       const results = await this.groupAndRankHybridResults(chunks, options.limit, query, {
         applyMMR: true,
-        mmrLambda: 0.7
+        mmrLambda: 0.7,
       });
 
       // Build response
@@ -252,13 +260,16 @@ export class BaseSearchService {
           threshold,
           cached: false,
           searchPatterns: searchPatterns.patterns,
-          hybridMethod: options.useRRF !== false ? 'RRF' : 'weighted'
-        }
+          hybridMethod: options.useRRF !== false ? 'RRF' : 'weighted',
+        },
       };
 
       // Cache the result
       if (options.useCache) {
-        const cacheKey = this.generateCacheKey({ ...validatedParams, searchType: 'hybrid' } as ValidatedSearchParams & { searchType: string });
+        const cacheKey = this.generateCacheKey({
+          ...validatedParams,
+          searchType: 'hybrid',
+        } as ValidatedSearchParams & { searchType: string });
         this.cache.set(cacheKey, response);
       }
 
@@ -269,7 +280,7 @@ export class BaseSearchService {
         operation: 'hybrid_search',
         query: params.query,
         userId: params.userId,
-        returnResponse: true
+        returnResponse: true,
       });
     }
   }
@@ -299,17 +310,21 @@ export class BaseSearchService {
       userId,
       filters,
       limit,
-      threshold
+      threshold,
     });
 
     console.log(`[${this.serviceName}] Calling ${rpcFunction} with threshold: ${threshold}`);
 
     // Note: supabaseService is imported by subclasses that need it
     // This base implementation throws an error
-    throw new DatabaseError('Base findSimilarChunks must be overridden by subclass', 'NOT_IMPLEMENTED', {
-      rpcFunction,
-      operation: 'similarity_search'
-    });
+    throw new DatabaseError(
+      'Base findSimilarChunks must be overridden by subclass',
+      'NOT_IMPLEMENTED',
+      {
+        rpcFunction,
+        operation: 'similarity_search',
+      }
+    );
   }
 
   /**
@@ -337,7 +352,7 @@ export class BaseSearchService {
           created_at: this.extractDocumentCreatedAt(chunk),
           chunks: [],
           maxSimilarity: 0,
-          avgSimilarity: 0
+          avgSimilarity: 0,
         });
       }
 
@@ -348,10 +363,11 @@ export class BaseSearchService {
       const hasTerm = normQuery ? containsNormalized(chunkData.text, normQuery) : false;
       const isTOC = looksLikeTOC(chunkData.text);
       const inHeader = chunkData.content_type === 'heading';
-      const adjusted = (chunkData.similarity || 0)
-        + (hasTerm ? 0.12 : 0)
-        + (hasTerm && inHeader ? 0.06 : 0)
-        - (isTOC ? 0.08 : 0);
+      const adjusted =
+        (chunkData.similarity || 0) +
+        (hasTerm ? 0.12 : 0) +
+        (hasTerm && inHeader ? 0.06 : 0) -
+        (isTOC ? 0.08 : 0);
 
       chunkData.similarity_adjusted = adjusted;
       chunkData.has_term = hasTerm;
@@ -366,14 +382,16 @@ export class BaseSearchService {
     }
 
     // Calculate enhanced scores and format results
-    const results: (DocumentResult | null)[] = Array.from(documentMap.values()).map(doc => {
+    const results: (DocumentResult | null)[] = Array.from(documentMap.values()).map((doc) => {
       // For short queries, require at least one literal match
-      if (normQuery && isShortQuery && !doc.chunks.some(c => c.has_term)) {
+      if (normQuery && isShortQuery && !doc.chunks.some((c) => c.has_term)) {
         return null;
       }
 
       // Sort chunks by adjusted similarity
-      doc.chunks.sort((a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity));
+      doc.chunks.sort(
+        (a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity)
+      );
 
       // Calculate enhanced document score
       const enhancedScore = calculateEnhancedDocumentScore(doc.chunks);
@@ -385,9 +403,9 @@ export class BaseSearchService {
 
       // Ensure at least one keyword-hit chunk is present and first
       if (normQuery) {
-        const idx = topChunks.findIndex(c => c.has_term);
+        const idx = topChunks.findIndex((c) => c.has_term);
         if (idx === -1) {
-          const firstHit = doc.chunks.find(c => c.has_term);
+          const firstHit = doc.chunks.find((c) => c.has_term);
           if (firstHit) {
             topChunks = [firstHit, ...topChunks].slice(0, maxN);
           }
@@ -400,9 +418,11 @@ export class BaseSearchService {
       // Create combined relevant text with paragraph deduplication
       // This removes duplicate paragraphs that appear due to 400-char chunk overlap
       const rawContent = topChunks
-        .map(chunk => (normQuery && chunk.has_term)
-          ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
-          : this.extractRelevantExcerpt(chunk.text))
+        .map((chunk) =>
+          normQuery && chunk.has_term
+            ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
+            : this.extractRelevantExcerpt(chunk.text)
+        )
         .join('\n\n---\n\n');
 
       const relevantContent = deduplicateParagraphs(rawContent);
@@ -420,18 +440,19 @@ export class BaseSearchService {
         diversity_bonus: enhancedScore.diversityBonus,
         quality_avg: typeof enhancedScore.qualityAvg === 'number' ? enhancedScore.qualityAvg : null,
         chunk_index: topChunks[0]?.chunk_index ?? null,
-        top_chunks: topChunks.map(tc => ({
+        top_chunks: topChunks.map((tc) => ({
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           has_term: !!tc.has_term,
-          preview: (normQuery && tc.has_term)
-            ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
-            : this.extractRelevantExcerpt(tc.text)
+          preview:
+            normQuery && tc.has_term
+              ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
+              : this.extractRelevantExcerpt(tc.text),
         })),
         chunk_count: doc.chunks.length,
-        relevance_info: this.buildRelevanceInfo(doc, enhancedScore)
+        relevance_info: this.buildRelevanceInfo(doc, enhancedScore),
       };
     });
 
@@ -510,7 +531,7 @@ export class BaseSearchService {
       threshold: params.options?.threshold,
       mode: params.mode as string | undefined,
       documentIds,
-      group_id: groupId
+      group_id: groupId,
     };
 
     const validated = InputValidator.validateSearchParams(inputParams);
@@ -521,13 +542,13 @@ export class BaseSearchService {
       userId: validated.user_id || null,
       filters: {
         documentIds: validated.documentIds,
-        group_id: validated.group_id
+        group_id: validated.group_id,
       },
       options: {
         limit: validated.limit,
         threshold: validated.threshold ?? this.defaultThreshold,
-        useCache: true
-      }
+        useCache: true,
+      },
     };
   }
 
@@ -556,7 +577,7 @@ export class BaseSearchService {
       query_embedding: embeddingString,
       user_id_filter: userId,
       similarity_threshold: threshold,
-      match_count: limit
+      match_count: limit,
     };
   }
 
@@ -565,7 +586,7 @@ export class BaseSearchService {
    * @protected
    */
   transformChunks(chunks: RawChunk[]): TransformedChunk[] {
-    return chunks.map(chunk => ({
+    return chunks.map((chunk) => ({
       id: chunk.id,
       document_id: chunk.document_id,
       chunk_index: chunk.chunk_index,
@@ -577,8 +598,8 @@ export class BaseSearchService {
         id: chunk.document_id,
         title: chunk.documents?.title || chunk.document_title,
         filename: chunk.documents?.filename || chunk.document_filename,
-        created_at: chunk.documents?.created_at || chunk.document_created_at
-      }
+        created_at: chunk.documents?.created_at || chunk.document_created_at,
+      },
     }));
   }
 
@@ -622,7 +643,7 @@ export class BaseSearchService {
       content_type: rawChunk.content_type ?? rawChunk.metadata?.content_type,
       page_number: rawChunk.page_number ?? rawChunk.metadata?.page_number,
       similarity: rawChunk.similarity || 0,
-      token_count: rawChunk.token_count
+      token_count: rawChunk.token_count,
     };
   }
 
@@ -646,14 +667,14 @@ export class BaseSearchService {
       userId,
       filters,
       limit: Math.round(limit * 0.7),
-      threshold
+      threshold,
     });
 
-    return vectorChunks.map(chunk => ({
+    return vectorChunks.map((chunk) => ({
       ...chunk,
       searchMethod: 'vector',
       originalVectorScore: chunk.similarity,
-      originalTextScore: null
+      originalTextScore: null,
     }));
   }
 
@@ -689,8 +710,8 @@ export class BaseSearchService {
             hasTextMatch: false,
             searchMethods: new Set<string>(),
             vectorScores: [],
-            textScores: []
-          }
+            textScores: [],
+          },
         });
       }
 
@@ -701,17 +722,21 @@ export class BaseSearchService {
       const hasTerm = normQuery ? containsNormalized(chunkData.text, normQuery) : false;
       const isTOC = looksLikeTOC(chunkData.text);
       const inHeader = chunkData.content_type === 'heading';
-      const adjusted = (chunkData.similarity || 0)
-        + (hasTerm ? 0.12 : 0)
-        + (hasTerm && inHeader ? 0.06 : 0)
-        - (isTOC ? 0.08 : 0);
+      const adjusted =
+        (chunkData.similarity || 0) +
+        (hasTerm ? 0.12 : 0) +
+        (hasTerm && inHeader ? 0.06 : 0) -
+        (isTOC ? 0.08 : 0);
 
       chunkData.similarity_adjusted = adjusted;
       chunkData.has_term = hasTerm;
       chunkData.is_toc = isTOC;
-      chunkData.searchMethod = (chunk as TransformedChunk & { searchMethod?: string }).searchMethod || 'unknown';
-      chunkData.originalVectorScore = (chunk as TransformedChunk & { originalVectorScore?: number }).originalVectorScore ?? null;
-      chunkData.originalTextScore = (chunk as TransformedChunk & { originalTextScore?: number }).originalTextScore ?? null;
+      chunkData.searchMethod =
+        (chunk as TransformedChunk & { searchMethod?: string }).searchMethod || 'unknown';
+      chunkData.originalVectorScore =
+        (chunk as TransformedChunk & { originalVectorScore?: number }).originalVectorScore ?? null;
+      chunkData.originalTextScore =
+        (chunk as TransformedChunk & { originalTextScore?: number }).originalTextScore ?? null;
 
       docData.chunks.push(chunkData);
 
@@ -734,17 +759,19 @@ export class BaseSearchService {
     }
 
     // Calculate enhanced scores and format results
-    const results: (DocumentResult | null)[] = Array.from(documentMap.values()).map(doc => {
+    const results: (DocumentResult | null)[] = Array.from(documentMap.values()).map((doc) => {
       // Graduated filtering for short queries
       let noTermMatchPenalty = 0;
-      if (normQuery && isShortQuery && !doc.chunks.some(c => c.has_term)) {
+      if (normQuery && isShortQuery && !doc.chunks.some((c) => c.has_term)) {
         if (doc.maxSimilarity < 0.55) {
           return null;
         }
-        noTermMatchPenalty = doc.maxSimilarity >= 0.70 ? 0.05 : 0.12;
+        noTermMatchPenalty = doc.maxSimilarity >= 0.7 ? 0.05 : 0.12;
       }
 
-      doc.chunks.sort((a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity));
+      doc.chunks.sort(
+        (a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity)
+      );
 
       const enhancedScore = calculateHybridDocumentScore(
         doc.chunks,
@@ -753,7 +780,7 @@ export class BaseSearchService {
           hasTextMatch: false,
           searchMethods: new Set<string>(),
           vectorScores: [],
-          textScores: []
+          textScores: [],
         }
       );
 
@@ -762,9 +789,9 @@ export class BaseSearchService {
       let topChunks = doc.chunks.slice(0, maxN);
 
       if (normQuery) {
-        const idx = topChunks.findIndex(c => c.has_term);
+        const idx = topChunks.findIndex((c) => c.has_term);
         if (idx === -1) {
-          const firstHit = doc.chunks.find(c => c.has_term);
+          const firstHit = doc.chunks.find((c) => c.has_term);
           if (firstHit) topChunks = [firstHit, ...topChunks].slice(0, maxN);
         } else if (idx > 0) {
           const [hit] = topChunks.splice(idx, 1);
@@ -775,9 +802,11 @@ export class BaseSearchService {
       // Create combined relevant text with paragraph deduplication
       // This removes duplicate paragraphs that appear due to 400-char chunk overlap
       const rawContent = topChunks
-        .map(chunk => (normQuery && chunk.has_term)
-          ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
-          : this.extractRelevantExcerpt(chunk.text))
+        .map((chunk) =>
+          normQuery && chunk.has_term
+            ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
+            : this.extractRelevantExcerpt(chunk.text)
+        )
         .join('\n\n---\n\n');
 
       const relevantContent = deduplicateParagraphs(rawContent);
@@ -799,29 +828,34 @@ export class BaseSearchService {
         hybrid_bonus: enhancedScore.hybridBonus || 0,
         quality_avg: typeof enhancedScore.qualityAvg === 'number' ? enhancedScore.qualityAvg : null,
         chunk_index: topChunks[0]?.chunk_index ?? null,
-        top_chunks: topChunks.map(tc => ({
+        top_chunks: topChunks.map((tc) => ({
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           has_term: !!tc.has_term,
-          preview: (normQuery && tc.has_term)
-            ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
-            : this.extractRelevantExcerpt(tc.text)
+          preview:
+            normQuery && tc.has_term
+              ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
+              : this.extractRelevantExcerpt(tc.text),
         })),
         chunk_count: doc.chunks.length,
         search_methods: searchMethods,
         hybrid_metadata: {
           hasVectorMatch: doc.hybridMetadata?.hasVectorMatch || false,
           hasTextMatch: doc.hybridMetadata?.hasTextMatch || false,
-          avgVectorScore: doc.hybridMetadata && doc.hybridMetadata.vectorScores.length > 0
-            ? doc.hybridMetadata.vectorScores.reduce((a, b) => a + b, 0) / doc.hybridMetadata.vectorScores.length
-            : null,
-          avgTextScore: doc.hybridMetadata && doc.hybridMetadata.textScores.length > 0
-            ? doc.hybridMetadata.textScores.reduce((a, b) => a + b, 0) / doc.hybridMetadata.textScores.length
-            : null
+          avgVectorScore:
+            doc.hybridMetadata && doc.hybridMetadata.vectorScores.length > 0
+              ? doc.hybridMetadata.vectorScores.reduce((a, b) => a + b, 0) /
+                doc.hybridMetadata.vectorScores.length
+              : null,
+          avgTextScore:
+            doc.hybridMetadata && doc.hybridMetadata.textScores.length > 0
+              ? doc.hybridMetadata.textScores.reduce((a, b) => a + b, 0) /
+                doc.hybridMetadata.textScores.length
+              : null,
         },
-        relevance_info: hybridInfo
+        relevance_info: hybridInfo,
       };
     });
 
@@ -869,13 +903,17 @@ export class BaseSearchService {
    * Handle empty search results
    * @protected
    */
-  handleEmptyResults(query: string, options: SearchOptions, userId: string | null = null): SearchResponse {
+  handleEmptyResults(
+    query: string,
+    options: SearchOptions,
+    userId: string | null = null
+  ): SearchResponse {
     return {
       success: true,
       results: [],
       query: query.trim(),
       searchType: this.getSearchType(),
-      message: 'No relevant documents found'
+      message: 'No relevant documents found',
     };
   }
 
@@ -893,7 +931,7 @@ export class BaseSearchService {
         code: safeError.code,
         results: [],
         query: query.trim(),
-        searchType: 'error'
+        searchType: 'error',
       };
     }
 
@@ -905,7 +943,7 @@ export class BaseSearchService {
         results: [],
         query: query.trim(),
         searchType: 'error',
-        message: error.message
+        message: error.message,
       };
     }
 
@@ -915,7 +953,7 @@ export class BaseSearchService {
       message: 'An unexpected error occurred during search',
       results: [],
       query: query.trim(),
-      searchType: 'error'
+      searchType: 'error',
     };
   }
 
@@ -923,14 +961,16 @@ export class BaseSearchService {
    * Generate cache key for search parameters
    * @protected
    */
-  generateCacheKey(params: ValidatedSearchParams | (ValidatedSearchParams & { searchType?: string })): string {
+  generateCacheKey(
+    params: ValidatedSearchParams | (ValidatedSearchParams & { searchType?: string })
+  ): string {
     const keyData = {
       query: params.query,
       userId: params.userId,
       filters: params.filters,
       limit: params.options?.limit,
       threshold: params.options?.threshold,
-      searchType: (params as { searchType?: string }).searchType
+      searchType: (params as { searchType?: string }).searchType,
     };
 
     return `${this.serviceName}:${this.simpleHash(JSON.stringify(keyData))}`;
@@ -965,7 +1005,11 @@ export class BaseSearchService {
    * Group chunks by document and calculate enhanced rankings
    * @static
    */
-  static groupByDocument(chunks: RawChunk[], limit = 10, options: MMROptions = {}): DocumentResult[] {
+  static groupByDocument(
+    chunks: RawChunk[],
+    limit = 10,
+    options: MMROptions = {}
+  ): DocumentResult[] {
     const documentMap = new Map<string, DocumentData>();
 
     for (const chunk of chunks) {
@@ -980,7 +1024,7 @@ export class BaseSearchService {
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
-          totalScore: 0
+          totalScore: 0,
         });
       }
 
@@ -991,8 +1035,11 @@ export class BaseSearchService {
         text: chunk.chunk_text,
         content_type: chunk.content_type ?? chunk.metadata?.content_type,
         page_number: chunk.page_number ?? chunk.metadata?.page_number,
-        similarity: (chunk as RawChunk & { similarity_adjusted?: number }).similarity_adjusted ?? chunk.similarity ?? 0,
-        token_count: chunk.token_count
+        similarity:
+          (chunk as RawChunk & { similarity_adjusted?: number }).similarity_adjusted ??
+          chunk.similarity ??
+          0,
+        token_count: chunk.token_count,
       };
 
       doc.chunks.push(chunkData);
@@ -1000,7 +1047,7 @@ export class BaseSearchService {
       doc.totalScore = (doc.totalScore || 0) + chunkData.similarity;
     }
 
-    const results: DocumentResult[] = Array.from(documentMap.values()).map(doc => {
+    const results: DocumentResult[] = Array.from(documentMap.values()).map((doc) => {
       doc.chunks.sort((a, b) => b.similarity - a.similarity);
 
       const enhancedScore = calculateStaticDocumentScore(doc.chunks);
@@ -1008,7 +1055,7 @@ export class BaseSearchService {
 
       // Apply paragraph deduplication to remove overlap duplicates
       const rawContent = topChunks
-        .map(chunk => BaseSearchService.extractExcerpt(chunk.text, 300))
+        .map((chunk) => BaseSearchService.extractExcerpt(chunk.text, 300))
         .join('\n\n---\n\n');
       const relevantContent = deduplicateParagraphs(rawContent);
 
@@ -1022,15 +1069,15 @@ export class BaseSearchService {
         max_similarity: enhancedScore.maxSimilarity,
         avg_similarity: enhancedScore.avgSimilarity,
         chunk_index: topChunks[0]?.chunk_index ?? null,
-        top_chunks: topChunks.map(tc => ({
+        top_chunks: topChunks.map((tc) => ({
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
-          preview: BaseSearchService.extractExcerpt(tc.text, 300)
+          preview: BaseSearchService.extractExcerpt(tc.text, 300),
         })),
         chunk_count: doc.chunks.length,
-        relevance_info: `Found ${doc.chunks.length} relevant sections in "${doc.title}"`
+        relevance_info: `Found ${doc.chunks.length} relevant sections in "${doc.title}"`,
       };
     });
 
@@ -1086,18 +1133,14 @@ export class BaseSearchService {
    * Format search results with consistent structure
    * @static
    */
-  static formatResults(
-    chunks: RawChunk[],
-    limit = 10,
-    searchType = 'vector'
-  ): SearchResponse {
+  static formatResults(chunks: RawChunk[], limit = 10, searchType = 'vector'): SearchResponse {
     if (!chunks || chunks.length === 0) {
       return {
         success: true,
         results: [],
         query: '',
         searchType,
-        message: 'No relevant documents found'
+        message: 'No relevant documents found',
       };
     }
 
@@ -1111,8 +1154,8 @@ export class BaseSearchService {
       message: `Found ${documents.length} relevant document(s)`,
       metadata: {
         totalChunks: chunks.length,
-        processedDocuments: documents.length
-      }
+        processedDocuments: documents.length,
+      },
     };
   }
 

@@ -1,6 +1,7 @@
-import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useState } from 'react';
 import { FaChevronDown } from 'react-icons/fa';
+
 import { SidebarHint } from '../components/SidebarHint';
 
 interface AlternativesRendererProps<T> {

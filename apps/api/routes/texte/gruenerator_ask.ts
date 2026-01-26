@@ -6,14 +6,14 @@ import { createLogger } from '../../utils/logger.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   SEARCH_DOCUMENTS_TOOL,
-  processAIResponseWithCitations
+  processAIResponseWithCitations,
 } from '../../utils/prompt/index.js';
 import type {
   ToolCall,
   ToolResult,
   SearchResult,
   DocumentContext,
-  MessageContent
+  MessageContent,
 } from '../../types/routes.js';
 import type { Citation, SourceInfo } from '../../utils/prompt/types.js';
 import type { AIWorkerPool } from '../../types/workers.js';
@@ -25,7 +25,8 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const router: Router = express.Router();
 
 // Helper to get user profile from request
-const getUser = (req: Request): UserProfile | undefined => (req as any).user as UserProfile | undefined;
+const getUser = (req: Request): UserProfile | undefined =>
+  (req as any).user as UserProfile | undefined;
 
 interface GrueneratorAskRequestBody {
   question: string;
@@ -77,22 +78,29 @@ router.post('/', ensureAuthenticated, async (req: Request, res: Response): Promi
     if (!question || question.trim().length === 0) {
       res.status(400).json({
         success: false,
-        message: 'Question is required'
+        message: 'Question is required',
       });
       return;
     }
 
-    log.debug(`[claude_gruenerator_ask] Processing question for user ${user?.id}:`, question.substring(0, 100));
+    log.debug(
+      `[claude_gruenerator_ask] Processing question for user ${user?.id}:`,
+      question.substring(0, 100)
+    );
 
-    const result = await handleQuestionWithTools(question, user?.id || 'anonymous', group_id, req.app.locals.aiWorkerPool);
+    const result = await handleQuestionWithTools(
+      question,
+      user?.id || 'anonymous',
+      group_id,
+      req.app.locals.aiWorkerPool
+    );
 
     res.json(result);
-
   } catch (error) {
     log.error('[claude_gruenerator_ask] Error:', error);
     res.status(500).json({
       success: false,
-      message: (error as Error).message || 'Failed to process question'
+      message: (error as Error).message || 'Failed to process question',
     });
   }
 });
@@ -126,10 +134,12 @@ Antwort-Struktur:
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
 
-  const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: any }> = [{
-    role: 'user',
-    content: question
-  }];
+  const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: any }> = [
+    {
+      role: 'user',
+      content: question,
+    },
+  ];
 
   let allSearchResults: SearchResult[] = [];
   let searchCount = 0;
@@ -147,16 +157,16 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
       options: {
         max_tokens: 2000,
         useBedrock: true,
-        anthropic_version: "bedrock-2023-05-31",
-        tools: [SEARCH_DOCUMENTS_TOOL]
-      }
+        anthropic_version: 'bedrock-2023-05-31',
+        tools: [SEARCH_DOCUMENTS_TOOL],
+      },
     });
 
     log.debug('[claude_gruenerator_ask] AI Result:', {
       success: aiResult.success,
       hasContent: !!aiResult.content,
       stopReason: aiResult.stop_reason,
-      hasToolCalls: !!(aiResult.tool_calls && aiResult.tool_calls.length > 0)
+      hasToolCalls: !!(aiResult.tool_calls && aiResult.tool_calls.length > 0),
     });
 
     if (!aiResult.success) {
@@ -165,12 +175,16 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
 
     if (aiResult.raw_content_blocks) {
       messages.push({
-        role: "assistant",
-        content: aiResult.raw_content_blocks
+        role: 'assistant',
+        content: aiResult.raw_content_blocks,
       });
     }
 
-    if (aiResult.stop_reason === 'tool_use' && aiResult.tool_calls && aiResult.tool_calls.length > 0) {
+    if (
+      aiResult.stop_reason === 'tool_use' &&
+      aiResult.tool_calls &&
+      aiResult.tool_calls.length > 0
+    ) {
       log.debug(`[claude_gruenerator_ask] Processing ${aiResult.tool_calls.length} tool calls`);
 
       const toolResults: ToolResult[] = [];
@@ -184,15 +198,15 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
           allSearchResults.push(...searchResult.results);
 
           toolResults.push({
-            type: "tool_result",
+            type: 'tool_result',
             tool_use_id: toolCall.id,
             content: JSON.stringify({
               success: searchResult.success,
               results: searchResult.results,
               query: toolInput.query,
               searchType: searchResult.searchType,
-              message: searchResult.message
-            })
+              message: searchResult.message,
+            }),
           });
 
           searchCount++;
@@ -201,8 +215,8 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
 
       if (toolResults.length > 0) {
         messages.push({
-          role: "user",
-          content: toolResults
+          role: 'user',
+          content: toolResults,
         });
       }
 
@@ -221,23 +235,36 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
 }
 
 function assessQueryComplexity(query: string): QueryComplexity {
-  const words = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 2);
   const wordCount = words.length;
 
   const complexIndicators = [
-    'wie', 'warum', 'wann', 'wo', 'zusammenhang', 'beziehung', 'vergleich',
-    'unterschied', 'entwicklung', 'auswirkung', 'folgen', 'ursachen'
+    'wie',
+    'warum',
+    'wann',
+    'wo',
+    'zusammenhang',
+    'beziehung',
+    'vergleich',
+    'unterschied',
+    'entwicklung',
+    'auswirkung',
+    'folgen',
+    'ursachen',
   ];
 
-  const concepts = words.filter(word =>
-    complexIndicators.some(indicator => word.includes(indicator)) ||
-    word.length > 8
+  const concepts = words.filter(
+    (word) => complexIndicators.some((indicator) => word.includes(indicator)) || word.length > 8
   );
 
-  const isComplex = wordCount > 5 ||
-                   concepts.length > 2 ||
-                   query.includes('?') ||
-                   complexIndicators.some(indicator => query.includes(indicator));
+  const isComplex =
+    wordCount > 5 ||
+    concepts.length > 2 ||
+    query.includes('?') ||
+    complexIndicators.some((indicator) => query.includes(indicator));
 
   const needsDiversity = wordCount > 8 || concepts.length > 3;
 
@@ -245,7 +272,7 @@ function assessQueryComplexity(query: string): QueryComplexity {
     isComplex,
     wordCount,
     concepts,
-    needsDiversity
+    needsDiversity,
   };
 }
 
@@ -264,7 +291,9 @@ async function executeSearchTool(
     const queryComplexity = assessQueryComplexity(query);
 
     if (queryComplexity.isComplex && search_mode === 'vector') {
-      log.debug(`[claude_gruenerator_ask] Using enhanced vector search for complex query (${queryComplexity.wordCount} words, ${queryComplexity.concepts.length} concepts)`);
+      log.debug(
+        `[claude_gruenerator_ask] Using enhanced vector search for complex query (${queryComplexity.wordCount} words, ${queryComplexity.concepts.length} concepts)`
+      );
 
       try {
         searchResults = await documentSearchService.search({
@@ -272,17 +301,19 @@ async function executeSearchTool(
           userId: userId,
           limit: 5,
           group_id: groupId || null,
-          mode: 'vector'
+          mode: 'vector',
         });
-
       } catch (multiStageError) {
-        log.warn(`[claude_gruenerator_ask] Enhanced vector search failed, falling back to standard search:`, (multiStageError as Error).message);
+        log.warn(
+          `[claude_gruenerator_ask] Enhanced vector search failed, falling back to standard search:`,
+          (multiStageError as Error).message
+        );
         searchResults = await documentSearchService.search({
           query: query,
           userId: userId,
           group_id: groupId || null,
           limit: 5,
-          mode: search_mode
+          mode: search_mode,
         });
       }
     } else {
@@ -291,7 +322,7 @@ async function executeSearchTool(
         userId: userId,
         group_id: groupId || null,
         limit: 5,
-        mode: search_mode
+        mode: search_mode,
       });
     }
 
@@ -306,7 +337,7 @@ async function executeSearchTool(
         similarity_score: result.similarity_score,
         filename: result.filename,
         chunk_index: result.chunk_index || 0,
-        relevance_info: result.relevance_info
+        relevance_info: result.relevance_info,
       };
     });
 
@@ -314,16 +345,15 @@ async function executeSearchTool(
       success: true,
       results: formattedResults,
       searchType: searchResults.searchType,
-      message: `Found ${formattedResults.length} relevant documents`
+      message: `Found ${formattedResults.length} relevant documents`,
     };
-
   } catch (error) {
     log.error('[claude_gruenerator_ask] Search tool error:', error);
     return {
       success: false,
       results: [],
       error: (error as Error).message,
-      message: 'Search failed'
+      message: 'Search failed',
     };
   }
 }
@@ -350,13 +380,17 @@ async function processFinalResponse(
           document_id: result.document_id,
           similarity_score: result.similarity_score,
           chunk_index: result.chunk_index || 0,
-          filename: result.filename
-        }
+          filename: result.filename,
+        },
       });
     }
   });
 
-  const citationResult = processAIResponseWithCitations(responseContent, documentContext, 'claude_gruenerator_ask');
+  const citationResult = processAIResponseWithCitations(
+    responseContent,
+    documentContext,
+    'claude_gruenerator_ask'
+  );
   const { answer: processedAnswer, citations, sources } = citationResult;
 
   return {
@@ -370,8 +404,8 @@ async function processFinalResponse(
     metadata: {
       provider: 'claude_tools',
       timestamp: new Date().toISOString(),
-      toolUseEnabled: true
-    }
+      toolUseEnabled: true,
+    },
   };
 }
 

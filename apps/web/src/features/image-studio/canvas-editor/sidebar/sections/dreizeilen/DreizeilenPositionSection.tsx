@@ -1,9 +1,10 @@
-
 import { FaChevronLeft, FaChevronRight, FaCheck } from 'react-icons/fa';
 import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
-import type { ColorScheme } from '../../../utils/dreizeilenLayout';
-import { SubsectionTabBar, Subsection } from '../../SubsectionTabBar';
+
 import { SidebarSlider } from '../../components/SidebarSlider';
+import { SubsectionTabBar, type Subsection } from '../../SubsectionTabBar';
+
+import type { ColorScheme } from '../../../utils/dreizeilenLayout';
 import './DreizeilenPositionSection.css';
 
 export interface DreizeilenPositionSectionProps {

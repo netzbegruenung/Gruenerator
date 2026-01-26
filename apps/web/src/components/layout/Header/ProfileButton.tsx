@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
-import { useProfile, useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
-import { useGroups } from '../../../features/groups/hooks/useGroups';
-import { useProfileStore } from '../../../stores/profileStore';
+import { Link } from 'react-router-dom';
+
 import ProfileMenu from '../../../features/auth/components/profile/ProfileMenu';
+import { useProfile, useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
+import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
+import { useGroups } from '../../../features/groups/hooks/useGroups';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useProfileStore } from '../../../stores/profileStore';
 
 interface Profile {
   display_name?: string;
@@ -73,7 +74,7 @@ const ProfileButton = () => {
 
   // Korrekte Genitiv-Form mit Apostroph
   const getPossessiveForm = (name: string | undefined): string => {
-    if (!name) return "Dein";
+    if (!name) return 'Dein';
 
     // Endet der Name auf s, ss, ß, z, tz, x oder ce, nur Apostroph anhängen
     if (/[sßzx]$/.test(name) || name.endsWith('ss') || name.endsWith('tz') || name.endsWith('ce')) {
@@ -88,13 +89,18 @@ const ProfileButton = () => {
   const avatarProps = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
     display_name: displayName,
-    email: user?.email
+    email: user?.email,
   });
 
   // Show login button for non-authenticated users only
   if (!loading && !user) {
     return (
-      <Link to="/login" className="login-button" aria-label="Anmelden" onClick={() => setLoginIntent()}>
+      <Link
+        to="/login"
+        className="login-button"
+        aria-label="Anmelden"
+        onClick={() => setLoginIntent()}
+      >
         <FaUserCircle className="profile-icon" />
       </Link>
     );
@@ -132,7 +138,7 @@ const ProfileButton = () => {
               className="profile-header-robot-image"
               style={{
                 opacity: isProfileLoading ? 0.8 : 1,
-                transition: 'opacity 0.2s ease-in-out'
+                transition: 'opacity 0.2s ease-in-out',
               }}
             />
           </div>
@@ -141,7 +147,7 @@ const ProfileButton = () => {
             className="profile-icon"
             style={{
               opacity: isProfileLoading ? 0.8 : 1,
-              transition: 'opacity 0.2s ease-in-out'
+              transition: 'opacity 0.2s ease-in-out',
             }}
           />
         )}
@@ -168,11 +174,9 @@ const ProfileButton = () => {
             </Link>
             <div className="profile-dropdown-info">
               <div className="profile-dropdown-greeting">
-                {displayName ? getPossessiveForm(displayName.split(' ')[0]) : "Dein"} Grünerator
+                {displayName ? getPossessiveForm(displayName.split(' ')[0]) : 'Dein'} Grünerator
               </div>
-              <div className="profile-dropdown-email">
-                {user?.email || ''}
-              </div>
+              <div className="profile-dropdown-email">{user?.email || ''}</div>
             </div>
           </div>
           <div className="profile-dropdown-links">
@@ -196,7 +200,7 @@ const ProfileButton = () => {
                 disabled={isLoggingOut}
                 onClick={() => {
                   if (!isLoggingOut) {
-                    logout();
+                    void logout();
                   }
                 }}
                 aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}

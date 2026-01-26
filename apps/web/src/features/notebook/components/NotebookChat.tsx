@@ -1,22 +1,30 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
 import { HiDocumentText, HiInformationCircle } from 'react-icons/hi';
-import { CitationModal } from '../../../components/common/Citation';
+import { useParams } from 'react-router-dom';
+
 import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
-import useNotebookStore from '../stores/notebookStore';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
-import useNotebookChat from '../hooks/useNotebookChat';
-import NotebookChatMessage from './NotebookChatMessage';
-import FilterDropdownButton from './FilterDropdownButton';
-import ActiveFiltersDisplay from './ActiveFiltersDisplay';
+import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
-import { NotebookCollection } from '../../../types/notebook';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { type NotebookCollection } from '../../../types/notebook';
+import useNotebookChat from '../hooks/useNotebookChat';
+import useNotebookStore from '../stores/notebookStore';
+
+import ActiveFiltersDisplay from './ActiveFiltersDisplay';
+import FilterDropdownButton from './FilterDropdownButton';
+import NotebookChatMessage from './NotebookChatMessage';
+
 import '../../../assets/styles/features/notebook/notebook-chat.css';
 
 const NotebookChat = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useOptimizedAuth();
-  const { getQACollection, fetchQACollections, qaCollections, loading: storeLoading } = useNotebookStore();
+  const {
+    getQACollection,
+    fetchQACollections,
+    qaCollections,
+    loading: storeLoading,
+  } = useNotebookStore();
   const [collection, setCollection] = useState<NotebookCollection | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,15 +44,33 @@ const NotebookChat = () => {
   }, [id, getQACollection, fetchQACollections, user, qaCollections]);
 
   const {
-    chatMessages, inputValue, submitLoading, isMobileView,
-    setInputValue, handleSubmitQuestion
+    chatMessages,
+    inputValue,
+    submitLoading,
+    isMobileView,
+    setInputValue,
+    handleSubmitQuestion,
   } = useNotebookChat({
     collections: collection ? [{ id: collection.id, name: collection.name }] : [],
-    welcomeMessage: collection ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.` : undefined,
-    persistMessages: true
+    welcomeMessage: collection
+      ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.`
+      : undefined,
+    persistMessages: true,
   });
 
-  if (loading) return <div className="notebook-chat-error"><p>Notebook wird geladen...</p></div>;
+  // Hooks must be called before early returns (Rules of Hooks)
+  const renderMessage = useCallback((msg: unknown, i: number) => {
+    const timestamp = (msg as Record<string, unknown>)?.timestamp;
+    const key = typeof timestamp === 'number' ? timestamp.toString() : `msg-${i}`;
+    return <NotebookChatMessage key={key} msg={msg as any} index={i} />;
+  }, []);
+
+  if (loading)
+    return (
+      <div className="notebook-chat-error">
+        <p>Notebook wird geladen...</p>
+      </div>
+    );
 
   if (!collection) {
     return (
@@ -54,7 +80,10 @@ const NotebookChat = () => {
         <p>User ID: {user?.id}</p>
         <p>Store Loading: {storeLoading ? 'Yes' : 'No'}</p>
         <p>Collections in Store: {qaCollections?.length || 0}</p>
-        <p>Available Collection IDs: {qaCollections?.map((c: NotebookCollection) => c.id).join(', ') || 'None'}</p>
+        <p>
+          Available Collection IDs:{' '}
+          {qaCollections?.map((c: NotebookCollection) => c.id).join(', ') || 'None'}
+        </p>
       </div>
     );
   }
@@ -67,7 +96,9 @@ const NotebookChat = () => {
         <HiInformationCircle className="qa-collection-info-icon" />
         <h3>{collection?.name}</h3>
       </div>
-      {collection?.description && <div className="qa-collection-info-description">{collection.description}</div>}
+      {collection?.description && (
+        <div className="qa-collection-info-description">{collection.description}</div>
+      )}
       <div className="qa-collection-info-documents">
         <h4>Enthaltene Dokumente:</h4>
         <ul>
@@ -87,19 +118,13 @@ const NotebookChat = () => {
 
   const effectiveMode = 'chat';
 
-  const renderMessage = useCallback((msg: unknown, i: number) => {
-    const timestamp = (msg as Record<string, unknown>)?.timestamp;
-    const key = typeof timestamp === 'number' ? timestamp.toString() : `msg-${i}`;
-    return <NotebookChatMessage key={key} msg={msg as any} index={i} />;
-  }, []);
-
   return (
     <>
       <CitationModal />
       <ChatWorkbenchLayout
         mode={effectiveMode}
         modes={{ chat: { label: 'Chat' } }}
-        onModeChange={() => { }}
+        onModeChange={() => {}}
         title={collection?.name || ''}
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}
@@ -123,5 +148,5 @@ const NotebookChat = () => {
 };
 
 export default withAuthRequired(NotebookChat, {
-  title: 'Q&A Notebook'
+  title: 'Q&A Notebook',
 });

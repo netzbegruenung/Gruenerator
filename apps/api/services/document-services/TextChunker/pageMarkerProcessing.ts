@@ -21,7 +21,7 @@ export function splitTextByPageMarkers(text: string): PageWithText[] {
     markers.push({
       page: parseInt(match[1], 10),
       index: match.index,
-      length: match[0].length
+      length: match[0].length,
     });
   }
 
@@ -29,11 +29,11 @@ export function splitTextByPageMarkers(text: string): PageWithText[] {
 
   for (let i = 0; i < markers.length; i++) {
     const m = markers[i];
-    const nextStart = (i + 1 < markers.length) ? markers[i + 1].index : text.length;
+    const nextStart = i + 1 < markers.length ? markers[i + 1].index : text.length;
     const segment = text.slice(m.index + (m.length || 0), nextStart);
     pages.push({
       pageNumber: m.page,
-      textWithoutMarker: segment.trim()
+      textWithoutMarker: segment.trim(),
     });
   }
 
@@ -56,7 +56,7 @@ export function buildPageRangesFromRaw(text: string): PageRange[] {
     matches.push({
       page: parseInt(m[1], 10),
       index: m.index,
-      length: m[0].length
+      length: m[0].length,
     });
   }
 
@@ -64,11 +64,11 @@ export function buildPageRangesFromRaw(text: string): PageRange[] {
 
   for (let i = 0; i < matches.length; i++) {
     const start = matches[i].index + (matches[i].length || 0);
-    const end = (i + 1 < matches.length) ? matches[i + 1].index : text.length;
+    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
     ranges.push({
       page: matches[i].page,
       start,
-      end
+      end,
     });
   }
 

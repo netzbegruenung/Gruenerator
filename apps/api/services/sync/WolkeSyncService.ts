@@ -8,7 +8,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import {
   DocumentSearchService,
   getPostgresDocumentService,
-  smartChunkDocument
+  smartChunkDocument,
 } from '../document-services/index.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
@@ -17,12 +17,7 @@ import { mistralEmbeddingService } from '../mistral/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import type {
-  WolkeSyncStatus,
-  NextcloudFile,
-  FileProcessResult,
-  SyncResult
-} from './types.js';
+import type { WolkeSyncStatus, NextcloudFile, FileProcessResult, SyncResult } from './types.js';
 
 export class WolkeSyncService {
   private postgres: any;
@@ -35,7 +30,15 @@ export class WolkeSyncService {
     this.qdrantService = new DocumentSearchService();
     this.documentService = getPostgresDocumentService();
     this.supportedFileTypes = [
-      '.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.avif', '.txt', '.md'
+      '.pdf',
+      '.docx',
+      '.pptx',
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.avif',
+      '.txt',
+      '.md',
     ];
   }
 
@@ -75,7 +78,7 @@ export class WolkeSyncService {
         sync_status: 'idle',
         files_processed: 0,
         files_failed: 0,
-        auto_sync_enabled: false
+        auto_sync_enabled: false,
       });
 
       console.log(`[WolkeSyncService] Created sync status record: ${syncStatus.id}`);
@@ -120,11 +123,9 @@ export class WolkeSyncService {
         delete updateData.filesFailed;
       }
 
-      const result = await this.postgres.update(
-        'wolke_sync_status',
-        updateData,
-        { id: syncStatusId }
-      );
+      const result = await this.postgres.update('wolke_sync_status', updateData, {
+        id: syncStatusId,
+      });
 
       return result.data[0] as unknown as WolkeSyncStatus;
     } catch (error: any) {
@@ -186,7 +187,10 @@ export class WolkeSyncService {
   /**
    * Download file to temporary location
    */
-  async downloadFileToTemp(shareLink: any, file: NextcloudFile): Promise<{
+  async downloadFileToTemp(
+    shareLink: any,
+    file: NextcloudFile
+  ): Promise<{
     tempPath: string;
     cleanup: () => Promise<void>;
   }> {
@@ -210,7 +214,7 @@ export class WolkeSyncService {
           } catch (error) {
             console.warn(`Failed to cleanup temp file: ${tempFilePath}`);
           }
-        }
+        },
       };
     } catch (error: any) {
       console.error('[WolkeSyncService] Error downloading file to temp:', error);
@@ -244,18 +248,22 @@ export class WolkeSyncService {
     // Secondary detection: Compare lastModified dates
     if (file.lastModified && existingDoc.last_synced_at) {
       try {
-        const fileModifiedTime = file.lastModified instanceof Date
-          ? file.lastModified
-          : new Date(file.lastModified);
-        const lastSyncTime = existingDoc.last_synced_at instanceof Date
-          ? existingDoc.last_synced_at
-          : new Date(existingDoc.last_synced_at);
+        const fileModifiedTime =
+          file.lastModified instanceof Date ? file.lastModified : new Date(file.lastModified);
+        const lastSyncTime =
+          existingDoc.last_synced_at instanceof Date
+            ? existingDoc.last_synced_at
+            : new Date(existingDoc.last_synced_at);
 
         if (fileModifiedTime > lastSyncTime) {
-          console.log(`[WolkeSyncService] File modified after last sync: ${fileModifiedTime.toISOString()} > ${lastSyncTime.toISOString()}`);
+          console.log(
+            `[WolkeSyncService] File modified after last sync: ${fileModifiedTime.toISOString()} > ${lastSyncTime.toISOString()}`
+          );
           return true;
         } else {
-          console.log(`[WolkeSyncService] File not modified since last sync: ${fileModifiedTime.toISOString()} <= ${lastSyncTime.toISOString()}`);
+          console.log(
+            `[WolkeSyncService] File not modified since last sync: ${fileModifiedTime.toISOString()} <= ${lastSyncTime.toISOString()}`
+          );
           return false;
         }
       } catch (error) {
@@ -265,7 +273,9 @@ export class WolkeSyncService {
     }
 
     // Fallback: If we have no reliable metadata for comparison, re-sync to be safe
-    console.log(`[WolkeSyncService] Insufficient metadata for comparison (etag: ${!!file.etag}, lastModified: ${!!file.lastModified}) - re-syncing to be safe`);
+    console.log(
+      `[WolkeSyncService] Insufficient metadata for comparison (etag: ${!!file.etag}, lastModified: ${!!file.lastModified}) - re-syncing to be safe`
+    );
     return true;
   }
 
@@ -295,7 +305,9 @@ export class WolkeSyncService {
         return { skipped: true, reason: 'up_to_date' };
       }
 
-      console.log(`[WolkeSyncService] File ${file.name} has changed or is new, proceeding with sync`);
+      console.log(
+        `[WolkeSyncService] File ${file.name} has changed or is new, proceeding with sync`
+      );
 
       // Check if file type is supported
       const fileExtension = path.extname(file.name).toLowerCase();
@@ -333,7 +345,9 @@ export class WolkeSyncService {
           extractedText = ocrResult.text;
           await fs.unlink(tempFilePath); // Clean up
         } catch (error) {
-          try { await fs.unlink(tempFilePath); } catch { }
+          try {
+            await fs.unlink(tempFilePath);
+          } catch {}
           throw error;
         }
       } else if (['.txt', '.md'].includes(fileExtension)) {
@@ -348,13 +362,15 @@ export class WolkeSyncService {
         return { skipped: true, reason: 'no_extractable_text' };
       }
 
-      console.log(`[WolkeSyncService] Extracted ${extractedText.length} characters from ${file.name}`);
+      console.log(
+        `[WolkeSyncService] Extracted ${extractedText.length} characters from ${file.name}`
+      );
 
       // Chunk the text
       const chunks = await smartChunkDocument(extractedText, {
         maxTokens: 400,
         overlapTokens: 50,
-        preserveSentences: true
+        preserveSentences: true,
       });
 
       if (chunks.length === 0) {
@@ -363,15 +379,22 @@ export class WolkeSyncService {
       }
 
       // Generate embeddings
-      const texts = chunks.map(chunk => chunk.text);
-      const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(texts, 'search_document');
+      const texts = chunks.map((chunk) => chunk.text);
+      const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
+        texts,
+        'search_document'
+      );
 
       // Generate a short preview for UI lists
       const generateContentPreview = (text: string, limit: number = 600): string => {
         if (!text || typeof text !== 'string') return '';
         if (text.length <= limit) return text;
         const truncated = text.slice(0, limit);
-        const sentenceEnd = Math.max(truncated.lastIndexOf('.'), truncated.lastIndexOf('!'), truncated.lastIndexOf('?'));
+        const sentenceEnd = Math.max(
+          truncated.lastIndexOf('.'),
+          truncated.lastIndexOf('!'),
+          truncated.lastIndexOf('?')
+        );
         if (sentenceEnd > limit * 0.5) return truncated.slice(0, sentenceEnd + 1);
         const lastSpace = truncated.lastIndexOf(' ');
         return lastSpace > limit * 0.6 ? `${truncated.slice(0, lastSpace)}...` : `${truncated}...`;
@@ -388,11 +411,11 @@ export class WolkeSyncService {
         additionalPayload: {
           file_size: file.size,
           last_modified: file.lastModified
-            ? (file.lastModified instanceof Date
+            ? file.lastModified instanceof Date
               ? file.lastModified.toISOString()
-              : new Date(file.lastModified).toISOString())
-            : null
-        }
+              : new Date(file.lastModified).toISOString()
+            : null,
+        },
       };
 
       // If document exists, delete old vectors first
@@ -409,8 +432,8 @@ export class WolkeSyncService {
           lastSyncedAt: new Date(),
           status: 'completed',
           additionalMetadata: {
-            content_preview: contentPreview
-          }
+            content_preview: contentPreview,
+          },
         });
         documentId = existingDoc.id;
       } else {
@@ -424,9 +447,9 @@ export class WolkeSyncService {
           vectorCount: chunks.length,
           fileSize: file.size || 0,
           additionalMetadata: {
-            content_preview: contentPreview
+            content_preview: contentPreview,
           },
-          status: 'completed'
+          status: 'completed',
         });
         documentId = newDoc.id;
       }
@@ -440,16 +463,17 @@ export class WolkeSyncService {
         metadata
       );
 
-      console.log(`[WolkeSyncService] Successfully ${existingDoc ? 'updated' : 'processed new'} file: ${file.name} (${chunks.length} vectors)`);
+      console.log(
+        `[WolkeSyncService] Successfully ${existingDoc ? 'updated' : 'processed new'} file: ${file.name} (${chunks.length} vectors)`
+      );
 
       return {
         success: true,
         documentId,
         filename: file.name,
         vectorsCreated: chunks.length,
-        isUpdate: !!existingDoc
+        isUpdate: !!existingDoc,
       };
-
     } catch (error: any) {
       console.error(`[WolkeSyncService] Error processing file ${file.name}:`, error);
       throw error;
@@ -467,7 +491,9 @@ export class WolkeSyncService {
     try {
       await this.ensureInitialized();
 
-      console.log(`[WolkeSyncService] Starting sync for user ${userId}, share ${shareLinkId}, folder: ${folderPath}`);
+      console.log(
+        `[WolkeSyncService] Starting sync for user ${userId}, share ${shareLinkId}, folder: ${folderPath}`
+      );
 
       // Get or create sync status
       const syncStatus = await this.getOrCreateSyncStatus(userId, shareLinkId, folderPath);
@@ -475,7 +501,7 @@ export class WolkeSyncService {
       // Update status to syncing
       await this.updateSyncStatus(syncStatus.id, {
         syncStatus: 'syncing',
-        lastSyncAt: new Date()
+        lastSyncAt: new Date(),
       });
 
       try {
@@ -507,7 +533,7 @@ export class WolkeSyncService {
             results.push({
               filename: file.name,
               error: error.message,
-              success: false
+              success: false,
             });
           }
         }
@@ -516,10 +542,12 @@ export class WolkeSyncService {
         await this.updateSyncStatus(syncStatus.id, {
           syncStatus: 'completed',
           filesProcessed: processedCount,
-          filesFailed: failedCount
+          filesFailed: failedCount,
         });
 
-        console.log(`[WolkeSyncService] Sync completed: ${processedCount} processed, ${failedCount} failed`);
+        console.log(
+          `[WolkeSyncService] Sync completed: ${processedCount} processed, ${failedCount} failed`
+        );
 
         return {
           success: true,
@@ -527,17 +555,15 @@ export class WolkeSyncService {
           totalFiles: files.length,
           processedFiles: processedCount,
           failedFiles: failedCount,
-          results
+          results,
         };
-
       } catch (error) {
         // Update sync status to failed
         await this.updateSyncStatus(syncStatus.id, {
-          syncStatus: 'failed'
+          syncStatus: 'failed',
         });
         throw error;
       }
-
     } catch (error: any) {
       console.error('[WolkeSyncService] Error syncing folder:', error);
       throw error;
@@ -578,10 +604,12 @@ export class WolkeSyncService {
       const syncStatus = await this.getOrCreateSyncStatus(userId, shareLinkId, folderPath);
 
       await this.updateSyncStatus(syncStatus.id, {
-        auto_sync_enabled: enabled
+        auto_sync_enabled: enabled,
       });
 
-      console.log(`[WolkeSyncService] Auto-sync ${enabled ? 'enabled' : 'disabled'} for sync ${syncStatus.id}`);
+      console.log(
+        `[WolkeSyncService] Auto-sync ${enabled ? 'enabled' : 'disabled'} for sync ${syncStatus.id}`
+      );
 
       return { success: true, autoSyncEnabled: enabled };
     } catch (error: any) {
@@ -637,12 +665,14 @@ export class WolkeSyncService {
       // Delete sync status
       await this.postgres.delete('wolke_sync_status', { id: syncStatus.id });
 
-      console.log(`[WolkeSyncService] Deleted sync folder and ${documents.length} associated documents`);
+      console.log(
+        `[WolkeSyncService] Deleted sync folder and ${documents.length} associated documents`
+      );
 
       return {
         success: true,
         deletedDocuments: documents.length,
-        syncStatusId: syncStatus.id
+        syncStatusId: syncStatus.id,
       };
     } catch (error: any) {
       console.error('[WolkeSyncService] Error deleting sync folder:', error);

@@ -1,41 +1,57 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef, ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { FaArrowLeft, FaEdit } from 'react-icons/fa';
-import useImageStudioStore from '../../../stores/imageStudioStore';
-import { useAutoSaveStore } from '../hooks/useAutoSaveStore';
 import { useShareStore } from '@gruenerator/shared/share';
-import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../utils/typeConfig';
-import { getAlternativePreview, buildPreviewValues } from '../utils/templateResultUtils';
-import { useLightbox } from '../hooks/useLightbox';
-import { useEditPanel } from '../hooks/useEditPanel';
-import { useImageHelpers } from '../hooks/useImageHelpers';
-import { useTemplateResultActions } from '../hooks/useTemplateResultActions';
-import { useTemplateResultAutoSave } from '../hooks/useTemplateResultAutoSave';
-import { useImageGeneration } from '../hooks/useImageGeneration';
-import { Lightbox } from '../components/Lightbox';
-import { EditPanel } from '../components/EditPanel';
-import { TemplateResultActionButtons } from '../components/TemplateResultActionButtons';
-import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
+import { motion } from 'motion/react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, type ChangeEvent } from 'react';
+import { FaArrowLeft, FaEdit } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+
+import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
+import useImageStudioStore from '../../../stores/imageStudioStore';
 import { DreizeilenCanvas } from '../canvas-editor';
 import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
+import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
+import { EditPanel } from '../components/EditPanel';
+import { Lightbox } from '../components/Lightbox';
+import { TemplateResultActionButtons } from '../components/TemplateResultActionButtons';
 import { useAiEditorHistory } from '../hooks/useAiEditorHistory';
-import { Markdown } from '../../../components/common/Markdown';
+import { useAutoSaveStore } from '../hooks/useAutoSaveStore';
+import { useEditPanel } from '../hooks/useEditPanel';
+import { useImageGeneration } from '../hooks/useImageGeneration';
+import { useImageHelpers } from '../hooks/useImageHelpers';
+import { useLightbox } from '../hooks/useLightbox';
+import { useTemplateResultActions } from '../hooks/useTemplateResultActions';
+import { useTemplateResultAutoSave } from '../hooks/useTemplateResultAutoSave';
+import { getAlternativePreview, buildPreviewValues } from '../utils/templateResultUtils';
+import {
+  getTypeConfig,
+  getTemplateFieldConfig,
+  IMAGE_STUDIO_TYPES,
+  FORM_STEPS,
+} from '../utils/typeConfig';
+
 import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
-import type { TemplateResultStepProps, SloganAlternativeWithIndex, SloganAlternative, VeranstaltungFieldFontSizes } from '../types/templateResultTypes';
+import type {
+  TemplateResultStepProps,
+  SloganAlternativeWithIndex,
+  SloganAlternative,
+  VeranstaltungFieldFontSizes,
+} from '../types/templateResultTypes';
 
 const CANVAS_SUPPORTED_TYPES = [
   IMAGE_STUDIO_TYPES.DREIZEILEN,
   IMAGE_STUDIO_TYPES.ZITAT,
   IMAGE_STUDIO_TYPES.ZITAT_PURE,
   IMAGE_STUDIO_TYPES.INFO,
-  IMAGE_STUDIO_TYPES.VERANSTALTUNG
+  IMAGE_STUDIO_TYPES.VERANSTALTUNG,
 ] as const;
 
 import './TemplateResultStep.css';
 
-const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, loading = false, onGoBackToCanvas: _onGoBackToCanvas }) => {
+const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
+  onRegenerate,
+  loading = false,
+  onGoBackToCanvas: _onGoBackToCanvas,
+}) => {
   const navigate = useNavigate();
 
   const {
@@ -44,10 +60,21 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     subcategory,
     thema,
     generatedImageSrc,
-    line1, line2, line3,
-    quote, name,
-    header, subheader, body,
-    eventTitle, beschreibung, weekday, date, time, locationName, address,
+    line1,
+    line2,
+    line3,
+    quote,
+    name,
+    header,
+    subheader,
+    body,
+    eventTitle,
+    beschreibung,
+    weekday,
+    date,
+    time,
+    locationName,
+    address,
     fontSize,
     colorScheme,
     balkenOffset,
@@ -73,7 +100,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     editShareToken,
     editTitle,
     uploadedImage,
-    selectedImage
+    selectedImage,
   } = useImageStudioStore();
 
   const { autoSaveStatus } = useAutoSaveStore();
@@ -88,7 +115,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     openPanel: openEditPanel,
     closePanel: closeEditPanel,
     isAlternativesOpen,
-    setIsAlternativesOpen
+    setIsAlternativesOpen,
   } = useEditPanel();
   const { currentImagePreview, buildShareMetadata, getOriginalImageBase64 } = useImageHelpers();
   const {
@@ -103,7 +130,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     isAltTextLoading,
     generatedPosts,
     socialLoading,
-    hasGeneratedText
+    hasGeneratedText,
   } = useTemplateResultActions();
 
   useTemplateResultAutoSave();
@@ -120,14 +147,21 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   // Default to canvas mode only if we don't have a generated image yet
   const [isCanvasMode, setIsCanvasMode] = useState(!generatedImageSrc);
 
-  const supportsCanvas = useMemo(() =>
-    type ? CANVAS_SUPPORTED_TYPES.includes(type as typeof CANVAS_SUPPORTED_TYPES[number]) : false,
-    [type]);
+  const supportsCanvas = useMemo(
+    () =>
+      type
+        ? CANVAS_SUPPORTED_TYPES.includes(type as (typeof CANVAS_SUPPORTED_TYPES)[number])
+        : false,
+    [type]
+  );
 
-  const handleCanvasExport = useCallback((base64: string) => {
-    updateFormData({ generatedImageSrc: base64 });
-    setIsCanvasMode(false);
-  }, [updateFormData]);
+  const handleCanvasExport = useCallback(
+    (base64: string) => {
+      updateFormData({ generatedImageSrc: base64 });
+      setIsCanvasMode(false);
+    },
+    [updateFormData]
+  );
 
   const handleCanvasCancel = useCallback(() => {
     setIsCanvasMode(false);
@@ -164,7 +198,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
       selectedImage: null,
       generatedImageSrc: null,
       sloganAlternatives: [],
-      searchTerms: []
+      searchTerms: [],
     });
 
     // Get first step from type config
@@ -207,12 +241,14 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
             line2={line2 || ''}
             line3={line3 || ''}
             imageSrc={uploadedImageUrl}
-            alternatives={sloganAlternatives.map((alt, index): DreizeilenAlternative => ({
-              id: `alt-${index}`,
-              line1: alt.line1 || '',
-              line2: alt.line2 || '',
-              line3: alt.line3 || ''
-            }))}
+            alternatives={sloganAlternatives.map(
+              (alt, index): DreizeilenAlternative => ({
+                id: `alt-${index}`,
+                line1: alt.line1 || '',
+                line2: alt.line2 || '',
+                line3: alt.line3 || '',
+              })
+            )}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
           />
@@ -280,24 +316,72 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
         return null;
     }
   }, [
-    type, line1, line2, line3, quote, name, header, body,
-    eventTitle, beschreibung, weekday, date, time, locationName, address,
-    uploadedImageUrl, sloganAlternatives, handleCanvasExport, handleCanvasCancel
+    type,
+    line1,
+    line2,
+    line3,
+    quote,
+    name,
+    header,
+    body,
+    eventTitle,
+    beschreibung,
+    weekday,
+    date,
+    time,
+    locationName,
+    address,
+    uploadedImageUrl,
+    sloganAlternatives,
+    handleCanvasExport,
+    handleCanvasCancel,
   ]);
 
   const stableAlternativesRef = useRef<SloganAlternativeWithIndex[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const previewValues = useMemo(() => buildPreviewValues({
-    line1, line2, line3, quote, header, subheader, body,
-    eventTitle, weekday, date, time, locationName, address
-  }), [line1, line2, line3, quote, header, subheader, body, eventTitle, weekday, date, time, locationName, address]);
+  const previewValues = useMemo(
+    () =>
+      buildPreviewValues({
+        line1,
+        line2,
+        line3,
+        quote,
+        header,
+        subheader,
+        body,
+        eventTitle,
+        weekday,
+        date,
+        time,
+        locationName,
+        address,
+      }),
+    [
+      line1,
+      line2,
+      line3,
+      quote,
+      header,
+      subheader,
+      body,
+      eventTitle,
+      weekday,
+      date,
+      time,
+      locationName,
+      address,
+    ]
+  );
 
   if (stableAlternativesRef.current === null && sloganAlternatives?.length > 0) {
-    stableAlternativesRef.current = sloganAlternatives.map((alt: SloganAlternative, idx: number) => ({
-      ...alt,
-      _index: idx
-    } as unknown as SloganAlternativeWithIndex));
+    stableAlternativesRef.current = sloganAlternatives.map(
+      (alt: SloganAlternative, idx: number) =>
+        ({
+          ...alt,
+          _index: idx,
+        }) as unknown as SloganAlternativeWithIndex
+    );
   }
 
   const displayAlternatives: SloganAlternativeWithIndex[] = stableAlternativesRef.current || [];
@@ -316,8 +400,11 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
 
   useEffect(() => {
     const checkShareCapability = async () => {
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        || (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
+      const isMobile =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) ||
+        (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
 
       if (!isMobile || !navigator.share || !navigator.canShare) {
         setCanNativeShare(false);
@@ -333,48 +420,72 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     checkShareCapability();
   }, []);
 
-  const handleSloganSwitch = useCallback((selected: SloganAlternative, alternativeIndex: number) => {
-    cacheSloganImage(currentAlternativeIndex, generatedImageSrc);
-    const cachedImage = getCachedSloganImage(alternativeIndex);
-    handleSloganSelect(selected);
-    setCurrentAlternativeIndex(alternativeIndex);
+  const handleSloganSwitch = useCallback(
+    (selected: SloganAlternative, alternativeIndex: number) => {
+      cacheSloganImage(currentAlternativeIndex, generatedImageSrc);
+      const cachedImage = getCachedSloganImage(alternativeIndex);
+      handleSloganSelect(selected);
+      setCurrentAlternativeIndex(alternativeIndex);
 
-    if (cachedImage) {
-      updateFormData({ generatedImageSrc: cachedImage });
-    } else {
-      onRegenerate();
-    }
-    setIsAlternativesOpen(false);
-  }, [cacheSloganImage, getCachedSloganImage, handleSloganSelect, setCurrentAlternativeIndex,
-    currentAlternativeIndex, generatedImageSrc, updateFormData, onRegenerate, setIsAlternativesOpen]);
+      if (cachedImage) {
+        updateFormData({ generatedImageSrc: cachedImage });
+      } else {
+        onRegenerate();
+      }
+      setIsAlternativesOpen(false);
+    },
+    [
+      cacheSloganImage,
+      getCachedSloganImage,
+      handleSloganSelect,
+      setCurrentAlternativeIndex,
+      currentAlternativeIndex,
+      generatedImageSrc,
+      updateFormData,
+      onRegenerate,
+      setIsAlternativesOpen,
+    ]
+  );
 
-  const handleControlChange = useCallback((controlName: string, value: unknown) => {
-    updateFormData({ [controlName]: value });
-  }, [updateFormData]);
+  const handleControlChange = useCallback(
+    (controlName: string, value: unknown) => {
+      updateFormData({ [controlName]: value });
+    },
+    [updateFormData]
+  );
 
-  const handleFieldFontSizeChange = useCallback((fieldName: string, value: number) => {
-    updateFieldFontSize(fieldName as keyof VeranstaltungFieldFontSizes, value);
-  }, [updateFieldFontSize]);
+  const handleFieldFontSizeChange = useCallback(
+    (fieldName: string, value: number) => {
+      updateFieldFontSize(fieldName as keyof VeranstaltungFieldFontSizes, value);
+    },
+    [updateFieldFontSize]
+  );
 
-  const handleTextFieldChange = useCallback((e: { target: { name: string; value: string } }) => {
-    handleChange(e as React.ChangeEvent<HTMLInputElement>);
-  }, [handleChange]);
+  const handleTextFieldChange = useCallback(
+    (e: { target: { name: string; value: string } }) => {
+      handleChange(e as React.ChangeEvent<HTMLInputElement>);
+    },
+    [handleChange]
+  );
 
-  const handleImageChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      alert('Bitte nur JPEG, PNG oder WebP Bilder hochladen.');
-      return;
-    }
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        alert('Bitte nur JPEG, PNG oder WebP Bilder hochladen.');
+        return;
+      }
 
-    updateFormData({
-      uploadedImage: file,
-      selectedImage: null
-    });
-  }, [updateFormData]);
+      updateFormData({
+        uploadedImage: file,
+        selectedImage: null,
+      });
+    },
+    [updateFormData]
+  );
 
   const handleGenerateAlternatives = useCallback(async () => {
     if (!type) return;
@@ -382,10 +493,13 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     const result = await generateAlternatives(type, { thema, name, quote });
     if (result?.alternatives && result.alternatives.length > 0) {
       setSloganAlternatives(result.alternatives);
-      stableAlternativesRef.current = result.alternatives.map((alt, idx) => ({
-        ...alt,
-        _index: idx
-      } as unknown as SloganAlternativeWithIndex));
+      stableAlternativesRef.current = result.alternatives.map(
+        (alt, idx) =>
+          ({
+            ...alt,
+            _index: idx,
+          }) as unknown as SloganAlternativeWithIndex
+      );
     }
   }, [type, thema, name, quote, generateAlternatives, setSloganAlternatives]);
 
@@ -470,7 +584,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
         </motion.div>
 
         <motion.div
-          className={`image-result-info ${(altText || generatedPosts?.instagram) ? 'image-result-info--has-text' : ''}`}
+          className={`image-result-info ${altText || generatedPosts?.instagram ? 'image-result-info--has-text' : ''}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.3 }}
@@ -522,12 +636,20 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
           {(altText || generatedPosts?.instagram) && (
             <div className="image-result-info__generated">
               {altText && (
-                <motion.div className="alt-text-result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div
+                  className="alt-text-result"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
                   <strong>Alt-Text:</strong> {altText}
                 </motion.div>
               )}
               {generatedPosts?.instagram && (
-                <motion.div className="social-text-result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div
+                  className="social-text-result"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
                   <h3>Dein Instagram Post:</h3>
                   <div className="markdown-content">
                     <Markdown fallback={<div>Laden...</div>}>{generatedPosts.instagram}</Markdown>
@@ -586,7 +708,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
           image: generatedImageSrc || undefined,
           type: (typeConfig?.legacyType || type) ?? undefined,
           metadata: buildShareMetadata() as Record<string, unknown>,
-          originalImage: uploadedImage || selectedImage ? 'pending' : undefined
+          originalImage: uploadedImage || selectedImage ? 'pending' : undefined,
         }}
         defaultTitle={typeConfig?.label || 'Sharepic'}
         getOriginalImage={async () => (await getOriginalImageBase64()) ?? undefined}

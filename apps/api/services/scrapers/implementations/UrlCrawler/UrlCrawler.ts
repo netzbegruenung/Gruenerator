@@ -23,7 +23,8 @@ export class UrlCrawler {
       maxRetries: 3,
       timeout: 15000,
       maxContentLength: 10 * 1024 * 1024, // 10MB
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       usePersistentStorage: false,
     };
 
@@ -68,7 +69,10 @@ export class UrlCrawler {
           statusCode = result.statusCode;
           console.log(`[UrlCrawler] Successfully crawled with Crawlee: ${url}`);
         } catch (crawleeError) {
-          console.log(`[UrlCrawler] Crawlee failed for ${url}, falling back to fetch:`, crawleeError instanceof Error ? crawleeError.message : 'Unknown error');
+          console.log(
+            `[UrlCrawler] Crawlee failed for ${url}, falling back to fetch:`,
+            crawleeError instanceof Error ? crawleeError.message : 'Unknown error'
+          );
 
           if (this.config.crawlerMode === 'crawlee') {
             // If explicitly using Crawlee, don't fallback
@@ -92,19 +96,29 @@ export class UrlCrawler {
       }
 
       // Extract content using Cheerio
-      const contentData = this.contentExtractor.extractContent(html, finalUrl, options.enhancedMetadata);
+      const contentData = this.contentExtractor.extractContent(
+        html,
+        finalUrl,
+        options.enhancedMetadata
+      );
 
       // Validate extracted content with better error messages
       if (!contentData.content || contentData.content.trim().length === 0) {
-        throw new Error('No content could be extracted from the page. The page might be empty or require JavaScript.');
+        throw new Error(
+          'No content could be extracted from the page. The page might be empty or require JavaScript.'
+        );
       }
 
       if (contentData.content.trim().length < 50) {
-        console.warn(`[UrlCrawler] Low content extraction for ${url}: ${contentData.wordCount} words, source: ${contentData.contentSource}`);
+        console.warn(
+          `[UrlCrawler] Low content extraction for ${url}: ${contentData.wordCount} words, source: ${contentData.contentSource}`
+        );
 
         // Allow very short content but warn about it
         if (contentData.wordCount < 10) {
-          throw new Error(`Insufficient content extracted: only ${contentData.wordCount} words found. The page might require JavaScript or have restricted access.`);
+          throw new Error(
+            `Insufficient content extracted: only ${contentData.wordCount} words found. The page might require JavaScript or have restricted access.`
+          );
         }
       }
 
@@ -131,7 +145,10 @@ export class UrlCrawler {
   /**
    * Simple fetch method to get HTML content from a URL
    */
-  async fetchUrl(url: string, options: CrawlOptions = {}): Promise<{ html: string; finalUrl: string; statusCode: number }> {
+  async fetchUrl(
+    url: string,
+    options: CrawlOptions = {}
+  ): Promise<{ html: string; finalUrl: string; statusCode: number }> {
     const sanitizedUrl = UrlValidator.sanitizeUrl(url);
     const validation = await UrlValidator.validateUrl(sanitizedUrl);
     if (!validation.isValid) {

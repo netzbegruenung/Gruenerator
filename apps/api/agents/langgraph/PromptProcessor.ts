@@ -21,9 +21,12 @@ import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   HTML_FORMATTING_INSTRUCTIONS,
   TITLE_GENERATION_INSTRUCTION,
-  PLATFORM_SPECIFIC_GUIDELINES
+  PLATFORM_SPECIFIC_GUIDELINES,
 } from '../../utils/prompt/index.js';
-import { localizePromptObject, extractLocaleFromRequest } from '../../services/localization/index.js';
+import {
+  localizePromptObject,
+  extractLocaleFromRequest,
+} from '../../services/localization/index.js';
 
 // Import types
 import type {
@@ -33,7 +36,7 @@ import type {
   AIOptions,
   AssembledPrompt,
   TemplateContext,
-  ProcessingResult
+  ProcessingResult,
 } from './types/index.js';
 
 /**
@@ -135,14 +138,16 @@ export class SimpleTemplateEngine {
    */
   static buildPlatformLimits(platforms: string[]): string {
     if (!Array.isArray(platforms)) return '';
-    const limits = platforms.map(p => {
-      const guidelines = PLATFORM_SPECIFIC_GUIDELINES[p];
-      if (guidelines?.maxLength && guidelines.maxLength <= 300) {
-        const name = p.charAt(0).toUpperCase() + p.slice(1);
-        return `${name}: Max. ${guidelines.maxLength} Zeichen`;
-      }
-      return '';
-    }).filter(Boolean);
+    const limits = platforms
+      .map((p) => {
+        const guidelines = PLATFORM_SPECIFIC_GUIDELINES[p];
+        if (guidelines?.maxLength && guidelines.maxLength <= 300) {
+          const name = p.charAt(0).toUpperCase() + p.slice(1);
+          return `${name}: Max. ${guidelines.maxLength} Zeichen`;
+        }
+        return '';
+      })
+      .filter(Boolean);
     return limits.length > 0 ? limits.join(', ') : '';
   }
 
@@ -153,11 +158,13 @@ export class SimpleTemplateEngine {
    */
   static buildPlatformGuidelines(platforms: string[]): string {
     if (!Array.isArray(platforms)) return '';
-    return platforms.map(platform => {
-      const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform];
-      if (!guidelines) return '';
-      return `${platform.toUpperCase()}: Maximale Länge: ${guidelines.maxLength} Zeichen. Stil: ${guidelines.style} Fokus: ${guidelines.focus} Zusätzliche Richtlinien: ${guidelines.additionalGuidelines}`;
-    }).join('\n');
+    return platforms
+      .map((platform) => {
+        const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform];
+        if (!guidelines) return '';
+        return `${platform.toUpperCase()}: Maximale Länge: ${guidelines.maxLength} Zeichen. Stil: ${guidelines.style} Fokus: ${guidelines.focus} Zusätzliche Richtlinien: ${guidelines.additionalGuidelines}`;
+      })
+      .join('\n');
   }
 
   /**
@@ -168,7 +175,9 @@ export class SimpleTemplateEngine {
    */
   static getRequestTypeText(requestType: string, config: PromptConfig): string {
     if (!config?.requestTypeMapping) return requestType;
-    return config.requestTypeMapping[requestType] || config.requestTypeMapping.default || requestType;
+    return (
+      config.requestTypeMapping[requestType] || config.requestTypeMapping.default || requestType
+    );
   }
 }
 
@@ -252,10 +261,11 @@ function validateRequest(requestBody: any, config: PromptConfig): string | null 
  * @returns Modified request data
  */
 async function applyProfileDefaults(requestData: any, req: any, type: string): Promise<any> {
-  if (type === 'social' &&
-      requestData.platforms?.includes('pressemitteilung') &&
-      !requestData.zitatgeber) {
-
+  if (
+    type === 'social' &&
+    requestData.platforms?.includes('pressemitteilung') &&
+    !requestData.zitatgeber
+  ) {
     if (req?.user?.id) {
       try {
         const { getProfileService } = await import('../../services/user/index.js');
@@ -264,11 +274,17 @@ async function applyProfileDefaults(requestData: any, req: any, type: string): P
 
         if (profile?.display_name) {
           requestData.zitatgeber = profile.display_name;
-          console.log('[promptProcessor] Applied default zitatgeber from profile:', profile.display_name);
+          console.log(
+            '[promptProcessor] Applied default zitatgeber from profile:',
+            profile.display_name
+          );
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn('[promptProcessor] Could not fetch profile for default zitatgeber:', errorMessage);
+        console.warn(
+          '[promptProcessor] Could not fetch profile for default zitatgeber:',
+          errorMessage
+        );
       }
     }
   }
@@ -282,7 +298,11 @@ async function applyProfileDefaults(requestData: any, req: any, type: string): P
  * @param generatorData - Custom generator data (if applicable)
  * @returns Built system role string
  */
-export function buildSystemRole(config: PromptConfig, requestData: any, generatorData: any = null): string {
+export function buildSystemRole(
+  config: PromptConfig,
+  requestData: any,
+  generatorData: any = null
+): string {
   // Handle sharepic multi-type case
   if (config.types) {
     const type = requestData.type || requestData.sharepicType || 'dreizeilen';
@@ -291,7 +311,9 @@ export function buildSystemRole(config: PromptConfig, requestData: any, generato
       return typeConfig.systemRole;
     }
     // If we have types config but type not found, throw descriptive error
-    throw new Error(`Configuration error: Type '${type}' not found in types configuration. Available types: ${Object.keys(config.types).join(', ')}`);
+    throw new Error(
+      `Configuration error: Type '${type}' not found in types configuration. Available types: ${Object.keys(config.types).join(', ')}`
+    );
   }
 
   let systemRole = generatorData?.prompt || config.systemRole;
@@ -329,14 +351,18 @@ export function buildSystemRole(config: PromptConfig, requestData: any, generato
  * @param generatorData - Custom generator data (if applicable)
  * @returns Built request content
  */
-export function buildRequestContent(config: PromptConfig, requestData: any, generatorData: any = null): any {
+export function buildRequestContent(
+  config: PromptConfig,
+  requestData: any,
+  generatorData: any = null
+): any {
   const { customPrompt } = requestData;
 
   if (customPrompt) {
     if (config.customPromptTemplate) {
       return SimpleTemplateEngine.render(JSON.stringify(config.customPromptTemplate), {
         ...requestData,
-        config
+        config,
       });
     } else {
       return requestData; // Return structured data for custom prompts
@@ -380,7 +406,7 @@ export function buildRequestContent(config: PromptConfig, requestData: any, gene
     if (typeConfig?.requestTemplate) {
       return SimpleTemplateEngine.render(typeConfig.requestTemplate, {
         ...requestData,
-        config
+        config,
       });
     }
   }
@@ -391,7 +417,7 @@ export function buildRequestContent(config: PromptConfig, requestData: any, gene
   }
   return SimpleTemplateEngine.render(config.requestTemplate, {
     ...requestData,
-    config
+    config,
   });
 }
 
@@ -442,7 +468,8 @@ export function buildPlatformGuidelines(config: PromptConfig, requestData: any):
       const guidelines: string[] = [];
       if (platformConfig.style) guidelines.push(`Stil: ${platformConfig.style}`);
       if (platformConfig.focus) guidelines.push(`Fokus: ${platformConfig.focus}`);
-      if (platformConfig.additionalGuidelines) guidelines.push(`Zusätzliche Richtlinien:\n${platformConfig.additionalGuidelines}`);
+      if (platformConfig.additionalGuidelines)
+        guidelines.push(`Zusätzliche Richtlinien:\n${platformConfig.additionalGuidelines}`);
 
       if (guidelines.length > 0) {
         const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
@@ -465,10 +492,12 @@ export function getTaskInstructions(config: PromptConfig, requestData: any): str
 
   // Add base task instructions
   if (config.taskInstructions) {
-    parts.push(SimpleTemplateEngine.render(config.taskInstructions, {
-      ...requestData,
-      config
-    }));
+    parts.push(
+      SimpleTemplateEngine.render(config.taskInstructions, {
+        ...requestData,
+        config,
+      })
+    );
   }
 
   // Add platform-specific guidelines
@@ -490,7 +519,7 @@ function getOutputFormat(config: PromptConfig, requestData: any): string | null 
   if (!config.outputFormat) return null;
   return SimpleTemplateEngine.render(config.outputFormat, {
     ...requestData,
-    config
+    config,
   });
 }
 
@@ -527,7 +556,11 @@ export function buildConstraints(config: PromptConfig, requestData: any): string
  * @param typeConfig - Type-specific configuration (if applicable)
  * @returns AI options object
  */
-export function getAIOptions(config: PromptConfig, requestData: any, typeConfig: any = null): AIOptions {
+export function getAIOptions(
+  config: PromptConfig,
+  requestData: any,
+  typeConfig: any = null
+): AIOptions {
   // For sharepic multi-type, get type-specific options
   if (config.types && !typeConfig) {
     const type = requestData.type || requestData.sharepicType || 'dreizeilen';
@@ -578,7 +611,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       selectedTextIds,
       searchQuery,
       useAutomaticSearch,
-      useNotebookEnrich
+      useNotebookEnrich,
     } = requestData;
 
     // Handle structured customPrompt from frontend
@@ -593,7 +626,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       console.log('[promptProcessor] Detected structured customPrompt:', {
         hasInstructions: !!extractedInstructions,
         hasKnowledge: !!extractedKnowledgeContent,
-        knowledgeLength: extractedKnowledgeContent ? extractedKnowledgeContent.length : 0
+        knowledgeLength: extractedKnowledgeContent ? extractedKnowledgeContent.length : 0,
       });
     }
 
@@ -608,7 +641,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       hasSelectedTexts: !!(selectedTextIds && selectedTextIds.length > 0),
       hasSearchQuery: !!searchQuery,
       useAutomaticSearch: useAutomaticSearch || false,
-      hasOtherData: Object.keys(requestData).length
+      hasOtherData: Object.keys(requestData).length,
     });
 
     // Route to PR Agent if "automatisch" platform detected
@@ -684,7 +717,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       provider,
       aiWorkerPool: req.app.locals.aiWorkerPool,
       req,
-      enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false
+      enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
     });
 
     // Update request content in enriched state (preserve original request with platforms)
@@ -716,21 +749,24 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       options: {
         ...aiOptions,
         ...(promptResult.tools?.length > 0 && { tools: promptResult.tools }),
-        ...(enrichedState.enrichmentMetadata?.enableDocQnA ? { useDocumentQnA: true } : {})
+        ...(enrichedState.enrichmentMetadata?.enableDocQnA ? { useDocumentQnA: true } : {}),
       },
       metadata: {
         webSearchSources: enrichedState.enrichmentMetadata?.webSearchSources || null,
-        platforms: requestData.platforms || null
-      }
+        platforms: requestData.platforms || null,
+      },
     };
 
     // Process AI request
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: routeType,
-      usePrivacyMode: usePrivacyMode || false,
-      useBedrock: requestData.useBedrock || false,
-      ...payload
-    }, req);
+    const result = await req.app.locals.aiWorkerPool.processRequest(
+      {
+        type: routeType,
+        usePrivacyMode: usePrivacyMode || false,
+        useBedrock: requestData.useBedrock || false,
+        ...payload,
+      },
+      req
+    );
 
     if (!result.success) {
       console.error(`[promptProcessor] AI Worker error for ${routeType}:`, result.error);
@@ -740,7 +776,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
         generationType: routeType,
         platform: requestData.platforms?.[0] || null,
         tokensUsed: null,
-        success: false
+        success: false,
       });
       throw new Error(result.error);
     }
@@ -751,7 +787,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
       tokensUsed: result.usage?.total_tokens || null,
-      success: true
+      success: true,
     });
 
     // Cache enriched context for future edit requests
@@ -767,17 +803,20 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
             platforms: requestData.platforms || [],
             theme: requestData.theme || requestData.thema || requestData.details || null,
             urlsScraped: enrichedState.enrichmentMetadata?.urlsProcessed || [],
-            documentsUsed: enrichedState.documents?.filter((d: any) =>
-              d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
-            ).map((d: any) => ({
-              title: d.source.metadata?.title || 'Document',
-              url: d.source.metadata?.url || null
-            })) || [],
+            documentsUsed:
+              enrichedState.documents
+                ?.filter(
+                  (d: any) => d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
+                )
+                .map((d: any) => ({
+                  title: d.source.metadata?.title || 'Document',
+                  url: d.source.metadata?.url || null,
+                })) || [],
             docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
             vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
-            webSearchUsed: (enrichedState.enrichmentMetadata?.webSearchSources?.length ?? 0) > 0
+            webSearchUsed: (enrichedState.enrichmentMetadata?.webSearchSources?.length ?? 0) > 0,
           },
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
 
         // Cache for 1 hour
@@ -801,23 +840,23 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       autoSelectedDocuments: enrichedState.enrichmentMetadata?.autoSelectedDocuments || [],
       notebookEnrichUsed: enrichedState.enrichmentMetadata?.notebookEnrichUsed || false,
       sources: [
-        ...((enrichedState.enrichmentMetadata?.urlsProcessed || []).map((url: string) => ({
+        ...(enrichedState.enrichmentMetadata?.urlsProcessed || []).map((url: string) => ({
           type: 'url',
           title: 'Gescrapte Website',
-          url: url
-        }))),
-        ...((enrichedState.enrichmentMetadata?.webSearchSources || []).map((source: any) => ({
+          url: url,
+        })),
+        ...(enrichedState.enrichmentMetadata?.webSearchSources || []).map((source: any) => ({
           type: 'websearch',
           title: source.title || source.url,
-          url: source.url
-        }))),
-        ...((enrichedState.enrichmentMetadata?.autoSelectedDocuments || []).map((doc: any) => ({
+          url: source.url,
+        })),
+        ...(enrichedState.enrichmentMetadata?.autoSelectedDocuments || []).map((doc: any) => ({
           type: 'auto-document',
           title: doc.title,
           filename: doc.filename,
-          relevance: doc.relevance_percent
-        })))
-      ]
+          relevance: doc.relevance_percent,
+        })),
+      ],
     };
 
     // Send standardized success response
@@ -832,13 +871,12 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
           count: enrichedState.documents.length,
           totalSizeMB: 0,
           types: [],
-          files: []
+          files: [],
         },
-        enrichmentSummary
+        enrichmentSummary,
       },
       usePrivacyMode,
       provider
     );
-
   }, `/${routeType}`)(req, res, () => {});
 }

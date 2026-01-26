@@ -6,7 +6,10 @@
 // Middlewares (for future store implementations)
 export { localStorageMiddleware, loadFromLocalStorage } from './middlewares/localStorageMiddleware';
 export { apiCheckMiddleware, createApiValidationConfig } from './middlewares/apiCheckMiddleware';
-export { crossTabSyncMiddleware, createCrossTabSyncConfig } from './middlewares/crossTabSyncMiddleware';
+export {
+  crossTabSyncMiddleware,
+  createCrossTabSyncConfig,
+} from './middlewares/crossTabSyncMiddleware';
 
 // Test Components
 // export { default as BetaFeaturesMigrationTest } from '../components/test/BetaFeaturesMigrationTest'; // Component not found
@@ -29,4 +32,3 @@ export {
   useCanvasHistory,
 } from './canvasEditorStore';
 export { canvasRefRegistry, CanvasRefRegistry } from './canvasEditorRefs';
-

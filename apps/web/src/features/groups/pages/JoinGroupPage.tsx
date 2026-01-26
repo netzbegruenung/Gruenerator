@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+
 import Spinner from '../../../components/common/Spinner';
-import { useGroups } from '../hooks/useGroups';
 import apiClient from '../../../components/utils/apiClient';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useGroups } from '../hooks/useGroups';
 
 // Groups Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/groups/groups.css';
@@ -16,13 +17,8 @@ const JoinGroupPage = () => {
   const [groupName, setGroupName] = useState('');
   const [status, setStatus] = useState('loading'); // loading, error, success, already_member
 
-  const {
-    joinGroup,
-    isJoiningGroup,
-    isJoinGroupError,
-    joinGroupError,
-    isJoinGroupSuccess
-  } = useGroups({ isActive: true });
+  const { joinGroup, isJoiningGroup, isJoinGroupError, joinGroupError, isJoinGroupSuccess } =
+    useGroups({ isActive: true });
 
   // Verify token and fetch group info
   useEffect(() => {
@@ -37,7 +33,7 @@ const JoinGroupPage = () => {
         const data = response.data;
 
         if (!data.success) {
-          throw new Error(data.message || "Ungültiger Einladungslink");
+          throw new Error(data.message || 'Ungültiger Einladungslink');
         }
 
         if (isMounted) {
@@ -50,7 +46,7 @@ const JoinGroupPage = () => {
           }
         }
       } catch (error) {
-        console.error("Error verifying token:", error);
+        console.error('Error verifying token:', error);
         if (isMounted) {
           setStatus('error');
         }
@@ -58,7 +54,9 @@ const JoinGroupPage = () => {
     };
 
     verifyToken();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [joinToken, supabaseUser, isLoading, isAuthResolved]);
 
   // Handle Join Button Click
@@ -77,7 +75,7 @@ const JoinGroupPage = () => {
       },
       onError: () => {
         setStatus('error');
-      }
+      },
     });
   };
 
@@ -89,7 +87,9 @@ const JoinGroupPage = () => {
           <h1>Gruppe beitreten</h1>
           <p>Du musst angemeldet sein, um einer Gruppe beizutreten.</p>
           <div className="join-group-actions">
-            <Link to="/login" className="button primary">Zum Login</Link>
+            <Link to="/login" className="button primary">
+              Zum Login
+            </Link>
           </div>
         </div>
       </div>
@@ -122,7 +122,9 @@ const JoinGroupPage = () => {
               : 'Ungültiger oder abgelaufener Einladungslink.'}
           </p>
           <div className="join-group-actions">
-            <Link to="/profile" className="button secondary">Zurück zum Profil</Link>
+            <Link to="/profile" className="button secondary">
+              Zurück zum Profil
+            </Link>
           </div>
         </div>
       </div>
@@ -137,7 +139,9 @@ const JoinGroupPage = () => {
           <h1>Bereits Mitglied</h1>
           <p>Du bist bereits Mitglied der Gruppe "{groupName}".</p>
           <div className="join-group-actions">
-            <Link to="/profile" className="button primary">Zum Profil</Link>
+            <Link to="/profile" className="button primary">
+              Zum Profil
+            </Link>
           </div>
         </div>
       </div>
@@ -153,7 +157,9 @@ const JoinGroupPage = () => {
           <p>Du bist der Gruppe "{groupName}" erfolgreich beigetreten.</p>
           <p>Du wirst in wenigen Sekunden weitergeleitet...</p>
           <div className="join-group-actions">
-            <Link to="/profile" className="button primary">Zum Profil</Link>
+            <Link to="/profile" className="button primary">
+              Zum Profil
+            </Link>
           </div>
         </div>
       </div>
@@ -168,11 +174,7 @@ const JoinGroupPage = () => {
         <p>Du wurdest eingeladen, der Gruppe "{groupName}" beizutreten.</p>
         <p>Als Mitglied kannst du auf gemeinsame Anweisungen und Wissen zugreifen.</p>
         <div className="join-group-actions">
-          <button
-            onClick={() => navigate('/profile')}
-            className="button secondary"
-            type="button"
-          >
+          <button onClick={() => navigate('/profile')} className="button secondary" type="button">
             Abbrechen
           </button>
           <button

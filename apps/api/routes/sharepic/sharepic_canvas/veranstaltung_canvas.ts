@@ -1,4 +1,10 @@
-import { createCanvas, loadImage, type Canvas, type SKRSContext2D as CanvasRenderingContext2D, type Image } from '@napi-rs/canvas';
+import {
+  createCanvas,
+  loadImage,
+  type Canvas,
+  type SKRSContext2D as CanvasRenderingContext2D,
+  type Image,
+} from '@napi-rs/canvas';
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -6,7 +12,10 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import {
+  optimizeCanvasBuffer,
+  bufferToBase64,
+} from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('veranstaltung_canvas');
@@ -29,7 +38,7 @@ const GREEN_SECTION_HEIGHT = CANVAS_HEIGHT - PHOTO_HEIGHT;
 const CIRCLE_RADIUS = 200;
 const CIRCLE_CENTER_X = CANVAS_WIDTH - CIRCLE_RADIUS + 50;
 const CIRCLE_CENTER_Y = PHOTO_HEIGHT + 334;
-const CIRCLE_TEXT_ROTATION = -10 * Math.PI / 180;
+const CIRCLE_TEXT_ROTATION = (-10 * Math.PI) / 180;
 
 const TEXT_LEFT_MARGIN = 55;
 const TEXT_MAX_WIDTH = 620;
@@ -178,7 +187,7 @@ function drawEventText(
   ctx.font = `italic bold ${scaledFontSizes.eventTitle}px GrueneTypeNeue`;
   ctx.fillStyle = '#FFFFFF';
   const titleLines = wrapText(ctx, eventTitle.toUpperCase(), TEXT_MAX_WIDTH);
-  titleLines.forEach(line => {
+  titleLines.forEach((line) => {
     ctx.fillText(line, TEXT_LEFT_MARGIN, currentY);
     currentY += scaledFontSizes.titleLineHeight;
   });
@@ -225,7 +234,9 @@ function drawLocationFooter(
   ctx.font = `${scaledFontSizes.locationName}px PTSans-Regular`;
   ctx.fillText(locationName, TEXT_LEFT_MARGIN, footerY);
 
-  const lineHeight = Math.round(Math.max(scaledFontSizes.locationName, scaledFontSizes.address) * 1.2);
+  const lineHeight = Math.round(
+    Math.max(scaledFontSizes.locationName, scaledFontSizes.address) * 1.2
+  );
   ctx.font = `${scaledFontSizes.address}px PTSans-Regular`;
   ctx.fillText(address, TEXT_LEFT_MARGIN, footerY + lineHeight);
 }
@@ -249,7 +260,7 @@ async function createVeranstaltungImage(
     fontSizeDate = 55,
     fontSizeTime = 55,
     fontSizeLocationName = 42,
-    fontSizeAddress = 42
+    fontSizeAddress = 42,
   } = params;
 
   const scaledFontSizes: ScaledFontSizes = {
@@ -260,7 +271,7 @@ async function createVeranstaltungImage(
     circleTime: fontSizeTime,
     locationName: fontSizeLocationName,
     address: fontSizeAddress,
-    titleLineHeight: Math.round(fontSizeEventTitle * 1.08)
+    titleLineHeight: Math.round(fontSizeEventTitle * 1.08),
   };
 
   const image = await loadImage(imagePath);
@@ -279,77 +290,86 @@ async function createVeranstaltungImage(
   log.debug('Veranstaltungs-Sharepic erstellt:', outputPath);
 }
 
-router.post('/', upload.single('image'), async (req: MulterRequest, res: Response): Promise<void> => {
-  let outputImagePath: string | undefined;
-  try {
-    const {
-      eventTitle,
-      beschreibung,
-      weekday,
-      date,
-      time,
-      locationName,
-      address,
-      fontSizeEventTitle,
-      fontSizeBeschreibung,
-      fontSizeWeekday,
-      fontSizeDate,
-      fontSizeTime,
-      fontSizeLocationName,
-      fontSizeAddress
-    } = req.body as VeranstaltungRequestBody;
+router.post(
+  '/',
+  upload.single('image'),
+  async (req: MulterRequest, res: Response): Promise<void> => {
+    let outputImagePath: string | undefined;
+    try {
+      const {
+        eventTitle,
+        beschreibung,
+        weekday,
+        date,
+        time,
+        locationName,
+        address,
+        fontSizeEventTitle,
+        fontSizeBeschreibung,
+        fontSizeWeekday,
+        fontSizeDate,
+        fontSizeTime,
+        fontSizeLocationName,
+        fontSizeAddress,
+      } = req.body as VeranstaltungRequestBody;
 
-    if (!eventTitle) throw new Error('Event-Titel ist erforderlich');
-    if (!weekday) throw new Error('Wochentag ist erforderlich');
-    if (!date) throw new Error('Datum ist erforderlich');
-    if (!time) throw new Error('Uhrzeit ist erforderlich');
-    if (!locationName) throw new Error('Veranstaltungsort ist erforderlich');
-    if (!address) throw new Error('Adresse ist erforderlich');
-    if (!req.file) throw new Error('Bild ist erforderlich');
+      if (!eventTitle) throw new Error('Event-Titel ist erforderlich');
+      if (!weekday) throw new Error('Wochentag ist erforderlich');
+      if (!date) throw new Error('Datum ist erforderlich');
+      if (!time) throw new Error('Uhrzeit ist erforderlich');
+      if (!locationName) throw new Error('Veranstaltungsort ist erforderlich');
+      if (!address) throw new Error('Adresse ist erforderlich');
+      if (!req.file) throw new Error('Bild ist erforderlich');
 
-    const imagePath = req.file.path;
-    outputImagePath = path.join('uploads', `veranstaltung-${uuidv4()}.png`);
+      const imagePath = req.file.path;
+      outputImagePath = path.join('uploads', `veranstaltung-${uuidv4()}.png`);
 
-    const clampFontSize = (val: string | undefined, defaultVal: number, min: number, max: number): number =>
-      Math.max(min, Math.min(max, parseInt(val || String(defaultVal), 10) || defaultVal));
+      const clampFontSize = (
+        val: string | undefined,
+        defaultVal: number,
+        min: number,
+        max: number
+      ): number =>
+        Math.max(min, Math.min(max, parseInt(val || String(defaultVal), 10) || defaultVal));
 
-    await createVeranstaltungImage(imagePath, outputImagePath, {
-      eventTitle,
-      beschreibung: beschreibung || '',
-      weekday,
-      date,
-      time,
-      locationName,
-      address,
-      fontSizeEventTitle: clampFontSize(fontSizeEventTitle, 94, 66, 122),
-      fontSizeBeschreibung: clampFontSize(fontSizeBeschreibung, 62, 40, 80),
-      fontSizeWeekday: clampFontSize(fontSizeWeekday, 57, 40, 74),
-      fontSizeDate: clampFontSize(fontSizeDate, 55, 39, 72),
-      fontSizeTime: clampFontSize(fontSizeTime, 55, 39, 72),
-      fontSizeLocationName: clampFontSize(fontSizeLocationName, 42, 29, 55),
-      fontSizeAddress: clampFontSize(fontSizeAddress, 42, 29, 55)
-    });
-
-    const imageBuffer = fs.readFileSync(outputImagePath);
-    const base64Image = bufferToBase64(imageBuffer);
-
-    res.json({ image: base64Image });
-  } catch (err) {
-    const error = err as Error;
-    log.error('Fehler bei der Veranstaltungs-Sharepic-Erstellung:', error);
-    res.status(500).send('Fehler beim Erstellen des Bildes: ' + error.message);
-  } finally {
-    if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
+      await createVeranstaltungImage(imagePath, outputImagePath, {
+        eventTitle,
+        beschreibung: beschreibung || '',
+        weekday,
+        date,
+        time,
+        locationName,
+        address,
+        fontSizeEventTitle: clampFontSize(fontSizeEventTitle, 94, 66, 122),
+        fontSizeBeschreibung: clampFontSize(fontSizeBeschreibung, 62, 40, 80),
+        fontSizeWeekday: clampFontSize(fontSizeWeekday, 57, 40, 74),
+        fontSizeDate: clampFontSize(fontSizeDate, 55, 39, 72),
+        fontSizeTime: clampFontSize(fontSizeTime, 55, 39, 72),
+        fontSizeLocationName: clampFontSize(fontSizeLocationName, 42, 29, 55),
+        fontSizeAddress: clampFontSize(fontSizeAddress, 42, 29, 55),
       });
-    }
-    if (outputImagePath) {
-      fs.unlink(outputImagePath, (err) => {
-        if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
-      });
+
+      const imageBuffer = fs.readFileSync(outputImagePath);
+      const base64Image = bufferToBase64(imageBuffer);
+
+      res.json({ image: base64Image });
+    } catch (err) {
+      const error = err as Error;
+      log.error('Fehler bei der Veranstaltungs-Sharepic-Erstellung:', error);
+      res.status(500).send('Fehler beim Erstellen des Bildes: ' + error.message);
+    } finally {
+      if (req.file) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
+        });
+      }
+      if (outputImagePath) {
+        fs.unlink(outputImagePath, (err) => {
+          if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
+        });
+      }
     }
   }
-});
+);
 
 export default router;

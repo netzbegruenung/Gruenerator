@@ -1,22 +1,14 @@
-"use client";
+'use client';
 
-import { useState, type FormEvent } from "react";
-import { useAiEdit } from "@/hooks/useAiEdit";
-import { useAiEditStore } from "@/stores/aiEditStore";
-import { useEditorStore } from "@/stores/editorStore";
-import { AiEditorButton } from "@/components/tiptap-ui/ai-editor-button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/tiptap-ui-primitive/popover";
-import { Button, ButtonGroup } from "@/components/tiptap-ui-primitive/button";
-import { Input, InputGroup } from "@/components/tiptap-ui-primitive/input";
-import {
-  Card,
-  CardBody,
-  CardItemGroup,
-} from "@/components/tiptap-ui-primitive/card";
+import { useState, type FormEvent } from 'react';
+import { useAiEdit } from '@/hooks/useAiEdit';
+import { useAiEditStore } from '@/stores/aiEditStore';
+import { useEditorStore } from '@/stores/editorStore';
+import { AiEditorButton } from '@/components/tiptap-ui/ai-editor-button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/tiptap-ui-primitive/popover';
+import { Button, ButtonGroup } from '@/components/tiptap-ui-primitive/button';
+import { Input, InputGroup } from '@/components/tiptap-ui-primitive/input';
+import { Card, CardBody, CardItemGroup } from '@/components/tiptap-ui-primitive/card';
 
 export interface AiEditorPopoverProps {
   documentId: string;
@@ -25,7 +17,7 @@ export interface AiEditorPopoverProps {
 export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
   const editor = useEditorStore((state) => state.getEditor(documentId));
   const [isOpen, setIsOpen] = useState(false);
-  const [instruction, setInstruction] = useState("");
+  const [instruction, setInstruction] = useState('');
   const { applyAiEdit, isProcessing } = useAiEdit(documentId, editor);
   const { addChatMessage } = useAiEditStore();
 
@@ -38,7 +30,7 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
 
     // Add user message to chat
     addChatMessage(documentId, {
-      role: "user",
+      role: 'user',
       content: userInstruction,
     });
 
@@ -47,13 +39,13 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
 
     // Add AI response to chat
     addChatMessage(documentId, {
-      role: "assistant",
+      role: 'assistant',
       content: result.success ? result.summary! : result.error!,
-      type: result.success ? "success" : "error",
+      type: result.success ? 'success' : 'error',
     });
 
     if (result.success) {
-      setInstruction("");
+      setInstruction('');
       setIsOpen(false);
     }
   };
@@ -67,10 +59,7 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
   };
 
   return (
-    <Popover
-      open={isOpen}
-      onOpenChange={setIsOpen}
-    >
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <AiEditorButton documentId={documentId} />
       </PopoverTrigger>
@@ -80,12 +69,21 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
             <CardItemGroup orientation="vertical" style={{ gap: '0.75rem', width: '100%' }}>
               <div>
                 <h4 style={{ fontWeight: 500, marginBottom: '0.5rem' }}>KI-Bearbeitung</h4>
-                <p style={{ fontSize: '0.875rem', color: 'var(--tt-gray-light-a-600)', marginBottom: '0.75rem' }}>
+                <p
+                  style={{
+                    fontSize: '0.875rem',
+                    color: 'var(--tt-gray-light-a-600)',
+                    marginBottom: '0.75rem',
+                  }}
+                >
                   Beschreibe, wie der Text geändert werden soll
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+              <form
+                onSubmit={handleSubmit}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}
+              >
                 <InputGroup>
                   <Input
                     placeholder="z.B. 'kürzen' oder 'formeller machen'..."
@@ -103,7 +101,7 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
                   <Button
                     type="button"
                     data-style="ghost"
-                    onClick={() => handleQuickAction("Kürzen")}
+                    onClick={() => handleQuickAction('Kürzen')}
                     disabled={isProcessing}
                   >
                     Kürzen
@@ -111,7 +109,7 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
                   <Button
                     type="button"
                     data-style="ghost"
-                    onClick={() => handleQuickAction("Professioneller")}
+                    onClick={() => handleQuickAction('Professioneller')}
                     disabled={isProcessing}
                   >
                     Professioneller
@@ -119,7 +117,7 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
                   <Button
                     type="button"
                     data-style="ghost"
-                    onClick={() => handleQuickAction("Einfacher")}
+                    onClick={() => handleQuickAction('Einfacher')}
                     disabled={isProcessing}
                   >
                     Einfacher
@@ -127,7 +125,7 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
                   <Button
                     type="button"
                     data-style="ghost"
-                    onClick={() => handleQuickAction("Rechtschreibung korrigieren")}
+                    onClick={() => handleQuickAction('Rechtschreibung korrigieren')}
                     disabled={isProcessing}
                   >
                     Korrektur
@@ -140,7 +138,7 @@ export const AiEditorPopover = ({ documentId }: AiEditorPopoverProps) => {
                   data-style="primary"
                   style={{ width: '100%' }}
                 >
-                  {isProcessing ? "Verarbeite..." : "Anwenden"}
+                  {isProcessing ? 'Verarbeite...' : 'Anwenden'}
                 </Button>
               </form>
             </CardItemGroup>

@@ -12,19 +12,16 @@ export function optimizeSearchQuery(query: string): string {
   let optimizedQuery = query.trim();
 
   const synonymMap: Record<string, string> = {
-    'verkehrswende': 'verkehrswende mobilität nachhaltiger verkehr',
-    'nahverkehr': 'nahverkehr öpnv öffentlicher verkehr',
-    'radverkehr': 'radverkehr fahrrad radwege',
-    'klimaschutz': 'klimaschutz umweltschutz nachhaltigkeit',
-    'energie': 'energie erneuerbare energien energiewende'
+    verkehrswende: 'verkehrswende mobilität nachhaltiger verkehr',
+    nahverkehr: 'nahverkehr öpnv öffentlicher verkehr',
+    radverkehr: 'radverkehr fahrrad radwege',
+    klimaschutz: 'klimaschutz umweltschutz nachhaltigkeit',
+    energie: 'energie erneuerbare energien energiewende',
   };
 
   Object.entries(synonymMap).forEach(([term, synonyms]) => {
     if (optimizedQuery.toLowerCase().includes(term)) {
-      optimizedQuery = optimizedQuery.replace(
-        new RegExp(term, 'gi'),
-        synonyms
-      );
+      optimizedQuery = optimizedQuery.replace(new RegExp(term, 'gi'), synonyms);
     }
   });
 
@@ -60,17 +57,20 @@ Antworte ausschließlich im JSON-Format: {"research_questions":["Frage 1","Frage
 
 Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
 
-    const result = await aiWorkerPool.processRequest({
-      type: 'text_adjustment',
-      systemPrompt: researchSystemPrompt,
-      messages: [{ role: "user", content: researchPrompt }],
-      options: {
-        provider: 'litellm',
-        model: 'gpt-oss:120b',
-        max_tokens: 300,
-        temperature: 0.3
-      }
-    }, req);
+    const result = await aiWorkerPool.processRequest(
+      {
+        type: 'text_adjustment',
+        systemPrompt: researchSystemPrompt,
+        messages: [{ role: 'user', content: researchPrompt }],
+        options: {
+          provider: 'litellm',
+          model: 'gpt-oss:120b',
+          max_tokens: 300,
+          temperature: 0.3,
+        },
+      },
+      req
+    );
 
     if (result.success && result.content) {
       const parsed = parseAIJsonResponse(result.content, {}) as { research_questions?: string[] };
@@ -88,6 +88,6 @@ Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
     `${originalQuery} - Hintergrund und Kontext`,
     `${originalQuery} - aktuelle Entwicklungen`,
     `${originalQuery} - gesellschaftliche Auswirkungen`,
-    `${originalQuery} - alternative Perspektiven`
+    `${originalQuery} - alternative Perspektiven`,
   ];
 }

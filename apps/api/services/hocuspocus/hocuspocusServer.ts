@@ -47,7 +47,7 @@ async function killProcessOnPort(port: number): Promise<boolean> {
         }
       }
       // Wait a moment for the port to be released
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       return true;
     }
     return false;
@@ -136,7 +136,9 @@ export async function startHocuspocusServer(): Promise<void> {
 
           if (!authResult.authenticated) {
             console.log(`[Auth-Hook] Authentication FAILED: ${authResult.reason}`);
-            log.warn(`[Auth] Authentication failed for document ${documentName}: ${authResult.reason}`);
+            log.warn(
+              `[Auth] Authentication failed for document ${documentName}: ${authResult.reason}`
+            );
             throw new Error(authResult.reason || 'Authentication failed');
           }
 
@@ -175,7 +177,9 @@ export async function startHocuspocusServer(): Promise<void> {
           const documentData = await persistence.loadDocument(documentName);
 
           if (documentData) {
-            log.info(`[Load] Document ${documentName} loaded successfully (${documentData.length} bytes)`);
+            log.info(
+              `[Load] Document ${documentName} loaded successfully (${documentData.length} bytes)`
+            );
             return documentData;
           } else {
             log.info(`[Load] Document ${documentName} not found, will create new`);
@@ -295,7 +299,6 @@ export async function startHocuspocusServer(): Promise<void> {
       await server.destroy();
       process.exit(0);
     });
-
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     log.error(`Failed to start Hocuspocus server: ${err.message}`);

@@ -1,6 +1,15 @@
-import { JSX, useCallback, ComponentType, ChangeEvent, KeyboardEvent, RefCallback, MutableRefObject } from 'react';
+import {
+  type JSX,
+  useCallback,
+  type ComponentType,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type RefCallback,
+  type MutableRefObject,
+} from 'react';
+import { type ControllerRenderProps, type FieldError } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
-import { ControllerRenderProps, FieldError } from 'react-hook-form';
+
 import { useTextAutocomplete, COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
 import '../../../../assets/styles/components/form/form-inputs.css';
 
@@ -51,7 +60,7 @@ const TextareaWithAutocomplete = ({
   minChars = 3,
   addHashtagOnAccept = true,
   showCharacterCount = false,
-  CharacterCount
+  CharacterCount,
 }: TextareaWithAutocompleteProps): JSX.Element => {
   // Cast field.value to string since we know it's a text field
   const fieldValue = (field.value as string) || '';
@@ -59,33 +68,43 @@ const TextareaWithAutocomplete = ({
   const autocomplete = useTextAutocomplete(fieldValue, field.onChange, {
     dictionary,
     minChars,
-    addHashtagOnAccept
+    addHashtagOnAccept,
   });
 
-  const handleChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
-    autocomplete.handleChange(e);
+  const handleChange = useCallback(
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      autocomplete.handleChange(e);
 
-    if (enableUrlDetection && onFieldValueChange) {
-      onFieldValueChange(e.target.value);
-    }
+      if (enableUrlDetection && onFieldValueChange) {
+        onFieldValueChange(e.target.value);
+      }
 
-    if (onExternalChange) {
-      onExternalChange(e.target.value);
-    }
-  }, [autocomplete, enableUrlDetection, onFieldValueChange, onExternalChange]);
+      if (onExternalChange) {
+        onExternalChange(e.target.value);
+      }
+    },
+    [autocomplete, enableUrlDetection, onFieldValueChange, onExternalChange]
+  );
 
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
-    autocomplete.handleKeyDown(e);
-    const onKeyDown = textareaProps.onKeyDown as ((e: KeyboardEvent<HTMLTextAreaElement>) => void) | undefined;
-    if (onKeyDown) {
-      onKeyDown(e);
-    }
-  }, [autocomplete, textareaProps]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      autocomplete.handleKeyDown(e);
+      const onKeyDown = textareaProps.onKeyDown as
+        | ((e: KeyboardEvent<HTMLTextAreaElement>) => void)
+        | undefined;
+      if (onKeyDown) {
+        onKeyDown(e);
+      }
+    },
+    [autocomplete, textareaProps]
+  );
 
   const hasActiveSuggestion = !!autocomplete.suggestionSuffix;
 
   return (
-    <div className={`textarea-autocomplete-wrapper${hasActiveSuggestion ? ' textarea-autocomplete-wrapper--active' : ''}`}>
+    <div
+      className={`textarea-autocomplete-wrapper${hasActiveSuggestion ? ' textarea-autocomplete-wrapper--active' : ''}`}
+    >
       {hasActiveSuggestion && (
         <div className="textarea-ghost-text">
           <span className="textarea-ghost-prefix">{autocomplete.ghostPrefix}</span>

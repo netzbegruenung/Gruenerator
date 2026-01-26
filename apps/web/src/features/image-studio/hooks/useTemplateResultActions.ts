@@ -1,11 +1,14 @@
-import { useState, useCallback } from 'react';
-import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useShareStore } from '@gruenerator/shared/share';
-import { getTypeConfig } from '../utils/typeConfig';
-import { formatDownloadFilename } from '../utils/templateResultUtils';
-import { useImageHelpers } from './useImageHelpers';
+import { useState, useCallback } from 'react';
+
 import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
 import { useGenerateSocialPost } from '../../../components/hooks/useGenerateSocialPost';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import { formatDownloadFilename } from '../utils/templateResultUtils';
+import { getTypeConfig } from '../utils/typeConfig';
+
+import { useImageHelpers } from './useImageHelpers';
+
 
 interface GeneratedPosts {
   instagram?: string;
@@ -42,7 +45,7 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
     body,
     galleryEditMode,
     editShareToken,
-    editTitle
+    editTitle,
   } = useImageStudioStore();
 
   const { updateImageShare, isCreating: isUpdating } = useShareStore();
@@ -50,7 +53,12 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
   const { generateAltTextForImage } = useAltTextGeneration();
   const socialPostHook = useGenerateSocialPost() as unknown as {
     generatedPosts: GeneratedPosts;
-    generatePost: (thema: string, details: string, platforms: string[], includeActionIdeas: boolean) => Promise<unknown>;
+    generatePost: (
+      thema: string,
+      details: string,
+      platforms: string[],
+      includeActionIdeas: boolean
+    ) => Promise<unknown>;
     loading: boolean;
   };
   const { generatedPosts, generatePost, loading: socialLoading } = socialPostHook;
@@ -124,20 +132,26 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
 
     if (!sharepicContent.trim()) return;
 
-    await generatePost(
-      sharepicContent,
-      `Sharepic Typ: ${type}`,
-      ['instagram'],
-      false
-    );
-  }, [line1, line2, line3, quote, header, subheader, body, type, generatePost, socialLoading, generatedPosts?.instagram]);
+    await generatePost(sharepicContent, `Sharepic Typ: ${type}`, ['instagram'], false);
+  }, [
+    line1,
+    line2,
+    line3,
+    quote,
+    header,
+    subheader,
+    body,
+    type,
+    generatePost,
+    socialLoading,
+    generatedPosts?.instagram,
+  ]);
 
   const handleTextButtonClick = useCallback(async () => {
     if (hasGeneratedText) {
-      const textToCopy = [
-        altText ? `Alt-Text: ${altText}` : '',
-        generatedPosts?.instagram || ''
-      ].filter(Boolean).join('\n\n');
+      const textToCopy = [altText ? `Alt-Text: ${altText}` : '', generatedPosts?.instagram || '']
+        .filter(Boolean)
+        .join('\n\n');
 
       try {
         await navigator.clipboard.writeText(textToCopy);
@@ -150,7 +164,13 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
       handleGenerateInstagramText();
       handleGenerateAltText();
     }
-  }, [hasGeneratedText, altText, generatedPosts?.instagram, handleGenerateInstagramText, handleGenerateAltText]);
+  }, [
+    hasGeneratedText,
+    altText,
+    generatedPosts?.instagram,
+    handleGenerateInstagramText,
+    handleGenerateAltText,
+  ]);
 
   const handleGalleryUpdate = useCallback(async () => {
     if (!galleryEditMode || !editShareToken || !generatedImageSrc) return;
@@ -171,10 +191,20 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
       setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (error) {
       console.error('Failed to update sharepic:', error);
-      alert('Fehler beim Aktualisieren: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
+      alert(
+        'Fehler beim Aktualisieren: ' +
+          (error instanceof Error ? error.message : 'Unbekannter Fehler')
+      );
     }
-  }, [galleryEditMode, editShareToken, editTitle, generatedImageSrc,
-    getOriginalImageBase64, buildShareMetadata, updateImageShare]);
+  }, [
+    galleryEditMode,
+    editShareToken,
+    editTitle,
+    generatedImageSrc,
+    getOriginalImageBase64,
+    buildShareMetadata,
+    updateImageShare,
+  ]);
 
   return {
     handleDownload,
@@ -190,7 +220,7 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
     isAltTextLoading,
     generatedPosts,
     socialLoading,
-    hasGeneratedText
+    hasGeneratedText,
   };
 };
 

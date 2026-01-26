@@ -11,7 +11,6 @@
  */
 
 import { SYSTEM_ASSETS } from './canvasAssets';
-
 import { wrapText } from './textUtils';
 
 export const ZITAT_CONFIG = {
@@ -68,8 +67,6 @@ export interface ZitatLayoutResult {
   nameOffset: number;
   quoteLines: string[];
 }
-
-
 
 /**
  * Calculate layout for Zitat canvas

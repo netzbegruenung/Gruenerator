@@ -1,17 +1,19 @@
-import { JSX, useRef, useEffect, useMemo, FormEvent, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { type JSX, useRef, useEffect, useMemo, FormEvent, type ReactNode } from 'react';
+
 import './ChatUI.css';
-import { Markdown } from '../Markdown';
-import TypingIndicator from '../UI/TypingIndicator';
-import useChatInput from './hooks/useChatInput';
-import AttachedFilesList from '../AttachedFilesList';
-import ChatActionButtons from './ChatActionButtons';
-import ChatSubmitButton from './ChatSubmitButton';
-import ChatFileUploadButton from './ChatFileUploadButton';
-import AssistantAvatar from './AssistantAvatar';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import AttachedFilesList from '../AttachedFilesList';
+import { Markdown } from '../Markdown';
+import TypingIndicator from '../UI/TypingIndicator';
+
+import AssistantAvatar from './AssistantAvatar';
+import ChatActionButtons from './ChatActionButtons';
+import ChatFileUploadButton from './ChatFileUploadButton';
+import ChatSubmitButton from './ChatSubmitButton';
+import useChatInput from './hooks/useChatInput';
 
 interface ChatMessage {
   type: 'user' | 'assistant' | 'error';
@@ -59,20 +61,21 @@ interface ChatUIProps {
   stopRecording?: () => void;
 }
 
-const ChatUI = ({ messages = [],
+const ChatUI = ({
+  messages = [],
   onSubmit,
   isProcessing = false,
-  placeholder = "Nachricht eingeben...",
-  inputValue = "",
+  placeholder = 'Nachricht eingeben...',
+  inputValue = '',
   onInputChange,
   disabled = false,
   renderInput,
   renderMessage,
   children,
-  className = "",
+  className = '',
   fullScreen = false,
   showHeader = true,
-  headerTitle = "Chat",
+  headerTitle = 'Chat',
   onClose,
   onVoiceRecorderTranscription,
   autoSubmitVoice = true,
@@ -85,13 +88,16 @@ const ChatUI = ({ messages = [],
   isVoiceRecording: externalIsVoiceRecording,
   isVoiceProcessing: externalIsVoiceProcessing,
   startRecording: externalStartRecording,
-  stopRecording: externalStopRecording }: ChatUIProps): JSX.Element => {
+  stopRecording: externalStopRecording,
+}: ChatUIProps): JSX.Element => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageIndexRef = useRef<number>(0);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { user } = useOptimizedAuth();
-  const { data: profile } = useProfile(user?.id) as { data: { avatar_robot_id?: number; display_name?: string } | null };
+  const { data: profile } = useProfile(user?.id) as {
+    data: { avatar_robot_id?: number; display_name?: string } | null;
+  };
 
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
   const displayName = profile?.display_name || '';
@@ -100,7 +106,7 @@ const ChatUI = ({ messages = [],
     const props = getAvatarDisplayProps({
       avatar_robot_id: avatarRobotId,
       display_name: displayName,
-      email: user?.email
+      email: user?.email,
     });
     return props;
   }, [avatarRobotId, displayName, user?.email]);
@@ -115,13 +121,19 @@ const ChatUI = ({ messages = [],
     autoSubmitVoice,
     enableVoiceRecording: !hasExternalVoice,
     onVoiceTranscription: onVoiceRecorderTranscription,
-    onFileSelect
+    onFileSelect,
   });
 
   // Use external props if provided, otherwise use internal hook values
-  const isVoiceRecording = hasExternalVoice ? externalIsVoiceRecording : internalChatInput.isVoiceRecording;
-  const isVoiceProcessing = hasExternalVoice ? externalIsVoiceProcessing : internalChatInput.isVoiceProcessing;
-  const startRecording = hasExternalVoice ? externalStartRecording : internalChatInput.startRecording;
+  const isVoiceRecording = hasExternalVoice
+    ? externalIsVoiceRecording
+    : internalChatInput.isVoiceRecording;
+  const isVoiceProcessing = hasExternalVoice
+    ? externalIsVoiceProcessing
+    : internalChatInput.isVoiceProcessing;
+  const startRecording = hasExternalVoice
+    ? externalStartRecording
+    : internalChatInput.startRecording;
   const stopRecording = hasExternalVoice ? externalStopRecording : internalChatInput.stopRecording;
 
   // Auto-scroll behavior
@@ -129,7 +141,12 @@ const ChatUI = ({ messages = [],
     if (messages.length > lastMessageIndexRef.current) {
       const lastMessage = messages[messages.length - 1];
 
-      if ((lastMessage.type === 'assistant' || lastMessage.type === 'error' || lastMessage.type === 'user') && messages.length > 2) {
+      if (
+        (lastMessage.type === 'assistant' ||
+          lastMessage.type === 'error' ||
+          lastMessage.type === 'user') &&
+        messages.length > 2
+      ) {
         if (scrollTimeoutRef.current) {
           clearTimeout(scrollTimeoutRef.current);
         }
@@ -140,7 +157,7 @@ const ChatUI = ({ messages = [],
             const lastElement = messageElements[messageElements.length - 1];
             lastElement.scrollIntoView({
               behavior: 'smooth',
-              block: 'end'
+              block: 'end',
             });
           }
           scrollTimeoutRef.current = null;
@@ -155,7 +172,7 @@ const ChatUI = ({ messages = [],
   useEffect(() => {
     if (chatContainerRef.current) {
       const timeoutId = setTimeout(() => {
-        if(chatContainerRef.current) {
+        if (chatContainerRef.current) {
           const { scrollHeight, clientHeight } = chatContainerRef.current;
           chatContainerRef.current.scrollTop = scrollHeight - clientHeight;
         }
@@ -167,7 +184,7 @@ const ChatUI = ({ messages = [],
   const handleSubmit = (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || disabled) return;
-    onSubmit && onSubmit(inputValue);
+    onSubmit?.(inputValue);
   };
 
   const defaultRenderMessage = (msg: ChatMessage, index: number) => {
@@ -177,21 +194,15 @@ const ChatUI = ({ messages = [],
         className={`chat-message ${msg.type}`}
         initial={{ opacity: 0, y: 2, scale: 0.995 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -1, scale: 0.995, transition: { duration: 0.2, ease: "easeOut" } }}
-        transition={{ type: "tween", ease: "easeOut", duration: 0.35 }}
+        exit={{ opacity: 0, y: -1, scale: 0.995, transition: { duration: 0.2, ease: 'easeOut' } }}
+        transition={{ type: 'tween', ease: 'easeOut', duration: 0.35 }}
       >
         {msg.type === 'user' && msg.userName && (
           <div className="chat-message-user-name">{msg.userName}</div>
         )}
-        {msg.type === 'assistant' && (
-          <AssistantAvatar avatarProps={userAvatarProps} />
-        )}
+        {msg.type === 'assistant' && <AssistantAvatar avatarProps={userAvatarProps} />}
 
-        {msg.quotedText && (
-          <div className="chat-message-quote">
-            „{msg.quotedText}"
-          </div>
-        )}
+        {msg.quotedText && <div className="chat-message-quote">„{msg.quotedText}"</div>}
 
         <Markdown>{msg.content}</Markdown>
 
@@ -232,7 +243,9 @@ const ChatUI = ({ messages = [],
               type="text"
               className="form-input"
               value={inputValue}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onInputChange && onInputChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                onInputChange && onInputChange(e.target.value)
+              }
               placeholder={placeholder}
               disabled={disabled}
               onKeyDown={(e: React.KeyboardEvent) => {
@@ -246,7 +259,9 @@ const ChatUI = ({ messages = [],
             <textarea
               className="form-input"
               value={inputValue}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onInputChange && onInputChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                onInputChange && onInputChange(e.target.value)
+              }
               placeholder={placeholder}
               disabled={disabled}
               onKeyDown={(e: React.KeyboardEvent) => {
@@ -295,7 +310,10 @@ const ChatUI = ({ messages = [],
           )}
         </div>
       )}
-      <div className={`chat-messages markdown-styles ${fullScreen ? 'chat-messages-fullscreen' : ''}`} ref={chatContainerRef}>
+      <div
+        className={`chat-messages markdown-styles ${fullScreen ? 'chat-messages-fullscreen' : ''}`}
+        ref={chatContainerRef}
+      >
         <AnimatePresence initial={true}>
           {messages.map((msg, index) =>
             renderMessage ? renderMessage(msg, index) : defaultRenderMessage(msg, index)
@@ -307,8 +325,8 @@ const ChatUI = ({ messages = [],
               className="chat-message assistant"
               initial={{ opacity: 0, y: 3, scale: 0.99 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.99, transition: { duration: 0.15, ease: "easeOut" } }}
-              transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
+              exit={{ opacity: 0, scale: 0.99, transition: { duration: 0.15, ease: 'easeOut' } }}
+              transition={{ type: 'tween', ease: 'easeOut', duration: 0.25 }}
             >
               <AssistantAvatar avatarProps={userAvatarProps} />
               <TypingIndicator />

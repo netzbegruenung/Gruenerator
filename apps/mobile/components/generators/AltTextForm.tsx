@@ -1,5 +1,13 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, View, Text, useColorScheme } from 'react-native';
+import {
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  View,
+  Text,
+  useColorScheme,
+} from 'react-native';
 import { spacing, typography, lightTheme, darkTheme } from '../../theme';
 import { TextInput, Button, ImagePicker } from '../common';
 import { FeatureIcons } from './FeatureIcons';
@@ -23,7 +31,9 @@ export function AltTextForm({ onResult, onError }: AltTextFormProps) {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   const [imageBase64, setImageBase64] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<{ uri: string; fileName: string } | null>(null);
+  const [selectedImage, setSelectedImage] = useState<{ uri: string; fileName: string } | null>(
+    null
+  );
   const [imageDescription, setImageDescription] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -40,9 +50,12 @@ export function AltTextForm({ onResult, onError }: AltTextFormProps) {
     setSelectedImage(null);
   }, []);
 
-  const handleImageError = useCallback((error: string) => {
-    onError(error);
-  }, [onError]);
+  const handleImageError = useCallback(
+    (error: string) => {
+      onError(error);
+    },
+    [onError]
+  );
 
   const handleSubmit = useCallback(async () => {
     const validation = validateAltTextRequest({
@@ -84,11 +97,12 @@ export function AltTextForm({ onResult, onError }: AltTextFormProps) {
   }, [imageBase64, imageDescription, onResult, onError]);
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.header, { color: theme.text }]}>
-          Welches Bild beschreiben wir?
-        </Text>
+        <Text style={[styles.header, { color: theme.text }]}>Welches Bild beschreiben wir?</Text>
         <ImagePicker
           onImageSelected={handleImageSelected}
           onError={handleImageError}

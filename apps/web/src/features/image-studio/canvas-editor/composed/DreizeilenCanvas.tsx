@@ -14,47 +14,53 @@
  */
 
 import React, { useState, useEffect } from 'react';
+
 import { GenericCanvas } from '../components/GenericCanvas';
 import { loadCanvasConfig } from '../configs/configLoader';
-import type { FullCanvasConfig } from '../configs/types';
-import type { DreizeilenFullState, DreizeilenFullActions, DreizeilenAlternative } from '../configs/dreizeilen.types';
+
 import type { StockImageAttribution } from '../../services/imageSourceService';
+import type {
+  DreizeilenFullState,
+  DreizeilenFullActions,
+  DreizeilenAlternative,
+} from '../configs/dreizeilen.types';
+import type { FullCanvasConfig } from '../configs/types';
 
 // Re-export types for backward compatibility
 export type { DreizeilenAlternative } from '../configs/dreizeilen.types';
 export type { DreizeilenFullState as DreizeilenState };
 
 export interface DreizeilenCanvasProps {
-    // Text content
-    line1: string;
-    line2: string;
-    line3: string;
+  // Text content
+  line1: string;
+  line2: string;
+  line3: string;
 
-    // Optional initial state
-    imageSrc?: string;
-    alternatives?: DreizeilenAlternative[];
-    colorSchemeId?: string;
-    fontSize?: number;
-    balkenWidthScale?: number;
-    sunflowerVisible?: boolean;
+  // Optional initial state
+  imageSrc?: string;
+  alternatives?: DreizeilenAlternative[];
+  colorSchemeId?: string;
+  fontSize?: number;
+  balkenWidthScale?: number;
+  sunflowerVisible?: boolean;
 
-    // Callbacks
-    onExport: (base64: string) => void;
-    onSave?: (base64: string) => void;
-    onCancel: () => void;
-    onLine1Change?: (line: string) => void;
-    onLine2Change?: (line: string) => void;
-    onLine3Change?: (line: string) => void;
-    onFontSizeChange?: (size: number) => void;
-    onColorSchemeChange?: (id: string) => void;
-    onImageSrcChange?: (src: string) => void;
-    onStateChange?: (state: DreizeilenFullState) => void;
-    onReset?: () => void;
+  // Callbacks
+  onExport: (base64: string) => void;
+  onSave?: (base64: string) => void;
+  onCancel: () => void;
+  onLine1Change?: (line: string) => void;
+  onLine2Change?: (line: string) => void;
+  onLine3Change?: (line: string) => void;
+  onFontSizeChange?: (size: number) => void;
+  onColorSchemeChange?: (id: string) => void;
+  onImageSrcChange?: (src: string) => void;
+  onStateChange?: (state: DreizeilenFullState) => void;
+  onReset?: () => void;
 
-    // Multi-page support
-    onAddPage?: () => void;
-    onDelete?: () => void;
-    bare?: boolean;
+  // Multi-page support
+  onAddPage?: () => void;
+  onDelete?: () => void;
+  bare?: boolean;
 }
 
 /**
@@ -79,81 +85,81 @@ export interface DreizeilenCanvasProps {
  * ```
  */
 export function DreizeilenCanvas({
+  line1,
+  line2,
+  line3,
+  imageSrc,
+  alternatives = [],
+  colorSchemeId,
+  fontSize,
+  balkenWidthScale,
+  sunflowerVisible = true,
+  onExport,
+  onSave,
+  onCancel,
+  onLine1Change,
+  onLine2Change,
+  onLine3Change,
+  onFontSizeChange,
+  onColorSchemeChange,
+  onImageSrcChange,
+  onStateChange,
+  onReset,
+  onAddPage,
+  onDelete,
+  bare,
+}: DreizeilenCanvasProps) {
+  const [config, setConfig] = useState<FullCanvasConfig | null>(null);
+
+  // Load config dynamically
+  useEffect(() => {
+    loadCanvasConfig('dreizeilen')
+      .then(setConfig)
+      .catch((error) => {
+        console.error('Failed to load dreizeilen config:', error);
+      });
+  }, []);
+
+  // Show loading state while config loads
+  if (!config) {
+    return <div>Lädt Editor...</div>;
+  }
+
+  // Map component props to config's initialProps format
+  const initialProps = {
     line1,
     line2,
     line3,
-    imageSrc,
-    alternatives = [],
+    currentImageSrc: imageSrc,
+    alternatives,
     colorSchemeId,
     fontSize,
     balkenWidthScale,
-    sunflowerVisible = true,
-    onExport,
-    onSave,
-    onCancel,
-    onLine1Change,
-    onLine2Change,
-    onLine3Change,
-    onFontSizeChange,
-    onColorSchemeChange,
-    onImageSrcChange,
-    onStateChange,
-    onReset,
-    onAddPage,
-    onDelete,
-    bare,
-}: DreizeilenCanvasProps) {
-    const [config, setConfig] = useState<FullCanvasConfig | null>(null);
+    sunflowerVisible,
+  };
 
-    // Load config dynamically
-    useEffect(() => {
-        loadCanvasConfig('dreizeilen')
-            .then(setConfig)
-            .catch((error) => {
-                console.error('Failed to load dreizeilen config:', error);
-            });
-    }, []);
+  // Map component callbacks to config's callback format
+  const callbacks: Record<string, ((val: unknown) => void) | undefined> = {
+    onLine1Change: onLine1Change as ((val: unknown) => void) | undefined,
+    onLine2Change: onLine2Change as ((val: unknown) => void) | undefined,
+    onLine3Change: onLine3Change as ((val: unknown) => void) | undefined,
+    onFontSizeChange: onFontSizeChange as ((val: unknown) => void) | undefined,
+    onColorSchemeChange: onColorSchemeChange as ((val: unknown) => void) | undefined,
+    onImageSrcChange: onImageSrcChange as ((val: unknown) => void) | undefined,
+    onReset: onReset as ((val: unknown) => void) | undefined,
+  };
 
-    // Show loading state while config loads
-    if (!config) {
-        return <div>Lädt Editor...</div>;
-    }
-
-    // Map component props to config's initialProps format
-    const initialProps = {
-        line1,
-        line2,
-        line3,
-        currentImageSrc: imageSrc,
-        alternatives,
-        colorSchemeId,
-        fontSize,
-        balkenWidthScale,
-        sunflowerVisible,
-    };
-
-    // Map component callbacks to config's callback format
-    const callbacks: Record<string, ((val: unknown) => void) | undefined> = {
-        onLine1Change: onLine1Change as ((val: unknown) => void) | undefined,
-        onLine2Change: onLine2Change as ((val: unknown) => void) | undefined,
-        onLine3Change: onLine3Change as ((val: unknown) => void) | undefined,
-        onFontSizeChange: onFontSizeChange as ((val: unknown) => void) | undefined,
-        onColorSchemeChange: onColorSchemeChange as ((val: unknown) => void) | undefined,
-        onImageSrcChange: onImageSrcChange as ((val: unknown) => void) | undefined,
-        onReset: onReset as ((val: unknown) => void) | undefined,
-    };
-
-    return (
-        <GenericCanvas<DreizeilenFullState, DreizeilenFullActions>
-            config={config as unknown as FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions>}
-            initialProps={initialProps}
-            onExport={onExport}
-            onSave={onSave}
-            onCancel={onCancel}
-            callbacks={callbacks}
-            onAddPage={onAddPage}
-            onDelete={onDelete}
-            bare={bare}
-        />
-    );
+  return (
+    <GenericCanvas<DreizeilenFullState, DreizeilenFullActions>
+      config={config as unknown as FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions>}
+      initialProps={initialProps}
+      onExport={onExport}
+      onSave={onSave}
+      onCancel={onCancel}
+      callbacks={callbacks}
+      onAddPage={onAddPage}
+      onDelete={onDelete}
+      bare={bare}
+    />
+  );
 }

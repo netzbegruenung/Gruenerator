@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
 import { useInstantAuth } from '../../../hooks/useAuth';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host

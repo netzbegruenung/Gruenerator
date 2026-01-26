@@ -160,7 +160,7 @@ export class UnsplashRateLimitError extends UnsplashApiError {
 function formatPhotographerName(username: string): string {
   return username
     .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 
@@ -240,7 +240,7 @@ export class UnsplashApiService {
    */
   private getHeaders(): HeadersInit {
     return {
-      'Authorization': `Client-ID ${this.accessKey}`,
+      Authorization: `Client-ID ${this.accessKey}`,
       'Accept-Version': 'v1',
     };
   }
@@ -278,11 +278,7 @@ export class UnsplashApiService {
    * @param perPage - Results per page (max 30)
    * @returns Search results with transformed photos
    */
-  async searchPhotos(
-    query: string,
-    page: number = 1,
-    perPage: number = 20
-  ): Promise<SearchResult> {
+  async searchPhotos(query: string, page: number = 1, perPage: number = 20): Promise<SearchResult> {
     if (!query || query.trim().length === 0) {
       return { results: [], total: 0, total_pages: 0 };
     }

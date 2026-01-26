@@ -1,6 +1,7 @@
-import type { JSX, FormEvent, ReactNode } from 'react';
 import { BsArrowUpCircleFill } from 'react-icons/bs';
 import { FaMicrophone, FaStop } from 'react-icons/fa';
+
+import type { JSX, FormEvent, ReactNode } from 'react';
 
 interface ChatSubmitButtonProps {
   inputValue?: string;
@@ -15,7 +16,8 @@ interface ChatSubmitButtonProps {
   className?: string;
 }
 
-const ChatSubmitButton = ({ inputValue = '',
+const ChatSubmitButton = ({
+  inputValue = '',
   isVoiceRecording = false,
   isVoiceProcessing = false,
   onSubmit,
@@ -24,7 +26,8 @@ const ChatSubmitButton = ({ inputValue = '',
   disabled = false,
   submitIcon = null,
   iconSize = 18,
-  className = '' }: ChatSubmitButtonProps): JSX.Element => {
+  className = '',
+}: ChatSubmitButtonProps): JSX.Element => {
   const hasText = (inputValue || '').trim();
 
   const handleClick = () => {
@@ -45,7 +48,7 @@ const ChatSubmitButton = ({ inputValue = '',
 
   return (
     <button
-      type={hasText ? "submit" : "button"}
+      type={hasText ? 'submit' : 'button'}
       onClick={handleClick}
       disabled={disabled || isVoiceProcessing}
       className={`${className} ${isVoiceRecording ? 'voice-recording' : ''}`.trim()}

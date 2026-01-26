@@ -4,13 +4,17 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
-import { detectContentType, detectMarkdownStructure, extractPageNumber } from '../../content/index.js';
+import {
+  detectContentType,
+  detectMarkdownStructure,
+  extractPageNumber,
+} from '../../content/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import {
   sentenceSegments,
   findPageMarkers,
   createSentenceOverlap,
-  resolvePageNumberForOffset
+  resolvePageNumberForOffset,
 } from './sentenceSegmentation.js';
 import { estimateTokens } from './validation.js';
 import type { Chunk, SentenceSegment, PageMarker } from './types.js';
@@ -33,14 +37,17 @@ export function sentenceRepack(
     targetChars = 1600,
     overlapChars = 400,
     originalRawText,
-    pageRanges
+    pageRanges,
   } = options;
 
   if (!Array.isArray(chunks) || chunks.length === 0) return [];
 
   // Concatenate texts in order; prefer page-aware metadata from first chunk
   const pageNum = chunks[0]?.metadata?.page_number ?? baseMetadata.page_number ?? null;
-  const text = chunks.map(c => c.text).join(' ').trim();
+  const text = chunks
+    .map((c) => c.text)
+    .join(' ')
+    .trim();
   const sentences = sentenceSegments(text);
   const markers = findPageMarkers(text);
   const results: any[] = [];
@@ -53,7 +60,8 @@ export function sentenceRepack(
     const sentenceText = sentence.s;
 
     // Check if adding this sentence would exceed target
-    const tentativeLength = currentLength + (currentSentences.length > 0 ? 1 : 0) + sentenceText.length;
+    const tentativeLength =
+      currentLength + (currentSentences.length > 0 ? 1 : 0) + sentenceText.length;
 
     if (tentativeLength <= targetChars || currentSentences.length === 0) {
       // Add sentence to current chunk
@@ -62,7 +70,10 @@ export function sentenceRepack(
     } else {
       // Finalize current chunk
       if (currentSentences.length > 0) {
-        const chunkText = currentSentences.map(s => s.s).join(' ').trim();
+        const chunkText = currentSentences
+          .map((s) => s.s)
+          .join(' ')
+          .trim();
         const chunkStart = currentSentences[0].start;
         const chunkEnd = currentSentences[currentSentences.length - 1].end;
         const pn = resolvePageNumberForOffset(markers, pageNum, chunkStart);
@@ -72,7 +83,7 @@ export function sentenceRepack(
         const overlapResult = createSentenceOverlap(currentSentences, overlapChars);
         const overlapSentences = currentSentences.slice(-overlapResult.numSentences);
         currentSentences = [...overlapSentences, sentence];
-        currentLength = currentSentences.map(s => s.s).join(' ').length;
+        currentLength = currentSentences.map((s) => s.s).join(' ').length;
       } else {
         // Single sentence chunk
         currentSentences = [sentence];
@@ -83,7 +94,10 @@ export function sentenceRepack(
 
   // Handle final chunk
   if (currentSentences.length > 0) {
-    const chunkText = currentSentences.map(s => s.s).join(' ').trim();
+    const chunkText = currentSentences
+      .map((s) => s.s)
+      .join(' ')
+      .trim();
     const chunkStart = currentSentences[0].start;
     const chunkEnd = currentSentences[currentSentences.length - 1].end;
     const pn = resolvePageNumberForOffset(markers, pageNum, chunkStart);
@@ -99,7 +113,7 @@ export function sentenceRepack(
       ...baseMetadata,
       chunkingMethod: 'langchain-sentences',
       page_number: r.page_number,
-    }
+    },
   }));
 }
 
@@ -131,11 +145,12 @@ export function enrichChunkWithMetadata(
         code_blocks: md.codeBlocks || 0,
       },
       // Prefer pre-set page_number (e.g., from page-splitting) over detection
-      page_number: (chunk.metadata && chunk.metadata.page_number != null)
-        ? chunk.metadata.page_number
-        : pageNumberDetected,
+      page_number:
+        chunk.metadata && chunk.metadata.page_number != null
+          ? chunk.metadata.page_number
+          : pageNumberDetected,
       quality_score: Number.isFinite(quality) ? quality : 0,
-    }
+    },
   };
 }
 
@@ -158,11 +173,12 @@ export function createSlidingWindows(
   for (let i = 0; i < words.length; i += wordsPerStep) {
     const windowWords = words.slice(i, i + wordsPerWindow);
 
-    if (windowWords.length > 10) { // Minimum meaningful window
+    if (windowWords.length > 10) {
+      // Minimum meaningful window
       windows.push({
         text: windowWords.join(' '),
         start: i,
-        end: Math.min(i + wordsPerWindow, words.length)
+        end: Math.min(i + wordsPerWindow, words.length),
       });
     }
 

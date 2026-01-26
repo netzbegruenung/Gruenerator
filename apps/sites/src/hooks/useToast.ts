@@ -4,8 +4,7 @@ export function useToast() {
   const { addToast, removeToast, clearAllToasts } = useToastStore();
 
   return {
-    success: (message: string, details?: string) =>
-      addToast({ type: 'success', message, details }),
+    success: (message: string, details?: string) => addToast({ type: 'success', message, details }),
 
     error: (message: string, details?: string) =>
       addToast({ type: 'error', message, details, duration: 8000 }),
@@ -13,8 +12,7 @@ export function useToast() {
     warning: (message: string, details?: string) =>
       addToast({ type: 'warning', message, details, duration: 6000 }),
 
-    info: (message: string, details?: string) =>
-      addToast({ type: 'info', message, details }),
+    info: (message: string, details?: string) => addToast({ type: 'info', message, details }),
 
     remove: removeToast,
 

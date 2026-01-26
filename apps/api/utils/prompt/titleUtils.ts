@@ -55,7 +55,10 @@ export function extractTitleFromResponse(
   }
 
   console.log('[extractTitleFromResponse] Processing content length:', content.length);
-  console.log('[extractTitleFromResponse] Content preview (last 200 chars):', content.substring(content.length - 200));
+  console.log(
+    '[extractTitleFromResponse] Content preview (last 200 chars):',
+    content.substring(content.length - 200)
+  );
 
   const titlePatterns: RegExp[] = [
     /<GRUEN_TITLE>(.*?)<\/GRUEN_TITLE>/s,
@@ -63,7 +66,7 @@ export function extractTitleFromResponse(
     /<h[2-6]>Titel:<\/h[2-6]>\s*\n\s*<p>(.+?)<\/p>/i,
     /Titel:\s*(.+)$/im,
     /Titel:<\/h[2-6]>\s*(?:\n\s*)*<p>(.+?)<\/p>/i,
-    /<p>([^<]+)<\/p>\s*$/i
+    /<p>([^<]+)<\/p>\s*$/i,
   ];
 
   for (let i = 0; i < titlePatterns.length; i++) {
@@ -89,7 +92,10 @@ export function extractTitleFromResponse(
       }
 
       if (extractedTitle.length > 0) {
-        console.log(`[extractTitleFromResponse] Successfully extracted title using pattern ${i + 1}:`, extractedTitle);
+        console.log(
+          `[extractTitleFromResponse] Successfully extracted title using pattern ${i + 1}:`,
+          extractedTitle
+        );
         return extractedTitle;
       }
     } else {
@@ -97,7 +103,9 @@ export function extractTitleFromResponse(
     }
   }
 
-  console.log('[extractTitleFromResponse] No title pattern matched, falling back to smart title generation');
+  console.log(
+    '[extractTitleFromResponse] No title pattern matched, falling back to smart title generation'
+  );
 
   return generateSmartTitle(contentType, formData);
 }

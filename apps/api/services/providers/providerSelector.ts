@@ -8,7 +8,7 @@ import type {
   ModelName,
   ProviderOptions,
   RequestMetadata,
-  ProviderResult
+  ProviderResult,
 } from './types.js';
 
 /**
@@ -51,7 +51,11 @@ export function determineProviderFromModel(modelName: string = ''): ProviderName
   if (name.includes('gpt-') || name.includes('openai')) {
     return 'openai';
   }
-  if (name.includes('mistral-medium-') || name.includes('mistral-large-') || name.includes('mistral-small-')) {
+  if (
+    name.includes('mistral-medium-') ||
+    name.includes('mistral-large-') ||
+    name.includes('mistral-small-')
+  ) {
     return 'mistral';
   }
   if (name.includes('mistral') || name.includes('mixtral')) {
@@ -81,7 +85,7 @@ export function selectProviderAndModel({
   type,
   options = {},
   metadata = {},
-  env = process.env
+  env = process.env,
 }: SelectProviderParams): ProviderResult {
   // Base defaults
   let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
@@ -118,7 +122,12 @@ export function selectProviderAndModel({
   else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
     provider = 'mistral';
     model = options.model || 'mistral-medium-latest';
-  } else if (type === 'antrag_simple' || type === 'antrag' || type === 'kleine_anfrage' || type === 'grosse_anfrage') {
+  } else if (
+    type === 'antrag_simple' ||
+    type === 'antrag' ||
+    type === 'kleine_anfrage' ||
+    type === 'grosse_anfrage'
+  ) {
     provider = 'mistral';
     model = options.model || 'magistral-medium-latest';
   } else if (type === 'antrag_question_generation' || type === 'antrag_qa_summary') {

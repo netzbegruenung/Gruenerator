@@ -19,7 +19,8 @@ import { KI_TYPE_CONFIGS } from '../constants.js';
  */
 const KI_ERROR_MESSAGES = {
   GENERATION_ERROR: 'Bei der Bildgenerierung ist ein Fehler aufgetreten.',
-  RATE_LIMIT_EXCEEDED: 'Du hast das Limit für KI-Bildgenerierung erreicht. Bitte versuche es später erneut.',
+  RATE_LIMIT_EXCEEDED:
+    'Du hast das Limit für KI-Bildgenerierung erreicht. Bitte versuche es später erneut.',
   INVALID_REQUEST: 'Ungültige Anfrage. Bitte überprüfe deine Eingaben.',
   NO_IMAGE_DATA: 'Kein Bild für die Bearbeitung vorhanden.',
   INSTRUCTION_TOO_SHORT: 'Die Beschreibung ist zu kurz.',
@@ -80,7 +81,9 @@ export function useKiImageGeneration(
 
       // Check for API error response structure
       if (err && typeof err === 'object' && 'response' in err) {
-        const apiErr = err as { response?: { status?: number; data?: { message?: string; error?: string } } };
+        const apiErr = err as {
+          response?: { status?: number; data?: { message?: string; error?: string } };
+        };
 
         // Check for rate limit (429)
         if (apiErr.response?.status === 429) {
@@ -151,10 +154,7 @@ export function useKiImageGeneration(
    * Edit image with KI instructions (green-edit, universal-edit)
    */
   const generateKiEdit = useCallback(
-    async (
-      type: 'green-edit' | 'universal-edit',
-      request: KiEditRequest
-    ): Promise<string> => {
+    async (type: 'green-edit' | 'universal-edit', request: KiEditRequest): Promise<string> => {
       setLoading(true);
       setError(null);
       setRateLimitExceeded(false);
@@ -188,7 +188,7 @@ export function useKiImageGeneration(
           };
 
           const selectedOptions = request.infrastructureOptions
-            .map(opt => optionLabels[opt] || opt)
+            .map((opt) => optionLabels[opt] || opt)
             .join(', ');
 
           prompt = `${request.instruction}. Füge hinzu: ${selectedOptions}`;

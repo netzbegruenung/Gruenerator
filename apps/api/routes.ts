@@ -31,14 +31,19 @@ import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veransta
 import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
 import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.js';
 import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
-import sharepicClaudeRoute, { handleClaudeRequest } from './routes/sharepic/sharepic_claude/index.js';
+import sharepicClaudeRoute, {
+  handleClaudeRequest,
+} from './routes/sharepic/sharepic_claude/index.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
 import imageUploadRouter from './routes/sharepic/sharepic_canvas/imageUploadRouter.js';
 import processTextRouter from './routes/sharepic/sharepic_canvas/processTextRouter.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
-import { searchController as searchRouter, webSearchController as webSearchRouter } from './routes/search/index.js';
+import {
+  searchController as searchRouter,
+  webSearchController as webSearchRouter,
+} from './routes/search/index.js';
 import { pickerController as imagePickerRoute } from './routes/image/index.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerSocialRouter from './routes/subtitler/socialController.js';
@@ -106,24 +111,30 @@ export async function setupRoutes(app: Application): Promise<void> {
     userCustomGeneratorsRouter,
     contentRouter: userContentRouter,
     templatesRouter: userTemplatesRouter,
-    groupsRouter: userGroupsRouter
+    groupsRouter: userGroupsRouter,
   } = await import('./routes/auth/index.js');
   const { default: documentsRouter } = await import('./routes/documents/index.js');
   const { default: claudeSocialRoute } = await import('./routes/texte/social.js');
   const { default: claudeAlttextRoute } = await import('./routes/texte/alttext.js');
   const { default: claudeGrueneratorAskRoute } = await import('./routes/texte/gruenerator_ask.js');
   const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
-  const { default: customGeneratorRoute } = await import('./routes/custom_generators/custom_generator.js');
-  const { default: generatorConfiguratorRoute } = await import('./routes/custom_generators/generator_configurator.js');
+  const { default: customGeneratorRoute } =
+    await import('./routes/custom_generators/custom_generator.js');
+  const { default: generatorConfiguratorRoute } =
+    await import('./routes/custom_generators/generator_configurator.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
-  const { collectionsRouter: notebookCollectionsRouter, interactionRouter: notebookInteractionRouter } = await import('./routes/notebook/index.js');
+  const {
+    collectionsRouter: notebookCollectionsRouter,
+    interactionRouter: notebookInteractionRouter,
+  } = await import('./routes/notebook/index.js');
   const { default: canvaAuthRouter } = await import('./routes/canva/canvaAuth.js');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
-  const { sitesController: sitesRouter, publicController: publicSiteRouter } = await import('./routes/sites/index.js');
+  const { sitesController: sitesRouter, publicController: publicSiteRouter } =
+    await import('./routes/sites/index.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
@@ -265,6 +276,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/flux/green-edit', fluxImageEditingRoute);
   app.use('/api/imagine/create', imagineCreateRoute);
   app.use('/api/imagine/pure', imaginePureRoute);
+
+  // Web redirect to frontend imagine (KI image studio)
+  app.get('/web', (req: Request, res: Response) => {
+    res.redirect('http://localhost:3000/imagine');
+  });
 
   // Periodic flush of route stats to database
   setInterval(async () => {

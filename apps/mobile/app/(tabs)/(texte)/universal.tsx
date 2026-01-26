@@ -19,10 +19,13 @@ export default function UniversalScreen() {
 
   const hasResult = content.trim().length > 0;
 
-  const handleResult = useCallback((text: string) => {
-    setError(null);
-    setTextWithHistory(COMPONENT_NAME, text);
-  }, [setTextWithHistory]);
+  const handleResult = useCallback(
+    (text: string) => {
+      setError(null);
+      setTextWithHistory(COMPONENT_NAME, text);
+    },
+    [setTextWithHistory]
+  );
 
   const handleError = useCallback((message: string) => {
     setError(message);
@@ -37,10 +40,7 @@ export default function UniversalScreen() {
   if (hasResult) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ContentDisplay
-          componentName={COMPONENT_NAME}
-          onNewGeneration={handleNewGeneration}
-        />
+        <ContentDisplay componentName={COMPONENT_NAME} onNewGeneration={handleNewGeneration} />
       </View>
     );
   }

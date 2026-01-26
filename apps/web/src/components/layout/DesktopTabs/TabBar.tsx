@@ -1,7 +1,9 @@
-import React, { useRef, useState, useCallback, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useRef, useState, useCallback, Component, type ErrorInfo, type ReactNode } from 'react';
+
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
-import Tab from './Tab';
+
 import NewTabButton from './NewTabButton';
+import Tab from './Tab';
 import './desktop-tabs.css';
 
 interface ErrorBoundaryState {
@@ -33,15 +35,18 @@ const TabBarContent: React.FC = () => {
   const { tabs, activeTabId, draggedTabId, setDraggedTab, reorderTabs } = useDesktopTabsStore();
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const handleDragStart = useCallback((e: React.DragEvent, tabId: string, index: number) => {
-    setDraggedTab(tabId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, tabId: string, index: number) => {
+      setDraggedTab(tabId);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', index.toString());
 
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '0.5';
-    }
-  }, [setDraggedTab]);
+      if (e.currentTarget instanceof HTMLElement) {
+        e.currentTarget.style.opacity = '0.5';
+      }
+    },
+    [setDraggedTab]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
     e.preventDefault();
@@ -49,17 +54,20 @@ const TabBarContent: React.FC = () => {
     setDragOverIndex(index);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent, toIndex: number) => {
-    e.preventDefault();
-    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+  const handleDrop = useCallback(
+    (e: React.DragEvent, toIndex: number) => {
+      e.preventDefault();
+      const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
 
-    if (!isNaN(fromIndex) && fromIndex !== toIndex) {
-      reorderTabs(fromIndex, toIndex);
-    }
+      if (!isNaN(fromIndex) && fromIndex !== toIndex) {
+        reorderTabs(fromIndex, toIndex);
+      }
 
-    setDragOverIndex(null);
-    setDraggedTab(null);
-  }, [reorderTabs, setDraggedTab]);
+      setDragOverIndex(null);
+      setDraggedTab(null);
+    },
+    [reorderTabs, setDraggedTab]
+  );
 
   const handleDragEnd = useCallback(() => {
     setDragOverIndex(null);
@@ -74,17 +82,8 @@ const TabBarContent: React.FC = () => {
   }, []);
 
   return (
-    <div
-      className="tab-bar-container"
-      ref={containerRef}
-      role="tablist"
-      aria-label="Offene Tabs"
-    >
-      <div
-        className="tab-bar-scroll"
-        ref={scrollRef}
-        onWheel={handleWheel}
-      >
+    <div className="tab-bar-container" ref={containerRef} role="tablist" aria-label="Offene Tabs">
+      <div className="tab-bar-scroll" ref={scrollRef} onWheel={handleWheel}>
         <div className="tab-bar-inner">
           {tabs.map((tab, index) => (
             <Tab

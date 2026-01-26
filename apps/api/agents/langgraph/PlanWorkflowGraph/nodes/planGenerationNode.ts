@@ -20,11 +20,13 @@ async function loadPromptConfig(configName: string): Promise<any> {
 }
 
 function extractPlanSummary(plan: string): string {
-  const sentences = plan.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const sentences = plan.split(/[.!?]+/).filter((s) => s.trim().length > 0);
   return sentences.slice(0, 2).join('. ') + '.';
 }
 
-export async function planGenerationNode(state: PlanWorkflowState): Promise<PlanGenerationNodeOutput> {
+export async function planGenerationNode(
+  state: PlanWorkflowState
+): Promise<PlanGenerationNodeOutput> {
   const startTime = Date.now();
   console.log(`[PlanWorkflow] Generating strategic plan for ${state.generatorType}`);
 
@@ -44,31 +46,34 @@ export async function planGenerationNode(state: PlanWorkflowState): Promise<Plan
         inhalt: input.inhalt,
         gliederung: input.gliederung,
         requestType: input.subType || input.generatorType,
-        locale: input.locale || 'de-DE'
+        locale: input.locale || 'de-DE',
       },
       documents: enrichedState.documents || [],
       knowledge: [
         ...(enrichedState.webSearchResults || []),
-        ...(enrichedState.knowledgeBase || [])
+        ...(enrichedState.knowledgeBase || []),
       ],
       greenFraming: enrichedState.greenFraming || [],
-      enrichmentMetadata: enrichedState.enrichmentMetadata
+      enrichmentMetadata: enrichedState.enrichmentMetadata,
     };
 
     const assembledPrompt = await assemblePromptGraphAsync(promptContext);
 
-    const aiResponse = await input.aiWorkerPool.processRequest({
-      type: `${state.generatorType}_plan_generation`,
-      provider: 'ionos',
-      usePrivacyMode: input.usePrivacyMode || false,
-      systemPrompt: assembledPrompt.system,
-      messages: assembledPrompt.messages as never,
-      options: {
-        model: 'openai/gpt-oss-120b',
-        max_tokens: promptConfigData.options?.max_tokens || 1500,
-        temperature: promptConfigData.options?.temperature || 0.3
-      }
-    }, input.req);
+    const aiResponse = await input.aiWorkerPool.processRequest(
+      {
+        type: `${state.generatorType}_plan_generation`,
+        provider: 'ionos',
+        usePrivacyMode: input.usePrivacyMode || false,
+        systemPrompt: assembledPrompt.system,
+        messages: assembledPrompt.messages as never,
+        options: {
+          model: 'openai/gpt-oss-120b',
+          max_tokens: promptConfigData.options?.max_tokens || 1500,
+          temperature: promptConfigData.options?.temperature || 0.3,
+        },
+      },
+      input.req
+    );
 
     const planText = aiResponse.content ?? '';
     const planSummary = extractPlanSummary(planText);
@@ -81,19 +86,19 @@ export async function planGenerationNode(state: PlanWorkflowState): Promise<Plan
         originalPlan: planText,
         planSummary,
         confidenceScore: 0.85,
-        enrichmentMetadata: enrichedState.enrichmentMetadata
+        enrichmentMetadata: enrichedState.enrichmentMetadata,
       },
       planGenerationTimeMs,
       currentPhase: 'questions',
       phasesExecuted: [...state.phasesExecuted, 'plan'],
-      totalAICalls: state.totalAICalls + 1
+      totalAICalls: state.totalAICalls + 1,
     };
   } catch (error: any) {
     console.error('[PlanWorkflow] Plan generation error:', error);
     return {
       error: `Plan generation failed: ${error.message}`,
       currentPhase: 'error',
-      success: false
+      success: false,
     };
   }
 }

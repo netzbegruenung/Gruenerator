@@ -17,7 +17,10 @@ export function renderMarkdown(markdown: string): string {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/_(.+?)_/g, '<em>$1</em>')
     // Links: [text](url)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    )
     // Headings: ## text or ### text
     .replace(/^### (.+)$/gm, '<h4>$1</h4>')
     .replace(/^## (.+)$/gm, '<h3>$1</h3>');
@@ -32,7 +35,7 @@ export function renderMarkdown(markdown: string): string {
   // Convert double newlines to paragraph breaks
   const paragraphs = html.split(/\n\n+/);
   html = paragraphs
-    .map(p => {
+    .map((p) => {
       p = p.trim();
       if (!p) return '';
       // Don't wrap if already wrapped in block elements
@@ -55,10 +58,5 @@ interface MarkdownContentProps {
 
 export function MarkdownContent({ content, className }: MarkdownContentProps) {
   const html = renderMarkdown(content);
-  return (
-    <div
-      className={className}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
+  return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }

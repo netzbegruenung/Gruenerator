@@ -1,4 +1,5 @@
-import React, { useEffect, useState, JSX } from 'react';
+import React, { useEffect, useState, type JSX } from 'react';
+
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import '../../assets/styles/components/popups/help.css';
 
@@ -14,11 +15,12 @@ interface HelpDisplayProps {
   layout?: 'default' | 'cards';
   features?: {
     title?: string;
-    description?: string
+    description?: string;
   }[];
 }
 
-const HelpDisplay = ({ content,
+const HelpDisplay = ({
+  content,
   tips,
   forceHidden,
   hasGeneratedContent,
@@ -27,10 +29,11 @@ const HelpDisplay = ({ content,
   fallbackContent,
   fallbackTips,
   layout = 'default',
-  features = [] }: HelpDisplayProps): JSX.Element | null => {
+  features = [],
+}: HelpDisplayProps): JSX.Element | null => {
   // Check if any generated text exists in the store
-  const generatedTexts = useGeneratedTextStore(state => state.generatedTexts);
-  const hasAnyGeneratedText = Object.values(generatedTexts).some(text => text && text.length > 0);
+  const generatedTexts = useGeneratedTextStore((state) => state.generatedTexts);
+  const hasAnyGeneratedText = Object.values(generatedTexts).some((text) => text && text.length > 0);
 
   const hasSeenFeature = React.useMemo(() => {
     if (!featureId || !isNewFeature) return false;
@@ -48,31 +51,32 @@ const HelpDisplay = ({ content,
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  const displayContent = (hasSeenFeature && fallbackContent) ? fallbackContent : content;
-  const displayTips = (hasSeenFeature && fallbackTips) ? fallbackTips : tips;
+  const displayContent = hasSeenFeature && fallbackContent ? fallbackContent : content;
+  const displayTips = hasSeenFeature && fallbackTips ? fallbackTips : tips;
   const showNewFeatureStyle = isNewFeature && !hasSeenFeature;
 
-  const featureItems = layout === 'cards'
-    ? (features || displayTips?.map((tip, idx) => ({
-      title: `Tipp ${idx + 1}`,
-      description: typeof tip === 'string' ? tip : ''
-    })) || [])
-    : [];
+  const featureItems =
+    layout === 'cards'
+      ? features ||
+        displayTips?.map((tip, idx) => ({
+          title: `Tipp ${idx + 1}`,
+          description: typeof tip === 'string' ? tip : '',
+        })) ||
+        []
+      : [];
 
   // Auto-scroll effect for cards layout
   useEffect(() => {
     if (layout !== 'cards' || featureItems.length <= 1 || isPaused) return;
 
     const interval = setInterval(() => {
-      setActiveIndex(prev => (prev + 1) % featureItems.length);
+      setActiveIndex((prev) => (prev + 1) % featureItems.length);
     }, 5000);
 
     return () => clearInterval(interval);
   }, [layout, featureItems.length, isPaused]);
 
-  const isHidden = forceHidden ||
-    hasGeneratedContent ||
-    hasAnyGeneratedText;
+  const isHidden = forceHidden || hasGeneratedContent || hasAnyGeneratedText;
 
   if (!displayContent || isHidden) {
     return null;
@@ -89,9 +93,7 @@ const HelpDisplay = ({ content,
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
-        {displayContent && (
-          <p className="help-display__cards-intro">{displayContent}</p>
-        )}
+        {displayContent && <p className="help-display__cards-intro">{displayContent}</p>}
         <div className="help-display__card">
           <h3 className="help-display__card-title">{currentTip.title}</h3>
           <p className="help-display__card-description">{currentTip.description}</p>
@@ -122,7 +124,10 @@ const HelpDisplay = ({ content,
 
             if (colonOrPeriodMatch && colonOrPeriodMatch[2].includes(',')) {
               const [, prefix, itemsText] = colonOrPeriodMatch;
-              const items = itemsText.split(',').map(item => item.trim()).filter(item => item);
+              const items = itemsText
+                .split(',')
+                .map((item) => item.trim())
+                .filter((item) => item);
 
               if (items.length > 1) {
                 return (
@@ -138,14 +143,17 @@ const HelpDisplay = ({ content,
               }
             }
 
-            return displayContent.split('\n').filter(line => line.trim()).map((line, idx) => (
-              <p key={idx}>{line}</p>
-            ));
+            return displayContent
+              .split('\n')
+              .filter((line) => line.trim())
+              .map((line, idx) => <p key={idx}>{line}</p>);
           })()}
         </div>
         {displayTips && displayTips.length > 0 && (
           <>
-            <p><strong>Tipps:</strong></p>
+            <p>
+              <strong>Tipps:</strong>
+            </p>
             <ul>
               {displayTips.map((tip, index) => (
                 <li key={index}>
@@ -159,7 +167,7 @@ const HelpDisplay = ({ content,
                         const formats = parts[1];
 
                         if (formats && formats.includes(', ')) {
-                          const formatItems = formats.split(', ').map(item => item.trim());
+                          const formatItems = formats.split(', ').map((item) => item.trim());
                           return (
                             <>
                               <strong>{prefix}</strong>

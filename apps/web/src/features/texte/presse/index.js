@@ -1,1 +1,1 @@
-export { default as PresseSocialGenerator } from './PresseSocialGenerator'; 
+export { default as PresseSocialGenerator } from './PresseSocialGenerator';

@@ -15,7 +15,7 @@ import {
   TEXT_SEARCH_COLLECTIONS,
   TEXT_SEARCH_INDEXES,
   getCollectionConfig,
-  getIndexSchema
+  getIndexSchema,
 } from '../../../config/qdrantCollectionsSchema.js';
 
 import type { CollectionNames, CollectionKey, CollectionStats } from './types.js';
@@ -26,7 +26,7 @@ import {
   getCollectionStats as getStats,
   getAllStats as getAllCollectionStats,
   createSnapshot as createDbSnapshot,
-  type SnapshotResult
+  type SnapshotResult,
 } from './collections.js';
 
 import {
@@ -42,7 +42,7 @@ import {
   type WebContentChunk,
   type WebContentMetadata,
   type ContentExampleMetadata,
-  type SocialMediaIndexMetadata
+  type SocialMediaIndexMetadata,
 } from './indexing.js';
 
 import {
@@ -54,7 +54,7 @@ import {
   type SearchResponse,
   type SearchResult,
   type ContentExampleResult,
-  type SocialMediaResult
+  type SocialMediaResult,
 } from './search.js';
 
 import {
@@ -63,7 +63,7 @@ import {
   deleteBundestagContentByUrl as deleteBundestag,
   deleteGrueneDeContentByUrl as deleteGrueneDe,
   deleteGrueneAtContentByUrl as deleteGrueneAt,
-  deleteContentExample as deleteContent
+  deleteContentExample as deleteContent,
 } from './deletion.js';
 
 import {
@@ -72,14 +72,14 @@ import {
   getDateRange as getRange,
   getAllUrls,
   type FieldValueCount,
-  type DateRange
+  type DateRange,
 } from './facets.js';
 
 import {
   getRandomContentExamples as getRandomContent,
   getRandomSocialMediaExamples as getRandomSocial,
   type RandomContentExampleOptions,
-  type RandomSocialMediaOptions
+  type RandomSocialMediaOptions,
 } from './random.js';
 
 import { QdrantOperations } from './operations/index.js';
@@ -119,7 +119,7 @@ export class QdrantService {
     kommunalwiki_documents: 'kommunalwiki_documents',
     bundestag_content: 'bundestag_content',
     gruene_de_documents: 'gruene_de_documents',
-    gruene_at_documents: 'gruene_at_documents'
+    gruene_at_documents: 'gruene_at_documents',
   };
 
   constructor() {
@@ -175,7 +175,7 @@ export class QdrantService {
         keepAliveMsecs: 1000,
         maxSockets: 10,
         maxFreeSockets: 5,
-        timeout: 30000
+        timeout: 30000,
       });
 
       const basicAuthUsername = process.env.QDRANT_BASIC_AUTH_USERNAME;
@@ -183,7 +183,9 @@ export class QdrantService {
       const headers: Record<string, string> = {};
 
       if (basicAuthUsername && basicAuthPassword) {
-        const basicAuth = Buffer.from(`${basicAuthUsername}:${basicAuthPassword}`).toString('base64');
+        const basicAuth = Buffer.from(`${basicAuthUsername}:${basicAuthPassword}`).toString(
+          'base64'
+        );
         headers['Authorization'] = `Basic ${basicAuth}`;
       }
 
@@ -200,7 +202,7 @@ export class QdrantService {
           timeout: 60000,
           checkCompatibility: false,
           ...(Object.keys(headers).length > 0 ? { headers } : {}),
-          ...(basePath ? { prefix: basePath } : {})
+          ...(basePath ? { prefix: basePath } : {}),
         });
       } else {
         this.client = new QdrantClient({
@@ -208,7 +210,7 @@ export class QdrantService {
           apiKey: apiKey,
           https: false,
           timeout: 60000,
-          ...(Object.keys(headers).length > 0 ? { headers } : {})
+          ...(Object.keys(headers).length > 0 ? { headers } : {}),
         });
       }
 
@@ -242,7 +244,6 @@ export class QdrantService {
       this.isInitializing = false;
       this.lastHealthCheck = Date.now();
       log.info('Connected');
-
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.error(`Init failed: ${message}`);
@@ -277,7 +278,7 @@ export class QdrantService {
 
         if (attempt < maxRetries) {
           const delay = Math.pow(2, attempt) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     }
@@ -386,7 +387,7 @@ export class QdrantService {
     if (options.documentIds && options.documentIds.length > 0) {
       filter.must!.push({
         key: 'document_id',
-        match: { any: options.documentIds }
+        match: { any: options.documentIds },
       });
     }
 
@@ -438,9 +439,12 @@ export class QdrantService {
    * Format QdrantOperations results to SearchResponse format
    * @private
    */
-  private _formatSearchResults(results: Array<{ id: string | number; score: number; payload: Record<string, unknown> }>, type: 'document' | 'content' | 'social'): SearchResponse<SearchResult | ContentExampleResult | SocialMediaResult> {
+  private _formatSearchResults(
+    results: Array<{ id: string | number; score: number; payload: Record<string, unknown> }>,
+    type: 'document' | 'content' | 'social'
+  ): SearchResponse<SearchResult | ContentExampleResult | SocialMediaResult> {
     if (type === 'document') {
-      const formattedResults: SearchResult[] = results.map(hit => ({
+      const formattedResults: SearchResult[] = results.map((hit) => ({
         id: hit.id,
         score: hit.score,
         document_id: hit.payload.document_id as string,
@@ -452,16 +456,16 @@ export class QdrantService {
         filename: hit.payload.filename as string | null,
         url: hit.payload.url as string | null,
         section: hit.payload.section as string | null,
-        published_at: hit.payload.published_at as string | null
+        published_at: hit.payload.published_at as string | null,
       }));
 
       return {
         success: true,
         results: formattedResults,
-        total: formattedResults.length
+        total: formattedResults.length,
       };
     } else if (type === 'content') {
-      const formattedResults: ContentExampleResult[] = results.map(hit => ({
+      const formattedResults: ContentExampleResult[] = results.map((hit) => ({
         id: String(hit.id),
         score: hit.score,
         title: hit.payload.title as string,
@@ -473,29 +477,29 @@ export class QdrantService {
         content_data: hit.payload.content_data as Record<string, unknown>,
         metadata: hit.payload.metadata as Record<string, unknown>,
         created_at: hit.payload.created_at as string,
-        similarity_score: hit.score
+        similarity_score: hit.score,
       }));
 
       return {
         success: true,
         results: formattedResults,
-        total: formattedResults.length
+        total: formattedResults.length,
       };
     } else {
-      const formattedResults: SocialMediaResult[] = results.map(hit => ({
+      const formattedResults: SocialMediaResult[] = results.map((hit) => ({
         id: hit.id,
         score: hit.score,
         content: hit.payload.content as string,
         platform: hit.payload.platform as string,
         country: hit.payload.country as string | null,
         source_account: hit.payload.source_account as string | null,
-        created_at: hit.payload.created_at as string
+        created_at: hit.payload.created_at as string,
       }));
 
       return {
         success: true,
         results: formattedResults,
-        total: formattedResults.length
+        total: formattedResults.length,
       };
     }
   }
@@ -505,31 +509,31 @@ export class QdrantService {
    * @private
    */
   private _formatHybridResults(hybridResult: HybridSearchResponse): SearchResponse<SearchResult> {
-    const formattedResults: SearchResult[] = hybridResult.results.map(hit => ({
+    const formattedResults: SearchResult[] = hybridResult.results.map((hit) => ({
       id: hit.id,
       score: hit.score,
       document_id: hit.payload.document_id as string,
       chunk_text: hit.payload.chunk_text as string,
       chunk_index: hit.payload.chunk_index as number,
       metadata: {
-        ...(hit.payload.metadata as Record<string, unknown> || {}),
+        ...((hit.payload.metadata as Record<string, unknown>) || {}),
         hybridScore: hit.score,
         vectorScore: hit.originalVectorScore,
         textScore: hit.originalTextScore,
-        fusionMethod: hybridResult.metadata.fusionMethod
+        fusionMethod: hybridResult.metadata.fusionMethod,
       },
       user_id: hit.payload.user_id as string,
       title: hit.payload.title as string | null,
       filename: hit.payload.filename as string | null,
       url: hit.payload.url as string | null,
       section: hit.payload.section as string | null,
-      published_at: hit.payload.published_at as string | null
+      published_at: hit.payload.published_at as string | null,
     }));
 
     return {
       success: true,
       results: formattedResults,
-      total: formattedResults.length
+      total: formattedResults.length,
     };
   }
 
@@ -551,7 +555,11 @@ export class QdrantService {
     );
   }
 
-  async indexGrundsatzChunks(documentId: string, chunks: GrundsatzChunk[], sourceUrl?: string): Promise<{ success: boolean; chunks: number }> {
+  async indexGrundsatzChunks(
+    documentId: string,
+    chunks: GrundsatzChunk[],
+    sourceUrl?: string
+  ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
     return indexGrundsatz(
       this.client!,
@@ -568,13 +576,7 @@ export class QdrantService {
     metadata: WebContentMetadata = {}
   ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
-    return indexBundestag(
-      this.client!,
-      this.collections.bundestag_content,
-      url,
-      chunks,
-      metadata
-    );
+    return indexBundestag(this.client!, this.collections.bundestag_content, url, chunks, metadata);
   }
 
   async indexGrueneDeContent(
@@ -583,13 +585,7 @@ export class QdrantService {
     metadata: WebContentMetadata = {}
   ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
-    return indexGrueneDe(
-      this.client!,
-      this.collections.gruene_de_documents,
-      url,
-      chunks,
-      metadata
-    );
+    return indexGrueneDe(this.client!, this.collections.gruene_de_documents, url, chunks, metadata);
   }
 
   async indexGrueneAtContent(
@@ -598,13 +594,7 @@ export class QdrantService {
     metadata: WebContentMetadata = {}
   ): Promise<{ success: boolean; chunks: number }> {
     await this.ensureConnected();
-    return indexGrueneAt(
-      this.client!,
-      this.collections.gruene_at_documents,
-      url,
-      chunks,
-      metadata
-    );
+    return indexGrueneAt(this.client!, this.collections.gruene_at_documents, url, chunks, metadata);
   }
 
   async indexContentExample(
@@ -643,55 +633,68 @@ export class QdrantService {
 
   // ============ Search Methods ============
 
-  async searchDocuments(queryVector: number[], options: DocumentSearchOptions = {}): Promise<SearchResponse<SearchResult>> {
+  async searchDocuments(
+    queryVector: number[],
+    options: DocumentSearchOptions = {}
+  ): Promise<SearchResponse<SearchResult>> {
     await this.ensureConnected();
 
     const filter = this._buildDocumentFilter(options);
     const collection = options.collection || this.collections.documents;
 
-    const results = await this.operations!.searchWithQuality(
-      collection,
-      queryVector,
-      filter,
-      {
-        limit: options.limit || 10,
-        threshold: options.threshold || 0.3,
-        withPayload: true
-      }
-    );
+    const results = await this.operations!.searchWithQuality(collection, queryVector, filter, {
+      limit: options.limit || 10,
+      threshold: options.threshold || 0.3,
+      withPayload: true,
+    });
 
     return this._formatSearchResults(results, 'document') as SearchResponse<SearchResult>;
   }
 
-  async searchGrundsatzDocuments(queryVector: number[], options: DocumentSearchOptions = {}): Promise<SearchResponse<SearchResult>> {
+  async searchGrundsatzDocuments(
+    queryVector: number[],
+    options: DocumentSearchOptions = {}
+  ): Promise<SearchResponse<SearchResult>> {
     return this.searchDocuments(queryVector, {
       ...options,
-      collection: this.collections.grundsatz_documents
+      collection: this.collections.grundsatz_documents,
     });
   }
 
-  async searchBundestagDocuments(queryVector: number[], options: DocumentSearchOptions = {}): Promise<SearchResponse<SearchResult>> {
+  async searchBundestagDocuments(
+    queryVector: number[],
+    options: DocumentSearchOptions = {}
+  ): Promise<SearchResponse<SearchResult>> {
     return this.searchDocuments(queryVector, {
       ...options,
-      collection: this.collections.bundestag_content
+      collection: this.collections.bundestag_content,
     });
   }
 
-  async searchGrueneDeDocuments(queryVector: number[], options: DocumentSearchOptions = {}): Promise<SearchResponse<SearchResult>> {
+  async searchGrueneDeDocuments(
+    queryVector: number[],
+    options: DocumentSearchOptions = {}
+  ): Promise<SearchResponse<SearchResult>> {
     return this.searchDocuments(queryVector, {
       ...options,
-      collection: this.collections.gruene_de_documents
+      collection: this.collections.gruene_de_documents,
     });
   }
 
-  async searchGrueneAtDocuments(queryVector: number[], options: DocumentSearchOptions = {}): Promise<SearchResponse<SearchResult>> {
+  async searchGrueneAtDocuments(
+    queryVector: number[],
+    options: DocumentSearchOptions = {}
+  ): Promise<SearchResponse<SearchResult>> {
     return this.searchDocuments(queryVector, {
       ...options,
-      collection: this.collections.gruene_at_documents
+      collection: this.collections.gruene_at_documents,
     });
   }
 
-  async searchContentExamples(queryVector: number[], options: ContentExampleSearchOptions = {}): Promise<SearchResponse<ContentExampleResult>> {
+  async searchContentExamples(
+    queryVector: number[],
+    options: ContentExampleSearchOptions = {}
+  ): Promise<SearchResponse<ContentExampleResult>> {
     await this.ensureConnected();
 
     const filter = this._buildContentFilter(options);
@@ -703,14 +706,17 @@ export class QdrantService {
       {
         limit: options.limit || 10,
         threshold: options.threshold || 0.3,
-        withPayload: true
+        withPayload: true,
       }
     );
 
     return this._formatSearchResults(results, 'content') as SearchResponse<ContentExampleResult>;
   }
 
-  async searchSocialMediaExamples(queryVector: number[], options: SocialMediaSearchOptions = {}): Promise<SearchResponse<SocialMediaResult>> {
+  async searchSocialMediaExamples(
+    queryVector: number[],
+    options: SocialMediaSearchOptions = {}
+  ): Promise<SearchResponse<SocialMediaResult>> {
     await this.ensureConnected();
 
     const filter = this._buildSocialMediaFilter(options);
@@ -722,18 +728,24 @@ export class QdrantService {
       {
         limit: options.limit || 10,
         threshold: options.threshold || 0.3,
-        withPayload: true
+        withPayload: true,
       }
     );
 
     return this._formatSearchResults(results, 'social') as SearchResponse<SocialMediaResult>;
   }
 
-  async searchFacebookExamples(queryVector: number[], options: Omit<SocialMediaSearchOptions, 'platform'> = {}): Promise<SearchResponse<SocialMediaResult>> {
+  async searchFacebookExamples(
+    queryVector: number[],
+    options: Omit<SocialMediaSearchOptions, 'platform'> = {}
+  ): Promise<SearchResponse<SocialMediaResult>> {
     return this.searchSocialMediaExamples(queryVector, { ...options, platform: 'facebook' });
   }
 
-  async searchInstagramExamples(queryVector: number[], options: Omit<SocialMediaSearchOptions, 'platform'> = {}): Promise<SearchResponse<SocialMediaResult>> {
+  async searchInstagramExamples(
+    queryVector: number[],
+    options: Omit<SocialMediaSearchOptions, 'platform'> = {}
+  ): Promise<SearchResponse<SocialMediaResult>> {
     return this.searchSocialMediaExamples(queryVector, { ...options, platform: 'instagram' });
   }
 
@@ -766,7 +778,7 @@ export class QdrantService {
         vectorWeight: 0.7,
         textWeight: 0.3,
         useRRF: true,
-        withPayload: true
+        withPayload: true,
       }
     );
 
@@ -775,16 +787,17 @@ export class QdrantService {
 
   // ============ Deletion Methods ============
 
-  async deleteDocument(documentId: string, collection?: string): Promise<{ success: boolean; collection: string }> {
+  async deleteDocument(
+    documentId: string,
+    collection?: string
+  ): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteDocs(
-      this.client!,
-      collection || this.collections.documents,
-      documentId
-    );
+    return deleteDocs(this.client!, collection || this.collections.documents, documentId);
   }
 
-  async deleteUserVectors(userId: string): Promise<{ success: boolean; collections: string[]; results: unknown[] }> {
+  async deleteUserVectors(
+    userId: string
+  ): Promise<{ success: boolean; collections: string[]; results: unknown[] }> {
     await this.ensureConnected();
     return deleteUser(
       this.client!,
@@ -793,45 +806,33 @@ export class QdrantService {
     );
   }
 
-  async deleteBundestagContentByUrl(url: string): Promise<{ success: boolean; collection: string }> {
+  async deleteBundestagContentByUrl(
+    url: string
+  ): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteBundestag(
-      this.client!,
-      this.collections.bundestag_content,
-      url
-    );
+    return deleteBundestag(this.client!, this.collections.bundestag_content, url);
   }
 
   async deleteGrueneDeContentByUrl(url: string): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteGrueneDe(
-      this.client!,
-      this.collections.gruene_de_documents,
-      url
-    );
+    return deleteGrueneDe(this.client!, this.collections.gruene_de_documents, url);
   }
 
   async deleteGrueneAtContentByUrl(url: string): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteGrueneAt(
-      this.client!,
-      this.collections.gruene_at_documents,
-      url
-    );
+    return deleteGrueneAt(this.client!, this.collections.gruene_at_documents, url);
   }
 
   async deleteContentExample(exampleId: string): Promise<{ success: boolean; collection: string }> {
     await this.ensureConnected();
-    return deleteContent(
-      this.client!,
-      this.collections.content_examples,
-      exampleId
-    );
+    return deleteContent(this.client!, this.collections.content_examples, exampleId);
   }
 
   // ============ Random Sampling Methods ============
 
-  async getRandomContentExamples(options: RandomContentExampleOptions = {}): Promise<ContentExampleResult[]> {
+  async getRandomContentExamples(
+    options: RandomContentExampleOptions = {}
+  ): Promise<ContentExampleResult[]> {
     await this.ensureConnected();
     return getRandomContent(
       this.client!,
@@ -841,7 +842,9 @@ export class QdrantService {
     );
   }
 
-  async getRandomSocialMediaExamples(options: RandomSocialMediaOptions = {}): Promise<SocialMediaResult[]> {
+  async getRandomSocialMediaExamples(
+    options: RandomSocialMediaOptions = {}
+  ): Promise<SocialMediaResult[]> {
     await this.ensureConnected();
     return getRandomSocial(
       this.client!,

@@ -11,7 +11,7 @@ import type {
   DeactivationResult,
   UsageStats,
   DatabaseStateCheck,
-  ShareLinkUpdates
+  ShareLinkUpdates,
 } from './types.js';
 
 export class NextcloudShareManager {
@@ -56,10 +56,14 @@ export class NextcloudShareManager {
       );
 
       const rawCurrentLinks = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinks) ? rawCurrentLinks : [];
+      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinks)
+        ? rawCurrentLinks
+        : [];
 
       // Check if share link already exists
-      const existingLink = currentLinks.find((link: NextcloudShareLink) => link.share_link === shareLink);
+      const existingLink = currentLinks.find(
+        (link: NextcloudShareLink) => link.share_link === shareLink
+      );
       if (existingLink) {
         throw new Error('This share link is already saved');
       }
@@ -72,7 +76,7 @@ export class NextcloudShareManager {
         base_url: baseUrl || null,
         share_token: shareToken || null,
         is_active: true,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
 
       // Add to existing links
@@ -89,11 +93,14 @@ export class NextcloudShareManager {
         throw new Error('Failed to save share link - profile not found');
       }
 
-      console.log('[NextcloudShareManager] Share link saved successfully', { shareLinkId: newLink.id });
+      console.log('[NextcloudShareManager] Share link saved successfully', {
+        shareLinkId: newLink.id,
+      });
       return newLink;
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in saveShareLink', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error in saveShareLink', {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
@@ -121,15 +128,19 @@ export class NextcloudShareManager {
       const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinks) ? rawShareLinks : [];
 
       // Sort by created_at descending (newest first)
-      const sortedLinks = shareLinks.sort((a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      const sortedLinks = shareLinks.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      console.log('[NextcloudShareManager] Retrieved share links', { userId, count: sortedLinks.length });
+      console.log('[NextcloudShareManager] Retrieved share links', {
+        userId,
+        count: sortedLinks.length,
+      });
       return sortedLinks;
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in getShareLinks', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error in getShareLinks', {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
@@ -154,7 +165,9 @@ export class NextcloudShareManager {
       );
 
       const rawShareLinksById = profile?.nextcloud_share_links;
-      const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinksById) ? rawShareLinksById : [];
+      const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinksById)
+        ? rawShareLinksById
+        : [];
       const shareLink = shareLinks.find((link: NextcloudShareLink) => link.id === shareLinkId);
 
       if (!shareLink) {
@@ -162,9 +175,10 @@ export class NextcloudShareManager {
       }
 
       return shareLink;
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in getShareLinkById', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error in getShareLinkById', {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
@@ -194,8 +208,12 @@ export class NextcloudShareManager {
       );
 
       const rawCurrentLinksUpdate = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksUpdate) ? rawCurrentLinksUpdate : [];
-      const linkIndex = currentLinks.findIndex((link: NextcloudShareLink) => link.id === shareLinkId);
+      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksUpdate)
+        ? rawCurrentLinksUpdate
+        : [];
+      const linkIndex = currentLinks.findIndex(
+        (link: NextcloudShareLink) => link.id === shareLinkId
+      );
 
       if (linkIndex === -1) {
         throw new Error('Share link not found or no permission to update');
@@ -205,7 +223,7 @@ export class NextcloudShareManager {
       const updatedLink: NextcloudShareLink = {
         ...currentLinks[linkIndex],
         ...updates,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       // Replace the link in the array
@@ -223,11 +241,14 @@ export class NextcloudShareManager {
         throw new Error('Failed to update share link - profile not found');
       }
 
-      console.log('[NextcloudShareManager] Share link updated successfully', { shareLinkId: updatedLink.id });
+      console.log('[NextcloudShareManager] Share link updated successfully', {
+        shareLinkId: updatedLink.id,
+      });
       return updatedLink;
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in updateShareLink', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error in updateShareLink', {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
@@ -235,7 +256,10 @@ export class NextcloudShareManager {
   /**
    * Delete a share link
    */
-  static async deleteShareLink(userId: string, shareLinkId: string): Promise<ShareLinkDeletionResult> {
+  static async deleteShareLink(
+    userId: string,
+    shareLinkId: string
+  ): Promise<ShareLinkDeletionResult> {
     try {
       console.log('[NextcloudShareManager] Deleting share link', { userId, shareLinkId });
 
@@ -253,7 +277,9 @@ export class NextcloudShareManager {
       );
 
       const rawCurrentLinksDelete = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDelete) ? rawCurrentLinksDelete : [];
+      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDelete)
+        ? rawCurrentLinksDelete
+        : [];
       const linkToDelete = currentLinks.find((link: NextcloudShareLink) => link.id === shareLinkId);
 
       if (!linkToDelete) {
@@ -261,7 +287,9 @@ export class NextcloudShareManager {
       }
 
       // Remove the link from the array
-      const updatedLinks = currentLinks.filter((link: NextcloudShareLink) => link.id !== shareLinkId);
+      const updatedLinks = currentLinks.filter(
+        (link: NextcloudShareLink) => link.id !== shareLinkId
+      );
 
       // Update the profile
       const result = await postgres.update(
@@ -276,9 +304,10 @@ export class NextcloudShareManager {
 
       console.log('[NextcloudShareManager] Share link deleted successfully', { shareLinkId });
       return { success: true, deletedId: shareLinkId };
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in deleteShareLink', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error in deleteShareLink', {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
@@ -291,7 +320,7 @@ export class NextcloudShareManager {
       if (!shareLink || typeof shareLink !== 'string') {
         return {
           isValid: false,
-          error: 'Share link is required and must be a string'
+          error: 'Share link is required and must be a string',
         };
       }
 
@@ -302,7 +331,7 @@ export class NextcloudShareManager {
       } catch (error) {
         return {
           isValid: false,
-          error: 'Invalid URL format'
+          error: 'Invalid URL format',
         };
       }
 
@@ -311,7 +340,7 @@ export class NextcloudShareManager {
       if (!sharePattern.test(urlObj.pathname)) {
         return {
           isValid: false,
-          error: 'Invalid Nextcloud share link format'
+          error: 'Invalid Nextcloud share link format',
         };
       }
 
@@ -320,7 +349,7 @@ export class NextcloudShareManager {
       if (!tokenMatch) {
         return {
           isValid: false,
-          error: 'Could not extract share token'
+          error: 'Could not extract share token',
         };
       }
 
@@ -328,14 +357,15 @@ export class NextcloudShareManager {
         isValid: true,
         shareToken: tokenMatch[1],
         baseUrl: `${urlObj.protocol}//${urlObj.host}`,
-        error: null
+        error: null,
       };
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error validating share link', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error validating share link', {
+        error: (error as Error).message,
+      });
       return {
         isValid: false,
-        error: 'Validation error: ' + (error as Error).message
+        error: 'Validation error: ' + (error as Error).message,
       };
     }
   }
@@ -361,13 +391,15 @@ export class NextcloudShareManager {
       );
 
       const rawCurrentLinksDeactivate = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDeactivate) ? rawCurrentLinksDeactivate : [];
+      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDeactivate)
+        ? rawCurrentLinksDeactivate
+        : [];
 
       // Deactivate all links
       const updatedLinks = currentLinks.map((link: NextcloudShareLink) => ({
         ...link,
         is_active: false,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       }));
 
       // Update the profile if there were any links to deactivate
@@ -383,15 +415,19 @@ export class NextcloudShareManager {
         }
       }
 
-      console.log('[NextcloudShareManager] Share links deactivated', { userId, count: currentLinks.length });
+      console.log('[NextcloudShareManager] Share links deactivated', {
+        userId,
+        count: currentLinks.length,
+      });
 
       return {
         success: true,
-        deactivatedCount: currentLinks.length
+        deactivatedCount: currentLinks.length,
       };
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in deactivateAllShareLinks', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error in deactivateAllShareLinks', {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
@@ -416,20 +452,41 @@ export class NextcloudShareManager {
       );
 
       const rawShareLinksStats = profile?.nextcloud_share_links;
-      const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinksStats) ? rawShareLinksStats : [];
+      const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinksStats)
+        ? rawShareLinksStats
+        : [];
 
       let stats: UsageStats = {
         totalLinks: shareLinks.length,
         activeLinks: shareLinks.filter((link: NextcloudShareLink) => link.is_active).length,
         inactiveLinks: shareLinks.filter((link: NextcloudShareLink) => !link.is_active).length,
-        oldestLink: shareLinks.length > 0 ? new Date(Math.min(...shareLinks.map((link: NextcloudShareLink) => new Date(link.created_at).getTime()))) : null,
-        newestLink: shareLinks.length > 0 ? new Date(Math.max(...shareLinks.map((link: NextcloudShareLink) => new Date(link.created_at).getTime()))) : null
+        oldestLink:
+          shareLinks.length > 0
+            ? new Date(
+                Math.min(
+                  ...shareLinks.map((link: NextcloudShareLink) =>
+                    new Date(link.created_at).getTime()
+                  )
+                )
+              )
+            : null,
+        newestLink:
+          shareLinks.length > 0
+            ? new Date(
+                Math.max(
+                  ...shareLinks.map((link: NextcloudShareLink) =>
+                    new Date(link.created_at).getTime()
+                  )
+                )
+              )
+            : null,
       };
 
       return stats;
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in getUsageStats', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error in getUsageStats', {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
@@ -458,23 +515,24 @@ export class NextcloudShareManager {
         return {
           profileExists: false,
           userId,
-          nextcloud_share_links: null
+          nextcloud_share_links: null,
         };
       }
 
       console.log(`[NextcloudShareManager] Database state for user ${userId}:`, {
         profileExists: true,
-        nextcloud_share_links: profile.nextcloud_share_links || []
+        nextcloud_share_links: profile.nextcloud_share_links || [],
       });
 
       return {
         profileExists: true,
         userId,
-        nextcloud_share_links: (profile.nextcloud_share_links as NextcloudShareLink[]) || []
+        nextcloud_share_links: (profile.nextcloud_share_links as NextcloudShareLink[]) || [],
       };
-
     } catch (error) {
-      console.error('[NextcloudShareManager] Error checking database state', { error: (error as Error).message });
+      console.error('[NextcloudShareManager] Error checking database state', {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }

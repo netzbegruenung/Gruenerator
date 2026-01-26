@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
+
+import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
 import IndexCard from '../../../components/common/IndexCard';
-import { getOrderedSections } from '../config/databaseConfig';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { getOrderedSections } from '../config/databaseConfig';
 import '../../../assets/styles/components/gallery-layout.css';
 import '../../../assets/styles/components/gallery-content-type.css';
 
@@ -15,10 +17,10 @@ const DatabaseIndexPage = () => {
       <div className="gallery-layout">
         <div className="gallery-header">
           <h1>Datenbank</h1>
-          <p>
-            Durchsuche Vorlagen, Prompts und Anträge für deine grüne Arbeit.
-          </p>
+          <p>Durchsuche Vorlagen, Prompts und Anträge für deine grüne Arbeit.</p>
         </div>
+
+        <EarlyAccessBanner />
 
         <div className="gallery-grid">
           {sections.map((section) => (
@@ -39,5 +41,5 @@ const DatabaseIndexPage = () => {
 };
 
 export default withAuthRequired(DatabaseIndexPage, {
-  title: 'Datenbank'
+  title: 'Datenbank',
 });

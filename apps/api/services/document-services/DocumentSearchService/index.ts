@@ -10,77 +10,77 @@ export { DocumentSearchService, getQdrantDocumentService } from './DocumentSearc
 
 // Re-export all type definitions
 export type {
-    // Qdrant filter types
-    QdrantFilter,
+  // Qdrant filter types
+  QdrantFilter,
 
-    // Document search parameters
-    DocumentSearchFilters,
-    DocumentSearchOptions,
-    DocumentSearchParams,
-    HybridConfig,
+  // Document search parameters
+  DocumentSearchFilters,
+  DocumentSearchOptions,
+  DocumentSearchParams,
+  HybridConfig,
 
-    // Vector storage types
-    ChunkWithMetadata,
-    VectorMetadata,
-    VectorStoreResult,
-    QdrantPoint,
+  // Vector storage types
+  ChunkWithMetadata,
+  VectorMetadata,
+  VectorStoreResult,
+  QdrantPoint,
 
-    // Search user documents types
-    SearchUserDocumentsOptions,
-    UserDocumentSearchResult,
+  // Search user documents types
+  SearchUserDocumentsOptions,
+  UserDocumentSearchResult,
 
-    // Delete operations types
-    DeleteResult,
+  // Delete operations types
+  DeleteResult,
 
-    // Statistics types
-    UserVectorStats,
+  // Statistics types
+  UserVectorStats,
 
-    // Document text retrieval types
-    DocumentFullTextResult,
-    BulkDocumentData,
-    BulkDocumentError,
-    BulkDocumentResult,
-    FirstChunksResult,
+  // Document text retrieval types
+  DocumentFullTextResult,
+  BulkDocumentData,
+  BulkDocumentError,
+  BulkDocumentResult,
+  FirstChunksResult,
 
-    // Bundestag search types
-    BundestagSearchOptions,
-    BundestagChunk,
-    BundestagResultGroup,
-    BundestagSearchResult,
+  // Bundestag search types
+  BundestagSearchOptions,
+  BundestagChunk,
+  BundestagResultGroup,
+  BundestagSearchResult,
 
-    // Extended chunk types
-    DocumentRawChunk,
-    DocumentChunkData,
-    DocumentTransformedChunk,
+  // Extended chunk types
+  DocumentRawChunk,
+  DocumentChunkData,
+  DocumentTransformedChunk,
 
-    // Scoring types
-    BaseScore,
-    DocumentEnhancedScore,
+  // Scoring types
+  BaseScore,
+  DocumentEnhancedScore,
 
-    // Find chunks params
-    FindSimilarChunksParams,
-    FindHybridChunksParams,
+  // Find chunks params
+  FindSimilarChunksParams,
+  FindHybridChunksParams,
 
-    // Qdrant payload types
-    QdrantResultPayload,
-    QdrantSearchResult,
-    QdrantDocument,
+  // Qdrant payload types
+  QdrantResultPayload,
+  QdrantSearchResult,
+  QdrantDocument,
 
-    // Hybrid search result types
-    HybridSearchResult,
+  // Hybrid search result types
+  HybridSearchResult,
 
-    // Service state types
-    ServiceState,
+  // Service state types
+  ServiceState,
 
-    // Re-exported BaseSearchService types
-    SearchParams,
-    SearchResponse,
-    ChunkData,
-    TransformedChunk,
-    EnhancedScore,
-    HybridMetadata,
-    HybridOptions,
-    DocumentResult
+  // Re-exported BaseSearchService types
+  SearchParams,
+  SearchResponse,
+  ChunkData,
+  TransformedChunk,
+  EnhancedScore,
+  HybridMetadata,
+  HybridOptions,
+  DocumentResult,
 } from './types.js';
 
 // Export operation modules (if needed externally)

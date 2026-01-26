@@ -12,7 +12,7 @@ import type {
   AuthenticatedRequest,
   GenerationStatusResponse,
   GenerationIncrementResponse,
-  GenerationResetResponse
+  GenerationResetResponse,
 } from './types.js';
 
 const log = createLogger('imageGeneration');
@@ -25,74 +25,80 @@ router.use(requireAuth);
  * GET /status
  * Get current image generation status for authenticated user
  */
-router.get('/status', async (req: AuthenticatedRequest, res: Response<GenerationStatusResponse>) => {
-  try {
-    const userId = req.user?.id;
+router.get(
+  '/status',
+  async (req: AuthenticatedRequest, res: Response<GenerationStatusResponse>) => {
+    try {
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'User ID not found in request',
+        });
+      }
+
+      const status = await imageCounter.checkLimit(userId);
+      const timeUntilReset = imageCounter.getTimeUntilReset();
+
+      return res.json({
+        success: true,
+        data: {
+          ...status,
+          timeUntilReset,
+          userId,
+        },
+      });
+    } catch (error) {
+      log.error('[ImageGeneration API] Error getting status:', error);
+      return res.status(500).json({
         success: false,
-        error: 'User ID not found in request'
+        error: 'Failed to get image generation status',
       });
     }
-
-    const status = await imageCounter.checkLimit(userId);
-    const timeUntilReset = imageCounter.getTimeUntilReset();
-
-    return res.json({
-      success: true,
-      data: {
-        ...status,
-        timeUntilReset,
-        userId
-      }
-    });
-  } catch (error) {
-    log.error('[ImageGeneration API] Error getting status:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to get image generation status'
-    });
   }
-});
+);
 
 /**
  * POST /increment
  * Increment counter after successful generation (internal use)
  */
-router.post('/increment', async (req: AuthenticatedRequest, res: Response<GenerationIncrementResponse>) => {
-  try {
-    const userId = req.user?.id;
+router.post(
+  '/increment',
+  async (req: AuthenticatedRequest, res: Response<GenerationIncrementResponse>) => {
+    try {
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'User ID not found in request',
+        });
+      }
+
+      const result = await imageCounter.incrementCount(userId);
+
+      if (!result.success) {
+        return res.status(429).json({
+          success: false,
+          error: 'Daily image generation limit reached',
+          data: result,
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      log.error('[ImageGeneration API] Error incrementing counter:', error);
+      return res.status(500).json({
         success: false,
-        error: 'User ID not found in request'
+        error: 'Failed to increment counter',
       });
     }
-
-    const result = await imageCounter.incrementCount(userId);
-
-    if (!result.success) {
-      return res.status(429).json({
-        success: false,
-        error: 'Daily image generation limit reached',
-        data: result
-      });
-    }
-
-    return res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    log.error('[ImageGeneration API] Error incrementing counter:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to increment counter'
-    });
   }
-});
+);
 
 /**
  * POST /reset
@@ -105,7 +111,7 @@ router.post('/reset', async (req: AuthenticatedRequest, res: Response<Generation
     if (!userId) {
       return res.status(401).json({
         success: false,
-        error: 'User ID not found in request'
+        error: 'User ID not found in request',
       });
     }
 
@@ -113,13 +119,13 @@ router.post('/reset', async (req: AuthenticatedRequest, res: Response<Generation
 
     return res.json({
       success,
-      message: success ? 'Counter reset successfully' : 'Failed to reset counter'
+      message: success ? 'Counter reset successfully' : 'Failed to reset counter',
     });
   } catch (error) {
     log.error('[ImageGeneration API] Error resetting counter:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to reset counter'
+      error: 'Failed to reset counter',
     });
   }
 });

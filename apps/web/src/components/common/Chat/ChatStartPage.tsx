@@ -1,28 +1,34 @@
-import { JSX, useState, FormEvent, ReactNode } from 'react';
 import { motion } from 'motion/react';
-import useChatInput from './hooks/useChatInput';
+import { type JSX, useState, FormEvent, type ReactNode } from 'react';
+
+
 import AttachedFilesList from '../AttachedFilesList';
-import ChatSubmitButton from './ChatSubmitButton';
+
 import ChatFileUploadButton from './ChatFileUploadButton';
+import ChatSubmitButton from './ChatSubmitButton';
+import useChatInput from './hooks/useChatInput';
 import { handleEnterKeySubmit } from './utils/chatMessageUtils';
 import './ChatStartPage.css';
 
 const DEFAULT_FEATURES = [
   {
-    title: "Vielfältige Textformate",
-    description: "Von Social-Media-Posts über Pressemitteilungen bis zu Anträgen – ich finde den passenden Stil automatisch."
+    title: 'Vielfältige Textformate',
+    description:
+      'Von Social-Media-Posts über Pressemitteilungen bis zu Anträgen – ich finde den passenden Stil automatisch.',
   },
   {
-    title: "Sharepics inklusive",
-    description: "Direkt nutzbare Sharepics mit passenden Headlines, Farben und Varianten – inklusive Download."
+    title: 'Sharepics inklusive',
+    description:
+      'Direkt nutzbare Sharepics mit passenden Headlines, Farben und Varianten – inklusive Download.',
   },
   {
-    title: "Mehrere Ergebnisse",
-    description: "Ich kann mehrere Antworten gleichzeitig liefern, z.\u00a0B. Textvorschlag und Sharepic auf einen Streich."
-  }
+    title: 'Mehrere Ergebnisse',
+    description:
+      'Ich kann mehrere Antworten gleichzeitig liefern, z.\u00a0B. Textvorschlag und Sharepic auf einen Streich.',
+  },
 ];
 
-const DEFAULT_TIP = "Starte z.\u00a0B. mit: „Schreib einen Instagram-Post über Solarenergie\"";
+const DEFAULT_TIP = 'Starte z.\u00a0B. mit: „Schreib einen Instagram-Post über Solarenergie"';
 
 interface AttachedFile {
   name: string;
@@ -74,9 +80,10 @@ interface ChatStartPageProps {
   filterButton?: ReactNode;
 }
 
-const ChatStartPage = ({ title = "Was möchtest du wissen?",
-  placeholder = "Stell deine Frage...",
-  inputValue = "",
+const ChatStartPage = ({
+  title = 'Was möchtest du wissen?',
+  placeholder = 'Stell deine Frage...',
+  inputValue = '',
   onInputChange,
   onSubmit,
   disabled = false,
@@ -85,7 +92,7 @@ const ChatStartPage = ({ title = "Was möchtest du wissen?",
   attachedFiles = [],
   onRemoveFile,
   exampleQuestions = [],
-  variant = "default",
+  variant = 'default',
   showFeatures = false,
   showTip = false,
   features = DEFAULT_FEATURES,
@@ -97,8 +104,9 @@ const ChatStartPage = ({ title = "Was möchtest du wissen?",
   sources = [],
   onSourceToggle,
   filterBar = null,
-  filterButton = null }: ChatStartPageProps): JSX.Element => {
-  const isGruenerator = variant === "gruenerator";
+  filterButton = null,
+}: ChatStartPageProps): JSX.Element => {
+  const isGruenerator = variant === 'gruenerator';
   // Use internal hook only if voice props not provided from parent
   const hasExternalVoice = externalStartRecording !== undefined;
 
@@ -108,13 +116,19 @@ const ChatStartPage = ({ title = "Was möchtest du wissen?",
     onSubmit,
     autoSubmitVoice: false, // Don't auto-submit on start page
     enableVoiceRecording: !hasExternalVoice,
-    onFileSelect
+    onFileSelect,
   });
 
   // Use external props if provided, otherwise use internal hook values
-  const isVoiceRecording = hasExternalVoice ? externalIsVoiceRecording : internalChatInput.isVoiceRecording;
-  const isVoiceProcessing = hasExternalVoice ? externalIsVoiceProcessing : internalChatInput.isVoiceProcessing;
-  const startRecording = hasExternalVoice ? externalStartRecording : internalChatInput.startRecording;
+  const isVoiceRecording = hasExternalVoice
+    ? externalIsVoiceRecording
+    : internalChatInput.isVoiceRecording;
+  const isVoiceProcessing = hasExternalVoice
+    ? externalIsVoiceProcessing
+    : internalChatInput.isVoiceProcessing;
+  const startRecording = hasExternalVoice
+    ? externalStartRecording
+    : internalChatInput.startRecording;
   const stopRecording = hasExternalVoice ? externalStopRecording : internalChatInput.stopRecording;
 
   const handleSubmit = (event: React.FormEvent | React.KeyboardEvent) => {
@@ -133,13 +147,13 @@ const ChatStartPage = ({ title = "Was möchtest du wissen?",
   };
 
   const containerClass = isGruenerator
-    ? "chat-start-page chat-start-page--gruenerator"
-    : "chat-start-page";
+    ? 'chat-start-page chat-start-page--gruenerator'
+    : 'chat-start-page';
 
   const titleAnimation = {
     initial: { opacity: 0, y: 10 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.4, delay: 0.1 }
+    transition: { duration: 0.4, delay: 0.1 },
   };
 
   return (

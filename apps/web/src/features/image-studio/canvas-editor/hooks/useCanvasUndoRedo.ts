@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react';
+
 import { useCanvasEditorStore } from '../../../../stores/canvasEditorStore';
 
 interface UseCanvasUndoRedoReturn {
@@ -12,7 +13,8 @@ interface UseCanvasUndoRedoReturn {
 
 // Stable selectors defined outside component
 const selectCanUndo = (s: ReturnType<typeof useCanvasEditorStore.getState>) => s.historyIndex > 0;
-const selectCanRedo = (s: ReturnType<typeof useCanvasEditorStore.getState>) => s.historyIndex < s.history.length - 1;
+const selectCanRedo = (s: ReturnType<typeof useCanvasEditorStore.getState>) =>
+  s.historyIndex < s.history.length - 1;
 
 /**
  * Hook for canvas undo/redo functionality
@@ -70,11 +72,7 @@ export function useCanvasUndoRedo(
     const handleKeyDown = (e: KeyboardEvent) => {
       // Skip if user is typing in an input/textarea
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
 
@@ -122,16 +120,19 @@ export function useCanvasUndoRedo(
   const pendingComponentStateRef = useRef<Record<string, unknown> | undefined>(undefined);
 
   // Debounced save for text input scenarios - stable reference
-  const debouncedSaveToHistory = useCallback((componentState?: Record<string, unknown>) => {
-    pendingComponentStateRef.current = componentState;
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    debounceTimeoutRef.current = setTimeout(() => {
-      getStore().saveToHistory(pendingComponentStateRef.current);
-      pendingComponentStateRef.current = undefined;
-    }, debounceMs);
-  }, [debounceMs]);
+  const debouncedSaveToHistory = useCallback(
+    (componentState?: Record<string, unknown>) => {
+      pendingComponentStateRef.current = componentState;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      debounceTimeoutRef.current = setTimeout(() => {
+        getStore().saveToHistory(pendingComponentStateRef.current);
+        pendingComponentStateRef.current = undefined;
+      }, debounceMs);
+    },
+    [debounceMs]
+  );
 
   return {
     undo,

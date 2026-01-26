@@ -12,7 +12,11 @@ interface ChatActionButtonsProps {
   disabled?: boolean;
 }
 
-const ChatActionButtons = ({ actions, onAction, disabled }: ChatActionButtonsProps): JSX.Element | null => {
+const ChatActionButtons = ({
+  actions,
+  onAction,
+  disabled,
+}: ChatActionButtonsProps): JSX.Element | null => {
   if (!actions || actions.length === 0) return null;
 
   return (

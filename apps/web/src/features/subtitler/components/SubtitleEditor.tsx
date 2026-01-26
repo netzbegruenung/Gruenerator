@@ -1,12 +1,11 @@
+import { useProjectsStore } from '@gruenerator/shared';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaSave, FaCheck, FaDownload, FaMagic, FaPlay, FaPause } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
-import LiveSubtitlePreview from './LiveSubtitlePreview';
-import Timeline from './Timeline';
+
 import FloatingActionButton from '../../../components/common/UI/FloatingActionButton';
-import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
-import { useProjectsStore } from '@gruenerator/shared';
 import { useAuthStore } from '../../../stores/authStore';
+import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import useSubtitleCorrection from '../hooks/useSubtitleCorrection';
 import '../../../assets/styles/components/subtitler/download-fallback.css';
 import '../../../assets/styles/components/ui/button.css';
@@ -15,6 +14,13 @@ import '../../../assets/styles/components/actions/action-buttons.css';
 import '../styles/SubtitleEditor.css';
 
 // Import centralized types and utilities
+
+import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
+import { assertCorrectionResponse } from '../utils/validators';
+
+import LiveSubtitlePreview from './LiveSubtitlePreview';
+import Timeline from './Timeline';
+
 import type {
   SubtitleSegment,
   VideoMetadata,
@@ -23,13 +29,8 @@ import type {
   CorrectionItem,
   StylePreference,
   HeightPreference,
-  SubtitlePreference
+  SubtitlePreference,
 } from '../types';
-import {
-  parseSubtitleBlocks,
-  formatSubtitleBlocks
-} from '../utils/subtitleSegmentUtils';
-import { assertCorrectionResponse } from '../utils/validators';
 
 // Local interface for fallback button
 interface FallbackButtonData {
@@ -106,7 +107,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   loadedProject = null,
   videoMetadataFromUpload = null,
   videoFilename = null,
-  videoSize = null
+  videoSize = null,
 }) => {
   // Style options configuration with preview styling
   const styleOptions: StyleOption[] = [
@@ -119,8 +120,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         color: 'var(--font-color)',
         textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
         padding: '0',
-        borderRadius: '0'
-      }
+        borderRadius: '0',
+      },
     },
     {
       id: 'standard',
@@ -130,8 +131,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         color: '#ffffff',
         textShadow: 'none',
         padding: '0.25em 0.5em',
-        borderRadius: '0.2em'
-      }
+        borderRadius: '0.2em',
+      },
     },
     {
       id: 'clean',
@@ -141,8 +142,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         color: 'var(--font-color)',
         textShadow: 'none',
         padding: '0',
-        borderRadius: '0'
-      }
+        borderRadius: '0',
+      },
     },
     {
       id: 'tanne',
@@ -152,19 +153,19 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         color: '#ffffff',
         textShadow: 'none',
         padding: '0.3em 0.6em',
-        borderRadius: '0.2em'
-      }
-    }
+        borderRadius: '0.2em',
+      },
+    },
   ];
 
   const heightOptions: HeightOption[] = [
     { id: 'tief', name: 'Tiefer', subtitle: 'Standard' },
-    { id: 'standard', name: 'Mittig', subtitle: 'Etwa auf 40% Höhe' }
+    { id: 'standard', name: 'Mittig', subtitle: 'Etwa auf 40% Höhe' },
   ];
 
   const qualityOptions: QualityOption[] = [
     { id: 'normal', name: 'Standard', subtitle: 'Perfekt für Reels' },
-    { id: 'hd', name: 'Volle Qualität', subtitle: 'Dauert länger' }
+    { id: 'hd', name: 'Volle Qualität', subtitle: 'Dauert länger' },
   ];
 
   // Local state for style preferences (synced with parent)
@@ -203,7 +204,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     exportToken,
     startExport,
     resetExport,
-    subscribe
+    subscribe,
   } = exportStore;
 
   // Use project store for saving
@@ -219,7 +220,9 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState<number>(0);
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
-  const [showFallbackButton, setShowFallbackButton] = useState<FallbackButtonData | string | null>(null);
+  const [showFallbackButton, setShowFallbackButton] = useState<FallbackButtonData | string | null>(
+    null
+  );
   const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [showStyling, setShowStyling] = useState<boolean>(false);
@@ -232,7 +235,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const {
     loading: isCorrecting,
     error: correctionError,
-    correctSubtitles
+    correctSubtitles,
   } = useSubtitleCorrection();
 
   // Subscribe to export store for cleanup
@@ -247,28 +250,33 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     // This prevents race condition where old token is used before API response
     if (exportStatus === 'exporting' && exportToken) {
       console.log('[SubtitleEditor] Export started with new token:', exportToken);
-      onExportSuccess && onExportSuccess(exportToken);
+      onExportSuccess?.(exportToken);
     } else if (exportStatus === 'complete') {
       console.log('[SubtitleEditor] Export completed');
-      onExportComplete && onExportComplete();
+      onExportComplete?.();
     } else if (exportStatus === 'error' && exportError) {
       console.error('[SubtitleEditor] Export failed:', exportError);
       setError(exportError);
-      onExportComplete && onExportComplete();
+      onExportComplete?.();
     }
   }, [exportStatus, exportToken, exportError, onExportSuccess, onExportComplete]);
 
   // Emoji detection function
   const detectEmojis = (text: string): boolean => {
-    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
+    const emojiRegex =
+      /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
     return emojiRegex.test(text);
   };
 
   // Function to wrap emojis in spans for styling
   const formatTextWithEmojis = (text: string): string => {
-    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
+    const emojiRegex =
+      /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
 
-    return text.replace(emojiRegex, (emoji: string) => `<span class="emoji-transparent">${emoji}</span>`);
+    return text.replace(
+      emojiRegex,
+      (emoji: string) => `<span class="emoji-transparent">${emoji}</span>`
+    );
   };
 
   // Validiere Props und erstelle Video-URL
@@ -296,7 +304,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       console.log('[SubtitleEditor] Creating video URL for file:', {
         name: (videoFile as File).name,
         type: (videoFile as File).type,
-        size: (videoFile as File).size
+        size: (videoFile as File).size,
       });
 
       const url = URL.createObjectURL(videoFile);
@@ -388,7 +396,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       const metadata = {
         width: video.videoWidth,
         height: video.videoHeight,
-        duration: video.duration
+        duration: video.duration,
       };
       setVideoMetadata(metadata);
       setVideoDuration(video.duration);
@@ -419,7 +427,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
     scrubTimeoutRef.current = setTimeout(() => {
       if (video.paused) {
-        video.play()
+        video
+          .play()
           .then(() => video.pause())
           .catch(() => {});
       }
@@ -433,19 +442,20 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   }, []);
 
-  const handleSegmentClick = useCallback((segmentId: number): void => {
-    setSelectedSegmentId(segmentId);
-    const segment = editableSubtitles.find(s => s.id === segmentId);
-    if (segment && videoRef.current) {
-      videoRef.current.currentTime = segment.startTime;
-    }
-  }, [editableSubtitles]);
+  const handleSegmentClick = useCallback(
+    (segmentId: number): void => {
+      setSelectedSegmentId(segmentId);
+      const segment = editableSubtitles.find((s) => s.id === segmentId);
+      if (segment && videoRef.current) {
+        videoRef.current.currentTime = segment.startTime;
+      }
+    },
+    [editableSubtitles]
+  );
 
   const handleTextChange = useCallback((segmentId: number, newText: string): void => {
-    setEditableSubtitles(prev =>
-      prev.map(segment =>
-        segment.id === segmentId ? { ...segment, text: newText } : segment
-      )
+    setEditableSubtitles((prev) =>
+      prev.map((segment) => (segment.id === segmentId ? { ...segment, text: newText } : segment))
     );
   }, []);
 
@@ -465,9 +475,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     console.log('[SubtitleEditor] Missing required props');
     return (
       <div className="subtitle-editor-container">
-        <div className="loading-message">
-          Lade Video und Untertitel...
-        </div>
+        <div className="loading-message">Lade Video und Untertitel...</div>
       </div>
     );
   }
@@ -477,11 +485,13 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     element.style.height = element.scrollHeight + 'px';
   };
 
-  const handleSubtitleEdit = (id: number, newText: string, event: React.ChangeEvent<HTMLTextAreaElement>): void => {
-    setEditableSubtitles(prev =>
-      prev.map(segment =>
-        segment.id === id ? { ...segment, text: newText } : segment
-      )
+  const handleSubtitleEdit = (
+    id: number,
+    newText: string,
+    event: React.ChangeEvent<HTMLTextAreaElement>
+  ): void => {
+    setEditableSubtitles((prev) =>
+      prev.map((segment) => (segment.id === id ? { ...segment, text: newText } : segment))
     );
 
     if (window.innerWidth <= 768) {
@@ -498,8 +508,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
   const handleExport = async (maxResolution: number | null = null): Promise<void> => {
     if (!uploadId || !editableSubtitles.length) {
-       setError('Fehlende Upload-ID oder keine Untertitel zum Exportieren.');
-       return;
+      setError('Fehlende Upload-ID oder keine Untertitel zum Exportieren.');
+      return;
     }
 
     try {
@@ -516,15 +526,15 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         locale,
         maxResolution,
         projectId: loadedProject?.id,
-        userId: user?.id
+        userId: user?.id,
       });
 
       // Use the centralized store for export
       // Map SubtitleSegment[] to Subtitle[] format expected by the store
-      const subtitlesForExport = editableSubtitles.map(segment => ({
+      const subtitlesForExport = editableSubtitles.map((segment) => ({
         start: segment.startTime,
         end: segment.endTime,
-        text: segment.text
+        text: segment.text,
       }));
       await startExport(subtitlesForExport, {
         uploadId,
@@ -534,9 +544,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         locale,
         maxResolution,
         projectId: loadedProject?.id || null,
-        userId: user?.id || null
+        userId: user?.id || null,
       });
-
     } catch (err) {
       console.error('[SubtitleEditor] Export initiation error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Fehler beim Starten des Exports';
@@ -561,33 +570,38 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         await updateProject(loadedProject.id, {
           subtitles: subtitlesText,
           stylePreference: localStyle,
-          heightPreference: localHeight
+          heightPreference: localHeight,
         });
       } else {
         // Create new project
         console.log('[SubtitleEditor] Creating new project with uploadId:', uploadId);
         // Convert videoMetadataFromUpload to the expected format
-        const formattedVideoMetadata = videoMetadataFromUpload ? {
-          duration: videoMetadataFromUpload.duration ?? 0,
-          width: videoMetadataFromUpload.width ?? 0,
-          height: videoMetadataFromUpload.height ?? 0
-        } : undefined;
+        const formattedVideoMetadata = videoMetadataFromUpload
+          ? {
+              duration: videoMetadataFromUpload.duration ?? 0,
+              width: videoMetadataFromUpload.width ?? 0,
+              height: videoMetadataFromUpload.height ?? 0,
+            }
+          : undefined;
         const projectData = {
           uploadId,
           subtitles: subtitlesText,
-          title: videoFilename ? videoFilename.replace(/\.[^.]+$/, '') : `Projekt ${new Date().toLocaleDateString('de-DE')}`,
+          title: videoFilename
+            ? videoFilename.replace(/\.[^.]+$/, '')
+            : `Projekt ${new Date().toLocaleDateString('de-DE')}`,
           stylePreference: localStyle,
           heightPreference: localHeight,
           modePreference: subtitlePreference,
           videoMetadata: formattedVideoMetadata,
           videoFilename: videoFilename || 'video.mp4',
-          videoSize: videoSize || 0
+          videoSize: videoSize || 0,
         };
         await saveProject(projectData);
       }
     } catch (err) {
       console.error('[SubtitleEditor] Save project error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Fehler beim Speichern des Projekts';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Fehler beim Speichern des Projekts';
       setError(errorMessage);
     }
   };
@@ -612,24 +626,27 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
       // Apply corrections to subtitles
       const correctedIds = new Set<number>(response.corrections.map((c: CorrectionItem) => c.id));
-      setEditableSubtitles(prev => prev.map(segment => {
-        const correction = response.corrections.find((c: CorrectionItem) => c.id === segment.id);
-        if (correction) {
-          return { ...segment, text: correction.corrected };
-        }
-        return segment;
-      }));
+      setEditableSubtitles((prev) =>
+        prev.map((segment) => {
+          const correction = response.corrections.find((c: CorrectionItem) => c.id === segment.id);
+          if (correction) {
+            return { ...segment, text: correction.corrected };
+          }
+          return segment;
+        })
+      );
 
       // Highlight corrected segments
       setCorrectedSegmentIds(correctedIds);
-      setCorrectionMessage(`${response.corrections.length} Segment${response.corrections.length > 1 ? 'e' : ''} korrigiert`);
+      setCorrectionMessage(
+        `${response.corrections.length} Segment${response.corrections.length > 1 ? 'e' : ''} korrigiert`
+      );
 
       // Clear highlights after 2 seconds
       setTimeout(() => {
         setCorrectedSegmentIds(new Set());
         setCorrectionMessage(null);
       }, 2000);
-
     } catch (err) {
       console.error('[SubtitleEditor] Correction error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Fehler bei der KI-Korrektur';
@@ -668,8 +685,14 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
             <p>Automatischer Download fehlgeschlagen?</p>
             <div className="fallback-buttons">
               <a
-                href={typeof showFallbackButton === 'string' ? showFallbackButton : (showFallbackButton.url || '')}
-                download={typeof showFallbackButton === 'string' ? undefined : showFallbackButton.filename}
+                href={
+                  typeof showFallbackButton === 'string'
+                    ? showFallbackButton
+                    : showFallbackButton.url || ''
+                }
+                download={
+                  typeof showFallbackButton === 'string' ? undefined : showFallbackButton.filename
+                }
                 className="btn-primary"
                 onClick={() => setShowFallbackButton(null)}
                 target="_blank"
@@ -677,10 +700,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               >
                 Video manuell herunterladen
               </a>
-              <button
-                className="btn-secondary"
-                onClick={() => setShowFallbackButton(null)}
-              >
+              <button className="btn-secondary" onClick={() => setShowFallbackButton(null)}>
                 Schließen
               </button>
             </div>
@@ -728,10 +748,12 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               <button
                 className="btn-icon btn-primary"
                 onClick={() => handleExport(localQuality === 'normal' ? 1080 : null)}
-                disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
+                disabled={
+                  isExporting || exportStatus === 'starting' || exportStatus === 'exporting'
+                }
                 title={localQuality === 'normal' ? 'Download (1080p)' : 'Download (HD)'}
               >
-                {(isExporting || exportStatus === 'starting' || exportStatus === 'exporting') ? (
+                {isExporting || exportStatus === 'starting' || exportStatus === 'exporting' ? (
                   <div className="button-spinner" />
                 ) : (
                   <FaDownload />
@@ -758,107 +780,102 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                 disabled={isCorrecting || !editableSubtitles.length}
                 title="AI-Korrektur"
               >
-                {isCorrecting ? (
-                  <span className="spinner spinner-small" />
-                ) : (
-                  <FaMagic />
-                )}
+                {isCorrecting ? <span className="spinner spinner-small" /> : <FaMagic />}
               </button>
             </div>
-            {correctionMessage && (
-              <div className="correction-message">
-                {correctionMessage}
-              </div>
-            )}
+            {correctionMessage && <div className="correction-message">{correctionMessage}</div>}
           </div>
 
           {showStyling ? (
-          <div className="styling-section">
-            <div className="style-options-compact">
-              <h4>Stil</h4>
-              <div className="style-options-grid style-grid-2x2">
-                {styleOptions.map(option => (
-                  <label
-                    key={option.id}
-                    className={`style-option-card ${localStyle === option.id ? 'selected' : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name="styleOption"
-                      value={option.id}
-                      checked={localStyle === option.id}
-                      onChange={() => handleLocalStyleChange(option.id)}
-                      className="style-option-radio"
-                    />
-                    <div className="style-option-content">
-                      <div className="style-option-header">
-                        <h4 className="style-option-name">
-                          {option.isRecommended && <span className="recommended-badge">★</span>}
-                          {option.name}
-                        </h4>
-                      </div>
-                      <div className="style-option-preview">
-                        <span className="preview-text" style={option.preview}>
-                          Beispiel
-                        </span>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="settings-row">
-              <div className="setting-group">
-                <h4>Position</h4>
-                <div className="setting-buttons">
-                  {heightOptions.map(option => (
-                    <button
+            <div className="styling-section">
+              <div className="style-options-compact">
+                <h4>Stil</h4>
+                <div className="style-options-grid style-grid-2x2">
+                  {styleOptions.map((option) => (
+                    <label
                       key={option.id}
-                      type="button"
-                      className={`setting-button ${localHeight === option.id ? 'active' : ''}`}
-                      onClick={() => handleLocalHeightChange(option.id)}
+                      className={`style-option-card ${localStyle === option.id ? 'selected' : ''}`}
                     >
-                      <span className="setting-button-title">{option.name}</span>
-                      {option.subtitle && <span className="setting-button-subtitle">{option.subtitle}</span>}
-                    </button>
+                      <input
+                        type="radio"
+                        name="styleOption"
+                        value={option.id}
+                        checked={localStyle === option.id}
+                        onChange={() => handleLocalStyleChange(option.id)}
+                        className="style-option-radio"
+                      />
+                      <div className="style-option-content">
+                        <div className="style-option-header">
+                          <h4 className="style-option-name">
+                            {option.isRecommended && <span className="recommended-badge">★</span>}
+                            {option.name}
+                          </h4>
+                        </div>
+                        <div className="style-option-preview">
+                          <span className="preview-text" style={option.preview}>
+                            Beispiel
+                          </span>
+                        </div>
+                      </div>
+                    </label>
                   ))}
                 </div>
               </div>
-              <div className="setting-group">
-                <h4>Qualität</h4>
-                <div className="setting-buttons">
-                  {qualityOptions.map(option => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`setting-button ${localQuality === option.id ? 'active' : ''}`}
-                      onClick={() => handleLocalQualityChange(option.id)}
-                    >
-                      <span className="setting-button-title">{option.name}</span>
-                      {option.subtitle && <span className="setting-button-subtitle">{option.subtitle}</span>}
-                    </button>
-                  ))}
+              <div className="settings-row">
+                <div className="setting-group">
+                  <h4>Position</h4>
+                  <div className="setting-buttons">
+                    {heightOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`setting-button ${localHeight === option.id ? 'active' : ''}`}
+                        onClick={() => handleLocalHeightChange(option.id)}
+                      >
+                        <span className="setting-button-title">{option.name}</span>
+                        {option.subtitle && (
+                          <span className="setting-button-subtitle">{option.subtitle}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="setting-group">
+                  <h4>Qualität</h4>
+                  <div className="setting-buttons">
+                    {qualityOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`setting-button ${localQuality === option.id ? 'active' : ''}`}
+                        onClick={() => handleLocalQualityChange(option.id)}
+                      >
+                        <span className="setting-button-title">{option.name}</span>
+                        {option.subtitle && (
+                          <span className="setting-button-subtitle">{option.subtitle}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           ) : (
-          <div className="timeline-inline">
-            <Timeline
-              duration={videoDuration}
-              currentTime={currentTimeInSeconds}
-              segments={editableSubtitles}
-              selectedSegmentId={selectedSegmentId}
-              correctedSegmentIds={correctedSegmentIds}
-              onSeek={handleTimelineSeek}
-              onSegmentClick={handleSegmentClick}
-              onTextChange={handleTextChange}
-            />
-          </div>
+            <div className="timeline-inline">
+              <Timeline
+                duration={videoDuration}
+                currentTime={currentTimeInSeconds}
+                segments={editableSubtitles}
+                selectedSegmentId={selectedSegmentId}
+                correctedSegmentIds={correctedSegmentIds}
+                onSeek={handleTimelineSeek}
+                onSegmentClick={handleSegmentClick}
+                onTextChange={handleTextChange}
+              />
+            </div>
           )}
         </div>
       </div>
-
     </div>
   );
 };

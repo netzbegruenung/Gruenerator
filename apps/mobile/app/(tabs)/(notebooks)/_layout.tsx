@@ -43,22 +43,10 @@ export default function NotebooksLayout() {
           lazy: true,
         }}
       >
-        <MaterialTopTabs.Screen
-          name="gruenerator"
-          options={{ title: 'Grünerator' }}
-        />
-        <MaterialTopTabs.Screen
-          name="gruene"
-          options={{ title: 'Programme' }}
-        />
-        <MaterialTopTabs.Screen
-          name="bundestagsfraktion"
-          options={{ title: 'Fraktion' }}
-        />
-        <MaterialTopTabs.Screen
-          name="oesterreich"
-          options={{ title: 'Österreich' }}
-        />
+        <MaterialTopTabs.Screen name="gruenerator" options={{ title: 'Grünerator' }} />
+        <MaterialTopTabs.Screen name="gruene" options={{ title: 'Programme' }} />
+        <MaterialTopTabs.Screen name="bundestagsfraktion" options={{ title: 'Fraktion' }} />
+        <MaterialTopTabs.Screen name="oesterreich" options={{ title: 'Österreich' }} />
       </MaterialTopTabs>
     </SafeAreaView>
   );

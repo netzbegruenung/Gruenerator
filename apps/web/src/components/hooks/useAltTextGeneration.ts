@@ -5,20 +5,25 @@ import useApiSubmit from './useApiSubmit';
  * Provides consistent loading states, error handling, and success feedback
  */
 const useAltTextGeneration = () => {
-  const { loading, success, error, submitForm, resetState, resetSuccess } = useApiSubmit('/claude_alttext');
+  const { loading, success, error, submitForm, resetState, resetSuccess } =
+    useApiSubmit('/claude_alttext');
 
-  const generateAltTextForImage = async (imageBase64: string, imageDescription: string | null = null, features: Record<string, any> = {}) => {
+  const generateAltTextForImage = async (
+    imageBase64: string,
+    imageDescription: string | null = null,
+    features: Record<string, any> = {}
+  ) => {
     console.log('[useAltTextGeneration] Starting alt text generation:', {
       hasImageBase64: !!imageBase64,
       imageBase64Length: imageBase64?.length || 0,
       hasImageDescription: !!imageDescription,
-      features
+      features,
     });
 
     const formData = {
       imageBase64,
       imageDescription,
-      ...features
+      ...features,
     };
 
     try {
@@ -37,7 +42,7 @@ const useAltTextGeneration = () => {
     error,
     generateAltTextForImage,
     resetState,
-    resetSuccess
+    resetSuccess,
   };
 };
 

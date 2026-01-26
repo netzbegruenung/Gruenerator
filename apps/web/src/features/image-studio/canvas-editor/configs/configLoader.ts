@@ -13,13 +13,7 @@
 
 import type { FullCanvasConfig } from './types';
 
-type CanvasConfigType =
-  | 'zitat-pure'
-  | 'info'
-  | 'veranstaltung'
-  | 'simple'
-  | 'dreizeilen'
-  | 'zitat';
+type CanvasConfigType = 'zitat-pure' | 'info' | 'veranstaltung' | 'simple' | 'dreizeilen' | 'zitat';
 
 // Use a flexible type that accepts any state/action types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,12 +53,5 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
  * Check if a canvas type is valid
  */
 export function isValidCanvasType(type: string): type is CanvasConfigType {
-  return [
-    'zitat-pure',
-    'info',
-    'veranstaltung',
-    'simple',
-    'dreizeilen',
-    'zitat'
-  ].includes(type);
+  return ['zitat-pure', 'info', 'veranstaltung', 'simple', 'dreizeilen', 'zitat'].includes(type);
 }

@@ -1,7 +1,9 @@
 import React, { useState, useCallback } from 'react';
+
 import { useRecentTexts, type SavedText } from '../../../hooks/useRecentTexts';
-import RecentTextCard from './RecentTextCard';
 import LoadTextConfirmModal from '../Modals/LoadTextConfirmModal';
+
+import RecentTextCard from './RecentTextCard';
 import '../../../assets/styles/components/common/recent-texts.css';
 
 export interface RecentTextsSectionProps {
@@ -9,14 +11,11 @@ export interface RecentTextsSectionProps {
   onTextLoad: (content: string, metadata: unknown) => void;
 }
 
-const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({
-  generatorType,
-  onTextLoad
-}) => {
+const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({ generatorType, onTextLoad }) => {
   const { texts, isLoading, error, deleteText } = useRecentTexts({
     generatorType,
     limit: 3,
-    enabled: true
+    enabled: true,
   });
 
   const [selectedText, setSelectedText] = useState<SavedText | null>(null);
@@ -32,7 +31,7 @@ const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({
       onTextLoad(selectedText.content, {
         title: selectedText.title,
         contentType: selectedText.type,
-        wordCount: selectedText.word_count
+        wordCount: selectedText.word_count,
       });
       setIsModalOpen(false);
       setSelectedText(null);
@@ -75,9 +74,7 @@ const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({
         </div>
       )}
 
-      {error && (
-        <p className="recent-texts__error">Fehler beim Laden</p>
-      )}
+      {error && <p className="recent-texts__error">Fehler beim Laden</p>}
 
       <LoadTextConfirmModal
         isOpen={isModalOpen}

@@ -29,10 +29,7 @@ interface SocialTextResponse {
  * ```
  */
 export const useSocialTextGenerator = () => {
-  const { data, loading, error, execute, reset } = useApiAction<
-    GenerateSocialTextRequest,
-    string
-  >({
+  const { data, loading, error, execute, reset } = useApiAction<GenerateSocialTextRequest, string>({
     endpoint: '/subtitler/generate-social',
     transformResponse: (response) => {
       // Extract content from API response
@@ -41,7 +38,7 @@ export const useSocialTextGenerator = () => {
         return responseObj.content || String(response);
       }
       return String(response);
-    }
+    },
   });
 
   /**
@@ -57,7 +54,7 @@ export const useSocialTextGenerator = () => {
     isGenerating: loading,
     error,
     generateSocialText,
-    reset
+    reset,
   };
 };
 

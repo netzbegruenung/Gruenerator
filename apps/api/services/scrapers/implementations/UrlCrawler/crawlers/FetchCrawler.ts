@@ -31,7 +31,10 @@ export class FetchCrawler {
     console.log(`[FetchCrawler] Fetching URL: ${url}`);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), fetchOptions.timeout || this.config.timeout);
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      fetchOptions.timeout || this.config.timeout
+    );
 
     try {
       const response = await fetch(url, {

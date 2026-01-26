@@ -25,7 +25,9 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
   let model = options.model || 'gpt-oss:120b';
   const modelStr = String(model).toLowerCase();
-  const looksIncompatible = /mistral|mixtral|gpt-4|gpt-3|claude|anthropic|bedrock|openai/.test(modelStr);
+  const looksIncompatible = /mistral|mixtral|gpt-4|gpt-3|claude|anthropic|bedrock|openai/.test(
+    modelStr
+  );
   if (looksIncompatible && !modelStr.includes('gpt-oss')) {
     model = 'gpt-oss:120b';
   }
@@ -38,11 +40,19 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     messages.forEach((msg: Message) => {
       litellmMessages.push({
         role: msg.role,
-        content: typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.content)
-            ? msg.content.map(c => (c as { text?: string; content?: string }).text || (c as { text?: string; content?: string }).content || '').join('\n')
-            : String(msg.content)
+        content:
+          typeof msg.content === 'string'
+            ? msg.content
+            : Array.isArray(msg.content)
+              ? msg.content
+                  .map(
+                    (c) =>
+                      (c as { text?: string; content?: string }).text ||
+                      (c as { text?: string; content?: string }).content ||
+                      ''
+                  )
+                  .join('\n')
+              : String(msg.content),
       });
     });
   }
@@ -53,7 +63,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     max_tokens: options.max_tokens || 4096,
     temperature: options.temperature || 0.7,
     top_p: options.top_p || 1.0,
-    stream: false
+    stream: false,
   };
 
   const toolsPayload = ToolHandler.prepareToolsPayload(options, 'litellm', requestId, type);
@@ -75,13 +85,14 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     throw new Error(errorMsg);
   }
 
-  const normalizedToolCalls: ToolCall[] | undefined = toolCalls.length > 0
-    ? toolCalls.map(tc => ({
-        id: tc.id,
-        name: tc.function.name,
-        input: JSON.parse(tc.function.arguments || '{}')
-      }))
-    : undefined;
+  const normalizedToolCalls: ToolCall[] | undefined =
+    toolCalls.length > 0
+      ? toolCalls.map((tc) => ({
+          id: tc.id,
+          name: tc.function.name,
+          input: JSON.parse(tc.function.arguments || '{}'),
+        }))
+      : undefined;
 
   return {
     content: responseContent,
@@ -94,8 +105,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       model: response.model || model,
       timestamp: new Date().toISOString(),
       requestId,
-      usage: response.usage
-    })
+      usage: response.usage,
+    }),
   };
 }
 

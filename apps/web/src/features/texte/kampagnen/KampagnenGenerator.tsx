@@ -1,21 +1,30 @@
-import React, { useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import BaseForm from '../../../components/common/Form/BaseForm/BaseForm';
-import { FormInput, FormTextarea, FormImageSelect, FormSelect } from '../../../components/common/Form/Input';
+import React, { useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
+import { FaInstagram } from 'react-icons/fa';
+
 import FeatureToggle from '../../../components/common/FeatureToggle';
-import apiClient from '../../../components/utils/apiClient';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import BaseForm from '../../../components/common/Form/BaseForm/BaseForm';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
-import { useGeneratorSetup, type FeatureState } from '../../../hooks/useGeneratorSetup';
+import {
+  FormInput,
+  FormTextarea,
+  FormImageSelect,
+  FormSelect,
+} from '../../../components/common/Form/Input';
+import Icon from '../../../components/common/Icon';
+import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import PlatformSelector from '../../../components/common/PlatformSelector';
+import apiClient from '../../../components/utils/apiClient';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
+import { useGeneratorSetup, type FeatureState } from '../../../hooks/useGeneratorSetup';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { getActiveCampaigns, getCampaign } from '../../../utils/campaignLoader';
+
 import CampaignSharepicEditor from './components/CampaignSharepicEditor';
 import useCampaignSharepicEdit from './hooks/useCampaignSharepicEdit';
-import PlatformSelector from '../../../components/common/PlatformSelector';
-import Icon from '../../../components/common/Icon';
-import { getActiveCampaigns, getCampaign } from '../../../utils/campaignLoader';
-import { FaInstagram } from 'react-icons/fa';
-import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+
 import type { GeneratedContent } from '../../../types/baseform';
+import type { Control } from 'react-hook-form';
 import './KampagnenGenerator.css';
 
 // =============================================================================
@@ -118,7 +127,6 @@ interface CampaignFormData {
   details: string;
 }
 
-
 interface UseCampaignSharepicEditReturn {
   regenerateSharepic: (params: {
     campaignId: string;
@@ -151,7 +159,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
         setIsLoadingCampaigns(true);
         const activeCampaigns = await getActiveCampaigns();
         // Cast campaigns with required id to CampaignData type (cast through unknown for type compatibility)
-        setCampaigns(activeCampaigns.filter(c => c.id) as unknown as CampaignData[]);
+        setCampaigns(activeCampaigns.filter((c) => c.id) as unknown as CampaignData[]);
 
         if (activeCampaigns.length > 0 && !selectedCampaign && activeCampaigns[0].id) {
           setSelectedCampaign(activeCampaigns[0].id);
@@ -189,20 +197,24 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
   const campaignVariantOptions = useMemo((): VariantOption[] => {
     if (!selectedCampaignData?.variants) return [];
 
-    return selectedCampaignData.variants.map((variant: CampaignVariant): VariantOption => ({
-      value: variant.id,
-      label: variant.displayName,
-      imageUrl: variant.previewImage
-    }));
+    return selectedCampaignData.variants.map(
+      (variant: CampaignVariant): VariantOption => ({
+        value: variant.id,
+        label: variant.displayName,
+        imageUrl: variant.previewImage,
+      })
+    );
   }, [selectedCampaignData]);
 
   // Campaign type options for selector (loaded from registry)
   const campaignOptions = useMemo((): CampaignOption[] => {
-    return campaigns.map((campaign: CampaignData): CampaignOption => ({
-      value: campaign.id,
-      label: campaign.displayName || campaign.id,
-      icon: campaign.icon ? <Icon category="campaigns" name={campaign.icon} size={16} /> : null
-    }));
+    return campaigns.map(
+      (campaign: CampaignData): CampaignOption => ({
+        value: campaign.id,
+        label: campaign.displayName || campaign.id,
+        icon: campaign.icon ? <Icon category="campaigns" name={campaign.icon} size={16} /> : null,
+      })
+    );
   }, [campaigns]);
 
   // Campaign text generation toggle state
@@ -213,7 +225,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     defaultValues: {
       variant: campaignVariantOptions[0]?.value || '',
       location: '',
-      details: ''
+      details: '',
     },
     shouldUnregister: false,
     generatorType: 'kampagnen',
@@ -221,42 +233,44 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     endpoint: '/campaign_generate',
     features: ['privacyMode', 'proMode'],
     tabIndexKey: 'KAMPAGNEN',
-    disableKnowledgeSystem: true
+    disableKnowledgeSystem: true,
   } as Record<string, unknown>);
 
-  const {
-    control,
-    handleSubmit,
-    getValues,
-    errors
-  } = form;
+  const { control, handleSubmit, getValues, errors } = form;
 
   // Type assertion for control to work with form components
-  const typedControl = control as unknown as import('react-hook-form').Control<Record<string, unknown>>;
+  const typedControl = control as unknown as Control<Record<string, unknown>>;
   const typedGetValues = getValues as unknown as () => CampaignFormData;
-  const typedErrors = errors as { location?: { message?: string }; details?: { message?: string }; variant?: { message?: string } };
+  const typedErrors = errors as {
+    location?: { message?: string };
+    details?: { message?: string };
+    variant?: { message?: string };
+  };
 
   // Consolidated setup using new hook
   const setup = useGeneratorSetup({
     instructionType: 'social',
-    componentName: componentName
+    componentName: componentName,
   });
 
   // Memoized attachments array (campaigns don't typically have crawled URLs, but keep pattern consistent)
-  const allAttachments = useMemo(() => [
-    ...(form.generator?.attachedFiles || [])
-  ], [form.generator?.attachedFiles]);
+  const allAttachments = useMemo(
+    () => [...(form.generator?.attachedFiles || [])],
+    [form.generator?.attachedFiles]
+  );
 
   // Form data builder with campaign-specific fields
   const builder = useFormDataBuilder({
     ...setup,
     attachments: allAttachments,
-    searchQueryFields: ['location', 'details'] as const
+    searchQueryFields: ['location', 'details'] as const,
   });
 
   // Store integration
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
-  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName)) as unknown as CampaignGeneratedContent | null;
+  const storeGeneratedText = useGeneratedTextStore((state) =>
+    state.getGeneratedText(componentName)
+  ) as unknown as CampaignGeneratedContent | null;
 
   // Loading state for generation
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -271,127 +285,162 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
   const [isImageEditMode, setIsImageEditMode] = useState<boolean>(false);
 
   // Campaign sharepic edit hook
-  const { regenerateSharepic, isRegenerating, regenerationError, clearError } = useCampaignSharepicEdit() as UseCampaignSharepicEditReturn;
+  const { regenerateSharepic, isRegenerating, regenerationError, clearError } =
+    useCampaignSharepicEdit() as UseCampaignSharepicEditReturn;
 
   // Handler for regenerating a single sharepic with edited text
-  const handleRegenerateSharepic = useCallback(async (index: number, editedLinesParam: EditedLines) => {
-    try {
-      const formValues = typedGetValues();
-      const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
+  const handleRegenerateSharepic = useCallback(
+    async (index: number, editedLinesParam: EditedLines) => {
+      try {
+        const formValues = typedGetValues();
+        const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
 
-      const updatedSharepic = await regenerateSharepic({
-        campaignId: campaignId,
-        variant: formValues.variant,
-        location: formValues.location,
-        details: formValues.details,
-        editedLines: editedLinesParam,
-        features: setup.getFeatureState()
-      });
+        const updatedSharepic = await regenerateSharepic({
+          campaignId: campaignId,
+          variant: formValues.variant,
+          location: formValues.location,
+          details: formValues.details,
+          editedLines: editedLinesParam,
+          features: setup.getFeatureState(),
+        });
 
-      const currentSharepics = storeGeneratedText?.sharepic || [];
-      const updatedSharepics = [...currentSharepics];
-      updatedSharepics[index] = updatedSharepic;
+        const currentSharepics = storeGeneratedText?.sharepic || [];
+        const updatedSharepics = [...currentSharepics];
+        updatedSharepics[index] = updatedSharepic;
 
-      const updatedResult = {
-        sharepic: updatedSharepics,
-        inlineSharepicEditEnabled: true,
-        content: 'sharepic-content'
-      };
+        const updatedResult = {
+          sharepic: updatedSharepics,
+          inlineSharepicEditEnabled: true,
+          content: 'sharepic-content',
+        };
 
-      setGeneratedText(componentName, updatedResult as unknown as string);
-    } catch (error) {
-      console.error('[KampagnenGenerator] Failed to regenerate sharepic:', error);
-      throw error;
-    }
-  }, [regenerateSharepic, storeGeneratedText, setGeneratedText, setup, getValues, selectedCampaignData, selectedCampaign, componentName]);
+        setGeneratedText(componentName, updatedResult as unknown as string);
+      } catch (error) {
+        console.error('[KampagnenGenerator] Failed to regenerate sharepic:', error);
+        throw error;
+      }
+    },
+    [
+      regenerateSharepic,
+      storeGeneratedText,
+      setGeneratedText,
+      setup,
+      getValues,
+      selectedCampaignData,
+      selectedCampaign,
+      componentName,
+    ]
+  );
 
-  const onSubmitRHF = useCallback(async (rhfData: CampaignFormData) => {
-    if (isImageEditMode && editedLines) {
-      await handleRegenerateSharepic(activeSharepicIndex, editedLines);
-      return;
-    }
-
-    setStoreIsLoading(true);
-    setIsGenerating(true);
-
-    try {
-      // Build submission data using builder (includes features, attachments, selections)
-      const submissionData = builder.buildSubmissionData(rhfData as unknown as Record<string, unknown>);
-
-      // Get backend campaign ID from selected campaign data
-      const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
-
-      // Merge with campaign-specific fields
-      const response = await apiClient.post('campaign_generate', {
-        ...submissionData,
-        campaignId: campaignId,
-        campaignTypeId: rhfData.variant,
-        thema: rhfData.location,
-        count: 4,
-        generateCampaignText: generateCampaignText
-      });
-
-      const result = response.data;
-
-      if (!result.success || !result.sharepics || result.sharepics.length === 0) {
-        throw new Error('Keine Sharepics empfangen');
+  const onSubmitRHF = useCallback(
+    async (rhfData: CampaignFormData) => {
+      if (isImageEditMode && editedLines) {
+        await handleRegenerateSharepic(activeSharepicIndex, editedLines);
+        return;
       }
 
-      // Enrich sharepics with Canva template URLs from campaign variant config
-      const enrichedSharepics = result.sharepics.map((sp: SharepicData) => {
-        const variant = selectedCampaignData?.variants?.find((v: CampaignVariant) => v.id === sp.type);
-        return {
-          ...sp,
-          canvaTemplateUrl: variant?.canvaTemplateUrl || null,
-          canvaPreviewImage: variant?.previewImage || null
-        };
-      });
+      setStoreIsLoading(true);
+      setIsGenerating(true);
 
-      const finalResult: {
-        sharepic: typeof enrichedSharepics;
-        inlineSharepicEditEnabled: boolean;
-        content: string;
-        enableCanvaEdit: boolean;
-        social?: { content: string };
-      } = {
-        sharepic: enrichedSharepics,
-        inlineSharepicEditEnabled: true,
-        content: 'sharepic-content',
-        enableCanvaEdit: selectedCampaignData?.enableCanvaEdit ?? false
-      };
+      try {
+        // Build submission data using builder (includes features, attachments, selections)
+        const submissionData = builder.buildSubmissionData(
+          rhfData as unknown as Record<string, unknown>
+        );
 
-      // Add campaign text if generated
-      if (result.campaignText) {
-        finalResult.social = {
-          content: result.campaignText
+        // Get backend campaign ID from selected campaign data
+        const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
+
+        // Merge with campaign-specific fields
+        const response = await apiClient.post('campaign_generate', {
+          ...submissionData,
+          campaignId: campaignId,
+          campaignTypeId: rhfData.variant,
+          thema: rhfData.location,
+          count: 4,
+          generateCampaignText: generateCampaignText,
+        });
+
+        const result = response.data;
+
+        if (!result.success || !result.sharepics || result.sharepics.length === 0) {
+          throw new Error('Keine Sharepics empfangen');
+        }
+
+        // Enrich sharepics with Canva template URLs from campaign variant config
+        const enrichedSharepics = result.sharepics.map((sp: SharepicData) => {
+          const variant = selectedCampaignData?.variants?.find(
+            (v: CampaignVariant) => v.id === sp.type
+          );
+          return {
+            ...sp,
+            canvaTemplateUrl: variant?.canvaTemplateUrl || null,
+            canvaPreviewImage: variant?.previewImage || null,
+          };
+        });
+
+        const finalResult: {
+          sharepic: typeof enrichedSharepics;
+          inlineSharepicEditEnabled: boolean;
+          content: string;
+          enableCanvaEdit: boolean;
+          social?: { content: string };
+        } = {
+          sharepic: enrichedSharepics,
+          inlineSharepicEditEnabled: true,
+          content: 'sharepic-content',
+          enableCanvaEdit: selectedCampaignData?.enableCanvaEdit ?? false,
         };
+
+        // Add campaign text if generated
+        if (result.campaignText) {
+          finalResult.social = {
+            content: result.campaignText,
+          };
+        }
+
+        setGeneratedText(componentName, finalResult as unknown as string);
+      } catch (error) {
+        console.error('[KampagnenGenerator] Generation error:', error);
+        throw error;
+      } finally {
+        setStoreIsLoading(false);
+        setIsGenerating(false);
       }
+    },
+    [
+      isImageEditMode,
+      editedLines,
+      activeSharepicIndex,
+      handleRegenerateSharepic,
+      setGeneratedText,
+      setStoreIsLoading,
+      builder,
+      selectedCampaign,
+      selectedCampaignData,
+      componentName,
+      generateCampaignText,
+    ]
+  );
 
-      setGeneratedText(componentName, finalResult as unknown as string);
-
-    } catch (error) {
-      console.error('[KampagnenGenerator] Generation error:', error);
-      throw error;
-    } finally {
-      setStoreIsLoading(false);
-      setIsGenerating(false);
-    }
-  }, [isImageEditMode, editedLines, activeSharepicIndex, handleRegenerateSharepic, setGeneratedText, setStoreIsLoading, builder, selectedCampaign, selectedCampaignData, componentName, generateCampaignText]);
-
-  const handleGeneratedContentChange = useCallback((content: string) => {
-    setGeneratedText(componentName, content);
-  }, [setGeneratedText, componentName]);
+  const handleGeneratedContentChange = useCallback(
+    (content: string) => {
+      setGeneratedText(componentName, content);
+    },
+    [setGeneratedText, componentName]
+  );
 
   // Help content for the generator
   const helpContent = {
-    content: "Dieser Grünerator erstellt festliche Weihnachtsgrüße für deine Region mit grünen Werten. Wähle einen Hintergrund und gib deinen Ort ein - der Rest wird automatisch grüneriert.",
+    content:
+      'Dieser Grünerator erstellt festliche Weihnachtsgrüße für deine Region mit grünen Werten. Wähle einen Hintergrund und gib deinen Ort ein - der Rest wird automatisch grüneriert.',
     tips: [
-      "Wähle ein Hintergrund-Design aus 6 festlichen Varianten",
-      "Gib deinen Ort oder deine Region ein (z.B. Hamburg, Köln, München)",
-      "Optional: Füge Details wie lokale Besonderheiten oder aktuelle Themen hinzu",
-      "Der Grünerator erstellt ein 5-zeiliges Weihnachtsgedicht passend zu deinem Ort",
-      "Das fertige Sharepic kann direkt heruntergeladen und geteilt werden"
-    ]
+      'Wähle ein Hintergrund-Design aus 6 festlichen Varianten',
+      'Gib deinen Ort oder deine Region ein (z.B. Hamburg, Köln, München)',
+      'Optional: Füge Details wie lokale Besonderheiten oder aktuelle Themen hinzu',
+      'Der Grünerator erstellt ein 5-zeiliges Weihnachtsgedicht passend zu deinem Ort',
+      'Das fertige Sharepic kann direkt heruntergeladen und geteilt werden',
+    ],
   };
 
   // Render campaign selector
@@ -434,10 +483,12 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
         placeholder="z.B. Hamburg, Berlin, Köln, München..."
         rules={{
           required: 'Bitte gib einen Ort oder eine Region ein',
-          minLength: { value: 2, message: 'Der Ort muss mindestens 2 Zeichen lang sein' }
+          minLength: { value: 2, message: 'Der Ort muss mindestens 2 Zeichen lang sein' },
         }}
         error={typedErrors.location?.message}
-        tabIndex={(form.generator?.tabIndex as Record<string, unknown>)?.location as number | undefined}
+        tabIndex={
+          (form.generator?.tabIndex as Record<string, unknown>)?.location as number | undefined
+        }
       />
 
       <FormTextarea
@@ -447,20 +498,23 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
         placeholder="z.B. lokale Besonderheiten, aktuelle Themen, besondere Schwerpunkte..."
         rows={4}
         error={typedErrors.details?.message}
-        tabIndex={(form.generator?.tabIndex as Record<string, unknown>)?.details as number | undefined}
+        tabIndex={
+          (form.generator?.tabIndex as Record<string, unknown>)?.details as number | undefined
+        }
       />
     </>
   );
 
-  const customEditContent = storeGeneratedText?.sharepic && storeGeneratedText.sharepic.length > 0 ? (
-    <CampaignSharepicEditor
-      sharepics={storeGeneratedText.sharepic}
-      activeIndex={activeSharepicIndex}
-      onEditedLinesChange={setEditedLines}
-      regenerationError={regenerationError}
-      onClearError={clearError}
-    />
-  ) : null;
+  const customEditContent =
+    storeGeneratedText?.sharepic && storeGeneratedText.sharepic.length > 0 ? (
+      <CampaignSharepicEditor
+        sharepics={storeGeneratedText.sharepic}
+        activeIndex={activeSharepicIndex}
+        onEditedLinesChange={setEditedLines}
+        regenerationError={regenerationError}
+        onClearError={clearError}
+      />
+    ) : null;
 
   return (
     <div className="kampagnen-generator">
@@ -468,7 +522,13 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
         key={selectedCampaign}
         title="Weihnachtskampagne 2025"
         subtitle="Erstelle festliche Weihnachtsgrüße mit grünen Werten für deine Region"
-        onSubmit={() => (handleSubmit as unknown as (handler: (data: CampaignFormData) => Promise<void>) => () => void)(onSubmitRHF)()}
+        onSubmit={() =>
+          (
+            handleSubmit as unknown as (
+              handler: (data: CampaignFormData) => Promise<void>
+            ) => () => void
+          )(onSubmitRHF)()
+        }
         loading={isGenerating || isRegenerating}
         success={!!storeGeneratedText}
         error={form.generator?.error as unknown as string | undefined}
@@ -500,5 +560,5 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
 
 export default withAuthRequired(KampagnenGenerator, {
   title: 'Kampagnen',
-  message: 'Melde dich an, um den Kampagnen-Grünerator zu nutzen.'
+  message: 'Melde dich an, um den Kampagnen-Grünerator zu nutzen.',
 });

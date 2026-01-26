@@ -16,7 +16,7 @@ export function extractCitationsFromText(
     /\[(\d+)\]\s*"([^"]+)"/g,
     /\[(\d+)\]\s*„([^"]+)"/g,
     /\[(\d+)\]\s*'([^']+)'/g,
-    />\s*\[(\d+)\]\s*"([^"]+)"/g
+    />\s*\[(\d+)\]\s*"([^"]+)"/g,
   ];
 
   const allCitationRefs = new Set<string>();
@@ -35,7 +35,9 @@ export function extractCitationsFromText(
       const citedText = match[2];
       const documentTitle = match[3];
 
-      console.log(`[${logPrefix}] Parsing citation: [${citationNumber}] "${citedText.substring(0, 30)}..."`);
+      console.log(
+        `[${logPrefix}] Parsing citation: [${citationNumber}] "${citedText.substring(0, 30)}..."`
+      );
 
       if (citationIndex >= 0 && citationIndex < documentContext.length) {
         const docContext = documentContext[citationIndex];
@@ -47,10 +49,12 @@ export function extractCitationsFromText(
           document_id: docContext.metadata.document_id,
           similarity_score: docContext.metadata.similarity_score,
           chunk_index: docContext.metadata.chunk_index,
-          filename: docContext.metadata.filename
+          filename: docContext.metadata.filename,
         });
       } else {
-        console.warn(`[${logPrefix}] Citation index ${citationIndex} out of range (0-${documentContext.length - 1})`);
+        console.warn(
+          `[${logPrefix}] Citation index ${citationIndex} out of range (0-${documentContext.length - 1})`
+        );
 
         if (citationIndex >= 0) {
           let bestMatch: DocumentContext | null = null;
@@ -64,7 +68,9 @@ export function extractCitationsFromText(
           }
 
           if (bestMatch) {
-            console.log(`[${logPrefix}] Creating fallback citation for [${citationNumber}] using best match`);
+            console.log(
+              `[${logPrefix}] Creating fallback citation for [${citationNumber}] using best match`
+            );
             extractedCitations.push({
               index: citationNumber,
               cited_text: citedText.trim(),
@@ -72,7 +78,7 @@ export function extractCitationsFromText(
               document_id: bestMatch.metadata.document_id,
               similarity_score: bestMatch.metadata.similarity_score,
               chunk_index: bestMatch.metadata.chunk_index,
-              filename: bestMatch.metadata.filename
+              filename: bestMatch.metadata.filename,
             });
           }
         }
@@ -83,7 +89,7 @@ export function extractCitationsFromText(
   }
 
   for (const refNum of allCitationRefs) {
-    const existing = extractedCitations.find(c => c.index === refNum);
+    const existing = extractedCitations.find((c) => c.index === refNum);
     if (!existing) {
       const refIndex = parseInt(refNum) - 1;
       if (refIndex >= 0 && refIndex < documentContext.length) {
@@ -97,13 +103,15 @@ export function extractCitationsFromText(
           document_id: docContext.metadata.document_id,
           similarity_score: docContext.metadata.similarity_score,
           chunk_index: docContext.metadata.chunk_index,
-          filename: docContext.metadata.filename
+          filename: docContext.metadata.filename,
         });
       } else if (refIndex >= 0) {
         const lastDocIndex = documentContext.length - 1;
         if (lastDocIndex >= 0) {
           const docContext = documentContext[lastDocIndex];
-          console.log(`[${logPrefix}] Creating fallback citation for out-of-range reference [${refNum}] using last document`);
+          console.log(
+            `[${logPrefix}] Creating fallback citation for out-of-range reference [${refNum}] using last document`
+          );
 
           extractedCitations.push({
             index: refNum,
@@ -112,7 +120,7 @@ export function extractCitationsFromText(
             document_id: docContext.metadata.document_id,
             similarity_score: docContext.metadata.similarity_score,
             chunk_index: docContext.metadata.chunk_index,
-            filename: docContext.metadata.filename
+            filename: docContext.metadata.filename,
           });
         }
       }
@@ -129,7 +137,10 @@ export function extractCitationsFromText(
     }
   }
 
-  console.log(`[${logPrefix}] Final citations extracted:`, uniqueCitations.map(c => `[${c.index}]`));
+  console.log(
+    `[${logPrefix}] Final citations extracted:`,
+    uniqueCitations.map((c) => `[${c.index}]`)
+  );
 
   return uniqueCitations;
 }
@@ -147,7 +158,7 @@ export function processAIResponseWithCitations(
   const citationSectionPatterns: RegExp[] = [
     /Hier sind die relevanten Zitate.*?:\s*\n\n([\s\S]*?)\n\nAntwort:/i,
     /Relevante Zitate.*?:\s*\n\n([\s\S]*?)\n\nAntwort:/i,
-    /Zitate.*?:\s*\n\n([\s\S]*?)\n\nAntwort:/i
+    /Zitate.*?:\s*\n\n([\s\S]*?)\n\nAntwort:/i,
   ];
 
   let citationSectionFound = false;
@@ -165,7 +176,9 @@ export function processAIResponseWithCitations(
   }
 
   if (!citationSectionFound) {
-    console.log(`[${logPrefix}] No structured citation section found, searching entire response...`);
+    console.log(
+      `[${logPrefix}] No structured citation section found, searching entire response...`
+    );
     citations = extractCitationsFromText(responseContent, documentContext, logPrefix);
 
     if (citations.length > 0) {
@@ -181,7 +194,7 @@ export function processAIResponseWithCitations(
   console.log(`[${logPrefix}] Citation extraction complete. Found`, citations.length, 'citations');
 
   let processedAnswer = answer;
-  citations.forEach(citation => {
+  citations.forEach((citation) => {
     const citationPattern = new RegExp(`\\[${citation.index}\\]`, 'g');
     const marker = `⚡CITE${citation.index}⚡`;
     processedAnswer = processedAnswer.replace(citationPattern, marker);
@@ -189,19 +202,19 @@ export function processAIResponseWithCitations(
   });
 
   const sources: SourceInfo[] = documentContext.map((doc) => {
-    const citationsForDoc = citations.filter(c => c.document_id === doc.metadata.document_id);
+    const citationsForDoc = citations.filter((c) => c.document_id === doc.metadata.document_id);
     return {
       document_id: doc.metadata.document_id,
       document_title: doc.title,
       chunk_text: doc.content.substring(0, 200) + '...',
       similarity_score: doc.metadata.similarity_score,
-      citations: citationsForDoc
+      citations: citationsForDoc,
     };
   });
 
   return {
     answer: processedAnswer,
     citations,
-    sources
+    sources,
   };
 }

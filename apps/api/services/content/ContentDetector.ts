@@ -113,7 +113,9 @@ export class ContentDetector {
     const hasSectionSymbol = /§/.test(t);
     const germanQuotes = /[„"‚'»«]/.test(t);
     const months =
-      /(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)/i.test(t);
+      /(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)/i.test(
+        t
+      );
 
     return { hasUmlauts, hasSectionSymbol, germanQuotes, months };
   }
@@ -125,7 +127,8 @@ export const contentDetector = new ContentDetector();
 // Export named functions for backward compatibility
 export const detectContentType = (text: string) => contentDetector.detectContentType(text);
 
-export const detectMarkdownStructure = (text: string) => contentDetector.detectMarkdownStructure(text);
+export const detectMarkdownStructure = (text: string) =>
+  contentDetector.detectMarkdownStructure(text);
 
 export const extractHeaderLevel = (text: string) => contentDetector.extractHeaderLevel(text);
 

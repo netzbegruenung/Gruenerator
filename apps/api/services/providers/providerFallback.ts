@@ -8,7 +8,7 @@ import type {
   ModelName,
   ProviderExecutor,
   PrivacyProviderData,
-  ExecutionResponse
+  ExecutionResponse,
 } from './types.js';
 
 /**
@@ -110,8 +110,8 @@ export async function tryPrivacyModeProviders(
         options: {
           ...(data.options || {}),
           provider,
-          model: getPrivacyModelForProvider(provider)
-        }
+          model: getPrivacyModelForProvider(provider),
+        },
       };
       const result = await execForProvider(provider, privacyData);
 
@@ -133,11 +133,15 @@ export async function tryPrivacyModeProviders(
   }
 
   if (attemptedProviders.length === 0) {
-    throw new Error('No privacy mode providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, or IONOS_API_TOKEN');
+    throw new Error(
+      'No privacy mode providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, or IONOS_API_TOKEN'
+    );
   }
 
   const msg = lastError?.message || 'Unknown error';
-  throw new Error(`All privacy mode providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`);
+  throw new Error(
+    `All privacy mode providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`
+  );
 }
 
 /**
@@ -167,8 +171,8 @@ export async function trySharepicFallbackProviders(
         options: {
           ...(data.options || {}),
           provider,
-          model: getSharepicFallbackModel(provider)
-        }
+          model: getSharepicFallbackModel(provider),
+        },
       };
       const result = await execForProvider(provider, fallbackData);
 
@@ -192,5 +196,7 @@ export async function trySharepicFallbackProviders(
   }
 
   const msg = lastError?.message || 'Unknown error';
-  throw new Error(`All sharepic fallback providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`);
+  throw new Error(
+    `All sharepic fallback providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`
+  );
 }

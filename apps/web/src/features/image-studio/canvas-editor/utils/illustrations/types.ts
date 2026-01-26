@@ -10,49 +10,58 @@
 export type KawaiiMood = 'sad' | 'shocked' | 'happy' | 'blissful' | 'lovestruck' | 'excited' | 'ko';
 
 export type KawaiiIllustrationType =
-    | 'planet' | 'cat' | 'ghost' | 'iceCream' | 'browser'
-    | 'mug' | 'speechBubble' | 'backpack' | 'creditCard' | 'file' | 'folder';
+  | 'planet'
+  | 'cat'
+  | 'ghost'
+  | 'iceCream'
+  | 'browser'
+  | 'mug'
+  | 'speechBubble'
+  | 'backpack'
+  | 'creditCard'
+  | 'file'
+  | 'folder';
 
 export interface KawaiiDef {
-    id: KawaiiIllustrationType;
-    name: string;
-    tags: string[];
-    source: 'kawaii';
+  id: KawaiiIllustrationType;
+  name: string;
+  tags: string[];
+  source: 'kawaii';
 }
 
 export interface KawaiiInstance {
-    id: string;
-    illustrationId: KawaiiIllustrationType;
-    source: 'kawaii';
-    x: number;
-    y: number;
-    scale: number;
-    rotation: number;
-    color: string;
-    opacity: number;
-    mood: KawaiiMood;
+  id: string;
+  illustrationId: KawaiiIllustrationType;
+  source: 'kawaii';
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  color: string;
+  opacity: number;
+  mood: KawaiiMood;
 }
 
 // SVG Illustration types
 export interface SvgDef {
-    id: string;
-    name: string;
-    filename: string;
-    source: 'undraw' | 'opendoodles';
-    tags: string[];
-    category?: string;
+  id: string;
+  name: string;
+  filename: string;
+  source: 'undraw' | 'opendoodles';
+  tags: string[];
+  category?: string;
 }
 
 export interface SvgInstance {
-    id: string;
-    illustrationId: string;
-    source: 'undraw' | 'opendoodles';
-    x: number;
-    y: number;
-    scale: number;
-    rotation: number;
-    opacity: number;
-    color?: string;
+  id: string;
+  illustrationId: string;
+  source: 'undraw' | 'opendoodles';
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+  color?: string;
 }
 
 // Unified Union Types
@@ -64,20 +73,21 @@ export type IllustrationInstance = KawaiiInstance | SvgInstance;
 // =============================================================================
 
 export const ILLUSTRATION_COLORS = [
-    { id: 'green', label: 'Grün', color: '#005538' },
-    { id: 'sunflower', label: 'Sonnenblume', color: '#FFED00' },
-    { id: 'magenta', label: 'Magenta', color: '#E5007D' },
-    { id: 'turquoise', label: 'Türkis', color: '#009EE0' },
-    { id: 'klee', label: 'Klee', color: '#6CCD87' },
-    { id: 'white', label: 'Weiß', color: '#FFFFFF' },
-    { id: 'black', label: 'Schwarz', color: '#262626' },
-    { id: 'pink', label: 'Rosa', color: '#FFB6C1' },
+  { id: 'tanne', label: 'Tanne', color: '#005538' },
+  { id: 'klee', label: 'Klee', color: '#008939' },
+  { id: 'grashalm', label: 'Grashalm', color: '#8ABD24' },
+  { id: 'himmel', label: 'Himmel', color: '#0BA1DD' },
+  { id: 'sand', label: 'Sand', color: '#F5F1E9' },
+  { id: 'hellgruen', label: 'Hellgrün', color: '#6CCD87' },
+  { id: 'dunkelgrau', label: 'Dunkelgrau', color: '#2E2E3D' },
+  { id: 'white', label: 'Weiß', color: '#FFFFFF' },
+  { id: 'black', label: 'Schwarz', color: '#000000' },
 ] as const;
 
 export const KAWAII_MOODS: { id: KawaiiMood; label: string; emoji: string }[] = [
-    { id: 'happy', label: 'Fröhlich', emoji: '😊' },
-    { id: 'blissful', label: 'Glückselig', emoji: '😌' },
-    { id: 'lovestruck', label: 'Verliebt', emoji: '😍' },
-    { id: 'shocked', label: 'Überrascht', emoji: '😲' },
-    { id: 'sad', label: 'Traurig', emoji: '😢' },
+  { id: 'happy', label: 'Fröhlich', emoji: '😊' },
+  { id: 'blissful', label: 'Glückselig', emoji: '😌' },
+  { id: 'lovestruck', label: 'Verliebt', emoji: '😍' },
+  { id: 'shocked', label: 'Überrascht', emoji: '😲' },
+  { id: 'sad', label: 'Traurig', emoji: '😢' },
 ];

@@ -28,5 +28,5 @@ export type {
   ImageValidateResponse,
   StockCatalogResponse,
   StockCatalogQuery,
-  StockImageQuery
+  StockImageQuery,
 } from './types.js';

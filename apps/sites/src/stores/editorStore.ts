@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 
-export type SectionType = 'hero' | 'about' | 'heroImage' | 'themes' | 'actions' | 'socialFeed' | 'contact';
+export type SectionType =
+  | 'hero'
+  | 'about'
+  | 'heroImage'
+  | 'themes'
+  | 'actions'
+  | 'socialFeed'
+  | 'contact';
 
 export interface FocusedField {
   section: SectionType;
@@ -46,25 +53,28 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   setActiveSection: (section) => set({ activeSection: section }),
 
-  navigateToSection: (section) => set({
-    activeSection: section,
-    pendingScrollTo: section,
-    scrollSource: 'sidebar',
-  }),
+  navigateToSection: (section) =>
+    set({
+      activeSection: section,
+      pendingScrollTo: section,
+      scrollSource: 'sidebar',
+    }),
 
-  focusField: (section, field, index) => set({
-    activeSection: section,
-    focusedField: { section, field, index },
-    highlightedElement: { section, field, index },
-    isMobileEditorOpen: true,
-  }),
+  focusField: (section, field, index) =>
+    set({
+      activeSection: section,
+      focusedField: { section, field, index },
+      highlightedElement: { section, field, index },
+      isMobileEditorOpen: true,
+    }),
 
   setHighlightedElement: (element) => set({ highlightedElement: element }),
 
-  clearFocus: () => set({
-    focusedField: null,
-    highlightedElement: null,
-  }),
+  clearFocus: () =>
+    set({
+      focusedField: null,
+      highlightedElement: null,
+    }),
 
   setScrollLocked: (locked) => set({ isScrollLocked: locked }),
 
@@ -72,9 +82,10 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   clearPendingScroll: () => set({ pendingScrollTo: null }),
 
-  toggleMobileEditor: () => set((state) => ({
-    isMobileEditorOpen: !state.isMobileEditorOpen,
-  })),
+  toggleMobileEditor: () =>
+    set((state) => ({
+      isMobileEditorOpen: !state.isMobileEditorOpen,
+    })),
 
   setMobileEditorOpen: (open) => set({ isMobileEditorOpen: open }),
 }));

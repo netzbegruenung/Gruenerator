@@ -283,13 +283,16 @@ export interface ErrorHandlerOptions {
  * The handle method can return any error-like response structure
  */
 export interface ErrorHandler {
-  handle(error: Error, context: {
-    operation: string;
-    query?: string;
-    userId?: string | null;
-    returnResponse?: boolean;
-    [key: string]: unknown;
-  }): any;
+  handle(
+    error: Error,
+    context: {
+      operation: string;
+      query?: string;
+      userId?: string | null;
+      returnResponse?: boolean;
+      [key: string]: unknown;
+    }
+  ): any;
 }
 
 // ============ Service Options ============

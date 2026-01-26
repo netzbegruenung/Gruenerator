@@ -12,7 +12,7 @@ import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   initiateInteractiveGenerator,
-  continueInteractiveGenerator
+  continueInteractiveGenerator,
 } from '../../agents/langgraph/simpleInteractiveGenerator.js';
 import { getExperimentalSession } from '../../services/chat/ChatMemoryService.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -22,7 +22,7 @@ import type {
   ContinueGeneratorParams,
   ContinueGeneratorResult,
   AIWorkerPool,
-  QuestionAnswers
+  QuestionAnswers,
 } from '../../agents/langgraph/types/simpleInteractiveGenerator.js';
 
 const router = express.Router();
@@ -92,14 +92,14 @@ router.post('/initiate', requireAuth, async (req: InteractiveRequest, res: Respo
     if (!inhalt || typeof inhalt !== 'string') {
       return res.status(400).json({
         status: 'error',
-        message: 'Feld "inhalt" ist erforderlich und muss ein String sein'
+        message: 'Feld "inhalt" ist erforderlich und muss ein String sein',
       });
     }
 
     if (!requestType || !['antrag', 'kleine_anfrage', 'grosse_anfrage'].includes(requestType)) {
       return res.status(400).json({
         status: 'error',
-        message: 'Feld "requestType" muss "antrag", "kleine_anfrage" oder "grosse_anfrage" sein'
+        message: 'Feld "requestType" muss "antrag", "kleine_anfrage" oder "grosse_anfrage" sein',
       });
     }
 
@@ -108,7 +108,7 @@ router.post('/initiate', requireAuth, async (req: InteractiveRequest, res: Respo
     if (!userId) {
       return res.status(401).json({
         status: 'error',
-        message: 'Benutzer nicht authentifiziert'
+        message: 'Benutzer nicht authentifiziert',
       });
     }
 
@@ -118,11 +118,13 @@ router.post('/initiate', requireAuth, async (req: InteractiveRequest, res: Respo
       log.error(`[interactive][${reqId}] AI worker pool not available`);
       return res.status(503).json({
         status: 'error',
-        message: 'AI-Dienst nicht verfügbar'
+        message: 'AI-Dienst nicht verfügbar',
       });
     }
 
-    log.debug(`[interactive][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType}`);
+    log.debug(
+      `[interactive][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType}`
+    );
 
     // Start interactive flow
     const params: InitiateGeneratorParams = {
@@ -132,7 +134,7 @@ router.post('/initiate', requireAuth, async (req: InteractiveRequest, res: Respo
       generatorType: 'antrag',
       locale: locale || req.user?.locale || 'de-DE',
       aiWorkerPool,
-      req
+      req,
     };
 
     const result: InitiateGeneratorResult = await initiateInteractiveGenerator(params);
@@ -142,11 +144,13 @@ router.post('/initiate', requireAuth, async (req: InteractiveRequest, res: Respo
       return res.status(500).json({
         status: 'error',
         message: result.message || 'Fehler beim Starten der interaktiven Antragserstellung',
-        error: result.error
+        error: result.error,
       });
     }
 
-    log.debug(`[interactive][${reqId}] Session created: ${result.sessionId}, ${result.questions?.length} questions`);
+    log.debug(
+      `[interactive][${reqId}] Session created: ${result.sessionId}, ${result.questions?.length} questions`
+    );
 
     return res.json({
       status: 'success',
@@ -154,15 +158,14 @@ router.post('/initiate', requireAuth, async (req: InteractiveRequest, res: Respo
       conversationState: result.conversationState,
       questions: result.questions,
       questionRound: result.questionRound,
-      metadata: result.metadata
+      metadata: result.metadata,
     });
-
   } catch (error) {
     log.error(`[interactive][${reqId}] Unexpected error in initiate:`, error);
     return res.status(500).json({
       status: 'error',
       message: 'Interner Serverfehler beim Starten der interaktiven Antragserstellung',
-      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   }
 });
@@ -185,14 +188,14 @@ router.post('/continue', requireAuth, async (req: InteractiveRequest, res: Respo
     if (!sessionId || typeof sessionId !== 'string') {
       return res.status(400).json({
         status: 'error',
-        message: 'Feld "sessionId" ist erforderlich und muss ein String sein'
+        message: 'Feld "sessionId" ist erforderlich und muss ein String sein',
       });
     }
 
     if (!answers || typeof answers !== 'object') {
       return res.status(400).json({
         status: 'error',
-        message: 'Feld "answers" ist erforderlich und muss ein Objekt sein'
+        message: 'Feld "answers" ist erforderlich und muss ein Objekt sein',
       });
     }
 
@@ -201,7 +204,7 @@ router.post('/continue', requireAuth, async (req: InteractiveRequest, res: Respo
     if (!userId) {
       return res.status(401).json({
         status: 'error',
-        message: 'Benutzer nicht authentifiziert'
+        message: 'Benutzer nicht authentifiziert',
       });
     }
 
@@ -211,11 +214,13 @@ router.post('/continue', requireAuth, async (req: InteractiveRequest, res: Respo
       log.error(`[interactive][${reqId}] AI worker pool not available`);
       return res.status(503).json({
         status: 'error',
-        message: 'AI-Dienst nicht verfügbar'
+        message: 'AI-Dienst nicht verfügbar',
       });
     }
 
-    log.debug(`[interactive][${reqId}][PID:${process.pid}] Continuing session ${sessionId} for user ${userId}`);
+    log.debug(
+      `[interactive][${reqId}][PID:${process.pid}] Continuing session ${sessionId} for user ${userId}`
+    );
     log.debug(`[interactive][${reqId}] Submitted answers:`, Object.keys(answers));
 
     // Continue interactive flow
@@ -224,7 +229,7 @@ router.post('/continue', requireAuth, async (req: InteractiveRequest, res: Respo
       sessionId,
       answers,
       aiWorkerPool,
-      req
+      req,
     };
 
     const result: ContinueGeneratorResult = await continueInteractiveGenerator(params);
@@ -237,29 +242,30 @@ router.post('/continue', requireAuth, async (req: InteractiveRequest, res: Respo
         return res.status(404).json({
           status: 'error',
           message: 'Sitzung nicht gefunden oder abgelaufen',
-          code: 'SESSION_NOT_FOUND'
+          code: 'SESSION_NOT_FOUND',
         });
       }
 
       return res.status(500).json({
         status: 'error',
         message: result.message || 'Fehler beim Fortsetzen der interaktiven Antragserstellung',
-        error: result.error
+        error: result.error,
       });
     }
 
     if (result.status === 'completed') {
-      log.debug(`[interactive][${reqId}] Generation completed: ${result.finalResult?.length} chars`);
+      log.debug(
+        `[interactive][${reqId}] Generation completed: ${result.finalResult?.length} chars`
+      );
     }
 
     return res.json(result);
-
   } catch (error) {
     log.error(`[interactive][${reqId}] Unexpected error in continue:`, error);
     return res.status(500).json({
       status: 'error',
       message: 'Interner Serverfehler beim Fortsetzen der interaktiven Antragserstellung',
-      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   }
 });
@@ -281,7 +287,7 @@ router.get('/status/:sessionId', requireAuth, async (req: InteractiveRequest, re
     if (!sessionId) {
       return res.status(400).json({
         status: 'error',
-        message: 'sessionId ist erforderlich'
+        message: 'sessionId ist erforderlich',
       });
     }
 
@@ -290,7 +296,7 @@ router.get('/status/:sessionId', requireAuth, async (req: InteractiveRequest, re
     if (!userId) {
       return res.status(401).json({
         status: 'error',
-        message: 'Benutzer nicht authentifiziert'
+        message: 'Benutzer nicht authentifiziert',
       });
     }
 
@@ -304,7 +310,7 @@ router.get('/status/:sessionId', requireAuth, async (req: InteractiveRequest, re
       return res.status(404).json({
         status: 'error',
         message: 'Sitzung nicht gefunden oder abgelaufen',
-        code: 'SESSION_NOT_FOUND'
+        code: 'SESSION_NOT_FOUND',
       });
     }
 
@@ -319,7 +325,7 @@ router.get('/status/:sessionId', requireAuth, async (req: InteractiveRequest, re
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
       expiresAt: session.expiresAt,
-      metadata: session.metadata
+      metadata: session.metadata,
     };
 
     // Include final result if completed
@@ -331,15 +337,14 @@ router.get('/status/:sessionId', requireAuth, async (req: InteractiveRequest, re
 
     return res.json({
       status: 'success',
-      session: sessionData
+      session: sessionData,
     });
-
   } catch (error) {
     log.error(`[interactive][${reqId}] Unexpected error in status:`, error);
     return res.status(500).json({
       status: 'error',
       message: 'Interner Serverfehler beim Abrufen des Sitzungsstatus',
-      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   }
 });

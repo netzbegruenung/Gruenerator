@@ -8,19 +8,60 @@
  * Used for accurate sentence boundary detection
  */
 export const GERMAN_ABBREVIATIONS = new Set([
-  'bzw', 'z.b', 'z.B', 'etc', 'usw', 'ggf', 'ca', 'Prof', 'Dr', 'Hr', 'Fr',
-  'Abs', 'Art', 'Nr', 'Tel', 'Fax', 'E-Mail', 'e.V', 'GmbH', 'AG', 'Ltd',
-  'Inc', 'Co', 'Corp', 'kg', 'mg', 'km', 'cm', 'mm', 'm²', 'qm', 'min',
-  'max', 'zzgl', 'inkl', 'exkl', 'evtl', 'i.d.R', 'u.a', 'o.ä', 'o.g',
-  'sog', 'bzw', 'ggf', 'z.T', 'z.Z', 'z.Zt'
+  'bzw',
+  'z.b',
+  'z.B',
+  'etc',
+  'usw',
+  'ggf',
+  'ca',
+  'Prof',
+  'Dr',
+  'Hr',
+  'Fr',
+  'Abs',
+  'Art',
+  'Nr',
+  'Tel',
+  'Fax',
+  'E-Mail',
+  'e.V',
+  'GmbH',
+  'AG',
+  'Ltd',
+  'Inc',
+  'Co',
+  'Corp',
+  'kg',
+  'mg',
+  'km',
+  'cm',
+  'mm',
+  'm²',
+  'qm',
+  'min',
+  'max',
+  'zzgl',
+  'inkl',
+  'exkl',
+  'evtl',
+  'i.d.R',
+  'u.a',
+  'o.ä',
+  'o.g',
+  'sog',
+  'bzw',
+  'ggf',
+  'z.T',
+  'z.Z',
+  'z.Zt',
 ]);
 
 /**
  * Check if a word is a German abbreviation
  */
 export function isGermanAbbreviation(word: string): boolean {
-  return GERMAN_ABBREVIATIONS.has(word) ||
-         GERMAN_ABBREVIATIONS.has(word.replace(/\./g, ''));
+  return GERMAN_ABBREVIATIONS.has(word) || GERMAN_ABBREVIATIONS.has(word.replace(/\./g, ''));
 }
 
 /**
@@ -47,13 +88,13 @@ export function isContinuation(afterPunctuation: string): boolean {
  * Ordered by priority (most important first)
  */
 export const GERMAN_SEPARATORS = [
-  '\n\n',      // Paragraph breaks
-  '. ',        // Sentence end with space
-  '? ',        // Question with space
-  '! ',        // Exclamation with space
-  '; ',        // Semicolon
-  ': ',        // Colon
-  ', ',        // Comma
-  '\n',        // Line break
-  ' '          // Space (last resort)
+  '\n\n', // Paragraph breaks
+  '. ', // Sentence end with space
+  '? ', // Question with space
+  '! ', // Exclamation with space
+  '; ', // Semicolon
+  ': ', // Colon
+  ', ', // Comma
+  '\n', // Line break
+  ' ', // Space (last resort)
 ];

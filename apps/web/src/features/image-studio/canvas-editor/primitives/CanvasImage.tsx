@@ -12,12 +12,15 @@
  * - Single bounds calculation (removed from dragBoundFunc, only in handleDragMove)
  */
 
+import Konva from 'konva';
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
-import Konva from 'konva';
-import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
+
+
 import { calculateElementSnapPosition } from '../utils/snapping';
+
 import type { SnapTarget, SnapLine } from '../utils/snapping';
+import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 
 export interface CanvasImageProps {
   id?: string;
@@ -283,14 +286,11 @@ function CanvasImageInner({
 
   // Performance: dragBoundFunc now just returns position - actual clamping happens in handleDragMove
   // This avoids double calculation of bounds on every mouse move
-  const dragBoundFunc = useCallback(
-    (pos: { x: number; y: number }) => {
-      // Return position as-is; handleDragMove will apply bounds + snapping
-      // This removes the duplicate clampToBounds call that was causing performance issues
-      return pos;
-    },
-    []
-  );
+  const dragBoundFunc = useCallback((pos: { x: number; y: number }) => {
+    // Return position as-is; handleDragMove will apply bounds + snapping
+    // This removes the duplicate clampToBounds call that was causing performance issues
+    return pos;
+  }, []);
 
   if (!image) return null;
 

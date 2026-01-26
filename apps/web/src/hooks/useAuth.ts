@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useAuthStore, type AuthStore } from '../stores/authStore';
+
 import apiClient from '../components/utils/apiClient';
+import { useAuthStore, type AuthStore } from '../stores/authStore';
+
 import type { AxiosRequestConfig } from 'axios';
 
 // Extend axios config to allow skipAuthRedirect
@@ -45,7 +47,7 @@ const cleanupInvalidAuthState = () => {
         const now = Date.now();
 
         // If timestamp is invalid, in the future, or older than 1 hour, it's likely corrupted
-        if (isNaN(timestamp) || timestamp > now || (now - timestamp) > 60 * 60 * 1000) {
+        if (isNaN(timestamp) || timestamp > now || now - timestamp > 60 * 60 * 1000) {
           localStorage.removeItem('gruenerator_logout_timestamp');
         }
       }
@@ -54,7 +56,11 @@ const cleanupInvalidAuthState = () => {
       const loginIntent = localStorage.getItem('gruenerator_login_intent');
       if (loginIntent) {
         const intentTime = parseInt(loginIntent);
-        if (isNaN(intentTime) || intentTime > Date.now() || (Date.now() - intentTime) > 10 * 60 * 1000) {
+        if (
+          isNaN(intentTime) ||
+          intentTime > Date.now() ||
+          Date.now() - intentTime > 10 * 60 * 1000
+        ) {
           localStorage.removeItem('gruenerator_login_intent');
         }
       }
@@ -143,19 +149,21 @@ const detectPartialLogoutState = async () => {
     // If frontend shows logged out, check if backend still has session
     if (frontendLoggedOut) {
       const response = await apiClient.get('/auth/status', {
-        skipAuthRedirect: true
+        skipAuthRedirect: true,
       } as ExtendedAxiosRequestConfig);
 
       const statusData = response.data as Record<string, unknown>;
       const backendAuthenticated = statusData.isAuthenticated;
 
       if (backendAuthenticated) {
-        console.warn('[useAuth] Partial logout detected: Frontend logged out but backend still authenticated');
+        console.warn(
+          '[useAuth] Partial logout detected: Frontend logged out but backend still authenticated'
+        );
         return {
           isPartialLogout: true,
           needsRecovery: true,
           frontendState: 'logged_out',
-          backendState: 'authenticated'
+          backendState: 'authenticated',
         };
       }
     }
@@ -173,7 +181,9 @@ const detectPartialLogoutState = async () => {
 const checkServerHealth = async () => {
   try {
     // Health endpoint is at /health (relative to base URL without /api)
-    const baseURL = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || '/api';
+    const baseURL =
+      (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL ||
+      '/api';
     const healthUrl = baseURL.replace('/api', '') + '/health';
     const response = await fetch(healthUrl, {
       method: 'GET',
@@ -245,7 +255,7 @@ const getCachedAuthState = () => {
     if (cached) {
       const parsed = JSON.parse(cached);
       // Check if cache is still fresh (< 5 minutes)
-      if (parsed.timestamp && (Date.now() - parsed.timestamp) < 5 * 60 * 1000) {
+      if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
         return parsed.data;
       }
     }
@@ -260,10 +270,13 @@ const getCachedAuthState = () => {
  */
 const setCachedAuthState = (data: AuthData) => {
   try {
-    localStorage.setItem('authState', JSON.stringify({
-      data,
-      timestamp: Date.now()
-    }));
+    localStorage.setItem(
+      'authState',
+      JSON.stringify({
+        data,
+        timestamp: Date.now(),
+      })
+    );
   } catch (error) {
     // Cache write failed, ignore
   }
@@ -271,21 +284,21 @@ const setCachedAuthState = (data: AuthData) => {
 
 /**
  * Optimized hook that manages authentication state
- * 
+ *
  * USAGE GUIDE:
- * 
+ *
  * 1. useAuth() - Standard authentication (default behavior)
  * 2. useAuth({ skipAuth: true }) - Completely skip auth for public pages
  * 3. useAuth({ lazy: true }) - Load auth in background for optional auth pages
  * 4. useAuth({ instant: true }) - Use cached state immediately, refresh in background
  * 5. useAuth({ instant: true, lazy: false }) - Optimal for auth-required pages
- * 
+ *
  * CONVENIENCE HOOKS:
  * - usePublicAuth() - For public pages (skipAuth: true)
- * - useLazyAuth() - For optional auth pages (lazy: true) 
+ * - useLazyAuth() - For optional auth pages (lazy: true)
  * - useInstantAuth() - For pages needing immediate auth with cache (instant: true)
  * - useOptimizedAuth() - For auth-required pages with best performance
- * 
+ *
  * @param {Object} options - Configuration options
  * @param {boolean} options.skipAuth - Skip authentication entirely (for public pages)
  * @param {boolean} options.lazy - Load auth in background (for pages that work without auth)
@@ -324,40 +337,8 @@ export const useAuth = (options: AuthOptions = {}) => {
   const [hasInitializedFromCache, setHasInitializedFromCache] = useState(false);
   const queryClient = useQueryClient();
 
-
-  // Skip all auth logic for public pages
-  if (skipAuth) {
-    return {
-      user: null,
-      isAuthenticated: false,
-      loading: false,
-      error: null,
-      isLoggingOut: false,
-      isAuthResolved: true,
-      isInitialLoad: false,
-      hasCachedData: false,
-      selectedMessageColor: '#008939',
-      igelModus: false,
-      login,
-      logout: () => { },
-      updateUserMessageColor: async () => { },
-      setIgelModus: async () => false,
-      register: () => { },
-      deleteAccount: async () => ({ success: false, message: '' }),
-      sendPasswordResetEmail: async () => ({ success: false, message: '' }),
-      updatePassword: () => { },
-      updateProfile: async () => ({}),
-      updateAvatar: async () => ({}),
-      refetchAuth: () => { },
-      setLoginIntent: () => { },
-      session: null,
-      supabase: null,
-      canManageAccount: () => false,
-    };
-  }
-
   // Load cached state immediately for instant mode
-  const cachedAuth = instant ? getCachedAuthState() : null;
+  const cachedAuth = !skipAuth && instant ? getCachedAuthState() : null;
   const [hasCachedData] = useState(!!cachedAuth);
 
   // Initialize with cached data if available
@@ -368,13 +349,16 @@ export const useAuth = (options: AuthOptions = {}) => {
     }
   }, [cachedAuth, hasInitializedFromCache, setAuthState]);
 
-  const { isServerAvailable, isChecking } = useServerAvailability(lazy || (instant && hasCachedData));
+  const { isServerAvailable, isChecking } = useServerAvailability(
+    lazy || (instant && hasCachedData)
+  );
 
   // Check if user recently logged out to prevent immediate re-auth
   const hasRecentlyLoggedOut = isRecentlyLoggedOut();
 
   // Always allow auth on login page (conscious user action)
-  const isOnLoginPage = typeof window !== 'undefined' &&
+  const isOnLoginPage =
+    typeof window !== 'undefined' &&
     (window.location.pathname === '/login' || window.location.pathname === '/auth/login');
 
   // Query configuration for different loading strategies
@@ -388,14 +372,10 @@ export const useAuth = (options: AuthOptions = {}) => {
   } = useQuery<AuthData>({
     queryKey: ['authStatus'],
     queryFn: async (): Promise<AuthData> => {
-      try {
-        const response = await apiClient.get('/auth/status', {
-          skipAuthRedirect: true,
-        } as ExtendedAxiosRequestConfig);
-        return response.data as AuthData;
-      } catch (error: unknown) {
-        throw error;
-      }
+      const response = await apiClient.get('/auth/status', {
+        skipAuthRedirect: true,
+      } as ExtendedAxiosRequestConfig);
+      return response.data as AuthData;
     },
     enabled: isServerAvailable && !skipAuth && (!hasRecentlyLoggedOut || isOnLoginPage), // Allow auth on login page
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -433,7 +413,8 @@ export const useAuth = (options: AuthOptions = {}) => {
         setCachedAuthState(authData);
       }
 
-      const { isAuthenticated: currentIsAuthenticated, user: currentUser } = useAuthStore.getState();
+      const { isAuthenticated: currentIsAuthenticated, user: currentUser } =
+        useAuthStore.getState();
 
       if (authData.isAuthenticated && authData.user) {
         // Clear login intent after successful authentication
@@ -448,7 +429,7 @@ export const useAuth = (options: AuthOptions = {}) => {
           setAuthState({
             user: authData.user as any,
             isAuthenticated: authData.isAuthenticated,
-            supabaseSession: authData.supabaseSession as any
+            supabaseSession: authData.supabaseSession as any,
           });
 
           // Prefetch groups if user doesn't already have groups loaded
@@ -458,7 +439,7 @@ export const useAuth = (options: AuthOptions = {}) => {
               queryFn: async () => {
                 try {
                   const response = await apiClient.get('/auth/groups', {
-                    skipAuthRedirect: true
+                    skipAuthRedirect: true,
                   } as ExtendedAxiosRequestConfig);
                   return response.data.groups || [];
                 } catch (error: unknown) {
@@ -487,35 +468,67 @@ export const useAuth = (options: AuthOptions = {}) => {
       setError(queryError.message);
       clearAuth();
     }
-  }, [authData, queryError, instant, setAuthState, clearAuth, setError, hasRecentlyLoggedOut, isOnLoginPage]);
+  }, [
+    authData,
+    queryError,
+    instant,
+    setAuthState,
+    clearAuth,
+    setError,
+    hasRecentlyLoggedOut,
+    isOnLoginPage,
+  ]);
 
   // Calculate loading states with optimizations
-  const isCombinedLoading = (
+  const isCombinedLoading =
     (!hasCachedData && isChecking) ||
     (!hasCachedData && isQueryLoading) ||
-    (isLoading && !authData && !hasCachedData)
-  );
+    (isLoading && !authData && !hasCachedData);
 
-  const isAuthResolved = (
+  const isAuthResolved =
     hasCachedData ||
     (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut) ||
     // Force resolve auth state if user recently logged out and not on login page
-    (hasRecentlyLoggedOut && !isOnLoginPage)
-  );
-
+    (hasRecentlyLoggedOut && !isOnLoginPage);
 
   // Helper function to update message color
   const updateUserMessageColor = async (newColor: string) => {
     if (!user) {
       return;
     }
-
-    try {
-      await updateMessageColor(newColor);
-    } catch (err) {
-      throw err;
-    }
+    await updateMessageColor(newColor);
   };
+
+  // Skip all auth logic for public pages - return after all hooks have been called
+  if (skipAuth) {
+    return {
+      user: null,
+      isAuthenticated: false,
+      loading: false,
+      error: null,
+      isLoggingOut: false,
+      isAuthResolved: true,
+      isInitialLoad: false,
+      hasCachedData: false,
+      selectedMessageColor: '#008939',
+      igelModus: false,
+      login,
+      logout: () => {},
+      updateUserMessageColor: async () => {},
+      setIgelModus: async () => false,
+      register: () => {},
+      deleteAccount: async () => ({ success: false, message: '' }),
+      sendPasswordResetEmail: async () => ({ success: false, message: '' }),
+      updatePassword: () => {},
+      updateProfile: async () => ({}),
+      updateAvatar: async () => ({}),
+      refetchAuth: () => {},
+      setLoginIntent: () => {},
+      session: null,
+      supabase: null,
+      canManageAccount: () => false,
+    };
+  }
 
   return {
     user,
@@ -571,4 +584,4 @@ export const useInstantAuth = () => useAuth({ instant: true });
 export const useOptimizedAuth = () => useAuth({ instant: true, lazy: false });
 
 // Legacy default export für bestehenden Code
-export default useAuth; 
+export default useAuth;

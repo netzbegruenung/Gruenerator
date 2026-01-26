@@ -3,8 +3,9 @@
  * Handles background checking, downloading, and installing of app updates
  */
 
-import { isDesktopApp } from './platform';
 import { useDesktopUpdateStore, type UpdateInfo } from '../stores/desktopUpdateStore';
+
+import { isDesktopApp } from './platform';
 
 type Update = {
   available: boolean;

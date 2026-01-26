@@ -81,11 +81,21 @@ export function SharepicConfigModal({
           {showImagePicker && (
             <View style={styles.section}>
               <Text style={[styles.sectionLabel, { color: theme.text }]}>Hintergrundbild</Text>
-              <View style={[styles.imagePickerContainer, { backgroundColor: isDark ? colors.grey[900] : colors.grey[50], borderColor: theme.border }]}>
+              <View
+                style={[
+                  styles.imagePickerContainer,
+                  {
+                    backgroundColor: isDark ? colors.grey[900] : colors.grey[50],
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
                 <ImagePicker
                   onImageSelected={handleImageSelected}
                   onError={handleImageError}
-                  selectedImage={imageData ? { uri: imageData, fileName: 'Ausgewähltes Bild' } : null}
+                  selectedImage={
+                    imageData ? { uri: imageData, fileName: 'Ausgewähltes Bild' } : null
+                  }
                   onClear={handleImageClear}
                 />
               </View>

@@ -90,9 +90,7 @@ export function ModificationStep({
         <Pressable onPress={onBack} style={styles.headerButton}>
           <Ionicons name="chevron-back" size={24} color={colors.primary[600]} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>
-          {MODIFICATION_LABELS.TITLE}
-        </Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{MODIFICATION_LABELS.TITLE}</Text>
         <Pressable onPress={onReset} style={styles.headerButton}>
           <Ionicons name="refresh-outline" size={22} color={colors.primary[600]} />
         </Pressable>
@@ -111,9 +109,7 @@ export function ModificationStep({
             {loading && (
               <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="large" color={colors.white} />
-                <Text style={styles.loadingText}>
-                  {MODIFICATION_LABELS.REGENERATING}
-                </Text>
+                <Text style={styles.loadingText}>{MODIFICATION_LABELS.REGENERATING}</Text>
               </View>
             )}
           </View>
@@ -193,11 +189,7 @@ export function ModificationStep({
 
         {/* Continue Button */}
         <View style={styles.buttonContainer}>
-          <Button
-            onPress={onNext}
-            variant="primary"
-            disabled={loading || !generatedImage}
-          >
+          <Button onPress={onNext} variant="primary" disabled={loading || !generatedImage}>
             {MODIFICATION_LABELS.CONTINUE}
           </Button>
         </View>

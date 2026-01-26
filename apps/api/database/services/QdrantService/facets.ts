@@ -10,28 +10,32 @@ const log = createLogger('QdrantFacets');
 
 // Types
 export interface FieldValueCount {
-    value: string;
-    count: number;
+  value: string;
+  count: number;
 }
 
 export interface DateRange {
-    min: string | null;
-    max: string | null;
+  min: string | null;
+  max: string | null;
 }
 
 export interface UrlRecord {
-    source_url: string;
-    content_hash: string | null;
+  source_url: string;
+  content_hash: string | null;
 }
 
 export interface DeleteResult {
-    success: boolean;
+  success: boolean;
 }
 
 export interface QdrantFilter {
-    must?: Array<{ key: string; match?: { value: unknown; any?: unknown[] }; range?: { gte?: number; lte?: number } }>;
-    must_not?: Array<{ key: string; match?: { value: unknown } }>;
-    should?: Array<{ key: string; match?: { value: unknown } }>;
+  must?: Array<{
+    key: string;
+    match?: { value: unknown; any?: unknown[] };
+    range?: { gte?: number; lte?: number };
+  }>;
+  must_not?: Array<{ key: string; match?: { value: unknown } }>;
+  should?: Array<{ key: string; match?: { value: unknown } }>;
 }
 
 /**
@@ -43,61 +47,61 @@ export interface QdrantFilter {
  * @returns Array of unique values
  */
 export async function getUniqueFieldValues(
-    client: QdrantClient,
-    collectionName: string,
-    fieldName: string,
-    maxValues: number = 50
+  client: QdrantClient,
+  collectionName: string,
+  fieldName: string,
+  maxValues: number = 50
 ): Promise<string[]> {
-    try {
-        const uniqueValues = new Set<string>();
-        let offset: string | number | null = null;
-        let iterations = 0;
-        const maxIterations = 50;
+  try {
+    const uniqueValues = new Set<string>();
+    let offset: string | number | null = null;
+    let iterations = 0;
+    const maxIterations = 50;
 
-        while (iterations < maxIterations && uniqueValues.size < maxValues) {
-            const scrollResult = await client.scroll(collectionName, {
-                limit: 100,
-                offset: offset ?? undefined,
-                with_payload: [fieldName],
-                with_vector: false
-            });
+    while (iterations < maxIterations && uniqueValues.size < maxValues) {
+      const scrollResult = await client.scroll(collectionName, {
+        limit: 100,
+        offset: offset ?? undefined,
+        with_payload: [fieldName],
+        with_vector: false,
+      });
 
-            if (!scrollResult.points || scrollResult.points.length === 0) {
-                break;
+      if (!scrollResult.points || scrollResult.points.length === 0) {
+        break;
+      }
+
+      for (const point of scrollResult.points) {
+        const payload = point.payload as Record<string, unknown> | null;
+        const value = payload?.[fieldName];
+        if (value !== undefined && value !== null && value !== '') {
+          if (Array.isArray(value)) {
+            for (const v of value) {
+              if (v && uniqueValues.size < maxValues) {
+                uniqueValues.add(String(v));
+              }
             }
-
-            for (const point of scrollResult.points) {
-                const payload = point.payload as Record<string, unknown> | null;
-                const value = payload?.[fieldName];
-                if (value !== undefined && value !== null && value !== '') {
-                    if (Array.isArray(value)) {
-                        for (const v of value) {
-                            if (v && uniqueValues.size < maxValues) {
-                                uniqueValues.add(String(v));
-                            }
-                        }
-                    } else {
-                        uniqueValues.add(String(value));
-                    }
-                }
-                if (uniqueValues.size >= maxValues) break;
-            }
-
-            const nextOffset = scrollResult.next_page_offset;
-            offset = (typeof nextOffset === 'string' || typeof nextOffset === 'number') ? nextOffset : null;
-            if (!offset) break;
-            iterations++;
+          } else {
+            uniqueValues.add(String(value));
+          }
         }
+        if (uniqueValues.size >= maxValues) break;
+      }
 
-        return Array.from(uniqueValues).sort();
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("doesn't exist")) {
-            return [];
-        }
-        log.error(`Failed to get unique values for ${fieldName} in ${collectionName}: ${message}`);
-        throw error;
+      const nextOffset = scrollResult.next_page_offset;
+      offset = typeof nextOffset === 'string' || typeof nextOffset === 'number' ? nextOffset : null;
+      if (!offset) break;
+      iterations++;
     }
+
+    return Array.from(uniqueValues).sort();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("doesn't exist")) {
+      return [];
+    }
+    log.error(`Failed to get unique values for ${fieldName} in ${collectionName}: ${message}`);
+    throw error;
+  }
 }
 
 /**
@@ -110,81 +114,81 @@ export async function getUniqueFieldValues(
  * @returns Array of values with counts, sorted by count descending
  */
 export async function getFieldValueCounts(
-    client: QdrantClient,
-    collectionName: string,
-    fieldName: string,
-    maxValues: number = 50,
-    baseFilter: QdrantFilter | null = null
+  client: QdrantClient,
+  collectionName: string,
+  fieldName: string,
+  maxValues: number = 50,
+  baseFilter: QdrantFilter | null = null
 ): Promise<FieldValueCount[]> {
-    try {
-        const valueCounts = new Map<string, number>();
-        let offset: string | number | null = null;
-        let iterations = 0;
-        const maxIterations = 100;
+  try {
+    const valueCounts = new Map<string, number>();
+    let offset: string | number | null = null;
+    let iterations = 0;
+    const maxIterations = 100;
 
-        while (iterations < maxIterations) {
-            const scrollOptions: {
-                limit: number;
-                offset?: string | number;
-                with_payload: string[];
-                with_vector: boolean;
-                filter?: QdrantFilter;
-            } = {
-                limit: 100,
-                with_payload: [fieldName],
-                with_vector: false
-            };
+    while (iterations < maxIterations) {
+      const scrollOptions: {
+        limit: number;
+        offset?: string | number;
+        with_payload: string[];
+        with_vector: boolean;
+        filter?: QdrantFilter;
+      } = {
+        limit: 100,
+        with_payload: [fieldName],
+        with_vector: false,
+      };
 
-            if (offset !== null) {
-                scrollOptions.offset = offset;
+      if (offset !== null) {
+        scrollOptions.offset = offset;
+      }
+
+      if (baseFilter) {
+        scrollOptions.filter = baseFilter;
+      }
+
+      const scrollResult = await client.scroll(collectionName, scrollOptions);
+
+      if (!scrollResult.points || scrollResult.points.length === 0) {
+        break;
+      }
+
+      for (const point of scrollResult.points) {
+        const payload = point.payload as Record<string, unknown> | null;
+        const value = payload?.[fieldName];
+        if (value !== undefined && value !== null && value !== '') {
+          if (Array.isArray(value)) {
+            for (const v of value) {
+              if (v) {
+                const strValue = String(v);
+                valueCounts.set(strValue, (valueCounts.get(strValue) || 0) + 1);
+              }
             }
-
-            if (baseFilter) {
-                scrollOptions.filter = baseFilter;
-            }
-
-            const scrollResult = await client.scroll(collectionName, scrollOptions);
-
-            if (!scrollResult.points || scrollResult.points.length === 0) {
-                break;
-            }
-
-            for (const point of scrollResult.points) {
-                const payload = point.payload as Record<string, unknown> | null;
-                const value = payload?.[fieldName];
-                if (value !== undefined && value !== null && value !== '') {
-                    if (Array.isArray(value)) {
-                        for (const v of value) {
-                            if (v) {
-                                const strValue = String(v);
-                                valueCounts.set(strValue, (valueCounts.get(strValue) || 0) + 1);
-                            }
-                        }
-                    } else {
-                        const strValue = String(value);
-                        valueCounts.set(strValue, (valueCounts.get(strValue) || 0) + 1);
-                    }
-                }
-            }
-
-            const nextOffset = scrollResult.next_page_offset;
-            offset = (typeof nextOffset === 'string' || typeof nextOffset === 'number') ? nextOffset : null;
-            if (!offset) break;
-            iterations++;
+          } else {
+            const strValue = String(value);
+            valueCounts.set(strValue, (valueCounts.get(strValue) || 0) + 1);
+          }
         }
+      }
 
-        return Array.from(valueCounts.entries())
-            .map(([value, count]) => ({ value, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, maxValues);
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("doesn't exist")) {
-            return [];
-        }
-        log.error(`Failed to get field value counts for ${fieldName} in ${collectionName}: ${message}`);
-        throw error;
+      const nextOffset = scrollResult.next_page_offset;
+      offset = typeof nextOffset === 'string' || typeof nextOffset === 'number' ? nextOffset : null;
+      if (!offset) break;
+      iterations++;
     }
+
+    return Array.from(valueCounts.entries())
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, maxValues);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("doesn't exist")) {
+      return [];
+    }
+    log.error(`Failed to get field value counts for ${fieldName} in ${collectionName}: ${message}`);
+    throw error;
+  }
 }
 
 /**
@@ -195,54 +199,54 @@ export async function getFieldValueCounts(
  * @returns Min and max date values
  */
 export async function getDateRange(
-    client: QdrantClient,
-    collectionName: string,
-    fieldName: string
+  client: QdrantClient,
+  collectionName: string,
+  fieldName: string
 ): Promise<DateRange> {
-    try {
-        let minDate: string | null = null;
-        let maxDate: string | null = null;
-        let offset: string | number | null = null;
-        let iterations = 0;
-        const maxIterations = 50;
+  try {
+    let minDate: string | null = null;
+    let maxDate: string | null = null;
+    let offset: string | number | null = null;
+    let iterations = 0;
+    const maxIterations = 50;
 
-        while (iterations < maxIterations) {
-            const scrollResult = await client.scroll(collectionName, {
-                limit: 100,
-                offset: offset ?? undefined,
-                with_payload: [fieldName],
-                with_vector: false
-            });
+    while (iterations < maxIterations) {
+      const scrollResult = await client.scroll(collectionName, {
+        limit: 100,
+        offset: offset ?? undefined,
+        with_payload: [fieldName],
+        with_vector: false,
+      });
 
-            if (!scrollResult.points || scrollResult.points.length === 0) {
-                break;
-            }
+      if (!scrollResult.points || scrollResult.points.length === 0) {
+        break;
+      }
 
-            for (const point of scrollResult.points) {
-                const payload = point.payload as Record<string, unknown> | null;
-                const value = payload?.[fieldName];
-                if (value) {
-                    const dateStr = String(value);
-                    if (!minDate || dateStr < minDate) minDate = dateStr;
-                    if (!maxDate || dateStr > maxDate) maxDate = dateStr;
-                }
-            }
-
-            const nextOffset = scrollResult.next_page_offset;
-            offset = (typeof nextOffset === 'string' || typeof nextOffset === 'number') ? nextOffset : null;
-            if (!offset) break;
-            iterations++;
+      for (const point of scrollResult.points) {
+        const payload = point.payload as Record<string, unknown> | null;
+        const value = payload?.[fieldName];
+        if (value) {
+          const dateStr = String(value);
+          if (!minDate || dateStr < minDate) minDate = dateStr;
+          if (!maxDate || dateStr > maxDate) maxDate = dateStr;
         }
+      }
 
-        return { min: minDate, max: maxDate };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("doesn't exist")) {
-            return { min: null, max: null };
-        }
-        log.error(`Failed to get date range for ${fieldName} in ${collectionName}: ${message}`);
-        throw error;
+      const nextOffset = scrollResult.next_page_offset;
+      offset = typeof nextOffset === 'string' || typeof nextOffset === 'number' ? nextOffset : null;
+      if (!offset) break;
+      iterations++;
     }
+
+    return { min: minDate, max: maxDate };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("doesn't exist")) {
+      return { min: null, max: null };
+    }
+    log.error(`Failed to get date range for ${fieldName} in ${collectionName}: ${message}`);
+    throw error;
+  }
 }
 
 /**
@@ -253,54 +257,54 @@ export async function getDateRange(
  * @returns Array of URL records with source_url and content_hash
  */
 export async function getAllUrls(
-    client: QdrantClient,
-    collectionName: string,
-    payloadFields: string[] = ['source_url', 'content_hash', 'chunk_index']
+  client: QdrantClient,
+  collectionName: string,
+  payloadFields: string[] = ['source_url', 'content_hash', 'chunk_index']
 ): Promise<UrlRecord[]> {
-    try {
-        const urlMap = new Map<string, UrlRecord>();
-        let offset: string | number | null = null;
+  try {
+    const urlMap = new Map<string, UrlRecord>();
+    let offset: string | number | null = null;
 
-        while (true) {
-            const scrollResult = await client.scroll(collectionName, {
-                limit: 100,
-                offset: offset ?? undefined,
-                with_payload: payloadFields,
-                with_vector: false
+    while (true) {
+      const scrollResult = await client.scroll(collectionName, {
+        limit: 100,
+        offset: offset ?? undefined,
+        with_payload: payloadFields,
+        with_vector: false,
+      });
+
+      if (!scrollResult.points || scrollResult.points.length === 0) {
+        break;
+      }
+
+      for (const point of scrollResult.points) {
+        const payload = point.payload as Record<string, unknown> | null;
+        // Only include first chunks (chunk_index === 0) to avoid duplicates
+        if (payload?.chunk_index === 0) {
+          const url = (payload.source_url || payload.url) as string | undefined;
+          if (url) {
+            urlMap.set(url, {
+              source_url: url,
+              content_hash: (payload.content_hash as string | undefined) || null,
             });
-
-            if (!scrollResult.points || scrollResult.points.length === 0) {
-                break;
-            }
-
-            for (const point of scrollResult.points) {
-                const payload = point.payload as Record<string, unknown> | null;
-                // Only include first chunks (chunk_index === 0) to avoid duplicates
-                if (payload?.chunk_index === 0) {
-                    const url = (payload.source_url || payload.url) as string | undefined;
-                    if (url) {
-                        urlMap.set(url, {
-                            source_url: url,
-                            content_hash: (payload.content_hash as string | undefined) || null
-                        });
-                    }
-                }
-            }
-
-            const nextOffset = scrollResult.next_page_offset;
-            offset = (typeof nextOffset === 'string' || typeof nextOffset === 'number') ? nextOffset : null;
-            if (!offset) break;
+          }
         }
+      }
 
-        return Array.from(urlMap.values());
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("doesn't exist")) {
-            return [];
-        }
-        log.error(`Failed to get URLs from ${collectionName}: ${message}`);
-        throw error;
+      const nextOffset = scrollResult.next_page_offset;
+      offset = typeof nextOffset === 'string' || typeof nextOffset === 'number' ? nextOffset : null;
+      if (!offset) break;
     }
+
+    return Array.from(urlMap.values());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("doesn't exist")) {
+      return [];
+    }
+    log.error(`Failed to get URLs from ${collectionName}: ${message}`);
+    throw error;
+  }
 }
 
 /**
@@ -312,24 +316,23 @@ export async function getAllUrls(
  * @returns Delete result
  */
 export async function deleteByUrl(
-    client: QdrantClient,
-    collectionName: string,
-    url: string,
-    urlFieldName: string = 'source_url'
+  client: QdrantClient,
+  collectionName: string,
+  url: string,
+  urlFieldName: string = 'source_url'
 ): Promise<DeleteResult> {
-    try {
-        await client.delete(collectionName, {
-            filter: {
-                must: [{ key: urlFieldName, match: { value: url } }]
-            }
-        });
+  try {
+    await client.delete(collectionName, {
+      filter: {
+        must: [{ key: urlFieldName, match: { value: url } }],
+      },
+    });
 
-        log.debug(`Deleted content for URL ${url} from ${collectionName}`);
-        return { success: true };
-
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        log.error(`Failed to delete content by URL from ${collectionName}: ${message}`);
-        throw new Error(`URL deletion failed: ${message}`);
-    }
+    log.debug(`Deleted content for URL ${url} from ${collectionName}`);
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.error(`Failed to delete content by URL from ${collectionName}: ${message}`);
+    throw new Error(`URL deletion failed: ${message}`);
+  }
 }

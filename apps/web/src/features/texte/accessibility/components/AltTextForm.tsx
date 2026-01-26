@@ -1,7 +1,8 @@
 import React, { useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
-import { useFormFields } from '../../../../components/common/Form/hooks';
+
 import FileUpload from '../../../../components/common/FileUpload';
+import { useFormFields } from '../../../../components/common/Form/hooks';
 // import { HiUpload, HiTemplate } from 'react-icons/hi';
 // import CanvaSelector from './CanvaSelector';
 
@@ -36,11 +37,11 @@ const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>(({ tabIndex = {
   const {
     control,
     getValues,
-    formState: { errors }
+    formState: { errors },
   } = useForm({
     defaultValues: {
-      imageDescription: ''
-    }
+      imageDescription: '',
+    },
   });
 
   const handleImageChange = useCallback((file: File | null) => {
@@ -72,35 +73,47 @@ const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>(({ tabIndex = {
   */
 
   // Expose form data to parent component
-  useImperativeHandle(ref, () => ({
-    getFormData: () => {
-      const formData = getValues();
-      return {
-        ...formData,
-        uploadedImage,
-        selectedCanvaDesign,
-        imageSource,
-        hasUploadedImage: uploadedImage !== null,
-        hasCanvaImage: selectedCanvaDesign !== null
-      };
-    },
-    isValid: () => {
-      return uploadedImage !== null;
-    },
-    setCanvaDesign: (designData: unknown) => {
-      const typedDesignData = designData as { template?: { id?: string; thumbnail_url?: string; preview_image_url?: string; title?: string } } | null;
-      if (typedDesignData && typedDesignData.template) {
-        setImageSource('canva');
-        setSelectedCanvaDesign({
-          type: 'canva',
-          design: typedDesignData.template,
-          imageUrl: typedDesignData.template.thumbnail_url || typedDesignData.template.preview_image_url,
-          title: typedDesignData.template.title
-        });
-        setUploadedImage(null);
-      }
-    }
-  }), [getValues, uploadedImage, selectedCanvaDesign, imageSource]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      getFormData: () => {
+        const formData = getValues();
+        return {
+          ...formData,
+          uploadedImage,
+          selectedCanvaDesign,
+          imageSource,
+          hasUploadedImage: uploadedImage !== null,
+          hasCanvaImage: selectedCanvaDesign !== null,
+        };
+      },
+      isValid: () => {
+        return uploadedImage !== null;
+      },
+      setCanvaDesign: (designData: unknown) => {
+        const typedDesignData = designData as {
+          template?: {
+            id?: string;
+            thumbnail_url?: string;
+            preview_image_url?: string;
+            title?: string;
+          };
+        } | null;
+        if (typedDesignData && typedDesignData.template) {
+          setImageSource('canva');
+          setSelectedCanvaDesign({
+            type: 'canva',
+            design: typedDesignData.template,
+            imageUrl:
+              typedDesignData.template.thumbnail_url || typedDesignData.template.preview_image_url,
+            title: typedDesignData.template.title,
+          });
+          setUploadedImage(null);
+        }
+      },
+    }),
+    [getValues, uploadedImage, selectedCanvaDesign, imageSource]
+  );
 
   return (
     <>

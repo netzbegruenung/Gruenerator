@@ -2,6 +2,7 @@
 .texte-generator-wrapper {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh; /* Modern fallback for mobile browsers */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -219,7 +220,8 @@
 
 @media (max-width: 768px) {
   .texte-generator-wrapper {
-    padding: var(--spacing-large) var(--spacing-medium) 0;
+    min-height: calc(100dvh - var(--spacing-large)); /* Account for parent margin */
+    padding: var(--spacing-large) var(--spacing-medium); /* Symmetric padding for vertical centering */
   }
 
   .texte-generator-header {
@@ -283,7 +285,8 @@ body:has(.base-container.edit-mode-active) .texte-generator-wrapper {
 
 @media (max-width: 400px) {
   .texte-generator-wrapper {
-    padding: var(--spacing-medium) var(--spacing-small) 0;
+    min-height: calc(100dvh - var(--spacing-large)); /* Account for parent margin */
+    padding: var(--spacing-medium) var(--spacing-small); /* Symmetric padding for vertical centering */
   }
 
   .texte-generator-header {

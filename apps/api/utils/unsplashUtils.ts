@@ -11,7 +11,7 @@
 
 const UTM_PARAMS = {
   source: 'gruenerator',
-  medium: 'referral'
+  medium: 'referral',
 } as const;
 
 /**

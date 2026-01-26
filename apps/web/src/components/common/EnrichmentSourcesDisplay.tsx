@@ -1,4 +1,5 @@
 import { HiDocument, HiGlobeAlt, HiLink, HiLightningBolt, HiSearch } from 'react-icons/hi';
+
 import type { JSX } from 'react';
 import './EnrichmentSourcesDisplay.css';
 
@@ -18,19 +19,21 @@ interface EnrichmentSourcesDisplayProps {
       title?: string;
       filename?: string;
       url?: string;
-      relevance?: number
+      relevance?: number;
     }[];
     urlsUsed?: boolean;
     webSearchUsed?: boolean;
-    autoSearchUsed?: boolean
+    autoSearchUsed?: boolean;
   };
   title?: string;
   className?: string;
 }
 
-const EnrichmentSourcesDisplay = ({ enrichmentSummary,
-  title = "Verwendete Quellen",
-  className = "" }: EnrichmentSourcesDisplayProps): JSX.Element | null => {
+const EnrichmentSourcesDisplay = ({
+  enrichmentSummary,
+  title = 'Verwendete Quellen',
+  className = '',
+}: EnrichmentSourcesDisplayProps): JSX.Element | null => {
   if (!enrichmentSummary || !enrichmentSummary.sources || enrichmentSummary.sources.length === 0) {
     return null;
   }
@@ -39,9 +42,9 @@ const EnrichmentSourcesDisplay = ({ enrichmentSummary,
 
   // Group sources by type
   const groupedSources = {
-    autoDocuments: sources.filter(s => s.type === 'auto-document'),
-    urls: sources.filter(s => s.type === 'url'),
-    webSearch: sources.filter(s => s.type === 'websearch')
+    autoDocuments: sources.filter((s) => s.type === 'auto-document'),
+    urls: sources.filter((s) => s.type === 'url'),
+    webSearch: sources.filter((s) => s.type === 'websearch'),
   };
 
   const hasAutoDocuments = groupedSources.autoDocuments.length > 0;
@@ -85,18 +88,15 @@ const EnrichmentSourcesDisplay = ({ enrichmentSummary,
             </div>
             <div className="enrichment-source-list">
               {groupedSources.autoDocuments.map((doc, index) => (
-                <div key={index} className="enrichment-source-item enrichment-source-item--document">
+                <div
+                  key={index}
+                  className="enrichment-source-item enrichment-source-item--document"
+                >
                   <HiDocument className="source-icon" />
                   <div className="source-content">
                     <div className="source-title">{doc.title}</div>
-                    {doc.filename && (
-                      <div className="source-subtitle">{doc.filename}</div>
-                    )}
-                    {doc.relevance && (
-                      <div className="source-meta">
-                        Relevanz: {doc.relevance}%
-                      </div>
-                    )}
+                    {doc.filename && <div className="source-subtitle">{doc.filename}</div>}
+                    {doc.relevance && <div className="source-meta">Relevanz: {doc.relevance}%</div>}
                   </div>
                 </div>
               ))}

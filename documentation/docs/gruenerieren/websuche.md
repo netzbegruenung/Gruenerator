@@ -11,7 +11,7 @@ Der Grünerator kann aktuelle Informationen aus dem Internet in deine Texte einb
 Wenn du die Websuche aktivierst, durchsucht der Grünerator automatisch das Internet nach relevanten Informationen zu deinem Thema. Dabei werden:
 
 - Aktuelle Nachrichten und Entwicklungen gefunden
-- Relevante Fakten und Statistiken gesammelt  
+- Relevante Fakten und Statistiken gesammelt
 - Die Suchergebnisse intelligent zusammengefasst
 - Diese Informationen in deinen Text eingearbeitet
 

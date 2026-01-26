@@ -42,16 +42,20 @@ class MistralVoiceService {
     try {
       const { language, timestamp_granularities } = options;
 
-      log.debug('[Mistral Voice] Starting transcription with options:', { language, timestamp_granularities, filename });
+      log.debug('[Mistral Voice] Starting transcription with options:', {
+        language,
+        timestamp_granularities,
+        filename,
+      });
 
       const transcriptionResponse = await mistralClient.audio.transcriptions.complete({
-        model: "voxtral-mini-latest",
+        model: 'voxtral-mini-latest',
         file: {
           fileName: filename,
-          content: audioBuffer
+          content: audioBuffer,
         },
         language: language || undefined,
-        timestampGranularities: timestamp_granularities || undefined
+        timestampGranularities: timestamp_granularities || undefined,
       });
 
       log.debug('[Mistral Voice] Transcription response received:', transcriptionResponse);
@@ -62,7 +66,7 @@ class MistralVoiceService {
         message: err.message,
         stack: err.stack,
         response: err.response?.data || 'No response data',
-        status: err.response?.status || 'No status'
+        status: err.response?.status || 'No status',
       });
       throw new Error(`Transcription failed: ${err.message}`);
     }
@@ -84,7 +88,9 @@ class MistralVoiceService {
 
       const response = await fetch(audioUrl);
       if (!response.ok) {
-        throw new Error(`Failed to download audio from URL: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to download audio from URL: ${response.status} ${response.statusText}`
+        );
       }
 
       const audioBuffer = Buffer.from(await response.arrayBuffer());
@@ -93,13 +99,13 @@ class MistralVoiceService {
       log.debug('[Mistral Voice] Downloaded audio file, size:', audioBuffer.length, 'bytes');
 
       const transcriptionResponse = await mistralClient.audio.transcriptions.complete({
-        model: "voxtral-mini-latest",
+        model: 'voxtral-mini-latest',
         file: {
           fileName: filename,
-          content: audioBuffer
+          content: audioBuffer,
         },
         language: language || undefined,
-        timestampGranularities: timestamp_granularities || undefined
+        timestampGranularities: timestamp_granularities || undefined,
       });
 
       log.debug('[Mistral Voice] URL transcription response received:', transcriptionResponse);
@@ -110,7 +116,7 @@ class MistralVoiceService {
         message: err.message,
         stack: err.stack,
         response: err.response?.data || 'No response data',
-        status: err.response?.status || 'No status'
+        status: err.response?.status || 'No status',
       });
       throw new Error(`URL transcription failed: ${err.message}`);
     }
@@ -126,17 +132,17 @@ class MistralVoiceService {
       const audioBase64 = audioBuffer.toString('base64');
 
       const chatResponse = await mistralClient.chat.complete({
-        model: "voxtral-mini-latest",
+        model: 'voxtral-mini-latest',
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: [
               {
-                type: "input_audio",
+                type: 'input_audio',
                 inputAudio: audioBase64,
               },
               {
-                type: "text",
+                type: 'text',
                 text: prompt || "What's in this audio file?",
               },
             ],
@@ -173,7 +179,7 @@ class MistralVoiceService {
 
     const result: TranscriptionResult = {
       text: text,
-      hasTimestamps: false
+      hasTimestamps: false,
     };
 
     if (segments && Array.isArray(segments)) {
@@ -210,7 +216,7 @@ class MistralVoiceService {
       'audio/aac',
       'audio/ogg',
       'audio/webm',
-      'audio/flac'
+      'audio/flac',
     ];
   }
 

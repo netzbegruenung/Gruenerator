@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from 'react';
+
 import type { FeatureState } from './useGeneratorSetup';
 
 /**
@@ -87,10 +88,7 @@ export interface FormDataBuilderReturn {
    * // Returns: "Hello John"
    * ```
    */
-  extractSearchQuery: (
-    formData: Record<string, unknown>,
-    fields?: readonly string[]
-  ) => string;
+  extractSearchQuery: (formData: Record<string, unknown>, fields?: readonly string[]) => string;
 }
 
 /**
@@ -140,9 +138,7 @@ export interface FormDataBuilderReturn {
  * };
  * ```
  */
-export function useFormDataBuilder(
-  config: FormDataBuilderConfig
-): FormDataBuilderReturn {
+export function useFormDataBuilder(config: FormDataBuilderConfig): FormDataBuilderReturn {
   // Memoize attachments array to prevent unnecessary re-renders
   const attachments = useMemo(
     () => (config.attachments ? [...config.attachments] : []),
@@ -154,10 +150,7 @@ export function useFormDataBuilder(
    * Type-safe with unknown value handling
    */
   const extractSearchQuery = useCallback(
-    (
-      formData: Record<string, unknown>,
-      fields?: readonly string[]
-    ): string => {
+    (formData: Record<string, unknown>, fields?: readonly string[]): string => {
       const fieldsToExtract = fields || config.searchQueryFields || [];
 
       const queryParts: string[] = [];

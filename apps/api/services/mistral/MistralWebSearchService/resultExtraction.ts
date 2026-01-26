@@ -54,7 +54,11 @@ export function extractSnippetFromContent(fullText: string, title: string): stri
  * @param agentType - Type of agent used for search
  * @returns Formatted search results
  */
-export function extractSearchResults(outputs: any[], originalQuery: string, agentType: AgentType = 'withSources'): SearchResults {
+export function extractSearchResults(
+  outputs: any[],
+  originalQuery: string,
+  agentType: AgentType = 'withSources'
+): SearchResults {
   const results: any[] = [];
   const sources: SearchSource[] = [];
   let textContent = '';
@@ -82,7 +86,7 @@ export function extractSearchResults(outputs: any[], originalQuery: string, agen
                   title: result.title,
                   snippet: result.snippet || result.content || '',
                   relevance: result.score || 1.0,
-                  domain: extractDomainFromUrl(result.url)
+                  domain: extractDomainFromUrl(result.url),
                 });
               }
             });
@@ -100,7 +104,7 @@ export function extractSearchResults(outputs: any[], originalQuery: string, agen
             title: result.title,
             snippet: result.snippet || result.content || '',
             relevance: result.score || 1.0,
-            domain: extractDomainFromUrl(result.url)
+            domain: extractDomainFromUrl(result.url),
           });
         }
       });
@@ -108,8 +112,8 @@ export function extractSearchResults(outputs: any[], originalQuery: string, agen
   }
 
   // Remove duplicate sources based on URL
-  const uniqueSources = sources.filter((source, index, self) =>
-    index === self.findIndex(s => s.url === source.url)
+  const uniqueSources = sources.filter(
+    (source, index, self) => index === self.findIndex((s) => s.url === source.url)
   );
 
   const result: SearchResults = {
@@ -122,7 +126,7 @@ export function extractSearchResults(outputs: any[], originalQuery: string, agen
     textContent: textContent.trim(),
     sources: uniqueSources,
     sourcesCount: uniqueSources.length,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
   return result;

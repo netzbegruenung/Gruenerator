@@ -43,18 +43,9 @@ export default function ToolsLayout() {
           lazy: true,
         }}
       >
-        <MaterialTopTabs.Screen
-          name="suche"
-          options={{ title: 'Suche' }}
-        />
-        <MaterialTopTabs.Screen
-          name="barrierefreiheit"
-          options={{ title: 'Barrierefreiheit' }}
-        />
-        <MaterialTopTabs.Screen
-          name="texteditor"
-          options={{ title: 'Text Editor' }}
-        />
+        <MaterialTopTabs.Screen name="suche" options={{ title: 'Suche' }} />
+        <MaterialTopTabs.Screen name="barrierefreiheit" options={{ title: 'Barrierefreiheit' }} />
+        <MaterialTopTabs.Screen name="texteditor" options={{ title: 'Text Editor' }} />
       </MaterialTopTabs>
     </SafeAreaView>
   );

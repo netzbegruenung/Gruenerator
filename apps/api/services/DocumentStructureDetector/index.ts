@@ -22,7 +22,7 @@ export type {
   SemanticBoundary,
   ChapterMatch,
   SectionMatch,
-  ListMatch
+  ListMatch,
 } from './types.js';
 
 // Export pattern collection
@@ -37,21 +37,17 @@ export {
   isPageBreak,
   calculateSectionLevel,
   getPositionFromLine,
-  getListType
+  getListType,
 } from './detection.js';
 
 // Export analysis functions (if needed externally)
-export {
-  enhanceStructure,
-  calculateComplexity,
-  inferDocumentType
-} from './analysis.js';
+export { enhanceStructure, calculateComplexity, inferDocumentType } from './analysis.js';
 
 // Export boundary functions (if needed externally)
 export {
   findSemanticBoundaries,
   findParagraphBoundaries,
-  getBoundaryImportance
+  getBoundaryImportance,
 } from './boundaries.js';
 
 // Create and export singleton instance

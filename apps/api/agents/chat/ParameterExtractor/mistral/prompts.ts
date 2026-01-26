@@ -8,7 +8,11 @@ import type { ChatContext } from '../../types.js';
 /**
  * Create extraction prompt for Mistral based on agent type
  */
-export function createExtractionPrompt(message: string, agent: string, context: ChatContext): string {
+export function createExtractionPrompt(
+  message: string,
+  agent: string,
+  context: ChatContext
+): string {
   const basePrompt = `Extrahiere Parameter aus dieser deutschen Nachricht für die Erstellung eines ${agent}-Sharepics.
 
 Nachricht: "${message}"
@@ -44,7 +48,10 @@ Beispiele:
       break;
   }
 
-  return basePrompt + specificInstructions + `
+  return (
+    basePrompt +
+    specificInstructions +
+    `
 
 Antworte nur mit gültigem JSON in diesem Format:
 {
@@ -55,5 +62,6 @@ Antworte nur mit gültigem JSON in diesem Format:
     "author": 0.0-1.0,
     "theme": 0.0-1.0
   }
-}`;
+}`
+  );
 }

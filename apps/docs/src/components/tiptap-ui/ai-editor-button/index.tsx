@@ -1,1 +1,1 @@
-export * from "./ai-editor-button";
+export * from './ai-editor-button';

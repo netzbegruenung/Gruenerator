@@ -1,6 +1,6 @@
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 
 interface AvatarSelectionModalProps {
   isOpen: boolean;
@@ -9,7 +9,12 @@ interface AvatarSelectionModalProps {
   onSelect: (robotId: number) => void;
 }
 
-const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }: AvatarSelectionModalProps): React.ReactElement | null => {
+const AvatarSelectionModal = ({
+  isOpen,
+  onClose,
+  currentAvatarId,
+  onSelect,
+}: AvatarSelectionModalProps): React.ReactElement | null => {
   const [selectedId, setSelectedId] = useState(currentAvatarId);
   const shouldReduceMotion = useReducedMotion();
 
@@ -73,34 +78,34 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }: Av
   const modalVariants = shouldReduceMotion
     ? {
         closed: { opacity: 0 },
-        open: { opacity: 1 }
+        open: { opacity: 1 },
       }
     : {
         closed: { opacity: 0, scale: 0.95 },
-        open: { opacity: 1, scale: 1 }
+        open: { opacity: 1, scale: 1 },
       };
 
   const gridVariants = shouldReduceMotion
     ? {
-        open: {}
+        open: {},
       }
     : {
         open: {
           transition: {
             staggerChildren: 0.03,
-            delayChildren: 0.05
-          }
-        }
+            delayChildren: 0.05,
+          },
+        },
       };
 
   const itemVariants = shouldReduceMotion
     ? {
         closed: { opacity: 0 },
-        open: { opacity: 1 }
+        open: { opacity: 1 },
       }
     : {
         closed: { opacity: 0, y: 8 },
-        open: { opacity: 1, y: 0 }
+        open: { opacity: 1, y: 0 },
       };
 
   const modalContent = (
@@ -123,7 +128,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }: Av
             initial="closed"
             animate="open"
             exit="closed"
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <motion.div
@@ -156,7 +161,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }: Av
                   variants={itemVariants}
                   whileHover={shouldReduceMotion ? {} : { scale: 1.01 }}
                   whileTap={shouldReduceMotion ? {} : { scale: 0.995 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   onClick={() => handleSelect(robotId)}
                   onKeyDown={(e: React.KeyboardEvent) => handleKeyDown(e, robotId)}
                   aria-label={`Roboter Avatar ${robotId} auswählen`}
@@ -175,7 +180,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }: Av
                       className="avatar-option-checkmark"
                       initial={{ opacity: 0, scale: 0 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                     >
                       ✓
                     </motion.div>
@@ -199,9 +204,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }: Av
   );
 
   // Render modal using React Portal to ensure it's on top
-  return typeof document !== 'undefined'
-    ? createPortal(modalContent, document.body)
-    : null;
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 };
 
 export default AvatarSelectionModal;

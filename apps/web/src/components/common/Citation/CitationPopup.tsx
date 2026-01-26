@@ -1,11 +1,11 @@
-import { JSX, useState, useEffect, useCallback, useRef, RefObject, CSSProperties } from 'react';
+import { type JSX, useState, useEffect, useCallback, useRef, type RefObject, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 interface CitationPopupProps {
   citation: {
     cited_text?: string;
     document_title?: string;
-    similarity_score?: number
+    similarity_score?: number;
   };
   badgeRef: RefObject<HTMLSpanElement | null>;
 }
@@ -22,7 +22,7 @@ const CitationPopup = ({ citation, badgeRef }: CitationPopupProps): JSX.Element 
     const windowWidth = window.innerWidth;
     const gap = 8;
 
-    let left = badgeRect.left + (badgeRect.width / 2) - (popupRect.width / 2);
+    let left = badgeRect.left + badgeRect.width / 2 - popupRect.width / 2;
     let top = badgeRect.top - popupRect.height - gap;
 
     if (left < gap) {
@@ -67,12 +67,8 @@ const CitationPopup = ({ citation, badgeRef }: CitationPopupProps): JSX.Element 
 
   return createPortal(
     <span className="citation-popup" ref={popupRef} style={style}>
-      <span className="citation-popup-text">
-        "{displayText}"
-      </span>
-      <span className="citation-popup-source">
-        {citation.document_title}
-      </span>
+      <span className="citation-popup-text">"{displayText}"</span>
+      <span className="citation-popup-source">{citation.document_title}</span>
     </span>,
     document.body
   );
