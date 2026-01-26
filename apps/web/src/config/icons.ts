@@ -30,6 +30,8 @@ import {
   HiDownload,
   HiLink,
   HiSparkles,
+  HiVolumeUp,
+  HiVolumeOff,
 } from 'react-icons/hi';
 import {
   IoDownloadOutline,
@@ -161,7 +163,9 @@ export type ActionIconName =
   | 'labor'
   | 'altText'
   | 'kiLabel'
-  | 'link';
+  | 'link'
+  | 'volumeOn'
+  | 'volumeOff';
 
 /**
  * UI icon names
@@ -266,6 +270,8 @@ export const ICONS: IconRegistry = {
     altText: IoAccessibility,
     kiLabel: PiTextAlignLeftFill,
     link: HiLink,
+    volumeOn: HiVolumeUp,
+    volumeOff: HiVolumeOff,
   },
 
   ui: {

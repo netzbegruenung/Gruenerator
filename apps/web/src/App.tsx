@@ -29,7 +29,7 @@ const PopupNutzungsbedingungen = lazy(
 );
 const PopupWartung = lazy(() => import('./components/Popups/popup_wartung'));
 // const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
-// const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
+const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
 
 // QueryClient Instanz erstellen
 const queryClient = new QueryClient({
@@ -166,7 +166,7 @@ function App() {
           <RouteLogger />
           <SuspenseWrapper>
             <PopupNutzungsbedingungen />
-            {/* <PopupAustriaLaunch /> */}
+            <PopupAustriaLaunch />
             <div id="aria-live-region" aria-live="polite" className="sr-only" />
 
             <Routes>
