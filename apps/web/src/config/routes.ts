@@ -81,11 +81,8 @@ const TextEditorRedirect = lazy(() =>
   })
 );
 
-const ImagineRedirect = lazy(() =>
-  Promise.resolve({
-    default: createRedirect('/image-studio/ki'),
-  })
-);
+// Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
+const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
 
 // Statische Importe in dynamische umwandeln
 const TexteGenerator = lazy(() => import('../features/texte/TexteGenerator'));
@@ -199,6 +196,21 @@ const WrappedGrueneratorChat = lazy(() =>
   }))
 );
 
+// Wrapped Scanner Component für Beta Feature
+const WrappedScanner = lazy(() =>
+  Promise.all([
+    import('../features/scanner/ScannerPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([scannerModule, wrapperModule]) => ({
+    default: () =>
+      wrapperModule.default({
+        children: createElement(scannerModule.default),
+        featureKey: 'scanner',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
+
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
 const StructuredExamplePage = lazy(() =>
@@ -241,6 +253,7 @@ export const GrueneratorenBundle = {
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
   Chat: WrappedGrueneratorChat,
+  Scanner: WrappedScanner,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
@@ -319,6 +332,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
   // Grünerator Chat Route
   { path: '/chat', component: GrueneratorenBundle.Chat },
+  // Scanner Route (Beta Feature)
+  { path: '/scanner', component: GrueneratorenBundle.Scanner },
   // Text Editor - redirect to unified
   { path: '/texteditor', component: TextEditorRedirect },
   // Apps Download Page
@@ -326,7 +341,7 @@ const standardRoutes: RouteConfig[] = [
   // Media Library Route
   { path: '/media-library', component: MediaLibraryPage },
   // Image Studio Routes
-  { path: '/imagine', component: ImagineRedirect },
+  { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/image-studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
   { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },
   { path: '/image-studio/:category', component: GrueneratorenBundle.ImageStudio, withForm: true },
