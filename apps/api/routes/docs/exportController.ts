@@ -1,7 +1,9 @@
-import { Router, Request, Response } from 'express';
-import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import * as Y from 'yjs';
 import { gunzipSync } from 'zlib';
+
+import { Router, type Request, type Response } from 'express';
+import * as Y from 'yjs';
+
+import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
 /**
  * Permission entry for a user on a document
@@ -360,11 +362,14 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
       const xmlFragment = ydoc.getXmlFragment('default');
       const htmlContent = xmlFragment.toString();
 
-      // Strip all HTML tags
-      content = htmlContent
-        .replace(/<[^>]+>/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+      // Strip all HTML tags (loop to handle nested/malformed tags)
+      content = htmlContent;
+      let prev = '';
+      while (prev !== content) {
+        prev = content;
+        content = content.replace(/<[^>]+>/g, '');
+      }
+      content = content.replace(/\s+/g, ' ').trim();
     }
 
     const text = `${document.title}\n\n${content}`;

@@ -3,9 +3,10 @@
  * Crawlee integration with CheerioCrawler and PlaywrightCrawler fallback
  */
 
-import type { CheerioAPI } from 'cheerio';
-import type { CrawlerConfig, RawCrawlResult, CrawlOptions } from '../types.js';
 import { MemoryStorage } from '../MemoryStorage.js';
+
+import type { CrawlerConfig, RawCrawlResult, CrawlOptions } from '../types.js';
+import type { CheerioAPI } from 'cheerio';
 
 export class CrawleeCrawler {
   private memoryStorage: MemoryStorage;
@@ -57,7 +58,8 @@ export class CrawleeCrawler {
           return await this.runPlaywrightCrawler(url, crawlOptions, PlaywrightCrawler);
         } catch (playwrightError) {
           console.error(
-            `[CrawleeCrawler] Both crawlers failed for ${url}:`,
+            '[CrawleeCrawler] Both crawlers failed for %s:',
+            url,
             playwrightError instanceof Error ? playwrightError.message : 'Unknown error'
           );
           throw playwrightError;
