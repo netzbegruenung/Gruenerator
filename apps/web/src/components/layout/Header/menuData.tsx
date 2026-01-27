@@ -9,6 +9,7 @@ export interface BetaFeatures {
   databaseBetaEnabled?: boolean;
   youBetaEnabled?: boolean;
   chatBetaEnabled?: boolean;
+  scannerBetaEnabled?: boolean;
   igelModeEnabled?: boolean;
   websiteBetaEnabled?: boolean;
   isAustrian?: boolean;
@@ -116,6 +117,17 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       title: 'Chat',
       description: 'KI-Assistent für alle Textarten',
       icon: getIcon('ui', 'assistant'),
+    };
+  }
+
+  // Add scanner if beta feature is enabled
+  if (betaFeatures.scannerBetaEnabled) {
+    items.scanner = {
+      id: 'scanner',
+      path: '/scanner',
+      title: 'Scanner',
+      description: 'Text aus Dokumenten extrahieren (OCR)',
+      icon: getIcon('navigation', 'scanner'),
     };
   }
 

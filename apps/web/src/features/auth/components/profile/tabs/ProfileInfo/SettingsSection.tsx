@@ -8,6 +8,7 @@ import {
   HiOutlineUsers,
   HiSave,
   HiOutlineChat,
+  HiOutlineDocumentSearch,
 } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 
@@ -15,7 +16,6 @@ import FeatureToggle from '../../../../../../components/common/FeatureToggle';
 import { getIcon } from '../../../../../../config/icons';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
-
 
 interface SettingsSectionProps {
   isActive: boolean;
@@ -78,6 +78,7 @@ const BETA_VIEWS = {
   WEBSITE: 'website',
   VORLAGEN: 'vorlagen',
   VIDEO_EDITOR: 'videoEditor',
+  SCANNER: 'scanner',
 };
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({
@@ -196,6 +197,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkTo: '/reel',
           linkText: 'Zum Reel-Studio',
           icon: getIcon('navigation', 'reel') as IconType,
+        };
+      case BETA_VIEWS.SCANNER:
+        return {
+          title: 'Scanner (OCR)',
+          description: 'Text aus Dokumenten extrahieren',
+          checked: getBetaFeatureState('scanner'),
+          setter: (value: boolean) => updateUserBetaFeatures('scanner', value),
+          featureName: 'Scanner',
+          checkboxLabel: 'Scanner für Dokumenten-Texterkennung aktivieren',
+          linkTo: '/scanner',
+          linkText: 'Zum Scanner',
+          icon: getIcon('navigation', 'scanner') as IconType,
         };
       default:
         return null;
