@@ -45,10 +45,13 @@ export class MarkdownConverter {
         error instanceof Error ? error.message : 'Unknown error'
       );
       // Fallback to plain text extraction if conversion fails
-      return html
-        .replace(/<[^>]*>/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+      let text = html;
+      let prev = '';
+      while (prev !== text) {
+        prev = text;
+        text = text.replace(/<[^>]*>/g, '');
+      }
+      return text.replace(/\s+/g, ' ').trim();
     }
   }
 

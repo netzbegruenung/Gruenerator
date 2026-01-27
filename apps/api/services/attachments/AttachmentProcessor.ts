@@ -3,6 +3,13 @@
  * Handles validation, message building, and processing for Claude API
  */
 
+import { ALLOWED_ATTACHMENT_TYPES, MAX_FILE_SIZE, MAX_TOTAL_SIZE } from './constants.js';
+import {
+  validateAttachmentStructure,
+  isFileAttachment,
+  isCrawledUrlAttachment,
+} from './validation.js';
+
 import type {
   Attachment,
   FileAttachment,
@@ -13,12 +20,6 @@ import type {
   AttachmentSummary,
   AttachmentProcessingResult,
 } from './types.js';
-import {
-  validateAttachmentStructure,
-  isFileAttachment,
-  isCrawledUrlAttachment,
-} from './validation.js';
-import { ALLOWED_ATTACHMENT_TYPES, MAX_FILE_SIZE, MAX_TOTAL_SIZE } from './constants.js';
 
 /**
  * AttachmentProcessor class
@@ -262,7 +263,9 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
     } catch (error) {
       result.error = (error as Error).message;
       console.error(
-        `[${routeName}] Attachment validation failed for user ${userId}:`,
+        '[%s] Attachment validation failed for user %s:',
+        routeName,
+        userId,
         (error as Error).message
       );
     }

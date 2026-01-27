@@ -4,11 +4,12 @@
  * Features: Crawlee (Cheerio + Playwright), native fetch, PDF support, markdown conversion
  */
 
-import type { CrawlerConfig, CrawlOptions, CrawlResult, PreviewResult } from './types.js';
-import { UrlValidator } from './validators/UrlValidator.js';
-import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { CrawleeCrawler } from './crawlers/CrawleeCrawler.js';
 import { FetchCrawler } from './crawlers/FetchCrawler.js';
+import { ContentExtractor } from './extractors/ContentExtractor.js';
+import { UrlValidator } from './validators/UrlValidator.js';
+
+import type { CrawlerConfig, CrawlOptions, CrawlResult, PreviewResult } from './types.js';
 
 export class UrlCrawler {
   private config: CrawlerConfig;
@@ -70,7 +71,8 @@ export class UrlCrawler {
           console.log(`[UrlCrawler] Successfully crawled with Crawlee: ${url}`);
         } catch (crawleeError) {
           console.log(
-            `[UrlCrawler] Crawlee failed for ${url}, falling back to fetch:`,
+            '[UrlCrawler] Crawlee failed for %s, falling back to fetch:',
+            url,
             crawleeError instanceof Error ? crawleeError.message : 'Unknown error'
           );
 

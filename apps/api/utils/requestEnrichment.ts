@@ -4,6 +4,12 @@
  * Handles URL detection, attachment processing, web search, and document aggregation
  */
 
+import { processAndBuildAttachments } from '../services/attachments/index.js';
+import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
+import { extractLocaleFromRequest } from '../services/localization/index.js';
+
+import { getErrorMessage } from './errors/index.js';
+
 import type {
   EnrichmentOptions,
   EnrichedState,
@@ -18,12 +24,11 @@ import type {
   AutoSearchOptions,
   EnrichmentTaskResult,
   HybridSearchResult,
+  TextReference,
+  DocumentReference,
+  WebSearchSource,
+  AutoSelectedDocument,
 } from './types/requestEnrichment.js';
-
-import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
-import { processAndBuildAttachments } from '../services/attachments/index.js';
-import { extractLocaleFromRequest } from '../services/localization/index.js';
-import { getErrorMessage } from './errors/index.js';
 
 // Lazy import to avoid circular dependency issues
 const getQdrantDocumentService = async () => {
@@ -86,7 +91,7 @@ class RequestEnricher {
    */
   formatSavedTexts(textData: SavedText[]): {
     formatted: string[];
-    references: import('./types/requestEnrichment.js').TextReference[];
+    references: TextReference[];
   } {
     if (!textData || textData.length === 0) {
       return { formatted: [], references: [] };
@@ -102,7 +107,7 @@ class RequestEnricher {
     };
 
     const formatted: string[] = [];
-    const references: import('./types/requestEnrichment.js').TextReference[] = [];
+    const references: TextReference[] = [];
 
     textData.forEach((text) => {
       const textType = text.document_type || 'text';
@@ -140,14 +145,14 @@ class RequestEnricher {
    */
   formatVectorSearchResults(searchResults: VectorSearchResult[]): {
     formatted: string[];
-    references: import('./types/requestEnrichment.js').DocumentReference[];
+    references: DocumentReference[];
   } {
     if (!searchResults || searchResults.length === 0) {
       return { formatted: [], references: [] };
     }
 
     const formatted: string[] = [];
-    const references: import('./types/requestEnrichment.js').DocumentReference[] = [];
+    const references: DocumentReference[] = [];
 
     searchResults.forEach((doc) => {
       const contentType =
@@ -186,14 +191,14 @@ class RequestEnricher {
     docsMetadata: any[]
   ): {
     formatted: string[];
-    references: import('./types/requestEnrichment.js').DocumentReference[];
+    references: DocumentReference[];
   } {
     if (!fullTextResults || fullTextResults.length === 0) {
       return { formatted: [], references: [] };
     }
 
     const formatted: string[] = [];
-    const references: import('./types/requestEnrichment.js').DocumentReference[] = [];
+    const references: DocumentReference[] = [];
 
     fullTextResults.forEach((result) => {
       const meta = docsMetadata.find((d) => d.id === result.id);
@@ -432,7 +437,7 @@ class RequestEnricher {
             return {
               type: 'vectorsearch' as const,
               knowledge: [] as string[],
-              documentReferences: [] as import('./types/requestEnrichment.js').DocumentReference[],
+              documentReferences: [] as DocumentReference[],
             };
           })
       );
@@ -452,7 +457,7 @@ class RequestEnricher {
             return {
               type: 'texts' as const,
               knowledge: [] as string[],
-              textReferences: [] as import('./types/requestEnrichment.js').TextReference[],
+              textReferences: [] as TextReference[],
             };
           })
       );
@@ -527,13 +532,13 @@ class RequestEnricher {
 
     // Aggregate results
     let totalDocuments = 0;
-    let webSearchSources: import('./types/requestEnrichment.js').WebSearchSource[] | null = null;
+    let webSearchSources: WebSearchSource[] | null = null;
     let autoSearchMetadata: {
-      autoSelectedDocuments: import('./types/requestEnrichment.js').AutoSelectedDocument[];
+      autoSelectedDocuments: AutoSelectedDocument[];
     } | null = null;
     let notebookEnrichMetadata: { preAnswer: string; timeMs: number } | null = null;
-    let allDocumentReferences: import('./types/requestEnrichment.js').DocumentReference[] = [];
-    let allTextReferences: import('./types/requestEnrichment.js').TextReference[] = [];
+    const allDocumentReferences: DocumentReference[] = [];
+    const allTextReferences: TextReference[] = [];
 
     for (const result of enrichmentResults) {
       if (result.type === 'urls' && result.documents.length > 0) {
@@ -768,7 +773,7 @@ class RequestEnricher {
       }
 
       const knowledge: string[] = [];
-      let sources: import('./types/requestEnrichment.js').WebSearchSource[] | null = null;
+      let sources: WebSearchSource[] | null = null;
 
       // Try to generate AI summary
       try {
@@ -857,7 +862,8 @@ class RequestEnricher {
             return doc;
           } catch (error) {
             console.warn(
-              `🎯 [RequestEnricher] Failed to fetch metadata for document ${docId}:`,
+              '🎯 [RequestEnricher] Failed to fetch metadata for document %s:',
+              docId,
               getErrorMessage(error)
             );
             return null;
