@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Grünerator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "de.gruenerator.desktop",
   "build": {
     "beforeBuildCommand": "cd ../.. && pnpm exec cross-env TAURI_ENV_PLATFORM=desktop VITE_API_BASE_URL=https://gruenerator.de/api pnpm --filter @gruenerator/web build",
