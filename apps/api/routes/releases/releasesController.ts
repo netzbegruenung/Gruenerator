@@ -45,9 +45,9 @@ interface ReleaseInfo {
 // Tauri Updater configuration - update these values when publishing new desktop releases
 // This serves the latest.json format required by @tauri-apps/plugin-updater
 const UPDATER_CONFIG: UpdaterConfig = {
-  version: '1.0.0',
+  version: '1.0.1',
   notes: `See release notes at ${PRIMARY_URL}/releases`,
-  pub_date: '2024-12-31T12:00:00Z',
+  pub_date: '2026-01-28T00:00:00Z',
   platforms: {
     'linux-x86_64': {
       signature: '',
@@ -78,17 +78,15 @@ const PLATFORM_FILES: Record<string, (v: string) => string> = {
 
 // Release configuration - update this when publishing new releases
 const CURRENT_RELEASE: ReleaseInfo = {
-  tag_name: 'v1.0.0',
-  name: 'Grünerator Desktop v1.0.0',
-  published_at: '2024-12-31T12:00:00Z',
-  body: `## Erste Desktop-Version
-
-Die Grünerator Desktop-App ist da! Mit dieser Version kannst du den Grünerator direkt auf deinem Computer nutzen.
+  tag_name: 'desktop-v1.0.1',
+  name: 'Grünerator Desktop v1.0.1',
+  published_at: '2026-01-28T00:00:00Z',
+  body: `## Desktop v1.0.1
 
 ### Neue Funktionen
-- Schnellerer Zugriff auf alle Grünerator-Funktionen
-- Offline-Unterstützung für grundlegende Funktionen
-- Native Desktop-Integration
+- Sichere Desktop-Authentifizierung mit PKCE
+- Verbesserte Token-Verwaltung
+- Scanner und Protokollizer Features
 
 ### Installation
 1. Lade die passende Datei für dein Betriebssystem herunter
@@ -98,37 +96,44 @@ Die Grünerator Desktop-App ist da! Mit dieser Version kannst du den Grünerator
   assets: [
     {
       id: 1,
-      name: 'Gruenerator_1.0.0_x64-setup.exe',
+      name: 'Grunerator_1.0.1_x64-setup.exe',
       browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64-setup.exe',
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_x64-setup.exe',
       size: 45000000,
     },
     {
       id: 2,
-      name: 'Gruenerator_1.0.0_x64_en-US.msi',
+      name: 'Grunerator_1.0.1_x64_en-US.msi',
       browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64_en-US.msi',
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_x64_en-US.msi',
       size: 42000000,
     },
     {
       id: 3,
-      name: 'Gruenerator_1.0.0_x64.dmg',
+      name: 'Grunerator_1.0.1_x64.dmg',
       browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_x64.dmg',
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_x64.dmg',
       size: 48000000,
     },
     {
       id: 4,
-      name: 'Gruenerator_1.0.0_amd64.AppImage',
+      name: 'Grunerator_1.0.1_aarch64.dmg',
       browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_amd64.AppImage',
-      size: 85000000,
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_aarch64.dmg',
+      size: 48000000,
     },
     {
       id: 5,
-      name: 'Gruenerator_1.0.0_amd64.deb',
+      name: 'Grunerator_1.0.1_amd64.AppImage',
       browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/v1.0.0/Gruenerator_1.0.0_amd64.deb',
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_amd64.AppImage',
+      size: 85000000,
+    },
+    {
+      id: 6,
+      name: 'Grunerator_1.0.1_amd64.deb',
+      browser_download_url:
+        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_amd64.deb',
       size: 44000000,
     },
   ],
