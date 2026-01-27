@@ -35,6 +35,8 @@ export interface UserProfile {
   auto_save_on_export: boolean;
   vorlagen: boolean;
   video_editor: boolean;
+  scanner?: boolean;
+  prompts?: boolean;
   bundestag_api_enabled?: boolean;
   memory_enabled?: boolean;
   canva_user_id?: string;
@@ -94,6 +96,8 @@ export interface BetaFeatures {
   autoSaveOnExport: boolean;
   vorlagen: boolean;
   videoEditor: boolean;
+  prompts: boolean;
+  scanner: boolean;
 }
 
 export interface ProfileStats {
