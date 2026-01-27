@@ -39,6 +39,7 @@ const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeat
     canva: 'canva',
     chat: 'chat',
     labor_enabled: 'labor',
+    scanner: 'scanner',
   };
 
   const normalized: BetaFeatures = {};

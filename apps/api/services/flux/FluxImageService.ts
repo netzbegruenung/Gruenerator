@@ -1,9 +1,14 @@
-import axios, { AxiosResponse } from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 
+import axios, { AxiosResponse } from 'axios';
+
+import ComfyUIImageService from '../comfyui/ComfyUIImageService.js';
+
 const sleep = promisify(setTimeout);
+
+export type FluxBackend = 'hosted' | 'local';
 
 export interface FluxImageServiceOptions {
   apiKey?: string;
@@ -107,6 +112,24 @@ class FluxImageService {
   private retryConfig: RetryConfig;
   private retryableErrors: Set<string>;
   private circuitBreaker: CircuitBreaker;
+
+  /**
+   * Factory method to create the appropriate image service based on backend selection.
+   *
+   * @param backend - 'hosted' for BFL API, 'local' for ComfyUI. Defaults to FLUX_BACKEND env var or 'hosted'.
+   * @returns FluxImageService for hosted backend, ComfyUIImageService for local backend
+   */
+  static create(backend?: FluxBackend): FluxImageService | ComfyUIImageService {
+    const useBackend = backend || (process.env.FLUX_BACKEND as FluxBackend) || 'hosted';
+
+    if (useBackend === 'local') {
+      console.log('[FluxImageService] Using local ComfyUI backend');
+      return new ComfyUIImageService();
+    }
+
+    console.log('[FluxImageService] Using hosted BFL API backend');
+    return new FluxImageService();
+  }
 
   constructor(options: FluxImageServiceOptions = {}) {
     this.apiKey = options.apiKey || process.env.BFL_API_KEY || '';

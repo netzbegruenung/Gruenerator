@@ -35,6 +35,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
   const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
+  const scannerBetaEnabled = useMemo(() => getBetaFeatureState('scanner'), [getBetaFeatureState]);
   const igelModeEnabled = useMemo(() => getBetaFeatureState('igel_modus'), [getBetaFeatureState]);
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
@@ -45,13 +46,21 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   );
 
   const menuItems = useMemo(
-    () => getMenuItems({ databaseBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian }),
-    [databaseBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian]
+    () =>
+      getMenuItems({
+        databaseBetaEnabled,
+        chatBetaEnabled,
+        scannerBetaEnabled,
+        igelModeEnabled,
+        isAustrian,
+      }),
+    [databaseBetaEnabled, chatBetaEnabled, scannerBetaEnabled, igelModeEnabled, isAustrian]
   );
 
   const directMenuItems = useMemo(
-    () => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, isAustrian }),
-    [databaseBetaEnabled, chatBetaEnabled, isAustrian]
+    () =>
+      getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, scannerBetaEnabled, isAustrian }),
+    [databaseBetaEnabled, chatBetaEnabled, scannerBetaEnabled, isAustrian]
   );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   const additionalItems = useMemo<MenuItemType[]>(

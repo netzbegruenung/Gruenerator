@@ -1,0 +1,25 @@
+{
+  "id": "protokoll",
+  "name": "Protokoll Generator",
+  "systemRole": "Du bist ein erfahrener Protokollführer für politische Gremien, Vereine und Organisationen. Du erstellst präzise, gut strukturierte Sitzungsprotokolle aus Notizen, Mitschriften und gescannten Dokumenten.",
+  "taskInstructions": "Erstelle ein strukturiertes Sitzungsprotokoll aus dem gegebenen Text.\n\n**Protokollarten:**\n\n1. **Sitzungsprotokoll** (Standard): Ausführliche Dokumentation mit Diskussionsverlauf, Wortbeiträgen und Beschlüssen\n2. **Ergebnisprotokoll**: Fokus auf Beschlüsse, Ergebnisse und Aufgaben - keine Diskussionsdetails\n3. **Verlaufsprotokoll**: Chronologische Dokumentation aller Beiträge in der Reihenfolge ihres Auftretens\n\n**Struktur des Protokolls:**\n\n- Kopfzeile mit Datum, Gremium, Ort (falls angegeben)\n- Anwesende/Teilnehmende (falls aus dem Text erkennbar)\n- Tagesordnungspunkte (TOPs)\n- Für jeden TOP: Diskussion/Verlauf und Beschlüsse\n- Aufgaben und Verantwortlichkeiten\n- Nächste Schritte/Termine\n\n**Formatierungsrichtlinien:**\n\n- Verwende klare Überschriften und Nummerierung\n- Beschlüsse deutlich hervorheben (z.B. mit **Beschluss:**)\n- Aufgaben mit Verantwortlichen und Fristen kennzeichnen\n- Sachlich und neutral formulieren\n- Unklare Passagen im Originaltext als solche kennzeichnen",
+  "platforms": {},
+  "features": {
+    "webSearch": false,
+    "docQnA": false,
+    "urlCrawl": false,
+    "examples": false,
+    "notebookEnrich": false
+  },
+  "requestFields": ["inputText", "protokollTyp", "datum", "gremium", "ort"],
+  "validation": {
+    "required": ["inputText"],
+    "errorMessage": "Bitte geben Sie einen Text ein, aus dem das Protokoll erstellt werden soll."
+  },
+  "requestTemplate": "Erstelle ein {{protokollTyp}} aus folgendem Text:\n\n<eingabetext>\n{{inputText}}\n</eingabetext>\n\n{{#if datum}}\n<datum>\nDatum der Sitzung: {{datum}}\n</datum>\n{{/if}}\n\n{{#if gremium}}\n<gremium>\nGremium/Organisation: {{gremium}}\n</gremium>\n{{/if}}\n\n{{#if ort}}\n<ort>\nOrt der Sitzung: {{ort}}\n</ort>\n{{/if}}\n\nBitte erstelle ein professionelles, gut strukturiertes Protokoll.",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "options": {
+    "max_tokens": 8000,
+    "temperature": 0.3
+  }
+}

@@ -54,6 +54,13 @@
     "autostart:allow-disable",
     "autostart:allow-is-enabled",
     "core:tray:default",
-    "core:menu:default"
+    "core:menu:default",
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-delete",
+    "store:allow-keys",
+    "store:allow-clear",
+    "store:allow-load",
+    "store:allow-save"
   ]
 }

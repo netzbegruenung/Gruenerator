@@ -95,6 +95,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     ai_sharepic BOOLEAN DEFAULT FALSE,
     vorlagen BOOLEAN DEFAULT FALSE,
     video_editor BOOLEAN DEFAULT FALSE,
+    scanner BOOLEAN DEFAULT FALSE,
+    prompts BOOLEAN DEFAULT FALSE,
     interactive_antrag_enabled BOOLEAN DEFAULT TRUE,
     nextcloud_share_links JSONB DEFAULT '[]',
     document_mode TEXT DEFAULT 'manual',
@@ -103,6 +105,31 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS scanner BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS prompts BOOLEAN DEFAULT FALSE;
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SECTION 2B: MOBILE/DESKTOP APP AUTHENTICATION
+-- Refresh tokens for native app authentication (mobile & desktop)
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS app_refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) NOT NULL,
+    device_name VARCHAR(255),
+    device_type VARCHAR(50) DEFAULT 'unknown',
+    issued_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    last_used_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ,
+    UNIQUE(token_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_user ON app_refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_hash ON app_refresh_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_expires ON app_refresh_tokens(expires_at) WHERE revoked_at IS NULL;
 
 
 -- ════════════════════════════════════════════════════════════════════════════

@@ -95,6 +95,18 @@ export interface OAuthStats {
 }
 
 /**
+ * Desktop OAuth PKCE state data stored in Redis
+ */
+export interface DesktopOAuthStateData {
+  state_id: string;
+  code_challenge: string;
+  code_challenge_method: 'S256';
+  user_agent?: string;
+  created_at: number;
+  expires_at: number;
+}
+
+/**
  * LRU Cache entry
  */
 export interface CacheEntry<T = any> {

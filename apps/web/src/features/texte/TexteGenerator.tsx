@@ -13,7 +13,7 @@ import { useTabPersistence } from './hooks/useTabPersistence';
 import { type TabId, type UniversalSubType } from './types';
 import './components/TabSelector.css';
 
-// Tabs that are accessible without login (for testing/demo purposes)
+// Tabs that are accessible without login
 const PUBLIC_TABS: TabId[] = ['presse-social'];
 
 const TexteTab = lazy(() => import('./tabs/TexteTab'));
@@ -64,6 +64,12 @@ const TAB_COMPONENT_NAMES: Record<TabId, string> = {
   eigene: 'eigene-generators',
 };
 
+/**
+ * TexteGenerator - Main text generation interface with tabbed navigation.
+ *
+ * Uses the generic TabbedLayout for structure but with custom TabSelector
+ * for specialized features like dropdown menus and auth-locked tabs.
+ */
 const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -73,10 +79,8 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
   const user = useAuthStore((state) => state.user);
   const [universalSubType, setUniversalSubType] = useState<UniversalSubType>('rede');
 
-  // Auth check for protected tabs
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
 
-  // Show login screen when user is on a protected tab and not authenticated
   const requiresAuth = !PUBLIC_TABS.includes(activeTab);
   const showLoginRequired = requiresAuth && !isAuthenticated && !authLoading;
 
@@ -124,6 +128,22 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
     [hasGeneratedContent]
   );
 
+  // Build tab content map for the layout
+  const tabContent = useMemo(
+    () => ({
+      texte: <TexteTab isActive={activeTab === 'texte'} />,
+      'presse-social': <PresseSocialTab isActive={activeTab === 'presse-social'} />,
+      antrag: <AntragTab isActive={activeTab === 'antrag'} />,
+      universal: (
+        <UniversalTab isActive={activeTab === 'universal'} selectedType={universalSubType} />
+      ),
+      barrierefreiheit: <BarrierefreiheitTab isActive={activeTab === 'barrierefreiheit'} />,
+      texteditor: <TextEditorTab isActive={activeTab === 'texteditor'} />,
+      eigene: <EigeneTab isActive={activeTab === 'eigene'} />,
+    }),
+    [activeTab, universalSubType]
+  );
+
   return (
     <ErrorBoundary>
       <div className={wrapperClassName}>
@@ -150,30 +170,11 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
             />
           ) : (
             <Suspense fallback={<LoadingFallback />}>
-              <div className="tab-panel" data-active={activeTab === 'texte'}>
-                <TexteTab isActive={activeTab === 'texte'} />
-              </div>
-              <div className="tab-panel" data-active={activeTab === 'presse-social'}>
-                <PresseSocialTab isActive={activeTab === 'presse-social'} />
-              </div>
-              <div className="tab-panel" data-active={activeTab === 'antrag'}>
-                <AntragTab isActive={activeTab === 'antrag'} />
-              </div>
-              <div className="tab-panel" data-active={activeTab === 'universal'}>
-                <UniversalTab
-                  isActive={activeTab === 'universal'}
-                  selectedType={universalSubType}
-                />
-              </div>
-              <div className="tab-panel" data-active={activeTab === 'barrierefreiheit'}>
-                <BarrierefreiheitTab isActive={activeTab === 'barrierefreiheit'} />
-              </div>
-              <div className="tab-panel" data-active={activeTab === 'texteditor'}>
-                <TextEditorTab isActive={activeTab === 'texteditor'} />
-              </div>
-              <div className="tab-panel" data-active={activeTab === 'eigene'}>
-                <EigeneTab isActive={activeTab === 'eigene'} />
-              </div>
+              {Object.entries(tabContent).map(([tabId, content]) => (
+                <div key={tabId} className="tab-panel" data-active={activeTab === tabId}>
+                  {content}
+                </div>
+              ))}
             </Suspense>
           )}
         </div>
