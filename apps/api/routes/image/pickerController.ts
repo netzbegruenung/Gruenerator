@@ -3,13 +3,16 @@
  * Handles AI-powered image selection from stock catalog
  */
 
-import express, { Response, Router } from 'express';
-import { fileURLToPath } from 'url';
 import { dirname, join, basename } from 'path';
+import { fileURLToPath } from 'url';
+
+import express, { type Response, type Router } from 'express';
+
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../../services/image/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { validateUrlSync } from '../../utils/validation/urlSecurity.js';
+import { validateUrlSync, safeFetch } from '../../utils/validation/urlSecurity.js';
+
 import type {
   AuthenticatedRequest,
   ImageSelectRequestBody,
@@ -316,18 +319,11 @@ router.post('/download-track', async (req: AuthenticatedRequest, res: Response) 
     // Only track if downloadLocation exists (real Unsplash images)
     // Local stock images won't have this field
     if (downloadLocation && typeof downloadLocation === 'string') {
-      const urlValidation = validateUrlSync(downloadLocation, {
-        allowedHosts: ['api.unsplash.com'],
-      });
-      if (!urlValidation.isValid) {
-        log.warn(`[ImagePicker API] Invalid download location URL: ${urlValidation.error}`);
-      } else {
-        try {
-          await fetch(downloadLocation);
-          log.debug(`[ImagePicker API] Download tracked for ${filename}`);
-        } catch (error) {
-          log.warn(`[ImagePicker API] Failed to track download for ${filename}:`, error);
-        }
+      try {
+        await safeFetch(downloadLocation, {}, { allowedHosts: ['api.unsplash.com'] });
+        log.debug(`[ImagePicker API] Download tracked for ${filename}`);
+      } catch (error) {
+        log.warn(`[ImagePicker API] Failed to track download for ${filename}:`, error);
       }
     }
 
