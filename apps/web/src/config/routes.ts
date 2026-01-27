@@ -81,6 +81,13 @@ const TextEditorRedirect = lazy(() =>
   })
 );
 
+// Redirects for image-studio/ki routes to /imagine
+const ImageStudioKiRedirect = lazy(() =>
+  Promise.resolve({
+    default: createRedirect('/imagine'),
+  })
+);
+
 // Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
 const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
 
@@ -322,9 +329,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/apps', component: AppsPage },
   // Media Library Route
   { path: '/media-library', component: MediaLibraryPage },
-  // Image Studio Routes
+  // Image Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
-  { path: '/image-studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
+  { path: '/image-studio', component: ImageStudioKiRedirect },
+  { path: '/image-studio/ki', component: ImageStudioKiRedirect },
+  { path: '/image-studio/ki/:type', component: ImageStudioKiRedirect },
   { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },
   { path: '/image-studio/:category', component: GrueneratorenBundle.ImageStudio, withForm: true },
   {
