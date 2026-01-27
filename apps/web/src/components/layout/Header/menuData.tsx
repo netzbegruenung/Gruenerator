@@ -142,6 +142,12 @@ export const getMobileOnlyMenuItems = (): DirectMenuItemsResult => {
 // Footer links for sidebar bottom
 export const getFooterLinks = (): MenuItemType[] => [
   {
+    id: 'apps',
+    path: '/apps',
+    title: 'Apps',
+    description: 'Desktop-App herunterladen',
+  },
+  {
     id: 'support',
     path: '/support',
     title: 'Support',
