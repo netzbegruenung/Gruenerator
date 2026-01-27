@@ -196,21 +196,6 @@ const WrappedGrueneratorChat = lazy(() =>
   }))
 );
 
-// Wrapped Scanner Component für Beta Feature
-const WrappedScanner = lazy(() =>
-  Promise.all([
-    import('../features/scanner/ScannerPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([scannerModule, wrapperModule]) => ({
-    default: () =>
-      wrapperModule.default({
-        children: createElement(scannerModule.default),
-        featureKey: 'scanner',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
-
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
 const StructuredExamplePage = lazy(() =>
@@ -253,7 +238,6 @@ export const GrueneratorenBundle = {
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
   Chat: WrappedGrueneratorChat,
-  Scanner: WrappedScanner,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
@@ -332,8 +316,6 @@ const standardRoutes: RouteConfig[] = [
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
   // Grünerator Chat Route
   { path: '/chat', component: GrueneratorenBundle.Chat },
-  // Scanner Route (Beta Feature)
-  { path: '/scanner', component: GrueneratorenBundle.Scanner },
   // Text Editor - redirect to unified
   { path: '/texteditor', component: TextEditorRedirect },
   // Apps Download Page
