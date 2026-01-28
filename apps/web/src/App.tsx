@@ -119,8 +119,8 @@ function App() {
     );
   }
 
-  // Maintenance mode blocks entire app
-  const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE !== 'false';
+  // Maintenance mode blocks entire app (off by default, set VITE_MAINTENANCE_MODE=true to enable)
+  const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
 
   if (isMaintenanceMode) {
     return (
