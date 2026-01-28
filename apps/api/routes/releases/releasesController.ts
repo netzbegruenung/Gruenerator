@@ -1,19 +1,27 @@
-import fs from 'fs';
-import path, { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
 import express, { type Request, type Response, type Router } from 'express';
 
 import { PRIMARY_URL } from '../../config/domains.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Use AUTH_BASE_URL for local dev (http://localhost:3001), PRIMARY_URL for production
+const API_BASE_URL = process.env.AUTH_BASE_URL || PRIMARY_URL;
+
+// GitHub configuration for release downloads
+const GITHUB_REPO = 'netzbegruenung/Gruenerator';
+const getGitHubReleaseTag = (version: string) => `desktop-v${version}`;
+const getGitHubDownloadUrl = (version: string, filename: string) =>
+  `https://github.com/${GITHUB_REPO}/releases/download/${getGitHubReleaseTag(version)}/${encodeURIComponent(filename)}`;
 
 const router: Router = express.Router();
 
-// Release files directory - create this on your server
-// Place release bundles here: /var/www/gruenerator/releases/desktop/v{version}/
-const RELEASES_DIR = process.env.RELEASES_DIR || path.join(__dirname, '..', '..', 'releases');
+console.log('[Releases] Router initialized');
+
+// Debug middleware to log all requests to this router - MUST be first
+router.use((req: Request, _res: Response, next) => {
+  console.log(
+    `[Releases] Incoming request: ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`
+  );
+  next();
+});
 
 interface PlatformConfig {
   signature: string;
@@ -68,13 +76,18 @@ const UPDATER_CONFIG: UpdaterConfig = {
   },
 };
 
-// Platform to filename mapping
+// Platform to filename mapping for Tauri updater bundles
+// Note: macOS tar.gz bundles don't include version number in Tauri v2
 const PLATFORM_FILES: Record<string, (v: string) => string> = {
-  'linux-x86_64': (v) => `gruenerator_${v}_amd64.AppImage.tar.gz`,
-  'darwin-x86_64': (v) => `Gruenerator_${v}_x64.app.tar.gz`,
-  'darwin-aarch64': (v) => `Gruenerator_${v}_aarch64.app.tar.gz`,
-  'windows-x86_64': (v) => `Gruenerator_${v}_x64-setup.nsis.zip`,
+  'linux-x86_64': (v) => `Grunerator_${v}_amd64.AppImage`,
+  'darwin-x86_64': () => `Grunerator_x64.app.tar.gz`,
+  'darwin-aarch64': () => `Grunerator_aarch64.app.tar.gz`,
+  'windows-x86_64': (v) => `Grunerator_${v}_x64-setup.exe`,
 };
+
+// Helper to generate file download URL
+const getFileDownloadUrl = (filename: string) =>
+  `${API_BASE_URL}/api/releases/download/file/${encodeURIComponent(filename)}`;
 
 // Release configuration - update this when publishing new releases
 const CURRENT_RELEASE: ReleaseInfo = {
@@ -97,43 +110,37 @@ const CURRENT_RELEASE: ReleaseInfo = {
     {
       id: 1,
       name: 'Grunerator_1.0.1_x64-setup.exe',
-      browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_x64-setup.exe',
+      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_x64-setup.exe'),
       size: 45000000,
     },
     {
       id: 2,
       name: 'Grunerator_1.0.1_x64_en-US.msi',
-      browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_x64_en-US.msi',
+      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_x64_en-US.msi'),
       size: 42000000,
     },
     {
       id: 3,
       name: 'Grunerator_1.0.1_x64.dmg',
-      browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_x64.dmg',
+      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_x64.dmg'),
       size: 48000000,
     },
     {
       id: 4,
       name: 'Grunerator_1.0.1_aarch64.dmg',
-      browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_aarch64.dmg',
+      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_aarch64.dmg'),
       size: 48000000,
     },
     {
       id: 5,
       name: 'Grunerator_1.0.1_amd64.AppImage',
-      browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_amd64.AppImage',
+      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_amd64.AppImage'),
       size: 85000000,
     },
     {
       id: 6,
       name: 'Grunerator_1.0.1_amd64.deb',
-      browser_download_url:
-        'https://github.com/netzbegruenung/Gruenerator/releases/download/desktop-v1.0.1/Grunerator_1.0.1_amd64.deb',
+      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_amd64.deb'),
       size: 44000000,
     },
   ],
@@ -154,88 +161,87 @@ router.get('/updater/latest.json', (_req: Request, res: Response) => {
   res.json(UPDATER_CONFIG);
 });
 
-// GET /api/releases/download/:platform - Serve release file for platform
+// GET /api/releases/download/file/:filename - Redirect to GitHub release file (for direct downloads)
+// IMPORTANT: This route must come BEFORE /download/:platform to avoid :platform matching "file"
+router.get('/download/file/:filename', (req: Request, res: Response) => {
+  const { filename } = req.params;
+  const version = UPDATER_CONFIG.version;
+
+  // Security: only allow alphanumeric, dots, underscores, and hyphens in filename
+  if (!/^[a-zA-Z0-9._-]+$/.test(filename)) {
+    res.status(400).json({ error: 'Invalid filename' });
+    return;
+  }
+
+  const githubUrl = getGitHubDownloadUrl(version, filename);
+  console.log(`[Releases] Redirecting file download to GitHub: ${githubUrl}`);
+  res.redirect(302, githubUrl);
+});
+
+// GET /api/releases/download/:platform - Redirect to GitHub release for platform (Tauri updater)
 router.get('/download/:platform', (req: Request, res: Response) => {
   const { platform } = req.params;
   const version = UPDATER_CONFIG.version;
 
   const fileNameFn = PLATFORM_FILES[platform];
   if (!fileNameFn) {
+    console.log(`[Releases] Platform not found: ${platform}`);
     res.status(404).json({ error: 'Platform not found' });
     return;
   }
 
   const fileName = fileNameFn(version);
-  const filePath = path.join(RELEASES_DIR, 'desktop', `v${version}`, fileName);
-
-  if (!fs.existsSync(filePath)) {
-    console.error(`[Releases] File not found: ${filePath}`);
-    res.status(404).json({
-      error: 'Release file not found',
-      expected: filePath,
-      hint: `Upload the file to: ${RELEASES_DIR}/desktop/v${version}/${fileName}`,
-    });
-    return;
-  }
-
-  const stats = fs.statSync(filePath);
-
-  res.setHeader('Content-Type', 'application/octet-stream');
-  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-  res.setHeader('Content-Length', stats.size);
-
-  const fileStream = fs.createReadStream(filePath);
-  fileStream.pipe(res);
-
-  fileStream.on('error', (err) => {
-    console.error(`[Releases] Error streaming file: ${err.message}`);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Error streaming file' });
-    }
-  });
+  const githubUrl = getGitHubDownloadUrl(version, fileName);
+  console.log(`[Releases] Redirecting ${platform} to GitHub: ${githubUrl}`);
+  res.redirect(302, githubUrl);
 });
 
-// GET /api/releases/download/:platform/signature - Get signature for platform
+// GET /api/releases/download/:platform/signature - Get signature for platform (from config)
 router.get('/download/:platform/signature', (req: Request, res: Response) => {
   const { platform } = req.params;
-  const version = UPDATER_CONFIG.version;
 
-  const fileNameFn = PLATFORM_FILES[platform];
-  if (!fileNameFn) {
+  const platformConfig = UPDATER_CONFIG.platforms[platform];
+  if (!platformConfig) {
     return res.status(404).json({ error: 'Platform not found' });
   }
 
-  const fileName = fileNameFn(version) + '.sig';
-  const filePath = path.join(RELEASES_DIR, 'desktop', `v${version}`, fileName);
-
-  if (!fs.existsSync(filePath)) {
-    const signature = UPDATER_CONFIG.platforms[platform]?.signature || '';
-    return res.type('text/plain').send(signature);
-  }
-
-  return res.type('text/plain').sendFile(filePath);
+  // Return signature from config (must be populated when creating releases)
+  return res.type('text/plain').send(platformConfig.signature || '');
 });
 
-// GET /api/releases/info - Get release directory info (for debugging)
+// GET /api/releases/info - Get release configuration info (for debugging)
 router.get('/info', (_req: Request, res: Response) => {
   const version = UPDATER_CONFIG.version;
-  const versionDir = path.join(RELEASES_DIR, 'desktop', `v${version}`);
-
-  let files: string[] = [];
-  if (fs.existsSync(versionDir)) {
-    files = fs.readdirSync(versionDir);
-  }
+  const releaseTag = getGitHubReleaseTag(version);
 
   res.json({
     version,
-    releasesDir: RELEASES_DIR,
-    versionDir,
-    files,
-    expectedFiles: Object.entries(PLATFORM_FILES).map(([platform, fn]) => ({
-      platform,
-      fileName: fn(version),
+    github: {
+      repo: GITHUB_REPO,
+      releaseTag,
+      releaseUrl: `https://github.com/${GITHUB_REPO}/releases/tag/${releaseTag}`,
+    },
+    platformFiles: Object.entries(PLATFORM_FILES).map(([platform, fn]) => {
+      const fileName = fn(version);
+      return {
+        platform,
+        fileName,
+        downloadUrl: getGitHubDownloadUrl(version, fileName),
+      };
+    }),
+    frontendAssets: CURRENT_RELEASE.assets.map((asset) => ({
+      name: asset.name,
+      downloadUrl: getGitHubDownloadUrl(version, asset.name),
     })),
   });
+});
+
+// Debug: List all registered routes
+console.log('[Releases] Registered routes:');
+router.stack.forEach((r: any) => {
+  if (r.route) {
+    console.log(`[Releases]   ${Object.keys(r.route.methods).join(',')} ${r.route.path}`);
+  }
 });
 
 export default router;
