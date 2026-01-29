@@ -3,12 +3,13 @@
  * Handles personal instructions for generators and knowledge entries
  */
 
-import express, { Router, Response } from 'express';
-import { getPostgresInstance } from '../../../database/services/PostgresService.js';
-import { getProfileService } from '../../../services/user/ProfileService.js';
-import { getKnowledgeService as getUserKnowledgeService } from '../../../services/user/KnowledgeService.js';
+import express, { type Router, type Response } from 'express';
+
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { getKnowledgeService as getUserKnowledgeService } from '../../../services/user/KnowledgeService.js';
+import { getProfileService } from '../../../services/user/ProfileService.js';
 import { createLogger } from '../../../utils/logger.js';
+
 import type { AuthRequest, InstructionsUpdateBody } from '../types.js';
 
 const log = createLogger('userInstructions');
@@ -28,21 +29,6 @@ router.get(
       const userId = req.user!.id;
       const { instructionType } = req.params;
 
-      // Only antrag and social instruction types remain active
-      const validInstructionTypes = ['antrag', 'social', 'custom_generator'];
-      if (!validInstructionTypes.includes(instructionType)) {
-        res.status(400).json({
-          success: false,
-          message: `Invalid instruction type. Valid types: ${validInstructionTypes.join(', ')}`,
-        });
-        return;
-      }
-
-      const fieldMapping: Record<string, string[]> = {
-        antrag: ['custom_antrag_prompt'],
-        social: ['custom_social_prompt'],
-      };
-
       if (instructionType === 'custom_generator') {
         res.json({
           success: true,
@@ -57,87 +43,15 @@ router.get(
         return;
       }
 
-      const fieldsToCheck = fieldMapping[instructionType];
-
       const profileService = getProfileService();
       const profile = await profileService.getProfileById(userId);
-
-      const hasUserInstructions = fieldsToCheck.some((field) => {
-        const value = (profile as any)?.[field];
-        return value && value.trim().length > 0;
-      });
-
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const memberships = await postgres.query(
-        'SELECT group_id FROM group_memberships WHERE user_id = $1 AND is_active = true',
-        [userId],
-        { table: 'group_memberships' }
-      );
-
-      const groupIds =
-        (memberships as { group_id: string }[] | undefined)?.map((m) => m.group_id) || [];
-      let groupsWithInstructions: string[] = [];
-
-      const groupFieldMapping: Record<string, string[]> = {
-        antrag: ['custom_antrag_prompt'],
-        social: ['custom_social_prompt'],
-      };
-
-      if (groupIds.length > 0 && ['antrag', 'social'].includes(instructionType)) {
-        const groupFieldsToCheck = groupFieldMapping[instructionType];
-
-        if (groupFieldsToCheck && groupIds.length > 0) {
-          try {
-            let groupInstructions;
-            if (instructionType === 'antrag') {
-              groupInstructions = await postgres.query(
-                'SELECT group_id, custom_antrag_prompt FROM group_instructions WHERE group_id = ANY($1) AND is_active = true',
-                [groupIds],
-                { table: 'group_instructions' }
-              );
-            } else if (instructionType === 'social') {
-              groupInstructions = await postgres.query(
-                'SELECT group_id, custom_social_prompt FROM group_instructions WHERE group_id = ANY($1) AND is_active = true',
-                [groupIds],
-                { table: 'group_instructions' }
-              );
-            }
-
-            groupsWithInstructions =
-              groupInstructions
-                ?.filter((group: any) => {
-                  return groupFieldsToCheck.some((field) => {
-                    const value = group[field];
-                    return value && value.trim().length > 0;
-                  });
-                })
-                ?.map((group: any) => group.group_id) || [];
-          } catch (groupInstructionsError) {
-            log.warn(
-              `[Instructions Status] Warning checking group instructions for ${instructionType}:`,
-              groupInstructionsError
-            );
-          }
-        }
-      }
-
-      const hasAnyInstructions = hasUserInstructions || groupsWithInstructions.length > 0;
+      const hasUserInstructions = !!(profile as any)?.custom_prompt?.trim();
 
       res.json({
         success: true,
         instructionType,
         hasUserInstructions,
-        groupsWithInstructions,
-        totalGroups: groupIds.length,
-        hasAnyInstructions,
-        checkedFields: {
-          user: fieldsToCheck,
-          groups: ['antrag', 'social'].includes(instructionType)
-            ? groupFieldMapping[instructionType] || []
-            : [],
-        },
+        hasAnyInstructions: hasUserInstructions,
       });
     } catch (error) {
       const err = error as Error;
@@ -173,12 +87,7 @@ router.get(
 
       res.json({
         success: true,
-        // Unified custom prompt (new system)
         customPrompt: (profileData as any)?.custom_prompt || '',
-        // Per-generator prompts (only antrag and social remain active)
-        antragPrompt: (profileData as any)?.custom_antrag_prompt || '',
-        antragGliederung: (profileData as any)?.custom_antrag_gliederung || '',
-        socialPrompt: (profileData as any)?.custom_social_prompt || '',
         presseabbinder: (profileData as any)?.presseabbinder || '',
         knowledge:
           knowledgeEntries?.map((entry) => ({
@@ -208,14 +117,7 @@ router.put(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
-      const {
-        custom_prompt,
-        custom_antrag_prompt,
-        custom_antrag_gliederung,
-        custom_social_prompt,
-        presseabbinder,
-        knowledge = [],
-      } = req.body || {};
+      const { custom_prompt, presseabbinder, knowledge = [] } = req.body || {};
 
       log.debug('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
       log.debug(
@@ -230,9 +132,6 @@ router.put(
       const profileService = getProfileService();
       const profilePayload = {
         custom_prompt: custom_prompt ?? null,
-        custom_antrag_prompt: custom_antrag_prompt ?? null,
-        custom_antrag_gliederung: custom_antrag_gliederung ?? null,
-        custom_social_prompt: custom_social_prompt ?? null,
         presseabbinder: presseabbinder ?? null,
       };
 
@@ -240,7 +139,7 @@ router.put(
       log.debug(`[User Content /anweisungen-wissen PUT] Updated profile for user ${userId}`);
 
       const userKnowledgeService = getUserKnowledgeService();
-      let knowledgeResults = { processed: 0, deleted: 0 };
+      const knowledgeResults = { processed: 0, deleted: 0 };
 
       if (knowledge && Array.isArray(knowledge)) {
         try {

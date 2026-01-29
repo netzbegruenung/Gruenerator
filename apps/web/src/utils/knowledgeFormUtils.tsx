@@ -10,15 +10,12 @@ interface KnowledgeSource {
 }
 
 interface Instructions {
-  antrag?: string;
-  social?: string;
   [key: string]: string | undefined;
 }
 
 interface GroupDetails {
   instructions?: {
-    custom_antrag_prompt?: string;
-    custom_social_prompt?: string;
+    custom_prompt?: string;
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -33,7 +30,7 @@ interface KnowledgeFormNoticeParams {
   isLoadingGroupDetails: boolean;
   isInstructionsActive: boolean;
   instructions: Instructions;
-  instructionType: 'antrag' | 'social';
+  instructionType: string;
   groupDetailsData?: GroupDetails | null;
   availableKnowledge?: KnowledgeItem[];
 }
@@ -68,9 +65,7 @@ export const createKnowledgeFormNotice = ({
     }
   } else if (source.type === 'group') {
     sourceNameForNotice = source.name || 'Gruppe';
-    const groupInstructionKey =
-      instructionType === 'antrag' ? 'custom_antrag_prompt' : 'custom_social_prompt';
-    if (groupDetailsData?.instructions?.[groupInstructionKey]) {
+    if (groupDetailsData?.instructions?.custom_prompt) {
       noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
     }
   }

@@ -6,19 +6,9 @@ export interface Source {
   name: string | null;
 }
 
-export type InstructionType =
-  | 'antrag'
-  | 'antragGliederung'
-  | 'social'
-  | 'universal'
-  | 'gruenejugend'
-  | 'rede'
-  | 'buergeranfragen';
+export type InstructionType = 'universal' | 'gruenejugend' | 'rede' | 'buergeranfragen';
 
 export interface Instructions {
-  antrag: string | null;
-  antragGliederung: string | null;
-  social: string | null;
   universal: string | null;
   gruenejugend: string | null;
   rede: string | null;
