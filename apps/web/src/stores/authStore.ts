@@ -119,6 +119,15 @@ export interface AuthStore {
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
 }
 
+// Detect browser locale for unauthenticated default
+function detectBrowserLocale(): SupportedLocale {
+  const languages = navigator?.languages || [navigator?.language];
+  for (const lang of languages) {
+    if (lang?.startsWith('de-AT')) return 'de-AT';
+  }
+  return 'de-DE';
+}
+
 // localStorage keys for auth state persistence
 const AUTH_STORAGE_KEY = 'gruenerator_auth_state';
 const AUTH_CACHE_VERSION = '1.2'; // Increment to invalidate old cache
@@ -255,7 +264,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   igelModus: persistedState?.igelModus || false, // Default OFF
 
   // Locale/language preference
-  locale: persistedState?.locale || 'de-DE', // Default to German
+  locale: persistedState?.locale || detectBrowserLocale(),
 
   // Supabase specific state
   supabaseSession: null,
@@ -263,7 +272,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Main actions
   setAuthState: (data: AuthStateData) => {
-    const userLocale: SupportedLocale = (data.user?.locale as SupportedLocale) || 'de-DE';
+    const userLocale: SupportedLocale = (data.user?.locale as SupportedLocale) || detectBrowserLocale();
 
     set({
       user: data.user,
@@ -333,7 +342,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isLoggingOut: false,
       selectedMessageColor: '#008939',
       igelModus: false,
-      locale: 'de-DE',
+      locale: detectBrowserLocale(),
       supabaseSession: null,
       _supabaseAuthCleanup: null,
     });
