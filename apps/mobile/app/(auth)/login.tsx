@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   StyleSheet,
@@ -8,11 +9,14 @@ import {
   ActivityIndicator,
   Image,
   Linking,
-  ImageSourcePropType,
+  type ImageSourcePropType,
 } from 'react-native';
-import { router } from 'expo-router';
-import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
+
+import grueneAtLogo from '../../assets/images/gruene-at-logo.png';
+import nbIcon from '../../assets/images/nb-icon.png';
+import sonnenblumeLogo from '../../assets/images/sonnenblume.png';
 import { login, type AuthSource } from '../../services/auth';
+import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
 
 interface LoginProvider {
   enabled: boolean;
@@ -28,21 +32,21 @@ const LOGIN_PROVIDERS: Record<string, LoginProvider> = {
     source: 'gruenes-netz-login',
     title: 'Grünes Netz',
     description: 'Für Mitglieder von BÜNDNIS 90/DIE GRÜNEN',
-    logo: require('../../assets/images/sonnenblume.png'),
+    logo: sonnenblumeLogo,
   },
   grueneOesterreich: {
     enabled: true,
     source: 'gruene-oesterreich-login',
     title: 'Die Grünen Österreich',
     description: 'Für Mitglieder der Grünen Österreich',
-    logo: require('../../assets/images/gruene-at-logo.png'),
+    logo: grueneAtLogo,
   },
   netzbegruenung: {
     enabled: true,
     source: 'netzbegruenung-login',
     title: 'Netzbegrünung',
     description: 'Für Mitglieder der Netzbegrünung',
-    logo: require('../../assets/images/nb-icon.png'),
+    logo: nbIcon,
   },
   gruenerator: {
     enabled: false,
@@ -88,7 +92,7 @@ export default function LoginScreen() {
   };
 
   const handlePrivacyPress = () => {
-    Linking.openURL('https://gruenerator.eu/datenschutz');
+    void Linking.openURL('https://gruenerator.eu/datenschutz');
   };
 
   const renderLoginOption = (provider: LoginProvider) => {

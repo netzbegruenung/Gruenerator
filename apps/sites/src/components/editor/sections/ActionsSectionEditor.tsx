@@ -90,6 +90,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
       <div className="editor-array-items">
         {data.actions.map((action, index) => (
           <div
+            // eslint-disable-next-line react/no-array-index-key
             key={index}
             className={`editor-array-item ${isItemHighlighted(index) ? 'editor-array-item--highlighted' : ''}`}
           >
