@@ -4,8 +4,6 @@ import { promisify } from 'util';
 
 import axios, { AxiosResponse } from 'axios';
 
-import ComfyUIImageService from '../comfyui/ComfyUIImageService.js';
-
 const sleep = promisify(setTimeout);
 
 export type FluxBackend = 'hosted' | 'local';
@@ -119,12 +117,13 @@ class FluxImageService {
    * @param backend - 'hosted' for BFL API, 'local' for ComfyUI. Defaults to FLUX_BACKEND env var or 'hosted'.
    * @returns FluxImageService for hosted backend, ComfyUIImageService for local backend
    */
-  static create(backend?: FluxBackend): FluxImageService | ComfyUIImageService {
+  static async create(backend?: FluxBackend): Promise<FluxImageService> {
     const useBackend = backend || (process.env.FLUX_BACKEND as FluxBackend) || 'hosted';
 
     if (useBackend === 'local') {
       console.log('[FluxImageService] Using local ComfyUI backend');
-      return new ComfyUIImageService();
+      const { default: ComfyUIImageService } = await import('../comfyui/ComfyUIImageService.js');
+      return new ComfyUIImageService() as unknown as FluxImageService;
     }
 
     console.log('[FluxImageService] Using hosted BFL API backend');
