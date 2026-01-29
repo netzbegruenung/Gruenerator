@@ -295,7 +295,7 @@ router.post('/mobile/refresh', async (req: AuthRequest, res: Response): Promise<
       [tokenHash]
     );
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       log.warn('[MobileAuth] Refresh token not found');
       res.status(401).json({
         success: false,
@@ -305,7 +305,7 @@ router.post('/mobile/refresh', async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const tokenRecord = result.rows[0];
+    const tokenRecord = result[0];
 
     // Check if token is revoked
     if (tokenRecord.revoked_at) {
@@ -321,7 +321,7 @@ router.post('/mobile/refresh', async (req: AuthRequest, res: Response): Promise<
     }
 
     // Check if token is expired
-    if (new Date(tokenRecord.expires_at) < new Date()) {
+    if (new Date(tokenRecord.expires_at as string) < new Date()) {
       log.warn('[MobileAuth] Attempted to use expired refresh token', {
         userId: tokenRecord.user_id,
       });
@@ -336,7 +336,7 @@ router.post('/mobile/refresh', async (req: AuthRequest, res: Response): Promise<
     // Load user
     const { getProfileService } = await import('../../services/user/ProfileService.js');
     const profileService = getProfileService();
-    const user = await profileService.getProfileById(tokenRecord.user_id);
+    const user = await profileService.getProfileById(tokenRecord.user_id as string);
 
     if (!user) {
       log.error('[MobileAuth] User not found for refresh token', {
@@ -490,8 +490,8 @@ router.post('/mobile/logout', async (req: AuthRequest, res: Response): Promise<v
       [tokenHash]
     );
 
-    if (result.rows.length > 0) {
-      log.info('[MobileAuth] Refresh token revoked', { userId: result.rows[0].user_id });
+    if (result.length > 0) {
+      log.info('[MobileAuth] Refresh token revoked', { userId: result[0].user_id });
     }
 
     res.json({
@@ -571,13 +571,13 @@ router.delete('/mobile/sessions', async (req: AuthRequest, res: Response): Promi
 
     log.info('[MobileAuth] All sessions revoked', {
       userId,
-      count: result.rows.length,
+      count: result.length,
     });
 
     res.json({
       success: true,
-      message: `Revoked ${result.rows.length} session(s)`,
-      revoked_count: result.rows.length,
+      message: `Revoked ${result.length} session(s)`,
+      revoked_count: result.length,
     });
   } catch (error) {
     log.error('[MobileAuth] Error revoking sessions:', error);

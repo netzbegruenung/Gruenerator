@@ -20,6 +20,7 @@ const tauriPackages = [
   '@tauri-apps/plugin-shell',
   '@tauri-apps/plugin-updater',
   '@tauri-apps/plugin-process',
+  '@tauri-apps/plugin-store',
 ];
 
 // Plugin to provide stub modules for Tauri packages in web context
@@ -36,7 +37,14 @@ function tauriStubPlugin(): Plugin {
     load(id) {
       if (id.startsWith('\0tauri-stub:')) {
         // Return empty stub module - actual Tauri imports are guarded by isDesktopApp() checks
-        return 'export default {}; export const check = () => Promise.resolve(null); export const getVersion = () => Promise.resolve("web"); export const relaunch = () => Promise.resolve();';
+        return `export default {};
+export const check = () => Promise.resolve(null);
+export const getVersion = () => Promise.resolve("web");
+export const relaunch = () => Promise.resolve();
+export const invoke = () => Promise.resolve(null);
+export const listen = () => Promise.resolve(() => {});
+export class Resource { close() {} }
+`;
       }
       return null;
     },

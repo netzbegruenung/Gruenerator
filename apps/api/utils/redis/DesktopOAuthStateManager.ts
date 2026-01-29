@@ -156,7 +156,7 @@ class DesktopOAuthStateManager {
       const key = this.getStateKey(stateId);
       const dataString = await this.client.get(key);
 
-      if (!dataString) {
+      if (!dataString || typeof dataString !== 'string') {
         console.log('[Redis DesktopOAuth] PKCE state not found', {
           stateId: stateId.substring(0, 12) + '...',
         });
