@@ -18,57 +18,6 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const router: Router = express.Router();
 
 // ============================================================================
-// Instructions Status
-// ============================================================================
-
-router.get(
-  '/instructions-status/:instructionType',
-  ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { instructionType } = req.params;
-
-      if (instructionType === 'custom_generator') {
-        res.json({
-          success: true,
-          hasInstructions: false,
-          hasGroupInstructions: false,
-          instructions: {
-            user: false,
-            groups: [],
-          },
-          message: 'Custom generators manage their own instruction system',
-        });
-        return;
-      }
-
-      const profileService = getProfileService();
-      const profile = await profileService.getProfileById(userId);
-      const hasUserInstructions = !!(profile as any)?.custom_prompt?.trim();
-
-      res.json({
-        success: true,
-        instructionType,
-        hasUserInstructions,
-        hasAnyInstructions: hasUserInstructions,
-      });
-    } catch (error) {
-      const err = error as Error;
-      log.error(
-        `[User Content /instructions-status/${req.params.instructionType} GET] Error:`,
-        err
-      );
-      res.status(500).json({
-        success: false,
-        message: 'Error checking instructions status',
-        details: err.message,
-      });
-    }
-  }
-);
-
-// ============================================================================
 // Instructions & Knowledge CRUD
 // ============================================================================
 

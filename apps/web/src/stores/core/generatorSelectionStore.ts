@@ -10,15 +10,6 @@ interface Source {
   name: string | null;
 }
 
-// Instructions per generator type
-interface Instructions {
-  universal: string | null;
-  gruenejugend: string | null;
-  rede: string | null;
-  buergeranfragen: string | null;
-  [key: string]: string | null;
-}
-
 // Document type
 export interface Document {
   id: string;
@@ -75,9 +66,6 @@ interface SelectedIds {
 // Store state interface
 interface GeneratorSelectionState {
   source: Source;
-  instructionType: string | null;
-  instructions: Instructions;
-  isInstructionsActive: boolean;
   availableDocuments: Document[];
   selectedDocumentIds: string[];
   isLoadingDocuments: boolean;
@@ -100,10 +88,6 @@ interface GeneratorSelectionState {
 // Store actions interface
 interface GeneratorSelectionActions {
   setSource: (source: Source) => void;
-  setInstructions: (instructions: Instructions) => void;
-  setInstructionsActive: (active: boolean) => void;
-  setInstructionType: (type: string | null) => void;
-  getActiveInstruction: (type: string) => string | null;
   getSelectedIds: () => SelectedIds;
   setAvailableDocuments: (documents: Document[]) => void;
   setLoadingDocuments: (isLoading: boolean) => void;
@@ -144,14 +128,6 @@ type GeneratorSelectionStore = GeneratorSelectionState & GeneratorSelectionActio
 
 const initialState: GeneratorSelectionState = {
   source: { type: 'neutral', id: null, name: null },
-  instructionType: null,
-  instructions: {
-    universal: null,
-    gruenejugend: null,
-    rede: null,
-    buergeranfragen: null,
-  },
-  isInstructionsActive: false,
   availableDocuments: [],
   selectedDocumentIds: [],
   isLoadingDocuments: false,
@@ -194,43 +170,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
     setSource: (source) =>
       set((state) => {
         state.source = source;
-        state.isInstructionsActive = false;
-        if (source.type === 'neutral') {
-          state.availableDocuments = [];
-          state.selectedDocumentIds = [];
-          state.isLoadingDocuments = false;
-          state.availableTexts = [];
-          state.selectedTextIds = [];
-          state.isLoadingTexts = false;
-        }
-        state.useWebSearch = false;
-        state.usePrivacyMode = false;
-        state.useProMode = false;
-        state.useUltraMode = false;
-        state.useAutomaticSearch = false;
-        state.useNotebookEnrich = false;
       }),
-
-    setInstructions: (instructions) =>
-      set((state) => {
-        state.instructions = instructions;
-      }),
-
-    setInstructionsActive: (active) =>
-      set((state) => {
-        state.isInstructionsActive = active;
-      }),
-
-    setInstructionType: (type) =>
-      set((state) => {
-        state.instructionType = type;
-      }),
-
-    getActiveInstruction: (type) => {
-      const state = get();
-      if (!state.isInstructionsActive || !state.instructions) return null;
-      return state.instructions[type] || null;
-    },
 
     getSelectedIds: () => {
       const state = get();

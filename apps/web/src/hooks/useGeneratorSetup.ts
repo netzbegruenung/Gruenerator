@@ -74,8 +74,6 @@ export interface GeneratorSetupReturn {
  * const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
  * const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
  * const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
- * const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
- * const customPrompt = useUserInstructions('social', isInstructionsActive);
  * ```
  *
  * **With this:**
@@ -87,7 +85,7 @@ export interface GeneratorSetupReturn {
  * ```
  *
  * @param config - Generator configuration
- * @returns Setup data with feature state, selections, and custom instructions
+ * @returns Setup data with feature state and selections
  *
  * @example
  * ```typescript
@@ -99,7 +97,6 @@ export interface GeneratorSetupReturn {
  * // Access individual values
  * console.log(setup.selectedDocumentIds); // string[]
  * console.log(setup.features.useWebSearchTool); // boolean
- * console.log(setup.customPrompt); // string | null
  *
  * // Get current feature state dynamically
  * const features = setup.getFeatureState();
