@@ -25,6 +25,14 @@ export type ActiveFilters = Record<
   Record<string, string[] | { date_from: string | null; date_to: string | null }>
 >;
 
+interface FilterFetchError {
+  timestamp: number;
+  retryCount: number;
+}
+
+const FILTER_FETCH_MAX_RETRIES = 3;
+const FILTER_FETCH_RETRY_COOLDOWN_MS = 30_000; // 30 seconds before allowing retry
+
 interface NotebookState {
   qaCollections: NotebookCollection[];
   loading: boolean;
@@ -35,6 +43,7 @@ interface NotebookState {
   filterValuesCache: FilterValuesCache; // { [collectionId]: { [field]: { label, values } } }
   activeFilters: ActiveFilters; // { [collectionId]: { [field]: [value1, value2, ...] } }
   loadingFilters: Record<string, boolean>; // { [collectionId]: boolean }
+  filterFetchErrors: Record<string, FilterFetchError>; // { [collectionId]: { timestamp, retryCount } }
 
   // Actions
   setLoading: (loading: boolean) => void;
@@ -102,6 +111,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   filterValuesCache: {},
   activeFilters: {},
   loadingFilters: {},
+  filterFetchErrors: {},
 
   // Actions
   setLoading: (loading) => set({ loading }),
@@ -203,7 +213,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.document_ids = collectionData.documents || [];
       }
 
-      const response = await apiClient.put(`/auth/notebook-collections/${collectionId}`, requestData);
+      const response = await apiClient.put(
+        `/auth/notebook-collections/${collectionId}`,
+        requestData
+      );
 
       const data = response.data;
 
@@ -333,10 +346,25 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   // ─── Filter Actions ────────────────────────────────────────────────────
 
   fetchFilterValues: async (collectionId) => {
-    const { filterValuesCache, loadingFilters } = get();
+    const { filterValuesCache, loadingFilters, filterFetchErrors } = get();
 
+    // Already cached or currently loading - return cached value
     if (filterValuesCache[collectionId] || loadingFilters[collectionId]) {
       return filterValuesCache[collectionId];
+    }
+
+    // Check if we previously failed and should not retry yet
+    const previousError = filterFetchErrors[collectionId];
+    if (previousError) {
+      const { retryCount, timestamp } = previousError;
+      // If max retries exceeded, do not retry
+      if (retryCount >= FILTER_FETCH_MAX_RETRIES) {
+        return null;
+      }
+      // If cooldown has not elapsed, do not retry
+      if (Date.now() - timestamp < FILTER_FETCH_RETRY_COOLDOWN_MS) {
+        return null;
+      }
     }
 
     set((state) => ({
@@ -348,17 +376,34 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
       const data = response.data;
 
       if (data.filters) {
-        set((state) => ({
-          filterValuesCache: {
-            ...state.filterValuesCache,
-            [collectionId]: data.filters,
-          },
-          loadingFilters: { ...state.loadingFilters, [collectionId]: false },
-        }));
+        set((state) => {
+          // Clear any previous error on success
+          const { [collectionId]: _removed, ...remainingErrors } = state.filterFetchErrors;
+          return {
+            filterValuesCache: {
+              ...state.filterValuesCache,
+              [collectionId]: data.filters,
+            },
+            loadingFilters: { ...state.loadingFilters, [collectionId]: false },
+            filterFetchErrors: remainingErrors,
+          };
+        });
         return data.filters;
       }
     } catch (error) {
       console.error('[notebookStore] Error fetching filters:', collectionId, error);
+      // Record the error to prevent infinite retries
+      set((state) => ({
+        loadingFilters: { ...state.loadingFilters, [collectionId]: false },
+        filterFetchErrors: {
+          ...state.filterFetchErrors,
+          [collectionId]: {
+            timestamp: Date.now(),
+            retryCount: (state.filterFetchErrors[collectionId]?.retryCount ?? 0) + 1,
+          },
+        },
+      }));
+      return null;
     }
 
     set((state) => ({
@@ -525,6 +570,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
       filterValuesCache: {},
       activeFilters: {},
       loadingFilters: {},
+      filterFetchErrors: {},
     }),
 }));
 
