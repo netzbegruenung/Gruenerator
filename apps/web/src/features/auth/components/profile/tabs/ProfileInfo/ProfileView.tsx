@@ -8,7 +8,6 @@ import { useAuthStore, type SupportedLocale } from '../../../../../../stores/aut
 
 import SettingsSection from './SettingsSection';
 
-
 interface User {
   id: string;
   email?: string;
@@ -70,6 +69,9 @@ interface ProfileViewProps {
   onToggleIgelModus: (checked: boolean) => void;
   isBetaFeaturesUpdating: boolean;
   onSuccessMessage: (message: string) => void;
+  onSave: () => void;
+  isSaving: boolean;
+  isDirty: boolean;
 }
 
 const ProfileView = ({
@@ -102,6 +104,9 @@ const ProfileView = ({
   onToggleIgelModus,
   isBetaFeaturesUpdating,
   onSuccessMessage,
+  onSave,
+  isSaving,
+  isDirty,
 }: ProfileViewProps) => {
   const { locale, updateLocale } = useAuthStore();
 
@@ -226,6 +231,15 @@ const ProfileView = ({
               disabled={isLoading}
             />
             <div className="profile-card-char-count">{customPrompt.length}/2000</div>
+            <button
+              type="button"
+              className="btn-primary size-s"
+              onClick={onSave}
+              disabled={!isDirty || isSaving || isLoading}
+              style={{ alignSelf: 'flex-end', marginTop: '4px' }}
+            >
+              {isSaving ? <Spinner size="small" /> : 'Speichern'}
+            </button>
           </div>
 
           {/* Hidden profile fields - only shown when not from Keycloak */}

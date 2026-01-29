@@ -35,6 +35,7 @@ interface NotebookState {
   filterValuesCache: FilterValuesCache; // { [collectionId]: { [field]: { label, values } } }
   activeFilters: ActiveFilters; // { [collectionId]: { [field]: [value1, value2, ...] } }
   loadingFilters: Record<string, boolean>; // { [collectionId]: boolean }
+  failedFilters: Record<string, boolean>; // { [collectionId]: boolean } – prevents infinite retry on error
 
   // Actions
   setLoading: (loading: boolean) => void;
@@ -102,6 +103,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   filterValuesCache: {},
   activeFilters: {},
   loadingFilters: {},
+  failedFilters: {},
 
   // Actions
   setLoading: (loading) => set({ loading }),
@@ -203,7 +205,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.document_ids = collectionData.documents || [];
       }
 
-      const response = await apiClient.put(`/auth/notebook-collections/${collectionId}`, requestData);
+      const response = await apiClient.put(
+        `/auth/notebook-collections/${collectionId}`,
+        requestData
+      );
 
       const data = response.data;
 
@@ -333,10 +338,14 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   // ─── Filter Actions ────────────────────────────────────────────────────
 
   fetchFilterValues: async (collectionId) => {
-    const { filterValuesCache, loadingFilters } = get();
+    const { filterValuesCache, loadingFilters, failedFilters } = get();
 
-    if (filterValuesCache[collectionId] || loadingFilters[collectionId]) {
-      return filterValuesCache[collectionId];
+    if (
+      filterValuesCache[collectionId] ||
+      loadingFilters[collectionId] ||
+      failedFilters[collectionId]
+    ) {
+      return filterValuesCache[collectionId] ?? null;
     }
 
     set((state) => ({
@@ -359,6 +368,9 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
       }
     } catch (error) {
       console.error('[notebookStore] Error fetching filters:', collectionId, error);
+      set((state) => ({
+        failedFilters: { ...state.failedFilters, [collectionId]: true },
+      }));
     }
 
     set((state) => ({
@@ -525,6 +537,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
       filterValuesCache: {},
       activeFilters: {},
       loadingFilters: {},
+      failedFilters: {},
     }),
 }));
 

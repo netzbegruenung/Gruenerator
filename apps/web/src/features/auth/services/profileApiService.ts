@@ -16,6 +16,7 @@ export interface Profile {
   igel_modus?: boolean;
   beta_features?: Record<string, unknown>;
   memory_enabled?: boolean;
+  custom_prompt?: string | null;
   [key: string]: unknown;
 }
 
@@ -267,6 +268,7 @@ export const profileApiService = {
       igel_modus: profile.igel_modus || false,
       beta_features: profile.beta_features || {},
       memory_enabled: profile.memory_enabled || false,
+      custom_prompt: profile.custom_prompt || null,
     };
 
     return profileData;
