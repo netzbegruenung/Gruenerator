@@ -7,6 +7,8 @@
  * This editor subscribes to modifications and auto-regenerates on changes.
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import {
   View,
@@ -17,9 +19,8 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { EditCategoryBar } from '../../components/image-studio/EditCategoryBar';
 import {
   EditCategoryModal,
@@ -29,14 +30,14 @@ import {
   InlineEditBar,
   type InlineEditCategory,
 } from '../../components/image-studio/InlineEditBar';
-import { useImageStudioStore } from '../../stores/imageStudioStore';
-import { useEditRegeneration } from '../../hooks/useEditRegeneration';
 import {
   supportsEditing,
   getAvailableCategories,
   type EditCategory,
 } from '../../config/editSheetConfig';
+import { useEditRegeneration } from '../../hooks/useEditRegeneration';
 import { getImageDataUri } from '../../services/imageStudio';
+import { useImageStudioStore } from '../../stores/imageStudioStore';
 import { lightTheme, darkTheme, colors, spacing, borderRadius } from '../../theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -91,14 +92,6 @@ export default function FullscreenImageStudioEditor() {
     }
   }, [modifications, formData, debouncedRegenerate]);
 
-  if (!type || !generatedImage || !supportsEditing(type)) {
-    router.back();
-    return null;
-  }
-
-  const categories = getAvailableCategories(type);
-  const imageUri = getImageDataUri(generatedImage);
-
   const handleClose = useCallback(() => {
     router.back();
   }, []);
@@ -120,6 +113,14 @@ export default function FullscreenImageStudioEditor() {
   const handleCloseInlineEdit = useCallback(() => {
     setInlineCategory(null);
   }, []);
+
+  if (!type || !generatedImage || !supportsEditing(type)) {
+    router.back();
+    return null;
+  }
+
+  const categories = getAvailableCategories(type);
+  const imageUri = getImageDataUri(generatedImage);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

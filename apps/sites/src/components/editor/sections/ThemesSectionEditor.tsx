@@ -80,6 +80,7 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
           const contentLength = getTextLength(theme.content || '');
           return (
             <div
+              // eslint-disable-next-line react/no-array-index-key
               key={index}
               className={`editor-array-item ${isItemHighlighted(index) ? 'editor-array-item--highlighted' : ''}`}
             >
