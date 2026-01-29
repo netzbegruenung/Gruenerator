@@ -47,10 +47,12 @@ export interface UrlConfig {
   callback: string;
 }
 
+const authBase = process.env.AUTH_BASE_URL || `${PRIMARY_URL}/api`;
+
 export const URLS: UrlConfig = {
   base: process.env.BASE_URL || PRIMARY_URL,
-  authBase: process.env.AUTH_BASE_URL || `${PRIMARY_URL}/api`,
-  callback: `${process.env.AUTH_BASE_URL || PRIMARY_URL}/api/auth/callback`,
+  authBase,
+  callback: `${authBase}/auth/callback`,
 };
 
 export function isAllowedDomain(domain: string | undefined): boolean {

@@ -6,9 +6,11 @@ import {
   randomState,
   skipSubjectCheck,
 } from 'openid-client';
-import type { Strategy } from 'passport';
-import type { Request } from 'express';
+
 import { isAllowedDomain, buildDomainUrl, URLS } from '../utils/domainUtils.js';
+
+import type { Request } from 'express';
+import type { Strategy } from 'passport';
 
 // openid-client v6 types (extracted from return types)
 type Config = Awaited<ReturnType<typeof discovery>>;
@@ -376,6 +378,12 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
         }
       }
     );
+
+    if (URLS.callback.includes('/api/api/')) {
+      console.warn(
+        `[KeycloakOIDC] WARNING: callback URL contains double /api/ prefix: ${URLS.callback}`
+      );
+    }
 
     console.log('[KeycloakOIDC] Pre-warming Keycloak discovery...');
     await strategy.initialize();
