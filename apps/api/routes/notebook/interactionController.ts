@@ -5,21 +5,23 @@
  * Handles authentication, request validation, and response formatting.
  */
 
-import express, { Response, Request } from 'express';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
-import authMiddleware from '../../middleware/authMiddleware.js';
-import { notebookQAService } from '../../services/notebook/index.js';
-import { createLogger } from '../../utils/logger.js';
+import express, { type Response, type Request } from 'express';
+
 import {
   getSystemCollectionConfig,
   getCollectionFilterableFields,
   getCollectionDefaultFilter,
   getDefaultMultiCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+import authMiddleware from '../../middleware/authMiddleware.js';
+import { notebookQAService } from '../../services/notebook/index.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type { NotebookRequest, AskQuestionBody, PublicAccessRecord } from './types.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('notebookInteraction');
 const { requireAuth } = authMiddleware;
@@ -44,107 +46,163 @@ const notebookHelper = new NotebookQdrantHelper();
 
 /**
  * GET /api/qa/collections/:id/filters
- * Get available filter values for a system collection
+ * Get available filter values for a system or user notebook collection
  */
-router.get('/collections/:id/filters', async (req: Request, res: Response) => {
-  try {
-    const collectionId = req.params.id;
-    const systemConfig = getSystemCollectionConfig(collectionId);
+router.get(
+  '/collections/:id/filters',
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const collectionId = req.params.id;
 
-    if (!systemConfig) {
-      return res.status(404).json({ error: 'System collection not found' });
-    }
+      // 1. Try system collection first (existing logic)
+      const systemConfig = getSystemCollectionConfig(collectionId);
 
-    const filterableFields = getCollectionFilterableFields(collectionId);
+      if (systemConfig) {
+        const filterableFields = getCollectionFilterableFields(collectionId);
 
-    if (!filterableFields || filterableFields.length === 0) {
-      return res.json({
-        collectionId,
-        collectionName: systemConfig.name,
-        filters: {},
-      });
-    }
-
-    const qdrant = getQdrantInstance();
-    await qdrant.init();
-
-    // Build a base filter from the collection's defaultFilter (e.g., landesverband: 'HH' for Hamburg)
-    // This ensures filter dropdowns only show values relevant to this specific collection,
-    // not values from other collections sharing the same Qdrant collection.
-    const defaultFilter = getCollectionDefaultFilter(collectionId);
-    const baseFilter = defaultFilter
-      ? {
-          must: [
-            {
-              key: defaultFilter.field,
-              match: Array.isArray(defaultFilter.value)
-                ? { any: defaultFilter.value }
-                : { value: defaultFilter.value },
-            },
-          ],
+        if (!filterableFields || filterableFields.length === 0) {
+          return res.json({
+            collectionId,
+            collectionName: systemConfig.name,
+            filters: {},
+          });
         }
-      : null;
 
-    const filters: Record<
-      string,
-      {
-        label: string;
-        type: string;
-        values?: Array<{ value: string; count: number }>;
-        min?: string;
-        max?: string;
+        const qdrant = getQdrantInstance();
+        await qdrant.init();
+
+        const defaultFilter = getCollectionDefaultFilter(collectionId);
+        const baseFilter = defaultFilter
+          ? {
+              must: [
+                {
+                  key: defaultFilter.field,
+                  match: Array.isArray(defaultFilter.value)
+                    ? { any: defaultFilter.value }
+                    : { value: defaultFilter.value },
+                },
+              ],
+            }
+          : null;
+
+        const filters: Record<
+          string,
+          {
+            label: string;
+            type: string;
+            values?: Array<{ value: string; count: number }>;
+            min?: string;
+            max?: string;
+          }
+        > = {};
+
+        for (const field of filterableFields) {
+          try {
+            const fieldType = field.type as string;
+            if (fieldType === 'date_range') {
+              const { min, max } = await qdrant.getDateRange(
+                systemConfig.qdrantCollection,
+                field.field,
+                baseFilter
+              );
+              filters[field.field] = {
+                label: field.label,
+                type: fieldType,
+                min: min ?? undefined,
+                max: max ?? undefined,
+              };
+            } else {
+              const valuesWithCounts = await qdrant.getFieldValueCounts(
+                systemConfig.qdrantCollection,
+                field.field,
+                50,
+                baseFilter
+              );
+              filters[field.field] = {
+                label: field.label,
+                type: fieldType,
+                values: valuesWithCounts,
+              };
+            }
+          } catch (fieldError) {
+            const err = fieldError as Error;
+            log.warn(`[QA Filters] Failed to get values for ${field.field}:`, err.message);
+            filters[field.field] = {
+              label: field.label,
+              type: field.type,
+              values: [],
+            };
+          }
+        }
+
+        return res.json({
+          collectionId,
+          collectionName: systemConfig.name,
+          filters,
+        });
       }
-    > = {};
 
-    for (const field of filterableFields) {
-      try {
-        const fieldType = field.type as string;
-        if (fieldType === 'date_range') {
-          const { min, max } = await qdrant.getDateRange(
-            systemConfig.qdrantCollection,
-            field.field,
-            baseFilter
-          );
-          filters[field.field] = {
-            label: field.label,
-            type: fieldType,
-            min: min ?? undefined,
-            max: max ?? undefined,
-          };
-        } else {
-          const valuesWithCounts = await qdrant.getFieldValueCounts(
-            systemConfig.qdrantCollection,
+      // 2. Try user notebook collection
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection || collection.user_id !== req.user!.id) {
+        return res.status(404).json({ error: 'Collection not found' });
+      }
+
+      const docs = await notebookHelper.getCollectionDocuments(collectionId);
+      if (!docs || docs.length === 0) {
+        return res.json({ collectionId, collectionName: collection.name, filters: {} });
+      }
+
+      const documentIds = docs.map((d) => d.document_id);
+      const userBaseFilter = {
+        must: [
+          { key: 'user_id', match: { value: collection.user_id } },
+          { key: 'document_id', match: { any: documentIds } },
+        ],
+      };
+
+      const qdrant = getQdrantInstance();
+      await qdrant.init();
+
+      const userFilters: Record<
+        string,
+        { label: string; type: string; values: Array<{ value: string; count: number }> }
+      > = {};
+
+      const userFilterableFields = [{ field: 'source_type', label: 'Quelle', type: 'keyword' }];
+
+      for (const field of userFilterableFields) {
+        try {
+          const values = await qdrant.getFieldValueCounts(
+            'documents',
             field.field,
             50,
-            baseFilter
+            userBaseFilter
           );
-          filters[field.field] = {
-            label: field.label,
-            type: fieldType,
-            values: valuesWithCounts,
-          };
+          if (values.length > 1) {
+            userFilters[field.field] = { label: field.label, type: field.type, values };
+          }
+        } catch (fieldError) {
+          const err = fieldError as Error;
+          log.warn(
+            `[QA Filters] Failed to get user filter values for ${field.field}:`,
+            err.message
+          );
         }
-      } catch (fieldError) {
-        const err = fieldError as Error;
-        log.warn(`[QA Filters] Failed to get values for ${field.field}:`, err.message);
-        filters[field.field] = {
-          label: field.label,
-          type: field.type,
-          values: [],
-        };
       }
-    }
 
-    return res.json({
-      collectionId,
-      collectionName: systemConfig.name,
-      filters,
-    });
-  } catch (error) {
-    log.error('[QA Filters] Error getting collection filters:', error);
-    return res.status(500).json({ error: 'Failed to get collection filters' });
+      return res.json({
+        collectionId,
+        collectionName: collection.name,
+        filters: userFilters,
+      });
+    } catch (error) {
+      log.error('[QA Filters] Error getting collection filters:', error);
+      return res.status(500).json({ error: 'Failed to get collection filters' });
+    }
   }
-});
+);
 
 // =============================================================================
 // Multi-Collection QA Routes
