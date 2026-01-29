@@ -22,37 +22,37 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     id: 'dreizeilen',
     label: '3 Zeilen',
     description: 'Drei Textzeilen mit Hintergrundbild',
-    previewImage: '/imagine/previews/dreizeilen-preview.png',
+    previewImage: '/imagine-assets/previews/dreizeilen-preview.png',
   },
   zitat: {
     id: 'zitat',
     label: 'Zitat',
     description: 'Zitat mit Hintergrundbild',
-    previewImage: '/imagine/previews/zitat-preview.png',
+    previewImage: '/imagine-assets/previews/zitat-preview.png',
   },
   'zitat-pure': {
     id: 'zitat-pure',
     label: 'Zitat Pur',
     description: 'Zitat ohne Hintergrundbild',
-    previewImage: '/imagine/previews/zitat-pure-preview.png',
+    previewImage: '/imagine-assets/previews/zitat-pure-preview.png',
   },
   simple: {
     id: 'simple',
     label: 'Einfach',
     description: 'Überschrift und Unterzeile mit Bild',
-    previewImage: '/imagine/previews/simple-preview.png',
+    previewImage: '/imagine-assets/previews/simple-preview.png',
   },
   info: {
     id: 'info',
     label: 'Info',
     description: 'Überschrift und Text ohne Bild',
-    previewImage: '/imagine/previews/info-preview.png',
+    previewImage: '/imagine-assets/previews/info-preview.png',
   },
   veranstaltung: {
     id: 'veranstaltung',
     label: 'Event',
     description: 'Veranstaltungsankündigung',
-    previewImage: '/imagine/previews/veranstaltung-preview.png',
+    previewImage: '/imagine-assets/previews/veranstaltung-preview.png',
   },
 };
 

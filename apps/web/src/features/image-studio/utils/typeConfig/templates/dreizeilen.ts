@@ -13,7 +13,7 @@ export const dreizeilenTypeConfig: TemplateTypeConfig = {
   label: 'Standard-Sharepic',
   description: 'Drei Textzeilen mit Hintergrundbild',
   icon: PiTextT,
-  previewImage: '/imagine/previews/dreizeilen-preview.png',
+  previewImage: '/imagine-assets/previews/dreizeilen-preview.png',
   requiresImage: true,
   hasTextGeneration: true,
   usesFluxApi: false,
