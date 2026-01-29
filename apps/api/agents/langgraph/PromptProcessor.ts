@@ -267,7 +267,7 @@ async function applyProfileDefaults(requestData: any, req: any, type: string): P
     const profile = await profileService.getProfileById(req.user.id);
     if (!profile) return requestData;
 
-    if (!requestData.customPrompt && (profile as any).custom_prompt?.trim()) {
+    if ((profile as any).custom_prompt?.trim()) {
       requestData.customPrompt = (profile as any).custom_prompt;
     }
 
