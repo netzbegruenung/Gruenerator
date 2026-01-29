@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
+
 import { useAuth } from '../hooks/useAuth';
+import { useAuthStore } from '../stores/authStore';
 
 export const LoginPage = () => {
   const navigate = useNavigate();

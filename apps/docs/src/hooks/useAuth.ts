@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
+import { useEffect } from 'react';
+
 import apiClient from '../lib/apiClient';
+import { useAuthStore } from '../stores/authStore';
 
 interface AuthStatusResponse {
   isAuthenticated: boolean;
