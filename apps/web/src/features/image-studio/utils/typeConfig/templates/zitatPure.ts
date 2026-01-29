@@ -13,7 +13,7 @@ export const zitatPureTypeConfig: TemplateTypeConfig = {
   label: 'Zitat (Text)',
   description: 'Reines Text-Zitat ohne Bild',
   icon: PiQuotes,
-  previewImage: '/imagine-assets/previews/zitat-pure-preview.png',
+  previewImage: '/imagine/previews/zitat-pure-preview.png',
   requiresImage: false,
   hasTextGeneration: true,
   hasTextCanvasEdit: true,

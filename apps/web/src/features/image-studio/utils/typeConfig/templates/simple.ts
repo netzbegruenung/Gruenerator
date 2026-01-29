@@ -13,7 +13,7 @@ export const simpleTypeConfig: TemplateTypeConfig = {
   label: 'Text auf Bild',
   description: 'Einfaches Sharepic mit Headline und Subtext',
   icon: PiTextT,
-  previewImage: '/imagine-assets/previews/simple-preview.png',
+  previewImage: '/imagine/previews/simple-preview.png',
   requiresImage: true,
   hasTextGeneration: true,
   hasTextCanvasEdit: true,

@@ -19,7 +19,7 @@ export const allyMakerTypeConfig: KiTypeConfig = {
   label: 'Ally Maker',
   description: 'Füge Regenbogen-Tattoos hinzu',
   icon: HiHeart,
-  previewImage: '/imagine-assets/variants/realistic-photo.png',
+  previewImage: '/imagine/variants/realistic-photo.png',
   hidden: true,
   requiresImage: true,
   hasTextGeneration: false,

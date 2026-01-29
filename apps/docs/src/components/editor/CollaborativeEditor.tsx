@@ -1,32 +1,31 @@
-import { type HocuspocusProvider } from '@hocuspocus/provider';
+import { useEffect, useRef, useState } from 'react';
+import { EditorContent, EditorContext, useEditor } from '@tiptap/react';
+import * as Y from 'yjs';
+import { HocuspocusProvider } from '@hocuspocus/provider';
 
 // --- Tiptap Core Extensions ---
-import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
-import Highlight from '@tiptap/extension-highlight';
+import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
-import Placeholder from '@tiptap/extension-placeholder';
-import Subscript from '@tiptap/extension-subscript';
-import Superscript from '@tiptap/extension-superscript';
-import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import TextAlign from '@tiptap/extension-text-align';
 import Typography from '@tiptap/extension-typography';
+import Highlight from '@tiptap/extension-highlight';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
 import Underline from '@tiptap/extension-underline';
-import { EditorContent, EditorContext, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useRef, useState } from 'react';
-
-import type * as Y from 'yjs';
+import Link from '@tiptap/extension-link';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import Placeholder from '@tiptap/extension-placeholder';
 
 // --- UI Primitives ---
 import { Spacer } from '@/components/tiptap-ui-primitive/spacer';
 import { Toolbar, ToolbarGroup, ToolbarSeparator } from '@/components/tiptap-ui-primitive/toolbar';
 
 // --- Tiptap Node ---
-import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension';
 import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension';
+import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension';
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss';
 import '@/components/tiptap-node/code-block-node/code-block-node.scss';
 import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss';
@@ -36,28 +35,28 @@ import '@/components/tiptap-node/heading-node/heading-node.scss';
 import '@/components/tiptap-node/paragraph-node/paragraph-node.scss';
 
 // --- Tiptap UI ---
-import { AiEditorPopover } from '@/components/tiptap-ui/ai-editor-popover';
-import { AiHistoryDropdown } from '@/components/tiptap-ui/ai-history-dropdown';
-import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button';
-import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button';
 import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu';
 import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button';
-import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/link-popover';
 import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu';
+import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button';
+import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button';
+import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/link-popover';
 import { MarkButton } from '@/components/tiptap-ui/mark-button';
 import { TextAlignButton } from '@/components/tiptap-ui/text-align-button';
 import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button';
+import { AiEditorPopover } from '@/components/tiptap-ui/ai-editor-popover';
+import { AiHistoryDropdown } from '@/components/tiptap-ui/ai-history-dropdown';
 
 // --- Hooks ---
-import { useCursorVisibility } from '@/hooks/use-cursor-visibility';
 import { useIsBreakpoint } from '@/hooks/use-is-breakpoint';
 import { useWindowSize } from '@/hooks/use-window-size';
+import { useCursorVisibility } from '@/hooks/use-cursor-visibility';
 
 // --- Stores ---
+import { useEditorStore } from '@/stores/editorStore';
 
 // --- Lib ---
 import { handleImageUpload, MAX_FILE_SIZE } from '@/lib/tiptap-utils';
-import { useEditorStore } from '@/stores/editorStore';
 
 // --- Styles ---
 import '@/components/tiptap-templates/simple/simple-editor.scss';

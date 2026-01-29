@@ -81,11 +81,7 @@ export function ThemesSection({ data }: ThemesSectionProps) {
         <div className="themes-carousel-wrapper">
           <div className="themes-carousel" ref={carouselRef}>
             {data.themes.map((theme, index) => (
-              <article
-                // eslint-disable-next-line react/no-array-index-key
-                key={index}
-                className="theme-card"
-              >
+              <article key={index} className="theme-card">
                 {theme.imageUrl && (
                   <div className="theme-image-wrapper">
                     <img

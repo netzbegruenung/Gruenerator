@@ -141,6 +141,3 @@ services/comfyui/
 
 # Windows Zone.Identifier metadata files
 *:Zone.Identifier
-
-# Remotion build output
-apps/api/services/remotion/out/

@@ -132,6 +132,7 @@ export const useAiEditStore = create<AiEditStore>((set, get) => ({
       const currentIndex = state.historyIndex[documentId] ?? -1;
 
       let newHistory: AiEditEntry[];
+      let newIndex: number;
 
       if (currentIndex === -1 || currentIndex === currentHistory.length - 1) {
         // At the end, add new entry
@@ -143,7 +144,7 @@ export const useAiEditStore = create<AiEditStore>((set, get) => ({
         );
       }
 
-      const newIndex = newHistory.length - 1;
+      newIndex = newHistory.length - 1;
 
       return {
         history: {
