@@ -10,7 +10,6 @@ import React, {
 } from 'react';
 
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
-import { useAutosave } from '../../../../../../hooks/useAutosave';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import { useProfileStore } from '../../../../../../stores/profileStore';
 import { useProfile } from '../../../../hooks/useProfileData';
@@ -200,24 +199,23 @@ const ProfileInfoTabContainer = ({
     onErrorProfileMessage,
   ]);
 
-  const { resetTracking } = useAutosave({
-    saveFunction: async () => {
+  const savedCustomPromptRef = useRef('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const isDirty = customPrompt !== savedCustomPromptRef.current;
+
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    try {
       await stateBasedSave();
-    },
-    formRef: {
-      getValues: () => ({ displayName, username, email, customPrompt }),
-      watch: (callback: (value: Record<string, unknown>, { name }: { name?: string }) => void) => ({
-        unsubscribe: () => {},
-      }),
-    },
-    enabled: profile && isInitialized.current,
-    debounceMs: 2000,
-    getFieldsToTrack: () => ['displayName', 'username', 'email', 'customPrompt'],
-    onError: (error: unknown) => {
-      console.error('Profile autosave failed:', error);
-      setErrorProfile('Automatisches Speichern fehlgeschlagen.');
-    },
-  });
+      savedCustomPromptRef.current = customPrompt;
+      onSuccessMessage('Persönliche Anweisungen gespeichert.');
+    } catch {
+      onErrorProfileMessage('Speichern fehlgeschlagen. Bitte versuche es erneut.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [stateBasedSave, customPrompt, onSuccessMessage, onErrorProfileMessage]);
 
   useEffect(() => {
     if (!profile || !user) return;
@@ -226,20 +224,12 @@ const ProfileInfoTabContainer = ({
       setDisplayName(formFields.displayName);
       setUsername(formFields.username);
       setEmail(formFields.email);
-      setCustomPrompt((profile as { custom_prompt?: string })?.custom_prompt || '');
+      const initialPrompt = (profile as { custom_prompt?: string })?.custom_prompt || '';
+      setCustomPrompt(initialPrompt);
+      savedCustomPromptRef.current = initialPrompt;
       isInitialized.current = true;
-      setTimeout(() => resetTracking(), 100);
     }
-  }, [profile, user, resetTracking]);
-
-  useEffect(() => {
-    if (profile && isInitialized.current) {
-      const timer = setTimeout(() => {
-        resetTracking();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [displayName, username, email, customPrompt, resetTracking, profile]);
+  }, [profile, user]);
 
   useEffect(() => {
     if (profileUpdateError) {
@@ -361,6 +351,9 @@ const ProfileInfoTabContainer = ({
         onToggleIgelModus={handleToggleIgelModus}
         isBetaFeaturesUpdating={isBetaFeaturesUpdating}
         onSuccessMessage={onSuccessMessage}
+        onSave={handleSave}
+        isSaving={isSaving}
+        isDirty={isDirty}
       />
 
       {showAvatarModal && (
