@@ -24,7 +24,7 @@
   max-width: 800px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--spacing-medium);
   padding: 0 var(--spacing-medium) var(--spacing-large);
   box-sizing: border-box;
@@ -52,7 +52,7 @@
 .tabbed-layout__tabs {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: center;
   gap: var(--spacing-small);
   width: 100%;
 }
@@ -150,8 +150,13 @@
   pointer-events: none;
 }
 
-/* Compact layout modifier - full width content */
-.tabbed-layout--compact .tabbed-layout__content {
+/* Compact layout modifier */
+.tabbed-layout--compact .tabbed-layout__header {
+  padding-bottom: var(--spacing-small);
+}
+
+/* Full width content modifier (e.g., after content is generated) */
+.tabbed-layout--full-width .tabbed-layout__content {
   max-width: 100%;
   padding: 0 var(--spacing-large);
 }

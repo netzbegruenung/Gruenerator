@@ -56,7 +56,7 @@ interface TooltipContentProps extends Omit<React.HTMLProps<HTMLDivElement>, 'ref
 interface TooltipContextValue extends UseFloatingReturn<ReferenceType> {
   open: boolean;
   setOpen: (open: boolean) => void;
-  getReferenceProps: (userProps?: React.HTMLProps<HTMLElement>) => Record<string, unknown>;
+  getReferenceProps: (userProps?: React.HTMLProps<Element>) => Record<string, unknown>;
   getFloatingProps: (userProps?: React.HTMLProps<HTMLDivElement>) => Record<string, unknown>;
 }
 
@@ -135,7 +135,11 @@ export function Tooltip({ children, ...props }: TooltipProviderProps) {
   const tooltip = useTooltip(props);
 
   if (!props.useDelayGroup) {
-    return <TooltipContext.Provider value={tooltip}>{children}</TooltipContext.Provider>;
+    return (
+      <TooltipContext.Provider value={tooltip as unknown as TooltipContextValue}>
+        {children}
+      </TooltipContext.Provider>
+    );
   }
 
   return (
@@ -143,7 +147,9 @@ export function Tooltip({ children, ...props }: TooltipProviderProps) {
       delay={{ open: props.delay ?? 0, close: props.closeDelay ?? 0 }}
       timeoutMs={props.timeout}
     >
-      <TooltipContext.Provider value={tooltip}>{children}</TooltipContext.Provider>
+      <TooltipContext.Provider value={tooltip as unknown as TooltipContextValue}>
+        {children}
+      </TooltipContext.Provider>
     </FloatingDelayGroup>
   );
 }

@@ -49,6 +49,7 @@ export interface NotebookListProps {
   onShare: (id: string) => void;
   onView: (id: string) => void;
   loading?: boolean;
+  processingCollectionIds?: Set<string>;
 }
 
 /**

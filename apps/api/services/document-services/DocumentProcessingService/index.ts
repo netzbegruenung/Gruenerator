@@ -25,7 +25,7 @@ export { extractTextFromFile, generateContentPreview } from './textExtraction.js
 
 export { chunkAndEmbedText } from './chunkingPipeline.js';
 
-export { processFileUpload } from './fileProcessing.js';
+export { processFileUpload, processUploadedDocument } from './fileProcessing.js';
 
 export { processTextContent } from './textProcessing.js';
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FaWindows, FaApple, FaLinux } from 'react-icons/fa';
-import { HiDownload, HiRefresh } from 'react-icons/hi';
+import { HiDownload, HiRefresh, HiChevronDown, HiChevronUp } from 'react-icons/hi';
 
 import { Markdown } from '../../components/common/Markdown';
 import '../../assets/styles/pages/Impressum_datenschutz.css';
@@ -121,15 +121,14 @@ const formatSize = (bytes: number): string => {
 
 const getAssetLabel = (filename: string): string => {
   const lower = filename.toLowerCase();
-  if (lower.includes('.msi')) return 'Windows Installer (.msi)';
-  if (lower.includes('.exe') && lower.includes('setup')) return 'Windows Setup (.exe)';
-  if (lower.includes('.exe')) return 'Windows (.exe)';
-  if (lower.includes('.dmg') && lower.includes('aarch64')) return 'macOS Apple Silicon (.dmg)';
-  if (lower.includes('.dmg') && lower.includes('x64')) return 'macOS Intel (.dmg)';
-  if (lower.includes('.dmg')) return 'macOS (.dmg)';
+  if (lower.includes('.msi')) return '.msi';
+  if (lower.includes('.exe')) return '.exe';
+  if (lower.includes('.dmg') && lower.includes('aarch64')) return 'Apple Silicon';
+  if (lower.includes('.dmg') && lower.includes('x64')) return 'Intel';
+  if (lower.includes('.dmg')) return '.dmg';
   if (lower.includes('.appimage')) return 'AppImage';
-  if (lower.includes('.deb')) return 'Debian/Ubuntu (.deb)';
-  if (lower.includes('.rpm')) return 'Fedora/RHEL (.rpm)';
+  if (lower.includes('.deb')) return '.deb';
+  if (lower.includes('.rpm')) return '.rpm';
   return filename;
 };
 
@@ -209,27 +208,19 @@ const PlatformSection = ({
         {isCurrentPlatform && <span className="apps-platform-badge">Dein System</span>}
       </h3>
       <ul className="apps-download-list">
-        {sortedAssets.map((asset) => {
-          const assetArch = getAssetArchitecture(asset.name);
-          const isRecommended = isCurrentPlatform && assetArch === userArchitecture;
-
-          return (
-            <li key={asset.id}>
-              <a
-                href={asset.browser_download_url}
-                className={`btn-primary apps-download-btn ${isRecommended ? 'apps-download-recommended' : ''}`}
-                download
-              >
-                <HiDownload />
-                <span className="download-label">
-                  {getAssetLabel(asset.name)}
-                  {isRecommended && <span className="apps-recommended-badge">Empfohlen</span>}
-                </span>
-                <span className="download-size">({formatSize(asset.size)})</span>
-              </a>
-            </li>
-          );
-        })}
+        {sortedAssets.map((asset) => (
+          <li key={asset.id}>
+            <a
+              href={asset.browser_download_url}
+              className="btn-primary apps-download-btn"
+              download
+            >
+              <HiDownload />
+              <span className="download-label">{getAssetLabel(asset.name)}</span>
+              <span className="download-size">({formatSize(asset.size)})</span>
+            </a>
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -239,6 +230,10 @@ const AppsPage = () => {
   const [release, setRelease] = useState<GitHubRelease | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+
+  const currentPlatform = useMemo(() => detectPlatform(), []);
+  const currentArchitecture = useMemo(() => detectArchitecture(), []);
 
   const fetchRelease = useCallback(async () => {
     setLoading(true);
@@ -319,8 +314,6 @@ const AppsPage = () => {
         <div className="apps-platforms">
           <h2>Downloads</h2>
           {(() => {
-            const currentPlatform = detectPlatform();
-            const currentArchitecture = detectArchitecture();
             const platformConfigs = [
               {
                 key: 'windows',
@@ -332,26 +325,58 @@ const AppsPage = () => {
               { key: 'linux', title: 'Linux', icon: FaLinux, assets: categorizedAssets.linux },
             ];
 
-            // Sort to put current platform first
-            const sortedPlatforms = [...platformConfigs].sort((a, b) => {
-              if (a.key === currentPlatform) return -1;
-              if (b.key === currentPlatform) return 1;
-              return 0;
-            });
+            const currentPlatformConfig = platformConfigs.find((p) => p.key === currentPlatform);
+            const otherPlatforms = platformConfigs.filter((p) => p.key !== currentPlatform);
 
             return (
-              <div className="apps-platforms-grid">
-                {sortedPlatforms.map((platform) => (
-                  <PlatformSection
-                    key={platform.key}
-                    title={platform.title}
-                    icon={platform.icon}
-                    assets={platform.assets}
-                    isCurrentPlatform={platform.key === currentPlatform}
-                    userArchitecture={currentArchitecture}
-                  />
-                ))}
-              </div>
+              <>
+                {currentPlatformConfig && currentPlatformConfig.assets.length > 0 && (
+                  <div className="apps-platforms-grid">
+                    <PlatformSection
+                      key={currentPlatformConfig.key}
+                      title={currentPlatformConfig.title}
+                      icon={currentPlatformConfig.icon}
+                      assets={currentPlatformConfig.assets}
+                      isCurrentPlatform={true}
+                      userArchitecture={currentArchitecture}
+                    />
+                  </div>
+                )}
+
+                {otherPlatforms.some((p) => p.assets.length > 0) && (
+                  <>
+                    <button
+                      className="apps-show-more-btn"
+                      onClick={() => setShowAllPlatforms(!showAllPlatforms)}
+                    >
+                      {showAllPlatforms ? (
+                        <>
+                          <HiChevronUp /> Weniger anzeigen
+                        </>
+                      ) : (
+                        <>
+                          <HiChevronDown /> Andere Systeme
+                        </>
+                      )}
+                    </button>
+
+                    {showAllPlatforms && (
+                      <div className="apps-platforms-grid apps-other-platforms">
+                        {otherPlatforms.map((platform) => (
+                          <PlatformSection
+                            key={platform.key}
+                            title={platform.title}
+                            icon={platform.icon}
+                            assets={platform.assets}
+                            isCurrentPlatform={false}
+                            userArchitecture={currentArchitecture}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             );
           })()}
         </div>

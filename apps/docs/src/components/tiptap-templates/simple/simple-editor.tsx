@@ -188,10 +188,6 @@ export function SimpleEditor() {
     extensions: [
       StarterKit.configure({
         horizontalRule: false,
-        link: {
-          openOnClick: false,
-          enableClickSelection: true,
-        },
       }),
       HorizontalRule,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),

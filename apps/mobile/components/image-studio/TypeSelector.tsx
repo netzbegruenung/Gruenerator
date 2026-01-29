@@ -30,6 +30,7 @@ const TEMPLATE_ICON_MAP: Record<ImageStudioTemplateType, keyof typeof Ionicons.g
   info: 'information-circle-outline',
   veranstaltung: 'calendar-outline',
   profilbild: 'person-circle-outline',
+  simple: 'image-outline',
 };
 
 const KI_ICON_MAP: Record<ImageStudioKiType, keyof typeof Ionicons.glyphMap> = {
