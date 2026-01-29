@@ -22,8 +22,10 @@ export interface TabbedLayoutProps<T extends string = string> {
   children: Record<T, ReactNode>;
   /** Optional header content (title, etc.) shown above tabs */
   header?: ReactNode;
-  /** Whether the layout is in compact mode */
+  /** Whether the layout is in compact mode (reduced header padding) */
   compact?: boolean;
+  /** Whether to expand content to full width (e.g., after content is generated) */
+  fullWidth?: boolean;
   /** Whether tabs are disabled */
   disabled?: boolean;
   /** Custom class name for the wrapper */
@@ -58,6 +60,7 @@ function TabbedLayoutInner<T extends string = string>({
   children,
   header,
   compact = false,
+  fullWidth = false,
   disabled = false,
   className = '',
   ariaLabel = 'Tab navigation',
@@ -65,8 +68,16 @@ function TabbedLayoutInner<T extends string = string>({
   loadingFallback,
 }: TabbedLayoutProps<T>) {
   const wrapperClassName = useMemo(
-    () => `tabbed-layout ${compact ? 'tabbed-layout--compact' : ''} ${className}`.trim(),
-    [compact, className]
+    () =>
+      [
+        'tabbed-layout',
+        compact && 'tabbed-layout--compact',
+        fullWidth && 'tabbed-layout--full-width',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    [compact, fullWidth, className]
   );
 
   const headerClassName = useMemo(

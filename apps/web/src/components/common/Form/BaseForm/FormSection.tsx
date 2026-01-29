@@ -23,7 +23,6 @@ import type {
   HelpContent,
 } from '@/types/baseform';
 
-
 import '../../../../assets/styles/components/baseform/drag-drop.css';
 
 interface FeatureIconsTabIndex {
@@ -177,7 +176,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
     );
     const usePrivacyModeToggle = useFormStateSelector((state) => state.privacyModeConfig.enabled);
     const useFeatureIcons = useFormStateSelector((state) => state.useFeatureIcons);
-    const attachedFiles = useFormStateSelector((state) => state.attachedFiles);
+    const attachedFiles = useFormStateSelector((state) => state.attachedFiles) ?? [];
     const uploadedImage = useFormStateSelector((state) => state.uploadedImage);
     const setStoreAttachedFiles = useFormStateSelector((state) => state.setAttachedFiles);
 
@@ -198,7 +197,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       (files: File[]) => {
         // Update store state using ref to avoid dependency on attachedFiles
         const newFiles = [...attachedFilesRef.current, ...files];
-        setStoreAttachedFiles(newFiles);
+        setStoreAttachedFiles?.(newFiles);
 
         // Call parent callback if provided
         if (onAttachmentClick) {
@@ -213,7 +212,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       (index: number) => {
         // Update store state using ref to avoid dependency on attachedFiles
         const newFiles = attachedFilesRef.current.filter((_, i) => i !== index);
-        setStoreAttachedFiles(newFiles);
+        setStoreAttachedFiles?.(newFiles);
 
         // Call parent callback if provided
         if (onRemoveFile) {

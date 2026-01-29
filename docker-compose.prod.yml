@@ -136,7 +136,7 @@ services:
     labels:
       - 'com.gruenerator.service=nginx'
     healthcheck:
-      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost/nginx-health']
+      test: ['CMD', 'curl', '-f', 'http://localhost/nginx-health']
       interval: 30s
       timeout: 10s
       retries: 3

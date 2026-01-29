@@ -13,6 +13,9 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
+import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
+import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type {
   CreateCollectionBody,
@@ -181,6 +184,10 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       return res.status(400).json({ error: 'Name is required' });
     }
 
+    if (Array.isArray(document_ids) && document_ids.length > 1) {
+      return res.status(400).json({ error: 'Currently limited to 1 document per notebook' });
+    }
+
     let allDocumentIds: string[] = [];
     let wolkeDocuments: DocumentRecord[] = [];
 
@@ -246,6 +253,27 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       return res.status(500).json({ error: 'Failed to add documents to collection' });
     }
 
+    // Fire-and-forget: process any documents that are still in 'uploaded' state
+    if (selection_mode !== 'wolke' && allDocumentIds.length > 0) {
+      const pendingDocs = (await postgres.query(
+        `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded'`,
+        [allDocumentIds, userId]
+      )) as Array<{ id: string }>;
+
+      if (pendingDocs.length > 0) {
+        const pgDocService = getPostgresDocumentService();
+        const qdrantDocService = getQdrantDocumentService();
+        for (const doc of pendingDocs) {
+          processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
+            log.error(`[Notebook Collections] Background processing failed for doc ${doc.id}:`, err);
+          });
+        }
+        log.debug(
+          `[Notebook Collections] Kicked off background processing for ${pendingDocs.length} document(s)`
+        );
+      }
+    }
+
     return res.status(201).json({
       success: true,
       collection: {
@@ -285,6 +313,10 @@ router.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response)
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
+    }
+
+    if (Array.isArray(document_ids) && document_ids.length > 1) {
+      return res.status(400).json({ error: 'Currently limited to 1 document per notebook' });
     }
 
     const existingCollection = await notebookHelper.getNotebookCollection(collectionId);

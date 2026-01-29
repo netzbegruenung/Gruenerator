@@ -8,6 +8,7 @@ import type { NotebookListProps, NotebookCollection } from '../../../types/noteb
 import '../../../assets/styles/features/notebook/notebook-collections.css';
 import '../../../assets/styles/features/auth/profile-cards.css';
 import '../../../assets/styles/components/actions/collection-actions.css';
+import '../styles/notebook-creator.css';
 
 const NotebookList: React.FC<NotebookListProps> = ({
   qaCollections = [],
@@ -16,6 +17,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   onShare,
   onView,
   loading = false,
+  processingCollectionIds = new Set(),
 }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -73,6 +75,12 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   {collection.document_count || 0} Dokument
                   {collection.document_count !== 1 ? 'e' : ''}
                 </span>
+                {processingCollectionIds.has(collection.id) && (
+                  <span className="qa-processing-badge">
+                    <div className="processing-spinner-tiny" />
+                    Wird verarbeitet…
+                  </span>
+                )}
                 {collection.is_public && <span className="qa-public-badge">Öffentlich</span>}
                 <span className="qa-created-date">
                   {new Date(collection.created_at).toLocaleDateString('de-DE')}

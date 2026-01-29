@@ -357,3 +357,105 @@
 .gallery-controls-row .search-bar-container {
   flex: 1;
 }
+
+/* Section header for gallery sub-sections (e.g. "Meine Notebooks") */
+.gallery-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--spacing-xxlarge);
+  margin-bottom: var(--spacing-large);
+  gap: var(--spacing-medium);
+}
+
+.gallery-section-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--font-color-h);
+  margin: 0;
+}
+
+.gallery-section-header .btn-create {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--weiß);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.gallery-section-header .btn-create:hover {
+  background: var(--primary-dark, var(--primary));
+  transform: translateY(-1px);
+}
+
+.gallery-section-divider {
+  border: none;
+  border-top: 1px solid var(--background-color-alt);
+  margin: var(--spacing-xxlarge) 0 0;
+}
+
+/* Modal overlay for notebook editor */
+.notebook-editor-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  padding: var(--spacing-large);
+}
+
+.notebook-editor-modal-content {
+  background: var(--background-color);
+  border-radius: 12px;
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.notebook-editor-modal-content .notebook-creator-container {
+  margin: 0;
+  padding: var(--spacing-large, 1.5rem);
+}
+
+.notebook-editor-modal-content .notebook-creator-card {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+}
+
+/* Hint text for document limit */
+.selected-content-hint {
+  font-size: 0.85rem;
+  color: var(--font-color-muted, #888);
+  margin-top: 0.4rem;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .gallery-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-small);
+  }
+
+  .notebook-editor-modal-overlay {
+    padding: var(--spacing-small);
+  }
+
+  .notebook-editor-modal-content {
+    max-height: 95vh;
+  }
+}

@@ -63,6 +63,8 @@ interface DocumentUploadProps {
   forceShowUploadForm?: boolean;
   showAsModal?: boolean;
   className?: string;
+  allowedUploadModes?: ('file' | 'url' | 'wolke')[];
+  autoUpload?: boolean;
 }
 
 export interface DocumentUploadRef {
@@ -177,6 +179,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
       forceShowUploadForm = false,
       showAsModal = false,
       className = '',
+      allowedUploadModes,
+      autoUpload = false,
     },
     ref
   ) => {
@@ -236,20 +240,35 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
       hideUploadForm: () => setShowUploadForm(false),
     }));
 
-    // Fetch documents on mount
+    // Fetch documents on mount (only when showing the documents list)
     React.useEffect(() => {
-      if (user) {
+      if (user && showDocumentsList) {
         fetchDocuments();
       }
-    }, [user, fetchDocuments]);
+    }, [user, showDocumentsList, fetchDocuments]);
 
-    // Preload Wolke data progressively on mount
+    // Clear stale errors when embedded without documents list
     React.useEffect(() => {
-      if (user) {
-        // Start progressive preloading in the background
+      if (!showDocumentsList && error) {
+        clearError();
+      }
+    }, [showDocumentsList, error, clearError]);
+
+    // Preload Wolke data progressively on mount (skip when embedded without document list)
+    React.useEffect(() => {
+      if (user && showDocumentsList) {
         progressivePreload();
       }
-    }, [user, progressivePreload]);
+    }, [user, showDocumentsList, progressivePreload]);
+
+    // Auto-upload: trigger upload immediately when file is selected
+    React.useEffect(() => {
+      if (autoUpload && selectedFile && uploadTitle.trim() && !isUploading) {
+        handleUpload();
+      }
+      // Only react to file selection changes, not every render
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoUpload, selectedFile]);
 
     // Handle forceShowUploadForm prop - now using computed isFormVisible instead of useEffect
 
@@ -612,12 +631,14 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                     </button>
                   </div>
                   <div className="document-preview-content">
-                    {/* Mode Selector */}
+                    {/* Mode Selector - hide when only one mode allowed */}
+                    {(!allowedUploadModes || allowedUploadModes.length > 1) && (
                     <div
                       className="upload-mode-selector"
                       style={{ marginBottom: 'var(--spacing-medium)' }}
                     >
                       <div className="mode-tabs">
+                        {(!allowedUploadModes || allowedUploadModes.includes('file')) && (
                         <button
                           type="button"
                           className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
@@ -627,6 +648,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           <HiOutlineDocumentAdd className="icon" />
                           Datei
                         </button>
+                        )}
+                        {(!allowedUploadModes || allowedUploadModes.includes('url')) && (
                         <button
                           type="button"
                           className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
@@ -636,6 +659,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           <HiOutlineLink className="icon" />
                           URL
                         </button>
+                        )}
                         {/* Wolke tab temporarily hidden
                       <button
                         type="button"
@@ -650,6 +674,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       */}
                       </div>
                     </div>
+                    )}
 
                     {uploadMode === 'file' ? (
                       <>
@@ -820,12 +845,14 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                 className="knowledge-entry knowledge-entry-bordered"
                 style={{ marginBottom: 'var(--spacing-medium)' }}
               >
-                {/* Mode Selector */}
+                {/* Mode Selector - hide when only one mode allowed */}
+                {(!allowedUploadModes || allowedUploadModes.length > 1) && (
                 <div
                   className="upload-mode-selector"
                   style={{ marginBottom: 'var(--spacing-medium)' }}
                 >
                   <div className="mode-tabs">
+                    {(!allowedUploadModes || allowedUploadModes.includes('file')) && (
                     <button
                       type="button"
                       className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
@@ -835,6 +862,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       <HiOutlineDocumentAdd className="icon" />
                       Datei
                     </button>
+                    )}
+                    {(!allowedUploadModes || allowedUploadModes.includes('url')) && (
                     <button
                       type="button"
                       className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
@@ -844,6 +873,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       <HiOutlineLink className="icon" />
                       URL
                     </button>
+                    )}
                     {/* Wolke tab temporarily hidden
                   <button
                     type="button"
@@ -858,6 +888,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   */}
                   </div>
                 </div>
+                )}
 
                 {uploadMode === 'file' ? (
                   <>
@@ -873,9 +904,17 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       />
 
                       {selectedFile ? (
-                        <div className="file-selected-simple">
-                          <span className="file-name">{selectedFile.name}</span>
-                        </div>
+                        autoUpload ? (
+                          <div className="file-dropzone auto-upload-progress">
+                            <Spinner size="small" />
+                            <span className="auto-upload-filename">{selectedFile.name}</span>
+                            <span className="auto-upload-status">Wird hochgeladen…</span>
+                          </div>
+                        ) : (
+                          <div className="file-selected-simple">
+                            <span className="file-name">{selectedFile.name}</span>
+                          </div>
+                        )
                       ) : (
                         <div
                           className={`file-dropzone ${dragActive ? 'active' : ''}`}
@@ -933,8 +972,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   </>
                 )}
 
-                {/* Title Input */}
-                {(selectedFile || (uploadMode === 'url' && urlInput.trim())) && (
+                {/* Title Input — hidden in autoUpload mode */}
+                {!autoUpload && (selectedFile || (uploadMode === 'url' && urlInput.trim())) && (
                   <div className="form-field-wrapper">
                     <label className="form-label">Titel des Dokuments *</label>
                     <input
@@ -968,7 +1007,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
               )}
               */}
 
-                {/* Action Buttons */}
+                {/* Action Buttons — hidden in autoUpload mode */}
+                {!autoUpload && (
                 <div
                   className="profile-actions"
                   style={{ justifyContent: 'flex-start', gap: '10px' }}
@@ -1026,6 +1066,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                     Abbrechen
                   </button>
                 </div>
+                )}
               </div>
             )}
           </>

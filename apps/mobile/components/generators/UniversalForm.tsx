@@ -90,8 +90,8 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
         return {
           ...base,
           gremium: 'Stadtrat',
-          frage: inhalt.trim(),
-          antwort: 'bürgerfreundlich',
+          anliegen: inhalt.trim(),
+          antwortart: ['bürgerfreundlich'],
         };
       default:
         return {

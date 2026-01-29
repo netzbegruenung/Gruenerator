@@ -1,9 +1,9 @@
-import { WebsocketProvider } from 'y-websocket';
+import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useCollaborators } from '../../hooks/useCollaboration';
 import './PresenceAvatars.css';
 
 interface PresenceAvatarsProps {
-  provider: WebsocketProvider | null;
+  provider: HocuspocusProvider | null;
   compact?: boolean;
   maxVisible?: number;
 }

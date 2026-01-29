@@ -119,12 +119,16 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
   }, []);
 
   const wrapperClassName = useMemo(
-    () => `texte-generator-wrapper ${hasGeneratedContent ? 'has-content' : ''}`,
+    () =>
+      ['tabbed-layout', hasGeneratedContent && 'tabbed-layout--full-width'].filter(Boolean).join(' '),
     [hasGeneratedContent]
   );
 
   const headerClassName = useMemo(
-    () => `texte-generator-header ${hasGeneratedContent ? 'compact' : ''}`,
+    () =>
+      ['tabbed-layout__header', hasGeneratedContent && 'tabbed-layout__header--compact']
+        .filter(Boolean)
+        .join(' '),
     [hasGeneratedContent]
   );
 
@@ -160,7 +164,7 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
             isAuthenticated={isAuthenticated}
           />
         </header>
-        <div className="texte-generator-content">
+        <div className="tabbed-layout__content">
           {showLoginRequired ? (
             <LoginRequired
               variant="fullpage"
@@ -171,7 +175,7 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
           ) : (
             <Suspense fallback={<LoadingFallback />}>
               {Object.entries(tabContent).map(([tabId, content]) => (
-                <div key={tabId} className="tab-panel" data-active={activeTab === tabId}>
+                <div key={tabId} className="tabbed-layout__panel" data-active={activeTab === tabId}>
                   {content}
                 </div>
               ))}

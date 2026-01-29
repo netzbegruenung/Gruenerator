@@ -11,7 +11,6 @@ import useResponsive from '../hooks/useResponsive';
 
 import ExamplePrompts from './ExamplePrompts';
 
-
 import type {
   FormExtrasSectionProps,
   FeatureToggle as FeatureToggleType,
@@ -64,8 +63,8 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
 }) => {
   const { isMobileView } = useResponsive();
 
-  const loading = useFormStateSelector((state) => state.loading);
-  const success = useFormStateSelector((state) => state.success);
+  const loading = useFormStateSelector((state) => state.loading) ?? undefined;
+  const success = useFormStateSelector((state) => state.success) ?? undefined;
   const useInteractiveModeToggleStore = useFormStateSelector(
     (state) => state.interactiveModeConfig?.enabled || false
   );
