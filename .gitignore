@@ -135,5 +135,9 @@ typecheck_output.txt
 .turbo/
 **/.turbo/
 
+# ComfyUI (local-only, not deployed via CI)
+apps/api/services/comfyui/
+services/comfyui/
+
 # Windows Zone.Identifier metadata files
 *:Zone.Identifier

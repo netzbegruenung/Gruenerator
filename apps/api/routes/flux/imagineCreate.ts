@@ -165,7 +165,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       `[ImagineCreate] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${width && height ? ' (custom)' : ' (default)'}`
     );
 
-    const flux = FluxImageService.create();
+    const flux = await FluxImageService.create();
     const fluxOptions: {
       width: number;
       height: number;
