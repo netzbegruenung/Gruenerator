@@ -9,19 +9,22 @@ export function reportMessage(
   level: 'info' | 'warning' | 'error' = 'info',
   context?: Record<string, unknown>
 ): void {
-  const consoleMethod = level === 'warning' ? 'warn' : level;
-  console[consoleMethod]('Message reported:', message, context);
+  if (level === 'error') {
+    console.error('Message reported:', message, context);
+  } else {
+    console.warn('Message reported:', message, context);
+  }
 }
 
 export function setUserContext(user: { id: string; email?: string }): void {
   if (isErrorTrackingEnabled()) {
-    console.info('User context set:', user.id);
+    console.warn('User context set:', user.id);
   }
 }
 
 export function clearUserContext(): void {
   if (isErrorTrackingEnabled()) {
-    console.info('User context cleared');
+    console.warn('User context cleared');
   }
 }
 
@@ -31,6 +34,6 @@ export function addBreadcrumb(
   data?: Record<string, unknown>
 ): void {
   if (isErrorTrackingEnabled()) {
-    console.info('Breadcrumb:', { message, category, ...data });
+    console.warn('Breadcrumb:', { message, category, ...data });
   }
 }
