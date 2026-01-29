@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { useDocumentStore } from '../../stores/documentStore';
 import './DocumentList.css';
 

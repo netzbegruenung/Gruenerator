@@ -1,5 +1,5 @@
-import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import axios from 'axios';
+import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 

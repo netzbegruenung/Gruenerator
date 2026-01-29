@@ -1,16 +1,16 @@
 'use client';
 
-import { NodeSelection, TextSelection } from '@tiptap/pm/state';
-import { type Editor } from '@tiptap/react';
 import { useCallback, useEffect, useState } from 'react';
+import { type Editor } from '@tiptap/react';
+import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 
 // --- Hooks ---
+import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Icons ---
 import { ListIcon } from '@/components/tiptap-icons/list-icon';
 import { ListOrderedIcon } from '@/components/tiptap-icons/list-ordered-icon';
 import { ListTodoIcon } from '@/components/tiptap-icons/list-todo-icon';
-import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Lib ---
 import {

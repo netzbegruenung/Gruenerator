@@ -1,12 +1,5 @@
-import {
-  PresenceAvatars,
-  VersionHistory,
-  ShareModal,
-  ActionSheet,
-  ActionSheetItem,
-  ActionSheetDivider,
-} from '@gruenerator/shared/tiptap-editor';
 import { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   FiDownload,
   FiShare2,
@@ -15,13 +8,19 @@ import {
   FiMoreVertical,
   FiUsers,
 } from 'react-icons/fi';
-import { useParams, useNavigate } from 'react-router-dom';
-
-import { CollaborativeEditor } from '../components/editor/CollaborativeEditor';
 import { useAuth } from '../hooks/useAuth';
-import { useCollaboration, useCollaborators } from '../hooks/useCollaboration';
-import { apiClient } from '../lib/apiClient';
 import { useDocumentStore } from '../stores/documentStore';
+import { useCollaboration, useCollaborators } from '../hooks/useCollaboration';
+import { CollaborativeEditor } from '../components/editor/CollaborativeEditor';
+import {
+  PresenceAvatars,
+  VersionHistory,
+  ShareModal,
+  ActionSheet,
+  ActionSheetItem,
+  ActionSheetDivider,
+} from '@gruenerator/shared/tiptap-editor';
+import { apiClient } from '../lib/apiClient';
 import './EditorPage.css';
 
 export const EditorPage = () => {

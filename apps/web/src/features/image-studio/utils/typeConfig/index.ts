@@ -93,14 +93,14 @@ export const KI_SUBCATEGORY_CONFIG: Record<string, SubcategoryConfig> = {
     label: 'Mit KI Editieren',
     description: 'Bestehende Bilder mit KI bearbeiten',
     icon: HiPencilAlt,
-    previewImage: '/imagine-assets/green-street-example.png',
+    previewImage: '/imagine/green-street-example.png',
   },
   [KI_SUBCATEGORIES.CREATE]: {
     id: KI_SUBCATEGORIES.CREATE,
     label: 'Mit KI Generieren',
     description: 'Neue Bilder aus Text erstellen',
     icon: HiSparkles,
-    previewImage: '/imagine-assets/variants-pure/soft-illustration.png',
+    previewImage: '/imagine/variants-pure/soft-illustration.png',
   },
 };
 
