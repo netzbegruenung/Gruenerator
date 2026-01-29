@@ -3,12 +3,15 @@
  * Handles sharing of images and videos with public links
  */
 
-import express, { Request, Response, Router } from 'express';
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
+
+import express, { type Request, type Response, type Router } from 'express';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { SharedMediaRow, ShareResult } from '../../types/media.js';
 
@@ -605,7 +608,19 @@ router.get(
       const userId = req.user!.id;
       const limit = Math.min(parseInt(req.query.limit as string) || 6, 20);
 
-      const service = await getSharedMediaService();
+      let service;
+      try {
+        service = await getSharedMediaService();
+      } catch (initError) {
+        log.warn('SharedMediaService unavailable, returning empty result:', initError);
+        return res.json({
+          success: true,
+          shares: [],
+          count: 0,
+          limit,
+        });
+      }
+
       const allShares = await service.getUserShares(userId, 'image');
       const recentShares = allShares.slice(0, limit);
 
