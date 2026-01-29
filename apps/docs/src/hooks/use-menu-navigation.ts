@@ -1,5 +1,6 @@
-import type { Editor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
+
+import type { Editor } from '@tiptap/react';
 
 type Orientation = 'horizontal' | 'vertical' | 'both';
 

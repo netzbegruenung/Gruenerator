@@ -1,6 +1,8 @@
 import { useCallback, useEffect } from 'react';
-import type { Editor } from '@tiptap/react';
+
 import { useAiEditStore } from '../stores/aiEditStore';
+
+import type { Editor } from '@tiptap/react';
 
 export const useAiEditHistory = (documentId: string, editor: Editor | null) => {
   const { undo, redo, canUndo, canRedo, getHistory, getCurrentIndex, jumpToHistory } =
