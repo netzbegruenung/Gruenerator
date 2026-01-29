@@ -36,9 +36,6 @@ export interface KnowledgeEntry {
 }
 
 export interface AnweisungenWissen {
-  antragPrompt?: string;
-  antragGliederung?: string;
-  socialPrompt?: string;
   presseabbinder?: string;
   knowledge?: KnowledgeEntry[];
 }
@@ -65,13 +62,8 @@ export interface InstructionsStatusResponse {
 }
 
 export interface AnweisungenSaveData {
-  // Group-specific (only customPrompt)
   customPrompt?: string;
   instructionsEnabled?: boolean;
-  // User-specific (still supported for personal instructions)
-  customAntragPrompt?: string;
-  customAntragGliederung?: string;
-  customSocialPrompt?: string;
   presseabbinder?: string;
   knowledge?: KnowledgeEntry[];
   _groupMembership?: {
@@ -343,17 +335,6 @@ export const profileApiService = {
   },
 
   // === ANWEISUNGEN & WISSEN ===
-  async getInstructionsStatusForType(instructionType: string): Promise<InstructionsStatusResponse> {
-    const response = await apiClient.get(`/auth/instructions-status/${instructionType}`);
-    const data = response.data;
-
-    if (!data.success) {
-      throw new Error(data.message || `Failed to check ${instructionType} instructions status`);
-    }
-
-    return data;
-  },
-
   async getAnweisungenWissen(
     context: 'user' | 'group' = 'user',
     groupId: string | null = null
@@ -385,9 +366,6 @@ export const profileApiService = {
       const json = response.data;
 
       return {
-        antragPrompt: json.antragPrompt || '',
-        antragGliederung: json.antragGliederung || '',
-        socialPrompt: json.socialPrompt || '',
         presseabbinder: json.presseabbinder || '',
         knowledge: json.knowledge || [],
       };
@@ -476,11 +454,8 @@ export const profileApiService = {
       const results = await Promise.all(promises);
       return results[0];
     } else {
-      // Individual user endpoint (only active fields - deprecated ones removed)
+      // Individual user endpoint
       const payload = {
-        custom_antrag_prompt: data.customAntragPrompt,
-        custom_antrag_gliederung: data.customAntragGliederung,
-        custom_social_prompt: data.customSocialPrompt,
         presseabbinder: data.presseabbinder,
         knowledge: cleanedKnowledge,
       };
