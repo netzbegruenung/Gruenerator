@@ -125,7 +125,7 @@ export async function getAccessToken(): Promise<string | null> {
     try {
       const store = await getStore();
       if (store) {
-        const token = await store.get<string>(ACCESS_TOKEN_KEY);
+        const token = (await store.get(ACCESS_TOKEN_KEY)) as string | undefined;
         return token || null;
       }
     } catch (error) {
@@ -145,7 +145,7 @@ export async function getRefreshToken(): Promise<string | null> {
     try {
       const store = await getStore();
       if (store) {
-        const token = await store.get<string>(REFRESH_TOKEN_KEY);
+        const token = (await store.get(REFRESH_TOKEN_KEY)) as string | undefined;
         return token || null;
       }
     } catch (error) {
@@ -165,7 +165,7 @@ export async function getStoredUser(): Promise<StoredUser | null> {
     try {
       const store = await getStore();
       if (store) {
-        const user = await store.get<StoredUser>(USER_KEY);
+        const user = (await store.get(USER_KEY)) as StoredUser | undefined;
         return user || null;
       }
     } catch (error) {
@@ -193,7 +193,7 @@ export async function getTokenExpiry(): Promise<number | null> {
     try {
       const store = await getStore();
       if (store) {
-        const expiry = await store.get<number>(TOKEN_EXPIRY_KEY);
+        const expiry = (await store.get(TOKEN_EXPIRY_KEY)) as number | undefined;
         return expiry || null;
       }
     } catch (error) {

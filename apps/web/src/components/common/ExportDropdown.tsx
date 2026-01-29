@@ -41,8 +41,10 @@ import {
 } from '../utils/contentExtractor';
 
 // Type assertions for JS functions that return Promises
-const extractPlainText = extractPlainTextJs as (content: unknown) => Promise<string>;
-const extractFormattedText = extractFormattedTextJs as (content: unknown) => Promise<string>;
+const extractPlainText = extractPlainTextJs as unknown as (content: unknown) => Promise<string>;
+const extractFormattedText = extractFormattedTextJs as unknown as (
+  content: unknown
+) => Promise<string>;
 import '../../assets/styles/components/actions/exportToDocument.css';
 
 interface ExportDropdownProps {

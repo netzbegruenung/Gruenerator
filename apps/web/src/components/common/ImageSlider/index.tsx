@@ -7,7 +7,6 @@ const loadImageGallery = async () => {
   const [galleryModule, _styleSheet] = await Promise.all([
     // @ts-expect-error - react-image-gallery types are missing
     import('react-image-gallery'),
-    // @ts-expect-error - CSS import
     import('react-image-gallery/styles/css/image-gallery.css'),
   ]);
 

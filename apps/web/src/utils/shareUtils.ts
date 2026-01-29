@@ -16,6 +16,7 @@ export {
 import {
   getPlatformShareUrl as getShareUrl,
   PLATFORM_CONFIGS as platformConfigs,
+  type SharePlatform,
 } from '@gruenerator/shared';
 
 // Share content interface
@@ -198,7 +199,7 @@ const convertToPng = async (blob: Blob): Promise<Blob> => {
  * Uses getPlatformShareUrl from shared package
  */
 export const openPlatformShare = (platformId: string, text: string): boolean => {
-  const url = getShareUrl(platformId, text);
+  const url = getShareUrl(platformId as SharePlatform, text);
   if (url) {
     window.open(url, '_blank', 'width=600,height=400,noopener,noreferrer');
     return true;
@@ -210,5 +211,5 @@ export const openPlatformShare = (platformId: string, text: string): boolean => 
  * Check if a platform has a share URL
  */
 export const hasPlatformShareUrl = (platformId: string): boolean => {
-  return platformConfigs[platformId]?.hasShareUrl === true;
+  return platformConfigs[platformId as SharePlatform]?.hasShareUrl === true;
 };
