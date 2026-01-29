@@ -14,6 +14,7 @@ import { createLogger } from '../../utils/logger.js';
 import {
   getSystemCollectionConfig,
   getCollectionFilterableFields,
+  getCollectionDefaultFilter,
   getDefaultMultiCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
@@ -67,6 +68,23 @@ router.get('/collections/:id/filters', async (req: Request, res: Response) => {
     const qdrant = getQdrantInstance();
     await qdrant.init();
 
+    // Build a base filter from the collection's defaultFilter (e.g., landesverband: 'HH' for Hamburg)
+    // This ensures filter dropdowns only show values relevant to this specific collection,
+    // not values from other collections sharing the same Qdrant collection.
+    const defaultFilter = getCollectionDefaultFilter(collectionId);
+    const baseFilter = defaultFilter
+      ? {
+          must: [
+            {
+              key: defaultFilter.field,
+              match: Array.isArray(defaultFilter.value)
+                ? { any: defaultFilter.value }
+                : { value: defaultFilter.value },
+            },
+          ],
+        }
+      : null;
+
     const filters: Record<
       string,
       {
@@ -84,7 +102,8 @@ router.get('/collections/:id/filters', async (req: Request, res: Response) => {
         if (fieldType === 'date_range') {
           const { min, max } = await qdrant.getDateRange(
             systemConfig.qdrantCollection,
-            field.field
+            field.field,
+            baseFilter
           );
           filters[field.field] = {
             label: field.label,
@@ -96,7 +115,8 @@ router.get('/collections/:id/filters', async (req: Request, res: Response) => {
           const valuesWithCounts = await qdrant.getFieldValueCounts(
             systemConfig.qdrantCollection,
             field.field,
-            50
+            50,
+            baseFilter
           );
           filters[field.field] = {
             label: field.label,
