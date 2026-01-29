@@ -99,6 +99,14 @@ async function loadOptionalModules(): Promise<void> {
 loadOptionalModules();
 
 export async function setupRoutes(app: Application): Promise<void> {
+  // Debug: Log ALL API requests at the start
+  app.use('/api/*splat', (req: Request, res: Response, next: NextFunction) => {
+    if (req.originalUrl.includes('releases')) {
+      console.log(`[Routes DEBUG] API request: ${req.method} ${req.originalUrl}`);
+    }
+    next();
+  });
+
   // Route tracking middleware
   app.use('/api/*splat', (req: Request, res: Response, next: NextFunction) => {
     next();
@@ -252,6 +260,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/web-search', webSearchRouter);
   app.use('/api/image-generation', imageGenerationRouter);
   app.use('/api/rate-limit', rateLimitRouter);
+
+  // Debug: log all requests to /api/releases/*
+  app.use('/api/releases', (req, res, next) => {
+    console.log(`[Routes] Request to /api/releases: ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`);
+    next();
+  });
   app.use('/api/releases', releasesRouter);
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', markdownRouter);

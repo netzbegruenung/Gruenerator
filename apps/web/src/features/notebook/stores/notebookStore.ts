@@ -117,7 +117,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.get('/auth/qa-collections');
+      const response = await apiClient.get('/auth/notebook-collections');
       const data = response.data;
 
       if (!data.success) {
@@ -157,7 +157,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.document_ids = collectionData.documents || [];
       }
 
-      const response = await apiClient.post('/auth/qa-collections', requestData);
+      const response = await apiClient.post('/auth/notebook-collections', requestData);
 
       const data = response.data;
 
@@ -203,7 +203,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.document_ids = collectionData.documents || [];
       }
 
-      const response = await apiClient.put(`/auth/qa-collections/${collectionId}`, requestData);
+      const response = await apiClient.put(`/auth/notebook-collections/${collectionId}`, requestData);
 
       const data = response.data;
 
@@ -226,7 +226,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   deleteQACollection: async (collectionId) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.delete(`/auth/qa-collections/${collectionId}`);
+      const response = await apiClient.delete(`/auth/notebook-collections/${collectionId}`);
 
       const data = response.data;
 

@@ -162,12 +162,14 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
 
   const getAvailableFeatures = React.useCallback((): BetaFeatureConfig[] => {
     const isDev = import.meta.env.DEV;
-    return BETA_FEATURES_CONFIG.filter(
+    const available = BETA_FEATURES_CONFIG.filter(
       (feature) =>
         (!feature.isAdminOnly || isAdmin) &&
         !feature.isProfileSetting &&
         (!feature.devOnly || isDev)
     );
+    console.log('[BetaFeatures] DEV:', isDev, 'isAdmin:', isAdmin, 'available:', available.map(f => f.key));
+    return available;
   }, [isAdmin]);
 
   const updateUserBetaFeatures = React.useCallback(

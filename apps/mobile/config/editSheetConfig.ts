@@ -79,6 +79,12 @@ export const EDIT_SHEET_CONFIGS: Record<ImageStudioTemplateType, EditSheetConfig
     showColorScheme: false,
     showAdvanced: false,
   },
+  simple: {
+    textFields: [{ key: 'text', label: 'Text', multiline: true, maxLength: 500 }],
+    showFontSize: false,
+    showColorScheme: false,
+    showAdvanced: false,
+  },
 };
 
 export function getEditSheetConfig(type: ImageStudioTemplateType): EditSheetConfig {

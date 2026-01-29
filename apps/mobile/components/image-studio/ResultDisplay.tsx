@@ -191,7 +191,7 @@ export function ResultDisplay({
       {showEditButton && onEdit && (
         <View style={styles.editButtonContainer}>
           <Pressable
-            onPress={() => router.push(route('/(fullscreen)/webview-editor'))}
+            onPress={() => router.push('/(fullscreen)/webview-editor')}
             style={styles.editButton}
           >
             <Ionicons name="pencil" size={20} color={colors.primary[600]} />

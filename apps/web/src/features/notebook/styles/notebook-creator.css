@@ -300,6 +300,328 @@
 }
 
 
+/* Uploaded document success state */
+.uploaded-document-success {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-medium);
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--green-300, #86efac);
+  border-radius: var(--card-border-radius-medium);
+}
+
+.uploaded-document-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  min-width: 0;
+}
+
+.upload-success-icon {
+  color: var(--green-600, #16a34a);
+  flex-shrink: 0;
+}
+
+.uploaded-document-title {
+  font-weight: 500;
+  color: var(--font-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Inline DocumentUpload overrides — compact dropzone for modal */
+.notebook-inline-upload {
+  background: transparent;
+  padding: 0;
+}
+
+.notebook-inline-upload .knowledge-entry-bordered {
+  margin-bottom: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.notebook-inline-upload .form-field-wrapper {
+  margin-bottom: 0;
+}
+
+/* Hide redundant "Datei hochladen" label — parent already labels the section */
+.notebook-inline-upload .form-label {
+  display: none;
+}
+
+/* Compact dropzone */
+.notebook-inline-upload .file-dropzone {
+  padding: var(--spacing-medium);
+  border-width: 2px;
+  border-style: dashed;
+  border-color: var(--border-color);
+  border-radius: var(--card-border-radius-medium);
+  background: var(--background-color-alt);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.notebook-inline-upload .file-dropzone:hover,
+.notebook-inline-upload .file-dropzone.active {
+  border-color: var(--primary-color);
+  background: var(--background-color);
+}
+
+.notebook-inline-upload .upload-icon {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.notebook-inline-upload .file-placeholder p {
+  font-size: 0.8rem;
+  margin: 0 0 var(--spacing-xxsmall) 0;
+  color: var(--font-color-disabled);
+  line-height: 1.4;
+}
+
+.notebook-inline-upload .file-requirements {
+  font-size: 0.75rem;
+}
+
+/* Compact file selected state */
+.notebook-inline-upload .file-selected-simple {
+  padding: var(--spacing-small) var(--spacing-medium);
+  background: var(--background-color-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-border-radius-medium);
+}
+
+.notebook-inline-upload .file-name {
+  font-size: 0.85rem;
+}
+
+/* Compact action buttons */
+.notebook-inline-upload .profile-actions {
+  margin-top: var(--spacing-small);
+}
+
+.notebook-inline-upload .profile-actions .btn-primary,
+.notebook-inline-upload .profile-actions .btn-secondary {
+  font-size: 0.85rem;
+  padding: var(--spacing-xsmall) var(--spacing-medium);
+}
+
+/* Title input inside upload */
+.notebook-inline-upload .form-input {
+  font-size: 0.85rem;
+}
+
+/* Auto-upload progress indicator */
+.notebook-inline-upload .auto-upload-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-medium);
+  cursor: default;
+  border-style: solid;
+  border-color: var(--border-color);
+}
+
+.auto-upload-filename {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--font-color);
+  word-break: break-all;
+  text-align: center;
+}
+
+.auto-upload-status {
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+}
+
+/* ─── Editor Header (title · dots · close) ─── */
+.notebook-editor-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: var(--spacing-medium) var(--spacing-medium) 0;
+  gap: var(--spacing-small);
+}
+
+.notebook-editor-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--font-color);
+  white-space: nowrap;
+}
+
+.notebook-step-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--grey-300);
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.step-dot.active {
+  background: var(--primary-color);
+  transform: scale(1.25);
+}
+
+.step-dot.done {
+  background: var(--primary-color);
+  opacity: 0.45;
+}
+
+.notebook-close-btn {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--font-color-disabled);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.notebook-close-btn:hover:not(:disabled) {
+  background: var(--background-color-hover, rgba(0, 0, 0, 0.06));
+  color: var(--font-color);
+}
+
+.notebook-close-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Dropzone ─── */
+.notebook-dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--card-border-radius-medium);
+  background: var(--background-color-alt);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.notebook-dropzone:hover {
+  border-color: var(--primary-color);
+  background: var(--background-color);
+}
+
+.notebook-dropzone.drag-over {
+  border-color: var(--primary-color);
+  background: var(--secondary-50, #f0fdf4);
+}
+
+[data-theme="dark"] .notebook-dropzone.drag-over {
+  background: var(--secondary-900);
+}
+
+.notebook-dropzone.uploading {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-large);
+  text-align: center;
+}
+
+.dropzone-icon {
+  color: var(--font-color-disabled);
+}
+
+.dropzone-text {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+.dropzone-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+}
+
+.dropzone-uploading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-small);
+  color: var(--font-color-disabled);
+  font-size: 0.85rem;
+}
+
+.upload-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--grey-200);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Upload Error ─── */
+.notebook-upload-error {
+  margin: var(--spacing-small) 0 0;
+  font-size: 0.8rem;
+  color: var(--error-color, #dc2626);
+}
+
+/* ─── Back Button ─── */
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+}
+
+/* ─── Processing Badge (collection list) ─── */
+.qa-processing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  background: var(--background-color-alt);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.processing-spinner-tiny {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--grey-200);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .qa-creator-modal {

@@ -5,6 +5,7 @@
     "jsx": "react-jsx",
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],

@@ -2,7 +2,7 @@ export interface Document {
   id: string;
   title: string;
   filename?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'uploaded';
   created_at?: string;
   updated_at?: string;
   user_id?: string;

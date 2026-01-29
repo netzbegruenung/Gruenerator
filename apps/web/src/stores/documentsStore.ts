@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 
 import apiClient from '../components/utils/apiClient';
 
-type DocumentStatus = 'completed' | 'processing' | 'pending' | 'failed';
+type DocumentStatus = 'completed' | 'processing' | 'pending' | 'uploaded' | 'failed';
 
 interface Document {
   id: string;
@@ -90,6 +90,11 @@ interface DocumentsActions {
   fetchDocuments: () => Promise<void>;
   fetchCombinedContent: () => Promise<{ documents: Document[]; texts: Text[] } | undefined>;
   uploadDocument: (file: File, title: string, groupId?: string | null) => Promise<Document>;
+  uploadFileOnly: (file: File, title?: string) => Promise<Document>;
+  pollDocumentStatus: (
+    documentId: string,
+    onStatusChange?: (status: DocumentStatus) => void
+  ) => Promise<DocumentStatus>;
   crawlUrl: (url: string, title: string, groupId?: string | null) => Promise<Document>;
   deleteDocument: (documentId: string) => Promise<boolean>;
   searchDocuments: (query: string, options?: SearchOptions) => Promise<SearchResult[]>;
@@ -268,6 +273,84 @@ export const useDocumentsStore = create<DocumentsStore>()(
           });
           throw error;
         }
+      },
+
+      // Upload file only (no processing) — used by 2-step notebook creation
+      uploadFileOnly: async (file, title) => {
+        set((state) => {
+          state.isUploading = true;
+          state.uploadProgress = 0;
+          state.error = null;
+        });
+
+        try {
+          const formData = new FormData();
+          formData.append('document', file);
+          if (title) {
+            formData.append('title', title);
+          }
+
+          const response = await apiClient.post('/documents/upload-only', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          const result = response.data;
+
+          if (result.success) {
+            const doc: Document = {
+              id: result.data.id,
+              title: result.data.title,
+              status: 'pending' as DocumentStatus,
+              filename: result.data.filename,
+            };
+            set((state) => {
+              state.documents.unshift(doc);
+              state.isUploading = false;
+              state.uploadProgress = 100;
+            });
+            return doc;
+          } else {
+            throw new Error(result.message || 'Failed to upload file');
+          }
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          set((state) => {
+            state.error = errorMessage;
+            state.isUploading = false;
+            state.uploadProgress = 0;
+          });
+          throw error;
+        }
+      },
+
+      // Poll document status until it reaches a terminal state
+      pollDocumentStatus: async (documentId, onStatusChange) => {
+        const poll = (): Promise<DocumentStatus> =>
+          new Promise((resolve, reject) => {
+            const interval = setInterval(async () => {
+              try {
+                const response = await apiClient.get(`/documents/${documentId}/status`);
+                const status = response.data?.data?.status as DocumentStatus;
+
+                if (onStatusChange) onStatusChange(status);
+
+                // Update store
+                set((state) => {
+                  const idx = state.documents.findIndex((d) => d.id === documentId);
+                  if (idx !== -1) state.documents[idx].status = status;
+                });
+
+                if (status === 'completed' || status === 'failed') {
+                  clearInterval(interval);
+                  resolve(status);
+                }
+              } catch {
+                clearInterval(interval);
+                reject(new Error('Failed to poll document status'));
+              }
+            }, 3000);
+          });
+
+        return poll();
       },
 
       // Crawl URL and create document (vectors-only manual mode)
