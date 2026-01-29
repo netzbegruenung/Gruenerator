@@ -50,10 +50,10 @@ const apiClient = axios.create({
 
 // Request interceptor for debugging and header setup
 apiClient.interceptors.request.use(
-  (config) => {
+  async (config) => {
     // Desktop app uses JWT token from localStorage
     if (isDesktopApp()) {
-      const token = getDesktopToken();
+      const token = await getDesktopToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
