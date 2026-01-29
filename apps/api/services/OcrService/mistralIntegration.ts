@@ -21,7 +21,6 @@ export async function extractTextWithMistralOCR(
     console.log(`[OcrService] Starting Mistral OCR extraction for: ${filePath}`);
 
     // Dynamic import of Mistral client
-    // @ts-expect-error - mistralClient is a JavaScript module without type declarations
     const mod = await import('../../workers/mistralClient.js');
     const mistralClient = mod.default || mod;
 
@@ -68,7 +67,8 @@ export async function extractTextWithMistralOCR(
     }
 
     // Call Mistral OCR API
-    const ocrResponse = await mistralClient.ocr.process({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ocrResponse = await (mistralClient as any).ocr.process({
       model: 'mistral-ocr-latest',
       document,
       includeImageBase64: false,
@@ -100,9 +100,8 @@ export async function extractTextWithMistralOCR(
       confidence: 0.95,
       stats: {
         pages: ocrResponse.pages.length,
+        successfulPages: ocrResponse.usage_info?.pages_processed,
         method: ocrResponse.model || 'mistral-ocr-latest',
-        pagesProcessed: ocrResponse.usage_info?.pages_processed,
-        docSizeBytes: ocrResponse.usage_info?.doc_size_bytes,
       },
     };
   } catch (error) {
