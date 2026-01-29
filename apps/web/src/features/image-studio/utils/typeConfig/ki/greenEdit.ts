@@ -19,7 +19,7 @@ export const greenEditTypeConfig: KiTypeConfig = {
   label: 'Grün verwandeln',
   description: 'Verwandle dein Bild in eine grüne Vision',
   icon: HiPhotograph,
-  previewImage: '/imagine/green-street-example.png',
+  previewImage: '/imagine-assets/green-street-example.png',
   requiresImage: true,
   hasTextGeneration: false,
   usesFluxApi: true,

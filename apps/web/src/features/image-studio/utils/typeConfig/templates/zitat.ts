@@ -13,7 +13,7 @@ export const zitatTypeConfig: TemplateTypeConfig = {
   label: 'Zitat mit Bild',
   description: 'Zitat mit Hintergrundbild',
   icon: PiQuotes,
-  previewImage: '/imagine/previews/zitat-preview.png',
+  previewImage: '/imagine-assets/previews/zitat-preview.png',
   requiresImage: true,
   hasTextGeneration: true,
   hasTextCanvasEdit: true,

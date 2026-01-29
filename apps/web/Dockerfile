@@ -62,9 +62,6 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # Prevent mixed content: use relative redirects so HTTPS is preserved
-    absolute_redirect off;
-
     # Gzip compression
     gzip on;
     gzip_vary on;

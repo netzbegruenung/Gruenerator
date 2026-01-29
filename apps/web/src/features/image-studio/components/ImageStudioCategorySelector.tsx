@@ -184,7 +184,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Sharepics',
         description: 'Erstelle Sharepics mit vorgefertigten Designs',
         Icon: PiLayout,
-        previewImage: '/imagine/previews/dreizeilen-preview.png',
+        previewImage: '/imagine-assets/previews/dreizeilen-preview.png',
       },
       {
         id: 'imagine',
@@ -193,7 +193,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Imagine (KI)',
         description: 'Erstelle oder bearbeite Bilder mit KI',
         Icon: HiSparkles,
-        previewImage: '/imagine/variants-pure/soft-illustration.png',
+        previewImage: '/imagine-assets/variants-pure/soft-illustration.png',
       },
       {
         id: 'vorlagen',
@@ -202,7 +202,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Vorlagen',
         description: 'Durchsuche vorgefertigte Vorlagen',
         Icon: PiFolder,
-        previewImage: '/imagine/previews/vorlagen-preview.jpg',
+        previewImage: '/imagine-assets/previews/vorlagen-preview.jpg',
         // Austrian users see "coming soon", others see "early access" with link
         isEarlyAccess: !isAustrianUser,
         isComingSoon: isAustrianUser,
