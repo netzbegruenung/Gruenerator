@@ -4,7 +4,7 @@ export function initErrorTracking(): void {
   const projectId = import.meta.env.VITE_HIGHLIGHT_PROJECT_ID;
 
   if (!projectId) {
-    console.info(
+    console.warn(
       'Highlight.io project ID not configured. Error tracking disabled. ' +
         'Set VITE_HIGHLIGHT_PROJECT_ID environment variable to enable error tracking.'
     );
@@ -17,7 +17,7 @@ export function initErrorTracking(): void {
   }
 
   try {
-    console.info('Error tracking initialized successfully');
+    console.warn('Error tracking initialized successfully');
     errorTrackingInitialized = true;
   } catch (error) {
     console.error('Failed to initialize error tracking:', error);
