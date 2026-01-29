@@ -71,6 +71,9 @@ const ImageStudioCategorySelector: React.FC = () => {
       if (directType) {
         void setType(directType);
         void navigate(`/image-studio/templates/${directType}`);
+      } else if (cat === IMAGE_STUDIO_CATEGORIES.KI) {
+        void setCategory(cat, subcat);
+        void navigate('/imagine');
       } else if (cat) {
         void setCategory(cat, subcat);
         void navigate(`/image-studio/${cat}`);
@@ -150,7 +153,7 @@ const ImageStudioCategorySelector: React.FC = () => {
 
         // Handle KI types - navigate to KI creation flow
         if (result.isKiType) {
-          void navigate(`/image-studio/ki/create/pure-create`);
+          void navigate(`/imagine/pure-create`);
           return;
         }
 
@@ -184,7 +187,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Sharepics',
         description: 'Erstelle Sharepics mit vorgefertigten Designs',
         Icon: PiLayout,
-        previewImage: '/imagine-assets/previews/dreizeilen-preview.png',
+        previewImage: '/imagine/previews/dreizeilen-preview.png',
       },
       {
         id: 'imagine',
@@ -193,7 +196,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Imagine (KI)',
         description: 'Erstelle oder bearbeite Bilder mit KI',
         Icon: HiSparkles,
-        previewImage: '/imagine-assets/variants-pure/soft-illustration.png',
+        previewImage: '/imagine/variants-pure/soft-illustration.png',
       },
       {
         id: 'vorlagen',
@@ -202,7 +205,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Vorlagen',
         description: 'Durchsuche vorgefertigte Vorlagen',
         Icon: PiFolder,
-        previewImage: '/imagine-assets/previews/vorlagen-preview.jpg',
+        previewImage: '/imagine/previews/vorlagen-preview.jpg',
         // Austrian users see "coming soon", others see "early access" with link
         isEarlyAccess: !isAustrianUser,
         isComingSoon: isAustrianUser,

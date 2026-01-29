@@ -1,11 +1,9 @@
 'use client';
 
 import { forwardRef } from 'react';
-
-import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
-
-import { SparklesIcon } from '@/components/tiptap-icons/sparkles-icon';
 import { Button } from '@/components/tiptap-ui-primitive/button';
+import type { ButtonProps } from '@/components/tiptap-ui-primitive/button';
+import { SparklesIcon } from '@/components/tiptap-icons/sparkles-icon';
 import { useAiEditStore } from '@/stores/aiEditStore';
 import { useEditorStore } from '@/stores/editorStore';
 

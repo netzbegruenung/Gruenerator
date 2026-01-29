@@ -237,23 +237,42 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({
     };
   }, []);
 
+  const isImagineRoute = location.pathname.startsWith('/imagine');
+
   const handleBack = useCallback(() => {
     if (currentStep === FORM_STEPS.TYPE_SELECT) {
       setCategory(null, null);
-      navigate('/image-studio');
+      navigate(isImagineRoute ? '/imagine' : '/image-studio');
     } else if (currentStep === FORM_STEPS.IMAGE_UPLOAD) {
-      navigate(`/image-studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+      if (isImagineRoute) {
+        navigate('/imagine');
+      } else {
+        navigate(`/image-studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+      }
       goBack();
     } else if (currentStep === FORM_STEPS.INPUT) {
       const prevStep = typeConfig?.steps?.[typeConfig.steps.indexOf(currentStep) - 1];
       if (prevStep === FORM_STEPS.TYPE_SELECT || !prevStep) {
-        navigate(`/image-studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+        if (isImagineRoute) {
+          navigate('/imagine');
+        } else {
+          navigate(`/image-studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+        }
       }
       goBack();
     } else {
       goBack();
     }
-  }, [currentStep, category, subcategory, typeConfig, goBack, setCategory, navigate]);
+  }, [
+    currentStep,
+    category,
+    subcategory,
+    typeConfig,
+    goBack,
+    setCategory,
+    navigate,
+    isImagineRoute,
+  ]);
 
   const validateForm = useCallback(() => {
     const errors: FormErrors = {};

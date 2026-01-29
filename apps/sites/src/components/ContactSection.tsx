@@ -67,7 +67,6 @@ export function ContactSection({ data }: ContactSectionProps) {
                   const IconComponent = platformIconMap[social.platform] || FaEnvelope;
                   return (
                     <a
-                      // eslint-disable-next-line react/no-array-index-key
                       key={index}
                       href={social.url}
                       target="_blank"

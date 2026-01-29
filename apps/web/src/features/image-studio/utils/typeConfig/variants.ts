@@ -32,7 +32,7 @@ export const VARIANT_STYLES: Record<string, VariantStyle> = {
  */
 export const VARIANT_TYPES: Record<string, VariantTypeConfig> = {
   pure: {
-    basePath: '/imagine-assets/variants-pure',
+    basePath: '/imagine/variants-pure',
     valueMap: {
       illustration: 'illustration-pure',
       realistic: 'realistic-pure',
@@ -40,7 +40,7 @@ export const VARIANT_TYPES: Record<string, VariantTypeConfig> = {
     },
   },
   sharepic: {
-    basePath: '/imagine-assets/variants',
+    basePath: '/imagine/variants',
     valueMap: {
       illustration: 'light-top',
       realistic: 'realistic-top',

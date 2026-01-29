@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-
-import { AiEditorButton } from '@/components/tiptap-ui/ai-editor-button';
-import { Button, ButtonGroup } from '@/components/tiptap-ui-primitive/button';
-import { Card, CardBody, CardItemGroup } from '@/components/tiptap-ui-primitive/card';
-import { Input, InputGroup } from '@/components/tiptap-ui-primitive/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/tiptap-ui-primitive/popover';
 import { useAiEdit } from '@/hooks/useAiEdit';
 import { useAiEditStore } from '@/stores/aiEditStore';
 import { useEditorStore } from '@/stores/editorStore';
+import { AiEditorButton } from '@/components/tiptap-ui/ai-editor-button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/tiptap-ui-primitive/popover';
+import { Button, ButtonGroup } from '@/components/tiptap-ui-primitive/button';
+import { Input, InputGroup } from '@/components/tiptap-ui-primitive/input';
+import { Card, CardBody, CardItemGroup } from '@/components/tiptap-ui-primitive/card';
 
 export interface AiEditorPopoverProps {
   documentId: string;

@@ -1,15 +1,14 @@
 'use client';
 
-import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { useCallback, useEffect, useState } from 'react';
-
 import type { Editor } from '@tiptap/react';
+import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 
 // --- Hooks ---
-import { BlockquoteIcon } from '@/components/tiptap-icons/blockquote-icon';
 import { useTiptapEditor } from '@/hooks/use-tiptap-editor';
 
 // --- Icons ---
+import { BlockquoteIcon } from '@/components/tiptap-icons/blockquote-icon';
 
 // --- UI Utils ---
 import {

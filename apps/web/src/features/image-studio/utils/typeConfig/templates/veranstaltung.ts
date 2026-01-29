@@ -13,7 +13,7 @@ export const veranstaltungTypeConfig: TemplateTypeConfig = {
   label: 'Veranstaltung',
   description: 'Event-Ankündigung mit Datum, Ort und Beschreibung',
   icon: PiCalendar,
-  previewImage: '/imagine-assets/previews/veranstaltung-preview.png',
+  previewImage: '/imagine/previews/veranstaltung-preview.png',
   requiresImage: true,
   hasTextGeneration: true,
   hasTextCanvasEdit: true,

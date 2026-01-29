@@ -19,7 +19,7 @@ export const universalEditTypeConfig: KiTypeConfig = {
   label: 'Bild bearbeiten',
   description: 'Bearbeite dein Bild frei mit KI',
   icon: HiPencil,
-  previewImage: '/imagine-assets/variants/editorial.png',
+  previewImage: '/imagine/variants/editorial.png',
   requiresImage: true,
   hasTextGeneration: false,
   usesFluxApi: true,

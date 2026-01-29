@@ -1,5 +1,5 @@
 import { lazy, type ComponentType, type LazyExoticComponent, type FC, createElement } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 
 import { isDesktopApp } from '../utils/platform';
 
@@ -86,6 +86,15 @@ const ImageStudioKiRedirect = lazy(() =>
   Promise.resolve({
     default: createRedirect('/imagine'),
   })
+);
+
+// Dynamic redirect: /image-studio/ki/:type → /imagine/:type
+const ImageStudioKiTypeRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { type } = useParams();
+  return createElement(Navigate, { to: `/imagine/${type || ''}`, replace: true });
+};
+const ImageStudioKiTypeRedirect = lazy(() =>
+  Promise.resolve({ default: ImageStudioKiTypeRedirectComponent })
 );
 
 // Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
@@ -349,9 +358,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/media-library', component: MediaLibraryPage },
   // Image Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
+  { path: '/imagine/:type', component: ImaginePage, withForm: true },
   { path: '/image-studio', component: ImageStudioKiRedirect },
   { path: '/image-studio/ki', component: ImageStudioKiRedirect },
-  { path: '/image-studio/ki/:type', component: ImageStudioKiRedirect },
+  { path: '/image-studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },
   { path: '/image-studio/:category', component: GrueneratorenBundle.ImageStudio, withForm: true },
   {

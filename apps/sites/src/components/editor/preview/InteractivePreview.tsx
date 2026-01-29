@@ -152,11 +152,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         <div className="themes-grid">
           {candidateData.themes.themes.length > 0 ? (
             candidateData.themes.themes.map((theme, index) => (
-              <div
-                // eslint-disable-next-line react/no-array-index-key
-                key={index}
-                className="theme-card"
-              >
+              <div key={index} className="theme-card">
                 {theme.imageUrl && (
                   <div
                     data-section="themes"
@@ -204,7 +200,6 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
           {candidateData.actions.actions.length > 0 ? (
             candidateData.actions.actions.map((action, index) => (
               <div
-                // eslint-disable-next-line react/no-array-index-key
                 key={index}
                 data-section="actions"
                 data-field="text"
