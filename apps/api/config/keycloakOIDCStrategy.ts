@@ -171,7 +171,19 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         );
       } else {
         redirectUri = URLS.callback;
-        console.log(`[KeycloakOIDC:${correlationId}] Using fallback redirect_uri: ${redirectUri}`);
+        console.warn(
+          `[KeycloakOIDC:${correlationId}] WARNING: originDomain missing or not allowed, using fallback redirect_uri: ${redirectUri}`,
+          {
+            originDomain: originDomain ?? 'undefined',
+            isAllowed: originDomain ? isAllowedDomain(originDomain) : false,
+            sessionID: req.sessionID,
+            sessionKeys: Object.keys(req.session),
+            host: req.headers.host,
+            xForwardedHost: req.headers['x-forwarded-host'] ?? 'not set',
+            referer: req.headers.referer ?? 'not set',
+            originalUrl: req.originalUrl,
+          }
+        );
       }
 
       const authParams: any = {
