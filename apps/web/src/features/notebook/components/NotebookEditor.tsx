@@ -1,5 +1,12 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useState, useEffect, useCallback, useRef, type ComponentType, type DragEvent } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ComponentType,
+  type DragEvent,
+} from 'react';
 import { useForm } from 'react-hook-form';
 import { HiCheckCircle, HiArrowLeft, HiUpload, HiX } from 'react-icons/hi';
 
@@ -108,13 +115,11 @@ const NotebookEditor = ({
 
       try {
         const doc = await uploadFileOnly(file, file.name);
-        setUploadedDocument(doc);
+        setUploadedDocument({ id: doc.id, title: doc.title || file.name });
         setValue('name', doc.title.replace(/\.[^/.]+$/, ''), { shouldValidate: true });
         setStep(2);
       } catch (err) {
-        setUploadError(
-          err instanceof Error ? err.message : 'Fehler beim Hochladen der Datei'
-        );
+        setUploadError(err instanceof Error ? err.message : 'Fehler beim Hochladen der Datei');
       } finally {
         setIsUploading(false);
       }
@@ -246,22 +251,15 @@ const NotebookEditor = ({
                     ) : (
                       <div className="dropzone-content">
                         <HiUpload size={28} className="dropzone-icon" />
-                        <p className="dropzone-text">
-                          Datei hier ablegen oder klicken
-                        </p>
-                        <p className="dropzone-hint">
-                          PDF, DOCX, TXT, MD, ODT, RTF (max. 50 MB)
-                        </p>
+                        <p className="dropzone-text">Datei hier ablegen oder klicken</p>
+                        <p className="dropzone-hint">PDF, DOCX, TXT, MD, ODT, RTF (max. 50 MB)</p>
                       </div>
                     )}
                   </div>
 
-                  {uploadError && (
-                    <p className="notebook-upload-error">{uploadError}</p>
-                  )}
+                  {uploadError && <p className="notebook-upload-error">{uploadError}</p>}
                 </div>
               </div>
-
             </motion.div>
           ) : (
             <motion.div

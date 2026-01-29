@@ -9,8 +9,8 @@ import {
 } from './contentExtractor';
 
 // Type assertions for JS functions that return Promises
-const extractPlainText = extractPlainTextJs as (content: unknown) => Promise<string>;
-const extractHTMLContent = extractHTMLContentJs as (content: unknown) => Promise<string>;
+const extractPlainText = extractPlainTextJs as unknown as (content: unknown) => Promise<string>;
+const extractHTMLContent = extractHTMLContentJs as unknown as (content: unknown) => Promise<string>;
 
 // Type definitions
 type SetStateAction<T> = T | ((prevState: T) => T);
