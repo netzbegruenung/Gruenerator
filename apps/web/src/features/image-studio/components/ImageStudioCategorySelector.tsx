@@ -214,7 +214,6 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Profilbild',
         description: 'Erstelle ein Porträt mit grünem Hintergrund',
         Icon: PiUser,
-        previewImage: '/imagine/previews/profilbild-preview.png',
         directType: IMAGE_STUDIO_TYPES.PROFILBILD,
         isComingSoon: true,
       },
