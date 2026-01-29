@@ -2,6 +2,7 @@ import { useMemo, useCallback, memo, useState } from 'react';
 
 import Icon from '../../../components/common/Icon';
 import MenuDropdown from '../../../components/common/MenuDropdown';
+import '../../../components/common/TabbedLayout/TabbedLayout.css';
 import { type TabId, type UniversalSubType, TAB_CONFIGS } from '../types';
 import './TabSelector.css';
 
@@ -119,7 +120,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
 
     return (
       <div
-        className={`texte-tab-selector ${disabled ? 'disabled' : ''}`}
+        className={`tabbed-layout__tabs ${disabled ? 'tabbed-layout__tabs--disabled' : ''}`}
         role="tablist"
         aria-label="Text-Generator auswählen"
       >
@@ -132,7 +133,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
               role="tab"
               aria-selected={isActive}
               aria-controls={`tabpanel-${tab.id}`}
-              className={`texte-tab-button ${isActive ? 'active' : ''}`}
+              className={`tabbed-layout__tab ${isActive ? 'tabbed-layout__tab--active' : ''}`}
               onClick={() => handleTabClick(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, tab.id)}
               disabled={disabled}
@@ -144,8 +145,8 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                 size={18}
                 className="texte-tab-icon"
               />
-              <span className="texte-tab-label">{tab.label}</span>
-              <span className="texte-tab-label-short">{tab.shortLabel}</span>
+              <span className="tabbed-layout__tab-label">{tab.label}</span>
+              <span className="tabbed-layout__tab-label-short">{tab.shortLabel}</span>
               {!isAuthenticated && !PUBLIC_TABS.includes(tab.id) && (
                 <Icon category="actions" name="lock" size={12} className="texte-tab-lock-icon" />
               )}
@@ -162,7 +163,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                 aria-selected={isUniversalActive}
                 aria-haspopup="menu"
                 aria-expanded={dropdownOpen}
-                className={`texte-tab-button has-dropdown ${isUniversalActive ? 'active' : ''}`}
+                className={`tabbed-layout__tab has-dropdown ${isUniversalActive ? 'tabbed-layout__tab--active' : ''}`}
                 disabled={disabled}
                 tabIndex={isUniversalActive ? 0 : -1}
               >
@@ -172,8 +173,8 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                   size={18}
                   className="texte-tab-icon"
                 />
-                <span className="texte-tab-label">{universalTabConfig.label}</span>
-                <span className="texte-tab-label-short">{universalTabConfig.shortLabel}</span>
+                <span className="tabbed-layout__tab-label">{universalTabConfig.label}</span>
+                <span className="tabbed-layout__tab-label-short">{universalTabConfig.shortLabel}</span>
                 {!isAuthenticated && (
                   <Icon category="actions" name="lock" size={12} className="texte-tab-lock-icon" />
                 )}

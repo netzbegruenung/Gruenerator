@@ -59,16 +59,18 @@ export const EditorPage = () => {
 
   // Close export menu when clicking outside
   useEffect(() => {
+    if (!showExportMenu) {
+      return;
+    }
+
     const handleClickOutside = (event: MouseEvent) => {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
         setShowExportMenu(false);
       }
     };
 
-    if (showExportMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showExportMenu]);
 
   useEffect(() => {

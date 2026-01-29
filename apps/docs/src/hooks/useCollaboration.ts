@@ -67,7 +67,7 @@ export const useCollaboration = (documentId: string) => {
       color: generateUserColor(),
     };
 
-    provider.awareness.setLocalStateField('user', awarenessUser);
+    provider.awareness?.setLocalStateField('user', awarenessUser);
 
     // Connection status handlers
     provider.on('status', (event: { status: string }) => {
@@ -103,7 +103,7 @@ export const useCollaboration = (documentId: string) => {
 
     // Cleanup on unmount
     return () => {
-      provider.awareness.setLocalState(null);
+      provider.awareness?.setLocalState(null);
       provider.destroy();
     };
   }, [documentId, user]);
@@ -118,12 +118,15 @@ export const useCollaborators = (provider: HocuspocusProvider | null) => {
   useEffect(() => {
     if (!provider) return;
 
+    const awareness = provider.awareness;
+    if (!awareness) return;
+
     const updateCollaborators = () => {
-      const states = provider.awareness.getStates();
+      const states = awareness.getStates();
       const users: CollaborationUser[] = [];
 
       states.forEach((state, clientId) => {
-        if (state.user && clientId !== provider.awareness.clientID) {
+        if (state.user && clientId !== awareness.clientID) {
           users.push(state.user as CollaborationUser);
         }
       });
@@ -132,11 +135,11 @@ export const useCollaborators = (provider: HocuspocusProvider | null) => {
     };
 
     // Update on awareness changes
-    provider.awareness.on('change', updateCollaborators);
+    awareness.on('change', updateCollaborators);
     updateCollaborators();
 
     return () => {
-      provider.awareness.off('change', updateCollaborators);
+      awareness.off('change', updateCollaborators);
     };
   }, [provider]);
 

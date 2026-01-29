@@ -10,11 +10,13 @@ import '@/components/tiptap-ui-primitive/button/button-colors.scss';
 import '@/components/tiptap-ui-primitive/button/button-group.scss';
 import '@/components/tiptap-ui-primitive/button/button.scss';
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'size'> {
   className?: string;
   showTooltip?: boolean;
   tooltip?: React.ReactNode;
   shortcutKeys?: string;
+  variant?: 'default' | 'ghost' | 'outline';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
 export const ShortcutDisplay: React.FC<{ shortcuts: string[] }> = ({ shortcuts }) => {
@@ -40,6 +42,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       tooltip,
       showTooltip = true,
       shortcutKeys,
+      variant,
+      size,
       'aria-label': ariaLabel,
       ...props
     },
@@ -53,6 +57,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className={cn('tiptap-button', className)}
           ref={ref}
           aria-label={ariaLabel}
+          data-variant={variant}
+          data-size={size}
           {...props}
         >
           {children}
@@ -66,6 +72,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className={cn('tiptap-button', className)}
           ref={ref}
           aria-label={ariaLabel}
+          data-variant={variant}
+          data-size={size}
           {...props}
         >
           {children}
