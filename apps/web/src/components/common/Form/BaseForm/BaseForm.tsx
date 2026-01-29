@@ -423,7 +423,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     storeIsFormVisible,
     toggleStoreFormVisibility,
     fallbackFormVisibility,
-    setIsStartMode,
+    setIsStartMode: setIsStartMode!,
   });
 
   const { isStartMode, isFormVisible, toggleFormVisibility } = startModeState;
@@ -517,7 +517,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     onExamplePromptClick,
     editSubmitHandlerRef,
     isEditModeActive,
-    getFeatureState,
+    getFeatureState: getFeatureState!,
     handleFormError,
     setInlineHelpContentOverride,
     clearStoreError,
