@@ -21,7 +21,7 @@ export const aiEditorTypeConfig: KiTypeConfig = {
   label: 'KI Editor',
   description: 'Erstelle Bilder mit Undo/Redo',
   icon: HiPencilAlt,
-  previewImage: '/imagine/variants-pure/editorial.png',
+  previewImage: '/imagine-assets/variants-pure/editorial.png',
   hidden: true,
   requiresImage: false,
   hasTextGeneration: false,

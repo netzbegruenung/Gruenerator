@@ -13,7 +13,7 @@ export const profilbildTypeConfig: TemplateTypeConfig = {
   label: 'Profilbild',
   description: 'Porträt mit grünem Hintergrund',
   icon: PiUser,
-  previewImage: '/imagine/previews/profilbild-preview.png',
+  previewImage: '/imagine-assets/previews/profilbild-preview.png',
   requiresImage: true,
   hasTextGeneration: false,
   usesFluxApi: false,
