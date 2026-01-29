@@ -312,6 +312,8 @@ jobs:
     needs: [build-web, build-api, build-docs, build-mcp, build-doku]
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Build Summary
         run: |

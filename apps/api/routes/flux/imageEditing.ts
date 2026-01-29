@@ -313,7 +313,7 @@ router.post(
             ? buildUniversalPrompt(userText)
             : buildGreenEditPrompt(userText, isPrecision);
 
-      const flux = FluxImageService.create();
+      const flux = await FluxImageService.create();
       log.debug(`[Image Edit] Starting image generation with FLUX.2 Pro`);
       const { request, result, stored } = (await flux.generateFromImage(
         prompt,
@@ -453,7 +453,7 @@ router.post(
             ? buildUniversalPrompt(userText)
             : buildGreenEditPrompt(userText, isPrecision);
 
-      const flux = FluxImageService.create();
+      const flux = await FluxImageService.create();
       let generationResult: FluxGenerationResult;
 
       if (req.file) {
