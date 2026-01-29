@@ -2,7 +2,9 @@ import React, { useState, useCallback, lazy, Suspense, memo, useMemo } from 'rea
 
 import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
 import Icon from '../../../components/common/Icon';
+import StatusBadge from '../../../components/common/StatusBadge/StatusBadge';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/useProfileData';
 import './EigeneTab.css';
 
@@ -54,8 +56,10 @@ const LoadingSpinner = memo(() => (
 LoadingSpinner.displayName = 'LoadingSpinner';
 
 const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
-  const [activeSubTab, setActiveSubTab] = useState<SubTabType>('prompts');
+  const [activeSubTab, setActiveSubTab] = useState<SubTabType>('generators');
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
+  const { canAccessBetaFeature } = useBetaFeatures();
+  const showPromptsTab = canAccessBetaFeature('prompts');
 
   const { query: generatorsQuery } = useCustomGeneratorsData({
     isActive,
@@ -102,29 +106,31 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
     <div className="eigene-container">
       <EarlyAccessBanner />
 
-      <div className="eigene-subtabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeSubTab === 'prompts'}
-          className={`eigene-subtab ${activeSubTab === 'prompts' ? 'active' : ''}`}
-          onClick={switchToPrompts}
-        >
-          Prompts
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeSubTab === 'generators'}
-          className={`eigene-subtab ${activeSubTab === 'generators' ? 'active' : ''}`}
-          onClick={switchToGenerators}
-        >
-          Grüneratoren
-        </button>
-      </div>
+      {showPromptsTab && (
+        <div className="eigene-subtabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeSubTab === 'prompts'}
+            className={`eigene-subtab ${activeSubTab === 'prompts' ? 'active' : ''}`}
+            onClick={switchToPrompts}
+          >
+            Prompts <StatusBadge type="beta" variant="inline" />
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeSubTab === 'generators'}
+            className={`eigene-subtab ${activeSubTab === 'generators' ? 'active' : ''}`}
+            onClick={switchToGenerators}
+          >
+            Grüneratoren
+          </button>
+        </div>
+      )}
 
       <Suspense fallback={<LoadingSpinner />}>
-        {activeSubTab === 'prompts' ? (
+        {showPromptsTab && activeSubTab === 'prompts' ? (
           <PromptsTab isActive={isActive && activeSubTab === 'prompts'} />
         ) : (
           <CreateCustomGeneratorPage

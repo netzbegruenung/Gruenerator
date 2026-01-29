@@ -81,11 +81,15 @@ const TextEditorRedirect = lazy(() =>
   })
 );
 
-const ImagineRedirect = lazy(() =>
+// Redirects for image-studio/ki routes to /imagine
+const ImageStudioKiRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/image-studio/ki'),
+    default: createRedirect('/imagine'),
   })
 );
+
+// Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
+const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
 
 // Statische Importe in dynamische umwandeln
 const TexteGenerator = lazy(() => import('../features/texte/TexteGenerator'));
@@ -214,6 +218,21 @@ const PromptPage = lazy(() => import('../features/prompts/PromptPage'));
 const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
 const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
+// Scanner Page with Beta Feature Wrapper
+const ScannerPage = lazy(() =>
+  Promise.all([
+    import('../features/scanner/ScannerPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([scannerModule, wrapperModule]) => ({
+    default: () =>
+      wrapperModule.default({
+        children: createElement(scannerModule.default),
+        featureKey: 'scanner',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
+
 /**
  * Lazy loading für Grüneratoren Bundle
  */
@@ -247,6 +266,7 @@ export const GrueneratorenBundle = {
   TextEditor: TextEditorPage,
   MobileEditor: MobileEditorPage,
   DatabaseIndex: DatabaseIndexPage,
+  Scanner: ScannerPage,
 } as const;
 
 // Route Konfigurationen
@@ -298,6 +318,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
+  // Scanner Route (Beta Feature)
+  { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
@@ -325,9 +347,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/apps', component: AppsPage },
   // Media Library Route
   { path: '/media-library', component: MediaLibraryPage },
-  // Image Studio Routes
-  { path: '/imagine', component: ImagineRedirect },
-  { path: '/image-studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
+  // Image Studio Routes - KI routes redirect to /imagine
+  { path: '/imagine', component: ImaginePage, withForm: true },
+  { path: '/image-studio', component: ImageStudioKiRedirect },
+  { path: '/image-studio/ki', component: ImageStudioKiRedirect },
+  { path: '/image-studio/ki/:type', component: ImageStudioKiRedirect },
   { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },
   { path: '/image-studio/:category', component: GrueneratorenBundle.ImageStudio, withForm: true },
   {

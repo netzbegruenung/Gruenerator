@@ -6,9 +6,11 @@ import {
   randomState,
   skipSubjectCheck,
 } from 'openid-client';
-import type { Strategy } from 'passport';
-import type { Request } from 'express';
+
 import { isAllowedDomain, buildDomainUrl, URLS } from '../utils/domainUtils.js';
+
+import type { Request } from 'express';
+import type { Strategy } from 'passport';
 
 // openid-client v6 types (extracted from return types)
 type Config = Awaited<ReturnType<typeof discovery>>;
@@ -169,7 +171,19 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         );
       } else {
         redirectUri = URLS.callback;
-        console.log(`[KeycloakOIDC:${correlationId}] Using fallback redirect_uri: ${redirectUri}`);
+        console.warn(
+          `[KeycloakOIDC:${correlationId}] WARNING: originDomain missing or not allowed, using fallback redirect_uri: ${redirectUri}`,
+          {
+            originDomain: originDomain ?? 'undefined',
+            isAllowed: originDomain ? isAllowedDomain(originDomain) : false,
+            sessionID: req.sessionID,
+            sessionKeys: Object.keys(req.session),
+            host: req.headers.host,
+            xForwardedHost: req.headers['x-forwarded-host'] ?? 'not set',
+            referer: req.headers.referer ?? 'not set',
+            originalUrl: req.originalUrl,
+          }
+        );
       }
 
       const authParams: any = {
@@ -376,6 +390,12 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
         }
       }
     );
+
+    if (URLS.callback.includes('/api/api/')) {
+      console.warn(
+        `[KeycloakOIDC] WARNING: callback URL contains double /api/ prefix: ${URLS.callback}`
+      );
+    }
 
     console.log('[KeycloakOIDC] Pre-warming Keycloak discovery...');
     await strategy.initialize();

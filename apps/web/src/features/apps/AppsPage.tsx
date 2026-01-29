@@ -19,7 +19,7 @@ declare global {
   }
 }
 
-const RELEASES_API_URL = `${import.meta.env.VITE_API_BASE_URL || ''}/api/releases/latest`;
+const RELEASES_API_URL = `${import.meta.env.VITE_API_BASE_URL || '/api'}/releases/latest`;
 
 const detectPlatform = () => {
   const userAgent = navigator.userAgent.toLowerCase();

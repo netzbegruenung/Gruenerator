@@ -1,5 +1,6 @@
 export { default as FluxImageService } from './FluxImageService.js';
 export type {
+  FluxBackend,
   FluxImageServiceOptions,
   RetryConfig,
   CircuitBreaker,

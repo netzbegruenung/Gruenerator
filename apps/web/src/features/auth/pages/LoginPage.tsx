@@ -241,7 +241,7 @@ const LoginPage = ({
             />
             <div className="login-text-content">
               <h3 className="login-title">Die Grünen – Die Grüne Alternative</h3>
-              <p className="login-description">Mit deinem Die Grünen Account anmelden</p>
+              <p className="login-description">Mit deinem Groupware Account (Zimbra) anmelden</p>
             </div>
           </div>
         </button>

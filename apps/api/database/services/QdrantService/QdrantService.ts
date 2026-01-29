@@ -875,9 +875,13 @@ export class QdrantService {
     return getFieldCounts(this.client!, collectionName, fieldName, maxValues, baseFilter);
   }
 
-  async getDateRange(collectionName: string, fieldName: string): Promise<DateRange> {
+  async getDateRange(
+    collectionName: string,
+    fieldName: string,
+    baseFilter: Record<string, unknown> | null = null
+  ): Promise<DateRange> {
     await this.ensureConnected();
-    return getRange(this.client!, collectionName, fieldName);
+    return getRange(this.client!, collectionName, fieldName, baseFilter);
   }
 
   async getAllBundestagUrls(): Promise<Array<{ source_url: string; content_hash: string | null }>> {

@@ -9,6 +9,7 @@ export interface BetaFeatures {
   databaseBetaEnabled?: boolean;
   youBetaEnabled?: boolean;
   chatBetaEnabled?: boolean;
+  scannerBetaEnabled?: boolean;
   igelModeEnabled?: boolean;
   websiteBetaEnabled?: boolean;
   isAustrian?: boolean;
@@ -98,13 +99,14 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       icon: getIcon('ui', 'notebook'),
       badge: 'early-access',
     },
-    datenbank: {
-      id: 'datenbank',
-      path: '/datenbank',
-      title: 'Datenbank',
-      description: 'Vorlagen, Prompts und Anträge',
-      icon: getIcon('navigation', 'datenbank'),
-    },
+    // TEMPORARILY HIDDEN - Datenbank menu item
+    // datenbank: {
+    //   id: 'datenbank',
+    //   path: '/datenbank',
+    //   title: 'Datenbank',
+    //   description: 'Vorlagen, Prompts und Anträge',
+    //   icon: getIcon('navigation', 'datenbank'),
+    // },
   };
 
   // Add chat if beta feature is enabled
@@ -118,6 +120,17 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     };
   }
 
+  // Add scanner if beta feature is enabled
+  if (betaFeatures.scannerBetaEnabled) {
+    items.scanner = {
+      id: 'scanner',
+      path: '/scanner',
+      title: 'Scanner',
+      description: 'Text aus Dokumenten extrahieren (OCR)',
+      icon: getIcon('navigation', 'scanner'),
+    };
+  }
+
   return items;
 };
 
@@ -128,6 +141,12 @@ export const getMobileOnlyMenuItems = (): DirectMenuItemsResult => {
 
 // Footer links for sidebar bottom
 export const getFooterLinks = (): MenuItemType[] => [
+  {
+    id: 'apps',
+    path: '/apps',
+    title: 'Apps',
+    description: 'Desktop-App herunterladen',
+  },
   {
     id: 'support',
     path: '/support',
@@ -144,21 +163,22 @@ export const getMenuItems = (betaFeatures: BetaFeatures = {}): MenuItemsResult =
     tools: { title: 'Tools', items: [] },
   };
 
+  // TEMPORARILY HIDDEN - Labor section with Datenbank
   // Only add labor section if beta features enabled
-  if (betaFeatures.databaseBetaEnabled) {
-    result.labor = {
-      title: 'Labor',
-      items: [
-        {
-          id: 'datenbank',
-          path: '/datenbank',
-          title: 'Datenbank',
-          description: 'Texte, Vorlagen und Anträge finden',
-          icon: getIcon('navigation', 'datenbank'),
-        },
-      ],
-    };
-  }
+  // if (betaFeatures.databaseBetaEnabled) {
+  //   result.labor = {
+  //     title: 'Labor',
+  //     items: [
+  //       {
+  //         id: 'datenbank',
+  //         path: '/datenbank',
+  //         title: 'Datenbank',
+  //         description: 'Texte, Vorlagen und Anträge finden',
+  //         icon: getIcon('navigation', 'datenbank'),
+  //       },
+  //     ],
+  //   };
+  // }
 
   return result;
 };

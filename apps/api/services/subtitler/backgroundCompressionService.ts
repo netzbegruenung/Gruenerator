@@ -4,17 +4,32 @@
  * Compresses large video files in background with quality preservation.
  */
 
-import path from 'path';
 import fs from 'fs';
-import { ffmpeg } from './ffmpegWrapper.js';
-import { redisClient } from '../../utils/redis/index.js';
-import { getVideoMetadata, VideoMetadata } from './videoUploadService.js';
-import { ffmpegPool } from './ffmpegPool.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
+
+import { ffmpegPool } from './ffmpegPool.js';
+import { ffmpeg } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
+import { getVideoMetadata, VideoMetadata } from './videoUploadService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const fsPromises = fs.promises;
 const log = createLogger('backgroundCompr');
+
+const UPLOADS_BASE_DIR = path.resolve(__dirname, '../../uploads');
+
+function validateVideoPath(videoPath: string): void {
+  const resolvedPath = path.resolve(videoPath);
+  if (!resolvedPath.startsWith(UPLOADS_BASE_DIR + path.sep)) {
+    throw new Error('Invalid video path: path must be within uploads directory');
+  }
+}
 
 interface CompressionSettings {
   crf: number;
@@ -168,6 +183,7 @@ async function compressVideoInBackground(
   originalVideoPath: string,
   uploadId: string
 ): Promise<CompressionResult | null> {
+  validateVideoPath(originalVideoPath);
   const compressionKey = `compression:${uploadId}`;
 
   try {

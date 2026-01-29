@@ -25,6 +25,15 @@ const sharedApiClient = createApiClient({
 });
 setGlobalApiClient(sharedApiClient);
 
+// Detect browser locale and map to a supported locale for unauthenticated requests
+function detectBrowserLocale() {
+  const languages = navigator.languages || [navigator.language];
+  for (const lang of languages) {
+    if (lang.startsWith('de-AT')) return 'de-AT';
+  }
+  return 'de-DE';
+}
+
 // Desktop app uses JWT tokens, web app uses session cookies
 // withCredentials must be false for desktop to avoid "Refused to set unsafe header Origin" error
 const useCredentials = !isDesktopApp();
@@ -32,16 +41,19 @@ const useCredentials = !isDesktopApp();
 const apiClient = axios.create({
   baseURL: baseURL,
   timeout: 900000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'X-User-Locale': detectBrowserLocale(),
+  },
   withCredentials: useCredentials,
 });
 
 // Request interceptor for debugging and header setup
 apiClient.interceptors.request.use(
-  (config) => {
+  async (config) => {
     // Desktop app uses JWT token from localStorage
     if (isDesktopApp()) {
-      const token = getDesktopToken();
+      const token = await getDesktopToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

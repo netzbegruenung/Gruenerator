@@ -14,6 +14,9 @@ import * as crypto from 'crypto';
  * @alias stringToNumericId - Legacy name, use stringToNumericHash
  */
 export function stringToNumericHash(str: string): number {
+  if (typeof str !== 'string') {
+    throw new TypeError('stringToNumericHash requires a string input');
+  }
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);

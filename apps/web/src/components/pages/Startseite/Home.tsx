@@ -64,8 +64,8 @@ const Home = () => {
             <Link to="/texte" aria-label="Zum Texte Grünerator">
               <TexteIcon /> Texte
             </Link>
-            <Link to="/image-studio" aria-label="Zum Bilder Grünerator">
-              <SharepicIcon /> Bilder
+            <Link to="/imagine" aria-label="Zum Imagine Grünerator">
+              <SharepicIcon /> Imagine
             </Link>
             <Link to="/reel" aria-label="Zum Reel Grünerator">
               <ReelIcon /> Reel

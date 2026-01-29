@@ -3,14 +3,18 @@
  * Handles Notebook collection CRUD operations in Qdrant vector database
  */
 
-import { QdrantService, getQdrantInstance } from './QdrantService/index.js';
-import { QdrantOperations } from './QdrantService/operations/index.js';
-import type { QdrantFilter } from './QdrantService/types.js';
-import { mistralEmbeddingService } from '../../services/mistral/index.js';
-import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
-import { createLogger } from '../../utils/logger.js';
-import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
+
+import { v4 as uuidv4 } from 'uuid';
+
+import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import { mistralEmbeddingService } from '../../services/mistral/index.js';
+import { createLogger } from '../../utils/logger.js';
+
+import { type QdrantService, getQdrantInstance } from './QdrantService/index.js';
+import { QdrantOperations } from './QdrantService/operations/index.js';
+
+import type { QdrantFilter } from './QdrantService/types.js';
 
 const logger = createLogger('NotebookQdrantHelper');
 
@@ -128,7 +132,7 @@ class NotebookQdrantHelper {
    * Generate numeric ID from UUID
    */
   generateNumericId(uuid: string): number {
-    const hash = crypto.createHash('md5').update(uuid).digest('hex');
+    const hash = crypto.createHash('sha256').update(uuid).digest('hex');
     return parseInt(hash.substring(0, 8), 16);
   }
 

@@ -13,18 +13,17 @@ const Datenschutz = () => {
           Eingabefelder eingibst. Diese werden zur AI-Bearbeitung an unseren europäischen
           Technologiepartner
           <a href="https://mistral.ai/">Mistral AI</a> weitergeleitet. Deine Daten werden dort nicht
-          zum Training der KI verwendet. Bei Aktivierung des <strong>Pro-Modus</strong> werden Deine
-          Eingaben alternativ an <strong>IONOS SE</strong> in Deutschland weitergeleitet und dort
-          mit hochqualitativen KI-Modellen verarbeitet. IONOS fungiert dabei als
-          Auftragsverarbeiter. Deine Daten werden auch hier nicht zum Training der KI verwendet. Bei
-          Nutzung des <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine
-          hochgeladenen Bilder direkt an <strong>Black Forest Labs</strong> auf EU-Servern
-          weitergeleitet und dort mit dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht
-          auf unseren Servern. Die Bilder werden ausschließlich zur Bearbeitung verwendet und nicht
-          zum Training der KI genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine
-          Suchanfragen ebenfalls über Mistral AI verarbeitet. Bei Nutzung der Sprachverarbeitung
-          werden deine Audiodaten an Mistral AI in der EU verarbeitet (Voxtral). Bitte achte also
-          darauf, dass Du keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst.
+          zum Training der KI verwendet. Bei Aktivierung des <strong>Reasoning-Modus</strong> wird
+          das erweiterte <strong>Magistral-Modell</strong> von Mistral AI verwendet, das komplexere
+          Aufgaben durch mehrstufiges Nachdenken lösen kann. Bei Nutzung des{' '}
+          <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine hochgeladenen Bilder
+          direkt an <strong>Black Forest Labs</strong> auf EU-Servern weitergeleitet und dort mit
+          dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die
+          Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI
+          genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine Suchanfragen
+          ebenfalls über Mistral AI verarbeitet. Bei Nutzung der Sprachverarbeitung werden deine
+          Audiodaten an Mistral AI in der EU verarbeitet (Voxtral). Bitte achte also darauf, dass Du
+          keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst.
         </strong>
       </p>
       <p>
@@ -33,13 +32,14 @@ const Datenschutz = () => {
       </p>
       <ul>
         <li>
-          <strong>Standard-Modus:</strong> Mistral AI (EU)
+          <strong>Kreativ-Modus:</strong> Mistral AI (EU) - Standard für kreative Texte
         </li>
         <li>
-          <strong>Pro-Modus:</strong> IONOS SE (Deutschland)
+          <strong>Reasoning-Modus:</strong> Mistral AI Magistral (EU) - erweiterte KI mit
+          Nachdenk-Fähigkeiten
         </li>
         <li>
-          <strong>Privacy-Modus:</strong> netzbegrünung e.V. (Deutschland) - maximaler Datenschutz
+          <strong>Gruenerator-GPT:</strong> netzbegrünung e.V. (Deutschland) - maximaler Datenschutz
           durch grüne Netzkultur
         </li>
       </ul>
@@ -84,10 +84,10 @@ const Datenschutz = () => {
         empfangen und verarbeiten.
       </p>
       <p>
-        Bei Aktivierung des Pro-Modus im GRUENERATOR werden Deine Eingaben an IONOS SE
-        weitergeleitet. Mit der Aktivierung des Pro-Modus akzeptierst Du, dass die Verarbeitung
-        unter den IONOS-Servicebedingungen erfolgt. Du kannst für jede Anfrage individuell
-        entscheiden, ob Du den Pro-Modus nutzen möchtest.
+        Bei Aktivierung des Reasoning-Modus im GRUENERATOR wird das erweiterte Magistral-Modell von
+        Mistral AI verwendet. Die Verarbeitung erfolgt weiterhin unter den gleichen
+        Datenschutzbedingungen wie im Kreativ-Modus. Du kannst für jede Anfrage individuell
+        entscheiden, welchen Modus Du nutzen möchtest.
       </p>
       <p>
         <strong>Grünerator Imagine:</strong> Bei Nutzung der Bildbearbeitungsfunktion werden Deine
@@ -169,12 +169,10 @@ const Datenschutz = () => {
       <p>
         Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland,
         info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
-        Auftragsverarbeiter. Bei Aktivierung des Pro-Modus fungiert zusätzlich IONOS SE als
-        Auftragsverarbeiter für die KI-Textgenerierung mit hochqualitativen Modellen. Bei Nutzung
-        des Grünerator Imagine fungiert Black Forest Labs Inc. als Auftragsverarbeiter für die
-        Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert <strong>Gladia SAS</strong>{' '}
-        als Auftragsverarbeiter für die Audiotranskription mit ausschließlicher
-        EU-Datenverarbeitung.
+        Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als
+        Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert{' '}
+        <strong>Gladia SAS</strong> als Auftragsverarbeiter für die Audiotranskription mit
+        ausschließlicher EU-Datenverarbeitung.
       </p>
 
       <p>
@@ -205,8 +203,12 @@ const Datenschutz = () => {
         <strong>1. Mistral AI</strong> (15 rue des Halles, 75001 Paris, Frankreich)
       </p>
       <ul>
-        <li>Zweck: Text-/Sprachverarbeitung (Standard-Modus + Voxtral)</li>
+        <li>Zweck: Text-/Sprachverarbeitung (Kreativ-Modus, Reasoning-Modus + Voxtral)</li>
         <li>Server: EU (Frankreich)</li>
+        <li>
+          Modelle: Mistral Medium (Kreativ-Modus), Magistral Medium (Reasoning-Modus mit
+          Nachdenk-Fähigkeiten)
+        </li>
         <li>Besonderheit: Subunternehmer möglich (mit EU-Standardvertragsklauseln)</li>
         <li>
           Details: <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a> und{' '}
@@ -218,9 +220,9 @@ const Datenschutz = () => {
         <strong>2. IONOS SE</strong> (Elgendorfer Str. 57, 56410 Montabaur, Deutschland)
       </p>
       <ul>
-        <li>Zweck: Pro-Modus (erweiterte KI bei aktiver Auswahl)</li>
+        <li>Zweck: Backup-Provider bei Ausfall anderer KI-Dienste</li>
         <li>Server: Deutschland</li>
-        <li>Aktivierung: Standardmäßig deaktiviert, Du entscheidest bei jeder Anfrage</li>
+        <li>Aktivierung: Automatisch nur bei Ausfall der primären Provider</li>
         <li>Besonderheit: Deutscher Anbieter mit vollständiger EU-Datenverarbeitung</li>
         <li>
           Details:{' '}
@@ -265,7 +267,7 @@ const Datenschutz = () => {
             <li>Redis (Session-Speicher, max. 24h Speicherdauer)</li>
             <li>Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)</li>
             <li>Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)</li>
-            <li>Privacy-Modus (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
+            <li>Gruenerator-GPT (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
           </ul>
         </li>
         <li>

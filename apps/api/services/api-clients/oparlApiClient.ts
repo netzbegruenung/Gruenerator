@@ -1,8 +1,8 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import fs from 'fs';
-import path from 'path';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -151,9 +151,10 @@ class OparlApiClient {
   }
 
   searchCity(query: string): OparlEndpoint[] {
-    if (!query || query.length < 2) return [];
-
-    const normalizedQuery = query.toLowerCase().trim();
+    const normalizedQuery = String(query || '')
+      .toLowerCase()
+      .trim();
+    if (normalizedQuery.length < 2) return [];
     return this.endpoints.filter((endpoint) =>
       endpoint.city.toLowerCase().includes(normalizedQuery)
     );
@@ -475,7 +476,7 @@ class OparlApiClient {
       console.log(`[OParlAPI] Found ${greenFactions.length} green faction(s)`);
 
       // Fetch papers with pagination
-      let paperUrl = body.paper;
+      const paperUrl = body.paper;
       if (!paperUrl) {
         throw new Error('Keine Paper-URL gefunden');
       }
