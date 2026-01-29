@@ -621,7 +621,18 @@ router.get(
         });
       }
 
-      const allShares = await service.getUserShares(userId, 'image');
+      let allShares;
+      try {
+        allShares = await service.getUserShares(userId, 'image');
+      } catch (queryError) {
+        log.warn('Failed to query user shares, returning empty result:', queryError);
+        return res.json({
+          success: true,
+          shares: [],
+          count: 0,
+          limit,
+        });
+      }
       const recentShares = allShares.slice(0, limit);
 
       res.json({
