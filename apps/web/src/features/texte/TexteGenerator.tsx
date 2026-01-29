@@ -64,6 +64,8 @@ const TAB_COMPONENT_NAMES: Record<TabId, string> = {
   eigene: 'eigene-generators',
 };
 
+const UNIVERSAL_SUB_TYPES = ['rede', 'wahlprogramm', 'buergeranfragen', 'leichte_sprache'];
+
 /**
  * TexteGenerator - Main text generation interface with tabbed navigation.
  *
@@ -92,8 +94,15 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
   }, [profile?.first_name, user?.display_name, user?.name]);
 
   const hasGeneratedContent = useMemo(() => {
-    return Object.values(TAB_COMPONENT_NAMES).some((componentName) => {
+    const baseCheck = Object.values(TAB_COMPONENT_NAMES).some((componentName) => {
       const content = generatedTexts[componentName];
+      if (!content) return false;
+      if (typeof content === 'string') return content.trim().length > 0;
+      return Object.keys(content).length > 0;
+    });
+    if (baseCheck) return true;
+    return UNIVERSAL_SUB_TYPES.some((subType) => {
+      const content = generatedTexts[`universal-text-${subType}`];
       if (!content) return false;
       if (typeof content === 'string') return content.trim().length > 0;
       return Object.keys(content).length > 0;
@@ -120,7 +129,9 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
 
   const wrapperClassName = useMemo(
     () =>
-      ['tabbed-layout', hasGeneratedContent && 'tabbed-layout--full-width'].filter(Boolean).join(' '),
+      ['tabbed-layout', hasGeneratedContent && 'tabbed-layout--full-width']
+        .filter(Boolean)
+        .join(' '),
     [hasGeneratedContent]
   );
 
