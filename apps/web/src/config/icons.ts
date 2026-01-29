@@ -1,4 +1,3 @@
-
 import { CiMemoPad } from 'react-icons/ci';
 import {
   FaInstagram,
@@ -7,7 +6,8 @@ import {
   FaLinkedin,
   FaCloud,
   FaBook,
-  FaTiktok, FaMagic 
+  FaTiktok,
+  FaMagic,
 } from 'react-icons/fa';
 import { FaFileWord } from 'react-icons/fa6';
 import { FiUpload, FiFile, FiX, FiFileText, FiCheck } from 'react-icons/fi';
@@ -30,6 +30,8 @@ import {
   HiDownload,
   HiLink,
   HiSparkles,
+  HiVolumeUp,
+  HiVolumeOff,
 } from 'react-icons/hi';
 import {
   IoDownloadOutline,
@@ -60,6 +62,7 @@ import {
   PiArticle,
   PiSquaresFour,
   PiHouse,
+  PiScan,
 } from 'react-icons/pi';
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
@@ -133,7 +136,8 @@ export type NavigationIconName =
   | 'website'
   | 'texte'
   | 'eigene'
-  | 'home';
+  | 'home'
+  | 'scanner';
 
 /**
  * Action icon names
@@ -161,7 +165,9 @@ export type ActionIconName =
   | 'labor'
   | 'altText'
   | 'kiLabel'
-  | 'link';
+  | 'link'
+  | 'volumeOn'
+  | 'volumeOff';
 
 /**
  * UI icon names
@@ -240,6 +246,7 @@ export const ICONS: IconRegistry = {
     texte: PiArticle,
     eigene: PiWrench,
     home: PiHouse,
+    scanner: PiScan,
   },
 
   actions: {
@@ -266,6 +273,8 @@ export const ICONS: IconRegistry = {
     altText: IoAccessibility,
     kiLabel: PiTextAlignLeftFill,
     link: HiLink,
+    volumeOn: HiVolumeUp,
+    volumeOff: HiVolumeOff,
   },
 
   ui: {

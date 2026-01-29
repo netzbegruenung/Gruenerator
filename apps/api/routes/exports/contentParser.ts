@@ -4,6 +4,7 @@
  */
 
 import { markdownForExport, isMarkdownContent } from '../../services/markdown/index.js';
+
 import type {
   FormattedSegment,
   FormattedParagraph,
@@ -101,9 +102,20 @@ export function parseFormattedParagraph(text: string): FormattedSegment[] {
     }
   }
 
+  // Helper to fully strip HTML tags (handles nested/malformed tags)
+  const stripHtmlTags = (str: string): string => {
+    let result = str;
+    let prev = '';
+    while (prev !== result) {
+      prev = result;
+      result = result.replace(/<[^>]*>/g, '');
+    }
+    return result;
+  };
+
   // If no formatting was found, return the whole text as one segment
   if (segments.length === 0) {
-    const cleanText = text.replace(/<[^>]*>/g, '').trim();
+    const cleanText = stripHtmlTags(text).trim();
     if (cleanText) {
       segments.push({ text: cleanText, bold: false, italic: false });
     }
@@ -113,7 +125,7 @@ export function parseFormattedParagraph(text: string): FormattedSegment[] {
   return segments
     .map((segment) => ({
       ...segment,
-      text: segment.text.replace(/<[^>]*>/g, '').trim(),
+      text: stripHtmlTags(segment.text).trim(),
     }))
     .filter((segment) => segment.text.length > 0);
 }
@@ -131,13 +143,11 @@ export function parseFormattedContent(input: string | null | undefined): Formatt
     content = markdownForExport(content);
   }
 
-  // Convert basic HTML entities
+  // Convert basic HTML entities (preserve &lt; and &gt; to prevent XSS from double-encoded content)
   content = content
     .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"');
+    .replace(/&quot;/gi, '"')
+    .replace(/&amp;(?!(lt|gt|amp|quot|nbsp);)/gi, '&');
 
   // Parse paragraphs and headers separately
   const elements: ParsedElement[] = [];
@@ -213,17 +223,21 @@ export function htmlToPlainText(html: string | null | undefined): string {
   text = text.replace(/<li[^>]*>/gi, '• ');
   text = text.replace(/<\/li>/gi, '\n');
 
-  // Remove all remaining HTML tags
-  text = text.replace(/<[^>]+>/g, '');
+  // Remove all remaining HTML tags (loop to handle nested/malformed tags)
+  let prev = '';
+  while (prev !== text) {
+    prev = text;
+    text = text.replace(/<[^>]+>/g, '');
+  }
 
-  // Convert HTML entities
+  // Convert HTML entities (decode &amp; last to prevent double-decoding like &amp;lt; → < )
   text = text
     .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&');
 
   // Clean up whitespace
   text = text.replace(/\n{3,}/g, '\n\n');

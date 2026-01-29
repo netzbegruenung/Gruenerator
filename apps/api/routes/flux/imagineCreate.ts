@@ -1,24 +1,25 @@
-import express, { Response } from 'express';
-import path from 'path';
 import fs from 'fs';
-import { FluxImageService } from '../../services/flux/index.js';
-import { ImageGenerationCounter } from '../../services/counters/index.js';
-import { redisClient } from '../../utils/redis/index.js';
+import path from 'path';
+
+import express, { type Response } from 'express';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { createLogger } from '../../utils/logger.js';
+import { ImageGenerationCounter } from '../../services/counters/index.js';
+import { FluxImageService, buildFluxPrompt } from '../../services/flux/index.js';
 import {
   composeImagineCreate,
   FLUX_WIDTH,
   FLUX_HEIGHT,
 } from '../../services/image/ImagineCanvasRenderer.js';
+import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('imagineCreate');
 const router = express.Router();
 const imageCounter = new ImageGenerationCounter(redisClient as any);
-
-import { buildFluxPrompt } from '../../services/flux/index.js';
 
 // ============================================================================
 // Type Definitions
@@ -164,7 +165,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       `[ImagineCreate] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${width && height ? ' (custom)' : ' (default)'}`
     );
 
-    const flux = new FluxImageService();
+    const flux = FluxImageService.create();
     const fluxOptions: {
       width: number;
       height: number;

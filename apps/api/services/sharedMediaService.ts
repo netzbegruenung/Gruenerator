@@ -1,9 +1,11 @@
-import { getPostgresInstance } from '../database/services/PostgresService.js';
-import path from 'path';
-import fs from 'fs/promises';
 import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
 import { fileURLToPath } from 'url';
+
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+
+import { getPostgresInstance } from '../database/services/PostgresService.js';
 
 import type {
   SharedMediaRow,
@@ -26,8 +28,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const SHARED_MEDIA_PATH = path.join(__dirname, '../uploads/shared-media');
+const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
 const MAX_ITEMS_PER_USER = 50;
 const THUMBNAIL_SIZE = 400;
+
+function getSafeShareDir(shareToken: string): string {
+  const safeToken = path.basename(shareToken);
+  const shareDir = path.join(SHARED_MEDIA_PATH, safeToken);
+  const resolvedDir = path.resolve(shareDir);
+  if (!resolvedDir.startsWith(SHARED_MEDIA_PATH_RESOLVED + path.sep)) {
+    throw new Error('Invalid share token: path traversal detected');
+  }
+  return shareDir;
+}
 
 interface PostgresInstance {
   ensureInitialized(): Promise<void>;
@@ -118,11 +131,12 @@ class SharedMediaService {
 
   async cleanupShareFiles(shareToken: string): Promise<void> {
     try {
-      const shareDir = path.join(SHARED_MEDIA_PATH, shareToken);
+      const shareDir = getSafeShareDir(shareToken);
       await fs.rm(shareDir, { recursive: true, force: true });
     } catch (error) {
       console.warn(
-        `[SharedMediaService] Could not cleanup files for ${shareToken}:`,
+        '[SharedMediaService] Could not cleanup files for %s:',
+        shareToken,
         (error as Error).message
       );
     }
@@ -141,7 +155,7 @@ class SharedMediaService {
 
     const { videoPath, title, thumbnailPath, duration, projectId } = params;
     const shareToken = this.generateShareToken();
-    const shareDir = path.join(SHARED_MEDIA_PATH, shareToken);
+    const shareDir = getSafeShareDir(shareToken);
 
     try {
       await fs.mkdir(shareDir, { recursive: true });
@@ -215,7 +229,7 @@ class SharedMediaService {
 
     const { imageBase64, title, imageType, metadata = {}, originalImage = null } = params;
     const shareToken = this.generateShareToken();
-    const shareDir = path.join(SHARED_MEDIA_PATH, shareToken);
+    const shareDir = getSafeShareDir(shareToken);
 
     try {
       await fs.mkdir(shareDir, { recursive: true });
@@ -339,7 +353,7 @@ class SharedMediaService {
 
     const { title, thumbnailPath, duration, projectId } = params;
     const shareToken = this.generateShareToken();
-    const shareDir = path.join(SHARED_MEDIA_PATH, shareToken);
+    const shareDir = getSafeShareDir(shareToken);
 
     try {
       await fs.mkdir(shareDir, { recursive: true });
@@ -404,7 +418,7 @@ class SharedMediaService {
     await this.ensureInitialized();
 
     try {
-      const shareDir = path.join(SHARED_MEDIA_PATH, shareToken);
+      const shareDir = getSafeShareDir(shareToken);
       const targetVideoPath = path.join(shareDir, 'media.mp4');
       await fs.copyFile(videoPath, targetVideoPath);
 
@@ -575,17 +589,36 @@ class SharedMediaService {
 
   getMediaFilePath(relativePath: string | null): string | null {
     if (!relativePath) return null;
-    return path.join(SHARED_MEDIA_PATH, relativePath);
+    const safePath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, '');
+    const fullPath = path.join(SHARED_MEDIA_PATH, safePath);
+    const resolvedPath = path.resolve(fullPath);
+    if (!resolvedPath.startsWith(SHARED_MEDIA_PATH_RESOLVED + path.sep)) {
+      return null;
+    }
+    return fullPath;
   }
 
   getThumbnailFilePath(relativePath: string | null): string | null {
     if (!relativePath) return null;
-    return path.join(SHARED_MEDIA_PATH, relativePath);
+    const safePath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, '');
+    const fullPath = path.join(SHARED_MEDIA_PATH, safePath);
+    const resolvedPath = path.resolve(fullPath);
+    if (!resolvedPath.startsWith(SHARED_MEDIA_PATH_RESOLVED + path.sep)) {
+      return null;
+    }
+    return fullPath;
   }
 
   getOriginalImagePath(shareToken: string, filename: string): string | null {
     if (!shareToken || !filename) return null;
-    return path.join(SHARED_MEDIA_PATH, shareToken, filename);
+    const safeToken = path.basename(shareToken);
+    const safeFilename = path.basename(filename);
+    const fullPath = path.join(SHARED_MEDIA_PATH, safeToken, safeFilename);
+    const resolvedPath = path.resolve(fullPath);
+    if (!resolvedPath.startsWith(SHARED_MEDIA_PATH_RESOLVED + path.sep)) {
+      return null;
+    }
+    return fullPath;
   }
 
   async getMediaLibrary(
@@ -738,7 +771,7 @@ class SharedMediaService {
       uploadSource = 'upload',
     } = params;
     const shareToken = this.generateShareToken();
-    const shareDir = path.join(SHARED_MEDIA_PATH, shareToken);
+    const shareDir = getSafeShareDir(shareToken);
 
     try {
       await fs.mkdir(shareDir, { recursive: true });
@@ -871,7 +904,7 @@ class SharedMediaService {
         throw new Error('Share not found or not owned by user');
       }
 
-      const shareDir = path.join(SHARED_MEDIA_PATH, shareToken);
+      const shareDir = getSafeShareDir(shareToken);
 
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const imageBuffer = Buffer.from(base64Data, 'base64');

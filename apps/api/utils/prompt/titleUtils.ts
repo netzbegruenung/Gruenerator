@@ -65,7 +65,7 @@ export function extractTitleFromResponse(
     /<h[2-6]>Titel:<\/h[2-6]>\s*<p>(.+?)<\/p>/i,
     /<h[2-6]>Titel:<\/h[2-6]>\s*\n\s*<p>(.+?)<\/p>/i,
     /Titel:\s*(.+)$/im,
-    /Titel:<\/h[2-6]>\s*(?:\n\s*)*<p>(.+?)<\/p>/i,
+    /Titel:<\/h[2-6]>\s*(?:\n\s*){0,10}<p>(.+?)<\/p>/i,
     /<p>([^<]+)<\/p>\s*$/i,
   ];
 

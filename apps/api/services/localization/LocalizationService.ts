@@ -103,7 +103,27 @@ export class LocalizationService {
    * Extract locale from request object
    */
   extractLocaleFromRequest(req: RequestWithLocale): Locale {
-    return (req?.user?.locale as Locale) || 'de-DE';
+    // 1. Authenticated user's saved preference (highest priority)
+    if (req?.user?.locale) {
+      return req.user.locale as Locale;
+    }
+
+    // 2. Frontend-sent browser locale header
+    const headerLocale = req?.headers?.['x-user-locale'];
+    if (headerLocale === 'de-DE' || headerLocale === 'de-AT') {
+      return headerLocale;
+    }
+
+    // 3. Parse Accept-Language header
+    const acceptLang = req?.headers?.['accept-language'];
+    if (acceptLang && typeof acceptLang === 'string') {
+      if (acceptLang.includes('de-AT')) {
+        return 'de-AT';
+      }
+    }
+
+    // 4. Default
+    return 'de-DE';
   }
 }
 

@@ -4,14 +4,15 @@
  * Resumable file uploads using TUS protocol with intelligent cleanup.
  */
 
-import { Server } from '@tus/server';
-import { FileStore } from '@tus/file-store';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import fs from 'fs/promises';
-import { sanitizePath } from '../../utils/validation/index.js';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import { FileStore } from '@tus/file-store';
+import { Server } from '@tus/server';
+
 import { createLogger } from '../../utils/logger.js';
+import { sanitizePath } from '../../utils/validation/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -75,8 +76,9 @@ const tusServer = new Server({
 
 async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
   try {
-    const metadataPath = path.join(TUS_UPLOAD_PATH, `${uploadId}.json`);
-    const videoPath = path.join(TUS_UPLOAD_PATH, uploadId);
+    const safeUploadId = path.basename(uploadId);
+    const metadataPath = path.join(TUS_UPLOAD_PATH, `${safeUploadId}.json`);
+    const videoPath = path.join(TUS_UPLOAD_PATH, safeUploadId);
 
     const [metadataExists, videoExists] = await Promise.all([
       fs
@@ -123,8 +125,9 @@ async function cleanupUploadFiles(
   reason: string = 'TTL expired'
 ): Promise<boolean> {
   try {
-    const metadataPath = path.join(TUS_UPLOAD_PATH, `${uploadId}.json`);
-    const videoPath = path.join(TUS_UPLOAD_PATH, uploadId);
+    const safeUploadId = path.basename(uploadId);
+    const metadataPath = path.join(TUS_UPLOAD_PATH, `${safeUploadId}.json`);
+    const videoPath = path.join(TUS_UPLOAD_PATH, safeUploadId);
 
     await Promise.all([
       fs.unlink(metadataPath).catch(() => {}),

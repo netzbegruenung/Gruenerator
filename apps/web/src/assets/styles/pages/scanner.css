@@ -1,0 +1,742 @@
+/**
+ * Scanner Page Styles - Delightful Zen Scanner
+ * Ultra-minimal design with memorable micro-interactions
+ *
+ * Uses shared components: FormCard, SubmitButton, CopyButton
+ * Custom styles for zen aesthetics and animations
+ */
+
+/* ========================================
+   Base Layout
+   ======================================== */
+
+.scanner-page {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: var(--spacing-xl);
+  padding-top: var(--spacing-xxlarge);
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+@media (min-width: 1024px) {
+  .scanner-page {
+    padding-top: calc(var(--spacing-xxlarge) * 2);
+  }
+}
+
+/* Safe area support for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .scanner-page {
+    padding-top: calc(var(--spacing-xxlarge) + env(safe-area-inset-top));
+  }
+
+  @media (min-width: 1024px) {
+    .scanner-page {
+      padding-top: calc(var(--spacing-xxlarge) * 2 + env(safe-area-inset-top));
+    }
+  }
+}
+
+.scanner-page.scanner-zen {
+  /* No additional styles needed */
+}
+
+/* Header section - top centered */
+.scanner-zen-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--spacing-sm);
+  padding-bottom: var(--spacing-lg);
+}
+
+.scanner-zen-title {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.scanner-zen-subtitle {
+  font-size: 1rem;
+  color: var(--font-color-secondary);
+  margin: 0;
+  font-weight: 400;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .scanner-zen-title {
+    font-size: 1.8rem;
+  }
+
+  .scanner-zen-subtitle {
+    font-size: 0.9375rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .scanner-zen-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* Scanner container - centered in remaining space */
+.scanner-container {
+  width: 100%;
+  max-width: 640px;
+  padding: 0 var(--spacing-md);
+  box-sizing: border-box;
+  justify-self: center;
+  align-self: center;
+}
+
+.scanner-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/* ========================================
+   Upload Zone
+   ======================================== */
+
+.scanner-upload-zone {
+  position: relative;
+  background: var(--bg-primary);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  text-align: center;
+  cursor: pointer;
+}
+
+.scanner-upload-zone:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.scanner-upload-zone.drag-over {
+  border-color: var(--primary);
+  border-style: solid;
+  background: var(--primary-light);
+}
+
+.scanner-file-input {
+  display: none;
+}
+
+/* Marching ants border SVG */
+.scanner-marching-ants {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ========================================
+   Upload Content
+   ======================================== */
+
+.scanner-upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.scanner-upload-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--text-muted);
+}
+
+.scanner-upload-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.scanner-upload-text {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  margin: 0;
+  font-weight: 500;
+}
+
+.scanner-upload-text span {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.scanner-upload-hint {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+  font-weight: 400;
+}
+
+/* ========================================
+   Ready State - File Selected
+   ======================================== */
+
+.scanner-ready-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.scanner-selected-file {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.scanner-file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.scanner-file-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.scanner-file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.scanner-file-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.scanner-file-size {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.scanner-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.scanner-clear-btn:focus {
+  outline: none;
+}
+
+/* ========================================
+   Extract Button
+   ======================================== */
+
+.scanner-extract-btn {
+  width: 100%;
+}
+
+/* ========================================
+   Processing State
+   ======================================== */
+
+.scanner-processing-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-2xl) var(--spacing-xl);
+}
+
+.scanner-processing-visual {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.scanner-document-preview {
+  position: relative;
+  width: 80px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scanner-document-preview .scanner-file-icon {
+  width: 80px;
+  height: 100px;
+  border-radius: var(--radius-lg);
+}
+
+.scanner-document-preview .scanner-file-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+/* Scan line animation */
+.scanner-scan-line {
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--primary) 20%,
+    var(--klee) 50%,
+    var(--primary) 80%,
+    transparent 100%
+  );
+  border-radius: 2px;
+  box-shadow: 0 0 12px rgba(95, 133, 117, 0.6);
+  pointer-events: none;
+}
+
+/* Processing spinner */
+.scanner-processing-spinner {
+  width: 48px;
+  height: 48px;
+  color: var(--primary);
+}
+
+.scanner-processing-spinner svg {
+  width: 100%;
+  height: 100%;
+}
+
+.scanner-processing-text {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0;
+  min-height: 1.5em;
+}
+
+/* Typewriter cursor */
+.scanner-typewriter {
+  display: inline;
+}
+
+.scanner-cursor {
+  display: inline-block;
+  color: var(--primary);
+  margin-left: 1px;
+}
+
+/* ========================================
+   Results State
+   ======================================== */
+
+.scanner-results-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+/* Metadata bar */
+.scanner-result-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+}
+
+.scanner-meta-item {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.scanner-meta-divider {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* DisplaySection container styling */
+.scanner-results-state .display-container {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.scanner-results-state .display-header {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.scanner-results-state .display-content {
+  padding: var(--spacing-md);
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+/* Scrollbar styling */
+.scanner-results-state .display-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scanner-results-state .display-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scanner-results-state .display-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.scanner-results-state .display-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ========================================
+   New Scan Button
+   ======================================== */
+
+.scanner-new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.scanner-new-btn:focus {
+  outline: none;
+}
+
+.scanner-new-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ========================================
+   Error Display
+   ======================================== */
+
+.scanner-error {
+  margin: 0;
+  border-radius: var(--radius-lg);
+}
+
+/* ========================================
+   Accessibility - Reduced Motion
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .scanner-upload-zone,
+  .scanner-file-icon,
+  .scanner-clear-btn,
+  .scanner-new-btn {
+    transition: none;
+  }
+
+  .scanner-scan-line,
+  .scanner-cursor,
+  .scanner-particles,
+  .scanner-processing-spinner {
+    display: none;
+  }
+
+  .scanner-processing-state .scanner-processing-text {
+    opacity: 1;
+  }
+
+  /* Disable all motion animations */
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================
+   Mobile Responsive
+   ======================================== */
+
+/* ========================================
+   Page Header (for TabbedLayout)
+   ======================================== */
+
+.scanner-page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--spacing-xs);
+  padding-bottom: var(--spacing-md);
+}
+
+/* Tab Content Wrapper */
+.scanner-tab-content,
+.protokoll-tab-content {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--spacing-lg) var(--spacing-md);
+}
+
+/* ========================================
+   Protokollizer Tab Styles
+   ======================================== */
+
+.protokoll-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.protokoll-textarea {
+  min-height: 200px;
+  resize: vertical;
+}
+
+.protokoll-optional-fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+  .protokoll-optional-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.protokoll-submit-btn {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+}
+
+.protokoll-results-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.protokoll-new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.protokoll-new-btn:focus {
+  outline: none;
+}
+
+.protokoll-new-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.protokoll-error {
+  margin: 0;
+  border-radius: var(--radius-lg);
+}
+
+/* Load from Scanner button */
+.form-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.protokoll-load-scanner-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-md);
+  color: var(--primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.protokoll-load-scanner-btn:focus {
+  outline: none;
+}
+
+.protokoll-load-scanner-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* DisplaySection container styling for protokoll */
+.protokoll-results-state .display-container {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.protokoll-results-state .display-header {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.protokoll-results-state .display-content {
+  padding: var(--spacing-md);
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+/* ========================================
+   Mobile Responsive
+   ======================================== */
+
+@media (max-width: 768px) {
+  .scanner-page {
+    padding: var(--spacing-md);
+    padding-top: var(--spacing-lg);
+  }
+
+  .scanner-page.scanner-zen {
+    padding-top: var(--spacing-xl);
+  }
+
+  .scanner-container {
+    max-width: 100%;
+  }
+
+  .scanner-zen-title {
+    font-size: 2rem;
+  }
+
+  .scanner-zen-subtitle {
+    font-size: 1rem;
+  }
+
+  .scanner-upload-zone {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+
+  .scanner-upload-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .scanner-upload-text {
+    font-size: 1rem;
+  }
+
+  .scanner-selected-file {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .scanner-file-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .scanner-file-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .scanner-result-header {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: flex-start;
+  }
+
+  .scanner-copy-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .scanner-result-content {
+    max-height: 45vh;
+    padding: var(--spacing-md);
+  }
+
+  .scanner-processing-state {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+
+  .scanner-document-preview {
+    width: 60px;
+    height: 75px;
+  }
+
+  .scanner-document-preview .scanner-file-icon {
+    width: 60px;
+    height: 75px;
+  }
+
+  .scanner-document-preview .scanner-file-icon svg {
+    width: 36px;
+    height: 36px;
+  }
+}
+

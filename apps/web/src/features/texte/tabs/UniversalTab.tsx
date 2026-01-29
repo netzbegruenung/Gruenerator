@@ -50,7 +50,7 @@ const API_ENDPOINTS: Record<UniversalSubType, string> = {
   [TEXT_TYPES.REDE]: '/claude_rede',
   [TEXT_TYPES.WAHLPROGRAMM]: '/claude_wahlprogramm',
   [TEXT_TYPES.BUERGERANFRAGEN]: '/claude_buergeranfragen',
-  [TEXT_TYPES.LEICHTE_SPRACHE]: '/claude_leichte_sprache',
+  [TEXT_TYPES.LEICHTE_SPRACHE]: '/leichte_sprache',
 };
 
 interface ExtrasInputConfig {

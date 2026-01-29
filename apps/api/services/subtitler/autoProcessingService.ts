@@ -4,23 +4,26 @@
  * Automatically processes videos: analyzes, trims silence, generates subtitles, and exports.
  */
 
+import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs/promises';
+
 import { v4 as uuidv4 } from 'uuid';
+
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import { detectSilence, calculateTrimPoints, SilenceData } from './silenceDetectionService.js';
-import { transcribeVideo } from './transcriptionService.js';
-import { ffmpeg, ffprobe, FFprobeMetadata } from './ffmpegWrapper.js';
-import * as hwaccel from './hwaccelUtils.js';
+
 import AssSubtitleService from './assSubtitleService.js';
-import { ffmpegPool } from './ffmpegPool.js';
 import {
   calculateScaleFilter,
   buildFFmpegOutputOptions,
   buildVideoFilters,
 } from './ffmpegExportUtils.js';
+import { ffmpegPool } from './ffmpegPool.js';
+import { ffmpeg, ffprobe, FFprobeMetadata } from './ffmpegWrapper.js';
+import * as hwaccel from './hwaccelUtils.js';
+import { detectSilence, calculateTrimPoints, type SilenceData } from './silenceDetectionService.js';
+import { transcribeVideo } from './transcriptionService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +33,14 @@ const assService = new AssSubtitleService();
 const log = createLogger('auto-processing');
 
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
+const UPLOADS_BASE_DIR = path.resolve(__dirname, '../../uploads');
+
+function validateVideoPath(videoPath: string): void {
+  const resolvedPath = path.resolve(videoPath);
+  if (!resolvedPath.startsWith(UPLOADS_BASE_DIR + path.sep)) {
+    throw new Error('Invalid video path: path must be within uploads directory');
+  }
+}
 
 interface Stage {
   id: number;
@@ -222,6 +233,7 @@ async function processVideoAutomatically(
   uploadId: string,
   options: ProcessingOptions = {}
 ): Promise<ProcessingResult> {
+  validateVideoPath(inputPath);
   const autoProcessToken = uuidv4();
   const {
     stylePreference = 'shadow',
@@ -561,7 +573,9 @@ async function exportWithEnhancements(
               stageProgress: progressPercent,
               overallProgress: calculateOverallProgress(STAGES.FINALIZING.id, progressPercent),
             });
-          } catch {}
+          } catch {
+            // Ignore progress update errors
+          }
         })
         .on('error', (err: Error) => {
           log.error(`FFmpeg auto export error: ${err.message}`);
@@ -578,7 +592,9 @@ async function exportWithEnhancements(
   try {
     if (assFilePath) await fs.unlink(assFilePath).catch(() => {});
     if (tempFontPath) await fs.unlink(tempFontPath).catch(() => {});
-  } catch {}
+  } catch {
+    // Ignore cleanup errors
+  }
 
   return outputPath;
 }

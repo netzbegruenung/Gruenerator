@@ -3,13 +3,15 @@
  * Handles profile CRUD, beta features, user defaults, and account deletion
  */
 
-import express, { Router, Response } from 'express';
+import express, { type Router, type Response } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { getProfileService } from '../../services/user/ProfileService.js';
-import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
+import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
 import { KeycloakApiClient } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type {
   AuthRequest,
   ProfileUpdateBody,
@@ -258,6 +260,8 @@ router.patch(
         'videoEditor',
         'igel_modus',
         'automatischPlanMode',
+        'prompts',
+        'scanner',
       ];
 
       if (!allowedFeatures.includes(feature)) {

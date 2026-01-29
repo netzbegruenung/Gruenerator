@@ -1,4 +1,5 @@
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+
 import type {
   UserProfile,
   ProfileCreateData,
@@ -215,6 +216,8 @@ class ProfileService {
         autoSaveOnExport: 'auto_save_on_export',
         vorlagen: 'vorlagen',
         videoEditor: 'video_editor',
+        prompts: 'prompts',
+        scanner: 'scanner',
       };
 
       if (featureColumnMap[feature]) {
@@ -450,6 +453,8 @@ class ProfileService {
       autoSaveOnExport: profile.auto_save_on_export || false,
       vorlagen: profile.vorlagen || false,
       videoEditor: profile.video_editor || false,
+      prompts: profile.prompts || false,
+      scanner: profile.scanner || false,
     };
 
     return {
@@ -479,10 +484,15 @@ class ProfileService {
       sharepic: 'sharepic',
       anweisungen: 'anweisungen',
       canva: 'canva',
+      labor: 'labor_enabled',
       sites: 'sites_enabled',
       chat: 'chat',
       interactiveAntrag: 'interactive_antrag_enabled',
       autoSaveOnExport: 'auto_save_on_export',
+      vorlagen: 'vorlagen',
+      videoEditor: 'video_editor',
+      prompts: 'prompts',
+      scanner: 'scanner',
     };
 
     Object.entries(featureMap).forEach(([key, column]) => {

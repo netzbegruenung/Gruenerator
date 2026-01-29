@@ -70,6 +70,8 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
   { key: 'videoEditor', label: 'Video Editor', isAdminOnly: false },
+  { key: 'prompts', label: 'Eigene Prompts', isAdminOnly: false },
+  { key: 'scanner', label: 'Scanner (OCR)', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },

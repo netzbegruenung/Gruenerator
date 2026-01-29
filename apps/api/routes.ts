@@ -3,29 +3,8 @@
  * Central routing setup for all API endpoints
  */
 
-import type { Application, Request, Response, NextFunction } from 'express';
-import { createLogger } from './utils/logger.js';
-import { RouteStatsTracker } from './utils/routeStats.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
-import { recentValuesRouter } from './routes/user/index.js';
-import {
-  universalRouter,
-  redeRouter,
-  wahlprogrammRouter,
-  buergeranfragenRouter,
-  textAdjustmentRouter as claudeTextAdjustmentRoute,
-  suggestEditsRouter as claudeSuggestEditsRoute,
-  textImproverRouter as claudeTextImproverRoute,
-  grueneJugendRouter as claudeGrueneJugendRoute,
-  subtitlesRouter as claudeSubtitlesRoute,
-  leichteSpracheRouter as leichteSpracheRoute,
-} from './routes/texte/index.js';
-import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
-import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
-import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
-import infoSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/info_canvas.js';
-import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
 import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
@@ -44,7 +23,10 @@ import {
   searchController as searchRouter,
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
-import { pickerController as imagePickerRoute } from './routes/image/index.js';
+import {
+  pickerController as imagePickerRoute,
+  generationController as imageGenerationRouter,
+} from './routes/image/index.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerSocialRouter from './routes/subtitler/socialController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
@@ -52,7 +34,6 @@ import subtitlerShareRouter from './routes/subtitler/shareController.js';
 import shareRouter from './routes/share/shareController.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
-import { generationController as imageGenerationRouter } from './routes/image/index.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { releasesRouter } from './routes/releases/index.js';
@@ -62,6 +43,30 @@ import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import planModeRouter from './routes/plan-mode/index.js';
+import scannerRouter from './routes/scanner/index.js';
+import protokollRouter from './routes/protokoll/index.js';
+import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
+import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
+import infoSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/info_canvas.js';
+import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
+import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
+import {
+  universalRouter,
+  redeRouter,
+  wahlprogrammRouter,
+  buergeranfragenRouter,
+  textAdjustmentRouter as claudeTextAdjustmentRoute,
+  suggestEditsRouter as claudeSuggestEditsRoute,
+  textImproverRouter as claudeTextImproverRoute,
+  grueneJugendRouter as claudeGrueneJugendRoute,
+  subtitlesRouter as claudeSubtitlesRoute,
+  leichteSpracheRouter as leichteSpracheRoute,
+} from './routes/texte/index.js';
+import { recentValuesRouter } from './routes/user/index.js';
+import { createLogger } from './utils/logger.js';
+import { RouteStatsTracker } from './utils/routeStats.js';
+
+import type { Application, Request, Response, NextFunction } from 'express';
 
 const log = createLogger('Routes');
 
@@ -79,7 +84,7 @@ async function loadOptionalModules(): Promise<void> {
   try {
     if (process.env.YJS_ENABLED === 'true') {
       // Dynamic import - module may not exist
-      // @ts-ignore - Optional module, may not be present
+      // @ts-expect-error - Optional module, may not be present
       const module = await import('./routes/internal/snapshottingController.js');
       snapshottingRouter = module.default;
       log.debug('Snapshotting controller loaded');
@@ -151,6 +156,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-values', recentValuesRouter);
   app.use('/api/antraege', requireAuth, antraegeRouter);
   app.use('/api/plan-mode', requireAuth, planModeRouter);
+  app.use('/api/scanner', scannerRouter);
+  app.use('/api/protokoll', protokollRouter);
 
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_alttext', claudeAlttextRoute);

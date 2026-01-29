@@ -78,6 +78,7 @@ const SYSTEM_COLLECTION_MAP: Record<string, string> = {
   'gruene-at-system': 'gruene_at_documents',
   'boell-stiftung-system': 'boell_stiftung_documents',
   'satzungen-system': 'satzungen_documents',
+  'hamburg-system': 'landesverbaende_documents',
   wahlprogramm: 'wahlprogramm_documents',
   // Fallback shortened names
   grundsatz: 'grundsatz_documents',

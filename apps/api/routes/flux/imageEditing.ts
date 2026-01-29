@@ -1,12 +1,15 @@
-import express, { Response } from 'express';
-import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
-import { FluxImageService } from '../../services/flux/index.js';
-import { ImageGenerationCounter } from '../../services/counters/index.js';
-import { redisClient } from '../../utils/redis/index.js';
+
+import express, { type Response } from 'express';
+import multer from 'multer';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { ImageGenerationCounter } from '../../services/counters/index.js';
+import { FluxImageService } from '../../services/flux/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('imageEditing');
@@ -28,7 +31,7 @@ interface PromptRequestBody {
   type?: ImageEditType;
 }
 
-interface GenerateRequestBody extends PromptRequestBody {}
+type GenerateRequestBody = PromptRequestBody;
 
 interface PromptConstraints {
   preserve?: string[];
@@ -310,7 +313,7 @@ router.post(
             ? buildUniversalPrompt(userText)
             : buildGreenEditPrompt(userText, isPrecision);
 
-      const flux = new FluxImageService();
+      const flux = FluxImageService.create();
       log.debug(`[Image Edit] Starting image generation with FLUX.2 Pro`);
       const { request, result, stored } = (await flux.generateFromImage(
         prompt,
@@ -450,7 +453,7 @@ router.post(
             ? buildUniversalPrompt(userText)
             : buildGreenEditPrompt(userText, isPrecision);
 
-      const flux = new FluxImageService();
+      const flux = FluxImageService.create();
       let generationResult: FluxGenerationResult;
 
       if (req.file) {

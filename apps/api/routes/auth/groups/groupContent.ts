@@ -3,10 +3,13 @@
  * Handles content sharing, permissions, and group content retrieval
  */
 
-import express, { Router, Response } from 'express';
+import express, { type Router, type Response } from 'express';
+
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
+
 import { getPostgresAndCheckMembership } from './groupCore.js';
+
 import type { AuthRequest } from '../types.js';
 
 const log = createLogger('groupContent');
@@ -364,7 +367,13 @@ router.get(
 
         // Transform data to include computed word_count and character_count
         const textsData = rawTextsData.map((item: any) => {
-          const plainText = (item.content || '').replace(/<[^>]*>/g, '').trim();
+          let plainText = item.content || '';
+          let prev = '';
+          while (prev !== plainText) {
+            prev = plainText;
+            plainText = plainText.replace(/<[^>]*>/g, '');
+          }
+          plainText = plainText.trim();
           const wordCount = plainText.split(/\s+/).filter((word: string) => word.length > 0).length;
           const characterCount = plainText.length;
 
