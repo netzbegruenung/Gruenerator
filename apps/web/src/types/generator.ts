@@ -6,15 +6,6 @@ export interface Source {
   name: string | null;
 }
 
-export type InstructionType = 'universal' | 'gruenejugend' | 'rede' | 'buergeranfragen';
-
-export interface Instructions {
-  universal: string | null;
-  gruenejugend: string | null;
-  rede: string | null;
-  buergeranfragen: string | null;
-}
-
 export interface UIConfig {
   enableDocuments: boolean;
   enableTexts: boolean;
@@ -32,9 +23,6 @@ export type GeneratorMode = 'privacy' | 'balanced' | 'pro' | 'ultra';
 
 export interface GeneratorSelectionState {
   source: Source;
-  instructionType: InstructionType | null;
-  instructions: Instructions;
-  isInstructionsActive: boolean;
   availableDocuments: Array<{ id: string; [key: string]: unknown }>;
   selectedDocumentIds: string[];
   isLoadingDocuments: boolean;

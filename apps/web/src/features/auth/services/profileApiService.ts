@@ -335,17 +335,6 @@ export const profileApiService = {
   },
 
   // === ANWEISUNGEN & WISSEN ===
-  async getInstructionsStatusForType(instructionType: string): Promise<InstructionsStatusResponse> {
-    const response = await apiClient.get(`/auth/instructions-status/${instructionType}`);
-    const data = response.data;
-
-    if (!data.success) {
-      throw new Error(data.message || `Failed to check ${instructionType} instructions status`);
-    }
-
-    return data;
-  },
-
   async getAnweisungenWissen(
     context: 'user' | 'group' = 'user',
     groupId: string | null = null
