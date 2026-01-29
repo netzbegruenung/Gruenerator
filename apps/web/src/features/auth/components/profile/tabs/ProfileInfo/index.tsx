@@ -309,7 +309,7 @@ const ProfileInfoTabContainer = ({
 
   const handleToggleIgelModus = async () => {
     try {
-      await updateUserBetaFeatures({ igel: !igelActive });
+      await updateUserBetaFeatures('igel', !igelActive);
       onSuccessMessage(igelActive ? 'IGEL-Modus deaktiviert' : 'IGEL-Modus aktiviert');
     } catch (error) {
       console.error('Failed to toggle IGEL mode:', error);
@@ -324,6 +324,8 @@ const ProfileInfoTabContainer = ({
   });
 
   const isLoading = isLoadingProfile;
+
+  if (!user) return null;
 
   return (
     <>

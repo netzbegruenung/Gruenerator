@@ -5,18 +5,6 @@
 
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
-import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
-import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
-import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
-import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.js';
-import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
-import sharepicClaudeRoute, {
-  handleClaudeRequest,
-} from './routes/sharepic/sharepic_claude/index.js';
-import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
-import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
-import imageUploadRouter from './routes/sharepic/sharepic_canvas/imageUploadRouter.js';
-import processTextRouter from './routes/sharepic/sharepic_canvas/processTextRouter.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import {
@@ -45,11 +33,22 @@ import promptRoute from './routes/sharepic/promptRoute.js';
 import planModeRouter from './routes/plan-mode/index.js';
 import scannerRouter from './routes/scanner/index.js';
 import protokollRouter from './routes/protokoll/index.js';
+import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
+import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
+import imageUploadRouter from './routes/sharepic/sharepic_canvas/imageUploadRouter.js';
 import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
 import infoSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/info_canvas.js';
+import processTextRouter from './routes/sharepic/sharepic_canvas/processTextRouter.js';
+import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
+import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.js';
+import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
 import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
+import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
+import sharepicClaudeRoute, {
+  handleClaudeRequest,
+} from './routes/sharepic/sharepic_claude/index.js';
 import {
   universalRouter,
   redeRouter,
@@ -63,6 +62,7 @@ import {
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
 import { recentValuesRouter } from './routes/user/index.js';
+import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
 
@@ -263,7 +263,9 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   // Debug: log all requests to /api/releases/*
   app.use('/api/releases', (req, res, next) => {
-    console.log(`[Routes] Request to /api/releases: ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`);
+    console.log(
+      `[Routes] Request to /api/releases: ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`
+    );
     next();
   });
   app.use('/api/releases', releasesRouter);
@@ -300,7 +302,7 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   // Web redirect to frontend imagine (KI image studio)
   app.get('/web', (req: Request, res: Response) => {
-    res.redirect('http://localhost:3000/imagine');
+    res.redirect(`${req.protocol}://${req.get('host')}/imagine`);
   });
 
   // Periodic flush of route stats to database
