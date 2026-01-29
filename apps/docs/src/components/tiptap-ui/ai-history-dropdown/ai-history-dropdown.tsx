@@ -1,8 +1,9 @@
 'use client';
 
-import { Badge } from '@/components/tiptap-ui-primitive/badge';
+import { useAiEditHistory } from '@/hooks/useAiEditHistory';
+import { useEditorStore } from '@/stores/editorStore';
 import { Button } from '@/components/tiptap-ui-primitive/button';
-import { Card, CardBody, CardItemGroup } from '@/components/tiptap-ui-primitive/card';
+import { Badge } from '@/components/tiptap-ui-primitive/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,8 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/tiptap-ui-primitive/dropdown-menu';
 import { Separator } from '@/components/tiptap-ui-primitive/separator';
-import { useAiEditHistory } from '@/hooks/useAiEditHistory';
-import { useEditorStore } from '@/stores/editorStore';
+import { Card, CardBody, CardItemGroup } from '@/components/tiptap-ui-primitive/card';
 
 export interface AiHistoryDropdownProps {
   documentId: string;

@@ -1,7 +1,6 @@
-import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-
+import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useAuthStore } from '../stores/authStore';
 
 interface CollaborationState {
