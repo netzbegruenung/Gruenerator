@@ -1,6 +1,6 @@
+import { DocumentList } from '../components/document/DocumentList';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../stores/authStore';
-import { DocumentList } from '../components/document/DocumentList';
 import './HomePage.css';
 
 export const HomePage = () => {

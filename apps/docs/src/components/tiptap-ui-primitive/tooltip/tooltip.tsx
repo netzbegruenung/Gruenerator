@@ -1,16 +1,6 @@
 'use client';
 
 import {
-  cloneElement,
-  createContext,
-  forwardRef,
-  isValidElement,
-  useContext,
-  useMemo,
-  useState,
-  version,
-} from 'react';
-import {
   useFloating,
   autoUpdate,
   offset,
@@ -28,6 +18,16 @@ import {
   type ReferenceType,
   FloatingDelayGroup,
 } from '@floating-ui/react';
+import {
+  cloneElement,
+  createContext,
+  forwardRef,
+  isValidElement,
+  useContext,
+  useMemo,
+  useState,
+  version,
+} from 'react';
 import '@/components/tiptap-ui-primitive/tooltip/tooltip.scss';
 
 interface TooltipProviderProps {

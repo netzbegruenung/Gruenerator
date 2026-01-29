@@ -1,10 +1,12 @@
-import express from 'express';
+import { createServer } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
 import compression from 'compression';
-import helmet from 'helmet';
-import { createServer } from 'http';
 import dotenv from 'dotenv';
+import express from 'express';
+import helmet from 'helmet';
+
 import { startHocuspocusServer } from '../api/services/hocuspocus/hocuspocusServer.js';
 
 // Load environment variables

@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
-import type { Editor } from '@tiptap/react';
-import { useAiEditStore } from '../stores/aiEditStore';
+
 import { applyChangesToEditor } from '../lib/aiEditUtils';
 import { apiClient } from '../lib/apiClient';
+import { useAiEditStore } from '../stores/aiEditStore';
+
+import type { Editor } from '@tiptap/react';
 
 interface AiEditResult {
   success: boolean;
