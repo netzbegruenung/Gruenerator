@@ -14,7 +14,6 @@ import { FormTextarea } from '../../../components/common/Form/Input';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
-import { useUserInstructions } from '../../../hooks/useUserInstructions';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 
@@ -113,10 +112,7 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
   const getFeatureState = useGeneratorSelectionStore((state) => state.getFeatureState);
   const selectedDocumentIds = useGeneratorSelectionStore((state) => state.selectedDocumentIds);
   const selectedTextIds = useGeneratorSelectionStore((state) => state.selectedTextIds);
-  const isInstructionsActive = useGeneratorSelectionStore((state) => state.isInstructionsActive);
   const usePrivacyMode = useGeneratorSelectionStore((state) => state.usePrivacyMode);
-
-  const customPrompt = useUserInstructions('text_improver', isInstructionsActive);
 
   const form = useBaseForm(
     BASE_FORM_CONFIG as unknown as Parameters<typeof useBaseForm>[0]
@@ -157,7 +153,6 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
           action: selectedAction,
           ...features,
           attachments: allAttachments,
-          customPrompt: customPrompt,
           selectedDocumentIds: selectedDocumentIds || [],
           selectedTextIds: selectedTextIds || [],
           searchQuery: rhfData.originalText?.substring(0, 200) || '',
@@ -187,7 +182,6 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
       resetSuccess,
       setGeneratedText,
       setStoreIsLoading,
-      customPrompt,
       form.generator,
       crawledUrls,
       selectedDocumentIds,
