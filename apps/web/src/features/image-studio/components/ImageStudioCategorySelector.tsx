@@ -71,6 +71,9 @@ const ImageStudioCategorySelector: React.FC = () => {
       if (directType) {
         void setType(directType);
         void navigate(`/image-studio/templates/${directType}`);
+      } else if (cat === IMAGE_STUDIO_CATEGORIES.KI) {
+        void setCategory(cat, subcat);
+        void navigate('/imagine');
       } else if (cat) {
         void setCategory(cat, subcat);
         void navigate(`/image-studio/${cat}`);
@@ -150,7 +153,7 @@ const ImageStudioCategorySelector: React.FC = () => {
 
         // Handle KI types - navigate to KI creation flow
         if (result.isKiType) {
-          void navigate(`/image-studio/ki/create/pure-create`);
+          void navigate(`/imagine/pure-create`);
           return;
         }
 
