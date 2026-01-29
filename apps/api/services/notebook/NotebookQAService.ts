@@ -110,9 +110,16 @@ export class NotebookQAService {
     }
 
     // Search all system collections in parallel
-    const searchPromises = effectiveCollectionIds.map((collectionId) =>
-      this._searchCollection(collectionId, trimmedQuestion, documentScope, effectiveFilters)
-    );
+    // Extract per-collection filters: if requestFilters contains keys matching collection IDs,
+    // those are per-collection filter overrides (e.g. { "hamburg-system": { content_type: ["presse"] } })
+    const searchPromises = effectiveCollectionIds.map((collectionId) => {
+      const filtersForCollection = this._extractCollectionFilters(
+        collectionId,
+        effectiveFilters,
+        effectiveCollectionIds
+      );
+      return this._searchCollection(collectionId, trimmedQuestion, documentScope, filtersForCollection);
+    });
 
     const searchResultsArrays = await Promise.all(searchPromises);
     const allResults = searchResultsArrays.flat();
@@ -435,6 +442,48 @@ export class NotebookQAService {
       log.error(`[QA] Search error for ${collectionId}:`, error);
       return [];
     }
+  }
+
+  /**
+   * Extract the appropriate filters for a specific collection from a combined filter object.
+   *
+   * When the frontend sends per-collection filters in multi-mode, the filter object may contain
+   * keys that are collection IDs mapping to that collection's specific filters:
+   *   { "hamburg-system": { "content_type": ["presse"] }, "grundsatz-system": { "primary_category": ["Klima"] } }
+   *
+   * This method separates collection-ID-keyed entries from flat filter fields,
+   * then merges the flat filters with the collection-specific overrides.
+   */
+  private _extractCollectionFilters(
+    collectionId: string,
+    filters: RequestFilters,
+    allCollectionIds: string[]
+  ): RequestFilters {
+    const collectionIdSet = new Set(allCollectionIds);
+    // Also check SYSTEM_COLLECTIONS keys for collection IDs not in the active set
+    const allSystemIds = new Set(Object.keys(SYSTEM_COLLECTIONS));
+
+    const flatFilters: RequestFilters = {};
+    let perCollectionFilters: RequestFilters | null = null;
+
+    for (const [key, value] of Object.entries(filters)) {
+      if (collectionIdSet.has(key) || allSystemIds.has(key)) {
+        // This key is a collection ID — it's a per-collection filter entry
+        if (key === collectionId && value && typeof value === 'object' && !Array.isArray(value)) {
+          perCollectionFilters = value as RequestFilters;
+        }
+        // Skip other collections' filters
+      } else {
+        // Regular flat filter field (e.g., primary_category, content_type)
+        flatFilters[key] = value;
+      }
+    }
+
+    if (perCollectionFilters) {
+      return { ...flatFilters, ...perCollectionFilters };
+    }
+
+    return flatFilters;
   }
 
   /**

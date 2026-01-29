@@ -201,7 +201,8 @@ export async function getFieldValueCounts(
 export async function getDateRange(
   client: QdrantClient,
   collectionName: string,
-  fieldName: string
+  fieldName: string,
+  baseFilter: QdrantFilter | null = null
 ): Promise<DateRange> {
   try {
     let minDate: string | null = null;
@@ -211,12 +212,27 @@ export async function getDateRange(
     const maxIterations = 50;
 
     while (iterations < maxIterations) {
-      const scrollResult = await client.scroll(collectionName, {
+      const scrollOptions: {
+        limit: number;
+        offset?: string | number;
+        with_payload: string[];
+        with_vector: boolean;
+        filter?: QdrantFilter;
+      } = {
         limit: 100,
-        offset: offset ?? undefined,
         with_payload: [fieldName],
         with_vector: false,
-      });
+      };
+
+      if (offset !== null) {
+        scrollOptions.offset = offset;
+      }
+
+      if (baseFilter) {
+        scrollOptions.filter = baseFilter;
+      }
+
+      const scrollResult = await client.scroll(collectionName, scrollOptions);
 
       if (!scrollResult.points || scrollResult.points.length === 0) {
         break;
