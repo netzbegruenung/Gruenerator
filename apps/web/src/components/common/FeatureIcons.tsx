@@ -13,7 +13,6 @@ import {
 } from 'react-icons/hi';
 import { HiRocketLaunch, HiSparkles } from 'react-icons/hi2';
 
-import { useInstructionsStatusForType } from '../../features/auth/hooks/useInstructionsStatus';
 import LoginPage from '../../features/auth/pages/LoginPage';
 import { useAuth } from '../../hooks/useAuth';
 import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
@@ -30,9 +29,7 @@ interface FeatureIconsProps {
   // Optional callback for backward compatibility
   onAttachmentClick?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
-  onAnweisungenClick: () => void;
   onInteractiveModeClick?: () => void;
-  anweisungenActive?: boolean;
   interactiveModeActive?: boolean;
   attachedFiles?: AttachedFile[];
   attachmentActive?: boolean;
@@ -42,13 +39,11 @@ interface FeatureIconsProps {
     balancedMode?: number;
     attachment?: number;
     interactiveMode?: number;
-    anweisungen?: number;
   };
   showPrivacyInfoLink?: boolean;
   onPrivacyInfoClick?: () => void;
   showWebSearchInfoLink?: boolean;
   onWebSearchInfoClick?: () => void;
-  instructionType?: 'antrag' | 'social' | 'universal' | 'gruenejugend';
   noBorder?: boolean;
   hideLoginPrompt?: boolean;
 }
@@ -58,9 +53,7 @@ const FeatureIcons = ({
   onBalancedModeClick, // Keep for backward compatibility
   onAttachmentClick,
   onRemoveFile,
-  onAnweisungenClick,
   onInteractiveModeClick,
-  anweisungenActive = false,
   interactiveModeActive = true,
   attachedFiles = [],
   attachmentActive = false,
@@ -70,13 +63,11 @@ const FeatureIcons = ({
     balancedMode: 12,
     attachment: 13,
     interactiveMode: 14,
-    anweisungen: 15,
   },
   showPrivacyInfoLink = false,
   onPrivacyInfoClick,
   showWebSearchInfoLink = false,
   onWebSearchInfoClick,
-  instructionType = undefined,
   noBorder = false,
   hideLoginPrompt = false,
 }: FeatureIconsProps): JSX.Element | null => {
@@ -99,9 +90,7 @@ const FeatureIcons = ({
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Unified dropdown state - only ONE dropdown can be open at a time
-  const [activeDropdown, setActiveDropdown] = useState<
-    'balanced' | 'content' | 'anweisungen' | null
-  >(null);
+  const [activeDropdown, setActiveDropdown] = useState<'balanced' | 'content' | null>(null);
 
   // Refs
   const featureIconsRef = useRef<HTMLDivElement>(null);
@@ -122,46 +111,20 @@ const FeatureIcons = ({
     (state) => state.toggleDocumentSelection
   );
   const toggleTextSelection = useGeneratorSelectionStore((state) => state.toggleTextSelection);
-  const storeInstructionType = useGeneratorSelectionStore((state) => state.instructionType);
-
-  // Use instruction type from prop or store
-  const finalInstructionType = instructionType || storeInstructionType;
-
-  interface InstructionsStatus {
-    hasAnyInstructions?: boolean;
-    [key: string]: unknown;
-  }
-
-  // Check if instructions exist for this type (smart contextual)
-  const { data: instructionsStatus, isLoading: isLoadingInstructions } =
-    useInstructionsStatusForType(finalInstructionType || undefined, {
-      enabled: !!(finalInstructionType && user?.id),
-    }) as { data?: InstructionsStatus; isLoading: boolean };
-
-  // Determine if Anweisungen button should be shown (smart contextual)
-  const shouldShowAnweisungen = useMemo(() => {
-    if (!finalInstructionType) return false;
-    if (isLoadingInstructions) return false;
-    return instructionsStatus?.hasAnyInstructions || false;
-  }, [finalInstructionType, isLoadingInstructions, instructionsStatus]);
-
   // Calculate total content count for badge
   const totalContentCount = useMemo(() => {
     return attachedFiles.length + selectedDocumentIds.length + selectedTextIds.length;
   }, [attachedFiles.length, selectedDocumentIds.length, selectedTextIds.length]);
 
   // Smart dropdown toggle - ensures only one dropdown is open at a time
-  const handleDropdownToggle = useCallback(
-    (dropdownName: 'balanced' | 'content' | 'anweisungen') => {
-      setActiveDropdown((prev) => {
-        // If clicking same dropdown, close it
-        if (prev === dropdownName) return null;
-        // Otherwise, open the new one (auto-closes previous)
-        return dropdownName;
-      });
-    },
-    []
-  );
+  const handleDropdownToggle = useCallback((dropdownName: 'balanced' | 'content') => {
+    setActiveDropdown((prev) => {
+      // If clicking same dropdown, close it
+      if (prev === dropdownName) return null;
+      // Otherwise, open the new one (auto-closes previous)
+      return dropdownName;
+    });
+  }, []);
 
   const handleIconClick = (
     event: React.MouseEvent<HTMLButtonElement>,
@@ -360,23 +323,6 @@ const FeatureIcons = ({
               <HiAnnotation className="feature-icons__icon" />
               <span className="feature-icons-button__label">
                 {interactiveModeActive ? 'Interaktiv aktiv' : 'Interaktiv'}
-              </span>
-            </button>
-          </div>
-        )}
-
-        {shouldShowAnweisungen && (
-          <div className="anweisungen-mode-container">
-            <button
-              className={`feature-icon-button ${anweisungenActive ? 'active' : ''} ${clickedIcon === 'anweisungen' ? 'clicked' : ''}`}
-              onClick={(event) => handleIconClick(event, 'anweisungen', onAnweisungenClick)}
-              aria-label="Anweisungen aktivieren"
-              tabIndex={tabIndex.anweisungen}
-              type="button"
-            >
-              <HiClipboardList className="feature-icons__icon" />
-              <span className="feature-icons-button__label">
-                {anweisungenActive ? 'Meine Anweisungen' : 'Anweisungen'}
               </span>
             </button>
           </div>

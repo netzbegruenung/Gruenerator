@@ -363,7 +363,6 @@ export interface FormExtrasSectionProps {
     webSearch?: number;
     balancedMode?: number;
     attachment?: number;
-    anweisungen?: number;
   };
   submitButtonTabIndex?: number;
   formControl?: FormControl | null;

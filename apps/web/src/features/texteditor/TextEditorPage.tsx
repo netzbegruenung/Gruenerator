@@ -15,7 +15,6 @@ import PlatformSelector from '../../components/common/PlatformSelector';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
-import { useUserInstructions } from '../../hooks/useUserInstructions';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
 
@@ -74,10 +73,7 @@ const AITextImproverGenerator: React.FC<AITextImproverGeneratorProps> = ({
   const getFeatureState = useGeneratorSelectionStore((state) => state.getFeatureState);
   const selectedDocumentIds = useGeneratorSelectionStore((state) => state.selectedDocumentIds);
   const selectedTextIds = useGeneratorSelectionStore((state) => state.selectedTextIds);
-  const isInstructionsActive = useGeneratorSelectionStore((state) => state.isInstructionsActive);
   const usePrivacyMode = useGeneratorSelectionStore((state) => state.usePrivacyMode);
-
-  const customPrompt = useUserInstructions('text_improver', isInstructionsActive);
 
   const helpContentConfig: HelpContent = {
     content:
@@ -142,7 +138,6 @@ const AITextImproverGenerator: React.FC<AITextImproverGeneratorProps> = ({
           action: selectedAction,
           ...features,
           attachments: allAttachments,
-          customPrompt: customPrompt,
           selectedDocumentIds: selectedDocumentIds || [],
           selectedTextIds: selectedTextIds || [],
           searchQuery: rhfData.originalText?.substring(0, 200) || '',
@@ -172,7 +167,6 @@ const AITextImproverGenerator: React.FC<AITextImproverGeneratorProps> = ({
       resetSuccess,
       setGeneratedText,
       setStoreIsLoading,
-      customPrompt,
       form.generator,
       crawledUrls,
       selectedDocumentIds,

@@ -215,6 +215,14 @@
   margin-bottom: var(--spacing-xsmall);
 }
 
+.profile-card-hint {
+  font-size: 0.8rem;
+  color: var(--font-color);
+  opacity: 0.6;
+  margin: 0 0 var(--spacing-xsmall) 0;
+  line-height: 1.4;
+}
+
 .profile-card-textarea {
   width: 100%;
   padding: var(--spacing-small) var(--spacing-medium);

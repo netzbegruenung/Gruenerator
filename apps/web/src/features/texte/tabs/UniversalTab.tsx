@@ -82,7 +82,7 @@ const EXTRAS_CONFIG: Partial<Record<UniversalSubType, ExtrasInputConfig>> = {
 };
 
 const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType }) => {
-  const componentName = 'universal-text';
+  const componentName = `universal-text-${selectedType}`;
 
   const redeFormRef = useRef<FormRef>(null);
   const wahlprogrammFormRef = useRef<FormRef>(null);
@@ -90,6 +90,7 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
   const leichteSpracheFormRef = useRef<FormRef>(null);
 
   const [extrasValue, setExtrasValue] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const getCurrentFormRef = (): RefObject<FormRef | null> | null => {
     switch (selectedType) {
@@ -129,7 +130,7 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
 
   const setup = useGeneratorSetup({
     instructionType: currentInstructionType,
-    componentName: 'universal-text',
+    componentName,
   });
 
   useEffect(() => {
@@ -202,6 +203,7 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
 
     const formDataToSubmit = builder.buildSubmissionData(dataWithExtras);
 
+    setIsLoading(true);
     try {
       const { default: apiClient } = await import('../../../components/utils/apiClient');
 
@@ -221,6 +223,8 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
       } else {
         form.handleSubmitError(new Error(String(error)));
       }
+    } finally {
+      setIsLoading(false);
     }
   }, [selectedType, form, currentFormRef, builder, extrasValue]);
 
@@ -293,11 +297,11 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
     <>
       {form.generator && (
         <BaseForm
-          key={selectedType}
           {...restBaseFormProps}
           componentName={componentName}
           enableEditMode={true}
           onSubmit={handleSubmit}
+          loading={isLoading}
           firstExtrasChildren={renderExtrasInput()}
         >
           {renderForm()}

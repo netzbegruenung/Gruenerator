@@ -34,8 +34,6 @@ export interface CombinedContentItem {
 }
 
 export interface AnweisungenWissen {
-  antragPrompt?: string;
-  socialPrompt?: string;
   knowledge?: KnowledgeEntry[];
 }
 

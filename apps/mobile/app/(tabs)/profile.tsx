@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@gruenerator/shared/hooks';
+import { router } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
@@ -10,18 +13,16 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
-import { runOnJS } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import { lightTheme, darkTheme, typography, spacing, colors } from '../../theme';
-import { useAuth } from '@gruenerator/shared/hooks';
-import { logout } from '../../services/auth';
+import Animated, { runOnJS } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Button, ChipGroup } from '../../components/common';
-import { ProfileHeader, ContentItem, InstructionCard } from '../../components/profile';
-import { useContentStore, useInstructionsStore, INSTRUCTION_TYPES } from '../../stores';
+import { ProfileHeader, ContentItem } from '../../components/profile';
+import { logout } from '../../services/auth';
+import { useContentStore } from '../../stores';
+import { lightTheme, darkTheme, typography, spacing, colors } from '../../theme';
+
 import type { CombinedContentItem } from '../../services/content';
 
 type SectionId = 'inhalte' | 'anweisungen' | 'einstellungen';
@@ -133,137 +134,15 @@ function InhalteSection() {
 function AnweisungenSection() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const {
-    instructions,
-    isLoading,
-    isSaving,
-    lastSaved,
-    fetchInstructions,
-    updateInstruction,
-    saveInstructions,
-  } = useInstructionsStore();
-  const [enabledFields, setEnabledFields] = useState<(typeof INSTRUCTION_TYPES)[number]['key'][]>(
-    []
-  );
-  const [showPicker, setShowPicker] = useState(false);
-
-  useEffect(() => {
-    fetchInstructions();
-  }, [fetchInstructions]);
-
-  const instructionsWithContent = INSTRUCTION_TYPES.filter(
-    (type) => instructions[type.key]?.trim().length > 0
-  );
-
-  const activeInstructions = INSTRUCTION_TYPES.filter(
-    (type) =>
-      instructionsWithContent.some((t) => t.key === type.key) || enabledFields.includes(type.key)
-  );
-
-  const availableToAdd = INSTRUCTION_TYPES.filter(
-    (type) => !activeInstructions.some((t) => t.key === type.key)
-  );
-
-  const handleAddInstruction = useCallback((key: (typeof INSTRUCTION_TYPES)[number]['key']) => {
-    setEnabledFields((prev) => [...prev, key]);
-    setShowPicker(false);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <View style={[styles.sectionContent, styles.centered]}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-      </View>
-    );
-  }
-
-  if (activeInstructions.length === 0) {
-    return (
-      <View style={[styles.sectionContent, styles.centered]}>
-        <Ionicons name="document-text-outline" size={48} color={theme.textSecondary} />
-        <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-          Keine Anweisungen gesetzt
-        </Text>
-        <Text style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}>
-          Erstelle Anweisungen, um dem Grünerator zu sagen, wie er Texte für dich generieren soll.
-        </Text>
-        <View style={styles.addButtonContainer}>
-          <Button onPress={() => setShowPicker(true)}>Anweisung hinzufügen</Button>
-        </View>
-        {showPicker && (
-          <View
-            style={[
-              styles.pickerContainer,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            {INSTRUCTION_TYPES.map((type) => (
-              <Pressable
-                key={type.key}
-                style={[styles.pickerItem, { borderBottomColor: theme.border }]}
-                onPress={() => handleAddInstruction(type.key)}
-              >
-                <Text style={[styles.pickerItemText, { color: theme.text }]}>{type.title}</Text>
-              </Pressable>
-            ))}
-            <Pressable style={styles.pickerCancel} onPress={() => setShowPicker(false)}>
-              <Text style={[styles.pickerCancelText, { color: theme.textSecondary }]}>
-                Abbrechen
-              </Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-    );
-  }
 
   return (
-    <ScrollView style={styles.sectionContent} contentContainerStyle={styles.scrollContent}>
-      <Text style={[styles.sectionDescription, { color: theme.textSecondary }]}>
-        Eigene Anweisungen für jeden Generator-Typ.
+    <View style={[styles.sectionContent, styles.centered]}>
+      <Ionicons name="document-text-outline" size={48} color={theme.textSecondary} />
+      <Text style={[styles.emptyStateTitle, { color: theme.text }]}>Anweisungen verwalten</Text>
+      <Text style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}>
+        Anweisungen können im Profil auf der Webseite unter "Eigener Prompt" verwaltet werden.
       </Text>
-      {activeInstructions.map((type) => (
-        <InstructionCard
-          key={type.key}
-          title={type.title}
-          value={instructions[type.key]}
-          onChange={(value) => updateInstruction(type.key, value)}
-          onSave={saveInstructions}
-          isSaving={isSaving}
-          lastSaved={lastSaved}
-        />
-      ))}
-      {availableToAdd.length > 0 && (
-        <View style={styles.addMoreContainer}>
-          <Button variant="outline" onPress={() => setShowPicker(true)}>
-            Anweisung hinzufügen
-          </Button>
-          {showPicker && (
-            <View
-              style={[
-                styles.pickerContainer,
-                { backgroundColor: theme.card, borderColor: theme.border },
-              ]}
-            >
-              {availableToAdd.map((type) => (
-                <Pressable
-                  key={type.key}
-                  style={[styles.pickerItem, { borderBottomColor: theme.border }]}
-                  onPress={() => handleAddInstruction(type.key)}
-                >
-                  <Text style={[styles.pickerItemText, { color: theme.text }]}>{type.title}</Text>
-                </Pressable>
-              ))}
-              <Pressable style={styles.pickerCancel} onPress={() => setShowPicker(false)}>
-                <Text style={[styles.pickerCancelText, { color: theme.textSecondary }]}>
-                  Abbrechen
-                </Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-      )}
-    </ScrollView>
+    </View>
   );
 }
 

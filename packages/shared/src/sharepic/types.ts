@@ -31,8 +31,6 @@ export interface SharepicRequest {
   details?: string;
   /** Author name for quote types */
   name?: string;
-  /** Custom AI prompt/instructions */
-  customPrompt?: string;
   /** Image attachments */
   attachments?: SharepicAttachment[];
   /** Enable privacy mode */
@@ -53,8 +51,6 @@ export interface SharepicGenerationOptions {
   author?: string;
   /** Base64 image data (for dreizeilen, quote types) */
   imageData?: string;
-  /** Custom AI prompt */
-  customPrompt?: string;
   /** Enable privacy mode */
   usePrivacyMode?: boolean;
   /** Enable Pro mode */
