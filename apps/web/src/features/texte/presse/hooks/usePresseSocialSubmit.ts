@@ -30,11 +30,6 @@ interface SubmissionConfig {
   features: FeatureState;
 
   /**
-   * User's custom prompt
-   */
-  customPrompt: string | null;
-
-  /**
    * Selected document IDs
    */
   selectedDocumentIds: readonly string[];
@@ -196,7 +191,6 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
           zitatgeber: formData.zitatgeber || '',
           ...config.features,
           attachments: config.attachments,
-          customPrompt: config.customPrompt,
           selectedDocumentIds: Array.from(config.selectedDocumentIds),
           selectedTextIds: Array.from(config.selectedTextIds),
           searchQuery: buildSearchQuery(formData),
@@ -226,7 +220,7 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
               formData.uploadedImage ? (formData.uploadedImage as unknown as Blob) : null,
               (formData.sharepicType || 'default') as SharepicType,
               formData.zitatAuthor || '',
-              config.customPrompt,
+              null,
               config.attachments as Array<{ type: string; data: string }>,
               config.features.usePrivacyMode,
               null,
@@ -313,7 +307,6 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
       config.canUseSharepic,
       config.features,
       config.attachments,
-      config.customPrompt,
       config.selectedDocumentIds,
       config.selectedTextIds,
     ]

@@ -15,7 +15,6 @@ interface UnifiedSharepicRequestData {
   thema: string;
   details?: string;
   name?: string;
-  customPrompt?: string | null;
   attachments?: SharepicAttachment[];
   usePrivacyMode?: boolean;
   provider?: string | null;
@@ -25,7 +24,6 @@ interface UnifiedSharepicRequestData {
 interface DefaultSharepicRequestData {
   thema: string;
   details?: string;
-  customPrompt?: string | null;
   attachments?: SharepicAttachment[];
   usePrivacyMode?: boolean;
   provider?: string | null;
@@ -196,11 +194,6 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
         requestData.name = zitatAuthor;
       }
 
-      // Add customPrompt if provided (knowledge from KnowledgeSelector)
-      if (customPrompt) {
-        requestData.customPrompt = customPrompt;
-      }
-
       // Add attachments if provided
       if (attachments && attachments.length > 0) {
         requestData.attachments = attachments;
@@ -294,11 +287,6 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
         thema,
         details,
       };
-
-      // Add customPrompt if provided
-      if (customPrompt) {
-        requestData.customPrompt = customPrompt;
-      }
 
       // Add attachments if provided
       if (attachments && attachments.length > 0) {

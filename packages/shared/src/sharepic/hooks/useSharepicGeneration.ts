@@ -4,8 +4,10 @@
  */
 
 import { useState, useCallback } from 'react';
+
 import { getGlobalApiClient } from '../../api/client.js';
 import { SHAREPIC_ENDPOINT, DEFAULT_SHAREPICS_ENDPOINT, SHAREPIC_TYPE_MAP } from '../constants.js';
+
 import type {
   SharepicType,
   SharepicGenerationOptions,
@@ -91,10 +93,6 @@ export function useSharepicGeneration(
         details: options.details,
       };
 
-      if (options.customPrompt) {
-        requestData.customPrompt = options.customPrompt;
-      }
-
       if (options.usePrivacyMode) {
         requestData.usePrivacyMode = true;
       }
@@ -132,10 +130,6 @@ export function useSharepicGeneration(
       // Add author for quote types
       if (options.author) {
         requestData.name = options.author;
-      }
-
-      if (options.customPrompt) {
-        requestData.customPrompt = options.customPrompt;
       }
 
       if (options.usePrivacyMode) {

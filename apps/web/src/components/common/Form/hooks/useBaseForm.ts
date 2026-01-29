@@ -1,5 +1,11 @@
 import { useCallback, useState, useMemo, useEffect } from 'react';
-import { useForm, useWatch, type Control, type UseFormProps, type FieldValues } from 'react-hook-form';
+import {
+  useForm,
+  useWatch,
+  type Control,
+  type UseFormProps,
+  type FieldValues,
+} from 'react-hook-form';
 import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
@@ -442,13 +448,6 @@ const useBaseForm = ({
   }, [componentName, generatorType]); // Re-run when component changes
 
   // Conditionally extract values based on knowledge system status
-  const source =
-    !generatorType || disableKnowledgeSystem ? { type: 'neutral' as const } : selectionStore.source;
-  const isInstructionsActive =
-    !generatorType || disableKnowledgeSystem ? false : selectionStore.isInstructionsActive;
-  const instructions = !generatorType || disableKnowledgeSystem ? {} : selectionStore.instructions;
-  const getActiveInstruction =
-    !generatorType || disableKnowledgeSystem ? () => null : selectionStore.getActiveInstruction;
   const selectedDocumentIds =
     !generatorType || disableKnowledgeSystem ? [] : selectionStore.selectedDocumentIds;
   const selectedTextIds =
@@ -563,12 +562,7 @@ const useBaseForm = ({
 
         const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
-        // Get instructions for backend (if active)
-        const customPrompt =
-          isInstructionsActive && instructionType ? getActiveInstruction(instructionType) : null;
-
         // Send only IDs and searchQuery - backend handles all content extraction
-        formDataToSubmit.customPrompt = customPrompt;
         formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
         formDataToSubmit.selectedTextIds = selectedTextIds || [];
         formDataToSubmit.searchQuery = searchQuery || '';
@@ -609,11 +603,8 @@ const useBaseForm = ({
       resetSuccess,
       setGeneratedText,
       setStoreIsLoading,
-      isInstructionsActive,
-      getActiveInstruction,
       processedAttachments,
       componentName,
-      instructionType,
       selectedDocumentIds,
       selectedTextIds,
       useAutomaticSearch,

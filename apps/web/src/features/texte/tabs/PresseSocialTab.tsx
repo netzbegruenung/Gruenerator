@@ -290,7 +290,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
 
   const submitHandler = usePresseSocialSubmit({
     features: setup.features,
-    customPrompt: setup.customPrompt,
     selectedDocumentIds: setup.selectedDocumentIds,
     selectedTextIds: setup.selectedTextIds,
     attachments: allAttachments,

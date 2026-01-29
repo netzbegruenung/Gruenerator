@@ -2,8 +2,6 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { useGeneratorSelectionStore } from '../stores/core/generatorSelectionStore';
 
-import { useUserInstructions } from './useUserInstructions';
-
 /**
  * Configuration for generator setup hook
  */
@@ -54,20 +52,9 @@ export interface GeneratorSetupReturn {
   readonly selectedTextIds: readonly string[];
 
   /**
-   * Whether custom instructions are active
-   */
-  readonly isInstructionsActive: boolean;
-
-  /**
    * Current feature toggle states
    */
   readonly features: FeatureState;
-
-  /**
-   * User's custom prompt for this instruction type
-   * null if instructions are inactive or not set
-   */
-  readonly customPrompt: string | null;
 
   /**
    * Function to get current feature state
@@ -120,13 +107,11 @@ export interface GeneratorSetupReturn {
  */
 export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupReturn {
   // Batched store subscriptions using useShallow for optimal re-renders
-  // This reduces 5 separate subscriptions to 1, improving performance
   // NOTE: Feature values must be selected directly (not via getFeatureState)
   // to ensure reactivity when they change after initial render
   const {
     selectedDocumentIds,
     selectedTextIds,
-    isInstructionsActive,
     useWebSearch,
     usePrivacyMode,
     useProMode,
@@ -135,17 +120,12 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
     useShallow((state) => ({
       selectedDocumentIds: state.selectedDocumentIds,
       selectedTextIds: state.selectedTextIds,
-      isInstructionsActive: state.isInstructionsActive,
       useWebSearch: state.useWebSearch,
       usePrivacyMode: state.usePrivacyMode,
       useProMode: state.useProMode,
       useUltraMode: state.useUltraMode,
     }))
   );
-
-  // Fetch user's custom instructions based on instruction type
-  // Only fetches if instructions are active
-  const customPrompt = useUserInstructions(config.instructionType, isInstructionsActive);
 
   // Build feature state from reactive store values
   const features: FeatureState = {
@@ -160,9 +140,7 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
   return {
     selectedDocumentIds: selectedDocumentIds as readonly string[],
     selectedTextIds: selectedTextIds as readonly string[],
-    isInstructionsActive,
     features,
-    customPrompt,
     getFeatureState: () => features,
   };
 }

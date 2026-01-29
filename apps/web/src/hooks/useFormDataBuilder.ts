@@ -12,11 +12,6 @@ export interface FormDataBuilderConfig {
   readonly features: FeatureState;
 
   /**
-   * User's custom prompt (null if not set)
-   */
-  readonly customPrompt: string | null;
-
-  /**
    * Selected document IDs from knowledge system
    */
   readonly selectedDocumentIds: readonly string[];
@@ -65,7 +60,6 @@ export interface FormDataBuilderReturn {
   buildSubmissionData: <T extends Record<string, unknown>>(
     formData: T
   ) => T & {
-    customPrompt: string | null;
     selectedDocumentIds: string[];
     selectedTextIds: string[];
     attachments: unknown[];
@@ -186,13 +180,11 @@ export function useFormDataBuilder(config: FormDataBuilderConfig): FormDataBuild
       const result = {
         ...formData,
         ...config.features,
-        customPrompt: config.customPrompt,
         selectedDocumentIds: [...config.selectedDocumentIds],
         selectedTextIds: [...config.selectedTextIds],
         attachments,
         searchQuery,
       } as T & {
-        customPrompt: string | null;
         selectedDocumentIds: string[];
         selectedTextIds: string[];
         attachments: unknown[];
@@ -212,7 +204,6 @@ export function useFormDataBuilder(config: FormDataBuilderConfig): FormDataBuild
     },
     [
       config.features,
-      config.customPrompt,
       config.selectedDocumentIds,
       config.selectedTextIds,
       attachments,

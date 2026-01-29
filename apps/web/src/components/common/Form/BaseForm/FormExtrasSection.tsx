@@ -2,7 +2,6 @@ import React, { useCallback, memo, ReactNode } from 'react';
 import { FiSend } from 'react-icons/fi';
 
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
 import FeatureIcons from '../../FeatureIcons';
 import FeatureToggle from '../../FeatureToggle';
 import SubmitButton from '../../SubmitButton';
@@ -11,6 +10,7 @@ import useResponsive from '../hooks/useResponsive';
 
 import ExamplePrompts from './ExamplePrompts';
 
+import type { AttachedFile } from '../../ContentSelector';
 import type {
   FormExtrasSectionProps,
   FeatureToggle as FeatureToggleType,
@@ -19,13 +19,10 @@ import type {
 } from '@/types/baseform';
 import '../../../../assets/styles/components/ui/FormExtras.css';
 
-import type { AttachedFile } from '../../ContentSelector';
-
 interface FeatureIconsTabIndex {
   webSearch?: number;
   balancedMode?: number;
   attachment?: number;
-  anweisungen?: number;
 }
 
 const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
@@ -47,7 +44,6 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
     webSearch: 11,
     balancedMode: 12,
     attachment: 13,
-    anweisungen: 14,
   } as FeatureIconsTabIndex,
   submitButtonTabIndex = 17,
   onPrivacyInfoClick,
@@ -78,18 +74,6 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
   const currentGeneratedContent = useGeneratedTextStore(
     (state) => state.generatedTexts[componentName] || ''
   );
-
-  const source = useGeneratorSelectionStore((state) => state.source);
-  const setSource = useGeneratorSelectionStore((state) => state.setSource);
-  const anweisungenActive = source.type === 'user';
-
-  const handleAnweisungenClick = useCallback((): void => {
-    if (source.type === 'user') {
-      setSource({ type: 'neutral', id: null, name: null });
-    } else {
-      setSource({ type: 'user', id: null, name: 'Meine Anweisungen' });
-    }
-  }, [source.type, setSource]);
 
   const handleInteractiveModeClick = useCallback((): void => {
     if (interactiveModeToggle && interactiveModeToggle.onToggle) {
@@ -134,9 +118,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                     onBalancedModeClick={handleBalancedModeClick}
                     onAttachmentClick={() => (onAttachmentClick as (() => void) | undefined)?.()}
                     onRemoveFile={() => onRemoveFile?.(0)}
-                    onAnweisungenClick={handleAnweisungenClick}
                     onInteractiveModeClick={handleInteractiveMode}
-                    anweisungenActive={anweisungenActive}
                     interactiveModeActive={
                       interactiveModeToggle ? interactiveModeToggle.isActive : false
                     }
@@ -198,9 +180,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                   onBalancedModeClick={handleBalancedModeClick}
                   onAttachmentClick={() => (onAttachmentClick as (() => void) | undefined)?.()}
                   onRemoveFile={() => onRemoveFile?.(0)}
-                  onAnweisungenClick={handleAnweisungenClick}
                   onInteractiveModeClick={handleInteractiveMode}
-                  anweisungenActive={anweisungenActive}
                   interactiveModeActive={
                     interactiveModeToggle ? interactiveModeToggle.isActive : false
                   }

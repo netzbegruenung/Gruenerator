@@ -8,7 +8,6 @@ import { useAuthStore, type SupportedLocale } from '../../../../../../stores/aut
 
 import SettingsSection from './SettingsSection';
 
-
 interface User {
   id: string;
   email?: string;
@@ -213,6 +212,9 @@ const ProfileView = ({
             <label htmlFor="customPrompt" className="profile-card-section-title">
               Persönliche Anweisungen
             </label>
+            <p className="profile-card-hint">
+              Die bisherigen Anweisungen wurden in das persönliche Prompt-Feld übernommen.
+            </p>
             <textarea
               id="customPrompt"
               value={customPrompt}
