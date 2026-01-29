@@ -13,7 +13,7 @@ export const infoTypeConfig: TemplateTypeConfig = {
   label: 'Info-Sharepic',
   description: 'Strukturierte Info mit Header und Body',
   icon: PiInfo,
-  previewImage: '/imagine-assets/previews/info-preview.png',
+  previewImage: '/imagine/previews/info-preview.png',
   requiresImage: false,
   hasTextGeneration: true,
   hasTextCanvasEdit: true,

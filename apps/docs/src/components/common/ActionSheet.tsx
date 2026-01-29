@@ -1,5 +1,5 @@
-import { useEffect, useCallback, type ReactNode, type ComponentType } from 'react';
-import { type IconBaseProps } from 'react-icons';
+import { useEffect, useCallback, ReactNode, ComponentType } from 'react';
+import { IconBaseProps } from 'react-icons';
 import './ActionSheet.css';
 
 interface ActionSheetItemProps {

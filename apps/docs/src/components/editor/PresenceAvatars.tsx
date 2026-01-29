@@ -1,5 +1,4 @@
-import { type HocuspocusProvider } from '@hocuspocus/provider';
-
+import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useCollaborators } from '../../hooks/useCollaboration';
 import './PresenceAvatars.css';
 
