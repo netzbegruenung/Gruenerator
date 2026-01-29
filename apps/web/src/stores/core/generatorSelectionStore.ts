@@ -12,9 +12,6 @@ interface Source {
 
 // Instructions per generator type
 interface Instructions {
-  antrag: string | null;
-  antragGliederung: string | null;
-  social: string | null;
   universal: string | null;
   gruenejugend: string | null;
   rede: string | null;
@@ -149,9 +146,6 @@ const initialState: GeneratorSelectionState = {
   source: { type: 'neutral', id: null, name: null },
   instructionType: null,
   instructions: {
-    antrag: null,
-    antragGliederung: null,
-    social: null,
     universal: null,
     gruenejugend: null,
     rede: null,

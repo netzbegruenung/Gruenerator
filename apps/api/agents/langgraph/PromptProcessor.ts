@@ -4,29 +4,28 @@
  */
 
 import fs from 'fs';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-import path from 'path';
-
 // Import required utilities
-import { enrichRequest } from '../../utils/requestEnrichment.js';
-import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
-import { sendSuccessResponseWithAttachments } from '../../utils/request/index.js';
+import {
+  localizePromptObject,
+  extractLocaleFromRequest,
+} from '../../services/localization/index.js';
 import { withErrorHandler, handleValidationError } from '../../utils/errors/index.js';
-import { processAutomatischPR } from './PRAgent/index.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   HTML_FORMATTING_INSTRUCTIONS,
   TITLE_GENERATION_INSTRUCTION,
   PLATFORM_SPECIFIC_GUIDELINES,
 } from '../../utils/prompt/index.js';
-import {
-  localizePromptObject,
-  extractLocaleFromRequest,
-} from '../../services/localization/index.js';
+import { sendSuccessResponseWithAttachments } from '../../utils/request/index.js';
+import { enrichRequest } from '../../utils/requestEnrichment.js';
+
+import { processAutomatischPR } from './PRAgent/index.js';
+import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
 
 // Import types
 import type {
@@ -261,32 +260,28 @@ function validateRequest(requestBody: any, config: PromptConfig): string | null 
  * @returns Modified request data
  */
 async function applyProfileDefaults(requestData: any, req: any, type: string): Promise<any> {
-  if (
-    type === 'social' &&
-    requestData.platforms?.includes('pressemitteilung') &&
-    !requestData.zitatgeber
-  ) {
-    if (req?.user?.id) {
-      try {
-        const { getProfileService } = await import('../../services/user/index.js');
-        const profileService = getProfileService();
-        const profile = await profileService.getProfileById(req.user.id);
+  if (!req?.user?.id) return requestData;
+  try {
+    const { getProfileService } = await import('../../services/user/index.js');
+    const profileService = getProfileService();
+    const profile = await profileService.getProfileById(req.user.id);
+    if (!profile) return requestData;
 
-        if (profile?.display_name) {
-          requestData.zitatgeber = profile.display_name;
-          console.log(
-            '[promptProcessor] Applied default zitatgeber from profile:',
-            profile.display_name
-          );
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(
-          '[promptProcessor] Could not fetch profile for default zitatgeber:',
-          errorMessage
-        );
-      }
+    if (!requestData.customPrompt && (profile as any).custom_prompt?.trim()) {
+      requestData.customPrompt = (profile as any).custom_prompt;
     }
+
+    if (
+      type === 'social' &&
+      requestData.platforms?.includes('pressemitteilung') &&
+      !requestData.zitatgeber &&
+      profile.display_name
+    ) {
+      requestData.zitatgeber = profile.display_name;
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.warn('[promptProcessor] Could not fetch profile defaults:', msg);
   }
   return requestData;
 }
@@ -662,8 +657,13 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       return handleValidationError(res, `/${routeType}`, validationError);
     }
 
-    // Apply profile defaults for optional fields (e.g., zitatgeber from display_name)
+    // Apply profile defaults for optional fields (e.g., customPrompt fallback, zitatgeber)
     await applyProfileDefaults(requestData, req, routeType);
+
+    // Re-extract instructions after profile defaults may have set customPrompt
+    if (!extractedInstructions && requestData.customPrompt) {
+      extractedInstructions = requestData.customPrompt;
+    }
 
     // Handle custom_generator special case
     let generatorData: any = null;
