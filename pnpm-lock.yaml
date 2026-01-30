@@ -15,7 +15,7 @@ overrides:
   diff: '>=5.2.2'
   hono: '>=4.11.4'
   markdown-it: '>=14.1.0'
-  tar: '>=7.5.4'
+  tar: '>=7.5.7'
   undici: '>=7.18.2'
   zod: '>=3.22.3'
 
@@ -14301,8 +14301,8 @@ packages:
   tar-stream@3.1.7:
     resolution: {integrity: sha512-qJj60CXt7IU1Ffyc3NJMjh6EkuCFej46zUqJ4J7pqYlThyd9bO0XBTmcOIhSzZJVWfsLks0+nle/j538YAW9RQ==}
 
-  tar@7.5.6:
-    resolution: {integrity: sha512-xqUeu2JAIJpXyvskvU3uvQW8PAmHrtXp2KDuMJwQqW8Sqq0CaZBAQ+dKS3RBXVhU4wC5NjAdKrmh84241gO9cA==}
+  tar@7.5.7:
+    resolution: {integrity: sha512-fov56fJiRuThVFXD6o6/Q354S7pnWMJIVlDBYijsTNx6jKSE4pvrDTs6lUnmGvNyfJwFQQwWy3owKz1ucIhveQ==}
     engines: {node: '>=18'}
 
   temp-dir@2.0.0:
@@ -18772,7 +18772,7 @@ snapshots:
       source-map-support: 0.5.21
       stacktrace-parser: 0.1.11
       structured-headers: 0.4.1
-      tar: 7.5.6
+      tar: 7.5.7
       terminal-link: 2.1.1
       undici: 7.19.0
       wrap-ansi: 7.0.0
@@ -25536,7 +25536,7 @@ snapshots:
       '@anush008/tokenizers': 0.0.0
       onnxruntime-node: 1.21.0
       progress: 2.0.3
-      tar: 7.5.6
+      tar: 7.5.7
 
   fastest-stable-stringify@2.0.2: {}
 
@@ -29043,7 +29043,7 @@ snapshots:
     dependencies:
       global-agent: 3.0.0
       onnxruntime-common: 1.21.0
-      tar: 7.5.6
+      tar: 7.5.7
 
   onnxruntime-web@1.21.0-dev.20250206-d981b153d3:
     dependencies:
@@ -32076,7 +32076,7 @@ snapshots:
       - bare-abort-controller
       - react-native-b4a
 
-  tar@7.5.6:
+  tar@7.5.7:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
