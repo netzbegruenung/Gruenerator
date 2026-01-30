@@ -85,6 +85,9 @@ const ProfileInfoTabContainer = ({
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState('');
   const isInitialized = useRef(false);
+  const savedCustomPromptRef = useRef('');
+  const [isPromptDirty, setIsPromptDirty] = useState(false);
+  const [isSavingPrompt, setIsSavingPrompt] = useState(false);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData: ProfileUpdateData) => {
@@ -173,7 +176,6 @@ const ProfileInfoTabContainer = ({
       display_name: fullDisplayName,
       username: username || null,
       email: email?.trim() || null,
-      custom_prompt: customPrompt || null,
     };
     try {
       const timeoutPromise = new Promise((_, reject) =>
@@ -189,30 +191,44 @@ const ProfileInfoTabContainer = ({
         onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
       }
     }
-  }, [
-    displayName,
-    username,
-    email,
-    customPrompt,
-    user?.username,
-    profile,
-    updateProfile,
-    onErrorProfileMessage,
-  ]);
+  }, [displayName, username, email, user?.username, profile, updateProfile, onErrorProfileMessage]);
+
+  const handleCustomPromptChange = useCallback((value: string) => {
+    setCustomPrompt(value);
+    setIsPromptDirty(value !== savedCustomPromptRef.current);
+  }, []);
+
+  const handleSaveCustomPrompt = useCallback(async () => {
+    if (!profile || !isInitialized.current) return;
+    setIsSavingPrompt(true);
+    try {
+      await updateProfile({ custom_prompt: customPrompt || null });
+      savedCustomPromptRef.current = customPrompt;
+      setIsPromptDirty(false);
+      setErrorProfile('');
+      onSuccessMessage('Anweisungen gespeichert');
+    } catch (error) {
+      console.error('Custom prompt save error:', error);
+      setErrorProfile('Fehler beim Speichern der Anweisungen.');
+      onErrorProfileMessage('Fehler beim Speichern der Anweisungen.');
+    } finally {
+      setIsSavingPrompt(false);
+    }
+  }, [customPrompt, profile, updateProfile, onSuccessMessage, onErrorProfileMessage]);
 
   const { resetTracking } = useAutosave({
     saveFunction: async () => {
       await stateBasedSave();
     },
     formRef: {
-      getValues: () => ({ displayName, username, email, customPrompt }),
+      getValues: () => ({ displayName, username, email }),
       watch: (callback: (value: Record<string, unknown>, { name }: { name?: string }) => void) => ({
         unsubscribe: () => {},
       }),
     },
     enabled: profile && isInitialized.current,
     debounceMs: 2000,
-    getFieldsToTrack: () => ['displayName', 'username', 'email', 'customPrompt'],
+    getFieldsToTrack: () => ['displayName', 'username', 'email'],
     onError: (error: unknown) => {
       console.error('Profile autosave failed:', error);
       setErrorProfile('Automatisches Speichern fehlgeschlagen.');
@@ -226,7 +242,9 @@ const ProfileInfoTabContainer = ({
       setDisplayName(formFields.displayName);
       setUsername(formFields.username);
       setEmail(formFields.email);
-      setCustomPrompt((profile as { custom_prompt?: string })?.custom_prompt || '');
+      const initialPrompt = (profile as { custom_prompt?: string })?.custom_prompt || '';
+      setCustomPrompt(initialPrompt);
+      savedCustomPromptRef.current = initialPrompt;
       isInitialized.current = true;
       setTimeout(() => resetTracking(), 100);
     }
@@ -239,7 +257,7 @@ const ProfileInfoTabContainer = ({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [displayName, username, email, customPrompt, resetTracking, profile]);
+  }, [displayName, username, email, resetTracking, profile]);
 
   useEffect(() => {
     if (profileUpdateError) {
@@ -341,7 +359,10 @@ const ProfileInfoTabContainer = ({
         username={username}
         setUsername={setUsername}
         customPrompt={customPrompt}
-        setCustomPrompt={setCustomPrompt}
+        setCustomPrompt={handleCustomPromptChange}
+        isPromptDirty={isPromptDirty}
+        isSavingPrompt={isSavingPrompt}
+        onSaveCustomPrompt={handleSaveCustomPrompt}
         errorProfile={errorProfile}
         isErrorProfileQuery={isErrorProfileQuery}
         errorProfileQueryMessage={errorProfileQuery?.message}

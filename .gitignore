@@ -135,6 +135,9 @@ typecheck_output.txt
 .turbo/
 **/.turbo/
 
+# Remotion build output
+apps/api/services/remotion/out/
+
 # ComfyUI (local-only, not deployed via CI)
 apps/api/services/comfyui/
 services/comfyui/
