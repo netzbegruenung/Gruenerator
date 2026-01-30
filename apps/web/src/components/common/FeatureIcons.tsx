@@ -450,7 +450,7 @@ const FeatureIcons = ({
           </div>
         </button>
 
-        <button
+        {/* <button
           className={`balanced-dropdown-item ${useNotebookEnrich ? 'active' : ''}`}
           onClick={(event) => {
             event.stopPropagation();
@@ -463,7 +463,7 @@ const FeatureIcons = ({
             <span className="balanced-dropdown-title">Vorarbeit</span>
             <span className="balanced-dropdown-desc">Schneller Vorentwurf als Ausgangspunkt.</span>
           </div>
-        </button>
+        </button> */}
       </DropdownPortal>
 
       {/* Content Dropdown */}
