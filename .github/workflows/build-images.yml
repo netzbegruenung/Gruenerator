@@ -62,6 +62,8 @@ jobs:
       shared: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: dorny/paths-filter@v3
         id: filter

@@ -40,12 +40,14 @@ const NotebooksGalleryPage = () => {
   const { pollDocumentStatus } = useDocumentsStore();
 
   const [showEditor, setShowEditor] = useState(false);
-  const [editingCollection, setEditingCollection] = useState<ReturnType<typeof getQACollection> | null>(null);
+  const [editingCollection, setEditingCollection] = useState<ReturnType<
+    typeof getQACollection
+  > | null>(null);
   const [processingCollectionIds, setProcessingCollectionIds] = useState<Set<string>>(new Set());
   const pollingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    fetchQACollections();
+    if (import.meta.env.DEV) fetchQACollections();
   }, [fetchQACollections]);
 
   const handleCreate = useCallback(() => {
@@ -90,24 +92,24 @@ const NotebooksGalleryPage = () => {
 
       setProcessingCollectionIds((prev) => new Set([...prev, collectionId]));
 
-      Promise.all(
-        documentIds.map((docId) => pollDocumentStatus(docId))
-      ).then(() => {
-        pollingRef.current.delete(collectionId);
-        setProcessingCollectionIds((prev) => {
-          const next = new Set(prev);
-          next.delete(collectionId);
-          return next;
+      Promise.all(documentIds.map((docId) => pollDocumentStatus(docId)))
+        .then(() => {
+          pollingRef.current.delete(collectionId);
+          setProcessingCollectionIds((prev) => {
+            const next = new Set(prev);
+            next.delete(collectionId);
+            return next;
+          });
+          fetchQACollections();
+        })
+        .catch(() => {
+          pollingRef.current.delete(collectionId);
+          setProcessingCollectionIds((prev) => {
+            const next = new Set(prev);
+            next.delete(collectionId);
+            return next;
+          });
         });
-        fetchQACollections();
-      }).catch(() => {
-        pollingRef.current.delete(collectionId);
-        setProcessingCollectionIds((prev) => {
-          const next = new Set(prev);
-          next.delete(collectionId);
-          return next;
-        });
-      });
     },
     [pollDocumentStatus, fetchQACollections]
   );
@@ -184,37 +186,41 @@ const NotebooksGalleryPage = () => {
           ))}
         </div>
 
-        <hr className="gallery-section-divider" />
+        {import.meta.env.DEV && (
+          <>
+            <hr className="gallery-section-divider" />
 
-        <div className="gallery-section-header">
-          <h2>Meine Notebooks</h2>
-          <button className="btn-create" onClick={handleCreate}>
-            <HiPlus size={16} />
-            Notebook erstellen
-          </button>
-        </div>
-
-        <NotebookList
-          qaCollections={qaCollections}
-          onView={handleView}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onShare={handleShare}
-          loading={collectionsLoading}
-          processingCollectionIds={processingCollectionIds}
-        />
-
-        {showEditor && (
-          <div className="notebook-editor-modal-overlay" onClick={handleOverlayClick}>
-            <div className="notebook-editor-modal-content">
-              <NotebookEditor
-                onSave={handleSave}
-                onCancel={handleCancel}
-                editingCollection={editingCollection}
-                loading={collectionsLoading}
-              />
+            <div className="gallery-section-header">
+              <h2>Meine Notebooks</h2>
+              <button className="btn-create" onClick={handleCreate}>
+                <HiPlus size={16} />
+                Notebook erstellen
+              </button>
             </div>
-          </div>
+
+            <NotebookList
+              qaCollections={qaCollections}
+              onView={handleView}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onShare={handleShare}
+              loading={collectionsLoading}
+              processingCollectionIds={processingCollectionIds}
+            />
+
+            {showEditor && (
+              <div className="notebook-editor-modal-overlay" onClick={handleOverlayClick}>
+                <div className="notebook-editor-modal-content">
+                  <NotebookEditor
+                    onSave={handleSave}
+                    onCancel={handleCancel}
+                    editingCollection={editingCollection}
+                    loading={collectionsLoading}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </ErrorBoundary>

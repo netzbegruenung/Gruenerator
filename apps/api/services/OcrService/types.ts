@@ -26,7 +26,7 @@ export interface ParseabilityCheck {
 export interface ExtractionResult {
   text: string;
   pageCount: number;
-  method: 'mistral-ocr' | 'direct' | 'pdfjs-dist';
+  method: 'mistral-ocr' | 'docling' | 'direct' | 'pdfjs-dist';
   confidence?: number;
   stats?: {
     pages?: number;

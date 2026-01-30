@@ -141,6 +141,27 @@ services:
       timeout: 10s
       retries: 3
 
+  # Docling-Serve - Self-hosted document OCR/conversion (PDF, DOCX, PPTX, images → Markdown)
+  # Pre-built image from quay.io, no custom build needed
+  ocr:
+    image: quay.io/docling-project/docling-serve-cpu:latest
+    restart: unless-stopped
+    environment:
+      - DOCLING_SERVE_MAX_NUM_PAGES=1000
+      - DOCLING_SERVE_MAX_FILE_SIZE=104857600
+      - DOCLING_NUM_THREADS=4
+      - DOCLING_SERVE_LOAD_MODELS_AT_BOOT=true
+    networks:
+      - gruenerator
+    labels:
+      - 'com.gruenerator.service=ocr'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5001/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
   # ComfyUI - Local GPU-based image generation (optional, requires NVIDIA GPU)
   # Start with: docker compose --profile gpu up -d comfyui
   comfyui:

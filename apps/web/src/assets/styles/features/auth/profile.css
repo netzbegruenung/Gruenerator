@@ -246,12 +246,17 @@
   opacity: 0.5;
 }
 
+.profile-card-prompt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--spacing-xxsmall);
+}
+
 .profile-card-char-count {
-  text-align: right;
   font-size: 0.75rem;
   color: var(--font-color);
   opacity: 0.5;
-  margin-top: var(--spacing-xxsmall);
 }
 
 /* Extra fields inside profile card */
