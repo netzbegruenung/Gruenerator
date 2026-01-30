@@ -52,6 +52,9 @@ interface ProfileViewProps {
   setUsername: (value: string) => void;
   customPrompt: string;
   setCustomPrompt: (value: string) => void;
+  isPromptDirty: boolean;
+  isSavingPrompt: boolean;
+  onSaveCustomPrompt: () => void;
   errorProfile: string;
   isErrorProfileQuery: boolean;
   errorProfileQueryMessage: string | undefined;
@@ -84,6 +87,9 @@ const ProfileView = ({
   setUsername,
   customPrompt,
   setCustomPrompt,
+  isPromptDirty,
+  isSavingPrompt,
+  onSaveCustomPrompt,
   errorProfile,
   isErrorProfileQuery,
   errorProfileQueryMessage,
@@ -227,7 +233,19 @@ const ProfileView = ({
               maxLength={2000}
               disabled={isLoading}
             />
-            <div className="profile-card-char-count">{customPrompt.length}/2000</div>
+            <div className="profile-card-prompt-footer">
+              <div className="profile-card-char-count">{customPrompt.length}/2000</div>
+              {isPromptDirty && (
+                <button
+                  type="button"
+                  className="btn-primary size-s"
+                  onClick={onSaveCustomPrompt}
+                  disabled={isSavingPrompt || isLoading}
+                >
+                  {isSavingPrompt ? 'Speichert…' : 'Speichern'}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Hidden profile fields - only shown when not from Keycloak */}

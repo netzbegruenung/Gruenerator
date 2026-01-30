@@ -259,6 +259,7 @@ export const profileApiService = {
       igel_modus: profile.igel_modus || false,
       beta_features: profile.beta_features || {},
       memory_enabled: profile.memory_enabled || false,
+      custom_prompt: profile.custom_prompt || '',
     };
 
     return profileData;
