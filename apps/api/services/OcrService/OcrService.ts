@@ -4,15 +4,26 @@
  * Handles document processing, embedding generation, and database updates
  */
 
+import { createRequire } from 'module';
 import path from 'path';
-import { mistralEmbeddingService } from '../mistral/index.js';
-import { smartChunkDocument } from '../document-services/index.js';
+
+import { vectorConfig } from '../../config/vectorConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
-import { vectorConfig } from '../../config/vectorConfig.js';
+import { smartChunkDocument } from '../document-services/index.js';
+import { mistralEmbeddingService } from '../mistral/index.js';
 
 // Import module functions
-import { validateDocumentLimits as validateLimits, getMediaType } from './validation.js';
+import {
+  updateDocumentStatus as updateStatus,
+  updateDocumentWithResults as updateResults,
+  generateAndStoreEmbeddings as generateEmbeddings,
+} from './databaseOperations.js';
+import {
+  extractTextWithDocling as extractDocling,
+  isDoclingAvailable as checkDocling,
+} from './doclingIntegration.js';
+import { extractTextWithMistralOCR as extractMistral } from './mistralIntegration.js';
 import {
   getPdfJs as loadPdfJs,
   openPdfDocument as openPdf,
@@ -22,17 +33,12 @@ import {
   extractPageTextDirectly as extractPage,
   extractTextFromBase64PDF as extractBase64,
 } from './pdfOperations.js';
-import { extractTextWithMistralOCR as extractMistral } from './mistralIntegration.js';
 import {
   applyMarkdownFormatting as formatMarkdown,
   isLikelyHeading,
   determineHeadingLevel,
 } from './textFormatting.js';
-import {
-  updateDocumentStatus as updateStatus,
-  updateDocumentWithResults as updateResults,
-  generateAndStoreEmbeddings as generateEmbeddings,
-} from './databaseOperations.js';
+import { validateDocumentLimits as validateLimits, getMediaType } from './validation.js';
 
 import type {
   DocumentLimits,
@@ -71,11 +77,10 @@ export class OCRService {
 
     const pdfjsLib = await loadPdfJs();
 
-    // Configure worker path
-    const workerPath = path.resolve(
-      path.dirname(new URL(import.meta.url).pathname),
-      '../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
-    );
+    // Configure worker path — use createRequire to resolve from the actual
+    // installed location, which may be hoisted to the monorepo root.
+    const require = createRequire(import.meta.url);
+    const workerPath = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
     pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
     this._pdfjsLib = pdfjsLib;
@@ -150,13 +155,16 @@ export class OCRService {
   }
 
   /**
-   * Extract text from documents using Mistral OCR exclusively
+   * Extract text from documents using the configured OCR provider.
+   * Provider is controlled by OCR_PROVIDER env var: 'mistral' (default) or 'docling'.
+   * When set to 'docling', falls back to Mistral if the Docling sidecar is unreachable.
    */
   async extractTextFromDocument(filePath: string): Promise<DocumentExtractionResult> {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();
+    const configuredProvider = (process.env.OCR_PROVIDER || 'mistral').toLowerCase();
     console.log(
-      `[OCRService] Starting document text extraction with Mistral OCR: ${filePath} (${fileExtension})`
+      `[OCRService] Starting document text extraction (provider=${configuredProvider}): ${filePath} (${fileExtension})`
     );
 
     try {
@@ -169,23 +177,48 @@ export class OCRService {
         parseCheck = await this.canExtractTextDirectly(filePath);
       }
 
-      // Always use Mistral OCR - supports PDF, DOCX, PPTX, images
-      console.log(`[OCRService] Using Mistral OCR for ${fileExtension} document`);
-      const result = await this.extractTextWithMistralOCR(filePath);
-      const totalTime = Date.now() - startTime;
+      let result: ExtractionResult;
+      let usedProvider: string;
 
-      console.log(`[OCRService] Mistral OCR completed successfully in ${totalTime}ms`);
+      if (configuredProvider === 'docling') {
+        // Try Docling first, fall back to Mistral if unavailable or on error
+        const doclingReady = await checkDocling();
+        if (doclingReady) {
+          try {
+            console.log(`[OCRService] Using Docling for ${fileExtension} document`);
+            result = await this.extractTextWithDocling(filePath);
+            usedProvider = 'docling';
+          } catch (doclingError) {
+            console.warn(`[OCRService] Docling failed, falling back to Mistral OCR:`, doclingError);
+            result = await this.extractTextWithMistralOCR(filePath);
+            usedProvider = 'mistral-ocr';
+          }
+        } else {
+          console.log(
+            `[OCRService] Docling unavailable, falling back to Mistral OCR for ${fileExtension} document`
+          );
+          result = await this.extractTextWithMistralOCR(filePath);
+          usedProvider = 'mistral-ocr';
+        }
+      } else {
+        console.log(`[OCRService] Using Mistral OCR for ${fileExtension} document`);
+        result = await this.extractTextWithMistralOCR(filePath);
+        usedProvider = 'mistral-ocr';
+      }
+
+      const totalTime = Date.now() - startTime;
+      console.log(`[OCRService] ${usedProvider} completed successfully in ${totalTime}ms`);
 
       return {
         ...result,
-        extractionMethod: 'mistral-ocr',
+        extractionMethod: usedProvider,
         fileType: fileExtension,
         parseabilityStats: parseCheck?.stats || null,
         totalProcessingTimeMs: totalTime,
       };
     } catch (error) {
       const totalTime = Date.now() - startTime;
-      console.error(`[OCRService] Mistral OCR extraction failed after ${totalTime}ms:`, error);
+      console.error(`[OCRService] OCR extraction failed after ${totalTime}ms:`, error);
       throw error;
     }
   }
@@ -195,6 +228,13 @@ export class OCRService {
    */
   async extractTextWithMistralOCR(filePath: string): Promise<ExtractionResult> {
     return await extractMistral(filePath, getMediaType);
+  }
+
+  /**
+   * Use Docling-Serve sidecar to extract text as markdown
+   */
+  async extractTextWithDocling(filePath: string): Promise<ExtractionResult> {
+    return await extractDocling(filePath);
   }
 
   /**
