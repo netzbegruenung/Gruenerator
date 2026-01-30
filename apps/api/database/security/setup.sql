@@ -11,8 +11,10 @@ DO $$
 BEGIN
     -- Check if user exists
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'gruenerator_app') THEN
-        -- Create user with strong password (change this!)
-        CREATE USER gruenerator_app WITH PASSWORD 'CHANGE_THIS_PASSWORD_IMMEDIATELY';
+        -- Create user with strong password.
+        -- NOTE: Supply GRUENERATOR_APP_PASSWORD via psql, e.g.:
+        --   psql -v GRUENERATOR_APP_PASSWORD='your-strong-password' -f setup.sql
+        CREATE USER gruenerator_app WITH PASSWORD :'GRUENERATOR_APP_PASSWORD';
         
         -- Grant basic database connection
         GRANT CONNECT ON DATABASE gruenerator TO gruenerator_app;
@@ -21,16 +23,16 @@ BEGIN
         GRANT USAGE ON SCHEMA public TO gruenerator_app;
         GRANT CREATE ON SCHEMA public TO gruenerator_app;
         
-        -- Grant table permissions
-        GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gruenerator_app;
-        GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gruenerator_app;
+        -- Grant table permissions (limit to required DML operations)
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gruenerator_app;
+        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO gruenerator_app;
         
-        -- Grant permissions for future tables
+        -- Grant permissions for future tables and sequences (principle of least privilege)
         ALTER DEFAULT PRIVILEGES IN SCHEMA public 
-        GRANT ALL PRIVILEGES ON TABLES TO gruenerator_app;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gruenerator_app;
         
         ALTER DEFAULT PRIVILEGES IN SCHEMA public 
-        GRANT ALL PRIVILEGES ON SEQUENCES TO gruenerator_app;
+        GRANT USAGE, SELECT ON SEQUENCES TO gruenerator_app;
         
         RAISE NOTICE 'Created gruenerator_app user successfully';
         RAISE NOTICE 'IMPORTANT: Change the default password immediately!';
@@ -52,8 +54,11 @@ BEGIN
         SELECT 1 FROM pg_policies 
         WHERE tablename = 'profiles' AND policyname = 'users_own_profile'
     ) THEN
-        -- For now, allow all access - can be restricted later with current_user functions
-        CREATE POLICY users_own_profile ON profiles FOR ALL TO gruenerator_app USING (true);
+        -- Restrict access so users can only access their own profile, based on current_user
+        CREATE POLICY users_own_profile ON profiles
+            FOR ALL
+            TO gruenerator_app
+            USING (user_id::text = current_user);
         RAISE NOTICE 'Created RLS policy for profiles table';
     END IF;
 END $$;
@@ -67,7 +72,9 @@ BEGIN
         SELECT 1 FROM pg_policies 
         WHERE tablename = 'documents' AND policyname = 'users_own_documents'
     ) THEN
-        CREATE POLICY users_own_documents ON documents FOR ALL TO gruenerator_app USING (true);
+        CREATE POLICY users_own_documents ON documents
+            FOR ALL TO gruenerator_app
+            USING (user_id = current_setting('app.current_user_id', true)::uuid);
         RAISE NOTICE 'Created RLS policy for documents table';
     END IF;
 END $$;
