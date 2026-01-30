@@ -15,6 +15,9 @@ export {
   DesktopOAuthStateManager,
 } from './DesktopOAuthStateManager.js';
 
+// OIDC State Store exports (Redis fallback for privacy browsers)
+export { storeOIDCState, consumeOIDCState } from './OIDCStateStore.js';
+
 // Rate Limiter exports
 export { default as RateLimiter, RateLimiter as RateLimiterClass } from './RateLimiter.js';
 

@@ -8,6 +8,7 @@ import {
 } from 'openid-client';
 
 import { isAllowedDomain, buildDomainUrl, URLS } from '../utils/domainUtils.js';
+import { storeOIDCState, consumeOIDCState } from '../utils/redis/OIDCStateStore.js';
 
 import type { Request } from 'express';
 import type { Strategy } from 'passport';
@@ -32,7 +33,7 @@ export interface PassportProfile {
 /**
  * OIDC session data stored in express-session
  */
-interface OIDCSessionData {
+export interface OIDCSessionData {
   state: string;
   redirectTo: string | null;
   originDomain: string | null;
@@ -228,6 +229,16 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
           throw new Error('Session data verification failed - data not found after save');
         }
 
+        // Store state in Redis as fallback for privacy browsers that block cookies
+        try {
+          await storeOIDCState(state, req.session['oidc:keycloak']!);
+        } catch (redisErr) {
+          console.warn(
+            `[KeycloakOIDC:${correlationId}] Redis state store failed (cookie flow still works):`,
+            redisErr
+          );
+        }
+
         this.redirect(authUrl.href);
       } catch (saveError) {
         console.error(`[KeycloakOIDC:${correlationId}] Failed to save session:`, saveError);
@@ -258,7 +269,30 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         console.log(`[KeycloakOIDC:callback] gruenerator.sid cookie present: ${hasOurCookie}`);
       }
 
-      const sessionData = req.session['oidc:keycloak'];
+      let sessionData = req.session['oidc:keycloak'];
+
+      // Fallback: if session cookie was blocked (privacy browsers), recover from Redis
+      if (!sessionData) {
+        const stateParam = req.query.state as string | undefined;
+        if (stateParam) {
+          console.warn(
+            `[KeycloakOIDC:callback] Session cookie missing, attempting Redis state fallback`
+          );
+          try {
+            const redisData = await consumeOIDCState(stateParam);
+            if (redisData) {
+              console.log(
+                `[KeycloakOIDC:${redisData.correlationId}] Redis state fallback successful`
+              );
+              sessionData = redisData;
+              req.session['oidc:keycloak'] = sessionData;
+            }
+          } catch (redisErr) {
+            console.error('[KeycloakOIDC:callback] Redis state fallback failed:', redisErr);
+          }
+        }
+      }
+
       const correlationId = sessionData?.correlationId || 'unknown';
 
       if (!sessionData) {
