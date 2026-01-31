@@ -73,19 +73,6 @@ const CitationSourcesDisplay = ({
     [handleCitationClick]
   );
 
-  // Always open in new tab for consistent UX
-  const handleDocumentClick = useCallback(
-    (documentId: string | undefined, url: string | null) => {
-      if (linkConfig.type === 'vectorDocument' && documentId) {
-        const basePath = linkConfig.basePath || '/documents';
-        window.open(`${basePath}/${documentId}`, '_blank', 'noopener,noreferrer');
-      } else if (linkConfig.type === 'external' && url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-    },
-    [linkConfig]
-  );
-
   // Create document groups that merge sources and citations
   const createDocumentGroups = useCallback(() => {
     const groupMap = new Map();
@@ -160,25 +147,29 @@ const CitationSourcesDisplay = ({
   if (sources.length === 0 && citations.length === 0 && additionalSources.length === 0) return null;
 
   const documentGroups = createDocumentGroups();
-  const canLink = linkConfig.type !== 'none';
 
-  // Group additional sources
+  // Group additional sources (handle both ExpandedChunkResult and Source property names)
   const additionalGrouped = additionalSources.reduce(
     (acc: Map<string, AdditionalSourceGroup>, source) => {
-      const key = source.document_id || source.document_title || '';
+      const docTitle = source.document_title || (source.title as string) || '';
+      const docUrl = source.url || (source.source_url as string);
+      const chunkText = source.chunk_text || (source.snippet as string);
+      const score = source.similarity_score ?? (source.similarity as number) ?? 0;
+
+      const key = source.document_id || docTitle || '';
       if (!acc.has(key)) {
         acc.set(key, {
           document_id: source.document_id,
-          document_title: source.document_title,
-          url: source.url,
+          document_title: docTitle,
+          url: docUrl,
           chunks: [],
-          maxScore: source.similarity_score || 0,
+          maxScore: score,
         });
       }
       const group = acc.get(key);
-      if (group && source.chunk_text) {
-        group.chunks.push(source.chunk_text);
-        group.maxScore = Math.max(group.maxScore, source.similarity_score || 0);
+      if (group && chunkText) {
+        group.chunks.push(chunkText);
+        group.maxScore = Math.max(group.maxScore, score);
       }
       return acc;
     },
@@ -188,10 +179,6 @@ const CitationSourcesDisplay = ({
   const additionalSourceGroups = Array.from(additionalGrouped.values()).sort(
     (a, b) => b.maxScore - a.maxScore
   );
-
-  const getLinkButtonLabel = () => {
-    return linkConfig.type === 'external' ? 'Artikel öffnen →' : 'Dokument öffnen →';
-  };
 
   return (
     <div className={`ask-sources-section ${className}`}>
@@ -206,16 +193,7 @@ const CitationSourcesDisplay = ({
             className="ask-document-group"
           >
             <div className="ask-document-header">
-              <h5
-                className={`ask-document-title ${canLink ? 'clickable-link' : ''}`}
-                onClick={() =>
-                  canLink &&
-                  (group.documentId || group.url) &&
-                  handleDocumentClick(group.documentId, group.url ?? null)
-                }
-              >
-                {group.documentTitle}
-              </h5>
+              <h5 className="ask-document-title">{group.documentTitle}</h5>
               {group.relevance && (
                 <span className="ask-document-relevance">{Math.round(group.relevance * 100)}%</span>
               )}
@@ -253,20 +231,11 @@ const CitationSourcesDisplay = ({
                 <p className="ask-document-excerpt">{group.additionalContent}</p>
               </details>
             )}
-
-            {canLink && (group.documentId || group.url) && (
-              <button
-                className="ask-document-link"
-                onClick={() => handleDocumentClick(group.documentId, group.url ?? null)}
-              >
-                {getLinkButtonLabel()}
-              </button>
-            )}
           </div>
         ))}
       </div>
 
-      {additionalSourceGroups.length > 0 && (
+      {additionalSourceGroups.length > 1 && (
         <details className="ask-additional-sources">
           <summary className="ask-additional-sources-header">
             <span className="ask-additional-sources-title">Weitere Quellen</span>
@@ -279,16 +248,7 @@ const CitationSourcesDisplay = ({
                 className="ask-additional-source-item"
               >
                 <div className="ask-additional-source-header">
-                  <span
-                    className={`ask-additional-source-title ${canLink && (source.document_id || source.url) ? 'clickable-link' : ''}`}
-                    onClick={() =>
-                      canLink &&
-                      (source.document_id || source.url) &&
-                      handleDocumentClick(source.document_id, source.url ?? null)
-                    }
-                  >
-                    {source.document_title}
-                  </span>
+                  <span className="ask-additional-source-title">{source.document_title}</span>
                   {source.maxScore > 0 && (
                     <span className="ask-additional-source-score">
                       {Math.round(source.maxScore * 100)}%
