@@ -4,15 +4,10 @@
  * Delegates to specialized modules for focused responsibilities
  */
 
-import { BaseScraper } from '../../base/BaseScraper.js';
-import type { ScraperResult } from '../../types.js';
-import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
-import {
-  scrollDocuments,
-  batchDelete,
-} from '../../../../database/services/QdrantService/operations/batchOperations.js';
-import { mistralEmbeddingService } from '../../../mistral/index.js';
-import { BRAND } from '../../../../utils/domainUtils.js';
+import { promises as fs } from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+
 import {
   getSourceById,
   getSourcesByType,
@@ -20,15 +15,22 @@ import {
   LANDESVERBAENDE_CONFIG,
   type SourceType,
 } from '../../../../config/landesverbaendeConfig.js';
+import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
+import {
+  scrollDocuments,
+  batchDelete,
+} from '../../../../database/services/QdrantService/operations/batchOperations.js';
+import { BRAND } from '../../../../utils/domainUtils.js';
+import { mistralEmbeddingService } from '../../../mistral/index.js';
+import { ocrService } from '../../../OcrService/index.js';
+
+import { BaseScraper } from '../../base/BaseScraper.js';
+import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';
-import { ContentExtractor } from './extractors/ContentExtractor.js';
-import { DocumentProcessor } from './processors/DocumentProcessor.js';
 import { SearchOperations } from './operations/SearchOperations.js';
-import { ocrService } from '../../../OcrService/index.js';
-import { promises as fs } from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import { DocumentProcessor } from './processors/DocumentProcessor.js';
+
 import type {
   SourceResult,
   LandesverbandScrapeOptions,
@@ -36,6 +38,7 @@ import type {
   ContentPathResult,
   LandesverbandSearchOptions,
 } from './types.js';
+import type { ScraperResult } from '../../types.js';
 
 /**
  * Main scraper class - orchestrates all modules
@@ -59,7 +62,7 @@ export class LandesverbandScraper extends BaseScraper {
       verbose: true,
     });
 
-    this.crawlDelay = 2000;
+    this.crawlDelay = 500;
     this.batchSize = 10;
     this.timeout = 60000;
     this.maxRetries = 3;
