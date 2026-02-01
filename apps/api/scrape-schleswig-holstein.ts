@@ -105,6 +105,9 @@ async function main() {
   // Step 6: Store in Qdrant
   console.log('6. Storing in Qdrant...');
   const qdrant = getQdrantInstance();
+  if (!qdrant.client) {
+    throw new Error('Qdrant client not initialized');
+  }
   for (let i = 0; i < points.length; i += BATCH_SIZE) {
     const batch = points.slice(i, i + BATCH_SIZE);
     await batchUpsert(qdrant.client, COLLECTION_NAME, batch);

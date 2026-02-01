@@ -5,39 +5,46 @@
 
 // Load environment variables FIRST before any other imports
 import 'dotenv/config';
+import { initSentry, Sentry } from './lib/sentry.js';
+initSentry();
 
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+
 import cluster from 'cluster';
 import os from 'os';
+
 import compression from 'compression';
 import cors from 'cors';
 import morgan from 'morgan';
+
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
 import helmet from 'helmet';
 import multer from 'multer';
 import session from 'express-session';
 import { RedisStore } from 'connect-redis';
 
 // Local imports
-import { createLogger } from './utils/logger.js';
+import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserConfig.js';
+import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
+import { setupRoutes } from './routes.js';
+import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
+import { tusServer } from './services/subtitler/tusService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
+import { createLogger } from './utils/logger.js';
 import { createCorsOptions } from './config/cors.js';
 import { getServerConfig } from './config/serverConfig.js';
-import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
-import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserConfig.js';
+import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
 import {
   createMasterShutdownHandler,
   createWorkerShutdownHandler,
 } from './utils/shutdown/index.js';
 import passport from './config/passportSetup.js';
-import { setupRoutes } from './routes.js';
 import AIWorkerPool from './workers/aiWorkerPool.js';
-import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
-import { tusServer } from './services/subtitler/tusService.js';
-import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
+
 import { spawn } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -508,6 +515,9 @@ async function startWorker(): Promise<void> {
     res.setTimeout(config.requestTimeout);
     next();
   });
+
+  // Sentry error handler (must be before custom error handler)
+  Sentry.setupExpressErrorHandler(app);
 
   // Error handler
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {

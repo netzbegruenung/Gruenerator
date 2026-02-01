@@ -756,7 +756,7 @@ const VideoEditor = ({
             {(exportStatus === 'starting' || exportStatus === 'exporting') && (
               <>
                 <div className="video-editor__export-icon video-editor__export-icon--processing">
-                  <div className="video-editor__export-spinner" />
+                  <Spinner size="medium" />
                 </div>
                 <h3 className="video-editor__export-title">Video wird exportiert...</h3>
                 <div className="video-editor__export-progress">

@@ -1,5 +1,7 @@
 import React from 'react';
 import { FaTimes } from 'react-icons/fa';
+
+import Spinner from '../../../components/common/Spinner';
 import '../styles/ProcessingIndicator.css';
 
 interface ProcessingIndicatorProps {
@@ -24,7 +26,7 @@ const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ onCancel, err
             </>
           ) : (
             <>
-              <div className="spinner" />
+              <Spinner size="large" />
               <div className="processing-text">
                 <h3>Video wird verarbeitet...</h3>
                 <p>Der Grünerator erstellt jetzt deine Untertitel</p>

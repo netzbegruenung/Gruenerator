@@ -95,7 +95,7 @@ export default defineConfig(({ command }) => ({
   build: {
     // Use compatible targets for Tauri WebViews (Chrome=Edge WebView2, Safari=WKWebView)
     target: isTauri ? ['chrome105', 'safari15'] : 'es2022',
-    sourcemap: false,
+    sourcemap: 'hidden',
     cssCodeSplit: true,
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 300,
