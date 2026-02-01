@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
+import { usePopupDismiss } from '../../../hooks/usePopupDismiss';
 import Icon from '../Icon';
 import './base-popup.css';
 
@@ -31,16 +32,25 @@ const BasePopup = ({
   const isAuthRoute =
     location.pathname.startsWith('/profile') || location.pathname.startsWith('/login');
 
+  const { isDismissed, dismiss, isHydrated } = usePopupDismiss(storageKey);
+
   const [isVisible, setIsVisible] = useState(() => {
     if (isNoHeaderFooterRoute || isAuthRoute) return false;
-    return !localStorage.getItem(storageKey);
+    return !isDismissed;
   });
 
+  // Hide popup if server state arrives and says dismissed (cross-device sync)
+  useEffect(() => {
+    if (isHydrated && isDismissed && isVisible) {
+      setIsVisible(false);
+    }
+  }, [isHydrated, isDismissed, isVisible]);
+
   const handleClose = useCallback(() => {
-    localStorage.setItem(storageKey, 'true');
+    dismiss();
     setIsVisible(false);
     onClose?.();
-  }, [storageKey, onClose]);
+  }, [dismiss, onClose]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (closeOnOverlayClick && e.target === e.currentTarget) {
