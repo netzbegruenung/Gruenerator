@@ -1,7 +1,9 @@
 .gallery-layout {
   max-width: 1200px;
   margin: 60px auto 0 auto;
+  padding: 0 var(--spacing-large);
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 .gallery-header {

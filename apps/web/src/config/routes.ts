@@ -178,6 +178,16 @@ const SchleswigHolsteinNotebookPage = lazy(() =>
     default: m.createNotebookPage('schleswigHolstein'),
   }))
 );
+const KommunalwikiNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('kommunalwiki'),
+  }))
+);
+const BoellStiftungNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('boellStiftung'),
+  }))
+);
 const NotebooksGalleryPage = lazy(() => import('../features/notebook/pages/NotebooksGalleryPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
@@ -266,6 +276,8 @@ export const GrueneratorenBundle = {
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
   HamburgNotebook: HamburgNotebookPage,
   SchleswigHolsteinNotebook: SchleswigHolsteinNotebookPage,
+  KommunalwikiNotebook: KommunalwikiNotebookPage,
+  BoellStiftungNotebook: BoellStiftungNotebookPage,
   NotebooksGallery: NotebooksGalleryPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
@@ -334,6 +346,8 @@ const standardRoutes: RouteConfig[] = [
     component: GrueneratorenBundle.SchleswigHolsteinNotebook,
     withForm: true,
   },
+  { path: '/kommunalwiki', component: GrueneratorenBundle.KommunalwikiNotebook, withForm: true },
+  { path: '/boell-stiftung', component: GrueneratorenBundle.BoellStiftungNotebook, withForm: true },
   { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },

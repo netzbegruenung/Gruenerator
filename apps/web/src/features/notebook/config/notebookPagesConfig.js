@@ -268,6 +268,51 @@ export const NOTEBOOK_CONFIGS = {
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
   },
+  kommunalwiki: {
+    id: 'kommunalwiki',
+    title: 'Frag KommunalWiki',
+    authTitle: 'Frag KommunalWiki',
+    collectionType: 'single',
+    collections: [{ id: 'kommunalwiki-system', name: 'KommunalWiki' }],
+    startPageTitle: 'Was möchtest du über Kommunalpolitik wissen?',
+    placeholder: 'Stell deine Frage zur Kommunalpolitik...',
+    infoPanelDescription:
+      'Fachwissen zur Kommunalpolitik aus dem KommunalWiki der Heinrich-Böll-Stiftung.',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      { icon: '🏛️', text: 'Wie funktioniert ein Gemeinderat?' },
+      { icon: '📋', text: 'Was sind die Aufgaben einer Bürgermeisterin?' },
+      { icon: '💡', text: 'Wie kann man kommunale Klimapolitik gestalten?' },
+    ],
+    externalUrl: 'https://kommunalwiki.boell.de',
+    sources: [{ name: 'KommunalWiki', count: 'Wiki' }],
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
+  boellStiftung: {
+    id: 'boellStiftung',
+    title: 'Frag Heinrich-Böll-Stiftung',
+    authTitle: 'Frag Heinrich-Böll-Stiftung',
+    collectionType: 'single',
+    collections: [{ id: 'boell-stiftung-system', name: 'Heinrich-Böll-Stiftung' }],
+    startPageTitle: 'Was möchtest du über die Analysen der Böll-Stiftung wissen?',
+    placeholder: 'Stell deine Frage zu Analysen und Dossiers...',
+    infoPanelDescription:
+      'Durchsuchbar sind Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung.',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      { icon: '🌍', text: 'Was sagt der Fleischatlas über Ernährung?' },
+      { icon: '🔋', text: 'Welche Analysen gibt es zur Energiewende?' },
+      { icon: '🌐', text: 'Was sind die Dossiers zu Digitalisierung?' },
+    ],
+    externalUrl: 'https://www.boell.de',
+    sources: [{ name: 'Heinrich-Böll-Stiftung', count: 'Publikationen' }],
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
 };
 
 export const getNotebookConfig = (configId) => {
