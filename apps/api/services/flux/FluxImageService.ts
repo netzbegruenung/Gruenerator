@@ -122,6 +122,8 @@ class FluxImageService {
 
     if (useBackend === 'local') {
       console.log('[FluxImageService] Using local ComfyUI backend');
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - comfyui module is excluded from Docker build
       const mod = await import('../comfyui/ComfyUIImageService.js');
       return new mod.default() as unknown as FluxImageService;
     }
