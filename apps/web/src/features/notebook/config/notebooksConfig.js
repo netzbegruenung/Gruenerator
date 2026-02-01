@@ -7,6 +7,7 @@ const PRODUCTION_NOTEBOOKS = [
     meta: 'Mehrere Quellen',
     tags: ['Multi-Suche', 'Empfohlen'],
     order: 0,
+    category: 'bundesebene',
   },
   {
     id: 'gruene-notebook',
@@ -16,6 +17,7 @@ const PRODUCTION_NOTEBOOKS = [
     meta: '3 Programme',
     tags: ['Grundsatzprogramm', 'EU-Wahl', 'Regierung'],
     order: 1,
+    category: 'bundesebene',
   },
   {
     id: 'bundestagsfraktion-notebook',
@@ -26,20 +28,8 @@ const PRODUCTION_NOTEBOOKS = [
     meta: '542 Artikel',
     tags: ['Fachtexte', 'Ziele', 'Einfach erklärt'],
     order: 2,
+    category: 'bundesebene',
   },
-  {
-    id: 'oesterreich-notebook',
-    path: '/gruene-oesterreich',
-    title: 'Frag Die Grünen Österreich',
-    description:
-      'Durchsuchbar sind die offiziellen Programme von Die Grünen – Die Grüne Alternative Österreich.',
-    meta: '3 Programme',
-    tags: ['Österreich', 'Grundsatzprogramm', 'Nationalrat'],
-    order: 3,
-  },
-];
-
-const DEV_ONLY_NOTEBOOKS = [
   {
     id: 'hamburg-notebook',
     path: '/gruene-hamburg',
@@ -48,6 +38,7 @@ const DEV_ONLY_NOTEBOOKS = [
     meta: 'Archiv',
     tags: ['Hamburg', 'Beschlüsse', 'Presse'],
     order: 4,
+    category: 'landesebene',
   },
   {
     id: 'schleswig-holstein-notebook',
@@ -58,6 +49,42 @@ const DEV_ONLY_NOTEBOOKS = [
     meta: '1 Programm',
     tags: ['Schleswig-Holstein', 'Wahlprogramm'],
     order: 5,
+    category: 'landesebene',
+  },
+  {
+    id: 'oesterreich-notebook',
+    path: '/gruene-oesterreich',
+    title: 'Frag Die Grünen Österreich',
+    description:
+      'Durchsuchbar sind die offiziellen Programme von Die Grünen – Die Grüne Alternative Österreich.',
+    meta: '3 Programme',
+    tags: ['Österreich', 'Grundsatzprogramm', 'Nationalrat'],
+    order: 3,
+    category: 'oesterreich',
+  },
+];
+
+const DEV_ONLY_NOTEBOOKS = [
+  {
+    id: 'kommunalwiki-notebook',
+    path: '/kommunalwiki',
+    title: 'Frag KommunalWiki',
+    description:
+      'Fachwissen zur Kommunalpolitik – durchsuchbar über das KommunalWiki der Heinrich-Böll-Stiftung.',
+    meta: 'Wiki',
+    tags: ['Kommunalpolitik', 'Böll-Stiftung'],
+    order: 6,
+    category: 'weitere',
+  },
+  {
+    id: 'boell-stiftung-notebook',
+    path: '/boell-stiftung',
+    title: 'Frag Heinrich-Böll-Stiftung',
+    description: 'Durchsuchbar sind Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung.',
+    meta: 'Publikationen',
+    tags: ['Analysen', 'Dossiers', 'Atlanten'],
+    order: 7,
+    category: 'weitere',
   },
 ];
 
@@ -71,3 +98,13 @@ export const getOrderedNotebooks = () => [...SYSTEM_NOTEBOOKS].sort((a, b) => a.
 export const getNotebookById = (id) => SYSTEM_NOTEBOOKS.find((nb) => nb.id === id);
 
 export const getNotebookByPath = (path) => SYSTEM_NOTEBOOKS.find((nb) => nb.path === path);
+
+export const getNotebooksByCategory = (category) =>
+  SYSTEM_NOTEBOOKS.filter((nb) => nb.category === category).sort((a, b) => a.order - b.order);
+
+export const getGermanNotebooks = () =>
+  SYSTEM_NOTEBOOKS.filter(
+    (nb) => nb.category === 'bundesebene' || nb.category === 'landesebene'
+  ).sort((a, b) => a.order - b.order);
+
+export const getAustrianNotebooks = () => getNotebooksByCategory('oesterreich');

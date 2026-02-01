@@ -6,10 +6,11 @@ import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner'
 import IndexCard from '../../../components/common/IndexCard';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { useAuthStore } from '../../../stores/authStore';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import NotebookEditor from '../components/NotebookEditor';
 import NotebookList from '../components/NotebookList';
-import { getOrderedNotebooks } from '../config/notebooksConfig';
+import { getAustrianNotebooks, getNotebooksByCategory } from '../config/notebooksConfig';
 import useNotebookStore from '../stores/notebookStore';
 import '../../../assets/styles/components/gallery-layout.css';
 import '../../../assets/styles/components/gallery-content-type.css';
@@ -25,7 +26,13 @@ interface EditorSaveData {
 
 const NotebooksGalleryPage = () => {
   const navigate = useNavigate();
-  const notebooks = getOrderedNotebooks();
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
+
+  const bundesebeneNotebooks = getNotebooksByCategory('bundesebene');
+  const landesebeneNotebooks = getNotebooksByCategory('landesebene');
+  const weitereNotebooks = getNotebooksByCategory('weitere');
+  const austrianNotebooks = getAustrianNotebooks();
 
   const {
     qaCollections,
@@ -165,26 +172,83 @@ const NotebooksGalleryPage = () => {
         <div className="gallery-header">
           <h1>Notebooks</h1>
           <p>
-            Durchsuche grüne Dokumente und Programme mit KI-gestützten Fragen. Wähle ein Notebook
-            und stelle deine Fragen zu grüner Politik.
+            {isAustrian
+              ? 'Durchsuche grüne Dokumente und Programme mit KI-gestützten Fragen. Stelle deine Fragen zu grüner Politik in Österreich.'
+              : 'Durchsuche grüne Dokumente und Programme mit KI-gestützten Fragen. Wähle ein Notebook und stelle deine Fragen zu grüner Politik.'}
           </p>
         </div>
 
         <EarlyAccessBanner feedbackUrl="https://tally.so/r/kdN6MZ" />
 
-        <div className="gallery-grid">
-          {notebooks.map((notebook) => (
-            <IndexCard
-              key={notebook.id}
-              title={notebook.title}
-              description={notebook.description}
-              meta={notebook.meta}
-              tags={notebook.tags}
-              onClick={() => navigate(notebook.path)}
-              variant={notebook.id === 'gruenerator-notebook' ? 'elevated' : 'default'}
-            />
-          ))}
-        </div>
+        {isAustrian ? (
+          <div className="gallery-grid">
+            {austrianNotebooks.map((notebook) => (
+              <IndexCard
+                key={notebook.id}
+                title={notebook.title}
+                description={notebook.description}
+                meta={notebook.meta}
+                tags={notebook.tags}
+                onClick={() => navigate(notebook.path)}
+              />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="gallery-section-header">
+              <h2>Bundesebene</h2>
+            </div>
+            <div className="gallery-grid">
+              {bundesebeneNotebooks.map((notebook) => (
+                <IndexCard
+                  key={notebook.id}
+                  title={notebook.title}
+                  description={notebook.description}
+                  meta={notebook.meta}
+                  tags={notebook.tags}
+                  onClick={() => navigate(notebook.path)}
+                  variant={notebook.id === 'gruenerator-notebook' ? 'elevated' : 'default'}
+                />
+              ))}
+            </div>
+
+            <div className="gallery-section-header">
+              <h2>Landesebene</h2>
+            </div>
+            <div className="gallery-grid">
+              {landesebeneNotebooks.map((notebook) => (
+                <IndexCard
+                  key={notebook.id}
+                  title={notebook.title}
+                  description={notebook.description}
+                  meta={notebook.meta}
+                  tags={notebook.tags}
+                  onClick={() => navigate(notebook.path)}
+                />
+              ))}
+            </div>
+
+            {weitereNotebooks.length > 0 && (
+              <>
+                <div className="gallery-section-header">
+                  <h2>Weitere</h2>
+                </div>
+                <div className="gallery-grid">
+                  {weitereNotebooks.map((notebook) => (
+                    <IndexCard
+                      key={notebook.id}
+                      title={notebook.title}
+                      description={notebook.description}
+                      meta={notebook.meta}
+                      tags={notebook.tags}
+                      onClick={() => navigate(notebook.path)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
 
         {import.meta.env.DEV && (
           <>
