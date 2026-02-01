@@ -131,18 +131,6 @@
   font-size: 0.95rem;
 }
 
-.ask-source-title.clickable-link {
-  color: var(--interactive-accent-color);
-  cursor: pointer;
-  text-decoration: underline;
-  transition: var(--input-transition);
-}
-
-.ask-source-title.clickable-link:hover {
-  color: var(--interactive-accent-color);
-  text-decoration-thickness: 2px;
-}
-
 .ask-source-excerpt {
   color: var(--font-color);
   line-height: 1.5;

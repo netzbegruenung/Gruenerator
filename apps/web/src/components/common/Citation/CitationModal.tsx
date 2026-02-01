@@ -10,15 +10,8 @@ const CitationModal = (): JSX.Element | null => {
   const modalRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
 
-  const {
-    selectedCitation,
-    closeCitationModal,
-    contextData,
-    isLoadingContext,
-    contextError,
-    getNavigationUrl,
-    canNavigate,
-  } = useCitationStore();
+  const { selectedCitation, closeCitationModal, contextData, isLoadingContext, contextError } =
+    useCitationStore();
 
   useEffect(() => {
     if (contextData && highlightRef.current) {
@@ -32,23 +25,6 @@ const CitationModal = (): JSX.Element | null => {
     if (e.target === e.currentTarget) {
       closeCitationModal();
     }
-  };
-
-  // Always open in new tab for consistent UX
-  const handleViewDocument = () => {
-    if (!selectedCitation) return;
-
-    const navResult = getNavigationUrl(selectedCitation);
-    if (navResult) {
-      window.open(navResult.url, '_blank', 'noopener,noreferrer');
-      closeCitationModal();
-    }
-  };
-
-  // Get navigation info for button label
-  const getNavInfo = () => {
-    if (!selectedCitation) return null;
-    return getNavigationUrl(selectedCitation);
   };
 
   const renderContextView = () => {
@@ -88,12 +64,6 @@ const CitationModal = (): JSX.Element | null => {
     );
   };
 
-  const getButtonLabel = () => {
-    const navInfo = getNavInfo();
-    if (!navInfo) return 'Öffnen →';
-    return navInfo.isExternal ? 'Quelle öffnen →' : 'Dokument öffnen →';
-  };
-
   return (
     <div className="citation-modal-overlay" onClick={handleOverlayClick}>
       <div className="citation-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
@@ -117,11 +87,6 @@ const CitationModal = (): JSX.Element | null => {
               </span>
             )}
           </div>
-          {canNavigate() && (
-            <button className="citation-view-document" onClick={handleViewDocument}>
-              {getButtonLabel()}
-            </button>
-          )}
         </div>
       </div>
     </div>
