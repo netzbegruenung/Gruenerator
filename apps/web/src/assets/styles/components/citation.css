@@ -330,30 +330,6 @@
   flex-shrink: 0;
 }
 
-.citation-view-document {
-  background-color: var(--secondary-600);
-  color: var(--white);
-  border: none;
-  padding: var(--spacing-xsmall) var(--spacing-medium);
-  border-radius: var(--card-border-radius-small);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: var(--input-transition);
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.citation-view-document:hover {
-  background-color: var(--secondary-700);
-  transform: scale(1.01);
-}
-
-.citation-view-document:focus-visible {
-  outline: 2px solid var(--interactive-accent-color);
-  outline-offset: 2px;
-}
-
 /* Desktop large screens (1024px+) */
 @media (min-width: 1024px) {
   .citation-modal-overlay {
@@ -451,10 +427,6 @@
     padding: 2px 6px;
   }
 
-  .citation-view-document {
-    padding: var(--spacing-xsmall) var(--spacing-small);
-    font-size: 0.8rem;
-  }
 }
 
 /* Small mobile screens (<400px) */
@@ -485,10 +457,6 @@
     flex: 1 1 100%;
   }
 
-  .citation-view-document {
-    flex: 1 1 100%;
-    text-align: center;
-  }
 }
 
 /* Document Groups Layout - Minimalistic */
@@ -517,18 +485,6 @@
   color: var(--font-color-h);
   margin: 0;
   flex: 1;
-}
-
-.ask-document-title.clickable-link {
-  cursor: pointer;
-  color: var(--interactive-accent-color);
-  text-decoration: underline;
-  transition: var(--input-transition);
-}
-
-.ask-document-title.clickable-link:hover {
-  color: var(--interactive-accent-color);
-  text-decoration-thickness: 2px;
 }
 
 .ask-document-relevance {
@@ -608,21 +564,6 @@
   line-height: 1.4;
   font-size: 0.9rem;
   margin-left: var(--spacing-medium);
-}
-
-.ask-document-link {
-  margin-top: var(--spacing-small);
-  color: var(--link-color);
-  text-decoration: none;
-  font-size: 0.9rem;
-  border: none;
-  background: none;
-  cursor: pointer;
-  padding: 0;
-}
-
-.ask-document-link:hover {
-  text-decoration: underline;
 }
 
 /* Cross-reference indicator */
@@ -1095,16 +1036,6 @@
   font-weight: 500;
   color: var(--font-color-h);
   font-size: 0.9rem;
-}
-
-.ask-additional-source-title.clickable-link {
-  cursor: pointer;
-  color: var(--interactive-accent-color);
-  text-decoration: underline;
-}
-
-.ask-additional-source-title.clickable-link:hover {
-  text-decoration-thickness: 2px;
 }
 
 .ask-additional-source-score {
