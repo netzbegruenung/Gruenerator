@@ -6,7 +6,9 @@
 
 import fs from 'fs';
 import https from 'https';
+
 import FormData from 'form-data';
+
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -318,6 +320,7 @@ function transformToOpenAIFormat(
   requestWordTimestamps: boolean
 ): TranscriptionResult {
   if (!gladiaResponse?.result?.transcription?.full_transcript) {
+    log.error(`Unexpected Gladia response structure: ${JSON.stringify(gladiaResponse, null, 2)}`);
     throw new Error('Invalid Gladia response: missing transcription');
   }
 
