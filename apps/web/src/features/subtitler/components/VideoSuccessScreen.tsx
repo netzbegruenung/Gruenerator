@@ -13,6 +13,7 @@ import {
 import CopyButton from '../../../components/common/CopyButton';
 import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
+import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import '../../../assets/styles/components/ui/button.css';
@@ -187,12 +188,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
           {showSpinner ? (
             <>
               <div className="video-success-icon loading">
-                <div className="spinner-container">
-                  <div className="video-success-spinner" />
-                  {exportProgress > 0 && (
-                    <div className="video-spinner-percentage">{exportProgress}%</div>
-                  )}
-                </div>
+                <Spinner size="large" white />
               </div>
               <h2>Dein Video wird verarbeitet</h2>
               <p>Dein Video wird mit Untertiteln versehen...</p>
@@ -235,7 +231,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
                       disabled={isSharing}
                       title="Auf Instagram posten"
                     >
-                      {isSharing ? <div className="button-spinner" /> : <FaInstagram />}
+                      {isSharing ? <Spinner size="small" white /> : <FaInstagram />}
                       Posten
                     </button>
                   )}
@@ -265,7 +261,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
                     disabled={isGeneratingSocialText || !!socialText}
                     title="Beitragstext erstellen"
                   >
-                    {isGeneratingSocialText ? <div className="button-spinner" /> : <FaFileAlt />}
+                    {isGeneratingSocialText ? <Spinner size="small" /> : <FaFileAlt />}
                   </button>
                 </div>
               </div>

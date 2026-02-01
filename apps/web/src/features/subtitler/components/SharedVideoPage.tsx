@@ -229,7 +229,7 @@ const SharedVideoPage = () => {
       <div className="shared-video-page">
         <div className="shared-video-container">
           <div className="shared-video-loading">
-            <div className="spinner" />
+            <Spinner size="large" />
             <p>Video wird geladen...</p>
           </div>
         </div>
@@ -291,7 +291,7 @@ const SharedVideoPage = () => {
       <div className="shared-video-page">
         <div className="shared-video-container">
           <div className="shared-video-rendering">
-            <div className="spinner" />
+            <Spinner size="large" />
             <h2>Video wird gerendert...</h2>
             <p>Das Video wird gerade vorbereitet. Dies kann einige Minuten dauern.</p>
             <p className="rendering-hint">Diese Seite aktualisiert sich automatisch.</p>
