@@ -3,13 +3,30 @@
  * Handles video processing, transcription, and export routes.
  */
 
-import express, { Response, Router } from 'express';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import path from 'path';
 import fs from 'fs';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import express, { type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { getVideoMetadata, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
+
+import AssSubtitleService from '../../services/subtitler/assSubtitleService.js';
+import { processRemotionExport } from '../../services/subtitler/remotionExportService.js';
+import { processVideoAutomatically } from '../../services/subtitler/autoProcessingService.js';
+import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
+import {
+  processVideoExportInBackground,
+  setRedisStatus,
+} from '../../services/subtitler/backgroundExportService.js';
+import {
+  generateDownloadToken,
+  processDirectDownload,
+  processChunkedDownload,
+  processSubtitleSegments,
+} from '../../services/subtitler/downloadUtils.js';
+import { autoSaveProject } from '../../services/subtitler/projectSavingService.js';
+import { correctSubtitlesViaAI } from '../../services/subtitler/subtitleCorrectionService.js';
+import { calculateFontSizing } from '../../services/subtitler/subtitleSizingService.js';
 import { transcribeVideo } from '../../services/subtitler/transcriptionService.js';
 import {
   getFilePathFromUploadId,
@@ -18,25 +35,10 @@ import {
   scheduleImmediateCleanup,
   getOriginalFilename,
 } from '../../services/subtitler/tusService.js';
-import { redisClient } from '../../utils/redis/index.js';
-import AssSubtitleService from '../../services/subtitler/assSubtitleService.js';
-import {
-  generateDownloadToken,
-  processDirectDownload,
-  processChunkedDownload,
-  processSubtitleSegments,
-} from '../../services/subtitler/downloadUtils.js';
-import { calculateFontSizing } from '../../services/subtitler/subtitleSizingService.js';
-import { autoSaveProject } from '../../services/subtitler/projectSavingService.js';
-import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
+import { getVideoMetadata, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
 import { createLogger } from '../../utils/logger.js';
-import { correctSubtitlesViaAI } from '../../services/subtitler/subtitleCorrectionService.js';
-import { processRemotionExport } from '../../services/subtitler/remotionExportService.js';
-import { processVideoAutomatically } from '../../services/subtitler/autoProcessingService.js';
-import {
-  processVideoExportInBackground,
-  setRedisStatus,
-} from '../../services/subtitler/backgroundExportService.js';
+import { redisClient } from '../../utils/redis/index.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -351,7 +353,9 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
           inputPath = ps.getVideoPath(proj.video_path);
           originalFilename = proj.video_filename || 'video.mp4';
         }
-      } catch {}
+      } catch {
+        /* ignored */
+      }
     }
     if (!inputPath && uploadId) {
       inputPath = getFilePathFromUploadId(uploadId);
@@ -375,7 +379,22 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
       outputDir,
       `${path.basename(originalFilename, path.extname(originalFilename))}_${Date.now()}.mp4`
     );
-    const segments = processSubtitleSegments(subtitles);
+    let segments: { startTime: number; endTime: number; text: string }[];
+    if (Array.isArray(subtitles)) {
+      segments = subtitles
+        .map((s: Record<string, unknown>) => ({
+          startTime: s.start ?? s.startTime ?? 0,
+          endTime: s.end ?? s.endTime ?? 0,
+          text: s.text ?? '',
+        }))
+        .filter((s) => s.text && s.endTime > s.startTime)
+        .sort((a, b) => a.startTime - b.startTime);
+      if (segments.length === 0) {
+        throw new Error('Keine gültigen Untertitel-Segmente gefunden');
+      }
+    } else {
+      segments = processSubtitleSegments(subtitles);
+    }
     const { finalFontSize } = calculateFontSizing(metadata, segments);
 
     // Generate ASS
@@ -424,7 +443,9 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
       await fsPromises.copyFile(srcFont, tempFontPath).catch(() => {
         tempFontPath = null;
       });
-    } catch {}
+    } catch {
+      /* ignored */
+    }
 
     await redisClient.set(
       `export:${exportToken}`,
@@ -617,7 +638,9 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
               exportToken: result.autoProcessToken,
             });
             projectId = r.projectId;
-          } catch {}
+          } catch {
+            /* ignored */
+          }
         }
         await redisClient.set(
           `auto:${uploadId}`,
