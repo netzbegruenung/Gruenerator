@@ -22,6 +22,10 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 COPY packages/shared ./packages/shared
 COPY apps/sites ./apps/sites
 
+# Build environment variables (baked at build time by Vite)
+ARG VITE_SENTRY_DSN
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+
 # Build the app
 WORKDIR /app/apps/sites
 RUN pnpm build
