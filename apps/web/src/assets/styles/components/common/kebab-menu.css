@@ -1,0 +1,79 @@
+.kebab-menu {
+  position: relative;
+}
+
+.kebab-menu__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--font-color);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  font-size: 1.1rem;
+}
+
+.kebab-menu__trigger:hover {
+  background: var(--background-color-alt);
+  color: var(--font-color-h);
+}
+
+.kebab-menu__trigger:focus-visible {
+  outline: 2px solid var(--primary-600);
+  outline-offset: 2px;
+}
+
+.kebab-menu__dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  min-width: 160px;
+  margin-top: var(--spacing-xxsmall);
+  padding: var(--spacing-xxsmall) 0;
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-border-radius-small);
+  box-shadow: var(--card-shadow-elevated);
+  list-style: none;
+}
+
+.kebab-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  width: 100%;
+  padding: var(--spacing-small) var(--spacing-medium);
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.kebab-menu__item:hover {
+  background: var(--background-color-alt);
+}
+
+.kebab-menu__item--danger {
+  color: var(--error-color, #dc2626);
+}
+
+.kebab-menu__item--danger:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.kebab-menu__item-icon {
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}

@@ -2,12 +2,13 @@ import { motion } from 'motion/react';
 import React, { useState } from 'react';
 import { HiOutlineTrash, HiPencil, HiShare, HiEye } from 'react-icons/hi';
 
+import IndexCard from '../../../components/common/IndexCard';
+import KebabMenu from '../../../components/common/KebabMenu';
 import { NotebookIcon } from '../../../config/icons';
 
-import type { NotebookListProps, NotebookCollection } from '../../../types/notebook';
-import '../../../assets/styles/features/notebook/notebook-collections.css';
-import '../../../assets/styles/features/auth/profile-cards.css';
-import '../../../assets/styles/components/actions/collection-actions.css';
+import type { KebabMenuItem } from '../../../components/common/KebabMenu';
+import type { NotebookListProps } from '../../../types/notebook';
+import '../../../assets/styles/components/gallery-layout.css';
 import '../styles/notebook-creator.css';
 
 const NotebookList: React.FC<NotebookListProps> = ({
@@ -54,92 +55,51 @@ const NotebookList: React.FC<NotebookListProps> = ({
     );
   }
 
+  const buildMenuItems = (collection: { id: string; name: string }): KebabMenuItem[] => [
+    { label: 'Öffnen', icon: <HiEye />, onClick: () => onView(collection.id) },
+    { label: 'Bearbeiten', icon: <HiPencil />, onClick: () => onEdit(collection.id) },
+    { label: 'Teilen', icon: <HiShare />, onClick: () => onShare(collection.id) },
+    {
+      label: deletingId === collection.id ? 'Wird gelöscht…' : 'Löschen',
+      icon: <HiOutlineTrash />,
+      onClick: () => handleDelete(collection.id, collection.name),
+      danger: true,
+    },
+  ];
+
   return (
-    <div className="qa-collections-list">
-      {qaCollections.map((collection) => (
-        <motion.div
-          key={collection.id}
-          className="qa-collection-card profile-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="profile-card-header">
-            <div className="qa-collection-info">
-              <h4>{collection.name}</h4>
-              {collection.description && (
-                <p className="qa-collection-description">{collection.description}</p>
-              )}
-              <div className="qa-collection-meta">
-                <span className="qa-document-count">
-                  {collection.document_count || 0} Dokument
-                  {collection.document_count !== 1 ? 'e' : ''}
-                </span>
-                {processingCollectionIds.has(collection.id) && (
-                  <span className="qa-processing-badge">
-                    <div className="processing-spinner-tiny" />
-                    Wird verarbeitet…
-                  </span>
-                )}
-                {collection.is_public && <span className="qa-public-badge">Öffentlich</span>}
-                <span className="qa-created-date">
-                  {new Date(collection.created_at).toLocaleDateString('de-DE')}
-                </span>
-              </div>
-            </div>
-            <div className="qa-collection-actions">
-              <button
-                className="icon-button style-as-link"
-                onClick={() => onView(collection.id)}
-                title="Notebook öffnen"
-              >
-                <HiEye />
-              </button>
-              <button
-                className="icon-button style-as-link"
-                onClick={() => onEdit(collection.id)}
-                title="Notebook bearbeiten"
-              >
-                <HiPencil />
-              </button>
-              <button
-                className="icon-button style-as-link"
-                onClick={() => onShare(collection.id)}
-                title="Notebook teilen"
-              >
-                <HiShare />
-              </button>
-              <button
-                className="icon-button danger"
-                onClick={() => handleDelete(collection.id, collection.name)}
-                disabled={deletingId === collection.id}
-                title="Notebook löschen"
-              >
-                {deletingId === collection.id ? (
-                  <div className="loading-spinner-small" />
-                ) : (
-                  <HiOutlineTrash />
-                )}
-              </button>
-            </div>
-          </div>
+    <div className="gallery-grid">
+      {qaCollections.map((collection) => {
+        const tags: string[] = [];
+        if (collection.is_public) tags.push('Öffentlich');
+        if (processingCollectionIds.has(collection.id)) tags.push('Wird verarbeitet…');
 
-          {collection.custom_prompt && (
-            <div className="profile-card-content">
-              <div className="qa-custom-prompt">
-                <strong>Anweisungen:</strong>
-                <p>{collection.custom_prompt}</p>
-              </div>
-            </div>
-          )}
+        const docCount = collection.document_count || 0;
+        const meta = (
+          <span>
+            {docCount} Dokument{docCount !== 1 ? 'e' : ''} &middot;{' '}
+            {new Date(collection.created_at).toLocaleDateString('de-DE')}
+          </span>
+        );
 
-          {collection.view_count > 0 && (
-            <div className="qa-stats">
-              <span>{collection.view_count} Aufrufe</span>
-            </div>
-          )}
-        </motion.div>
-      ))}
+        return (
+          <motion.div
+            key={collection.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <IndexCard
+              title={collection.name}
+              description={collection.description}
+              meta={meta}
+              tags={tags}
+              onClick={() => onView(collection.id)}
+              headerActions={<KebabMenu items={buildMenuItems(collection)} />}
+            />
+          </motion.div>
+        );
+      })}
     </div>
   );
 };

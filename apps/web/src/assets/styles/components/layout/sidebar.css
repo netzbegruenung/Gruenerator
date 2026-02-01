@@ -3,7 +3,7 @@
   display: flex;
   min-height: 100vh;
   --sidebar-collapsed-width: 56px;
-  --sidebar-expanded-width: 240px;
+  --sidebar-expanded-width: 280px;
 }
 
 .app-content {

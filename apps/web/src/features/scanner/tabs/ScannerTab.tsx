@@ -4,23 +4,30 @@
  */
 
 import { motion, AnimatePresence } from 'motion/react';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { lazy, Suspense, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { HiX } from 'react-icons/hi';
-import { PiScan, PiX, PiArrowCounterClockwise } from 'react-icons/pi';
+import {
+  PiCamera,
+  PiListChecks,
+  PiNotepad,
+  PiScan,
+  PiTextAa,
+  PiUploadSimple,
+  PiX,
+} from 'react-icons/pi';
 
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
+import UniversalEditForm from '../../../components/common/Form/EditMode/UniversalEditForm';
 import { FormStateProvider } from '../../../components/common/Form/FormStateProvider';
+import useResponsive from '../../../components/common/Form/hooks/useResponsive';
 import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
+import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import {
-  uploadZoneVariants,
-  ScanLine,
-  TypewriterText,
-  AnimatedUploadIcon,
-  AnimatedFileIcon,
-  ProcessingSpinner,
-} from '../ScannerAnimations';
+import useApplyAiEdit from '../../../stores/hooks/useApplyAiEdit';
+import { uploadZoneVariants, AnimatedUploadIcon, AnimatedFileIcon } from '../ScannerAnimations';
+
+const CameraScanner = lazy(() => import('../CameraScanner'));
 
 interface ScannerResult {
   text: string;
@@ -44,36 +51,76 @@ const formatFileSize = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const processingMessages = [
-  'Dokument wird analysiert',
-  'Text wird erkannt',
-  'Seiten werden verarbeitet',
-  'Formatierung wird beibehalten',
-];
-
 const COMPONENT_NAME = 'scanner';
 
-const ScannerTab = () => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+const PARTY_NAMES: Record<string, string> = {
+  'de-DE': 'Bündnis 90/Die Grünen',
+  'de-AT': 'Die Grünen – Die Grüne Alternative',
+};
+
+const getTransformPresets = (partyName: string) => [
+  {
+    id: 'ergebnisprotokoll',
+    label: 'Ergebnisprotokoll',
+    instruction: `Der Text stammt aus dem Kontext der grünen Partei (${partyName}). Transformiere den Text in ein strukturiertes Ergebnisprotokoll. Gliedere die Inhalte in klare Abschnitte mit Überschriften. Fasse Ergebnisse, Beschlüsse und offene Punkte übersichtlich zusammen. Behalte alle faktischen Informationen bei.`,
+    Icon: PiListChecks,
+  },
+  {
+    id: 'notizen',
+    label: 'Notizen',
+    instruction: `Der Text stammt aus dem Kontext der grünen Partei (${partyName}). Fasse den Text als kompakte, übersichtliche Notizen zusammen. Verwende kurze Stichpunkte und Aufzählungen. Hebe die wichtigsten Informationen, Kernaussagen und Handlungspunkte hervor. Lasse unwichtige Details und Füllwörter weg.`,
+    Icon: PiNotepad,
+  },
+  {
+    id: 'text-korrigieren',
+    label: 'Text korrigieren',
+    instruction: `Der Text stammt aus dem Kontext der grünen Partei (${partyName}). Korrigiere Rechtschreibung, Grammatik und Zeichensetzung im Text. Behebe OCR-typische Fehler wie falsch erkannte Buchstaben, fehlende Leerzeichen oder zusammengezogene Wörter. Erkenne partei-spezifische Begriffe und Abkürzungen korrekt. Behalte den ursprünglichen Inhalt, Stil und die Struktur vollständig bei.`,
+    Icon: PiTextAa,
+  },
+];
+
+interface ScannerTabProps {
+  onProcessingChange?: (isProcessing: boolean) => void;
+}
+
+const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [scannerState, setScannerState] = useState<ScannerState>('upload');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScannerResult | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
+  const [isEditModeActive, setIsEditModeActive] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounter = useRef(0);
+  const { isMobileView } = useResponsive(768);
+
+  const locale = useAuthStore((state) => state.locale);
+  const partyName = PARTY_NAMES[locale] || PARTY_NAMES['de-DE'];
+  const transformPresets = useMemo(() => getTransformPresets(partyName), [partyName]);
 
   const setGeneratedText = useGeneratedTextStore((state) => state.setGeneratedText);
   const clearGeneratedText = useGeneratedTextStore((state) => state.clearGeneratedText);
 
+  const handleEditModeToggle = useCallback(() => {
+    setIsEditModeActive((prev) => !prev);
+  }, []);
+
+  const { applyInstruction, isProcessing: isTransforming } = useApplyAiEdit(COMPONENT_NAME);
+
+  const handleTransform = useCallback(
+    async (instruction: string) => {
+      const result = await applyInstruction(instruction);
+      if (!result.success) {
+        setError(result.error || 'Transformation fehlgeschlagen.');
+      }
+    },
+    [applyInstruction]
+  );
+
   useEffect(() => {
-    if (scannerState !== 'processing') return;
-
-    const interval = setInterval(() => {
-      setProcessingMessageIndex((prev) => (prev + 1) % processingMessages.length);
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [scannerState]);
+    onProcessingChange?.(scannerState === 'processing');
+  }, [scannerState, onProcessingChange]);
 
   const validateFile = (file: File): string | null => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -86,53 +133,98 @@ const ScannerTab = () => {
     return null;
   };
 
-  const handleFileSelect = useCallback((file: File) => {
-    const validationError = validateFile(file);
-    if (validationError) {
-      setError(validationError);
-      setScannerState('error');
-      return;
+  const handleFileSelect = useCallback((files: File[]) => {
+    const valid: File[] = [];
+    for (const file of files) {
+      const validationError = validateFile(file);
+      if (validationError) {
+        setError(validationError);
+        setScannerState('error');
+        return;
+      }
+      valid.push(file);
     }
-    setSelectedFile(file);
+    setSelectedFiles((prev) => [...prev, ...valid]);
     setError(null);
     setResult(null);
     setScannerState('ready');
   }, []);
 
+  const handleRemoveFile = useCallback((index: number) => {
+    setSelectedFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) {
+        setResult(null);
+        setError(null);
+        setScannerState('upload');
+      }
+      return next;
+    });
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(Array.from(files));
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
+  useEffect(() => {
+    const onDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter.current++;
+      setIsDragOver(true);
+    };
+    const onDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter.current--;
+      if (dragCounter.current === 0) {
+        setIsDragOver(false);
+      }
+    };
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter.current = 0;
+      setIsDragOver(false);
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        handleFileSelect(Array.from(files));
+      }
+    };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('drop', onDrop);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
-  };
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [handleFileSelect]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
+  const handleCameraCapture = useCallback(
+    (file: File) => {
+      handleFileSelect([file]);
+      setShowCamera(false);
+    },
+    [handleFileSelect]
+  );
+
   const handleClearFile = () => {
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setResult(null);
     setError(null);
+    setIsEditModeActive(false);
     setScannerState('upload');
     clearGeneratedText(COMPONENT_NAME);
     if (fileInputRef.current) {
@@ -141,33 +233,54 @@ const ScannerTab = () => {
   };
 
   const handleExtract = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
 
     setScannerState('processing');
     setError(null);
-    setProcessingMessageIndex(0);
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
 
     try {
-      const response = await apiClient.post('/scanner/extract', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const results: ScannerResult[] = [];
 
-      if (response.data.success) {
-        setResult(response.data);
-        setScannerState('success');
-        setGeneratedText(COMPONENT_NAME, response.data.text, {
-          title: selectedFile.name,
-          contentType: 'scanner',
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await apiClient.post('/scanner/extract', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
         });
-      } else {
-        setError(response.data.error || 'Fehler bei der Textextraktion');
-        setScannerState('error');
+
+        if (response.data.success) {
+          results.push(response.data);
+        } else {
+          setError(response.data.error || `Fehler bei "${file.name}"`);
+          setScannerState('error');
+          return;
+        }
       }
+
+      const combinedText =
+        results.length === 1
+          ? results[0].text
+          : results.map((r, i) => `**${selectedFiles[i].name}**\n\n${r.text}`).join('\n\n---\n\n');
+
+      const totalPages = results.reduce((sum, r) => sum + r.pageCount, 0);
+
+      const combinedResult: ScannerResult = {
+        text: combinedText,
+        pageCount: totalPages,
+        method: results[0].method,
+        fileInfo: results[0].fileInfo,
+      };
+
+      setResult(combinedResult);
+      setGeneratedText(COMPONENT_NAME, combinedText, {
+        title:
+          selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} Dateien`,
+        contentType: 'scanner',
+      });
+      setScannerState('success');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } }; message?: string };
       setError(error.response?.data?.error || error.message || 'Fehler bei der Textextraktion');
@@ -179,10 +292,20 @@ const ScannerTab = () => {
   const hasResult = scannerState === 'success' && result;
 
   return (
-    <div className="scanner-tab-content">
+    <div className={`scanner-tab-content ${isDragOver ? 'drag-over' : ''}`}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ALLOWED_EXTENSIONS.join(',')}
+        onChange={handleInputChange}
+        className="scanner-file-input"
+        aria-label="Dateien auswählen"
+        multiple
+      />
+
       <AnimatePresence mode="wait">
         {/* Upload State */}
-        {(scannerState === 'upload' || scannerState === 'error') && !selectedFile && (
+        {(scannerState === 'upload' || scannerState === 'error') && selectedFiles.length === 0 && (
           <motion.div
             key="upload-zone"
             initial={{ opacity: 0, scale: 0.98 }}
@@ -190,72 +313,51 @@ const ScannerTab = () => {
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.2 }}
           >
-            <motion.div
-              className={`scanner-upload-zone ${isDragOver ? 'drag-over' : ''}`}
-              variants={uploadZoneVariants}
-              initial="idle"
-              whileHover="hover"
-              animate={isDragOver ? 'dragOver' : 'idle'}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={handleUploadClick}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  handleUploadClick();
-                }
-              }}
-            >
-              {isDragOver && (
-                <svg className="scanner-marching-ants" preserveAspectRatio="none">
-                  <motion.rect
-                    x="2"
-                    y="2"
-                    width="calc(100% - 4px)"
-                    height="calc(100% - 4px)"
-                    rx="16"
-                    ry="16"
-                    fill="none"
-                    stroke="var(--primary)"
-                    strokeWidth="2"
-                    strokeDasharray="8 4"
-                    initial={{ strokeDashoffset: 0 }}
-                    animate={{ strokeDashoffset: -24 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  />
-                </svg>
-              )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={ALLOWED_EXTENSIONS.join(',')}
-                onChange={handleInputChange}
-                className="scanner-file-input"
-                aria-label="Datei auswählen"
-              />
-
-              <div className="scanner-upload-content">
-                <AnimatedUploadIcon isDragOver={isDragOver} hasFile={false} />
-                <p className="scanner-upload-text">
-                  {isDragOver ? (
-                    'Datei loslassen'
-                  ) : (
-                    <>
-                      Datei hierher ziehen oder <span>durchsuchen</span>
-                    </>
-                  )}
-                </p>
-                <p className="scanner-upload-hint">PDF, Bilder, DOCX, PPTX · Max. 50 MB</p>
+            {isMobileView ? (
+              <div className="scanner-mobile-actions">
+                <button
+                  className="scanner-mobile-action-btn"
+                  onClick={() => setShowCamera(true)}
+                  type="button"
+                >
+                  <PiCamera size={36} />
+                  <span className="scanner-mobile-action-label">Kamera</span>
+                </button>
+                <button
+                  className="scanner-mobile-action-btn"
+                  onClick={handleUploadClick}
+                  type="button"
+                >
+                  <PiUploadSimple size={36} />
+                  <span className="scanner-mobile-action-label">Dateien</span>
+                </button>
               </div>
-            </motion.div>
+            ) : (
+              <motion.div
+                className={`scanner-upload-zone ${isDragOver ? 'drag-over' : ''}`}
+                variants={uploadZoneVariants}
+                initial="idle"
+                whileHover="hover"
+                animate={isDragOver ? 'dragOver' : 'idle'}
+                onClick={handleUploadClick}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    handleUploadClick();
+                  }
+                }}
+              >
+                <div className="scanner-upload-content">
+                  <AnimatedUploadIcon isDragOver={isDragOver} hasFile={false} />
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
 
-        {/* Ready State - File Selected */}
-        {scannerState === 'ready' && selectedFile && (
+        {/* Ready State - Files Selected */}
+        {scannerState === 'ready' && selectedFiles.length > 0 && (
           <motion.div
             key="ready-state"
             initial={{ opacity: 0, y: 20 }}
@@ -264,23 +366,46 @@ const ScannerTab = () => {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="scanner-ready-state"
           >
-            <div className="scanner-selected-file">
-              <AnimatedFileIcon isVisible />
-              <div className="scanner-file-info">
-                <span className="scanner-file-name">{selectedFile.name}</span>
-                <span className="scanner-file-size">{formatFileSize(selectedFile.size)}</span>
-              </div>
-              <button
-                className="scanner-clear-btn"
-                onClick={handleClearFile}
-                aria-label="Datei entfernen"
-              >
-                <PiX />
+            <div className="scanner-file-list">
+              {selectedFiles.map((file, index) => (
+                <div key={`${file.name}-${index}`} className="scanner-selected-file">
+                  <AnimatedFileIcon isVisible />
+                  <div className="scanner-file-info">
+                    <span className="scanner-file-name">{file.name}</span>
+                    <span className="scanner-file-size">{formatFileSize(file.size)}</span>
+                  </div>
+                  <button
+                    className="scanner-clear-btn"
+                    onClick={() => handleRemoveFile(index)}
+                    aria-label={`${file.name} entfernen`}
+                  >
+                    <PiX />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="scanner-file-list-actions">
+              {isMobileView && (
+                <button
+                  className="scanner-add-more-btn"
+                  onClick={() => setShowCamera(true)}
+                  type="button"
+                >
+                  <PiCamera size={16} /> Foto aufnehmen
+                </button>
+              )}
+              <button className="scanner-add-more-btn" onClick={handleUploadClick} type="button">
+                + Weitere Dateien
               </button>
             </div>
 
             <SubmitButton
-              text="Text extrahieren"
+              text={
+                selectedFiles.length === 1
+                  ? 'Text extrahieren'
+                  : `${selectedFiles.length} Dateien extrahieren`
+              }
               loading={false}
               icon={<PiScan />}
               onClick={handleExtract}
@@ -299,20 +424,7 @@ const ScannerTab = () => {
             exit={{ opacity: 0 }}
             className="scanner-processing-state"
           >
-            <div className="scanner-processing-visual">
-              <div className="scanner-document-preview">
-                <AnimatedFileIcon isVisible />
-                <ScanLine isActive />
-              </div>
-              <ProcessingSpinner />
-            </div>
-            <p className="scanner-processing-text">
-              <TypewriterText
-                text={processingMessages[processingMessageIndex] + '...'}
-                isActive
-                speed={40}
-              />
-            </p>
+            <p className="scanner-processing-text">Text wird extrahiert...</p>
           </motion.div>
         )}
 
@@ -326,6 +438,12 @@ const ScannerTab = () => {
             className="scanner-results-state"
           >
             <div className="scanner-result-meta">
+              {selectedFiles.length > 1 && (
+                <>
+                  <span className="scanner-meta-item">{selectedFiles.length} Dateien</span>
+                  <span className="scanner-meta-divider">·</span>
+                </>
+              )}
               <span className="scanner-meta-item">
                 {result.pageCount} Seite{result.pageCount !== 1 ? 'n' : ''}
               </span>
@@ -335,22 +453,50 @@ const ScannerTab = () => {
               </span>
             </div>
 
-            <FormStateProvider>
-              <DisplaySection
-                title={selectedFile?.name || 'Gescannter Text'}
-                value={result.text}
-                componentName={COMPONENT_NAME}
-                useMarkdown={true}
-                showEditModeToggle={false}
-                showUndoControls={false}
-                showRedoControls={false}
-              />
-            </FormStateProvider>
+            <div className="scanner-results-layout">
+              <div className="scanner-results-main">
+                <FormStateProvider>
+                  <DisplaySection
+                    title={
+                      selectedFiles.length === 1
+                        ? selectedFiles[0].name
+                        : `${selectedFiles.length} Dateien`
+                    }
+                    value={result.text}
+                    componentName={COMPONENT_NAME}
+                    useMarkdown={true}
+                    showEditModeToggle={true}
+                    isEditModeActive={isEditModeActive}
+                    onEditModeToggle={handleEditModeToggle}
+                    showUndoControls={true}
+                    showRedoControls={true}
+                    showResetButton={true}
+                    onReset={handleClearFile}
+                  />
+                </FormStateProvider>
 
-            <button className="scanner-new-btn" onClick={handleClearFile} type="button">
-              <PiArrowCounterClockwise />
-              <span>Neuen Scan starten</span>
-            </button>
+                {isEditModeActive && (
+                  <UniversalEditForm
+                    componentName={COMPONENT_NAME}
+                    onClose={handleEditModeToggle}
+                  />
+                )}
+              </div>
+
+              <div className="scanner-transform-panel">
+                {transformPresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    className="scanner-transform-btn"
+                    onClick={() => handleTransform(preset.instruction)}
+                    disabled={isTransforming}
+                  >
+                    <preset.Icon />
+                    <span>{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -372,7 +518,7 @@ const ScannerTab = () => {
               className="error-dismiss-button"
               onClick={() => {
                 setError(null);
-                if (!selectedFile) setScannerState('upload');
+                if (selectedFiles.length === 0) setScannerState('upload');
               }}
               aria-label="Fehlermeldung schließen"
             >
@@ -381,6 +527,22 @@ const ScannerTab = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Camera Overlay */}
+      {showCamera && (
+        <Suspense
+          fallback={
+            <div className="scanner-camera-overlay">
+              <div className="scanner-camera-loading">
+                <div className="scanner-camera-spinner" />
+                <p>Kamera wird geladen...</p>
+              </div>
+            </div>
+          }
+        >
+          <CameraScanner onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
+        </Suspense>
+      )}
     </div>
   );
 };

@@ -3,10 +3,13 @@
  * Basic and quality-aware vector similarity search
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import { createLogger } from '../../../../utils/logger.js';
+
 import { mergeFilters } from './filterUtils.js';
+
 import type {
   VectorSearchOptions,
   VectorSearchResult,
@@ -35,19 +38,23 @@ export async function vectorSearch(
   } = options;
 
   try {
-    // ROBUST FIX: In Qdrant, if ONLY `should` clauses exist (no `must`), at least one must match.
-    // This causes 0 results when fields like content_type aren't indexed.
-    // Solution: Strip `should` when there's no `must`, making them truly optional.
+    // Strip intent-based `should` clauses (content_type, lang preferences).
+    // In Qdrant, `should` combined with `must` requires at least one `should` to match,
+    // turning soft preferences into hard filters. This caused 0 results on collections
+    // with different content_type values (e.g. Hamburg's "beschluss" docs).
     let sanitizedFilter = filter;
-    const hasMust = Array.isArray(filter.must) && filter.must.length > 0;
     const hasShould = Array.isArray(filter.should) && filter.should.length > 0;
-    const hasMustNot = Array.isArray(filter.must_not) && filter.must_not.length > 0;
 
-    if (hasShould && !hasMust && !hasMustNot) {
-      // Only `should` exists - this would require at least one match, which breaks
-      // searches on collections without the indexed fields. Remove `should` entirely.
-      logger.debug(`Removing standalone 'should' clauses to prevent 0-result issue`);
-      sanitizedFilter = {};
+    if (hasShould) {
+      const intentOnlyKeys = new Set(['content_type', 'lang']);
+      const allIntentBased = filter.should!.every(
+        (clause) => 'key' in clause && intentOnlyKeys.has((clause as { key: string }).key)
+      );
+      if (allIntentBased) {
+        logger.debug('Stripping intent-based should clauses to prevent 0-result filtering');
+        const { should: _stripped, ...rest } = filter;
+        sanitizedFilter = rest;
+      }
     }
 
     const searchOptions = {

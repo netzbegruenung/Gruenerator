@@ -168,11 +168,16 @@ const OesterreichGrueneNotebookPage = lazy(() =>
     default: m.createNotebookPage('oesterreich'),
   }))
 );
-// const HamburgNotebookPage = lazy(() =>
-//   import('../features/notebook/components/NotebookPage').then((m) => ({
-//     default: m.createNotebookPage('hamburg'),
-//   }))
-// );
+const HamburgNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('hamburg'),
+  }))
+);
+const SchleswigHolsteinNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('schleswigHolstein'),
+  }))
+);
 const NotebooksGalleryPage = lazy(() => import('../features/notebook/pages/NotebooksGalleryPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
@@ -259,7 +264,8 @@ export const GrueneratorenBundle = {
   BundestagsfraktionNotebook: BundestagsfraktionNotebookPage,
   GrueneratorNotebook: GrueneratorNotebookPage,
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
-  // HamburgNotebook: HamburgNotebookPage,
+  HamburgNotebook: HamburgNotebookPage,
+  SchleswigHolsteinNotebook: SchleswigHolsteinNotebookPage,
   NotebooksGallery: NotebooksGalleryPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
@@ -322,7 +328,12 @@ const standardRoutes: RouteConfig[] = [
     component: GrueneratorenBundle.OesterreichGrueneNotebook,
     withForm: true,
   },
-  // { path: '/gruene-hamburg', component: GrueneratorenBundle.HamburgNotebook, withForm: true },
+  { path: '/gruene-hamburg', component: GrueneratorenBundle.HamburgNotebook, withForm: true },
+  {
+    path: '/gruene-schleswig-holstein',
+    component: GrueneratorenBundle.SchleswigHolsteinNotebook,
+    withForm: true,
+  },
   { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },

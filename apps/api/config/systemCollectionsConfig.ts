@@ -189,6 +189,16 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     ],
     defaultFilter: { field: 'landesverband', value: 'HH' },
   },
+  'schleswig-holstein-system': {
+    id: 'schleswig-holstein-system',
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Schleswig-Holstein',
+    description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
+    defaultFilter: { field: 'landesverband', value: 'SH' },
+  },
 };
 
 // =============================================================================

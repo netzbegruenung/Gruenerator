@@ -1,6 +1,8 @@
-import express, { Router, Request, Response } from 'express';
+import express, { type Router, type Request, type Response } from 'express';
 import { jsonrepair } from 'jsonrepair';
+
 import { createLogger } from '../../utils/logger.js';
+
 import type { EditChange, EditSuggestionResult, JsonParsable } from '../../types/routes.js';
 import type { EditGenerationContext } from '../../utils/editContextBuilder.js';
 
@@ -24,6 +26,47 @@ interface FunctionTool {
       required: string[];
     };
   };
+}
+
+/**
+ * Convert a structured JSON object (as returned by Mistral for full_replace)
+ * into readable markdown text. Handles nested objects and arrays recursively.
+ */
+function structuredObjectToMarkdown(obj: unknown, depth = 0): string {
+  if (typeof obj === 'string') return obj;
+  if (obj == null || typeof obj !== 'object') return String(obj ?? '');
+
+  if (Array.isArray(obj)) {
+    return obj
+      .map((item) => {
+        const text = structuredObjectToMarkdown(item, depth);
+        return typeof item === 'object' && item !== null && !Array.isArray(item)
+          ? text
+          : `- ${text}`;
+      })
+      .join('\n');
+  }
+
+  const lines: string[] = [];
+  const heading = depth === 0 ? '##' : depth === 1 ? '###' : '####';
+
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+    if (typeof value === 'string') {
+      lines.push(`**${label}:** ${value}`);
+    } else if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
+      lines.push(`${heading} ${label}`);
+      lines.push(value.map((v) => `- ${v}`).join('\n'));
+    } else if (typeof value === 'object' && value !== null) {
+      lines.push(`${heading} ${label}`);
+      lines.push(structuredObjectToMarkdown(value, depth + 1));
+    } else {
+      lines.push(`**${label}:** ${String(value)}`);
+    }
+  }
+
+  return lines.join('\n\n');
 }
 
 function parseJsonSafe(raw: JsonParsable): EditSuggestionResult | null {
@@ -299,6 +342,15 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
         },
       });
       return;
+    }
+
+    // Normalize changes: coerce object replacement_text to markdown string
+    // Mistral sometimes returns structured JSON objects instead of plain text
+    for (const change of parsed.changes) {
+      if (change && change.replacement_text && typeof change.replacement_text !== 'string') {
+        log.debug('[claude_suggest_edits] Coercing object replacement_text to markdown string');
+        change.replacement_text = structuredObjectToMarkdown(change.replacement_text);
+      }
     }
 
     const validChanges = parsed.changes.filter((c: EditChange) => {
