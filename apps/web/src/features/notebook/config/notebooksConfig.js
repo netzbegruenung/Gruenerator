@@ -1,4 +1,4 @@
-export const SYSTEM_NOTEBOOKS = [
+const PRODUCTION_NOTEBOOKS = [
   {
     id: 'gruenerator-notebook',
     path: '/gruenerator-notebook',
@@ -37,15 +37,33 @@ export const SYSTEM_NOTEBOOKS = [
     tags: ['Österreich', 'Grundsatzprogramm', 'Nationalrat'],
     order: 3,
   },
-  // {
-  //   id: 'hamburg-notebook',
-  //   path: '/gruene-hamburg',
-  //   title: 'Frag Grüne Hamburg',
-  //   description: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
-  //   meta: 'Archiv',
-  //   tags: ['Hamburg', 'Beschlüsse', 'Presse'],
-  //   order: 4,
-  // },
+];
+
+const DEV_ONLY_NOTEBOOKS = [
+  {
+    id: 'hamburg-notebook',
+    path: '/gruene-hamburg',
+    title: 'Frag Grüne Hamburg',
+    description: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
+    meta: 'Archiv',
+    tags: ['Hamburg', 'Beschlüsse', 'Presse'],
+    order: 4,
+  },
+  {
+    id: 'schleswig-holstein-notebook',
+    path: '/gruene-schleswig-holstein',
+    title: 'Frag Grüne Schleswig-Holstein',
+    description:
+      'Durchsuchbar ist das Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl.',
+    meta: '1 Programm',
+    tags: ['Schleswig-Holstein', 'Wahlprogramm'],
+    order: 5,
+  },
+];
+
+export const SYSTEM_NOTEBOOKS = [
+  ...PRODUCTION_NOTEBOOKS,
+  ...(import.meta.env.DEV ? DEV_ONLY_NOTEBOOKS : []),
 ];
 
 export const getOrderedNotebooks = () => [...SYSTEM_NOTEBOOKS].sort((a, b) => a.order - b.order);
