@@ -1,63 +1,42 @@
 /**
- * Scanner Page - Document Scanner with Protokollizer
- * Uses TabbedLayout to provide OCR text extraction and meeting protocol generation
+ * Scanner Page - Document Scanner with OCR text extraction
  */
 
-import { PiScan, PiFileText } from 'react-icons/pi';
+import { useState } from 'react';
 
-import { TabbedLayout, useTabManager, type TabConfig } from '../../components/common/TabbedLayout';
-
-import ProtokollTab from './tabs/ProtokollTab';
+import DotGrid from './DotGrid';
 import ScannerTab from './tabs/ScannerTab';
 import '../../assets/styles/pages/scanner.css';
 
-type ScannerTabId = 'scanner' | 'protokollizer';
-
-const SCANNER_TABS: TabConfig<ScannerTabId>[] = [
-  {
-    id: 'scanner',
-    label: 'Scanner',
-    shortLabel: 'Scan',
-    icon: <PiScan />,
-  },
-  {
-    id: 'protokollizer',
-    label: 'Protokollizer',
-    shortLabel: 'Proto',
-    icon: <PiFileText />,
-  },
-];
+const FILE_TYPE_BADGES = ['PDF', 'Bilder', 'DOCX', 'PPTX'] as const;
 
 const ScannerPageHeader = () => (
   <div className="scanner-page-header">
     <h1 className="scanner-zen-title">Scanner</h1>
     <p className="scanner-zen-subtitle">
-      Extrahiere Text aus Dokumenten und erstelle Sitzungsprotokolle
+      Dokumente digitalisieren und Texte automatisch extrahieren
     </p>
+    <div className="scanner-badges">
+      {FILE_TYPE_BADGES.map((type) => (
+        <span key={type} className="scanner-badge">
+          {type}
+        </span>
+      ))}
+      <span className="scanner-badge">bis 50 MB</span>
+    </div>
   </div>
 );
 
 const ScannerPage = () => {
-  const { activeTab, setActiveTab } = useTabManager({
-    defaultTab: 'scanner',
-    validTabs: ['scanner', 'protokollizer'] as const,
-    urlParam: 'tab',
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   return (
     <div className="scanner-page scanner-zen">
-      <TabbedLayout
-        tabs={SCANNER_TABS}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        header={<ScannerPageHeader />}
-        ariaLabel="Scanner Funktionen"
-      >
-        {{
-          scanner: <ScannerTab />,
-          protokollizer: <ProtokollTab />,
-        }}
-      </TabbedLayout>
+      <DotGrid isProcessing={isProcessing} />
+      <div className="scanner-layout">
+        <ScannerPageHeader />
+        <ScannerTab onProcessingChange={setIsProcessing} />
+      </div>
     </div>
   );
 };
