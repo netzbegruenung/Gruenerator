@@ -1,12 +1,14 @@
+import * as Sentry from '@sentry/react';
+
 let errorTrackingInitialized = false;
 
 export function initErrorTracking(): void {
-  const projectId = import.meta.env.VITE_HIGHLIGHT_PROJECT_ID;
+  const dsn = import.meta.env.VITE_SENTRY_DSN;
 
-  if (!projectId) {
+  if (!dsn) {
     console.info(
-      'Highlight.io project ID not configured. Error tracking disabled. ' +
-        'Set VITE_HIGHLIGHT_PROJECT_ID environment variable to enable error tracking.'
+      'Sentry DSN not configured. Error tracking disabled. ' +
+        'Set VITE_SENTRY_DSN environment variable to enable error tracking.'
     );
     return;
   }
@@ -17,6 +19,12 @@ export function initErrorTracking(): void {
   }
 
   try {
+    Sentry.init({
+      dsn,
+      environment: import.meta.env.MODE,
+      enabled: import.meta.env.PROD,
+      tracesSampleRate: 0,
+    });
     console.info('Error tracking initialized successfully');
     errorTrackingInitialized = true;
   } catch (error) {
