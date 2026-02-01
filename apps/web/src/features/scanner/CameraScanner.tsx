@@ -53,14 +53,9 @@ const CameraScanner = ({ onCapture, onClose }: CameraScannerProps) => {
   }, [isOpenCVLoaded]);
 
   const handleUserMedia = useCallback(() => {
-    console.log(
-      `[CameraScanner] handleUserMedia (webcam stream received). cameraState=${cameraState}, isOpenCVLoaded=${isOpenCVLoaded}`
-    );
-    if (cameraState === 'loading-opencv' && isOpenCVLoaded) {
-      console.log(`[CameraScanner] Webcam ready AND OpenCV loaded. Setting cameraState=ready`);
-      setCameraState('ready');
-    }
-  }, [cameraState, isOpenCVLoaded]);
+    console.log(`[CameraScanner] handleUserMedia (webcam stream received).`);
+    // Don't set ready here — wait for jscanify import to finish (OpenCV effect)
+  }, []);
 
   const handleUserMediaError = useCallback((err: unknown) => {
     console.error(`[CameraScanner] handleUserMediaError. Camera access denied/failed:`, err);
@@ -109,57 +104,60 @@ const CameraScanner = ({ onCapture, onClose }: CameraScannerProps) => {
     };
   }, [cameraState]);
 
+  const captureRawFrame = useCallback(
+    (video: HTMLVideoElement) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0);
+      canvas.toBlob(
+        (blob: Blob | null) => {
+          if (blob) {
+            const file = new File([blob], `scan-${Date.now()}.jpg`, { type: 'image/jpeg' });
+            onCapture(file);
+          }
+        },
+        'image/jpeg',
+        0.92
+      );
+    },
+    [onCapture]
+  );
+
   const handleCapture = useCallback(() => {
     const video = webcamRef.current?.video;
-    if (!video || !scannerRef.current) return;
+    if (!video) return;
 
-    try {
-      const extractedCanvas = scannerRef.current.extractPaper(
-        video,
-        video.videoWidth,
-        video.videoHeight
-      );
-
-      const sourceCanvas =
-        extractedCanvas ||
-        (() => {
-          const fallback = document.createElement('canvas');
-          fallback.width = video.videoWidth;
-          fallback.height = video.videoHeight;
-          const ctx = fallback.getContext('2d');
-          ctx?.drawImage(video, 0, 0);
-          return fallback;
-        })();
-
-      sourceCanvas.toBlob(
-        (blob: Blob | null) => {
-          if (blob) {
-            const file = new File([blob], `scan-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            onCapture(file);
-          }
-        },
-        'image/jpeg',
-        0.92
-      );
-    } catch {
-      // Fallback: capture raw frame without perspective correction
-      const fallback = document.createElement('canvas');
-      fallback.width = video.videoWidth;
-      fallback.height = video.videoHeight;
-      const ctx = fallback.getContext('2d');
-      ctx?.drawImage(video, 0, 0);
-      fallback.toBlob(
-        (blob: Blob | null) => {
-          if (blob) {
-            const file = new File([blob], `scan-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            onCapture(file);
-          }
-        },
-        'image/jpeg',
-        0.92
-      );
+    // If jscanify is loaded, try perspective correction
+    if (scannerRef.current) {
+      try {
+        const extractedCanvas = scannerRef.current.extractPaper(
+          video,
+          video.videoWidth,
+          video.videoHeight
+        );
+        if (extractedCanvas) {
+          extractedCanvas.toBlob(
+            (blob: Blob | null) => {
+              if (blob) {
+                const file = new File([blob], `scan-${Date.now()}.jpg`, { type: 'image/jpeg' });
+                onCapture(file);
+              }
+            },
+            'image/jpeg',
+            0.92
+          );
+          return;
+        }
+      } catch {
+        console.log('[CameraScanner] extractPaper failed, using raw frame');
+      }
     }
-  }, [onCapture]);
+
+    // Fallback: raw frame capture (always works)
+    captureRawFrame(video);
+  }, [onCapture, captureRawFrame]);
 
   return (
     <div className="scanner-camera-overlay">
