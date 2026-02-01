@@ -122,7 +122,6 @@ class FluxImageService {
 
     if (useBackend === 'local') {
       console.log('[FluxImageService] Using local ComfyUI backend');
-      // @ts-expect-error - comfyui module is local-only and not available in CI
       const mod = await import('../comfyui/ComfyUIImageService.js');
       return new mod.default() as unknown as FluxImageService;
     }

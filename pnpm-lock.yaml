@@ -253,6 +253,12 @@ importers:
       '@types/body-parser':
         specifier: ^1.19.6
         version: 1.19.6
+      '@types/compression':
+        specifier: ^1.7.5
+        version: 1.8.1
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.19
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6
@@ -274,6 +280,12 @@ importers:
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.2.7
+      '@types/react-dom':
+        specifier: ^19.1.5
+        version: 19.2.3(@types/react@19.2.7)
       '@types/turndown':
         specifier: ^5.0.6
         version: 5.0.6
