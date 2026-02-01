@@ -265,12 +265,10 @@ router.get(
 
       const stream = fs.createReadStream(exportData.outputPath);
       stream.pipe(res);
-      stream.on('end', () =>
-        setTimeout(async () => {
-          await cleanupFiles(null, exportData.outputPath).catch(() => {});
-          await redisClient.del(`export:${exportToken}`).catch(() => {});
-        }, 2000)
-      );
+      stream.on('error', (err) => {
+        log.error(`Stream error for export ${exportToken}: ${err.message}`);
+        if (!res.headersSent) res.status(500).end();
+      });
     } catch (e: any) {
       if (!res.headersSent) res.status(500).json({ error: e.message });
     }

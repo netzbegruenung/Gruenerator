@@ -46,48 +46,6 @@
   animation: videoScaleIn 0.3s ease-out;
 }
 
-.spinner-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.video-success-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-}
-
-.video-success-icon.loading .video-success-spinner {
-  animation: videoSpin 1s ease-in-out infinite;
-}
-
-.video-spinner-percentage {
-  color: white;
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-@keyframes videoSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.video-social-text-loading {
-  margin-top: 20px;
-  text-align: center;
-}
-
-.video-social-text-loading .video-success-spinner {
-  margin: 10px auto;
-  border-color: rgba(33, 150, 243, 0.3);
-  border-top-color: #2196F3;
-}
 
 .video-success-content h2 {
   margin-bottom: 1rem;
@@ -342,6 +300,8 @@
   max-height: 70vh;
   display: block;
   border-radius: var(--card-border-radius-medium);
+  aspect-ratio: 9 / 16;
+  object-fit: contain;
 }
 
 

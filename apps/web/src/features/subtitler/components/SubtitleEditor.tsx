@@ -3,13 +3,13 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaSave, FaCheck, FaDownload, FaMagic, FaPlay, FaPause } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 
+import Spinner from '../../../components/common/Spinner';
 import FloatingActionButton from '../../../components/common/UI/FloatingActionButton';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import useSubtitleCorrection from '../hooks/useSubtitleCorrection';
 import '../../../assets/styles/components/subtitler/download-fallback.css';
 import '../../../assets/styles/components/ui/button.css';
-import '../../../assets/styles/components/ui/spinner.css';
 import '../../../assets/styles/components/actions/action-buttons.css';
 import '../styles/SubtitleEditor.css';
 
@@ -754,7 +754,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                 title={localQuality === 'normal' ? 'Download (1080p)' : 'Download (HD)'}
               >
                 {isExporting || exportStatus === 'starting' || exportStatus === 'exporting' ? (
-                  <div className="button-spinner" />
+                  <Spinner size="small" white />
                 ) : (
                   <FaDownload />
                 )}
@@ -780,7 +780,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                 disabled={isCorrecting || !editableSubtitles.length}
                 title="AI-Korrektur"
               >
-                {isCorrecting ? <span className="spinner spinner-small" /> : <FaMagic />}
+                {isCorrecting ? <Spinner size="small" /> : <FaMagic />}
               </button>
             </div>
             {correctionMessage && <div className="correction-message">{correctionMessage}</div>}
