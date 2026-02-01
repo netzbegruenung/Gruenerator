@@ -5,21 +5,23 @@
  * Handles authentication, request validation, and response formatting.
  */
 
-import express, { Response, Request } from 'express';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
-import authMiddleware from '../../middleware/authMiddleware.js';
-import { notebookQAService } from '../../services/notebook/index.js';
-import { createLogger } from '../../utils/logger.js';
+import express, { type Response, type Request } from 'express';
+
 import {
   getSystemCollectionConfig,
   getCollectionFilterableFields,
   getCollectionDefaultFilter,
   getDefaultMultiCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+import authMiddleware from '../../middleware/authMiddleware.js';
+import { notebookQAService } from '../../services/notebook/index.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type { NotebookRequest, AskQuestionBody, PublicAccessRecord } from './types.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('notebookInteraction');
 const { requireAuth } = authMiddleware;
@@ -52,7 +54,13 @@ router.get('/collections/:id/filters', async (req: Request, res: Response) => {
     const systemConfig = getSystemCollectionConfig(collectionId);
 
     if (!systemConfig) {
-      return res.status(404).json({ error: 'System collection not found' });
+      // User collections don't have filterable fields — return empty filters
+      // instead of 404 to avoid noisy errors in the frontend
+      return res.json({
+        collectionId,
+        collectionName: null,
+        filters: {},
+      });
     }
 
     const filterableFields = getCollectionFilterableFields(collectionId);
