@@ -4,11 +4,6 @@ on:
   push:
     branches:
       - test-branch
-  workflow_run:
-    workflows: ['Build and Push Docker Images']
-    branches: [test-branch]
-    types:
-      - completed
   workflow_dispatch:
 
 env:
@@ -18,7 +13,6 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     environment: test
     steps:
       - name: Deploy to Test Server
@@ -38,7 +32,7 @@ jobs:
             docker compose pull
 
             echo "=== Deploying containers ==="
-            docker compose up -d --remove-orphans
+            docker compose up -d --force-recreate --remove-orphans
 
             echo "=== Waiting for health checks ==="
             sleep 10
