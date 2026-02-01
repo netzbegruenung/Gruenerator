@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import React, { type ReactNode, type ErrorInfo } from 'react';
 
 import '../assets/styles/components/error-boundary.css';
@@ -76,7 +77,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   logErrorToService(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
-    // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
+    Sentry.captureException(error, {
+      extra: { componentStack: errorInfo.componentStack },
+    });
   }
 
   copyErrorText = () => {

@@ -11,7 +11,6 @@ import express, { type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
 import AssSubtitleService from '../../services/subtitler/assSubtitleService.js';
-import { processRemotionExport } from '../../services/subtitler/remotionExportService.js';
 import { processVideoAutomatically } from '../../services/subtitler/autoProcessingService.js';
 import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
 import {
@@ -25,6 +24,7 @@ import {
   processSubtitleSegments,
 } from '../../services/subtitler/downloadUtils.js';
 import { autoSaveProject } from '../../services/subtitler/projectSavingService.js';
+import { processRemotionExport } from '../../services/subtitler/remotionExportService.js';
 import { correctSubtitlesViaAI } from '../../services/subtitler/subtitleCorrectionService.js';
 import { calculateFontSizing } from '../../services/subtitler/subtitleSizingService.js';
 import { transcribeVideo } from '../../services/subtitler/transcriptionService.js';
@@ -383,9 +383,9 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
     if (Array.isArray(subtitles)) {
       segments = subtitles
         .map((s: Record<string, unknown>) => ({
-          startTime: s.start ?? s.startTime ?? 0,
-          endTime: s.end ?? s.endTime ?? 0,
-          text: s.text ?? '',
+          startTime: Number(s.start ?? s.startTime ?? 0),
+          endTime: Number(s.end ?? s.endTime ?? 0),
+          text: String(s.text ?? ''),
         }))
         .filter((s) => s.text && s.endTime > s.startTime)
         .sort((a, b) => a.startTime - b.startTime);

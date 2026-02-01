@@ -46,6 +46,7 @@
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
+    "@sentry/node": "^9.27.0",
     "@gruenerator/shared": "workspace:*",
     "@hocuspocus/extension-logger": "^3.4.3",
     "@hocuspocus/server": "^3.4.3",
