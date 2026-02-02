@@ -52,16 +52,6 @@ const PRODUCTION_NOTEBOOKS = [
     category: 'landesebene',
   },
   {
-    id: 'bayern-notebook',
-    path: '/gruene-bayern',
-    title: 'Frag Grüne Bayern',
-    description: 'Durchsuchbar ist das Regierungsprogramm der Grünen Bayern zur Landtagswahl.',
-    meta: '1 Programm',
-    tags: ['Bayern', 'Regierungsprogramm'],
-    order: 6,
-    category: 'landesebene',
-  },
-  {
     id: 'oesterreich-notebook',
     path: '/gruene-oesterreich',
     title: 'Frag Die Grünen Österreich',
@@ -75,6 +65,16 @@ const PRODUCTION_NOTEBOOKS = [
 ];
 
 const DEV_ONLY_NOTEBOOKS = [
+  {
+    id: 'bayern-notebook',
+    path: '/gruene-bayern',
+    title: 'Frag Grüne Bayern',
+    description: 'Durchsuchbar ist das Regierungsprogramm der Grünen Bayern zur Landtagswahl.',
+    meta: '1 Programm',
+    tags: ['Bayern', 'Regierungsprogramm'],
+    order: 6,
+    category: 'landesebene',
+  },
   {
     id: 'kommunalwiki-notebook',
     path: '/kommunalwiki',
