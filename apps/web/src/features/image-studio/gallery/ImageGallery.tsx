@@ -12,7 +12,6 @@ import {
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
-
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { useTemplateClone } from '../hooks/useTemplateClone';
@@ -149,7 +148,9 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   };
 
   const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
-  const thumbnailUrl = image.thumbnailPath ? `${baseURL}/share/${image.shareToken}/preview` : null;
+  const thumbnailUrl = image.thumbnailPath
+    ? `${baseURL}/share/${image.shareToken}/preview?w=400`
+    : null;
 
   return (
     <div
@@ -164,6 +165,9 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
             src={thumbnailUrl}
             alt={image.title || 'Gespeichertes Bild'}
             className={imageLoaded ? 'loaded' : 'loading'}
+            loading="lazy"
+            width={400}
+            height={500}
             onLoad={() => setImageLoaded(true)}
           />
         ) : (

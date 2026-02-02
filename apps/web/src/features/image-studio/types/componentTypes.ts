@@ -10,6 +10,7 @@ export interface StartOption {
   description: string;
   Icon: ComponentType;
   previewImage?: string;
+  previewImageFallback?: string;
   isComingSoon?: boolean;
   isEarlyAccess?: boolean;
   directType?: string;
