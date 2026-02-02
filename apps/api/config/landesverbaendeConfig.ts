@@ -83,7 +83,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1'],
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
         date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
         content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
@@ -144,7 +144,12 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1', 'h1.elementor-heading-title', '.elementor-widget-heading h1'],
+        title: [
+          'h1',
+          'h1.elementor-heading-title',
+          '.elementor-widget-heading h1',
+          'meta[property="og:title"]',
+        ],
         date: [
           '.elementor-post-date',
           'time[datetime]',
@@ -188,7 +193,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1'],
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
         date: [
           'time[datetime]',
           '.entry-date',
@@ -222,7 +227,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1.entry-title', 'h1', '.post-title'],
+        title: ['h1.entry-title', 'h1', '.post-title', 'meta[property="og:title"]'],
         date: ['time[datetime]', '.entry-date', '.post-date'],
         content: ['.entry-content', '.post-content', 'article .content'],
         categories: ['a[rel="category tag"]', '.cat-links a'],
@@ -251,7 +256,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1', '.entry-title', '.post-title'],
+        title: ['h1', '.entry-title', '.post-title', 'meta[property="og:title"]'],
         date: ['time[datetime]', '.entry-date', '.published'],
         content: ['.entry-content', '.post-content', 'article'],
         categories: ['.category', 'a[rel="category tag"]'],

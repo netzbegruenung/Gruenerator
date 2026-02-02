@@ -496,6 +496,12 @@
   color: var(--primary-200);
 }
 
+.sidebar-menu-link--disabled {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
+
 /* Static section title for desktop (no accordion) */
 .sidebar-section-title-static {
   display: block;

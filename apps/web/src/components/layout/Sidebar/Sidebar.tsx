@@ -35,7 +35,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
   const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
-  const scannerBetaEnabled = useMemo(() => getBetaFeatureState('scanner'), [getBetaFeatureState]);
   const igelModeEnabled = useMemo(() => getBetaFeatureState('igel_modus'), [getBetaFeatureState]);
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
@@ -50,17 +49,15 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       getMenuItems({
         databaseBetaEnabled,
         chatBetaEnabled,
-        scannerBetaEnabled,
         igelModeEnabled,
         isAustrian,
       }),
-    [databaseBetaEnabled, chatBetaEnabled, scannerBetaEnabled, igelModeEnabled, isAustrian]
+    [databaseBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian]
   );
 
   const directMenuItems = useMemo(
-    () =>
-      getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, scannerBetaEnabled, isAustrian }),
-    [databaseBetaEnabled, chatBetaEnabled, scannerBetaEnabled, isAustrian]
+    () => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, isAustrian }),
+    [databaseBetaEnabled, chatBetaEnabled, isAustrian]
   );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   const additionalItems = useMemo<MenuItemType[]>(
@@ -146,12 +143,22 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         {additionalItems.length > 0 && (
           <div className="sidebar-main-nav">
             {additionalItems.map((item) =>
-              isDesktop ? (
+              !item.path ? (
+                <span
+                  key={item.id}
+                  className="sidebar-menu-link sidebar-menu-link--disabled"
+                  title={!isOpen ? item.title : undefined}
+                >
+                  {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
+                  <span className="sidebar-item-title">{item.title}</span>
+                  {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
+                </span>
+              ) : isDesktop ? (
                 <button
                   key={item.id}
-                  onClick={() => handleLinkClick(item.path, item.title)}
-                  className={`sidebar-menu-link ${isActive(item.path) ? 'sidebar-menu-link--active' : ''}`}
-                  aria-current={isActive(item.path) ? 'page' : undefined}
+                  onClick={() => handleLinkClick(item.path!, item.title)}
+                  className={`sidebar-menu-link ${isActive(item.path!) ? 'sidebar-menu-link--active' : ''}`}
+                  aria-current={isActive(item.path!) ? 'page' : undefined}
                   title={!isOpen ? item.title : undefined}
                   type="button"
                 >
@@ -162,9 +169,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
               ) : (
                 <Link
                   key={item.id}
-                  to={item.path}
+                  to={item.path!}
                   className="sidebar-menu-link"
-                  onClick={() => handleLinkClick(item.path, item.title)}
+                  onClick={() => handleLinkClick(item.path!, item.title)}
                 >
                   {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
                   <span className="sidebar-item-title">{item.title}</span>
@@ -207,9 +214,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           footerLinks.map((item) => (
             <Link
               key={item.id}
-              to={item.path}
+              to={item.path!}
               className="sidebar-footer-link"
-              onClick={() => handleLinkClick(item.path, item.title)}
+              onClick={() => handleLinkClick(item.path!, item.title)}
             >
               <span className="sidebar-footer-link-title">{item.title}</span>
             </Link>

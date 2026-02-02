@@ -80,6 +80,15 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
         locale: 'de-DE',
       },
       {
+        id: 'bayern-system',
+        name: 'Grüne Bayern',
+        description: 'Regierungsprogramm zur Landtagswahl',
+        documentCount: '1 Programm',
+        externalUrl: 'https://www.gruene-bayern.de',
+        linkType: 'url',
+        locale: 'de-DE',
+      },
+      {
         id: 'boell-stiftung-system',
         name: 'Heinrich-Böll-Stiftung',
         description: 'Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung',

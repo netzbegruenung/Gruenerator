@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+
+import { usePopupDismiss } from '../../hooks/usePopupDismiss';
 import '../../assets/styles/components/popups/popup.css';
 
 declare global {
@@ -9,20 +11,24 @@ declare global {
 }
 
 const PopupNutzungsbedingungen = () => {
-  const [visible, setVisible] = useState(false);
   const location = useLocation();
-
   const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');
 
+  const { isDismissed, dismiss, isHydrated } = usePopupDismiss('termsAccepted');
+
+  const [visible, setVisible] = useState(() => {
+    return !isDismissed && !isNoHeaderFooterRoute;
+  });
+
+  // Hide if server state arrives and says dismissed (cross-device sync)
   useEffect(() => {
-    const hasAccepted = localStorage.getItem('termsAccepted');
-    if (!hasAccepted && !isNoHeaderFooterRoute) {
-      setVisible(true);
+    if (isHydrated && isDismissed && visible) {
+      setVisible(false);
     }
-  }, [isNoHeaderFooterRoute]);
+  }, [isHydrated, isDismissed, visible]);
 
   const handleAcceptAll = () => {
-    localStorage.setItem('termsAccepted', 'true');
+    dismiss();
     if (typeof window.grantMatomoConsent === 'function') {
       window.grantMatomoConsent();
     }
@@ -30,7 +36,7 @@ const PopupNutzungsbedingungen = () => {
   };
 
   const handleAcceptNecessary = () => {
-    localStorage.setItem('termsAccepted', 'true');
+    dismiss();
     setVisible(false);
   };
 
