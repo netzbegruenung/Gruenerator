@@ -9,7 +9,7 @@ import { colors } from '../../theme';
 // In dev: Use local IP for Android, localhost for iOS
 const WEB_EDITOR_PATH = '/mobile-editor';
 const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const PROD_URL = 'https://gruenerator.de';
+const PROD_URL = 'https://gruenerator.eu';
 
 // You can override this via .env in a real app
 const WEB_APP_URL = __DEV__

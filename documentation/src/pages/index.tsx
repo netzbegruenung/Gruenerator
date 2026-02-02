@@ -126,7 +126,7 @@ export default function Home(): ReactNode {
               </Link>
               <Link
                 className={styles.secondaryButton}
-                href="https://gruenerator.de"
+                href="https://gruenerator.eu"
                 target="_blank"
                 rel="noopener noreferrer"
               >
