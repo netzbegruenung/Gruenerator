@@ -4,6 +4,7 @@
  */
 
 import { MistralWebSearchService } from '../mistral/index.js';
+
 import type {
   AIProvider,
   ClaudeTool,
@@ -221,8 +222,8 @@ export class ToolHandler {
       tools: this.formatToolsForProvider(tools, provider),
     };
 
-    // Add tool_choice if specified (mainly for Bedrock/Claude)
-    if (options.tool_choice && provider === 'claude') {
+    // Add tool_choice if specified
+    if (options.tool_choice) {
       payload.tool_choice = options.tool_choice;
       console.log(`[ToolHandler] Tool choice added for ${requestId}:`, options.tool_choice);
     }

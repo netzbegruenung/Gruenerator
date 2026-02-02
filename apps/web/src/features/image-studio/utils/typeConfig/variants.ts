@@ -11,17 +11,20 @@ import type { VariantStyle, VariantTypeConfig, Variant } from './types';
 export const VARIANT_STYLES: Record<string, VariantStyle> = {
   illustration: {
     label: 'Illustration',
-    imageName: 'soft-illustration.png',
+    imageName: 'soft-illustration.webp',
+    fallbackImageName: 'soft-illustration.png',
     description: 'Erstelle eine weiche, künstlerische Darstellung',
   },
   realistic: {
     label: 'Realistisch',
-    imageName: 'realistic-photo.png',
+    imageName: 'realistic-photo.webp',
+    fallbackImageName: 'realistic-photo.png',
     description: 'Erstelle ein fotorealistisches Bild',
   },
   pixel: {
     label: 'Pixel Art',
-    imageName: 'pixel-art.png',
+    imageName: 'pixel-art.webp',
+    fallbackImageName: 'pixel-art.png',
     description: 'Erstelle ein Bild im Retro-Pixelstil',
   },
 };
@@ -58,10 +61,15 @@ export const createVariants = (variantType: 'pure' | 'sharepic'): Variant[] => {
   const typeConfig = VARIANT_TYPES[variantType];
   if (!typeConfig) return [];
 
-  return Object.entries(VARIANT_STYLES).map(([styleKey, { label, imageName, description }]) => ({
-    value: typeConfig.valueMap[styleKey],
-    label,
-    description,
-    imageUrl: `${typeConfig.basePath}/${imageName}`,
-  }));
+  return Object.entries(VARIANT_STYLES).map(
+    ([styleKey, { label, imageName, fallbackImageName, description }]) => ({
+      value: typeConfig.valueMap[styleKey],
+      label,
+      description,
+      imageUrl: `${typeConfig.basePath}/${imageName}`,
+      fallbackImageUrl: fallbackImageName
+        ? `${typeConfig.basePath}/${fallbackImageName}`
+        : undefined,
+    })
+  );
 };
