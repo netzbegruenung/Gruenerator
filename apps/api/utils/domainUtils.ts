@@ -3,40 +3,17 @@
  * @see config/domains.js for domain configuration
  */
 import type { Request } from 'express';
-import { PRIMARY_DOMAIN, PRIMARY_URL, BRAND, URLS } from '../config/domains.js';
-
-const ALLOWED_DOMAINS: string[] = [
-  'gruenerator.de',
-  'www.gruenerator.de',
-  'beta.gruenerator.de',
-  'www.beta.gruenerator.de',
-  'gruenerator.at',
-  'www.gruenerator.at',
-  'gruenerator.eu',
-  'www.gruenerator.eu',
-  'gruenerator-test.de',
-  'www.gruenerator-test.de',
-  'gruenerator.netzbegruenung.verdigado.net',
-  'www.gruenerator.netzbegruenung.verdigado.net',
-  'gruenerator-test.netzbegruenung.verdigado.net',
-  'www.gruenerator-test.netzbegruenung.verdigado.net',
-  'xn--grenerator-z2a.de',
-  'www.xn--grenerator-z2a.de',
-  'beta.xn--grenerator-z2a.de',
-  'www.xn--grenerator-z2a.de',
-  'xn--grenerator-test-4pb.de',
-  'www.xn--grenerator-test-4pb.de',
-  'xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-  'www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-  'xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-  'www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-  'www.xn--grnerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-];
-
-const DEV_DOMAINS: string[] = ['localhost', '127.0.0.1'];
+import {
+  PRIMARY_DOMAIN,
+  PRIMARY_URL,
+  BRAND,
+  URLS,
+  ALLOWED_DOMAINS,
+  DEV_DOMAINS,
+} from '../config/domains.js';
 
 export function getAllowedDomains(includeDevDomains = false): string[] {
-  return includeDevDomains ? [...ALLOWED_DOMAINS, ...DEV_DOMAINS] : ALLOWED_DOMAINS;
+  return includeDevDomains ? [...ALLOWED_DOMAINS, ...DEV_DOMAINS] : [...ALLOWED_DOMAINS];
 }
 
 export function getCorsOrigins(includeDevOrigins = false): string[] {

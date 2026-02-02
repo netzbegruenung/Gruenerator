@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "identifier": "de.gruenerator.desktop",
   "build": {
-    "beforeBuildCommand": "cd ../.. && pnpm exec cross-env TAURI_ENV_PLATFORM=desktop VITE_API_BASE_URL=https://gruenerator.de/api pnpm --filter @gruenerator/web build",
+    "beforeBuildCommand": "cd ../.. && pnpm exec cross-env TAURI_ENV_PLATFORM=desktop VITE_API_BASE_URL=https://gruenerator.eu/api pnpm --filter @gruenerator/web build",
     "beforeDevCommand": "",
     "devUrl": "http://localhost:3000",
     "frontendDist": "../../../apps/web/build"
@@ -41,7 +41,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.gruenerator.de https://auth.services.moritz-waechter.de https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.mistral.ai; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob:; frame-ancestors 'none'",
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.gruenerator.eu https://auth.services.moritz-waechter.de https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.mistral.ai; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob:; frame-ancestors 'none'",
       "freezePrototype": false,
       "assetProtocol": {
         "enable": true,
@@ -111,7 +111,7 @@
     },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZFMUM4RTlDOEMxMEI1NjEKUldSaHRSQ01uSTRjL3JBdnpFZFpuREpEcFQ5MHI3bE5yVEU3SXE3NzUzUXVkMEJlYVJYOCs0N1EK",
-      "endpoints": ["https://gruenerator.de/api/releases/updater/latest.json"],
+      "endpoints": ["https://gruenerator.eu/api/releases/updater/latest.json"],
       "windows": {
         "installMode": "passive"
       }
