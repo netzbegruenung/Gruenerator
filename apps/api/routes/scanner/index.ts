@@ -20,6 +20,7 @@ const router: Router = Router();
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.docx', '.pptx'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_PAGES = 20;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -91,6 +92,15 @@ router.post(
       log.info(
         `OCR extraction completed in ${processingTime}ms: ${result.pageCount} pages, ${result.text.length} chars`
       );
+
+      if (result.pageCount > MAX_PAGES) {
+        log.warn(`Page limit exceeded: ${result.pageCount} pages (max ${MAX_PAGES})`);
+        res.status(400).json({
+          success: false,
+          error: `Seitenlimit überschritten: Die Datei hat ${result.pageCount} Seiten (maximal ${MAX_PAGES} erlaubt).`,
+        });
+        return;
+      }
 
       res.json({
         success: true,

@@ -44,6 +44,7 @@ type ScannerState = 'upload' | 'ready' | 'processing' | 'success' | 'error';
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.docx', '.pptx'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_PAGES = 20;
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
@@ -240,6 +241,7 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
 
     try {
       const results: ScannerResult[] = [];
+      let totalPages = 0;
 
       for (const file of selectedFiles) {
         const formData = new FormData();
@@ -252,6 +254,14 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
         });
 
         if (response.data.success) {
+          totalPages += response.data.pageCount;
+          if (totalPages > MAX_PAGES) {
+            setError(
+              `Seitenlimit überschritten: maximal ${MAX_PAGES} Seiten erlaubt (${totalPages} Seiten erkannt).`
+            );
+            setScannerState('error');
+            return;
+          }
           results.push(response.data);
         } else {
           setError(response.data.error || `Fehler bei "${file.name}"`);
@@ -264,8 +274,6 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
         results.length === 1
           ? results[0].text
           : results.map((r, i) => `**${selectedFiles[i].name}**\n\n${r.text}`).join('\n\n---\n\n');
-
-      const totalPages = results.reduce((sum, r) => sum + r.pageCount, 0);
 
       const combinedResult: ScannerResult = {
         text: combinedText,

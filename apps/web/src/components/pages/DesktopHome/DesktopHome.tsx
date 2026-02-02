@@ -36,7 +36,7 @@ const DesktopHome = () => {
       chatBetaEnabled: betaFeatures.chat,
     });
 
-    return Object.values(items).filter((item) => item.id !== 'home');
+    return Object.values(items).filter((item) => item.id !== 'home' && item.path);
   }, [betaFeatures.chat]);
 
   return (
@@ -46,7 +46,7 @@ const DesktopHome = () => {
 
         <div className="desktop-home-grid">
           {menuItems.map((item) => (
-            <FeatureCard key={item.id} item={item} onClick={() => navigate(item.path)} />
+            <FeatureCard key={item.id} item={item} onClick={() => navigate(item.path!)} />
           ))}
         </div>
       </div>
