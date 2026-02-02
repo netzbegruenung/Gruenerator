@@ -199,6 +199,16 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
     defaultFilter: { field: 'landesverband', value: 'SH' },
   },
+  'bayern-system': {
+    id: 'bayern-system',
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Bayern',
+    description: 'Regierungsprogramm der Grünen Bayern zur Landtagswahl',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
+    defaultFilter: { field: 'landesverband', value: 'BY' },
+  },
 };
 
 // =============================================================================
