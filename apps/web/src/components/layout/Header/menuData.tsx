@@ -100,6 +100,7 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     },
     scanner: {
       id: 'scanner',
+      path: '/scanner',
       title: 'Scanner',
       description: 'Text aus Dokumenten extrahieren (OCR)',
       icon: getIcon('navigation', 'scanner'),
