@@ -178,6 +178,11 @@ const SchleswigHolsteinNotebookPage = lazy(() =>
     default: m.createNotebookPage('schleswigHolstein'),
   }))
 );
+const BayernNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('bayern'),
+  }))
+);
 const KommunalwikiNotebookPage = lazy(() =>
   import('../features/notebook/components/NotebookPage').then((m) => ({
     default: m.createNotebookPage('kommunalwiki'),
@@ -242,20 +247,7 @@ const PromptPage = lazy(() => import('../features/prompts/PromptPage'));
 const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
 const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
-// Scanner Page with Beta Feature Wrapper
-const ScannerPage = lazy(() =>
-  Promise.all([
-    import('../features/scanner/ScannerPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([scannerModule, wrapperModule]) => ({
-    default: () =>
-      wrapperModule.default({
-        children: createElement(scannerModule.default),
-        featureKey: 'scanner',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -276,6 +268,7 @@ export const GrueneratorenBundle = {
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
   HamburgNotebook: HamburgNotebookPage,
   SchleswigHolsteinNotebook: SchleswigHolsteinNotebookPage,
+  BayernNotebook: BayernNotebookPage,
   KommunalwikiNotebook: KommunalwikiNotebookPage,
   BoellStiftungNotebook: BoellStiftungNotebookPage,
   NotebooksGallery: NotebooksGalleryPage,
@@ -346,6 +339,7 @@ const standardRoutes: RouteConfig[] = [
     component: GrueneratorenBundle.SchleswigHolsteinNotebook,
     withForm: true,
   },
+  { path: '/gruene-bayern', component: GrueneratorenBundle.BayernNotebook, withForm: true },
   { path: '/kommunalwiki', component: GrueneratorenBundle.KommunalwikiNotebook, withForm: true },
   { path: '/boell-stiftung', component: GrueneratorenBundle.BoellStiftungNotebook, withForm: true },
   { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },

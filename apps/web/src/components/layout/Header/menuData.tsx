@@ -9,7 +9,6 @@ export interface BetaFeatures {
   databaseBetaEnabled?: boolean;
   youBetaEnabled?: boolean;
   chatBetaEnabled?: boolean;
-  scannerBetaEnabled?: boolean;
   igelModeEnabled?: boolean;
   websiteBetaEnabled?: boolean;
   isAustrian?: boolean;
@@ -18,7 +17,7 @@ export interface BetaFeatures {
 // Menu item type definition
 export interface MenuItemType {
   id: string;
-  path: string;
+  path?: string;
   title: string;
   description: string;
   icon?: IconType | ComponentType | null;
@@ -99,6 +98,13 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       icon: getIcon('ui', 'notebook'),
       badge: 'early-access',
     },
+    scanner: {
+      id: 'scanner',
+      title: 'Scanner',
+      description: 'Text aus Dokumenten extrahieren (OCR)',
+      icon: getIcon('navigation', 'scanner'),
+      badge: 'early-access',
+    },
     // TEMPORARILY HIDDEN - Datenbank menu item
     // datenbank: {
     //   id: 'datenbank',
@@ -117,17 +123,6 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       title: 'Chat',
       description: 'KI-Assistent für alle Textarten',
       icon: getIcon('ui', 'assistant'),
-    };
-  }
-
-  // Add scanner if beta feature is enabled
-  if (betaFeatures.scannerBetaEnabled) {
-    items.scanner = {
-      id: 'scanner',
-      path: '/scanner',
-      title: 'Scanner',
-      description: 'Text aus Dokumenten extrahieren (OCR)',
-      icon: getIcon('navigation', 'scanner'),
     };
   }
 

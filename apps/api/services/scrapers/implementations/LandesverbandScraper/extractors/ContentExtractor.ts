@@ -5,6 +5,7 @@
  */
 
 import * as cheerio from 'cheerio';
+
 import type { ExtractedContent } from '../types.js';
 
 /**
@@ -17,15 +18,8 @@ export class ContentExtractor {
    * Handles Elementor, Gutenberg, and classic themes
    */
   static extractContentWordPress($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
-    // Remove unwanted elements
-    $('script, style, noscript, iframe, nav, header, footer').remove();
-    $('.navigation, .sidebar, .cookie-banner, .cookie-notice, .popup, .modal').remove();
-    $('[role="navigation"], [role="banner"], [role="contentinfo"]').remove();
-    $('.breadcrumb, .breadcrumb-nav, [aria-label*="Breadcrumb"]').remove();
-    $('.social-share, .share-buttons, .related-content, .comments').remove();
-    $('.elementor-location-header, .elementor-location-footer').remove();
-
-    // Extract title
+    // Extract title and date BEFORE cleanup — WordPress themes wrap titles
+    // inside <header class="entry-header"> which would be removed below
     let title = '';
     for (const sel of selectors.title) {
       if (sel.startsWith('meta')) {
@@ -36,7 +30,6 @@ export class ContentExtractor {
       if (title) break;
     }
 
-    // Extract publication date
     let publishedAt: string | null = null;
     for (const sel of selectors.date) {
       const el = $(sel).first();
@@ -45,6 +38,14 @@ export class ContentExtractor {
         if (publishedAt) break;
       }
     }
+
+    // Remove unwanted elements (after title/date extraction)
+    $('script, style, noscript, iframe, nav, header, footer').remove();
+    $('.navigation, .sidebar, .cookie-banner, .cookie-notice, .popup, .modal').remove();
+    $('[role="navigation"], [role="banner"], [role="contentinfo"]').remove();
+    $('.breadcrumb, .breadcrumb-nav, [aria-label*="Breadcrumb"]').remove();
+    $('.social-share, .share-buttons, .related-content, .comments').remove();
+    $('.elementor-location-header, .elementor-location-footer').remove();
 
     // Extract main content
     let contentText = '';
@@ -85,11 +86,7 @@ export class ContentExtractor {
    * Handles Neos CMS-specific structure
    */
   static extractContentNeos($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
-    // Remove unwanted elements
-    $('script, style, noscript, iframe, nav, header, footer').remove();
-    $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();
-
-    // Extract title
+    // Extract title and date BEFORE cleanup — Neos may also wrap titles in <header>
     let title = '';
     for (const sel of selectors.title) {
       if (sel.startsWith('meta')) {
@@ -100,7 +97,6 @@ export class ContentExtractor {
       if (title) break;
     }
 
-    // Extract publication date
     let publishedAt: string | null = null;
     for (const sel of selectors.date) {
       const el = $(sel).first();
@@ -109,6 +105,10 @@ export class ContentExtractor {
         if (publishedAt) break;
       }
     }
+
+    // Remove unwanted elements (after title/date extraction)
+    $('script, style, noscript, iframe, nav, header, footer').remove();
+    $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();
 
     // Extract main content
     let contentText = '';

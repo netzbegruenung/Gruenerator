@@ -80,6 +80,18 @@ const SidebarMenuItem = memo(
       );
     }
 
+    if (!item.path) {
+      return (
+        <li className={isSubmenu ? 'sidebar-submenu-item' : ''}>
+          <span className="sidebar-menu-link sidebar-menu-link--disabled">
+            {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
+            <span className="sidebar-item-title">{item.title}</span>
+            {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
+          </span>
+        </li>
+      );
+    }
+
     const active = isActive?.(item.path) ?? false;
 
     if (isDesktop) {
@@ -88,7 +100,7 @@ const SidebarMenuItem = memo(
           <button
             type="button"
             className={`sidebar-menu-link ${active ? 'sidebar-menu-link--active' : ''}`}
-            onClick={() => onLinkClick(item.path, item.title)}
+            onClick={() => onLinkClick(item.path!, item.title)}
             aria-current={active ? 'page' : undefined}
           >
             {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
@@ -106,7 +118,7 @@ const SidebarMenuItem = memo(
           className="sidebar-menu-link"
           onClick={(e) => {
             e.preventDefault();
-            onLinkClick(item.path, item.title);
+            onLinkClick(item.path!, item.title);
           }}
         >
           {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
