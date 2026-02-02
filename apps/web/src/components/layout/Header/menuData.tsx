@@ -98,13 +98,16 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       icon: getIcon('ui', 'notebook'),
       badge: 'early-access',
     },
-    scanner: {
-      id: 'scanner',
-      title: 'Scanner',
-      description: 'Text aus Dokumenten extrahieren (OCR)',
-      icon: getIcon('navigation', 'scanner'),
-      badge: 'early-access',
-    },
+    ...(import.meta.env.DEV && {
+      scanner: {
+        id: 'scanner',
+        path: '/scanner',
+        title: 'Scanner',
+        description: 'Text aus Dokumenten extrahieren (OCR)',
+        icon: getIcon('navigation', 'scanner'),
+        badge: 'early-access',
+      },
+    }),
     // TEMPORARILY HIDDEN - Datenbank menu item
     // datenbank: {
     //   id: 'datenbank',

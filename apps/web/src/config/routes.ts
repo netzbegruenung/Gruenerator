@@ -346,8 +346,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
-  // Scanner Route (Beta Feature)
-  { path: '/scanner', component: GrueneratorenBundle.Scanner },
+  // Scanner Route (dev only)
+  ...(import.meta.env.DEV ? [{ path: '/scanner', component: GrueneratorenBundle.Scanner }] : []),
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
