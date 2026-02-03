@@ -30,4 +30,4 @@ Der Grünerator hilft beim Erstellen von Untertiteln für Instagram Reels & TikT
 
 Der Grünerator wurde auf Basis von Open-Source-Software entwickelt und liegt auf den Servern der Netzbegrünung. Die [netzbegrünung](https://netzbegruenung.de/) ist ein Verein für grüne Netzkultur e.V., der sich seit 2006 für die Förderung der Demokratie im digitalen Raum und eine nachhaltige digitale Infrastruktur einsetzt. Mit über 500 Mitgliedern aus Deutschland und Österreich entwickelt die netzbegrünung innovative digitale Lösungen und vermittelt Fachwissen zu digitalpolitischen Inhalten.
 
-**Direkt zum Grünerator**: **[gruenerator.de](https://gruenerator.de)**
+**Direkt zum Grünerator**: **[gruenerator.eu](https://gruenerator.eu)**
