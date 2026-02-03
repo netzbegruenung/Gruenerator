@@ -4,12 +4,12 @@
  * Orchestrates all Qdrant operations through modular components.
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
 import * as http from 'http';
 import * as https from 'https';
+
+import { QdrantClient } from '@qdrant/js-client-rest';
 import * as dotenv from 'dotenv';
-import { createLogger } from '../../../utils/logger.js';
-import { mistralEmbeddingService } from '../../../services/mistral/index.js';
+
 import {
   COLLECTION_SCHEMAS,
   TEXT_SEARCH_COLLECTIONS,
@@ -17,8 +17,8 @@ import {
   getCollectionConfig,
   getIndexSchema,
 } from '../../../config/qdrantCollectionsSchema.js';
-
-import type { CollectionNames, CollectionKey, CollectionStats } from './types.js';
+import { mistralEmbeddingService } from '../../../services/mistral/index.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import {
   createCollections,
@@ -28,7 +28,22 @@ import {
   createSnapshot as createDbSnapshot,
   type SnapshotResult,
 } from './collections.js';
-
+import {
+  deleteDocument as deleteDocs,
+  deleteUserVectors as deleteUser,
+  deleteBundestagContentByUrl as deleteBundestag,
+  deleteGrueneDeContentByUrl as deleteGrueneDe,
+  deleteGrueneAtContentByUrl as deleteGrueneAt,
+  deleteContentExample as deleteContent,
+} from './deletion.js';
+import {
+  getUniqueFieldValues as getUnique,
+  getFieldValueCounts as getFieldCounts,
+  getDateRange as getRange,
+  getAllUrls,
+  type FieldValueCount,
+  type DateRange,
+} from './facets.js';
 import {
   indexDocumentChunks as indexDocChunks,
   indexGrundsatzChunks as indexGrundsatz,
@@ -44,7 +59,13 @@ import {
   type ContentExampleMetadata,
   type SocialMediaIndexMetadata,
 } from './indexing.js';
-
+import { QdrantOperations } from './operations/index.js';
+import {
+  getRandomContentExamples as getRandomContent,
+  getRandomSocialMediaExamples as getRandomSocial,
+  type RandomContentExampleOptions,
+  type RandomSocialMediaOptions,
+} from './random.js';
 import {
   buildContentExampleFilter,
   buildSocialMediaFilter,
@@ -57,33 +78,8 @@ import {
   type SocialMediaResult,
 } from './search.js';
 
-import {
-  deleteDocument as deleteDocs,
-  deleteUserVectors as deleteUser,
-  deleteBundestagContentByUrl as deleteBundestag,
-  deleteGrueneDeContentByUrl as deleteGrueneDe,
-  deleteGrueneAtContentByUrl as deleteGrueneAt,
-  deleteContentExample as deleteContent,
-} from './deletion.js';
-
-import {
-  getUniqueFieldValues as getUnique,
-  getFieldValueCounts as getFieldCounts,
-  getDateRange as getRange,
-  getAllUrls,
-  type FieldValueCount,
-  type DateRange,
-} from './facets.js';
-
-import {
-  getRandomContentExamples as getRandomContent,
-  getRandomSocialMediaExamples as getRandomSocial,
-  type RandomContentExampleOptions,
-  type RandomSocialMediaOptions,
-} from './random.js';
-
-import { QdrantOperations } from './operations/index.js';
 import type { HybridSearchResponse } from './operations/types.js';
+import type { CollectionNames, CollectionKey, CollectionStats } from './types.js';
 
 const log = createLogger('Qdrant');
 
@@ -120,6 +116,7 @@ export class QdrantService {
     bundestag_content: 'bundestag_content',
     gruene_de_documents: 'gruene_de_documents',
     gruene_at_documents: 'gruene_at_documents',
+    landesverbaende_documents: 'landesverbaende_documents',
   };
 
   constructor() {
