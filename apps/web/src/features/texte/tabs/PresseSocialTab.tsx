@@ -279,7 +279,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     selectedDocumentIds: setup.selectedDocumentIds,
     selectedTextIds: setup.selectedTextIds,
     attachments: allAttachments,
-    canUseSharepic: false,
+    canUseSharepic,
   });
 
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
