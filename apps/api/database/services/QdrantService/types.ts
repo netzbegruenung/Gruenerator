@@ -53,6 +53,7 @@ export interface CollectionNames {
   bundestag_content: string;
   gruene_de_documents: string;
   gruene_at_documents: string;
+  landesverbaende_documents: string;
 }
 
 /**
