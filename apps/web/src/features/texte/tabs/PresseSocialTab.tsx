@@ -102,7 +102,9 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
   const locale = useAuthStore((state) => state.locale);
   const userDisplayName = useAuthStore((state) => state.user?.display_name || '');
   const isAustrian = locale === 'de-AT';
-  const canUseSharepic = isAuthenticated && !isAustrian;
+  // Sharepic temporarily disabled — will return in a future update
+  const canUseSharepic = false; // was: isAuthenticated && !isAustrian
+  const showSharepicNotice = isAuthenticated && !isAustrian;
 
   const { getBetaFeatureState } = useBetaFeatures();
   const canUseAutomatischPlanMode = getBetaFeatureState('automatischPlanMode');
@@ -115,19 +117,17 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       { id: 'facebook', label: 'Facebook', icon: <FacebookIcon /> },
       { id: 'twitter', label: 'Twitter/X, Mastodon & Bsky', icon: <TwitterIcon /> },
       { id: 'linkedin', label: 'LinkedIn', icon: <LinkedInIcon /> },
-      { id: 'sharepic', label: 'Sharepic', icon: <SharepicIcon /> },
+      // Sharepic temporarily disabled — will return in a future update
+      // { id: 'sharepic', label: 'Sharepic', icon: <SharepicIcon /> },
       { id: 'actionIdeas', label: 'Aktionsideen', icon: <ActionIdeasIcon /> },
       { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <ReelScriptIcon /> },
     ];
     let filtered = options;
-    if (!canUseSharepic) {
-      filtered = filtered.filter((opt) => opt.id !== 'sharepic');
-    }
     if (!canUseAutomatischPlanMode) {
       filtered = filtered.filter((opt) => opt.id !== 'automatisch');
     }
     return filtered;
-  }, [canUseSharepic, canUseAutomatischPlanMode]);
+  }, [canUseAutomatischPlanMode]);
 
   const platformTags = useMemo(() => {
     const tags = [
@@ -140,12 +140,13 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       { icon: <FacebookIcon />, label: 'Facebook', platforms: ['facebook'] },
       { icon: <TwitterIcon />, label: 'X/bsky/Mastodon', platforms: ['twitter'] },
       { icon: <LinkedInIcon />, label: 'LinkedIn', platforms: ['linkedin'] },
-      { icon: <SharepicIcon />, label: 'Sharepic', platforms: ['sharepic'] },
+      // Sharepic temporarily disabled
+      // { icon: <SharepicIcon />, label: 'Sharepic', platforms: ['sharepic'] },
       { icon: <ActionIdeasIcon />, label: 'Aktionen', platforms: ['actionIdeas'] },
       { icon: <ReelScriptIcon />, label: 'Reel', platforms: ['reelScript'] },
     ];
-    return canUseSharepic ? tags : tags.filter((t) => !t.platforms.includes('sharepic'));
-  }, [canUseSharepic]);
+    return tags;
+  }, []);
 
   const sharepicTypeOptions = useMemo(
     () => [
@@ -168,10 +169,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         (key) => typedInitialContent.platforms?.[key]
       );
       if (selectedPlatforms.length > 0) {
-        let filtered = selectedPlatforms;
-        if (!canUseSharepic) {
-          filtered = filtered.filter((p) => p !== 'sharepic');
-        }
+        let filtered = selectedPlatforms.filter((p) => p !== 'sharepic');
         if (!canUseAutomatischPlanMode) {
           filtered = filtered.filter((p) => p !== 'automatisch');
         }
@@ -182,14 +180,11 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       selectedPlatforms = ['instagram'];
     }
     let filtered = selectedPlatforms;
-    if (!canUseSharepic) {
-      filtered = filtered.filter((p) => p !== 'sharepic');
-    }
     if (!canUseAutomatischPlanMode) {
       filtered = filtered.filter((p) => p !== 'automatisch');
     }
     return filtered;
-  }, [initialContent, canUseSharepic, canUseAutomatischPlanMode]);
+  }, [initialContent, canUseAutomatischPlanMode]);
 
   const typedInitialContent = initialContent as
     | { inhalt?: string; thema?: string; zitatgeber?: string }
@@ -240,8 +235,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
 
   const watchPressemitteilung =
     Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
-  const watchSharepic =
-    canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
 
   usePlatformAutoDetect({
     content: watchInhalt,
@@ -249,13 +242,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     validPlatformIds: [...platformOptions.map((p) => p.id)],
     onPlatformsDetected: (newPlatforms: string[]) => setValue('platforms', newPlatforms),
   } as Parameters<typeof usePlatformAutoDetect>[0]);
-
-  useEffect(() => {
-    if (!canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic')) {
-      const filtered = watchPlatforms.filter((p) => p !== 'sharepic');
-      setValue('platforms', filtered);
-    }
-  }, [canUseSharepic, watchPlatforms, setValue]);
 
   const socialMediaFormRef = useRef<SocialMediaFormRef>(null);
   const pressemitteilungFormRef = useRef<PressemitteilungFormRef>(null);
@@ -293,7 +279,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     selectedDocumentIds: setup.selectedDocumentIds,
     selectedTextIds: setup.selectedTextIds,
     attachments: allAttachments,
-    canUseSharepic,
+    canUseSharepic: false,
   });
 
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
@@ -319,14 +305,15 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       try {
         const socialData = socialMediaFormRef.current?.getFormData();
         const presseData = pressemitteilungFormRef.current?.getFormData();
-        const sharepicData = sharepicFormRef.current?.getFormData();
 
         if (!socialData) {
           setStoreIsLoading(false);
           return;
         }
 
-        const platforms = Array.isArray(rhfData.platforms) ? (rhfData.platforms as string[]) : [];
+        const platforms = (
+          Array.isArray(rhfData.platforms) ? (rhfData.platforms as string[]) : []
+        ).filter((p) => p !== 'sharepic');
 
         if (platforms.length === 0) {
           setStoreIsLoading(false);
@@ -337,9 +324,9 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
           inhalt: socialData.inhalt,
           platforms: platforms,
           zitatgeber: presseData?.zitatgeber || '',
-          sharepicType: sharepicData?.sharepicType || 'default',
-          zitatAuthor: sharepicData?.zitatAuthor || '',
-          uploadedImage: sharepicData?.uploadedImage || null,
+          sharepicType: 'default',
+          zitatAuthor: '',
+          uploadedImage: null,
         };
 
         if (combinedFormData.platforms.includes('automatisch')) {
@@ -732,20 +719,20 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         'Beschreibe dein Thema und alle relevanten Details im Inhalt-Feld',
         'Wähle die gewünschten Formate aus',
         'Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich',
-        'Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics',
+        'Sharepics werden derzeit überarbeitet und sind bald wieder verfügbar',
       ],
       features: [
         {
           title: 'Multi-Format',
-          description: 'Erstelle gleichzeitig Pressemitteilungen, Social Posts und Sharepics',
+          description: 'Erstelle gleichzeitig Pressemitteilungen und Social Posts',
         },
         {
           title: 'Plattform-optimiert',
           description: 'Automatisch angepasst für Instagram, Facebook, Twitter, LinkedIn & mehr',
         },
         {
-          title: 'Sharepics inklusive',
-          description: 'Professionelle Grafiken mit passenden Headlines direkt zum Download',
+          title: 'Sharepics',
+          description: 'Sharepics werden derzeit überarbeitet und sind bald wieder verfügbar',
         },
       ],
     }),
@@ -828,6 +815,12 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
               }}
               onUrlsDetected={handleUrlsDetected}
             />
+            {showSharepicNotice && (
+              <p className="presse-social__sharepic-notice">
+                Sharepics werden gerade überarbeitet und sind bald in einer verbesserten Version
+                wieder verfügbar.
+              </p>
+            )}
             <AnimatePresence>
               {watchPressemitteilung && !hasGeneratedContent && (
                 <PressemitteilungForm
@@ -844,31 +837,14 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
                 />
               )}
             </AnimatePresence>
-            {watchSharepic && (
-              <SharepicForm
-                ref={sharepicFormRef}
-                isVisible={watchSharepic}
-                sharepicTypeOptions={sharepicTypeOptions}
-                loading={submitHandler.loading || planMode.isLoading}
-                success={false}
-              />
-            )}
+            {/* Sharepic temporarily disabled */}
           </>
         ) : (
           renderPlanModeContent()
         )}
       </BaseForm>
 
-      {editingSharepic && (
-        <Suspense fallback={<div className="loading-overlay">Lade Editor...</div>}>
-          <SharepicMasterEditorModal
-            sharepic={editingSharepic}
-            isOpen={!!editingSharepic}
-            onExport={handleEditorExport}
-            onCancel={handleEditorCancel}
-          />
-        </Suspense>
-      )}
+      {/* SharepicMasterEditorModal temporarily disabled */}
     </>
   );
 });
