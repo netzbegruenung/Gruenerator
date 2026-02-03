@@ -136,6 +136,17 @@
   min-width: 150px;
 }
 
+/* Sharepic notice */
+.presse-social__sharepic-notice {
+  font-size: 0.85rem;
+  color: var(--font-color-secondary);
+  margin: var(--spacing-small) 0 0;
+  padding: var(--spacing-small) var(--spacing-medium);
+  background: var(--background-color-secondary);
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
 @media (max-width: 768px) {
   .platform-grid {
     grid-template-columns: 1fr;
