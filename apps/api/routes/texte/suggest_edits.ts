@@ -299,6 +299,22 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
       req
     );
 
+    log.debug('[claude_suggest_edits] AI result:', {
+      success: result?.success,
+      hasContent: !!result?.content,
+      contentLength: result?.content?.length || 0,
+      contentPreview: result?.content?.substring(0, 500) || '',
+      stopReason: result?.stop_reason,
+      hasToolCalls: !!(result?.tool_calls && result.tool_calls.length > 0),
+      toolCallCount: result?.tool_calls?.length || 0,
+      toolCalls: result?.tool_calls?.map((tc: { name: string; input?: unknown }) => ({
+        name: tc.name,
+        hasInput: !!tc.input,
+        inputType: typeof tc.input,
+        inputPreview: tc.input ? JSON.stringify(tc.input).substring(0, 300) : null,
+      })),
+    });
+
     if (!result?.success) {
       res.status(500).json({ error: result?.error || 'AI-Verarbeitung fehlgeschlagen' });
       return;
@@ -309,13 +325,28 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
       const toolCall = result.tool_calls.find(
         (tc: { name: string; input?: unknown }) => tc.name === 'suggest_edits'
       );
+      log.debug('[claude_suggest_edits] Tool call lookup:', {
+        foundToolCall: !!toolCall,
+        toolCallName: toolCall?.name,
+        toolCallInput: toolCall?.input ? JSON.stringify(toolCall.input).substring(0, 500) : null,
+      });
       if (toolCall && toolCall.input) {
         parsed = toolCall.input as EditSuggestionResult;
       }
     }
 
     if (!parsed && result.content) {
+      log.debug(
+        '[claude_suggest_edits] Falling back to parseJsonSafe, content:',
+        result.content.substring(0, 500)
+      );
       parsed = parseJsonSafe(result.content);
+      log.debug('[claude_suggest_edits] parseJsonSafe result:', {
+        parsedNull: parsed === null,
+        parsedType: typeof parsed,
+        hasChanges: parsed ? 'changes' in parsed : false,
+        changesIsArray: parsed ? Array.isArray(parsed.changes) : false,
+      });
     }
 
     if (!parsed || !Array.isArray(parsed.changes)) {
