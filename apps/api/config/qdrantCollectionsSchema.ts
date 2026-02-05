@@ -342,8 +342,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
-  hamburg_documents: {
-    name: 'hamburg_documents',
+  landesverbaende_documents: {
+    name: 'landesverbaende_documents',
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
