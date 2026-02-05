@@ -191,7 +191,7 @@ function determineTemperature(
 async function execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
 
-  const model = options.model || 'mistral-medium-latest';
+  const model = options.model || 'mistral-large-2512';
   const platforms = (requestMetadata as { platforms?: string[] }).platforms;
 
   const temperature = determineTemperature(type, systemPrompt, platforms, options.temperature);

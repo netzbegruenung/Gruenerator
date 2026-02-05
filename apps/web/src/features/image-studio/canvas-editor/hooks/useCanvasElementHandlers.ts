@@ -57,6 +57,10 @@ export interface OptionalCanvasActions {
     id: string,
     attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; opacity?: number }>
   ) => void;
+  updatePillBadge?: (
+    id: string,
+    attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; text?: string }>
+  ) => void;
 }
 
 export interface UseCanvasElementHandlersOptions<
@@ -104,6 +108,16 @@ export interface UseCanvasElementHandlersResult {
   handleCircleBadgeSelect: (id: string) => void;
   handleCircleBadgeDragEnd: (id: string, x: number, y: number) => void;
   handleCircleBadgeTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    scale: number,
+    rotation: number
+  ) => void;
+  handlePillBadgeSelect: (id: string) => void;
+  handlePillBadgeTextChange: (id: string, text: string) => void;
+  handlePillBadgeDragEnd: (id: string, x: number, y: number) => void;
+  handlePillBadgeTransformEnd: (
     id: string,
     x: number,
     y: number,
@@ -357,6 +371,40 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handlePillBadgeSelect = useCallback(
+    (id: string) => {
+      setSelectedElement(id);
+    },
+    [setSelectedElement]
+  );
+
+  const handlePillBadgeTextChange = useCallback(
+    (id: string, text: string) => {
+      if (actions.updatePillBadge) {
+        actions.updatePillBadge(id, { text });
+      }
+    },
+    [actions]
+  );
+
+  const handlePillBadgeDragEnd = useCallback(
+    (id: string, x: number, y: number) => {
+      if (actions.updatePillBadge) {
+        actions.updatePillBadge(id, { x, y });
+      }
+    },
+    [actions]
+  );
+
+  const handlePillBadgeTransformEnd = useCallback(
+    (id: string, x: number, y: number, scale: number, rotation: number) => {
+      if (actions.updatePillBadge) {
+        actions.updatePillBadge(id, { x, y, scale, rotation });
+      }
+    },
+    [actions]
+  );
+
   const handleAssetDragEnd = useCallback(
     (id: string, x: number, y: number) => {
       if (actions.updateAsset) {
@@ -410,6 +458,10 @@ export function useCanvasElementHandlers<
     handleCircleBadgeSelect,
     handleCircleBadgeDragEnd,
     handleCircleBadgeTransformEnd,
+    handlePillBadgeSelect,
+    handlePillBadgeTextChange,
+    handlePillBadgeDragEnd,
+    handlePillBadgeTransformEnd,
     handleAssetDragEnd,
     handleAssetTransformEnd,
     handleIllustrationDragEnd,

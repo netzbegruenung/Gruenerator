@@ -1,5 +1,5 @@
 import React from 'react';
-import { PiStarFill, PiHeartFill, PiCloudFill, PiArrowRightBold } from 'react-icons/pi';
+import { PiStarFill, PiHeartFill, PiCloudFill, PiArrowRightBold, PiTagFill } from 'react-icons/pi';
 
 import { type ShapeType } from '../../utils/shapes';
 import './FormenSection.css';
@@ -7,6 +7,7 @@ import './FormenSection.css';
 export interface FormenSectionProps {
   onAddShape: (type: ShapeType) => void;
   isExpanded?: boolean;
+  onAddPillBadge?: (preset?: string) => void;
 }
 
 interface ShapeDefinition {
@@ -37,7 +38,11 @@ const SHAPES: ShapeDefinition[] = [
   { id: 'cloud', title: 'Wolke hinzufügen', renderPreview: () => <PiCloudFill size={24} /> },
 ];
 
-export function FormenSection({ onAddShape, isExpanded = false }: FormenSectionProps) {
+export function FormenSection({
+  onAddShape,
+  isExpanded = false,
+  onAddPillBadge,
+}: FormenSectionProps) {
   const visibleShapes = isExpanded ? SHAPES : SHAPES.slice(0, 4);
 
   return (
@@ -53,6 +58,19 @@ export function FormenSection({ onAddShape, isExpanded = false }: FormenSectionP
             <div className="sidebar-selectable-card__preview">{shape.renderPreview()}</div>
           </button>
         ))}
+
+        {onAddPillBadge && (
+          <button
+            key="pill-badge"
+            className="sidebar-selectable-card"
+            onClick={() => onAddPillBadge()}
+            title="Pillen-Badge hinzufügen"
+          >
+            <div className="sidebar-selectable-card__preview">
+              <PiTagFill size={24} />
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );

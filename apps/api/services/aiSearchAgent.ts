@@ -5,10 +5,9 @@
  * Uses the existing aiWorker infrastructure for cost-effective natural language understanding.
  */
 
-import { createCache } from '../utils/redis/index.js';
-import { InputValidator, ValidationError } from '../utils/validation/index.js';
-import { simpleHash } from '../utils/validation/index.js';
 import { createLogger } from '../utils/logger.js';
+import { createCache } from '../utils/redis/index.js';
+import { InputValidator, ValidationError, simpleHash } from '../utils/validation/index.js';
 
 const log = createLogger('AISearchAgent');
 
@@ -405,7 +404,7 @@ class AISearchAgent {
             },
           ],
           options: {
-            model: 'mistral-medium-latest',
+            model: 'mistral-large-2512',
             max_tokens: 1000,
             temperature: 0.3,
             provider: 'mistral',

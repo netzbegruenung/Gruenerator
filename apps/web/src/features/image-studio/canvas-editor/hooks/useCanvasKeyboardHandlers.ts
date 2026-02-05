@@ -23,6 +23,7 @@ export interface CanvasActions {
   removeAdditionalText?: (id: string) => void;
   removeIllustration?: (id: string) => void;
   removeAsset?: (id: string) => void;
+  removePillBadge?: (id: string) => void;
 }
 
 export interface UseCanvasKeyboardHandlersOptions<TState> {
@@ -114,6 +115,16 @@ export function useCanvasKeyboardHandlers<TState>(
             };
             const existing = getStateArray<unknown>(prevState, 'assetInstances');
             (newState as Record<string, unknown>).assetInstances = [...existing, newAsset];
+          } else if (type === 'pill-badge' && typeof data === 'object' && data !== null) {
+            const pillData = data as { x: number; y: number };
+            const newPill = {
+              ...pillData,
+              id: newId,
+              x: pillData.x + offset,
+              y: pillData.y + offset,
+            };
+            const existing = getStateArray<unknown>(prevState, 'pillBadgeInstances');
+            (newState as Record<string, unknown>).pillBadgeInstances = [...existing, newPill];
           }
 
           return newState as TState;
@@ -165,6 +176,16 @@ export function useCanvasKeyboardHandlers<TState>(
         });
         if (asset) {
           CanvasClipboard.copy('asset', asset);
+          return;
+        }
+
+        const pillBadges = getStateArray<unknown>(state, 'pillBadgeInstances');
+        const pillBadge = pillBadges.find((p: unknown) => {
+          const pillObj = p as { id?: string };
+          return pillObj.id === selectedElement;
+        });
+        if (pillBadge) {
+          CanvasClipboard.copy('pill-badge', pillBadge);
           return;
         }
 
@@ -241,6 +262,21 @@ export function useCanvasKeyboardHandlers<TState>(
         ) {
           if (actions.removeAsset) {
             actions.removeAsset(selectedElement);
+            setSelectedElement(null);
+            return;
+          }
+        }
+
+        // Remove Pill Badge
+        const pillBadges = getStateArray<unknown>(state, 'pillBadgeInstances');
+        if (
+          pillBadges.find((p: unknown) => {
+            const pillObj = p as { id?: string };
+            return pillObj.id === selectedElement;
+          })
+        ) {
+          if (actions.removePillBadge) {
+            actions.removePillBadge(selectedElement);
             setSelectedElement(null);
             return;
           }
