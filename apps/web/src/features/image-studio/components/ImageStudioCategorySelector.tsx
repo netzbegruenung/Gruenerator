@@ -14,6 +14,8 @@ import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecen
 import { type StartOption } from '../types/componentTypes';
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
 
+import PreviewImage from './PreviewImage';
+
 import type { TypeConfig } from '../utils/typeConfig/types';
 
 import '../image-studio-shared.css';
@@ -187,7 +189,8 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Sharepics',
         description: 'Erstelle Sharepics mit vorgefertigten Designs',
         Icon: PiLayout,
-        previewImage: '/imagine/previews/dreizeilen-preview.png',
+        previewImage: '/imagine/previews/dreizeilen-preview.webp',
+        previewImageFallback: '/imagine/previews/dreizeilen-preview.png',
       },
       {
         id: 'imagine',
@@ -196,7 +199,8 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Imagine (KI)',
         description: 'Erstelle oder bearbeite Bilder mit KI',
         Icon: HiSparkles,
-        previewImage: '/imagine/variants-pure/soft-illustration.png',
+        previewImage: '/imagine/variants-pure/soft-illustration.webp',
+        previewImageFallback: '/imagine/variants-pure/soft-illustration.png',
       },
       {
         id: 'vorlagen',
@@ -205,7 +209,8 @@ const ImageStudioCategorySelector: React.FC = () => {
         label: 'Vorlagen',
         description: 'Durchsuche vorgefertigte Vorlagen',
         Icon: PiFolder,
-        previewImage: '/imagine/previews/vorlagen-preview.jpg',
+        previewImage: '/imagine/previews/vorlagen-preview.webp',
+        previewImageFallback: '/imagine/previews/vorlagen-preview.jpg',
         // Austrian users see "coming soon", others see "early access" with link
         isEarlyAccess: !isAustrianUser,
         isComingSoon: isAustrianUser,
@@ -267,7 +272,7 @@ const ImageStudioCategorySelector: React.FC = () => {
                     const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
                     const thumbnailUrl = item.thumbnailPath
                       ? `${baseURL}/share/${item.shareToken}/thumbnail`
-                      : `${baseURL}/share/${item.shareToken}/preview`;
+                      : `${baseURL}/share/${item.shareToken}/preview?w=400`;
                     return (
                       <div
                         key={item.shareToken}
@@ -277,7 +282,7 @@ const ImageStudioCategorySelector: React.FC = () => {
                         tabIndex={0}
                         onKeyDown={(e) => e.key === 'Enter' && handleGalleryItemEdit(item)}
                       >
-                        <img src={thumbnailUrl} alt={item.title || 'Sharepic'} />
+                        <img src={thumbnailUrl} alt={item.title || 'Sharepic'} loading="lazy" />
                         <span>{item.title || 'Sharepic'}</span>
                       </div>
                     );
@@ -301,7 +306,13 @@ const ImageStudioCategorySelector: React.FC = () => {
                         e.key === 'Enter' && handleCategorySelect(config.category, null, config.id)
                       }
                     >
-                      {config.previewImage && <img src={config.previewImage} alt={config.label} />}
+                      {config.previewImage && (
+                        <PreviewImage
+                          src={config.previewImage}
+                          fallbackSrc={config.previewImageFallback}
+                          alt={config.label}
+                        />
+                      )}
                       <span>{config.label}</span>
                     </div>
                   ))}
@@ -320,7 +331,7 @@ const ImageStudioCategorySelector: React.FC = () => {
                       const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
                       const thumbnailUrl = item.thumbnailPath
                         ? `${baseURL}/share/${item.shareToken}/thumbnail`
-                        : `${baseURL}/share/${item.shareToken}/preview`;
+                        : `${baseURL}/share/${item.shareToken}/preview?w=400`;
                       return (
                         <div
                           key={item.shareToken}
@@ -330,7 +341,7 @@ const ImageStudioCategorySelector: React.FC = () => {
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && handleGalleryItemEdit(item)}
                         >
-                          <img src={thumbnailUrl} alt={item.title || 'Sharepic'} />
+                          <img src={thumbnailUrl} alt={item.title || 'Sharepic'} loading="lazy" />
                           <span>{item.title || 'Sharepic'}</span>
                         </div>
                       );
@@ -359,7 +370,11 @@ const ImageStudioCategorySelector: React.FC = () => {
                         }
                       >
                         {config.previewImage && (
-                          <img src={config.previewImage} alt={config.label} />
+                          <PreviewImage
+                            src={config.previewImage}
+                            fallbackSrc={config.previewImageFallback}
+                            alt={config.label}
+                          />
                         )}
                         <span>{config.label}</span>
                       </div>
@@ -413,7 +428,14 @@ const ImageStudioCategorySelector: React.FC = () => {
               {option.isEarlyAccess && <StatusBadge type="early-access" variant="card" />}
               {option.previewImage ? (
                 <>
-                  <img src={option.previewImage} alt={option.label} className="type-card__image" />
+                  <PreviewImage
+                    src={option.previewImage}
+                    fallbackSrc={option.previewImageFallback}
+                    alt={option.label}
+                    className="type-card__image"
+                    width={600}
+                    height={800}
+                  />
                   <h3>{option.label}</h3>
                   <p className="type-card__description">{option.description}</p>
                 </>

@@ -1,11 +1,12 @@
-import { Router, Request, Response } from 'express';
-import multer from 'multer';
 import {
   createCanvas,
   loadImage,
   type Canvas,
   type SKRSContext2D as CanvasRenderingContext2D,
 } from '@napi-rs/canvas';
+import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
+
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
@@ -45,22 +46,29 @@ async function addKiLabel(imageBuffer: Buffer): Promise<Buffer> {
 
   const textMetrics = ctx.measureText(LABEL_TEXT);
   const textWidth = textMetrics.width;
-  const rectHorizontalPadding = Math.round(fontSize * 0.5);
+  const rectHorizontalPadding = Math.round(fontSize * 0.6);
   const rectVerticalPadding = Math.round(fontSize * 0.35);
+  const margin = Math.round(fontSize * 0.4);
+  const cornerRadius = Math.round(fontSize * 0.3);
 
   const rectWidth = textWidth + rectHorizontalPadding * 2;
   const rectHeight = fontSize + rectVerticalPadding * 2;
-  const rectX = 0;
-  const rectY = height - rectHeight;
+  const rectX = margin;
+  const rectY = height - rectHeight - margin;
 
   ctx.save();
-  ctx.globalAlpha = 0.9;
-  ctx.fillStyle = COLORS?.TANNE || 'rgba(0, 46, 35, 0.9)';
-  ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = '#2B2B2B';
+  ctx.beginPath();
+  ctx.roundRect(rectX, rectY, rectWidth, rectHeight, cornerRadius);
+  ctx.fill();
   ctx.restore();
 
+  ctx.save();
+  ctx.globalAlpha = 0.85;
   ctx.fillStyle = '#FFFFFF';
   ctx.fillText(LABEL_TEXT, rectX + rectHorizontalPadding, rectY + rectHeight / 2);
+  ctx.restore();
 
   const rawBuffer = canvas.toBuffer('image/png');
   return optimizeCanvasBuffer(rawBuffer);
