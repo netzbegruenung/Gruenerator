@@ -17,7 +17,7 @@ import {
 } from 'react-icons/pi';
 
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-import UniversalEditForm from '../../../components/common/Form/EditMode/UniversalEditForm';
+import EditOverlay from '../../../components/common/Form/EditMode/EditOverlay';
 import { FormStateProvider } from '../../../components/common/Form/FormStateProvider';
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
 import SubmitButton from '../../../components/common/SubmitButton';
@@ -484,7 +484,7 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
                 </FormStateProvider>
 
                 {isEditModeActive && (
-                  <UniversalEditForm
+                  <EditOverlay
                     componentName={COMPONENT_NAME}
                     onClose={handleEditModeToggle}
                   />
