@@ -10,3 +10,4 @@ export { default as dreizeilenCanvas } from './dreizeilen_canvas.js';
 export { default as campaignCanvas, generateCampaignCanvas } from './campaign_canvas.js';
 export { default as profilbildCanvas } from './profilbild_canvas.js';
 export { default as simpleCanvas } from './simple_canvas.js';
+export { default as sliderCanvas } from './slider_canvas.js';
