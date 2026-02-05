@@ -30,6 +30,8 @@ import {
 } from '../utils/typeConfig';
 
 import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
+import type { InitialPageDef } from '../canvas-editor/hooks/useHeterogeneousMultiPage';
+import type { CanvasConfigId } from '../canvas-editor/configs/types';
 import type {
   TemplateResultStepProps,
   SloganAlternativeWithIndex,
@@ -43,6 +45,7 @@ const CANVAS_SUPPORTED_TYPES = [
   IMAGE_STUDIO_TYPES.ZITAT_PURE,
   IMAGE_STUDIO_TYPES.INFO,
   IMAGE_STUDIO_TYPES.VERANSTALTUNG,
+  IMAGE_STUDIO_TYPES.SLIDER,
 ] as const;
 
 import './TemplateResultStep.css';
@@ -68,6 +71,9 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     header,
     subheader,
     body,
+    headline,
+    subtext,
+    label,
     eventTitle,
     beschreibung,
     weekday,
@@ -312,6 +318,47 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             onCancel={handleCanvasCancel}
           />
         );
+      case IMAGE_STUDIO_TYPES.SLIDER:
+        return (
+          <ControllableCanvasWrapper
+            type="slider"
+            initialState={{
+              label: label || '',
+              headline: headline || '',
+              subtext: subtext || '',
+              alternatives: sloganAlternatives || [],
+            }}
+            onExport={handleCanvasExport}
+            onCancel={handleCanvasCancel}
+            initialPages={
+              sloganAlternatives && sloganAlternatives.length > 0
+                ? [
+                    {
+                      configId: 'slider' as CanvasConfigId,
+                      state: {
+                        label: label || '',
+                        headline: headline || '',
+                        subtext: subtext || '',
+                        slideVariant: 'cover',
+                      },
+                    },
+                    ...sloganAlternatives.slice(1).map(
+                      (alt: SloganAlternative, index: number): InitialPageDef => ({
+                        configId: 'slider' as CanvasConfigId,
+                        state: {
+                          label: alt.label || 'Wusstest du?',
+                          headline: alt.headline || '',
+                          subtext: alt.subtext || '',
+                          slideVariant:
+                            index < sloganAlternatives.length - 2 ? 'content' : 'cover',
+                        },
+                      })
+                    ),
+                  ]
+                : undefined
+            }
+          />
+        );
       default:
         return null;
     }
@@ -324,6 +371,9 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     name,
     header,
     body,
+    headline,
+    subtext,
+    label,
     eventTitle,
     beschreibung,
     weekday,
