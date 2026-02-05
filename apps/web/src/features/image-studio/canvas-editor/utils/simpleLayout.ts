@@ -46,7 +46,7 @@ export const SIMPLE_CONFIG: SimpleConfig = {
     maxWidth: 980,
     fontSize: 80,
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'bold',
+    fontStyle: 'normal',
     color: '#FFFFFF',
     lineHeightRatio: 1.1,
   },

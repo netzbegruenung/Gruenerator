@@ -32,7 +32,7 @@ export const VERANSTALTUNG_CONFIG = {
   eventTitle: {
     startY: 600, // photo height + 60
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'italic bold',
+    fontStyle: 'normal',
     fontSize: 94,
     minFontSize: 66,
     maxFontSize: 122,
@@ -41,7 +41,7 @@ export const VERANSTALTUNG_CONFIG = {
   },
   description: {
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'italic',
+    fontStyle: 'normal',
     fontSize: 62,
     minFontSize: 40,
     maxFontSize: 80,

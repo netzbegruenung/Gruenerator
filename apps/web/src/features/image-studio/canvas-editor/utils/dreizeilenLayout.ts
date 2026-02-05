@@ -5,6 +5,7 @@
  */
 
 import { SYSTEM_ASSETS } from './canvasAssets';
+import { measureTextWidthWithFont } from './textUtils';
 
 export interface ColorPair {
   background: string;
@@ -160,28 +161,14 @@ export function flattenPoints(points: ParallelogramPoint[]): number[] {
 
 /**
  * Measure text width using canvas 2D context
- * Creates a temporary canvas for accurate measurement
+ * Wrapper around the generic measureTextWidth with dreizeilen defaults
  */
 export function measureTextWidth(
   text: string,
   fontSize: number,
   fontFamily: string = DREIZEILEN_CONFIG.text.fontFamily
 ): number {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return text.length * fontSize * 0.5; // Fallback estimation
-
-  ctx.font = `${fontSize}px ${fontFamily}, Arial, sans-serif`;
-
-  // Warn in development if font not loaded
-  if (import.meta.env.DEV) {
-    const isLoaded = document.fonts.check(`${fontSize}px ${fontFamily}`);
-    if (!isLoaded) {
-      console.warn(`[Dreizeilen] Font "${fontFamily}" not loaded, measurements may be inaccurate`);
-    }
-  }
-
-  return ctx.measureText(text).width;
+  return measureTextWidthWithFont(text, fontSize, fontFamily, 'normal');
 }
 
 /**
