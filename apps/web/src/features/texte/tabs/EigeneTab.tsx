@@ -59,7 +59,7 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('generators');
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const { canAccessBetaFeature } = useBetaFeatures();
-  const showPromptsTab = canAccessBetaFeature('prompts');
+  const showPromptsTab = import.meta.env.DEV || canAccessBetaFeature('prompts');
 
   const { query: generatorsQuery } = useCustomGeneratorsData({
     isActive,

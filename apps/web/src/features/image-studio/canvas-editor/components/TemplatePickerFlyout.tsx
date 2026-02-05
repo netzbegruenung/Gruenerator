@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useState, useRef, useEffect, memo } from 'react';
-import { HiOutlineDuplicate, HiX, HiPlus } from 'react-icons/hi';
+import { HiOutlineDuplicate, HiX, HiPlus, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
 
 import { getAllTemplates, type TemplateInfo } from '../utils/templateRegistry';
 
@@ -21,6 +21,7 @@ interface TemplatePickerFlyoutProps {
   currentTemplateId?: CanvasConfigId;
   isOpen: boolean;
   anchorRef?: React.RefObject<HTMLElement | null>;
+  onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
 }
 
 interface TemplateCardProps {
@@ -66,9 +67,13 @@ export function TemplatePickerFlyout({
   currentTemplateId,
   isOpen,
   anchorRef,
+  onAddSliderVariant,
 }: TemplatePickerFlyoutProps) {
   const flyoutRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [position, setPosition] = useState<{ top: number; left: number; maxHeight?: number }>({
+    top: 0,
+    left: 0,
+  });
   const templates = getAllTemplates();
 
   // Calculate position relative to anchor
@@ -76,23 +81,40 @@ export function TemplatePickerFlyout({
     if (isOpen && anchorRef?.current && flyoutRef.current) {
       const anchorRect = anchorRef.current.getBoundingClientRect();
       const flyoutRect = flyoutRef.current.getBoundingClientRect();
-
-      // Position above the anchor button, centered
-      let left = anchorRect.left + anchorRect.width / 2 - flyoutRect.width / 2;
-      let top = anchorRect.top - flyoutRect.height - 12;
-
-      // Ensure flyout stays within viewport
       const padding = 16;
+      const gap = 12;
+
+      // Center horizontally relative to anchor, clamped to viewport
+      let left = anchorRect.left + anchorRect.width / 2 - flyoutRect.width / 2;
       if (left < padding) left = padding;
       if (left + flyoutRect.width > window.innerWidth - padding) {
         left = window.innerWidth - flyoutRect.width - padding;
       }
-      if (top < padding) {
-        // Show below if not enough space above
-        top = anchorRect.bottom + 12;
+
+      // Pick direction with more available space
+      const spaceAbove = anchorRect.top - gap - padding;
+      const spaceBelow = window.innerHeight - anchorRect.bottom - gap - padding;
+
+      let top: number;
+      let maxHeight: number | undefined;
+
+      if (spaceAbove >= flyoutRect.height) {
+        // Fits fully above
+        top = anchorRect.top - flyoutRect.height - gap;
+      } else if (spaceBelow >= flyoutRect.height) {
+        // Fits fully below
+        top = anchorRect.bottom + gap;
+      } else if (spaceAbove >= spaceBelow) {
+        // More room above — pin to top edge, constrain height
+        top = padding;
+        maxHeight = spaceAbove;
+      } else {
+        // More room below — position below anchor, constrain height
+        top = anchorRect.bottom + gap;
+        maxHeight = spaceBelow;
       }
 
-      setPosition({ top, left });
+      setPosition({ top, left, maxHeight });
     }
   }, [isOpen, anchorRef]);
 
@@ -136,6 +158,21 @@ export function TemplatePickerFlyout({
     onClose();
   }, [onDuplicateCurrent, onClose]);
 
+  const handleAddCover = useCallback(() => {
+    onAddSliderVariant?.('cover');
+    onClose();
+  }, [onAddSliderVariant, onClose]);
+
+  const handleAddContent = useCallback(() => {
+    onAddSliderVariant?.('content');
+    onClose();
+  }, [onAddSliderVariant, onClose]);
+
+  const handleAddLast = useCallback(() => {
+    onAddSliderVariant?.('last');
+    onClose();
+  }, [onAddSliderVariant, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -146,6 +183,10 @@ export function TemplatePickerFlyout({
         position: 'fixed',
         top: position.top,
         left: position.left,
+        ...(position.maxHeight != null && {
+          maxHeight: position.maxHeight,
+          overflowY: 'auto' as const,
+        }),
       }}
     >
       <div className="template-picker-flyout__header">
@@ -169,6 +210,35 @@ export function TemplatePickerFlyout({
             isCurrent={template.id === currentTemplateId}
           />
         ))}
+
+        {onAddSliderVariant && (
+          <>
+            <button className="template-card" onClick={handleAddCover} type="button">
+              <div className="template-card__preview template-card__icon-preview">
+                <HiTemplate />
+              </div>
+              <div className="template-card__info">
+                <span className="template-card__label">Slider Start</span>
+              </div>
+            </button>
+            <button className="template-card" onClick={handleAddContent} type="button">
+              <div className="template-card__preview template-card__icon-preview">
+                <HiBookOpen />
+              </div>
+              <div className="template-card__info">
+                <span className="template-card__label">Slider Text</span>
+              </div>
+            </button>
+            <button className="template-card" onClick={handleAddLast} type="button">
+              <div className="template-card__preview template-card__icon-preview">
+                <HiStop />
+              </div>
+              <div className="template-card__info">
+                <span className="template-card__label">Slider Ende</span>
+              </div>
+            </button>
+          </>
+        )}
       </div>
 
       <div className="template-picker-flyout__divider" />
@@ -189,6 +259,7 @@ interface AddPageButtonProps {
   onDuplicateCurrent: () => void;
   currentTemplateId?: CanvasConfigId;
   disabled?: boolean;
+  onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
 }
 
 export function AddPageButton({
@@ -196,6 +267,7 @@ export function AddPageButton({
   onDuplicateCurrent,
   currentTemplateId,
   disabled = false,
+  onAddSliderVariant,
 }: AddPageButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -221,6 +293,7 @@ export function AddPageButton({
         onDuplicateCurrent={onDuplicateCurrent}
         onClose={() => setIsOpen(false)}
         currentTemplateId={currentTemplateId}
+        onAddSliderVariant={onAddSliderVariant}
       />
     </>
   );

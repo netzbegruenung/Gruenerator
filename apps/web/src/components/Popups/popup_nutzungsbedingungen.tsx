@@ -6,7 +6,7 @@ import '../../assets/styles/components/popups/popup.css';
 
 declare global {
   interface Window {
-    grantMatomoConsent?: () => void;
+    grantAnalyticsConsent?: () => void;
   }
 }
 
@@ -29,8 +29,8 @@ const PopupNutzungsbedingungen = () => {
 
   const handleAcceptAll = () => {
     dismiss();
-    if (typeof window.grantMatomoConsent === 'function') {
-      window.grantMatomoConsent();
+    if (typeof window.grantAnalyticsConsent === 'function') {
+      window.grantAnalyticsConsent();
     }
     setVisible(false);
   };

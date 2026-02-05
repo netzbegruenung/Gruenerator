@@ -305,7 +305,7 @@ const MemoizedImageElement = memo(
         snapTargets={snapTargets}
         onSnapLinesChange={onSnapLinesChange}
         listening={config.listening}
-        constrainToBounds={true}
+        constrainToBounds={config.constrainToBounds ?? true}
         transformConfig={
           config.transformable
             ? {
@@ -369,6 +369,16 @@ const MemoizedRectElement = memo(function MemoizedRectElement<
   const height = resolveValue(config.height, state, layout);
   const fill = resolveColor(config.fill, state, layout);
 
+  // Resolve cornerRadius - can be static number, array, or derived from state
+  let cornerRadius: number | number[] | undefined;
+  if (config.cornerRadius !== undefined) {
+    if (Array.isArray(config.cornerRadius)) {
+      cornerRadius = config.cornerRadius;
+    } else {
+      cornerRadius = resolveValue(config.cornerRadius as number | ((s: TState, l: LayoutResult) => number), state, layout);
+    }
+  }
+
   return (
     <Rect
       x={x}
@@ -376,7 +386,9 @@ const MemoizedRectElement = memo(function MemoizedRectElement<
       width={width}
       height={height}
       fill={fill}
+      cornerRadius={cornerRadius}
       listening={config.listening ?? false}
+      draggable={config.draggable ?? false}
     />
   );
 });

@@ -54,6 +54,12 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Veranstaltungsankündigung',
     previewImage: '/imagine/previews/veranstaltung-preview.webp',
   },
+  slider: {
+    id: 'slider',
+    label: 'Slider',
+    description: 'Slider-Post mit Pill-Badge und Pfeil',
+    previewImage: '/imagine/previews/slider-preview.webp',
+  },
 };
 
 /**
@@ -82,5 +88,5 @@ export function templateSupportsImageBackground(configId: CanvasConfigId): boole
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure'].includes(configId);
+  return ['info', 'zitat-pure', 'slider'].includes(configId);
 }

@@ -1,27 +1,19 @@
 .floating-tap-bar-container {
-    /* Absolutely positioned to float above canvas without affecting layout */
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
     z-index: 100;
     display: flex;
     justify-content: center;
     width: 100%;
-    padding-top: 16px;
-    pointer-events: none;
-    /* Allow clicks to pass through empty space */
+    padding: 8px 0;
+    flex-shrink: 0;
 }
 
 @media (max-width: 900px) {
     .floating-tap-bar-container {
-        padding-top: 8px;
+        padding: 4px 0;
     }
 }
 
-/* Ensure the bar content itself captures events */
 .floating-tap-bar {
-    pointer-events: auto;
     background: var(--background-color);
     color: var(--font-color);
     border: 1px solid var(--border-default);
