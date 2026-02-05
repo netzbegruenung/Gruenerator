@@ -163,6 +163,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       contextualTip = null,
       selectedPlatforms = [],
       inputHeaderContent = null,
+      hideInputSection = false,
       helpContent = null,
     },
     ref
@@ -289,47 +290,49 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
               )}
 
               <div className="form-section__container">
-                {/* Input Section */}
-                <FormInputSection
-                  isMultiStep={isMultiStep}
-                  onBack={onBack}
-                  showBackButton={showBackButton}
-                  defaultValues={defaultValues}
-                  validationRules={validationRules}
-                  useModernForm={useModernForm}
-                  onFormChange={onFormChange}
-                  showSubmitButton={
-                    useEditMode ? false : showSubmitButtonInInputSection && showSubmitButton
-                  }
-                  onSubmit={onSubmit}
-                  nextButtonText={nextButtonText}
-                  submitButtonProps={submitButtonProps}
-                  enablePlatformSelector={!useEditMode && enablePlatformSelector}
-                  platformOptions={platformOptions}
-                  platformSelectorLabel={platformSelectorLabel}
-                  platformSelectorPlaceholder={platformSelectorPlaceholder}
-                  platformSelectorHelpText={platformSelectorHelpText}
-                  platformSelectorTabIndex={platformSelectorTabIndex}
-                  formControl={formControl}
-                  showImageUpload={showImageUpload}
-                  onImageChange={onImageChange}
-                  isStartMode={isStartMode}
-                  inputHeaderContent={inputHeaderContent}
-                >
-                  {isImageEditActive ? (
-                    customEditContent
-                  ) : useEditMode ? (
-                    <UniversalEditForm
-                      componentName={componentName || 'default'}
-                      onClose={onCloseEditMode ?? undefined}
-                    />
-                  ) : (
-                    children
-                  )}
-                </FormInputSection>
+                {/* Input Section - hidden when hideInputSection is true and not in edit mode */}
+                {(!hideInputSection || useEditMode) && (
+                  <FormInputSection
+                    isMultiStep={isMultiStep}
+                    onBack={onBack}
+                    showBackButton={showBackButton}
+                    defaultValues={defaultValues}
+                    validationRules={validationRules}
+                    useModernForm={useModernForm}
+                    onFormChange={onFormChange}
+                    showSubmitButton={
+                      useEditMode ? false : showSubmitButtonInInputSection && showSubmitButton
+                    }
+                    onSubmit={onSubmit}
+                    nextButtonText={nextButtonText}
+                    submitButtonProps={submitButtonProps}
+                    enablePlatformSelector={!useEditMode && enablePlatformSelector}
+                    platformOptions={platformOptions}
+                    platformSelectorLabel={platformSelectorLabel}
+                    platformSelectorPlaceholder={platformSelectorPlaceholder}
+                    platformSelectorHelpText={platformSelectorHelpText}
+                    platformSelectorTabIndex={platformSelectorTabIndex}
+                    formControl={formControl}
+                    showImageUpload={showImageUpload}
+                    onImageChange={onImageChange}
+                    isStartMode={isStartMode}
+                    inputHeaderContent={inputHeaderContent}
+                  >
+                    {isImageEditActive ? (
+                      customEditContent
+                    ) : useEditMode ? (
+                      <UniversalEditForm
+                        componentName={componentName || 'default'}
+                        onClose={onCloseEditMode ?? undefined}
+                      />
+                    ) : (
+                      children
+                    )}
+                  </FormInputSection>
+                )}
 
-                {/* Extras Section */}
-                {!hideExtrasSection && (isImageEditActive || !useEditMode) && (
+                {/* Extras Section - also hidden when hideInputSection is true */}
+                {!hideExtrasSection && !hideInputSection && (isImageEditActive || !useEditMode) && (
                   <FormExtrasSection
                     interactiveModeToggle={interactiveModeToggle ?? null}
                     useInteractiveModeToggle={useInteractiveModeToggle}
