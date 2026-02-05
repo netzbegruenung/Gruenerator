@@ -289,8 +289,8 @@ const Datenschutz = () => {
       <h3 id="webanalyse">Webanalyse mit Umami</h3>
       <p>
         Diese Website nutzt den Open-Source-Webanalysedienst Umami zur statistischen Auswertung der
-        Besucherzugriffe. Umami wird von <strong>Grünes CMS</strong> (analytics.gruenes-cms.de) in
-        Deutschland gehostet und betrieben.
+        Besucherzugriffe. Umami wird vom Grünerator selbst auf eigenen Servern in Europa gehostet
+        und betrieben.
       </p>
       <p>
         <strong>Einwilligung:</strong> Die Webanalyse wird erst aktiviert, nachdem Du bei Deinem
@@ -310,7 +310,7 @@ const Datenschutz = () => {
         <strong>Datenschutz-Eigenschaften:</strong>
       </p>
       <ul>
-        <li>Server ausschließlich in Deutschland</li>
+        <li>Server ausschließlich in Europa</li>
         <li>Keine Weitergabe an Dritte</li>
         <li>Keine Verknüpfung mit anderen Datenquellen</li>
         <li>Keine personenbezogenen Daten oder eindeutige Identifikatoren</li>
