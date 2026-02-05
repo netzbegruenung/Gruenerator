@@ -613,6 +613,11 @@ export interface BaseFormProps {
   /** Hide the input section entirely (used in approval mode workflows) */
   hideInputSection?: boolean;
 
+  /** Show a reset button in the DisplaySection header */
+  showResetButton?: boolean;
+  /** Callback when reset button is clicked */
+  onReset?: () => void;
+
   // File attachments
   attachedFiles?: unknown[];
   onAttachmentClick?: (files?: File[]) => void;

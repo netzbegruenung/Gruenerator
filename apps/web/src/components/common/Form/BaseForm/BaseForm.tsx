@@ -174,6 +174,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   enableKnowledgeSelector = false,
   hideFormExtras = false,
   hideInputSection = false,
+  showResetButton = false,
+  onReset,
   onImageEditModeChange = null, // Callback when image edit mode changes (true = active, false = inactive)
   customExportOptions = [],
   hideDefaultExportOptions = false,
@@ -574,8 +576,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         */}
 
         <AnimatePresence initial={false}>
-          {/* On mobile edit mode, UniversalEditForm handles its own full-screen takeover via position:fixed */}
-          {(isFormVisible || (isEditModeActive && isMobileView)) && (
+          {/* Show FormSection when form is visible, OR when edit mode is active (for UniversalEditForm) */}
+          {(isFormVisible || isEditModeActive) && (
             <motion.div
               key="form-section"
               /* layout="position" */
@@ -651,6 +653,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 }}
                 enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
                 hideExtrasSection={hideFormExtras}
+                hideInputSection={hideInputSection}
                 isStartMode={isStartMode}
                 startPageDescription={startPageDescription}
                 examplePrompts={examplePrompts}
@@ -696,6 +699,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
               customExportOptions={customExportOptions}
               hideDefaultExportOptions={hideDefaultExportOptions}
               isStartMode={isStartMode}
+              showResetButton={showResetButton}
+              onReset={onReset}
             />
           </motion.div>
         )}
