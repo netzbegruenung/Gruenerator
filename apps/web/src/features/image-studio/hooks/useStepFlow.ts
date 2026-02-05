@@ -98,6 +98,7 @@ export const useStepFlow = ({
     body,
     headline,
     subtext,
+    label,
     uploadedImage,
     selectedImage,
     fontSize,
@@ -288,7 +289,9 @@ export const useStepFlow = ({
     setIsProcessing(true);
 
     try {
-      const formData = { thema, name, count: 1 };
+      // For SLIDER: generate all story slides in one call for a cohesive narrative
+      const isSlider = type === IMAGE_STUDIO_TYPES.SLIDER;
+      const formData = { thema, name, count: isSlider ? 5 : 1 };
       const result = await generateText(type!, formData);
 
       if (result && fieldConfig?.responseMapping) {
@@ -303,28 +306,39 @@ export const useStepFlow = ({
           : (mappedData as SloganAlternative);
         setSloganAlternatives([originalAlternative]);
 
-        setTimeout(() => {
-          void fetchAlternativesInBackground(
-            type!,
-            formData,
-            (alternatives) => {
-              console.log('[DEBUG useStepFlow] Received alternatives:', alternatives);
-              console.log('[DEBUG useStepFlow] alternativesMapping exists:', !!fieldConfig.alternativesMapping);
-              // Map each alternative through alternativesMapping to add ids (index starts at 1)
-              const mappedAlternatives = fieldConfig.alternativesMapping
-                ? alternatives.map((alt, idx) =>
-                    fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
-                  )
-                : alternatives;
-              console.log('[DEBUG useStepFlow] Mapped alternatives:', mappedAlternatives);
-              // Prepend original to alternatives list
-              setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
-            },
-            (error) => {
-              console.error('[StepFlow] Alternatives error:', error);
-            }
-          );
-        }, 100);
+        if (isSlider && result.alternatives && result.alternatives.length > 0) {
+          // Slider: all slides returned in initial call — store them all
+          const allSlides = [
+            originalAlternative,
+            ...result.alternatives.map((alt, idx) =>
+              fieldConfig.alternativesMapping
+                ? fieldConfig.alternativesMapping(alt as Record<string, unknown>, idx + 1)
+                : (alt as SloganAlternative)
+            ),
+          ];
+          setSloganAlternatives(allSlides);
+        } else if (!isSlider) {
+          // Non-slider: fetch alternatives in background as before
+          setTimeout(() => {
+            void fetchAlternativesInBackground(
+              type!,
+              formData,
+              (alternatives) => {
+                // Map each alternative through alternativesMapping to add ids (index starts at 1)
+                const mappedAlternatives = fieldConfig.alternativesMapping
+                  ? alternatives.map((alt, idx) =>
+                      fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
+                    )
+                  : alternatives;
+                // Prepend original to alternatives list
+                setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
+              },
+              (error) => {
+                console.error('[StepFlow] Alternatives error:', error);
+              }
+            );
+          }, 100);
+        }
       }
       return true;
     } catch (err) {
@@ -737,6 +751,7 @@ export const useStepFlow = ({
         body,
         headline,
         subtext,
+        label,
         eventTitle,
         beschreibung,
         weekday,
@@ -764,6 +779,7 @@ export const useStepFlow = ({
       body,
       headline,
       subtext,
+      label,
       eventTitle,
       beschreibung,
       weekday,
