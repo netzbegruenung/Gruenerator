@@ -337,6 +337,7 @@ ${contextSummary ? `\nKONTEXT: ${contextSummary}` : ''}`;
         systemPrompt,
         messages: [{ role: 'user', content: userContent }],
         options: {
+          model: 'mistral-large-2512',
           max_tokens: 4096,
           temperature: 0.3,
           tools: tools,
