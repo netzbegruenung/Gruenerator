@@ -14,6 +14,16 @@
   top: 0;
   bottom: 0;
   z-index: 100;
+
+  /* Sidebar-scoped font scale: 20% smaller than global */
+  --font-size-xxs: clamp(0.6rem, 0.576rem + 0.12vw, 0.7rem);
+  --font-size-xs: clamp(0.7rem, 0.68rem + 0.1vw, 0.8rem);
+  --font-size-sm: clamp(0.75rem, 0.72rem + 0.15vw, 0.85rem);
+  --font-size-small: var(--font-size-sm);
+  --font-size-md: clamp(0.8rem, 0.76rem + 0.2vw, 0.9rem);
+  --font-size-base: var(--font-size-md);
+  --font-size-lg: clamp(0.9rem, 0.84rem + 0.3vw, 1rem);
+  --font-size-xl: clamp(1rem, 0.92rem + 0.4vw, 1.2rem);
 }
 
 /* Tab Bar - Vertical strip (default) */
@@ -230,7 +240,7 @@
 
 .sidebar-section__hint {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: 0.65rem;
   color: var(--font-color-secondary);
 }
 
@@ -238,7 +248,7 @@
   margin: 0;
   padding: var(--spacing-large);
   text-align: center;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   color: var(--font-color-secondary);
 }
 
@@ -308,7 +318,7 @@
 /* Mobile: reduce font size for alternatives pills */
 @media (max-width: 899px) {
   .alternative-item {
-    font-size: 12px;
+    font-size: 10px;
     padding: var(--spacing-xxsmall) var(--spacing-xsmall);
   }
 
@@ -416,7 +426,7 @@
   }
 
   .sidebar-tab-bar__label {
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;

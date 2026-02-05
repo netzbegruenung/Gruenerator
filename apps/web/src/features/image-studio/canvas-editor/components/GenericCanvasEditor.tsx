@@ -16,6 +16,7 @@ interface GenericCanvasEditorProps<TState, TActions = Record<string, unknown>> {
   state: TState;
   actions: TActions;
   children: React.ReactNode; // The Konva Stage / Canvas content
+  toolbar?: React.ReactNode; // Floating toolbar rendered above the canvas viewport
   onExport: () => void;
   onCancel?: () => void; // Optional cancel handler if needed by layout
   sidebarActions?: React.ReactNode; // Optional extra actions for the sidebar
@@ -43,6 +44,7 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
   state,
   actions,
   children,
+  toolbar,
   onExport,
   sidebarActions,
   selectedElement,
@@ -139,6 +141,7 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
   return (
     <CanvasEditorLayout sidebar={panel} tabBar={tabBar} actions={sidebarActions}>
       <div className="canvas-content-wrapper">
+        {toolbar}
         <ZoomableViewport
           canvasWidth={config.canvas.width}
           canvasHeight={config.canvas.height}
