@@ -1,21 +1,22 @@
-import { Router, Request, Response } from 'express';
+import fs from 'fs/promises';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import multer from 'multer';
+
 import {
   createCanvas,
   loadImage,
   type Canvas,
   type SKRSContext2D as CanvasRenderingContext2D,
 } from '@napi-rs/canvas';
-import fs from 'fs/promises';
-import path from 'path';
-import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
+import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
+
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -35,6 +36,7 @@ interface SliderTextData {
   label: string;
   headline: string;
   subtext: string;
+  subtext2: string;
 }
 
 interface SliderParams {
@@ -45,12 +47,14 @@ interface SliderParams {
   labelFontSize: number;
   headlineFontSize: number;
   subtextFontSize: number;
+  subtext2FontSize: number;
 }
 
 interface SliderRequestBody {
   label?: string;
   headline?: string;
   subtext?: string;
+  subtext2?: string;
   colorScheme?: 'sand-tanne' | 'tanne-sand';
   backgroundColor?: string;
   pillBackgroundColor?: string;
@@ -59,6 +63,7 @@ interface SliderRequestBody {
   labelFontSize?: string;
   headlineFontSize?: string;
   subtextFontSize?: string;
+  subtext2FontSize?: string;
 }
 
 // ============================================================================
@@ -103,6 +108,11 @@ const HEADLINE_CONFIG = {
 
 const SUBTEXT_CONFIG = {
   gapFromHeadline: 50,
+  lineHeight: 1.45,
+};
+
+const SUBTEXT2_CONFIG = {
+  gapFromSubtext: 50,
   lineHeight: 1.45,
 };
 
@@ -160,12 +170,13 @@ function drawRoundedRect(
 }
 
 async function processSliderText(textData: Partial<SliderTextData>): Promise<SliderTextData> {
-  const { label, headline, subtext } = textData;
+  const { label, headline, subtext, subtext2 } = textData;
 
   return {
     label: label?.trim() || 'Wusstest du?',
     headline: headline?.trim() || '',
     subtext: subtext?.trim() || '',
+    subtext2: subtext2?.trim() || '',
   };
 }
 
@@ -193,6 +204,7 @@ async function createSliderImage(
       labelFontSize,
       headlineFontSize,
       subtextFontSize,
+      subtext2FontSize,
     } = validatedParams;
 
     // Draw background
@@ -201,7 +213,7 @@ async function createSliderImage(
     log.debug('Background filled with color:', backgroundColor);
 
     // Calculate pill dimensions
-    ctx.font = `italic ${labelFontSize}px GrueneTypeNeue`;
+    ctx.font = `${labelFontSize}px GrueneTypeNeue`;
     const labelMetrics = ctx.measureText(processedText.label);
     const pillWidth = labelMetrics.width + PILL_CONFIG.paddingX * 2;
     const pillHeight = labelFontSize + PILL_CONFIG.paddingY * 2;
@@ -213,7 +225,7 @@ async function createSliderImage(
 
     // Draw pill label text
     ctx.fillStyle = pillTextColor;
-    ctx.font = `italic ${labelFontSize}px GrueneTypeNeue`;
+    ctx.font = `${labelFontSize}px GrueneTypeNeue`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(
@@ -228,7 +240,7 @@ async function createSliderImage(
     // Draw headline
     if (processedText.headline) {
       ctx.fillStyle = textColor;
-      ctx.font = `bold italic ${headlineFontSize}px GrueneTypeNeue`;
+      ctx.font = `${headlineFontSize}px GrueneTypeNeue`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
 
@@ -258,6 +270,25 @@ async function createSliderImage(
         const textY = currentY + index * lineHeight;
         ctx.fillText(line, MARGIN, textY);
         log.debug(`Subtext line ${index}: "${line}" at y=${textY}`);
+      });
+
+      currentY += subtextLines.length * lineHeight + SUBTEXT2_CONFIG.gapFromSubtext;
+    }
+
+    // Draw subtext2
+    if (processedText.subtext2) {
+      ctx.fillStyle = textColor;
+      ctx.font = `bold ${subtext2FontSize}px PTSans-Bold`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+
+      const subtext2Lines = wrapText(ctx, processedText.subtext2, CONTENT_WIDTH);
+      const lineHeight = subtext2FontSize * SUBTEXT2_CONFIG.lineHeight;
+
+      subtext2Lines.forEach((line, index) => {
+        const textY = currentY + index * lineHeight;
+        ctx.fillText(line, MARGIN, textY);
+        log.debug(`Subtext2 line ${index}: "${line}" at y=${textY}`);
       });
     }
 
@@ -307,6 +338,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       label,
       headline,
       subtext,
+      subtext2,
       colorScheme = 'sand-tanne',
       backgroundColor,
       pillBackgroundColor,
@@ -315,6 +347,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       labelFontSize,
       headlineFontSize,
       subtextFontSize,
+      subtext2FontSize,
     } = req.body as SliderRequestBody;
 
     // Get colors from scheme or use custom colors
@@ -330,6 +363,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       labelFontSize: parseInt(labelFontSize || '70', 10) || 70,
       headlineFontSize: parseInt(headlineFontSize || '90', 10) || 90,
       subtextFontSize: parseInt(subtextFontSize || '50', 10) || 50,
+      subtext2FontSize: parseInt(subtext2FontSize || '50', 10) || 50,
     };
 
     log.debug('Parsed slider params:', modParams);
@@ -343,11 +377,12 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       labelFontSize: Math.max(60, Math.min(80, modParams.labelFontSize)),
       headlineFontSize: Math.max(60, Math.min(120, modParams.headlineFontSize)),
       subtextFontSize: Math.max(35, Math.min(70, modParams.subtextFontSize)),
+      subtext2FontSize: Math.max(35, Math.min(70, modParams.subtext2FontSize)),
     };
 
     log.debug('Validated slider params:', sliderValidatedParams);
 
-    const processedText = await processSliderText({ label, headline, subtext });
+    const processedText = await processSliderText({ label, headline, subtext, subtext2 });
     log.debug('Processed text:', processedText);
 
     const generatedImageBuffer = await createSliderImage(processedText, sliderValidatedParams);

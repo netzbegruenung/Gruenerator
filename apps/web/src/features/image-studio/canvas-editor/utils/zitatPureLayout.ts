@@ -22,7 +22,7 @@ export const ZITAT_PURE_CONFIG = {
   },
   quote: {
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'italic' as const,
+    fontStyle: 'normal' as const,
     fontSize: 81,
     minFontSize: 50,
     maxFontSize: 90,
@@ -34,7 +34,7 @@ export const ZITAT_PURE_CONFIG = {
   },
   author: {
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'italic' as const,
+    fontStyle: 'normal' as const,
     fontSize: 35,
     minFontSize: 25,
     maxFontSize: 50,

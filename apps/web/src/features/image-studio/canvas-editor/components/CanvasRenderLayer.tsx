@@ -6,6 +6,7 @@ import { BalkenGroup } from '../primitives/BalkenGroup';
 import { CircleBadge } from '../primitives/CircleBadge';
 import { IconPrimitive } from '../primitives/IconPrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
+import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
 import { ALL_ICONS } from '../utils/canvasIcons';
 
@@ -16,6 +17,7 @@ import type { BalkenInstance, CircleBadgeInstance } from '../primitives';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { CanvasItem } from '../utils/canvasLayerManager';
 import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 
@@ -108,6 +110,16 @@ interface CanvasRenderLayerProps<
     handleCircleBadgeSelect: (id: string) => void;
     handleCircleBadgeDragEnd: (id: string, x: number, y: number) => void;
     handleCircleBadgeTransformEnd: (
+      id: string,
+      x: number,
+      y: number,
+      scale: number,
+      rotation: number
+    ) => void;
+    handlePillBadgeSelect: (id: string) => void;
+    handlePillBadgeTextChange: (id: string, text: string) => void;
+    handlePillBadgeDragEnd: (id: string, x: number, y: number) => void;
+    handlePillBadgeTransformEnd: (
       id: string,
       x: number,
       y: number,
@@ -292,9 +304,7 @@ function CanvasRenderLayerInner<
               illustration={ill}
               isSelected={selectedElement === ill.id}
               onSelect={() => handlers.handleElementSelect(ill.id)}
-              onDragEnd={(x: number, y: number) =>
-                handlers.handleIllustrationDragEnd(ill.id, x, y)
-              }
+              onDragEnd={(x: number, y: number) => handlers.handleIllustrationDragEnd(ill.id, x, y)}
               onTransformEnd={(x: number, y: number, scale: number, rotation: number) =>
                 handlers.handleIllustrationTransformEnd(ill.id, x, y, scale, rotation)
               }
@@ -316,9 +326,7 @@ function CanvasRenderLayerInner<
               asset={asset}
               isSelected={selectedElement === asset.id}
               onSelect={() => handlers.handleElementSelect(asset.id)}
-              onDragEnd={(x: number, y: number) =>
-                handlers.handleAssetDragEnd(asset.id, x, y)
-              }
+              onDragEnd={(x: number, y: number) => handlers.handleAssetDragEnd(asset.id, x, y)}
               onTransformEnd={(x: number, y: number, scale: number, rotation: number) =>
                 handlers.handleAssetTransformEnd(asset.id, x, y, scale, rotation)
               }
@@ -351,6 +359,43 @@ function CanvasRenderLayerInner<
               onSnapChange={handleSnapChange}
               onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
               getSnapTargets={(id) => getSnapTargets(id) as unknown[]}
+              stageWidth={stageWidth}
+              stageHeight={stageHeight}
+            />
+          );
+        }
+
+        // Render Pill Badge (e.g., "Wusstest du?" labels)
+        if (item.type === 'pill-badge') {
+          const pill = item.data as unknown as PillBadgeInstance;
+          return (
+            <PillBadge
+              key={pill.id}
+              id={pill.id}
+              text={pill.text}
+              x={pill.x}
+              y={pill.y}
+              backgroundColor={pill.backgroundColor}
+              textColor={pill.textColor}
+              fontSize={pill.fontSize}
+              fontFamily={pill.fontFamily}
+              fontStyle={pill.fontStyle}
+              rotation={pill.rotation}
+              scale={pill.scale}
+              opacity={pill.opacity ?? 1}
+              paddingX={pill.paddingX}
+              paddingY={pill.paddingY}
+              cornerRadius={pill.cornerRadius}
+              selected={selectedElement === pill.id}
+              onSelect={() => handlers.handlePillBadgeSelect(pill.id)}
+              onTextChange={(text) => handlers.handlePillBadgeTextChange(pill.id, text)}
+              onDragEnd={(x, y) => handlers.handlePillBadgeDragEnd(pill.id, x, y)}
+              onTransformEnd={(x, y, s, r) =>
+                handlers.handlePillBadgeTransformEnd(pill.id, x, y, s, r)
+              }
+              onSnapChange={handleSnapChange}
+              onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
+              getSnapTargets={(id) => getSnapTargets(id) as SnapTarget[]}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
             />

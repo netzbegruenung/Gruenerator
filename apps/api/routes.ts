@@ -5,23 +5,7 @@
 
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
-import editSessionRouter from './routes/sharepic/editSession.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
-import {
-  searchController as searchRouter,
-  webSearchController as webSearchRouter,
-} from './routes/search/index.js';
-import {
-  pickerController as imagePickerRoute,
-  generationController as imageGenerationRouter,
-} from './routes/image/index.js';
-import subtitlerRouter from './routes/subtitler/processingController.js';
-import subtitlerSocialRouter from './routes/subtitler/socialController.js';
-import subtitlerProjectRouter from './routes/subtitler/projectController.js';
-import subtitlerShareRouter from './routes/subtitler/shareController.js';
-import shareRouter from './routes/share/shareController.js';
-import * as tusServiceModule from './services/subtitler/tusService.js';
-import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { releasesRouter } from './routes/releases/index.js';
@@ -29,10 +13,21 @@ import { oparlRouter } from './routes/oparl/index.js';
 import voiceRouter from './routes/voice/voiceController.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
+import {
+  pickerController as imagePickerRoute,
+  generationController as imageGenerationRouter,
+} from './routes/image/index.js';
+import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import planModeRouter from './routes/plan-mode/index.js';
-import scannerRouter from './routes/scanner/index.js';
 import protokollRouter from './routes/protokoll/index.js';
+import scannerRouter from './routes/scanner/index.js';
+import {
+  searchController as searchRouter,
+  webSearchController as webSearchRouter,
+} from './routes/search/index.js';
+import shareRouter from './routes/share/shareController.js';
+import editSessionRouter from './routes/sharepic/editSession.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
@@ -49,7 +44,12 @@ import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zita
 import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
 import sharepicClaudeRoute, {
   handleClaudeRequest,
+  handleSliderSmartRequest,
 } from './routes/sharepic/sharepic_claude/index.js';
+import subtitlerRouter from './routes/subtitler/processingController.js';
+import subtitlerProjectRouter from './routes/subtitler/projectController.js';
+import subtitlerShareRouter from './routes/subtitler/shareController.js';
+import subtitlerSocialRouter from './routes/subtitler/socialController.js';
 import {
   universalRouter,
   redeRouter,
@@ -64,6 +64,7 @@ import {
 } from './routes/texte/index.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
+import * as tusServiceModule from './services/subtitler/tusService.js';
 import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
 
@@ -211,7 +212,11 @@ export async function setupRoutes(app: Application): Promise<void> {
     await handleClaudeRequest(req as any, res, 'simple');
   });
   app.post('/api/slider_claude', async (req: Request, res: Response): Promise<void> => {
-    await handleClaudeRequest(req as any, res, 'slider');
+    if (req.body.smartCount) {
+      await handleSliderSmartRequest(req as any, res);
+    } else {
+      await handleClaudeRequest(req as any, res, 'slider');
+    }
   });
   app.post('/api/default_claude', async (req: Request, res: Response): Promise<void> => {
     await handleClaudeRequest(req as any, res, 'default');

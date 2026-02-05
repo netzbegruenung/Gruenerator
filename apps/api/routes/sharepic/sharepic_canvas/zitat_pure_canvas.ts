@@ -1,22 +1,23 @@
-import { Router, Request, Response } from 'express';
+import fs from 'fs/promises';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import multer from 'multer';
+
 import {
   createCanvas,
   loadImage,
   type Canvas,
   type SKRSContext2D as CanvasRenderingContext2D,
 } from '@napi-rs/canvas';
-import fs from 'fs/promises';
-import path from 'path';
+import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
+
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
-import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -139,12 +140,12 @@ async function createZitatPureImage(
       `Sunflower watermark drawn at (${sunflowerX}, ${sunflowerY}) with size ${sunflowerSize}px and 6% opacity`
     );
 
-    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
+    ctx.font = `${quoteFontSize}px GrueneTypeNeue`;
     const testText = 'Test';
     const beforeWidth = ctx.measureText(testText).width;
     ctx.font = `italic ${quoteFontSize}px serif`;
     const serifWidth = ctx.measureText(testText).width;
-    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
+    ctx.font = `${quoteFontSize}px GrueneTypeNeue`;
     const afterWidth = ctx.measureText(testText).width;
 
     log.debug('Font loading test:', {
@@ -161,7 +162,7 @@ async function createZitatPureImage(
     const gapBetweenQuoteMarkAndText = 20;
     const gapBetweenQuoteAndName = 60;
 
-    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
+    ctx.font = `${quoteFontSize}px GrueneTypeNeue`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
@@ -172,7 +173,7 @@ async function createZitatPureImage(
     if (initialQuoteLines.length <= 5) {
       adjustedQuoteFontSize = Math.min(Math.round(quoteFontSize * 1.2), 97);
       adjustedNameFontSize = Math.min(Math.round(nameFontSize * 1.2), 42);
-      ctx.font = `italic ${adjustedQuoteFontSize}px GrueneTypeNeue`;
+      ctx.font = `${adjustedQuoteFontSize}px GrueneTypeNeue`;
     }
 
     const quoteLines = wrapText(ctx, processedText.quote, textWidth);
@@ -212,7 +213,7 @@ async function createZitatPureImage(
     const nameY = finalQuoteY + adjustedQuoteFontSize + gapBetweenQuoteAndName;
 
     log.debug('Rendering author name:', processedText.name);
-    ctx.font = `italic ${adjustedNameFontSize}px GrueneTypeNeue`;
+    ctx.font = `${adjustedNameFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
