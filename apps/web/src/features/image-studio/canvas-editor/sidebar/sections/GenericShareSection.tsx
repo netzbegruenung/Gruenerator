@@ -1,6 +1,7 @@
 import { useShareStore } from '@gruenerator/shared/share';
-import { useCallback, useState, useMemo } from 'react';
-import { FaDownload, FaImages, FaSave, FaCheck, FaInstagram, FaCopy } from 'react-icons/fa';
+import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { FaDownload, FaImages, FaSave, FaCheck, FaInstagram, FaCopy, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { MdTextFields } from 'react-icons/md';
 
@@ -21,11 +22,62 @@ export interface GenericShareSectionProps {
   // Multi-page export props
   pageCount?: number;
   onDownloadAllZip?: () => Promise<void>;
+  onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
 }
 
-// Download & Share Subsection - combined with 2 icon buttons
+// Reusable hook for portal dropdown positioning + click-outside
+function usePortalDropdown() {
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const position = () => {
+      if (!triggerRef.current || !menuRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < menuRect.height + 8 && spaceAbove > spaceBelow;
+
+      setStyle({
+        position: 'fixed',
+        left: `${Math.max(8, Math.min(rect.left + rect.width / 2 - menuRect.width / 2, window.innerWidth - menuRect.width - 8))}px`,
+        ...(openAbove
+          ? { bottom: `${window.innerHeight - rect.top + 6}px`, top: 'auto' }
+          : { top: `${rect.bottom + 6}px`, bottom: 'auto' }),
+        zIndex: 10000,
+        opacity: 1,
+      });
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
+        menuRef.current && !menuRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    const frame = requestAnimationFrame(position);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      cancelAnimationFrame(frame);
+    };
+  }, [open]);
+
+  return { open, setOpen, style, triggerRef, menuRef };
+}
+
+// Download & Share Subsection - combined with dropdown for multi-page
 function DownloadShareSubsection({
   exportedImage,
   shareToken,
@@ -35,6 +87,7 @@ function DownloadShareSubsection({
   canvasText,
   pageCount = 1,
   onDownloadAllZip,
+  onShareAllPages,
   isMultiExporting = false,
   exportProgress,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
@@ -42,10 +95,15 @@ function DownloadShareSubsection({
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
 
+  const dlDropdown = usePortalDropdown();
+  const shareDropdown = usePortalDropdown();
+
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
+  const isMultiPage = pageCount > 1 && onDownloadAllZip;
 
-  const handleDownloadClick = async () => {
+  const handleSingleDownload = async () => {
+    dlDropdown.setOpen(false);
     setDownloadState('capturing');
     try {
       onCaptureCanvas();
@@ -59,9 +117,24 @@ function DownloadShareSubsection({
     }
   };
 
+  const handleDownloadAllZip = async () => {
+    dlDropdown.setOpen(false);
+    if (onDownloadAllZip) {
+      await onDownloadAllZip();
+    }
+  };
+
+  const handleDownloadClick = async () => {
+    if (isMultiPage) {
+      dlDropdown.setOpen((prev) => !prev);
+    } else {
+      await handleSingleDownload();
+    }
+  };
+
   const handleNativeShare = useCallback(async () => {
+    shareDropdown.setOpen(false);
     if (!exportedImage) {
-      // Auto-capture if no image yet
       onCaptureCanvas();
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
@@ -95,78 +168,158 @@ function DownloadShareSubsection({
     } finally {
       setIsSharing(false);
     }
-  }, [exportedImage, canvasText, onCaptureCanvas]);
+  }, [exportedImage, canvasText, onCaptureCanvas, shareDropdown]);
+
+  const handleShareAllPages = useCallback(async () => {
+    shareDropdown.setOpen(false);
+    if (!onShareAllPages) return;
+    setIsSharing(true);
+    try {
+      await onShareAllPages();
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 2000);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Share all pages failed:', err);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [onShareAllPages, shareDropdown]);
+
+  const handleShareClick = useCallback(async () => {
+    if (isMultiPage && onShareAllPages) {
+      shareDropdown.setOpen((prev) => !prev);
+    } else {
+      await handleNativeShare();
+    }
+  }, [isMultiPage, onShareAllPages, shareDropdown, handleNativeShare]);
 
   return (
     <div className="share-subsection">
       <h3 className="share-subsection__title">Download & Teilen</h3>
 
       <div className="platform-icons">
-        <button
-          className="platform-icon-btn platform-icon-btn--download"
-          onClick={handleDownloadClick}
-          disabled={downloadState !== 'idle'}
-          title="Herunterladen"
-          aria-label="Bild herunterladen"
-          type="button"
-        >
-          {downloadState === 'capturing' ? (
-            <Spinner size="small" />
-          ) : downloadState === 'success' ? (
-            <FaCheck />
-          ) : (
-            <FaDownload />
-          )}
-        </button>
-
-        {canUseNativeShare && (
+        <div className="download-dropdown-container">
           <button
-            className="platform-icon-btn platform-icon-btn--native"
-            onClick={handleNativeShare}
-            disabled={isSharing}
-            title="Teilen"
-            aria-label="Bild teilen"
+            ref={dlDropdown.triggerRef}
+            className="platform-icon-btn platform-icon-btn--download"
+            onClick={handleDownloadClick}
+            disabled={downloadState !== 'idle' && !isMultiPage}
+            title="Herunterladen"
+            aria-label="Bild herunterladen"
+            aria-haspopup={isMultiPage ? 'menu' : undefined}
+            aria-expanded={isMultiPage ? dlDropdown.open : undefined}
             type="button"
           >
-            {isSharing ? <Spinner size="small" /> : shareSuccess ? <FaCheck /> : <IoShareOutline />}
-          </button>
-        )}
-      </div>
-
-      {/* Multi-page ZIP download */}
-      {pageCount > 1 && onDownloadAllZip && (
-        <div className="multi-page-download">
-          <hr className="share-divider" />
-          <button
-            className="btn btn-primary multi-page-download__btn"
-            onClick={onDownloadAllZip}
-            disabled={isMultiExporting}
-            type="button"
-          >
-            {isMultiExporting ? (
-              <>
-                <Spinner size="small" />
-                Exportiere...
-              </>
+            {downloadState === 'capturing' ? (
+              <Spinner size="small" />
+            ) : downloadState === 'success' ? (
+              <FaCheck />
             ) : (
-              <>
-                <FaDownload />
-                Alle {pageCount} Seiten (ZIP)
-              </>
+              <FaDownload />
             )}
           </button>
 
-          {isMultiExporting && exportProgress && exportProgress.total > 0 && (
-            <div className="multi-page-download__progress">
-              <div
-                className="multi-page-download__progress-bar"
-                style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
-              />
-              <span className="multi-page-download__progress-text">
-                {exportProgress.current}/{exportProgress.total} Seiten
-              </span>
-            </div>
+          {dlDropdown.open && isMultiPage && createPortal(
+            <div
+              ref={dlDropdown.menuRef}
+              className="download-dropdown-content"
+              style={dlDropdown.style}
+              role="menu"
+            >
+              <button
+                className="download-dropdown-option"
+                onClick={handleSingleDownload}
+                role="menuitem"
+                type="button"
+              >
+                <FaFileImage />
+                <span>Diese Seite (PNG)</span>
+              </button>
+              <button
+                className="download-dropdown-option"
+                onClick={handleDownloadAllZip}
+                disabled={isMultiExporting}
+                role="menuitem"
+                type="button"
+              >
+                {isMultiExporting ? (
+                  <>
+                    <Spinner size="small" />
+                    <span>Exportiere...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaFileArchive />
+                    <span>Alle {pageCount} Seiten (ZIP)</span>
+                  </>
+                )}
+              </button>
+            </div>,
+            document.body
           )}
+        </div>
+
+        {canUseNativeShare && (
+          <div className="download-dropdown-container">
+            <button
+              ref={shareDropdown.triggerRef}
+              className="platform-icon-btn platform-icon-btn--native"
+              onClick={handleShareClick}
+              disabled={isSharing}
+              title="Teilen"
+              aria-label="Bild teilen"
+              aria-haspopup={isMultiPage && onShareAllPages ? 'menu' : undefined}
+              aria-expanded={isMultiPage && onShareAllPages ? shareDropdown.open : undefined}
+              type="button"
+            >
+              {isSharing ? <Spinner size="small" /> : shareSuccess ? <FaCheck /> : <IoShareOutline />}
+            </button>
+
+            {shareDropdown.open && isMultiPage && onShareAllPages && createPortal(
+              <div
+                ref={shareDropdown.menuRef}
+                className="download-dropdown-content"
+                style={shareDropdown.style}
+                role="menu"
+              >
+                <button
+                  className="download-dropdown-option"
+                  onClick={handleNativeShare}
+                  role="menuitem"
+                  type="button"
+                >
+                  <IoShareOutline />
+                  <span>Diese Seite teilen</span>
+                </button>
+                <button
+                  className="download-dropdown-option"
+                  onClick={handleShareAllPages}
+                  disabled={isSharing}
+                  role="menuitem"
+                  type="button"
+                >
+                  <FaImages />
+                  <span>Alle Seiten teilen</span>
+                </button>
+              </div>,
+              document.body
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Multi-page export progress */}
+      {isMultiExporting && exportProgress && exportProgress.total > 0 && (
+        <div className="multi-page-download__progress">
+          <div
+            className="multi-page-download__progress-bar"
+            style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
+          />
+          <span className="multi-page-download__progress-text">
+            {exportProgress.current}/{exportProgress.total} Seiten
+          </span>
         </div>
       )}
 
@@ -398,6 +551,7 @@ export function GenericShareSection({
   canvasType,
   pageCount,
   onDownloadAllZip,
+  onShareAllPages,
   isMultiExporting,
   exportProgress,
 }: GenericShareSectionProps) {
@@ -417,6 +571,7 @@ export function GenericShareSection({
             canvasText={canvasText}
             pageCount={pageCount}
             onDownloadAllZip={onDownloadAllZip}
+            onShareAllPages={onShareAllPages}
             isMultiExporting={isMultiExporting}
             exportProgress={exportProgress}
           />
@@ -451,6 +606,7 @@ export function GenericShareSection({
       canvasType,
       pageCount,
       onDownloadAllZip,
+      onShareAllPages,
       isMultiExporting,
       exportProgress,
     ]

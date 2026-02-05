@@ -125,6 +125,8 @@ export interface ImageElementConfig<
   transformable?: boolean;
   /** Listen for events */
   listening?: boolean;
+  /** Constrain element position to canvas bounds during drag (default: true) */
+  constrainToBounds?: boolean;
   /** Opacity (0-1) */
   opacity?: PositionValue<TState>;
   /** State key for custom opacity override */
@@ -144,6 +146,10 @@ export interface RectElementConfig<
   height: PositionValue<TState>;
   fill: FillValue<TState>;
   listening?: boolean;
+  /** Corner radius for rounded rectangles. Single number for uniform radius, or array of 4 for per-corner [topLeft, topRight, bottomRight, bottomLeft] */
+  cornerRadius?: PositionValue<TState> | number[];
+  /** Enable dragging */
+  draggable?: boolean;
 }
 
 /** Circle element configuration */
@@ -268,7 +274,8 @@ export type CanvasConfigId =
   | 'info'
   | 'veranstaltung'
   | 'simple'
-  | 'dreizeilen';
+  | 'dreizeilen'
+  | 'slider';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {

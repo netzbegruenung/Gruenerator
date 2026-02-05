@@ -1,1 +1,18 @@
-/* CanvasStage styles - intentionally minimal */
+.canvas-stage-container {
+  position: relative;
+}
+
+/* Canvas boundary indicator - visible in editor, not in export.
+   Uses ::after pseudo-element with pointer-events: none to overlay on top of Konva canvas */
+.canvas-stage-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid var(--primary-600);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 10;
+}

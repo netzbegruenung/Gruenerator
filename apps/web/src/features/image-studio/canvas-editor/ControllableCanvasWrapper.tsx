@@ -6,6 +6,7 @@ import { HeterogeneousMultiPage } from './components/HeterogeneousMultiPage';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import { ProfilbildCanvas } from './ProfilbildCanvas';
 
+import type { InitialPageDef } from './hooks/useHeterogeneousMultiPage';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 
 type CanvasState = Record<string, unknown>;
@@ -45,6 +46,8 @@ export interface ControllableCanvasWrapperProps {
   onExport: (base64: string) => void;
   onCancel: () => void;
   onStateChange?: (newState: CanvasState) => void;
+  /** Pre-populated pages for heterogeneous multi-page mode (e.g. slider slides) */
+  initialPages?: InitialPageDef[];
 }
 
 export function ControllableCanvasWrapper({
@@ -54,6 +57,7 @@ export function ControllableCanvasWrapper({
   onExport,
   onCancel,
   onStateChange,
+  initialPages,
 }: ControllableCanvasWrapperProps) {
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
   const [componentKey, setComponentKey] = useState(Date.now());
@@ -73,6 +77,7 @@ export function ControllableCanvasWrapper({
       'veranstaltung',
       'simple',
       'dreizeilen',
+      'slider',
     ].includes(type);
 
     if (needsConfig && isValidCanvasType(type)) {
@@ -178,6 +183,13 @@ export function ControllableCanvasWrapper({
             imageSrc: imageSrc || '',
             alternatives: internalState.alternatives || [],
           };
+        case 'slider':
+          return {
+            label: internalState.label || '',
+            headline: internalState.headline || '',
+            subtext: internalState.subtext || '',
+            alternatives: internalState.alternatives || [],
+          };
         case 'dreizeilen':
           return {
             line1: internalState.line1 || '',
@@ -203,6 +215,8 @@ export function ControllableCanvasWrapper({
           return createCallbacks(['eventTitle', 'beschreibung']);
         case 'simple':
           return createCallbacks(['headline', 'subtext']);
+        case 'slider':
+          return createCallbacks(['label', 'headline', 'subtext']);
         case 'dreizeilen':
           return createCallbacks(['line1', 'line2', 'line3']);
         default:
@@ -217,6 +231,7 @@ export function ControllableCanvasWrapper({
       case 'info':
       case 'veranstaltung':
       case 'simple':
+      case 'slider':
       case 'dreizeilen':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
@@ -231,6 +246,7 @@ export function ControllableCanvasWrapper({
               onCancel={onCancel}
               callbacks={buildCallbacks()}
               maxPages={config.multiPage?.maxPages ?? 10}
+              initialPages={initialPages}
             />
           );
         }
