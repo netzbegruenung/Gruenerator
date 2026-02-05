@@ -6,6 +6,7 @@ import type { IconType } from 'react-icons';
 export interface VariantStyle {
   label: string;
   imageName: string;
+  fallbackImageName?: string;
   description: string;
 }
 
@@ -19,6 +20,7 @@ export interface Variant {
   label: string;
   description: string;
   imageUrl: string;
+  fallbackImageUrl?: string;
 }
 
 export interface FormProps {
@@ -81,6 +83,7 @@ export interface TypeConfigBase {
   description: string;
   icon: IconType;
   previewImage?: string;
+  previewImageFallback?: string;
   hidden?: boolean;
   isBeta?: boolean;
   excludeFromTemplates?: boolean;
