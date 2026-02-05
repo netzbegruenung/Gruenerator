@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
-import { handleUnifiedRequest } from './unifiedHandler.js';
+
 import { handleDefaultRequest } from './defaultHandler.js';
+import { handleUnifiedRequest } from './unifiedHandler.js';
+
 import type { SharepicRequest } from './types.js';
 
 const router: Router = Router();
@@ -53,3 +55,4 @@ export { handleUnifiedRequest };
 export type { SharepicType };
 
 export { handleDefaultRequest } from './defaultHandler.js';
+export { handleSliderSmartRequest } from './sliderSmartHandler.js';

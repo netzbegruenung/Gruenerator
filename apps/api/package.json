@@ -39,7 +39,10 @@
     "sync:austria:full": "node scripts/syncAustrianSocialMedia.js --limit 100",
     "scrape:satzungen": "node scripts/scrape-satzungen.js",
     "scrape:satzungen:force": "node scripts/scrape-satzungen.js --force",
-    "scrape:satzungen:stats": "node scripts/scrape-satzungen.js --stats"
+    "scrape:satzungen:stats": "node scripts/scrape-satzungen.js --stats",
+    "export:finetuning": "npx tsx scripts/exportFineTuningData.ts",
+    "export:finetuning:dry-run": "npx tsx scripts/exportFineTuningData.ts --dry-run",
+    "export:finetuning:test": "npx tsx scripts/exportFineTuningData.ts --limit 10"
   },
   "keywords": [],
   "author": "",

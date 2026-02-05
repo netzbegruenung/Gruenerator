@@ -34,6 +34,7 @@ export interface SharepicRequestBody {
   line2?: string;
   line3?: string;
   count?: number;
+  smartCount?: boolean;
   source?: string;
   quote?: string;
   name?: string;

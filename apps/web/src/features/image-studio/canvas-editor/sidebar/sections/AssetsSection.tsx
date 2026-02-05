@@ -21,10 +21,7 @@ import useDebounce from '../../../../../components/hooks/useDebounce';
 import { BalkenIcon } from '../../icons';
 import { ALL_ASSETS, type UniversalAsset, type AssetInstance } from '../../utils/canvasAssets';
 import { ALL_ICONS, type IconDef } from '../../utils/canvasIcons';
-import {
-  getIllustrationPath,
-  ALL_ILLUSTRATIONS,
-} from '../../utils/illustrations/registry';
+import { getIllustrationPath, ALL_ILLUSTRATIONS } from '../../utils/illustrations/registry';
 import { prefetchBackground } from '../../utils/illustrations/svgCache';
 import { getEnglishSearchTerms } from '../../utils/searchTranslations';
 import { type ShapeInstance, type ShapeType, ALL_SHAPES, type ShapeDef } from '../../utils/shapes';
@@ -297,6 +294,9 @@ export interface ExtendedAssetsSectionProps {
   onRemoveAsset?: (id: string) => void;
   onDuplicateAsset?: (id: string) => void;
 
+  // Pill badge props
+  onAddPillBadge?: (preset?: string) => void;
+
   // Icon props
   selectedIcons?: string[];
   onIconToggle?: (iconId: string, selected: boolean) => void;
@@ -337,6 +337,7 @@ export function AssetsSection({
   onUpdateAsset,
   onRemoveAsset,
   onDuplicateAsset,
+  onAddPillBadge,
   selectedIcons,
   onIconToggle,
   maxIconSelections = 3,
@@ -377,12 +378,12 @@ export function AssetsSection({
   useEffect(() => {
     if (hasIllustrationsFeature) {
       // Filter to SVG illustrations only (Kawaii are rendered dynamically)
-      const svgIllustrations = ALL_ILLUSTRATIONS
-        .filter((ill) => ill.source !== 'kawaii')
-        .map((ill) => ({
+      const svgIllustrations = ALL_ILLUSTRATIONS.filter((ill) => ill.source !== 'kawaii').map(
+        (ill) => ({
           id: ill.id,
           def: ill as SvgDef,
-        }));
+        })
+      );
 
       if (svgIllustrations.length === 0) return;
 
@@ -622,7 +623,11 @@ export function AssetsSection({
               </button>
             )}
           </h4>
-          <FormenSection onAddShape={onAddShape!} isExpanded={formenExpanded} />
+          <FormenSection
+            onAddShape={onAddShape!}
+            isExpanded={formenExpanded}
+            onAddPillBadge={onAddPillBadge}
+          />
         </>
       ),
     });

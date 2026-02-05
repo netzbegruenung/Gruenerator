@@ -1,19 +1,21 @@
-import type { Response } from 'express';
 import prompts from '../../../prompts/sharepic/index.js';
 import { createLogger } from '../../../utils/logger.js';
+import { replaceTemplate } from '../../../utils/sharepic/template.js';
 import {
   parseLabeledText,
   parseLabeledTextBatch,
   sanitizeField,
   truncateField,
 } from '../../../utils/sharepic/textParser.js';
-import { replaceTemplate } from '../../../utils/sharepic/template.js';
+
 import type { SharepicRequest, PromptConfig } from './types.js';
+import type { Response } from 'express';
 
 const log = createLogger('sharepic_unified');
 
 interface TypeConfig {
   fields: string[];
+  optionalFields?: string[];
   mainKey: string;
   maxLengths?: Record<string, number>;
   coverMaxLengths?: Record<string, number>;
@@ -54,10 +56,11 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     maxLengths: { headline: 50, subtext: 150 },
   },
   slider: {
-    fields: ['label', 'headline', 'subtext', 'suchbegriff'],
+    fields: ['label', 'headline', 'subtext', 'subtext2', 'suchbegriff'],
+    optionalFields: ['subtext2'],
     mainKey: 'mainSlider',
-    maxLengths: { label: 25, headline: 130, subtext: 300 },
-    coverMaxLengths: { label: 25, headline: 70, subtext: 100 },
+    maxLengths: { label: 25, headline: 130, subtext: 200, subtext2: 200 },
+    coverMaxLengths: { label: 25, headline: 70, subtext: 100, subtext2: 0 },
   },
 };
 
@@ -102,6 +105,7 @@ function mapToResponseFormat(
         label: data.label,
         headline: data.headline,
         subtext: data.subtext,
+        subtext2: data.subtext2 || '',
       };
     default:
       return data;
@@ -177,7 +181,12 @@ export async function handleUnifiedRequest(
       let searchTerms: string[] = [];
 
       if (count > 1) {
-        const parseResults = parseLabeledTextBatch(content, config.fields, count);
+        const parseResults = parseLabeledTextBatch(
+          content,
+          config.fields,
+          count,
+          config.optionalFields
+        );
 
         if (parseResults.length === 0) {
           lastError = 'No valid alternatives parsed';
@@ -188,9 +197,8 @@ export async function handleUnifiedRequest(
         const totalVariants = parseResults.length;
         const processedResults = parseResults.map((parseResult, idx) => {
           const isCover = idx === 0 || idx === totalVariants - 1;
-          const limits = isCover && config.coverMaxLengths
-            ? config.coverMaxLengths
-            : config.maxLengths;
+          const limits =
+            isCover && config.coverMaxLengths ? config.coverMaxLengths : config.maxLengths;
           const processedData: Record<string, string> = {};
           for (const [key, value] of Object.entries(parseResult.data)) {
             let processed = sanitizeField(value);

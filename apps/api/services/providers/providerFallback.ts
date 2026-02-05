@@ -41,7 +41,7 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
     case 'litellm':
       return 'gpt-oss:120b';
     case 'mistral':
-      return 'mistral-medium-latest';
+      return 'mistral-large-2512';
     case 'telekom':
       return 'Llama-3.1-70B-Instruct';
     default:
@@ -65,7 +65,7 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
     case 'telekom':
       return 'Llama-3.1-70B-Instruct';
     default:
-      return 'mistral-medium-latest';
+      return 'mistral-large-2512';
   }
 }
 
