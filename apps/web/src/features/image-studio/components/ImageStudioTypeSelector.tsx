@@ -17,6 +17,8 @@ import {
 } from '../utils/typeConfig';
 import { type TypeConfig } from '../utils/typeConfig/types';
 
+import PreviewImage from './PreviewImage';
+
 import '../image-studio-shared.css';
 import './ImageStudioTypeSelector.css';
 
@@ -85,7 +87,14 @@ const ImageStudioTypeSelector: React.FC = () => {
                 }
               >
                 {config.isBeta && <span className="beta-badge">Beta</span>}
-                <img src={config.previewImage} alt={config.label} className="type-card__image" />
+                <PreviewImage
+                  src={config.previewImage ?? ''}
+                  fallbackSrc={config.previewImageFallback}
+                  alt={config.label}
+                  className="type-card__image"
+                  width={600}
+                  height={800}
+                />
                 <h3>{config.label}</h3>
                 <p className="type-card__description">{config.description}</p>
               </div>
@@ -96,6 +105,7 @@ const ImageStudioTypeSelector: React.FC = () => {
                 label: string;
                 description: string;
                 imageUrl: string;
+                fallbackImageUrl?: string;
               }) => (
                 <div
                   key={variant.value}
@@ -107,7 +117,14 @@ const ImageStudioTypeSelector: React.FC = () => {
                     e.key === 'Enter' && handleVariantSelect(variant.value)
                   }
                 >
-                  <img src={variant.imageUrl} alt={variant.label} className="type-card__image" />
+                  <PreviewImage
+                    src={variant.imageUrl}
+                    fallbackSrc={variant.fallbackImageUrl}
+                    alt={variant.label}
+                    className="type-card__image"
+                    width={600}
+                    height={800}
+                  />
                   <h3>{variant.label}</h3>
                   <p className="type-card__description">{variant.description}</p>
                 </div>
@@ -145,7 +162,14 @@ const ImageStudioTypeSelector: React.FC = () => {
                   }
                 >
                   {config.isBeta && <span className="beta-badge">Beta</span>}
-                  <img src={config.previewImage} alt={config.label} className="type-card__image" />
+                  <PreviewImage
+                    src={config.previewImage ?? ''}
+                    fallbackSrc={config.previewImageFallback}
+                    alt={config.label}
+                    className="type-card__image"
+                    width={600}
+                    height={800}
+                  />
                   <h3>{config.label}</h3>
                 </div>
               ) : (
@@ -197,7 +221,14 @@ const ImageStudioTypeSelector: React.FC = () => {
                 }
               >
                 {config.isBeta && <span className="beta-badge">Beta</span>}
-                <img src={config.previewImage} alt={config.label} className="type-card__image" />
+                <PreviewImage
+                  src={config.previewImage ?? ''}
+                  fallbackSrc={config.previewImageFallback}
+                  alt={config.label}
+                  className="type-card__image"
+                  width={600}
+                  height={800}
+                />
                 <h3>{config.label}</h3>
               </div>
             ) : (

@@ -8,6 +8,8 @@ import { slideVariants } from '../components/StepFlow';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 
 import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
+import type { InitialPageDef } from '../canvas-editor/hooks/useHeterogeneousMultiPage';
+import type { CanvasConfigId } from '../canvas-editor/configs/types';
 
 interface CanvasEditTypeConfig {
   id?: string;
@@ -20,6 +22,9 @@ interface SloganAlternative {
   line1?: string;
   line2?: string;
   line3?: string;
+  label?: string;
+  headline?: string;
+  subtext?: string;
 }
 
 type CanvasState = Record<string, unknown>;
@@ -239,6 +244,58 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
               if (typeof state.headline === 'string') onHeadlineChange?.(state.headline);
               if (typeof state.subtext === 'string') onSubtextChange?.(state.subtext);
             }}
+          />
+        </motion.div>
+      )}
+
+      {typeConfig?.id === IMAGE_STUDIO_TYPES.SLIDER && (
+        <motion.div
+          key={currentStepId}
+          custom={direction}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="typeform-field typeform-field--canvas-edit"
+        >
+          <ControllableCanvasWrapper
+            type="slider"
+            initialState={{
+              label: getFieldValue('label') || '',
+              headline: getFieldValue('headline') || '',
+              subtext: getFieldValue('subtext') || '',
+              alternatives: sloganAlternatives,
+            }}
+            onExport={handleCanvasExport}
+            onCancel={handleBack}
+            initialPages={
+              sloganAlternatives.length > 0
+                ? [
+                    {
+                      configId: 'slider' as CanvasConfigId,
+                      state: {
+                        label: getFieldValue('label') || '',
+                        headline: getFieldValue('headline') || '',
+                        subtext: getFieldValue('subtext') || '',
+                        slideVariant: 'cover',
+                      },
+                    },
+                    ...sloganAlternatives.slice(1).map(
+                      (alt, index): InitialPageDef => ({
+                        configId: 'slider' as CanvasConfigId,
+                        state: {
+                          label: alt.label || 'Wusstest du?',
+                          headline: alt.headline || '',
+                          subtext: alt.subtext || '',
+                          slideVariant:
+                            index < sloganAlternatives.length - 2 ? 'content' : 'last',
+                        },
+                      })
+                    ),
+                  ]
+                : undefined
+            }
           />
         </motion.div>
       )}

@@ -56,6 +56,7 @@ const initialState = {
   body: '',
   headline: '',
   subtext: '',
+  label: '',
 
   // Veranstaltung-specific fields
   eventTitle: '',
