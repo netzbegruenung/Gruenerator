@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+
 import {
   createCanvas,
   loadImage,
@@ -5,13 +8,12 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
+
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
+import { registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,
   bufferToBase64,
@@ -184,7 +186,7 @@ function drawEventText(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  ctx.font = `italic bold ${scaledFontSizes.eventTitle}px GrueneTypeNeue`;
+  ctx.font = `${scaledFontSizes.eventTitle}px GrueneTypeNeue`;
   ctx.fillStyle = '#FFFFFF';
   const titleLines = wrapText(ctx, eventTitle.toUpperCase(), TEXT_MAX_WIDTH);
   titleLines.forEach((line) => {
@@ -198,7 +200,7 @@ function drawEventText(
     const fontSize = scaledFontSizes.beschreibung;
     const lineHeight = Math.round(fontSize * 1.17);
 
-    ctx.font = `italic ${fontSize}px GrueneTypeNeue`;
+    ctx.font = `${fontSize}px GrueneTypeNeue`;
     ctx.fillStyle = '#FFFFFF';
 
     const words = beschreibung.split(' ');
