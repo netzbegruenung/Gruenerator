@@ -18,10 +18,18 @@ import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
 
 import type { CanvasConfigId, HeterogeneousPage, FullCanvasConfig } from '../configs/types';
 
+/** Pre-populated page definition for initializing multi-page with content */
+export interface InitialPageDef {
+  configId: CanvasConfigId;
+  state: Record<string, unknown>;
+}
+
 export interface UseHeterogeneousMultiPageOptions {
   initialConfigId: CanvasConfigId;
   initialProps: Record<string, unknown>;
   maxPages?: number;
+  /** Pre-populated pages — when provided, overrides single-page initialization from initialProps */
+  initialPages?: InitialPageDef[];
 }
 
 export interface UseHeterogeneousMultiPageReturn {
@@ -29,7 +37,7 @@ export interface UseHeterogeneousMultiPageReturn {
   currentPageIndex: number;
   setCurrentPageIndex: (index: number) => void;
   currentPage: HeterogeneousPage | undefined;
-  addPage: (configId: CanvasConfigId, inheritBackground?: boolean) => Promise<void>;
+  addPage: (configId: CanvasConfigId, inheritBackground?: boolean, stateOverrides?: Record<string, unknown>) => Promise<void>;
   duplicateCurrentPage: () => void;
   removePage: (id: string) => void;
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
@@ -76,20 +84,31 @@ export function useHeterogeneousMultiPage({
   initialConfigId,
   initialProps,
   maxPages = 10,
+  initialPages,
 }: UseHeterogeneousMultiPageOptions): UseHeterogeneousMultiPageReturn {
   // Config cache - loaded configs are stored here to avoid re-fetching
   const configCacheRef = useRef<Map<CanvasConfigId, FullCanvasConfig>>(new Map());
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
-  // Initialize with one page using the initial config
-  const [pages, setPages] = useState<HeterogeneousPage[]>(() => [
-    {
-      id: uuid(),
-      configId: initialConfigId,
-      state: initialProps,
-      order: 0,
-    },
-  ]);
+  // Initialize pages: use initialPages if provided, otherwise single page from initialProps
+  const [pages, setPages] = useState<HeterogeneousPage[]>(() => {
+    if (initialPages && initialPages.length > 0) {
+      return initialPages.map((def, index) => ({
+        id: uuid(),
+        configId: def.configId,
+        state: def.state,
+        order: index,
+      }));
+    }
+    return [
+      {
+        id: uuid(),
+        configId: initialConfigId,
+        state: initialProps,
+        order: 0,
+      },
+    ];
+  });
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
@@ -129,7 +148,7 @@ export function useHeterogeneousMultiPage({
    * @param inheritBackground - Whether to copy background from current page
    */
   const addPage = useCallback(
-    async (configId: CanvasConfigId, inheritBackground = true) => {
+    async (configId: CanvasConfigId, inheritBackground = true, stateOverrides?: Record<string, unknown>) => {
       if (!canAddMore) return;
 
       // Load the config for the new page
@@ -141,10 +160,11 @@ export function useHeterogeneousMultiPage({
         inheritBackground && currentPage ? extractInheritableBackground(currentPage.state) : {};
 
       // Create initial state using the config's createInitialState
-      // Merge in inherited background and any default new page state
+      // Merge in inherited background, default new page state, and any overrides
       const newPageState = config.createInitialState({
         ...(config.multiPage?.defaultNewPageState || {}),
         ...inheritedBackground,
+        ...stateOverrides,
       });
 
       const newPage: HeterogeneousPage = {

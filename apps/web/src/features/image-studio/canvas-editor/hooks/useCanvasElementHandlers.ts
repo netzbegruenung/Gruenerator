@@ -110,6 +110,22 @@ export interface UseCanvasElementHandlersResult {
     scale: number,
     rotation: number
   ) => void;
+  handleAssetDragEnd: (id: string, x: number, y: number) => void;
+  handleAssetTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    scale: number,
+    rotation: number
+  ) => void;
+  handleIllustrationDragEnd: (id: string, x: number, y: number) => void;
+  handleIllustrationTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    scale: number,
+    rotation: number
+  ) => void;
 }
 
 /**
@@ -341,6 +357,42 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handleAssetDragEnd = useCallback(
+    (id: string, x: number, y: number) => {
+      if (actions.updateAsset) {
+        actions.updateAsset(id, { x, y });
+      }
+    },
+    [actions]
+  );
+
+  const handleAssetTransformEnd = useCallback(
+    (id: string, x: number, y: number, scale: number, rotation: number) => {
+      if (actions.updateAsset) {
+        actions.updateAsset(id, { x, y, scale, rotation });
+      }
+    },
+    [actions]
+  );
+
+  const handleIllustrationDragEnd = useCallback(
+    (id: string, x: number, y: number) => {
+      if (actions.updateIllustration) {
+        actions.updateIllustration(id, { x, y });
+      }
+    },
+    [actions]
+  );
+
+  const handleIllustrationTransformEnd = useCallback(
+    (id: string, x: number, y: number, scale: number, rotation: number) => {
+      if (actions.updateIllustration) {
+        actions.updateIllustration(id, { x, y, scale, rotation });
+      }
+    },
+    [actions]
+  );
+
   return {
     handleElementSelect,
     handleTextChange,
@@ -358,5 +410,9 @@ export function useCanvasElementHandlers<
     handleCircleBadgeSelect,
     handleCircleBadgeDragEnd,
     handleCircleBadgeTransformEnd,
+    handleAssetDragEnd,
+    handleAssetTransformEnd,
+    handleIllustrationDragEnd,
+    handleIllustrationTransformEnd,
   };
 }

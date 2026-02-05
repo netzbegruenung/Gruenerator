@@ -84,6 +84,7 @@ const sunflowerElement: ImageElementConfig<ColorTwoTextState> = {
   src: ZITAT_PURE_CONFIG.sunflower.src,
   listening: true,
   draggable: true,
+  constrainToBounds: false,
   opacity: () => ZITAT_PURE_CONFIG.sunflower.opacity,
 };
 
