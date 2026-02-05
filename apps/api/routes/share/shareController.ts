@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 import express, { type Request, type Response, type Router } from 'express';
+import sharp from 'sharp';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
@@ -948,6 +949,46 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
           return fs.createReadStream(mediaPath).pipe(res);
         }
       } else {
+        // Support resized thumbnails via ?w= query parameter
+        const requestedWidth = parseInt(req.query.w as string, 10);
+        if (requestedWidth && requestedWidth > 0 && requestedWidth < 2000) {
+          try {
+            const thumbDir = path.join(path.dirname(mediaPath), 'thumbs');
+            const thumbFilename = `${path.basename(mediaPath, path.extname(mediaPath))}_w${requestedWidth}.webp`;
+            const thumbPath = path.join(thumbDir, thumbFilename);
+
+            // Check if cached thumbnail exists
+            try {
+              const thumbStat = await fsPromises.stat(thumbPath);
+              res.setHeader('Content-Type', 'image/webp');
+              res.setHeader('Content-Length', thumbStat.size);
+              res.setHeader('Cache-Control', 'public, max-age=31536000');
+              return fs.createReadStream(thumbPath).pipe(res);
+            } catch {
+              // Thumbnail doesn't exist yet, generate it
+            }
+
+            await fsPromises.mkdir(thumbDir, { recursive: true });
+            const thumbBuffer = await sharp(mediaPath)
+              .resize({ width: requestedWidth })
+              .webp({ quality: 80 })
+              .toBuffer();
+
+            // Cache to disk asynchronously (don't await)
+            fsPromises.writeFile(thumbPath, thumbBuffer).catch((err) => {
+              log.error('Failed to cache thumbnail:', err);
+            });
+
+            res.setHeader('Content-Type', 'image/webp');
+            res.setHeader('Content-Length', thumbBuffer.length);
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+            return res.send(thumbBuffer);
+          } catch (resizeErr) {
+            log.error('Thumbnail generation failed, serving original:', resizeErr);
+            // Fall through to serve original
+          }
+        }
+
         res.setHeader('Content-Type', share.mime_type || 'image/png');
         res.setHeader('Content-Length', fileSize);
         res.setHeader('Cache-Control', 'public, max-age=31536000');
