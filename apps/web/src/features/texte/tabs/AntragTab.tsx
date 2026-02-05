@@ -58,6 +58,8 @@ const PlanModeIcon = memo(({ className }: { className?: string }) => (
 ));
 PlanModeIcon.displayName = 'PlanModeIcon';
 
+const EMPTY_ARRAY: unknown[] = [];
+
 const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
   const componentName = 'antrag-generator';
 
@@ -115,10 +117,7 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
   const { control, handleSubmit, setValue } = form;
   const getValues = form.getValues as (name?: string) => unknown;
 
-  const allAttachments = useMemo(
-    () => [...(form.generator?.attachedFiles || [])],
-    [form.generator?.attachedFiles]
-  );
+  const allAttachments = form.generator?.attachedFiles ?? EMPTY_ARRAY;
 
   const builder = useFormDataBuilder({
     ...setup,
