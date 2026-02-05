@@ -27,3 +27,6 @@ export { AttributionOverlay } from './AttributionOverlay';
 
 export { CircleBadge } from './CircleBadge';
 export type { CircleBadgeProps, CircleBadgeInstance, CircleBadgeTextLine } from './CircleBadge';
+
+export { PillBadge } from './PillBadge';
+export type { PillBadgeProps } from './PillBadge';
