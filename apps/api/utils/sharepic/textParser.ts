@@ -32,6 +32,8 @@ export function parseLabeledText(
   const cleanedContent = content
     .replace(/```(?:json|text|)?\s*/gi, '')
     .replace(/```\s*/g, '')
+    .replace(/\*{1,3}/g, '')
+    .replace(/_{1,2}/g, '')
     .trim();
 
   if (!cleanedContent) {
@@ -118,7 +120,7 @@ export function parseLabeledTextBatch(
     return [];
   }
 
-  const variantPattern = /(?:VARIANTE|VARIANT)\s*\d+/gi;
+  const variantPattern = /(?:VARIANTE|VARIANT|SLIDE)\s*\d+/gi;
   const variants = cleaned.split(variantPattern).filter((s) => s.trim());
 
   if (variants.length === 0) {
@@ -148,7 +150,12 @@ export function parseLabeledTextBatch(
 export function sanitizeField(value: string | undefined | null): string {
   if (!value || typeof value !== 'string') return '';
 
-  return value.replace(/\*\*/g, '').replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
+  return value
+    .replace(/\*{1,3}/g, '')
+    .replace(/_{1,2}/g, '')
+    .replace(/#\w+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

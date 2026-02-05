@@ -16,6 +16,7 @@ interface TypeConfig {
   fields: string[];
   mainKey: string;
   maxLengths?: Record<string, number>;
+  coverMaxLengths?: Record<string, number>;
 }
 
 const TYPE_CONFIGS: Record<string, TypeConfig> = {
@@ -52,6 +53,12 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     mainKey: 'mainSimple',
     maxLengths: { headline: 50, subtext: 150 },
   },
+  slider: {
+    fields: ['label', 'headline', 'subtext', 'suchbegriff'],
+    mainKey: 'mainSlider',
+    maxLengths: { label: 25, headline: 130, subtext: 300 },
+    coverMaxLengths: { label: 25, headline: 70, subtext: 100 },
+  },
 };
 
 function mapToResponseFormat(
@@ -87,6 +94,12 @@ function mapToResponseFormat(
       return data.zitat || '';
     case 'simple':
       return {
+        headline: data.headline,
+        subtext: data.subtext,
+      };
+    case 'slider':
+      return {
+        label: data.label,
         headline: data.headline,
         subtext: data.subtext,
       };
@@ -128,6 +141,7 @@ export async function handleUnifiedRequest(
     quote: quote || '',
     name: name || '',
     count: count.toString(),
+    count_minus_one: Math.max(1, count - 1).toString(),
   });
 
   log.debug(`[${type}] Request:`, requestContent.substring(0, 100) + '...');
@@ -157,16 +171,13 @@ export async function handleUnifiedRequest(
       }
 
       const content = result.content || '';
-      log.debug(`[${type}] Attempt ${attempts} response:`, content.substring(0, 200));
 
       let mainData: Record<string, unknown> | string;
       let alternatives: Array<Record<string, unknown> | string> = [];
       let searchTerms: string[] = [];
 
       if (count > 1) {
-        console.log('[DEBUG unifiedHandler] Processing batch, count:', count);
         const parseResults = parseLabeledTextBatch(content, config.fields, count);
-        console.log('[DEBUG unifiedHandler] Parsed variants:', parseResults.length);
 
         if (parseResults.length === 0) {
           lastError = 'No valid alternatives parsed';
@@ -174,12 +185,17 @@ export async function handleUnifiedRequest(
           continue;
         }
 
-        const processedResults = parseResults.map((parseResult) => {
+        const totalVariants = parseResults.length;
+        const processedResults = parseResults.map((parseResult, idx) => {
+          const isCover = idx === 0 || idx === totalVariants - 1;
+          const limits = isCover && config.coverMaxLengths
+            ? config.coverMaxLengths
+            : config.maxLengths;
           const processedData: Record<string, string> = {};
           for (const [key, value] of Object.entries(parseResult.data)) {
             let processed = sanitizeField(value);
-            if (config.maxLengths?.[key]) {
-              processed = truncateField(processed, config.maxLengths[key]);
+            if (limits?.[key]) {
+              processed = truncateField(processed, limits[key]);
             }
             processedData[key] = processed;
           }
@@ -188,7 +204,6 @@ export async function handleUnifiedRequest(
 
         mainData = mapToResponseFormat(type, processedResults[0]);
         alternatives = processedResults.slice(1).map((data) => mapToResponseFormat(type, data));
-        console.log('[DEBUG unifiedHandler] Final alternatives:', alternatives);
         searchTerms = processedResults.flatMap((data) =>
           data.suchbegriff ? [data.suchbegriff] : []
         );

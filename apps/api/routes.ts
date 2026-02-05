@@ -42,6 +42,7 @@ import infoSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/info_canv
 import processTextRouter from './routes/sharepic/sharepic_canvas/processTextRouter.js';
 import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
 import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.js';
+import sliderCanvasRoute from './routes/sharepic/sharepic_canvas/slider_canvas.js';
 import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
 import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
@@ -185,6 +186,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/veranstaltung_canvas', veranstaltungCanvasRoute);
   app.use('/api/profilbild_canvas', profilbildCanvasRoute);
   app.use('/api/simple_canvas', simpleCanvasRoute);
+  app.use('/api/slider_canvas', sliderCanvasRoute);
   app.use('/api/campaign_generate', campaignGenerateRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
@@ -207,6 +209,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   });
   app.post('/api/simple_claude', async (req: Request, res: Response): Promise<void> => {
     await handleClaudeRequest(req as any, res, 'simple');
+  });
+  app.post('/api/slider_claude', async (req: Request, res: Response): Promise<void> => {
+    await handleClaudeRequest(req as any, res, 'slider');
   });
   app.post('/api/default_claude', async (req: Request, res: Response): Promise<void> => {
     await handleClaudeRequest(req as any, res, 'default');
