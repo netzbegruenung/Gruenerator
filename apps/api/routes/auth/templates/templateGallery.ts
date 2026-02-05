@@ -23,13 +23,18 @@ const router: Router = express.Router();
 // Load system templates and files from JSON file
 let systemTemplates: any[] = [];
 let systemFiles: any[] = [];
-const systemFilesDir = path.resolve(__dirname, '../../../data/files');
+const apiRoot = process.cwd();
+const systemFilesDir = path.resolve(apiRoot, 'data/files');
+const templatePreviewsDir = path.resolve(apiRoot, 'config/templates/previews');
 
 try {
-  const systemTemplatesPath = path.resolve(__dirname, '../../../data/system-templates.json');
+  const systemTemplatesPath = path.resolve(apiRoot, 'config/templates/system-templates.json');
   const data = fs.readFileSync(systemTemplatesPath, 'utf-8');
   const parsed = JSON.parse(data);
-  systemTemplates = parsed.templates || [];
+  systemTemplates = (parsed.templates || []).map((t: any) => ({
+    ...t,
+    thumbnail_url: t.preview_image ? `/auth/template-previews/${t.preview_image}` : t.thumbnail_url,
+  }));
   systemFiles = parsed.files || [];
   log.info(
     `[Template Gallery] Loaded ${systemTemplates.length} system templates and ${systemFiles.length} system files`
@@ -427,6 +432,49 @@ router.get(
         message: 'Fehler beim Laden der Vorlagen',
         vorlagen: [],
       });
+    }
+  }
+);
+
+// ============================================================================
+// Template Preview Image Endpoint
+// ============================================================================
+
+router.get(
+  '/template-previews/:fileName',
+  async (req: express.Request, res: Response): Promise<void> => {
+    try {
+      const { fileName } = req.params;
+      const decodedFileName = decodeURIComponent(fileName);
+      const filePath = path.join(templatePreviewsDir, decodedFileName);
+
+      const resolvedPath = path.resolve(filePath);
+      if (!resolvedPath.startsWith(path.resolve(templatePreviewsDir))) {
+        res.status(403).json({ success: false, message: 'Zugriff verweigert' });
+        return;
+      }
+
+      if (!fs.existsSync(resolvedPath)) {
+        res.status(404).json({ success: false, message: 'Vorschaubild nicht gefunden' });
+        return;
+      }
+
+      const ext = path.extname(decodedFileName).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        '.webp': 'image/webp',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+      };
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+      res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+
+      const fileStream = fs.createReadStream(resolvedPath);
+      fileStream.pipe(res);
+    } catch (error) {
+      const err = error as Error;
+      log.error('[Template Previews] Error:', err);
+      res.status(500).json({ success: false, message: 'Fehler beim Laden des Vorschaubilds' });
     }
   }
 );

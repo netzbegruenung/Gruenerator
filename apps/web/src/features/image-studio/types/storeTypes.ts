@@ -151,6 +151,7 @@ export interface ImageStudioState {
   body: string;
   headline: string;
   subtext: string;
+  label: string;
 
   // Veranstaltung-specific fields
   eventTitle: string;

@@ -83,6 +83,7 @@ interface TextGenerationResult {
   address?: string;
   headline?: string;
   subtext?: string;
+  label?: string;
 }
 
 // API response types for type-safe access
@@ -106,6 +107,13 @@ interface SimpleApiResponse extends ApiResponseBase {
     headline?: string;
     subtext?: string;
   };
+  headline?: string;
+  subtext?: string;
+}
+
+interface SliderApiResponse extends ApiResponseBase {
+  mainSlider?: { label?: string; headline?: string; subtext?: string };
+  label?: string;
   headline?: string;
   subtext?: string;
 }
@@ -172,6 +180,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
   const zitatPureSubmit = useApiSubmit('zitat_pure_claude');
   const veranstaltungSubmit = useApiSubmit('veranstaltung_claude');
   const simpleSubmit = useApiSubmit('simple_claude');
+  const sliderSubmit = useApiSubmit('slider_claude');
 
   const generateText = useCallback(
     async (type: string, formData: TextFormData): Promise<TextGenerationResult | null> => {
@@ -189,6 +198,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         let isInfoType = false;
         let isVeranstaltungType = false;
         let isSimpleType = false;
+        let isSliderType = false;
 
         switch (type) {
           case IMAGE_STUDIO_TYPES.ZITAT:
@@ -210,6 +220,10 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           case IMAGE_STUDIO_TYPES.SIMPLE:
             submitFn = simpleSubmit.submitForm;
             isSimpleType = true;
+            break;
+          case IMAGE_STUDIO_TYPES.SLIDER:
+            submitFn = sliderSubmit.submitForm;
+            isSliderType = true;
             break;
           case IMAGE_STUDIO_TYPES.DREIZEILEN:
           default:
@@ -276,6 +290,19 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
             alternatives: response.alternatives || [],
             searchTerms: response.searchTerms || [],
           };
+        } else if (isSliderType) {
+          const response = rawResponse as SliderApiResponse;
+          const mainSlider = response.mainSlider ?? response;
+          if (!mainSlider || !mainSlider.headline) {
+            throw new Error('Unerwartete Antwortstruktur von der API');
+          }
+          return {
+            label: mainSlider.label || 'Wusstest du?',
+            headline: mainSlider.headline,
+            subtext: mainSlider.subtext || '',
+            alternatives: response.alternatives || [],
+            searchTerms: response.searchTerms || [],
+          };
         } else {
           const response = rawResponse as DreizeilenApiResponse;
           if (!response || !response.mainSlogan || !response.alternatives) {
@@ -304,7 +331,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         setLoading(false);
       }
     },
-    [quoteSubmit, dreizeilenSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit]
+    [quoteSubmit, dreizeilenSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit, sliderSubmit]
   );
 
   const generateAlternatives = useCallback(
@@ -322,6 +349,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         let isQuoteType = false;
         let isInfoType = false;
         let isVeranstaltungType = false;
+        let isSliderType = false;
 
         switch (type) {
           case IMAGE_STUDIO_TYPES.ZITAT:
@@ -339,6 +367,10 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
             submitFn = veranstaltungSubmit.submitForm;
             isVeranstaltungType = true;
+            break;
+          case IMAGE_STUDIO_TYPES.SLIDER:
+            submitFn = sliderSubmit.submitForm;
+            isSliderType = true;
             break;
           case IMAGE_STUDIO_TYPES.DREIZEILEN:
           default:
@@ -393,6 +425,19 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
             alternatives: response.alternatives || [],
             searchTerms: response.searchTerms || [],
           };
+        } else if (isSliderType) {
+          const response = rawResponse as SliderApiResponse;
+          const mainSlider = response.mainSlider ?? response;
+          if (!mainSlider || !mainSlider.headline) {
+            throw new Error('Unerwartete Antwortstruktur von der API');
+          }
+          return {
+            label: mainSlider.label || 'Wusstest du?',
+            headline: mainSlider.headline,
+            subtext: mainSlider.subtext || '',
+            alternatives: response.alternatives || [],
+            searchTerms: response.searchTerms || [],
+          };
         } else {
           const response = rawResponse as DreizeilenApiResponse;
           if (!response || !response.mainSlogan || !response.alternatives) {
@@ -421,7 +466,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         setAlternativesLoading(false);
       }
     },
-    [quoteSubmit, dreizeilenSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit]
+    [quoteSubmit, dreizeilenSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit, sliderSubmit]
   );
 
   const fetchAlternativesInBackground = useCallback(
@@ -456,6 +501,9 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           case IMAGE_STUDIO_TYPES.SIMPLE:
             submitFn = simpleSubmit.submitForm;
             break;
+          case IMAGE_STUDIO_TYPES.SLIDER:
+            submitFn = sliderSubmit.submitForm;
+            break;
           case IMAGE_STUDIO_TYPES.DREIZEILEN:
           default:
             submitFn = dreizeilenSubmit.submitForm;
@@ -463,10 +511,8 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         }
 
         const rawResponse = await submitFn(dataToSend);
-        console.log('[DEBUG fetchAlternatives] Raw response:', rawResponse);
         const response = rawResponse as ApiResponseBase;
         const alternatives = response.alternatives || [];
-        console.log('[DEBUG fetchAlternatives] Alternatives extracted:', alternatives);
 
         if (alternatives.length > 0) {
           onComplete(alternatives as SloganAlternative[]);
@@ -481,7 +527,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         onComplete([]);
       }
     },
-    [dreizeilenSubmit, quoteSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit]
+    [dreizeilenSubmit, quoteSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit, sliderSubmit]
   );
 
   const generateTemplateImage = useCallback(

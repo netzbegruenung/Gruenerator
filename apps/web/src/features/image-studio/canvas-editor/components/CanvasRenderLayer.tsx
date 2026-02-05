@@ -114,6 +114,22 @@ interface CanvasRenderLayerProps<
       scale: number,
       rotation: number
     ) => void;
+    handleAssetDragEnd: (id: string, x: number, y: number) => void;
+    handleAssetTransformEnd: (
+      id: string,
+      x: number,
+      y: number,
+      scale: number,
+      rotation: number
+    ) => void;
+    handleIllustrationDragEnd: (id: string, x: number, y: number) => void;
+    handleIllustrationTransformEnd: (
+      id: string,
+      x: number,
+      y: number,
+      scale: number,
+      rotation: number
+    ) => void;
   };
   getSnapTargets: (id: string) => SnapTarget[];
   handleSnapChange: (h: boolean, v: boolean) => void;
@@ -276,47 +292,12 @@ function CanvasRenderLayerInner<
               illustration={ill}
               isSelected={selectedElement === ill.id}
               onSelect={() => handlers.handleElementSelect(ill.id)}
-              onDragEnd={(x: number, y: number) => {
-                const stateWithActions = state as unknown as Record<string, unknown>;
-                if (
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, attrs: Record<string, unknown>) => void
-                    >
-                  )?.updateIllustration
-                ) {
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, attrs: Record<string, unknown>) => void
-                    >
-                  ).updateIllustration(ill.id, { x, y });
-                }
-              }}
-              onTransformEnd={(x: number, y: number, scale: number, rotation: number) => {
-                const stateWithActions = state as unknown as Record<string, unknown>;
-                if (
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, attrs: Record<string, unknown>) => void
-                    >
-                  )?.updateIllustration
-                ) {
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, attrs: Record<string, unknown>) => void
-                    >
-                  ).updateIllustration(ill.id, {
-                    x,
-                    y,
-                    scale,
-                    rotation,
-                  });
-                }
-              }}
+              onDragEnd={(x: number, y: number) =>
+                handlers.handleIllustrationDragEnd(ill.id, x, y)
+              }
+              onTransformEnd={(x: number, y: number, scale: number, rotation: number) =>
+                handlers.handleIllustrationTransformEnd(ill.id, x, y, scale, rotation)
+              }
               onSnapChange={handleSnapChange}
               onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
               getSnapTargets={(id) => getSnapTargets(id) as unknown[]}
@@ -335,47 +316,12 @@ function CanvasRenderLayerInner<
               asset={asset}
               isSelected={selectedElement === asset.id}
               onSelect={() => handlers.handleElementSelect(asset.id)}
-              onDragEnd={(x: number, y: number) => {
-                const stateWithActions = state as unknown as Record<string, unknown>;
-                if (
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, attrs: Record<string, unknown>) => void
-                    >
-                  )?.updateAsset
-                ) {
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, attrs: Record<string, unknown>) => void
-                    >
-                  ).updateAsset(asset.id, { x, y });
-                }
-              }}
-              onTransformEnd={(x: number, y: number, scale: number, rotation: number) => {
-                const stateWithActions = state as unknown as Record<string, unknown>;
-                if (
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, attrs: Record<string, unknown>) => void
-                    >
-                  )?.updateAsset
-                ) {
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, attrs: Record<string, unknown>) => void
-                    >
-                  ).updateAsset(asset.id, {
-                    x,
-                    y,
-                    scale,
-                    rotation,
-                  });
-                }
-              }}
+              onDragEnd={(x: number, y: number) =>
+                handlers.handleAssetDragEnd(asset.id, x, y)
+              }
+              onTransformEnd={(x: number, y: number, scale: number, rotation: number) =>
+                handlers.handleAssetTransformEnd(asset.id, x, y, scale, rotation)
+              }
             />
           );
         }

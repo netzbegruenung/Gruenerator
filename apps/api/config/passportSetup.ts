@@ -100,7 +100,7 @@ try {
   log.info('Keycloak OIDC initialized');
 } catch (error) {
   log.error(`OIDC init failed: ${(error as Error).message}`);
-  throw error;
+  log.error('Server will start without authentication - auth requests will fail until Keycloak is reachable');
 }
 
 // Serialize user for session

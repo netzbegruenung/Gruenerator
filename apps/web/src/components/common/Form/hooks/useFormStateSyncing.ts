@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface WebSearchConfig {
   enabled: boolean;
@@ -56,13 +56,9 @@ export function useFormStateSyncing(params: UseFormStateSyncingParams): void {
     propUseFeatureIcons,
     propAttachedFiles,
     propUploadedImage,
-    storeFormErrors,
     storeWebSearchConfig,
     storePrivacyModeConfig,
     storeUseFeatureIcons,
-    storeAttachedFiles,
-    storeUploadedImage,
-    storeError,
     setStoreLoading,
     setStoreSuccess,
     setStoreError,
@@ -91,14 +87,25 @@ export function useFormStateSyncing(params: UseFormStateSyncingParams): void {
   }, [propSuccess, setStoreSuccess]);
 
   // Sync form errors
+  const prevFormErrorsRef = useRef(propFormErrors);
   useEffect(() => {
-    if (propFormErrors && Object.keys(propFormErrors).length > 0) {
-      const currentErrorsLength = Object.keys(storeFormErrors).length;
-      if (Object.keys(propFormErrors).length !== currentErrorsLength) {
-        setStoreFormErrors(propFormErrors);
-      }
-    }
-  }, [propFormErrors, storeFormErrors, setStoreFormErrors]);
+    const prev = prevFormErrorsRef.current;
+    const next = propFormErrors;
+    prevFormErrorsRef.current = next;
+
+    if (!next || Object.keys(next).length === 0) return;
+    if (prev === next) return;
+
+    const prevKeys = prev ? Object.keys(prev) : [];
+    const nextKeys = Object.keys(next);
+    if (
+      prevKeys.length === nextKeys.length &&
+      nextKeys.every((key) => prev?.[key] === next[key])
+    )
+      return;
+
+    setStoreFormErrors(next);
+  }, [propFormErrors, setStoreFormErrors]);
 
   // Sync web search toggle
   useEffect(() => {
@@ -128,38 +135,57 @@ export function useFormStateSyncing(params: UseFormStateSyncingParams): void {
   }, [propUseFeatureIcons, storeUseFeatureIcons, setStoreUseFeatureIcons]);
 
   // Sync attached files
+  const prevAttachedFilesRef = useRef(propAttachedFiles);
   useEffect(() => {
-    if (propAttachedFiles?.length && propAttachedFiles.length !== storeAttachedFiles.length) {
-      setStoreAttachedFiles(propAttachedFiles);
-    }
-  }, [propAttachedFiles, storeAttachedFiles.length, setStoreAttachedFiles]);
+    const prev = prevAttachedFilesRef.current;
+    const next = propAttachedFiles;
+    prevAttachedFilesRef.current = next;
+
+    if (!next?.length) return;
+    if (prev === next) return;
+    if (prev?.length === next.length && prev.every((f, i) => f === next[i])) return;
+
+    setStoreAttachedFiles(next);
+  }, [propAttachedFiles, setStoreAttachedFiles]);
 
   // Sync uploaded image
+  const prevUploadedImageRef = useRef(propUploadedImage);
   useEffect(() => {
-    if (propUploadedImage && propUploadedImage !== storeUploadedImage) {
-      setStoreUploadedImage(propUploadedImage);
-    }
-  }, [propUploadedImage, storeUploadedImage, setStoreUploadedImage]);
+    const prev = prevUploadedImageRef.current;
+    const next = propUploadedImage;
+    prevUploadedImageRef.current = next;
+
+    if (!next) return;
+    if (prev === next) return;
+
+    setStoreUploadedImage(next);
+  }, [propUploadedImage, setStoreUploadedImage]);
 
   // Handle errors separately
+  const prevErrorRef = useRef(propError);
   useEffect(() => {
-    if (propError && propError !== storeError) {
-      let errorMessage = 'Ein Fehler ist aufgetreten';
-      if (typeof propError === 'string') {
-        errorMessage = propError;
-      } else if (propError instanceof Error) {
-        errorMessage = propError.message || errorMessage;
-      } else if (propError && typeof propError === 'object' && 'message' in propError) {
-        errorMessage = (propError as { message?: string }).message || errorMessage;
-      }
+    const prev = prevErrorRef.current;
+    const next = propError;
+    prevErrorRef.current = next;
 
-      if (typeof propError === 'string' || propError instanceof Error) {
-        setError(propError);
-      } else {
-        setError(errorMessage);
-      }
-      setStoreError(errorMessage);
-      handleFormError(errorMessage, 'form');
+    if (!next) return;
+    if (prev === next) return;
+
+    let errorMessage = 'Ein Fehler ist aufgetreten';
+    if (typeof next === 'string') {
+      errorMessage = next;
+    } else if (next instanceof Error) {
+      errorMessage = next.message || errorMessage;
+    } else if (next && typeof next === 'object' && 'message' in next) {
+      errorMessage = (next as { message?: string }).message || errorMessage;
     }
-  }, [propError, storeError, setError, setStoreError, handleFormError]);
+
+    if (typeof next === 'string' || next instanceof Error) {
+      setError(next);
+    } else {
+      setError(errorMessage);
+    }
+    setStoreError(errorMessage);
+    handleFormError(errorMessage, 'form');
+  }, [propError, setError, setStoreError, handleFormError]);
 }

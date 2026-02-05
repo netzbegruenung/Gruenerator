@@ -460,69 +460,72 @@ function GenericCanvasWithRef<
     multiPageExport,
   ]);
 
+  const toolbarElement = (
+    <FloatingToolbar
+      selectedElement={selectedElement}
+      activeFloatingModule={activeFloatingModule}
+      canUndo={canUndo}
+      canRedo={canRedo}
+      canMoveUp={layerControls.canMoveUp}
+      canMoveDown={layerControls.canMoveDown}
+      handlers={{
+        undo,
+        redo,
+        handleMoveLayer: layerControls.handleMoveLayer,
+        handleColorSelect: floatingHandlers.handleColorSelect,
+        handleOpacityChange: floatingHandlers.handleOpacityChange,
+        handleFontSizeChange: elementHandlers.handleFontSizeChange,
+      }}
+      onDelete={onDelete}
+    />
+  );
+
   const canvasContent = (
-    <>
-      <FloatingToolbar
+    <CanvasStage
+      ref={stageRef}
+      width={config.canvas.width}
+      height={config.canvas.height}
+      responsive
+      maxContainerWidth={maxWidth}
+      onStageClick={handleStageClick}
+      className={`${config.id}-stage`}
+    >
+      <CanvasRenderLayer
+        sortedRenderList={sortedRenderList}
+        config={config}
+        state={state}
+        layout={layout}
         selectedElement={selectedElement}
-        activeFloatingModule={activeFloatingModule}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        canMoveUp={layerControls.canMoveUp}
-        canMoveDown={layerControls.canMoveDown}
-        handlers={{
-          undo,
-          redo,
-          handleMoveLayer: layerControls.handleMoveLayer,
-          handleColorSelect: floatingHandlers.handleColorSelect,
-          handleOpacityChange: floatingHandlers.handleOpacityChange,
-          handleFontSizeChange: elementHandlers.handleFontSizeChange,
-        }}
-        onDelete={onDelete}
+        handlers={elementHandlers}
+        getSnapTargets={getSnapTargets}
+        handleSnapChange={handleSnapChange}
+        setSnapLines={setSnapLines}
+        stageWidth={config.canvas.width}
+        stageHeight={config.canvas.height}
       />
 
-      <CanvasStage
-        ref={stageRef}
-        width={config.canvas.width}
-        height={config.canvas.height}
-        responsive
-        maxContainerWidth={maxWidth}
-        onStageClick={handleStageClick}
-        className={`${config.id}-stage`}
-      >
-        <CanvasRenderLayer
-          sortedRenderList={sortedRenderList}
-          config={config}
-          state={state}
-          layout={layout}
-          selectedElement={selectedElement}
-          handlers={elementHandlers}
-          getSnapTargets={getSnapTargets}
-          handleSnapChange={handleSnapChange}
-          setSnapLines={setSnapLines}
-          stageWidth={config.canvas.width}
-          stageHeight={config.canvas.height}
-        />
+      {/* Attribution overlay - only visible during export */}
+      {attributionOverlayData && (
+        <Layer listening={false}>
+          <AttributionOverlay data={attributionOverlayData} />
+        </Layer>
+      )}
 
-        {/* Attribution overlay - only visible during export */}
-        {attributionOverlayData && (
-          <Layer listening={false}>
-            <AttributionOverlay data={attributionOverlayData} />
-          </Layer>
-        )}
-
-        <SnapGuidelines
-          showH={snapGuides.h}
-          showV={snapGuides.v}
-          stageWidth={config.canvas.width}
-          stageHeight={config.canvas.height}
-          snapLines={snapLines}
-        />
-      </CanvasStage>
-    </>
+      <SnapGuidelines
+        showH={snapGuides.h}
+        showV={snapGuides.v}
+        stageWidth={config.canvas.width}
+        stageHeight={config.canvas.height}
+        snapLines={snapLines}
+      />
+    </CanvasStage>
   );
 
   return bare ? (
-    canvasContent
+    <>
+      {toolbarElement}
+      {canvasContent}
+    </>
   ) : (
     <>
       <GenericCanvasEditor
@@ -534,6 +537,7 @@ function GenericCanvasWithRef<
         onAddPage={onAddPage}
         renderAddPage={renderAddPage}
         shareProps={sharePropsToPass}
+        toolbar={toolbarElement}
       >
         {canvasContent}
       </GenericCanvasEditor>

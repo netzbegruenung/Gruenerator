@@ -34,6 +34,7 @@ import { AddPageButton } from './TemplatePickerFlyout';
 import { ZoomableViewport } from './ZoomableViewport';
 
 import type { GenericCanvasRef } from './GenericCanvas';
+import type { InitialPageDef } from '../hooks/useHeterogeneousMultiPage';
 import type { CanvasConfigId, FullCanvasConfig } from '../configs/types';
 import type { SidebarTabId } from '../sidebar/types';
 
@@ -67,6 +68,8 @@ interface HeterogeneousMultiPageProps {
   onCancel: () => void;
   callbacks?: Record<string, (val: unknown) => void>;
   maxPages?: number;
+  /** Pre-populated pages — overrides single-page initialization when provided */
+  initialPages?: InitialPageDef[];
 }
 
 interface PageWrapperProps {
@@ -208,6 +211,7 @@ export function HeterogeneousMultiPage({
   onCancel,
   callbacks = {},
   maxPages = 10,
+  initialPages,
 }: HeterogeneousMultiPageProps) {
   const {
     pages,
@@ -223,6 +227,7 @@ export function HeterogeneousMultiPage({
     initialConfigId,
     initialProps,
     maxPages,
+    initialPages,
   });
 
   // Store loaded configs for rendering
@@ -281,6 +286,7 @@ export function HeterogeneousMultiPage({
 
   // Multi-page export hook
   const {
+    exportAllPages,
     downloadAllAsZip,
     isExporting: isMultiExporting,
     exportProgress,
@@ -299,8 +305,22 @@ export function HeterogeneousMultiPage({
 
   // Template selection handler
   const handleAddPage = useCallback(
-    async (configId: CanvasConfigId) => {
-      await addPage(configId, true);
+    async (configId: CanvasConfigId, stateOverrides?: Record<string, unknown>) => {
+      await addPage(configId, true, stateOverrides);
+    },
+    [addPage]
+  );
+
+  // Add a slider variant page (cover, content, or last)
+  const handleAddSliderVariant = useCallback(
+    async (variant: 'cover' | 'content' | 'last') => {
+      const overrides: Record<string, unknown> = { slideVariant: variant };
+      if (variant === 'last') {
+        overrides.headline = '';
+        overrides.subtext = '';
+        overrides.label = '';
+      }
+      await addPage('slider' as CanvasConfigId, true, overrides);
     },
     [addPage]
   );
@@ -363,6 +383,25 @@ export function HeterogeneousMultiPage({
     return [];
   }, [activeConfig, activeState]);
 
+  // Share all pages via native share (Web Share API with multiple files)
+  const shareAllPages = useCallback(async () => {
+    const dataUrls = await exportAllPages();
+    if (dataUrls.length === 0) return;
+
+    const files = await Promise.all(
+      dataUrls.map(async (dataUrl, i) => {
+        const blob = await (await fetch(dataUrl)).blob();
+        return new File([blob], `gruenerator-seite-${i + 1}.png`, { type: 'image/png' });
+      })
+    );
+
+    if (navigator.canShare?.({ files })) {
+      await navigator.share({ files, title: 'Grünerator Share' });
+    } else {
+      await navigator.share({ title: 'Grünerator Share' });
+    }
+  }, [exportAllPages]);
+
   // Share props for sidebar (used by share section)
   const shareProps = useMemo(
     () => ({
@@ -370,14 +409,28 @@ export function HeterogeneousMultiPage({
       autoSaveStatus: 'idle' as const,
       shareToken: null,
       onCaptureCanvas: () => {},
-      onDownload: () => {},
+      onDownload: () => {
+        const ref = canvasRefsRef.current[currentPageIndex];
+        if (ref?.current) {
+          const dataUrl = ref.current.toDataURL({ format: 'png', pixelRatio: 2 });
+          if (dataUrl) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `gruenerator-slider-seite-${currentPageIndex + 1}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        }
+      },
       onNavigateToGallery: () => {},
       pageCount,
       onDownloadAllZip: downloadAllAsZip,
+      onShareAllPages: shareAllPages,
       isMultiExporting,
       exportProgress,
     }),
-    [pageCount, downloadAllAsZip, isMultiExporting, exportProgress]
+    [pageCount, downloadAllAsZip, shareAllPages, isMultiExporting, exportProgress, currentPageIndex]
   );
 
   // Render the active section based on configuration
@@ -474,6 +527,7 @@ export function HeterogeneousMultiPage({
               onDuplicateCurrent={duplicateCurrentPage}
               currentTemplateId={pages[currentPageIndex]?.configId}
               disabled={!canAddMore}
+              onAddSliderVariant={pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined}
             />
           </div>
         )}

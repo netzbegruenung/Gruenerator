@@ -13,7 +13,8 @@ type SharepicType =
   | 'headline'
   | 'info'
   | 'veranstaltung'
-  | 'simple';
+  | 'simple'
+  | 'slider';
 
 const UNIFIED_TYPES = [
   'dreizeilen',
@@ -23,6 +24,7 @@ const UNIFIED_TYPES = [
   'info',
   'veranstaltung',
   'simple',
+  'slider',
 ];
 
 async function handleClaudeRequest(
