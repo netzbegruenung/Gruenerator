@@ -108,14 +108,16 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
         badge: 'early-access',
       },
     }),
-    // TEMPORARILY HIDDEN - Datenbank menu item
-    // datenbank: {
-    //   id: 'datenbank',
-    //   path: '/datenbank',
-    //   title: 'Datenbank',
-    //   description: 'Vorlagen, Prompts und Anträge',
-    //   icon: getIcon('navigation', 'datenbank'),
-    // },
+    ...(import.meta.env.DEV && {
+      datenbank: {
+        id: 'datenbank',
+        path: '/datenbank',
+        title: 'Datenbank',
+        description: 'Vorlagen, Prompts und Anträge',
+        icon: getIcon('navigation', 'datenbank'),
+        badge: 'early-access',
+      },
+    }),
   };
 
   // Add chat if beta feature is enabled
@@ -160,23 +162,6 @@ export const getMenuItems = (betaFeatures: BetaFeatures = {}): MenuItemsResult =
     bildUndVideo: { title: 'Bild und Video', items: [] },
     tools: { title: 'Tools', items: [] },
   };
-
-  // TEMPORARILY HIDDEN - Labor section with Datenbank
-  // Only add labor section if beta features enabled
-  // if (betaFeatures.databaseBetaEnabled) {
-  //   result.labor = {
-  //     title: 'Labor',
-  //     items: [
-  //       {
-  //         id: 'datenbank',
-  //         path: '/datenbank',
-  //         title: 'Datenbank',
-  //         description: 'Texte, Vorlagen und Anträge finden',
-  //         icon: getIcon('navigation', 'datenbank'),
-  //       },
-  //     ],
-  //   };
-  // }
 
   return result;
 };

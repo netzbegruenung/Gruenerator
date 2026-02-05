@@ -457,27 +457,6 @@
 }
 
 /* ========================================
-   Edit Form (UniversalEditForm)
-   ======================================== */
-
-.scanner-results-state .universal-edit-form {
-  margin-top: var(--spacing-medium);
-  border: var(--border-subtle);
-  border-radius: var(--card-border-radius-large);
-}
-
-@media (max-width: 768px) {
-  .scanner-results-state .universal-edit-form {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    margin-top: 0;
-    border: none;
-    border-radius: 0;
-  }
-}
-
-/* ========================================
    Error Display
    ======================================== */
 
