@@ -14,6 +14,7 @@ export const ALLOWED_DOMAINS: string[] = [
   PRIMARY_DOMAIN,
   `www.${PRIMARY_DOMAIN}`,
   `beta.${PRIMARY_DOMAIN}`,
+  `chat.${PRIMARY_DOMAIN}`,
   'gruenerator.de',
   'www.gruenerator.de',
   'beta.gruenerator.de',
@@ -21,6 +22,7 @@ export const ALLOWED_DOMAINS: string[] = [
   'www.gruenerator.at',
   'gruenerator.eu',
   'www.gruenerator.eu',
+  'chat.gruenerator.eu',
   'localhost',
   '127.0.0.1',
 ];
