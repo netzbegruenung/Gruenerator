@@ -1,7 +1,8 @@
-import { mergeMetadata } from './adapterUtils.js';
 import ToolHandler from '../../services/tools/index.js';
-import mistralClient from '../mistralClient.js';
-import { connectionMetrics } from '../mistralClient.js';
+import mistralClient, { connectionMetrics } from '../mistralClient.js';
+
+import { mergeMetadata } from './adapterUtils.js';
+
 import type { AIRequestData, AIWorkerResult, Message, ToolCall, ContentBlock } from '../types.js';
 
 interface MistralMessage {
@@ -427,15 +428,14 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     );
   }
 
-  if (type === 'image_picker' || type === 'text_adjustment') {
-    mistralConfig.response_format = { type: 'json_object' };
-    console.log('[mistralAdapter] JSON mode enabled for type:', type);
-  }
-
   const toolsPayload = ToolHandler.prepareToolsPayload(options, 'mistral', requestId, type);
   if (toolsPayload.tools) {
     mistralConfig.tools = toolsPayload.tools;
     if (toolsPayload.tool_choice) mistralConfig.tool_choice = toolsPayload.tool_choice;
+    console.log('[mistralAdapter] Tools enabled, skipping JSON mode (tools enforce structure)');
+  } else if (type === 'image_picker' || type === 'text_adjustment') {
+    mistralConfig.response_format = { type: 'json_object' };
+    console.log('[mistralAdapter] JSON mode enabled for type:', type);
   }
 
   let response: MistralResponse | undefined;
