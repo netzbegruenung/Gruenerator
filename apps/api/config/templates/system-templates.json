@@ -1,0 +1,165 @@
+{
+  "templates": [
+    {
+      "id": "sys-sharepic-zitat-gruen",
+      "title": "Zitat – Grün mit Sonnenblume",
+      "description": "Quadratisches Sharepic für Zitate auf grünem Hintergrund mit Sonnenblumen-Wasserzeichen.",
+      "template_type": "sharepic",
+      "preview_image": "zitat-gruen.webp",
+      "external_url": "https://www.canva.com/design/DAG_uKsSYjc/6j_PokTChjiRz-81fcK0vg/view",
+      "categories": ["sharepic", "social-media"],
+      "tags": ["zitat", "grün", "sonnenblume", "instagram", "facebook", "quadratisch"]
+    },
+    {
+      "id": "sys-sharepic-zitat-foto",
+      "title": "Zitat mit Foto",
+      "description": "Sharepic für Zitate mit Personenfoto im Hintergrund. Ideal für Reden und Statements.",
+      "template_type": "sharepic",
+      "preview_image": "zitat-foto.webp",
+      "external_url": "https://www.canva.com/design/DAG_uKsSYjc/6j_PokTChjiRz-81fcK0vg/view",
+      "categories": ["sharepic", "social-media"],
+      "tags": ["zitat", "foto", "rede", "statement", "instagram", "facebook"]
+    },
+    {
+      "id": "sys-sharepic-zitat-silhouette",
+      "title": "Zitat – Silhouette",
+      "description": "Sharepic für Zitate mit Person als Silhouette auf grünem Hintergrund.",
+      "template_type": "sharepic",
+      "preview_image": "zitat-silhouette.webp",
+      "external_url": "https://www.canva.com/design/DAG_uKsSYjc/6j_PokTChjiRz-81fcK0vg/view",
+      "categories": ["sharepic", "social-media"],
+      "tags": ["zitat", "silhouette", "grün", "instagram", "facebook"]
+    },
+    {
+      "id": "sys-sharepic-forderung",
+      "title": "Forderung / Fakten – Dunkelgrün",
+      "description": "Sharepic für politische Forderungen und Fakten auf dunkelgrünem Hintergrund mit Sonnenblume.",
+      "template_type": "sharepic",
+      "preview_image": "forderung-dunkelgruen.webp",
+      "external_url": "https://www.canva.com/design/DAG_uKsSYjc/6j_PokTChjiRz-81fcK0vg/view",
+      "categories": ["sharepic", "social-media"],
+      "tags": ["forderung", "fakten", "politik", "sonnenblume", "dunkelgrün"]
+    },
+    {
+      "id": "sys-sharepic-claim-hell",
+      "title": "Claim – Hell mit Sonnenblume",
+      "description": "Sharepic für kurze, prägnante Claims auf hellem Hintergrund mit Sonnenblumen-Wasserzeichen.",
+      "template_type": "sharepic",
+      "preview_image": "claim-hell.webp",
+      "external_url": "https://www.canva.com/design/DAG_uKsSYjc/6j_PokTChjiRz-81fcK0vg/view",
+      "categories": ["sharepic", "social-media"],
+      "tags": ["claim", "slogan", "hell", "sonnenblume", "instagram", "facebook"]
+    },
+    {
+      "id": "sys-sharepic-diskussionsabend",
+      "title": "Diskussionsabend / Podium",
+      "description": "Sharepic-Vorlage für Podiumsdiskussionen und Diskussionsabende mit Sprecher*innen.",
+      "template_type": "sharepic",
+      "preview_image": "diskussionsabend.webp",
+      "external_url": "https://www.canva.com/design/DAG_uKsSYjc/6j_PokTChjiRz-81fcK0vg/view",
+      "categories": ["sharepic", "veranstaltung"],
+      "tags": ["diskussion", "podium", "event", "veranstaltung", "sprecher"]
+    },
+    {
+      "id": "sys-sharepic-event-sonnenblumen",
+      "title": "Event mit Sonnenblumen-Foto",
+      "description": "Veranstaltungs-Sharepic mit Sonnenblumen-Fotohintergrund. Für Termine und Events.",
+      "template_type": "sharepic",
+      "preview_image": "event-sonnenblumen.webp",
+      "external_url": "https://www.canva.com/design/DAG_uKsSYjc/6j_PokTChjiRz-81fcK0vg/view",
+      "categories": ["sharepic", "veranstaltung"],
+      "tags": ["event", "termin", "sonnenblumen", "foto", "veranstaltung"]
+    },
+    {
+      "id": "sys-sharepic-mitgliederwerbung",
+      "title": "Mitgliederwerbung – Sonnenblumen",
+      "description": "Sharepic für Mitgliederwerbung mit Sonnenblumen-Foto. Link zu gruene.de/mitglied-werden.",
+      "template_type": "sharepic",
+      "preview_image": "mitgliederwerbung.webp",
+      "external_url": "https://www.canva.com/design/DAG_uKsSYjc/6j_PokTChjiRz-81fcK0vg/view",
+      "categories": ["sharepic", "mitgliederwerbung"],
+      "tags": ["mitglied", "werbung", "sonnenblumen", "beitreten"]
+    },
+    {
+      "id": "sys-story-zitat-gruen",
+      "title": "Story: Zitat – Grün mit Sonnenblume",
+      "description": "Story-Vorlage (9:16) für Zitate auf grünem Hintergrund mit Sonnenblumen-Wasserzeichen.",
+      "template_type": "story",
+      "preview_image": "story-zitat-gruen.webp",
+      "external_url": "https://www.canva.com/design/DAG_zkKstcY/9jwEP8GyvPd__1JHKpqiLA/view",
+      "categories": ["story", "social-media"],
+      "tags": ["zitat", "grün", "sonnenblume", "instagram", "story"]
+    },
+    {
+      "id": "sys-story-zitat-foto",
+      "title": "Story: Zitat mit Foto",
+      "description": "Story-Vorlage (9:16) für Zitate mit Personenfoto im Hintergrund.",
+      "template_type": "story",
+      "preview_image": "story-zitat-foto.webp",
+      "external_url": "https://www.canva.com/design/DAG_zkKstcY/9jwEP8GyvPd__1JHKpqiLA/view",
+      "categories": ["story", "social-media"],
+      "tags": ["zitat", "foto", "rede", "statement", "instagram", "story"]
+    },
+    {
+      "id": "sys-story-zitat-silhouette",
+      "title": "Story: Zitat – Silhouette",
+      "description": "Story-Vorlage (9:16) für Zitate mit Person als Silhouette auf grünem Hintergrund.",
+      "template_type": "story",
+      "preview_image": "story-zitat-silhouette.webp",
+      "external_url": "https://www.canva.com/design/DAG_zkKstcY/9jwEP8GyvPd__1JHKpqiLA/view",
+      "categories": ["story", "social-media"],
+      "tags": ["zitat", "silhouette", "grün", "instagram", "story"]
+    },
+    {
+      "id": "sys-story-forderung",
+      "title": "Story: Forderung / Fakten – Dunkelgrün",
+      "description": "Story-Vorlage (9:16) für politische Forderungen und Fakten auf dunkelgrünem Hintergrund.",
+      "template_type": "story",
+      "preview_image": "story-forderung-dunkelgruen.webp",
+      "external_url": "https://www.canva.com/design/DAG_zkKstcY/9jwEP8GyvPd__1JHKpqiLA/view",
+      "categories": ["story", "social-media"],
+      "tags": ["forderung", "fakten", "politik", "sonnenblume", "instagram", "story"]
+    },
+    {
+      "id": "sys-story-claim-hell",
+      "title": "Story: Claim – Hell mit Sonnenblume",
+      "description": "Story-Vorlage (9:16) für kurze Claims auf hellem Hintergrund mit Sonnenblumen-Wasserzeichen.",
+      "template_type": "story",
+      "preview_image": "story-claim-hell.webp",
+      "external_url": "https://www.canva.com/design/DAG_zkKstcY/9jwEP8GyvPd__1JHKpqiLA/view",
+      "categories": ["story", "social-media"],
+      "tags": ["claim", "slogan", "hell", "sonnenblume", "instagram", "story"]
+    },
+    {
+      "id": "sys-story-diskussionsabend",
+      "title": "Story: Diskussionsabend / Podium",
+      "description": "Story-Vorlage (9:16) für Podiumsdiskussionen und Diskussionsabende.",
+      "template_type": "story",
+      "preview_image": "story-diskussionsabend.webp",
+      "external_url": "https://www.canva.com/design/DAG_zkKstcY/9jwEP8GyvPd__1JHKpqiLA/view",
+      "categories": ["story", "veranstaltung"],
+      "tags": ["diskussion", "podium", "event", "veranstaltung", "instagram", "story"]
+    },
+    {
+      "id": "sys-story-event-sonnenblumen",
+      "title": "Story: Event mit Sonnenblumen-Foto",
+      "description": "Story-Vorlage (9:16) für Veranstaltungen mit Sonnenblumen-Fotohintergrund.",
+      "template_type": "story",
+      "preview_image": "story-event-sonnenblumen.webp",
+      "external_url": "https://www.canva.com/design/DAG_zkKstcY/9jwEP8GyvPd__1JHKpqiLA/view",
+      "categories": ["story", "veranstaltung"],
+      "tags": ["event", "termin", "sonnenblumen", "foto", "instagram", "story"]
+    },
+    {
+      "id": "sys-story-mitgliederwerbung",
+      "title": "Story: Mitgliederwerbung – Sonnenblumen",
+      "description": "Story-Vorlage (9:16) für Mitgliederwerbung mit Sonnenblumen-Foto.",
+      "template_type": "story",
+      "preview_image": "story-mitgliederwerbung.webp",
+      "external_url": "https://www.canva.com/design/DAG_zkKstcY/9jwEP8GyvPd__1JHKpqiLA/view",
+      "categories": ["story", "mitgliederwerbung"],
+      "tags": ["mitglied", "werbung", "sonnenblumen", "beitreten", "instagram", "story"]
+    }
+  ],
+  "files": []
+}
