@@ -12,6 +12,7 @@ interface TextFormData {
   name?: string;
   source?: string;
   count?: number;
+  smartCount?: boolean;
   [key: string]: unknown;
 }
 
@@ -331,7 +332,15 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         setLoading(false);
       }
     },
-    [quoteSubmit, dreizeilenSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit, sliderSubmit]
+    [
+      quoteSubmit,
+      dreizeilenSubmit,
+      infoSubmit,
+      zitatPureSubmit,
+      veranstaltungSubmit,
+      simpleSubmit,
+      sliderSubmit,
+    ]
   );
 
   const generateAlternatives = useCallback(
@@ -466,7 +475,15 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         setAlternativesLoading(false);
       }
     },
-    [quoteSubmit, dreizeilenSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit, sliderSubmit]
+    [
+      quoteSubmit,
+      dreizeilenSubmit,
+      infoSubmit,
+      zitatPureSubmit,
+      veranstaltungSubmit,
+      simpleSubmit,
+      sliderSubmit,
+    ]
   );
 
   const fetchAlternativesInBackground = useCallback(
@@ -527,7 +544,15 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         onComplete([]);
       }
     },
-    [dreizeilenSubmit, quoteSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit, sliderSubmit]
+    [
+      dreizeilenSubmit,
+      quoteSubmit,
+      infoSubmit,
+      zitatPureSubmit,
+      veranstaltungSubmit,
+      simpleSubmit,
+      sliderSubmit,
+    ]
   );
 
   const generateTemplateImage = useCallback(

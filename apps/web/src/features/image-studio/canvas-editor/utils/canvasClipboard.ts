@@ -5,7 +5,13 @@
  * Enables copy (Ctrl+C) and paste (Ctrl+V) functionality across canvas instances.
  */
 
-export type ClipboardItemType = 'balken' | 'shape' | 'illustration' | 'additional-text' | 'asset';
+export type ClipboardItemType =
+  | 'balken'
+  | 'shape'
+  | 'illustration'
+  | 'additional-text'
+  | 'asset'
+  | 'pill-badge';
 
 export interface ClipboardItem {
   type: ClipboardItemType;

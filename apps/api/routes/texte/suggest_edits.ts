@@ -9,6 +9,66 @@ import type { EditGenerationContext } from '../../utils/editContextBuilder.js';
 const router: Router = express.Router();
 const log = createLogger('claude_suggest_');
 
+// Debug helper: Find similar substrings (80%+ character match)
+function findSimilarSubstrings(haystack: string, needle: string, maxResults = 3): string[] {
+  const results: string[] = [];
+  const needleLen = needle.length;
+  if (needleLen === 0 || haystack.length < needleLen) return results;
+
+  for (let i = 0; i <= haystack.length - needleLen && results.length < maxResults; i++) {
+    const substring = haystack.substring(i, i + needleLen);
+    let matches = 0;
+    for (let j = 0; j < needleLen; j++) {
+      if (substring[j] === needle[j]) matches++;
+    }
+    const similarity = matches / needleLen;
+    if (similarity >= 0.8) {
+      results.push(
+        `pos=${i}: "${substring.substring(0, 50)}..." (${Math.round(similarity * 100)}%)`
+      );
+    }
+  }
+  return results;
+}
+
+// Debug helper: Find first mismatch position
+function findFirstMismatch(haystack: string, needle: string): string | null {
+  const searchPrefix = needle.substring(0, Math.min(10, needle.length));
+  const idx = haystack.indexOf(searchPrefix);
+  if (idx === -1) {
+    return `Cannot find first 10 chars: "${JSON.stringify(searchPrefix)}"`;
+  }
+  for (let i = 0; i < needle.length && idx + i < haystack.length; i++) {
+    if (haystack[idx + i] !== needle[i]) {
+      return `Mismatch at pos ${i}: haystack='${haystack[idx + i]}' (charCode=${haystack.charCodeAt(idx + i)}) vs needle='${needle[i]}' (charCode=${needle.charCodeAt(i)})`;
+    }
+  }
+  if (idx + needle.length > haystack.length) {
+    return `Needle extends beyond haystack (haystack ends at ${haystack.length}, needle needs ${idx + needle.length})`;
+  }
+  return null;
+}
+
+// Debug helper: Detect invisible character issues
+function detectInvisibleChars(text: string): string[] {
+  const issues: string[] = [];
+  if (text.includes('\u00A0'))
+    issues.push(
+      `Contains non-breaking spaces (\\u00A0) at positions: ${[...text]
+        .map((c, i) => (c === '\u00A0' ? i : -1))
+        .filter((i) => i >= 0)
+        .slice(0, 5)
+        .join(', ')}`
+    );
+  if (text.includes('\r')) issues.push('Contains carriage returns (\\r)');
+  if (text.includes('\u200B')) issues.push('Contains zero-width spaces (\\u200B)');
+  if (text.includes('\u2018') || text.includes('\u2019'))
+    issues.push('Contains smart single quotes');
+  if (text.includes('\u201C') || text.includes('\u201D'))
+    issues.push('Contains smart double quotes');
+  return issues;
+}
+
 interface SuggestEditsRequestBody {
   instruction: string;
   currentText: string;
@@ -180,6 +240,19 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  // DEBUG: Log the incoming request with escaped text to reveal invisible characters
+  log.debug('[claude_suggest_edits] === REQUEST RECEIVED ===');
+  log.debug('[claude_suggest_edits] instruction:', instruction);
+  log.debug('[claude_suggest_edits] currentText length:', currentText.length);
+  log.debug(
+    '[claude_suggest_edits] currentText (escaped):',
+    JSON.stringify(currentText.substring(0, 500))
+  );
+  const currentTextIssues = detectInvisibleChars(currentText);
+  if (currentTextIssues.length > 0) {
+    log.debug('[claude_suggest_edits] currentText invisible char issues:', currentTextIssues);
+  }
+
   let generationContext: EditGenerationContext | null = null;
   if (componentName && req.session?.id) {
     try {
@@ -200,45 +273,19 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     const { buildEditContextSummary } = await import('../../utils/editContextBuilder.js');
     const contextSummary = buildEditContextSummary(generationContext);
 
-    const systemPrompt = `Du bist ein präziser Text-Editor. ${contextSummary ? 'Du kennst den Kontext der ursprünglichen Generierung und berücksichtigst ihn bei Änderungen. ' : ''}Gib AUSSCHLIESSLICH valides JSON zurück.`;
+    const systemPrompt = `Du bist ein Text-Editor. Du änderst NUR Text der EXAKT im Original vorkommt.${contextSummary ? ' Kontext der Generierung ist bekannt.' : ''}`;
 
-    const userContent = `${contextSummary}STRENGE REGELN:
-1. Keine **, *, __, ~~, \` Zeichen im JSON
-2. Keine \`\`\`json oder \`\`\` Codeblöcke
-3. Nur das JSON-Objekt, keine Erklärungen
-4. Beginne direkt mit {
-
-FORMAT:
-{
-  "changes": [
-    { "text_to_find": "exakter Originaltext", "replacement_text": "neuer Text" }
-  ],
-  "summary": "Kurze Bestätigung"
-}
-
-FÜR KOMPLETTE TEXT-UMSCHREIBUNGEN (Gedicht, andere Sprache, komplett neuer Stil):
-{
-  "changes": [
-    { "full_replace": true, "replacement_text": "komplett neuer Text" }
-  ],
-  "summary": "Text komplett umgeschrieben"
-}
-
-WICHTIG:
-- Für kleine Änderungen: text_to_find MUSS exakt im Text vorkommen
-- Für komplette Umschreibungen: full_replace: true verwenden
-- Alle \\n in Strings escapen
-- summary: 1-2 Sätze, optional 1 passendes Emoji (✏️✂️✅)
-
-AKTUELLER TEXT (Markdown):
+    const userContent = `TEXT:
 ---
 ${currentText}
 ---
 
-NUTZER-ANWEISUNG:
-${instruction}
+AUFGABE: ${instruction}
 
-Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
+REGELN:
+- text_to_find: Kopiere EXAKT aus TEXT oben. Erfinde NICHTS.
+- Für komplette Neufassung: full_replace: true
+${contextSummary ? `\nKONTEXT: ${contextSummary}` : ''}`;
 
     const tools: FunctionTool[] = [
       {
@@ -290,6 +337,7 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
         systemPrompt,
         messages: [{ role: 'user', content: userContent }],
         options: {
+          model: 'mistral-large-2512',
           max_tokens: 4096,
           temperature: 0.3,
           tools: tools,
@@ -388,6 +436,69 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
       if (!c || typeof c.replacement_text !== 'string') return false;
       return c.full_replace === true || typeof c.text_to_find === 'string';
     });
+
+    // DEBUG: Log each change and whether it matches the currentText
+    log.debug('[claude_suggest_edits] === CHANGES ANALYSIS ===');
+    log.debug('[claude_suggest_edits] Total changes from AI:', parsed.changes.length);
+    log.debug('[claude_suggest_edits] Valid changes:', validChanges.length);
+
+    for (let i = 0; i < validChanges.length; i++) {
+      const change = validChanges[i];
+      log.debug(`[claude_suggest_edits] --- Change ${i + 1} ---`);
+
+      if (change.full_replace === true) {
+        log.debug('[claude_suggest_edits] Type: FULL_REPLACE');
+        log.debug(
+          '[claude_suggest_edits] replacement_text preview:',
+          change.replacement_text.substring(0, 100)
+        );
+      } else if (change.text_to_find) {
+        log.debug('[claude_suggest_edits] Type: PARTIAL_REPLACE');
+        log.debug(
+          '[claude_suggest_edits] text_to_find (escaped):',
+          JSON.stringify(change.text_to_find)
+        );
+        log.debug('[claude_suggest_edits] text_to_find length:', change.text_to_find.length);
+        log.debug(
+          '[claude_suggest_edits] replacement_text (escaped):',
+          JSON.stringify(change.replacement_text.substring(0, 100))
+        );
+
+        // Check if text_to_find exists in currentText
+        const exactMatch = currentText.includes(change.text_to_find);
+        log.debug('[claude_suggest_edits] EXACT MATCH IN CURRENT TEXT:', exactMatch);
+
+        if (!exactMatch) {
+          // Analyze why it doesn't match
+          const textToFindIssues = detectInvisibleChars(change.text_to_find);
+          if (textToFindIssues.length > 0) {
+            log.debug(
+              '[claude_suggest_edits] text_to_find invisible char issues:',
+              textToFindIssues
+            );
+          }
+
+          const firstMismatch = findFirstMismatch(currentText, change.text_to_find);
+          if (firstMismatch) {
+            log.debug('[claude_suggest_edits] First mismatch:', firstMismatch);
+          }
+
+          const similar = findSimilarSubstrings(currentText, change.text_to_find);
+          if (similar.length > 0) {
+            log.debug('[claude_suggest_edits] Similar substrings found:', similar);
+          } else {
+            log.debug('[claude_suggest_edits] No similar substrings found (>=80% match)');
+          }
+
+          // Log first 5 char codes from both
+          const needle = change.text_to_find;
+          log.debug(
+            '[claude_suggest_edits] First 10 charCodes of text_to_find:',
+            [...needle.substring(0, 10)].map((c, i) => `[${i}]'${c}'=${c.charCodeAt(0)}`).join(' ')
+          );
+        }
+      }
+    }
 
     const summary =
       parsed.summary ||

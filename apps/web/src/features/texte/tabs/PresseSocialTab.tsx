@@ -719,7 +719,9 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         'Beschreibe dein Thema und alle relevanten Details im Inhalt-Feld',
         'Wähle die gewünschten Formate aus',
         'Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich',
-        'Sharepics werden derzeit überarbeitet und sind bald wieder verfügbar',
+        ...(!isAustrian
+          ? ['Sharepics werden derzeit überarbeitet und sind bald wieder verfügbar']
+          : []),
       ],
       features: [
         {
@@ -730,13 +732,17 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
           title: 'Plattform-optimiert',
           description: 'Automatisch angepasst für Instagram, Facebook, Twitter, LinkedIn & mehr',
         },
-        {
-          title: 'Sharepics',
-          description: 'Sharepics werden derzeit überarbeitet und sind bald wieder verfügbar',
-        },
+        ...(!isAustrian
+          ? [
+              {
+                title: 'Sharepics',
+                description: 'Sharepics werden derzeit überarbeitet und sind bald wieder verfügbar',
+              },
+            ]
+          : []),
       ],
     }),
-    []
+    [isAustrian]
   );
 
   return (

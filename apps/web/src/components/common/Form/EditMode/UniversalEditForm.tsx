@@ -8,7 +8,9 @@ import useKeyboardFocus from '../../../../hooks/useKeyboardFocus';
 import useScrollSync from '../../../../hooks/useScrollSync';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import useHeaderStore from '../../../../stores/headerStore';
-import useTextEditActions, { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
+import useTextEditActions, {
+  extractEditableText,
+} from '../../../../stores/hooks/useTextEditActions';
 import apiClient from '../../../utils/apiClient';
 import ActionButtons from '../../ActionButtons';
 import ChatUI from '../../Chat/ChatUI';
@@ -328,6 +330,17 @@ const UniversalEditForm = ({
 
       setIsProcessing(true);
       try {
+        // DEBUG: Log what we're sending to the API
+        console.group('[UniversalEditForm] === SENDING API REQUEST ===');
+        console.log('[UniversalEditForm] instruction:', trimmed);
+        console.log('[UniversalEditForm] currentText length:', currentText.length);
+        console.log(
+          '[UniversalEditForm] currentText (escaped):',
+          JSON.stringify(currentText.substring(0, 500))
+        );
+        console.log('[UniversalEditForm] componentName:', componentName);
+        console.groupEnd();
+
         const response = await apiClient.post('/claude_suggest_edits', {
           instruction: trimmed,
           currentText,
@@ -344,6 +357,35 @@ const UniversalEditForm = ({
 
         const changes = data?.changes || [];
 
+        // DEBUG: Log the response from API
+        console.group('[UniversalEditForm] === API RESPONSE RECEIVED ===');
+        console.log('[UniversalEditForm] changes count:', changes.length);
+        console.log('[UniversalEditForm] needsFrontendParsing:', data?.needsFrontendParsing);
+        console.log('[UniversalEditForm] summary:', data?.summary);
+        if (changes.length > 0) {
+          changes.forEach((change: Record<string, unknown>, idx: number) => {
+            console.group(`[UniversalEditForm] Change ${idx + 1}:`);
+            if (change.full_replace) {
+              console.log('[UniversalEditForm] Type: FULL_REPLACE');
+              console.log(
+                '[UniversalEditForm] replacement_text preview:',
+                String(change.replacement_text || '').substring(0, 100)
+              );
+            } else {
+              console.log(
+                '[UniversalEditForm] text_to_find (escaped):',
+                JSON.stringify(change.text_to_find)
+              );
+              console.log(
+                '[UniversalEditForm] replacement_text (escaped):',
+                JSON.stringify(String(change.replacement_text || '').substring(0, 100))
+              );
+            }
+            console.groupEnd();
+          });
+        }
+        console.groupEnd();
+
         if (!Array.isArray(changes) || changes.length === 0) {
           const noChangesMsg: EditMessage = {
             type: 'assistant',
@@ -358,6 +400,25 @@ const UniversalEditForm = ({
           }
         } else {
           const result = applyEdits(changes);
+
+          // DEBUG: Log the result of applying edits
+          console.group('[UniversalEditForm] === APPLY EDITS RESULT ===');
+          console.log('[UniversalEditForm] appliedCount:', result.appliedCount);
+          console.log('[UniversalEditForm] totalCount:', result.totalCount);
+          console.log(
+            '[UniversalEditForm] success rate:',
+            `${result.appliedCount}/${result.totalCount} (${Math.round((result.appliedCount / result.totalCount) * 100)}%)`
+          );
+          if (result.appliedCount === 0) {
+            console.error(
+              '[UniversalEditForm] ❌ NO CHANGES WERE APPLIED - This is the root cause of the error message'
+            );
+          } else if (result.appliedCount < result.totalCount) {
+            console.warn('[UniversalEditForm] ⚠️ Only partial changes applied');
+          } else {
+            console.log('[UniversalEditForm] ✅ All changes applied successfully');
+          }
+          console.groupEnd();
 
           if (result.appliedCount === 0) {
             const errorMsg: EditMessage = {

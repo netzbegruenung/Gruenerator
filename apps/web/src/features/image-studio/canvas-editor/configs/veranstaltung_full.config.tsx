@@ -15,7 +15,6 @@ import {
   createAlternativesSection,
   isAlternativesEmpty,
 } from './alternativesSection';
-import { PLACEHOLDER_TEXT } from './placeholders';
 import {
   createAssetActions,
   createIconActions,
@@ -23,6 +22,7 @@ import {
   createIllustrationActions,
 } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
+import { PLACEHOLDER_TEXT } from './placeholders';
 import { shareTab, createShareSection } from './shareSection';
 
 import type { StockImageAttribution } from '../../services/imageSourceService';
@@ -559,7 +559,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
           width: 400,
           fontSize: VERANSTALTUNG_CONFIG.eventTitle.fontSize,
           fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
-          fontStyle: 'bold italic',
+          fontStyle: 'normal',
           fill: VERANSTALTUNG_CONFIG.text.color,
           rotation: 0,
           scale: 1,

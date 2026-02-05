@@ -264,7 +264,7 @@ const ADDITIONAL_TEXT_DEFAULTS = {
   header: {
     fontSize: 48,
     fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
-    fontStyle: 'bold' as const,
+    fontStyle: 'normal' as const,
     width: 400,
   },
   body: {

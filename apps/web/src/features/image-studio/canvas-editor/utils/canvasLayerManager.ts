@@ -17,7 +17,8 @@ export interface CanvasItem {
     | 'additional-text'
     | 'illustration'
     | 'asset'
-    | 'circle-badge';
+    | 'circle-badge'
+    | 'pill-badge';
   data?: Record<string, unknown>;
 }
 
@@ -29,6 +30,7 @@ interface StateWithFeatures {
   illustrationInstances?: Array<Record<string, unknown>>;
   assetInstances?: Array<Record<string, unknown>>;
   circleBadgeInstances?: Array<Record<string, unknown>>;
+  pillBadgeInstances?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -93,6 +95,13 @@ export function buildCanvasItems<
   if (state.circleBadgeInstances) {
     state.circleBadgeInstances.forEach((c) =>
       items.push({ id: String(c.id), type: 'circle-badge', data: c })
+    );
+  }
+
+  // 9. Pill Badges (e.g., "Wusstest du?" labels)
+  if (state.pillBadgeInstances) {
+    state.pillBadgeInstances.forEach((p) =>
+      items.push({ id: String(p.id), type: 'pill-badge', data: p })
     );
   }
 

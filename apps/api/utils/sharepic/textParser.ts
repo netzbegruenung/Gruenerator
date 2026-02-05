@@ -19,11 +19,13 @@ export interface ParseResult {
  *
  * @param content - Raw AI response text
  * @param expectedFields - Array of field names to extract (lowercase)
+ * @param optionalFields - Array of field names that are optional (lowercase)
  * @returns ParseResult with success status and extracted data
  */
 export function parseLabeledText(
   content: string | null | undefined,
-  expectedFields: string[]
+  expectedFields: string[],
+  optionalFields: string[] = []
 ): ParseResult {
   if (!content || typeof content !== 'string') {
     return { success: false, data: {}, error: 'Empty or invalid content' };
@@ -42,7 +44,8 @@ export function parseLabeledText(
 
   const data: Record<string, string> = {};
   const upperFields = expectedFields.map((f) => f.toUpperCase());
-  const labelPattern = new RegExp(`^(${upperFields.join('|')}):\\s*`, 'i');
+  const allFields = [...upperFields, ...optionalFields.map((f) => f.toUpperCase())];
+  const labelPattern = new RegExp(`^(${allFields.join('|')}):\\s*`, 'i');
 
   const lines = cleanedContent.split('\n');
   let currentLabel: string | null = null;
@@ -68,7 +71,9 @@ export function parseLabeledText(
     data[currentLabel.toLowerCase()] = currentValue.join('\n').trim();
   }
 
-  const missingFields = expectedFields.filter((field) => {
+  // Only check required fields (expectedFields), not optional ones
+  const requiredFields = expectedFields.filter((f) => !optionalFields.includes(f.toLowerCase()));
+  const missingFields = requiredFields.filter((field) => {
     const value = data[field.toLowerCase()];
     return !value || value.trim() === '';
   });
@@ -101,12 +106,14 @@ export function parseLabeledText(
  * @param content - Raw AI response with multiple variants
  * @param expectedFields - Array of field names to extract (lowercase)
  * @param count - Expected number of variants
+ * @param optionalFields - Array of field names that are optional (lowercase)
  * @returns Array of ParseResult objects
  */
 export function parseLabeledTextBatch(
   content: string | null | undefined,
   expectedFields: string[],
-  count: number
+  count: number,
+  optionalFields: string[] = []
 ): ParseResult[] {
   if (!content || typeof content !== 'string') {
     log.warn('[textParser] Batch parse failed: empty or invalid content');
@@ -131,7 +138,7 @@ export function parseLabeledTextBatch(
   const results: ParseResult[] = [];
 
   for (let i = 0; i < Math.min(variants.length, count); i++) {
-    const parsed = parseLabeledText(variants[i], expectedFields);
+    const parsed = parseLabeledText(variants[i], expectedFields, optionalFields);
     if (parsed.success) {
       results.push(parsed);
       log.debug(`[textParser] Batch variant ${i + 1} parsed successfully`);

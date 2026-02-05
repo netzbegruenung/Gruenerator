@@ -289,9 +289,13 @@ export const useStepFlow = ({
     setIsProcessing(true);
 
     try {
-      // For SLIDER: generate all story slides in one call for a cohesive narrative
+      // For SLIDER: use smartCount to let AI determine optimal slide count
       const isSlider = type === IMAGE_STUDIO_TYPES.SLIDER;
-      const formData = { thema, name, count: isSlider ? 5 : 1 };
+      const formData = {
+        thema,
+        name,
+        ...(isSlider ? { smartCount: true } : { count: 1 }),
+      };
       const result = await generateText(type!, formData);
 
       if (result && fieldConfig?.responseMapping) {

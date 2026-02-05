@@ -11,7 +11,7 @@
  */
 
 import { SYSTEM_ASSETS } from './canvasAssets';
-import { wrapText } from './textUtils';
+import { measureTextWidthWithFont, wrapTextAccurate } from './textUtils';
 
 // ============================================================================
 // CONFIGURATION CONSTANTS
@@ -39,7 +39,7 @@ export const SLIDER_CONFIG = {
     paddingY: 16,
     cornerRadius: 50,
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'italic' as const,
+    fontStyle: 'normal' as const,
     fontSize: 70,
     minFontSize: 60,
     maxFontSize: 80,
@@ -52,7 +52,7 @@ export const SLIDER_CONFIG = {
     gapFromPill: 60,
     maxWidth: 920,
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'bold italic' as const,
+    fontStyle: 'normal' as const,
     fontSize: 90,
     minFontSize: 60,
     maxFontSize: 120,
@@ -72,6 +72,19 @@ export const SLIDER_CONFIG = {
     lineHeight: 1.45,
   },
 
+  // Subtext2 configuration (same styling as subtext)
+  subtext2: {
+    x: 80,
+    gapFromSubtext: 50,
+    maxWidth: 920,
+    fontFamily: 'PT Sans',
+    fontStyle: 'bold' as const,
+    fontSize: 50,
+    minFontSize: 35,
+    maxFontSize: 70,
+    lineHeight: 1.45,
+  },
+
   // Content slide overrides (slides without pill badge)
   contentSlide: {
     headline: {
@@ -81,6 +94,12 @@ export const SLIDER_CONFIG = {
     },
     subtext: {
       gapFromHeadline: 40,
+      fontSize: 45,
+      minFontSize: 32,
+      maxFontSize: 55,
+    },
+    subtext2: {
+      gapFromSubtext: 40,
       fontSize: 45,
       minFontSize: 32,
       maxFontSize: 55,
@@ -166,6 +185,12 @@ export interface SliderLayoutResult {
     fontSize: number;
     lines: string[];
   };
+  subtext2: {
+    x: number;
+    y: number;
+    fontSize: number;
+    lines: string[];
+  };
   arrow: {
     x: number;
     y: number;
@@ -178,6 +203,7 @@ export interface SliderLayoutResult {
 
 /**
  * Calculate font size for text that needs to fit within bounds
+ * Uses accurate font measurement to match Konva's actual rendering
  */
 function calculateAdaptiveFontSize(
   text: string,
@@ -185,22 +211,24 @@ function calculateAdaptiveFontSize(
   minFontSize: number,
   maxFontSize: number,
   maxWidth: number,
+  fontFamily: string,
+  fontStyle: string,
   maxLines: number = 10
 ): { fontSize: number; lines: string[] } {
   // Try with base font size first
   let fontSize = baseFontSize;
-  let lines = wrapText(text, maxWidth, fontSize);
+  let lines = wrapTextAccurate(text, maxWidth, fontSize, fontFamily, fontStyle);
 
   // If too many lines, reduce font size
   while (lines.length > maxLines && fontSize > minFontSize) {
     fontSize -= 5;
-    lines = wrapText(text, maxWidth, fontSize);
+    lines = wrapTextAccurate(text, maxWidth, fontSize, fontFamily, fontStyle);
   }
 
   // If few lines, try increasing font size
   if (lines.length <= 3 && fontSize < maxFontSize) {
     const largerFontSize = Math.min(fontSize * 1.2, maxFontSize);
-    const largerLines = wrapText(text, maxWidth, largerFontSize);
+    const largerLines = wrapTextAccurate(text, maxWidth, largerFontSize, fontFamily, fontStyle);
     if (largerLines.length <= 4) {
       fontSize = largerFontSize;
       lines = largerLines;
@@ -212,6 +240,7 @@ function calculateAdaptiveFontSize(
 
 /**
  * Calculate pill badge dimensions based on label text
+ * Uses accurate font measurement for proper sizing
  */
 function calculatePillDimensions(
   labelText: string,
@@ -220,9 +249,13 @@ function calculatePillDimensions(
   const config = SLIDER_CONFIG.pill;
   const fontSize = customFontSize ?? config.fontSize;
 
-  // Estimate text width (approximate character width ratio for GrueneTypeNeue italic)
-  const charWidthRatio = 0.55;
-  const textWidth = labelText.length * fontSize * charWidthRatio;
+  // Use accurate text measurement for pill width
+  const textWidth = measureTextWidthWithFont(
+    labelText,
+    fontSize,
+    config.fontFamily,
+    config.fontStyle
+  );
   const width = textWidth + config.paddingX * 2;
   const height = fontSize + config.paddingY * 2;
 
@@ -240,7 +273,9 @@ export function calculateSliderLayout(
   customHeadlineFontSize?: number | null,
   customSubtextFontSize?: number | null,
   showPill: boolean = true,
-  isLastSlide: boolean = false
+  isLastSlide: boolean = false,
+  subtext2Text: string = '',
+  customSubtext2FontSize?: number | null
 ): SliderLayoutResult {
   const config = SLIDER_CONFIG;
 
@@ -261,6 +296,11 @@ export function calculateSliderLayout(
     : isLastSlide
       ? { ...config.subtext, ...config.lastSlide.subtext }
       : { ...config.subtext, ...config.contentSlide.subtext };
+  const st2Base = showPill
+    ? config.subtext2
+    : isLastSlide
+      ? config.subtext2
+      : { ...config.subtext2, ...config.contentSlide.subtext2 };
 
   // When no pill, headline starts at top margin (more space for text)
   let headlineY = showPill
@@ -272,6 +312,8 @@ export function calculateSliderLayout(
     hlBase.minFontSize,
     customHeadlineFontSize ?? hlBase.maxFontSize,
     config.headline.maxWidth,
+    config.headline.fontFamily,
+    config.headline.fontStyle,
     6
   );
 
@@ -286,6 +328,8 @@ export function calculateSliderLayout(
     stBase.minFontSize,
     customSubtextFontSize ?? stBase.maxFontSize,
     config.subtext.maxWidth,
+    config.subtext.fontFamily,
+    config.subtext.fontStyle,
     8
   );
 
@@ -293,8 +337,24 @@ export function calculateSliderLayout(
   const subtextLineHeight = subtextFontSize * config.subtext.lineHeight;
   const subtextHeight = subtextLines.length * subtextLineHeight;
 
-  // For last slide, vertically center the text block
+  // Calculate subtext2 font size and lines (only for content slides)
+  const { fontSize: subtext2FontSize, lines: subtext2Lines } = calculateAdaptiveFontSize(
+    subtext2Text,
+    customSubtext2FontSize ?? st2Base.fontSize,
+    st2Base.minFontSize,
+    customSubtext2FontSize ?? st2Base.maxFontSize,
+    config.subtext2.maxWidth,
+    config.subtext2.fontFamily,
+    config.subtext2.fontStyle,
+    8
+  );
+
+  const subtext2LineHeight = subtext2FontSize * config.subtext2.lineHeight;
+  const subtext2Height = subtext2Lines.length * subtext2LineHeight;
+
+  // For last slide, vertically center the text block (no subtext2 on last slide)
   let subtextY: number;
+  let subtext2Y: number;
   if (isLastSlide) {
     const gap = stBase.gapFromHeadline;
     const totalTextHeight = headlineHeight + (subtextText ? gap + subtextHeight : 0);
@@ -302,8 +362,10 @@ export function calculateSliderLayout(
     const startY = config.layout.topMargin + (usable - totalTextHeight) / 2;
     headlineY = startY;
     subtextY = headlineY + headlineHeight + gap;
+    subtext2Y = subtextY + subtextHeight + st2Base.gapFromSubtext;
   } else {
     subtextY = headlineY + headlineHeight + stBase.gapFromHeadline;
+    subtext2Y = subtextY + subtextHeight + st2Base.gapFromSubtext;
   }
 
   return {
@@ -326,6 +388,12 @@ export function calculateSliderLayout(
       y: subtextY,
       fontSize: subtextFontSize,
       lines: subtextLines,
+    },
+    subtext2: {
+      x: config.subtext2.x,
+      y: subtext2Y,
+      fontSize: subtext2FontSize,
+      lines: subtext2Lines,
     },
     arrow: {
       x: config.arrow.defaultX,
