@@ -17,7 +17,7 @@ import type {
 export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
   const name = String(modelName || '').toLowerCase();
   // LiteLLM models typically use prefixes like gpt-oss, or are mistral/mixtral variants
-  // Exclude Mistral API models (mistral-medium-latest, magistral-*, etc.)
+  // Exclude Mistral API models (mistral-large-2512, magistral-*, etc.)
   if (name.includes('gpt-oss') || name.includes('gpt-4') || name.includes('gpt-3')) {
     return true;
   }
@@ -89,7 +89,7 @@ export function selectProviderAndModel({
 }: SelectProviderParams): ProviderResult {
   // Base defaults
   let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
-  let model: ModelName = options.model || 'mistral-medium-latest';
+  let model: ModelName = options.model || 'mistral-large-2512';
 
   // Ultra mode (useUltraMode flag) - routes to IONOS with high-quality model
   if (options.useUltraMode === true) {
@@ -106,12 +106,12 @@ export function selectProviderAndModel({
   // Notebook enrichment - fetch context from notebook - use fast model
   if (type === 'notebook_enrich') {
     provider = 'mistral';
-    model = options.model || 'mistral-medium-latest';
+    model = options.model || 'mistral-large-2512';
   }
   // Fast mode QA draft - use faster model, no citations
   else if (type === 'qa_draft_fast') {
     provider = 'mistral';
-    model = options.model || 'mistral-medium-latest';
+    model = options.model || 'mistral-large-2512';
   }
   // QA draft (final answer) uses magistral for higher quality
   else if (type === 'qa_draft') {
@@ -121,7 +121,7 @@ export function selectProviderAndModel({
   // QA intermediate steps (planner, repair, tools) use standard model
   else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
     provider = 'mistral';
-    model = options.model || 'mistral-medium-latest';
+    model = options.model || 'mistral-large-2512';
   } else if (
     type === 'antrag_simple' ||
     type === 'antrag' ||

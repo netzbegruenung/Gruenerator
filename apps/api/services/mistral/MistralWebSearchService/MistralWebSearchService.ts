@@ -4,8 +4,10 @@
  */
 
 import mistralClient from '../../../workers/mistralClient.js';
+
 import { getAgentConfig } from './agentConfig.js';
 import { extractSearchResults } from './resultExtraction.js';
+
 import type { SearchResults, AgentType } from './types.js';
 
 export class MistralWebSearchService {
@@ -48,7 +50,7 @@ export class MistralWebSearchService {
       console.log(`[MistralWebSearchService] Creating ${config.name}`);
 
       const agent = await this.client.beta.agents.create({
-        model: 'mistral-medium-latest',
+        model: 'mistral-large-2512',
         name: config.name,
         instructions: config.instructions,
         description: config.description,
