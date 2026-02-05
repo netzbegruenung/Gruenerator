@@ -432,11 +432,18 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
     }
 
     console.log('[KeycloakOIDC] Pre-warming Keycloak discovery...');
-    await strategy.initialize();
-    console.log('[KeycloakOIDC] Strategy initialized and discovery pre-warmed successfully');
+    try {
+      await strategy.initialize();
+      console.log('[KeycloakOIDC] Strategy initialized and discovery pre-warmed successfully');
+    } catch (warmupError) {
+      console.warn(
+        '[KeycloakOIDC] Pre-warming failed, strategy will lazy-initialize on first auth request:',
+        (warmupError as Error).message
+      );
+    }
     return strategy;
   } catch (error) {
-    console.error('[KeycloakOIDC] Failed to initialize strategy:', error);
+    console.error('[KeycloakOIDC] Failed to create strategy:', error);
     throw error;
   }
 }
