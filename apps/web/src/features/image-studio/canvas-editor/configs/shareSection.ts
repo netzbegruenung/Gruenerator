@@ -33,6 +33,11 @@ export function createShareSection<TState, TActions = unknown>(
         onNavigateToGallery: context?.onNavigateToGallery ?? (() => {}),
         canvasText,
         canvasType,
+        pageCount: context?.pageCount as number | undefined,
+        onDownloadAllZip: context?.onDownloadAllZip as (() => Promise<void>) | undefined,
+        onShareAllPages: context?.onShareAllPages as (() => Promise<void>) | undefined,
+        isMultiExporting: context?.isMultiExporting as boolean | undefined,
+        exportProgress: context?.exportProgress as { current: number; total: number } | undefined,
       };
     },
   };

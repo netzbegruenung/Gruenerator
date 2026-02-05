@@ -92,7 +92,7 @@
   .sidebar-hint-popup__content {
     padding: var(--spacing-medium);
     padding-right: calc(var(--spacing-medium) + 24px);
-    font-size: 13px;
+    font-size: 10px;
     color: var(--font-color-muted);
     line-height: 1.5;
   }

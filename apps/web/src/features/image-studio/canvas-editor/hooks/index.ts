@@ -66,6 +66,7 @@ export type {
 
 export { useHeterogeneousMultiPage } from './useHeterogeneousMultiPage';
 export type {
+  InitialPageDef,
   UseHeterogeneousMultiPageOptions,
   UseHeterogeneousMultiPageReturn,
 } from './useHeterogeneousMultiPage';

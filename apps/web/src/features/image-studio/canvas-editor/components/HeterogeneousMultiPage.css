@@ -34,13 +34,12 @@
 /* Individual page wrapper - clickable selection area */
 .heterogeneous-multipage__page-wrapper {
   position: relative;
-  border: 2px solid transparent;
-  border-radius: 2px;
-  transition: border-color 0.15s ease;
   cursor: pointer;
   overflow: hidden;
   /* Shrink to fit the canvas content */
   width: fit-content;
+  /* Padding accommodates the outward ::after border (overflow:hidden clips at padding edge) */
+  padding: 2px;
 
   /* Performance: content-visibility for off-screen pages (Rule 6.2) */
   content-visibility: auto;
@@ -54,19 +53,28 @@
 
 .heterogeneous-multipage__page-wrapper .zoomable-viewport-container {
   padding: 0;
+  /* Allow ::after border to extend outside canvas — zoom is disabled in multi-page mode */
+  overflow: visible;
 }
 
-.heterogeneous-multipage__page-wrapper .zoomable-viewport-content::after {
-  display: none;
+/* In multi-page mode, render border outside the canvas image (negative offsets)
+   and hide by default; active/hover states control visibility */
+.heterogeneous-multipage__page-wrapper .canvas-stage-container::after {
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-color: transparent;
+  transition: border-color 0.15s ease;
 }
 
-/* Hover state for non-active pages */
-.heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) {
+/* Hover state for non-active pages - subtle hint border on canvas only */
+.heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) .canvas-stage-container::after {
   border-color: var(--border-color-hover, rgba(0, 0, 0, 0.15));
 }
 
-/* Active page indicator - subtle border */
-.heterogeneous-multipage__page-wrapper--active {
+/* Active page indicator - dark green border on canvas only */
+.heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
   border-color: var(--tanne, #0a2b1e);
 }
 
@@ -126,11 +134,11 @@
 }
 
 /* Dark theme adjustments */
-[data-theme="dark"] .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) {
+[data-theme="dark"] .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) .canvas-stage-container::after {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-[data-theme="dark"] .heterogeneous-multipage__page-wrapper--active {
+[data-theme="dark"] .heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
   border-color: var(--tanne-light, #1a5c40);
 }
 

@@ -22,37 +22,43 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     id: 'dreizeilen',
     label: '3 Zeilen',
     description: 'Drei Textzeilen mit Hintergrundbild',
-    previewImage: '/imagine/previews/dreizeilen-preview.png',
+    previewImage: '/imagine/previews/dreizeilen-preview.webp',
   },
   zitat: {
     id: 'zitat',
     label: 'Zitat',
     description: 'Zitat mit Hintergrundbild',
-    previewImage: '/imagine/previews/zitat-preview.png',
+    previewImage: '/imagine/previews/zitat-preview.webp',
   },
   'zitat-pure': {
     id: 'zitat-pure',
     label: 'Zitat Pur',
     description: 'Zitat ohne Hintergrundbild',
-    previewImage: '/imagine/previews/zitat-pure-preview.png',
+    previewImage: '/imagine/previews/zitat-pure-preview.webp',
   },
   simple: {
     id: 'simple',
     label: 'Einfach',
     description: 'Überschrift und Unterzeile mit Bild',
-    previewImage: '/imagine/previews/simple-preview.png',
+    previewImage: '/imagine/previews/simple-preview.webp',
   },
   info: {
     id: 'info',
     label: 'Info',
     description: 'Überschrift und Text ohne Bild',
-    previewImage: '/imagine/previews/info-preview.png',
+    previewImage: '/imagine/previews/info-preview.webp',
   },
   veranstaltung: {
     id: 'veranstaltung',
     label: 'Event',
     description: 'Veranstaltungsankündigung',
-    previewImage: '/imagine/previews/veranstaltung-preview.png',
+    previewImage: '/imagine/previews/veranstaltung-preview.webp',
+  },
+  slider: {
+    id: 'slider',
+    label: 'Slider',
+    description: 'Slider-Post mit Pill-Badge und Pfeil',
+    previewImage: '/imagine/previews/slider-preview.webp',
   },
 };
 
@@ -82,5 +88,5 @@ export function templateSupportsImageBackground(configId: CanvasConfigId): boole
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure'].includes(configId);
+  return ['info', 'zitat-pure', 'slider'].includes(configId);
 }
