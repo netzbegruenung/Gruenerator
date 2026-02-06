@@ -34,6 +34,7 @@ interface ChatMainProps {
 
 /**
  * Progress indicator component showing current processing stage.
+ * Only shows for non-direct intents (search, research, etc.)
  */
 function ProgressIndicator({
   progress,
@@ -42,14 +43,23 @@ function ProgressIndicator({
   progress: ChatProgress;
   agentColor: string;
 }) {
-  if (progress.stage === 'idle' || progress.stage === 'complete') {
+  // Don't show progress for idle, complete, or direct intent
+  if (
+    progress.stage === 'idle' ||
+    progress.stage === 'complete' ||
+    progress.intent === 'direct'
+  ) {
     return null;
+  }
+
+  // Only show during classifying if we don't know the intent yet
+  // Once classified as direct, this won't render (handled above)
+  if (progress.stage === 'classifying') {
+    return null; // Don't show "Analysiere..." - wait until we know the intent
   }
 
   const getIcon = () => {
     switch (progress.stage) {
-      case 'classifying':
-        return <Sparkles className="h-4 w-4" />;
       case 'searching':
         return <Search className="h-4 w-4" />;
       case 'generating':
@@ -300,7 +310,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
                     {selectedAgent?.avatar}
                   </div>
                   <div className="min-w-0 flex-1 space-y-3">
-                    {/* Progress indicator */}
+                    {/* Progress indicator - only for search intents */}
                     <ProgressIndicator
                       progress={progress}
                       agentColor={selectedAgent?.backgroundColor || '#316049'}
@@ -313,8 +323,15 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
                       </div>
                     )}
 
-                    {/* Typing indicator when no text yet */}
-                    {!streamingText && progress.stage === 'generating' && (
+                    {/* Typing indicator - show when:
+                        1. Classifying (waiting for intent)
+                        2. Direct intent generating (no search)
+                        3. Search intent generating but no text yet */}
+                    {!streamingText && (
+                      progress.stage === 'classifying' ||
+                      progress.stage === 'generating' ||
+                      (progress.intent === 'direct' && progress.stage !== 'complete')
+                    ) && (
                       <div className="flex items-center gap-2 pt-1 text-foreground-muted">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         <span className="text-sm">Schreibe...</span>
