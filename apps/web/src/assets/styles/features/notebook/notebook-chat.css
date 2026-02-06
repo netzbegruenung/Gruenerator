@@ -12,3 +12,21 @@
     color: var(--font-color);
     text-align: center;
 }
+
+/* Streaming message styles */
+.chat-message-streaming {
+    opacity: 0.9;
+}
+
+.streaming-cursor {
+    display: inline-block;
+    animation: blink 1s infinite;
+    color: var(--primary-green);
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}

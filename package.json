@@ -16,6 +16,7 @@
       "@tiptap/core": "^3.15.3",
       "@tiptap/pm": "^3.15.3",
       "@hocuspocus/provider": "^3.4.3",
+      "@isaacs/brace-expansion": ">=5.0.1",
       "diff": ">=5.2.2",
       "hono": ">=4.11.4",
       "markdown-it": ">=14.1.0",
@@ -27,7 +28,9 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "services/*"
+    "services/comfyui",
+    "services/mcp",
+    "documentation"
   ],
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
@@ -40,6 +43,7 @@
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.2",
     "@types/node": "^24.5.2",
+    "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "husky": "^9.1.7",
     "knip": "^5.63.1",
@@ -47,21 +51,22 @@
     "prettier": "^3.4.0",
     "semantic-release": "^25.0.2",
     "turbo": "^2.7.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "wait-on": "^9.0.3"
   },
   "scripts": {
     "knip": "knip",
     "prepare": "husky || true",
     "release": "semantic-release",
     "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
+    "typecheck": "turbo run typecheck --concurrency=3",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
     "ci": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "test": "turbo run test",
-    "dev": "turbo run dev",
+    "dev": "concurrently -k -n api,apps -c blue,green \"pnpm dev:backend\" \"wait-on tcp:3001 && turbo run dev --filter=!@gruenerator/api\"",
     "dev:web": "turbo run dev --filter=@gruenerator/web",
     "dev:backend": "turbo run dev --filter=@gruenerator/api",
     "dev:mobile": "turbo run dev --filter=@gruenerator/mobile",
@@ -72,7 +77,15 @@
     "build:sites": "turbo run build --filter=@gruenerator/sites",
     "dev:docs": "turbo run dev --filter=@gruenerator/docs",
     "build:docs": "turbo run build --filter=@gruenerator/docs",
+    "dev:chat": "turbo run dev --filter=@gruenerator/chat",
+    "build:chat": "turbo run build --filter=@gruenerator/chat",
     "dev:documentation": "turbo run dev --filter=@gruenerator/documentation",
-    "build:documentation": "turbo run build --filter=@gruenerator/documentation"
+    "build:documentation": "turbo run build --filter=@gruenerator/documentation",
+    "dev:capacitor:android": "pnpm --filter @gruenerator/capacitor dev:android",
+    "dev:capacitor:ios": "pnpm --filter @gruenerator/capacitor dev:ios",
+    "build:capacitor:android": "pnpm --filter @gruenerator/capacitor build:android",
+    "build:capacitor:ios": "pnpm --filter @gruenerator/capacitor build:ios",
+    "capacitor:sync": "pnpm --filter @gruenerator/capacitor sync",
+    "capacitor:doctor": "pnpm --filter @gruenerator/capacitor doctor"
   }
 }

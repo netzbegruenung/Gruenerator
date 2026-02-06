@@ -7,7 +7,8 @@ import ChatStartPage from './ChatStartPage';
 import ChatSubmitButton from './ChatSubmitButton';
 import ChatUI from './ChatUI';
 import useChatInput from './hooks/useChatInput';
-import ModeSelector from './ModeSelector';
+// DEPRECATED: ModeSelector removed - all consumers use 'chat' mode only
+// import ModeSelector from './ModeSelector';
 import { handleEnterKeySubmit } from './utils/chatMessageUtils';
 
 import type { JSX, ReactNode, FormEvent } from 'react';
@@ -51,9 +52,10 @@ interface ExampleQuestion {
 }
 
 interface ChatWorkbenchLayoutProps {
-  mode: string;
-  modes: Record<string, WorkbenchModeConfig>;
-  onModeChange: (mode: string) => void;
+  // DEPRECATED: mode, modes, onModeChange removed - all consumers use 'chat' mode only
+  mode?: string; // Kept for backwards compatibility, ignored
+  modes?: Record<string, WorkbenchModeConfig>; // Kept for backwards compatibility, ignored
+  onModeChange?: (mode: string) => void; // Kept for backwards compatibility, ignored
   title?: string | number;
   headerContent?: ReactNode;
   messages: ChatMessage[];
@@ -70,7 +72,8 @@ interface ChatWorkbenchLayoutProps {
   className?: string;
   submitLabel?: ReactNode;
   isEditModeActive?: boolean;
-  hideModeSelector?: boolean;
+  // DEPRECATED: hideModeSelector removed - mode selector no longer exists
+  hideModeSelector?: boolean; // Kept for backwards compatibility, ignored
   hideHeader?: boolean;
   onVoiceRecorderTranscription?: (text: string) => void;
   autoSubmitVoice?: boolean;
@@ -90,9 +93,10 @@ interface ChatWorkbenchLayoutProps {
 }
 
 const ChatWorkbenchLayout = ({
-  mode,
-  modes,
-  onModeChange,
+  // DEPRECATED: mode, modes, onModeChange - unused, kept for backwards compatibility
+  mode: _mode,
+  modes: _modes,
+  onModeChange: _onModeChange,
   title,
   headerContent,
   messages,
@@ -103,13 +107,13 @@ const ChatWorkbenchLayout = ({
   onInputChange,
   disabled,
   renderMessage,
-  rightPanelContent,
-  rightPanelFooter,
+  rightPanelContent: _rightPanelContent, // DEPRECATED: only used in dossier mode
+  rightPanelFooter: _rightPanelFooter, // DEPRECATED: only used in dossier mode
   infoPanelContent,
   className = '',
   submitLabel = null,
   isEditModeActive = false,
-  hideModeSelector = false,
+  hideModeSelector: _hideModeSelector = false, // DEPRECATED: unused
   hideHeader = false,
   onVoiceRecorderTranscription,
   autoSubmitVoice = true,
@@ -125,7 +129,7 @@ const ChatWorkbenchLayout = ({
   onSourceToggle,
   filterBar = null,
   filterButton = null,
-  onReset,
+  onReset: _onReset, // DEPRECATED: unused
 }: ChatWorkbenchLayoutProps): JSX.Element => {
   // Consolidated voice recording via useChatInput hook
   const { isVoiceRecording, isVoiceProcessing, startRecording, stopRecording } = useChatInput({
@@ -147,16 +151,18 @@ const ChatWorkbenchLayout = ({
 
   const handleKeyDown = (event: React.KeyboardEvent) => handleEnterKeySubmit(event, handleSubmit);
 
-  const renderModeSelector = () => (
-    <ModeSelector
-      currentMode={mode}
-      modes={modes}
-      onModeChange={onModeChange}
-      className="qa-chat-mode-selector"
-    />
-  );
+  // DEPRECATED: renderModeSelector removed - all consumers use 'chat' mode only
+  // const renderModeSelector = () => (
+  //   <ModeSelector
+  //     currentMode={mode}
+  //     modes={modes}
+  //     onModeChange={onModeChange}
+  //     className="qa-chat-mode-selector"
+  //   />
+  // );
 
-  const renderInputWrapper = () => {
+  // DEPRECATED: renderInputWrapper only used in dossier mode
+  const _renderInputWrapper = () => {
     return (
       <form className="qa-chat-dossier-input-wrapper" onSubmit={handleSubmit}>
         <div className="textarea-wrapper">
@@ -196,7 +202,8 @@ const ChatWorkbenchLayout = ({
     );
   };
 
-  const renderHeader = () => {
+  // DEPRECATED: renderHeader only used in dossier mode
+  const _renderHeader = () => {
     if (hideHeader || (!title && !headerContent)) return null;
 
     return (
@@ -209,71 +216,72 @@ const ChatWorkbenchLayout = ({
     );
   };
 
-  const renderDossierMode = () => {
-    const hasUserMessage = messages?.some((msg) => msg.type === 'user');
-
-    if (showStartPage && !hasUserMessage) {
-      return (
-        <div className="qa-chat-main qa-chat-fullscreen-start">
-          <ChatStartPage
-            variant="gruenerator"
-            title={startPageTitle}
-            placeholder={placeholder}
-            inputValue={inputValue}
-            onInputChange={onInputChange}
-            onSubmit={onSubmit}
-            disabled={disabled || isProcessing}
-            enableFileUpload={enableFileUpload}
-            onFileSelect={onFileSelect}
-            attachedFiles={attachedFiles}
-            onRemoveFile={onRemoveFile}
-            exampleQuestions={exampleQuestions}
-            sources={sources}
-            onSourceToggle={onSourceToggle}
-            filterBar={filterBar}
-            filterButton={filterButton}
-            isVoiceRecording={isVoiceRecording}
-            isVoiceProcessing={isVoiceProcessing}
-            startRecording={startRecording}
-            stopRecording={stopRecording}
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div className="qa-chat-main qa-chat-dossier">
-        <div className="qa-chat-left-panel">
-          {renderHeader()}
-          <ChatUI
-            messages={messages}
-            onSubmit={onSubmit}
-            isProcessing={isProcessing}
-            placeholder={placeholder}
-            inputValue={inputValue}
-            onInputChange={onInputChange}
-            disabled={disabled}
-            className="qa-chat-ui"
-            renderInput={renderInputWrapper}
-            showHeader={false}
-            autoSubmitVoice={autoSubmitVoice}
-            enableFileUpload={enableFileUpload}
-            attachedFiles={attachedFiles}
-            onRemoveFile={onRemoveFile}
-            singleLine={singleLine}
-            isVoiceRecording={isVoiceRecording}
-            isVoiceProcessing={isVoiceProcessing}
-            startRecording={startRecording}
-            stopRecording={stopRecording}
-          />
-        </div>
-        <div className="qa-chat-right-panel">
-          {rightPanelContent}
-          {rightPanelFooter}
-        </div>
-      </div>
-    );
-  };
+  // DEPRECATED: renderDossierMode removed - all consumers use 'chat' mode only
+  // const renderDossierMode = () => {
+  //   const hasUserMessage = messages?.some((msg) => msg.type === 'user');
+  //
+  //   if (showStartPage && !hasUserMessage) {
+  //     return (
+  //       <div className="qa-chat-main qa-chat-fullscreen-start">
+  //         <ChatStartPage
+  //           variant="gruenerator"
+  //           title={startPageTitle}
+  //           placeholder={placeholder}
+  //           inputValue={inputValue}
+  //           onInputChange={onInputChange}
+  //           onSubmit={onSubmit}
+  //           disabled={disabled || isProcessing}
+  //           enableFileUpload={enableFileUpload}
+  //           onFileSelect={onFileSelect}
+  //           attachedFiles={attachedFiles}
+  //           onRemoveFile={onRemoveFile}
+  //           exampleQuestions={exampleQuestions}
+  //           sources={sources}
+  //           onSourceToggle={onSourceToggle}
+  //           filterBar={filterBar}
+  //           filterButton={filterButton}
+  //           isVoiceRecording={isVoiceRecording}
+  //           isVoiceProcessing={isVoiceProcessing}
+  //           startRecording={startRecording}
+  //           stopRecording={stopRecording}
+  //         />
+  //       </div>
+  //     );
+  //   }
+  //
+  //   return (
+  //     <div className="qa-chat-main qa-chat-dossier">
+  //       <div className="qa-chat-left-panel">
+  //         {renderHeader()}
+  //         <ChatUI
+  //           messages={messages}
+  //           onSubmit={onSubmit}
+  //           isProcessing={isProcessing}
+  //           placeholder={placeholder}
+  //           inputValue={inputValue}
+  //           onInputChange={onInputChange}
+  //           disabled={disabled}
+  //           className="qa-chat-ui"
+  //           renderInput={renderInputWrapper}
+  //           showHeader={false}
+  //           autoSubmitVoice={autoSubmitVoice}
+  //           enableFileUpload={enableFileUpload}
+  //           attachedFiles={attachedFiles}
+  //           onRemoveFile={onRemoveFile}
+  //           singleLine={singleLine}
+  //           isVoiceRecording={isVoiceRecording}
+  //           isVoiceProcessing={isVoiceProcessing}
+  //           startRecording={startRecording}
+  //           stopRecording={stopRecording}
+  //         />
+  //       </div>
+  //       <div className="qa-chat-right-panel">
+  //         {rightPanelContent}
+  //         {rightPanelFooter}
+  //       </div>
+  //     </div>
+  //   );
+  // };
 
   const renderChatMode = () => {
     const hasUserMessage = messages?.some((msg) => msg.type === 'user');
@@ -343,12 +351,12 @@ const ChatWorkbenchLayout = ({
 
   return (
     <motion.div
-      className={`qa-chat-container qa-chat-${mode} ${isEditModeActive ? 'qa-chat-edit-active' : ''} ${className}`.trim()}
+      className={`qa-chat-container qa-chat-chat ${isEditModeActive ? 'qa-chat-edit-active' : ''} ${className}`.trim()}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      {mode === 'dossier' ? renderDossierMode() : renderChatMode()}
+      {renderChatMode()}
     </motion.div>
   );
 };

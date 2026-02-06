@@ -211,26 +211,26 @@ const MediaLibraryPage = lazy(() =>
 // Notebook Chat Komponente importieren
 const NotebookChat = lazy(() => import('../features/notebook/components/NotebookChat'));
 
-// Grünerator Chat Komponente importieren
-const GrueneratorChat = lazy(() => import('../features/chat/components/GrueneratorChat'));
+// DEPRECATED: Grünerator Chat - disabled, keeping backend intact
+// const GrueneratorChat = lazy(() => import('../features/chat/components/GrueneratorChat'));
 
 // Beta Feature Wrapper importieren
 const BetaFeatureWrapper = lazy(() => import('../components/common/BetaFeatureWrapper'));
 
-// Wrapped Chat Component für Beta Feature
-const WrappedGrueneratorChat = lazy(() =>
-  Promise.all([
-    import('../features/chat/components/GrueneratorChat'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([chatModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: chatModule.default(),
-        featureKey: 'chat',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+// DEPRECATED: Wrapped Chat Component für Beta Feature
+// const WrappedGrueneratorChat = lazy(() =>
+//   Promise.all([
+//     import('../features/chat/components/GrueneratorChat'),
+//     import('../components/common/BetaFeatureWrapper'),
+//   ]).then(([chatModule, wrapperModule]) => ({
+//     default: (props: Record<string, unknown>) =>
+//       wrapperModule.default({
+//         children: chatModule.default(),
+//         featureKey: 'chat',
+//         fallbackPath: '/profile?tab=labor',
+//       }),
+//   }))
+// );
 
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
@@ -279,7 +279,7 @@ export const GrueneratorenBundle = {
   Reel: Reel,
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
-  Chat: WrappedGrueneratorChat,
+  // DEPRECATED: Chat: WrappedGrueneratorChat,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
@@ -367,8 +367,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   // Q&A Chat Routen
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
-  // Grünerator Chat Route
-  { path: '/chat', component: GrueneratorenBundle.Chat },
+  // DEPRECATED: Grünerator Chat Route
+  // { path: '/chat', component: GrueneratorenBundle.Chat },
   // Text Editor - redirect to unified
   { path: '/texteditor', component: TextEditorRedirect },
   // Apps Download Page
