@@ -270,8 +270,10 @@ export function useChatGraphStream(
                   message: string;
                   reasoning?: string;
                 };
+                // For search intents, set stage to 'searching' so progress indicator shows
+                // For direct intent, set stage to 'generating' (skip search phase)
                 setProgress({
-                  stage: intent === 'direct' ? 'generating' : 'classifying',
+                  stage: intent === 'direct' ? 'generating' : 'searching',
                   message,
                   intent,
                   reasoning,
