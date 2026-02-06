@@ -36,3 +36,17 @@ export {
   buildDraftPromptGrundsatz,
   buildDraftPromptGeneral,
 } from './prompts.js';
+
+// Re-export ChatGraph for agentic chat
+export {
+  chatGraph,
+  runChatGraph,
+  initializeChatState,
+} from './ChatGraph/index.js';
+
+export type {
+  ChatGraphInput,
+  ChatGraphOutput,
+  ChatGraphState,
+  SearchIntent,
+} from './ChatGraph/index.js';

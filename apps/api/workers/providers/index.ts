@@ -1,16 +1,14 @@
-import * as claude from './anthropicAdapter.js';
 import * as mistral from './mistralAdapter.js';
 import * as ionos from './ionosAdapter.js';
 import * as litellm from './litellmAdapter.js';
-import * as telekom from './telekomAdapter.js';
 import type { AIRequestData, AIWorkerResult } from '../types.js';
-import type { ProviderName } from '../../services/providers/types.js';
+import type { ProviderName } from '../../services/ai/providers.js';
 
 interface ProviderModule {
   execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult>;
 }
 
-const adapters: Record<string, ProviderModule> = { claude, mistral, ionos, litellm, telekom };
+const adapters: Record<string, ProviderModule> = { mistral, ionos, litellm };
 
 async function executeProvider(
   providerName: ProviderName | string,
@@ -24,4 +22,4 @@ async function executeProvider(
   return adapter.execute(requestId, data);
 }
 
-export { claude, mistral, ionos, litellm, telekom, adapters, executeProvider };
+export { mistral, ionos, litellm, adapters, executeProvider };

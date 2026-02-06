@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
+import { openCapacitorLogin } from '../utils/capacitorAuth';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
-import { isDesktopApp } from '../utils/platform';
+import { isCapacitorApp, isDesktopApp, isNativeApp } from '../utils/platform';
 import { fetchWithDedup } from '../utils/requestDeduplication';
 
 // =============================================================================
@@ -462,6 +463,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   login: (source?: AuthSource) => {
     if (isDesktopApp()) {
       openDesktopLogin(source || 'gruenerator-login');
+    } else if (isCapacitorApp()) {
+      openCapacitorLogin(source || 'gruenerator-login');
     } else {
       const baseUrl = apiClient.defaults.baseURL || '/api';
       const authUrl = source ? `${baseUrl}/auth/login?source=${source}` : `${baseUrl}/auth/login`;

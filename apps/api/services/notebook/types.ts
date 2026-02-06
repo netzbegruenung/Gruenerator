@@ -163,3 +163,32 @@ export interface DocumentScope {
   subcategoryFilters: Record<string, any>;
   documentTitleFilter?: string;
 }
+
+/**
+ * Search context result for streaming
+ * Contains all the data needed to generate an answer without the AI generation step
+ */
+export interface SearchContext {
+  referencesMap: Record<string, any>;
+  sortedResults: ExpandedChunkResult[];
+  systemPrompt: string;
+  contextSummary: string;
+  collectionName?: string;
+  isMulti: boolean;
+  effectiveCollectionIds?: string[];
+  documentScope?: DocumentScope;
+  effectiveFilters?: RequestFilters;
+}
+
+/**
+ * Parameters for getting search context
+ */
+export interface GetSearchContextParams {
+  question: string;
+  collectionId?: string;
+  collectionIds?: string[];
+  userId?: string;
+  requestFilters?: RequestFilters;
+  getCollectionFn?: (collectionId: string) => Promise<any>;
+  getDocumentIdsFn?: (collectionId: string) => Promise<string[]>;
+}

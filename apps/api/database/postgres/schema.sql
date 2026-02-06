@@ -1000,3 +1000,68 @@ CREATE TRIGGER update_wolke_sync_status_updated_at
     BEFORE UPDATE ON wolke_sync_status
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SECTION 14: CHAT SERVICE TABLES
+-- Chat threads and messages for the AI chat service
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Chat threads for conversation sessions
+CREATE TABLE IF NOT EXISTS chat_threads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    agent_id VARCHAR(100) NOT NULL DEFAULT 'gruenerator-universal',
+    title VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    -- Auto-compaction fields for managing long conversations
+    compaction_summary TEXT,
+    compacted_up_to_message_id UUID,
+    compaction_updated_at TIMESTAMPTZ
+);
+
+-- Add compaction columns if they don't exist (for existing installations)
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS compaction_summary TEXT;
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS compacted_up_to_message_id UUID;
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS compaction_updated_at TIMESTAMPTZ;
+
+-- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_chat_threads_compacted_message'
+    ) THEN
+        ALTER TABLE chat_threads
+            ADD CONSTRAINT fk_chat_threads_compacted_message
+            FOREIGN KEY (compacted_up_to_message_id) REFERENCES chat_messages(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- Chat messages within threads
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id UUID REFERENCES chat_threads(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+    content TEXT,
+    tool_calls JSONB,
+    tool_results JSONB,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Chat indexes
+CREATE INDEX IF NOT EXISTS idx_chat_threads_user_id ON chat_threads(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_updated_at ON chat_threads(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_user_updated ON chat_threads(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_compaction ON chat_threads(id) WHERE compaction_summary IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
+
+-- Chat triggers
+CREATE TRIGGER update_chat_threads_updated_at
+    BEFORE UPDATE ON chat_threads
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

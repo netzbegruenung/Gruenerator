@@ -120,16 +120,16 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     }),
   };
 
-  // Add chat if beta feature is enabled
-  if (betaFeatures.chatBetaEnabled) {
-    items.chat = {
-      id: 'chat',
-      path: '/chat',
-      title: 'Chat',
-      description: 'KI-Assistent für alle Textarten',
-      icon: getIcon('ui', 'assistant'),
-    };
-  }
+  // DEPRECATED: Chat menu item - disabled
+  // if (betaFeatures.chatBetaEnabled) {
+  //   items.chat = {
+  //     id: 'chat',
+  //     path: '/chat',
+  //     title: 'Chat',
+  //     description: 'KI-Assistent für alle Textarten',
+  //     icon: getIcon('ui', 'assistant'),
+  //   };
+  // }
 
   return items;
 };

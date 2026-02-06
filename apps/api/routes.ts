@@ -147,6 +147,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
+  const { default: chatServiceRouter } = await import('./routes/chat/index.js');
+  const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: publicSiteRouter } =
     await import('./routes/sites/index.js');
@@ -178,6 +180,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_suggest_edits', claudeSuggestEditsRoute);
   app.use('/api/claude_text_improver', claudeTextImproverRoute);
   app.use('/api/chat', grueneratorChatRoute);
+  app.use('/api/chat-service', chatServiceRouter);
+  app.use('/api/chat-graph', chatGraphRouter);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
