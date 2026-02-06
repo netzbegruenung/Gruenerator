@@ -1,21 +1,94 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import { useAgentStore, PROVIDER_OPTIONS } from '@/lib/store';
 import { agentsList } from '@/lib/agents';
 import apiClient from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
-import { Menu, Loader2, ArrowUp, Copy, Check, RotateCcw } from 'lucide-react';
+import {
+  Menu,
+  Loader2,
+  ArrowUp,
+  Copy,
+  Check,
+  RotateCcw,
+  Search,
+  Sparkles,
+  FileText,
+} from 'lucide-react';
 import { MarkdownContent } from './markdown-content';
 import { ToolCallUI } from '../mcp-tool-ui/tool-call-ui';
 import { ModelSelector } from './model-selector';
 import { ToolToggles } from './tool-toggles';
+import {
+  useChatGraphStream,
+  type ChatProgress,
+  type ChatMessage,
+} from '@/hooks/useChatGraphStream';
 
 interface ChatMainProps {
   onMenuClick: () => void;
   userId?: string;
+}
+
+/**
+ * Progress indicator component showing current processing stage.
+ */
+function ProgressIndicator({
+  progress,
+  agentColor,
+}: {
+  progress: ChatProgress;
+  agentColor: string;
+}) {
+  if (progress.stage === 'idle' || progress.stage === 'complete') {
+    return null;
+  }
+
+  const getIcon = () => {
+    switch (progress.stage) {
+      case 'classifying':
+        return <Sparkles className="h-4 w-4" />;
+      case 'searching':
+        return <Search className="h-4 w-4" />;
+      case 'generating':
+        return <FileText className="h-4 w-4" />;
+      case 'error':
+        return null;
+      default:
+        return <Loader2 className="h-4 w-4 animate-spin" />;
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
+        progress.stage === 'error'
+          ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+          : 'bg-primary/5 text-foreground-muted'
+      )}
+    >
+      {progress.stage !== 'error' && (
+        <div
+          className="flex h-5 w-5 items-center justify-center rounded-full"
+          style={{ backgroundColor: agentColor }}
+        >
+          {getIcon()}
+        </div>
+      )}
+      <span>{progress.message}</span>
+      {progress.resultCount !== undefined && progress.resultCount > 0 && (
+        <span
+          className="rounded-full px-2 py-0.5 text-xs font-medium"
+          style={{ backgroundColor: agentColor, color: 'white' }}
+        >
+          {progress.resultCount} Quellen
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
@@ -34,45 +107,93 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
     incrementMessageCount,
   } = useAgentStore();
 
-  const currentProviderOption = PROVIDER_OPTIONS.find((p) => p.id === selectedProvider);
+  const currentProviderOption = PROVIDER_OPTIONS.find(
+    (p) => p.id === selectedProvider
+  );
 
   const selectedAgent = agentsList.find((a) => a.identifier === selectedAgentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [input, setInput] = useState('');
 
+  // Use our custom SSE streaming hook
+  const {
+    messages,
+    progress,
+    streamingText,
+    isLoading,
+    threadId: hookThreadId,
+    citations,
+    sendMessage,
+    setMessages,
+    clearMessages,
+    abort,
+  } = useChatGraphStream({
+    agentId: selectedAgentId,
+    enabledTools,
+    onThreadCreated: (newThreadId) => {
+      const newThread = {
+        id: newThreadId,
+        title: 'Neue Unterhaltung',
+        agentId: selectedAgentId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      addThread(newThread);
+      setCurrentThread(newThreadId);
+    },
+    onComplete: () => {
+      if (currentThreadId || hookThreadId) {
+        const threadToUpdate = currentThreadId || hookThreadId;
+        if (threadToUpdate) {
+          updateThread(threadToUpdate, { updatedAt: new Date() });
+          incrementMessageCount();
+          incrementMessageCount();
+
+          if (needsCompaction && !compactionState.summary) {
+            triggerCompaction(threadToUpdate);
+          }
+        }
+      }
+    },
+    onError: (error) => {
+      console.error('[Chat] Stream error:', error);
+    },
+  });
+
+  // Load message history when thread changes
   useEffect(() => {
     async function loadMessages() {
       if (!currentThreadId || !userId) {
-        setInitialMessages([]);
+        clearMessages();
         return;
       }
 
       setIsLoadingHistory(true);
       try {
-        const messages = await apiClient.get<UIMessage[]>(
+        const loadedMessages = await apiClient.get<UIMessage[]>(
           `/api/chat-service/messages?threadId=${currentThreadId}`
         );
-        // Debug: Log messages with toolInvocations
-        const withTools = messages.filter((m: UIMessage & { toolInvocations?: unknown[] }) => m.toolInvocations?.length);
-        if (withTools.length > 0) {
-          console.log('[Chat] Loaded messages with tools:', withTools.map((m: UIMessage & { toolInvocations?: unknown[] }) => ({
-            id: m.id,
-            role: m.role,
-            toolCount: m.toolInvocations?.length,
-          })));
-        }
-        setInitialMessages(messages);
+
+        // Convert to our ChatMessage format
+        const convertedMessages: ChatMessage[] = loadedMessages.map((m) => ({
+          id: m.id,
+          role: m.role as 'user' | 'assistant',
+          content: typeof m.content === 'string' ? m.content : '',
+          timestamp: Date.now(),
+        }));
+
+        setMessages(convertedMessages);
       } catch (error) {
         console.error('Error loading messages:', error);
-        setInitialMessages([]);
+        clearMessages();
       } finally {
         setIsLoadingHistory(false);
       }
     }
 
     loadMessages();
-  }, [currentThreadId, userId]);
+  }, [currentThreadId, userId, setMessages, clearMessages]);
 
   // Load compaction state when thread changes
   useEffect(() => {
@@ -81,145 +202,39 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
     }
   }, [currentThreadId, userId, loadCompactionState]);
 
-  const apiBaseUrl = apiClient.getApiBaseUrl();
-
-  // Debug fetch wrapper to log raw stream data
-  const debugFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    console.log('[Chat Debug] Fetch request:', { url: input, method: init?.method });
-    const response = await fetch(input, init);
-
-    // Clone response to read body without consuming it
-    const clonedResponse = response.clone();
-
-    // Log first chunk of response body
-    try {
-      const reader = clonedResponse.body?.getReader();
-      if (reader) {
-        const { value } = await reader.read();
-        if (value) {
-          const text = new TextDecoder().decode(value);
-          console.log('[Chat Debug] First chunk of response:', text.slice(0, 500));
-        }
-        reader.releaseLock();
-      }
-    } catch (e) {
-      console.log('[Chat Debug] Could not read response body:', e);
-    }
-
-    return response;
-  };
-
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit: originalHandleSubmit,
-    isLoading,
-    setMessages,
-    reload,
-    error,
-  } = useChat({
-    api: `${apiBaseUrl}/api/chat-graph/stream`,
-    id: currentThreadId || undefined,
-    initialMessages,
-    credentials: 'include',
-    fetch: debugFetch,
-    streamProtocol: 'text',
-    body: {
-      agentId: selectedAgentId,
-      provider: selectedProvider,
-      model: currentProviderOption?.model,
-      threadId: currentThreadId,
-      enabledTools,
-    },
-    onResponse: (response) => {
-      console.log('[Chat Debug] onResponse:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-      const newThreadId = response.headers.get('X-Thread-Id');
-      if (newThreadId && !currentThreadId) {
-        const newThread = {
-          id: newThreadId,
-          title: 'Neue Unterhaltung',
-          agentId: selectedAgentId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        addThread(newThread);
-        setCurrentThread(newThreadId);
-      }
-    },
-    onError: (error) => {
-      console.error('[Chat Debug] onError:', error);
-      console.error('[Chat Debug] Error details:', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-      });
-    },
-    onFinish: (message) => {
-      console.log('[Chat Debug] onFinish:', {
-        messageId: message.id,
-        role: message.role,
-        contentLength: message.content?.length || 0,
-        hasToolInvocations: !!(message as any).toolInvocations?.length,
-      });
-      if (currentThreadId) {
-        updateThread(currentThreadId, { updatedAt: new Date() });
-
-        // Track message count for compaction
-        incrementMessageCount();
-        incrementMessageCount(); // +2 for user + assistant
-
-        // Trigger compaction if threshold exceeded and no existing summary
-        if (needsCompaction && !compactionState.summary) {
-          console.log('[Chat] Message threshold exceeded, triggering compaction...');
-          triggerCompaction(currentThreadId);
-        }
-      }
-    },
-  });
-
-  // Log any error from useChat
-  useEffect(() => {
-    if (error) {
-      console.error('[Chat Debug] useChat error state:', error);
-    }
-  }, [error]);
-
-  useEffect(() => {
-    if (initialMessages.length > 0) {
-      setMessages(initialMessages);
-    }
-  }, [initialMessages, setMessages]);
-
+  // Clear messages when agent changes (no thread selected)
   useEffect(() => {
     if (!currentThreadId) {
-      setMessages([]);
-      setInitialMessages([]);
+      clearMessages();
     }
-  }, [selectedAgentId, setMessages, currentThreadId]);
+  }, [selectedAgentId, currentThreadId, clearMessages]);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamingText]);
 
   const handleQuickQuestion = (question: string) => {
-    handleInputChange({ target: { value: question } } as React.ChangeEvent<HTMLTextAreaElement>);
+    setInput(question);
   };
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim()) return;
-      originalHandleSubmit(e);
+      if (!input.trim() || isLoading) return;
+
+      const message = input;
+      setInput('');
+      await sendMessage(message);
     },
-    [input, originalHandleSubmit]
+    [input, isLoading, sendMessage]
   );
 
-  const showWelcome = messages.length === 0 && !isLoadingHistory;
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+  };
+
+  const showWelcome = messages.length === 0 && !isLoadingHistory && !isLoading;
 
   return (
     <div className="flex h-full flex-col bg-background dark:bg-[#1a1a1a]">
@@ -238,7 +253,9 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
         <div className="hidden items-center gap-2 text-sm text-foreground-muted lg:flex">
           <span
             className="flex h-6 w-6 items-center justify-center rounded-full text-xs"
-            style={{ backgroundColor: selectedAgent?.backgroundColor || '#316049' }}
+            style={{
+              backgroundColor: selectedAgent?.backgroundColor || '#316049',
+            }}
           >
             {selectedAgent?.avatar}
           </span>
@@ -267,23 +284,46 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
                   key={message.id}
                   message={message}
                   agent={selectedAgent}
-                  onRegenerate={message.role === 'assistant' ? () => reload() : undefined}
                 />
               ))}
+
+              {/* Progress indicator and streaming text */}
               {isLoading && (
                 <div className="mx-auto flex w-full max-w-3xl items-start gap-4">
                   <div
                     className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm"
-                    style={{ backgroundColor: selectedAgent?.backgroundColor || '#316049' }}
+                    style={{
+                      backgroundColor:
+                        selectedAgent?.backgroundColor || '#316049',
+                    }}
                   >
                     {selectedAgent?.avatar}
                   </div>
-                  <div className="flex items-center gap-2 pt-1 text-foreground-muted">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Schreibe...</span>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    {/* Progress indicator */}
+                    <ProgressIndicator
+                      progress={progress}
+                      agentColor={selectedAgent?.backgroundColor || '#316049'}
+                    />
+
+                    {/* Streaming text preview */}
+                    {streamingText && (
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <MarkdownContent content={streamingText} />
+                      </div>
+                    )}
+
+                    {/* Typing indicator when no text yet */}
+                    {!streamingText && progress.stage === 'generating' && (
+                      <div className="flex items-center gap-2 pt-1 text-foreground-muted">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Schreibe...</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
+
               <div ref={messagesEndRef} />
             </>
           )}
@@ -330,7 +370,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
 }
 
 interface WelcomeScreenProps {
-  agent: typeof agentsList[0] | undefined;
+  agent: (typeof agentsList)[0] | undefined;
   onQuickQuestion: (question: string) => void;
 }
 
@@ -348,9 +388,7 @@ function WelcomeScreen({ agent, onQuickQuestion }: WelcomeScreenProps) {
       <h1 className="mt-4 text-xl font-medium text-foreground">
         {agent?.title || 'Grünerator Chat'}
       </h1>
-      <p className="mt-1 text-sm text-foreground-muted">
-        {agent?.description}
-      </p>
+      <p className="mt-1 text-sm text-foreground-muted">{agent?.description}</p>
 
       {openingQuestions.length > 0 && (
         <div className="mt-8 grid w-full max-w-2xl gap-2 sm:grid-cols-2">
@@ -369,56 +407,17 @@ function WelcomeScreen({ agent, onQuickQuestion }: WelcomeScreenProps) {
   );
 }
 
-interface TextPart {
-  type: 'text';
-  text: string;
-}
-
 interface MessageBubbleProps {
-  message: {
-    id: string;
-    role: 'user' | 'assistant' | 'system' | 'data';
-    content: string;
-    parts?: Array<TextPart | { type: string; [key: string]: unknown }>;
-    toolInvocations?: Array<{
-      toolCallId: string;
-      toolName: string;
-      args: Record<string, unknown>;
-      state: 'partial-call' | 'call' | 'result';
-      result?: unknown;
-    }>;
-  };
-  agent: typeof agentsList[0] | undefined;
-  onRegenerate?: () => void;
+  message: ChatMessage;
+  agent: (typeof agentsList)[0] | undefined;
 }
 
-/**
- * Extract text content from a message, supporting both legacy content field
- * and AI SDK v4.2+ parts array format.
- */
-function getMessageText(message: MessageBubbleProps['message']): string {
-  // First check parts array (AI SDK v4.2+ format)
-  if (message.parts && message.parts.length > 0) {
-    const textParts = message.parts
-      .filter((part): part is TextPart => part.type === 'text' && 'text' in part)
-      .map(part => part.text);
-    if (textParts.length > 0) {
-      return textParts.join('');
-    }
-  }
-  // Fall back to content field (legacy format)
-  return message.content || '';
-}
-
-function MessageBubble({ message, agent, onRegenerate }: MessageBubbleProps) {
+function MessageBubble({ message, agent }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
 
-  // Extract text from either parts (AI SDK v4.2+) or content (legacy)
-  const messageText = getMessageText(message);
-
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(messageText);
+    await navigator.clipboard.writeText(message.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -427,7 +426,7 @@ function MessageBubble({ message, agent, onRegenerate }: MessageBubbleProps) {
     return (
       <div className="mx-auto flex w-full max-w-3xl justify-end">
         <div className="max-w-[85%] rounded-3xl bg-primary/10 px-4 py-3 dark:bg-white/10">
-          <p className="text-foreground whitespace-pre-wrap">{messageText}</p>
+          <p className="whitespace-pre-wrap text-foreground">{message.content}</p>
         </div>
       </div>
     );
@@ -442,23 +441,17 @@ function MessageBubble({ message, agent, onRegenerate }: MessageBubbleProps) {
         {agent?.avatar}
       </div>
       <div className="min-w-0 flex-1">
-        {message.toolInvocations && message.toolInvocations.length > 0 && (
-          <div className="mb-2">
-            {message.toolInvocations.map((tool) => (
-              <ToolCallUI
-                key={tool.toolCallId}
-                toolName={tool.toolName}
-                args={tool.args}
-                state={tool.state}
-                result={tool.result}
-              />
-            ))}
+        {message.content && (
+          <div className="prose prose-sm max-w-none dark:prose-invert">
+            <MarkdownContent content={message.content} />
           </div>
         )}
 
-        {messageText && (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <MarkdownContent content={messageText} />
+        {/* Show citation count if available */}
+        {message.metadata?.citations && message.metadata.citations.length > 0 && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-foreground-muted">
+            <FileText className="h-3 w-3" />
+            <span>{message.metadata.citations.length} Quellen verwendet</span>
           </div>
         )}
 
@@ -468,17 +461,12 @@ function MessageBubble({ message, agent, onRegenerate }: MessageBubbleProps) {
             className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
             aria-label="Kopieren"
           >
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
           </button>
-          {onRegenerate && (
-            <button
-              onClick={onRegenerate}
-              className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-              aria-label="Neu generieren"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </div>
     </div>
