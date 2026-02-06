@@ -142,9 +142,35 @@ router.post('/stream', async (req, res) => {
     }
 
     log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId || 'default'}`);
+    log.info(`[ChatGraph] Received ${clientMessages?.length || 0} messages`);
+
+    // Debug: log message structure
+    if (clientMessages?.length > 0) {
+      log.info('[ChatGraph] First message structure:', JSON.stringify({
+        id: clientMessages[0].id,
+        role: clientMessages[0].role,
+        hasContent: !!clientMessages[0].content,
+        contentType: typeof clientMessages[0].content,
+      }));
+    }
 
     // Convert client messages to ModelMessage format for AI SDK v6
-    const modelMessages = await convertToModelMessages(clientMessages);
+    let modelMessages;
+    try {
+      modelMessages = await convertToModelMessages(clientMessages);
+    } catch (convertError) {
+      log.error('[ChatGraph] Error converting messages:', convertError);
+      sse.send('error', { error: 'Failed to process messages' });
+      sse.end();
+      return;
+    }
+
+    if (!modelMessages || !Array.isArray(modelMessages)) {
+      log.error('[ChatGraph] convertToModelMessages returned invalid result:', modelMessages);
+      sse.send('error', { error: 'Failed to process messages' });
+      sse.end();
+      return;
+    }
 
     // Filter out any assistant messages with empty content
     const validMessages = modelMessages.filter((msg) => {
