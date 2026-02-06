@@ -2,22 +2,37 @@
  * ChatGraph Controller
  *
  * Route handler for the LangGraph-based agentic chat system.
- * Uses AI SDK v6 for streaming with proper @assistant-ui/react-ai-sdk compatibility.
+ * Uses SSE (Server-Sent Events) for streaming with progress indicators.
  *
- * Flow:
- * 1. Run ChatGraph (classify intent → search if needed)
- * 2. Stream response using AI SDK v6's streamText + toUIMessageStreamResponse
- * 3. Persist messages after streaming completes
+ * SSE Event Flow:
+ * 1. thread_created - New thread ID (if created)
+ * 2. intent - Classification result with German status message
+ * 3. search_start - Search beginning (if applicable)
+ * 4. search_complete - Search done with result count
+ * 5. response_start - Generation beginning
+ * 6. text_delta - Streaming text chunks (multiple)
+ * 7. done - Final metadata with citations and timing
  */
 
 import express from 'express';
 import { streamText, convertToModelMessages } from 'ai';
-import type { UIMessage, ModelMessage } from 'ai';
+import type { UIMessage } from 'ai';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
-import { chatGraph, initializeChatState, buildSystemMessage } from '../../agents/langgraph/ChatGraph/index.js';
+import {
+  initializeChatState,
+  buildSystemMessage,
+  classifierNode,
+  searchNode,
+} from '../../agents/langgraph/ChatGraph/index.js';
+import type { ChatGraphState } from '../../agents/langgraph/ChatGraph/types.js';
 import { getModel } from './agents/providers.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import {
+  createSSEStream,
+  getIntentMessage,
+  PROGRESS_MESSAGES,
+} from './services/sseHelpers.js';
 import type { UserProfile } from '../../services/user/types.js';
 
 const log = createLogger('ChatGraphController');
@@ -38,12 +53,12 @@ async function createThread(
   title?: string
 ): Promise<{ id: string; user_id: string; agent_id: string; title: string | null }> {
   const postgres = getPostgresInstance();
-  const result = await postgres.query(
+  const result = (await postgres.query(
     `INSERT INTO chat_threads (user_id, agent_id, title)
      VALUES ($1, $2, $3)
      RETURNING id, user_id, agent_id, title`,
     [userId, agentId, title || null]
-  ) as { id: string; user_id: string; agent_id: string; title: string | null }[];
+  )) as { id: string; user_id: string; agent_id: string; title: string | null }[];
   return result[0];
 }
 
@@ -89,10 +104,12 @@ async function updateThreadTitle(threadId: string, title: string): Promise<void>
 /**
  * POST /api/chat-graph/stream
  *
- * Process a chat message using the LangGraph ChatGraph.
- * Uses AI SDK v6 for proper streaming compatible with @ai-sdk/react's useChat.
+ * Process a chat message using the LangGraph ChatGraph with SSE progress events.
+ * Provides real-time feedback for each processing stage.
  */
 router.post('/stream', async (req, res) => {
+  const sse = createSSEStream(res);
+
   try {
     const { messages: clientMessages, agentId, threadId, enabledTools } = req.body as {
       messages: UIMessage[];
@@ -103,7 +120,9 @@ router.post('/stream', async (req, res) => {
 
     const user = getUser(req);
     if (!user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
+      sse.end();
+      return;
     }
 
     const userId = user.id;
@@ -111,22 +130,25 @@ router.post('/stream', async (req, res) => {
 
     if (!aiWorkerPool) {
       log.error('[ChatGraph] AI Worker Pool not available');
-      return res.status(500).json({ error: 'AI service unavailable' });
+      sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
+      sse.end();
+      return;
     }
 
     if (!clientMessages || !Array.isArray(clientMessages) || clientMessages.length === 0) {
-      return res.status(400).json({ error: 'Messages array is required' });
+      sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired });
+      sse.end();
+      return;
     }
 
     log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId || 'default'}`);
 
-    // Convert client messages to ModelMessage format for AI SDK v6 (async in v6)
+    // Convert client messages to ModelMessage format for AI SDK v6
     const modelMessages = await convertToModelMessages(clientMessages);
 
-    // Filter out any assistant messages with empty content (can cause API errors)
+    // Filter out any assistant messages with empty content
     const validMessages = modelMessages.filter((msg) => {
       if (msg.role === 'assistant') {
-        // Check if assistant message has content
         if (Array.isArray(msg.content)) {
           return msg.content.length > 0;
         }
@@ -135,7 +157,9 @@ router.post('/stream', async (req, res) => {
       return true;
     });
 
-    log.info(`[ChatGraph] Converted ${clientMessages.length} messages to ${validMessages.length} valid model messages`);
+    log.info(
+      `[ChatGraph] Converted ${clientMessages.length} messages to ${validMessages.length} valid model messages`
+    );
 
     // Get last user message for thread creation
     const lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
@@ -156,6 +180,9 @@ router.post('/stream', async (req, res) => {
       actualThreadId = thread.id;
       isNewThread = true;
       log.info(`[ChatGraph] Created new thread: ${actualThreadId}`);
+
+      // Notify client of new thread
+      sse.send('thread_created', { threadId: actualThreadId });
     }
 
     // Save user message
@@ -167,7 +194,7 @@ router.post('/stream', async (req, res) => {
       await createMessage(actualThreadId, 'user', content);
     }
 
-    // Initialize and run the graph (classification + search)
+    // Initialize state for graph nodes
     const initialState = await initializeChatState({
       messages: validMessages,
       threadId: actualThreadId,
@@ -182,103 +209,130 @@ router.post('/stream', async (req, res) => {
       aiWorkerPool,
     });
 
-    // Run the graph to get classification and search results
-    const graphResult = await chatGraph.invoke(initialState);
+    // === Stage 1: Classification ===
+    log.info('[ChatGraph] Running classifier...');
+    const classifiedState = {
+      ...initialState,
+      ...(await classifierNode(initialState)),
+    } as ChatGraphState;
 
-    log.info(
-      `[ChatGraph] Graph complete: intent=${graphResult.intent}, searches=${graphResult.searchCount}`
-    );
+    // Send intent event with German message
+    sse.send('intent', {
+      intent: classifiedState.intent,
+      message: getIntentMessage(classifiedState.intent),
+      reasoning: classifiedState.reasoning,
+    });
 
-    // Build the system message with search context
-    const systemMessage = buildSystemMessage(graphResult);
+    log.info(`[ChatGraph] Classified as "${classifiedState.intent}": ${classifiedState.reasoning}`);
 
-    // Get AI model from provider
-    const aiModel = getModel(graphResult.agentConfig.provider, graphResult.agentConfig.model);
+    // === Stage 2: Search (if needed) ===
+    let finalState = classifiedState;
 
-    // Stream response using AI SDK v6
-    const result = await streamText({
+    if (classifiedState.intent !== 'direct') {
+      const toolEnabled = enabledTools?.[classifiedState.intent] !== false;
+
+      if (toolEnabled) {
+        sse.send('search_start', { message: PROGRESS_MESSAGES.searchStart });
+
+        log.info('[ChatGraph] Running search...');
+        const searchResult = await searchNode(classifiedState);
+        finalState = {
+          ...classifiedState,
+          ...searchResult,
+        } as ChatGraphState;
+
+        const resultCount = finalState.searchResults?.length || 0;
+        sse.send('search_complete', {
+          message: PROGRESS_MESSAGES.searchComplete(resultCount),
+          resultCount,
+        });
+
+        log.info(`[ChatGraph] Search complete: ${resultCount} results`);
+      } else {
+        log.info(`[ChatGraph] Tool "${classifiedState.intent}" is disabled, skipping search`);
+      }
+    }
+
+    // === Stage 3: Response generation ===
+    sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+
+    const systemMessage = buildSystemMessage(finalState);
+    const aiModel = getModel(finalState.agentConfig.provider, finalState.agentConfig.model);
+
+    log.info('[ChatGraph] Starting text stream...');
+
+    const result = streamText({
       model: aiModel,
-      messages: [
-        { role: 'system', content: systemMessage },
-        ...validMessages,
-      ],
-      maxOutputTokens: graphResult.agentConfig.params.max_tokens,
-      temperature: graphResult.agentConfig.params.temperature,
-      onFinish: async ({ text }) => {
-        // Persist assistant message after streaming completes
-        if (actualThreadId && text) {
-          try {
-            await createMessage(actualThreadId, 'assistant', text, {
-              intent: graphResult.intent,
-              searchCount: graphResult.searchCount,
-              citations: graphResult.citations,
-            });
+      messages: [{ role: 'system', content: systemMessage }, ...validMessages],
+      maxOutputTokens: finalState.agentConfig.params.max_tokens,
+      temperature: finalState.agentConfig.params.temperature,
+    });
 
-            await touchThread(actualThreadId);
+    // Stream text chunks
+    let fullText = '';
 
-            // Update title for new threads based on response
-            if (isNewThread && text.length > 10) {
-              const firstSentence = text.split(/[.!?]/)[0];
-              const title =
-                firstSentence.length > 50 ? firstSentence.slice(0, 50) + '...' : firstSentence;
-              if (title && title.length > 5) {
-                await updateThreadTitle(actualThreadId, title);
-              }
-            }
+    try {
+      for await (const chunk of result.textStream) {
+        fullText += chunk;
+        sse.send('text_delta', { text: chunk });
+      }
+    } catch (streamError: unknown) {
+      const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
+      log.error('[ChatGraph] Stream error:', errorMessage);
+      sse.send('error', { error: PROGRESS_MESSAGES.streamInterrupted });
+      sse.end();
+      return;
+    }
 
-            log.info(`[ChatGraph] Message persisted for thread ${actualThreadId}`);
-          } catch (error) {
-            log.error('[ChatGraph] Error persisting message:', error);
+    // Persist assistant message
+    if (actualThreadId && fullText) {
+      try {
+        await createMessage(actualThreadId, 'assistant', fullText, {
+          intent: finalState.intent,
+          searchCount: finalState.searchCount,
+          citations: finalState.citations,
+        });
+
+        await touchThread(actualThreadId);
+
+        // Update title for new threads
+        if (isNewThread && fullText.length > 10) {
+          const firstSentence = fullText.split(/[.!?]/)[0];
+          const title =
+            firstSentence.length > 50 ? firstSentence.slice(0, 50) + '...' : firstSentence;
+          if (title && title.length > 5) {
+            await updateThreadTitle(actualThreadId, title);
           }
         }
+
+        log.info(`[ChatGraph] Message persisted for thread ${actualThreadId}`);
+      } catch (error) {
+        log.error('[ChatGraph] Error persisting message:', error);
+      }
+    }
+
+    // === Stage 4: Completion ===
+    const totalTimeMs = Date.now() - finalState.startTime;
+    sse.send('done', {
+      threadId: actualThreadId,
+      citations: finalState.citations,
+      metadata: {
+        intent: finalState.intent,
+        searchCount: finalState.searchCount || 0,
+        totalTimeMs,
+        classificationTimeMs: finalState.classificationTimeMs,
+        searchTimeMs: finalState.searchTimeMs || 0,
       },
     });
 
-    // Debug: Log what format we're sending
-    log.info('[ChatGraph] Sending data stream response');
-
-    // Get the text stream response for useChat with streamProtocol: 'text' (AI SDK v6)
-    const dataResponse = result.toTextStreamResponse({
-      headers: isNewThread && actualThreadId ? { 'X-Thread-Id': actualThreadId } : undefined,
-    });
-
-    // Log headers
-    const headerObj: Record<string, string> = {};
-    dataResponse.headers.forEach((v: string, k: string) => { headerObj[k] = v; });
-    log.info('[ChatGraph] Response headers:', headerObj);
-
-    // Pipe to Express
-    res.status(dataResponse.status);
-    dataResponse.headers.forEach((value: string, key: string) => {
-      res.setHeader(key, value);
-    });
-
-    if (dataResponse.body) {
-      const reader = dataResponse.body.getReader();
-      let firstChunkLogged = false;
-      const pump = async (): Promise<void> => {
-        const { done, value } = await reader.read();
-        if (done) {
-          res.end();
-          return;
-        }
-        // Log first chunk to see format
-        if (!firstChunkLogged) {
-          const text = new TextDecoder().decode(value);
-          log.info('[ChatGraph] First chunk format:', text.slice(0, 300));
-          firstChunkLogged = true;
-        }
-        res.write(value);
-        return pump();
-      };
-      await pump();
-    } else {
-      res.end();
-    }
-  } catch (error: any) {
-    log.error('[ChatGraph] Controller error:', error);
-    if (!res.headersSent) {
-      return res.status(500).json({ error: 'Internal server error' });
+    log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
+    sse.end();
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log.error('[ChatGraph] Controller error:', errorMessage);
+    if (!sse.isEnded()) {
+      sse.send('error', { error: PROGRESS_MESSAGES.internalError });
+      sse.end();
     }
   }
 });
