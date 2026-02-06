@@ -146,11 +146,13 @@ router.post('/stream', async (req, res) => {
 
     // Debug: log message structure
     if (clientMessages?.length > 0) {
+      const firstMsg = clientMessages[0] as any;
       log.info('[ChatGraph] First message structure:', JSON.stringify({
-        id: clientMessages[0].id,
-        role: clientMessages[0].role,
-        hasContent: !!clientMessages[0].content,
-        contentType: typeof clientMessages[0].content,
+        id: firstMsg.id,
+        role: firstMsg.role,
+        hasContent: !!firstMsg.content,
+        hasParts: !!firstMsg.parts,
+        partsLength: firstMsg.parts?.length,
       }));
     }
 
