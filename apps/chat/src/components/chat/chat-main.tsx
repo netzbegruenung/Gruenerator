@@ -173,6 +173,33 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
 
   // Load message history when thread changes
   useEffect(() => {
+    /**
+     * Extract text from message content.
+     * Handles both plain strings and legacy JSON-stringified parts arrays.
+     */
+    function extractContent(content: unknown): string {
+      if (typeof content !== 'string') return '';
+
+      // Check if it's a JSON-stringified parts array (legacy format)
+      if (content.startsWith('[{') && content.includes('"type":"text"')) {
+        try {
+          const parts = JSON.parse(content);
+          if (Array.isArray(parts)) {
+            return parts
+              .filter((p: unknown): p is { type: string; text: string } =>
+                p !== null && typeof p === 'object' && 'type' in p && p.type === 'text' && 'text' in p
+              )
+              .map((p) => p.text)
+              .join('');
+          }
+        } catch {
+          // Not valid JSON, return as-is
+        }
+      }
+
+      return content;
+    }
+
     async function loadMessages() {
       if (!currentThreadId || !userId) {
         clearMessages();
@@ -185,11 +212,11 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
           `/api/chat-service/messages?threadId=${currentThreadId}`
         );
 
-        // Convert to our ChatMessage format
+        // Convert to our ChatMessage format, handling legacy JSON content
         const convertedMessages: ChatMessage[] = loadedMessages.map((m) => ({
           id: m.id,
           role: m.role as 'user' | 'assistant',
-          content: typeof m.content === 'string' ? m.content : '',
+          content: extractContent(m.content),
           timestamp: Date.now(),
         }));
 

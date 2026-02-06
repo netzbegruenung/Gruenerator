@@ -39,6 +39,28 @@ const log = createLogger('ChatGraphController');
 const router = createAuthenticatedRouter();
 
 /**
+ * Extract text content from a ModelMessage content field.
+ * Handles both string content and AI SDK v6 parts array format.
+ */
+function extractTextContent(content: unknown): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    // AI SDK v6 format: [{type: 'text', text: '...'}, ...]
+    return content
+      .filter((part): part is { type: string; text: string } =>
+        part && typeof part === 'object' && part.type === 'text' && typeof part.text === 'string'
+      )
+      .map((part) => part.text)
+      .join('');
+  }
+
+  return '';
+}
+
+/**
  * Get user from request.
  */
 const getUser = (req: express.Request): UserProfile | undefined =>
@@ -197,13 +219,11 @@ router.post('/stream', async (req, res) => {
     let isNewThread = false;
 
     if (!actualThreadId && lastUserMessage) {
+      const userText = extractTextContent(lastUserMessage.content);
       const thread = await createThread(
         userId,
         agentId || 'gruenerator-universal',
-        typeof lastUserMessage.content === 'string'
-          ? lastUserMessage.content.slice(0, 50) +
-              (lastUserMessage.content.length > 50 ? '...' : '')
-          : 'Neue Unterhaltung'
+        userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
       );
       actualThreadId = thread.id;
       isNewThread = true;
@@ -215,11 +235,8 @@ router.post('/stream', async (req, res) => {
 
     // Save user message
     if (actualThreadId && lastUserMessage) {
-      const content =
-        typeof lastUserMessage.content === 'string'
-          ? lastUserMessage.content
-          : JSON.stringify(lastUserMessage.content);
-      await createMessage(actualThreadId, 'user', content);
+      const userText = extractTextContent(lastUserMessage.content);
+      await createMessage(actualThreadId, 'user', userText);
     }
 
     // Initialize state for graph nodes
