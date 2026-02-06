@@ -203,12 +203,12 @@ export function useChatGraphStream(
       try {
         const apiBaseUrl = apiClient.getApiBaseUrl();
 
-        // Build message array with proper UIMessage format
+        // Build message array with proper UIMessage format (AI SDK v6 requires 'parts' not 'content')
         const allMessages = [...(messages || []), userMessage];
         const formattedMessages = allMessages.map((m) => ({
           id: m.id,
           role: m.role,
-          content: m.content,
+          parts: [{ type: 'text' as const, text: m.content }],
         }));
 
         const response = await fetch(`${apiBaseUrl}/api/chat-graph/stream`, {
