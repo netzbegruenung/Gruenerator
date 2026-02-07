@@ -359,7 +359,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: apps/chat
+          context: .
           file: apps/chat/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}

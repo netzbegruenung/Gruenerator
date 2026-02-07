@@ -50,6 +50,7 @@
   "dependencies": {
     "@ai-sdk/mistral": "^3.0.0",
     "@ai-sdk/openai": "^3.0.0",
+    "@blocknote/xl-ai": "^0.46.2",
     "@anthropic-ai/sdk": "^0.71.0",
     "@gruenerator/shared": "workspace:*",
     "@hocuspocus/extension-logger": "^3.4.3",
@@ -106,7 +107,8 @@
     "turndown": "^7.2.0",
     "uuid": "^11.0.5",
     "winston": "^3.17.0",
-    "yjs": "^13.6.29"
+    "yjs": "^13.6.29",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",

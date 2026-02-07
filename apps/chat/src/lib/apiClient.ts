@@ -21,10 +21,7 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(
-  endpoint: string,
-  options: FetchOptions = {}
-): Promise<T> {
+async function request<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const { timeout = 30000, ...fetchOptions } = options;
 
   const controller = new AbortController();
@@ -46,13 +43,11 @@ async function request<T>(
     clearTimeout(timeoutId);
 
     if (response.status === 401) {
-      const currentPath = typeof window !== 'undefined'
-        ? window.location.pathname + window.location.search
-        : '/';
-      const loginUrl = `${API_BASE_URL}/api/auth/login?source=gruenerator-chat&redirectTo=${encodeURIComponent(currentPath)}`;
+      const currentPath =
+        typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
 
       if (typeof window !== 'undefined') {
-        window.location.href = loginUrl;
+        window.location.href = `/login?redirectTo=${encodeURIComponent(currentPath)}`;
       }
       throw new ApiError('Unauthorized', 401);
     }
@@ -88,10 +83,7 @@ async function request<T>(
       throw new ApiError('Request timeout', 408);
     }
 
-    throw new ApiError(
-      error instanceof Error ? error.message : 'Network error',
-      0
-    );
+    throw new ApiError(error instanceof Error ? error.message : 'Network error', 0);
   }
 }
 

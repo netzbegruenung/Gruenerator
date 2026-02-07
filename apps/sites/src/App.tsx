@@ -9,6 +9,7 @@ import { SiteMediaPicker } from './components/media/SiteMediaPicker';
 import { DemoPage } from './pages/DemoPage';
 import { EditPage } from './pages/EditPage';
 import { HomePage } from './pages/HomePage';
+import { LoginPage } from './pages/LoginPage';
 import { reportError } from './utils/errorReporter';
 import './styles/index.css';
 import './lib/apiClient';
@@ -45,6 +46,7 @@ export function App() {
           <RouteLogger />
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/demo" element={<DemoPage />} />
             <Route
               path="/edit"
