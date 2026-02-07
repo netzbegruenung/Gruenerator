@@ -3,7 +3,7 @@
  * Run with: npx tsx apps/api/routes/chat/test-mistral.ts
  */
 
-import { streamText, tool } from 'ai';
+import { streamText, tool, stepCountIs } from 'ai';
 import { createMistral } from '@ai-sdk/mistral';
 import { z } from 'zod';
 import 'dotenv/config';
@@ -15,7 +15,7 @@ const mistral = createMistral({
 const tools = {
   web_search: tool({
     description: 'Search the web for information',
-    parameters: z.object({
+    inputSchema: z.object({
       query: z.string().describe('Search query'),
     }),
     execute: async ({ query }) => {
@@ -25,7 +25,7 @@ const tools = {
   }),
   direct_response: tool({
     description: 'Respond directly without search - use for greetings, creative tasks, follow-ups',
-    parameters: z.object({
+    inputSchema: z.object({
       content: z.string().describe('The full response to the user'),
       reason: z.string().optional().describe('Optional: why no search was needed'),
     }),
@@ -50,15 +50,15 @@ async function testMistral() {
       ],
       tools,
       toolChoice: 'auto',
-      maxTokens: 500,
-      maxSteps: 3,
+      maxOutputTokens: 500,
+      stopWhen: stepCountIs(3),
       onChunk: ({ chunk }) => {
         if (chunk.type === 'tool-call') {
-          console.log('\n[Tool Call]', chunk.toolName, chunk.args);
+          console.log('\n[Tool Call]', chunk.toolName, (chunk as any).input);
         }
       },
-      onStepFinish: ({ stepType, toolCalls, text }) => {
-        console.log('\n[Step]', stepType, 'tools:', toolCalls?.length || 0, 'text:', text?.length || 0);
+      onStepFinish: ({ toolCalls, text }) => {
+        console.log('\n[Step] tools:', toolCalls?.length || 0, 'text:', text?.length || 0);
       },
     });
 

@@ -9,8 +9,9 @@
  * the working notebook search functionality.
  */
 
+import { generateText } from 'ai';
 import { DocumentSearchService } from '../../../services/document-services/index.js';
-import { getEnrichedPersonSearchService } from '../../../services/bundestag/index.js';
+// import { getEnrichedPersonSearchService } from '../../../services/bundestag/index.js'; // DISABLED: Person search not production ready
 import { contentExamplesService } from '../../../services/contentExamplesService.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import {
@@ -19,6 +20,10 @@ import {
   applyDefaultFilter,
 } from '../../../config/systemCollectionsConfig.js';
 import { createLogger } from '../../../utils/logger.js';
+import { withRetry, searxngCircuit } from '../../../services/search/index.js';
+import { validateCitations, stripUngroundedCitations } from '../../../services/search/CitationGrounder.js';
+import { applyMMR } from '../../../services/search/DiversityReranker.js';
+import { getModel } from './providers.js';
 
 const log = createLogger('DirectSearch');
 
@@ -79,25 +84,26 @@ export interface DirectSearchResult {
   message?: string;
 }
 
-export interface DirectPersonResult {
-  isPersonQuery: boolean;
-  person?: {
-    name: string;
-    fraktion?: string;
-    wahlkreis?: string;
-    biografie?: string;
-  };
-  results: Array<{
-    rank: number;
-    relevance: string;
-    source: string;
-    url?: string;
-    type: string;
-    excerpt: string;
-  }>;
-  error?: boolean;
-  message?: string;
-}
+// DISABLED: Person search feature not production ready
+// export interface DirectPersonResult {
+//   isPersonQuery: boolean;
+//   person?: {
+//     name: string;
+//     fraktion?: string;
+//     wahlkreis?: string;
+//     biografie?: string;
+//   };
+//   results: Array<{
+//     rank: number;
+//     relevance: string;
+//     source: string;
+//     url?: string;
+//     type: string;
+//     excerpt: string;
+//   }>;
+//   error?: boolean;
+//   message?: string;
+// }
 
 export interface DirectExamplesResult {
   resultsCount: number;
@@ -186,7 +192,7 @@ export async function executeDirectSearch(params: {
       relevance: formatRelevance(result.score || result.similarity || 0),
       source: result.title || result.document_title || 'Unbekannte Quelle',
       url: result.source_url || result.url || undefined,
-      excerpt: truncateText(result.snippet || result.chunk_text || result.content || '', 400),
+      excerpt: truncateText(result.snippet || result.chunk_text || result.content || '', 800),
       searchMethod: result.searchMethod || 'hybrid',
     }));
 
@@ -213,89 +219,91 @@ export async function executeDirectSearch(params: {
   }
 }
 
-/**
- * Execute a direct person search.
- * Replaces the MCP tool call for gruenerator_person_search.
- */
-export async function executeDirectPersonSearch(params: {
-  query: string;
-}): Promise<DirectPersonResult> {
-  const { query } = params;
-
-  log.info(`[Direct Person Search] query="${query}"`);
-
-  try {
-    const enrichedService = getEnrichedPersonSearchService();
-    const result = await enrichedService.search(query);
-
-    if (!result.isPersonQuery || !result.person) {
-      log.info(`[Direct Person Search] No person detected in query: "${query}"`);
-      return {
-        isPersonQuery: false,
-        results: [],
-        message: 'Keine Person in der Anfrage erkannt.',
-      };
-    }
-
-    const { person, contentMentions = [], drucksachen = [], aktivitaeten = [] } = result;
-
-    const formattedResults: DirectPersonResult['results'] = [];
-    let rank = 1;
-
-    for (const mention of contentMentions.slice(0, 5)) {
-      formattedResults.push({
-        rank: rank++,
-        relevance: formatRelevance(mention.similarity || 0.8),
-        source: mention.title,
-        url: mention.url,
-        type: 'Erwähnung',
-        excerpt: truncateText(mention.snippet || '', 300),
-      });
-    }
-
-    for (const drucksache of drucksachen.slice(0, 3)) {
-      formattedResults.push({
-        rank: rank++,
-        relevance: 'Hoch',
-        source: drucksache.titel,
-        url: `https://dip.bundestag.de/drucksache/${drucksache.dokumentnummer}`,
-        type: drucksache.drucksachetyp || 'Drucksache',
-        excerpt: `${drucksache.drucksachetyp} ${drucksache.dokumentnummer} vom ${drucksache.datum}`,
-      });
-    }
-
-    for (const aktivitaet of aktivitaeten.slice(0, 3)) {
-      formattedResults.push({
-        rank: rank++,
-        relevance: 'Mittel',
-        source: aktivitaet.titel || aktivitaet.aktivitaetsart,
-        type: aktivitaet.aktivitaetsart,
-        excerpt: `${aktivitaet.aktivitaetsart} vom ${aktivitaet.datum}`,
-      });
-    }
-
-    log.info(`[Direct Person Search] Found person: ${person.name}, ${formattedResults.length} results`);
-
-    return {
-      isPersonQuery: true,
-      person: {
-        name: person.name,
-        fraktion: person.fraktion,
-        wahlkreis: person.wahlkreis,
-        biografie: person.biografie || person.vita,
-      },
-      results: formattedResults,
-    };
-  } catch (error: any) {
-    log.error(`[Direct Person Search] Error:`, error.message);
-    return {
-      isPersonQuery: false,
-      results: [],
-      error: true,
-      message: `Personensuche fehlgeschlagen: ${error.message}`,
-    };
-  }
-}
+// DISABLED: Person search feature not production ready
+// Only searches 80 cached Green MPs, returns 0 results for anyone else
+// /**
+//  * Execute a direct person search.
+//  * Replaces the MCP tool call for gruenerator_person_search.
+//  */
+// export async function executeDirectPersonSearch(params: {
+//   query: string;
+// }): Promise<DirectPersonResult> {
+//   const { query } = params;
+//
+//   log.info(`[Direct Person Search] query="${query}"`);
+//
+//   try {
+//     const enrichedService = getEnrichedPersonSearchService();
+//     const result = await enrichedService.search(query);
+//
+//     if (!result.isPersonQuery || !result.person) {
+//       log.info(`[Direct Person Search] No person detected in query: "${query}"`);
+//       return {
+//         isPersonQuery: false,
+//         results: [],
+//         message: 'Keine Person in der Anfrage erkannt.',
+//       };
+//     }
+//
+//     const { person, contentMentions = [], drucksachen = [], aktivitaeten = [] } = result;
+//
+//     const formattedResults: DirectPersonResult['results'] = [];
+//     let rank = 1;
+//
+//     for (const mention of contentMentions.slice(0, 5)) {
+//       formattedResults.push({
+//         rank: rank++,
+//         relevance: formatRelevance(mention.similarity || 0.8),
+//         source: mention.title,
+//         url: mention.url,
+//         type: 'Erwähnung',
+//         excerpt: truncateText(mention.snippet || '', 300),
+//       });
+//     }
+//
+//     for (const drucksache of drucksachen.slice(0, 3)) {
+//       formattedResults.push({
+//         rank: rank++,
+//         relevance: 'Hoch',
+//         source: drucksache.titel,
+//         url: `https://dip.bundestag.de/drucksache/${drucksache.dokumentnummer}`,
+//         type: drucksache.drucksachetyp || 'Drucksache',
+//         excerpt: `${drucksache.drucksachetyp} ${drucksache.dokumentnummer} vom ${drucksache.datum}`,
+//       });
+//     }
+//
+//     for (const aktivitaet of aktivitaeten.slice(0, 3)) {
+//       formattedResults.push({
+//         rank: rank++,
+//         relevance: 'Mittel',
+//         source: aktivitaet.titel || aktivitaet.aktivitaetsart,
+//         type: aktivitaet.aktivitaetsart,
+//         excerpt: `${aktivitaet.aktivitaetsart} vom ${aktivitaet.datum}`,
+//       });
+//     }
+//
+//     log.info(`[Direct Person Search] Found person: ${person.name}, ${formattedResults.length} results`);
+//
+//     return {
+//       isPersonQuery: true,
+//       person: {
+//         name: person.name,
+//         fraktion: person.fraktion,
+//         wahlkreis: person.wahlkreis,
+//         biografie: person.biografie || person.vita,
+//       },
+//       results: formattedResults,
+//     };
+//   } catch (error: any) {
+//     log.error(`[Direct Person Search] Error:`, error.message);
+//     return {
+//       isPersonQuery: false,
+//       results: [],
+//       error: true,
+//       message: `Personensuche fehlgeschlagen: ${error.message}`,
+//     };
+//   }
+// }
 
 /**
  * Execute a direct examples search for social media examples.
@@ -404,7 +412,10 @@ export async function executeDirectWebSearch(params: {
       page: 1,
     };
 
-    const searchResults = await searxngService.performWebSearch(query, searchOptions);
+    const searchResults = await withRetry(
+      () => searxngService.performWebSearch(query, searchOptions),
+      { maxRetries: 1, delayMs: 500, label: 'DirectWebSearch' }
+    );
 
     if (!searchResults.success || !searchResults.results || searchResults.results.length === 0) {
       log.info(`[Direct Web Search] No results found for: "${query}"`);
@@ -507,7 +518,8 @@ export interface ResearchResult {
 
 interface SearchPlan {
   queries: Array<{
-    tool: 'web_search' | 'gruenerator_search' | 'gruenerator_person_search';
+    // DISABLED: gruenerator_person_search - not production ready
+    tool: 'web_search' | 'gruenerator_search';
     query: string;
     priority: number;
     reason: string;
@@ -534,25 +546,28 @@ function planResearch(question: string): SearchPlan {
   const queries: SearchPlan['queries'] = [];
 
   // Detect question type
-  const isPersonQuery = /\b(wer ist|wer war|politiker|abgeordnet|minister|kandidat)\b/i.test(q);
+  // DISABLED: Person search not production ready
+  // const isPersonQuery = /\b(wer ist|wer war|politiker|abgeordnet|minister|kandidat)\b/i.test(q);
   const isPartyQuery = /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag)\b/i.test(q);
   const isCurrentEvents = /\b(aktuell|heute|gestern|diese woche|kürzlich|news|nachricht)\b/i.test(q);
   const isLocalQuery = /\b(ort|stadt|stadtteil|region|gemeinde|kreis|wahlkreis)\b/i.test(q);
 
+  // DISABLED: Person search not production ready
   // Extract potential person names (capitalized words that aren't at sentence start)
-  const personNameMatch = question.match(/\b[A-ZÄÖÜ][a-zäöüß]+\s+[A-ZÄÖÜ][a-zäöüß]+\b/g);
-  const hasPersonName = personNameMatch && personNameMatch.length > 0;
+  // const personNameMatch = question.match(/\b[A-ZÄÖÜ][a-zäöüß]+\s+[A-ZÄÖÜ][a-zäöüß]+\b/g);
+  // const hasPersonName = personNameMatch && personNameMatch.length > 0;
 
+  // DISABLED: Person search not production ready
   // Priority 1: Person search if names detected or explicit person query
-  if (hasPersonName || isPersonQuery) {
-    const personName = personNameMatch?.[0] || question.split(/\s+/).slice(0, 3).join(' ');
-    queries.push({
-      tool: 'gruenerator_person_search',
-      query: personName,
-      priority: 1,
-      reason: 'Person name detected in query',
-    });
-  }
+  // if (hasPersonName || isPersonQuery) {
+  //   const personName = personNameMatch?.[0] || question.split(/\s+/).slice(0, 3).join(' ');
+  //   queries.push({
+  //     tool: 'gruenerator_person_search',
+  //     query: personName,
+  //     priority: 1,
+  //     reason: 'Person name detected in query',
+  //   });
+  // }
 
   // Priority 2: Party documents for policy questions
   if (isPartyQuery && !isCurrentEvents) {
@@ -584,17 +599,13 @@ function planResearch(question: string): SearchPlan {
     });
   }
 
-  // Sort by priority and limit to 3 queries
+  // Sort by priority
   queries.sort((a, b) => a.priority - b.priority);
-  const limitedQueries = queries.slice(0, 3);
 
   return {
-    queries: limitedQueries,
-    synthesisStrategy: isPersonQuery
-      ? 'biographical_summary'
-      : isPartyQuery
-        ? 'policy_overview'
-        : 'factual_synthesis',
+    queries,
+    // DISABLED: Person search not production ready - removed biographical_summary strategy
+    synthesisStrategy: isPartyQuery ? 'policy_overview' : 'factual_synthesis',
   };
 }
 
@@ -661,37 +672,38 @@ async function executeSearches(
           break;
         }
 
-        case 'gruenerator_person_search': {
-          const personResults = await executeDirectPersonSearch({ query: query.query });
-          searchSteps.push({
-            tool: 'gruenerator_person_search',
-            query: query.query,
-            resultsCount: personResults.isPersonQuery ? personResults.results.length + 1 : 0,
-          });
-          if (personResults.isPersonQuery && personResults.person) {
-            sources.push({
-              id: sourceId++,
-              title: `${personResults.person.name} - Bundestag`,
-              url: `https://www.bundestag.de/abgeordnete`,
-              domain: 'bundestag.de',
-              snippet: personResults.person.biografie || `${personResults.person.fraktion || ''} · ${personResults.person.wahlkreis || ''}`,
-              relevance: 0.95,
-              sourceType: 'person',
-            });
-          }
-          for (const result of personResults.results.slice(0, 3)) {
-            sources.push({
-              id: sourceId++,
-              title: result.source,
-              url: result.url || '',
-              domain: result.url ? extractDomain(result.url) : 'bundestag.de',
-              snippet: result.excerpt,
-              relevance: result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
-              sourceType: 'person',
-            });
-          }
-          break;
-        }
+        // DISABLED: Person search not production ready
+        // case 'gruenerator_person_search': {
+        //   const personResults = await executeDirectPersonSearch({ query: query.query });
+        //   searchSteps.push({
+        //     tool: 'gruenerator_person_search',
+        //     query: query.query,
+        //     resultsCount: personResults.isPersonQuery ? personResults.results.length + 1 : 0,
+        //   });
+        //   if (personResults.isPersonQuery && personResults.person) {
+        //     sources.push({
+        //       id: sourceId++,
+        //       title: `${personResults.person.name} - Bundestag`,
+        //       url: `https://www.bundestag.de/abgeordnete`,
+        //       domain: 'bundestag.de',
+        //       snippet: personResults.person.biografie || `${personResults.person.fraktion || ''} · ${personResults.person.wahlkreis || ''}`,
+        //       relevance: 0.95,
+        //       sourceType: 'person',
+        //     });
+        //   }
+        //   for (const result of personResults.results.slice(0, 3)) {
+        //     sources.push({
+        //       id: sourceId++,
+        //       title: result.source,
+        //       url: result.url || '',
+        //       domain: result.url ? extractDomain(result.url) : 'bundestag.de',
+        //       snippet: result.excerpt,
+        //       relevance: result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
+        //       sourceType: 'person',
+        //     });
+        //   }
+        //   break;
+        // }
       }
     } catch (error) {
       log.error(`[Research] Search failed for ${query.tool}:`, error);
@@ -830,29 +842,183 @@ function synthesizeAnswer(
 }
 
 /**
+ * Synthesize sources into a coherent answer using Mistral-small LLM.
+ * Produces higher quality prose than template-based synthesis.
+ *
+ * @param question - The user's research question
+ * @param sources - Collected sources from various searches
+ * @param strategy - Synthesis strategy (policy_overview, factual_synthesis, etc.)
+ * @returns Synthesized answer with confidence level
+ */
+async function synthesizeAnswerWithLLM(
+  question: string,
+  sources: CollectedSource[],
+  strategy: string
+): Promise<{ answer: string; confidence: 'high' | 'medium' | 'low' }> {
+  if (sources.length === 0) {
+    return {
+      answer: 'Zu dieser Anfrage konnten leider keine relevanten Informationen gefunden werden.',
+      confidence: 'low',
+    };
+  }
+
+  const aiModel = getModel('mistral', 'mistral-small-latest');
+
+  const systemPrompt = `Du bist ein Recherche-Assistent der Grünen Partei. Synthetisiere die gegebenen Quellen zu einer kohärenten, informativen Antwort auf Deutsch.
+
+Regeln:
+- Nutze NUR Informationen aus den gegebenen Quellen
+- Verwende Inline-Zitate [1], [2] etc. für jede Aussage, die sich auf eine Quelle bezieht
+- Schreibe 2-4 prägnante, gut strukturierte Absätze
+- Keine Erfindungen oder externes Wissen hinzufügen
+- Antworte immer auf Deutsch
+- Fasse die wichtigsten Informationen zusammen und stelle Zusammenhänge her
+- Strategie: ${strategy === 'policy_overview' ? 'Fokussiere auf politische Positionen und Beschlüsse' : 'Fasse die faktischen Informationen objektiv zusammen'}`;
+
+  const sourcesText = sources
+    .map((s, i) => `[${i + 1}] ${s.title} (${s.domain})\n${s.snippet}`)
+    .join('\n\n');
+
+  try {
+    const result = await generateText({
+      model: aiModel,
+      messages: [
+        {
+          role: 'user',
+          content: `Frage: ${question}\n\nQuellen:\n${sourcesText}`,
+        },
+      ],
+      system: systemPrompt,
+      temperature: 0.2,
+      maxOutputTokens: sources.length > 6 ? 1500 : 500,
+    });
+
+    // Determine confidence based on source quality and quantity
+    let confidence: 'high' | 'medium' | 'low' = 'medium';
+    if (sources.length >= 3 && sources.some(s => s.relevance > 0.8)) {
+      confidence = 'high';
+    } else if (sources.length < 2) {
+      confidence = 'low';
+    }
+
+    return {
+      answer: result.text,
+      confidence,
+    };
+  } catch (error: any) {
+    log.error('[Research] LLM synthesis failed:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Synthesize answer with automatic fallback to template-based synthesis.
+ * Uses LLM synthesis by default, falls back gracefully on errors.
+ */
+async function synthesizeWithFallback(
+  question: string,
+  sources: CollectedSource[],
+  strategy: string,
+  useLLM: boolean
+): Promise<{ answer: string; confidence: 'high' | 'medium' | 'low' }> {
+  if (!useLLM) {
+    return synthesizeAnswer(question, sources, strategy);
+  }
+
+  try {
+    return await synthesizeAnswerWithLLM(question, sources, strategy);
+  } catch (error: any) {
+    log.warn('[Research] LLM synthesis failed, falling back to template', {
+      error: error.message,
+    });
+    return synthesizeAnswer(question, sources, strategy);
+  }
+}
+
+/**
  * Execute a structured research workflow with planning, searching, and synthesis.
  * This is the main entry point for the research tool.
+ *
+ * @param params.question - The research question to answer
+ * @param params.depth - Search depth: 'quick' (default) or 'thorough'
+ * @param params.maxSources - Maximum number of sources to include (default: 8)
+ * @param params.useLLMSynthesis - Use Mistral-small for coherent synthesis (default: true)
  */
 export async function executeResearch(params: {
   question: string;
   depth?: 'quick' | 'thorough';
   maxSources?: number;
+  useLLMSynthesis?: boolean;
 }): Promise<ResearchResult> {
-  const { question, depth = 'quick', maxSources = 8 } = params;
+  const { question, depth = 'quick', maxSources = 8, useLLMSynthesis = true } = params;
 
   log.info(`[Research] Starting research for: "${truncateText(question, 100)}" (depth: ${depth})`);
 
   // Phase 1: Plan the research
   const plan = planResearch(question);
-  log.info(`[Research] Plan: ${plan.queries.length} queries, strategy: ${plan.synthesisStrategy}`);
+
+  // Limit queries based on depth
+  const maxQueries = depth === 'thorough' ? 5 : 3;
+  plan.queries = plan.queries.slice(0, maxQueries);
+
+  // For thorough mode, ensure both web and document search are included per topic
+  if (depth === 'thorough') {
+    const hasWeb = plan.queries.some(q => q.tool === 'web_search');
+    const hasDoc = plan.queries.some(q => q.tool === 'gruenerator_search');
+    if (!hasWeb) {
+      plan.queries.push({ tool: 'web_search', query: question, priority: 3, reason: 'Thorough: supplementary web search' });
+    }
+    if (!hasDoc) {
+      plan.queries.push({ tool: 'gruenerator_search', query: question, priority: 3, reason: 'Thorough: supplementary document search' });
+    }
+    plan.queries = plan.queries.slice(0, maxQueries);
+  }
+
+  log.info(`[Research] Plan: ${plan.queries.length} queries (depth: ${depth}), strategy: ${plan.synthesisStrategy}`);
 
   // Phase 2: Execute searches
   const { sources, searchSteps } = await executeSearches(plan);
   log.info(`[Research] Collected ${sources.length} sources from ${searchSteps.length} searches`);
 
+  // B3: Apply MMR diversity to sources before synthesis
+  const diverseSources = sources.length > 3
+    ? applyMMR(
+        sources.map(s => ({ ...s, relevance: s.relevance, content: s.snippet })),
+        0.7,
+        2
+      ).map((s, i) => ({ ...s, id: i + 1 })) as CollectedSource[]
+    : sources;
+
   // Phase 3: Synthesize answer
-  const limitedSources = sources.slice(0, maxSources);
-  const { answer, confidence } = synthesizeAnswer(question, limitedSources, plan.synthesisStrategy);
+  const limitedSources = diverseSources.slice(0, maxSources);
+  log.info(`[Research] Synthesizing with ${useLLMSynthesis ? 'LLM (mistral-small)' : 'template'}`);
+  let { answer, confidence } = await synthesizeWithFallback(
+    question,
+    limitedSources,
+    plan.synthesisStrategy,
+    useLLMSynthesis
+  );
+
+  // B4: Validate citation grounding
+  if (useLLMSynthesis && answer) {
+    const groundingResult = validateCitations(
+      answer,
+      limitedSources.map(s => ({ id: s.id, content: s.snippet }))
+    );
+
+    if (groundingResult.ungroundedCitations.length > 0) {
+      log.warn(`[Research] ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`);
+      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
+
+      // If >50% ungrounded, fall back to template synthesis
+      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
+        log.warn('[Research] >50% citations ungrounded, falling back to template synthesis');
+        const fallback = synthesizeAnswer(question, limitedSources, plan.synthesisStrategy);
+        answer = fallback.answer;
+        confidence = fallback.confidence;
+      }
+    }
+  }
 
   // Generate follow-up questions
   const followUpQuestions = generateFollowUpQuestions(question, limitedSources);

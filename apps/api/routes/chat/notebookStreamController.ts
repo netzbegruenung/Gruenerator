@@ -10,7 +10,7 @@
  */
 
 import express from 'express';
-import { streamText, CoreMessage } from 'ai';
+import { streamText, ModelMessage } from 'ai';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { getModel, isProviderConfigured } from './agents/providers.js';
 import { notebookQAService } from '../../services/notebook/index.js';
@@ -34,7 +34,7 @@ const DEFAULT_PROVIDER = 'mistral';
 const DEFAULT_MODEL = 'mistral-large-latest';
 
 interface NotebookStreamRequest {
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   collectionId?: string;
   collectionIds?: string[];
   filters?: Record<string, any>;
@@ -147,7 +147,7 @@ router.post('/', async (req, res) => {
     const aiModel = getModel(effectiveProvider as any, effectiveModel);
 
     // Build the AI messages
-    const aiMessages: CoreMessage[] = [
+    const aiMessages: ModelMessage[] = [
       { role: 'system', content: searchContext.systemPrompt },
       ...messages.slice(0, -1), // Include conversation history except last user message
       {
@@ -160,7 +160,7 @@ router.post('/', async (req, res) => {
     const result = streamText({
       model: aiModel,
       messages: aiMessages,
-      maxTokens: 2500,
+      maxOutputTokens: 2500,
       temperature: 0.2,
     });
 

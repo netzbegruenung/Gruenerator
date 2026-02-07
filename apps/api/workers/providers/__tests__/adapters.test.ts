@@ -59,7 +59,7 @@ try {
   console.log('mistral adapter exported:', providers.mistral ? '✅' : '❌');
   console.log('litellm adapter exported:', providers.litellm ? '✅' : '❌');
   console.log('ionos adapter exported:', providers.ionos ? '✅' : '❌');
-  console.log('executeProvider function:', providers.executeProvider ? '✅' : '❌');
+  console.log('executeProvider function:', typeof providers.executeProvider === 'function' ? '✅' : '❌');
   console.log('claude adapter (should be undefined):', (providers as any).claude === undefined ? '✅' : '❌');
   console.log('telekom adapter (should be undefined):', (providers as any).telekom === undefined ? '✅' : '❌');
 } catch (error: any) {

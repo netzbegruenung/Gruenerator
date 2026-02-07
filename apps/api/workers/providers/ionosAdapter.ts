@@ -3,7 +3,7 @@
  * Uses Vercel AI SDK for text generation via OpenAI-compatible API
  */
 
-import { generateText, type CoreMessage, type CoreTool } from 'ai';
+import { generateText, type ModelMessage, type Tool } from 'ai';
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 import { mergeMetadata } from './adapterUtils.js';
@@ -15,14 +15,14 @@ import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../t
 function convertMessages(
   messages: AIRequestData['messages'],
   systemPrompt?: string
-): CoreMessage[] {
-  const coreMessages: CoreMessage[] = [];
+): ModelMessage[] {
+  const modelMessages: ModelMessage[] = [];
 
   if (systemPrompt) {
-    coreMessages.push({ role: 'system', content: systemPrompt });
+    modelMessages.push({ role: 'system', content: systemPrompt });
   }
 
-  if (!messages) return coreMessages;
+  if (!messages) return modelMessages;
 
   for (const msg of messages) {
     if (msg.role === 'system' && systemPrompt) {
@@ -44,13 +44,13 @@ function convertMessages(
       content = String(msg.content);
     }
 
-    coreMessages.push({
+    modelMessages.push({
       role: msg.role as 'user' | 'assistant' | 'system',
       content,
     });
   }
 
-  return coreMessages;
+  return modelMessages;
 }
 
 /**
@@ -58,21 +58,21 @@ function convertMessages(
  */
 function convertTools(
   toolsPayload: ReturnType<typeof ToolHandler.prepareToolsPayload>
-): Record<string, CoreTool> | undefined {
+): Record<string, Tool> | undefined {
   if (!toolsPayload.tools || toolsPayload.tools.length === 0) {
     return undefined;
   }
 
-  const tools: Record<string, CoreTool> = {};
-  for (const tool of toolsPayload.tools as Array<{
+  const tools: Record<string, Tool> = {};
+  for (const t of toolsPayload.tools as Array<{
     name: string;
     description: string;
     parameters?: unknown;
     input_schema?: unknown;
   }>) {
-    tools[tool.name] = {
-      description: tool.description,
-      parameters: (tool.parameters || tool.input_schema) as CoreTool['parameters'],
+    tools[t.name] = {
+      description: t.description,
+      inputSchema: (t.parameters || t.input_schema) as Tool['inputSchema'],
     };
   }
   return tools;
@@ -103,7 +103,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   }
 
   // Convert messages to Vercel AI SDK format
-  const coreMessages = convertMessages(messages, systemPrompt);
+  const modelMessages = convertMessages(messages, systemPrompt);
 
   // Prepare tools
   const toolsPayload = ToolHandler.prepareToolsPayload(options, 'ionos', requestId, type);
@@ -112,9 +112,10 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Determine tool choice
   let toolChoice: 'auto' | 'none' | 'required' | undefined;
   if (tools) {
-    if (toolsPayload.tool_choice === 'required' || toolsPayload.tool_choice === 'any') {
+    const choice = toolsPayload.tool_choice as string | { type: string; name?: string } | undefined;
+    if (choice === 'required') {
       toolChoice = 'required';
-    } else if (toolsPayload.tool_choice === 'none') {
+    } else if (choice === undefined || choice === 'none') {
       toolChoice = 'none';
     } else {
       toolChoice = 'auto';
@@ -127,8 +128,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   try {
     const result = await generateText({
       model: aiModel,
-      messages: coreMessages,
-      maxTokens: options.max_tokens || 4096,
+      messages: modelMessages,
+      maxOutputTokens: options.max_tokens || 4096,
       temperature: options.temperature || 0,
       topP: options.top_p || 0.1,
       tools,
@@ -144,7 +145,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         ? result.toolCalls.map((tc, index) => ({
             id: tc.toolCallId || `ionos_tool_${index}`,
             name: tc.toolName,
-            input: tc.args as Record<string, unknown>,
+            input: (tc as any).input as Record<string, unknown>,
           }))
         : undefined;
 
@@ -181,8 +182,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         requestId,
         usage: result.usage
           ? {
-              prompt_tokens: result.usage.promptTokens,
-              completion_tokens: result.usage.completionTokens,
+              prompt_tokens: result.usage.inputTokens,
+              completion_tokens: result.usage.outputTokens,
               total_tokens: result.usage.totalTokens,
             }
           : undefined,

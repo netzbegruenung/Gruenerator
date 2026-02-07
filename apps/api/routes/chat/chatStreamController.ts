@@ -4,13 +4,13 @@
  */
 
 import express from 'express';
-import { streamText, tool, CoreMessage, Tool } from 'ai';
+import { streamText, tool, ModelMessage, Tool, stepCountIs, ToolSet } from 'ai';
 import { z } from 'zod';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { getAgent, getDefaultAgentId } from './agents/agentLoader.js';
 import {
   executeDirectSearch,
-  executeDirectPersonSearch,
+  // executeDirectPersonSearch, // DISABLED: Person search not production ready
   executeDirectExamplesSearch,
   executeDirectWebSearch,
   executeResearch,
@@ -24,16 +24,18 @@ import type { AgentConfig } from './agents/types.js';
 import {
   getCompactionState,
   prepareMessagesWithCompaction,
+  type CompactionState,
 } from './services/compactionService.js';
 
 const log = createLogger('ChatStreamController');
 const router = createAuthenticatedRouter();
 
-type ToolKey = 'search' | 'web' | 'person' | 'examples' | 'research' | 'direct';
+// DISABLED: 'person' - not production ready
+type ToolKey = 'search' | 'web' | 'examples' | 'research' | 'direct';
 
 type SearchToolName =
   | 'gruenerator_search'
-  | 'gruenerator_person_search'
+  // | 'gruenerator_person_search' // DISABLED: Person search not production ready
   | 'gruenerator_examples_search'
   | 'web_search'
   | 'research'
@@ -42,7 +44,7 @@ type SearchToolName =
 const TOOL_KEY_TO_NAME: Record<ToolKey, SearchToolName> = {
   search: 'gruenerator_search',
   web: 'web_search',
-  person: 'gruenerator_person_search',
+  // person: 'gruenerator_person_search', // DISABLED: Person search not production ready
   examples: 'gruenerator_examples_search',
   research: 'research',
   direct: 'direct_response',
@@ -72,7 +74,7 @@ type CollectionType = (typeof ALL_COLLECTIONS)[number];
  * Note: Returns Record<string, unknown> due to Zod version conflicts in monorepo.
  * Type safety is maintained through runtime validation in execute functions.
  */
-function createSearchTools(agentConfig: AgentConfig): Record<string, unknown> {
+function createSearchTools(agentConfig: AgentConfig): ToolSet {
   const restrictions = agentConfig.toolRestrictions;
 
   const allowedCollections: readonly string[] = restrictions?.allowedCollections?.length
@@ -81,13 +83,14 @@ function createSearchTools(agentConfig: AgentConfig): Record<string, unknown> {
 
   const defaultCollection = restrictions?.defaultCollection || allowedCollections[0];
   const examplesCountry = restrictions?.examplesCountry;
-  const personSearchEnabled = restrictions?.personSearchEnabled !== false;
+  // DISABLED: Person search not production ready
+  // const personSearchEnabled = restrictions?.personSearchEnabled !== false;
 
   log.debug(
-    `[Tools] Creating tools for ${agentConfig.identifier}: collections=${allowedCollections.join(',')}, default=${defaultCollection}, personSearch=${personSearchEnabled}, examplesCountry=${examplesCountry || 'all'}`
+    `[Tools] Creating tools for ${agentConfig.identifier}: collections=${allowedCollections.join(',')}, default=${defaultCollection}, personSearch=disabled, examplesCountry=${examplesCountry || 'all'}`
   );
 
-  const tools: Record<string, unknown> = {};
+  const tools: ToolSet = {};
 
   tools.gruenerator_search = tool({
     description: `Durchsuche grüne Parteiprogramme, Positionen und Beschlüsse.
@@ -99,7 +102,7 @@ NUTZE WENN:
 - Grüne Politik/Programmatik gefragt
 
 NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
-    parameters: z.object({
+    inputSchema: z.object({
       query: z.string().describe('Suchanfrage in deutscher Sprache'),
       collection: z
         .enum(allowedCollections as [string, ...string[]])
@@ -128,30 +131,31 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
     },
   });
 
-  if (personSearchEnabled) {
-    tools.gruenerator_person_search = tool({
-      description: `Suche nach grünen Politiker*innen und deren Funktionen.
-
-NUTZE WENN:
-- "Wer ist [Name]?" oder "Wer war [Name]?"
-- Fragen nach Funktionen/Ämtern von Grünen-Politiker*innen
-- Biografie-Informationen über grüne Persönlichkeiten
-
-NICHT FÜR: Allgemeine Personensuche außerhalb der Grünen`,
-      parameters: z.object({
-        query: z.string().describe('Name oder Funktion der Person'),
-      }),
-      execute: async ({ query }) => {
-        try {
-          const results = await executeDirectPersonSearch({ query });
-          return results;
-        } catch (error) {
-          log.error('Direct person search error:', error);
-          return { error: 'Personensuche fehlgeschlagen', results: [], isPersonQuery: false };
-        }
-      },
-    });
-  }
+  // DISABLED: Person search not production ready
+  // if (personSearchEnabled) {
+  //   tools.gruenerator_person_search = tool({
+  //     description: `Suche nach grünen Politiker*innen und deren Funktionen.
+  //
+  // NUTZE WENN:
+  // - "Wer ist [Name]?" oder "Wer war [Name]?"
+  // - Fragen nach Funktionen/Ämtern von Grünen-Politiker*innen
+  // - Biografie-Informationen über grüne Persönlichkeiten
+  //
+  // NICHT FÜR: Allgemeine Personensuche außerhalb der Grünen`,
+  //     inputSchema: z.object({
+  //       query: z.string().describe('Name oder Funktion der Person'),
+  //     }),
+  //     execute: async ({ query }) => {
+  //       try {
+  //         const results = await executeDirectPersonSearch({ query });
+  //         return results;
+  //       } catch (error) {
+  //         log.error('Direct person search error:', error);
+  //         return { error: 'Personensuche fehlgeschlagen', results: [], isPersonQuery: false };
+  //       }
+  //     },
+  //   });
+  // }
 
   tools.gruenerator_examples_search = tool({
     description: `Suche nach Social-Media-Beispielen und Vorlagen.
@@ -162,7 +166,7 @@ NUTZE WENN:
 - Inspiration für grüne Social-Media-Kommunikation
 
 NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten`,
-    parameters: z.object({
+    inputSchema: z.object({
       query: z.string().describe('Thema oder Stichwort'),
       platform: z.enum(['instagram', 'facebook']).optional().describe('Plattform filtern'),
     }),
@@ -190,8 +194,8 @@ NUTZE WENN:
 - Allgemeine Fakten aus dem Web
 - Externe Quellen benötigt
 
-NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search), Grüne Personen (nutze gruenerator_person_search)`,
-    parameters: z.object({
+NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
+    inputSchema: z.object({
       query: z.string().describe('Suchanfrage in deutscher Sprache'),
       searchType: z
         .enum(['general', 'news'])
@@ -225,7 +229,7 @@ NUTZE WENN:
 Das Tool plant automatisch, sucht in relevanten Quellen, und synthetisiert mit Inline-Zitaten [1], [2].
 
 NICHT FÜR: Einfache Begrüßungen, Dankeschöns, kreative Aufgaben ohne Faktenbedarf`,
-    parameters: z.object({
+    inputSchema: z.object({
       question: z.string().describe('Die Frage oder das Thema für die Recherche'),
       depth: z
         .enum(['quick', 'thorough'])
@@ -270,7 +274,7 @@ NUTZE DIESES TOOL WENN:
 - Einfache Folgefragen zu bereits besprochenen Themen
 
 NICHT NUTZEN wenn Fakten, aktuelle Infos oder Belege gefragt sind.`,
-    parameters: z.object({
+    inputSchema: z.object({
       content: z.string().describe('Die vollständige Antwort an den Benutzer'),
       reason: z.string().optional().describe('Optional: Warum keine Suche nötig war'),
     }),
@@ -289,18 +293,13 @@ async function createThread(
   title?: string
 ): Promise<{ id: string; user_id: string; agent_id: string; title: string | null }> {
   const postgres = getPostgresInstance();
-  const result = await postgres.query<{
-    id: string;
-    user_id: string;
-    agent_id: string;
-    title: string | null;
-  }>(
+  const result = await postgres.query(
     `INSERT INTO chat_threads (user_id, agent_id, title)
      VALUES ($1, $2, $3)
      RETURNING id, user_id, agent_id, title`,
     [userId, agentId, title || null]
   );
-  return result[0];
+  return result[0] as { id: string; user_id: string; agent_id: string; title: string | null };
 }
 
 async function createMessage(
@@ -383,7 +382,7 @@ router.post('/', async (req, res) => {
     const effectiveModel = model || agent.model;
     log.info(`[Chat Debug] Provider: ${effectiveProvider}, Model: ${effectiveModel}`);
 
-    const lastUserMessage = messages.filter((m: CoreMessage) => m.role === 'user').pop();
+    const lastUserMessage = messages.filter((m: ModelMessage) => m.role === 'user').pop();
 
     let actualThreadId = threadId;
     let isNewThread = false;
@@ -418,8 +417,7 @@ Du MUSST für jede Nachricht ein Tool wählen. Entscheide semantisch basierend a
 ### SUCH-TOOLS (für Informationsbedarf)
 - **research** - Komplexe Fragen, explizite Recherche-Anfragen ("recherchiere", "suche nach", "finde heraus")
 - **gruenerator_search** - Grüne Programme, Positionen, Beschlüsse
-- **gruenerator_person_search** - Grüne Politiker*innen-Infos ("Wer ist...", "Wer war...")
-- **web_search** - Aktuelle Nachrichten, externe Fakten
+- **web_search** - Aktuelle Nachrichten, externe Fakten, Personen-Infos ("Wer ist...")
 - **gruenerator_examples_search** - Social-Media-Vorlagen und -Beispiele
 
 ### DIREKT-TOOL (keine Suche nötig)
@@ -441,7 +439,7 @@ Du MUSST für jede Nachricht ein Tool wählen. Entscheide semantisch basierend a
 Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`;
 
     // Load compaction state if thread exists
-    let compactionState = { summary: null, compactedUpToMessageId: null, compactionUpdatedAt: null };
+    let compactionState: CompactionState = { summary: null, compactedUpToMessageId: null, compactionUpdatedAt: null };
     if (actualThreadId) {
       try {
         compactionState = await getCompactionState(actualThreadId);
@@ -460,7 +458,7 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
       baseSystemMessage
     );
 
-    const aiMessages: CoreMessage[] = [{ role: 'system', content: systemMessage }, ...preparedMessages];
+    const aiMessages: ModelMessage[] = [{ role: 'system', content: systemMessage }, ...preparedMessages];
 
     if (!isProviderConfigured(effectiveProvider)) {
       log.error(`[Chat Debug] Provider not configured: ${effectiveProvider}`);
@@ -478,7 +476,7 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
     const agentTools = createSearchTools(agent);
 
     // Filter tools based on user-enabled toggles
-    const filteredTools: Record<string, unknown> = {};
+    const filteredTools: ToolSet = {};
     if (hasTools && enabledTools) {
       for (const [key, toolName] of Object.entries(TOOL_KEY_TO_NAME)) {
         // direct_response is always included as the escape hatch
@@ -512,16 +510,16 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
         tools: activeTools,
         // Always require tool choice - AI uses direct_response when no search needed
         toolChoice: activeTools ? 'required' : undefined,
-        maxTokens: agent.params.max_tokens,
+        maxOutputTokens: agent.params.max_tokens,
         temperature: agent.params.temperature,
-        maxSteps: 5,
+        stopWhen: stepCountIs(5),
         onChunk: ({ chunk }) => {
           if (chunk.type === 'tool-call') {
             log.info(`[Chat Debug] Tool call: ${chunk.toolName}`);
           }
         },
-        onStepFinish: ({ stepType, toolCalls, toolResults, text }) => {
-          log.info(`[Chat Debug] Step finished: type=${stepType}, tools=${toolCalls?.length || 0}, text=${text?.length || 0} chars`);
+        onStepFinish: ({ toolCalls, toolResults, text }) => {
+          log.info(`[Chat Debug] Step finished: tools=${toolCalls?.length || 0}, text=${text?.length || 0} chars`);
         },
         experimental_telemetry: { isEnabled: false },
         onFinish: async ({ text, toolCalls, toolResults, finishReason, usage }) => {
@@ -541,7 +539,7 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
               log.info(`[Chat] Tool calls: ${JSON.stringify(toolCalls.map(tc => ({ id: tc.toolCallId, name: tc.toolName })))}`);
             }
             if (toolResults && toolResults.length > 0) {
-              log.info(`[Chat] Tool results: ${JSON.stringify(toolResults.map(tr => ({ id: tr.toolCallId, hasResult: !!tr.result })))}`);
+              log.info(`[Chat] Tool results: ${JSON.stringify(toolResults.map(tr => ({ id: tr.toolCallId, hasResult: !!(tr as any).result })))}`);
             }
             await createMessage(
               actualThreadId,
@@ -581,7 +579,7 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
 
     // Consume and forward the stream with error handling
     try {
-      const response = result.toDataStreamResponse();
+      const response = result.toTextStreamResponse();
       const reader = response.body?.getReader();
       if (!reader) {
         throw new Error('No response body');

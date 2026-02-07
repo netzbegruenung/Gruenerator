@@ -20,10 +20,48 @@ import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 export type SearchIntent =
   | 'research' // Complex multi-source research ("recherchiere", "finde heraus")
   | 'search' // Gruenerator document search (party programs, positions)
-  | 'person' // Person search ("Wer ist...", Green politicians)
+  // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
   | 'web' // Web search (current events, external facts)
   | 'examples' // Social media examples/templates
+  | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
   | 'direct'; // No search needed (greetings, creative tasks without fact needs)
+
+/**
+ * Image style for generation.
+ */
+export type ImageStyle = 'illustration' | 'realistic' | 'pixel';
+
+/**
+ * Processed file attachment from the frontend.
+ */
+export interface ProcessedAttachment {
+  name: string;
+  type: string;
+  size: number;
+  data: string;
+  isImage: boolean;
+}
+
+/**
+ * Image attachment for vision models.
+ */
+export interface ImageAttachment {
+  name: string;
+  type: string;
+  data: string;
+}
+
+/**
+ * Result from image generation.
+ */
+export interface GeneratedImageResult {
+  base64: string;
+  url: string;
+  filename: string;
+  prompt: string;
+  style: ImageStyle;
+  generationTimeMs: number;
+}
 
 /**
  * Unified search result structure from any tool.
@@ -47,6 +85,18 @@ export interface Citation {
 }
 
 /**
+ * Persisted thread attachment with summary for context in subsequent messages.
+ */
+export interface ThreadAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  isImage: boolean;
+  summary: string | null;
+  createdAt: Date;
+}
+
+/**
  * Input to the ChatGraph.
  * Provided by the route controller when invoking the graph.
  *
@@ -59,6 +109,9 @@ export interface ChatGraphInput {
   agentId: string;
   enabledTools: Record<string, boolean>;
   aiWorkerPool: any;
+  attachmentContext?: string;
+  imageAttachments?: ImageAttachment[];
+  threadAttachments?: ThreadAttachment[];
 }
 
 /**
@@ -76,16 +129,38 @@ export interface ChatGraphState {
   enabledTools: Record<string, boolean>;
   aiWorkerPool: any;
 
+  // Attachment context
+  attachmentContext: string | null;
+  imageAttachments: ImageAttachment[];
+  threadAttachments: ThreadAttachment[];
+
+  // Memory context (from mem0 cross-thread memory)
+  memoryContext: string | null;
+  memoryRetrieveTimeMs: number;
+
   // Classification output
   intent: SearchIntent;
   searchQuery: string | null;
+  subQueries: string[] | null;
   reasoning: string;
+  hasTemporal: boolean;
+  complexity: 'simple' | 'moderate' | 'complex';
 
   // Search results (accumulated)
   searchResults: SearchResult[];
   citations: Citation[];
   searchCount: number;
   maxSearches: number;
+
+  // Quality gate (iterative search)
+  qualityScore: number;
+  qualityAssessmentTimeMs: number;
+
+  // Image generation
+  imagePrompt: string | null;
+  imageStyle: ImageStyle | null;
+  generatedImage: GeneratedImageResult | null;
+  imageTimeMs: number;
 
   // Response generation
   responseText: string;
@@ -95,6 +170,8 @@ export interface ChatGraphState {
   startTime: number;
   classificationTimeMs: number;
   searchTimeMs: number;
+  rerankTimeMs: number;
+  searchedCollections: string[];
   responseTimeMs: number;
   error: string | null;
 }
@@ -108,12 +185,17 @@ export interface ChatGraphOutput {
   threadId: string | null;
   responseText: string;
   citations: Citation[];
+  generatedImage?: GeneratedImageResult | null;
   metadata: {
     intent: SearchIntent;
     searchCount: number;
     totalTimeMs: number;
     classificationTimeMs: number;
     searchTimeMs: number;
+    rerankTimeMs?: number;
+    searchedCollections?: string[];
+    imageTimeMs?: number;
+    memoryRetrieveTimeMs?: number;
     responseTimeMs: number;
   };
   error?: string;
@@ -125,5 +207,6 @@ export interface ChatGraphOutput {
 export interface ClassificationResult {
   intent: SearchIntent;
   searchQuery: string | null;
+  subQueries?: string[] | null;
   reasoning: string;
 }

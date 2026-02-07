@@ -1,9 +1,6 @@
 /* Import shared CSS variables from web app */
 @import '../../../web/src/assets/styles/common/variables.css';
 
-/* Import Tiptap UI styles */
-@import './_variables.scss';
-
 /* Import Grünerator theme overrides */
 @import './_gruenerator-theme.scss';
 
@@ -45,7 +42,7 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Basic button styling - use existing patterns from variables.css */
+/* Basic button styling */
 button {
   font-family: inherit;
   cursor: pointer;

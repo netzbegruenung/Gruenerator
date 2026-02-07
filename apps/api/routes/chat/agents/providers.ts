@@ -10,6 +10,25 @@ import type { AgentConfig } from './types.js';
 
 const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
 
+/**
+ * Available models that can be selected by the user.
+ * Maps user-facing model IDs to provider/model configurations.
+ */
+export const AVAILABLE_MODELS: Record<string, { provider: 'mistral' | 'litellm'; model: string }> = {
+  'mistral-large': { provider: 'mistral', model: 'mistral-large-latest' },
+  'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest' },
+  'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest' },
+  'litellm': { provider: 'litellm', model: 'gpt-oss:120b' },
+};
+
+/**
+ * Get model configuration by user-facing model ID.
+ * Returns null if model ID is not recognized.
+ */
+export function getModelConfig(modelId: string): { provider: 'mistral' | 'litellm'; model: string } | null {
+  return AVAILABLE_MODELS[modelId] || null;
+}
+
 const LITELLM_INCOMPATIBLE_PATTERNS = [
   /^mistral/i,
   /^claude/i,

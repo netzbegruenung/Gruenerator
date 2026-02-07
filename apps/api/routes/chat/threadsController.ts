@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     }
 
     const postgres = getPostgresInstance();
-    const threads = await postgres.query<Thread>(
+    const threads = await postgres.query(
       `SELECT id, user_id, agent_id, title, created_at, updated_at
        FROM chat_threads
        WHERE user_id = $1
@@ -34,11 +34,7 @@ router.get('/', async (req, res) => {
 
     const threadsWithLastMessage: ThreadWithLastMessage[] = await Promise.all(
       threads.map(async (thread) => {
-        const messages = await postgres.query<{
-          content: string;
-          role: string;
-          created_at: Date;
-        }>(
+        const messages = await postgres.query(
           `SELECT content, role, created_at
            FROM chat_messages
            WHERE thread_id = $1
@@ -47,18 +43,19 @@ router.get('/', async (req, res) => {
           [thread.id]
         );
 
+        const lastMsg = messages[0] as { content: string; role: string; created_at: Date } | undefined;
         return {
-          id: thread.id,
-          userId: thread.user_id,
-          agentId: thread.agent_id,
-          title: thread.title,
-          createdAt: thread.created_at,
-          updatedAt: thread.updated_at,
-          user_id: thread.user_id,
-          agent_id: thread.agent_id,
-          created_at: thread.created_at,
-          updated_at: thread.updated_at,
-          lastMessage: messages[0] || null,
+          id: thread.id as string,
+          userId: thread.user_id as string,
+          agentId: thread.agent_id as string,
+          title: thread.title as string,
+          createdAt: thread.created_at as Date,
+          updatedAt: thread.updated_at as Date,
+          user_id: thread.user_id as string,
+          agent_id: thread.agent_id as string,
+          created_at: thread.created_at as Date,
+          updated_at: thread.updated_at as Date,
+          lastMessage: lastMsg || null,
         };
       })
     );
@@ -80,7 +77,7 @@ router.post('/', async (req, res) => {
     const { title, agentId } = req.body;
 
     const postgres = getPostgresInstance();
-    const result = await postgres.query<Thread>(
+    const result = await postgres.query(
       `INSERT INTO chat_threads (user_id, agent_id, title)
        VALUES ($1, $2, $3)
        RETURNING id, user_id, agent_id, title, created_at, updated_at`,
@@ -117,7 +114,7 @@ router.patch('/', async (req, res) => {
 
     const postgres = getPostgresInstance();
 
-    const existingThreads = await postgres.query<Thread>(
+    const existingThreads = await postgres.query(
       `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
       [threadId]
     );
@@ -130,7 +127,7 @@ router.patch('/', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const result = await postgres.query<Thread>(
+    const result = await postgres.query(
       `UPDATE chat_threads
        SET title = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2
@@ -172,7 +169,7 @@ router.delete('/', async (req, res) => {
 
     const postgres = getPostgresInstance();
 
-    const existingThreads = await postgres.query<Thread>(
+    const existingThreads = await postgres.query(
       `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
       [threadId]
     );

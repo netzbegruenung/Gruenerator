@@ -1,70 +1,44 @@
-import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  FiDownload,
-  FiShare2,
-  FiClock,
-  FiChevronLeft,
-  FiMoreVertical,
-  FiUsers,
-} from 'react-icons/fi';
-import { useAuth } from '../hooks/useAuth';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import { FiDownload, FiShare2, FiClock, FiMessageSquare } from 'react-icons/fi';
+import type { BlockNoteEditor } from '@blocknote/core';
+import { DOCXExporter, docxDefaultSchemaMappings } from '@blocknote/xl-docx-exporter';
 import { useDocumentStore } from '../stores/documentStore';
-import { useCollaboration, useCollaborators } from '../hooks/useCollaboration';
-import { CollaborativeEditor } from '../components/editor/CollaborativeEditor';
-import {
-  PresenceAvatars,
-  VersionHistory,
-  ShareModal,
-  ActionSheet,
-  ActionSheetItem,
-  ActionSheetDivider,
-} from '@gruenerator/shared/tiptap-editor';
+import { useCollaboration } from '../hooks/useCollaboration';
+import { BlockNoteEditor as BlockNoteEditorComponent } from '../components/editor/BlockNoteEditor';
+import { VersionHistory, ShareModal } from '@gruenerator/shared/tiptap-editor';
 import { apiClient } from '../lib/apiClient';
 import './EditorPage.css';
 
+interface DocumentState {
+  data: any;
+  isLoading: boolean;
+}
+
 export const EditorPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [documentData, setDocument] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const [docState, setDocState] = useState<DocumentState>({ data: null, isLoading: true });
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [showActionSheet, setShowActionSheet] = useState(false);
-  const [editor, setEditor] = useState<any>(null);
-  const [darkMode, setDarkMode] = useState(
-    () => document.documentElement.getAttribute('data-theme') === 'dark'
-  );
+  const [showCommentsSidebar, setShowCommentsSidebar] = useState(false);
+  const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
+
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const { updateDocument } = useDocumentStore();
-
-  // Collaboration state
   const { ydoc, provider, isConnected, isSynced } = useCollaboration(id || '');
-  const collaborators = useCollaborators(provider);
 
-  // Listen for theme changes
-  useEffect(() => {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'data-theme') {
-          setDarkMode(document.documentElement.getAttribute('data-theme') === 'dark');
-        }
-      });
-    });
-    observer.observe(document.documentElement, { attributes: true });
-    return () => observer.disconnect();
+  const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
+    setEditor(editorInstance);
   }, []);
 
-  // Close export menu when clicking outside
+  // Close export menu on outside click
   useEffect(() => {
-    if (!showExportMenu) {
-      return;
-    }
+    if (!showExportMenu) return;
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
         setShowExportMenu(false);
       }
     };
@@ -73,259 +47,137 @@ export const EditorPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showExportMenu]);
 
+  // Fetch document
   useEffect(() => {
-    const fetchDocument = async () => {
-      if (!id) return;
+    if (!id) return;
 
+    let cancelled = false;
+
+    const fetchDocument = async () => {
       try {
-        setIsLoading(true);
         const response = await apiClient.get(`/docs/${id}`);
-        setDocument(response.data);
+        if (!cancelled) {
+          setDocState({ data: response.data, isLoading: false });
+        }
       } catch (error) {
-        console.error('Failed to fetch documentData:', error);
-      } finally {
-        setIsLoading(false);
+        console.error('Failed to fetch document:', error);
+        if (!cancelled) {
+          setDocState({ data: null, isLoading: false });
+        }
       }
     };
 
     fetchDocument();
+    return () => { cancelled = true; };
   }, [id]);
 
-  const handleTitleChange = async (newTitle: string) => {
-    if (!id || !newTitle.trim()) return;
+  const handleExport = useCallback(async () => {
+    if (!docState.data || !editor) return;
 
     try {
-      await updateDocument(id, { title: newTitle });
-      setDocument((prev: any) => ({ ...prev, title: newTitle }));
-    } catch (error) {
-      console.error('Failed to update title:', error);
-    }
-  };
+      const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
+      const blob = await exporter.toBlob(editor.document);
 
-  const handleExport = async () => {
-    if (!documentData) return;
-
-    try {
-      // Get current content from Tiptap editor (if available), otherwise use stored content
-      const content = editor ? editor.getHTML() : documentData.content || '';
-
-      // Make POST request to DOCX export endpoint
-      const response = await apiClient.post(
-        '/exports/docx',
-        {
-          content: content,
-          title: documentData.title,
-        },
-        {
-          responseType: 'blob',
-        }
-      );
-
-      // Create download link
-      const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${documentData.title || 'Dokument'}.docx`;
+      link.download = `${docState.data.title || 'Dokument'}.docx`;
       link.click();
       window.URL.revokeObjectURL(url);
-
       setShowExportMenu(false);
-      setShowActionSheet(false);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export fehlgeschlagen. Bitte versuchen Sie es erneut.');
     }
-  };
+  }, [docState.data, editor]);
 
-  const handleShareFromActionSheet = () => {
-    setShowActionSheet(false);
-    setShowShareModal(true);
-  };
-
-  const handleVersionHistoryFromActionSheet = () => {
-    setShowActionSheet(false);
-    setShowVersionHistory(true);
-  };
-
-  if (isLoading) {
+  if (docState.isLoading) {
     return <div className="loading-container">Lädt...</div>;
   }
 
-  if (!documentData) {
+  if (!docState.data) {
     return <div className="error-container">Dokument nicht gefunden</div>;
   }
 
   const connectionStatus = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
-  const connectionTitle = !isConnected ? 'Getrennt' : !isSynced ? 'Synchronisiert...' : 'Verbunden';
-  const collaboratorCount = collaborators.length;
 
   return (
     <div className="editor-page">
-      <header className="editor-page-header">
-        <div className="header-left">
-          {/* Mobile: Back button */}
-          <button
-            onClick={() => navigate('/')}
-            className="back-button mobile-only"
-            aria-label="Zurück"
-          >
-            <FiChevronLeft />
-          </button>
-
-          {/* Desktop: Logo */}
-          <button
-            onClick={() => navigate('/')}
-            className="logo-button desktop-only"
-            aria-label="Zur Startseite"
-          >
-            <img
-              src={
-                darkMode
-                  ? '/images/gruenerator_logo_weiss.svg'
-                  : '/images/gruenerator_logo_gruen.svg'
-              }
-              alt="Grünerator Logo"
-            />
-          </button>
-
-          <input
-            type="text"
-            value={documentData.title}
-            onChange={(e) => setDocument({ ...documentData, title: e.target.value })}
-            onBlur={(e) => handleTitleChange(e.target.value)}
-            className="title-input"
-            aria-label="Dokumenttitel"
-          />
-
-          {/* Mobile: Connection indicator inline with title */}
-          <div
-            className={`connection-indicator mobile-only ${connectionStatus}`}
-            title={connectionTitle}
-          />
-        </div>
-
-        <div className="header-right">
-          {/* Desktop: All buttons visible */}
-          <div ref={exportMenuRef} className="export-menu-container desktop-only">
-            <button
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              className="header-button"
-              title="Export"
-              aria-label="Exportieren"
-            >
-              <FiDownload />
-            </button>
-            {showExportMenu && (
-              <div className="export-menu">
-                <button onClick={handleExport} className="export-menu-button">
-                  📄 Als Word-Dokument (.docx)
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="header-button desktop-only"
-            title="Teilen"
-            aria-label="Teilen"
-          >
-            <FiShare2 />
-          </button>
-
-          <button
-            onClick={() => setShowVersionHistory(true)}
-            className="header-button desktop-only"
-            title="Versionen"
-            aria-label="Versionen"
-          >
-            <FiClock />
-          </button>
-
-          <div
-            className={`connection-indicator desktop-only ${connectionStatus}`}
-            title={connectionTitle}
-          />
-
-          <div className="desktop-only">
-            <PresenceAvatars provider={provider} />
-          </div>
-
-          <span className="user-name desktop-only">{user?.display_name}</span>
-
-          {/* Mobile: Overflow menu button */}
-          <button
-            onClick={() => setShowActionSheet(true)}
-            className="overflow-menu-button mobile-only"
-            aria-label="Weitere Aktionen"
-          >
-            <FiMoreVertical />
-          </button>
-        </div>
-      </header>
-
       <main className="editor-main">
-        <CollaborativeEditor
+        <BlockNoteEditorComponent
           documentId={id!}
-          initialContent={documentData.content || ''}
+          initialContent={docState.data.content || ''}
           ydoc={ydoc}
           provider={provider}
-          onEditorReady={(editorInstance) => setEditor(editorInstance)}
+          showCommentsSidebar={showCommentsSidebar}
+          onEditorReady={handleEditorReady}
         />
       </main>
 
+      {/* Floating toolbar - bottom right */}
+      <div className="floating-panel">
+        <div className={`status-dot ${connectionStatus}`} />
+
+        <span className="glass-divider" />
+
+        <div ref={exportMenuRef} className="dropdown-container">
+          <button
+            className="glass-btn"
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            aria-label="Exportieren"
+          >
+            <FiDownload />
+          </button>
+          {showExportMenu && (
+            <div className="dropdown-menu">
+              <button className="dropdown-item" onClick={handleExport}>
+                <FiDownload />
+                Als Word (.docx)
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button
+          className="glass-btn"
+          onClick={() => setShowShareModal(true)}
+          aria-label="Teilen"
+        >
+          <FiShare2 />
+        </button>
+
+        <button
+          className="glass-btn"
+          onClick={() => setShowVersionHistory(true)}
+          aria-label="Versionen"
+        >
+          <FiClock />
+        </button>
+
+        <button
+          className={`glass-btn ${showCommentsSidebar ? 'active' : ''}`}
+          onClick={() => setShowCommentsSidebar(!showCommentsSidebar)}
+          aria-label="Kommentare"
+          title="Kommentare anzeigen"
+        >
+          <FiMessageSquare />
+        </button>
+      </div>
+
+      {/* Modals */}
       {showVersionHistory && (
         <VersionHistory
           documentId={id!}
           onClose={() => setShowVersionHistory(false)}
-          onRestore={() => {
-            // Reload the page to get the restored content
-            window.location.reload();
-          }}
+          onRestore={() => window.location.reload()}
         />
       )}
 
-      {showShareModal && <ShareModal documentId={id!} onClose={() => setShowShareModal(false)} />}
-
-      {/* Mobile Action Sheet */}
-      <ActionSheet
-        isOpen={showActionSheet}
-        onClose={() => setShowActionSheet(false)}
-        title="Aktionen"
-      >
-        <ActionSheetItem
-          icon={FiDownload}
-          label="Exportieren"
-          description="Als Word-Dokument speichern"
-          onClick={handleExport}
+      {showShareModal && (
+        <ShareModal
+          documentId={id!}
+          onClose={() => setShowShareModal(false)}
         />
-        <ActionSheetItem
-          icon={FiShare2}
-          label="Teilen"
-          description="Link teilen oder Berechtigungen verwalten"
-          onClick={handleShareFromActionSheet}
-        />
-        <ActionSheetItem
-          icon={FiClock}
-          label="Versionen"
-          description="Frühere Versionen anzeigen"
-          onClick={handleVersionHistoryFromActionSheet}
-        />
-        {collaboratorCount > 0 && (
-          <>
-            <ActionSheetDivider />
-            <ActionSheetItem
-              icon={FiUsers}
-              label="Mitarbeitende"
-              badge={`${collaboratorCount}`}
-              onClick={() => setShowActionSheet(false)}
-            />
-          </>
-        )}
-      </ActionSheet>
+      )}
     </div>
   );
 };
