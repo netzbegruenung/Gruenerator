@@ -15,6 +15,7 @@ export const ALLOWED_DOMAINS: string[] = [
   `www.${PRIMARY_DOMAIN}`,
   `beta.${PRIMARY_DOMAIN}`,
   `chat.${PRIMARY_DOMAIN}`,
+  `docs.${PRIMARY_DOMAIN}`,
   'gruenerator.de',
   'www.gruenerator.de',
   'beta.gruenerator.de',
