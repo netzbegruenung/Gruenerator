@@ -1339,6 +1339,9 @@ importers:
       tailwind-merge:
         specifier: ^3.0.1
         version: 3.4.0
+      tailwindcss:
+        specifier: '4'
+        version: 4.1.18
       zustand:
         specifier: ^5.0.3
         version: 5.0.9(@types/react@19.2.7)(immer@10.2.0)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))
