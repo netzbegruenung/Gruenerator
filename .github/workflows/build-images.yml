@@ -74,6 +74,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event.before }}
           filters: |
             shared:
               - 'packages/shared/**'
@@ -94,6 +95,7 @@ jobs:
               - 'documentation/**'
             chat:
               - 'apps/chat/**'
+              - 'packages/chat/**'
 
   build-web:
     needs: detect-changes
