@@ -14,6 +14,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
 # Copy package.json files for dependency caching
+COPY packages/shared/package.json ./packages/shared/
 COPY packages/chat/package.json ./packages/chat/
 COPY apps/chat/package.json ./apps/chat/
 
@@ -22,6 +23,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @gruenerator/apps-chat...
 
 # Copy source
+COPY packages/shared ./packages/shared
 COPY packages/chat ./packages/chat
 COPY apps/chat ./apps/chat
 
