@@ -5,7 +5,7 @@ import {
   buildProviderAuthUrl,
   type LoginProvider,
   type LoginProviderId,
-} from './loginProviders.js';
+} from './loginProviders';
 import './login-providers.css';
 
 export interface LoginProvidersProps {
