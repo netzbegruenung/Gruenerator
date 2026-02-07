@@ -37,18 +37,31 @@ const generateUserColor = () => {
 
 export const useCollaboration = (documentId: string) => {
   const user = useAuthStore((state) => state.user);
-  const [state, setState] = useState<CollaborationState>({
-    ydoc: new Y.Doc(),
-    provider: null,
-    isConnected: false,
-    isSynced: false,
+  const [state, setState] = useState<CollaborationState>(() => {
+    console.log('[useCollaboration] Initial state - creating Y.Doc');
+    return {
+      ydoc: new Y.Doc(),
+      provider: null,
+      isConnected: false,
+      isSynced: false,
+    };
   });
 
   const providerRef = useRef<HocuspocusProvider | null>(null);
+  const mountCountRef = useRef(0);
+
+  console.log('[useCollaboration] Hook called, documentId:', documentId, 'user:', !!user);
 
   useEffect(() => {
-    if (!documentId || !user) return;
+    mountCountRef.current++;
+    console.log('[useCollaboration] useEffect running, mount #', mountCountRef.current, 'documentId:', documentId, 'user:', !!user);
 
+    if (!documentId || !user) {
+      console.log('[useCollaboration] Early return - missing documentId or user');
+      return;
+    }
+
+    console.log('[useCollaboration] Creating new Y.Doc and HocuspocusProvider');
     const ydoc = new Y.Doc();
 
     // Create Hocuspocus provider
@@ -58,6 +71,7 @@ export const useCollaboration = (documentId: string) => {
       document: ydoc,
     });
 
+    console.log('[useCollaboration] Provider created, setting ref');
     providerRef.current = provider;
 
     // Set user awareness (presence)
@@ -71,27 +85,39 @@ export const useCollaboration = (documentId: string) => {
 
     // Connection status handlers
     provider.on('status', (event: { status: string }) => {
-      console.log('[Hocuspocus] Status event:', event.status);
-      setState((prev) => ({
-        ...prev,
-        isConnected: event.status === 'connected',
-      }));
+      const newIsConnected = event.status === 'connected';
+      console.log('[useCollaboration] Status event:', event.status);
+      setState((prev) => {
+        // Only update if value actually changed to prevent unnecessary re-renders
+        if (prev.isConnected === newIsConnected) {
+          console.log('[useCollaboration] Status unchanged, skipping setState');
+          return prev;
+        }
+        console.log('[useCollaboration] Status changed, updating state');
+        return {
+          ...prev,
+          isConnected: newIsConnected,
+        };
+      });
     });
 
     provider.on('synced', () => {
-      console.log('[Hocuspocus] Synced event');
-      setState((prev) => ({
-        ...prev,
-        isSynced: true,
-      }));
-    });
-
-    provider.on('connect', () => {
-      console.log('[Hocuspocus] Connected event');
+      console.log('[useCollaboration] Synced event');
+      setState((prev) => {
+        if (prev.isSynced) {
+          console.log('[useCollaboration] Already synced, skipping setState');
+          return prev;
+        }
+        console.log('[useCollaboration] Setting synced=true');
+        return {
+          ...prev,
+          isSynced: true,
+        };
+      });
     });
 
     provider.on('disconnect', () => {
-      console.log('[Hocuspocus] Disconnected event');
+      console.log('[useCollaboration] Disconnect event');
     });
 
     setState({
@@ -103,6 +129,7 @@ export const useCollaboration = (documentId: string) => {
 
     // Cleanup on unmount
     return () => {
+      console.log('[useCollaboration] Cleanup - destroying provider, mount #', mountCountRef.current);
       provider.awareness?.setLocalState(null);
       provider.destroy();
     };
@@ -114,6 +141,7 @@ export const useCollaboration = (documentId: string) => {
 // Hook to get current collaborators from awareness
 export const useCollaborators = (provider: HocuspocusProvider | null) => {
   const [collaborators, setCollaborators] = useState<CollaborationUser[]>([]);
+  const pendingUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!provider) return;
@@ -122,16 +150,37 @@ export const useCollaborators = (provider: HocuspocusProvider | null) => {
     if (!awareness) return;
 
     const updateCollaborators = () => {
-      const states = awareness.getStates();
-      const users: CollaborationUser[] = [];
+      console.log('[useCollaborators] updateCollaborators called');
+      // Cancel any pending update to avoid stale state
+      if (pendingUpdateRef.current) {
+        clearTimeout(pendingUpdateRef.current);
+      }
 
-      states.forEach((state, clientId) => {
-        if (state.user && clientId !== awareness.clientID) {
-          users.push(state.user as CollaborationUser);
-        }
-      });
+      // Defer state update to avoid "setState during render" warning
+      // This happens when BlockNote sets awareness state during initialization
+      pendingUpdateRef.current = setTimeout(() => {
+        const states = awareness.getStates();
+        const users: CollaborationUser[] = [];
 
-      setCollaborators(users);
+        states.forEach((state, clientId) => {
+          if (state.user && clientId !== awareness.clientID) {
+            users.push(state.user as CollaborationUser);
+          }
+        });
+
+        // Only update if collaborators actually changed
+        setCollaborators((prev) => {
+          const prevIds = prev.map((u) => u.id).sort().join(',');
+          const newIds = users.map((u) => u.id).sort().join(',');
+          if (prevIds === newIds) {
+            console.log('[useCollaborators] Collaborators unchanged, skipping setState');
+            return prev;
+          }
+          console.log('[useCollaborators] Collaborators changed:', users.length);
+          return users;
+        });
+        pendingUpdateRef.current = null;
+      }, 0);
     };
 
     // Update on awareness changes
@@ -140,6 +189,9 @@ export const useCollaborators = (provider: HocuspocusProvider | null) => {
 
     return () => {
       awareness.off('change', updateCollaborators);
+      if (pendingUpdateRef.current) {
+        clearTimeout(pendingUpdateRef.current);
+      }
     };
   }, [provider]);
 

@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
 
     const postgres = getPostgresInstance();
 
-    const threads = await postgres.query<Thread>(
+    const threads = await postgres.query(
       `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
       [threadId]
     );
@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const messages = await postgres.query<Message>(
+    const messages = await postgres.query(
       `SELECT id, thread_id, role, content, tool_calls, tool_results, created_at
        FROM chat_messages
        WHERE thread_id = $1
@@ -90,9 +90,39 @@ router.get('/', async (req, res) => {
     };
 
     const formattedMessages = messages.map((msg) => {
-      const resultsMap = buildResultsMap(msg.tool_results);
+      const parsedToolResults = parseJsonField(msg.tool_results);
       const parsedToolCalls = parseJsonField(msg.tool_calls);
-      const content = msg.content || '';
+      const content = (msg.content as string) || '';
+
+      // Extract metadata from tool_results if it's an object (not array)
+      // tool_results can be either:
+      // - Array: MCP tool invocation results [{toolCallId, result}, ...]
+      // - Object: Search metadata {intent, searchCount, citations, searchResults}
+      let metadata:
+        | {
+            intent?: string;
+            searchCount?: number;
+            citations?: unknown[];
+            searchResults?: unknown[];
+          }
+        | undefined;
+      let resultsMap = new Map<string, unknown>();
+
+      if (parsedToolResults && typeof parsedToolResults === 'object') {
+        if (Array.isArray(parsedToolResults)) {
+          // It's tool invocation results
+          resultsMap = buildResultsMap(msg.tool_results);
+        } else {
+          // It's search metadata
+          const meta = parsedToolResults as Record<string, unknown>;
+          metadata = {
+            intent: meta.intent as string | undefined,
+            searchCount: meta.searchCount as number | undefined,
+            citations: meta.citations as unknown[] | undefined,
+            searchResults: meta.searchResults as unknown[] | undefined,
+          };
+        }
+      }
 
       // Build tool invocations array
       const toolInvocations = Array.isArray(parsedToolCalls)
@@ -143,6 +173,7 @@ router.get('/', async (req, res) => {
         createdAt: msg.created_at,
         parts: parts.length > 0 ? parts : undefined,
         toolInvocations,
+        metadata,
       };
     });
 
@@ -168,7 +199,7 @@ router.delete('/', async (req, res) => {
 
     const postgres = getPostgresInstance();
 
-    const threads = await postgres.query<Thread>(
+    const threads = await postgres.query(
       `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
       [threadId]
     );

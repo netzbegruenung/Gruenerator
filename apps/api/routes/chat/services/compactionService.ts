@@ -6,7 +6,7 @@
  * and only the summary + recent messages are sent to the LLM.
  */
 
-import { generateText, CoreMessage } from 'ai';
+import { generateText, ModelMessage } from 'ai';
 import { getModel } from '../agents/providers.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -18,6 +18,16 @@ export const COMPACTION_THRESHOLD = 50;
 export const KEEP_RECENT = 20;
 export const RE_COMPACTION_THRESHOLD = 50;
 export const SUMMARY_MAX_TOKENS = 800;
+
+/**
+ * Model configuration for compaction.
+ * Summarization is a straightforward task - use a small, fast model.
+ * Large models are overkill and waste resources on simple summarization.
+ */
+const COMPACTION_MODEL = {
+  provider: 'mistral' as const,
+  model: 'mistral-small-latest', // Small model is sufficient for summarization
+};
 
 export interface CompactionState {
   summary: string | null;
@@ -142,10 +152,10 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
 
   try {
     const result = await generateText({
-      model: getModel('litellm', 'gpt-oss:120b'),
+      model: getModel(COMPACTION_MODEL.provider, COMPACTION_MODEL.model),
       system: systemPrompt,
       prompt: formattedMessages,
-      maxTokens: SUMMARY_MAX_TOKENS,
+      maxOutputTokens: SUMMARY_MAX_TOKENS,
       temperature: 0.3,
     });
 
@@ -173,10 +183,10 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
  * only recent messages, reducing context window usage for long conversations.
  */
 export function prepareMessagesWithCompaction(
-  messages: CoreMessage[],
+  messages: ModelMessage[],
   compactionState: CompactionState,
   baseSystemMessage: string
-): { messages: CoreMessage[]; systemMessage: string } {
+): { messages: ModelMessage[]; systemMessage: string } {
   if (!compactionState.summary) {
     return {
       messages,

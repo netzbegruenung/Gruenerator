@@ -6,7 +6,7 @@
  */
 
 export { chatGraph, runChatGraph, initializeChatState } from './ChatGraph.js';
-export { classifierNode, searchNode, respondNode, buildSystemMessage } from './nodes/index.js';
+export { classifierNode, searchNode, imageNode, respondNode, buildSystemMessage } from './nodes/index.js';
 export type {
   ChatGraphInput,
   ChatGraphOutput,
@@ -15,4 +15,9 @@ export type {
   SearchResult,
   Citation,
   ClassificationResult,
+  ImageStyle,
+  GeneratedImageResult,
+  ProcessedAttachment,
+  ImageAttachment,
+  ThreadAttachment,
 } from './types.js';

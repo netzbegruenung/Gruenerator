@@ -3,7 +3,7 @@
  * Uses Vercel AI SDK for text generation with content-type specific configurations
  */
 
-import { generateText, type CoreMessage, type CoreTool } from 'ai';
+import { generateText, type ModelMessage, type Tool } from 'ai';
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import {
   getGenerationConfig,
@@ -35,20 +35,20 @@ export const connectionMetrics: ConnectionMetrics = {
 };
 
 /**
- * Convert internal message format to Vercel AI SDK CoreMessage format
+ * Convert internal message format to Vercel AI SDK ModelMessage format
  */
 async function convertMessages(
   messages: AIRequestData['messages'],
   systemPrompt?: string
-): Promise<CoreMessage[]> {
-  const coreMessages: CoreMessage[] = [];
+): Promise<ModelMessage[]> {
+  const modelMessages: ModelMessage[] = [];
 
   // Add system message if provided
   if (systemPrompt) {
-    coreMessages.push({ role: 'system', content: systemPrompt });
+    modelMessages.push({ role: 'system', content: systemPrompt });
   }
 
-  if (!messages) return coreMessages;
+  if (!messages) return modelMessages;
 
   for (const msg of messages) {
     // Skip system messages if we already added one
@@ -74,7 +74,7 @@ async function convertMessages(
 
       if (toolUseBlocks.length > 0) {
         // Assistant message with tool calls
-        coreMessages.push({
+        modelMessages.push({
           role: 'assistant',
           content: [
             ...(textContent ? [{ type: 'text' as const, text: textContent }] : []),
@@ -82,12 +82,12 @@ async function convertMessages(
               type: 'tool-call' as const,
               toolCallId: tc.id || '',
               toolName: tc.name || '',
-              args: tc.input as Record<string, unknown>,
+              input: tc.input as Record<string, unknown>,
             })),
           ],
         });
       } else if (textContent) {
-        coreMessages.push({ role: 'assistant', content: textContent });
+        modelMessages.push({ role: 'assistant', content: textContent });
       }
       continue;
     }
@@ -118,14 +118,14 @@ async function convertMessages(
           const resultContent =
             typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content);
           const toolCallId = tr.tool_use_id || tr.tool_call_id || tr.toolCallId || tr.id || '';
-          coreMessages.push({
+          modelMessages.push({
             role: 'tool',
             content: [
               {
-                type: 'tool-result',
+                type: 'tool-result' as const,
                 toolCallId,
                 toolName: '', // Will be matched by toolCallId
-                result: resultContent,
+                output: { type: 'text' as const, value: resultContent },
               },
             ],
           });
@@ -146,7 +146,7 @@ async function convertMessages(
             parts.push({ type: 'image', image: `data:${mediaType};base64,${base64Data}` });
           }
         }
-        coreMessages.push({ role: 'user', content: parts });
+        modelMessages.push({ role: 'user', content: parts });
         continue;
       }
 
@@ -176,18 +176,18 @@ async function convertMessages(
           return '';
         })
       );
-      coreMessages.push({ role: 'user', content: textParts.filter(Boolean).join('\n') });
+      modelMessages.push({ role: 'user', content: textParts.filter(Boolean).join('\n') });
       continue;
     }
 
     // Simple text message
-    coreMessages.push({
+    modelMessages.push({
       role: msg.role as 'user' | 'assistant' | 'system',
       content: typeof msg.content === 'string' ? msg.content : String(msg.content || ''),
     });
   }
 
-  return coreMessages;
+  return modelMessages;
 }
 
 /**
@@ -195,12 +195,12 @@ async function convertMessages(
  */
 function convertTools(
   toolsPayload: ReturnType<typeof ToolHandler.prepareToolsPayload>
-): Record<string, CoreTool> | undefined {
+): Record<string, Tool> | undefined {
   if (!toolsPayload.tools || toolsPayload.tools.length === 0) {
     return undefined;
   }
 
-  const tools: Record<string, CoreTool> = {};
+  const tools: Record<string, Tool> = {};
   for (const tool of toolsPayload.tools as Array<{
     name: string;
     description: string;
@@ -209,7 +209,7 @@ function convertTools(
   }>) {
     tools[tool.name] = {
       description: tool.description,
-      parameters: (tool.parameters || tool.input_schema) as CoreTool['parameters'],
+      inputSchema: (tool.parameters || tool.input_schema) as Tool['inputSchema'],
     };
   }
   return tools;
@@ -248,7 +248,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   }
 
   // Convert messages to Vercel AI SDK format
-  const coreMessages = await convertMessages(messages, systemPrompt);
+  const modelMessages = await convertMessages(messages, systemPrompt);
 
   // Prepare tools
   const toolsPayload = ToolHandler.prepareToolsPayload(options, 'mistral', requestId, type);
@@ -257,17 +257,15 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Determine tool choice
   let toolChoice: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string } | undefined;
   if (tools) {
-    if (toolsPayload.tool_choice === 'required' || toolsPayload.tool_choice === 'any') {
+    const choice = toolsPayload.tool_choice as string | { type: string; name?: string } | undefined;
+    if (choice === 'required') {
       toolChoice = 'required';
-    } else if (toolsPayload.tool_choice === 'none') {
+    } else if (choice === undefined || choice === 'none') {
       toolChoice = 'none';
-    } else if (
-      typeof toolsPayload.tool_choice === 'object' &&
-      toolsPayload.tool_choice?.type === 'tool'
-    ) {
+    } else if (typeof choice === 'object' && choice?.type === 'tool') {
       toolChoice = {
         type: 'tool',
-        toolName: (toolsPayload.tool_choice as { name?: string }).name || '',
+        toolName: choice.name || '',
       };
     } else {
       toolChoice = 'auto';
@@ -297,9 +295,9 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
       const result = await generateText({
         model: aiModel,
-        messages: coreMessages,
+        messages: modelMessages,
         temperature: config.temperature,
-        maxTokens: config.maxTokens,
+        maxOutputTokens: config.maxTokens,
         topP: config.topP,
         tools,
         toolChoice,
@@ -326,7 +324,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
           ? result.toolCalls.map((tc, index) => ({
               id: tc.toolCallId || `mistral_tool_${index}`,
               name: tc.toolName,
-              input: tc.args as Record<string, unknown>,
+              input: tc.input as Record<string, unknown>,
             }))
           : undefined;
 
@@ -363,8 +361,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
           requestId,
           usage: result.usage
             ? {
-                prompt_tokens: result.usage.promptTokens,
-                completion_tokens: result.usage.completionTokens,
+                prompt_tokens: result.usage.inputTokens,
+                completion_tokens: result.usage.outputTokens,
                 total_tokens: result.usage.totalTokens,
               }
             : undefined,

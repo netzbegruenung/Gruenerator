@@ -1060,8 +1060,58 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_i
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
 
+-- Chat thread attachments for persistent document context across messages
+CREATE TABLE IF NOT EXISTS chat_thread_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id UUID REFERENCES chat_threads(id) ON DELETE CASCADE,
+    message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+
+    -- Metadata
+    name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    is_image BOOLEAN DEFAULT FALSE,
+
+    -- Extracted content
+    extracted_text TEXT,          -- Full OCR text (for re-processing)
+    summary TEXT,                 -- LLM summary (~200-400 tokens)
+
+    -- Timestamps
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Chat thread attachments indexes
+CREATE INDEX IF NOT EXISTS idx_thread_attachments_thread ON chat_thread_attachments(thread_id);
+CREATE INDEX IF NOT EXISTS idx_thread_attachments_created ON chat_thread_attachments(thread_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_thread_attachments_user ON chat_thread_attachments(user_id);
+
 -- Chat triggers
 CREATE TRIGGER update_chat_threads_updated_at
     BEFORE UPDATE ON chat_threads
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SECTION: MEM0 MEMORY HISTORY (GDPR Compliance & Audit)
+-- Tracks all memory operations for user data rights and debugging
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS mem0_memory_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    memory_id TEXT NOT NULL,
+    operation TEXT NOT NULL CHECK (operation IN ('add', 'update', 'delete', 'delete_all')),
+    memory_text TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    thread_id UUID REFERENCES chat_threads(id) ON DELETE SET NULL,
+    message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL
+);
+
+-- Indexes for mem0 memory history
+CREATE INDEX IF NOT EXISTS idx_mem0_history_user ON mem0_memory_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_mem0_history_memory ON mem0_memory_history(memory_id);
+CREATE INDEX IF NOT EXISTS idx_mem0_history_created ON mem0_memory_history(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mem0_history_operation ON mem0_memory_history(operation);

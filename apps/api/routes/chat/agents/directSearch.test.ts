@@ -5,7 +5,7 @@
 
 import {
   executeDirectSearch,
-  executeDirectPersonSearch,
+  // executeDirectPersonSearch, // DISABLED: Person search not production ready
   executeDirectExamplesSearch,
   executeDirectWebSearch,
 } from './directSearch.js';
@@ -36,24 +36,25 @@ async function runTests() {
     console.log('Test failed:', error.message);
   }
 
-  // Test 2: Person Search
-  console.log('\n--- Test 2: Person Search (Annalena Baerbock) ---');
-  try {
-    const personResult = await executeDirectPersonSearch({
-      query: 'Annalena Baerbock',
-    });
-    console.log('Is person query:', personResult.isPersonQuery ? '✅' : '❌');
-    if (personResult.person) {
-      console.log('Person found:', personResult.person.name);
-      console.log('Fraktion:', personResult.person.fraktion || 'N/A');
-    }
-    console.log('Results count:', personResult.results.length);
-    if (personResult.error) {
-      console.log('Error:', personResult.message);
-    }
-  } catch (error: any) {
-    console.log('Test failed:', error.message);
-  }
+  // DISABLED: Person search not production ready
+  // // Test 2: Person Search
+  // console.log('\n--- Test 2: Person Search (Annalena Baerbock) ---');
+  // try {
+  //   const personResult = await executeDirectPersonSearch({
+  //     query: 'Annalena Baerbock',
+  //   });
+  //   console.log('Is person query:', personResult.isPersonQuery ? '✅' : '❌');
+  //   if (personResult.person) {
+  //     console.log('Person found:', personResult.person.name);
+  //     console.log('Fraktion:', personResult.person.fraktion || 'N/A');
+  //   }
+  //   console.log('Results count:', personResult.results.length);
+  //   if (personResult.error) {
+  //     console.log('Error:', personResult.message);
+  //   }
+  // } catch (error: any) {
+  //   console.log('Test failed:', error.message);
+  // }
 
   // Test 3: Examples Search
   console.log('\n--- Test 3: Examples Search (Klimaschutz) ---');

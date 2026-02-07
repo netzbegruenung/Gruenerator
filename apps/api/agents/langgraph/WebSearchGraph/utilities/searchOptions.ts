@@ -1,9 +1,13 @@
 /**
  * Search options configuration for WebSearchGraph
- * Handles intelligent search parameter selection based on query content
+ * Handles intelligent search parameter selection based on query content.
+ *
+ * Uses TemporalAnalyzer for robust temporal detection instead of
+ * hardcoded year strings.
  */
 
 import type { SearchOptions } from '../types.js';
+import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 
 /**
  * Get intelligent search options based on query content and mode
@@ -41,24 +45,14 @@ export function getIntelligentSearchOptions(
     console.log(`[WebSearchGraph] Using German regional search settings for: "${query}"`);
   }
 
-  // News search for current developments
-  if (
-    [
-      'aktuelle',
-      'entwicklung',
-      'derzeit',
-      'momentan',
-      'heute',
-      '2024',
-      '2025',
-      'situation',
-      'stand',
-      'status',
-    ].some((term) => queryLower.includes(term))
-  ) {
-    options.categories = 'news';
-    options.time_range = 'year';
-    console.log(`[WebSearchGraph] Using news search for current developments: "${query}"`);
+  // Temporal detection using TemporalAnalyzer
+  const temporal = analyzeTemporality(query);
+  if (temporal.hasTemporal) {
+    options.categories = temporal.urgency === 'immediate' ? 'news' : 'general,news';
+    if (temporal.suggestedTimeRange) {
+      options.time_range = temporal.suggestedTimeRange;
+    }
+    console.log(`[WebSearchGraph] Temporal detected (${temporal.urgency}): time_range=${temporal.suggestedTimeRange} for: "${query}"`);
   }
 
   return options;
