@@ -1,10 +1,12 @@
 import { create } from 'zustand';
-import type { Editor } from '@tiptap/react';
+import type { BlockNoteEditor } from '@blocknote/core';
+
+type EditorInstance = BlockNoteEditor | any;
 
 interface EditorStore {
-  editors: Record<string, Editor | null>;
-  setEditor: (documentId: string, editor: Editor | null) => void;
-  getEditor: (documentId: string) => Editor | null;
+  editors: Record<string, EditorInstance | null>;
+  setEditor: (documentId: string, editor: EditorInstance | null) => void;
+  getEditor: (documentId: string) => EditorInstance | null;
   removeEditor: (documentId: string) => void;
 }
 

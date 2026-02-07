@@ -16,6 +16,7 @@
   overflow: visible;
 }
 
+/* DEPRECATED: Dossier mode styles - no longer used
 .qa-chat-left-panel {
   flex: 1;
   min-width: 300px;
@@ -28,6 +29,7 @@
   overflow-y: auto;
   min-height: 0;
 }
+*/
 
 /* ChatUI wrapper - provides positioning context for floating input */
 .qa-chat-ui {
@@ -154,6 +156,7 @@
   transform: none;
 }
 
+/* DEPRECATED: Dossier mode styles - no longer used
 .qa-chat-right-panel {
   flex: 2;
   display: flex;
@@ -163,6 +166,7 @@
   min-height: 0;
   padding: var(--spacing-medium);
 }
+*/
 
 .qa-chat-answer {
   flex: 1;
@@ -171,6 +175,7 @@
   min-height: 0;
 }
 
+/* DEPRECATED: Dossier mode styles - no longer used
 .qa-chat-right-panel .display-container,
 .qa-chat-right-panel .display-container.has-generated-content {
   flex: 1 1 auto;
@@ -179,6 +184,7 @@
   overflow-y: auto;
   min-height: 0;
 }
+*/
 
 .qa-edit-tools {
   margin-top: var(--spacing-medium);
@@ -244,7 +250,7 @@
   }
 }
 
-/* Mobile-specific dossier layout - uses MobileSwipeContainer */
+/* DEPRECATED: Mobile-specific dossier layout - no longer used
 .qa-chat-dossier-mobile {
   position: relative;
   height: 100%;
@@ -276,7 +282,9 @@
 .qa-chat-dossier-mobile .qa-chat-dossier-input-wrapper .textarea-wrapper textarea {
   min-height: 80px;
 }
+*/
 
+/* DEPRECATED: Dossier mobile responsive styles - no longer used
 @media (max-width: 480px) {
   .qa-chat-dossier-mobile .qa-chat-right-panel {
     padding: var(--spacing-xsmall);
@@ -288,12 +296,14 @@
     border-radius: 16px 16px 0 0;
   }
 }
+*/
 
 @media (max-width: 768px) {
   .qa-chat-container {
     padding: var(--spacing-small);
   }
 
+  /* DEPRECATED: Dossier responsive styles - no longer used
   .qa-chat-main.qa-chat-dossier {
     flex-direction: column;
   }
@@ -309,7 +319,7 @@
   .qa-chat-dossier .qa-chat-right-panel {
     height: 60vh;
   }
-
+  */
 }
 
 @media (max-width: 480px) {
@@ -317,6 +327,7 @@
     padding: 0;
   }
 
+  /* DEPRECATED: Dossier responsive styles - no longer used
   .qa-chat-dossier .qa-chat-left-panel {
     height: 50vh;
     margin-right: 0;
@@ -326,6 +337,7 @@
   .qa-chat-dossier .qa-chat-right-panel {
     height: 50vh;
   }
+  */
 
   .qa-chat-dossier-input-wrapper {
     padding: var(--spacing-small);

@@ -170,8 +170,8 @@ const config: Config = {
               to: '/docs/ueber-den-gruenerator/gruenerator-pro-eu',
             },
             {
-              label: 'Support & Mitgliedschaft',
-              to: '/docs/ueber-den-gruenerator/support-mitgliedschaft',
+              label: 'Deine Daten im Grünerator',
+              to: '/docs/ueber-den-gruenerator/notebook',
             },
           ],
         },

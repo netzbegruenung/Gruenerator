@@ -583,6 +583,7 @@ const UniversalEditForm = ({
           </button>
         )}
         <ChatWorkbenchLayout
+          // DEPRECATED: mode, modes, onModeChange - no longer used, kept for backwards compatibility
           mode="chat"
           modes={{ chat: { label: 'Edit' } }}
           onModeChange={() => {}}

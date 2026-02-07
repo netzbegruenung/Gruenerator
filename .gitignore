@@ -145,5 +145,3 @@ services/comfyui/
 # Windows Zone.Identifier metadata files
 *:Zone.Identifier
 
-# LobeChat (self-hosted, not deployed via CI build)
-services/lobechat/
