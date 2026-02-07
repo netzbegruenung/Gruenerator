@@ -65,11 +65,15 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
 export function buildProviderAuthUrl(
   provider: LoginProvider,
   redirectTo?: string,
-  apiBaseUrl = '/api'
+  apiBaseUrl = '/api',
+  origin?: string
 ): string {
   const params = new URLSearchParams({ source: provider.source });
   if (redirectTo) {
     params.set('redirectTo', redirectTo);
+  }
+  if (origin) {
+    params.set('origin', origin);
   }
   return `${apiBaseUrl}/auth/login?${params.toString()}`;
 }
