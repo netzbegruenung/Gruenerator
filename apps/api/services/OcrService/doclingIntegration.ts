@@ -36,7 +36,7 @@ export async function extractTextWithDocling(filePath: string): Promise<Extracti
       do_ocr: true,
       force_ocr: false,
     });
-    formData.append('options', new Blob([optionsPayload], { type: 'application/json' }));
+    formData.append('parameters', new Blob([optionsPayload], { type: 'application/json' }));
 
     console.log(
       `[DoclingOCR] Sending to ${DOCLING_BASE_URL}/v1/convert/file (${fileBuffer.length} bytes)`

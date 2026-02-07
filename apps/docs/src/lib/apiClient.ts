@@ -1,5 +1,5 @@
-import axios from 'axios';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -22,10 +22,8 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Redirect to login on 401
       const currentPath = window.location.pathname;
-      const loginUrl = `/api/auth/login?source=gruenerator-login&redirectTo=${encodeURIComponent(currentPath)}`;
-      window.location.href = loginUrl;
+      window.location.href = `/login?redirectTo=${encodeURIComponent(currentPath)}`;
     }
     return Promise.reject(error);
   }
@@ -39,8 +37,7 @@ const sharedClient = createApiClient({
   authMode: 'cookie',
   onUnauthorized: () => {
     const currentPath = window.location.pathname;
-    const loginUrl = `/api/auth/login?source=gruenerator-login&redirectTo=${encodeURIComponent(currentPath)}`;
-    window.location.href = loginUrl;
+    window.location.href = `/login?redirectTo=${encodeURIComponent(currentPath)}`;
   },
 });
 

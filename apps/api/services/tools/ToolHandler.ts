@@ -79,40 +79,24 @@ export class ToolHandler {
    * @param provider - Provider name
    * @returns Formatted tools for the provider
    */
-  static formatToolsForProvider(tools: Tool[], provider: AIProvider = 'claude'): Tool[] {
+  static formatToolsForProvider(tools: Tool[], provider: AIProvider = 'mistral'): Tool[] {
     if (!this.validateTools(tools)) {
       throw new Error('Invalid tools provided to formatToolsForProvider');
     }
 
     const targetProvider = provider.toLowerCase() as AIProvider;
-    const isClaudeProvider = targetProvider === 'claude';
-    const isOpenAIProvider: boolean = ['openai', 'litellm', 'ionos', 'mistral', 'telekom'].includes(
-      targetProvider
-    );
+    // All current providers use OpenAI-compatible tool format
+    const isOpenAIProvider: boolean = ['litellm', 'ionos', 'mistral'].includes(targetProvider);
 
     return tools.map((tool) => {
       const isOpenAIFormat = 'type' in tool && tool.type === 'function' && 'function' in tool;
 
-      if (isClaudeProvider) {
-        if (isOpenAIFormat) {
-          const openAITool = tool as OpenAITool;
-          return {
-            name: openAITool.function.name,
-            description: openAITool.function.description,
-            input_schema: openAITool.function.parameters,
-          } as ClaudeTool;
-        } else {
-          const claudeTool = tool as ClaudeTool;
-          return {
-            name: claudeTool.name,
-            description: claudeTool.description,
-            input_schema: claudeTool.input_schema,
-          } as ClaudeTool;
-        }
-      } else if (isOpenAIProvider) {
+      if (isOpenAIProvider) {
+        // All current providers use OpenAI-compatible format
         if (isOpenAIFormat) {
           return tool;
         } else {
+          // Convert Claude format to OpenAI format
           const claudeTool = tool as ClaudeTool;
           return {
             type: 'function',

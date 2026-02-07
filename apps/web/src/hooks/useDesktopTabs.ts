@@ -17,7 +17,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/image-studio/edit': 'Bild bearbeiten',
   '/image-studio/templates': 'Sharepics',
   '/reel': 'Reel Studio',
-  '/chat': 'Chat',
+  // DEPRECATED: '/chat': 'Chat',
   '/suche': 'Suche',
   '/oparl': 'OParl',
   '/galerie': 'Galerie',

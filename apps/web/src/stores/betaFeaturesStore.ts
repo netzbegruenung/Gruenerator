@@ -37,7 +37,7 @@ const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeat
     anweisungen: 'anweisungen',
     content_management: 'contentManagement',
     canva: 'canva',
-    chat: 'chat',
+    // DEPRECATED: chat: 'chat',
     labor_enabled: 'labor',
     scanner: 'scanner',
   };

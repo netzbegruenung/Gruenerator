@@ -51,7 +51,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     }
   },
 
-  createDocument: async (title = 'Untitled Document', folderId = null) => {
+  createDocument: async (title = 'Neues Dokument', folderId = null) => {
     set({ error: null });
     try {
       const response = await apiClient.post('/docs', {

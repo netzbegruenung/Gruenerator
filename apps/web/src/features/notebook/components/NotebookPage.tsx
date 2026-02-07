@@ -7,7 +7,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
-import useNotebookChat from '../hooks/useNotebookChat';
+import useNotebookStreamChat from '../hooks/useNotebookStreamChat';
 
 import ActiveFiltersDisplay from './ActiveFiltersDisplay';
 import FilterDropdownButton from './FilterDropdownButton';
@@ -123,15 +123,33 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
     chatMessages,
     inputValue,
     submitLoading,
+    streamingText,
     isMobileView,
     activeCollections,
     setInputValue,
     handleSubmitQuestion,
-  } = useNotebookChat({
+  } = useNotebookStreamChat({
     collections: selectedCollections,
     persistMessages: config.persistMessages,
     extraApiParams,
   });
+
+  // Combine chat messages with streaming text for display
+  const displayMessages = useMemo(() => {
+    if (submitLoading && streamingText) {
+      return [
+        ...chatMessages,
+        {
+          type: 'assistant' as const,
+          content: streamingText,
+          timestamp: Date.now(),
+          id: 'streaming',
+          isStreaming: true,
+        },
+      ];
+    }
+    return chatMessages;
+  }, [chatMessages, submitLoading, streamingText]);
 
   const HeaderIcon = config.headerIcon;
 
@@ -226,11 +244,12 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
       </div>
       <CitationModal />
       <ChatWorkbenchLayout
+        // DEPRECATED: mode, modes, onModeChange - no longer used, kept for backwards compatibility
         mode="chat"
         modes={{ chat: { label: 'Chat' } }}
         onModeChange={() => {}}
         title={config.title}
-        messages={chatMessages}
+        messages={displayMessages}
         onSubmit={handleSubmitQuestion}
         isProcessing={submitLoading}
         placeholder={config.placeholder}

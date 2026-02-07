@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HiDocumentText, HiInformationCircle } from 'react-icons/hi';
 import { useParams } from 'react-router-dom';
 
@@ -7,7 +7,7 @@ import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { type NotebookCollection } from '../../../types/notebook';
-import useNotebookChat from '../hooks/useNotebookChat';
+import useNotebookStreamChat from '../hooks/useNotebookStreamChat';
 import useNotebookStore from '../stores/notebookStore';
 
 import ActiveFiltersDisplay from './ActiveFiltersDisplay';
@@ -47,16 +47,35 @@ const NotebookChat = () => {
     chatMessages,
     inputValue,
     submitLoading,
+    streamingText,
     isMobileView,
     setInputValue,
     handleSubmitQuestion,
-  } = useNotebookChat({
+  } = useNotebookStreamChat({
     collections: collection ? [{ id: collection.id, name: collection.name }] : [],
     welcomeMessage: collection
       ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.`
       : undefined,
     persistMessages: true,
   });
+
+  // Combine chat messages with streaming text for display
+  const displayMessages = useMemo(() => {
+    if (submitLoading && streamingText) {
+      // Add a temporary streaming message at the end
+      return [
+        ...chatMessages,
+        {
+          type: 'assistant' as const,
+          content: streamingText,
+          timestamp: Date.now(),
+          id: 'streaming',
+          isStreaming: true,
+        },
+      ];
+    }
+    return chatMessages;
+  }, [chatMessages, submitLoading, streamingText]);
 
   // Hooks must be called before early returns (Rules of Hooks)
   const renderMessage = useCallback((msg: unknown, i: number) => {
@@ -122,11 +141,12 @@ const NotebookChat = () => {
     <>
       <CitationModal />
       <ChatWorkbenchLayout
+        // DEPRECATED: mode, modes, onModeChange - no longer used, kept for backwards compatibility
         mode={effectiveMode}
         modes={{ chat: { label: 'Chat' } }}
         onModeChange={() => {}}
         title={collection?.name || ''}
-        messages={chatMessages}
+        messages={displayMessages}
         onSubmit={handleSubmitQuestion}
         isProcessing={submitLoading}
         placeholder="Stellen Sie eine Frage zu den Dokumenten..."

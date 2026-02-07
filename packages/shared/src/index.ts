@@ -51,3 +51,6 @@ export * from './platform/index.js';
 
 // Canvas Editor
 export * from './canvas-editor/index.js';
+
+// Auth (login providers — types and config only; React component via '@gruenerator/shared/auth')
+export * from './auth/loginProviders.js';
