@@ -2,11 +2,13 @@
 
 import { LoginProviders } from '@gruenerator/shared/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 
 import { useAuth } from '@/hooks/useAuth';
 
-export default function LoginPage() {
+export const dynamic = 'force-dynamic';
+
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuth();
@@ -75,5 +77,13 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }
