@@ -41,7 +41,8 @@ export function LoginProviders({
       if (result === false) return;
     }
 
-    const authUrl = buildProviderAuthUrl(provider, redirectTo, apiBaseUrl);
+    const origin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    const authUrl = buildProviderAuthUrl(provider, redirectTo, apiBaseUrl, origin);
 
     if (onLogin) {
       onLogin(provider, authUrl);
