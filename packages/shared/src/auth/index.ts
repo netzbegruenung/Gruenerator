@@ -3,6 +3,6 @@ export {
   buildProviderAuthUrl,
   type LoginProvider,
   type LoginProviderId,
-} from './loginProviders.js';
+} from './loginProviders';
 
-export { LoginProviders, type LoginProvidersProps } from './LoginProviders.js';
+export { LoginProviders, type LoginProvidersProps } from './LoginProviders';
