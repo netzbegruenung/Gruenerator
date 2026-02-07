@@ -1,118 +1,3 @@
-.login-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-medium);
-  margin-bottom: var(--spacing-large);
-}
-
-.login-option {
-  display: flex;
-  align-items: center;
-  padding: 0;
-  border: 1.5px solid var(--background-color-alt);
-  border-radius: var(--spacing-small);
-  background: var(--background-color);
-  cursor: pointer;
-  transition: all 0.25s ease-out;
-  text-align: left;
-  min-height: 80px;
-  position: relative;
-  font-family: inherit;
-}
-
-.login-option:hover:not(:disabled) {
-  border-color: var(--interactive-accent-color);
-  background: var(--background-color-alt);
-}
-
-.login-option:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-  filter: grayscale(50%);
-}
-
-.login-option:active:not(:disabled) {
-  border-color: var(--interactive-accent-color);
-}
-
-.login-content {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-medium);
-  width: 100%;
-  padding: var(--spacing-large);
-}
-
-.login-icon {
-  font-size: 2.5rem;
-  flex-shrink: 0;
-  width: 50px;
-  text-align: center;
-  transition: transform 0.25s ease-out;
-}
-
-.login-logo {
-  width: 50px;
-  height: 50px;
-  object-fit: contain;
-  flex-shrink: 0;
-  transition: transform 0.25s ease-out;
-}
-
-
-
-.login-text-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xxsmall);
-  flex-grow: 1;
-}
-
-.login-title {
-  font-weight: 600;
-  font-size: 1.2rem;
-  color: var(--font-color-h);
-  margin: 0;
-  transition: color 0.25s ease-out;
-}
-
-.login-description {
-  color: var(--font-color);
-  font-size: 0.9rem;
-  opacity: 0.8;
-  margin: 0;
-  transition: opacity 0.25s ease-out;
-}
-
-.login-option:hover .login-description {
-  opacity: 1;
-}
-
-.login-option.primary:hover:not(:disabled) {
-  border-color: var(--interactive-accent-color);
-  background: var(--background-color-alt);
-}
-
-.login-option.netzbegruenung:hover:not(:disabled) {
-  border-color: var(--secondary-200);
-  background: var(--background-color-alt);
-}
-
-.login-option.gruenes-netz:hover:not(:disabled) {
-  border-color: var(--primary-200);
-  background: var(--background-color-alt);
-}
-
-.login-option.gruene-oesterreich:hover:not(:disabled) {
-  border-color: var(--primary-200);
-  background: var(--background-color-alt);
-}
-
-.login-option.gruenerator:hover:not(:disabled) {
-  border-color: var(--interactive-accent-color);
-  background: var(--background-color-alt);
-}
-
 .auth-status-message {
   background: var(--background-color-alt);
   border: var(--border-subtle);
@@ -152,34 +37,6 @@
 .registration-link:hover {
   color: var(--interactive-accent-color-hover);
   text-decoration: underline;
-}
-
-@media (max-width: 480px) {
-  .login-content {
-    padding: var(--spacing-medium);
-  }
-  
-  .login-icon {
-    font-size: 2rem;
-    width: 40px;
-  }
-  
-  .login-logo {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .login-title {
-    font-size: 1.1rem;
-  }
-  
-  .login-description {
-    font-size: 0.85rem;
-  }
-  
-  .login-option {
-    min-height: 70px;
-  }
 }
 
 /* Modal overlay for required mode */
@@ -289,7 +146,7 @@
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(20px) scale(0.95);
   }
@@ -315,19 +172,19 @@
     max-width: 900px;
     padding: var(--spacing-xlarge);
   }
-  
+
   .auth-container--modal {
     width: auto;
     min-width: 700px;
     max-width: 95vw;
   }
-  
+
   .auth-content-wrapper {
     display: flex;
     gap: var(--spacing-xlarge);
     align-items: flex-start;
   }
-  
+
   .auth-content-left {
     flex: 0 0 40%;
     padding-right: var(--spacing-xlarge);
@@ -337,7 +194,7 @@
     padding: var(--spacing-xlarge);
     position: relative;
   }
-  
+
   .auth-content-right {
     flex: 1;
     padding-left: var(--spacing-medium);
@@ -345,45 +202,45 @@
     border-radius: var(--spacing-small);
     padding: var(--spacing-xlarge);
   }
-  
+
   .auth-header {
     text-align: left;
     margin-bottom: var(--spacing-xlarge);
   }
-  
+
   .auth-header h1 {
     text-align: left;
     font-size: 2.5rem;
     margin-bottom: var(--spacing-medium);
   }
-  
+
   .auth-header--required h1 {
     font-size: 2.2rem;
   }
-  
+
   .auth-subtitle {
     font-size: 1.1rem;
     line-height: 1.6;
   }
-  
+
   .login-options {
     gap: var(--spacing-small);
   }
-  
+
   .login-option {
     min-height: 72px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   .login-option:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
-  
+
   .login-content {
     padding: var(--spacing-medium);
   }
-  
+
   /* Add decorative element under title */
   .auth-header h1::after {
     content: "";
@@ -393,7 +250,7 @@
     background: linear-gradient(90deg, var(--primary-500), var(--secondary-500));
     margin: var(--spacing-medium) auto 0 auto;
   }
-  
+
   /* Add subtle pattern */
   .auth-content-left::after {
     content: "🌱";
@@ -403,7 +260,7 @@
     font-size: 4rem;
     opacity: 0.05;
   }
-  
+
   /* Legal notice repositioning */
   .auth-legal--desktop {
     display: block;
@@ -412,7 +269,7 @@
     opacity: 0.8;
     text-align: left;
   }
-  
+
   .auth-legal--mobile {
     display: none;
   }
@@ -424,16 +281,16 @@
     max-width: 600px;
     padding: var(--spacing-large);
   }
-  
+
   .auth-container--modal {
     max-width: 700px;
     width: 85%;
   }
-  
+
   .auth-content-wrapper {
     display: block;
   }
-  
+
   .auth-content-left,
   .auth-content-right {
     width: 100%;
@@ -441,29 +298,29 @@
     border: none;
     background: none;
   }
-  
+
   .auth-header {
     text-align: center;
     margin-bottom: var(--spacing-large);
   }
-  
+
   .auth-header h1 {
     text-align: center;
     font-size: 2.2rem;
   }
-  
+
   .auth-header--required h1 {
     font-size: 2rem;
   }
-  
+
   .login-option {
     min-height: 75px;
   }
-  
+
   .auth-legal--desktop {
     display: none;
   }
-  
+
   .auth-legal--mobile {
     display: block;
   }
@@ -491,29 +348,29 @@
     border: none;
     background: none;
   }
-  
+
   .auth-header {
     text-align: center;
     margin-bottom: var(--spacing-large);
   }
-  
+
   .auth-header h1 {
     text-align: center;
     font-size: 1.8rem;
   }
-  
+
   .auth-header--required h1 {
     font-size: 1.75rem;
   }
-  
+
   .auth-legal--desktop {
     display: none;
   }
-  
+
   .auth-legal--mobile {
     display: block;
   }
-  
+
   /* Disable decorative elements on mobile */
   .auth-content-left::before,
   .auth-content-left::after {
@@ -534,11 +391,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-option,
-  .login-icon,
-  .login-logo,
-  .login-title,
-  .login-description,
   .auth-status-message,
   .auth-modal-overlay,
   .auth-container--modal,
@@ -546,11 +398,9 @@
     animation: none !important;
     transition: none !important;
   }
-  
-  .login-option:hover .login-icon,
-  .login-option:hover .login-logo,
+
   .auth-modal-close:hover,
   .auth-modal-close:active {
     transform: none !important;
   }
-} 
+}

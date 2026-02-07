@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   login: (redirectTo) => {
     const redirect = redirectTo || window.location.pathname;
-    window.location.href = `/api/auth/login?source=gruenerator-login&redirectTo=${encodeURIComponent(redirect)}`;
+    window.location.href = `/login?redirectTo=${encodeURIComponent(redirect)}`;
   },
 
   logout: async () => {
