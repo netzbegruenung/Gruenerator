@@ -15,8 +15,7 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname + window.location.search;
-      const loginUrl = `/api/auth/login?source=gruenerator-login&redirectTo=${encodeURIComponent(currentPath)}`;
-      window.location.href = loginUrl;
+      window.location.href = `/login?redirectTo=${encodeURIComponent(currentPath)}`;
     }
     return Promise.reject(error);
   }
@@ -28,7 +27,7 @@ const sharedClient = createApiClient({
   authMode: 'cookie',
   onUnauthorized: () => {
     const currentPath = window.location.pathname + window.location.search;
-    window.location.href = `/api/auth/login?source=gruenerator-login&redirectTo=${encodeURIComponent(currentPath)}`;
+    window.location.href = `/login?redirectTo=${encodeURIComponent(currentPath)}`;
   },
   timeout: 30000,
 });

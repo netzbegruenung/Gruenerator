@@ -44,8 +44,7 @@ export function useAuth() {
 
   const login = (redirectTo?: string) => {
     const redirect = redirectTo || window.location.pathname;
-    const apiBaseUrl = apiClient.getApiBaseUrl();
-    window.location.href = `${apiBaseUrl}/api/auth/login?source=gruenerator-chat&redirectTo=${encodeURIComponent(redirect)}`;
+    window.location.href = `/login?redirectTo=${encodeURIComponent(redirect)}`;
   };
 
   const logout = async () => {

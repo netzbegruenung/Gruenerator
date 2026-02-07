@@ -1,46 +1,53 @@
-# syntax=docker/dockerfile:1
+# Gruenerator Chat Dockerfile
+# Multi-stage build for Next.js app with monorepo workspace dependencies
 
-FROM node:22-alpine AS base
+# =============================================================================
+# Stage 1: Builder
+# =============================================================================
+FROM node:22-alpine AS builder
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
-# Dependencies stage
-FROM base AS deps
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
+# Copy lockfile and workspace config first (better layer caching)
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
-# Build stage
-FROM base AS builder
-WORKDIR /app
+# Copy package.json files for dependency caching
+COPY packages/chat/package.json ./packages/chat/
+COPY apps/chat/package.json ./apps/chat/
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Install dependencies for chat and its workspace deps
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @gruenerator/apps-chat...
 
-# Set environment for build
+# Copy source
+COPY packages/chat ./packages/chat
+COPY apps/chat ./apps/chat
+
+# Build
+WORKDIR /app/apps/chat
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-
 RUN pnpm build
 
-# Production stage
-FROM base AS runner
+# =============================================================================
+# Stage 2: Production (lightweight)
+# =============================================================================
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy built application
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/agents ./agents
+# Copy standalone build (monorepo structure preserved)
+COPY --from=builder /app/apps/chat/public ./apps/chat/public
+COPY --from=builder /app/apps/chat/.next/standalone ./
+COPY --from=builder /app/apps/chat/.next/static ./apps/chat/.next/static
+COPY --from=builder /app/apps/chat/agents ./apps/chat/agents
 
 USER nextjs
 
@@ -49,4 +56,4 @@ EXPOSE 3210
 ENV PORT=3210
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/chat/server.js"]
