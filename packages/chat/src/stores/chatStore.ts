@@ -173,12 +173,13 @@ export const useAgentStore = create<AgentState>()(
         }
       },
 
-      setCurrentThread: (threadId) => set({
-        currentThreadId: threadId,
-        compactionState: { ...DEFAULT_COMPACTION_STATE },
-        messageCount: 0,
-        needsCompaction: false,
-      }),
+      setCurrentThread: (threadId) =>
+        set({
+          currentThreadId: threadId,
+          compactionState: { ...DEFAULT_COMPACTION_STATE },
+          messageCount: 0,
+          needsCompaction: false,
+        }),
 
       addThread: (thread) =>
         set((state) => ({
@@ -199,20 +200,21 @@ export const useAgentStore = create<AgentState>()(
       deleteThread: (threadId) =>
         set((state) => ({
           threads: state.threads.filter((t) => t.id !== threadId),
-          currentThreadId:
-            state.currentThreadId === threadId ? null : state.currentThreadId,
-          compactionState: state.currentThreadId === threadId
-            ? { ...DEFAULT_COMPACTION_STATE }
-            : state.compactionState,
+          currentThreadId: state.currentThreadId === threadId ? null : state.currentThreadId,
+          compactionState:
+            state.currentThreadId === threadId
+              ? { ...DEFAULT_COMPACTION_STATE }
+              : state.compactionState,
         })),
 
-      clearThreads: () => set({
-        threads: [],
-        currentThreadId: null,
-        compactionState: { ...DEFAULT_COMPACTION_STATE },
-        messageCount: 0,
-        needsCompaction: false,
-      }),
+      clearThreads: () =>
+        set({
+          threads: [],
+          currentThreadId: null,
+          compactionState: { ...DEFAULT_COMPACTION_STATE },
+          messageCount: 0,
+          needsCompaction: false,
+        }),
 
       toggleTool: (tool) =>
         set((state) => ({
@@ -287,6 +289,7 @@ export const useAgentStore = create<AgentState>()(
         selectedAgentId: state.selectedAgentId,
         selectedProvider: state.selectedProvider,
         selectedModel: state.selectedModel,
+        currentThreadId: state.currentThreadId,
         threads: state.threads,
         enabledTools: state.enabledTools,
       }),
