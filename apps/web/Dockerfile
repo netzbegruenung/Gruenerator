@@ -17,6 +17,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy all workspace packages that web depends on
 COPY packages/ ./packages/
+COPY apps/docs/ ./apps/docs/
 COPY apps/web/ ./apps/web/
 
 # Copy root files needed by web build (CHANGELOG.md for Changelog component)
