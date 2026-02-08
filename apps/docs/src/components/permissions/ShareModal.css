@@ -99,13 +99,13 @@
 
 .link-input:focus {
   outline: none;
-  border-color: var(--primary-600);
+  border-color: var(--secondary-600);
 }
 
 .copy-button {
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
-  background-color: var(--primary-600);
+  background-color: var(--secondary-600);
   color: white;
   border: none;
   border-radius: 4px;
@@ -115,7 +115,7 @@
 }
 
 .copy-button:hover {
-  background-color: var(--primary-700);
+  background-color: var(--secondary-700);
 }
 
 .search-container {
@@ -135,7 +135,7 @@
 
 .search-input:focus {
   outline: none;
-  border-color: var(--primary-600);
+  border-color: var(--secondary-600);
 }
 
 .search-loading {
@@ -172,7 +172,7 @@
 }
 
 .search-result-item.selected {
-  background-color: var(--primary-100, rgba(70, 120, 50, 0.1));
+  background-color: var(--secondary-100, rgba(95, 133, 117, 0.1));
 }
 
 .user-info {
@@ -218,13 +218,13 @@
 
 .permission-select:focus {
   outline: none;
-  border-color: var(--primary-600);
+  border-color: var(--secondary-600);
 }
 
 .grant-button {
   padding: 0.375rem 0.75rem;
   font-size: 0.75rem;
-  background-color: var(--primary-600);
+  background-color: var(--secondary-600);
   color: white;
   border: none;
   border-radius: 4px;
@@ -233,7 +233,7 @@
 }
 
 .grant-button:hover {
-  background-color: var(--primary-700);
+  background-color: var(--secondary-700);
 }
 
 .collaborators-section {
@@ -294,7 +294,7 @@
 }
 
 .owner-badge {
-  background-color: var(--primary-600);
+  background-color: var(--secondary-600);
   color: white;
 }
 
@@ -313,4 +313,31 @@
   background-color: #fee;
   border-color: #c00;
   color: #c00;
+}
+
+/* ─── Dark mode ─── */
+
+[data-theme="dark"] .share-modal-panel {
+  border: 1px solid var(--grey-700);
+}
+
+[data-theme="dark"] .close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .share-error {
+  background-color: rgba(220, 38, 38, 0.15);
+  color: #f87171;
+}
+
+[data-theme="dark"] .search-result-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .search-result-item.selected {
+  background-color: rgba(95, 133, 117, 0.2);
+}
+
+[data-theme="dark"] .revoke-button:hover {
+  background-color: rgba(220, 38, 38, 0.15);
 }

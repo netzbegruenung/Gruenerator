@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import { apiClient } from '../lib/apiClient';
 
 export interface Document {
@@ -13,6 +14,7 @@ export interface Document {
   is_deleted: boolean;
   is_public: boolean;
   document_subtype: string;
+  content?: string;
   permissions: Record<string, { level: string; granted_at: string }>;
   metadata?: Record<string, unknown>;
 }
@@ -22,7 +24,11 @@ interface DocumentStore {
   isLoading: boolean;
   error: string | null;
   fetchDocuments: () => Promise<void>;
-  createDocument: (title?: string, folderId?: string | null) => Promise<Document>;
+  createDocument: (
+    title?: string,
+    folderId?: string | null,
+    documentSubtype?: string
+  ) => Promise<Document>;
   updateDocument: (
     id: string,
     updates: Partial<Pick<Document, 'title' | 'folder_id'>>
@@ -51,12 +57,13 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     }
   },
 
-  createDocument: async (title = 'Neues Dokument', folderId = null) => {
+  createDocument: async (title = 'Neues Dokument', folderId = null, documentSubtype = 'blank') => {
     set({ error: null });
     try {
       const response = await apiClient.post('/docs', {
         title,
         folder_id: folderId,
+        document_subtype: documentSubtype,
       });
       const newDocument = response.data;
 
