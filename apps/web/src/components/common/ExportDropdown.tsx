@@ -38,6 +38,7 @@ import { copyFormattedContent } from '../utils/commonFunctions';
 import {
   extractPlainText as extractPlainTextJs,
   extractFormattedText as extractFormattedTextJs,
+  extractHTMLContent as extractHTMLContentJs,
 } from '../utils/contentExtractor';
 
 // Type assertions for JS functions that return Promises
@@ -45,7 +46,18 @@ const extractPlainText = extractPlainTextJs as unknown as (content: unknown) => 
 const extractFormattedText = extractFormattedTextJs as unknown as (
   content: unknown
 ) => Promise<string>;
+const extractHTMLContent = extractHTMLContentJs as unknown as (content: unknown) => Promise<string>;
 import '../../assets/styles/components/actions/exportToDocument.css';
+
+function getDocsUrl(): string {
+  const envUrl = import.meta.env.VITE_DOCS_URL;
+  if (envUrl) return envUrl;
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `${window.location.protocol}//localhost:3002`;
+  }
+  return `${window.location.protocol}//docs.${hostname}`;
+}
 
 interface ExportDropdownProps {
   content: string;
@@ -294,8 +306,8 @@ const ExportDropdown = ({
         return;
       }
 
-      // Extract formatted content (preserves HTML/Markdown)
-      const formattedContent = await extractFormattedText(content);
+      // Extract as HTML so BlockNote can parse it
+      const formattedContent = await extractHTMLContent(content);
       if (!formattedContent || formattedContent.trim().length === 0) {
         alert('Der extrahierte Text ist leer.');
         return;
@@ -312,10 +324,10 @@ const ExportDropdown = ({
         documentType: getDocumentType(),
       });
 
-      // Navigate to document
+      // Navigate to document in Grünerator Docs app
       if (response && response.documentId) {
-        // Open in new tab to preserve current work
-        window.open(`/document/${response.documentId}`, '_blank');
+        const docsBase = getDocsUrl();
+        window.open(`${docsBase}/document/${response.documentId}`, '_blank');
       } else {
         throw new Error('Keine Dokument-ID in der Antwort erhalten.');
       }
@@ -589,7 +601,6 @@ const ExportDropdown = ({
                 </div>
               </button>
 
-              {/* Docs export temporarily disabled
               <button
                 className="format-option"
                 onClick={handleDocsExport}
@@ -601,13 +612,10 @@ const ExportDropdown = ({
                     {docsLoading ? 'Erstelle Dokument...' : 'Grünerator Docs'}
                   </div>
                   <div className="format-option-subtitle">
-                    {!isAuthenticated
-                      ? 'Login erforderlich'
-                      : 'Kollaborativ bearbeiten und teilen'}
+                    {!isAuthenticated ? 'Login erforderlich' : 'Kollaborativ bearbeiten und teilen'}
                   </div>
                 </div>
               </button>
-              */}
 
               {isAuthenticated && onSaveToLibrary && (
                 <button
