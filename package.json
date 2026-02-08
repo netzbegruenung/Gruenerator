@@ -80,12 +80,6 @@
     "dev:chat": "turbo run dev --filter=@gruenerator/chat",
     "build:chat": "turbo run build --filter=@gruenerator/chat",
     "dev:documentation": "turbo run dev --filter=@gruenerator/documentation",
-    "build:documentation": "turbo run build --filter=@gruenerator/documentation",
-    "dev:capacitor:android": "pnpm --filter @gruenerator/capacitor dev:android",
-    "dev:capacitor:ios": "pnpm --filter @gruenerator/capacitor dev:ios",
-    "build:capacitor:android": "pnpm --filter @gruenerator/capacitor build:android",
-    "build:capacitor:ios": "pnpm --filter @gruenerator/capacitor build:ios",
-    "capacitor:sync": "pnpm --filter @gruenerator/capacitor sync",
-    "capacitor:doctor": "pnpm --filter @gruenerator/capacitor doctor"
+    "build:documentation": "turbo run build --filter=@gruenerator/documentation"
   }
 }

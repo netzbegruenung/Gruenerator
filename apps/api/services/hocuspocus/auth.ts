@@ -110,7 +110,7 @@ async function checkDocumentPermissions(
 
 /**
  * Authenticate via Bearer token (JWT).
- * Used by native apps (Capacitor/Tauri) that send a token via HocuspocusProvider's token param.
+ * Used by native apps (Tauri) that send a token via HocuspocusProvider's token param.
  */
 async function authenticateByToken(
   token: string,
@@ -202,7 +202,7 @@ async function authenticateByCookie(
  * Authenticate WebSocket connection for Hocuspocus
  *
  * Supports two auth methods:
- * 1. Bearer token (JWT) — for native apps (Capacitor/Tauri) via data.token
+ * 1. Bearer token (JWT) — for native apps (Tauri) via data.token
  * 2. Session cookie — for web apps via requestHeaders.cookie
  *
  * Token auth is attempted first when present; cookie auth is the fallback.
