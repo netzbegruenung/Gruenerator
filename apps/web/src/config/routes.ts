@@ -248,6 +248,8 @@ const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGallery
 const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
+const DocsListPage = lazy(() => import('../features/docs/DocsListPage'));
+const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -392,6 +394,9 @@ const standardRoutes: RouteConfig[] = [
   { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
   { path: '/pages/:pageId', component: GrueneratorenBundle.DynamicPageView },
+  // Docs collaborative editor
+  { path: '/docs', component: DocsListPage },
+  { path: '/docs/:id', component: DocsEditorPage, showHeaderFooter: false },
   { path: '*', component: NotFound },
 ];
 
