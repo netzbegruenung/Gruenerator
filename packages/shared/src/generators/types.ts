@@ -18,7 +18,12 @@ export type SocialPlatform =
 export type AntragRequestType = 'antrag' | 'kleine_anfrage' | 'grosse_anfrage';
 
 // Text type for Universal generator
-export type UniversalTextType = 'universal' | 'rede' | 'wahlprogramm' | 'buergeranfragen';
+export type UniversalTextType =
+  | 'universal'
+  | 'rede'
+  | 'wahlprogramm'
+  | 'buergeranfragen'
+  | 'leichte_sprache';
 
 // Accessibility mode type
 export type AccessibilityMode = 'alt-text' | 'leichte-sprache';
@@ -89,9 +94,10 @@ export interface UniversalRequest extends BaseGeneratorRequest {
   zeichenanzahl?: number;
   // Bürgeranfragen-specific
   gremium?: string;
-  anliegen?: string;
-  antwortart?: string[];
-  kontext?: string;
+  frage?: string;
+  antwort?: string;
+  // Leichte Sprache-specific
+  originalText?: string;
 }
 
 // API response with generated content
