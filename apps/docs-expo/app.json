@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "gruenerator-docs",
+    "scheme": "gruenerator",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -30,7 +30,7 @@
           "autoVerify": true,
           "data": [
             {
-              "scheme": "gruenerator-docs"
+              "scheme": "gruenerator"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]

@@ -131,7 +131,7 @@ export default function DocumentScreen() {
       apiBaseUrl={API_BASE_URL}
       onNavigateBack={handleNavigateBack}
       onTitleChange={handleTitleChange}
-      dom={{ style: { flex: 1 } }}
+      dom={{ useExpoDOMWebView: true, style: { flex: 1 } }}
     />
   );
 }
