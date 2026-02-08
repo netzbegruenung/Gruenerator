@@ -1,10 +1,13 @@
-import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
-import { secureStorage } from './storage';
-import { getGlobalApiClient, API_ENDPOINTS } from './api';
 import { useAuthStore, setAuthStoreConfig } from '@gruenerator/shared/stores';
-import type { User } from '@gruenerator/shared';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+
 import { getErrorMessage } from '../utils/errors';
+
+import { getGlobalApiClient, API_ENDPOINTS } from './api';
+import { secureStorage } from './storage';
+
+import type { User } from '@gruenerator/shared';
 
 // Enable browser result handling for OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -25,15 +28,13 @@ export const REDIRECT_URI = makeRedirectUri({
   path: 'auth/callback',
 });
 
-/**
- * Response from consume-login-code endpoint
- */
 interface ConsumeLoginCodeResponse {
   success: boolean;
-  token: string;
+  access_token: string;
+  refresh_token: string;
   user: User;
-  expiresIn: number;
-  tokenType: string;
+  expires_in: number;
+  token_type: string;
 }
 
 /**
@@ -142,12 +143,13 @@ export async function handleAuthCallback(
       { code }
     );
 
-    if (response.data.success && response.data.token && response.data.user) {
-      // Store token securely
-      await secureStorage.setToken(response.data.token);
+    if (response.data.success && response.data.access_token && response.data.user) {
+      await secureStorage.setToken(response.data.access_token);
+      if (response.data.refresh_token) {
+        await secureStorage.setRefreshToken(response.data.refresh_token);
+      }
       await secureStorage.setUser(JSON.stringify(response.data.user));
 
-      // Update auth store
       useAuthStore.getState().setAuthState({
         user: response.data.user,
       });
@@ -216,9 +218,32 @@ export async function logout(): Promise<void> {
   }
 }
 
-/**
- * Get stored token (for manual checks)
- */
+export async function refreshAccessToken(): Promise<string | null> {
+  try {
+    const refreshToken = await secureStorage.getRefreshToken();
+    if (!refreshToken) return null;
+
+    const apiClient = getGlobalApiClient();
+    const response = await apiClient.post<ConsumeLoginCodeResponse>(
+      API_ENDPOINTS.AUTH_MOBILE_REFRESH,
+      { refresh_token: refreshToken }
+    );
+
+    if (response.data.success && response.data.access_token) {
+      await secureStorage.setToken(response.data.access_token);
+      if (response.data.user) {
+        await secureStorage.setUser(JSON.stringify(response.data.user));
+        useAuthStore.getState().setAuthState({ user: response.data.user });
+      }
+      return response.data.access_token;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getStoredToken(): Promise<string | null> {
   return secureStorage.getToken();
 }

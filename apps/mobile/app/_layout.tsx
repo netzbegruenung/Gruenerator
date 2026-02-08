@@ -1,12 +1,4 @@
-import { useEffect } from 'react';
-import { View } from 'react-native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
-import * as SplashScreen from 'expo-splash-screen';
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
 import {
   useFonts,
   Raleway_400Regular,
@@ -14,18 +6,25 @@ import {
   Raleway_600SemiBold,
   Raleway_700Bold,
 } from '@expo-google-fonts/raleway';
-import { lightTheme, darkTheme } from '../theme';
+import { useAuthStore } from '@gruenerator/shared/stores';
+import { Stack, Redirect, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { View, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+
 import { useAppInitialization } from '../hooks/useAppInitialization';
+import { lightTheme, darkTheme } from '../theme';
 
 SplashScreen.preventAutoHideAsync();
 
-/**
- * Root layout for the Grünerator mobile app
- * Handles theme, navigation container, and global providers
- */
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const segments = useSegments();
+  const { user, isLoading } = useAuthStore();
   useAppInitialization();
 
   const [fontsLoaded] = useFonts({
@@ -36,13 +35,19 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded && !isLoading) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, isLoading]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || isLoading) {
     return null;
+  }
+
+  const isInAuthFlow = segments[0] === '(auth)';
+
+  if (!user && !isInAuthFlow) {
+    return <Redirect href="/(auth)/login" />;
   }
 
   return (

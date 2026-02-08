@@ -1,22 +1,20 @@
 /**
  * Result Screen
- * Final generated image display for Image Studio
- * Supports both template-based (canvas) and KI (FLUX) generation
- * Edit button navigates to fullscreen editor
+ * Final generated image display for Image Studio (KI generation only)
  */
 
-import { useEffect, useCallback, useRef } from 'react';
-import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useCallback, useRef } from 'react';
+import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { route } from '../../../../types/routes';
-import { useImageStudio, useKiImageGeneration } from '@gruenerator/shared/image-studio';
+
 import { ResultDisplay } from '../../../../components/image-studio/ResultDisplay';
 import { useImageStudioStore } from '../../../../stores/imageStudioStore';
-import { supportsEditing } from '../../../../config/editSheetConfig';
 import { lightTheme, darkTheme, colors } from '../../../../theme';
+import { route } from '../../../../types/routes';
 
 export default function ResultScreen() {
   const colorScheme = useColorScheme();
@@ -25,42 +23,20 @@ export default function ResultScreen() {
   const hasTriggeredGeneration = useRef(false);
 
   const {
-    type,
     kiType,
-    formData,
-    uploadedImageUri,
     uploadedImageBase64,
     generatedImage,
-    canvasLoading,
     kiLoading,
     error,
     kiInstruction,
     kiVariant,
     kiInfrastructureOptions,
     setGeneratedImage,
-    setCanvasLoading,
     setKiLoading,
     setError,
     setRateLimitExceeded,
     reset,
   } = useImageStudioStore();
-
-  const isKiMode = kiType !== null;
-  const loading = isKiMode ? kiLoading : canvasLoading;
-  const showEditButton = !isKiMode && type !== null && supportsEditing(type);
-
-  const handleOpenEdit = useCallback(() => {
-    router.push(route('/(fullscreen)/image-studio-editor'));
-  }, []);
-
-  const { generateCanvas } = useImageStudio({
-    onImageGenerated: (image) => {
-      setGeneratedImage(image);
-    },
-    onError: (err) => {
-      setError(err);
-    },
-  });
 
   const { generatePureCreate, generateKiEdit } = useKiImageGeneration({
     onImageGenerated: (image) => {
@@ -74,7 +50,7 @@ export default function ResultScreen() {
     },
   });
 
-  const handleGenerateKi = useCallback(async () => {
+  const handleGenerate = useCallback(async () => {
     if (!kiType) return;
 
     setKiLoading(true);
@@ -93,7 +69,7 @@ export default function ResultScreen() {
           infrastructureOptions: kiType === 'green-edit' ? kiInfrastructureOptions : undefined,
         });
       }
-    } catch (err) {
+    } catch {
       // Error is handled in onError callback
     } finally {
       setKiLoading(false);
@@ -110,45 +86,8 @@ export default function ResultScreen() {
     setError,
   ]);
 
-  const handleGenerateCanvas = useCallback(async () => {
-    if (!type) return;
-
-    setCanvasLoading(true);
-    setError(null);
-
-    try {
-      await generateCanvas(type, {
-        type,
-        // Use imageUri for React Native (preferred), fallback to imageData
-        imageUri: uploadedImageUri || undefined,
-        imageData: uploadedImageBase64 || undefined,
-        formData,
-      });
-    } catch (err) {
-      // Error is handled in onError callback
-    } finally {
-      setCanvasLoading(false);
-    }
-  }, [
-    type,
-    formData,
-    uploadedImageUri,
-    uploadedImageBase64,
-    generateCanvas,
-    setCanvasLoading,
-    setError,
-  ]);
-
-  const handleGenerate = useCallback(() => {
-    if (isKiMode) {
-      handleGenerateKi();
-    } else {
-      handleGenerateCanvas();
-    }
-  }, [isKiMode, handleGenerateKi, handleGenerateCanvas]);
-
   useEffect(() => {
-    if (!generatedImage && !loading && !error && !hasTriggeredGeneration.current) {
+    if (!generatedImage && !kiLoading && !error && !hasTriggeredGeneration.current) {
       hasTriggeredGeneration.current = true;
       handleGenerate();
     }
@@ -164,15 +103,13 @@ export default function ResultScreen() {
     handleGenerate();
   };
 
-  // Redirect if neither type nor kiType is selected
   useEffect(() => {
-    if (!type && !kiType) {
+    if (!kiType) {
       router.replace(route('/(tabs)/(media)/image-studio'));
     }
-  }, [type, kiType]);
+  }, [kiType]);
 
-  // Show nothing while redirecting
-  if (!type && !kiType) {
+  if (!kiType) {
     return null;
   }
 
@@ -181,13 +118,11 @@ export default function ResultScreen() {
       <StatusBar hidden />
       <ResultDisplay
         generatedImage={generatedImage}
-        loading={loading}
+        loading={kiLoading}
         error={error}
         onNewGeneration={handleNewGeneration}
         onBack={() => router.back()}
         onRetry={handleRetry}
-        onEdit={handleOpenEdit}
-        showEditButton={showEditButton}
       />
       <Pressable
         style={[styles.closeButton, { top: insets.top + 8 }]}
