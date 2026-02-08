@@ -171,7 +171,7 @@ router.get('/:id/export/html', async (req: Request, res: Response) => {
       Y.applyUpdate(ydoc, decompressed);
 
       // Get the prosemirror XML fragment
-      const xmlFragment = ydoc.getXmlFragment('default');
+      const xmlFragment = ydoc.getXmlFragment('document-store');
 
       // For now, return a simple HTML structure
       // In production, you'd convert the Y.js XML to proper HTML
@@ -290,7 +290,7 @@ router.get('/:id/export/markdown', async (req: Request, res: Response) => {
       Y.applyUpdate(ydoc, decompressed);
 
       // Get the prosemirror XML fragment
-      const xmlFragment = ydoc.getXmlFragment('default');
+      const xmlFragment = ydoc.getXmlFragment('document-store');
       const htmlContent = xmlFragment.toString();
 
       // Convert to Markdown
@@ -359,7 +359,7 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
       Y.applyUpdate(ydoc, decompressed);
 
       // Get the prosemirror XML fragment
-      const xmlFragment = ydoc.getXmlFragment('default');
+      const xmlFragment = ydoc.getXmlFragment('document-store');
       const htmlContent = xmlFragment.toString();
 
       // Strip all HTML tags (loop to handle nested/malformed tags)

@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
 /**
@@ -41,6 +42,15 @@ interface CollaborativeDocument {
 const router = Router();
 const db = getPostgresInstance();
 
+const DOCS_SUBTYPES = [
+  'blank',
+  'antrag',
+  'pressemitteilung',
+  'protokoll',
+  'notizen',
+  'redaktionsplan',
+];
+
 /**
  * @route   POST /api/docs
  * @desc    Create a new collaborative document
@@ -48,21 +58,24 @@ const db = getPostgresInstance();
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { title = 'Untitled Document', folder_id = null } = req.body;
+    const { title = 'Untitled Document', folder_id = null, document_subtype = 'blank' } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
+    const subtype = DOCS_SUBTYPES.includes(document_subtype) ? document_subtype : 'blank';
+
     const result = (await db.query(
       `INSERT INTO collaborative_documents
         (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
-       VALUES ($1, $2, $2, 'docs', $3, $4, false)
+       VALUES ($1, $2, $2, $3, $4, $5, false)
        RETURNING *`,
       [
         title,
         userId,
+        subtype,
         folder_id,
         JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
       ]
@@ -97,7 +110,7 @@ router.get('/', async (req: Request, res: Response) => {
        LEFT JOIN profiles p ON cd.created_by = p.id
        LEFT JOIN profiles le ON cd.last_edited_by = le.id
        WHERE
-        cd.document_subtype = 'docs'
+        cd.document_subtype = ANY($2::text[])
         AND cd.is_deleted = false
         AND (
           cd.created_by = $1
@@ -105,7 +118,7 @@ router.get('/', async (req: Request, res: Response) => {
           OR cd.is_public = true
         )
        ORDER BY cd.updated_at DESC`,
-      [userId]
+      [userId, DOCS_SUBTYPES]
     )) as CollaborativeDocument[];
 
     return res.json(result);
@@ -139,9 +152,9 @@ router.get('/:id', async (req: Request, res: Response) => {
        LEFT JOIN profiles le ON cd.last_edited_by = le.id
        WHERE
         cd.id = $1
-        AND cd.document_subtype = 'docs'
+        AND cd.document_subtype = ANY($2::text[])
         AND cd.is_deleted = false`,
-      [id]
+      [id, DOCS_SUBTYPES]
     )) as CollaborativeDocument[];
 
     if (result.length === 0) {
@@ -182,8 +195,8 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     const checkResult = (await db.query(
-      'SELECT permissions, created_by FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-      [id, 'docs']
+      'SELECT permissions, created_by FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+      [id, DOCS_SUBTYPES]
     )) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
@@ -255,8 +268,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
 
     const checkResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-      [id, 'docs']
+      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+      [id, DOCS_SUBTYPES]
     )) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
@@ -299,8 +312,8 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     }
 
     const checkResult = (await db.query(
-      'SELECT * FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-      [id, 'docs']
+      'SELECT * FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+      [id, DOCS_SUBTYPES]
     )) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
@@ -322,11 +335,12 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     const newDoc = (await db.query(
       `INSERT INTO collaborative_documents
         (title, created_by, last_edited_by, document_subtype, permissions, is_public, content)
-       VALUES ($1, $2, $2, 'docs', $3, false, $4)
+       VALUES ($1, $2, $2, $3, $4, false, $5)
        RETURNING *`,
       [
         newTitle,
         userId,
+        original.document_subtype,
         JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
         original.content || '',
       ]

@@ -1,6 +1,8 @@
-import * as Y from 'yjs';
-import { gzip, gunzip } from 'zlib';
 import { promisify } from 'util';
+import { gzip, gunzip } from 'zlib';
+
+import * as Y from 'yjs';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -212,6 +214,70 @@ export class PostgresPersistence {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Cleanup] Error cleaning up old updates: ${err.message}`);
       // Don't throw - cleanup is not critical
+    }
+  }
+
+  /**
+   * Extract plain text from a Y.Doc and write to collaborative_documents.content
+   * for use as document preview in list views.
+   * Accepts the full Y.Doc (from Hocuspocus onStoreDocument callback).
+   */
+  async updateContentPreview(documentId: string, ydoc: Y.Doc): Promise<void> {
+    try {
+      const fragment = ydoc.getXmlFragment('document-store');
+      const xml = fragment.toString();
+      const text = xml
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 500);
+
+      if (text) {
+        await db.query('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
+          documentId,
+          text,
+        ]);
+        log.debug(`[Preview] Updated preview for ${documentId} (${text.length} chars)`);
+      }
+    } catch (error) {
+      // Non-critical — never block real-time sync
+      log.debug(`[Preview] Failed to update content preview for ${documentId}: ${error}`);
+    }
+  }
+
+  /**
+   * Load a Y.js document by ID and extract a plain-text preview.
+   * Used for lazy backfill when content column is NULL.
+   * Also caches the result in the DB for future requests.
+   */
+  async extractContentPreview(documentId: string): Promise<string | null> {
+    try {
+      const state = await this.loadDocument(documentId);
+      if (!state || state.length === 0) return null;
+
+      const ydoc = new Y.Doc();
+      Y.applyUpdate(ydoc, state);
+
+      const fragment = ydoc.getXmlFragment('document-store');
+      const xml = fragment.toString();
+      const text = xml
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 500);
+
+      if (text) {
+        await db.query('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
+          documentId,
+          text,
+        ]);
+        log.debug(`[Backfill] Extracted preview for ${documentId} (${text.length} chars)`);
+      }
+
+      return text || null;
+    } catch (error) {
+      log.debug(`[Backfill] Failed to extract preview for ${documentId}: ${error}`);
+      return null;
     }
   }
 
