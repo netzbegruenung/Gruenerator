@@ -82,12 +82,14 @@ jobs:
             web:
               - 'apps/web/**'
               - 'packages/shared/**'
+              - 'packages/docs/**'
             api:
               - 'apps/api/**'
               - 'packages/shared/**'
             docs:
               - 'apps/docs/**'
               - 'packages/shared/**'
+              - 'packages/docs/**'
             mcp:
               - 'services/mcp/**'
               - 'packages/shared/**'
