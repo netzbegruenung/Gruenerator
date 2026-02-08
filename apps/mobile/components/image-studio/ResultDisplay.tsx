@@ -3,6 +3,8 @@
  * Generated image display with save/share actions and auto-save to gallery
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   View,
@@ -15,12 +17,11 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { saveImageToGallery, shareImage, getImageDataUri } from '../../services/imageStudio';
-import { Button } from '../common';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+
 import { useImageAutoSave } from '../../hooks/useImageAutoSave';
+import { saveImageToGallery, shareImage, getImageDataUri } from '../../services/imageStudio';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { Button } from '../common';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH - spacing.medium * 2;
@@ -32,8 +33,6 @@ interface ResultDisplayProps {
   onNewGeneration: () => void;
   onBack: () => void;
   onRetry?: () => void;
-  onEdit?: () => void;
-  showEditButton?: boolean;
 }
 
 export function ResultDisplay({
@@ -43,8 +42,6 @@ export function ResultDisplay({
   onNewGeneration,
   onBack,
   onRetry,
-  onEdit,
-  showEditButton = false,
 }: ResultDisplayProps) {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -187,18 +184,6 @@ export function ResultDisplay({
           </View>
         </Button>
       </View>
-
-      {showEditButton && onEdit && (
-        <View style={styles.editButtonContainer}>
-          <Pressable
-            onPress={() => router.push('/(fullscreen)/webview-editor')}
-            style={styles.editButton}
-          >
-            <Ionicons name="pencil" size={20} color={colors.primary[600]} />
-            <Text style={[styles.editButtonText, { color: colors.primary[600] }]}>Anpassen</Text>
-          </Pressable>
-        </View>
-      )}
 
       <View style={styles.footerActions}>
         {autoSaveStatus === 'saved' && shareToken && (
@@ -347,23 +332,5 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.body,
     textAlign: 'center',
-  },
-  editButtonContainer: {
-    alignItems: 'center',
-    marginTop: spacing.medium,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingVertical: spacing.small,
-    paddingHorizontal: spacing.medium,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    borderColor: colors.primary[600],
-  },
-  editButtonText: {
-    ...typography.body,
-    fontWeight: '600',
   },
 });
