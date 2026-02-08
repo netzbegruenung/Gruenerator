@@ -89,6 +89,7 @@ docs/
 !apps/api/docs/
 !apps/api/routes/docs/
 !apps/docs/
+!apps/web/src/features/docs/
 !documentation/docs/
 
 # Backup files
