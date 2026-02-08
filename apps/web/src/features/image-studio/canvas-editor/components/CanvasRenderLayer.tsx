@@ -116,6 +116,7 @@ interface CanvasRenderLayerProps<
       scale: number,
       rotation: number
     ) => void;
+    handleCircleBadgeTextLineChange: (id: string, lineIndex: number, text: string) => void;
     handlePillBadgeSelect: (id: string) => void;
     handlePillBadgeTextChange: (id: string, text: string) => void;
     handlePillBadgeDragEnd: (id: string, x: number, y: number) => void;
@@ -148,6 +149,7 @@ interface CanvasRenderLayerProps<
   setSnapLines: (lines: SnapLine[]) => void;
   stageWidth: number;
   stageHeight: number;
+  isFontAvailable?: boolean;
 }
 
 function CanvasRenderLayerInner<
@@ -165,6 +167,7 @@ function CanvasRenderLayerInner<
   setSnapLines,
   stageWidth,
   stageHeight,
+  isFontAvailable,
 }: CanvasRenderLayerProps<TState, TActions>) {
   return (
     <>
@@ -356,6 +359,9 @@ function CanvasRenderLayerInner<
               onTransformEnd={(x, y, s, r) =>
                 handlers.handleCircleBadgeTransformEnd(badge.id, x, y, s, r)
               }
+              onTextLineChange={(lineIndex, text) =>
+                handlers.handleCircleBadgeTextLineChange(badge.id, lineIndex, text)
+              }
               onSnapChange={handleSnapChange}
               onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
               getSnapTargets={(id) => getSnapTargets(id) as unknown[]}
@@ -398,6 +404,7 @@ function CanvasRenderLayerInner<
               getSnapTargets={(id) => getSnapTargets(id) as SnapTarget[]}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
+              isFontAvailable={isFontAvailable}
             />
           );
         }

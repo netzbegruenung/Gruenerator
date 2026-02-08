@@ -7,7 +7,6 @@ export { useStepNavigationStore, type StepNavigationStore } from './useStepNavig
 
 // Feature hooks
 export { useEditPanel } from './useEditPanel';
-export { useFontPreload } from './useFontPreload';
 export { useImageGeneration } from './useImageGeneration';
 export { useImageHelpers } from './useImageHelpers';
 export { useLightbox } from './useLightbox';

@@ -47,6 +47,7 @@ export interface PillBadgeProps {
   getSnapTargets: (excludeId: string) => SnapTarget[];
   stageWidth: number;
   stageHeight: number;
+  isFontAvailable?: boolean;
 }
 
 function PillBadgeInner({
@@ -75,6 +76,7 @@ function PillBadgeInner({
   getSnapTargets,
   stageWidth,
   stageHeight,
+  isFontAvailable: _isFontAvailable,
 }: PillBadgeProps) {
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -343,6 +345,7 @@ export const PillBadge = memo(PillBadgeInner, (prevProps, nextProps) => {
   if (prevProps.selected !== nextProps.selected) return false;
   if (prevProps.stageWidth !== nextProps.stageWidth) return false;
   if (prevProps.stageHeight !== nextProps.stageHeight) return false;
+  if (prevProps.isFontAvailable !== nextProps.isFontAvailable) return false;
 
   return true;
 });

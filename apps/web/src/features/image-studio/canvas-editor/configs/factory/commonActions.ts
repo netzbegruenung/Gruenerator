@@ -7,13 +7,19 @@
 
 import { v4 as uuid } from 'uuid';
 
+import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance } from '../../utils/canvasAssets';
+import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import { createIllustration } from '../../utils/illustrations/registry';
+import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
 import { BRAND_COLORS, createShape } from '../../utils/shapes';
 
 import type { IconState, BaseCanvasState } from './baseTypes';
+import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
+import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
+import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
 import type { AdditionalText } from '../types';
 
@@ -332,6 +338,136 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
 }
 
 // ============================================================================
+// PILL BADGE ACTIONS
+// ============================================================================
+
+export function createPillBadgeActions<TState extends { pillBadgeInstances: PillBadgeInstance[] }>(
+  getState: () => TState,
+  setState: StateSetter<TState>,
+  saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>
+) {
+  return {
+    addPillBadge: (preset?: string) => {
+      const newPillBadge = createPillBadgeInstance(preset);
+      setState((prev) => ({
+        ...prev,
+        pillBadgeInstances: [...prev.pillBadgeInstances, newPillBadge],
+      }));
+      saveToHistory(getState());
+    },
+    updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => {
+      setState((prev) => ({
+        ...prev,
+        pillBadgeInstances: prev.pillBadgeInstances.map((p) =>
+          p.id === id ? { ...p, ...partial } : p
+        ),
+      }));
+      debouncedSaveToHistory(getState());
+    },
+    removePillBadge: (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        pillBadgeInstances: prev.pillBadgeInstances.filter((p) => p.id !== id),
+      }));
+      saveToHistory(getState());
+    },
+  };
+}
+
+// ============================================================================
+// CIRCLE BADGE ACTIONS
+// ============================================================================
+
+export function createCircleBadgeActions<
+  TState extends { circleBadgeInstances: CircleBadgeInstance[] },
+>(
+  getState: () => TState,
+  setState: StateSetter<TState>,
+  saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>
+) {
+  return {
+    addCircleBadge: (preset?: string) => {
+      const newCircleBadge = createCircleBadgeInstance(preset);
+      setState((prev) => ({
+        ...prev,
+        circleBadgeInstances: [...prev.circleBadgeInstances, newCircleBadge],
+      }));
+      saveToHistory(getState());
+    },
+    updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => {
+      setState((prev) => ({
+        ...prev,
+        circleBadgeInstances: prev.circleBadgeInstances.map((c) =>
+          c.id === id ? { ...c, ...partial } : c
+        ),
+      }));
+      debouncedSaveToHistory(getState());
+    },
+    removeCircleBadge: (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        circleBadgeInstances: prev.circleBadgeInstances.filter((c) => c.id !== id),
+      }));
+      saveToHistory(getState());
+    },
+  };
+}
+
+// ============================================================================
+// BALKEN ACTIONS
+// ============================================================================
+
+export function createBalkenActions<TState extends { balkenInstances: BalkenInstance[] }>(
+  getState: () => TState,
+  setState: StateSetter<TState>,
+  saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>
+) {
+  return {
+    addBalken: (mode: BalkenMode) => {
+      const newBalken = createBalkenInstanceFromPreset(mode);
+      setState((prev) => ({
+        ...prev,
+        balkenInstances: [...prev.balkenInstances, newBalken],
+      }));
+      saveToHistory(getState());
+    },
+    updateBalken: (id: string, partial: Partial<BalkenInstance>) => {
+      setState((prev) => ({
+        ...prev,
+        balkenInstances: prev.balkenInstances.map((b) => (b.id === id ? { ...b, ...partial } : b)),
+      }));
+      debouncedSaveToHistory(getState());
+    },
+    removeBalken: (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        balkenInstances: prev.balkenInstances.filter((b) => b.id !== id),
+      }));
+      saveToHistory(getState());
+    },
+    duplicateBalken: (balkenId: string) => {
+      const original = getState().balkenInstances.find((b) => b.id === balkenId);
+      if (!original) return;
+
+      const duplicate: BalkenInstance = {
+        ...original,
+        id: `balken-${Date.now()}`,
+        offset: { x: original.offset.x + 20, y: original.offset.y + 20 },
+      };
+
+      setState((prev) => ({
+        ...prev,
+        balkenInstances: [...prev.balkenInstances, duplicate],
+      }));
+      saveToHistory(getState());
+    },
+  };
+}
+
+// ============================================================================
 // COMBINED BASE ACTIONS
 // ============================================================================
 
@@ -371,5 +507,8 @@ export function createBaseActions<TState extends BaseCanvasState>(
       canvasHeight,
       fontColor
     ),
+    ...createPillBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
+    ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
+    ...createBalkenActions(getState, setState, saveToHistory, debouncedSaveToHistory),
   };
 }
