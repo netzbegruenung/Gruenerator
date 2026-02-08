@@ -1,0 +1,51 @@
+{
+  "name": "@gruenerator/docs-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Grünerator Docs mobile app using Capacitor",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "dev:android": "vite build && npx cap sync android && npx cap run android",
+    "build:android": "vite build && npx cap sync android && npx cap build android",
+    "build:ios": "vite build && npx cap sync ios && npx cap build ios",
+    "sync": "npx cap sync",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios",
+    "add:android": "npx cap add android",
+    "add:ios": "npx cap add ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/keyboard": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
+    "@gruenerator/docs": "workspace:*",
+    "@gruenerator/shared": "workspace:*",
+    "@blocknote/xl-docx-exporter": "^0.46.2",
+    "@mantine/core": "^8.3.14",
+    "@mantine/hooks": "^8.3.14",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^7.12.0",
+    "yjs": "^13.6.20",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.0.5"
+  }
+}

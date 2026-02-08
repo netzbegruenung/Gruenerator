@@ -1,0 +1,34 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "noImplicitOverride": true,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@gruenerator/shared": ["../../packages/shared/src/index.ts"],
+      "@gruenerator/shared/*": ["../../packages/shared/src/*"],
+      "@gruenerator/docs": ["../../packages/docs/src/index.ts"]
+    }
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "services/**/*.ts",
+    "services/**/*.tsx",
+    "stores/**/*.ts",
+    "stores/**/*.tsx",
+    "theme/**/*.ts",
+    "theme/**/*.tsx",
+    "utils/**/*.ts",
+    "utils/**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": ["**/node_modules/**"]
+}

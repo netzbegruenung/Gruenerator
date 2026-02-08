@@ -52,9 +52,3 @@ export {
   type TemplateCategory,
   type TemplateImage,
 } from './vorlagen';
-export {
-  docsService,
-  type Document as DocsDocument,
-  type CreateDocumentPayload,
-  type UpdateDocumentPayload,
-} from './docs';
