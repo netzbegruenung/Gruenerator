@@ -24,14 +24,17 @@ import {
   isAlternativesEmpty,
 } from './alternativesSection';
 import { ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
-import { PLACEHOLDER_TEXT } from './placeholders';
 import {
   createAssetActions,
   createIconActions,
   createShapeActions,
   createIllustrationActions,
+  createPillBadgeActions,
+  createCircleBadgeActions,
+  createBalkenActions,
 } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
+import { PLACEHOLDER_TEXT } from './placeholders';
 import { shareTab, createShareSection } from './shareSection';
 
 import type {
@@ -47,7 +50,9 @@ import type {
 import type { StockImageAttribution } from '../../services/imageSourceService';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 
 // ============================================================================
@@ -415,6 +420,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       }),
     ],
 
+    // Pill Badge & Circle Badge Instances
+    pillBadgeInstances: (props.pillBadgeInstances as PillBadgeInstance[] | undefined) ?? [],
+    circleBadgeInstances: (props.circleBadgeInstances as CircleBadgeInstance[] | undefined) ?? [],
+
     // Layer Ordering
     layerOrder: (props.layerOrder as string[] | undefined) ?? [],
 
@@ -430,8 +439,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
   createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
     // Helper: Update balken instances when balken-related state changes
+    // Preserves decorative balkens (added via addBalken) alongside the primary dreizeilen balken
     const updateBalkenInstances = (state: DreizeilenFullState): BalkenInstance[] => {
-      return [createBalkenInstance(state)];
+      const primary = createBalkenInstance(state);
+      const decorative = state.balkenInstances.filter((b) => b.id !== 'dreizeilen-balken');
+      return [primary, ...decorative];
     };
 
     // Use common action creators for shared functionality
@@ -471,12 +483,36 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       CANVAS_HEIGHT
     );
 
+    const pillBadgeActions = createPillBadgeActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory
+    );
+
+    const circleBadgeActions = createCircleBadgeActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory
+    );
+
+    const genericBalkenActions = createBalkenActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory
+    );
+
     return {
       // === Spread common actions ===
       ...assetActions,
       ...iconActions,
       ...shapeActions,
       ...illustrationActions,
+      ...pillBadgeActions,
+      ...circleBadgeActions,
+      ...genericBalkenActions,
 
       // === Text Actions ===
       setLine1: (text: string) => {

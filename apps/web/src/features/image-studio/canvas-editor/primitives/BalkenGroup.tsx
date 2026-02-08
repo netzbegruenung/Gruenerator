@@ -251,7 +251,7 @@ function BalkenGroupInner({
   const { balkens, bounds } = useMemo(
     () =>
       calculateBalkenLayouts(mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets),
-    [mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets]
+    [mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets, fontReady]
   );
 
   // Attach transformer when selected

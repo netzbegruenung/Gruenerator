@@ -18,6 +18,8 @@ export type { UnifiedTextSectionProps } from './UnifiedTextSection';
 export { AlternativesSection } from './AlternativesSection';
 export type { AlternativesSectionProps } from './AlternativesSection';
 export { IconsSection } from './IconsSection';
+export { BadgeSection } from './BadgeSection';
+export type { BadgeSectionProps } from './BadgeSection';
 export { BalkenSection } from './BalkenSection';
 export type { BalkenSectionProps } from './BalkenSection';
 export { FormenSection } from './FormenSection';

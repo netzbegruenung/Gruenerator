@@ -31,7 +31,9 @@ import type {
   AdditionalText,
 } from './types';
 import type { BackgroundColorOption } from '../sidebar/types';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { ShapeInstance } from '../utils/shapes';
 import type { BaseCanvasState, IconState } from './factory/baseTypes';
@@ -78,6 +80,10 @@ export interface SliderState extends BaseCanvasState {
   // Pill badge instances (dynamic, editable)
   pillBadgeInstances: PillBadgeInstance[];
 
+  // Circle badge and balken instances
+  circleBadgeInstances: CircleBadgeInstance[];
+  balkenInstances: BalkenInstance[];
+
   // Base state (from BaseCanvasState)
   assetInstances: AssetInstance[];
   isDesktop: boolean;
@@ -114,6 +120,16 @@ export interface SliderActions {
   addPillBadge: (preset?: string) => void;
   updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => void;
   removePillBadge: (id: string) => void;
+
+  // Circle badge actions
+  addCircleBadge: (preset?: string) => void;
+  updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
+  removeCircleBadge: (id: string) => void;
+
+  // Balken actions
+  addBalken: (mode: BalkenMode) => void;
+  updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
+  removeBalken: (id: string) => void;
 
   // Base actions
   addAsset: (assetId: string) => void;
@@ -458,6 +474,10 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
 
       // Pill badge instances
       pillBadgeInstances: initialPillBadge,
+
+      // Circle badge and balken instances
+      circleBadgeInstances: [],
+      balkenInstances: [],
 
       // Base state
       assetInstances: [],

@@ -15,8 +15,10 @@
 
 import type { SectionContext } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { CircleBadgeInstance } from '../primitives/CircleBadge';
 import type { ExtendedAssetsSectionProps } from '../sidebar/sections/AssetsSection';
 import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 
 interface FeatureStateWithIcons {
@@ -34,6 +36,14 @@ interface FeatureStateWithIllustrations {
 
 interface FeatureStateWithBalken {
   balkenInstances?: BalkenInstance[];
+}
+
+interface FeatureStateWithPillBadge {
+  pillBadgeInstances?: PillBadgeInstance[];
+}
+
+interface FeatureStateWithCircleBadge {
+  circleBadgeInstances?: CircleBadgeInstance[];
 }
 
 interface FeatureActionsBase {
@@ -146,6 +156,40 @@ export function injectFeatureProps<S extends object, A extends object>(
 
     if ('duplicateBalken' in actions) {
       injected.onDuplicateBalken = actions.duplicateBalken as (id: string) => void;
+    }
+  }
+
+  // === PILL BADGE FEATURE ===
+  // Convention: state.pillBadgeInstances + actions.addPillBadge/updatePillBadge/removePillBadge
+  if ('pillBadgeInstances' in state && 'addPillBadge' in actions) {
+    injected.onAddPillBadge = actions.addPillBadge as (preset?: string) => void;
+
+    if ('updatePillBadge' in actions) {
+      injected.onUpdatePillBadge = actions.updatePillBadge as (
+        id: string,
+        partial: unknown
+      ) => void;
+    }
+
+    if ('removePillBadge' in actions) {
+      injected.onRemovePillBadge = actions.removePillBadge as (id: string) => void;
+    }
+  }
+
+  // === CIRCLE BADGE FEATURE ===
+  // Convention: state.circleBadgeInstances + actions.addCircleBadge/updateCircleBadge/removeCircleBadge
+  if ('circleBadgeInstances' in state && 'addCircleBadge' in actions) {
+    injected.onAddCircleBadge = actions.addCircleBadge as (preset?: string) => void;
+
+    if ('updateCircleBadge' in actions) {
+      injected.onUpdateCircleBadge = actions.updateCircleBadge as (
+        id: string,
+        partial: unknown
+      ) => void;
+    }
+
+    if ('removeCircleBadge' in actions) {
+      injected.onRemoveCircleBadge = actions.removeCircleBadge as (id: string) => void;
     }
   }
 

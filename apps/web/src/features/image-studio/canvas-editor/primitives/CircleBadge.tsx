@@ -3,9 +3,14 @@
  *
  * Renders a circle with multiple text lines inside (e.g., weekday, date, time).
  * Designed for the Veranstaltung date circle but reusable across layouts.
+ *
+ * Features:
+ * - Draggable with snapping support
+ * - Transform handles (scale, rotate)
+ * - Inline text editing on double-click per text line
  */
 
-import { useRef, useCallback, useEffect, memo } from 'react';
+import { useRef, useCallback, useEffect, useState, memo } from 'react';
 import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 
 import { calculateElementSnapPosition } from '../utils/snapping';
@@ -49,6 +54,7 @@ export interface CircleBadgeProps {
   onSelect: () => void;
   onDragEnd: (x: number, y: number) => void;
   onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
+  onTextLineChange?: (lineIndex: number, text: string) => void;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: unknown[]) => void;
   getSnapTargets: (excludeId: string) => unknown[];
@@ -71,6 +77,7 @@ function CircleBadgeInner({
   onSelect,
   onDragEnd,
   onTransformEnd,
+  onTextLineChange,
   onSnapChange,
   onSnapLinesChange,
   getSnapTargets,
@@ -79,17 +86,26 @@ function CircleBadgeInner({
 }: CircleBadgeProps) {
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  // Track last snap state to avoid redundant updates
   const lastSnapRef = useRef({ h: false, v: false, linesCount: 0 });
 
-  // Attach transformer when selected
   useEffect(() => {
-    if (selected && groupRef.current && transformerRef.current) {
+    if (selected && editingIndex === null && groupRef.current && transformerRef.current) {
       transformerRef.current.nodes([groupRef.current]);
       transformerRef.current.getLayer()?.batchDraw();
     }
-  }, [selected]);
+  }, [selected, editingIndex]);
+
+  // Cleanup input on unmount
+  useEffect(() => {
+    return () => {
+      if (inputRef.current && document.body.contains(inputRef.current)) {
+        document.body.removeChild(inputRef.current);
+      }
+    };
+  }, []);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -97,7 +113,6 @@ function CircleBadgeInner({
       const scaleX = node.scaleX();
       const scaleY = node.scaleY();
 
-      // The content bounds are the circle bounds
       const contentWidth = radius * 2 * scaleX;
       const contentHeight = radius * 2 * scaleY;
       const currentAbsX = node.x() - contentWidth / 2;
@@ -115,7 +130,6 @@ function CircleBadgeInner({
 
       node.position({ x: result.x + contentWidth / 2, y: result.y + contentHeight / 2 });
 
-      // Only update snap state if it actually changed
       const snapChanged =
         lastSnapRef.current.h !== result.snapH || lastSnapRef.current.v !== result.snapV;
       const linesChanged = lastSnapRef.current.linesCount !== result.snapLines.length;
@@ -151,13 +165,96 @@ function CircleBadgeInner({
     const newScale = Math.max(scaleX, scaleY);
     const newRotation = node.rotation();
 
-    // Reset node scale to 1 since we track scale in state
     node.scaleX(scale);
     node.scaleY(scale);
     node.rotation(rotation);
 
     onTransformEnd(node.x(), node.y(), newScale, newRotation);
   }, [onTransformEnd, scale, rotation]);
+
+  const handleDblClick = useCallback(
+    (index: number, e: Konva.KonvaEventObject<Event>) => {
+      if (!onTextLineChange) return;
+
+      const textNode = e.target as Konva.Text;
+      const stage = textNode.getStage();
+      if (!stage) return;
+
+      setEditingIndex(index);
+
+      const stageBox = stage.container().getBoundingClientRect();
+      const textPosition = textNode.getAbsolutePosition();
+      const absScale = textNode.getAbsoluteScale();
+      const scaleX = absScale.x;
+      const scaleY = absScale.y;
+
+      let input = inputRef.current;
+      if (!input) {
+        input = document.createElement('input');
+        document.body.appendChild(input);
+        inputRef.current = input;
+      }
+
+      const scrollX = window.scrollX || window.pageXOffset;
+      const scrollY = window.scrollY || window.pageYOffset;
+
+      const line = textLines[index];
+      const lineHeight = 1.2;
+      const textH = line.fontSize * lineHeight;
+
+      input.value = line.text;
+      input.style.position = 'absolute';
+      input.style.top = `${stageBox.top + scrollY + textPosition.y}px`;
+      input.style.left = `${stageBox.left + scrollX + textPosition.x}px`;
+      input.style.width = `${radius * 2 * scaleX}px`;
+      input.style.height = `${textH * scaleY}px`;
+      input.style.fontSize = `${line.fontSize * scaleY}px`;
+      input.style.fontFamily = `${line.fontFamily}, Arial, sans-serif`;
+      input.style.fontWeight = line.fontWeight === 'bold' ? 'bold' : 'normal';
+      input.style.color = textColor;
+      input.style.textAlign = 'center';
+      input.style.lineHeight = String(lineHeight);
+      input.style.border = 'none';
+      input.style.padding = '0px';
+      input.style.margin = '0';
+      input.style.background = 'none';
+      input.style.outline = '2px solid #0088cc';
+      input.style.outlineOffset = '2px';
+      input.style.zIndex = '10000';
+      input.style.transformOrigin = 'left top';
+
+      input.focus();
+      input.select();
+
+      const removeInput = () => {
+        if (!inputRef.current) return;
+
+        const newText = inputRef.current.value.trim();
+        if (newText && newText !== line.text) {
+          onTextLineChange(index, newText);
+        }
+
+        setEditingIndex(null);
+
+        if (document.body.contains(inputRef.current)) {
+          document.body.removeChild(inputRef.current);
+        }
+        inputRef.current = null;
+      };
+
+      input.addEventListener('blur', removeInput);
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape') {
+          input?.blur();
+        }
+        if (ev.key === 'Enter' && !ev.shiftKey) {
+          ev.preventDefault();
+          input?.blur();
+        }
+      });
+    },
+    [onTextLineChange, textLines, textColor, radius]
+  );
 
   return (
     <>
@@ -169,7 +266,7 @@ function CircleBadgeInner({
         scaleY={scale}
         rotation={rotation}
         opacity={opacity}
-        draggable
+        draggable={editingIndex === null}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
@@ -180,21 +277,27 @@ function CircleBadgeInner({
         <Circle x={0} y={0} radius={radius} fill={backgroundColor} />
 
         {/* Text lines centered in circle */}
-        {textLines.map((line, index) => (
-          <Text
-            key={index}
-            text={line.text}
-            x={-radius}
-            y={line.yOffset - line.fontSize / 2}
-            width={radius * 2}
-            fontSize={line.fontSize}
-            fontFamily={`${line.fontFamily}, Arial, sans-serif`}
-            fontStyle={line.fontWeight === 'bold' ? 'bold' : 'normal'}
-            fill={textColor}
-            align="center"
-            listening={false}
-          />
-        ))}
+        {textLines.map((line, index) => {
+          const isEditingThis = editingIndex === index;
+          return (
+            <Text
+              key={index}
+              text={line.text}
+              x={-radius}
+              y={line.yOffset - line.fontSize / 2}
+              width={radius * 2}
+              fontSize={line.fontSize}
+              fontFamily={`${line.fontFamily}, Arial, sans-serif`}
+              fontStyle={line.fontWeight === 'bold' ? 'bold' : 'normal'}
+              fill={textColor}
+              align="center"
+              listening={!!onTextLineChange}
+              visible={!isEditingThis}
+              onDblClick={(e) => handleDblClick(index, e)}
+              onDblTap={(e) => handleDblClick(index, e)}
+            />
+          );
+        })}
 
         {/* Selection indicator */}
         {selected && (
@@ -211,7 +314,7 @@ function CircleBadgeInner({
         )}
       </Group>
 
-      {selected && (
+      {selected && editingIndex === null && (
         <Transformer
           ref={transformerRef}
           keepRatio={true}
@@ -233,7 +336,6 @@ function CircleBadgeInner({
  * Memoized CircleBadge - Prevents re-renders when only callbacks change
  */
 export const CircleBadge = memo(CircleBadgeInner, (prevProps, nextProps) => {
-  // Compare data props - if any change, re-render
   if (prevProps.id !== nextProps.id) return false;
   if (prevProps.x !== nextProps.x) return false;
   if (prevProps.y !== nextProps.y) return false;
@@ -247,7 +349,6 @@ export const CircleBadge = memo(CircleBadgeInner, (prevProps, nextProps) => {
   if (prevProps.stageWidth !== nextProps.stageWidth) return false;
   if (prevProps.stageHeight !== nextProps.stageHeight) return false;
 
-  // Compare textLines array
   if (prevProps.textLines.length !== nextProps.textLines.length) return false;
   for (let i = 0; i < prevProps.textLines.length; i++) {
     const prev = prevProps.textLines[i];
@@ -259,7 +360,6 @@ export const CircleBadge = memo(CircleBadgeInner, (prevProps, nextProps) => {
     if (prev.fontWeight !== next.fontWeight) return false;
   }
 
-  // Callbacks are considered stable
   return true;
 });
 

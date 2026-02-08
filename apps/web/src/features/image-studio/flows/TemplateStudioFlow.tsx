@@ -6,7 +6,6 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import useImageGenerationLimit from '../../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import StepFlow from '../components/StepFlow';
-import { useFontPreload } from '../hooks/useFontPreload';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import TemplateResultStep from '../steps/TemplateResultStep';
 import { FORM_STEPS, getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
@@ -59,9 +58,6 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     allyPlacement,
     setGeneratedImage,
   } = useImageStudioStore();
-
-  // Preload fonts early - as soon as we know the type
-  useFontPreload(type);
 
   const shouldReduceMotion = useReducedMotion();
   const isGoingBack = navigationDirection === 'back';

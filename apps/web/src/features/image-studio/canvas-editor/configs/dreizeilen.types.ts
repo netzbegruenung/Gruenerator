@@ -8,8 +8,11 @@
 import type { AdditionalText } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { StockImageAttribution } from '../sidebar/types';
+import type { BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 
 /**
@@ -81,6 +84,12 @@ export interface DreizeilenFullState {
   // === Balken Instances ===
   balkenInstances: BalkenInstance[];
 
+  // === Pill Badge Instances ===
+  pillBadgeInstances: PillBadgeInstance[];
+
+  // === Circle Badge Instances ===
+  circleBadgeInstances: CircleBadgeInstance[];
+
   // === Layer Ordering ===
   layerOrder: string[];
 
@@ -116,7 +125,19 @@ export interface DreizeilenFullActions {
   setBarOffsets: (offsets: [number, number, number]) => void;
   setBalkenOffset: (offset: { x: number; y: number }) => void;
   setBalkenOpacity: (opacity: number) => void;
+  addBalken: (mode: BalkenMode) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
+  removeBalken: (id: string) => void;
+
+  // === Pill Badge Actions ===
+  addPillBadge: (preset?: string) => void;
+  updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => void;
+  removePillBadge: (id: string) => void;
+
+  // === Circle Badge Actions ===
+  addCircleBadge: (preset?: string) => void;
+  updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
+  removeCircleBadge: (id: string) => void;
 
   // === Sunflower Actions ===
   setSunflowerVisible: (visible: boolean) => void;

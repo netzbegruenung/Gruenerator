@@ -502,6 +502,7 @@ function GenericCanvasWithRef<
         setSnapLines={setSnapLines}
         stageWidth={config.canvas.width}
         stageHeight={config.canvas.height}
+        isFontAvailable={isFontAvailable}
       />
 
       {/* Attribution overlay - only visible during export */}

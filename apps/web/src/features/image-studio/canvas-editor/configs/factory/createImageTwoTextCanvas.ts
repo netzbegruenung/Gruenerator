@@ -13,22 +13,26 @@ import { HiPhotograph } from 'react-icons/hi';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
 import { ImageBackgroundSection, AssetsSection } from '../../sidebar/sections';
-import { injectFeatureProps } from '../featureInjector';
-import { getPlaceholder } from '../placeholders';
-import { shareTab, createShareSection } from '../shareSection';
 import {
   alternativesTab,
   createAlternativesSection,
   isAlternativesEmpty,
 } from '../alternativesSection';
+import { injectFeatureProps } from '../featureInjector';
+import { getPlaceholder } from '../placeholders';
+import { shareTab, createShareSection } from '../shareSection';
+
 import { createBaseActions } from './commonActions';
 
-import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
-import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { StockImageAttribution } from '../../../services/imageSourceService';
 import type { CanvasFeatures, CanvasDimensions, IconState, AlternativeItem } from './baseTypes';
+import type { StockImageAttribution } from '../../../services/imageSourceService';
+import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
+import type { AssetInstance } from '../../utils/canvasAssets';
+import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import type { IllustrationInstance } from '../../utils/illustrations/types';
+import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '../../utils/shapes';
+import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
 
 // ============================================================================
 // STATE TYPE
@@ -64,6 +68,9 @@ export interface ImageTwoTextState {
   shapeInstances: ShapeInstance[];
   illustrationInstances: IllustrationInstance[];
   additionalTexts: AdditionalText[];
+  pillBadgeInstances: PillBadgeInstance[];
+  circleBadgeInstances: CircleBadgeInstance[];
+  balkenInstances: BalkenInstance[];
 }
 
 // ============================================================================
@@ -99,6 +106,15 @@ export interface ImageTwoTextActions {
   addText: () => void;
   updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => void;
   removeAdditionalText: (id: string) => void;
+  addPillBadge: (preset?: string) => void;
+  updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => void;
+  removePillBadge: (id: string) => void;
+  addCircleBadge: (preset?: string) => void;
+  updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
+  removeCircleBadge: (id: string) => void;
+  addBalken: (mode: BalkenMode) => void;
+  updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
+  removeBalken: (id: string) => void;
   handleSelectAlternative: (alt: AlternativeItem) => void;
 }
 
@@ -295,7 +311,8 @@ export function createImageTwoTextCanvas(
               type: 'string',
               getAlternatives: (state) => state.alternatives as string[],
               getCurrentValue: (state) => state[primaryField.key] as string,
-              getSelectAction: (actions) => actions.handleSelectAlternative as (alt: string) => void,
+              getSelectAction: (actions) =>
+                actions.handleSelectAlternative as (alt: string) => void,
             }),
       share: createShareSection<ImageTwoTextState, ImageTwoTextActions>(
         id,
@@ -329,6 +346,9 @@ export function createImageTwoTextCanvas(
       shapeInstances: [],
       illustrationInstances: [],
       additionalTexts: [],
+      pillBadgeInstances: [],
+      circleBadgeInstances: [],
+      balkenInstances: [],
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {

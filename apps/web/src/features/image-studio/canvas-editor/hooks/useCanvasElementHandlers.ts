@@ -55,7 +55,20 @@ export interface OptionalCanvasActions {
   updateAdditionalText?: (id: string, attrs: Partial<AdditionalText>) => void;
   updateCircleBadge?: (
     id: string,
-    attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; opacity?: number }>
+    attrs: Partial<{
+      x: number;
+      y: number;
+      scale?: number;
+      rotation?: number;
+      opacity?: number;
+      textLines?: Array<{
+        text: string;
+        yOffset: number;
+        fontFamily: string;
+        fontSize: number;
+        fontWeight?: 'normal' | 'bold';
+      }>;
+    }>
   ) => void;
   updatePillBadge?: (
     id: string,
@@ -114,6 +127,7 @@ export interface UseCanvasElementHandlersResult {
     scale: number,
     rotation: number
   ) => void;
+  handleCircleBadgeTextLineChange: (id: string, lineIndex: number, text: string) => void;
   handlePillBadgeSelect: (id: string) => void;
   handlePillBadgeTextChange: (id: string, text: string) => void;
   handlePillBadgeDragEnd: (id: string, x: number, y: number) => void;
@@ -371,6 +385,31 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handleCircleBadgeTextLineChange = useCallback(
+    (id: string, lineIndex: number, text: string) => {
+      if (actions.updateCircleBadge) {
+        const badges = getStateArray<{
+          id: string;
+          textLines: Array<{
+            text: string;
+            yOffset: number;
+            fontFamily: string;
+            fontSize: number;
+            fontWeight?: 'normal' | 'bold';
+          }>;
+        }>(state, 'circleBadgeInstances');
+        const badge = badges.find((b) => b.id === id);
+        if (badge) {
+          const newTextLines = badge.textLines.map((line, i) =>
+            i === lineIndex ? { ...line, text } : line
+          );
+          actions.updateCircleBadge(id, { textLines: newTextLines });
+        }
+      }
+    },
+    [actions, state]
+  );
+
   const handlePillBadgeSelect = useCallback(
     (id: string) => {
       setSelectedElement(id);
@@ -458,6 +497,7 @@ export function useCanvasElementHandlers<
     handleCircleBadgeSelect,
     handleCircleBadgeDragEnd,
     handleCircleBadgeTransformEnd,
+    handleCircleBadgeTextLineChange,
     handlePillBadgeSelect,
     handlePillBadgeTextChange,
     handlePillBadgeDragEnd,
