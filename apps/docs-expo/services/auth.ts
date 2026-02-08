@@ -16,16 +16,17 @@ export type AuthSource =
   | 'gruene-oesterreich-login';
 
 export const REDIRECT_URI = makeRedirectUri({
-  scheme: 'gruenerator-docs',
+  scheme: 'gruenerator',
   path: 'auth/callback',
 });
 
 interface ConsumeLoginCodeResponse {
   success: boolean;
-  token: string;
+  access_token: string;
+  refresh_token: string;
   user: User;
-  expiresIn: number;
-  tokenType: string;
+  expires_in: number;
+  token_type: string;
 }
 
 interface AuthStatusResponse {
@@ -76,20 +77,13 @@ export function configureAuthStore(): void {
 export async function login(source: AuthSource): Promise<{ success: boolean; error?: string }> {
   try {
     const authUrl = `${API_BASE_URL}${API_ENDPOINTS.AUTH_LOGIN}?source=${source}&redirectTo=${encodeURIComponent(REDIRECT_URI)}`;
-
-    console.log('[Auth] Opening auth session:', authUrl);
-    console.log('[Auth] Redirect URI:', REDIRECT_URI);
-
     const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
-
-    console.log('[Auth] Browser result:', result.type);
 
     if (result.type === 'success' && result.url) {
       const url = new URL(result.url);
       const code = url.searchParams.get('code');
 
       if (code) {
-        console.log('[Auth] Received login code, exchanging...');
         return await handleAuthCallback(code);
       } else {
         const error = url.searchParams.get('error');
@@ -101,7 +95,6 @@ export async function login(source: AuthSource): Promise<{ success: boolean; err
       return { success: false, error: 'Login failed' };
     }
   } catch (error: unknown) {
-    console.error('[Auth] Login error:', error);
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -117,21 +110,19 @@ export async function handleAuthCallback(
       { code }
     );
 
-    if (response.data.success && response.data.token && response.data.user) {
-      await secureStorage.setToken(response.data.token);
+    if (response.data.success && response.data.access_token && response.data.user) {
+      await secureStorage.setToken(response.data.access_token);
       await secureStorage.setUser(JSON.stringify(response.data.user));
 
       useAuthStore.getState().setAuthState({
         user: response.data.user,
       });
 
-      console.log('[Auth] Login successful for:', response.data.user.email);
       return { success: true };
     }
 
     return { success: false, error: 'Invalid response from server' };
   } catch (error: unknown) {
-    console.error('[Auth] Callback error:', error);
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -158,7 +149,6 @@ export async function checkAuthStatus(): Promise<boolean> {
     useAuthStore.getState().clearAuth();
     return false;
   } catch (error: unknown) {
-    console.error('[Auth] Status check error:', error);
     useAuthStore.getState().setLoading(false);
     return false;
   }
