@@ -75,12 +75,12 @@
 
 .version-label-input:focus {
   outline: none;
-  border-color: var(--primary-600);
+  border-color: var(--secondary-600);
 }
 
 .create-version-button {
   padding: 0.5rem 1rem;
-  background-color: var(--primary-600);
+  background-color: var(--secondary-600);
   color: white;
   border: none;
   border-radius: 4px;
@@ -91,7 +91,7 @@
 }
 
 .create-version-button:hover:not(:disabled) {
-  background-color: var(--primary-700);
+  background-color: var(--secondary-700);
 }
 
 .create-version-button:disabled {
@@ -132,7 +132,7 @@
 }
 
 .version-item:hover {
-  border-color: var(--primary-600);
+  border-color: var(--secondary-600);
 }
 
 .version-info {
@@ -156,7 +156,7 @@
 .version-badge {
   font-size: 0.75rem;
   padding: 0.125rem 0.5rem;
-  background-color: var(--primary-600);
+  background-color: var(--secondary-600);
   color: white;
   border-radius: 12px;
 }
@@ -191,12 +191,12 @@
 }
 
 .restore-button {
-  background-color: var(--primary-600);
+  background-color: var(--secondary-600);
   color: white;
 }
 
 .restore-button:hover {
-  background-color: var(--primary-700);
+  background-color: var(--secondary-700);
 }
 
 .delete-button {
@@ -209,4 +209,23 @@
   background-color: #fee;
   border-color: #c00;
   color: #c00;
+}
+
+/* ─── Dark mode ─── */
+
+[data-theme="dark"] .version-history-panel {
+  border-left: 1px solid var(--grey-700);
+}
+
+[data-theme="dark"] .close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .version-error {
+  background-color: rgba(220, 38, 38, 0.15);
+  color: #f87171;
+}
+
+[data-theme="dark"] .delete-button:hover {
+  background-color: rgba(220, 38, 38, 0.15);
 }

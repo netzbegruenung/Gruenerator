@@ -3,29 +3,37 @@
 .blocknote-wrapper {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
-  border: 1px solid var(--grey-300, #d1d5db);
-  border-radius: 8px;
+  max-width: 794px;
+  margin: 2rem auto;
+  padding: 3rem 2.5rem;
+  border: none;
+  border-radius: 2px;
   background-color: var(--background-color, #ffffff);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="dark"] .blocknote-wrapper {
-  border-color: var(--grey-600, #4b5563);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 @media (min-width: 768px) {
   .blocknote-wrapper {
-    padding: 2.5rem 2rem;
+    padding: 4rem 3rem;
   }
 }
 
 @media (max-width: 640px) {
   .blocknote-wrapper {
+    margin: 0;
     padding: 1.5rem 1rem;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 
@@ -49,7 +57,7 @@
   --bn-colors-tooltip-background: var(--grey-800, #1f2937);
   --bn-colors-tooltip-text: var(--white, #ffffff);
   --bn-colors-hovered-background: var(--grey-100, #f3f4f6);
-  --bn-colors-selected-background: var(--primary-100, #dcfce7);
+  --bn-colors-selected-background: var(--secondary-100, #D5E1DC);
   --bn-colors-disabled-background: var(--grey-200, #e5e7eb);
   --bn-colors-disabled-text: var(--grey-400, #9ca3af);
   --bn-colors-shadow: rgba(0, 0, 0, 0.1);
@@ -60,7 +68,7 @@
   --bn-colors-highlights-red-background: #fee2e2;
   --bn-colors-highlights-orange-background: #ffedd5;
   --bn-colors-highlights-yellow-background: #fef9c3;
-  --bn-colors-highlights-green-background: #dcfce7;
+  --bn-colors-highlights-green-background: var(--secondary-100, #D5E1DC);
   --bn-colors-highlights-blue-background: #dbeafe;
   --bn-colors-highlights-purple-background: #f3e8ff;
   --bn-colors-highlights-pink-background: #fce7f3;
@@ -69,14 +77,12 @@
   --bn-colors-highlights-red-text: #dc2626;
   --bn-colors-highlights-orange-text: #ea580c;
   --bn-colors-highlights-yellow-text: #ca8a04;
-  --bn-colors-highlights-green-text: #16a34a;
+  --bn-colors-highlights-green-text: var(--secondary-700, #445F54);
   --bn-colors-highlights-blue-text: #2563eb;
   --bn-colors-highlights-purple-text: #9333ea;
   --bn-colors-highlights-pink-text: #db2777;
 
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'PT Sans', Arial, sans-serif;
 }
 
 /* Dark mode support */
@@ -86,9 +92,10 @@
   --bn-colors-menu-background: var(--grey-800, #1f2937);
   --bn-colors-menu-text: var(--font-color, #f9fafb);
   --bn-colors-hovered-background: var(--grey-700, #374151);
-  --bn-colors-selected-background: var(--primary-800, #166534);
+  --bn-colors-selected-background: var(--secondary-800, #31453C);
   --bn-colors-disabled-background: var(--grey-700, #374151);
   --bn-colors-disabled-text: var(--grey-500, #6b7280);
+  --bn-colors-highlights-gray-background: var(--grey-700, #374151);
   --bn-colors-shadow: rgba(0, 0, 0, 0.3);
   --bn-colors-border: var(--grey-600, #4b5563);
   --bn-colors-side-menu: var(--grey-500, #6b7280);
@@ -146,6 +153,7 @@
 .bn-block-content[data-content-type="heading"] {
   margin-top: 1.5em;
   margin-bottom: 0.5em;
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
 }
 
 .bn-block-content[data-content-type="heading"][data-level="1"] {
@@ -184,7 +192,7 @@
 
 .bn-block-content[data-content-type="checkListItem"] input[type="checkbox"] {
   margin-top: 0.25em;
-  accent-color: var(--primary-500, #22c55e);
+  accent-color: var(--secondary-500, #6A9583);
 }
 
 /* Code block */
@@ -237,7 +245,7 @@
 /* Blockquote */
 .bn-block-content[data-content-type="paragraph"][data-text-alignment] {
   padding-left: 1rem;
-  border-left: 3px solid var(--primary-500, #22c55e);
+  border-left: 3px solid var(--secondary-500, #6A9583);
   font-style: italic;
   color: var(--grey-600, #4b5563);
 }
@@ -260,13 +268,15 @@
 
 /* Wrapper with sidebar layout */
 .blocknote-wrapper.with-sidebar {
-  display: flex;
-  flex-direction: row;
   max-width: none;
-  gap: 0;
 }
 
 .blocknote-wrapper.with-sidebar .bn-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.blocknote-wrapper.with-sidebar .bn-container > .bn-editor {
   flex: 1;
   min-width: 0;
 }
@@ -316,32 +326,23 @@
   padding: 0.75rem;
 }
 
-/* Thread card styling */
-.bn-thread-card {
-  background: var(--grey-50, #f9fafb);
-  border-radius: 8px;
-  padding: 0.875rem;
+/* Thread card styling (sidebar threads) */
+.comments-sidebar .bn-thread {
   margin-bottom: 0.75rem;
   border: 1px solid var(--grey-200, #e5e7eb);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.bn-thread-card:hover {
+.comments-sidebar .bn-thread:hover {
   border-color: var(--grey-300, #d1d5db);
 }
 
-[data-theme="dark"] .bn-thread-card {
-  background: var(--grey-800, #1f2937);
+[data-theme="dark"] .comments-sidebar .bn-thread {
   border-color: var(--grey-700, #374151);
 }
 
-[data-theme="dark"] .bn-thread-card:hover {
+[data-theme="dark"] .comments-sidebar .bn-thread:hover {
   border-color: var(--grey-600, #4b5563);
-}
-
-/* Resolved thread styling */
-.bn-thread-card--resolved {
-  opacity: 0.6;
 }
 
 /* Comment styling within threads */
@@ -440,8 +441,8 @@
 
 .bn-comment-input:focus {
   outline: none;
-  border-color: var(--primary-500, #22c55e);
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+  border-color: var(--secondary-500, #6A9583);
+  box-shadow: 0 0 0 2px rgba(95, 133, 117, 0.2);
 }
 
 /* Comment highlight in editor - marks commented text */
@@ -473,38 +474,50 @@
   background-color: rgba(255, 214, 0, 0.3);
 }
 
-/* Comment actions (resolve, delete, etc.) */
-.bn-comment-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+/* Comment action toolbar — hover toolbar with emoji, resolve, delete buttons */
+.bn-action-toolbar.bn-comment-actions {
+  background-color: var(--background-color, #ffffff);
+  border: 1px solid var(--grey-300, #d1d5db);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  padding: 2px;
+  gap: 2px;
 }
 
-.bn-comment-actions button {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions {
+  background-color: var(--grey-800, #1f2937);
+  border-color: var(--grey-600, #4b5563);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Buttons inside the comment action toolbar */
+.bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root,
+.bn-action-toolbar.bn-comment-actions .mantine-Button-root {
+  background-color: transparent;
+  color: var(--grey-700, #374151);
   border: none;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
 }
 
-.bn-comment-action-resolve {
-  background: var(--primary-100, #dcfce7);
-  color: var(--primary-700, #15803d);
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root,
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-Button-root {
+  color: var(--grey-300, #d1d5db);
 }
 
-.bn-comment-action-resolve:hover {
-  background: var(--primary-200, #bbf7d0);
+.bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root:hover,
+.bn-action-toolbar.bn-comment-actions .mantine-Button-root:hover {
+  background-color: var(--grey-100, #f3f4f6);
+  color: var(--grey-900, #111827);
 }
 
-.bn-comment-action-delete {
-  background: var(--grey-100, #f3f4f6);
-  color: var(--grey-600, #4b5563);
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root:hover,
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-Button-root:hover {
+  background-color: var(--grey-700, #374151);
+  color: var(--grey-100, #f3f4f6);
 }
 
-.bn-comment-action-delete:hover {
-  background: var(--grey-200, #e5e7eb);
+/* Force SVG icons inside action toolbar to inherit color */
+.bn-action-toolbar.bn-comment-actions svg {
+  color: inherit;
 }
 
 /* Reactions on comments */
@@ -543,7 +556,7 @@
 
 /* Mobile responsiveness for sidebar */
 @media (max-width: 768px) {
-  .blocknote-wrapper.with-sidebar {
+  .blocknote-wrapper.with-sidebar .bn-container {
     flex-direction: column;
   }
 

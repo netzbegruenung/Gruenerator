@@ -1,6 +1,7 @@
+import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { HocuspocusProvider } from '@hocuspocus/provider';
+
 import { useAuthStore } from '../stores/authStore';
 
 interface CollaborationState {
@@ -38,7 +39,6 @@ const generateUserColor = () => {
 export const useCollaboration = (documentId: string) => {
   const user = useAuthStore((state) => state.user);
   const [state, setState] = useState<CollaborationState>(() => {
-    console.log('[useCollaboration] Initial state - creating Y.Doc');
     return {
       ydoc: new Y.Doc(),
       provider: null,
@@ -50,18 +50,12 @@ export const useCollaboration = (documentId: string) => {
   const providerRef = useRef<HocuspocusProvider | null>(null);
   const mountCountRef = useRef(0);
 
-  console.log('[useCollaboration] Hook called, documentId:', documentId, 'user:', !!user);
-
   useEffect(() => {
     mountCountRef.current++;
-    console.log('[useCollaboration] useEffect running, mount #', mountCountRef.current, 'documentId:', documentId, 'user:', !!user);
 
     if (!documentId || !user) {
-      console.log('[useCollaboration] Early return - missing documentId or user');
       return;
     }
-
-    console.log('[useCollaboration] Creating new Y.Doc and HocuspocusProvider');
     const ydoc = new Y.Doc();
 
     // Create Hocuspocus provider
@@ -71,7 +65,6 @@ export const useCollaboration = (documentId: string) => {
       document: ydoc,
     });
 
-    console.log('[useCollaboration] Provider created, setting ref');
     providerRef.current = provider;
 
     // Set user awareness (presence)
@@ -86,14 +79,11 @@ export const useCollaboration = (documentId: string) => {
     // Connection status handlers
     provider.on('status', (event: { status: string }) => {
       const newIsConnected = event.status === 'connected';
-      console.log('[useCollaboration] Status event:', event.status);
       setState((prev) => {
         // Only update if value actually changed to prevent unnecessary re-renders
         if (prev.isConnected === newIsConnected) {
-          console.log('[useCollaboration] Status unchanged, skipping setState');
           return prev;
         }
-        console.log('[useCollaboration] Status changed, updating state');
         return {
           ...prev,
           isConnected: newIsConnected,
@@ -102,13 +92,10 @@ export const useCollaboration = (documentId: string) => {
     });
 
     provider.on('synced', () => {
-      console.log('[useCollaboration] Synced event');
       setState((prev) => {
         if (prev.isSynced) {
-          console.log('[useCollaboration] Already synced, skipping setState');
           return prev;
         }
-        console.log('[useCollaboration] Setting synced=true');
         return {
           ...prev,
           isSynced: true,
@@ -116,9 +103,7 @@ export const useCollaboration = (documentId: string) => {
       });
     });
 
-    provider.on('disconnect', () => {
-      console.log('[useCollaboration] Disconnect event');
-    });
+    provider.on('disconnect', () => {});
 
     setState({
       ydoc,
@@ -129,7 +114,6 @@ export const useCollaboration = (documentId: string) => {
 
     // Cleanup on unmount
     return () => {
-      console.log('[useCollaboration] Cleanup - destroying provider, mount #', mountCountRef.current);
       provider.awareness?.setLocalState(null);
       provider.destroy();
     };
@@ -150,7 +134,6 @@ export const useCollaborators = (provider: HocuspocusProvider | null) => {
     if (!awareness) return;
 
     const updateCollaborators = () => {
-      console.log('[useCollaborators] updateCollaborators called');
       // Cancel any pending update to avoid stale state
       if (pendingUpdateRef.current) {
         clearTimeout(pendingUpdateRef.current);
@@ -170,13 +153,17 @@ export const useCollaborators = (provider: HocuspocusProvider | null) => {
 
         // Only update if collaborators actually changed
         setCollaborators((prev) => {
-          const prevIds = prev.map((u) => u.id).sort().join(',');
-          const newIds = users.map((u) => u.id).sort().join(',');
+          const prevIds = prev
+            .map((u) => u.id)
+            .sort()
+            .join(',');
+          const newIds = users
+            .map((u) => u.id)
+            .sort()
+            .join(',');
           if (prevIds === newIds) {
-            console.log('[useCollaborators] Collaborators unchanged, skipping setState');
             return prev;
           }
-          console.log('[useCollaborators] Collaborators changed:', users.length);
           return users;
         });
         pendingUpdateRef.current = null;

@@ -1,5 +1,5 @@
 {
-  "name": "@gruenerator/docs",
+  "name": "@gruenerator/apps-docs",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -21,6 +21,7 @@
     "@blocknote/xl-docx-exporter": "^0.46.2",
     "ai": "^6.0.0",
     "@floating-ui/react": "^0.27.16",
+    "@gruenerator/docs": "workspace:*",
     "@gruenerator/shared": "workspace:*",
     "@hocuspocus/extension-logger": "^3.4.3",
     "@hocuspocus/provider": "^3.4.3",
