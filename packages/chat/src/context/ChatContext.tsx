@@ -5,7 +5,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 /**
  * Platform-agnostic interface for chat API communication.
  *
- * Each consumer (Next.js app, Vite web, Tauri desktop, Capacitor mobile)
+ * Each consumer (Next.js app, Vite web, Tauri desktop, Expo mobile)
  * provides its own adapter implementation.
  */
 export interface ChatAdapter {
@@ -34,9 +34,7 @@ export interface ChatApiClient {
  */
 export function createApiClient(adapter: ChatAdapter): ChatApiClient {
   async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = endpoint.startsWith('http')
-      ? endpoint
-      : `${adapter.getApiBaseUrl()}${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `${adapter.getApiBaseUrl()}${endpoint}`;
 
     const response = await adapter.fetch(url, {
       ...options,
@@ -82,18 +80,8 @@ export function createApiClient(adapter: ChatAdapter): ChatApiClient {
 
 const ChatAdapterContext = createContext<ChatAdapter | null>(null);
 
-export function ChatProvider({
-  adapter,
-  children,
-}: {
-  adapter: ChatAdapter;
-  children: ReactNode;
-}) {
-  return (
-    <ChatAdapterContext.Provider value={adapter}>
-      {children}
-    </ChatAdapterContext.Provider>
-  );
+export function ChatProvider({ adapter, children }: { adapter: ChatAdapter; children: ReactNode }) {
+  return <ChatAdapterContext.Provider value={adapter}>{children}</ChatAdapterContext.Provider>;
 }
 
 export function useChatAdapter(): ChatAdapter {

@@ -145,33 +145,6 @@ ESLint (flat config), Prettier, Husky pre-commit hooks (lint-staged), Knip for u
 - **Workflow**: "Deploy to Production" (`deploy-prod.yml`)
 - **Branch**: `master`
 
-### Docs Mobile (Android APK)
-
-The `apps/docs-mobile` Capacitor app is built and deployed manually as an APK:
-
-```bash
-# 1. Build the web assets
-pnpm --filter @gruenerator/docs-mobile build
-
-# 2. Copy web assets into the Android project (run from apps/docs-mobile/)
-cd apps/docs-mobile
-../../node_modules/.bin/cap copy android
-
-# 3. Build the debug APK (run from apps/docs-mobile/android/)
-cd android
-./gradlew assembleDebug
-
-# 4. APK output location:
-#    apps/docs-mobile/android/app/build/outputs/apk/debug/app-debug.apk
-# Copy to Windows Downloads (WSL):
-cp app/build/outputs/apk/debug/app-debug.apk /mnt/c/Users/morit/Downloads/gruenerator-docs-debug.apk
-```
-
-**Notes:**
-- `cap sync` fails due to a Capacitor CLI bug (`extractTemplate` error). Use `cap copy` instead — plugin native files are already committed in `android/`.
-- `cap copy` must be run from `apps/docs-mobile/` using the hoisted binary (`../../node_modules/.bin/cap`) to avoid pnpm workspace name conflicts.
-- TypeScript check: `npx tsc --noEmit --project apps/docs-mobile/tsconfig.json`
-
 ### Docs Expo (Android APK)
 
 The `apps/docs-expo` Expo 54 app is built locally as a debug APK:

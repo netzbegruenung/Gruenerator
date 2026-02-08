@@ -1,10 +1,8 @@
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
-import { openCapacitorLogin } from '../utils/capacitorAuth';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
-import { isCapacitorApp, isDesktopApp, isNativeApp } from '../utils/platform';
-import { fetchWithDedup } from '../utils/requestDeduplication';
+import { isDesktopApp } from '../utils/platform';
 
 // =============================================================================
 // Type Definitions
@@ -273,7 +271,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Main actions
   setAuthState: (data: AuthStateData) => {
-    const userLocale: SupportedLocale = (data.user?.locale as SupportedLocale) || detectBrowserLocale();
+    const userLocale: SupportedLocale =
+      (data.user?.locale as SupportedLocale) || detectBrowserLocale();
 
     set({
       user: data.user,
@@ -463,8 +462,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   login: (source?: AuthSource) => {
     if (isDesktopApp()) {
       openDesktopLogin(source || 'gruenerator-login');
-    } else if (isCapacitorApp()) {
-      openCapacitorLogin(source || 'gruenerator-login');
     } else {
       const baseUrl = apiClient.defaults.baseURL || '/api';
       const authUrl = source ? `${baseUrl}/auth/login?source=${source}` : `${baseUrl}/auth/login`;
