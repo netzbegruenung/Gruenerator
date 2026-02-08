@@ -50,11 +50,7 @@ function ProgressIndicator({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (
-    progress.stage === 'idle' ||
-    progress.stage === 'complete' ||
-    progress.intent === 'direct'
-  ) {
+  if (progress.stage === 'idle' || progress.stage === 'complete' || progress.intent === 'direct') {
     return null;
   }
 
@@ -103,9 +99,7 @@ function ProgressIndicator({
             style={{ backgroundColor: agentColor, color: 'white' }}
           >
             {searchResults.length} Quellen
-            <ChevronDown
-              className={cn('h-3 w-3 transition-transform', expanded && 'rotate-180')}
-            />
+            <ChevronDown className={cn('h-3 w-3 transition-transform', expanded && 'rotate-180')} />
           </button>
         )}
       </div>
@@ -113,14 +107,9 @@ function ProgressIndicator({
       {hasResults && expanded && (
         <div className="ml-7 space-y-2">
           {searchResults.map((result, i) => (
-            <div
-              key={i}
-              className="rounded-lg bg-background-secondary p-2 text-xs dark:bg-white/5"
-            >
+            <div key={i} className="rounded-lg bg-background-secondary p-2 text-xs dark:bg-white/5">
               <div className="font-medium text-foreground">{result.title}</div>
-              <p className="mt-0.5 line-clamp-1 text-foreground-muted">
-                {result.content}
-              </p>
+              <p className="mt-0.5 line-clamp-1 text-foreground-muted">{result.content}</p>
               <div className="mt-0.5 flex items-center gap-2 text-foreground-muted">
                 {result.url && (
                   <span className="text-primary">
@@ -179,6 +168,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
     citations,
     sendMessage,
     setMessages,
+    setThreadId: setHookThreadId,
     clearMessages,
     abort,
   } = useChatGraphStream({
@@ -224,8 +214,13 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
           const parts = JSON.parse(content);
           if (Array.isArray(parts)) {
             return parts
-              .filter((p: unknown): p is { type: string; text: string } =>
-                p !== null && typeof p === 'object' && 'type' in p && p.type === 'text' && 'text' in p
+              .filter(
+                (p: unknown): p is { type: string; text: string } =>
+                  p !== null &&
+                  typeof p === 'object' &&
+                  'type' in p &&
+                  p.type === 'text' &&
+                  'text' in p
               )
               .map((p) => p.text)
               .join('');
@@ -297,6 +292,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
         }));
 
         setMessages(convertedMessages);
+        setHookThreadId(currentThreadId);
       } catch (error) {
         console.error('Error loading messages:', error);
         clearMessages();
@@ -306,7 +302,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
     }
 
     loadMessages();
-  }, [currentThreadId, userId, setMessages, clearMessages, apiClient]);
+  }, [currentThreadId, userId, setMessages, setHookThreadId, clearMessages, apiClient]);
 
   useEffect(() => {
     if (currentThreadId && userId) {
@@ -328,18 +324,22 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
     setInput(question);
   };
 
-  const handleFilesSelected = useCallback((files: File[]) => {
-    setFileError(null);
-    try {
-      const newFiles = [...attachedFiles, ...files];
-      validateFiles(newFiles);
-      setAttachedFiles(newFiles);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Hinzufügen der Dateien';
-      setFileError(errorMessage);
-      setTimeout(() => setFileError(null), 5000);
-    }
-  }, [attachedFiles]);
+  const handleFilesSelected = useCallback(
+    (files: File[]) => {
+      setFileError(null);
+      try {
+        const newFiles = [...attachedFiles, ...files];
+        validateFiles(newFiles);
+        setAttachedFiles(newFiles);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Fehler beim Hinzufügen der Dateien';
+        setFileError(errorMessage);
+        setTimeout(() => setFileError(null), 5000);
+      }
+    },
+    [attachedFiles]
+  );
 
   const handleRemoveFile = useCallback((index: number) => {
     setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
@@ -360,7 +360,8 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
         try {
           processedFiles = await prepareFilesForSubmission(attachedFiles);
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Fehler beim Verarbeiten der Dateien';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Fehler beim Verarbeiten der Dateien';
           setFileError(errorMessage);
           setInput(message);
           return;
@@ -383,11 +384,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
     <div className="relative flex h-full flex-col bg-background dark:bg-[#1a1a1a]">
       <div className="floating-controls-wrapper">
         <div className="floating-controls-left">
-          <button
-            onClick={onMenuClick}
-            className="floating-menu-button"
-            aria-label="Menü öffnen"
-          >
+          <button onClick={onMenuClick} className="floating-menu-button" aria-label="Menü öffnen">
             <Menu className="h-5 w-5" />
           </button>
           <ModelSelector />
@@ -404,18 +401,11 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
               </div>
             </div>
           ) : showWelcome ? (
-            <WelcomeScreen
-              agent={selectedAgent}
-              onQuickQuestion={handleQuickQuestion}
-            />
+            <WelcomeScreen agent={selectedAgent} onQuickQuestion={handleQuickQuestion} />
           ) : (
             <>
               {messages.map((message) => (
-                <MessageBubble
-                  key={message.id}
-                  message={message}
-                  agent={selectedAgent}
-                />
+                <MessageBubble key={message.id} message={message} agent={selectedAgent} />
               ))}
 
               {isLoading && (
@@ -423,8 +413,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
                   <div
                     className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm"
                     style={{
-                      backgroundColor:
-                        selectedAgent?.backgroundColor || '#316049',
+                      backgroundColor: selectedAgent?.backgroundColor || '#316049',
                     }}
                   >
                     {selectedAgent?.avatar}
@@ -436,9 +425,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
                       searchResults={streamingSearchResults}
                     />
 
-                    {streamingImage && (
-                      <GeneratedImageDisplay image={streamingImage} />
-                    )}
+                    {streamingImage && <GeneratedImageDisplay image={streamingImage} />}
 
                     {streamingText && (
                       <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -449,11 +436,11 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
                     {!streamingText &&
                       progress.intent === 'direct' &&
                       progress.stage !== 'complete' && (
-                      <div className="flex items-center gap-2 pt-1 text-foreground-muted">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Schreibe...</span>
-                      </div>
-                    )}
+                        <div className="flex items-center gap-2 pt-1 text-foreground-muted">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Schreibe...</span>
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
@@ -483,10 +470,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
           className="mx-auto flex w-full max-w-3xl items-end rounded-3xl border border-border bg-background-secondary dark:bg-white/5"
         >
           <div className="input-tools-button flex items-center gap-1">
-            <FileUploadButton
-              onFilesSelected={handleFilesSelected}
-              disabled={isLoading}
-            />
+            <FileUploadButton onFilesSelected={handleFilesSelected} disabled={isLoading} />
             <ToolToggles />
           </div>
           <textarea
@@ -650,10 +634,9 @@ function MessageBubble({ message, agent }: MessageBubbleProps) {
           </div>
         )}
 
-        {message.metadata?.searchResults &&
-          message.metadata.searchResults.length > 0 && (
-            <SearchResultsSection results={message.metadata.searchResults} />
-          )}
+        {message.metadata?.searchResults && message.metadata.searchResults.length > 0 && (
+          <SearchResultsSection results={message.metadata.searchResults} />
+        )}
 
         <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <button
@@ -661,11 +644,7 @@ function MessageBubble({ message, agent }: MessageBubbleProps) {
             className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
             aria-label="Kopieren"
           >
-            {copied ? (
-              <Check className="h-4 w-4" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           </button>
           <button
             onClick={handleExportDocx}
@@ -696,22 +675,15 @@ function SearchResultsSection({ results }: { results: SearchResult[] }) {
       >
         <FileText className="h-4 w-4" />
         <span>{results.length} Quellen verwendet</span>
-        <ChevronDown
-          className={cn('h-4 w-4 transition-transform', expanded && 'rotate-180')}
-        />
+        <ChevronDown className={cn('h-4 w-4 transition-transform', expanded && 'rotate-180')} />
       </button>
 
       {expanded && (
         <div className="mt-2 space-y-2">
           {results.map((result, i) => (
-            <div
-              key={i}
-              className="rounded-lg bg-background-secondary p-3 text-sm dark:bg-white/5"
-            >
+            <div key={i} className="rounded-lg bg-background-secondary p-3 text-sm dark:bg-white/5">
               <div className="font-medium text-foreground">{result.title}</div>
-              <p className="mt-1 line-clamp-2 text-foreground-muted">
-                {result.content}
-              </p>
+              <p className="mt-1 line-clamp-2 text-foreground-muted">{result.content}</p>
               <div className="mt-1 flex items-center gap-2">
                 {result.url && (
                   <a
@@ -723,9 +695,7 @@ function SearchResultsSection({ results }: { results: SearchResult[] }) {
                     {new URL(result.url).hostname}
                   </a>
                 )}
-                <span className="text-xs text-foreground-muted">
-                  {result.source}
-                </span>
+                <span className="text-xs text-foreground-muted">{result.source}</span>
               </div>
             </div>
           ))}
@@ -774,9 +744,7 @@ function GeneratedImageDisplay({ image }: { image: GeneratedImage }) {
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span
-            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
-          >
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
             <Image className="h-3 w-3" />
             {styleLabels[image.style]}
           </span>

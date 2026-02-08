@@ -18,13 +18,7 @@ export type ProgressStage =
   | 'complete'
   | 'error';
 
-export type SearchIntent =
-  | 'research'
-  | 'search'
-  | 'web'
-  | 'examples'
-  | 'image'
-  | 'direct';
+export type SearchIntent = 'research' | 'search' | 'web' | 'examples' | 'image' | 'direct';
 
 export interface GeneratedImage {
   base64: string;
@@ -100,6 +94,7 @@ export interface UseChatGraphStreamReturn {
   citations: Citation[];
   sendMessage: (content: string, attachments?: ProcessedFile[]) => Promise<void>;
   setMessages: (messages: ChatMessage[]) => void;
+  setThreadId: (threadId: string | null) => void;
   clearMessages: () => void;
   abort: () => void;
 }
@@ -336,7 +331,11 @@ export function useChatGraphStream(
               }
 
               case 'image_complete': {
-                const { message, image, error: imageError } = data as {
+                const {
+                  message,
+                  image,
+                  error: imageError,
+                } = data as {
                   message: string;
                   image?: GeneratedImage;
                   error?: string;
@@ -371,7 +370,11 @@ export function useChatGraphStream(
               }
 
               case 'done': {
-                const { citations: cit, generatedImage: img, metadata } = data as {
+                const {
+                  citations: cit,
+                  generatedImage: img,
+                  metadata,
+                } = data as {
                   threadId?: string;
                   citations?: Citation[];
                   generatedImage?: GeneratedImage;
@@ -399,8 +402,7 @@ export function useChatGraphStream(
             timestamp: Date.now(),
             metadata: {
               citations: receivedCitations,
-              searchResults:
-                receivedSearchResults.length > 0 ? receivedSearchResults : undefined,
+              searchResults: receivedSearchResults.length > 0 ? receivedSearchResults : undefined,
               intent: receivedMetadata?.intent,
               searchCount: receivedMetadata?.searchCount,
               generatedImage: receivedImage || undefined,
@@ -421,8 +423,7 @@ export function useChatGraphStream(
           return;
         }
 
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('[useChatGraphStream] Error:', errorMessage);
         setProgress({ stage: 'error', message: errorMessage });
         onError?.(errorMessage);
@@ -459,6 +460,7 @@ export function useChatGraphStream(
     citations,
     sendMessage,
     setMessages,
+    setThreadId,
     clearMessages,
     abort,
   };
