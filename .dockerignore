@@ -93,6 +93,10 @@ node_modules/
 *.md
 !README.md
 docs/
+!packages/docs/
+!apps/docs/
+!apps/api/docs/
+!apps/api/routes/docs/
 **/CHANGELOG*
 !CHANGELOG.md
 **/LICENSE*
