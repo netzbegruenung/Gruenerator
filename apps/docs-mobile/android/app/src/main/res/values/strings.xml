@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Grünerator Docs</string>
+    <string name="title_activity_main">Grünerator Docs</string>
+    <string name="package_name">de.gruenerator.docs</string>
+    <string name="custom_url_scheme">de.gruenerator.docs</string>
+</resources>

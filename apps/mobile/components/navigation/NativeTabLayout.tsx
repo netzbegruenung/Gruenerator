@@ -1,6 +1,7 @@
-import { Platform } from 'react-native';
-import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
+import { Platform } from 'react-native';
+
 import { colors } from '../../theme';
 
 export function NativeTabLayout() {
@@ -48,13 +49,6 @@ export function NativeTabLayout() {
           android: <Icon src={<VectorIcon family={Ionicons} name="chatbubbles" />} />,
         })}
         <Label>Fragen</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(docs)">
-        {Platform.select({
-          ios: <Icon sf={{ default: 'doc.on.doc', selected: 'doc.on.doc.fill' }} />,
-          android: <Icon src={<VectorIcon family={Ionicons} name="documents" />} />,
-        })}
-        <Label>Docs</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>
