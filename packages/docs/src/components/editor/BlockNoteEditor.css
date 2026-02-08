@@ -1,0 +1,575 @@
+/* BlockNote Editor Container Styles */
+
+.blocknote-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+  max-width: 794px;
+  margin: 2rem auto;
+  padding: 3rem 2.5rem;
+  border: none;
+  border-radius: 2px;
+  background-color: var(--background-color, #ffffff);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .blocknote-wrapper {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+@media (min-width: 768px) {
+  .blocknote-wrapper {
+    padding: 4rem 3rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .blocknote-wrapper {
+    margin: 0;
+    padding: 1.5rem 1rem;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+.blocknote-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--grey-600);
+  font-size: 1rem;
+}
+
+/* BlockNote Theme Overrides for Grünerator */
+
+/* Override BlockNote default styles for Grünerator theme */
+.bn-container {
+  --bn-colors-editor-background: var(--background-color, #ffffff);
+  --bn-colors-editor-text: var(--font-color, #1f2937);
+  --bn-colors-menu-background: var(--background-color, #ffffff);
+  --bn-colors-menu-text: var(--font-color, #1f2937);
+  --bn-colors-tooltip-background: var(--grey-800, #1f2937);
+  --bn-colors-tooltip-text: var(--white, #ffffff);
+  --bn-colors-hovered-background: var(--grey-100, #f3f4f6);
+  --bn-colors-selected-background: var(--secondary-100, #D5E1DC);
+  --bn-colors-disabled-background: var(--grey-200, #e5e7eb);
+  --bn-colors-disabled-text: var(--grey-400, #9ca3af);
+  --bn-colors-shadow: rgba(0, 0, 0, 0.1);
+  --bn-colors-border: var(--grey-300, #d1d5db);
+  --bn-colors-side-menu: var(--grey-400, #9ca3af);
+  --bn-colors-highlights-gray-background: var(--grey-200, #e5e7eb);
+  --bn-colors-highlights-brown-background: #fef3c7;
+  --bn-colors-highlights-red-background: #fee2e2;
+  --bn-colors-highlights-orange-background: #ffedd5;
+  --bn-colors-highlights-yellow-background: #fef9c3;
+  --bn-colors-highlights-green-background: var(--secondary-100, #D5E1DC);
+  --bn-colors-highlights-blue-background: #dbeafe;
+  --bn-colors-highlights-purple-background: #f3e8ff;
+  --bn-colors-highlights-pink-background: #fce7f3;
+  --bn-colors-highlights-gray-text: var(--grey-600, #4b5563);
+  --bn-colors-highlights-brown-text: #92400e;
+  --bn-colors-highlights-red-text: #dc2626;
+  --bn-colors-highlights-orange-text: #ea580c;
+  --bn-colors-highlights-yellow-text: #ca8a04;
+  --bn-colors-highlights-green-text: var(--secondary-700, #445F54);
+  --bn-colors-highlights-blue-text: #2563eb;
+  --bn-colors-highlights-purple-text: #9333ea;
+  --bn-colors-highlights-pink-text: #db2777;
+
+  font-family: 'PT Sans', Arial, sans-serif;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .bn-container {
+  --bn-colors-editor-background: var(--background-color, #1f2937);
+  --bn-colors-editor-text: var(--font-color, #f9fafb);
+  --bn-colors-menu-background: var(--grey-800, #1f2937);
+  --bn-colors-menu-text: var(--font-color, #f9fafb);
+  --bn-colors-hovered-background: var(--grey-700, #374151);
+  --bn-colors-selected-background: var(--secondary-800, #31453C);
+  --bn-colors-disabled-background: var(--grey-700, #374151);
+  --bn-colors-disabled-text: var(--grey-500, #6b7280);
+  --bn-colors-highlights-gray-background: var(--grey-700, #374151);
+  --bn-colors-shadow: rgba(0, 0, 0, 0.3);
+  --bn-colors-border: var(--grey-600, #4b5563);
+  --bn-colors-side-menu: var(--grey-500, #6b7280);
+}
+
+/* Formatting toolbar customization */
+.bn-formatting-toolbar {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--grey-200, #e5e7eb);
+}
+
+[data-theme="dark"] .bn-formatting-toolbar {
+  border-color: var(--grey-600, #4b5563);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Side menu customization */
+.bn-side-menu {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.bn-side-menu:hover {
+  opacity: 1;
+}
+
+/* Slash menu customization */
+.bn-suggestion-menu {
+  max-height: 300px;
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Link toolbar */
+.bn-link-toolbar {
+  border-radius: 6px;
+}
+
+/* Collaboration cursors */
+.bn-collaboration-cursor__caret {
+  border-left-width: 2px;
+}
+
+.bn-collaboration-cursor__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Heading styles */
+.bn-block-content[data-content-type="heading"] {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+}
+
+.bn-block-content[data-content-type="heading"][data-level="1"] {
+  font-size: 2em;
+  font-weight: 700;
+}
+
+.bn-block-content[data-content-type="heading"][data-level="2"] {
+  font-size: 1.5em;
+  font-weight: 600;
+}
+
+.bn-block-content[data-content-type="heading"][data-level="3"] {
+  font-size: 1.25em;
+  font-weight: 600;
+}
+
+/* Paragraph styles */
+.bn-block-content[data-content-type="paragraph"] {
+  line-height: 1.6;
+  margin-bottom: 0.5em;
+}
+
+/* List styles */
+.bn-block-content[data-content-type="bulletListItem"],
+.bn-block-content[data-content-type="numberedListItem"] {
+  line-height: 1.5;
+}
+
+/* Checkbox list */
+.bn-block-content[data-content-type="checkListItem"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.bn-block-content[data-content-type="checkListItem"] input[type="checkbox"] {
+  margin-top: 0.25em;
+  accent-color: var(--secondary-500, #6A9583);
+}
+
+/* Code block */
+.bn-block-content[data-content-type="codeBlock"] {
+  background-color: var(--grey-100, #f3f4f6);
+  border-radius: 6px;
+  padding: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+  overflow-x: auto;
+}
+
+[data-theme="dark"] .bn-block-content[data-content-type="codeBlock"] {
+  background-color: var(--grey-800, #1f2937);
+}
+
+/* Image block */
+.bn-block-content[data-content-type="image"] {
+  margin: 1rem 0;
+}
+
+.bn-block-content[data-content-type="image"] img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* Table styles */
+.bn-block-content[data-content-type="table"] {
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.bn-block-content[data-content-type="table"] table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bn-block-content[data-content-type="table"] th,
+.bn-block-content[data-content-type="table"] td {
+  border: 1px solid var(--grey-300, #d1d5db);
+  padding: 0.5rem;
+}
+
+[data-theme="dark"] .bn-block-content[data-content-type="table"] th,
+[data-theme="dark"] .bn-block-content[data-content-type="table"] td {
+  border-color: var(--grey-600, #4b5563);
+}
+
+/* Blockquote */
+.bn-block-content[data-content-type="paragraph"][data-text-alignment] {
+  padding-left: 1rem;
+  border-left: 3px solid var(--secondary-500, #6A9583);
+  font-style: italic;
+  color: var(--grey-600, #4b5563);
+}
+
+[data-theme="dark"] .bn-block-content[data-content-type="paragraph"][data-text-alignment] {
+  color: var(--grey-400, #9ca3af);
+}
+
+/* Placeholder text */
+.bn-block-content[data-content-type="paragraph"].bn-is-empty::before {
+  color: var(--grey-400, #9ca3af);
+  content: attr(data-placeholder);
+  pointer-events: none;
+  position: absolute;
+}
+
+/* ============================================
+   Comments Sidebar Styles
+   ============================================ */
+
+/* Wrapper with sidebar layout */
+.blocknote-wrapper.with-sidebar {
+  max-width: none;
+}
+
+.blocknote-wrapper.with-sidebar .bn-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.blocknote-wrapper.with-sidebar .bn-container > .bn-editor {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Comments Sidebar */
+.comments-sidebar {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  border-left: 1px solid var(--grey-300, #d1d5db);
+  background: var(--background-color, #ffffff);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .comments-sidebar {
+  background: var(--grey-900, #111827);
+  border-color: var(--grey-700, #374151);
+}
+
+.comments-sidebar-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--grey-200, #e5e7eb);
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .comments-sidebar-header {
+  border-color: var(--grey-700, #374151);
+}
+
+.comments-sidebar-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--grey-800, #1f2937);
+}
+
+[data-theme="dark"] .comments-sidebar-header h3 {
+  color: var(--grey-100, #f3f4f6);
+}
+
+/* ThreadsSidebar container inside our wrapper */
+.comments-sidebar > div:last-child {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+/* Thread card styling (sidebar threads) */
+.comments-sidebar .bn-thread {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--grey-200, #e5e7eb);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.comments-sidebar .bn-thread:hover {
+  border-color: var(--grey-300, #d1d5db);
+}
+
+[data-theme="dark"] .comments-sidebar .bn-thread {
+  border-color: var(--grey-700, #374151);
+}
+
+[data-theme="dark"] .comments-sidebar .bn-thread:hover {
+  border-color: var(--grey-600, #4b5563);
+}
+
+/* Comment styling within threads */
+.bn-comment {
+  padding: 0.5rem 0;
+}
+
+.bn-comment:not(:last-child) {
+  border-bottom: 1px solid var(--grey-100, #f3f4f6);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.75rem;
+}
+
+[data-theme="dark"] .bn-comment:not(:last-child) {
+  border-color: var(--grey-700, #374151);
+}
+
+/* Comment author info */
+.bn-comment-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.bn-comment-author-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.bn-comment-author-name {
+  font-weight: 500;
+  font-size: 0.8125rem;
+  color: var(--grey-800, #1f2937);
+}
+
+[data-theme="dark"] .bn-comment-author-name {
+  color: var(--grey-200, #e5e7eb);
+}
+
+.bn-comment-timestamp {
+  font-size: 0.75rem;
+  color: var(--grey-500, #6b7280);
+  margin-left: auto;
+}
+
+/* Comment content */
+.bn-comment-content {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--grey-700, #374151);
+}
+
+[data-theme="dark"] .bn-comment-content {
+  color: var(--grey-300, #d1d5db);
+}
+
+/* Floating composer - for creating new comments */
+.bn-floating-composer {
+  background: var(--background-color, #ffffff);
+  border: 1px solid var(--grey-300, #d1d5db);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 0.75rem;
+  min-width: 280px;
+  max-width: 360px;
+}
+
+[data-theme="dark"] .bn-floating-composer {
+  background: var(--grey-800, #1f2937);
+  border-color: var(--grey-600, #4b5563);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Comment input styling */
+.bn-comment-input {
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid var(--grey-300, #d1d5db);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  resize: vertical;
+  background: var(--background-color, #ffffff);
+  color: var(--font-color, #1f2937);
+}
+
+[data-theme="dark"] .bn-comment-input {
+  background: var(--grey-900, #111827);
+  border-color: var(--grey-600, #4b5563);
+  color: var(--grey-100, #f3f4f6);
+}
+
+.bn-comment-input:focus {
+  outline: none;
+  border-color: var(--secondary-500, #6A9583);
+  box-shadow: 0 0 0 2px rgba(95, 133, 117, 0.2);
+}
+
+/* Comment highlight in editor - marks commented text */
+.bn-inline-comment-mark {
+  background-color: rgba(255, 214, 0, 0.25);
+  border-bottom: 2px solid #ffc107;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.bn-inline-comment-mark:hover {
+  background-color: rgba(255, 214, 0, 0.4);
+}
+
+[data-theme="dark"] .bn-inline-comment-mark {
+  background-color: rgba(255, 214, 0, 0.15);
+}
+
+[data-theme="dark"] .bn-inline-comment-mark:hover {
+  background-color: rgba(255, 214, 0, 0.25);
+}
+
+/* Selected comment highlight */
+.bn-inline-comment-mark--selected {
+  background-color: rgba(255, 214, 0, 0.4);
+}
+
+[data-theme="dark"] .bn-inline-comment-mark--selected {
+  background-color: rgba(255, 214, 0, 0.3);
+}
+
+/* Comment action toolbar — hover toolbar with emoji, resolve, delete buttons */
+.bn-action-toolbar.bn-comment-actions {
+  background-color: var(--background-color, #ffffff);
+  border: 1px solid var(--grey-300, #d1d5db);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  padding: 2px;
+  gap: 2px;
+}
+
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions {
+  background-color: var(--grey-800, #1f2937);
+  border-color: var(--grey-600, #4b5563);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Buttons inside the comment action toolbar */
+.bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root,
+.bn-action-toolbar.bn-comment-actions .mantine-Button-root {
+  background-color: transparent;
+  color: var(--grey-700, #374151);
+  border: none;
+}
+
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root,
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-Button-root {
+  color: var(--grey-300, #d1d5db);
+}
+
+.bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root:hover,
+.bn-action-toolbar.bn-comment-actions .mantine-Button-root:hover {
+  background-color: var(--grey-100, #f3f4f6);
+  color: var(--grey-900, #111827);
+}
+
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root:hover,
+[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-Button-root:hover {
+  background-color: var(--grey-700, #374151);
+  color: var(--grey-100, #f3f4f6);
+}
+
+/* Force SVG icons inside action toolbar to inherit color */
+.bn-action-toolbar.bn-comment-actions svg {
+  color: inherit;
+}
+
+/* Reactions on comments */
+.bn-comment-reactions {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.bn-comment-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  background: var(--grey-100, #f3f4f6);
+  border: 1px solid var(--grey-200, #e5e7eb);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.bn-comment-reaction:hover {
+  background: var(--grey-200, #e5e7eb);
+}
+
+[data-theme="dark"] .bn-comment-reaction {
+  background: var(--grey-700, #374151);
+  border-color: var(--grey-600, #4b5563);
+}
+
+[data-theme="dark"] .bn-comment-reaction:hover {
+  background: var(--grey-600, #4b5563);
+}
+
+/* Mobile responsiveness for sidebar */
+@media (max-width: 768px) {
+  .blocknote-wrapper.with-sidebar .bn-container {
+    flex-direction: column;
+  }
+
+  .comments-sidebar {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    max-height: 50vh;
+    border-left: none;
+    border-top: 1px solid var(--grey-300, #d1d5db);
+  }
+
+  [data-theme="dark"] .comments-sidebar {
+    border-top-color: var(--grey-700, #374151);
+  }
+}

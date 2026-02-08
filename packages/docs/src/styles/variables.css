@@ -1,0 +1,48 @@
+/*
+ * Default CSS variables for @gruenerator/docs
+ *
+ * These provide sensible defaults when the package is used standalone.
+ * When embedded in apps/web, the host app's variables.css overrides these.
+ * Uses low specificity (:where) so host app values always win.
+ */
+
+:where(:root) {
+  /* Grey palette */
+  --grey-50: #f9f9f9;
+  --grey-100: #efefef;
+  --grey-200: #dcdcdc;
+  --grey-300: #bdbdbd;
+  --grey-400: #989898;
+  --grey-500: #7c7c7c;
+  --grey-600: #656565;
+  --grey-700: #525252;
+  --grey-800: #464646;
+
+  /* Brand colors */
+  --secondary-600: #5F8575;
+  --secondary-700: #445F54;
+
+  /* Semantic */
+  --font-color: #464646;
+  --font-color-secondary: #6b7280;
+  --background-color: #ffffff;
+  --hover-color-alt: #f3f4f6;
+  --border-color: #e5e7eb;
+  --error-red: #D32F2F;
+
+  /* Cards */
+  --card-background: #ffffff;
+  --card-border-radius-small: 8px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* Spacing */
+  --spacing-xxsmall: 4px;
+  --spacing-xsmall: 8px;
+  --spacing-small: 12px;
+  --spacing-medium: 16px;
+  --spacing-large: 24px;
+  --spacing-xxlarge: 48px;
+}

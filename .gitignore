@@ -90,6 +90,7 @@ docs/
 !apps/api/routes/docs/
 !apps/docs/
 !apps/web/src/features/docs/
+!packages/docs/
 !documentation/docs/
 
 # Backup files
