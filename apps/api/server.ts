@@ -14,15 +14,17 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import compression from 'compression';
+import { RedisStore } from 'connect-redis';
 import cors from 'cors';
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
-import { Sentry } from './lib/sentry.js';
+
+import { initSentry, Sentry } from './lib/sentry.js';
+initSentry();
 
 import morgan from 'morgan';
 import helmet from 'helmet';
 import multer from 'multer';
 import session from 'express-session';
-import { RedisStore } from 'connect-redis';
 
 // Local imports
 import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserConfig.js';
