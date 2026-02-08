@@ -3,16 +3,17 @@
  * Handles AI-powered document editing via BlockNote xl-ai extension
  */
 
-import { Router, Request, Response } from 'express';
-import { streamText, convertToModelMessages, UIMessage } from 'ai';
 import {
   aiDocumentFormats,
   injectDocumentStateMessages,
   toolDefinitionsToToolSet,
 } from '@blocknote/xl-ai/server';
+import { streamText, convertToModelMessages, type UIMessage } from 'ai';
+import { Router, type Request, type Response } from 'express';
+
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
-import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
+import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
 
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
@@ -27,11 +28,16 @@ interface AIRequestBody {
  * @desc    Process AI requests for document editing
  * @access  Private
  */
-router.post('/ai', async (req: Request, res: Response) => {
+export async function handleAiRequest(req: Request, res: Response) {
   try {
     const { messages, toolDefinitions } = req.body as AIRequestBody;
 
-    log.info(`[DocsAI] Request received: ${messages?.length || 0} messages, ${Object.keys(toolDefinitions || {}).length} tools`);
+    log.info(
+      `[DocsAI] Request received: ${messages?.length || 0} messages, ${Object.keys(toolDefinitions || {}).length} tools`
+    );
+    log.info(
+      `[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions || {}).join(', ') || 'NONE'}`
+    );
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array is required' });
@@ -46,13 +52,20 @@ router.post('/ai', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'AI provider not configured' });
     }
 
-    const model = getModel('mistral', 'mistral-large-2512');
+    const model = getModel('mistral', 'mistral-large-latest');
 
     const messagesWithDocState = injectDocumentStateMessages(messages);
+    log.info(
+      `[DocsAI] Messages after doc state injection: ${messagesWithDocState.length} messages`
+    );
 
-    const tools = toolDefinitionsToToolSet(toolDefinitions as Parameters<typeof toolDefinitionsToToolSet>[0]);
+    const tools = toolDefinitionsToToolSet(
+      toolDefinitions as Parameters<typeof toolDefinitionsToToolSet>[0]
+    );
 
-    log.info(`[DocsAI] Streaming response with ${Object.keys(tools).length} tools`);
+    log.info(
+      `[DocsAI] Streaming response with ${Object.keys(tools).length} tools: ${Object.keys(tools).join(', ')}`
+    );
 
     const result = streamText({
       model,
@@ -62,9 +75,31 @@ router.post('/ai', async (req: Request, res: Response) => {
       toolChoice: 'required',
       maxOutputTokens: 4096,
       temperature: 0.3,
+      onFinish: ({ toolCalls, text, finishReason, usage }) => {
+        log.info(
+          `[DocsAI] Stream finished — reason: ${finishReason}, toolCalls: ${toolCalls?.length || 0}, text length: ${text?.length || 0}`
+        );
+        if (toolCalls?.length) {
+          toolCalls.forEach((tc, i) => {
+            log.info(
+              `[DocsAI]   Tool[${i}]: ${tc.toolName}, args size: ${JSON.stringify(tc.input).length} chars`
+            );
+          });
+        } else {
+          log.warn(
+            '[DocsAI] NO tool calls in response — model may not support tool calling properly'
+          );
+        }
+        if (usage) {
+          log.info(`[DocsAI] Tokens — input: ${usage.inputTokens}, output: ${usage.outputTokens}`);
+        }
+      },
+      onError: ({ error }) => {
+        log.error('[DocsAI] Stream error:', error);
+      },
     });
 
-    return result.toUIMessageStreamResponse();
+    result.pipeUIMessageStreamToResponse(res);
   } catch (error) {
     log.error('[DocsAI] Error processing AI request:', error);
     return res.status(500).json({
@@ -72,6 +107,8 @@ router.post('/ai', async (req: Request, res: Response) => {
       details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-});
+}
+
+router.post('/ai', handleAiRequest);
 
 export default router;

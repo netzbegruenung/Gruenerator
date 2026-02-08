@@ -1,12 +1,16 @@
 import 'dotenv/config';
-import { Server } from '@hocuspocus/server';
-import { Logger } from '@hocuspocus/extension-logger';
-import { createServer } from 'net';
 import { exec } from 'child_process';
+import { createServer } from 'net';
 import { promisify } from 'util';
+
+import { Logger } from '@hocuspocus/extension-logger';
+import { Server } from '@hocuspocus/server';
+import * as Y from 'yjs';
+
 import { createLogger } from '../../utils/logger.js';
-import { PostgresPersistence } from './persistence.js';
+
 import { authenticateConnection } from './auth.js';
+import { PostgresPersistence } from './persistence.js';
 
 const execAsync = promisify(exec);
 const log = createLogger('HocuspocusServer');
@@ -117,33 +121,28 @@ export async function startHocuspocusServer(): Promise<void> {
        */
       async onAuthenticate(data) {
         try {
-          console.log(`[Auth-Hook] ========== onAuthenticate CALLED ==========`);
-          console.log(`[Auth-Hook] Data keys: ${JSON.stringify(Object.keys(data))}`);
-
-          const { documentName, requestHeaders, requestParameters } = data;
+          const { documentName, requestHeaders, requestParameters, token } = data;
           const connection = (data as any).connection;
 
-          console.log(`[Auth-Hook] documentName: ${documentName}`);
-          log.info(`[Auth-Hook] onAuthenticate called for document: ${documentName}`);
+          log.info(
+            `[Auth-Hook] onAuthenticate called for document: ${documentName}, hasToken: ${!!token}`
+          );
 
           const authResult = await authenticateConnection({
             documentName,
             requestHeaders,
             requestParameters,
             connection,
+            token,
           });
 
-          console.log(`[Auth-Hook] authResult: ${JSON.stringify(authResult)}`);
-
           if (!authResult.authenticated) {
-            console.log(`[Auth-Hook] Authentication FAILED: ${authResult.reason}`);
             log.warn(
               `[Auth] Authentication failed for document ${documentName}: ${authResult.reason}`
             );
             throw new Error(authResult.reason || 'Authentication failed');
           }
 
-          console.log(`[Auth-Hook] Authentication SUCCESS for user: ${authResult.userId}`);
           log.info(`[Auth] User ${authResult.userId} authenticated for document ${documentName}`);
 
           // Return authentication result with context
@@ -159,8 +158,6 @@ export async function startHocuspocusServer(): Promise<void> {
           };
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
-          console.log(`[Auth-Hook] EXCEPTION in onAuthenticate: ${err.message}`);
-          console.log(`[Auth-Hook] Stack: ${err.stack}`);
           log.error(`[Auth] Authentication error: ${err.message}`);
           throw err;
         }
@@ -171,20 +168,19 @@ export async function startHocuspocusServer(): Promise<void> {
        * Called when first client connects to a document
        */
       async onLoadDocument(data) {
-        const { documentName } = data;
+        const { documentName, document } = data;
         log.debug(`[Load] Loading document: ${documentName}`);
 
         try {
           const documentData = await persistence.loadDocument(documentName);
 
           if (documentData) {
+            Y.applyUpdate(document, documentData);
             log.info(
               `[Load] Document ${documentName} loaded successfully (${documentData.length} bytes)`
             );
-            return documentData;
           } else {
             log.info(`[Load] Document ${documentName} not found, will create new`);
-            return null;
           }
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
@@ -198,8 +194,8 @@ export async function startHocuspocusServer(): Promise<void> {
        * Called when document changes
        */
       async onStoreDocument(data) {
-        const { documentName } = data;
-        const state = (data as any).state;
+        const { documentName, document } = data;
+        const state = Y.encodeStateAsUpdate(document);
         log.debug(`[Store] Storing document: ${documentName}`);
 
         try {
@@ -208,8 +204,10 @@ export async function startHocuspocusServer(): Promise<void> {
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           log.error(`[Store] Error storing document ${documentName}: ${err.message}`);
-          // Don't throw - we don't want to crash the server on storage errors
         }
+
+        // Always extract preview from the in-memory Y.Doc (independent of persistence)
+        persistence.updateContentPreview(documentName, document);
       },
 
       /**
@@ -217,7 +215,6 @@ export async function startHocuspocusServer(): Promise<void> {
        */
       async onConnect(data) {
         const { documentName, requestParameters } = data;
-        console.log(`[Connect] Client connected to document: ${documentName}`);
         log.info(`[Connect] Client connected to document: ${documentName}`);
       },
 
@@ -226,7 +223,6 @@ export async function startHocuspocusServer(): Promise<void> {
        */
       async onDisconnect(data) {
         const { documentName } = data;
-        console.log(`[Disconnect] Client disconnected from document: ${documentName}`);
         log.info(`[Disconnect] Client disconnected from document: ${documentName}`);
       },
 
@@ -235,7 +231,6 @@ export async function startHocuspocusServer(): Promise<void> {
        */
       async onRequest(data) {
         const documentName = (data as any).documentName;
-        console.log(`[Request] Received request for: ${documentName}`);
         log.info(`[Request] Received request for: ${documentName}`);
       },
 
@@ -244,10 +239,6 @@ export async function startHocuspocusServer(): Promise<void> {
        */
       async onUpgrade(data) {
         const documentName = (data as any).documentName;
-        console.log(`[Upgrade] WebSocket upgrade request`);
-        console.log(`[Upgrade] documentName: ${documentName}`);
-        console.log(`[Upgrade] All data keys: ${JSON.stringify(Object.keys(data))}`);
-        console.log(`[Upgrade] request.url: ${data.request?.url}`);
         log.info(`[Upgrade] WebSocket upgrade request for: ${documentName}`);
       },
 
@@ -270,16 +261,12 @@ export async function startHocuspocusServer(): Promise<void> {
       /**
        * Error handler
        */
-      async onStateless(data) {
-        console.log(`[Stateless] Stateless message received`);
-        console.log(`[Stateless] Data: ${JSON.stringify(Object.keys(data))}`);
-      },
+      async onStateless(data) {},
 
       /**
        * Destroy handler
        */
       async onDestroy() {
-        console.log('Hocuspocus server shutting down...');
         log.info('Hocuspocus server shutting down...');
       },
     });
@@ -310,7 +297,8 @@ export async function startHocuspocusServer(): Promise<void> {
 // Start server if run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   startHocuspocusServer().catch((error) => {
-    console.error('Fatal error starting Hocuspocus server:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    log.error('Fatal error starting Hocuspocus server: ' + err.message);
     process.exit(1);
   });
 }

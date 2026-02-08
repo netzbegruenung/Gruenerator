@@ -55,7 +55,7 @@ function isAllowedMobileRedirect(redirectUrl: string | undefined): boolean {
   if (!redirectUrl) return false;
   const lower = redirectUrl.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) return false;
-  return redirectUrl.startsWith('gruenerator://');
+  return lower.startsWith('gruenerator://') || lower.startsWith('gruenerator-docs://');
 }
 
 function appendQueryParam(url: string, key: string, value: string): string {
