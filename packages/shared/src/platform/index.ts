@@ -45,7 +45,6 @@ export const isWeb = (): boolean => {
  */
 export const isMobile = (): boolean => {
   if (typeof navigator === 'undefined') return false;
-  // @ts-expect-error - React Native specific
   return typeof navigator.product === 'string' && navigator.product === 'ReactNative';
 };
 
