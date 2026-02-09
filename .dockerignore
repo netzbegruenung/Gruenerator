@@ -51,6 +51,8 @@ node_modules/
 **/*.test.tsx
 **/*.spec.ts
 **/*.spec.tsx
+**/*.vitest.ts
+**/*.vitest.tsx
 **/__tests__/
 **/__mocks__/
 **/tests/

@@ -31,6 +31,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy only package.json files first for dependency caching
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/docs/package.json ./packages/docs/
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 COPY apps/docs/package.json ./apps/docs/
@@ -41,6 +42,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source files (including web for CSS imports)
 COPY packages/shared ./packages/shared
+COPY packages/docs ./packages/docs
 COPY apps/api ./apps/api
 COPY apps/web/src/assets/styles ./apps/web/src/assets/styles
 COPY apps/docs ./apps/docs
