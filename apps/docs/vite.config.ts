@@ -3,12 +3,16 @@ import { fileURLToPath } from 'node:url';
 
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { compression } from 'vite-plugin-compression2';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base: '/',
-  plugins: [react({ jsxRuntime: 'automatic' })],
+  plugins: [
+    react({ jsxRuntime: 'automatic' }),
+    compression({ algorithms: ['gzip', 'brotliCompress'] }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -27,6 +31,14 @@ export default defineConfig({
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash][extname]',
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-mantine': ['@mantine/core', '@mantine/hooks'],
+          'vendor-blocknote': ['@blocknote/core', '@blocknote/react', '@blocknote/mantine'],
+          'vendor-blocknote-ai': ['@blocknote/xl-ai'],
+          'vendor-collab': ['yjs', 'y-websocket', '@hocuspocus/provider'],
+          'vendor-state': ['@tanstack/react-query', 'zustand', 'axios'],
+        },
       },
     },
   },

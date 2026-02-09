@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDocumentStore } from '../../stores/documentStore';
 import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 import { templates, type TemplateType, getTemplateContent } from '../../lib/templates';
@@ -8,14 +8,14 @@ import './DocumentList.css';
 
 export const DocumentList = () => {
   const adapter = useDocsAdapter();
-  const apiClient = createDocsApiClient(adapter);
+  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { documents, isLoading, error, fetchDocuments, createDocument, deleteDocument } =
     useDocumentStore();
   const [showGallery, setShowGallery] = useState(false);
 
   useEffect(() => {
     fetchDocuments(apiClient);
-  }, [fetchDocuments]);
+  }, [fetchDocuments, apiClient]);
 
   const handleTemplateSelect = async (templateType: TemplateType) => {
     setShowGallery(false);
