@@ -92,7 +92,6 @@ node_modules/
 # -----------------------------------------------------------------------------
 *.md
 !README.md
-docs/
 **/CHANGELOG*
 !CHANGELOG.md
 **/LICENSE*

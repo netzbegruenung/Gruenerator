@@ -1,0 +1,45 @@
+.sidebar-section--badges {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.badge-preview-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.badge-preview-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--bg-color);
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+    font-size: 11px;
+    color: var(--font-color);
+}
+
+.badge-preview-btn:hover {
+    border-color: var(--primary-color);
+    background: var(--bg-hover);
+}
+
+.badge-preview-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+}
+
+@media (max-width: 899px) {
+    .sidebar-section--badges {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+}

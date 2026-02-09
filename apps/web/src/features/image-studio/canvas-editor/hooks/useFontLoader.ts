@@ -73,7 +73,7 @@ export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoad
         if (!cancelled) {
           setIsFontAvailable(true);
         }
-      } catch (error) {
+      } catch {
         // Fallback: Poll for font availability
         const maxAttempts = options.maxAttempts ?? 30;
         const pollInterval = options.pollInterval ?? 50;

@@ -1,10 +1,15 @@
 /**
  * Searxng Node for WebSearchGraph
  * Executes web searches with SearXNG → Mistral fallback
+ *
+ * Uses per-query retry with circuit breaker:
+ * - Each SearXNG call gets 1 retry on recoverable errors (timeout, 5xx)
+ * - Batch Mistral fallback only activates after 2 consecutive SearXNG failures
+ * - Circuit breaker auto-resets after 5 minutes
  */
 
 import type { WebSearchState, WebSearchBatch, SearchResult } from '../types.js';
-import { searxngService } from '../../../../services/search/index.js';
+import { searxngService, withRetry, searxngCircuit } from '../../../../services/search/index.js';
 import { MistralWebSearchService } from '../../../../services/mistral/index.js';
 import { getIntelligentSearchOptions } from '../utilities/searchOptions.js';
 
@@ -36,9 +41,13 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
   );
 
   try {
-    let useMistralFallback = false;
-    let fallbackReason: string | null = null;
+    let useMistralFallback = searxngCircuit.isOpen();
+    let fallbackReason: string | null = useMistralFallback ? 'Circuit breaker open' : null;
     const searchResults: WebSearchBatch[] = [];
+
+    if (useMistralFallback) {
+      console.log('[WebSearchGraph] SearXNG circuit breaker is open, starting with Mistral fallback');
+    }
 
     for (let index = 0; index < (state.subqueries || []).length; index++) {
       const query = state.subqueries![index];
@@ -47,7 +56,6 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
       try {
         let results: SearchResult[];
 
-        // Use Mistral if fallback was triggered for previous query (batch fallback)
         if (useMistralFallback) {
           console.log(
             `[WebSearchGraph] Using Mistral (fallback mode) for query ${index + 1}: "${query}"`
@@ -56,11 +64,16 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
           const mistralResult = await mistralSearchService.performWebSearch(query, 'content');
           results = normalizeMistralResults(mistralResult);
         } else {
-          // Try SearXNG first
+          // Try SearXNG with per-query retry (1 retry, 500ms delay)
           console.log(`[WebSearchGraph] SearXNG search ${index + 1}: "${query}"`);
           const searchOptions = getIntelligentSearchOptions(query, state.mode, state.searchOptions);
-          const searxngResult = await searxngService.performWebSearch(query, searchOptions);
+
+          const searxngResult = await withRetry(
+            () => searxngService.performWebSearch(query, searchOptions),
+            { maxRetries: 1, delayMs: 500, label: `SearXNG query ${index + 1}` }
+          );
           results = searxngResult.results || [];
+          searxngCircuit.recordSuccess();
         }
 
         searchResults.push({
@@ -72,16 +85,21 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
 
-        // SearXNG failed - activate Mistral fallback for remaining queries
+        // SearXNG failed even after retry — record failure in circuit breaker
         if (!useMistralFallback) {
-          useMistralFallback = true;
-          fallbackReason = errorMessage;
-          console.warn(`[WebSearchGraph] SearXNG failed for query ${index + 1}: ${errorMessage}`);
-          console.log(
-            `[WebSearchGraph] Activating Mistral fallback for this and all remaining queries`
-          );
+          searxngCircuit.recordFailure();
 
-          // Retry this query with Mistral
+          // Only activate batch fallback if circuit breaker is now open (2+ consecutive failures)
+          if (searxngCircuit.isOpen()) {
+            useMistralFallback = true;
+            fallbackReason = errorMessage;
+            console.warn(`[WebSearchGraph] SearXNG circuit opened after query ${index + 1}: ${errorMessage}`);
+            console.log('[WebSearchGraph] Activating Mistral fallback for remaining queries');
+          } else {
+            console.warn(`[WebSearchGraph] SearXNG failed for query ${index + 1} (circuit still closed): ${errorMessage}`);
+          }
+
+          // Retry this specific query with Mistral
           try {
             provider = 'mistral';
             const mistralResult = await mistralSearchService.performWebSearch(query, 'content');
@@ -104,7 +122,6 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
           }
         }
 
-        // Both providers failed or Mistral failed during fallback mode
         console.error(
           `[WebSearchGraph] Search ${index + 1} failed (provider: ${provider}):`,
           errorMessage

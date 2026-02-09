@@ -17,6 +17,7 @@ declare global {
 }
 
 export type Platform = 'web' | 'windows' | 'macos' | 'linux' | 'ios' | 'android' | 'unknown';
+export type AppContext = 'web' | 'desktop' | 'expo';
 
 /**
  * Check if running inside Tauri desktop app
@@ -32,20 +33,39 @@ export const isTauri = (): boolean => {
 export const isDesktop = (): boolean => isTauri();
 
 /**
- * Check if running in web browser (not Tauri)
+ * Check if running in web browser (not Tauri or React Native)
  */
 export const isWeb = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return !isTauri();
+  return !isTauri() && !isMobile();
 };
 
 /**
- * Check if running in React Native mobile app
+ * Check if running in React Native mobile app (Expo)
  */
 export const isMobile = (): boolean => {
   if (typeof navigator === 'undefined') return false;
-  // @ts-ignore - React Native specific
+  // @ts-expect-error - React Native specific
   return typeof navigator.product === 'string' && navigator.product === 'ReactNative';
+};
+
+/**
+ * Check if running in any mobile app (Expo)
+ */
+export const isMobileApp = (): boolean => isMobile();
+
+/**
+ * Check if running in any native app (Tauri or Expo)
+ */
+export const isNativeApp = (): boolean => isTauri() || isMobile();
+
+/**
+ * Get the app context (where the app is running)
+ */
+export const getAppContext = (): AppContext => {
+  if (isTauri()) return 'desktop';
+  if (isMobile()) return 'expo';
+  return 'web';
 };
 
 /**
@@ -65,7 +85,7 @@ export const getPlatform = (): Platform => {
     return 'unknown';
   }
 
-  // Check for React Native mobile
+  // Check for React Native mobile (Expo)
   if (isMobile()) {
     if (typeof navigator !== 'undefined') {
       const ua = navigator.userAgent || '';
@@ -109,9 +129,14 @@ export const isAndroid = (): boolean => getPlatform() === 'android';
 export const getPlatformCapabilities = () => ({
   hasFileSystem: isDesktop(),
   hasNativeDialogs: isDesktop(),
-  hasNotifications: isDesktop() || isMobile(),
-  hasDeepLinks: isDesktop() || isMobile(),
+  hasNotifications: isDesktop() || isMobileApp(),
+  hasDeepLinks: isDesktop() || isMobileApp(),
   hasKeyboardShortcuts: isDesktop() || isWeb(),
-  hasTouchInput: isMobile() || isWeb(),
+  hasTouchInput: isMobileApp() || isWeb(),
   hasWindowControls: isDesktop(),
+  hasCamera: isMobileApp(),
+  hasShare: isMobileApp() || isDesktop(),
+  hasClipboard: true, // Available on all platforms
+  hasBrowser: isMobileApp(), // In-app browser for OAuth
+  hasSecureStorage: isDesktop(),
 });

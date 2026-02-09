@@ -26,8 +26,8 @@ const categories: CategoryCard[] = [
       { title: 'Einführung', link: '/docs/ueber-den-gruenerator/intro' },
       { title: 'Pro EU', link: '/docs/ueber-den-gruenerator/gruenerator-pro-eu' },
       {
-        title: 'Support & Mitgliedschaft',
-        link: '/docs/ueber-den-gruenerator/support-mitgliedschaft',
+        title: 'Deine Daten im Grünerator',
+        link: '/docs/ueber-den-gruenerator/notebook',
       },
     ],
   },

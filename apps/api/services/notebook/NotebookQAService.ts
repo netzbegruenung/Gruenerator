@@ -53,6 +53,8 @@ import type {
   SingleCollectionMetadata,
   PersonQueryMetadata,
   RequestFilters,
+  SearchContext,
+  GetSearchContextParams,
 } from './types.js';
 import type {
   EnrichedPersonSearchResult,
@@ -392,6 +394,226 @@ export class NotebookQAService {
         fastMode
       ),
     };
+  }
+
+  /**
+   * Get search context for streaming - performs vector search and builds context
+   * without generating the AI answer. Used by streaming endpoints.
+   *
+   * @param params - Search context parameters
+   * @returns Search context with references map, system prompt, and context summary
+   */
+  async getSearchContext({
+    question,
+    collectionId,
+    collectionIds,
+    userId,
+    requestFilters,
+    getCollectionFn,
+    getDocumentIdsFn,
+  }: GetSearchContextParams): Promise<SearchContext | null> {
+    const trimmedQuestion = (question || '').trim();
+
+    if (!trimmedQuestion) {
+      throw new Error('Question is required');
+    }
+
+    const isMulti = !!collectionIds && collectionIds.length > 0;
+
+    if (isMulti) {
+      return this._getMultiCollectionSearchContext(trimmedQuestion, collectionIds!, requestFilters);
+    } else if (collectionId) {
+      return this._getSingleCollectionSearchContext(
+        trimmedQuestion,
+        collectionId,
+        userId,
+        requestFilters,
+        getCollectionFn,
+        getDocumentIdsFn
+      );
+    }
+
+    throw new Error('Either collectionId or collectionIds must be provided');
+  }
+
+  /**
+   * Get search context for multi-collection streaming
+   */
+  private async _getMultiCollectionSearchContext(
+    question: string,
+    collectionIds: string[],
+    requestFilters?: RequestFilters
+  ): Promise<SearchContext | null> {
+    // Detect document scope and subcategory filters from natural language
+    const detectedScope = queryIntentService.detectDocumentScope(question);
+    const documentScope: DocumentScope = {
+      collections: detectedScope.collections,
+      subcategoryFilters: detectedScope.subcategoryFilters,
+      detectedPhrase: detectedScope.detectedPhrase ?? undefined,
+      documentTitleFilter: detectedScope.documentTitleFilter ?? undefined,
+    };
+
+    const effectiveCollectionIds = documentScope.detectedPhrase
+      ? documentScope.collections.filter((c) => collectionIds.includes(c))
+      : collectionIds;
+
+    // Merge request filters with detected filters
+    const effectiveFilters: RequestFilters = {
+      ...documentScope.subcategoryFilters,
+      ...requestFilters,
+    };
+
+    // Search all collections in parallel
+    const searchPromises = effectiveCollectionIds.map((cId) => {
+      const filtersForCollection = this._extractCollectionFilters(
+        cId,
+        effectiveFilters,
+        effectiveCollectionIds
+      );
+      return this._searchCollection(cId, question, documentScope, filtersForCollection);
+    });
+
+    const searchResultsArrays = await Promise.all(searchPromises);
+    const allResults = searchResultsArrays.flat();
+
+    // Deduplicate and filter
+    const dedupedResults = deduplicateResults(allResults, true);
+    const sortedResults = filterAndSortResults(dedupedResults, { threshold: 0.35, limit: 40 });
+
+    if (sortedResults.length === 0) {
+      return null;
+    }
+
+    // Build references map and context
+    const referencesMap = buildReferencesMap(sortedResults);
+    const { systemPrompt, contextSummary } = this._buildStreamingContext(referencesMap, true);
+
+    return {
+      referencesMap,
+      sortedResults,
+      systemPrompt,
+      contextSummary,
+      isMulti: true,
+      effectiveCollectionIds,
+      documentScope,
+      effectiveFilters,
+    };
+  }
+
+  /**
+   * Get search context for single-collection streaming
+   */
+  private async _getSingleCollectionSearchContext(
+    question: string,
+    collectionId: string,
+    userId?: string,
+    requestFilters?: RequestFilters,
+    getCollectionFn?: (id: string) => Promise<any>,
+    getDocumentIdsFn?: (id: string) => Promise<string[]>
+  ): Promise<SearchContext | null> {
+    const systemConfig = getSystemCollectionConfig(collectionId);
+    const isSystem = !!systemConfig;
+
+    // Get collection details
+    let collection: any;
+    let documentIds: string[] | undefined;
+
+    if (isSystem) {
+      collection = buildSystemCollectionObject(collectionId);
+    } else {
+      if (!getCollectionFn || !getDocumentIdsFn) {
+        throw new Error('getCollectionFn and getDocumentIdsFn required for user collections');
+      }
+      collection = await getCollectionFn(collectionId);
+      if (!collection || (collection.user_id !== userId && collection.user_id !== 'SYSTEM')) {
+        throw new Error('Collection not found or access denied');
+      }
+      documentIds = await getDocumentIdsFn(collectionId);
+      if (!documentIds || documentIds.length === 0) {
+        throw new Error('No documents found in this collection');
+      }
+    }
+
+    // Detect filters
+    const detectedScopeSingle = queryIntentService.detectDocumentScope(question);
+    const documentScope: DocumentScope = {
+      collections: detectedScopeSingle.collections,
+      subcategoryFilters: detectedScopeSingle.subcategoryFilters,
+      detectedPhrase: detectedScopeSingle.detectedPhrase ?? undefined,
+      documentTitleFilter: detectedScopeSingle.documentTitleFilter ?? undefined,
+    };
+    const effectiveFilters: RequestFilters = {
+      ...documentScope.subcategoryFilters,
+      ...requestFilters,
+    };
+
+    // Search
+    const searchParams = getSearchParams(collectionId);
+    const subcategoryFilter = buildSubcategoryFilter(effectiveFilters);
+    const additionalFilter = isSystem
+      ? applyDefaultFilter(collectionId, subcategoryFilter)
+      : subcategoryFilter;
+
+    const searchResults = await this._performSearch({
+      query: question,
+      searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
+      userId: isSystem ? null : (userId ?? null),
+      documentIds: isSystem ? undefined : documentIds,
+      titleFilter:
+        isSystem && collectionId === 'grundsatz-system'
+          ? documentScope.documentTitleFilter
+          : undefined,
+      additionalFilter,
+      searchParams,
+    });
+
+    const expanded = expandResultsToChunks(searchResults);
+    const deduped = deduplicateResults(expanded, false);
+    const sortedResults = filterAndSortResults(deduped, { threshold: 0.35, limit: 30 });
+
+    if (sortedResults.length === 0) {
+      return null;
+    }
+
+    // Build references map and context
+    const referencesMap = buildReferencesMap(sortedResults);
+    const { systemPrompt, contextSummary } = this._buildStreamingContext(referencesMap, isSystem);
+
+    return {
+      referencesMap,
+      sortedResults,
+      systemPrompt,
+      contextSummary,
+      collectionName: collection.name,
+      isMulti: false,
+      effectiveCollectionIds: [collectionId],
+      documentScope,
+      effectiveFilters,
+    };
+  }
+
+  /**
+   * Build system prompt and context summary for streaming
+   */
+  private _buildStreamingContext(
+    referencesMap: Record<string, any>,
+    isSystemCollection: boolean
+  ): { systemPrompt: string; contextSummary: string } {
+    const contextSummary = Object.keys(referencesMap)
+      .map((id) => {
+        const ref = referencesMap[id];
+        const snippet = ref.snippets[0]?.[0] || '';
+        const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
+        const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
+        return `${id}. ${collectionTag}${ref.title} — "${short}"`;
+      })
+      .join('\n');
+
+    const { system: systemPrompt } = isSystemCollection
+      ? buildDraftPromptGrundsatz('Grüne Dokumente')
+      : buildDraftPromptGeneral('Ihre Dokumente');
+
+    return { systemPrompt, contextSummary };
   }
 
   /**

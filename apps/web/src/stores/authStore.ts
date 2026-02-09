@@ -3,7 +3,6 @@ import { create } from 'zustand';
 import apiClient from '../components/utils/apiClient';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
-import { fetchWithDedup } from '../utils/requestDeduplication';
 
 // =============================================================================
 // Type Definitions
@@ -272,7 +271,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Main actions
   setAuthState: (data: AuthStateData) => {
-    const userLocale: SupportedLocale = (data.user?.locale as SupportedLocale) || detectBrowserLocale();
+    const userLocale: SupportedLocale =
+      (data.user?.locale as SupportedLocale) || detectBrowserLocale();
 
     set({
       user: data.user,

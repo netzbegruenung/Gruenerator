@@ -120,16 +120,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       });
     }
 
-    if (!result && explicitProvider === 'claude') {
-      console.log(
-        `[AI Worker ${requestId}] Using Claude provider with temperature: ${effectiveOptions.temperature || 'default'}`
-      );
-      sendProgress(requestId, 15);
-      result = await providers.executeProvider('claude', requestId, {
-        ...data,
-        options: effectiveOptions,
-      });
-    } else if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
+    if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
       // Ultra Mode now uses IONOS with high-quality model
       console.log(
         `[AI Worker ${requestId}] Using Ultra Mode (IONOS) with temperature: ${effectiveOptions.temperature || 'default'}`

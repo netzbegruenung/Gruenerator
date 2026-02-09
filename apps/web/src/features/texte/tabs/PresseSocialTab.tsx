@@ -104,8 +104,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
   const isAustrian = locale === 'de-AT';
   // Sharepic temporarily disabled — will return in a future update
   const canUseSharepic = false; // was: isAuthenticated && !isAustrian
-  const showSharepicNotice = isAuthenticated && !isAustrian;
-
   const { getBetaFeatureState } = useBetaFeatures();
   const canUseAutomatischPlanMode = getBetaFeatureState('automatischPlanMode');
 
@@ -719,9 +717,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         'Beschreibe dein Thema und alle relevanten Details im Inhalt-Feld',
         'Wähle die gewünschten Formate aus',
         'Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich',
-        ...(!isAustrian
-          ? ['Sharepics werden derzeit überarbeitet und sind bald wieder verfügbar']
-          : []),
       ],
       features: [
         {
@@ -732,17 +727,9 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
           title: 'Plattform-optimiert',
           description: 'Automatisch angepasst für Instagram, Facebook, Twitter, LinkedIn & mehr',
         },
-        ...(!isAustrian
-          ? [
-              {
-                title: 'Sharepics',
-                description: 'Sharepics werden derzeit überarbeitet und sind bald wieder verfügbar',
-              },
-            ]
-          : []),
       ],
     }),
-    [isAustrian]
+    []
   );
 
   return (
@@ -821,12 +808,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
               }}
               onUrlsDetected={handleUrlsDetected}
             />
-            {showSharepicNotice && (
-              <p className="presse-social__sharepic-notice">
-                Sharepics werden gerade überarbeitet und sind bald in einer verbesserten Version
-                wieder verfügbar.
-              </p>
-            )}
             <AnimatePresence>
               {watchPressemitteilung && !hasGeneratedContent && (
                 <PressemitteilungForm

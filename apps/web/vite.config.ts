@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -8,6 +9,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Detect Tauri build environment - set by Tauri CLI during builds
 const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
+
+// Native app detection (Tauri desktop)
+const isNativeBuild = isTauri;
 
 // Tauri packages that need stubs when running in web context
 const tauriPackages = [
@@ -52,12 +56,13 @@ export class Resource { close() {} }
 }
 
 export default defineConfig(({ command }) => ({
-  // Use relative paths for Tauri builds so assets resolve correctly with tauri:// protocol
-  base: isTauri ? './' : '/',
+  // Use relative paths for native builds so assets resolve correctly
+  base: isNativeBuild ? './' : '/',
   plugins: [
-    // Only use stub plugin when NOT in Tauri context
+    // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
     react({ jsxRuntime: 'automatic' }),
+    tailwindcss(),
   ],
   resolve: {
     alias: {
@@ -93,8 +98,8 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
-    // Use compatible targets for Tauri WebViews (Chrome=Edge WebView2, Safari=WKWebView)
-    target: isTauri ? ['chrome105', 'safari15'] : 'es2022',
+    // Use compatible targets for native WebViews (Chrome=Edge WebView2, Safari=WKWebView)
+    target: isNativeBuild ? ['chrome105', 'safari15'] : 'es2022',
     sourcemap: 'hidden',
     cssCodeSplit: true,
     assetsInlineLimit: 0,
@@ -111,7 +116,6 @@ export default defineConfig(({ command }) => ({
       maxParallelFileOps: 1,
       perf: false,
       shimMissingExports: false,
-      // Tauri packages are now handled by tauriStubPlugin for web builds
       output: {
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
@@ -151,12 +155,15 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     port: 3000,
-    strictPort: true, // Tauri expects exact port - fail if unavailable
-    open: command === 'serve' && !isTauri, // Don't auto-open browser for Tauri dev
+    strictPort: true, // Native apps expect exact port - fail if unavailable
+    open: command === 'serve' && !isNativeBuild, // Don't auto-open browser for native app dev
     watch: {
       usePolling: true,
       ignored: [
-        '**/node_modules/**',
+        // Ignore external node_modules but allow workspace packages (symlinked by pnpm)
+        '**/node_modules/.pnpm/**',
+        '**/node_modules/.vite/**',
+        '**/node_modules/.cache/**',
         '**/dist/**',
         '**/build/**',
         '**/.git/**',
@@ -166,7 +173,11 @@ export default defineConfig(({ command }) => ({
         '**/temp/**',
       ],
     },
-    hmr: { overlay: false },
+    hmr: {
+      host: 'localhost',
+      port: 3000,
+      overlay: false,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

@@ -20,9 +20,7 @@ export type AppRoute =
   // Media routes
   | '/(tabs)/(media)/reel'
   | '/(tabs)/(media)/image-studio'
-  | '/(tabs)/(media)/image-studio/input'
   | '/(tabs)/(media)/image-studio/image'
-  | '/(tabs)/(media)/image-studio/text'
   | '/(tabs)/(media)/image-studio/ki-input'
   | '/(tabs)/(media)/image-studio/result'
   // Tools routes

@@ -20,6 +20,9 @@ import {
   createIconActions,
   createShapeActions,
   createIllustrationActions,
+  createPillBadgeActions,
+  createBalkenActions,
+  createCircleBadgeActions,
 } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
@@ -28,7 +31,9 @@ import { shareTab, createShareSection } from './shareSection';
 import type { StockImageAttribution } from '../../services/imageSourceService';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
+import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 
 // ============================================================================
@@ -69,6 +74,10 @@ export interface VeranstaltungFullState {
   additionalTexts: AdditionalText[];
   // Circle badges (e.g., date circle)
   circleBadgeInstances: CircleBadgeInstance[];
+  // Pill badges
+  pillBadgeInstances: PillBadgeInstance[];
+  // Balken instances
+  balkenInstances: BalkenInstance[];
   // Attribution
   imageAttribution?: StockImageAttribution | null;
 
@@ -119,7 +128,17 @@ export interface VeranstaltungFullActions {
   // Attribution actions
   setImageAttribution?: (attribution: StockImageAttribution | null) => void;
   // Circle Badge actions
+  addCircleBadge: (preset?: string) => void;
   updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
+  removeCircleBadge: (id: string) => void;
+  // Pill Badge actions
+  addPillBadge: (preset?: string) => void;
+  updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => void;
+  removePillBadge: (id: string) => void;
+  // Balken actions
+  addBalken: (mode: BalkenMode) => void;
+  updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
+  removeBalken: (id: string) => void;
 }
 
 // ============================================================================
@@ -449,6 +468,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       illustrationInstances: [],
       additionalTexts: [],
       circleBadgeInstances: [createInitialDateCircleBadge(weekday, date, time)],
+      pillBadgeInstances: [],
+      balkenInstances: [],
       imageAttribution: null,
     };
   },
@@ -493,12 +514,36 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       CANVAS_HEIGHT
     );
 
+    const circleBadgeActions = createCircleBadgeActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory
+    );
+
+    const pillBadgeActions = createPillBadgeActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory
+    );
+
+    const balkenActions = createBalkenActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory
+    );
+
     return {
       // === Spread common actions ===
       ...assetActions,
       ...iconActions,
       ...shapeActions,
       ...illustrationActions,
+      ...circleBadgeActions,
+      ...pillBadgeActions,
+      ...balkenActions,
 
       // === Text Actions ===
       setEventTitle: (val: string) => {

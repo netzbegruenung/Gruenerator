@@ -2,6 +2,8 @@
  * Shared text utilities for canvas editor
  */
 
+const _warnedFonts = new Set<string>();
+
 /**
  * Simple text wrapping using character width estimation
  * @deprecated Use wrapTextAccurate() for accurate font-aware wrapping
@@ -57,13 +59,17 @@ export function measureTextWidthWithFont(
   // Build CSS font string (e.g., "bold italic 90px GrueneTypeNeue, Arial, sans-serif")
   ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}, Arial, sans-serif`;
 
-  // Warn in development if font not loaded
+  // Warn once per font/style combo in development
   if (import.meta.env.DEV) {
-    const isLoaded = document.fonts.check(`${fontStyle} ${fontSize}px ${fontFamily}`);
-    if (!isLoaded) {
-      console.warn(
-        `[textUtils] Font "${fontFamily}" (${fontStyle}) not loaded, measurements may be inaccurate`
-      );
+    const fontKey = `${fontFamily}:${fontStyle}`;
+    if (!_warnedFonts.has(fontKey)) {
+      const isLoaded = document.fonts.check(`${fontStyle} ${fontSize}px ${fontFamily}`);
+      if (!isLoaded) {
+        _warnedFonts.add(fontKey);
+        console.warn(
+          `[textUtils] Font "${fontFamily}" (${fontStyle}) not loaded, measurements may use fallback. This warning appears once per font.`
+        );
+      }
     }
   }
 

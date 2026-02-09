@@ -1,13 +1,25 @@
 import React from 'react';
-import { PiStarFill, PiHeartFill, PiCloudFill, PiArrowRightBold, PiTagFill } from 'react-icons/pi';
+import {
+  PiStarFill,
+  PiHeartFill,
+  PiCloudFill,
+  PiArrowRightBold,
+  PiTagFill,
+  PiCircleFill,
+} from 'react-icons/pi';
 
+import { BalkenIcon } from '../../icons';
 import { type ShapeType } from '../../utils/shapes';
 import './FormenSection.css';
+
+import type { BalkenMode } from '../../primitives/BalkenGroup';
 
 export interface FormenSectionProps {
   onAddShape: (type: ShapeType) => void;
   isExpanded?: boolean;
   onAddPillBadge?: (preset?: string) => void;
+  onAddCircleBadge?: (preset?: string) => void;
+  onAddBalken?: (mode: BalkenMode) => void;
 }
 
 interface ShapeDefinition {
@@ -42,6 +54,8 @@ export function FormenSection({
   onAddShape,
   isExpanded = false,
   onAddPillBadge,
+  onAddCircleBadge,
+  onAddBalken,
 }: FormenSectionProps) {
   const visibleShapes = isExpanded ? SHAPES : SHAPES.slice(0, 4);
 
@@ -70,6 +84,48 @@ export function FormenSection({
               <PiTagFill size={24} />
             </div>
           </button>
+        )}
+
+        {onAddCircleBadge && (
+          <button
+            key="circle-badge"
+            className="sidebar-selectable-card"
+            onClick={() => onAddCircleBadge()}
+            title="Störer hinzufügen"
+          >
+            <div className="sidebar-selectable-card__preview">
+              <PiCircleFill size={24} />
+            </div>
+          </button>
+        )}
+
+        {onAddBalken && (
+          <>
+            <button
+              key="balken-single"
+              className="sidebar-selectable-card"
+              onClick={() => onAddBalken('single')}
+              title="Einzelner Balken hinzufügen"
+            >
+              <div className="sidebar-selectable-card__preview">
+                <BalkenIcon size={24} />
+              </div>
+            </button>
+            <button
+              key="balken-triple"
+              className="sidebar-selectable-card"
+              onClick={() => onAddBalken('triple')}
+              title="Dreifach-Balken hinzufügen"
+            >
+              <div className="sidebar-selectable-card__preview">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <BalkenIcon size={14} />
+                  <BalkenIcon size={14} />
+                  <BalkenIcon size={14} />
+                </div>
+              </div>
+            </button>
+          </>
         )}
       </div>
     </div>

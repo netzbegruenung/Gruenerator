@@ -10,14 +10,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "jest --passWithNoTests",
-    "test:watch": "jest --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start:backend": "PORT=3001 npx tsx server.ts",
     "start": "npx tsx server.ts",
-    "dev": "npx tsx watch server.ts",
-    "test:auth": "jest test/auth.test.js",
-    "test:integration": "jest test/integration.test.js",
-    "test:passport": "jest test/passport.test.js",
+    "dev": "cross-env HOCUSPOCUS_ENABLED=true npx tsx watch server.ts",
     "setup:authentik-sources": "node scripts/setupAuthentikSources.js",
     "setup:authentik-sources:dry-run": "node scripts/setupAuthentikSources.js --dry-run",
     "setup:authentik-sources:force": "node scripts/setupAuthentikSources.js --force",
@@ -26,7 +23,6 @@
     "start:hocuspocus": "npx tsx services/hocuspocus/hocuspocusServer.ts",
     "start:prod": "cross-env NODE_ENV=production npm run start:backend",
     "test:embedding": "node scripts/testEmbedding.mjs",
-    "test:errors": "NODE_ENV=test jest tests/testErrorHandling.js",
     "download-whisper": "npx nodejs-whisper download",
     "offboarding": "node scripts/offboarding-cron.js",
     "offboarding:status": "node -e \"require('./services/offboardingService').OffboardingService.validateConfig(); console.log('✓ Offboarding configuration is valid');\"",
@@ -48,7 +44,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@ai-sdk/mistral": "^3.0.0",
+    "@ai-sdk/openai": "^3.0.0",
     "@anthropic-ai/sdk": "^0.71.0",
+    "@blocknote/xl-ai": "^0.46.2",
     "@gruenerator/shared": "workspace:*",
     "@hocuspocus/extension-logger": "^3.4.3",
     "@hocuspocus/server": "^3.4.3",
@@ -63,6 +62,7 @@
     "@tus/file-store": "^1.5.1",
     "@tus/server": "^1.10.2",
     "@types/archiver": "^7.0.0",
+    "ai": "^6.0.0",
     "archiver": "^7.0.1",
     "axios": "^1.7.9",
     "body-parser": "^1.20.3",
@@ -85,6 +85,7 @@
     "jsonrepair": "^3.13.1",
     "langchain": "^1.0.2",
     "marked": "^17.0.0",
+    "mem0ai": "^2.2.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "node-fetch": "^2.7.0",
@@ -102,11 +103,10 @@
     "turndown": "^7.2.0",
     "uuid": "^11.0.5",
     "winston": "^3.17.0",
-    "yjs": "^13.6.29"
+    "yjs": "^13.6.29",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.0",
-    "@babel/preset-env": "^7.26.0",
     "@gruenerator/eslint-config": "workspace:*",
     "@remotion/cli": "^4.0.410",
     "@types/body-parser": "^1.19.6",
@@ -122,29 +122,11 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.5",
     "@types/turndown": "^5.0.6",
-    "babel-jest": "^30.1.2",
     "cross-env": "^7.0.3",
     "eslint": "^9.23.0",
-    "jest": "^30.2.0",
     "remotion": "^4.0.390",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "setupFiles": [
-      "<rootDir>/test/setup.js"
-    ],
-    "testMatch": [
-      "**/*.test.js"
-    ],
-    "verbose": true,
-    "clearMocks": true,
-    "transform": {
-      "^.+\\.js$": "babel-jest"
-    },
-    "transformIgnorePatterns": [
-      "node_modules/(?!(crawlee|@crawlee|@apify|cheerio)/)"
-    ]
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

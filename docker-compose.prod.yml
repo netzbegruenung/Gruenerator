@@ -151,6 +151,7 @@ services:
       - DOCLING_SERVE_MAX_FILE_SIZE=104857600
       - DOCLING_NUM_THREADS=4
       - DOCLING_SERVE_LOAD_MODELS_AT_BOOT=true
+      - DOCLING_SERVE_MAX_SYNC_WAIT=300
     networks:
       - gruenerator
     labels:

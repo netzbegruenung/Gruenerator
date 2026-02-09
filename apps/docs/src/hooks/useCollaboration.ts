@@ -1,6 +1,7 @@
+import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { HocuspocusProvider } from '@hocuspocus/provider';
+
 import { useAuthStore } from '../stores/authStore';
 
 interface CollaborationState {
@@ -37,18 +38,24 @@ const generateUserColor = () => {
 
 export const useCollaboration = (documentId: string) => {
   const user = useAuthStore((state) => state.user);
-  const [state, setState] = useState<CollaborationState>({
-    ydoc: new Y.Doc(),
-    provider: null,
-    isConnected: false,
-    isSynced: false,
+  const [state, setState] = useState<CollaborationState>(() => {
+    return {
+      ydoc: new Y.Doc(),
+      provider: null,
+      isConnected: false,
+      isSynced: false,
+    };
   });
 
   const providerRef = useRef<HocuspocusProvider | null>(null);
+  const mountCountRef = useRef(0);
 
   useEffect(() => {
-    if (!documentId || !user) return;
+    mountCountRef.current++;
 
+    if (!documentId || !user) {
+      return;
+    }
     const ydoc = new Y.Doc();
 
     // Create Hocuspocus provider
@@ -71,28 +78,32 @@ export const useCollaboration = (documentId: string) => {
 
     // Connection status handlers
     provider.on('status', (event: { status: string }) => {
-      console.log('[Hocuspocus] Status event:', event.status);
-      setState((prev) => ({
-        ...prev,
-        isConnected: event.status === 'connected',
-      }));
+      const newIsConnected = event.status === 'connected';
+      setState((prev) => {
+        // Only update if value actually changed to prevent unnecessary re-renders
+        if (prev.isConnected === newIsConnected) {
+          return prev;
+        }
+        return {
+          ...prev,
+          isConnected: newIsConnected,
+        };
+      });
     });
 
     provider.on('synced', () => {
-      console.log('[Hocuspocus] Synced event');
-      setState((prev) => ({
-        ...prev,
-        isSynced: true,
-      }));
+      setState((prev) => {
+        if (prev.isSynced) {
+          return prev;
+        }
+        return {
+          ...prev,
+          isSynced: true,
+        };
+      });
     });
 
-    provider.on('connect', () => {
-      console.log('[Hocuspocus] Connected event');
-    });
-
-    provider.on('disconnect', () => {
-      console.log('[Hocuspocus] Disconnected event');
-    });
+    provider.on('disconnect', () => {});
 
     setState({
       ydoc,
@@ -114,6 +125,7 @@ export const useCollaboration = (documentId: string) => {
 // Hook to get current collaborators from awareness
 export const useCollaborators = (provider: HocuspocusProvider | null) => {
   const [collaborators, setCollaborators] = useState<CollaborationUser[]>([]);
+  const pendingUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!provider) return;
@@ -122,16 +134,40 @@ export const useCollaborators = (provider: HocuspocusProvider | null) => {
     if (!awareness) return;
 
     const updateCollaborators = () => {
-      const states = awareness.getStates();
-      const users: CollaborationUser[] = [];
+      // Cancel any pending update to avoid stale state
+      if (pendingUpdateRef.current) {
+        clearTimeout(pendingUpdateRef.current);
+      }
 
-      states.forEach((state, clientId) => {
-        if (state.user && clientId !== awareness.clientID) {
-          users.push(state.user as CollaborationUser);
-        }
-      });
+      // Defer state update to avoid "setState during render" warning
+      // This happens when BlockNote sets awareness state during initialization
+      pendingUpdateRef.current = setTimeout(() => {
+        const states = awareness.getStates();
+        const users: CollaborationUser[] = [];
 
-      setCollaborators(users);
+        states.forEach((state, clientId) => {
+          if (state.user && clientId !== awareness.clientID) {
+            users.push(state.user as CollaborationUser);
+          }
+        });
+
+        // Only update if collaborators actually changed
+        setCollaborators((prev) => {
+          const prevIds = prev
+            .map((u) => u.id)
+            .sort()
+            .join(',');
+          const newIds = users
+            .map((u) => u.id)
+            .sort()
+            .join(',');
+          if (prevIds === newIds) {
+            return prev;
+          }
+          return users;
+        });
+        pendingUpdateRef.current = null;
+      }, 0);
     };
 
     // Update on awareness changes
@@ -140,6 +176,9 @@ export const useCollaborators = (provider: HocuspocusProvider | null) => {
 
     return () => {
       awareness.off('change', updateCollaborators);
+      if (pendingUpdateRef.current) {
+        clearTimeout(pendingUpdateRef.current);
+      }
     };
   }, [provider]);
 

@@ -1,0 +1,19 @@
+/* packages/docs consolidated styles */
+
+/* Default CSS variables — low specificity, overridden by host app */
+@import './variables.css';
+
+/* BlockNote editor styles are imported by the component itself:
+   @blocknote/core/fonts/inter.css
+   @blocknote/mantine/style.css
+   @blocknote/xl-ai/style.css
+*/
+
+/* Component styles */
+@import '../components/editor/BlockNoteEditor.css';
+@import '../components/editor/PresenceAvatars.css';
+@import '../components/document/DocumentList.css';
+@import '../components/document/TemplateCarousel.css';
+@import '../components/document/TemplatePicker.css';
+@import '../components/chat/ChatSidebar.css';
+@import '../components/chat/ChatMessage.css';

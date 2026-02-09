@@ -104,7 +104,7 @@ ${description}`;
 
     const payload = {
       systemPrompt,
-      provider: useProMode ? 'claude' : 'mistral',
+      provider: 'mistral',
       messages: [
         {
           role: 'user',

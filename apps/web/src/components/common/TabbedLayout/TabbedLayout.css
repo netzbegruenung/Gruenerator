@@ -146,8 +146,7 @@
 
 /* Hidden panels */
 .tabbed-layout__panel[data-active="false"] {
-  visibility: hidden;
-  pointer-events: none;
+  display: none;
 }
 
 /* Compact layout modifier */

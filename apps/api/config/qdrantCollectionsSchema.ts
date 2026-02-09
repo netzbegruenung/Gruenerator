@@ -356,6 +356,18 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
+  // mem0 user memory collection for cross-thread persistent context
+  user_memories: {
+    name: 'user_memories',
+    optimizer: 'medium',
+    hnsw: 'standard',
+    indexes: [
+      { field: 'user_id', type: 'keywordTenant' },
+      { field: 'memory_type', type: 'keyword' },
+      { field: 'created_at', type: 'datetime' },
+      { field: 'memory_text', type: 'text' },
+    ],
+  },
 };
 
 // =============================================================================

@@ -1,7 +1,7 @@
 import { useState, useMemo, useDeferredValue, useEffect } from 'react';
 import { FaCheck, FaPuzzlePiece, FaShapes, FaSearch } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
-import { PiMagnifyingGlass, PiSmileyWink, PiTextT } from 'react-icons/pi';
+import { PiMagnifyingGlass, PiSmileyWink, PiTagFill, PiTextT } from 'react-icons/pi';
 import {
   Planet,
   Cat,
@@ -18,7 +18,6 @@ import {
 } from 'react-kawaii';
 
 import useDebounce from '../../../../../components/hooks/useDebounce';
-import { BalkenIcon } from '../../icons';
 import { ALL_ASSETS, type UniversalAsset, type AssetInstance } from '../../utils/canvasAssets';
 import { ALL_ICONS, type IconDef } from '../../utils/canvasIcons';
 import { getIllustrationPath, ALL_ILLUSTRATIONS } from '../../utils/illustrations/registry';
@@ -27,6 +26,7 @@ import { getEnglishSearchTerms } from '../../utils/searchTranslations';
 import { type ShapeInstance, type ShapeType, ALL_SHAPES, type ShapeDef } from '../../utils/shapes';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
+import { BadgeSection } from './BadgeSection';
 import { BalkenSection } from './BalkenSection';
 import { FormenSection } from './FormenSection';
 import { IconsSection } from './IconsSection';
@@ -296,6 +296,13 @@ export interface ExtendedAssetsSectionProps {
 
   // Pill badge props
   onAddPillBadge?: (preset?: string) => void;
+  onUpdatePillBadge?: (id: string, partial: unknown) => void;
+  onRemovePillBadge?: (id: string) => void;
+
+  // Circle badge props
+  onAddCircleBadge?: (preset?: string) => void;
+  onUpdateCircleBadge?: (id: string, partial: unknown) => void;
+  onRemoveCircleBadge?: (id: string) => void;
 
   // Icon props
   selectedIcons?: string[];
@@ -338,6 +345,11 @@ export function AssetsSection({
   onRemoveAsset,
   onDuplicateAsset,
   onAddPillBadge,
+  onUpdatePillBadge,
+  onRemovePillBadge,
+  onAddCircleBadge,
+  onUpdateCircleBadge,
+  onRemoveCircleBadge,
   selectedIcons,
   onIconToggle,
   maxIconSelections = 3,
@@ -371,6 +383,8 @@ export function AssetsSection({
   const hasAssetsFeature = onAddAsset !== undefined;
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
   const hasBalkenFeature = onAddBalken !== undefined;
+  const hasBadgesFeature =
+    onAddPillBadge !== undefined || onAddCircleBadge !== undefined || onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
   const hasIllustrationsFeature = onAddIllustration !== undefined;
 
@@ -579,25 +593,32 @@ export function AssetsSection({
     });
   }
 
-  if (hasBalkenFeature) {
+  if (hasBadgesFeature) {
     const selectedBalken = balkenInstances?.find((b) => b.id === selectedBalkenId) || null;
     subsections.push({
-      id: 'balken',
-      icon: BalkenIcon,
-      label: 'Balken',
+      id: 'badges',
+      icon: PiTagFill,
+      label: 'Extras',
       content: (
         <>
           <h4 className="assets-section-header">
-            <BalkenIcon size={14} />
-            <span>Balken</span>
+            <PiTagFill size={14} />
+            <span>Extras</span>
           </h4>
-          <BalkenSection
-            onAddBalken={onAddBalken!}
-            selectedBalken={selectedBalken}
-            onUpdateBalken={onUpdateBalken ?? (() => {})}
-            onRemoveBalken={onRemoveBalken ?? (() => {})}
-            onDuplicateBalken={onDuplicateBalken}
+          <BadgeSection
+            onAddPillBadge={onAddPillBadge}
+            onAddCircleBadge={onAddCircleBadge}
+            onAddBalken={onAddBalken}
           />
+          {selectedBalken && hasBalkenFeature && (
+            <BalkenSection
+              onAddBalken={onAddBalken!}
+              selectedBalken={selectedBalken}
+              onUpdateBalken={onUpdateBalken ?? (() => {})}
+              onRemoveBalken={onRemoveBalken ?? (() => {})}
+              onDuplicateBalken={onDuplicateBalken}
+            />
+          )}
         </>
       ),
     });
@@ -627,6 +648,8 @@ export function AssetsSection({
             onAddShape={onAddShape!}
             isExpanded={formenExpanded}
             onAddPillBadge={onAddPillBadge}
+            onAddCircleBadge={onAddCircleBadge}
+            onAddBalken={onAddBalken}
           />
         </>
       ),

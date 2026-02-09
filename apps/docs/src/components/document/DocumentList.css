@@ -4,33 +4,6 @@
   width: 100%;
 }
 
-/* Mobile-first: Full-width create button */
-.create-document-button {
-  width: 100%;
-  min-height: 52px;
-  padding: var(--spacing-medium) var(--spacing-large);
-  font-size: 1rem;
-  font-weight: 600;
-  color: white;
-  background-color: var(--primary-600);
-  border: none;
-  border-radius: var(--card-border-radius-small);
-  cursor: pointer;
-  margin-bottom: var(--spacing-large);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xsmall);
-}
-
-.create-document-button:hover {
-  background-color: var(--primary-700);
-}
-
-.create-document-button:active {
-  transform: scale(0.98);
-}
-
 .document-list-loading,
 .document-list-error,
 .document-list-empty {
@@ -57,14 +30,15 @@
 
 .document-card {
   background-color: var(--card-background);
-  border: 1px solid var(--grey-200);
+  border: 1px solid var(--border-color);
   border-radius: var(--card-border-radius-small);
-  padding: var(--spacing-medium);
   cursor: pointer;
   transition: background-color 0.15s ease-out;
   display: flex;
-  align-items: center;
-  gap: var(--spacing-medium);
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 160px;
+  overflow: hidden;
 }
 
 .document-card:hover {
@@ -75,9 +49,119 @@
   background-color: var(--grey-100);
 }
 
-.document-card-content {
+/* Preview area */
+.document-card-preview {
   flex: 1;
-  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Miniature page preview — scaled-down HTML rendering */
+.document-card-preview.document-card-preview-miniature {
+  background-color: white;
+  height: 120px;
+  flex: none;
+}
+
+.document-card-preview-miniature::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, white);
+  pointer-events: none;
+}
+
+.document-card-preview-page {
+  width: 800px;
+  padding: 32px 48px;
+  transform: scale(0.3);
+  transform-origin: top left;
+  pointer-events: none;
+  user-select: none;
+  color: var(--font-color, #1f2937);
+  font-family: 'PT Sans', Arial, sans-serif;
+  line-height: 1.5;
+}
+
+.document-card-preview-page h1 {
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  line-height: 1.25;
+}
+
+.document-card-preview-page h2 {
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 14px 0 6px;
+  line-height: 1.3;
+}
+
+.document-card-preview-page h3 {
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 10px 0 4px;
+}
+
+.document-card-preview-page p {
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.document-card-preview-page ul,
+.document-card-preview-page ol {
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.document-card-preview-page li {
+  margin-bottom: 3px;
+}
+
+.document-card-preview-page blockquote {
+  border-left: 3px solid var(--grey-300, #d1d5db);
+  margin: 8px 0;
+  padding: 4px 12px;
+  color: var(--font-color-secondary, #6b7280);
+}
+
+.document-card-preview-page hr {
+  border: none;
+  border-top: 1px solid var(--grey-200, #e5e7eb);
+  margin: 10px 0;
+}
+
+.document-card-preview-page strong {
+  font-weight: 600;
+}
+
+.document-card-preview-page em {
+  font-style: italic;
+}
+
+/* Empty preview — large centered emoji placeholder */
+.document-card-preview.document-card-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--grey-400);
+  font-size: 2rem;
+  padding: var(--spacing-medium);
+}
+
+/* Footer — title, date, delete */
+.document-card-footer {
+  border-top: 1px solid var(--grey-100);
+  padding: var(--spacing-small) var(--spacing-medium);
+  margin-top: auto;
 }
 
 .document-card-header {
@@ -88,7 +172,7 @@
 }
 
 .document-card-title {
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--font-color);
   margin: 0;
@@ -96,6 +180,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.document-card-emoji {
+  margin-right: var(--spacing-xxsmall);
 }
 
 /* Touch-friendly delete button - 44x44px target */
@@ -106,15 +194,19 @@
   color: var(--font-color-secondary);
   cursor: pointer;
   padding: 0;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 36px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--card-border-radius-small);
   flex-shrink: 0;
-  margin: calc(-1 * var(--spacing-small));
-  margin-left: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+
+.document-card:hover .document-card-delete {
+  opacity: 1;
 }
 
 .document-card-delete:hover {
@@ -127,19 +219,13 @@
 }
 
 .document-card-meta {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: var(--font-color-secondary);
-  margin-top: var(--spacing-xxsmall);
+  margin-top: 2px;
 }
 
 /* Tablet: 2-column grid */
 @media (min-width: 481px) {
-  .create-document-button {
-    width: auto;
-    padding: var(--spacing-small) var(--spacing-large);
-    min-height: 44px;
-  }
-
   .document-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -147,31 +233,21 @@
   }
 
   .document-card {
-    flex-direction: column;
-    align-items: stretch;
-    padding: var(--spacing-large);
-  }
-
-  .document-card-delete {
-    margin: 0;
-    margin-right: calc(-1 * var(--spacing-xsmall));
-    margin-top: calc(-1 * var(--spacing-xsmall));
+    min-height: 200px;
   }
 }
 
 /* Desktop: 3-4 column grid with hover effects */
 @media (min-width: 769px) {
-  .create-document-button {
-    margin-bottom: var(--spacing-xlarge);
-  }
-
   .document-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: var(--spacing-large);
   }
 
   .document-card {
-    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    transition:
+      transform 0.1s ease-out,
+      box-shadow 0.1s ease-out;
   }
 
   .document-card:hover {
@@ -179,24 +255,53 @@
     box-shadow: var(--shadow-md);
     background-color: var(--card-background);
   }
-
-  .document-card-title {
-    font-size: 1.1rem;
-  }
 }
 
 /* Large screens */
 @media (min-width: 1024px) {
   .document-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+/* On mobile, always show delete button (no hover) */
+@media (max-width: 480px) {
+  .document-card-delete {
+    opacity: 1;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
 /* Dark mode adjustments */
-[data-theme="dark"] .document-card:active {
+[data-theme='dark'] .document-card:active {
   background-color: var(--grey-700);
 }
 
-[data-theme="dark"] .document-card-delete:hover {
+[data-theme='dark'] .document-card-footer {
+  border-top-color: var(--grey-600);
+}
+
+[data-theme='dark'] .document-card-preview-empty {
+  color: var(--grey-500);
+}
+
+[data-theme='dark'] .document-card-preview-miniature {
+  background-color: var(--grey-700);
+}
+
+[data-theme='dark'] .document-card-preview-miniature::after {
+  background: linear-gradient(to bottom, transparent, var(--grey-700));
+}
+
+[data-theme='dark'] .document-card-preview-page hr {
+  border-top-color: var(--grey-600);
+}
+
+[data-theme='dark'] .document-card-preview-page blockquote {
+  border-left-color: var(--grey-500);
+}
+
+[data-theme='dark'] .document-card-delete:hover {
   background-color: rgba(220, 38, 38, 0.2);
 }

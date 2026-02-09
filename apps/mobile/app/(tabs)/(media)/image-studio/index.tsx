@@ -1,28 +1,24 @@
 /**
  * Type Selection Screen
- * Entry point for Image Studio - select template or KI type
+ * Entry point for Image Studio - select KI type
  */
 
-import { useColorScheme } from 'react-native';
-import { router } from 'expo-router';
-import { route } from '../../../../types/routes';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import type { ImageStudioTemplateType, ImageStudioKiType } from '@gruenerator/shared/image-studio';
 import { kiTypeRequiresImage } from '@gruenerator/shared/image-studio';
+import { router } from 'expo-router';
+import { useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { TypeSelector } from '../../../../components/image-studio/TypeSelector';
 import { useImageStudioStore } from '../../../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../../../theme';
+import { route } from '../../../../types/routes';
+
+import type { ImageStudioKiType } from '@gruenerator/shared/image-studio';
 
 export default function TypeSelectionScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const { setType, setKiType, reset } = useImageStudioStore();
-
-  const handleTemplateSelect = (type: ImageStudioTemplateType) => {
-    reset();
-    setType(type);
-    router.push(route('/(tabs)/(media)/image-studio/input'));
-  };
+  const { setKiType, reset } = useImageStudioStore();
 
   const handleKiSelect = (type: ImageStudioKiType) => {
     reset();
@@ -38,7 +34,7 @@ export default function TypeSelectionScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
-      <TypeSelector onSelectTemplate={handleTemplateSelect} onSelectKi={handleKiSelect} />
+      <TypeSelector onSelectKi={handleKiSelect} />
     </SafeAreaView>
   );
 }

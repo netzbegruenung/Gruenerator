@@ -1,0 +1,151 @@
+.login-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  margin-bottom: var(--spacing-large);
+}
+
+.login-option {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 1.5px solid var(--background-color-alt);
+  border-radius: var(--spacing-small);
+  background: var(--background-color);
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+  text-align: left;
+  min-height: 80px;
+  position: relative;
+  font-family: inherit;
+}
+
+.login-option:hover:not(:disabled) {
+  border-color: var(--interactive-accent-color);
+  background: var(--background-color-alt);
+}
+
+.login-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  filter: grayscale(50%);
+}
+
+.login-option:active:not(:disabled) {
+  border-color: var(--interactive-accent-color);
+}
+
+.login-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+  width: 100%;
+  padding: var(--spacing-large);
+}
+
+.login-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+  width: 50px;
+  text-align: center;
+  transition: transform 0.25s ease-out;
+}
+
+.login-logo {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  flex-shrink: 0;
+  transition: transform 0.25s ease-out;
+}
+
+.login-text-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxsmall);
+  flex-grow: 1;
+}
+
+.login-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--font-color-h);
+  margin: 0;
+  transition: color 0.25s ease-out;
+}
+
+.login-description {
+  color: var(--font-color);
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin: 0;
+  transition: opacity 0.25s ease-out;
+}
+
+.login-option:hover .login-description {
+  opacity: 1;
+}
+
+.login-option.gruenes-netz:hover:not(:disabled) {
+  border-color: var(--primary-200);
+  background: var(--background-color-alt);
+}
+
+.login-option.gruene-oesterreich:hover:not(:disabled) {
+  border-color: var(--primary-200);
+  background: var(--background-color-alt);
+}
+
+.login-option.netzbegruenung:hover:not(:disabled) {
+  border-color: var(--secondary-200);
+  background: var(--background-color-alt);
+}
+
+.login-option.gruenerator:hover:not(:disabled) {
+  border-color: var(--interactive-accent-color);
+  background: var(--background-color-alt);
+}
+
+@media (max-width: 480px) {
+  .login-content {
+    padding: var(--spacing-medium);
+  }
+
+  .login-icon {
+    font-size: 2rem;
+    width: 40px;
+  }
+
+  .login-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .login-title {
+    font-size: 1.1rem;
+  }
+
+  .login-description {
+    font-size: 0.85rem;
+  }
+
+  .login-option {
+    min-height: 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-option,
+  .login-icon,
+  .login-logo,
+  .login-title,
+  .login-description {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .login-option:hover .login-icon,
+  .login-option:hover .login-logo {
+    transform: none !important;
+  }
+}

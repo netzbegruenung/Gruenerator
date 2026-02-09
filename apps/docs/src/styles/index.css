@@ -1,14 +1,33 @@
-/* Import shared CSS variables from web app */
+/* Import shared CSS variables and fonts from web app */
 @import '../../../web/src/assets/styles/common/variables.css';
-
-/* Import Tiptap UI styles */
-@import './_variables.scss';
+@import '../../../web/src/assets/styles/common/typography.css';
 
 /* Import Grünerator theme overrides */
 @import './_gruenerator-theme.scss';
 
 /* Import animations */
 @import './_keyframe-animations.scss';
+
+/* ─────────────────────────────────────────────
+   Docs-specific semantic variables
+   (supplements variables.css which lacks these)
+   ───────────────────────────────────────────── */
+:root {
+  --border-color: var(--grey-200);
+  --font-color-secondary: var(--grey-500);
+}
+
+[data-theme="dark"] {
+  --border-color: var(--grey-700);
+  --font-color-secondary: var(--grey-400);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --border-color: var(--grey-700);
+    --font-color-secondary: var(--grey-400);
+  }
+}
 
 /* Reset and base styles */
 * {
@@ -19,9 +38,7 @@
 
 html, body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'PT Sans', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -35,9 +52,14 @@ body {
   height: 100%;
 }
 
+/* Heading typography — Raleway for all headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+}
+
 /* Basic link styling */
 a {
-  color: var(--primary-600);
+  color: var(--secondary-600);
   text-decoration: none;
 }
 
@@ -45,7 +67,7 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Basic button styling - use existing patterns from variables.css */
+/* Basic button styling */
 button {
   font-family: inherit;
   cursor: pointer;

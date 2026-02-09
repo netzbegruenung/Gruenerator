@@ -130,7 +130,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--font-color-green);
-  background-color: var(--primary-50);
+  background-color: var(--secondary-50);
   padding: 2px 8px;
   border-radius: 10px;
   margin-left: auto;
@@ -174,8 +174,8 @@
 }
 
 [data-theme="dark"] .action-sheet-item-badge {
-  background-color: var(--primary-900);
-  color: var(--primary-200);
+  background-color: var(--secondary-900);
+  color: var(--secondary-200);
 }
 
 [data-theme="dark"] .action-sheet-handle::before {

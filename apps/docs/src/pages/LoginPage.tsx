@@ -1,26 +1,22 @@
-import { useEffect } from 'react';
+import { LoginProviders } from '@gruenerator/shared/auth';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
+
 import { useAuth } from '../hooks/useAuth';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login } = useAuthStore();
   const { isAuthenticated } = useAuth();
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const redirectTo = searchParams.get('redirectTo') || '/';
 
-  // If already authenticated, redirect to target page
   useEffect(() => {
     if (isAuthenticated) {
       navigate(redirectTo, { replace: true });
     }
   }, [isAuthenticated, redirectTo, navigate]);
-
-  const handleLogin = () => {
-    login(redirectTo);
-  };
 
   return (
     <div
@@ -40,7 +36,7 @@ export const LoginPage = () => {
           padding: '3rem',
           borderRadius: '12px',
           boxShadow: 'var(--shadow-lg)',
-          maxWidth: '400px',
+          maxWidth: '500px',
           width: '100%',
           textAlign: 'center',
         }}
@@ -64,29 +60,19 @@ export const LoginPage = () => {
           Melde dich an, um fortzufahren
         </p>
 
-        <button
-          onClick={handleLogin}
-          style={{
-            width: '100%',
-            padding: '0.75rem 1.5rem',
-            fontSize: '1rem',
-            fontWeight: 600,
-            color: 'white',
-            backgroundColor: 'var(--primary-600)',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s',
+        <LoginProviders
+          redirectTo={redirectTo}
+          disabled={isAuthenticating}
+          onBeforeLogin={() => {
+            setIsAuthenticating(true);
           }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--primary-700)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--primary-600)';
-          }}
-        >
-          Anmelden
-        </button>
+        />
+
+        {isAuthenticating && (
+          <p style={{ color: 'var(--font-color-secondary)', marginTop: '1rem' }}>
+            Weiterleitung zum Login...
+          </p>
+        )}
       </div>
     </div>
   );

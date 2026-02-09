@@ -48,26 +48,28 @@ export function shouldAllowMainLlmOverride(
  */
 export function determineProviderFromModel(modelName: string = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
-  if (name.includes('gpt-') || name.includes('openai')) {
-    return 'openai';
-  }
+  // Mistral API models (mistral-large, mistral-small, magistral-*)
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||
-    name.includes('mistral-small-')
+    name.includes('mistral-small-') ||
+    name.includes('magistral-')
   ) {
     return 'mistral';
   }
+  // OpenAI-compatible models via LiteLLM
+  if (name.includes('gpt-') || name.includes('openai')) {
+    return 'litellm';
+  }
+  // Mixtral models via LiteLLM
   if (name.includes('mistral') || name.includes('mixtral')) {
     return 'litellm';
   }
+  // Llama models via IONOS
   if (name.includes('llama') || name.includes('meta-llama')) {
     return 'ionos';
   }
-  if (name.includes('claude') || name.includes('anthropic')) {
-    return 'claude';
-  }
-  return 'litellm';
+  return 'mistral';
 }
 
 interface SelectProviderParams {
@@ -134,9 +136,9 @@ export function selectProviderAndModel({
     provider = 'mistral';
     model = options.model || 'mistral-small-latest';
   } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
-    // Use Claude API for these types
-    provider = 'claude';
-    model = options.model || 'claude-3-haiku-20240307';
+    // Use Mistral for fast Q&A
+    provider = 'mistral';
+    model = options.model || 'mistral-small-latest';
   }
   // Sharepic types - use Mistral with Magistral for high quality
   else if (
