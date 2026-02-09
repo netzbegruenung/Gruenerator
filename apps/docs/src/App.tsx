@@ -1,13 +1,16 @@
 import { DocsProvider, ErrorBoundary } from '@gruenerator/docs';
-import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { webDocsAdapter } from './lib/docsAdapter';
-import { EditorPage } from './pages/EditorPage';
-import { HomePage } from './pages/HomePage';
-import { LoginPage } from './pages/LoginPage';
+
+const EditorPage = lazy(() =>
+  import('./pages/EditorPage').then((m) => ({ default: m.EditorPage }))
+);
+const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 
 // Initialize API client (side-effect: sets up shared API client)
 import './lib/apiClient';
@@ -23,12 +26,27 @@ const queryClient = new QueryClient({
   },
 });
 
+function PageLoader() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+      }}
+    >
+      <p>Lädt...</p>
+    </div>
+  );
+}
+
 function App() {
   return (
-    <MantineProvider>
-      <QueryClientProvider client={queryClient}>
-        <DocsProvider adapter={webDocsAdapter}>
-          <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <DocsProvider adapter={webDocsAdapter}>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route
                 path="/"
@@ -52,10 +70,10 @@ function App() {
               />
               <Route path="/login" element={<LoginPage />} />
             </Routes>
-          </BrowserRouter>
-        </DocsProvider>
-      </QueryClientProvider>
-    </MantineProvider>
+          </Suspense>
+        </BrowserRouter>
+      </DocsProvider>
+    </QueryClientProvider>
   );
 }
 
