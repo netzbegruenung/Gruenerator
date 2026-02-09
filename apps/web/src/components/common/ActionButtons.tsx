@@ -86,7 +86,7 @@ const ActionButtons = ({
   showRegenerate = false,
   showSave = false,
   showSaveToLibrary = true,
-  showEditMode = false,
+  showEditMode: _showEditMode = false,
   showUndo = true,
   showRedo = true,
   onEditModeToggle,
@@ -393,26 +393,8 @@ const ActionButtons = ({
           <IoRefreshOutline size={16} />
         </button>
       ),
-      edit: showEditMode && activeContent && (onRequestEdit || onEditModeToggle) && (
-        <button
-          key="edit"
-          onClick={() => {
-            if (onRequestEdit) {
-              onRequestEdit();
-            } else if (onEditModeToggle) {
-              onEditModeToggle();
-            }
-          }}
-          className={`action-button ${isEditModeActive ? 'active' : ''}`}
-          aria-label={isEditModeActive ? 'Edit Mode schließen' : 'Edit Mode umschalten'}
-          {...(!isMobileView && {
-            'data-tooltip-id': 'action-tooltip',
-            'data-tooltip-content': isEditModeActive ? 'Schließen' : 'Edit Mode',
-          })}
-        >
-          {isEditModeActive ? <IoCloseOutline size={16} /> : <HiPencil size={16} />}
-        </button>
-      ),
+      // TODO: re-enable when suggest_edits backend parsing is fixed
+      edit: null,
       more: (showExport || showDownload || showExportDropdown) && isAuthenticated && (
         <ExportDropdown
           key="more"
