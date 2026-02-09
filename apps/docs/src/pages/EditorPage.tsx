@@ -1,35 +1,44 @@
-import { DOCXExporter, docxDefaultSchemaMappings } from '@blocknote/xl-docx-exporter';
 import {
-  useDocumentStore,
   useCollaboration,
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
-  ChatSidebar,
   useDocsAdapter,
   createDocsApiClient,
 } from '@gruenerator/docs';
-import { VersionHistory, ShareModal } from '@gruenerator/shared/tiptap-editor';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { MantineProvider } from '@mantine/core';
+import { useQuery } from '@tanstack/react-query';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiDownload, FiShare2, FiClock, FiMessageSquare, FiUsers } from 'react-icons/fi';
 import { useParams } from 'react-router-dom';
 
 import { useAuthStore } from '../stores/authStore';
 
 import type { BlockNoteEditor } from '@blocknote/core';
+
+import '@mantine/core/styles.css';
 import './EditorPage.css';
 
-interface DocumentState {
-  data: any;
-  isLoading: boolean;
-}
+const VersionHistory = lazy(() =>
+  import('@gruenerator/shared/tiptap-editor').then((m) => ({ default: m.VersionHistory }))
+);
+const ShareModal = lazy(() =>
+  import('@gruenerator/shared/tiptap-editor').then((m) => ({ default: m.ShareModal }))
+);
+const ChatSidebar = lazy(() =>
+  import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
+);
 
 export const EditorPage = () => {
   const { id } = useParams<{ id: string }>();
   const adapter = useDocsAdapter();
-  const apiClient = createDocsApiClient(adapter);
+  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const user = useAuthStore((state) => state.user);
 
-  const [docState, setDocState] = useState<DocumentState>({ data: null, isLoading: true });
+  const { data: docData, isLoading: docIsLoading } = useQuery({
+    queryKey: ['document', id],
+    queryFn: () => apiClient.get<any>(`/docs/${id}`),
+    enabled: !!id,
+  });
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -38,7 +47,6 @@ export const EditorPage = () => {
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
-  const { updateDocument } = useDocumentStore();
   const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId: id || '',
     user,
@@ -62,49 +70,26 @@ export const EditorPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showExportMenu]);
 
-  useEffect(() => {
-    if (!id) return;
-
-    let cancelled = false;
-
-    const fetchDocument = async () => {
-      try {
-        const data = await apiClient.get(`/docs/${id}`);
-        if (!cancelled) {
-          setDocState({ data, isLoading: false });
-        }
-      } catch (error) {
-        console.error('Failed to fetch document:', error);
-        if (!cancelled) {
-          setDocState({ data: null, isLoading: false });
-        }
-      }
-    };
-
-    fetchDocument();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
   const handleExport = useCallback(async () => {
-    if (!docState.data || !editor) return;
+    if (!docData || !editor) return;
 
     try {
+      const { DOCXExporter, docxDefaultSchemaMappings } =
+        await import('@blocknote/xl-docx-exporter');
       const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
       const blob = await exporter.toBlob(editor.document);
 
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${docState.data.title || 'Dokument'}.docx`;
+      link.download = `${docData.title || 'Dokument'}.docx`;
       link.click();
       window.URL.revokeObjectURL(url);
       setShowExportMenu(false);
     } catch (error) {
       console.error('Export failed:', error);
     }
-  }, [docState.data, editor]);
+  }, [docData, editor]);
 
   const toggleComments = useCallback(() => {
     setShowCommentsSidebar((prev) => {
@@ -122,11 +107,11 @@ export const EditorPage = () => {
     });
   }, []);
 
-  if (docState.isLoading) {
+  if (docIsLoading) {
     return <div className="loading-container">Lädt...</div>;
   }
 
-  if (!docState.data) {
+  if (!docData) {
     return <div className="error-container">Dokument nicht gefunden</div>;
   }
 
@@ -135,99 +120,109 @@ export const EditorPage = () => {
   const localUser = getLocalUser();
 
   return (
-    <div className="editor-page">
-      <div className="editor-content">
-        <main className="editor-main">
-          <BlockNoteEditorComponent
-            documentId={id!}
-            initialContent={docState.data?.content || ''}
-            documentSubtype={docState.data.document_subtype}
-            ydoc={ydoc}
-            provider={provider}
-            isSynced={isSynced}
-            showCommentsSidebar={showCommentsSidebar}
-            onEditorReady={handleEditorReady}
-          />
-        </main>
+    <MantineProvider>
+      <div className="editor-page">
+        <div className="editor-content">
+          <main className="editor-main">
+            <BlockNoteEditorComponent
+              documentId={id!}
+              initialContent={docData?.content || ''}
+              documentSubtype={docData.document_subtype}
+              ydoc={ydoc}
+              provider={provider}
+              isSynced={isSynced}
+              showCommentsSidebar={showCommentsSidebar}
+              onEditorReady={handleEditorReady}
+            />
+          </main>
 
-        {showChatSidebar && (
-          <ChatSidebar
-            messages={messages}
-            currentUserId={localUser?.id ?? null}
-            onSend={sendMessage}
-            isConnected={isConnected}
-          />
-        )}
-      </div>
-
-      {/* Utility toolbar - top right */}
-      <div className="floating-panel floating-panel--top">
-        <div className={`status-dot ${connectionStatus}`} />
-
-        <span className="glass-divider" />
-
-        <div ref={exportMenuRef} className="dropdown-container">
-          <button
-            className="glass-btn"
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            aria-label="Exportieren"
-          >
-            <FiDownload />
-          </button>
-          {showExportMenu && (
-            <div className="dropdown-menu">
-              <button className="dropdown-item" onClick={handleExport}>
-                <FiDownload />
-                Als Word (.docx)
-              </button>
-            </div>
+          {showChatSidebar && (
+            <Suspense fallback={null}>
+              <ChatSidebar
+                messages={messages}
+                currentUserId={localUser?.id ?? null}
+                onSend={sendMessage}
+                isConnected={isConnected}
+              />
+            </Suspense>
           )}
         </div>
 
-        <button className="glass-btn" onClick={() => setShowShareModal(true)} aria-label="Teilen">
-          <FiShare2 />
-        </button>
+        {/* Utility toolbar - top right */}
+        <div className="floating-panel floating-panel--top">
+          <div className={`status-dot ${connectionStatus}`} />
 
-        <button
-          className="glass-btn"
-          onClick={() => setShowVersionHistory(true)}
-          aria-label="Versionen"
-        >
-          <FiClock />
-        </button>
+          <span className="glass-divider" />
+
+          <div ref={exportMenuRef} className="dropdown-container">
+            <button
+              className="glass-btn"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              aria-label="Exportieren"
+            >
+              <FiDownload />
+            </button>
+            {showExportMenu && (
+              <div className="dropdown-menu">
+                <button className="dropdown-item" onClick={handleExport}>
+                  <FiDownload />
+                  Als Word (.docx)
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button className="glass-btn" onClick={() => setShowShareModal(true)} aria-label="Teilen">
+            <FiShare2 />
+          </button>
+
+          <button
+            className="glass-btn"
+            onClick={() => setShowVersionHistory(true)}
+            aria-label="Versionen"
+          >
+            <FiClock />
+          </button>
+        </div>
+
+        {/* Sidebar toggles - bottom right */}
+        <div className="floating-panel floating-panel--bottom">
+          <button
+            className={`glass-btn ${showCommentsSidebar ? 'active' : ''}`}
+            onClick={toggleComments}
+            aria-label="Kommentare"
+            title="Kommentare anzeigen"
+          >
+            <FiMessageSquare />
+          </button>
+
+          <button
+            className={`glass-btn ${showChatSidebar ? 'active' : ''}`}
+            onClick={toggleChat}
+            aria-label="Chat"
+            title="Chat anzeigen"
+          >
+            <FiUsers />
+          </button>
+        </div>
+
+        {/* Modals */}
+        {showVersionHistory && (
+          <Suspense fallback={null}>
+            <VersionHistory
+              documentId={id!}
+              onClose={() => setShowVersionHistory(false)}
+              onRestore={() => window.location.reload()}
+            />
+          </Suspense>
+        )}
+
+        {showShareModal && (
+          <Suspense fallback={null}>
+            <ShareModal documentId={id!} onClose={() => setShowShareModal(false)} />
+          </Suspense>
+        )}
       </div>
-
-      {/* Sidebar toggles - bottom right */}
-      <div className="floating-panel floating-panel--bottom">
-        <button
-          className={`glass-btn ${showCommentsSidebar ? 'active' : ''}`}
-          onClick={toggleComments}
-          aria-label="Kommentare"
-          title="Kommentare anzeigen"
-        >
-          <FiMessageSquare />
-        </button>
-
-        <button
-          className={`glass-btn ${showChatSidebar ? 'active' : ''}`}
-          onClick={toggleChat}
-          aria-label="Chat"
-          title="Chat anzeigen"
-        >
-          <FiUsers />
-        </button>
-      </div>
-
-      {/* Modals */}
-      {showVersionHistory && (
-        <VersionHistory
-          documentId={id!}
-          onClose={() => setShowVersionHistory(false)}
-          onRestore={() => window.location.reload()}
-        />
-      )}
-
-      {showShareModal && <ShareModal documentId={id!} onClose={() => setShowShareModal(false)} />}
-    </div>
+    </MantineProvider>
   );
 };

@@ -17,7 +17,9 @@ interface CollaborationUser {
   color: string;
 }
 
-const HOCUSPOCUS_URL = import.meta.env.VITE_HOCUSPOCUS_URL || 'ws://localhost:1240';
+const HOCUSPOCUS_URL =
+  import.meta.env.VITE_HOCUSPOCUS_URL ||
+  `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
 // Generate a random color for the user
 const generateUserColor = () => {

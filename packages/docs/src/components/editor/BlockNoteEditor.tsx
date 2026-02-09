@@ -63,6 +63,10 @@ interface CollaborationUser {
   color: string;
 }
 
+const EDITOR_DOM_ATTRIBUTES = {
+  editor: { class: 'blocknote-editor-content' },
+} as const;
+
 const schema = BlockNoteSchema.create({
   blockSpecs: defaultBlockSpecs,
   inlineContentSpecs: defaultInlineContentSpecs,
@@ -205,11 +209,7 @@ const BlockNoteEditorInner = ({
       } as any,
       extensions,
       collaboration: collaborationOptions,
-      domAttributes: {
-        editor: {
-          class: 'blocknote-editor-content',
-        },
-      },
+      domAttributes: EDITOR_DOM_ATTRIBUTES,
     },
     [collaborationOptions]
   );
