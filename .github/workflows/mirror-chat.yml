@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Movm/Gruenerator-Chat
-          token: ${{ secrets.CHAT_REPO_PAT }}
+          token: ${{ secrets.MCP_REPO_PAT }}
           fetch-depth: 0
           path: chat-standalone
 
