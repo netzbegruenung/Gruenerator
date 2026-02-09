@@ -100,10 +100,15 @@ const ExportDropdown = ({
   const [textCopyIcon, setTextCopyIcon] = useState<ReactNode>(<IoCopyOutline size={20} />);
   const [showWolkeSetupModal, setShowWolkeSetupModal] = useState<boolean>(false);
   const [canNativeShare, setCanNativeShare] = useState<boolean>(false);
+  const [showPastePopup, setShowPastePopup] = useState<boolean>(false);
+  const [copySucceeded, setCopySucceeded] = useState<boolean>(false);
+  const [padURL, setPadURL] = useState<string>('');
+  const [urlCopied, setUrlCopied] = useState<boolean>(false);
 
   const { isAuthenticated } = useLazyAuth();
   const location = useLocation();
   const { submitForm, loading: docsLoading } = useApiSubmit('docs/from-export');
+  const { submitForm: submitEtherpad, loading: etherpadLoading } = useApiSubmit('etherpad/create');
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
 
   const { isGenerating, generateDOCX } = useExportStore();
@@ -352,6 +357,43 @@ const ExportDropdown = ({
   const handleDocsExport = async () =>
     await handleExportWithAutoSave(handleDocsExportInner, 'Grünerator Docs');
 
+  const handleEtherpadExportInner = async () => {
+    setShowDropdown(false);
+    try {
+      if (!content) {
+        alert('Kein Text zum Exportieren verfügbar.');
+        return;
+      }
+      const plainContent = await extractPlainText(content);
+      if (!plainContent || plainContent.trim().length === 0) {
+        alert('Der extrahierte Text ist leer.');
+        return;
+      }
+      const response = await submitEtherpad({
+        text: plainContent,
+        documentType: getDocumentType(),
+      });
+      try {
+        await navigator.clipboard.writeText(plainContent);
+        setCopySucceeded(true);
+      } catch {
+        setCopySucceeded(false);
+      } finally {
+        setShowPastePopup(true);
+      }
+      if (response && response.padURL) {
+        setPadURL(response.padURL);
+      }
+    } catch (err) {
+      console.error('Fehler beim Exportieren zu Textbegrünung:', err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert('Fehler beim Exportieren zu Textbegrünung: ' + errorMessage);
+    }
+  };
+
+  const handleEtherpadExport = async () =>
+    await handleExportWithAutoSave(handleEtherpadExportInner, 'Textbegrünung');
+
   const handleCopyTextInner = async () => {
     await copyFormattedContent(
       content,
@@ -516,7 +558,8 @@ const ExportDropdown = ({
     return null;
   }
 
-  const isLoading = isGenerating || docsLoading || uploadingToWolke || saveToLibraryLoading;
+  const isLoading =
+    isGenerating || docsLoading || etherpadLoading || uploadingToWolke || saveToLibraryLoading;
 
   return (
     <div className="export-dropdown download-export">
@@ -617,6 +660,22 @@ const ExportDropdown = ({
                 </div>
               </button>
 
+              <button
+                className="format-option"
+                onClick={handleEtherpadExport}
+                disabled={etherpadLoading}
+              >
+                <CiMemoPad size={16} />
+                <div className="format-option-content">
+                  <div className="format-option-title">
+                    {etherpadLoading ? 'Exportiere...' : 'Textbegrünung Export'}
+                  </div>
+                  <div className="format-option-subtitle">
+                    Öffentlich verfügbar, als Link teilbar
+                  </div>
+                </div>
+              </button>
+
               {isAuthenticated && onSaveToLibrary && (
                 <button
                   className="format-option"
@@ -695,6 +754,63 @@ const ExportDropdown = ({
           onClose={() => setShowWolkeSetupModal(false)}
           onSubmit={handleWolkeSetup}
         />
+      )}
+
+      {/* Textbegrünung Paste Popup */}
+      {showPastePopup && (
+        <div
+          className="modal"
+          role="dialog"
+          aria-labelledby="export-modal-title"
+          onClick={() => setShowPastePopup(false)}
+        >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="close-button" onClick={() => setShowPastePopup(false)}>
+              <IoCloseOutline size={24} />
+            </button>
+            <h2 id="export-modal-title">Mit Textbegrünung freigeben</h2>
+            <p>
+              {copySucceeded
+                ? 'Text wurde in Zwischenablage kopiert! Öffne dein Dokument und füge ihn mit Strg+V ein.'
+                : 'Öffne das Textbegrünung-Dokument und füge deinen Text dort ein.'}
+            </p>
+            {padURL && (
+              <>
+                <div className="url-container">
+                  <input type="text" value={padURL} readOnly className="url-input" />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard
+                        .writeText(padURL)
+                        .then(() => {
+                          setUrlCopied(true);
+                          setTimeout(() => setUrlCopied(false), 2000);
+                        })
+                        .catch((err) => console.error('Fehler beim Kopieren:', err));
+                    }}
+                    className={`copy-docs-link-button ${urlCopied ? 'copied' : ''}`}
+                  >
+                    {urlCopied ? <IoCheckmarkOutline size={20} /> : <IoCopyOutline size={20} />}
+                  </button>
+                </div>
+                <div className="button-group">
+                  <button onClick={handleCopyText} className="export-action-button">
+                    {textCopyIcon} Text kopieren
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.open(padURL, '_blank');
+                      setShowPastePopup(false);
+                    }}
+                    className="open-button"
+                  >
+                    <IoOpenOutline size={20} /> Link öffnen
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
