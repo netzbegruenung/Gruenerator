@@ -125,10 +125,6 @@ services:
         condition: service_started
       api:
         condition: service_healthy
-      mcp:
-        condition: service_started
-      doku:
-        condition: service_started
     networks:
       - gruenerator
     labels:
