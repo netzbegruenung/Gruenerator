@@ -142,6 +142,7 @@
   grid-column: 1;
   grid-row: 1;
   width: 100%;
+  min-width: 0;
 }
 
 /* Hidden panels */
