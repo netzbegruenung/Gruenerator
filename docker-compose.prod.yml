@@ -125,8 +125,6 @@ services:
         condition: service_started
       api:
         condition: service_healthy
-      docs:
-        condition: service_started
       mcp:
         condition: service_started
       doku:
