@@ -3,12 +3,14 @@
  * Handles login, logout, callback, status, and locale management
  */
 
-import express, { Router, Response, NextFunction } from 'express';
+import express, { type Router, type Response, type NextFunction } from 'express';
+
 import passport from '../../config/passportSetup.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import { createLogger } from '../../utils/logger.js';
-import { getOriginDomain, isAllowedDomain, buildDomainUrl } from '../../utils/domainUtils.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
+import { getOriginDomain, isAllowedDomain, buildDomainUrl } from '../../utils/domainUtils.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type {
   AuthRequest,
   AuthSessionRequest,
@@ -53,7 +55,7 @@ function isAllowedMobileRedirect(redirectUrl: string | undefined): boolean {
   if (!redirectUrl) return false;
   const lower = redirectUrl.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) return false;
-  return redirectUrl.startsWith('gruenerator://');
+  return lower.startsWith('gruenerator://') || lower.startsWith('gruenerator-docs://');
 }
 
 function appendQueryParam(url: string, key: string, value: string): string {
@@ -134,11 +136,22 @@ router.get(
     const source = req.query.source as string | undefined;
     const redirectTo = req.query.redirectTo as string | undefined;
     const prompt = req.query.prompt as string | undefined;
+    const originParam = req.query.origin as string | undefined;
 
     const originDomain = getOriginDomain(req);
     if (isAllowedDomain(originDomain)) {
       req.session.originDomain = originDomain;
       log.debug(`[Auth Login] Stored origin domain: ${originDomain}`);
+    } else if (originParam) {
+      try {
+        const originHost = new URL(originParam).host;
+        if (isAllowedDomain(originHost)) {
+          req.session.originDomain = originHost;
+          log.debug(`[Auth Login] Stored origin domain from query param: ${originHost}`);
+        }
+      } catch {
+        log.debug(`[Auth Login] Invalid origin query param: ${originParam}`);
+      }
     }
 
     if (redirectTo) {

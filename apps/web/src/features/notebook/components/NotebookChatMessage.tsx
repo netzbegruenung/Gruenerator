@@ -27,10 +27,12 @@ interface NotebookMessage {
   timestamp?: number;
   userName?: string;
   resultData?: NotebookResultData;
+  isStreaming?: boolean;
 }
 
 const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: number }) => {
-  const hasResultData = msg.type === 'assistant' && msg.resultData;
+  const hasResultData = msg.type === 'assistant' && msg.resultData && !msg.isStreaming;
+  const isStreaming = msg.isStreaming === true;
   const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
 
   const hasSources =
@@ -68,7 +70,7 @@ const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: numb
   return (
     <motion.div
       key={msg.timestamp || index}
-      className={`chat-message ${msg.type}${hasResultData ? ' chat-message-with-result' : ''}`}
+      className={`chat-message ${msg.type}${hasResultData ? ' chat-message-with-result' : ''}${isStreaming ? ' chat-message-streaming' : ''}`}
       {...MESSAGE_MOTION_PROPS}
     >
       {msg.type === 'user' && msg.userName && (
@@ -107,6 +109,7 @@ const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: numb
       ) : (
         <div className="chat-message-content">
           <Markdown fallback={<span>{msg.content}</span>}>{msg.content}</Markdown>
+          {isStreaming && <span className="streaming-cursor">▋</span>}
         </div>
       )}
     </motion.div>

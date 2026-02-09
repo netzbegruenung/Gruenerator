@@ -29,7 +29,7 @@ export function useAuth() {
 
   const login = (redirectTo?: string) => {
     const redirect = redirectTo || window.location.pathname;
-    window.location.href = `/api/auth/login?source=gruenerator-login&redirectTo=${encodeURIComponent(redirect)}`;
+    window.location.href = `/login?redirectTo=${encodeURIComponent(redirect)}`;
   };
 
   const logout = async () => {

@@ -96,6 +96,12 @@ export const UNIVERSAL_TEXT_TYPES: readonly TextTypeOption[] = [
     shortLabel: 'Bürger',
     endpoint: GENERATOR_ENDPOINTS.BUERGERANFRAGEN,
   },
+  {
+    id: 'leichte_sprache',
+    label: 'Leichte Sprache',
+    shortLabel: 'L. Sprache',
+    endpoint: GENERATOR_ENDPOINTS.LEICHTE_SPRACHE,
+  },
 ] as const;
 
 // Accessibility mode option interface
@@ -139,6 +145,7 @@ export const GENERATOR_TITLES = {
     rede: 'Welche Rede willst du heute grünerieren?',
     wahlprogramm: 'Welches Wahlprogramm-Kapitel willst du heute grünerieren?',
     buergeranfragen: 'Welche Bürger*innenanfrage willst du heute grünerieren?',
+    leichte_sprache: 'Welchen Text willst du in Leichte Sprache übersetzen?',
   },
 } as const;
 

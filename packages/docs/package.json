@@ -1,0 +1,50 @@
+{
+  "name": "@gruenerator/docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "require": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./styles": "./src/styles/docs.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@blocknote/core": "^0.46.2",
+    "@blocknote/mantine": "^0.46.2",
+    "@blocknote/react": "^0.46.2",
+    "@blocknote/xl-ai": "^0.46.2",
+    "@blocknote/xl-docx-exporter": "^0.46.2",
+    "ai": "^6.0.0",
+    "@floating-ui/react": "^0.27.16",
+    "@hocuspocus/provider": "^3.4.3",
+    "@tiptap/core": "^3.15.3",
+    "@tiptap/extension-collaboration": "^2.10.0",
+    "@tiptap/extension-collaboration-cursor": "^2.10.0",
+    "@tiptap/pm": "^3.15.3",
+    "lodash.throttle": "^4.1.1",
+    "react-icons": "^5.5.0",
+    "yjs": "^13.6.20"
+  },
+  "devDependencies": {
+    "@types/lodash.throttle": "^4.1.9",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@mantine/core": "^8.0.0",
+    "@mantine/hooks": "^8.0.0",
+    "@gruenerator/shared": "workspace:*",
+    "zustand": "^5.0.0"
+  }
+}

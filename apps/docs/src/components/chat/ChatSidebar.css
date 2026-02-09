@@ -1,0 +1,40 @@
+.chat-sidebar {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  border-left: 1px solid var(--grey-300, #d1d5db);
+  background: var(--background-color, #ffffff);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .chat-sidebar {
+  background: var(--grey-900, #111827);
+  border-color: var(--grey-700, #374151);
+}
+
+.chat-sidebar-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--grey-200, #e5e7eb);
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .chat-sidebar-header {
+  border-color: var(--grey-700, #374151);
+}
+
+@media (max-width: 768px) {
+  .chat-sidebar {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--grey-300, #d1d5db);
+    max-height: 50vh;
+  }
+
+  [data-theme="dark"] .chat-sidebar {
+    border-top-color: var(--grey-700, #374151);
+  }
+}

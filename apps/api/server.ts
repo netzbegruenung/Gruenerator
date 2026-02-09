@@ -5,32 +5,32 @@
 
 // Load environment variables FIRST before any other imports
 import 'dotenv/config';
-import { initSentry, Sentry } from './lib/sentry.js';
-initSentry();
-
-import express, { type Express, type Request, type Response, type NextFunction } from 'express';
-
+import { spawn } from 'child_process';
 import cluster from 'cluster';
-import os from 'os';
-
-import compression from 'compression';
-import cors from 'cors';
-import morgan from 'morgan';
-
 import fs from 'fs';
 import http from 'http';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import compression from 'compression';
+import { RedisStore } from 'connect-redis';
+import cors from 'cors';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+
+import { initSentry, Sentry } from './lib/sentry.js';
+initSentry();
+
+import morgan from 'morgan';
 import helmet from 'helmet';
 import multer from 'multer';
 import session from 'express-session';
-import { RedisStore } from 'connect-redis';
 
 // Local imports
 import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
+import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer } from './services/subtitler/tusService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
@@ -44,8 +44,6 @@ import {
 } from './utils/shutdown/index.js';
 import passport from './config/passportSetup.js';
 import AIWorkerPool from './workers/aiWorkerPool.js';
-
-import { spawn } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -129,8 +127,9 @@ if (cluster.isPrimary) {
     });
   }
 
-  // Start export cleanup scheduler (runs in master process only)
+  // Start cleanup schedulers (runs in master process only)
   startExportCleanup();
+  startUploadsCleanup();
 
   const { shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,

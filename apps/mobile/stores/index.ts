@@ -7,4 +7,3 @@ export {
   type AIMode,
   type AttachedFile,
 } from './generatorSelectionStore';
-export { useDocsStore, type Document } from './docsStore';

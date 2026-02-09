@@ -1,27 +1,15 @@
+import { LoginProviders, type LoginProvider } from '@gruenerator/shared/auth';
 import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useInstantAuth } from '../../../hooks/useAuth';
-import {
-  getIntendedRedirect,
-  getCurrentPath,
-  isMobileAppContext,
-  clearRedirectState,
-} from '../../../utils/authRedirect';
+import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
 
 // Login Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/auth/login-page.css';
 
-// Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
+// Auth Backend URL from environment variable or fallback to relative path
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-
-// Login Provider Configuration - Set enabled: false to hide a provider
-const LOGIN_PROVIDERS = {
-  gruenesNetz: { enabled: true },
-  grueneOesterreich: { enabled: true },
-  netzbegruenung: { enabled: true },
-  gruenerator: { enabled: false },
-};
 
 // Page name mapping for context display
 const PAGE_NAMES: Record<string, string> = {
@@ -43,7 +31,6 @@ const PAGE_NAMES: Record<string, string> = {
   imagine: 'Grünerator Imagine',
 };
 
-// Helper function to extract page name from pathname for context
 const getPageName = (pathname: string): string => {
   const pathSegments = pathname.split('/').filter(Boolean);
   if (pathSegments.length === 0) return 'Diese Seite';
@@ -70,27 +57,20 @@ const LoginPage = ({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
-  // Get the intended redirect URL using the unified helper
-  // When mode is 'required', use current pathname since we're blocking access to this page
   const intendedRedirect =
     mode === 'required' ? location.pathname : getIntendedRedirect(location, '/profile');
 
-  // Check if this is a mobile app context
   const isMobileApp = isMobileAppContext(location);
 
-  // Get success message from navigation state (e.g., from registration)
   const successMessage = location.state?.message;
 
-  // Auto-detect page name if not provided and in required mode
   const displayPageName =
     pageName || (mode === 'required' ? getPageName(location.pathname) : undefined);
 
-  // Handle modal close
   const handleClose = useCallback(() => {
     if (onClose) {
       onClose();
     } else {
-      // Default behavior: navigate back or to home
       if (window.history.length > 1) {
         navigate(-1);
       } else {
@@ -99,7 +79,6 @@ const LoginPage = ({
     }
   }, [onClose, navigate]);
 
-  // Handle ESC key to close modal
   useEffect(() => {
     if (mode === 'required') {
       const handleEsc = (event: KeyboardEvent) => {
@@ -114,64 +93,9 @@ const LoginPage = ({
     }
   }, [mode, handleClose]);
 
-  const handleGruenesNetzLogin = async () => {
+  const handleBeforeLogin = (_provider: LoginProvider) => {
     setIsAuthenticating(true);
-    try {
-      setLoginIntent();
-
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenes-netz-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
-      console.log(`[LoginPage] Grünes Netz Login - Redirecting to: ${authUrl}`);
-      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
-      window.location.href = authUrl;
-    } catch (err) {
-      console.error('Fehler beim Initiieren des Grünes Netz Logins:', err);
-      setIsAuthenticating(false);
-    }
-  };
-
-  const handleNetzbegrueungLogin = async () => {
-    setIsAuthenticating(true);
-    try {
-      setLoginIntent();
-
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=netzbegruenung-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
-      console.log(`[LoginPage] Netzbegrünung Login - Redirecting to: ${authUrl}`);
-      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
-      window.location.href = authUrl;
-    } catch (err) {
-      console.error('Fehler beim Initiieren des Netzbegrünung Logins:', err);
-      setIsAuthenticating(false);
-    }
-  };
-
-  const handleGrueneratorLogin = async () => {
-    setIsAuthenticating(true);
-    try {
-      setLoginIntent();
-
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenerator-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
-      console.log(`[LoginPage] Grünerator Login - Redirecting to: ${authUrl}`);
-      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
-      window.location.href = authUrl;
-    } catch (err) {
-      console.error('Fehler beim Initiieren des Grünerator Logins:', err);
-      setIsAuthenticating(false);
-    }
-  };
-
-  const handleGrueneOesterreichLogin = async () => {
-    setIsAuthenticating(true);
-    try {
-      setLoginIntent();
-
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
-      console.log(`[LoginPage] Grüne Österreich Login - Redirecting to: ${authUrl}`);
-      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
-      window.location.href = authUrl;
-    } catch (err) {
-      console.error('Fehler beim Initiieren des Grüne Österreich Logins:', err);
-      setIsAuthenticating(false);
-    }
+    setLoginIntent();
   };
 
   const getHeaderContent = () => {
@@ -198,99 +122,23 @@ const LoginPage = ({
     );
   };
 
-  // Helper function to render login buttons
-  const getLoginButtons = () => (
-    <div className="login-options">
-      {LOGIN_PROVIDERS.gruenesNetz.enabled && (
-        <button
-          className="login-option gruenes-netz"
-          onClick={handleGruenesNetzLogin}
-          disabled={isAuthenticating}
-        >
-          <div className="login-content">
-            <img
-              src="/images/Sonnenblume_RGB_gelb.png"
-              alt="Grünes Netz"
-              className="login-logo"
-              width="50"
-              height="50"
-              loading="eager"
-            />
-            <div className="login-text-content">
-              <h3 className="login-title">Grünes Netz Login</h3>
-              <p className="login-description">Mit deinem Grünes Netz Account anmelden</p>
-            </div>
-          </div>
-        </button>
-      )}
+  const loginProviders = (
+    <>
+      <LoginProviders
+        redirectTo={intendedRedirect}
+        apiBaseUrl={AUTH_BASE_URL}
+        disabled={isAuthenticating}
+        onBeforeLogin={handleBeforeLogin}
+      />
 
-      {LOGIN_PROVIDERS.grueneOesterreich.enabled && (
-        <button
-          className="login-option gruene-oesterreich"
-          onClick={handleGrueneOesterreichLogin}
-          disabled={isAuthenticating}
-        >
-          <div className="login-content">
-            <img
-              src="/images/Grüne_at_Logo.svg.png"
-              alt="Die Grünen – Die Grüne Alternative"
-              className="login-logo"
-              width="50"
-              height="50"
-              loading="eager"
-            />
-            <div className="login-text-content">
-              <h3 className="login-title">Die Grünen – Die Grüne Alternative</h3>
-              <p className="login-description">Mit deinem Groupware Account (Zimbra) anmelden</p>
-            </div>
-          </div>
-        </button>
+      {isAuthenticating && (
+        <div className="auth-status-message">
+          <p>{isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}</p>
+        </div>
       )}
-
-      {LOGIN_PROVIDERS.netzbegruenung.enabled && (
-        <button
-          className="login-option netzbegruenung"
-          onClick={handleNetzbegrueungLogin}
-          disabled={isAuthenticating}
-        >
-          <div className="login-content">
-            <img
-              src="/images/nb_icon.png"
-              alt="Netzbegrünung"
-              className="login-logo"
-              width="50"
-              height="50"
-              loading="eager"
-            />
-            <div className="login-text-content">
-              <h3 className="login-title">Netzbegrünung Login</h3>
-              <p className="login-description">Mit deinem Netzbegrünung Account anmelden</p>
-            </div>
-          </div>
-        </button>
-      )}
-
-      {LOGIN_PROVIDERS.gruenerator.enabled && (
-        <button
-          className="login-option gruenerator"
-          onClick={handleGrueneratorLogin}
-          disabled={isAuthenticating}
-        >
-          <div className="login-content">
-            <span className="login-icon">🌱</span>
-            <div className="login-text-content">
-              <h3 className="login-title">Grünerator Login</h3>
-              <p className="login-description">
-                Für Mitarbeitende von Abgeordneten und Geschäftsstellen
-              </p>
-            </div>
-          </div>
-        </button>
-      )}
-    </div>
+    </>
   );
 
-  // Render modal for required mode
   if (mode === 'required') {
     return (
       <div className="auth-modal-overlay">
@@ -303,10 +151,8 @@ const LoginPage = ({
             <div className="auth-content-left">
               {getHeaderContent()}
 
-              {/* Success Message */}
               {successMessage && <div className="auth-success-message">{successMessage}</div>}
 
-              {/* Legal Notice for Desktop */}
               <div className="auth-legal auth-legal--desktop">
                 <p>
                   Mit der Anmeldung stimmst du unseren{' '}
@@ -316,18 +162,9 @@ const LoginPage = ({
               </div>
             </div>
 
-            <div className="auth-content-right">
-              {getLoginButtons()}
-
-              {isAuthenticating && (
-                <div className="auth-status-message">
-                  <p>{isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}</p>
-                </div>
-              )}
-            </div>
+            <div className="auth-content-right">{loginProviders}</div>
           </div>
 
-          {/* Legal Notice for Mobile */}
           <div className="auth-legal auth-legal--mobile">
             <p>
               Mit der Anmeldung stimmst du unseren{' '}
@@ -339,17 +176,14 @@ const LoginPage = ({
     );
   }
 
-  // Standalone mode - normal page layout
   return (
     <div className="auth-container">
       <div className="auth-content-wrapper">
         <div className="auth-content-left">
           {getHeaderContent()}
 
-          {/* Success Message */}
           {successMessage && <div className="auth-success-message">{successMessage}</div>}
 
-          {/* Legal Notice for Desktop */}
           <div className="auth-legal auth-legal--desktop">
             <p>
               Mit der Anmeldung stimmst du unseren{' '}
@@ -358,18 +192,9 @@ const LoginPage = ({
           </div>
         </div>
 
-        <div className="auth-content-right">
-          {getLoginButtons()}
-
-          {isAuthenticating && (
-            <div className="auth-status-message">
-              <p>{isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}</p>
-            </div>
-          )}
-        </div>
+        <div className="auth-content-right">{loginProviders}</div>
       </div>
 
-      {/* Legal Notice for Mobile */}
       <div className="auth-legal auth-legal--mobile">
         <p>
           Mit der Anmeldung stimmst du unseren{' '}

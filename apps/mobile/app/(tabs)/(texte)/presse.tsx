@@ -1,11 +1,13 @@
+import { useGeneratedTextStore } from '@gruenerator/shared/stores';
 import { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, ScrollView, useColorScheme } from 'react-native';
-import { useGeneratedTextStore } from '@gruenerator/shared/stores';
-import type { SharepicResult } from '@gruenerator/shared/sharepic';
-import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
+
 import { ContentDisplay } from '../../../components/content';
 import { PresseSocialForm, type PresseSocialResult } from '../../../components/generators';
 import { SharepicResult as SharepicResultComponent } from '../../../components/sharepic';
+import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
+
+import type { SharepicResult } from '@gruenerator/shared/sharepic';
 
 const COMPONENT_NAME = 'presse-social-mobile';
 
@@ -52,7 +54,10 @@ export default function PresseScreen() {
 
   if (hasResult) {
     return (
-      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView
+        style={[styles.scrollContainer, { backgroundColor: theme.background }]}
+        contentContainerStyle={styles.scrollContent}
+      >
         {hasSharepicResult && (
           <SharepicResultComponent
             sharepics={sharepics!}
@@ -81,6 +86,8 @@ export default function PresseScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center' },
+  scrollContainer: { flex: 1 },
+  scrollContent: { justifyContent: 'center' as const },
   error: {
     backgroundColor: colors.semantic.error + '15',
     paddingVertical: spacing.xsmall,

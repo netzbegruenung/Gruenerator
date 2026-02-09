@@ -5,11 +5,14 @@
  * These provide the foundation for the factory pattern.
  */
 
-import type { AssetInstance } from '../../utils/canvasAssets';
-import type { ShapeInstance, ShapeType } from '../../utils/shapes';
-import type { IllustrationInstance } from '../../utils/illustrations/types';
-import type { AdditionalText, LayoutResult } from '../types';
 import type { StockImageAttribution } from '../../../services/imageSourceService';
+import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
+import type { AssetInstance } from '../../utils/canvasAssets';
+import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import type { IllustrationInstance } from '../../utils/illustrations/types';
+import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
+import type { ShapeInstance, ShapeType } from '../../utils/shapes';
+import type { AdditionalText, LayoutResult } from '../types';
 
 // ============================================================================
 // SHARED STATE TYPES
@@ -31,6 +34,9 @@ export interface BaseCanvasState {
   shapeInstances: ShapeInstance[];
   illustrationInstances: IllustrationInstance[];
   additionalTexts: AdditionalText[];
+  pillBadgeInstances: PillBadgeInstance[];
+  circleBadgeInstances: CircleBadgeInstance[];
+  balkenInstances: BalkenInstance[];
   [key: string]: unknown;
 }
 
@@ -106,6 +112,21 @@ export interface BaseCanvasActions {
   updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => void;
   removeAdditionalText: (id: string) => void;
 
+  // Pill badge management
+  addPillBadge: (preset?: string) => void;
+  updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => void;
+  removePillBadge: (id: string) => void;
+
+  // Circle badge management
+  addCircleBadge: (preset?: string) => void;
+  updateCircleBadge: (id: string, partial: Partial<CircleBadgeInstance>) => void;
+  removeCircleBadge: (id: string) => void;
+
+  // Balken management
+  addBalken: (mode: BalkenMode) => void;
+  updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
+  removeBalken: (id: string) => void;
+
   // Alternatives
   handleSelectAlternative: (alt: AlternativeItem) => void;
 }
@@ -141,6 +162,8 @@ export interface CanvasFeatures {
   shapes?: boolean;
   illustrations?: boolean;
   balken?: boolean;
+  pillBadge?: boolean;
+  circleBadge?: boolean;
 }
 
 /** Canvas dimension configuration */

@@ -22,10 +22,6 @@ export function isProviderAvailable(provider: ProviderName): boolean {
       return !!process.env.LITELLM_API_KEY;
     case 'mistral':
       return !!process.env.MISTRAL_API_KEY;
-    case 'claude':
-      return !!process.env.CLAUDE_API_KEY;
-    case 'telekom':
-      return !!process.env.TELEKOM_API_KEY;
     default:
       return false;
   }
@@ -42,8 +38,6 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
       return 'gpt-oss:120b';
     case 'mistral':
       return 'mistral-large-2512';
-    case 'telekom':
-      return 'Llama-3.1-70B-Instruct';
     default:
       return 'gpt-oss:120b';
   }
@@ -56,23 +50,19 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
   switch (provider) {
     case 'mistral':
       return 'magistral-medium-latest';
-    case 'claude':
-      return 'claude-sonnet-4-20250514';
     case 'ionos':
       return 'openai/gpt-oss-120b';
     case 'litellm':
       return 'gpt-oss:120b';
-    case 'telekom':
-      return 'Llama-3.1-70B-Instruct';
     default:
       return 'mistral-large-2512';
   }
 }
 
 /**
- * Sharepic-specific fallback chain: Mistral (Magistral) → Claude API → IONOS → LiteLLM
+ * Sharepic-specific fallback chain: Mistral (Magistral) → IONOS → LiteLLM
  */
-export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'claude', 'ionos', 'litellm'];
+export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'ionos', 'litellm'];
 
 /**
  * Try privacy-friendly providers in order, using a caller-supplied executor.
@@ -146,7 +136,7 @@ export async function tryPrivacyModeProviders(
 
 /**
  * Sharepic-specific fallback with higher quality models.
- * Uses Magistral → Claude API → IONOS → LiteLLM chain.
+ * Uses Magistral → IONOS → LiteLLM chain.
  */
 export async function trySharepicFallbackProviders(
   execForProvider: ProviderExecutor,

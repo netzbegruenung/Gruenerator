@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { lightTheme, darkTheme, colors } from '../../theme';
 
 export function ClassicTabLayout() {
@@ -73,14 +74,6 @@ export function ClassicTabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles" size={size} color={color} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="(docs)"
-        options={{
-          title: 'Docs',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="documents" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

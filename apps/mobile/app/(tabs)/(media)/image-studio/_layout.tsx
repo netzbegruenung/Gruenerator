@@ -5,6 +5,7 @@
 
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
+
 import { lightTheme, darkTheme } from '../../../../theme';
 
 export default function ImageStudioLayout() {
@@ -23,9 +24,7 @@ export default function ImageStudioLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="input" />
       <Stack.Screen name="image" />
-      <Stack.Screen name="text" />
       <Stack.Screen name="ki-input" />
       <Stack.Screen
         name="result"

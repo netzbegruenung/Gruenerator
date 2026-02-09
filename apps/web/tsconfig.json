@@ -18,7 +18,9 @@
       "@/*": ["src/*"],
       "~/*": ["./*"],
       "@gruenerator/shared": ["../../packages/shared/src"],
-      "@gruenerator/shared/*": ["../../packages/shared/src/*"]
+      "@gruenerator/shared/*": ["../../packages/shared/src/*"],
+      "@gruenerator/docs": ["../../packages/docs/src"],
+      "@gruenerator/docs/*": ["../../packages/docs/src/*"]
     }
   },
   "include": ["src/**/*", "vite.config.ts"],

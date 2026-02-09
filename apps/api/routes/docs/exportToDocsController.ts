@@ -1,7 +1,8 @@
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { AuthenticatedRequest } from '../../middleware/types.js';
+import { type AuthenticatedRequest } from '../../middleware/types.js';
 import {
   validateAndSanitizeHtml,
   extractTitleFromHtml,
@@ -58,7 +59,7 @@ router.post('/from-export', requireAuth, async (req: AuthenticatedRequest, res: 
     const result = await db.query(
       `INSERT INTO collaborative_documents
         (title, content, created_by, last_edited_by, document_subtype, is_public, permissions)
-       VALUES ($1, $2, $3, $3, 'docs', false, $4)
+       VALUES ($1, $2, $3, $3, 'blank', false, $4)
        RETURNING *`,
       [
         finalTitle,
