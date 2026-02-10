@@ -77,7 +77,6 @@ const BETA_VIEWS = {
   GROUPS: 'groups',
   WEBSITE: 'website',
   VORLAGEN: 'vorlagen',
-  VIDEO_EDITOR: 'videoEditor',
   SCANNER: 'scanner',
 };
 
@@ -186,18 +185,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkTo: '/profile/inhalte/vorlagen',
           linkText: 'Zu Meine Vorlagen',
           icon: HiOutlineDatabase,
-        };
-      case BETA_VIEWS.VIDEO_EDITOR:
-        return {
-          title: 'Video Editor',
-          description: 'Videos schneiden, Overlays & Untertitel',
-          checked: getBetaFeatureState('videoEditor'),
-          setter: (value: boolean) => updateUserBetaFeatures('videoEditor', value),
-          featureName: 'Video Editor',
-          checkboxLabel: 'Volle Video-Bearbeitung im Reel-Studio aktivieren',
-          linkTo: '/reel',
-          linkText: 'Zum Reel-Studio',
-          icon: getIcon('navigation', 'reel') as IconType,
         };
       case BETA_VIEWS.SCANNER:
         return {

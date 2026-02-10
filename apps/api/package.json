@@ -55,8 +55,6 @@
     "@mistralai/mistralai": "^1.7.2",
     "@napi-rs/canvas": "^0.1.88",
     "@qdrant/js-client-rest": "^1.13.0",
-    "@remotion/bundler": "^4.0.391",
-    "@remotion/renderer": "^4.0.391",
     "@sentry/node": "^9.27.0",
     "@tus/file-store": "^1.5.1",
     "@tus/server": "^1.10.2",
@@ -107,7 +105,6 @@
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@remotion/cli": "^4.0.410",
     "@types/body-parser": "^1.19.6",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
@@ -123,7 +120,6 @@
     "@types/turndown": "^5.0.6",
     "cross-env": "^7.0.3",
     "eslint": "^9.23.0",
-    "remotion": "^4.0.390",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"

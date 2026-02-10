@@ -1,18 +1,15 @@
-import React, { useMemo } from 'react';
-import { MdSubtitles, MdVideoSettings, MdAutoAwesome } from 'react-icons/md';
-
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import React from 'react';
+import { MdSubtitles, MdAutoAwesome } from 'react-icons/md';
 
 import type { IconType } from 'react-icons';
 import '../styles/ModeSelector.css';
 
 interface Mode {
-  id: 'auto' | 'subtitle' | 'full-edit';
+  id: 'auto' | 'subtitle';
   title: string;
   description: string;
   Icon: IconType;
   enabled: boolean;
-  badge?: string;
 }
 
 interface ModeSelectorProps {
@@ -20,7 +17,7 @@ interface ModeSelectorProps {
   videoFile: File;
 }
 
-const allModes: Mode[] = [
+const modes: Mode[] = [
   {
     id: 'auto',
     title: 'Automatisch',
@@ -35,26 +32,9 @@ const allModes: Mode[] = [
     Icon: MdSubtitles,
     enabled: true,
   },
-  {
-    id: 'full-edit',
-    title: 'Volle Bearbeitung inkl. Untertitel',
-    description: 'Video schneiden, Text-Overlays und Untertitel',
-    Icon: MdVideoSettings,
-    enabled: true,
-    badge: 'Beta',
-  },
 ];
 
 const ModeSelector: React.FC<ModeSelectorProps> = ({ onSelect, videoFile }) => {
-  const { canAccessBetaFeature } = useBetaFeatures();
-
-  const modes = useMemo(() => {
-    if (canAccessBetaFeature('videoEditor')) {
-      return allModes;
-    }
-    return allModes.filter((mode) => mode.id !== 'full-edit');
-  }, [canAccessBetaFeature]);
-
   const handleCardClick = (mode: Mode) => {
     if (mode.enabled) {
       onSelect(mode.id);
@@ -72,7 +52,6 @@ const ModeSelector: React.FC<ModeSelectorProps> = ({ onSelect, videoFile }) => {
             disabled={!mode.enabled}
             type="button"
           >
-            {mode.badge && <span className="mode-card-badge">{mode.badge}</span>}
             <div className="mode-card-icon">
               <mode.Icon />
             </div>
