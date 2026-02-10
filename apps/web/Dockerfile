@@ -12,18 +12,23 @@ RUN corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
 # Copy workspace configuration first (for better caching)
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
-# Copy all workspace packages that web depends on
-COPY packages/ ./packages/
-COPY apps/web/ ./apps/web/
+# Copy only package.json files needed by pnpm filter (better layer caching)
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/docs/package.json ./packages/docs/
+COPY apps/web/package.json ./apps/web/
 
-# Copy root files needed by web build (CHANGELOG.md for Changelog component)
+# Install only web + transitive workspace deps (not all ~6 workspaces)
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @gruenerator/web...
+
+# Copy source (changes here don't bust the install cache)
+COPY packages/shared ./packages/shared
+COPY packages/docs ./packages/docs
+COPY apps/web ./apps/web
 COPY CHANGELOG.md ./
-
-# Install ALL dependencies (pnpm hoists to root node_modules)
-RUN pnpm install --frozen-lockfile
 
 # Build environment variables (can be overridden at build time)
 ARG VITE_API_BASE_URL=/api
