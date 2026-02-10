@@ -49,10 +49,6 @@ interface AxiosErrorLike {
   message: string;
 }
 
-interface RemotionExportParams {
-  [key: string]: unknown;
-}
-
 // Store state interface
 interface SubtitlerExportStoreState {
   // Export state
@@ -77,7 +73,6 @@ interface SubtitlerExportStoreState {
 
   // Actions
   startExport: (subtitles: Subtitle[], preferences?: ExportPreferences) => Promise<void>;
-  startRemotionExport: (params?: RemotionExportParams) => Promise<void>;
   startPolling: () => void;
   stopPolling: () => void;
   subscribe: () => () => void;
@@ -198,61 +193,6 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
         axiosError.response?.data?.error ||
         (error instanceof Error ? error.message : 'Failed to start export');
       console.error('[SubtitlerExportStore] Export start failed:', error);
-      set({
-        status: EXPORT_STATUS.ERROR,
-        error: errorMessage,
-      });
-    }
-  },
-
-  // Start Remotion export process (VideoEditor pixel-perfect rendering)
-  startRemotionExport: async (params: RemotionExportParams = {}) => {
-    console.log('[SubtitlerExportStore] Starting Remotion export with params:', params);
-
-    const state = get();
-
-    if (state.status === EXPORT_STATUS.STARTING || state.status === EXPORT_STATUS.EXPORTING) {
-      console.warn('[SubtitlerExportStore] Export already in progress, ignoring duplicate request');
-      return;
-    }
-
-    const exportParams = {
-      ...params,
-    };
-
-    set({
-      status: EXPORT_STATUS.STARTING,
-      progress: 0,
-      error: null,
-      exportParams,
-      retryCount: 0,
-      pollingStartTime: Date.now(),
-      exportToken: null,
-    });
-
-    try {
-      const response = await apiClient.post('/subtitler/export-remotion', exportParams);
-      const jsonData = response.data;
-      const exportToken = jsonData.exportToken;
-
-      console.log('[SubtitlerExportStore] Remotion export started:', jsonData);
-
-      if (!exportToken) {
-        throw new Error('No export token in Remotion response');
-      }
-
-      set({
-        status: EXPORT_STATUS.EXPORTING,
-        exportToken,
-      });
-
-      get().startPolling();
-    } catch (error: unknown) {
-      const axiosError = error as AxiosErrorLike;
-      const errorMessage =
-        axiosError.response?.data?.error ||
-        (error instanceof Error ? error.message : 'Failed to start Remotion export');
-      console.error('[SubtitlerExportStore] Remotion export start failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,
         error: errorMessage,
