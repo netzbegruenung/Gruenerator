@@ -29,7 +29,7 @@
   "license": "MIT",
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.25.2",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@qdrant/js-client-rest": "^1.13.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
