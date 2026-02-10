@@ -250,7 +250,9 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
         onModeChange={() => {}}
         title={config.title}
         messages={displayMessages}
-        onSubmit={handleSubmitQuestion}
+        onSubmit={(value) => {
+          if (typeof value === 'string') handleSubmitQuestion(value);
+        }}
         isProcessing={submitLoading}
         placeholder={config.placeholder}
         inputValue={inputValue}

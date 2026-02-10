@@ -1,29 +1,24 @@
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import compression from 'compression';
-import helmet from 'helmet';
 import { createServer } from 'http';
+import path from 'path';
+
+import compression from 'compression';
 import dotenv from 'dotenv';
-import { startHocuspocusServer } from '../api/services/hocuspocus/hocuspocusServer.js';
+import express from 'express';
+import helmet from 'helmet';
 
-// Load environment variables
-dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env.local') });
+// Load environment variables (process.cwd() = WORKDIR in Docker = apps/docs/)
+dotenv.config({ path: path.join(process.cwd(), '.env.local') });
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const DIST_PATH = path.join(__dirname, 'dist');
+const DIST_PATH = path.join(process.cwd(), 'dist');
 
 /**
  * Production Server for Grünerator Docs
  *
- * This server serves:
- * 1. Static frontend build (Vite SPA)
- * 2. Hocuspocus WebSocket server for collaborative editing
+ * Serves the static frontend build (Vite SPA).
+ * Hocuspocus WebSocket server runs as a separate service.
  */
 
 // Security headers with CSP for WebSocket support
@@ -52,7 +47,7 @@ app.use(compression());
 // Parse JSON bodies
 app.use(express.json());
 
-// Health check endpoint (important for Coolify)
+// Health check endpoint
 app.get('/health', (_req, res) => {
   res.status(200).json({
     status: 'healthy',
@@ -78,39 +73,20 @@ app.use((_req, res) => {
 // Create HTTP server
 const httpServer = createServer(app);
 
-// Start servers
-async function startServers() {
-  try {
-    console.log('Starting Grünerator Docs server...');
+// Start server
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`Grünerator Docs server listening on http://0.0.0.0:${PORT}`);
+  console.log(`Serving static files from: ${DIST_PATH}`);
+});
 
-    // Start Hocuspocus WebSocket server
-    console.log('Starting Hocuspocus WebSocket server...');
-    await startHocuspocusServer();
+// Graceful shutdown
+const shutdown = () => {
+  console.log('\nShutting down gracefully...');
+  httpServer.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+};
 
-    // Start HTTP server for static files
-    httpServer.listen(PORT, '0.0.0.0', () => {
-      console.log(`✓ HTTP server listening on http://0.0.0.0:${PORT}`);
-      console.log(`✓ Serving static files from: ${DIST_PATH}`);
-      console.log(`✓ Hocuspocus WebSocket server running`);
-      console.log('Server is ready!');
-    });
-
-    // Graceful shutdown
-    const shutdown = async () => {
-      console.log('\nShutting down gracefully...');
-      httpServer.close(() => {
-        console.log('HTTP server closed');
-        process.exit(0);
-      });
-    };
-
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-  } catch (error) {
-    console.error('Failed to start servers:', error);
-    process.exit(1);
-  }
-}
-
-// Start the servers
-startServers();
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

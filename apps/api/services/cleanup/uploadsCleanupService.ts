@@ -5,7 +5,7 @@
  * Runs alongside the existing exportCleanupService (which handles exports/).
  *
  * Cleanup strategies:
- * - Age-based: flux/, imagine/, temp/, transcriptions/, remotion-bundle/ (no DB tracking)
+ * - Age-based: flux/, imagine/, temp/, transcriptions/ (no DB tracking)
  * - Orphan-based: subtitler-projects/, shared-media/ (DB-tracked, only delete if not in DB)
  */
 
@@ -27,7 +27,6 @@ const AGE_BASED_DIRS = [
   { name: 'imagine', maxAgeDays: 7 },
   { name: 'temp', maxAgeDays: 1 },
   { name: 'transcriptions', maxAgeDays: 7 },
-  { name: 'remotion-bundle', maxAgeDays: 30 },
   { name: 'pending', maxAgeDays: 7 },
 ] as const;
 

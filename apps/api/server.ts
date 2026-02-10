@@ -98,11 +98,13 @@ if (cluster.isPrimary) {
 
   if (process.env.HOCUSPOCUS_ENABLED === 'true') {
     log.info('Starting Hocuspocus WebSocket server...');
-    hocuspocusProcess = spawn('npx', ['tsx', 'services/hocuspocus/hocuspocusServer.ts'], {
-      cwd: __dirname,
+    const hocuspocusCmd = 'npx';
+    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
+
+    hocuspocusProcess = spawn(hocuspocusCmd, hocuspocusArgs, {
       stdio: 'inherit',
       env: process.env,
-      detached: false, // Ensure child process is attached to parent
+      detached: false,
     });
 
     hocuspocusProcess.on('error', (error: Error) => {
@@ -115,8 +117,7 @@ if (cluster.isPrimary) {
         log.error('Hocuspocus server crashed, restarting in 2s...');
         setTimeout(() => {
           if (!isShuttingDown && process.env.HOCUSPOCUS_ENABLED === 'true') {
-            hocuspocusProcess = spawn('npx', ['tsx', 'services/hocuspocus/hocuspocusServer.ts'], {
-              cwd: __dirname,
+            hocuspocusProcess = spawn(hocuspocusCmd, hocuspocusArgs, {
               stdio: 'inherit',
               env: process.env,
               detached: false,

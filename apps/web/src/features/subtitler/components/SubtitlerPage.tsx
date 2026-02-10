@@ -17,12 +17,10 @@ import ModeSelector from './ModeSelector';
 import ProcessingIndicator from './ProcessingIndicator';
 import ProjectSelector from './ProjectSelector';
 import SubtitleEditor from './SubtitleEditor';
-import { VideoEditor } from './videoEditor';
 import VideoSuccessScreen from './VideoSuccessScreen';
 
 import type { AutoProcessingResult } from './AutoProcessingScreen';
 import type { SubtitlePreference, StylePreference, HeightPreference } from '../types';
-
 
 import '../styles/subtitler.css';
 import '../styles/SubtitleEditor.css';
@@ -92,7 +90,7 @@ interface LoadedProject {
   created_at: string;
 }
 
-type EditMode = 'subtitle' | 'full-edit' | 'auto' | null;
+type EditMode = 'subtitle' | 'auto' | null;
 
 const SubtitlerPage = (): React.ReactElement => {
   const [step, setStep] = useState<string>('select');
@@ -157,7 +155,7 @@ const SubtitlerPage = (): React.ReactElement => {
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state?.step) {
-        const validSteps = ['select', 'mode-select', 'cut', 'edit', 'auto-processing', 'success'];
+        const validSteps = ['select', 'mode-select', 'edit', 'auto-processing', 'success'];
         if (validSteps.includes(event.state.step)) {
           setStep(event.state.step);
         }
@@ -558,12 +556,8 @@ const SubtitlerPage = (): React.ReactElement => {
       setSelectedEditMode(mode);
 
       if (mode === 'subtitle') {
-        // Skip VideoEditor - directly trigger processing and go to SubtitleEditor
-        handleProcessVideo(null); // null segments = use full video
+        handleProcessVideo(null);
         setStep('edit');
-      } else if (mode === 'full-edit') {
-        // Go to VideoEditor for full editing
-        setStep('cut');
       } else if (mode === 'auto') {
         // Go to automatic processing screen
         handleStartAutoProcessing();
@@ -686,25 +680,6 @@ const SubtitlerPage = (): React.ReactElement => {
                   onComplete={handleAutoProcessingComplete}
                   onError={handleAutoProcessingError}
                 />
-              )}
-
-              {step === 'cut' && (!isProcessing || isPreviewMode) && (
-                <VideoEditor
-                  videoUrl={originalVideoFile ? URL.createObjectURL(originalVideoFile) : null}
-                  videoFile={originalVideoFile}
-                  videoMetadata={uploadInfo?.metadata}
-                  uploadId={uploadInfo?.uploadId}
-                  onGenerateSubtitles={handleGenerateSubtitlesPreview}
-                  subtitles={subtitles ?? undefined}
-                  isGeneratingSubtitles={isProcessing && isPreviewMode}
-                  stylePreference={stylePreference}
-                  heightPreference={heightPreference}
-                  onSubtitleUpdate={handleSubtitleUpdate}
-                />
-              )}
-
-              {step === 'cut' && isProcessing && !isPreviewMode && (
-                <ProcessingIndicator onCancel={handleCancel} error={error} />
               )}
 
               {step === 'edit' && isProcessing && selectedEditMode === 'subtitle' && (

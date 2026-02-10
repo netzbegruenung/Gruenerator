@@ -13,16 +13,21 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
+const AUTH_DISABLED = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
+
 export function ProtectedRoute({ children, redirectTo = '/' }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, login } = useAuth();
   const hasRedirected = useRef(false);
 
   useEffect(() => {
+    if (AUTH_DISABLED) return;
     if (!isLoading && !isAuthenticated && !hasRedirected.current) {
       hasRedirected.current = true;
       login(redirectTo);
     }
   }, [isLoading, isAuthenticated, login, redirectTo]);
+
+  if (AUTH_DISABLED) return <>{children}</>;
 
   if (isLoading) {
     return (

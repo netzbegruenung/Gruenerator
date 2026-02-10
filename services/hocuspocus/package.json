@@ -1,0 +1,48 @@
+{
+  "name": "@gruenerator/hocuspocus",
+  "version": "1.0.0",
+  "description": "Gruenerator Hocuspocus - Real-time collaborative editing WebSocket server",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "author": "Moritz Wächter",
+  "license": "MIT",
+  "dependencies": {
+    "@hocuspocus/extension-logger": "^3.4.3",
+    "@hocuspocus/server": "^3.4.3",
+    "cookie": "^1.0.2",
+    "dotenv": "^17.0.0",
+    "express": "^5",
+    "jose": "^6.0.11",
+    "pg": "^8.16.3",
+    "redis": "^4.7.0",
+    "winston": "^3.17.0",
+    "yjs": "^13.6.20"
+  },
+  "devDependencies": {
+    "@gruenerator/eslint-config": "workspace:*",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.16.0",
+    "eslint": "^9.23.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -24,7 +24,6 @@ import {
   processSubtitleSegments,
 } from '../../services/subtitler/downloadUtils.js';
 import { autoSaveProject } from '../../services/subtitler/projectSavingService.js';
-import { processRemotionExport } from '../../services/subtitler/remotionExportService.js';
 import { correctSubtitlesViaAI } from '../../services/subtitler/subtitleCorrectionService.js';
 import { calculateFontSizing } from '../../services/subtitler/subtitleSizingService.js';
 import { transcribeVideo } from '../../services/subtitler/transcriptionService.js';
@@ -275,7 +274,7 @@ router.get(
   }
 );
 
-// GET /internal-video/:uploadId - Internal video streaming for Remotion
+// GET /internal-video/:uploadId - Internal video streaming
 router.get(
   '/internal-video/:uploadId',
   async (req: SubtitlerRequest, res: Response): Promise<void> => {
@@ -548,44 +547,6 @@ router.post('/export-segments', async (req: SubtitlerRequest, res: Response): Pr
           })
         : await svc.exportWithSegments(videoPath, segments, { projectId: projectId || uploadId });
     res.status(202).json({ exportToken: result.exportToken, segmentCount: result.segmentCount });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /export-remotion
-router.post('/export-remotion', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const {
-    uploadId,
-    projectId,
-    userId,
-    clips,
-    segments,
-    subtitles,
-    stylePreference = 'shadow',
-    heightPreference = 'tief',
-    textOverlays = [],
-    maxResolution = null,
-  } = req.body;
-  if (!uploadId && !projectId && (!clips || !Object.keys(clips).length)) {
-    res.status(400).json({ error: 'Upload-ID, Projekt-ID oder Clips benötigt' });
-    return;
-  }
-
-  try {
-    const result = await processRemotionExport({
-      uploadId,
-      projectId,
-      userId,
-      clips,
-      segments,
-      subtitles,
-      stylePreference,
-      heightPreference,
-      textOverlays,
-      maxResolution,
-    });
-    res.status(202).json({ status: 'exporting', exportToken: result.exportToken });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

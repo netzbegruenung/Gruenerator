@@ -66,14 +66,11 @@ services:
   docs:
     image: ghcr.io/netzbegruenung/gruenerator-docs:${TAG:-latest}
     restart: unless-stopped
-    env_file: .env
     environment:
       - PORT=3000
       - NODE_ENV=production
     networks:
       - gruenerator
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
     labels:
       - 'com.gruenerator.service=docs'
     healthcheck:
@@ -82,6 +79,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  hocuspocus:
+    image: ghcr.io/netzbegruenung/gruenerator-hocuspocus:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - HOCUSPOCUS_PORT=1240
+      - HEALTH_PORT=1241
+      - NODE_ENV=production
+    networks:
+      - gruenerator
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    labels:
+      - 'com.gruenerator.service=hocuspocus'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:1241/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   mcp:
     image: ghcr.io/netzbegruenung/gruenerator-mcp:${TAG:-latest}
