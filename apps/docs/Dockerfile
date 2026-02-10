@@ -33,12 +33,11 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/docs/package.json ./packages/docs/
 COPY apps/api/package.json ./apps/api/
-COPY apps/web/package.json ./apps/web/
 COPY apps/docs/package.json ./apps/docs/
 
-# Install ALL workspace dependencies (shared uses deps from other packages)
+# Install only docs + api and their transitive workspace deps (not all ~6 workspaces)
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --filter @gruenerator/apps-docs... --filter @gruenerator/api...
 
 # Copy source files (including web for CSS imports)
 COPY packages/shared ./packages/shared
