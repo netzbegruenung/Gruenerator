@@ -4,7 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./server-dist",
-    "rootDir": "..",
+    "rootDir": ".",
     "declaration": false,
     "sourceMap": true,
     "esModuleInterop": true,
@@ -15,12 +15,6 @@
     "verbatimModuleSyntax": false,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "server.ts",
-    "../api/services/hocuspocus/**/*.ts",
-    "../api/utils/logger.ts",
-    "../api/utils/redis/**/*.ts",
-    "../api/database/services/PostgresService/**/*.ts"
-  ],
+  "include": ["server.ts"],
   "exclude": ["node_modules", "dist", "src"]
 }
