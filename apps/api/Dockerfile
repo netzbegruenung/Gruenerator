@@ -22,6 +22,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
+COPY services/hocuspocus/package.json ./services/hocuspocus/
 COPY apps/api/package.json ./apps/api/
 
 # Install dependencies
@@ -30,11 +31,16 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
+COPY services/hocuspocus ./services/hocuspocus
 COPY apps/api ./apps/api
 
 # Compile shared package (API imports @gruenerator/shared/utils at runtime)
 WORKDIR /app/packages/shared
 RUN pnpm exec tsc --project tsconfig.json
+
+# Compile hocuspocus (API imports @gruenerator/hocuspocus at runtime)
+WORKDIR /app/services/hocuspocus
+RUN pnpm exec tsc --project tsconfig.build.json
 
 # Compile API
 WORKDIR /app/apps/api
@@ -81,6 +87,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json files for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json ./apps/api/
 
 # Install production dependencies only (no tsx, typescript, @types/*, etc.)
@@ -88,12 +95,16 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile --filter @gruenerator/api...
 
 # Fix ownership of pnpm-installed node_modules
-RUN chown -R gruenerator:gruenerator node_modules packages/shared/node_modules apps/api/node_modules 2>/dev/null; true
+RUN chown -R gruenerator:gruenerator node_modules packages/shared/node_modules apps/api/node_modules services/hocuspocus/node_modules 2>/dev/null; true
 
 # Copy compiled shared package (resolves @gruenerator/shared/* imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
 # Redirect shared package exports from ./src/*.ts to ./dist/*.js for Node.js
 RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
+
+# Copy compiled hocuspocus package (resolves @gruenerator/hocuspocus imports at runtime)
+COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' services/hocuspocus/package.json
 
 # Copy compiled API with bundled assets
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/dist ./apps/api/dist
