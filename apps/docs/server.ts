@@ -1,22 +1,20 @@
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import compression from 'compression';
-import helmet from 'helmet';
 import { createServer } from 'http';
+import path from 'path';
+
+import compression from 'compression';
 import dotenv from 'dotenv';
+import express from 'express';
+import helmet from 'helmet';
+
 import { startHocuspocusServer } from '../api/services/hocuspocus/hocuspocusServer.js';
 
-// Load environment variables
-dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env.local') });
+// Load environment variables (process.cwd() = WORKDIR in Docker = apps/docs/)
+dotenv.config({ path: path.join(process.cwd(), '.env.local') });
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const DIST_PATH = path.join(__dirname, 'dist');
+const DIST_PATH = path.join(process.cwd(), 'dist');
 
 /**
  * Production Server for Grünerator Docs

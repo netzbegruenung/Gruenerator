@@ -1,5 +1,5 @@
 # Gruenerator Docs Dockerfile
-# Multi-stage build with cache optimization
+# Multi-stage: builder compiles TS + Vite, production runs compiled JS with node
 
 # =============================================================================
 # Stage 1: Builder (Debian for native module compatibility)
@@ -26,7 +26,7 @@ RUN corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
 # Copy lockfile and workspace config first (better layer caching)
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy only package.json files first for dependency caching
@@ -50,6 +50,9 @@ COPY apps/docs ./apps/docs
 # Build the Vite app
 WORKDIR /app/apps/docs
 RUN pnpm build
+
+# Compile server TS → JS (server-dist/docs/server.js + server-dist/api/...)
+RUN pnpm exec tsc --project tsconfig.server.json
 
 # =============================================================================
 # Stage 2: Production runtime (lightweight - no build tools needed)
@@ -80,30 +83,27 @@ RUN groupadd -g 1001 gruenerator && \
 
 WORKDIR /app
 
-# Copy lockfile and workspace config
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# Copy workspace config and lockfile (--chown avoids slow chown -R later)
+COPY --chown=gruenerator:gruenerator pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 
 # Copy only package.json files for production install
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/docs/package.json ./packages/docs/
-COPY apps/docs/package.json ./apps/docs/
-COPY apps/api/package.json ./apps/api/
+COPY --chown=gruenerator:gruenerator packages/shared/package.json ./packages/shared/
+COPY --chown=gruenerator:gruenerator packages/docs/package.json ./packages/docs/
+COPY --chown=gruenerator:gruenerator apps/docs/package.json ./apps/docs/
+COPY --chown=gruenerator:gruenerator apps/api/package.json ./apps/api/
 
-# Install production dependencies (include api for hocuspocus service)
+# Install production dependencies (include api for hocuspocus service deps)
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile --ignore-scripts --filter @gruenerator/apps-docs --filter @gruenerator/api
 
-# Copy built assets and server
-COPY --from=builder /app/apps/docs/dist ./apps/docs/dist
-COPY --from=builder /app/apps/docs/server.ts ./apps/docs/
-COPY --from=builder /app/apps/docs/tsconfig.json ./apps/docs/
-COPY --from=builder /app/packages/shared ./packages/shared
-# Copy API's hocuspocus service and all its dependencies
-COPY --from=builder /app/apps/api/services ./apps/api/services
-COPY --from=builder /app/apps/api/utils ./apps/api/utils
-COPY --from=builder /app/apps/api/database ./apps/api/database
+# Fix ownership of pnpm-installed node_modules
+RUN chown -R gruenerator:gruenerator node_modules packages/shared/node_modules apps/api/node_modules apps/docs/node_modules 2>/dev/null; true
 
-RUN chown -R gruenerator:gruenerator /app
+# Copy Vite-built frontend
+COPY --from=builder --chown=gruenerator:gruenerator /app/apps/docs/dist ./apps/docs/dist
+
+# Copy compiled server (replaces raw TS from apps/api/services, utils, database + server.ts)
+COPY --from=builder --chown=gruenerator:gruenerator /app/apps/docs/server-dist ./apps/docs/server-dist
 
 WORKDIR /app/apps/docs
 
@@ -119,4 +119,4 @@ EXPOSE 3000 1240
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
-CMD ["pnpm", "start:prod"]
+CMD ["node", "server-dist/docs/server.js"]
