@@ -48,7 +48,8 @@ RUN pnpm exec tsc --project tsconfig.json
 
 # Copy non-TS assets into dist/ (tsc only emits .js/.js.map files)
 # These are referenced via __dirname-relative paths at runtime
-RUN cp -r prompts dist/prompts && \
+RUN rm -rf dist/prompts dist/static-data dist/config dist/database dist/public dist/assets && \
+    cp -r prompts dist/prompts && \
     cp -r static-data dist/static-data && \
     cp -r config dist/config && \
     cp -r database dist/database && \
