@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { PostgresPersistence } from '@gruenerator/hocuspocus';
+import { Router, type Request, type Response } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import { PostgresPersistence } from '../../services/hocuspocus/persistence.js';
 
 /**
  * Permission entry for a user on a document
@@ -44,7 +45,7 @@ interface VersionRow {
 
 const router = Router();
 const db = getPostgresInstance();
-const persistence = new PostgresPersistence();
+const persistence = new PostgresPersistence((sql, params) => db.query(sql, params));
 
 /**
  * @route   GET /api/docs/:id/versions

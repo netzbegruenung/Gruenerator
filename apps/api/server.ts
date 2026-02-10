@@ -98,14 +98,10 @@ if (cluster.isPrimary) {
 
   if (process.env.HOCUSPOCUS_ENABLED === 'true') {
     log.info('Starting Hocuspocus WebSocket server...');
-    const isDist = __dirname.includes('/dist');
-    const hocuspocusCmd = isDist ? 'node' : 'npx';
-    const hocuspocusArgs = isDist
-      ? [path.join(__dirname, 'services/hocuspocus/hocuspocusServer.js')]
-      : ['tsx', 'services/hocuspocus/hocuspocusServer.ts'];
+    const hocuspocusCmd = 'npx';
+    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
 
     hocuspocusProcess = spawn(hocuspocusCmd, hocuspocusArgs, {
-      cwd: isDist ? undefined : __dirname,
       stdio: 'inherit',
       env: process.env,
       detached: false,
@@ -122,7 +118,6 @@ if (cluster.isPrimary) {
         setTimeout(() => {
           if (!isShuttingDown && process.env.HOCUSPOCUS_ENABLED === 'true') {
             hocuspocusProcess = spawn(hocuspocusCmd, hocuspocusArgs, {
-              cwd: isDist ? undefined : __dirname,
               stdio: 'inherit',
               env: process.env,
               detached: false,

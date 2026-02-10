@@ -3,13 +3,13 @@ import { gzip, gunzip } from 'zlib';
 
 import * as Y from 'yjs';
 
-import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import { createLogger } from '../../utils/logger.js';
+import { createLogger } from './logger.js';
+
+import type { DbQueryFn } from './types.js';
 
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
 const log = createLogger('PostgresPersistence');
-const db = getPostgresInstance();
 
 /**
  * PostgreSQL Persistence Adapter for Y.js Documents
@@ -21,15 +21,15 @@ const db = getPostgresInstance();
 export class PostgresPersistence {
   private readonly UPDATE_BATCH_SIZE = 100;
   private readonly SNAPSHOT_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+  private readonly db: DbQueryFn;
 
-  /**
-   * Load document from database
-   * Returns the latest snapshot + any subsequent updates
-   */
+  constructor(db: DbQueryFn) {
+    this.db = db;
+  }
+
   async loadDocument(documentId: string): Promise<Uint8Array | null> {
     try {
-      // 1. Load latest snapshot
-      const snapshotResult = await db.query(
+      const snapshotResult = await this.db(
         `SELECT snapshot_data, version, created_at
          FROM yjs_document_snapshots
          WHERE document_id = $1
@@ -40,23 +40,19 @@ export class PostgresPersistence {
 
       const ydoc = new Y.Doc();
 
-      // If snapshot exists, apply it
       if (snapshotResult.length > 0) {
         const snapshot = snapshotResult[0];
         log.debug(`[Load] Found snapshot for ${documentId}, version ${snapshot.version}`);
 
         try {
-          // Decompress snapshot
           const decompressed = await gunzipAsync(snapshot.snapshot_data as Buffer);
           Y.applyUpdate(ydoc, decompressed);
           log.debug(`[Load] Applied snapshot (${decompressed.length} bytes)`);
         } catch (error) {
           log.error(`[Load] Failed to decompress/apply snapshot: ${error}`);
-          // Continue without snapshot - will load from updates
         }
 
-        // 2. Load updates since snapshot
-        const updatesResult = await db.query(
+        const updatesResult = await this.db(
           `SELECT update_data
            FROM yjs_document_updates
            WHERE document_id = $1
@@ -76,10 +72,9 @@ export class PostgresPersistence {
           }
         }
       } else {
-        // No snapshot - load all updates from beginning
         log.debug(`[Load] No snapshot found for ${documentId}, loading all updates`);
 
-        const updatesResult = await db.query(
+        const updatesResult = await this.db(
           `SELECT update_data
            FROM yjs_document_updates
            WHERE document_id = $1
@@ -99,7 +94,6 @@ export class PostgresPersistence {
         }
       }
 
-      // Return encoded document state
       const state = Y.encodeStateAsUpdate(ydoc);
       log.info(`[Load] Document ${documentId} loaded (${state.length} bytes)`);
       return state;
@@ -110,17 +104,11 @@ export class PostgresPersistence {
     }
   }
 
-  /**
-   * Store document update to database
-   * Creates both incremental update and periodic snapshots
-   */
   async storeDocument(documentId: string, state: Uint8Array): Promise<void> {
     try {
-      // Compress the update
       const compressed = await gzipAsync(state);
 
-      // Store as incremental update
-      await db.query(
+      await this.db(
         `INSERT INTO yjs_document_updates (document_id, update_data, created_at)
          VALUES ($1, $2, CURRENT_TIMESTAMP)`,
         [documentId, compressed]
@@ -128,10 +116,7 @@ export class PostgresPersistence {
 
       log.debug(`[Store] Stored update for ${documentId} (${compressed.length} bytes compressed)`);
 
-      // Check if we should create a snapshot
       await this.maybeCreateSnapshot(documentId, state);
-
-      // Clean up old updates
       await this.cleanupOldUpdates(documentId);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -140,13 +125,9 @@ export class PostgresPersistence {
     }
   }
 
-  /**
-   * Create a snapshot if enough time has passed since last snapshot
-   */
   private async maybeCreateSnapshot(documentId: string, state: Uint8Array): Promise<void> {
     try {
-      // Get latest snapshot timestamp
-      const result = await db.query(
+      const result = await this.db(
         `SELECT created_at, version
          FROM yjs_document_snapshots
          WHERE document_id = $1
@@ -161,11 +142,9 @@ export class PostgresPersistence {
 
       if (shouldCreateSnapshot) {
         const nextVersion = result.length > 0 ? (result[0].version as number) + 1 : 1;
-
-        // Compress snapshot
         const compressed = await gzipAsync(state);
 
-        await db.query(
+        await this.db(
           `INSERT INTO yjs_document_snapshots (document_id, snapshot_data, version, created_at, is_auto_save)
            VALUES ($1, $2, $3, CURRENT_TIMESTAMP, true)`,
           [documentId, compressed, nextVersion]
@@ -176,18 +155,12 @@ export class PostgresPersistence {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Snapshot] Error creating snapshot: ${err.message}`);
-      // Don't throw - snapshot creation is not critical
     }
   }
 
-  /**
-   * Clean up old updates after successful snapshot
-   * Keep only recent updates (since last snapshot)
-   */
   private async cleanupOldUpdates(documentId: string): Promise<void> {
     try {
-      // Get latest snapshot timestamp
-      const snapshotResult = await db.query(
+      const snapshotResult = await this.db(
         `SELECT created_at
          FROM yjs_document_snapshots
          WHERE document_id = $1
@@ -197,8 +170,7 @@ export class PostgresPersistence {
       );
 
       if (snapshotResult.length > 0) {
-        // Delete updates older than the snapshot (they're redundant)
-        const deleteResult = await db.query(
+        const deleteResult = await this.db(
           `DELETE FROM yjs_document_updates
            WHERE document_id = $1
              AND created_at < $2
@@ -213,15 +185,9 @@ export class PostgresPersistence {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Cleanup] Error cleaning up old updates: ${err.message}`);
-      // Don't throw - cleanup is not critical
     }
   }
 
-  /**
-   * Extract plain text from a Y.Doc and write to collaborative_documents.content
-   * for use as document preview in list views.
-   * Accepts the full Y.Doc (from Hocuspocus onStoreDocument callback).
-   */
   async updateContentPreview(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
       const fragment = ydoc.getXmlFragment('document-store');
@@ -233,23 +199,17 @@ export class PostgresPersistence {
         .slice(0, 500);
 
       if (text) {
-        await db.query('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
+        await this.db('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
           documentId,
           text,
         ]);
         log.debug(`[Preview] Updated preview for ${documentId} (${text.length} chars)`);
       }
     } catch (error) {
-      // Non-critical — never block real-time sync
       log.debug(`[Preview] Failed to update content preview for ${documentId}: ${error}`);
     }
   }
 
-  /**
-   * Load a Y.js document by ID and extract a plain-text preview.
-   * Used for lazy backfill when content column is NULL.
-   * Also caches the result in the DB for future requests.
-   */
   async extractContentPreview(documentId: string): Promise<string | null> {
     try {
       const state = await this.loadDocument(documentId);
@@ -267,7 +227,7 @@ export class PostgresPersistence {
         .slice(0, 500);
 
       if (text) {
-        await db.query('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
+        await this.db('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
           documentId,
           text,
         ]);
@@ -281,9 +241,6 @@ export class PostgresPersistence {
     }
   }
 
-  /**
-   * Create a manual snapshot (for version history)
-   */
   async createManualSnapshot(
     documentId: string,
     state: Uint8Array,
@@ -291,8 +248,7 @@ export class PostgresPersistence {
     label?: string
   ): Promise<number> {
     try {
-      // Get next version number
-      const result = await db.query(
+      const result = await this.db(
         `SELECT COALESCE(MAX(version), 0) + 1 as next_version
          FROM yjs_document_snapshots
          WHERE document_id = $1`,
@@ -300,12 +256,9 @@ export class PostgresPersistence {
       );
 
       const nextVersion = result[0].next_version;
-
-      // Compress snapshot
       const compressed = await gzipAsync(state);
 
-      // Insert snapshot
-      await db.query(
+      await this.db(
         `INSERT INTO yjs_document_snapshots
           (document_id, snapshot_data, version, created_at, is_auto_save, label, created_by)
          VALUES ($1, $2, $3, CURRENT_TIMESTAMP, false, $4, $5)`,
@@ -323,12 +276,9 @@ export class PostgresPersistence {
     }
   }
 
-  /**
-   * Get document state at specific version
-   */
   async getDocumentAtVersion(documentId: string, version: number): Promise<Uint8Array | null> {
     try {
-      const result = await db.query(
+      const result = await this.db(
         `SELECT snapshot_data
          FROM yjs_document_snapshots
          WHERE document_id = $1 AND version = $2`,
