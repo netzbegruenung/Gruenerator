@@ -12,7 +12,7 @@ RUN corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
 # Copy lockfile and workspace config first (better layer caching)
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
 
 # Copy only package.json files first for dependency caching
 COPY packages/shared/package.json ./packages/shared/
