@@ -81,4 +81,4 @@ EXPOSE 1240 1241
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:1241/health || exit 1
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/main.js"]
