@@ -138,7 +138,6 @@ Jenkinsfile
 # -----------------------------------------------------------------------------
 **/data/
 !apps/web/src/**/data/
-!apps/api/data/
 **/*.sql
 !apps/api/database/**/*.sql
 **/*.sqlite

@@ -43,7 +43,7 @@ RUN pnpm exec tsc --project tsconfig.json
 # Copy non-TS assets into dist/ (tsc only emits .js/.js.map files)
 # These are referenced via __dirname-relative paths at runtime
 RUN cp -r prompts dist/prompts && \
-    cp -r data dist/data && \
+    cp -r static-data dist/static-data && \
     cp -r config dist/config && \
     cp -r database dist/database && \
     cp -r public dist/public && \
@@ -100,6 +100,11 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/dist ./apps/ap
 
 # Set working directory to API
 WORKDIR /app/apps/api
+
+# Symlink assets at WORKDIR level for code using process.cwd()-relative paths
+RUN ln -s dist/static-data static-data && \
+    ln -s dist/config config && \
+    ln -s dist/public public
 
 # Create runtime directories owned by app user
 RUN mkdir -p uploads logs && chown gruenerator:gruenerator uploads logs
