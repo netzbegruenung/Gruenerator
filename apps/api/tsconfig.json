@@ -19,5 +19,15 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["**/*.ts", "**/*.mts", "**/*.js", "**/*.mjs", "types/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "uploads", "test", "tests", "scripts", "**/test-*.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "uploads",
+    "test",
+    "tests",
+    "scripts",
+    "**/test-*.ts",
+    "**/*.vitest.ts",
+    "services/comfyui"
+  ]
 }
