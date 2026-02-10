@@ -3,13 +3,16 @@
  * Handles public template gallery, examples, and vorlagen browsing
  */
 
-import express, { Router, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+import express, { type Router, type Response } from 'express';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
+
 import type { AuthRequest } from '../types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -24,7 +27,7 @@ const router: Router = express.Router();
 let systemTemplates: any[] = [];
 let systemFiles: any[] = [];
 const apiRoot = process.cwd();
-const systemFilesDir = path.resolve(apiRoot, 'data/files');
+const systemFilesDir = path.resolve(apiRoot, 'static-data/files');
 const templatePreviewsDir = path.resolve(apiRoot, 'config/templates/previews');
 
 try {
