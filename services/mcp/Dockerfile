@@ -1,37 +1,38 @@
 # Gruenerator MCP Server Dockerfile
-# Multi-stage build for the Model Context Protocol server
+# Multi-stage: builder compiles TS, production runs compiled JS with node
 
 # =============================================================================
-# Stage 1: Build/Type-check
+# Stage 1: Builder - Install deps and compile TypeScript
 # =============================================================================
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 WORKDIR /app
 
-# Copy workspace configuration
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+# Copy workspace config
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
-
-# Copy shared package (dependency)
-COPY packages/shared ./packages/shared
-
-# Copy MCP service
-COPY services/mcp ./services/mcp
+COPY packages/shared/package.json ./packages/shared/
+COPY services/mcp/package.json ./services/mcp/
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile --filter @gruenerator/mcp...
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @gruenerator/mcp...
 
-# Build shared package
+# Copy source and compile
+COPY packages/shared ./packages/shared
+COPY services/mcp ./services/mcp
+
+# Compile shared package (MCP imports @gruenerator/shared at runtime)
 RUN pnpm --filter @gruenerator/shared build
 
-# Type-check MCP server (build script runs tsc with noEmit)
-RUN pnpm --filter @gruenerator/mcp build
+# Compile MCP server
+WORKDIR /app/services/mcp
+RUN pnpm exec tsc --project tsconfig.build.json
 
 # =============================================================================
-# Stage 2: Production runtime
+# Stage 2: Production - Fresh install with production deps only
 # =============================================================================
 FROM node:20-slim AS production
 
@@ -54,23 +55,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 RUN groupadd -g 1001 gruenerator && \
     useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator
 
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
 WORKDIR /app
 
-# Copy workspace config and lock file
-COPY --from=builder /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-lock.yaml ./
+# Copy workspace config and lockfile (--chown avoids slow chown -R later)
+COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-workspace.yaml ./
+COPY --from=builder --chown=gruenerator:gruenerator /app/package.json ./
+COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
-# Copy shared package (built)
-COPY --from=builder /app/packages/shared ./packages/shared
+# Copy package.json files for workspace structure
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=gruenerator:gruenerator /app/services/mcp/package.json ./services/mcp/
 
-# Copy MCP service source (tsx runs TypeScript directly)
-COPY --from=builder /app/services/mcp ./services/mcp
+# Install production dependencies only (no tsx, typescript, @types/*, etc.)
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --prod --frozen-lockfile --filter @gruenerator/mcp...
 
-# Copy node_modules from builder
-COPY --from=builder /app/node_modules ./node_modules
+# Fix ownership of pnpm-installed node_modules
+RUN chown -R gruenerator:gruenerator node_modules packages/shared/node_modules services/mcp/node_modules 2>/dev/null; true
 
-# Set working directory to mcp service
+# Copy compiled shared package (resolves @gruenerator/shared imports at runtime)
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
+# Redirect shared package exports from ./src/*.ts to ./dist/*.js for Node.js
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
+
+# Copy compiled MCP server
+COPY --from=builder --chown=gruenerator:gruenerator /app/services/mcp/dist ./services/mcp/dist
+
+# Set working directory to MCP service
 WORKDIR /app/services/mcp
 
 # Environment
@@ -85,5 +99,4 @@ EXPOSE 3004
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3004/health || exit 1
 
-# Use tsx to run TypeScript directly (installed as devDependency)
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["node", "dist/index.js"]
