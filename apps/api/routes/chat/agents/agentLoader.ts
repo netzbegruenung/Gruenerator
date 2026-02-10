@@ -6,6 +6,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
 import type { AgentConfig } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,7 +21,7 @@ export async function loadAgents(): Promise<AgentConfig[]> {
     return agentsCache;
   }
 
-  const agentsDir = path.join(__dirname, '../../../data/chat-agents');
+  const agentsDir = path.join(__dirname, '../../../static-data/chat-agents');
   const files = await fs.readdir(agentsDir);
   const jsonFiles = files.filter((file) => file.endsWith('.json'));
 

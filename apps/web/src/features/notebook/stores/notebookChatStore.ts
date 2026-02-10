@@ -5,6 +5,36 @@ const QA_CHAT_CACHE_VERSION = '1.0';
 const QA_CHAT_VERSION_KEY = 'gruenerator_qa_chat_version';
 const QA_CHAT_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
+export interface Citation {
+  index: string;
+  cited_text?: string;
+  document_title?: string;
+  document_id?: string;
+  source_url?: string | null;
+  similarity_score?: number;
+  chunk_index?: number;
+  filename?: string | null;
+  page_number?: number | null;
+  collection_id?: string;
+  collection_name?: string;
+}
+
+export interface Source {
+  document_id: string;
+  document_title: string;
+  source_url: string | null;
+  chunk_text: string;
+  similarity_score: number;
+  citations: Citation[];
+}
+
+export interface LinkConfig {
+  type: 'external' | 'vectorDocument';
+  linkKey: string;
+  titleKey: string;
+  urlKey?: string;
+}
+
 export interface NotebookChatMessage {
   id: string;
   type: 'user' | 'assistant';
@@ -12,11 +42,13 @@ export interface NotebookChatMessage {
   timestamp: number;
   userName?: string;
   resultData?: {
+    resultId?: string;
     question?: string;
-    citations?: Array<{ text?: string; source?: string }>;
-    sources?: Array<{ title?: string; url?: string }>;
-    additionalSources?: Array<{ title?: string; url?: string }>;
-    linkConfig?: Record<string, unknown>;
+    citations?: Citation[];
+    sources?: Source[];
+    additionalSources?: Array<Record<string, unknown>>;
+    linkConfig?: LinkConfig;
+    sourcesByCollection?: Record<string, unknown>;
     [key: string]: unknown;
   };
 }

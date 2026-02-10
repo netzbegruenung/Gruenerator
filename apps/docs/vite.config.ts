@@ -34,9 +34,15 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-mantine': ['@mantine/core', '@mantine/hooks'],
-          'vendor-blocknote': ['@blocknote/core', '@blocknote/react', '@blocknote/mantine'],
+          'vendor-editor': [
+            '@blocknote/core',
+            '@blocknote/react',
+            '@blocknote/mantine',
+            'yjs',
+            'y-websocket',
+            '@hocuspocus/provider',
+          ],
           'vendor-blocknote-ai': ['@blocknote/xl-ai'],
-          'vendor-collab': ['yjs', 'y-websocket', '@hocuspocus/provider'],
           'vendor-state': ['@tanstack/react-query', 'zustand', 'axios'],
         },
       },

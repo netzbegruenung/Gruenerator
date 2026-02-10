@@ -43,14 +43,32 @@ services:
       - NODE_ENV=production
     networks:
       - gruenerator
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  hocuspocus:
+    image: gruenerator-hocuspocus:test
+    restart: unless-stopped
+    environment:
+      - HOCUSPOCUS_PORT=1240
+      - HEALTH_PORT=1241
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/gruenerator
+      - REDIS_URL=redis://host.docker.internal:6379
+    networks:
+      - gruenerator
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:1241/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   mcp:
     image: gruenerator-mcp:test
@@ -86,6 +104,7 @@ services:
       - web
       - api
       - docs
+      - hocuspocus
       - mcp
       - doku
     networks:

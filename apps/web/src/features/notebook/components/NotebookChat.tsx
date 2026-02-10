@@ -147,7 +147,9 @@ const NotebookChat = () => {
         onModeChange={() => {}}
         title={collection?.name || ''}
         messages={displayMessages}
-        onSubmit={handleSubmitQuestion}
+        onSubmit={(value) => {
+          if (typeof value === 'string') handleSubmitQuestion(value);
+        }}
         isProcessing={submitLoading}
         placeholder="Stellen Sie eine Frage zu den Dokumenten..."
         inputValue={inputValue}

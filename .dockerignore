@@ -9,6 +9,9 @@
 # Desktop app (Tauri/Rust) - ~13GB of build artifacts
 apps/desktop/
 
+# ComfyUI local GPU service - not used in Docker containers
+apps/api/services/comfyui/
+
 # Mobile app - ~4GB of build artifacts
 apps/mobile/
 
@@ -136,6 +139,7 @@ Jenkinsfile
 **/data/
 !apps/web/src/**/data/
 **/*.sql
+!apps/api/database/**/*.sql
 **/*.sqlite
 **/*.sqlite3
 **/*.db

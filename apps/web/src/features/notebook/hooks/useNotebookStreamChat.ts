@@ -1,14 +1,20 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { shallow } from 'zustand/shallow';
+import { useShallow } from 'zustand/react/shallow';
 
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { useNotebookChatStore, NotebookChatMessage } from '../stores/notebookChatStore';
-import useNotebookStore from '../stores/notebookStore';
-import { isDesktopApp } from '../../../utils/platform';
 import { getDesktopToken } from '../../../utils/desktopAuth';
+import { isDesktopApp } from '../../../utils/platform';
+import {
+  useNotebookChatStore,
+  type NotebookChatMessage,
+  type Citation,
+  type Source,
+  type LinkConfig,
+} from '../stores/notebookChatStore';
+import useNotebookStore from '../stores/notebookStore';
 
 interface Collection {
   id: string;
@@ -21,29 +27,6 @@ interface UseNotebookStreamChatOptions {
   persistMessages?: boolean;
   welcomeMessage?: string;
   extraApiParams?: Record<string, unknown>;
-}
-
-interface Citation {
-  index: string;
-  cited_text?: string;
-  document_title?: string;
-  document_id?: string;
-  source_url?: string | null;
-  similarity_score?: number;
-  chunk_index?: number;
-  filename?: string | null;
-  page_number?: number | null;
-  collection_id?: string;
-  collection_name?: string;
-}
-
-interface Source {
-  document_id: string;
-  document_title: string;
-  source_url: string | null;
-  chunk_text: string;
-  similarity_score: number;
-  citations: Citation[];
 }
 
 interface StreamCompletionData {
@@ -60,13 +43,6 @@ interface StreamCompletionData {
     totalResults: number;
     citationsCount: number;
   };
-}
-
-interface LinkConfig {
-  type: 'external' | 'vectorDocument';
-  linkKey: string;
-  titleKey: string;
-  urlKey?: string;
 }
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -105,7 +81,7 @@ const useNotebookStreamChat = ({
       : collections[0]?.id || 'unknown';
   }, [collections, isMulti]);
 
-  const chats = useNotebookChatStore((state) => state.chats, shallow);
+  const chats = useNotebookChatStore(useShallow((state) => state.chats));
   const addMessage = useNotebookChatStore((state) => state.addMessage);
   const setMessages = useNotebookChatStore((state) => state.setMessages);
   const clearMessagesStore = useNotebookChatStore((state) => state.clearMessages);
@@ -188,7 +164,7 @@ const useNotebookStreamChat = ({
         type: 'user',
         content: question,
         timestamp: Date.now(),
-        userName: user?.user_metadata?.firstName || user?.email || 'Sie',
+        userName: (user?.user_metadata?.firstName as string) || user?.email || 'Sie',
       };
       addMessageToChat(userMessage);
       setInputValue('');
@@ -297,9 +273,11 @@ const useNotebookStreamChat = ({
         if (completionData) {
           const resultId = `qa-${collectionKey}-${Date.now()}`;
 
-          let sources: Source[] | Citation[] = completionData.sources || [];
+          const sources: Source[] | Citation[] = completionData.sources || [];
           const citations = completionData.citations || [];
-          const additionalSources = completionData.allSources || [];
+          const additionalSources = (completionData.allSources || []) as Array<
+            Record<string, unknown>
+          >;
           const sourcesByCollection = completionData.sourcesByCollection;
 
           let linkConfig: LinkConfig;
@@ -402,7 +380,11 @@ const useNotebookStreamChat = ({
   }, [persistMessages, clearMessagesStore, collectionKey]);
 
   const setChatMessages = useCallback(
-    (messagesOrUpdater: NotebookChatMessage[] | ((prev: NotebookChatMessage[]) => NotebookChatMessage[])) => {
+    (
+      messagesOrUpdater:
+        | NotebookChatMessage[]
+        | ((prev: NotebookChatMessage[]) => NotebookChatMessage[])
+    ) => {
       if (typeof messagesOrUpdater === 'function') {
         const currentMessages = persistMessages
           ? chats[collectionKey]?.messages || []

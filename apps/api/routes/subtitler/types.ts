@@ -2,8 +2,8 @@
  * Type definitions for Subtitler Routes
  */
 
-import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { Response } from 'express';
 
 // ============================================================================
 // Request Types
@@ -27,19 +27,6 @@ export interface ExportRequestBody {
   projectId?: string | null;
   userId?: string | null;
   textOverlays?: TextOverlay[];
-}
-
-export interface ExportRemotionRequestBody {
-  uploadId?: string;
-  projectId?: string;
-  userId?: string;
-  clips?: Record<string, any>;
-  segments?: SubtitleSegment[];
-  subtitles?: SubtitleSegment[];
-  stylePreference?: string;
-  heightPreference?: 'standard' | 'tief';
-  textOverlays?: TextOverlay[];
-  maxResolution?: number | null;
 }
 
 export interface ExportSegmentsRequestBody {
