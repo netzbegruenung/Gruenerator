@@ -259,6 +259,8 @@ jobs:
 
           COPY . .
 
+          ARG NEXT_PUBLIC_AUTH_DISABLED=false
+          ENV NEXT_PUBLIC_AUTH_DISABLED=$NEXT_PUBLIC_AUTH_DISABLED
           ENV NEXT_TELEMETRY_DISABLED=1
           ENV NODE_ENV=production
           RUN npm run build
@@ -350,6 +352,7 @@ jobs:
                 - DATABASE_URL=${DATABASE_URL}
                 - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
                 - NEXTAUTH_URL=${NEXTAUTH_URL}
+                - NEXT_PUBLIC_AUTH_DISABLED=${NEXT_PUBLIC_AUTH_DISABLED:-false}
 
           labels:
             coolify.managed: 'true'
