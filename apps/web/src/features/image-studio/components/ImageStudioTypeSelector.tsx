@@ -1,8 +1,9 @@
 import React, { useMemo, useCallback } from 'react';
-import { HiPhotograph } from 'react-icons/hi';
+import { HiExternalLink, HiPhotograph } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import { StatusBadge } from '../../../components/common/StatusBadge';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import {
   getCategoryConfig,
@@ -26,6 +27,9 @@ const ImageStudioTypeSelector: React.FC = () => {
   const navigate = useNavigate();
   const category = useImageStudioStore((state) => state.category);
   const setType = useImageStudioStore((state) => state.setType);
+
+  const { user } = useOptimizedAuth();
+  const isAustrianUser = user?.locale === 'de-AT';
 
   const categoryConfig = useMemo(() => getCategoryConfig(category || ''), [category]);
   const typesInCategory = useMemo(() => {
@@ -74,6 +78,20 @@ const ImageStudioTypeSelector: React.FC = () => {
           <div className="type-selector-header-wrapper">
             <h1>Imagine (KI)</h1>
           </div>
+          {isAustrianUser && (
+            <a
+              href="https://bildgenerator.gruene.at/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="austrian-tool-banner"
+            >
+              <HiExternalLink className="austrian-tool-banner__icon" />
+              <span className="austrian-tool-banner__title">Zum Grünen Bildgenerator</span>
+              <span className="austrian-tool-banner__text">
+                Erstelle Sharepics im passenden Design
+              </span>
+            </a>
+          )}
           <div className="type-options-grid type-options-grid--five">
             {editTypes.map((config) => (
               <div
