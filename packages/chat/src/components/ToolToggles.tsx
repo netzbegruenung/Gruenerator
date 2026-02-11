@@ -20,32 +20,32 @@ const TOOL_CONFIGS: ToolConfig[] = [
     icon: BookOpen,
     label: 'Recherche',
     description: 'Strukturierte Multi-Quellen-Suche',
-    color: 'text-indigo-600 dark:text-indigo-400',
-    bgColor: 'bg-indigo-100 dark:bg-indigo-900/30',
+    color: 'text-tool-indigo',
+    bgColor: 'bg-tool-indigo-bg',
   },
   {
     key: 'search',
     icon: Search,
     label: 'Dokumente',
     description: 'Parteiprogramme & Positionen',
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+    color: 'text-tool-emerald',
+    bgColor: 'bg-tool-emerald-bg',
   },
   {
     key: 'web',
     icon: Globe,
     label: 'Web',
     description: 'Aktuelle Nachrichten & Infos',
-    color: 'text-orange-600 dark:text-orange-400',
-    bgColor: 'bg-orange-100 dark:bg-orange-900/30',
+    color: 'text-tool-orange',
+    bgColor: 'bg-tool-orange-bg',
   },
   {
     key: 'examples',
     icon: Image,
     label: 'Beispiele',
     description: 'Social-Media-Vorlagen',
-    color: 'text-purple-600 dark:text-purple-400',
-    bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+    color: 'text-tool-purple',
+    bgColor: 'bg-tool-purple-bg',
   },
 ];
 
@@ -79,14 +79,11 @@ export function ToolToggles() {
               <Icon
                 className={cn(
                   'h-4 w-4 transition-colors',
-                  isEnabled ? tool.color : 'text-gray-400 dark:text-gray-500'
+                  isEnabled ? tool.color : 'text-muted-disabled'
                 )}
               />
             }
-            iconClassName={cn(
-              'transition-colors',
-              isEnabled ? tool.bgColor : 'bg-gray-100 dark:bg-white/5'
-            )}
+            iconClassName={cn('transition-colors', isEnabled ? tool.bgColor : 'bg-surface')}
             label={tool.label}
             description={tool.description}
             onClick={() => toggleTool(tool.key)}
