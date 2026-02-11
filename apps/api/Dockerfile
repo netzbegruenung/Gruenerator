@@ -124,6 +124,11 @@ RUN ln -s dist/static-data static-data && \
 # Create runtime directories owned by app user
 RUN mkdir -p uploads logs && chown gruenerator:gruenerator uploads logs
 
+# Symlink uploads/logs inside dist/ for code using __dirname-relative paths
+# (compiled JS runs from dist/, so __dirname resolves inside dist/)
+RUN ln -s /app/apps/api/uploads dist/uploads && \
+    ln -s /app/apps/api/logs dist/logs
+
 ENV NODE_ENV=production
 ENV PORT=3001
 
