@@ -8,9 +8,7 @@ interface MarkdownContentProps {
   content: string;
 }
 
-export const MarkdownContent = memo(function MarkdownContent({
-  content,
-}: MarkdownContentProps) {
+export const MarkdownContent = memo(function MarkdownContent({ content }: MarkdownContentProps) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -29,10 +27,7 @@ export const MarkdownContent = memo(function MarkdownContent({
           const isInline = !className?.includes('language-');
           if (isInline) {
             return (
-              <code
-                className="rounded bg-gray-100 px-1 py-0.5 font-mono text-sm dark:bg-gray-800"
-                {...props}
-              >
+              <code className="rounded bg-code-inline-bg px-1 py-0.5 font-mono text-sm" {...props}>
                 {children}
               </code>
             );
@@ -44,31 +39,19 @@ export const MarkdownContent = memo(function MarkdownContent({
           );
         },
         pre: ({ children }) => (
-          <pre className="overflow-x-auto rounded-lg bg-gray-900 p-4 text-gray-100">
+          <pre className="overflow-x-auto rounded-lg bg-code-block-bg p-4 text-code-block-fg">
             {children}
           </pre>
         ),
-        ul: ({ children }) => (
-          <ul className="my-2 list-disc space-y-1 pl-4">{children}</ul>
-        ),
-        ol: ({ children }) => (
-          <ol className="my-2 list-decimal space-y-1 pl-4">{children}</ol>
-        ),
+        ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-4">{children}</ul>,
+        ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-4">{children}</ol>,
         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-        h1: ({ children }) => (
-          <h1 className="mb-4 mt-6 text-xl font-bold">{children}</h1>
-        ),
-        h2: ({ children }) => (
-          <h2 className="mb-3 mt-5 text-lg font-bold">{children}</h2>
-        ),
-        h3: ({ children }) => (
-          <h3 className="mb-2 mt-4 text-base font-bold">{children}</h3>
-        ),
+        h1: ({ children }) => <h1 className="mb-4 mt-6 text-xl font-bold">{children}</h1>,
+        h2: ({ children }) => <h2 className="mb-3 mt-5 text-lg font-bold">{children}</h2>,
+        h3: ({ children }) => <h3 className="mb-2 mt-4 text-base font-bold">{children}</h3>,
         p: ({ children }) => <p className="mb-2 leading-relaxed">{children}</p>,
         blockquote: ({ children }) => (
-          <blockquote className="my-2 border-l-4 border-primary pl-4 italic">
-            {children}
-          </blockquote>
+          <blockquote className="my-2 border-l-4 border-primary pl-4 italic">{children}</blockquote>
         ),
         table: ({ children }) => (
           <div className="my-4 overflow-x-auto">
@@ -76,13 +59,9 @@ export const MarkdownContent = memo(function MarkdownContent({
           </div>
         ),
         th: ({ children }) => (
-          <th className="border border-border px-3 py-2 text-left font-semibold">
-            {children}
-          </th>
+          <th className="border border-border px-3 py-2 text-left font-semibold">{children}</th>
         ),
-        td: ({ children }) => (
-          <td className="border border-border px-3 py-2">{children}</td>
-        ),
+        td: ({ children }) => <td className="border border-border px-3 py-2">{children}</td>,
       }}
     >
       {content}

@@ -644,6 +644,7 @@ const ExportDropdown = ({
                 </div>
               </button>
 
+              {/* Grünerator Docs export temporarily disabled
               <button
                 className="format-option"
                 onClick={handleDocsExport}
@@ -659,6 +660,7 @@ const ExportDropdown = ({
                   </div>
                 </div>
               </button>
+              */}
 
               <button
                 className="format-option"

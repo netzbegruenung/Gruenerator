@@ -79,7 +79,7 @@ function ProgressIndicator({
         className={cn(
           'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
           progress.stage === 'error'
-            ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+            ? 'bg-error-bg text-error'
             : 'bg-primary/5 text-foreground-muted'
         )}
       >
@@ -107,7 +107,7 @@ function ProgressIndicator({
       {hasResults && expanded && (
         <div className="ml-7 space-y-2">
           {searchResults.map((result, i) => (
-            <div key={i} className="rounded-lg bg-background-secondary p-2 text-xs dark:bg-white/5">
+            <div key={i} className="rounded-lg bg-surface p-2 text-xs">
               <div className="font-medium text-foreground">{result.title}</div>
               <p className="mt-0.5 line-clamp-1 text-foreground-muted">{result.content}</p>
               <div className="mt-0.5 flex items-center gap-2 text-foreground-muted">
@@ -381,7 +381,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
   const showWelcome = messages.length === 0 && !isLoadingHistory && !isLoading;
 
   return (
-    <div className="relative flex h-full flex-col bg-background dark:bg-[#1a1a1a]">
+    <div className="relative flex h-full flex-col bg-background">
       <div className="floating-controls-wrapper">
         <div className="floating-controls-left">
           <button onClick={onMenuClick} className="floating-menu-button" aria-label="Menü öffnen">
@@ -428,7 +428,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
                     {streamingImage && <GeneratedImageDisplay image={streamingImage} />}
 
                     {streamingText && (
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <div className="prose prose-sm max-w-none">
                         <MarkdownContent content={streamingText} />
                       </div>
                     )}
@@ -454,7 +454,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
       <div className="px-4 pb-4">
         <div className="mx-auto w-full max-w-3xl space-y-3">
           {fileError && (
-            <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+            <div className="flex items-center gap-2 rounded-lg bg-error-bg px-3 py-2 text-sm text-error">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               <span>{fileError}</span>
             </div>
@@ -467,7 +467,7 @@ export function ChatMain({ onMenuClick, userId }: ChatMainProps) {
 
         <form
           onSubmit={handleSubmit}
-          className="mx-auto flex w-full max-w-3xl items-end rounded-3xl border border-border bg-background-secondary dark:bg-white/5"
+          className="mx-auto flex w-full max-w-3xl items-end rounded-3xl border border-border bg-surface"
         >
           <div className="input-tools-button flex items-center gap-1">
             <FileUploadButton onFilesSelected={handleFilesSelected} disabled={isLoading} />
@@ -534,7 +534,7 @@ function WelcomeScreen({ agent, onQuickQuestion }: WelcomeScreenProps) {
             <button
               key={index}
               onClick={() => onQuickQuestion(question)}
-              className="rounded-xl border border-border bg-background p-3 text-left text-sm transition-colors hover:bg-primary/5 dark:bg-white/5 dark:hover:bg-white/10"
+              className="rounded-xl border border-border bg-surface p-3 text-left text-sm transition-colors hover:bg-surface-hover"
             >
               {question}
             </button>
@@ -608,7 +608,7 @@ function MessageBubble({ message, agent }: MessageBubbleProps) {
   if (isUser) {
     return (
       <div className="mx-auto flex w-full max-w-3xl justify-end">
-        <div className="max-w-[85%] rounded-3xl bg-primary/10 px-4 py-3 dark:bg-white/10">
+        <div className="max-w-[85%] rounded-3xl bg-user-bubble px-4 py-3">
           <p className="whitespace-pre-wrap text-foreground">{message.content}</p>
         </div>
       </div>
@@ -629,7 +629,7 @@ function MessageBubble({ message, agent }: MessageBubbleProps) {
         )}
 
         {message.content && (
-          <div className="prose prose-sm max-w-none dark:prose-invert">
+          <div className="prose prose-sm max-w-none">
             <MarkdownContent content={message.content} />
           </div>
         )}
@@ -681,7 +681,7 @@ function SearchResultsSection({ results }: { results: SearchResult[] }) {
       {expanded && (
         <div className="mt-2 space-y-2">
           {results.map((result, i) => (
-            <div key={i} className="rounded-lg bg-background-secondary p-3 text-sm dark:bg-white/5">
+            <div key={i} className="rounded-lg bg-surface p-3 text-sm">
               <div className="font-medium text-foreground">{result.title}</div>
               <p className="mt-1 line-clamp-2 text-foreground-muted">{result.content}</p>
               <div className="mt-1 flex items-center gap-2">

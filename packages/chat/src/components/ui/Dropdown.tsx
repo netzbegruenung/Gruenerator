@@ -45,8 +45,8 @@ export function Dropdown({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-foreground-muted transition-colors',
-          'hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5',
-          isOpen && 'text-foreground bg-black/5 dark:bg-white/5'
+          'hover:text-foreground hover:bg-hover-overlay',
+          isOpen && 'text-foreground bg-hover-overlay'
         )}
       >
         {trigger}
@@ -64,18 +64,14 @@ export function Dropdown({
       {isOpen && (
         <div
           className={cn(
-            'absolute z-50 overflow-hidden rounded-xl border border-secondary-200 bg-background shadow-lg dark:border-secondary-700 dark:bg-secondary-900',
+            'absolute z-50 overflow-hidden rounded-xl border border-border bg-background shadow-lg',
             width,
             align === 'left' ? 'left-0' : 'right-0',
             direction === 'down' ? 'top-full mt-1' : 'bottom-full mb-1'
           )}
         >
           <div className="p-1">{children}</div>
-          {footer && (
-            <div className="border-t border-secondary-200 px-3 py-2 dark:border-secondary-700">
-              {footer}
-            </div>
-          )}
+          {footer && <div className="border-t border-border px-3 py-2">{footer}</div>}
         </div>
       )}
     </div>
@@ -106,25 +102,18 @@ export function DropdownItem({
       onClick={onClick}
       className={cn(
         'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
-        'hover:bg-secondary-50 dark:hover:bg-secondary-800',
-        selected && 'bg-secondary-100 dark:bg-secondary-800'
+        'hover:bg-hover-overlay',
+        selected && 'bg-hover-overlay'
       )}
     >
       {icon && (
-        <div
-          className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-lg',
-            iconClassName
-          )}
-        >
+        <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg', iconClassName)}>
           {icon}
         </div>
       )}
       <div className="flex-1 min-w-0">
         <span className="font-medium text-foreground">{label}</span>
-        {description && (
-          <p className="text-xs text-foreground-muted truncate">{description}</p>
-        )}
+        {description && <p className="text-xs text-foreground-muted truncate">{description}</p>}
       </div>
       {trailing}
     </button>
@@ -140,7 +129,7 @@ export function ToggleSwitch({ enabled }: ToggleSwitchProps) {
     <div
       className={cn(
         'h-5 w-9 rounded-full p-0.5 transition-colors',
-        enabled ? 'bg-secondary-600' : 'bg-secondary-200 dark:bg-secondary-700'
+        enabled ? 'bg-secondary-600' : 'bg-toggle-track'
       )}
     >
       <div
