@@ -1,6 +1,17 @@
 'use client';
 
-import { Search, User, Image, Globe, Loader2, ChevronRight, ExternalLink, BookOpen, Sparkles, MessageCircle } from 'lucide-react';
+import {
+  Search,
+  User,
+  Image,
+  Globe,
+  Loader2,
+  ChevronRight,
+  ExternalLink,
+  BookOpen,
+  Sparkles,
+  MessageCircle,
+} from 'lucide-react';
 import { useState, memo, useMemo, Fragment } from 'react';
 
 interface ToolCallUIProps {
@@ -18,7 +29,12 @@ const TOOL_CONFIG: Record<string, { icon: typeof Search; label: string; color: s
   research: { icon: BookOpen, label: 'Recherche', color: 'text-indigo-600' },
 };
 
-export const ToolCallUI = memo(function ToolCallUI({ toolName, args, state, result }: ToolCallUIProps) {
+export const ToolCallUI = memo(function ToolCallUI({
+  toolName,
+  args,
+  state,
+  result,
+}: ToolCallUIProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isLoading = state === 'call' || state === 'partial-call';
   const config = TOOL_CONFIG[toolName] || { icon: Search, label: toolName, color: 'text-gray-600' };
@@ -46,9 +62,7 @@ export const ToolCallUI = memo(function ToolCallUI({ toolName, args, state, resu
         onClick={() => state === 'result' && setIsExpanded(!isExpanded)}
         disabled={state !== 'result'}
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors ${
-          state === 'result'
-            ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer'
-            : 'bg-gray-100 dark:bg-white/5'
+          state === 'result' ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer' : 'bg-surface'
         }`}
       >
         {isLoading ? (
@@ -66,7 +80,9 @@ export const ToolCallUI = memo(function ToolCallUI({ toolName, args, state, resu
           <>
             <span className="text-foreground-muted">&middot;</span>
             <span className="text-primary font-medium">{resultCount}</span>
-            <ChevronRight className={`h-3.5 w-3.5 text-foreground-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+            <ChevronRight
+              className={`h-3.5 w-3.5 text-foreground-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+            />
           </>
         )}
       </button>
@@ -99,7 +115,9 @@ function getArray(obj: unknown, key: string): unknown[] | null {
 function getObject(obj: unknown, key: string): Record<string, unknown> | null {
   if (obj && typeof obj === 'object' && key in obj) {
     const val = (obj as Record<string, unknown>)[key];
-    return val && typeof val === 'object' && !Array.isArray(val) ? val as Record<string, unknown> : null;
+    return val && typeof val === 'object' && !Array.isArray(val)
+      ? (val as Record<string, unknown>)
+      : null;
   }
   return null;
 }
@@ -111,7 +129,13 @@ function getBoolean(obj: unknown, key: string): boolean {
   return false;
 }
 
-const ToolResultRenderer = memo(function ToolResultRenderer({ toolName, result }: { toolName: string; result: unknown }) {
+const ToolResultRenderer = memo(function ToolResultRenderer({
+  toolName,
+  result,
+}: {
+  toolName: string;
+  result: unknown;
+}) {
   if (!result) {
     return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
   }
@@ -123,25 +147,41 @@ const ToolResultRenderer = memo(function ToolResultRenderer({ toolName, result }
 
   switch (toolName) {
     case 'gruenerator_search':
-      return <CompactSearchResults results={getArray(result, 'results') || (Array.isArray(result) ? result : [])} />;
+      return (
+        <CompactSearchResults
+          results={getArray(result, 'results') || (Array.isArray(result) ? result : [])}
+        />
+      );
     case 'gruenerator_person_search':
       return <CompactPersonResult result={result} />;
     case 'gruenerator_examples_search':
-      return <CompactExampleResults results={getArray(result, 'examples') || getArray(result, 'results') || (Array.isArray(result) ? result : [])} />;
+      return (
+        <CompactExampleResults
+          results={
+            getArray(result, 'examples') ||
+            getArray(result, 'results') ||
+            (Array.isArray(result) ? result : [])
+          }
+        />
+      );
     case 'web_search':
       return <CompactWebResults result={result} />;
     case 'research':
       return <ResearchResultUI result={result} />;
     default:
       return (
-        <pre className="overflow-x-auto text-xs bg-gray-50 dark:bg-white/5 p-2 rounded">
+        <pre className="overflow-x-auto text-xs bg-surface p-2 rounded">
           {JSON.stringify(result, null, 2)}
         </pre>
       );
   }
 });
 
-const CompactSearchResults = memo(function CompactSearchResults({ results }: { results: unknown[] }) {
+const CompactSearchResults = memo(function CompactSearchResults({
+  results,
+}: {
+  results: unknown[];
+}) {
   if (!results.length) return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
 
   return (
@@ -157,14 +197,19 @@ const CompactSearchResults = memo(function CompactSearchResults({ results }: { r
             <div className="flex items-center gap-1.5">
               <span className="font-medium text-foreground">{source || 'Quelle'}</span>
               {relevance && (
-                <span className="text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary">{relevance}</span>
+                <span className="text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary">
+                  {relevance}
+                </span>
               )}
             </div>
-            {excerpt && (
-              <p className="text-foreground-muted line-clamp-2 mt-0.5">{excerpt}</p>
-            )}
+            {excerpt && <p className="text-foreground-muted line-clamp-2 mt-0.5">{excerpt}</p>}
             {url && (
-              <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5 mt-0.5">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline inline-flex items-center gap-0.5 mt-0.5"
+              >
                 <ExternalLink className="h-3 w-3" />
               </a>
             )}
@@ -194,13 +239,18 @@ const CompactPersonResult = memo(function CompactPersonResult({ result }: { resu
         <span className="font-medium">{name || 'Unbekannt'}</span>
       </div>
       <p className="text-foreground-muted mt-0.5">
-        {fraktion}{wahlkreis && ` · ${wahlkreis}`}
+        {fraktion}
+        {wahlkreis && ` · ${wahlkreis}`}
       </p>
     </div>
   );
 });
 
-const CompactExampleResults = memo(function CompactExampleResults({ results }: { results: unknown[] }) {
+const CompactExampleResults = memo(function CompactExampleResults({
+  results,
+}: {
+  results: unknown[];
+}) {
   if (!results.length) return <p className="text-xs text-foreground-muted">Keine Beispiele</p>;
 
   return (
@@ -212,7 +262,7 @@ const CompactExampleResults = memo(function CompactExampleResults({ results }: {
         return (
           <div key={i} className="text-xs">
             {platform && (
-              <span className="text-[10px] px-1 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+              <span className="text-[10px] px-1 py-0.5 rounded bg-badge-purple-bg text-badge-purple">
                 {platform}
               </span>
             )}
@@ -240,7 +290,12 @@ const CompactWebResults = memo(function CompactWebResults({ result }: { result: 
         return (
           <div key={i} className="text-xs">
             {url ? (
-              <a href={url} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline inline-flex items-center gap-1">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+              >
                 {title || domain || url}
                 <ExternalLink className="h-3 w-3" />
               </a>
@@ -284,7 +339,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
       const match = part.match(/^\[(\d+)\]$/);
       if (match) {
         const citationId = parseInt(match[1], 10);
-        const citation = citations?.find(c => c.id === citationId);
+        const citation = citations?.find((c) => c.id === citationId);
         if (citation) {
           return (
             <a
@@ -292,7 +347,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 rounded hover:bg-indigo-200 dark:hover:bg-indigo-800/50 mx-0.5 align-super"
+              className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium bg-badge-indigo-bg text-badge-indigo rounded hover:bg-badge-indigo-hover mx-0.5 align-super"
               title={`${citation.title} (${citation.domain})`}
             >
               {citationId}
@@ -305,9 +360,9 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
   };
 
   const confidenceColors = {
-    high: 'text-green-600 dark:text-green-400',
-    medium: 'text-yellow-600 dark:text-yellow-400',
-    low: 'text-red-600 dark:text-red-400',
+    high: 'text-status-green',
+    medium: 'text-status-yellow',
+    low: 'text-status-red',
   };
 
   const confidenceLabels = {
@@ -320,7 +375,9 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-[10px]">
         {confidence && (
-          <span className={`flex items-center gap-1 ${confidenceColors[confidence as keyof typeof confidenceColors] || 'text-gray-500'}`}>
+          <span
+            className={`flex items-center gap-1 ${confidenceColors[confidence as keyof typeof confidenceColors] || 'text-gray-500'}`}
+          >
             <Sparkles className="h-3 w-3" />
             {confidenceLabels[confidence as keyof typeof confidenceLabels] || confidence}
           </span>
@@ -339,12 +396,14 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
       )}
 
       {citations && citations.length > 0 && (
-        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+        <div className="pt-2 border-t border-section-border">
           <button
             onClick={() => setShowAllSources(!showAllSources)}
             className="flex items-center gap-1 text-[10px] font-medium text-foreground-muted hover:text-foreground transition-colors"
           >
-            <ChevronRight className={`h-3 w-3 transition-transform ${showAllSources ? 'rotate-90' : ''}`} />
+            <ChevronRight
+              className={`h-3 w-3 transition-transform ${showAllSources ? 'rotate-90' : ''}`}
+            />
             Quellen ({citations.length})
           </button>
 
@@ -352,7 +411,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
             <div className="mt-2 space-y-1.5">
               {citations.map((citation) => (
                 <div key={citation.id} className="flex items-start gap-2 text-xs">
-                  <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-foreground-muted rounded">
+                  <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center text-[10px] font-medium bg-surface text-foreground-muted rounded">
                     {citation.id}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -370,7 +429,9 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
                       <span className="font-medium">{citation.title}</span>
                     )}
                     {citation.snippet && (
-                      <p className="text-foreground-muted line-clamp-1 mt-0.5">{citation.snippet}</p>
+                      <p className="text-foreground-muted line-clamp-1 mt-0.5">
+                        {citation.snippet}
+                      </p>
                     )}
                     {citation.domain && (
                       <span className="text-[10px] text-foreground-muted">{citation.domain}</span>
@@ -384,7 +445,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
       )}
 
       {followUps && followUps.length > 0 && (
-        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+        <div className="pt-2 border-t border-section-border">
           <div className="flex items-center gap-1 text-[10px] font-medium text-foreground-muted mb-1.5">
             <MessageCircle className="h-3 w-3" />
             Weiterführende Fragen
@@ -393,7 +454,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
             {followUps.map((question, idx) => (
               <span
                 key={idx}
-                className="text-[10px] px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-foreground-muted hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                className="text-[10px] px-2 py-1 rounded-full bg-surface text-foreground-muted hover:bg-surface-hover cursor-pointer transition-colors"
               >
                 {question}
               </span>
