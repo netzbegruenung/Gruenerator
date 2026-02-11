@@ -15,11 +15,9 @@ const log = createLogger('etherpad');
 // Configuration
 // ============================================================================
 
-const ETHERPAD_BASE_URL = process.env.ETHERPAD_BASE_URL || 'https://textbegruenung.de';
+const ETHERPAD_BASE_URL = 'https://textbegruenung.de';
 const ETHERPAD_POST_PATH = '/post';
-const ETHERPAD_PAD_BASE_URL = process.env.ETHERPAD_FRONTEND_URL
-  ? `${process.env.ETHERPAD_FRONTEND_URL}/p`
-  : 'https://textbegruenung.de/p';
+const ETHERPAD_PAD_BASE_URL = 'https://textbegruenung.de/p';
 const MAX_PAD_CONTENT_LENGTH = 100000; // ep_post_data 100k character limit
 
 // ============================================================================
