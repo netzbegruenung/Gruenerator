@@ -10,8 +10,8 @@
  * keeping the graph decoupled from transport concerns.
  */
 
-import type { ModelMessage } from 'ai';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { ModelMessage } from 'ai';
 
 /**
  * Intent classification for routing to appropriate search tools.
@@ -76,12 +76,18 @@ export interface SearchResult {
 
 /**
  * Citation structure for response attribution.
+ * Enriched with provenance data for inline popovers and grouped source cards.
  */
 export interface Citation {
   id: number;
   title: string;
   url: string;
   snippet: string;
+  citedText?: string;
+  source: string;
+  collectionName?: string;
+  domain?: string;
+  relevance?: number;
 }
 
 /**
@@ -151,6 +157,9 @@ export interface ChatGraphState {
   citations: Citation[];
   searchCount: number;
   maxSearches: number;
+
+  // Research brief (compressed research intent for complex queries)
+  researchBrief: string | null;
 
   // Quality gate (iterative search)
   qualityScore: number;

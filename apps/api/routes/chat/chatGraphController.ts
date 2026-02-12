@@ -14,41 +14,21 @@
  * 7. done - Final metadata with citations, images, and timing
  */
 
-import express from 'express';
 import { streamText, convertToModelMessages } from 'ai';
-import type { UIMessage } from 'ai';
-import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
+
 import {
   initializeChatState,
   buildSystemMessage,
   classifierNode,
+  briefGeneratorNode,
   searchNode,
+  rerankNode,
   imageNode,
+  buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
-import type {
-  ChatGraphState,
-  GeneratedImageResult,
-  ProcessedAttachment,
-  ImageAttachment,
-} from '../../agents/langgraph/ChatGraph/types.js';
-import { getModel, getModelConfig } from './agents/providers.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { createLogger } from '../../utils/logger.js';
-import {
-  createSSEStream,
-  getIntentMessage,
-  PROGRESS_MESSAGES,
-} from './services/sseHelpers.js';
-import type { UserProfile } from '../../services/user/types.js';
-import { OCRService } from '../../services/OcrService/index.js';
-import {
-  saveThreadAttachment,
-  getThreadAttachments,
-} from './services/attachmentPersistenceService.js';
-import {
-  trimMessagesToTokenLimit,
-  getTokenStats,
-} from '../../services/counters/TokenCounter.js';
+
+import { trimMessagesToTokenLimit, getTokenStats } from '../../services/counters/TokenCounter.js';
 import type { Message as TokenCounterMessage } from '../../services/counters/types.js';
 import {
   getCompactionState,
@@ -59,9 +39,36 @@ import {
   getThreadMessages,
 } from './services/compactionService.js';
 import { getMem0Instance } from '../../services/mem0/index.js';
+import { OCRService } from '../../services/OcrService/index.js';
+import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
+import { createLogger } from '../../utils/logger.js';
+
+import { getModel, getModelConfig } from './agents/providers.js';
+import {
+  saveThreadAttachment,
+  getThreadAttachments,
+} from './services/attachmentPersistenceService.js';
+import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
+
+import type {
+  ChatGraphState,
+  GeneratedImageResult,
+  ProcessedAttachment,
+  ImageAttachment,
+} from '../../agents/langgraph/ChatGraph/types.js';
+import type { UserProfile } from '../../services/user/types.js';
+import type { UIMessage } from 'ai';
+import type express from 'express';
 
 const log = createLogger('ChatGraphController');
 const router = createAuthenticatedRouter();
+
+const INTENT_TO_TOOL: Record<string, string> = {
+  search: 'gruenerator_search',
+  web: 'web_search',
+  research: 'research',
+  examples: 'gruenerator_examples_search',
+};
 
 /**
  * Extract text content from a ModelMessage content field.
@@ -75,8 +82,9 @@ function extractTextContent(content: unknown): string {
   if (Array.isArray(content)) {
     // AI SDK v6 format: [{type: 'text', text: '...'}, ...]
     return content
-      .filter((part): part is { type: string; text: string } =>
-        part && typeof part === 'object' && part.type === 'text' && typeof part.text === 'string'
+      .filter(
+        (part): part is { type: string; text: string } =>
+          part && typeof part === 'object' && part.type === 'text' && typeof part.text === 'string'
       )
       .map((part) => part.text)
       .join('');
@@ -97,7 +105,7 @@ const getUser = (req: express.Request): UserProfile | undefined =>
  */
 const CONTEXT_CONFIG = {
   MAX_CONTEXT_TOKENS: 6000, // Token budget for conversation history
-  RESPONSE_RESERVE: 1500,   // Reserved tokens for model response
+  RESPONSE_RESERVE: 1500, // Reserved tokens for model response
 };
 
 /**
@@ -182,10 +190,7 @@ async function processAttachments(
       log.info(`[${requestId}] Added image attachment: ${attachment.name}`);
     } else {
       try {
-        const result = await ocrService.extractTextFromBase64PDF(
-          attachment.data,
-          attachment.name
-        );
+        const result = await ocrService.extractTextFromBase64PDF(attachment.data, attachment.name);
 
         if (result.text && result.text.length > 0) {
           documentTexts.push(`### ${attachment.name}\n\n${result.text}`);
@@ -259,10 +264,9 @@ async function createMessage(
  */
 async function touchThread(threadId: string): Promise<void> {
   const postgres = getPostgresInstance();
-  await postgres.query(
-    `UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-    [threadId]
-  );
+  await postgres.query(`UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [
+    threadId,
+  ]);
 }
 
 /**
@@ -287,7 +291,14 @@ router.post('/stream', async (req, res) => {
   const requestId = `req_${Date.now()}`;
 
   try {
-    const { messages: clientMessages, agentId, threadId, enabledTools, modelId, attachments } = req.body as {
+    const {
+      messages: clientMessages,
+      agentId,
+      threadId,
+      enabledTools,
+      modelId,
+      attachments,
+    } = req.body as {
       messages: UIMessage[];
       agentId?: string;
       threadId?: string;
@@ -325,13 +336,16 @@ router.post('/stream', async (req, res) => {
     // Debug: log message structure
     if (clientMessages?.length > 0) {
       const firstMsg = clientMessages[0] as any;
-      log.info('[ChatGraph] First message structure:', JSON.stringify({
-        id: firstMsg.id,
-        role: firstMsg.role,
-        hasContent: !!firstMsg.content,
-        hasParts: !!firstMsg.parts,
-        partsLength: firstMsg.parts?.length,
-      }));
+      log.info(
+        '[ChatGraph] First message structure:',
+        JSON.stringify({
+          id: firstMsg.id,
+          role: firstMsg.role,
+          hasContent: !!firstMsg.content,
+          hasParts: !!firstMsg.parts,
+          partsLength: firstMsg.parts?.length,
+        })
+      );
     }
 
     // Convert client messages to ModelMessage format for AI SDK v6
@@ -353,12 +367,21 @@ router.post('/stream', async (req, res) => {
     }
 
     // Filter out any assistant messages with empty content
+    // The AI SDK's convertToModelMessages can produce [{type:'text', text:''}] for empty responses,
+    // so we must check actual text content, not just array length
     const validMessages = modelMessages.filter((msg) => {
       if (msg.role === 'assistant') {
         if (Array.isArray(msg.content)) {
-          return msg.content.length > 0;
+          const textContent = msg.content
+            .filter((part: any) => part?.type === 'text')
+            .map((part: any) => part.text || '')
+            .join('')
+            .trim();
+          return (
+            textContent.length > 0 || msg.content.some((part: any) => part?.type === 'tool-call')
+          );
         }
-        return msg.content && String(msg.content).length > 0;
+        return msg.content && String(msg.content).trim().length > 0;
       }
       return true;
     });
@@ -406,16 +429,18 @@ router.post('/stream', async (req, res) => {
       attachmentContext = processed.attachmentContext;
       imageAttachments = processed.imageAttachments;
       processedMeta = processed.processedMeta;
-      log.info(`[${requestId}] Processed: ${imageAttachments.length} images, ${attachmentContext.length} chars of document text`);
+      log.info(
+        `[${requestId}] Processed: ${imageAttachments.length} images, ${attachmentContext.length} chars of document text`
+      );
     }
 
     // Load previous thread attachments for context
-    const previousAttachments = actualThreadId
-      ? await getThreadAttachments(actualThreadId, 5)
-      : [];
+    const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
     if (previousAttachments.length > 0) {
-      log.info(`[${requestId}] Loaded ${previousAttachments.length} previous attachments for thread context`);
+      log.info(
+        `[${requestId}] Loaded ${previousAttachments.length} previous attachments for thread context`
+      );
     }
 
     // === Memory Retrieval (mem0) ===
@@ -482,9 +507,15 @@ router.post('/stream', async (req, res) => {
       intent: classifiedState.intent,
       message: getIntentMessage(classifiedState.intent),
       reasoning: classifiedState.reasoning,
+      searchQuery: classifiedState.searchQuery ?? undefined,
     });
 
     log.info(`[ChatGraph] Classified as "${classifiedState.intent}": ${classifiedState.reasoning}`);
+    if (classifiedState.searchQuery) {
+      log.debug(
+        `[ChatGraph] searchQuery in intent SSE: "${classifiedState.searchQuery.slice(0, 80)}"`
+      );
+    }
 
     // === Stage 2: Search or Image Generation (if needed) ===
     let finalState = classifiedState;
@@ -526,14 +557,40 @@ router.post('/stream', async (req, res) => {
       const toolEnabled = enabledTools?.[classifiedState.intent] !== false;
 
       if (toolEnabled) {
+        // Generate research brief for complex research queries
+        let searchInputState = classifiedState;
+        if (classifiedState.complexity === 'complex' && classifiedState.intent === 'research') {
+          log.info('[ChatGraph] Generating research brief...');
+          const briefResult = await briefGeneratorNode(classifiedState);
+          searchInputState = { ...classifiedState, ...briefResult } as ChatGraphState;
+          if (searchInputState.researchBrief) {
+            log.info(
+              `[ChatGraph] Research brief generated (${searchInputState.researchBrief.length} chars)`
+            );
+          }
+        }
+
         sse.send('search_start', { message: PROGRESS_MESSAGES.searchStart });
 
         log.info('[ChatGraph] Running search...');
-        const searchResult = await searchNode(classifiedState);
+        const searchResult = await searchNode(searchInputState);
         finalState = {
-          ...classifiedState,
+          ...searchInputState,
           ...searchResult,
         } as ChatGraphState;
+
+        // Rerank results to improve precision and filter low-quality hits
+        if (finalState.searchResults?.length > 3) {
+          log.info(`[ChatGraph] Reranking ${finalState.searchResults.length} results...`);
+          const rerankResult = await rerankNode(finalState);
+          finalState = { ...finalState, ...rerankResult } as ChatGraphState;
+
+          // Rebuild citations to match reranked order
+          if (finalState.searchResults.length > 0) {
+            finalState.citations = buildCitations(finalState.searchResults);
+          }
+          log.info(`[ChatGraph] Reranked to ${finalState.searchResults.length} results`);
+        }
 
         const resultCount = finalState.searchResults?.length || 0;
         sse.send('search_complete', {
@@ -551,7 +608,7 @@ router.post('/stream', async (req, res) => {
     // === Stage 3: Response generation ===
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
-    const systemMessage = buildSystemMessage(finalState);
+    const systemMessage = await buildSystemMessage(finalState);
 
     // Determine which model to use: user selection overrides agent default
     let modelProvider = finalState.agentConfig.provider;
@@ -562,7 +619,9 @@ router.post('/stream', async (req, res) => {
       if (userModelConfig) {
         modelProvider = userModelConfig.provider;
         modelName = userModelConfig.model;
-        log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
+        log.info(
+          `[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`
+        );
       } else {
         log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
       }
@@ -585,17 +644,19 @@ router.post('/stream', async (req, res) => {
 
     // Map back to original format (preserve original message structure)
     // We keep the same number of recent messages as the pruning result
-    const keepCount = prunedMessages.filter(m => m.role !== 'system').length;
+    const keepCount = prunedMessages.filter((m) => m.role !== 'system').length;
     const conversationMessages = validMessages.filter((m: any) => m.role !== 'system');
     const prunedValidMessages = conversationMessages.slice(-keepCount);
 
     if (prunedValidMessages.length < conversationMessages.length) {
-      log.info(`[Context] Pruned ${conversationMessages.length} → ${prunedValidMessages.length} messages (${preStats.totalTokens} → ~${getTokenStats(prunedMessages).totalTokens} tokens)`);
+      log.info(
+        `[Context] Pruned ${conversationMessages.length} → ${prunedValidMessages.length} messages (${preStats.totalTokens} → ~${getTokenStats(prunedMessages).totalTokens} tokens)`
+      );
     }
 
     // === Compaction: Apply summary for very long threads ===
     let finalSystemMessage = systemMessage;
-    let contextMessages = prunedValidMessages;
+    const contextMessages = prunedValidMessages;
 
     if (actualThreadId) {
       try {
@@ -604,9 +665,11 @@ router.post('/stream', async (req, res) => {
 
         // If thread is long and no summary exists, trigger async compaction
         if (needsCompaction(messageCount, compactionState.summary)) {
-          log.info(`[Context] Thread ${actualThreadId} has ${messageCount} messages, triggering background compaction`);
+          log.info(
+            `[Context] Thread ${actualThreadId} has ${messageCount} messages, triggering background compaction`
+          );
           const threadMessages = await getThreadMessages(actualThreadId);
-          generateCompactionSummary(actualThreadId, threadMessages).catch(err =>
+          generateCompactionSummary(actualThreadId, threadMessages).catch((err) =>
             log.error('[Compaction] Background compaction failed:', err)
           );
         }
@@ -621,7 +684,9 @@ router.post('/stream', async (req, res) => {
           finalSystemMessage = compacted.systemMessage;
           // Note: contextMessages stays as prunedValidMessages (original format)
           // The compaction summary is injected into the system message
-          log.info(`[Context] Applied compaction summary (${compactionState.summary.length} chars) to system message`);
+          log.info(
+            `[Context] Applied compaction summary (${compactionState.summary.length} chars) to system message`
+          );
         }
       } catch (compactionError) {
         log.warn('[Context] Failed to apply compaction, using pruned messages:', compactionError);
@@ -629,11 +694,16 @@ router.post('/stream', async (req, res) => {
     }
 
     // Build messages array, potentially with image parts for vision models
-    let messagesForAI: any[] = [{ role: 'system', content: finalSystemMessage }, ...contextMessages];
+    let messagesForAI: any[] = [
+      { role: 'system', content: finalSystemMessage },
+      ...contextMessages,
+    ];
 
     // Add image attachments to the last user message if present
     if (imageAttachments.length > 0) {
-      log.info(`[${requestId}] Adding ${imageAttachments.length} images to message for vision model`);
+      log.info(
+        `[${requestId}] Adding ${imageAttachments.length} images to message for vision model`
+      );
 
       // Find the last user message and add images to it
       let lastUserIdx = -1;
@@ -645,11 +715,15 @@ router.post('/stream', async (req, res) => {
       }
       if (lastUserIdx >= 0) {
         const lastUserMsg = messagesForAI[lastUserIdx];
-        const textContent = typeof lastUserMsg.content === 'string'
-          ? lastUserMsg.content
-          : Array.isArray(lastUserMsg.content)
-            ? lastUserMsg.content.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('')
-            : '';
+        const textContent =
+          typeof lastUserMsg.content === 'string'
+            ? lastUserMsg.content
+            : Array.isArray(lastUserMsg.content)
+              ? lastUserMsg.content
+                  .filter((p: any) => p.type === 'text')
+                  .map((p: any) => p.text)
+                  .join('')
+              : '';
 
         // Create multimodal content with text and images
         const multimodalContent: any[] = [{ type: 'text', text: textContent }];
@@ -667,6 +741,19 @@ router.post('/stream', async (req, res) => {
         };
       }
     }
+
+    // Defense-in-depth: strip any assistant messages with no effective content
+    // before sending to the model API (Mistral rejects empty assistant messages with code 3240)
+    messagesForAI = messagesForAI.filter((msg: any) => {
+      if (msg.role !== 'assistant') return true;
+      if (typeof msg.content === 'string') return msg.content.trim().length > 0;
+      if (Array.isArray(msg.content)) {
+        return msg.content.some(
+          (part: any) => (part?.type === 'text' && part.text?.trim()) || part?.type === 'tool-call'
+        );
+      }
+      return false;
+    });
 
     const result = streamText({
       model: aiModel,
@@ -694,19 +781,38 @@ router.post('/stream', async (req, res) => {
     // Persist assistant message
     if (actualThreadId && (fullText || generatedImage)) {
       try {
+        const toolName = INTENT_TO_TOOL[finalState.intent];
         await createMessage(actualThreadId, 'assistant', fullText || null, {
           intent: finalState.intent,
           searchCount: finalState.searchCount,
           citations: finalState.citations,
           searchResults: finalState.searchResults?.slice(0, 10) || [],
-          generatedImage: generatedImage ? {
-            url: generatedImage.url,
-            filename: generatedImage.filename,
-            prompt: generatedImage.prompt,
-            style: generatedImage.style,
-            generationTimeMs: generatedImage.generationTimeMs,
-          } : undefined,
+          generatedImage: generatedImage
+            ? {
+                url: generatedImage.url,
+                filename: generatedImage.filename,
+                prompt: generatedImage.prompt,
+                style: generatedImage.style,
+                generationTimeMs: generatedImage.generationTimeMs,
+              }
+            : undefined,
+          toolCalls: toolName
+            ? [
+                {
+                  toolCallId: `tc_${Date.now()}`,
+                  toolName,
+                  args: { query: classifiedState.searchQuery || '' },
+                  result: { results: finalState.searchResults?.slice(0, 10) || [] },
+                },
+              ]
+            : undefined,
         });
+
+        if (toolName) {
+          log.debug(
+            `[ChatGraph] Persisted toolCall: ${toolName}, query="${(classifiedState.searchQuery || '').slice(0, 50)}", results=${finalState.searchResults?.length ?? 0}`
+          );
+        }
 
         await touchThread(actualThreadId);
 
@@ -744,23 +850,27 @@ router.post('/stream', async (req, res) => {
               log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
             }
           }
-          log.info(`[ChatGraph] Saved ${processedMeta.length} attachments for thread ${actualThreadId}`);
+          log.info(
+            `[ChatGraph] Saved ${processedMeta.length} attachments for thread ${actualThreadId}`
+          );
         }
 
         // === Memory Saving (mem0) ===
         // Async save conversation to user memory (non-blocking)
         if (mem0 && lastUserMessage && fullText) {
           const userText = extractTextContent(lastUserMessage.content);
-          mem0.addMemories(
-            [
-              { role: 'user', content: userText },
-              { role: 'assistant', content: fullText },
-            ],
-            userId,
-            { threadId: actualThreadId }
-          ).catch((memError) => {
-            log.warn(`[${requestId}] Async memory save failed:`, memError);
-          });
+          mem0
+            .addMemories(
+              [
+                { role: 'user', content: userText },
+                { role: 'assistant', content: fullText },
+              ],
+              userId,
+              { threadId: actualThreadId }
+            )
+            .catch((memError) => {
+              log.warn(`[${requestId}] Async memory save failed:`, memError);
+            });
         }
       } catch (error) {
         log.error('[ChatGraph] Error persisting message:', error);

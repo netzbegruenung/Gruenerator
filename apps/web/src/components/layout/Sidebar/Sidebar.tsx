@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { PiSun, PiMoon } from 'react-icons/pi';
+import { PiSun, PiMoon, PiHouse, PiX } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
@@ -27,7 +27,9 @@ interface SidebarProps {
 const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isOpen, close, open } = useSidebarStore();
+  const { isOpen, close, open, forceExpanded, requestForceExpanded, releaseForceExpanded } =
+    useSidebarStore();
+  const isChatRoute = location.pathname.startsWith('/chat');
 
   useLazyAuth();
   const { user } = useOptimizedAuth();
@@ -66,10 +68,21 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   );
   const footerLinks = useMemo(() => getFooterLinks(), []);
 
-  // Close sidebar on route change
+  // Close sidebar on route change (skip when forceExpanded)
   useEffect(() => {
-    close();
+    if (!forceExpanded) {
+      close();
+    }
   }, [location.pathname]);
+
+  // Force sidebar open on /chat route
+  useEffect(() => {
+    if (isChatRoute) {
+      requestForceExpanded('chat');
+    } else {
+      releaseForceExpanded('chat');
+    }
+  }, [isChatRoute, requestForceExpanded, releaseForceExpanded]);
 
   useEffect(() => {
     const observer = new MutationObserver((mutations) => {
@@ -120,10 +133,10 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   return (
     <aside
-      className={`sidebar ${isOpen ? 'sidebar--open' : ''} ${isDesktop ? 'sidebar--desktop' : ''}`}
+      className={`sidebar ${isOpen ? 'sidebar--open' : ''} ${isDesktop ? 'sidebar--desktop' : ''} ${forceExpanded && isOpen ? 'sidebar--chat' : ''}`}
       aria-label="Hauptnavigation"
       onMouseEnter={isDesktop ? open : undefined}
-      onMouseLeave={isDesktop ? close : undefined}
+      onMouseLeave={isDesktop && !forceExpanded ? close : undefined}
     >
       {/* Logo - desktop only */}
       {isDesktop && (
@@ -136,6 +149,29 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <img src="/images/logo-square.png" alt="Grünerator" className="sidebar-logo-icon" />
           {isOpen && <span className="sidebar-logo-text">Grünerator</span>}
         </button>
+      )}
+
+      {/* Sidebar Header - Home & Close */}
+      {!isDesktop && (
+        <div className="sidebar-header">
+          <button
+            className="sidebar-header-btn"
+            onClick={() => handleLinkClick('/', 'Start')}
+            type="button"
+            title="Zur Startseite"
+            aria-label="Zur Startseite"
+          >
+            <PiHouse aria-hidden="true" />
+          </button>
+          <button
+            className="sidebar-header-btn sidebar-header-close"
+            onClick={close}
+            type="button"
+            aria-label="Menü schließen"
+          >
+            <PiX aria-hidden="true" />
+          </button>
+        </div>
       )}
 
       <nav className="sidebar-nav">
@@ -200,6 +236,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             />
           ))}
       </nav>
+
+      {chatBetaEnabled && <div id="chat-thread-portal-slot" className="sidebar-chat-threads" />}
 
       {/* Footer - pushed to bottom */}
       <div className="sidebar-footer">

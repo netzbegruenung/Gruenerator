@@ -5,15 +5,28 @@
  * control flow for chat with search capabilities.
  *
  * Graph flow:
- *   START → classifier → [search|image|respond] → ... → respond → END
+ *   START → classifier → [briefGenerator|search|image|respond] → ... → respond → END
  *
  * The classifier determines intent, and the graph routes accordingly:
+ * - complex research → briefGenerator → search → rerank → qualityGate → respond
  * - search intents → search node → rerank node → respond node
  * - image intent → image node → respond node
  * - direct intent → respond node directly
  */
 
 import { StateGraph, Annotation, END } from '@langchain/langgraph';
+
+import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
+import { createLogger } from '../../../utils/logger.js';
+
+import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
+import { classifierNode } from './nodes/classifierNode.js';
+import { imageNode } from './nodes/imageNode.js';
+import { qualityGateNode } from './nodes/qualityGateNode.js';
+import { rerankNode } from './nodes/rerankNode.js';
+import { respondNode } from './nodes/respondNode.js';
+import { searchNode } from './nodes/searchNode.js';
+
 import type {
   ChatGraphState,
   ChatGraphInput,
@@ -26,16 +39,8 @@ import type {
   ImageAttachment,
   ThreadAttachment,
 } from './types.js';
-import { classifierNode } from './nodes/classifierNode.js';
-import { searchNode } from './nodes/searchNode.js';
-import { rerankNode } from './nodes/rerankNode.js';
-import { qualityGateNode } from './nodes/qualityGateNode.js';
-import { imageNode } from './nodes/imageNode.js';
-import { respondNode } from './nodes/respondNode.js';
-import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
-import { createLogger } from '../../../utils/logger.js';
-import type { ModelMessage } from 'ai';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph');
 
@@ -98,6 +103,11 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   complexity: Annotation<'simple' | 'moderate' | 'complex'>({
     reducer: (x, y) => y ?? x ?? 'moderate',
+  }),
+
+  // Research brief (compressed research intent for complex queries)
+  researchBrief: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Search results (replaced by each node — search sets initial results, rerank replaces with filtered set)
@@ -198,8 +208,10 @@ type ChatState = typeof ChatStateAnnotation.State;
  * - Intent is 'direct'
  * - The required tool is disabled
  */
-function routeAfterClassification(state: ChatState): 'search' | 'image' | 'respond' {
-  const { intent, enabledTools } = state;
+function routeAfterClassification(
+  state: ChatState
+): 'briefGenerator' | 'search' | 'image' | 'respond' {
+  const { intent, enabledTools, complexity } = state;
 
   // Direct intent = no search or image needed
   if (intent === 'direct') {
@@ -237,6 +249,12 @@ function routeAfterClassification(state: ChatState): 'search' | 'image' | 'respo
     return 'respond';
   }
 
+  // Complex research queries: generate a research brief first
+  if (complexity === 'complex' && intent === 'research') {
+    log.info('[ChatGraph] Route: classifier → briefGenerator (complex research)');
+    return 'briefGenerator';
+  }
+
   log.info(`[ChatGraph] Route: classifier → search (intent: ${intent})`);
   return 'search';
 }
@@ -256,7 +274,9 @@ function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
 
   // Loop back to search if quality is insufficient and we have retries left
   if (qualityScore > 0 && qualityScore < 3 && searchCount < maxSearches) {
-    log.info(`[ChatGraph] Route: qualityGate → search (score: ${qualityScore}/5, search ${searchCount}/${maxSearches})`);
+    log.info(
+      `[ChatGraph] Route: qualityGate → search (score: ${qualityScore}/5, search ${searchCount}/${maxSearches})`
+    );
     return 'search';
   }
 
@@ -277,6 +297,7 @@ function createChatGraph() {
   const graph = new StateGraph(ChatStateAnnotation)
     // Add nodes
     .addNode('classifier', classifierNode as any)
+    .addNode('briefGenerator', briefGeneratorNode as any)
     .addNode('search', searchNode as any)
     .addNode('rerank', rerankNode as any)
     .addNode('qualityGate', qualityGateNode as any)
@@ -286,12 +307,16 @@ function createChatGraph() {
     // START → classifier
     .addEdge('__start__', 'classifier')
 
-    // classifier → conditional routing
+    // classifier → conditional routing (including briefGenerator for complex research)
     .addConditionalEdges('classifier', routeAfterClassification, {
+      briefGenerator: 'briefGenerator',
       search: 'search',
       image: 'image',
       respond: 'respond',
     })
+
+    // briefGenerator → search (always proceeds to search after generating brief)
+    .addEdge('briefGenerator', 'search')
 
     // search → rerank → qualityGate → [conditional: search OR respond]
     .addEdge('search', 'rerank')
@@ -355,6 +380,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     reasoning: '',
     hasTemporal: false,
     complexity: 'moderate' as const,
+
+    // Research brief (will be set by briefGenerator node for complex research)
+    researchBrief: null,
 
     // Search results (will be set by search node)
     searchResults: [],
@@ -430,7 +458,9 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
         classificationTimeMs: result.classificationTimeMs,
         searchTimeMs: result.searchTimeMs,
         rerankTimeMs: result.rerankTimeMs || undefined,
-        searchedCollections: result.searchedCollections?.length ? result.searchedCollections : undefined,
+        searchedCollections: result.searchedCollections?.length
+          ? result.searchedCollections
+          : undefined,
         imageTimeMs: result.imageTimeMs || undefined,
         responseTimeMs: result.responseTimeMs,
       },

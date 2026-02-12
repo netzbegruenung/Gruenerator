@@ -52,6 +52,7 @@
     "@gruenerator/shared": "workspace:*",
     "@langchain/core": "^1.0.2",
     "@langchain/langgraph": "^1.0.1",
+    "@langchain/mistralai": "^1.0.4",
     "@mistralai/mistralai": "^1.7.2",
     "@napi-rs/canvas": "^0.1.88",
     "@qdrant/js-client-rest": "^1.13.0",

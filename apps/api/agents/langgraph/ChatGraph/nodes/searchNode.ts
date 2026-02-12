@@ -5,7 +5,6 @@
  * Uses the direct search functions from the chat agents module.
  */
 
-import type { ChatGraphState, SearchResult, Citation } from '../types.js';
 import {
   executeDirectSearch,
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
@@ -16,6 +15,8 @@ import {
 import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { createLogger } from '../../../../utils/logger.js';
+
+import type { ChatGraphState, SearchResult, Citation } from '../types.js';
 
 const log = createLogger('ChatGraph:Search');
 
@@ -33,17 +34,59 @@ function normalizeResults(results: any[], source: string): SearchResult[] {
 }
 
 /**
- * Build citations from search results.
+ * Human-readable labels for collection identifiers.
  */
-function buildCitations(results: SearchResult[]): Citation[] {
+export const COLLECTION_LABELS: Record<string, string> = {
+  deutschland: 'Grundsatzprogramm',
+  bundestagsfraktion: 'Bundestagsfraktion',
+  'gruene-de': 'gruene.de',
+  kommunalwiki: 'Kommunalwiki',
+  oesterreich: 'Österreich',
+  web: 'Web',
+  research: 'Recherche',
+  research_synthesis: 'Recherche',
+  examples: 'Beispiele',
+};
+
+/**
+ * Extract domain from a URL, returning null on failure.
+ */
+function extractDomain(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolve a human-readable collection name from a source identifier.
+ * Handles both plain names ("web") and prefixed ("gruenerator:bundestagsfraktion").
+ */
+function resolveCollectionName(source: string): string | undefined {
+  const key = source.startsWith('gruenerator:') ? source.slice('gruenerator:'.length) : source;
+  return COLLECTION_LABELS[key];
+}
+
+/**
+ * Build citations from search results.
+ * Enriched with provenance data for inline popovers and grouped source cards.
+ */
+export function buildCitations(results: SearchResult[]): Citation[] {
   return results
-    .filter((r) => r.url) // Only include results with URLs
-    .slice(0, 8) // Limit to 8 citations
+    .filter((r) => r.url)
+    .slice(0, 8)
     .map((r, i) => ({
       id: i + 1,
       title: r.title,
       url: r.url || '',
       snippet: r.content.slice(0, 200),
+      citedText: r.content.length > 200 ? r.content.slice(0, 500) : undefined,
+      source: r.source,
+      collectionName: resolveCollectionName(r.source),
+      domain: extractDomain(r.url),
+      relevance: r.relevance,
     }));
 }
 
@@ -51,9 +94,7 @@ function buildCitations(results: SearchResult[]): Citation[] {
  * Search node implementation.
  * Routes to the appropriate search function based on intent.
  */
-export async function searchNode(
-  state: ChatGraphState
-): Promise<Partial<ChatGraphState>> {
+export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   const { intent, searchQuery, agentConfig } = state;
 
@@ -74,25 +115,31 @@ export async function searchNode(
           complex: { depth: 'thorough' as const, maxSources: 10 },
         };
         const { depth, maxSources } = depthConfig[complexity];
-        log.info(`[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity})`);
+
+        // Use research brief (compressed intent) when available, fall back to raw query
+        const question = state.researchBrief || searchQuery || '';
+        log.info(
+          `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!state.researchBrief})`
+        );
 
         const researchResult = await executeResearch({
-          question: searchQuery || '',
+          question,
           depth,
           maxSources,
         });
 
         // Convert research citations to SearchResult format
-        results = researchResult.citations?.map((c: any, i: number) => ({
-          source: 'research',
-          title: c.title,
-          content: c.snippet || '',
-          url: c.url,
-          relevance: 1 - i * 0.1,
-        })) || [];
+        results =
+          researchResult.citations?.map((c: any, i: number) => ({
+            source: 'research',
+            title: c.title,
+            content: c.snippet || '',
+            url: c.url,
+            relevance: 1 - i * 0.1,
+          })) || [];
 
-        // Use research citations directly
-        citations = researchResult.citations || [];
+        // Build enriched citations from results
+        citations = buildCitations(results);
 
         // Include the synthesized answer as context
         if (researchResult.answer) {
@@ -125,11 +172,12 @@ export async function searchNode(
 
         const searchPromises = uniqueCollections.flatMap((collection) =>
           subQueries.map((sq) =>
-            executeDirectSearch({ query: sq, collection, limit: 3 })
-              .catch((err: any) => {
-                log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${err.message}`);
-                return null;
-              })
+            executeDirectSearch({ query: sq, collection, limit: 3 }).catch((err: any) => {
+              log.warn(
+                `[Search] Collection ${collection} failed for query "${sq}": ${err.message}`
+              );
+              return null;
+            })
           )
         );
 
@@ -258,7 +306,10 @@ export async function searchNode(
 
         // A1: Crawl top 2 web results for full content
         try {
-          const crawled = await selectAndCrawlTopUrls(results, query, { maxUrls: 2, timeout: 3000 });
+          const crawled = await selectAndCrawlTopUrls(results, query, {
+            maxUrls: 2,
+            timeout: 3000,
+          });
           results = crawled.map((r) => ({
             ...r,
             content: r.fullContent || r.content,
@@ -284,12 +335,13 @@ export async function searchNode(
           country,
         });
 
-        results = examplesResult.examples?.map((e: any) => ({
-          source: 'examples',
-          title: `${e.platform} Beispiel${e.author ? ` von ${e.author}` : ''}`,
-          content: e.content || '',
-          relevance: 0.8,
-        })) || [];
+        results =
+          examplesResult.examples?.map((e: any) => ({
+            source: 'examples',
+            title: `${e.platform} Beispiel${e.author ? ` von ${e.author}` : ''}`,
+            content: e.content || '',
+            relevance: 0.8,
+          })) || [];
 
         // Examples typically don't have URLs for citations
         citations = [];

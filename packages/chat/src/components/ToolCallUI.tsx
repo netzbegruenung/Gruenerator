@@ -27,6 +27,10 @@ const TOOL_CONFIG: Record<string, { icon: typeof Search; label: string; color: s
   gruenerator_examples_search: { icon: Image, label: 'Beispiele', color: 'text-purple-600' },
   web_search: { icon: Globe, label: 'Web', color: 'text-orange-600' },
   research: { icon: BookOpen, label: 'Recherche', color: 'text-indigo-600' },
+  generate_image: { icon: Sparkles, label: 'Bild', color: 'text-pink-600' },
+  scrape_url: { icon: ExternalLink, label: 'URL', color: 'text-cyan-600' },
+  recall_memory: { icon: MessageCircle, label: 'Erinnerung', color: 'text-amber-600' },
+  save_memory: { icon: MessageCircle, label: 'Speichern', color: 'text-amber-600' },
 };
 
 export const ToolCallUI = memo(function ToolCallUI({
@@ -62,7 +66,7 @@ export const ToolCallUI = memo(function ToolCallUI({
         onClick={() => state === 'result' && setIsExpanded(!isExpanded)}
         disabled={state !== 'result'}
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors ${
-          state === 'result' ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer' : 'bg-surface'
+          state === 'result' ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer' : 'bg-primary/5'
         }`}
       >
         {isLoading ? (
@@ -129,6 +133,15 @@ function getBoolean(obj: unknown, key: string): boolean {
   return false;
 }
 
+function extractDomain(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
 const ToolResultRenderer = memo(function ToolResultRenderer({
   toolName,
   result,
@@ -187,8 +200,8 @@ const CompactSearchResults = memo(function CompactSearchResults({
   return (
     <div className="space-y-1.5">
       {results.slice(0, 5).map((item, i) => {
-        const source = getString(item, 'source');
-        const excerpt = getString(item, 'excerpt');
+        const source = getString(item, 'source') || getString(item, 'title');
+        const excerpt = getString(item, 'excerpt') || getString(item, 'content');
         const url = getString(item, 'url');
         const relevance = getString(item, 'relevance');
 
@@ -282,10 +295,10 @@ const CompactWebResults = memo(function CompactWebResults({ result }: { result: 
   return (
     <div className="space-y-1.5">
       {items.slice(0, 5).map((item, i) => {
-        const title = getString(item, 'title');
+        const title = getString(item, 'title') || getString(item, 'source');
         const url = getString(item, 'url');
-        const snippet = getString(item, 'snippet');
-        const domain = getString(item, 'domain');
+        const snippet = getString(item, 'snippet') || getString(item, 'content');
+        const domain = getString(item, 'domain') || extractDomain(url);
 
         return (
           <div key={i} className="text-xs">

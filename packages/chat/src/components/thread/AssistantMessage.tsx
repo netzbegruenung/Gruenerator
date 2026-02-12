@@ -1,0 +1,92 @@
+'use client';
+
+import { MessagePrimitive, useMessage } from '@assistant-ui/react';
+import { useAgentStore } from '../../stores/chatStore';
+import { agentsList } from '../../lib/agents';
+import { MarkdownContent } from '../MarkdownContent';
+import { ProgressIndicator } from '../message-parts/ProgressIndicator';
+import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
+import { MessageActions } from '../message-parts/MessageActions';
+import { SourceCard } from '../message-parts/SourceCard';
+import { CitationProvider } from '../../context/CitationContext';
+import type { GrueneratorMessageMetadata } from '../../runtime/GrueneratorModelAdapter';
+
+function AssistantMessageTextPart({
+  text,
+}: {
+  type: 'text';
+  text: string;
+  [key: string]: unknown;
+}) {
+  if (!text) return null;
+
+  return (
+    <div className="prose prose-sm max-w-none">
+      <MarkdownContent content={text} />
+    </div>
+  );
+}
+
+export function AssistantMessage() {
+  const message = useMessage();
+  const { selectedAgentId } = useAgentStore();
+  const selectedAgent = agentsList.find((a) => a.identifier === selectedAgentId);
+  const custom = message.metadata?.custom as GrueneratorMessageMetadata | undefined;
+
+  const textContent = message.content
+    .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+    .map((part) => part.text)
+    .join('');
+
+  const isStreaming = message.status?.type === 'running';
+  const hasToolCall = message.content.some((p) => p.type === 'tool-call');
+
+  const citations = custom?.citations || [];
+
+  return (
+    <MessagePrimitive.Root className="group mx-auto flex w-full max-w-3xl items-start gap-4">
+      <div
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm"
+        style={{ backgroundColor: selectedAgent?.backgroundColor || '#316049' }}
+      >
+        {selectedAgent?.avatar}
+      </div>
+      <div className="min-w-0 flex-1">
+        {isStreaming && custom?.progress && !hasToolCall && (
+          <ProgressIndicator
+            progress={custom.progress}
+            agentColor={selectedAgent?.backgroundColor || '#316049'}
+          />
+        )}
+
+        {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
+
+        <CitationProvider citations={citations}>
+          <MessagePrimitive.Parts
+            components={{
+              Text: AssistantMessageTextPart,
+              Source: SourceCard,
+            }}
+          />
+        </CitationProvider>
+
+        {!isStreaming && textContent && (
+          <MessageActions
+            content={textContent}
+            metadata={
+              custom
+                ? {
+                    citations: custom.citations,
+                    searchResults: custom.searchResults,
+                    intent: custom.streamMetadata?.intent,
+                    searchCount: custom.streamMetadata?.searchCount,
+                    generatedImage: custom.generatedImage,
+                  }
+                : undefined
+            }
+          />
+        )}
+      </div>
+    </MessagePrimitive.Root>
+  );
+}

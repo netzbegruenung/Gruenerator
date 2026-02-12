@@ -1013,6 +1013,7 @@ CREATE TABLE IF NOT EXISTS chat_threads (
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     agent_id VARCHAR(100) NOT NULL DEFAULT 'gruenerator-universal',
     title VARCHAR(255),
+    status VARCHAR(20) DEFAULT 'regular',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     -- Auto-compaction fields for managing long conversations
@@ -1025,6 +1026,9 @@ CREATE TABLE IF NOT EXISTS chat_threads (
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS compaction_summary TEXT;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS compacted_up_to_message_id UUID;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS compaction_updated_at TIMESTAMPTZ;
+
+-- Add status column for archive support
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'regular';
 
 -- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
 DO $$
@@ -1056,6 +1060,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_threads_user_id ON chat_threads(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_updated_at ON chat_threads(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_user_updated ON chat_threads(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_compaction ON chat_threads(id) WHERE compaction_summary IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_chat_threads_status ON chat_threads(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);

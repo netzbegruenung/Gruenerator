@@ -381,7 +381,7 @@ const ExportDropdown = ({
       } finally {
         setShowPastePopup(true);
       }
-      if (response && response.padURL) {
+      if (response && typeof response.padURL === 'string') {
         setPadURL(response.padURL);
       }
     } catch (err) {

@@ -69,6 +69,7 @@ export default defineConfig(({ command }) => ({
       '@': path.resolve(__dirname, 'src'),
       '~': path.resolve(__dirname, './'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
     },
   },
   optimizeDeps: {
@@ -84,6 +85,7 @@ export default defineConfig(({ command }) => ({
       'file-saver',
       'prop-types',
       '@mdxeditor/editor',
+      '@assistant-ui/react',
     ],
     exclude: [
       'motion',
@@ -149,6 +151,7 @@ export default defineConfig(({ command }) => ({
           'canvas-vendor': ['konva', 'react-konva', 'use-image'],
           'ai-vendor': ['onnxruntime-web', '@imgly/background-removal'],
           'editor-vendor': ['@mdxeditor/editor', 'marked', 'react-markdown'],
+          'chat-vendor': ['@assistant-ui/react', 'lucide-react'],
         },
       },
     },

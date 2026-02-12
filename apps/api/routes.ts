@@ -7,10 +7,6 @@ import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import exportDocumentsRouter from './routes/exports/index.js';
-import { markdownController as markdownRouter } from './routes/markdown/index.js';
-import { releasesRouter } from './routes/releases/index.js';
-import { oparlRouter } from './routes/oparl/index.js';
-import voiceRouter from './routes/voice/voiceController.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import {
@@ -18,9 +14,11 @@ import {
   generationController as imageGenerationRouter,
 } from './routes/image/index.js';
 import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
-import promptRoute from './routes/sharepic/promptRoute.js';
+import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import { oparlRouter } from './routes/oparl/index.js';
 import planModeRouter from './routes/plan-mode/index.js';
 import protokollRouter from './routes/protokoll/index.js';
+import { releasesRouter } from './routes/releases/index.js';
 import scannerRouter from './routes/scanner/index.js';
 import {
   searchController as searchRouter,
@@ -28,6 +26,7 @@ import {
 } from './routes/search/index.js';
 import shareRouter from './routes/share/shareController.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
+import promptRoute from './routes/sharepic/promptRoute.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
@@ -63,6 +62,7 @@ import {
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
 import { recentValuesRouter } from './routes/user/index.js';
+import voiceRouter from './routes/voice/voiceController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { createLogger } from './utils/logger.js';
@@ -149,6 +149,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
+  const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: publicSiteRouter } =
     await import('./routes/sites/index.js');
@@ -157,6 +158,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: docsRouter } = await import('./routes/docs/index.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
+  const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
 
   // Auth routes - combined TypeScript router
   app.use('/api/auth', authRouter);
@@ -182,6 +184,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/chat', grueneratorChatRoute);
   app.use('/api/chat-service', chatServiceRouter);
   app.use('/api/chat-graph', chatGraphRouter);
+  app.use('/api/chat-deep', chatDeepRouter);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
@@ -263,6 +266,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/subtitler/projects', subtitlerProjectRouter);
   app.use('/api/subtitler/share', subtitlerShareRouter);
   app.use('/api/share', shareRouter);
+  app.use('/api/mem0', requireAuth, mem0Router);
   app.use('/api/media', requireAuth, mediaRouter);
   app.use('/api/docs', requireAuth, docsRouter);
   app.use('/api/users', requireAuth, usersRouter);

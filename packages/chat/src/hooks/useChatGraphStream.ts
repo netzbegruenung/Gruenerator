@@ -42,6 +42,11 @@ export interface Citation {
   title: string;
   url: string;
   snippet: string;
+  citedText?: string;
+  source: string;
+  collectionName?: string;
+  domain?: string;
+  relevance?: number;
 }
 
 export interface SearchResult {

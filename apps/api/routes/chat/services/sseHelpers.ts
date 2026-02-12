@@ -5,8 +5,11 @@
  * Used by chat controllers to provide real-time feedback during AI processing.
  */
 
+import type {
+  SearchIntent,
+  GeneratedImageResult,
+} from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Response } from 'express';
-import type { SearchIntent, GeneratedImageResult } from '../../../agents/langgraph/ChatGraph/types.js';
 
 /**
  * SSE event types for chat streaming.
@@ -19,6 +22,7 @@ export type SSEEventType =
   | 'image_start'
   | 'image_complete'
   | 'response_start'
+  | 'thinking_step'
   | 'text_delta'
   | 'done'
   | 'error';
@@ -35,11 +39,29 @@ export interface SearchResultPayload {
 }
 
 /**
+ * Payload for deep agent thinking step events.
+ * Emitted when the agent starts/completes a tool call.
+ */
+export interface ThinkingStepPayload {
+  stepId: string;
+  toolName: string;
+  title: string;
+  status: 'in_progress' | 'completed';
+  args?: Record<string, unknown>;
+  result?: {
+    resultCount?: number;
+    results?: unknown[];
+    image?: GeneratedImageResult;
+    error?: string;
+  };
+}
+
+/**
  * SSE event payloads by type.
  */
 export interface SSEEventPayloads {
   thread_created: { threadId: string };
-  intent: { intent: SearchIntent; message: string; reasoning?: string };
+  intent: { intent: SearchIntent; message: string; reasoning?: string; searchQuery?: string };
   search_start: { message: string };
   search_complete: {
     message: string;
@@ -53,6 +75,7 @@ export interface SSEEventPayloads {
     error?: string;
   };
   response_start: { message: string };
+  thinking_step: ThinkingStepPayload;
   text_delta: { text: string };
   done: {
     threadId?: string | null;
@@ -90,9 +113,7 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
 export const PROGRESS_MESSAGES = {
   searchStart: 'Durchsuche Quellen...',
   searchComplete: (count: number) =>
-    count > 0
-      ? `${count} relevante Quellen gefunden`
-      : 'Keine passenden Quellen gefunden',
+    count > 0 ? `${count} relevante Quellen gefunden` : 'Keine passenden Quellen gefunden',
   imageStart: 'Generiere Bild...',
   imageComplete: 'Bild erfolgreich generiert',
   imageError: (error: string) => `Bildgenerierung fehlgeschlagen: ${error}`,
@@ -131,8 +152,8 @@ export class SSEWriter {
    */
   send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void {
     if (this.ended) return;
-    this.res.write(`event: ${event}\n`);
-    this.res.write(`data: ${JSON.stringify(data)}\n\n`);
+    this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    (this.res as any).flush?.();
   }
 
   /**
@@ -140,8 +161,8 @@ export class SSEWriter {
    */
   sendRaw(event: string, data: unknown): void {
     if (this.ended) return;
-    this.res.write(`event: ${event}\n`);
-    this.res.write(`data: ${JSON.stringify(data)}\n\n`);
+    this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    (this.res as any).flush?.();
   }
 
   /**

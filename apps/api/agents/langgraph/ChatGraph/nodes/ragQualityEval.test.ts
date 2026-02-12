@@ -9,6 +9,7 @@
 
 import { heuristicClassify, extractSearchTopic } from './classifierNode.js';
 import { buildSystemMessage } from './respondNode.js';
+
 import type { ChatGraphState, SearchResult } from '../types.js';
 
 // ============================================================================
@@ -17,8 +18,8 @@ import type { ChatGraphState, SearchResult } from '../types.js';
 
 interface QualityScore {
   name: string;
-  score: number;      // 1-5
-  maxScore: number;    // always 5
+  score: number; // 1-5
+  maxScore: number; // always 5
   details: string[];
   category: string;
 }
@@ -107,28 +108,43 @@ function evaluateQueryReformulation() {
     // For task-oriented queries, check how well we extracted the topic
     const containsTopic = extracted.includes(t.idealTopic) || t.idealTopic.includes(extracted);
     const exactMatch = extracted === t.idealTopic;
-    const noTaskWords = !/(schreib|erstell|formulier|verfass|generier|mach|artikel|rede|pressemitteilung|bericht|zusammenfassung)/i.test(extracted);
+    const noTaskWords =
+      !/(schreib|erstell|formulier|verfass|generier|mach|artikel|rede|pressemitteilung|bericht|zusammenfassung)/i.test(
+        extracted
+      );
     const reasonableLength = extracted.length > 3 && extracted.length < t.input.length * 0.8;
 
     let queryScore = 0;
-    if (exactMatch) { queryScore = 5; perfectMatches++; }
-    else if (containsTopic && noTaskWords) { queryScore = 4; goodMatches++; }
-    else if (noTaskWords && reasonableLength) { queryScore = 3; }
-    else if (reasonableLength) { queryScore = 2; }
-    else { queryScore = 1; }
+    if (exactMatch) {
+      queryScore = 5;
+      perfectMatches++;
+    } else if (containsTopic && noTaskWords) {
+      queryScore = 4;
+      goodMatches++;
+    } else if (noTaskWords && reasonableLength) {
+      queryScore = 3;
+    } else if (reasonableLength) {
+      queryScore = 2;
+    } else {
+      queryScore = 1;
+    }
 
     totalSimilarity += queryScore;
 
     const indicator = queryScore >= 4 ? '✅' : queryScore >= 3 ? '⚠️ ' : '❌';
-    details.push(`  ${indicator} ${t.description}: "${t.input}" → "${extracted}" (${queryScore}/5)`);
+    details.push(
+      `  ${indicator} ${t.description}: "${t.input}" → "${extracted}" (${queryScore}/5)`
+    );
   }
 
-  const taskQueries = testQueries.filter(t => t.idealTopic !== t.input);
+  const taskQueries = testQueries.filter((t) => t.idealTopic !== t.input);
   const avgScore = taskQueries.length > 0 ? totalSimilarity / taskQueries.length : 0;
 
   details.unshift(`  Perfect matches: ${perfectMatches}/${taskQueries.length}`);
   details.unshift(`  Good matches (4+): ${goodMatches + perfectMatches}/${taskQueries.length}`);
-  details.unshift(`  Direct queries preserved: ${preservedDirectQueries}/${testQueries.length - taskQueries.length}`);
+  details.unshift(
+    `  Direct queries preserved: ${preservedDirectQueries}/${testQueries.length - taskQueries.length}`
+  );
 
   rate('Query Reformulation', 'Topic Extraction Quality', Math.round(avgScore), details);
 }
@@ -137,21 +153,68 @@ function evaluateQueryReformulation() {
 // 2. Context Window Budget Allocation Quality
 // ============================================================================
 
-function evaluateBudgetAllocation() {
+async function evaluateBudgetAllocation() {
   // Create results with varying relevance and content length
   const mockResults: SearchResult[] = [
-    { source: 'test', title: 'Top Policy Document', content: 'Die Grünen fordern einen ambitionierten Klimaschutzplan. ' + 'Detaillierte Maßnahmen umfassen den Ausbau erneuerbarer Energien, den Kohleausstieg bis 2030, die Förderung von Elektromobilität und die Stärkung des öffentlichen Nahverkehrs. '.repeat(8), relevance: 0.95 },
-    { source: 'test', title: 'Bundestag Speech', content: 'In der Debatte zum Klimaschutzgesetz betonte die Fraktion die Notwendigkeit sofortiger Maßnahmen. '.repeat(8), relevance: 0.8 },
-    { source: 'test', title: 'Party Position Paper', content: 'Das Grundsatzprogramm definiert die Leitlinien für eine sozial-ökologische Transformation. '.repeat(6), relevance: 0.7 },
-    { source: 'test', title: 'News Article', content: 'Laut aktuellen Berichten plant die Partei neue Initiativen. '.repeat(4), relevance: 0.5 },
-    { source: 'test', title: 'KommunalWiki Entry', content: 'Kommunale Klimaschutzmaßnahmen werden von lokalen Verbänden koordiniert. '.repeat(3), relevance: 0.4 },
-    { source: 'test', title: 'Old Reference', content: 'Historischer Kontext der Umweltbewegung in Deutschland. '.repeat(2), relevance: 0.25 },
+    {
+      source: 'test',
+      title: 'Top Policy Document',
+      content:
+        'Die Grünen fordern einen ambitionierten Klimaschutzplan. ' +
+        'Detaillierte Maßnahmen umfassen den Ausbau erneuerbarer Energien, den Kohleausstieg bis 2030, die Förderung von Elektromobilität und die Stärkung des öffentlichen Nahverkehrs. '.repeat(
+          8
+        ),
+      relevance: 0.95,
+    },
+    {
+      source: 'test',
+      title: 'Bundestag Speech',
+      content:
+        'In der Debatte zum Klimaschutzgesetz betonte die Fraktion die Notwendigkeit sofortiger Maßnahmen. '.repeat(
+          8
+        ),
+      relevance: 0.8,
+    },
+    {
+      source: 'test',
+      title: 'Party Position Paper',
+      content:
+        'Das Grundsatzprogramm definiert die Leitlinien für eine sozial-ökologische Transformation. '.repeat(
+          6
+        ),
+      relevance: 0.7,
+    },
+    {
+      source: 'test',
+      title: 'News Article',
+      content: 'Laut aktuellen Berichten plant die Partei neue Initiativen. '.repeat(4),
+      relevance: 0.5,
+    },
+    {
+      source: 'test',
+      title: 'KommunalWiki Entry',
+      content: 'Kommunale Klimaschutzmaßnahmen werden von lokalen Verbänden koordiniert. '.repeat(
+        3
+      ),
+      relevance: 0.4,
+    },
+    {
+      source: 'test',
+      title: 'Old Reference',
+      content: 'Historischer Kontext der Umweltbewegung in Deutschland. '.repeat(2),
+      relevance: 0.25,
+    },
   ];
 
   const mockState: ChatGraphState = {
     messages: [],
     threadId: null,
-    agentConfig: { systemRole: 'Du bist ein Testassistent.', model: 'test', name: 'test', description: 'test' } as any,
+    agentConfig: {
+      systemRole: 'Du bist ein Testassistent.',
+      model: 'test',
+      name: 'test',
+      description: 'test',
+    } as any,
     enabledTools: {},
     aiWorkerPool: null,
     attachmentContext: null,
@@ -169,6 +232,7 @@ function evaluateBudgetAllocation() {
     citations: [],
     searchCount: 1,
     maxSearches: 3,
+    researchBrief: null,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
@@ -186,7 +250,7 @@ function evaluateBudgetAllocation() {
     error: null,
   };
 
-  const systemMessage = buildSystemMessage(mockState);
+  const systemMessage = await buildSystemMessage(mockState);
   const details: string[] = [];
 
   // Extract each result's allocated content length
@@ -195,9 +259,10 @@ function evaluateBudgetAllocation() {
 
   for (let i = 0; i < resultSections.length; i++) {
     const title = resultSections[i];
-    const nextTitleIdx = i + 1 < resultSections.length
-      ? systemMessage.indexOf(`**${resultSections[i + 1]}**`)
-      : systemMessage.length;
+    const nextTitleIdx =
+      i + 1 < resultSections.length
+        ? systemMessage.indexOf(`**${resultSections[i + 1]}**`)
+        : systemMessage.length;
     const thisTitleIdx = systemMessage.indexOf(`**${title}**`);
     const contentLength = nextTitleIdx - thisTitleIdx - title.length - 4;
     contentSections.push({ title, length: Math.max(0, contentLength) });
@@ -215,28 +280,39 @@ function evaluateBudgetAllocation() {
   // Check: All results present (up to MAX_SEARCH_RESULTS=8)
   const expectedCount = Math.min(mockResults.length, 8);
   checks.allResultsPresent = contentSections.length >= expectedCount;
-  details.push(`  ${checks.allResultsPresent ? '✅' : '❌'} All results present: ${contentSections.length}/${expectedCount}`);
+  details.push(
+    `  ${checks.allResultsPresent ? '✅' : '❌'} All results present: ${contentSections.length}/${expectedCount}`
+  );
 
   // Check: High-relevance result gets proportionally more content
   if (contentSections.length >= 2) {
-    checks.highRelevanceGetsMore = contentSections[0].length > contentSections[contentSections.length - 1].length;
-    details.push(`  ${checks.highRelevanceGetsMore ? '✅' : '❌'} High relevance gets more: Top=${contentSections[0].length} chars, Bottom=${contentSections[contentSections.length - 1].length} chars`);
+    checks.highRelevanceGetsMore =
+      contentSections[0].length > contentSections[contentSections.length - 1].length;
+    details.push(
+      `  ${checks.highRelevanceGetsMore ? '✅' : '❌'} High relevance gets more: Top=${contentSections[0].length} chars, Bottom=${contentSections[contentSections.length - 1].length} chars`
+    );
   }
 
   // Check: Total search context within reasonable bounds
   const searchSection = systemMessage.split('## SUCHERGEBNISSE')[1]?.split('## ')[0] || '';
   checks.totalWithinBudget = searchSection.length <= 6000 && searchSection.length >= 500;
-  details.push(`  ${checks.totalWithinBudget ? '✅' : '❌'} Total search context: ${searchSection.length} chars (target: 500-6000)`);
+  details.push(
+    `  ${checks.totalWithinBudget ? '✅' : '❌'} Total search context: ${searchSection.length} chars (target: 500-6000)`
+  );
 
   // Check: Every result gets at least some content (no 0-length)
-  checks.minimumContent = contentSections.every(s => s.length >= 50);
-  details.push(`  ${checks.minimumContent ? '✅' : '❌'} Minimum content per result: ${contentSections.map(s => s.length).join(', ')} chars`);
+  checks.minimumContent = contentSections.every((s) => s.length >= 50);
+  details.push(
+    `  ${checks.minimumContent ? '✅' : '❌'} Minimum content per result: ${contentSections.map((s) => s.length).join(', ')} chars`
+  );
 
   // Check: Ratio between top and bottom is reasonable (2-5x, not infinite)
   if (contentSections.length >= 2 && contentSections[contentSections.length - 1].length > 0) {
     const ratio = contentSections[0].length / contentSections[contentSections.length - 1].length;
     checks.proportionalAllocation = ratio >= 1.2 && ratio <= 8;
-    details.push(`  ${checks.proportionalAllocation ? '✅' : '⚠️ '} Allocation ratio top/bottom: ${ratio.toFixed(1)}x (target: 1.2-8x)`);
+    details.push(
+      `  ${checks.proportionalAllocation ? '✅' : '⚠️ '} Allocation ratio top/bottom: ${ratio.toFixed(1)}x (target: 1.2-8x)`
+    );
   }
 
   budgetScore = Object.values(checks).filter(Boolean).length;
@@ -253,20 +329,68 @@ function evaluateCrossCollectionDedup() {
   // Simulate realistic cross-collection results with various dedup scenarios
   const simulatedResults: SearchResult[] = [
     // Same document from 2 collections (URL match)
-    { source: 'gruenerator:deutschland', title: 'Grundsatzprogramm - Klimaschutz', content: 'Version from Grundsatzprogramm...', url: 'https://gruene.de/grundsatzprogramm#klimaschutz', relevance: 0.92 },
-    { source: 'gruenerator:gruene-de', title: 'Klimaschutz Position', content: 'Version from gruene.de...', url: 'https://gruene.de/grundsatzprogramm#klimaschutz', relevance: 0.85 },
+    {
+      source: 'gruenerator:deutschland',
+      title: 'Grundsatzprogramm - Klimaschutz',
+      content: 'Version from Grundsatzprogramm...',
+      url: 'https://gruene.de/grundsatzprogramm#klimaschutz',
+      relevance: 0.92,
+    },
+    {
+      source: 'gruenerator:gruene-de',
+      title: 'Klimaschutz Position',
+      content: 'Version from gruene.de...',
+      url: 'https://gruene.de/grundsatzprogramm#klimaschutz',
+      relevance: 0.85,
+    },
 
     // Similar content, different URLs (should NOT be deduped)
-    { source: 'gruenerator:bundestagsfraktion', title: 'Antrag Klimaschutzgesetz', content: 'Der Antrag der Fraktion...', url: 'https://bundestag.de/antrag-123', relevance: 0.88 },
-    { source: 'gruenerator:bundestagsfraktion', title: 'Rede zum Klimaschutz', content: 'In der Debatte...', url: 'https://bundestag.de/rede-456', relevance: 0.75 },
+    {
+      source: 'gruenerator:bundestagsfraktion',
+      title: 'Antrag Klimaschutzgesetz',
+      content: 'Der Antrag der Fraktion...',
+      url: 'https://bundestag.de/antrag-123',
+      relevance: 0.88,
+    },
+    {
+      source: 'gruenerator:bundestagsfraktion',
+      title: 'Rede zum Klimaschutz',
+      content: 'In der Debatte...',
+      url: 'https://bundestag.de/rede-456',
+      relevance: 0.75,
+    },
 
     // No URL (should all be kept)
-    { source: 'gruenerator:kommunalwiki', title: 'Kommunaler Klimaschutz', content: 'Auf kommunaler Ebene...', url: undefined, relevance: 0.65 },
-    { source: 'gruenerator:kommunalwiki', title: 'Klimaschutzkonzepte', content: 'Integrierte Konzepte...', url: undefined, relevance: 0.55 },
+    {
+      source: 'gruenerator:kommunalwiki',
+      title: 'Kommunaler Klimaschutz',
+      content: 'Auf kommunaler Ebene...',
+      url: undefined,
+      relevance: 0.65,
+    },
+    {
+      source: 'gruenerator:kommunalwiki',
+      title: 'Klimaschutzkonzepte',
+      content: 'Integrierte Konzepte...',
+      url: undefined,
+      relevance: 0.55,
+    },
 
     // Another URL duplicate (cross-collection)
-    { source: 'gruenerator:deutschland', title: 'Energiewende', content: 'Original version...', url: 'https://gruene.de/energiewende', relevance: 0.7 },
-    { source: 'gruenerator:gruene-de', title: 'Energiewende Page', content: 'Web version...', url: 'https://gruene.de/energiewende', relevance: 0.6 },
+    {
+      source: 'gruenerator:deutschland',
+      title: 'Energiewende',
+      content: 'Original version...',
+      url: 'https://gruene.de/energiewende',
+      relevance: 0.7,
+    },
+    {
+      source: 'gruenerator:gruene-de',
+      title: 'Energiewende Page',
+      content: 'Web version...',
+      url: 'https://gruene.de/energiewende',
+      relevance: 0.6,
+    },
   ];
 
   // Apply deduplication
@@ -283,31 +407,43 @@ function evaluateCrossCollectionDedup() {
   // Check: Correct number after dedup (8 → 6: removed 2 URL dupes)
   const correctCount = deduped.length === 6;
   dedupScore += correctCount ? 1 : 0;
-  details.push(`  ${correctCount ? '✅' : '❌'} Dedup count: ${deduped.length} (expected 6 from 8 input)`);
+  details.push(
+    `  ${correctCount ? '✅' : '❌'} Dedup count: ${deduped.length} (expected 6 from 8 input)`
+  );
 
   // Check: Higher-relevance version kept for duplicates
-  const grundsatzResult = deduped.find(r => r.url === 'https://gruene.de/grundsatzprogramm#klimaschutz');
+  const grundsatzResult = deduped.find(
+    (r) => r.url === 'https://gruene.de/grundsatzprogramm#klimaschutz'
+  );
   const keptHigher = grundsatzResult?.relevance === 0.92;
   dedupScore += keptHigher ? 1 : 0;
-  details.push(`  ${keptHigher ? '✅' : '❌'} Kept higher-relevance version: relevance=${grundsatzResult?.relevance} (expected 0.92)`);
+  details.push(
+    `  ${keptHigher ? '✅' : '❌'} Kept higher-relevance version: relevance=${grundsatzResult?.relevance} (expected 0.92)`
+  );
 
   // Check: No-URL results preserved
-  const noUrlCount = deduped.filter(r => !r.url).length;
+  const noUrlCount = deduped.filter((r) => !r.url).length;
   const noUrlCorrect = noUrlCount === 2;
   dedupScore += noUrlCorrect ? 1 : 0;
-  details.push(`  ${noUrlCorrect ? '✅' : '❌'} No-URL results preserved: ${noUrlCount} (expected 2)`);
+  details.push(
+    `  ${noUrlCorrect ? '✅' : '❌'} No-URL results preserved: ${noUrlCount} (expected 2)`
+  );
 
   // Check: Different-URL same-topic results both kept
-  const bundetagResults = deduped.filter(r => r.url?.includes('bundestag.de'));
+  const bundetagResults = deduped.filter((r) => r.url?.includes('bundestag.de'));
   const bothKept = bundetagResults.length === 2;
   dedupScore += bothKept ? 1 : 0;
-  details.push(`  ${bothKept ? '✅' : '❌'} Different-URL same-topic kept: ${bundetagResults.length} (expected 2)`);
+  details.push(
+    `  ${bothKept ? '✅' : '❌'} Different-URL same-topic kept: ${bundetagResults.length} (expected 2)`
+  );
 
   // Check: After sorting, highest relevance is first
   deduped.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
   const sortedCorrectly = deduped[0].relevance === 0.92;
   dedupScore += sortedCorrectly ? 1 : 0;
-  details.push(`  ${sortedCorrectly ? '✅' : '❌'} Sorted by relevance: top=${deduped[0].relevance} (expected 0.92)`);
+  details.push(
+    `  ${sortedCorrectly ? '✅' : '❌'} Sorted by relevance: top=${deduped[0].relevance} (expected 0.92)`
+  );
 
   rate('Cross-Collection', 'Deduplication Quality', dedupScore, details);
 }
@@ -324,29 +460,41 @@ function evaluateRerankDesign() {
 
   // Check 1: Score normalization — 1-5 → 0.2-1.0
   const testScores = [1, 2, 3, 4, 5];
-  const normalized = testScores.map(s => s / 5);
+  const normalized = testScores.map((s) => s / 5);
   const correctNormalization = normalized[0] === 0.2 && normalized[4] === 1.0;
   designScore += correctNormalization ? 1 : 0;
-  details.push(`  ${correctNormalization ? '✅' : '❌'} Score normalization: [${normalized.join(', ')}] (expect 0.2-1.0)`);
+  details.push(
+    `  ${correctNormalization ? '✅' : '❌'} Score normalization: [${normalized.join(', ')}] (expect 0.2-1.0)`
+  );
 
   // Check 2: Low-relevance filtering threshold (score 1 = 0.2, filtered at > 0.2)
-  const filtered = normalized.filter(s => s > 0.2);
+  const filtered = normalized.filter((s) => s > 0.2);
   const correctFiltering = filtered.length === 4; // scores 2-5 pass
   designScore += correctFiltering ? 1 : 0;
-  details.push(`  ${correctFiltering ? '✅' : '❌'} Low-relevance filtering: ${filtered.length}/5 pass (score 1 filtered out)`);
+  details.push(
+    `  ${correctFiltering ? '✅' : '❌'} Low-relevance filtering: ${filtered.length}/5 pass (score 1 filtered out)`
+  );
 
   // Check 3: Input/output limits are reasonable
   const RERANK_INPUT_LIMIT = 12;
   const RERANK_OUTPUT_LIMIT = 8;
-  const reasonableLimits = RERANK_INPUT_LIMIT >= 10 && RERANK_INPUT_LIMIT <= 20 && RERANK_OUTPUT_LIMIT >= 5 && RERANK_OUTPUT_LIMIT <= 10;
+  const reasonableLimits =
+    RERANK_INPUT_LIMIT >= 10 &&
+    RERANK_INPUT_LIMIT <= 20 &&
+    RERANK_OUTPUT_LIMIT >= 5 &&
+    RERANK_OUTPUT_LIMIT <= 10;
   designScore += reasonableLimits ? 1 : 0;
-  details.push(`  ${reasonableLimits ? '✅' : '❌'} I/O limits: input=${RERANK_INPUT_LIMIT}, output=${RERANK_OUTPUT_LIMIT} (reasonable range)`);
+  details.push(
+    `  ${reasonableLimits ? '✅' : '❌'} I/O limits: input=${RERANK_INPUT_LIMIT}, output=${RERANK_OUTPUT_LIMIT} (reasonable range)`
+  );
 
   // Check 4: Skip threshold — should skip if ≤ 3 results
   const skipThreshold = 3;
   const skipCorrect = skipThreshold <= 4;
   designScore += skipCorrect ? 1 : 0;
-  details.push(`  ${skipCorrect ? '✅' : '❌'} Skip threshold: ${skipThreshold} (no reranking needed for few results)`);
+  details.push(
+    `  ${skipCorrect ? '✅' : '❌'} Skip threshold: ${skipThreshold} (no reranking needed for few results)`
+  );
 
   // Check 5: Graceful degradation — returns original results on error
   designScore += 1; // Design includes error handling that preserves original results
@@ -394,13 +542,17 @@ function evaluatePipelineQuality() {
     if (tc.expectResearchIntent) {
       const correct = classification.intent === 'research';
       pipelineScore += correct ? 0.5 : 0;
-      details.push(`  ${correct ? '✅' : '❌'} ${tc.description}: intent=${classification.intent} (expect research)`);
+      details.push(
+        `  ${correct ? '✅' : '❌'} ${tc.description}: intent=${classification.intent} (expect research)`
+      );
     }
 
     // Check query optimization
     if (tc.expectOptimizedQuery) {
       pipelineScore += wasOptimized ? 0.5 : 0;
-      details.push(`  ${wasOptimized ? '✅' : '❌'} ${tc.description}: optimized="${optimized}" (was: "${tc.input.slice(0, 40)}...")`);
+      details.push(
+        `  ${wasOptimized ? '✅' : '❌'} ${tc.description}: optimized="${optimized}" (was: "${tc.input.slice(0, 40)}...")`
+      );
     }
   }
 
@@ -426,13 +578,13 @@ function printReport() {
   console.log(`  RAG QUALITY EVALUATION REPORT`);
   console.log(`${'═'.repeat(60)}`);
 
-  const categories = [...new Set(scores.map(s => s.category))];
+  const categories = [...new Set(scores.map((s) => s.category))];
   let totalScore = 0;
   let totalMax = 0;
 
   for (const category of categories) {
     console.log(`\n  ┌─ ${category}`);
-    const categoryScores = scores.filter(s => s.category === category);
+    const categoryScores = scores.filter((s) => s.category === category);
     for (const s of categoryScores) {
       console.log(`  │  ${printScoreBar(s.score, s.maxScore)}  ${s.name}`);
       for (const d of s.details) {
@@ -446,13 +598,20 @@ function printReport() {
 
   const overallPct = ((totalScore / totalMax) * 100).toFixed(0);
   const overallGrade =
-    totalScore / totalMax >= 0.9 ? 'A' :
-    totalScore / totalMax >= 0.8 ? 'B' :
-    totalScore / totalMax >= 0.7 ? 'C' :
-    totalScore / totalMax >= 0.6 ? 'D' : 'F';
+    totalScore / totalMax >= 0.9
+      ? 'A'
+      : totalScore / totalMax >= 0.8
+        ? 'B'
+        : totalScore / totalMax >= 0.7
+          ? 'C'
+          : totalScore / totalMax >= 0.6
+            ? 'D'
+            : 'F';
 
   console.log(`\n${'═'.repeat(60)}`);
-  console.log(`  OVERALL: ${printScoreBar(totalScore, totalMax)}  Grade: ${overallGrade} (${overallPct}%)`);
+  console.log(
+    `  OVERALL: ${printScoreBar(totalScore, totalMax)}  Grade: ${overallGrade} (${overallPct}%)`
+  );
   console.log(`${'═'.repeat(60)}`);
   console.log(`  Total: ${totalScore}/${totalMax} points across ${scores.length} dimensions`);
 
@@ -478,7 +637,7 @@ async function main() {
   console.log('═'.repeat(60));
 
   evaluateQueryReformulation();
-  evaluateBudgetAllocation();
+  await evaluateBudgetAllocation();
   evaluateCrossCollectionDedup();
   evaluateRerankDesign();
   evaluatePipelineQuality();
