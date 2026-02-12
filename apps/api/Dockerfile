@@ -74,6 +74,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     fontconfig \
     fonts-dejavu-core \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -g 1001 gruenerator && \
