@@ -249,7 +249,6 @@ router.patch(
         'advanced_editor',
         'collaborative_editing',
         'contentManagement',
-        'canva',
         'chat',
         'labor',
         'sites',

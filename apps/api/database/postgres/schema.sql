@@ -63,14 +63,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     custom_antrag_gliederung TEXT,
     auth_source TEXT,
     locale TEXT DEFAULT 'de-DE' CHECK (locale IN ('de-DE', 'de-AT')),
-    canva_access_token TEXT,
-    canva_refresh_token TEXT,
-    canva_token_expires_at TIMESTAMPTZ,
-    canva_user_id TEXT,
-    canva_display_name TEXT,
-    canva_email TEXT,
-    canva_scopes JSONB DEFAULT '[]',
-    canva_team_id TEXT,
     groups_enabled BOOLEAN DEFAULT FALSE,
     groups BOOLEAN DEFAULT FALSE,
     custom_generators BOOLEAN DEFAULT FALSE,
@@ -81,7 +73,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     anweisungen BOOLEAN DEFAULT FALSE,
     chat_color TEXT,
     content_management BOOLEAN DEFAULT FALSE,
-    canva BOOLEAN DEFAULT FALSE,
     labor_enabled BOOLEAN DEFAULT FALSE,
     sites BOOLEAN DEFAULT FALSE,
     chat BOOLEAN DEFAULT FALSE,
@@ -469,7 +460,7 @@ CREATE TABLE IF NOT EXISTS saved_prompts (
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 8: TEMPLATES & LIKES
--- User templates (Canva, etc.) and template likes/favorites
+-- User templates and template likes/favorites
 -- ════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS user_templates (

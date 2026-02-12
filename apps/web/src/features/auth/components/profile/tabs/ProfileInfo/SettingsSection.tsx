@@ -4,7 +4,6 @@ import { GiHedgehog } from 'react-icons/gi';
 import {
   HiOutlineExternalLink,
   HiOutlineDatabase,
-  HiOutlinePhotograph,
   HiOutlineUsers,
   HiSave,
   HiOutlineChat,
@@ -71,9 +70,7 @@ const LocaleSelector: React.FC = () => {
 const BETA_VIEWS = {
   DATABASE: 'database',
   COLLAB: 'collab',
-  CANVA: 'canva',
   AUTO_SAVE_EXPORT: 'autoSaveOnExport',
-  // DEPRECATED: CHAT: 'chat',
   GROUPS: 'groups',
   WEBSITE: 'website',
   VORLAGEN: 'vorlagen',
@@ -116,16 +113,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           featureName: 'Kollaborative Bearbeitung',
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers,
-        };
-      case BETA_VIEWS.CANVA:
-        return {
-          title: 'Canva Integration',
-          description: 'Designs und Assets aus Canva nutzen',
-          checked: getBetaFeatureState('canva'),
-          setter: (value: boolean) => updateUserBetaFeatures('canva', value),
-          featureName: 'Canva Integration',
-          checkboxLabel: 'Canva-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
-          icon: HiOutlinePhotograph,
         };
       case BETA_VIEWS.AUTO_SAVE_EXPORT:
         return {

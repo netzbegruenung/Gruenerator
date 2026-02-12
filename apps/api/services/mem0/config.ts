@@ -100,7 +100,24 @@ class LiteLLMAdapter {
       max_tokens: 4096,
     });
 
-    return { content: response.choices[0]?.message?.content || '' };
+    let content = response.choices[0]?.message?.content || '';
+
+    // GPT-OSS often outputs chain-of-thought reasoning before JSON.
+    // Extract the first valid JSON object/array from the response.
+    if (wantsJson && content) {
+      const jsonStart = content.search(/[[{]/);
+      if (jsonStart > 0) {
+        const candidate = content.slice(jsonStart);
+        const jsonEnd = candidate.lastIndexOf('}');
+        const arrayEnd = candidate.lastIndexOf(']');
+        const end = Math.max(jsonEnd, arrayEnd);
+        if (end >= 0) {
+          content = candidate.slice(0, end + 1);
+        }
+      }
+    }
+
+    return { content };
   }
 }
 
