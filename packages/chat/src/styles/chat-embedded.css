@@ -1,0 +1,441 @@
+/*
+ * Chat Embedded Styles — component CSS only.
+ * Theme tokens are registered by the host app's @theme block.
+ * This file provides: dark mode overrides, keyframes, and component classes.
+ */
+
+:root {
+  --radius: 0.5rem;
+}
+
+/* Base border color for Tailwind border utilities */
+* {
+  border-color: var(--color-border, currentColor);
+}
+
+/* Dark mode overrides */
+[data-theme='dark'] {
+  --color-background-secondary: #242424;
+  --color-foreground-muted: #999999;
+  --color-muted-foreground: #999999;
+  --color-border: #374151;
+  --color-card: #242424;
+  --color-card-foreground: #e5e5e5;
+  --color-surface: rgba(255,255,255,0.05);
+  --color-surface-hover: rgba(255,255,255,0.1);
+  --color-hover-overlay: rgba(255,255,255,0.05);
+  --color-user-bubble: rgba(255,255,255,0.1);
+  --color-code-inline-bg: #1f2937;
+  --color-error-bg: rgba(153,27,27,0.2);
+  --color-badge-purple: #c4b5fd;
+  --color-badge-purple-bg: rgba(91,33,182,0.3);
+  --color-badge-indigo: #a5b4fc;
+  --color-badge-indigo-bg: rgba(67,56,202,0.4);
+  --color-badge-indigo-hover: rgba(67,56,202,0.5);
+  --color-status-green: #4ade80;
+  --color-status-yellow: #facc15;
+  --color-status-red: #f87171;
+  --color-muted-disabled: #6b7280;
+  --color-tool-indigo: #818cf8;
+  --color-tool-indigo-bg: rgba(67,56,202,0.3);
+  --color-tool-emerald: #34d399;
+  --color-tool-emerald-bg: rgba(5,150,105,0.3);
+  --color-tool-orange: #fb923c;
+  --color-tool-orange-bg: rgba(234,88,12,0.3);
+  --color-tool-purple: #c084fc;
+  --color-tool-purple-bg: rgba(147,51,234,0.3);
+  --color-section-border: #374151;
+  --color-toggle-track: #4b5563;
+  --color-collection-grundsatzprogramm: #34d399;
+  --color-collection-grundsatzprogramm-bg: rgba(5,150,105,0.25);
+  --color-collection-bundestagsfraktion: #60a5fa;
+  --color-collection-bundestagsfraktion-bg: rgba(37,99,235,0.25);
+  --color-collection-gruene-de: #4ade80;
+  --color-collection-gruene-de-bg: rgba(22,163,74,0.25);
+  --color-collection-kommunalwiki: #fbbf24;
+  --color-collection-kommunalwiki-bg: rgba(217,119,6,0.25);
+  --color-collection-web: #fb923c;
+  --color-collection-web-bg: rgba(234,88,12,0.25);
+  --color-collection-research: #818cf8;
+  --color-collection-research-bg: rgba(79,70,229,0.25);
+  --color-relevance-high: #4ade80;
+  --color-relevance-medium: #facc15;
+  --color-relevance-low: #f87171;
+
+  /* Shadcn semantic tokens (dark) */
+  --color-primary-foreground: #ffffff;
+  --color-secondary-foreground: #ffffff;
+  --color-accent-foreground: #e5e5e5;
+  --color-muted: #2a2a2a;
+  --color-muted-foreground: #999999;
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #ffffff;
+  --color-input: #374151;
+  --color-ring: #56a17e;
+}
+
+@keyframes slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Scrollbar styling */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 3px;
+}
+
+/* Markdown content styling */
+.prose {
+  max-width: none;
+  --tw-prose-body: var(--color-foreground);
+  --tw-prose-headings: var(--color-foreground);
+  --tw-prose-bold: var(--color-foreground);
+  --tw-prose-code: var(--color-foreground);
+}
+
+.prose pre {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background-color: var(--color-code-block-bg);
+  color: var(--color-code-block-fg);
+  padding: 1rem;
+}
+
+.prose code {
+  border-radius: 0.25rem;
+  background-color: var(--color-code-inline-bg);
+  padding: 0.125rem 0.25rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+@keyframes message-appear {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-message-appear {
+  animation: message-appear 0.2s ease-out;
+}
+
+/* Tool UI Cards */
+.tool-card {
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card);
+  padding: 1rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.tool-card-header {
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.tool-card-content {
+  font-size: 0.875rem;
+  color: var(--color-foreground-muted);
+}
+
+/* Search result styling */
+.search-result {
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card);
+  padding: 0.75rem;
+  transition: border-color 0.15s;
+}
+
+.search-result:hover {
+  border-color: var(--color-primary);
+}
+
+.search-result-title {
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.search-result-snippet {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--color-foreground-muted);
+}
+
+.search-result-relevance {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-primary);
+}
+
+/* Floating controls container */
+.floating-controls-wrapper {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  padding: 0.75rem;
+  pointer-events: none;
+}
+
+.floating-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  pointer-events: auto;
+}
+
+/* Sidebar footer controls (chat package — prefixed to avoid collision with app sidebar) */
+.chat-sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.sidebar-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  color: var(--color-foreground-muted);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.sidebar-icon-button:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-foreground);
+}
+
+/* Agent pill selector */
+.agent-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.375rem 0.625rem;
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  transition: background-color 0.15s;
+  cursor: pointer;
+}
+
+.agent-pill:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+.agent-pill-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.agent-pill-name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-pill-chevron {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-foreground-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.agent-pill-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Three-dot menu */
+.menu-dropdown {
+  position: relative;
+}
+
+.menu-dropdown-content {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 0.5rem;
+  min-width: 10rem;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  z-index: 50;
+}
+
+.menu-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-foreground-muted);
+  transition: background-color 0.15s, color 0.15s;
+  text-align: left;
+}
+
+.menu-dropdown-item:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-foreground);
+}
+
+.menu-dropdown-item.destructive:hover {
+  background-color: color-mix(in srgb, #ef4444 10%, transparent);
+  color: #ef4444;
+}
+
+/* Agent selector dropdown */
+.agent-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 0.5rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  border-radius: 0.75rem;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  z-index: 50;
+}
+
+.agent-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  transition: background-color 0.15s;
+}
+
+.agent-dropdown-item:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+.agent-dropdown-item.selected {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+/* Input bar tools button */
+.input-tools-button {
+  display: flex;
+  align-items: center;
+  height: 3rem;
+  padding-left: 0.5rem;
+}
+
+/* Skeleton loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.skeleton-line {
+  height: 0.75rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-hover) 50%, var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-circle {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-hover) 50%, var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes thread-item-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-thread-item {
+  animation: thread-item-in 0.15s ease-out;
+}
+
+.thread-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--color-foreground-muted);
+}
+
+.thread-list-empty-icon {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-border);
+}
+
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}

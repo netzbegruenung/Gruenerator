@@ -1,6 +1,7 @@
 import { type JSX, useEffect, Suspense, lazy, useState, type ReactNode, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { GlobalChatProvider } from '../../../providers/GlobalChatProvider';
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { isDesktopApp } from '../../../utils/platform';
@@ -88,21 +89,23 @@ const PageLayout = ({
     .join(' ');
 
   return (
-    <div className={layoutClasses}>
-      <SidebarToggle />
-      <div className="header-actions">
-        <ProfileButton />
+    <GlobalChatProvider>
+      <div className={layoutClasses}>
+        <SidebarToggle />
+        <div className="header-actions">
+          <ProfileButton />
+        </div>
+        <Sidebar />
+        <div className="app-content">
+          <main className="content-wrapper">{children}</main>
+          {showFooter && (
+            <Suspense fallback={<div style={{ height: '80px' }} />}>
+              <Footer />
+            </Suspense>
+          )}
+        </div>
       </div>
-      <Sidebar />
-      <div className="app-content">
-        <main className="content-wrapper">{children}</main>
-        {showFooter && (
-          <Suspense fallback={<div style={{ height: '80px' }} />}>
-            <Footer />
-          </Suspense>
-        )}
-      </div>
-    </div>
+    </GlobalChatProvider>
   );
 };
 

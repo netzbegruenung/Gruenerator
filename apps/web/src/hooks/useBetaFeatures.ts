@@ -53,7 +53,7 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false, defaultEnabled: true },
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
-  // DEPRECATED: { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
+  { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
   // { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true }, // Removed - outdated
   { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
   {
@@ -105,10 +105,14 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
   // Helper functions - memoized with stable dependencies
   const getBetaFeatureState = React.useCallback(
     (key: string): boolean => {
+      const isDev = import.meta.env.DEV;
+      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === key);
+      if (isDev && featureConfig?.devOnly) {
+        return true;
+      }
       if (betaFeatures?.[key] !== undefined) {
         return !!betaFeatures[key];
       }
-      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === key);
       return featureConfig?.defaultEnabled ?? false;
     },
     [betaFeatures]

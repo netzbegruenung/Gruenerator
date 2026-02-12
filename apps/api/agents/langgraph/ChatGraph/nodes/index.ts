@@ -3,6 +3,7 @@
  */
 
 export { classifierNode } from './classifierNode.js';
+export { briefGeneratorNode } from './briefGeneratorNode.js';
 export { searchNode } from './searchNode.js';
 export { rerankNode } from './rerankNode.js';
 export { qualityGateNode } from './qualityGateNode.js';

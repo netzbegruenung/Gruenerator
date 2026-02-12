@@ -12,6 +12,7 @@
 
 import { heuristicClassify, extractSearchTopic } from './classifierNode.js';
 import { buildSystemMessage } from './respondNode.js';
+
 import type { ChatGraphState, SearchResult } from '../types.js';
 
 // ============================================================================
@@ -145,7 +146,7 @@ function testHeuristicQueryOptimization() {
 // 3. Expanded Context Window Tests
 // ============================================================================
 
-function testExpandedContextWindow() {
+async function testExpandedContextWindow() {
   section('3. Expanded Context Window (budget-based allocation)');
 
   // Create mock search results with varying relevance
@@ -160,7 +161,12 @@ function testExpandedContextWindow() {
   const mockState: ChatGraphState = {
     messages: [],
     threadId: null,
-    agentConfig: { systemRole: 'Du bist ein Testassistent.', model: 'test', name: 'test', description: 'test' } as any,
+    agentConfig: {
+      systemRole: 'Du bist ein Testassistent.',
+      model: 'test',
+      name: 'test',
+      description: 'test',
+    } as any,
     enabledTools: {},
     aiWorkerPool: null,
     attachmentContext: null,
@@ -178,6 +184,7 @@ function testExpandedContextWindow() {
     citations: [],
     searchCount: 1,
     maxSearches: 3,
+    researchBrief: null,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
@@ -195,23 +202,17 @@ function testExpandedContextWindow() {
     error: null,
   };
 
-  const systemMessage = buildSystemMessage(mockState);
+  const systemMessage = await buildSystemMessage(mockState);
 
   // Check that SUCHERGEBNISSE section exists
   assert(
     systemMessage.includes('## SUCHERGEBNISSE'),
-    'System message includes SUCHERGEBNISSE section',
+    'System message includes SUCHERGEBNISSE section'
   );
 
   // Check that all 5 result titles are included
-  assert(
-    systemMessage.includes('**Highly Relevant**'),
-    'High relevance result included',
-  );
-  assert(
-    systemMessage.includes('**Short Content**'),
-    'Short content result included',
-  );
+  assert(systemMessage.includes('**Highly Relevant**'), 'High relevance result included');
+  assert(systemMessage.includes('**Short Content**'), 'Short content result included');
 
   // Check that high-relevance result gets more content than low-relevance
   const highRelevantSection = systemMessage.split('**Highly Relevant**')[1]?.split('**')[0] || '';
@@ -231,10 +232,10 @@ function testExpandedContextWindow() {
 
   // Test with empty results
   const emptyState = { ...mockState, searchResults: [] };
-  const emptyMessage = buildSystemMessage(emptyState);
+  const emptyMessage = await buildSystemMessage(emptyState);
   assert(
     !emptyMessage.includes('## SUCHERGEBNISSE'),
-    'No SUCHERGEBNISSE section when results are empty',
+    'No SUCHERGEBNISSE section when results are empty'
   );
 }
 
@@ -249,47 +250,42 @@ async function testRerankScoreParsing() {
   // by importing the module and testing the exported function pattern
 
   // Test valid JSON parsing
-  const validJson = '{ "scores": [{"index": 0, "score": 5}, {"index": 1, "score": 3}, {"index": 2, "score": 1}] }';
+  const validJson =
+    '{ "scores": [{"index": 0, "score": 5}, {"index": 1, "score": 3}, {"index": 2, "score": 1}] }';
   try {
     const parsed = JSON.parse(validJson);
-    assert(
-      parsed.scores.length === 3,
-      'Valid rerank JSON parses correctly',
-    );
+    assert(parsed.scores.length === 3, 'Valid rerank JSON parses correctly');
     assert(
       parsed.scores[0].score === 5 && parsed.scores[1].score === 3,
-      'Scores have correct values',
+      'Scores have correct values'
     );
   } catch {
     assert(false, 'Valid rerank JSON should parse');
   }
 
   // Test JSON embedded in text
-  const textWithJson = 'Some preamble text\n{ "scores": [{"index": 0, "score": 4}] }\nSome trailing text';
+  const textWithJson =
+    'Some preamble text\n{ "scores": [{"index": 0, "score": 4}] }\nSome trailing text';
   const jsonMatch = textWithJson.match(/\{[\s\S]*\}/);
-  assert(
-    jsonMatch !== null,
-    'JSON extracted from surrounding text',
-  );
+  assert(jsonMatch !== null, 'JSON extracted from surrounding text');
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
-      assert(
-        parsed.scores?.[0]?.score === 4,
-        'Extracted JSON has correct scores',
-      );
+      assert(parsed.scores?.[0]?.score === 4, 'Extracted JSON has correct scores');
     } catch {
       assert(false, 'Extracted JSON should be parseable');
     }
   }
 
   // Test score filtering: out-of-range values should be rejected
-  const badScores = { scores: [
-    { index: 0, score: 5 },
-    { index: 1, score: 6 },  // > 5, should be filtered
-    { index: -1, score: 3 }, // negative index, should be filtered
-    { index: 2, score: 0 },  // < 1, should be filtered
-  ] };
+  const badScores = {
+    scores: [
+      { index: 0, score: 5 },
+      { index: 1, score: 6 }, // > 5, should be filtered
+      { index: -1, score: 3 }, // negative index, should be filtered
+      { index: 2, score: 0 }, // < 1, should be filtered
+    ],
+  };
 
   let validCount = 0;
   for (const entry of badScores.scores) {
@@ -315,11 +311,41 @@ function testCrossCollectionLogic() {
 
   // Test deduplication by URL
   const resultsWithDupes: SearchResult[] = [
-    { source: 'gruenerator:deutschland', title: 'Doc A', content: 'Content A', url: 'https://example.com/a', relevance: 0.9 },
-    { source: 'gruenerator:bundestagsfraktion', title: 'Doc A (dupe)', content: 'Content A variant', url: 'https://example.com/a', relevance: 0.7 },
-    { source: 'gruenerator:gruene-de', title: 'Doc B', content: 'Content B', url: 'https://example.com/b', relevance: 0.8 },
-    { source: 'gruenerator:kommunalwiki', title: 'Doc C', content: 'Content C', url: undefined, relevance: 0.6 },
-    { source: 'gruenerator:kommunalwiki', title: 'Doc D', content: 'Content D', url: undefined, relevance: 0.5 },
+    {
+      source: 'gruenerator:deutschland',
+      title: 'Doc A',
+      content: 'Content A',
+      url: 'https://example.com/a',
+      relevance: 0.9,
+    },
+    {
+      source: 'gruenerator:bundestagsfraktion',
+      title: 'Doc A (dupe)',
+      content: 'Content A variant',
+      url: 'https://example.com/a',
+      relevance: 0.7,
+    },
+    {
+      source: 'gruenerator:gruene-de',
+      title: 'Doc B',
+      content: 'Content B',
+      url: 'https://example.com/b',
+      relevance: 0.8,
+    },
+    {
+      source: 'gruenerator:kommunalwiki',
+      title: 'Doc C',
+      content: 'Content C',
+      url: undefined,
+      relevance: 0.6,
+    },
+    {
+      source: 'gruenerator:kommunalwiki',
+      title: 'Doc D',
+      content: 'Content D',
+      url: undefined,
+      relevance: 0.5,
+    },
   ];
 
   // Simulate deduplication logic
@@ -339,15 +365,12 @@ function testCrossCollectionLogic() {
 
   assert(
     deduped[0].title === 'Doc A' && deduped[0].relevance === 0.9,
-    'Keeps first occurrence (higher relevance) of duplicate URL',
+    'Keeps first occurrence (higher relevance) of duplicate URL'
   );
 
   // Results without URLs should all be kept
-  const noUrlResults = deduped.filter(r => !r.url);
-  assert(
-    noUrlResults.length === 2,
-    'Results without URLs are all kept (no false dedup)',
-  );
+  const noUrlResults = deduped.filter((r) => !r.url);
+  assert(noUrlResults.length === 2, 'Results without URLs are all kept (no false dedup)');
 
   // Test collection set deduplication
   const collections = ['deutschland', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
@@ -372,7 +395,7 @@ function testCrossCollectionLogic() {
   unsorted.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
   assert(
     unsorted[0].relevance === 0.9 && unsorted[1].relevance === 0.8,
-    'Results sorted by relevance descending',
+    'Results sorted by relevance descending'
   );
 }
 
@@ -429,7 +452,7 @@ async function runAllTests() {
 
   testQueryReformulation();
   testHeuristicQueryOptimization();
-  testExpandedContextWindow();
+  await testExpandedContextWindow();
   await testRerankScoreParsing();
   testCrossCollectionLogic();
   testIntegrationFlow();

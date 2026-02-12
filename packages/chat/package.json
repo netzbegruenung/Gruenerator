@@ -11,7 +11,8 @@
       "require": "./src/index.ts",
       "types": "./src/index.ts"
     },
-    "./styles": "./src/styles/chat.css"
+    "./styles": "./src/styles/chat.css",
+    "./styles/embedded": "./src/styles/chat-embedded.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -19,6 +20,7 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "lucide-react": "^0.475.0",
+    "radix-ui": "^1.4.3",
     "react-markdown": "^9.0.3",
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^3.0.1"
@@ -29,6 +31,7 @@
     "typescript": "^5.7.3"
   },
   "peerDependencies": {
+    "@assistant-ui/react": ">=0.12.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "4",

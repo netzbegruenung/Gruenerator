@@ -800,6 +800,17 @@ export const profileApiService = {
     return result;
   },
 
+  async deleteAllMemories(userId: string): Promise<MemoryResponse> {
+    const response = await apiClient.delete(`/mem0/user/${userId}/all`);
+    const result = response.data;
+
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to delete all memories');
+    }
+
+    return result;
+  },
+
   // === PROFILE MUTATIONS (moved from profileUtils.js) ===
   async updateProfileWithValidation(profileData: ProfileUpdateData): Promise<Profile> {
     if (!profileData) throw new Error('Nicht angemeldet');

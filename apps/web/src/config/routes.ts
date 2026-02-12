@@ -211,26 +211,20 @@ const MediaLibraryPage = lazy(() =>
 // Notebook Chat Komponente importieren
 const NotebookChat = lazy(() => import('../features/notebook/components/NotebookChat'));
 
-// DEPRECATED: Grünerator Chat - disabled, keeping backend intact
-// const GrueneratorChat = lazy(() => import('../features/chat/components/GrueneratorChat'));
-
-// Beta Feature Wrapper importieren
-const BetaFeatureWrapper = lazy(() => import('../components/common/BetaFeatureWrapper'));
-
-// DEPRECATED: Wrapped Chat Component für Beta Feature
-// const WrappedGrueneratorChat = lazy(() =>
-//   Promise.all([
-//     import('../features/chat/components/GrueneratorChat'),
-//     import('../components/common/BetaFeatureWrapper'),
-//   ]).then(([chatModule, wrapperModule]) => ({
-//     default: (props: Record<string, unknown>) =>
-//       wrapperModule.default({
-//         children: chatModule.default(),
-//         featureKey: 'chat',
-//         fallbackPath: '/profile?tab=labor',
-//       }),
-//   }))
-// );
+// Chat page (uses @gruenerator/chat shared package)
+const WrappedChatPage = lazy(() =>
+  Promise.all([
+    import('../features/chat/ChatPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([chatModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(chatModule.default, props),
+        featureKey: 'chat',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
 
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
@@ -248,6 +242,7 @@ const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGallery
 const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
+const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
 const DocsListPage = lazy(() => import('../features/docs/DocsListPage'));
 const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
 
@@ -281,7 +276,7 @@ export const GrueneratorenBundle = {
   Reel: Reel,
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
-  // DEPRECATED: Chat: WrappedGrueneratorChat,
+  Chat: WrappedChatPage,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
@@ -311,6 +306,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/leichte-sprache', component: LeichteSpracheRedirect },
   { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
+  { path: '/tools', component: ToolsPage },
   { path: '/datenbank', component: GrueneratorenBundle.DatabaseIndex },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
@@ -369,8 +365,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   // Q&A Chat Routen
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
-  // DEPRECATED: Grünerator Chat Route
-  // { path: '/chat', component: GrueneratorenBundle.Chat },
+  { path: '/chat', component: GrueneratorenBundle.Chat },
   // Text Editor - redirect to unified
   { path: '/texteditor', component: TextEditorRedirect },
   // Apps Download Page

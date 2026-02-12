@@ -2,14 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ChatApiClient } from '../context/ChatContext';
 
-interface Thread {
-  id: string;
-  title: string | null;
-  agentId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface CompactionState {
   summary: string | null;
   compactedUpToMessageId: string | null;
@@ -113,7 +105,6 @@ interface AgentState {
   selectedProvider: Provider;
   selectedModel: ModelId;
   currentThreadId: string | null;
-  threads: Thread[];
   enabledTools: Record<ToolKey, boolean>;
   compactionState: CompactionState;
   compactionLoading: boolean;
@@ -123,10 +114,6 @@ interface AgentState {
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
   setCurrentThread: (threadId: string | null) => void;
-  addThread: (thread: Thread) => void;
-  updateThread: (threadId: string, updates: Partial<Thread>) => void;
-  deleteThread: (threadId: string) => void;
-  clearThreads: () => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
   setCompactionState: (state: CompactionState) => void;
@@ -155,7 +142,6 @@ export const useAgentStore = create<AgentState>()(
       selectedProvider: 'mistral',
       selectedModel: 'mistral-large',
       currentThreadId: null,
-      threads: [],
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
       compactionState: { ...DEFAULT_COMPACTION_STATE },
       compactionLoading: false,
@@ -176,41 +162,6 @@ export const useAgentStore = create<AgentState>()(
       setCurrentThread: (threadId) =>
         set({
           currentThreadId: threadId,
-          compactionState: { ...DEFAULT_COMPACTION_STATE },
-          messageCount: 0,
-          needsCompaction: false,
-        }),
-
-      addThread: (thread) =>
-        set((state) => ({
-          threads: [thread, ...state.threads],
-          currentThreadId: thread.id,
-          compactionState: { ...DEFAULT_COMPACTION_STATE },
-          messageCount: 0,
-          needsCompaction: false,
-        })),
-
-      updateThread: (threadId, updates) =>
-        set((state) => ({
-          threads: state.threads.map((t) =>
-            t.id === threadId ? { ...t, ...updates, updatedAt: new Date() } : t
-          ),
-        })),
-
-      deleteThread: (threadId) =>
-        set((state) => ({
-          threads: state.threads.filter((t) => t.id !== threadId),
-          currentThreadId: state.currentThreadId === threadId ? null : state.currentThreadId,
-          compactionState:
-            state.currentThreadId === threadId
-              ? { ...DEFAULT_COMPACTION_STATE }
-              : state.compactionState,
-        })),
-
-      clearThreads: () =>
-        set({
-          threads: [],
-          currentThreadId: null,
           compactionState: { ...DEFAULT_COMPACTION_STATE },
           messageCount: 0,
           needsCompaction: false,
@@ -290,7 +241,6 @@ export const useAgentStore = create<AgentState>()(
         selectedProvider: state.selectedProvider,
         selectedModel: state.selectedModel,
         currentThreadId: state.currentThreadId,
-        threads: state.threads,
         enabledTools: state.enabledTools,
       }),
     }

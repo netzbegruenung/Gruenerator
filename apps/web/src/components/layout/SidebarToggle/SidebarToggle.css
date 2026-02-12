@@ -42,17 +42,9 @@
   transform-origin: center;
 }
 
-/* X animation when active (sidebar open) */
-.sidebar-toggle.active .sidebar-toggle__line:nth-child(1) {
-  transform: rotate(45deg) translate(4px, 4px);
-}
-
-.sidebar-toggle.active .sidebar-toggle__line:nth-child(2) {
-  opacity: 0;
-}
-
-.sidebar-toggle.active .sidebar-toggle__line:nth-child(3) {
-  transform: rotate(-45deg) translate(4px, -4px);
+/* Hide toggle when sidebar is open (sidebar has its own close button) */
+.sidebar-toggle.active {
+  display: none;
 }
 
 /* When app sidebar is hidden (Image Studio), adjust positioning */

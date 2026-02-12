@@ -26,6 +26,7 @@ export interface ChatAdapter {
 export interface ChatApiClient {
   get<T>(url: string): Promise<T>;
   post<T>(url: string, data?: unknown): Promise<T>;
+  patch<T>(url: string, data?: unknown): Promise<T>;
   delete<T>(url: string): Promise<T>;
 }
 
@@ -72,6 +73,11 @@ export function createApiClient(adapter: ChatAdapter): ChatApiClient {
     post: <T,>(endpoint: string, data?: unknown) =>
       request<T>(endpoint, {
         method: 'POST',
+        body: data ? JSON.stringify(data) : undefined,
+      }),
+    patch: <T,>(endpoint: string, data?: unknown) =>
+      request<T>(endpoint, {
+        method: 'PATCH',
         body: data ? JSON.stringify(data) : undefined,
       }),
     delete: <T,>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),

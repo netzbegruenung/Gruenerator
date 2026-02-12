@@ -5,10 +5,12 @@
  * This is the entry point of the ChatGraph that routes to search or direct response.
  */
 
-import type { ChatGraphState, SearchIntent, ClassificationResult } from '../types.js';
-import { createLogger } from '../../../../utils/logger.js';
 import { findBestMatch } from '@gruenerator/shared/utils';
+
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
+import { createLogger } from '../../../../utils/logger.js';
+
+import type { ChatGraphState, SearchIntent, ClassificationResult } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 
@@ -112,7 +114,9 @@ function fuzzyMatchIntent(word: string, threshold = 0.75): SearchIntent | null {
   for (const [intent, keywords] of Object.entries(INTENT_KEYWORDS)) {
     const match = findBestMatch(word, keywords, threshold);
     if (match) {
-      log.debug(`[Fuzzy] Matched "${word}" to "${match.match}" (${intent}) with score ${match.score.toFixed(2)}`);
+      log.debug(
+        `[Fuzzy] Matched "${word}" to "${match.match}" (${intent}) with score ${match.score.toFixed(2)}`
+      );
       return intent as SearchIntent;
     }
   }
@@ -168,60 +172,122 @@ function heuristicClassify(userContent: string): HeuristicResult {
 
   // High confidence (0.95): Greetings and thanks at start of message
   if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)/i.test(q.trim())) {
-    return { intent: 'direct', searchQuery: null, reasoning: 'Greeting detected', confidence: 0.95 };
+    return {
+      intent: 'direct',
+      searchQuery: null,
+      reasoning: 'Greeting detected',
+      confidence: 0.95,
+    };
   }
 
   // High confidence (0.92): Image generation requests - very explicit patterns
   // Matches patterns like: "erstelle ein bild von...", "generiere eine grafik"
-  const imageKeywords = /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster|sharepic)\b/i;
-  const imageKeywordsAlt = /\b(bild|grafik|illustration|foto|poster|sharepic).{0,20}(erstell|generier|erzeug|mach)\b/i;
+  const imageKeywords =
+    /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster|sharepic)\b/i;
+  const imageKeywordsAlt =
+    /\b(bild|grafik|illustration|foto|poster|sharepic).{0,20}(erstell|generier|erzeug|mach)\b/i;
   if (imageKeywords.test(q) || imageKeywordsAlt.test(q)) {
-    return { intent: 'image', searchQuery: null, reasoning: 'Image generation request detected', confidence: 0.92 };
+    return {
+      intent: 'image',
+      searchQuery: null,
+      reasoning: 'Image generation request detected',
+      confidence: 0.92,
+    };
   }
 
   // High confidence (0.90): Explicit web search request
   // Matches: "suche im netz", "such im internet", "durchsuche das web"
-  const explicitWebSearch = /\b(such|suche|durchsuche|finde?)\s*(im|das|den|die|in)?\s*(netz|internet|web|online)\b/i;
+  const explicitWebSearch =
+    /\b(such|suche|durchsuche|finde?)\s*(im|das|den|die|in)?\s*(netz|internet|web|online)\b/i;
   if (explicitWebSearch.test(q)) {
-    return { intent: 'web', searchQuery: userContent, reasoning: 'Explicit web search request', confidence: 0.90 };
+    return {
+      intent: 'web',
+      searchQuery: userContent,
+      reasoning: 'Explicit web search request',
+      confidence: 0.9,
+    };
   }
 
   // High confidence (0.88): Explicit research request
   if (/\b(recherchiere|recherche|recherchier)\b/.test(q)) {
-    return { intent: 'research', searchQuery: userContent, reasoning: 'Explicit research request', confidence: 0.88 };
+    return {
+      intent: 'research',
+      searchQuery: userContent,
+      reasoning: 'Explicit research request',
+      confidence: 0.88,
+    };
   }
 
   // Medium-high confidence (0.85): Party document searches - clear Green party keywords
-  if (/\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag|grundsatzprogramm)\b/i.test(q)) {
-    return { intent: 'search', searchQuery: userContent, reasoning: 'Party document query', confidence: 0.85 };
+  if (
+    /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag|grundsatzprogramm)\b/i.test(q)
+  ) {
+    return {
+      intent: 'search',
+      searchQuery: userContent,
+      reasoning: 'Party document query',
+      confidence: 0.85,
+    };
   }
 
   // Medium confidence (0.80): Web/news searches - could be ambiguous
   if (/\b(aktuell|heute|gestern|news|nachricht|kürzlich)\b/i.test(q)) {
-    return { intent: 'web', searchQuery: userContent, reasoning: 'Current events query', confidence: 0.80 };
+    return {
+      intent: 'web',
+      searchQuery: userContent,
+      reasoning: 'Current events query',
+      confidence: 0.8,
+    };
   }
 
   // Medium confidence (0.78): "Wer ist" queries - route to web search
   if (/\bwer (ist|war|sind)\b/i.test(q)) {
-    return { intent: 'web', searchQuery: userContent, reasoning: 'Person query routed to web search', confidence: 0.78 };
+    return {
+      intent: 'web',
+      searchQuery: userContent,
+      reasoning: 'Person query routed to web search',
+      confidence: 0.78,
+    };
   }
 
   // Medium confidence (0.80): Examples search - requires both keywords
-  if (/\b(beispiel|vorlage|social media|post|tweet|instagram)\b/i.test(q) && /\b(zeig|such|find)\b/i.test(q)) {
-    return { intent: 'examples', searchQuery: userContent, reasoning: 'Social media examples query', confidence: 0.80 };
+  if (
+    /\b(beispiel|vorlage|social media|post|tweet|instagram)\b/i.test(q) &&
+    /\b(zeig|such|find)\b/i.test(q)
+  ) {
+    return {
+      intent: 'examples',
+      searchQuery: userContent,
+      reasoning: 'Social media examples query',
+      confidence: 0.8,
+    };
   }
 
   // Medium confidence (0.75): Fact-based content types with topic markers
-  const factBasedContent = /\b(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report)\b/i;
+  const factBasedContent =
+    /\b(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report)\b/i;
   const hasTopicMarker = /(?:^|\s)(über|zu|zum|zur|bezüglich|betreffend|thema)(?:\s|$)/i;
 
   if (factBasedContent.test(q) && hasTopicMarker.test(q)) {
-    return { intent: 'research', searchQuery: userContent, reasoning: 'Fact-based content type with topic detected', confidence: 0.75 };
+    return {
+      intent: 'research',
+      searchQuery: userContent,
+      reasoning: 'Fact-based content type with topic detected',
+      confidence: 0.75,
+    };
   }
 
   // Medium confidence (0.72): Creative tasks without explicit research need
-  if (/\b(schreib|erstell|formulier|verfass)[etn]*/i.test(q) && !/\b(recherch|such|find|info)\b/i.test(q)) {
-    return { intent: 'direct', searchQuery: null, reasoning: 'Creative task without research need', confidence: 0.72 };
+  if (
+    /\b(schreib|erstell|formulier|verfass)[etn]*/i.test(q) &&
+    !/\b(recherch|such|find|info)\b/i.test(q)
+  ) {
+    return {
+      intent: 'direct',
+      searchQuery: null,
+      reasoning: 'Creative task without research need',
+      confidence: 0.72,
+    };
   }
 
   // Low confidence (0.65): Fuzzy matching for typos - inherently uncertain
@@ -239,7 +305,12 @@ function heuristicClassify(userContent: string): HeuristicResult {
   }
 
   // Low confidence (0.50): Default to direct for unclear queries - needs LLM
-  return { intent: 'direct', searchQuery: null, reasoning: 'No clear search intent detected', confidence: 0.50 };
+  return {
+    intent: 'direct',
+    searchQuery: null,
+    reasoning: 'No clear search intent detected',
+    confidence: 0.5,
+  };
 }
 
 /**
@@ -268,15 +339,22 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
    * Process parsed response and build classification result.
    * Uses optimizedSearchQuery when available for better retrieval precision.
    */
-  function processResponse(parsed: ClassifierLLMResponse, extracted = false): ClassificationResult | null {
+  function processResponse(
+    parsed: ClassifierLLMResponse,
+    extracted = false
+  ): ClassificationResult | null {
     // Log typo detection for debugging
     if (parsed.typoAnalysis) {
-      log.debug(`[Classifier] Typo detected: "${parsed.typoAnalysis.original}" → "${parsed.typoAnalysis.corrected}"`);
+      log.debug(
+        `[Classifier] Typo detected: "${parsed.typoAnalysis.original}" → "${parsed.typoAnalysis.corrected}"`
+      );
     }
 
     // Log content-type analysis
     if (parsed.contentType) {
-      log.debug(`[Classifier] Content type: ${parsed.contentType}, needsResearch: ${parsed.needsResearch}`);
+      log.debug(
+        `[Classifier] Content type: ${parsed.contentType}, needsResearch: ${parsed.needsResearch}`
+      );
     }
 
     // If LLM returns 'person', route to web instead
@@ -294,20 +372,23 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
 
       // Prefer optimizedSearchQuery for search intents
       const effectiveSearchQuery = isSearchIntent
-        ? (parsed.optimizedSearchQuery || parsed.searchQuery || userContent)
+        ? parsed.optimizedSearchQuery || parsed.searchQuery || userContent
         : null;
 
       if (parsed.optimizedSearchQuery && isSearchIntent) {
-        log.debug(`[Classifier] Query optimized: "${parsed.searchQuery}" → "${parsed.optimizedSearchQuery}"`);
+        log.debug(
+          `[Classifier] Query optimized: "${parsed.searchQuery}" → "${parsed.optimizedSearchQuery}"`
+        );
       }
 
       // Extract sub-queries for multi-topic questions
-      const subQueries = isSearchIntent && parsed.subQueries?.length
-        ? parsed.subQueries.slice(0, 3)
-        : null;
+      const subQueries =
+        isSearchIntent && parsed.subQueries?.length ? parsed.subQueries.slice(0, 3) : null;
 
       if (subQueries) {
-        log.debug(`[Classifier] Decomposed into ${subQueries.length} sub-queries: ${subQueries.join(' | ')}`);
+        log.debug(
+          `[Classifier] Decomposed into ${subQueries.length} sub-queries: ${subQueries.join(' | ')}`
+        );
       }
 
       return {
@@ -352,11 +433,36 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
 
   // Fallback: try to detect intent from text
   const contentLower = content.toLowerCase();
-  if (contentLower.includes('image')) return { intent: 'image', searchQuery: null, reasoning: 'Fallback: image detected in response' };
-  if (contentLower.includes('research')) return { intent: 'research', searchQuery: userContent, reasoning: 'Fallback: research detected in response' };
-  if (contentLower.includes('search')) return { intent: 'search', searchQuery: userContent, reasoning: 'Fallback: search detected in response' };
-  if (contentLower.includes('web')) return { intent: 'web', searchQuery: userContent, reasoning: 'Fallback: web detected in response' };
-  if (contentLower.includes('examples')) return { intent: 'examples', searchQuery: userContent, reasoning: 'Fallback: examples detected in response' };
+  if (contentLower.includes('image'))
+    return {
+      intent: 'image',
+      searchQuery: null,
+      reasoning: 'Fallback: image detected in response',
+    };
+  if (contentLower.includes('research'))
+    return {
+      intent: 'research',
+      searchQuery: userContent,
+      reasoning: 'Fallback: research detected in response',
+    };
+  if (contentLower.includes('search'))
+    return {
+      intent: 'search',
+      searchQuery: userContent,
+      reasoning: 'Fallback: search detected in response',
+    };
+  if (contentLower.includes('web'))
+    return {
+      intent: 'web',
+      searchQuery: userContent,
+      reasoning: 'Fallback: web detected in response',
+    };
+  if (contentLower.includes('examples'))
+    return {
+      intent: 'examples',
+      searchQuery: userContent,
+      reasoning: 'Fallback: examples detected in response',
+    };
 
   // Use heuristic as final fallback
   return heuristicClassify(userContent);
@@ -370,7 +476,9 @@ function detectComplexity(query: string): 'simple' | 'moderate' | 'complex' {
   const q = query.toLowerCase();
 
   // Complex: comparison, multi-topic, or explicit detail requests
-  if (/\b(vergleich|unterschied|pro\s+und\s+contra|gegenüber|im\s+vergleich|versus|vs\.?)\b/i.test(q)) {
+  if (
+    /\b(vergleich|unterschied|pro\s+und\s+contra|gegenüber|im\s+vergleich|versus|vs\.?)\b/i.test(q)
+  ) {
     return 'complex';
   }
   if (/\b(detailliert|ausführlich|umfassend|gründlich|tiefgehend|vollständig)\b/i.test(q)) {
@@ -400,21 +508,27 @@ function detectComplexity(query: string): 'simple' | 'moderate' | 'complex' {
  * Uses heuristics-first approach: high-confidence patterns skip LLM entirely.
  * Falls back to LLM for ambiguous queries where heuristics are uncertain.
  */
-export async function classifierNode(
-  state: ChatGraphState
-): Promise<Partial<ChatGraphState>> {
+export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   log.info('[Classifier] Starting intent classification');
 
   try {
     const { messages, aiWorkerPool } = state;
 
-    // Extract user message content
+    // Extract user message content (handles both string and AI SDK v6 parts format)
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
-    const userContent =
-      typeof lastUserMessage?.content === 'string'
-        ? lastUserMessage.content
-        : JSON.stringify(lastUserMessage?.content || '');
+    const rawContent = lastUserMessage?.content;
+    let userContent: string;
+    if (typeof rawContent === 'string') {
+      userContent = rawContent;
+    } else if (Array.isArray(rawContent)) {
+      userContent = rawContent
+        .filter((p) => p && typeof p === 'object' && p.type === 'text')
+        .map((p) => (p as { text: string }).text)
+        .join('');
+    } else {
+      userContent = String(rawContent || '');
+    }
 
     // Analyze temporality and complexity (used by all paths)
     const temporal = analyzeTemporality(userContent);
@@ -423,7 +537,9 @@ export async function classifierNode(
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
       const result = heuristicClassify(userContent);
-      log.info(`[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`);
+      log.info(
+        `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
+      );
       return {
         intent: result.intent,
         searchQuery: result.searchQuery,
@@ -446,7 +562,9 @@ export async function classifierNode(
       if (heuristic.searchQuery && !['direct', 'image'].includes(heuristic.intent)) {
         const extracted = extractSearchTopic(heuristic.searchQuery);
         if (extracted !== heuristic.searchQuery) {
-          log.debug(`[Classifier] Heuristic query optimized: "${heuristic.searchQuery}" → "${extracted}"`);
+          log.debug(
+            `[Classifier] Heuristic query optimized: "${heuristic.searchQuery}" → "${extracted}"`
+          );
           optimizedQuery = extracted;
         }
       }
@@ -465,7 +583,9 @@ export async function classifierNode(
     }
 
     // Low confidence: fall back to LLM for better classification
-    log.debug(`[Classifier] Low heuristic confidence (${heuristic.confidence.toFixed(2)}), using LLM`);
+    log.debug(
+      `[Classifier] Low heuristic confidence (${heuristic.confidence.toFixed(2)}), using LLM`
+    );
 
     // Use AI worker for classification
     const response = await aiWorkerPool.processRequest(
@@ -506,10 +626,7 @@ export async function classifierNode(
 
     // Fallback to heuristic classification
     const lastUserMessage = state.messages.filter((m) => m.role === 'user').pop();
-    const userContent =
-      typeof lastUserMessage?.content === 'string'
-        ? lastUserMessage.content
-        : '';
+    const userContent = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
     const fallbackResult = heuristicClassify(userContent);
 
@@ -525,4 +642,10 @@ export async function classifierNode(
 }
 
 // Export for testing
-export { heuristicClassify, fuzzyMatchIntent, extractSearchTopic, detectComplexity, INTENT_KEYWORDS };
+export {
+  heuristicClassify,
+  fuzzyMatchIntent,
+  extractSearchTopic,
+  detectComplexity,
+  INTENT_KEYWORDS,
+};

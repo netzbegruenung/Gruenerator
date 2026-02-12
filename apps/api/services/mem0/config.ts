@@ -6,10 +6,12 @@
  * and the existing Qdrant client (with proper basic auth) for vector storage.
  */
 
-import type { MemoryConfig } from 'mem0ai/oss';
 import OpenAI from 'openai';
-import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
+
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
+import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
+
+import type { MemoryConfig } from 'mem0ai/oss';
 
 // Singleton embedding service instance
 let embeddingServiceInstance: MistralEmbeddingService | null = null;
@@ -134,7 +136,25 @@ export function buildMem0Config(): Partial<MemoryConfig> {
     process.env.LITELLM_BASE_URL || 'https://litellm.netzbegruenung.verdigado.net';
   const litellmApiKey = process.env.LITELLM_API_KEY || '';
 
+  const customPrompt = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
+
+Speichere NUR folgende Informationen:
+1. Persönliche Fakten: Name, Wahlkreis, Kreisverband, politische Funktion, Parteiebene
+2. Politische Positionen: Themen, Schwerpunkte, Haltungen zu Sachfragen
+3. Schreibstil-Präferenzen: bevorzugte Tonalität, Sprachlevel, Zielgruppe
+4. Wiederkehrende Kontexte: regelmäßige Formate (Pressemitteilung, Social Media, Rede), häufige Themen
+
+Speichere NICHT:
+- Aufgaben-Anweisungen wie "tweet kürzen", "schreibe eine Rede", "mach kürzer", "übersetze"
+- Einmalige Generierungsaufträge oder Formatierungs-Befehle
+- Gesprächs-Metadaten (Grüße, Danke, Feedback zum Tool)
+- Sensible persönliche Daten (Adresse, Telefonnummer, Passwörter)
+
+Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen.`;
+
   return {
+    customPrompt,
+
     // LLM for memory extraction and synthesis
     // Uses LangChain adapter that handles JSON mode via prompting
     llm: {
