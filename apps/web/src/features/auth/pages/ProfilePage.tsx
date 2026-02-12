@@ -18,9 +18,6 @@ import '../../../assets/styles/components/auth/avatar-selection.css';
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/tabs/GroupsManagement'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
-const CanvaSection = lazy(
-  () => import('../components/profile/tabs/ContentManagement/components/CanvaSection')
-);
 
 type TabMapping = Record<string, string>;
 
@@ -38,7 +35,6 @@ const ProfilePage = () => {
     acc[urlPath === '' ? 'profil' : urlPath] = item.key;
     return acc;
   }, {});
-  TAB_MAPPING['integrationen'] = 'integrationen';
 
   // Get active tab from URL path
   const activeTab = tab ? TAB_MAPPING[tab] || 'profile' : 'profile';
@@ -59,27 +55,14 @@ const ProfilePage = () => {
       return;
     }
 
-    if (tab === 'integrationen') {
-      if (subtab === 'canva') {
-        const targetUrl = subsubtab ? `/profile/canva/${subsubtab}` : '/profile/canva';
-        navigate(targetUrl, { replace: true });
-      } else {
-        navigate('/profile/canva', { replace: true });
-      }
+    if (tab === 'integrationen' || tab === 'canva') {
+      navigate('/profile/inhalte', { replace: true });
       return;
     }
 
     if (tab && !TAB_MAPPING[tab]) {
       navigate('/profile', { replace: true });
       return;
-    }
-
-    if (tab === 'canva' && subtab) {
-      const validCanvaSubtabs = ['overview', 'vorlagen', 'assets'];
-      if (!validCanvaSubtabs.includes(subtab)) {
-        navigate('/profile/canva', { replace: true });
-        return;
-      }
     }
   }, [tab, subtab, subsubtab, navigate, TAB_MAPPING, canAccessBetaFeature]);
 
@@ -168,22 +151,6 @@ const ProfilePage = () => {
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'gruppen'}
-            />
-          )}
-
-          {activeTab === 'canva' && shouldShowTab('canva') && (
-            <CanvaSection
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'canva'}
-              initialSubsection={subtab || 'overview'}
-              onSubsectionChange={(subsection) => {
-                if (subsection && subsection !== 'overview') {
-                  navigate(`/profile/canva/${subsection}`, { replace: true });
-                } else {
-                  navigate('/profile/canva', { replace: true });
-                }
-              }}
             />
           )}
         </Suspense>

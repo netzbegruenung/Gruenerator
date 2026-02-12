@@ -2,9 +2,9 @@
  * Shared type definitions for middleware
  */
 
-import { Request, Response } from 'express';
-import { UserProfile } from '../services/user/types.js';
-import type CanvaApiClient from '../services/api-clients/canvaApiClient.js';
+import { type Request } from 'express';
+
+import { type UserProfile } from '../services/user/types.js';
 
 // ============================================================================
 // Extended Express Request Types
@@ -18,15 +18,6 @@ export interface AuthenticatedRequest extends Request {
   user?: UserProfile;
   mobileAuth?: boolean;
   jwtToken?: any;
-}
-
-/**
- * Request with Canva integration
- */
-export interface CanvaRequest extends AuthenticatedRequest {
-  canvaClient?: ReturnType<typeof CanvaApiClient.forUser> | null;
-  canvaAccessToken?: string;
-  hasCanvaConnection?: boolean;
 }
 
 /**
@@ -115,15 +106,6 @@ export interface UserSiteData {
 export interface RateLimitMiddlewareOptions {
   autoIncrement?: boolean;
   soft?: boolean;
-}
-
-/**
- * Canva rate limit options
- */
-export interface CanvaRateLimitOptions {
-  maxRequests?: number;
-  windowMs?: number;
-  skipSuccessfulGets?: boolean;
 }
 
 /**

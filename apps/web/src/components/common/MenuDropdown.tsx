@@ -1,4 +1,12 @@
-import React, { useState, useRef, useEffect, useCallback, type ReactNode, ReactElement } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  type ReactNode,
+  ReactElement,
+} from 'react';
 import { createPortal } from 'react-dom';
 import '../../assets/styles/components/ui/menu-dropdown.css';
 
@@ -67,48 +75,39 @@ const MenuDropdown = ({
     if (onClose) onClose();
   }, [onClose]);
 
-  // Handle click outside to close and position dropdown
-  useEffect(() => {
+  // Position dropdown synchronously before paint
+  useLayoutEffect(() => {
     if (isOpen) {
-      const handleClickOutside = (event: MouseEvent) => {
-        // Improved click outside detection
-        if (
-          triggerRef.current &&
-          !triggerRef.current.contains(event.target as Node) &&
-          dropdownRef.current &&
-          !dropdownRef.current.contains(event.target as Node)
-        ) {
-          handleClose();
-        }
-      };
-
-      const handleScroll = () => {
-        updatePosition();
-      };
-
-      const handleResize = () => {
-        handleClose();
-      };
-
-      // Add event listeners
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('scroll', handleScroll, true);
-      window.addEventListener('resize', handleResize);
-
-      // Position dropdown after render - single attempt with requestAnimationFrame
-      const positionFrame = requestAnimationFrame(() => {
-        updatePosition();
-      });
-
-      return () => {
-        cancelAnimationFrame(positionFrame);
-        document.removeEventListener('mousedown', handleClickOutside);
-        document.removeEventListener('scroll', handleScroll, true);
-        window.removeEventListener('resize', handleResize);
-      };
+      updatePosition();
     } else {
-      setStyle((prev) => ({ ...prev, opacity: 0 }));
+      setStyle({ opacity: 0 });
     }
+  }, [isOpen, updatePosition]);
+
+  // Attach event listeners after paint
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        triggerRef.current &&
+        !triggerRef.current.contains(event.target as Node) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', handleClose);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', handleClose);
+    };
   }, [isOpen, updatePosition, handleClose]);
 
   return (

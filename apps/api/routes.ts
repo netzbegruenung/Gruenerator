@@ -142,8 +142,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     collectionsRouter: notebookCollectionsRouter,
     interactionRouter: notebookInteractionRouter,
   } = await import('./routes/notebook/index.js');
-  const { default: canvaAuthRouter } = await import('./routes/canva/canvaAuth.js');
-  const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
@@ -310,8 +308,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     }
   });
 
-  app.use('/api/canva/auth', canvaAuthRouter);
-  app.use('/api/canva', canvaApiRouter);
   app.use('/api/nextcloud', nextcloudApiRouter);
   app.use('/api/sites', sitesRouter);
   app.use('/api/flux/green-edit', fluxImageEditingRoute);

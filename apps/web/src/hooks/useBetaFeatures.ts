@@ -52,7 +52,6 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false, defaultEnabled: true },
-  // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
   { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
   // { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true }, // Removed - outdated
   { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },

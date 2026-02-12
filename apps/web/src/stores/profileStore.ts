@@ -142,7 +142,6 @@ interface ShareModal {
 
 interface IntegrationsUI {
   currentTab: string;
-  canvaSubsection: string;
   shareModal: ShareModal;
 }
 
@@ -231,10 +230,8 @@ interface ProfileStore {
   ) => void;
   resetToUserContext: () => void;
   setIntegrationTab: (tab: string) => void;
-  setCanvaSubsection: (subsection: string) => void;
   openShareModal: (contentType: string, contentId: string, contentTitle: string) => void;
   closeShareModal: () => void;
-  initializeIntegrationTab: (initialTab: string, canAccessCanva: boolean) => void;
   setMessage: (message: string, type?: 'success' | 'error') => void;
   clearMessages: () => void;
   reset: () => void;
@@ -294,7 +291,6 @@ export const useProfileStore = create<ProfileStore>()(
       },
       integrationsUI: {
         currentTab: 'wolke',
-        canvaSubsection: 'overview',
         shareModal: {
           isOpen: false,
           content: null,
@@ -640,13 +636,6 @@ export const useProfileStore = create<ProfileStore>()(
           state.integrationsUI.currentTab = tab;
         }),
 
-      setCanvaSubsection: (subsection) =>
-        set((state) => {
-          if (subsection === 'overview' || subsection === 'vorlagen' || subsection === 'assets') {
-            state.integrationsUI.canvaSubsection = subsection;
-          }
-        }),
-
       openShareModal: (contentType, contentId, contentTitle) =>
         set((state) => {
           state.integrationsUI.shareModal = {
@@ -665,15 +654,6 @@ export const useProfileStore = create<ProfileStore>()(
             isOpen: false,
             content: null,
           };
-        }),
-
-      initializeIntegrationTab: (initialTab, canAccessCanva) =>
-        set((state) => {
-          let normalizedTab = initialTab;
-          if (normalizedTab === 'canva' && !canAccessCanva) {
-            normalizedTab = 'wolke';
-          }
-          state.integrationsUI.currentTab = normalizedTab;
         }),
 
       setMessage: (message, type = 'success') =>
@@ -746,7 +726,6 @@ export const useProfileStore = create<ProfileStore>()(
           },
           integrationsUI: {
             currentTab: 'wolke',
-            canvaSubsection: 'overview',
             shareModal: {
               isOpen: false,
               content: null,
@@ -808,8 +787,6 @@ export const useGeneratorValidationErrors = (generatorId: string) =>
 export const useCustomGeneratorsList = () => useProfileStore((state) => state.customGenerators);
 
 export const useIntegrationTab = () => useProfileStore((state) => state.integrationsUI.currentTab);
-export const useCanvaSubsection = () =>
-  useProfileStore((state) => state.integrationsUI.canvaSubsection);
 export const useShareModal = () => useProfileStore((state) => state.integrationsUI.shareModal);
 export const useIntegrationsUI = () => useProfileStore((state) => state.integrationsUI);
 
