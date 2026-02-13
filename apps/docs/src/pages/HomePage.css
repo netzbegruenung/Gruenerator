@@ -46,30 +46,6 @@
   min-width: 0;
 }
 
-.home-page-logout-button {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 var(--spacing-medium);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--font-color);
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--card-border-radius-small);
-  cursor: pointer;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.home-page-logout-button:hover {
-  background-color: var(--hover-color-alt);
-}
-
-.home-page-logout-button:active {
-  transform: scale(0.98);
-}
 
 /* Tablet and up - horizontal header layout */
 @media (min-width: 481px) {
@@ -102,10 +78,5 @@
   .home-page-header {
     margin-bottom: var(--spacing-xlarge);
     padding-bottom: var(--spacing-large);
-  }
-
-  .home-page-logout-button {
-    min-height: 40px;
-    padding: 0.5rem 1rem;
   }
 }
