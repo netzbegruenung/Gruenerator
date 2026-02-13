@@ -75,6 +75,7 @@ const BETA_VIEWS = {
   WEBSITE: 'website',
   VORLAGEN: 'vorlagen',
   SCANNER: 'scanner',
+  DOCS: 'docs',
 };
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({
@@ -184,6 +185,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkTo: '/scanner',
           linkText: 'Zum Scanner',
           icon: getIcon('navigation', 'scanner') as IconType,
+        };
+      case BETA_VIEWS.DOCS:
+        return {
+          title: 'Dokumente',
+          description: 'Kollaborativer Dokumenten-Editor mit Echtzeit-Zusammenarbeit',
+          checked: getBetaFeatureState('docs'),
+          setter: (value: boolean) => updateUserBetaFeatures('docs', value),
+          featureName: 'Dokumente',
+          checkboxLabel: 'Kollaborativen Dokumenten-Editor aktivieren',
+          linkTo: '/docs',
+          linkText: 'Zu den Dokumenten',
+          icon: HiOutlineDocumentSearch,
         };
       default:
         return null;
