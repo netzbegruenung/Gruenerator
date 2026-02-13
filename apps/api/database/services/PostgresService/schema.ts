@@ -114,6 +114,26 @@ export function parseSchemaFile(schemaContent: string): SchemaCache {
 }
 
 /**
+ * Extract individual CREATE TABLE IF NOT EXISTS statements from schema content.
+ * Returns a map of table name → full SQL statement.
+ */
+export function extractCreateTableStatements(schemaContent: string): Record<string, string> {
+  const statements: Record<string, string> = {};
+  const matches = schemaContent.match(/CREATE TABLE IF NOT EXISTS \w+\s*\([\s\S]*?\);/g);
+
+  if (!matches) return statements;
+
+  for (const sql of matches) {
+    const nameMatch = sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/);
+    if (nameMatch) {
+      statements[nameMatch[1]] = sql;
+    }
+  }
+
+  return statements;
+}
+
+/**
  * Get the path to schema.sql file
  */
 export function getSchemaPath(): string {
