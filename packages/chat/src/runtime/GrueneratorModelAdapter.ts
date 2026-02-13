@@ -3,7 +3,7 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
-import type { ChatAdapter } from '../context/ChatContext';
+import { chatFetch } from '../context/ChatContext';
 import type {
   ProgressStage,
   SearchIntent,
@@ -63,7 +63,6 @@ function parseSSELine(
 }
 
 export function createGrueneratorModelAdapter(
-  adapter: ChatAdapter,
   getConfig: () => GrueneratorAdapterConfig,
   callbacks: GrueneratorAdapterCallbacks
 ): ChatModelAdapter {
@@ -119,9 +118,8 @@ export function createGrueneratorModelAdapter(
         break;
       }
 
-      const apiBaseUrl = adapter.getApiBaseUrl();
       const endpoint = config.useDeepAgent ? '/api/chat-deep/stream' : '/api/chat-graph/stream';
-      const response = await adapter.fetch(`${apiBaseUrl}${endpoint}`, {
+      const response = await chatFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

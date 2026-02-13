@@ -1,11 +1,5 @@
-// Context & Adapter
-export {
-  ChatProvider,
-  useChatAdapter,
-  createApiClient,
-  type ChatAdapter,
-  type ChatApiClient,
-} from './context/ChatContext';
+// Context & API Client
+export { chatFetch, chatApiClient, type ChatApiClient } from './context/ChatContext';
 
 // Runtime
 export { GrueneratorChatProvider } from './runtime/GrueneratorChatProvider';

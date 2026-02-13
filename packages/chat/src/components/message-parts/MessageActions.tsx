@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Copy, Check, Download, Loader2 } from 'lucide-react';
-import { useChatAdapter } from '../../context/ChatContext';
+import { chatFetch } from '../../context/ChatContext';
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
 interface MessageActionsProps {
@@ -13,7 +13,6 @@ interface MessageActionsProps {
 export function MessageActions({ content, metadata }: MessageActionsProps) {
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const adapter = useChatAdapter();
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -26,8 +25,7 @@ export function MessageActions({ content, metadata }: MessageActionsProps) {
     setIsExporting(true);
 
     try {
-      const apiBaseUrl = adapter.getApiBaseUrl();
-      const response = await adapter.fetch(`${apiBaseUrl}/api/exports/chat-message`, {
+      const response = await chatFetch('/api/exports/chat-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

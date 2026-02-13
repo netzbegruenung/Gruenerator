@@ -9,31 +9,38 @@ interface GroupMember {
   user_id: string;
   role: string;
   avatar_robot_id?: number;
-  joined_at: string;
+  joined_at?: string;
   first_name?: string;
-  last_name?: string;
 }
 
 interface GroupMembersListProps {
   groupId: string;
   isActive?: boolean;
   className?: string;
+  hideHeader?: boolean;
 }
 
-const GroupMembersList = ({ groupId, isActive = false, className = '' }: GroupMembersListProps) => {
+const GroupMembersList = ({
+  groupId,
+  isActive = false,
+  className = '',
+  hideHeader = false,
+}: GroupMembersListProps) => {
   const { members, isLoadingMembers, isErrorMembers, errorMembers } = useGroupMembers(groupId, {
     isActive,
   });
 
   if (isLoadingMembers) {
     return (
-      <div className={`group-members-section ${className}`}>
-        <div className="group-section-header">
-          <h4 className="group-section-title">
-            <HiUsers className="icon" />
-            Gruppenmitglieder
-          </h4>
-        </div>
+      <div className={className}>
+        {!hideHeader && (
+          <div className="group-section-header">
+            <h4 className="group-section-title">
+              <HiUsers className="icon" />
+              Gruppenmitglieder
+            </h4>
+          </div>
+        )}
         <div className="loading-container">
           <Spinner size="small" />
           <span>Lade Mitglieder...</span>
@@ -44,13 +51,15 @@ const GroupMembersList = ({ groupId, isActive = false, className = '' }: GroupMe
 
   if (isErrorMembers) {
     return (
-      <div className={`group-members-section ${className}`}>
-        <div className="group-section-header">
-          <h4 className="group-section-title">
-            <HiUsers className="icon" />
-            Gruppenmitglieder
-          </h4>
-        </div>
+      <div className={className}>
+        {!hideHeader && (
+          <div className="group-section-header">
+            <h4 className="group-section-title">
+              <HiUsers className="icon" />
+              Gruppenmitglieder
+            </h4>
+          </div>
+        )}
         <div className="error-container">
           <p>Fehler beim Laden der Mitglieder: {errorMembers?.message || 'Unbekannter Fehler'}</p>
         </div>
@@ -60,13 +69,15 @@ const GroupMembersList = ({ groupId, isActive = false, className = '' }: GroupMe
 
   if (!members || members.length === 0) {
     return (
-      <div className={`group-members-section ${className}`}>
-        <div className="group-section-header">
-          <h4 className="group-section-title">
-            <HiUsers className="icon" />
-            Gruppenmitglieder
-          </h4>
-        </div>
+      <div className={className}>
+        {!hideHeader && (
+          <div className="group-section-header">
+            <h4 className="group-section-title">
+              <HiUsers className="icon" />
+              Gruppenmitglieder
+            </h4>
+          </div>
+        )}
         <div className="members-empty-state">
           <p>Noch keine Mitglieder in dieser Gruppe.</p>
         </div>
@@ -74,75 +85,43 @@ const GroupMembersList = ({ groupId, isActive = false, className = '' }: GroupMe
     );
   }
 
-  // Sort members: real names first, then anonymous names, both alphabetically
   const sortedMembers = sortMembersByName(members);
 
   return (
-    <div className={`group-members-section ${className}`}>
-      <div className="group-section-header">
-        <h4 className="group-section-title">
-          <HiUsers className="icon" />
-          Gruppenmitglieder ({members.length})
-        </h4>
-      </div>
+    <div className={className}>
+      {!hideHeader && (
+        <div className="group-section-header">
+          <h4 className="group-section-title">
+            <HiUsers className="icon" />
+            Gruppenmitglieder ({members.length})
+          </h4>
+        </div>
+      )}
 
-      <div className="group-members-list">
+      <div className="flex flex-wrap gap-xs">
         {sortedMembers.map((member) => {
-          const displayName = getMemberDisplayName(member);
+          const fullDisplayName = getMemberDisplayName(member);
+          const firstName = fullDisplayName.split(' ')[0];
           const isAdmin = member.role === 'admin';
-          const isAnonymous = displayName.startsWith('Anonymer');
           const profileImageNumber = validateRobotId(member.avatar_robot_id);
 
           return (
-            <div key={member.user_id} className="group-member-item">
-              <div className="member-avatar">
-                <div className={`member-avatar-circle ${isAdmin ? 'admin' : ''}`}>
-                  <img
-                    src={getRobotAvatarPath(profileImageNumber)}
-                    alt={getRobotAvatarAlt(profileImageNumber)}
-                    className="member-profile-image"
-                  />
-                </div>
-              </div>
-
-              <div className="member-info">
-                <div className="member-name-line">
-                  <span className={`member-name ${isAnonymous ? 'anonymous' : ''}`}>
-                    {displayName}
-                  </span>
-                  {isAdmin && (
-                    <span className="member-admin-badge" title="Administrator">
-                      <HiShieldCheck className="admin-icon" />
-                      Admin
-                    </span>
-                  )}
-                </div>
-
-                <div className="member-meta">
-                  <span className="member-join-date">
-                    Beigetreten:{' '}
-                    {new Date(member.joined_at).toLocaleDateString('de-DE', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </span>
-                </div>
-              </div>
+            <div
+              key={member.user_id}
+              className="flex items-center gap-xxs px-xs py-xxs rounded-sm bg-grey-100 dark:bg-grey-800"
+              title={isAdmin ? `${firstName} (Admin)` : firstName}
+            >
+              <img
+                src={getRobotAvatarPath(profileImageNumber)}
+                alt={getRobotAvatarAlt(profileImageNumber)}
+                className="w-5 h-5 rounded-full"
+              />
+              <span className="text-xs">{firstName}</span>
+              {isAdmin && <HiShieldCheck className="text-xs text-primary-500" />}
             </div>
           );
         })}
       </div>
-
-      {members.some((m: GroupMember) => getMemberDisplayName(m).startsWith('Anonymer')) && (
-        <div className="members-privacy-note">
-          <p>
-            <small>
-              Einige Mitglieder werden aus Datenschutzgründen mit anonymen Tiernamen angezeigt.
-            </small>
-          </p>
-        </div>
-      )}
     </div>
   );
 };
