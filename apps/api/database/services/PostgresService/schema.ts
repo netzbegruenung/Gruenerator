@@ -5,6 +5,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
 import type { SchemaCache, ColumnDefinition, AlterStatement } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,6 +67,48 @@ export function parseSchemaFile(schemaContent: string): SchemaCache {
       tables[tableName] = columns;
     }
   });
+
+  // Second pass: extract ALTER TABLE ADD COLUMN statements
+  const alterMatches = schemaContent.match(
+    /ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?(\w+)\s+([^;]+);/gi
+  );
+
+  if (alterMatches) {
+    for (const alterMatch of alterMatches) {
+      const match = alterMatch.match(
+        /ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?(\w+)\s+([^;]+);/i
+      );
+      if (!match) continue;
+
+      const [, tableName, columnName, rest] = match;
+
+      const typeMatch = rest.trim().match(/^(\S+(?:\(\d+\))?)\s*([\s\S]*)?$/);
+      if (!typeMatch) continue;
+
+      const dataType = typeMatch[1];
+      let constraints = (typeMatch[2] || '').trim();
+
+      // Strip REFERENCES clauses (sync can't add foreign keys)
+      constraints = constraints
+        .replace(/REFERENCES\s+\w+\([^)]+\)(\s+ON\s+\w+\s+\w+)*/gi, '')
+        .trim();
+      // Strip CHECK constraints (handles nested parens like IN (...))
+      constraints = constraints.replace(/CHECK\s*\((?:[^()]*|\([^()]*\))*\)/gi, '').trim();
+
+      if (!tables[tableName]) {
+        tables[tableName] = [];
+      }
+
+      const exists = tables[tableName].some((col) => col.name === columnName);
+      if (!exists) {
+        tables[tableName].push({
+          name: columnName,
+          type: dataType,
+          constraints,
+        });
+      }
+    }
+  }
 
   return tables;
 }

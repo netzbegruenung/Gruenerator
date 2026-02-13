@@ -140,7 +140,7 @@ export function getModel(provider: ProviderName | string, modelId?: string): Lan
         modelId || PROVIDER_DEFAULTS.litellm,
         PROVIDER_DEFAULTS.litellm
       );
-      return litellm(validatedModel);
+      return litellm.chat(validatedModel);
     }
     case 'ionos': {
       const ionos = getIONOSProvider();
@@ -148,7 +148,7 @@ export function getModel(provider: ProviderName | string, modelId?: string): Lan
         modelId || PROVIDER_DEFAULTS.ionos,
         PROVIDER_DEFAULTS.ionos
       );
-      return ionos(validatedModel);
+      return ionos.chat(validatedModel);
     }
     default:
       throw new Error(`Unknown provider: ${provider}`);
