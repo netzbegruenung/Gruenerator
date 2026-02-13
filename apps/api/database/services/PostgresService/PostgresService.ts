@@ -261,6 +261,7 @@ export class PostgresService {
 
         let successCount = 0;
         let failCount = 0;
+        const ownershipFailures = new Map<string, typeof alterStatements>();
 
         const client = await this.pool!.connect();
         try {
@@ -270,11 +271,63 @@ export class PostgresService {
               console.log(`[PostgresService] ✅ Added column ${alter.table}.${alter.column}`);
               successCount++;
             } catch (error) {
+              const message = (error as Error).message;
+              if (message.includes('must be owner')) {
+                if (!ownershipFailures.has(alter.table)) {
+                  ownershipFailures.set(alter.table, []);
+                }
+                ownershipFailures.get(alter.table)!.push(alter);
+              } else {
+                console.warn(
+                  `[PostgresService] ⚠️ Failed to add column ${alter.table}.${alter.column}:`,
+                  message
+                );
+                failCount++;
+              }
+            }
+          }
+
+          // Try to fix ownership issues by reassigning to current user
+          if (ownershipFailures.size > 0) {
+            console.log(
+              `[PostgresService] Attempting to fix ownership for ${ownershipFailures.size} table(s)...`
+            );
+            const resolvedTables = new Set<string>();
+            for (const [tableName, failedAlters] of ownershipFailures) {
+              try {
+                await client.query(`ALTER TABLE ${tableName} OWNER TO CURRENT_USER`);
+                console.log(`[PostgresService] ✅ Reassigned ownership of ${tableName}`);
+                resolvedTables.add(tableName);
+                for (const alter of failedAlters) {
+                  try {
+                    await client.query(alter.statement);
+                    console.log(`[PostgresService] ✅ Added column ${alter.table}.${alter.column}`);
+                    successCount++;
+                  } catch (retryError) {
+                    console.warn(
+                      `[PostgresService] ⚠️ Failed to add column ${alter.table}.${alter.column}:`,
+                      (retryError as Error).message
+                    );
+                    failCount++;
+                  }
+                }
+              } catch {
+                failCount += failedAlters.length;
+              }
+            }
+
+            // Log remediation SQL for tables that couldn't be reassigned
+            const unresolvedTables = [...ownershipFailures.keys()].filter(
+              (t) => !resolvedTables.has(t)
+            );
+            if (unresolvedTables.length > 0) {
+              const dbUser = this.config.user || 'gruenerator';
+              const remediation = unresolvedTables
+                .map((t) => `ALTER TABLE ${t} OWNER TO ${dbUser};`)
+                .join('\n');
               console.warn(
-                `[PostgresService] ⚠️ Failed to add column ${alter.table}.${alter.column}:`,
-                (error as Error).message
+                `[PostgresService] ⚠️ ${unresolvedTables.length} table(s) need ownership fix. Run as DB admin:\n${remediation}`
               );
-              failCount++;
             }
           }
         } finally {
