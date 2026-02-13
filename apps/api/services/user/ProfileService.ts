@@ -456,6 +456,7 @@ class ProfileService {
       videoEditor: profile.video_editor || false,
       prompts: profile.prompts || false,
       scanner: profile.scanner || false,
+      docs: profile.docs || false,
     };
 
     return {
