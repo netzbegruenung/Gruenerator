@@ -66,7 +66,11 @@
     "react-router-dom": "^7.12.0",
     "y-websocket": "^2.0.4",
     "yjs": "^13.6.20",
-    "zustand": "^5.0.9"
+    "zustand": "^5.0.9",
+    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-shell": "^2"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",

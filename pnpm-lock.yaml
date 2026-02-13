@@ -400,6 +400,18 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.90.16(react@19.1.0)
+      '@tauri-apps/api':
+        specifier: ^2.9.0
+        version: 2.9.1
+      '@tauri-apps/plugin-fs':
+        specifier: ^2
+        version: 2.4.4
+      '@tauri-apps/plugin-opener':
+        specifier: ^2
+        version: 2.5.2
+      '@tauri-apps/plugin-shell':
+        specifier: ^2
+        version: 2.3.3
       '@tiptap/core':
         specifier: ^3.15.3
         version: 3.15.3(@tiptap/pm@3.15.3)
@@ -557,6 +569,34 @@ importers:
       vite-plugin-compression2:
         specifier: ^2.4.0
         version: 2.4.0(rollup@4.54.0)
+
+  apps/docs-desktop:
+    dependencies:
+      '@tauri-apps/api':
+        specifier: ^2.9.0
+        version: 2.9.1
+      '@tauri-apps/plugin-dialog':
+        specifier: ^2.6.0
+        version: 2.6.0
+      '@tauri-apps/plugin-fs':
+        specifier: ^2.4.0
+        version: 2.4.4
+      '@tauri-apps/plugin-notification':
+        specifier: ^2.3.0
+        version: 2.3.3
+      '@tauri-apps/plugin-opener':
+        specifier: ^2.5.0
+        version: 2.5.2
+      '@tauri-apps/plugin-shell':
+        specifier: ^2.3.0
+        version: 2.3.3
+      '@tauri-apps/plugin-updater':
+        specifier: ^2.9.0
+        version: 2.9.0
+    devDependencies:
+      '@tauri-apps/cli':
+        specifier: ^2.1.0
+        version: 2.9.6
 
   apps/docs-expo:
     dependencies:
@@ -7385,9 +7425,6 @@ packages:
 
   '@types/node@25.0.3':
     resolution: {integrity: sha512-W609buLVRVmeW693xKfzHeIV6nJGGz98uCPfeXI1ELMLXVeKYZ9m15fAMSaUPBHYLGFsVRcMmSCksQOrZV9BYA==}
-
-  '@types/node@25.2.3':
-    resolution: {integrity: sha512-m0jEgYlYz+mDJZ2+F4v8D1AyQb+QzsNqRuI7xg1VQX/KlKS0qT9r1Mo16yo5F/MtifXFgaofIFsdFMox2SxIbQ==}
 
   '@types/normalize-package-data@2.4.4':
     resolution: {integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==}
@@ -20974,7 +21011,7 @@ snapshots:
       wrap-ansi: 7.0.0
       ws: 8.18.3
     optionalDependencies:
-      expo-router: 6.0.23(175fe4223a303dfc448adf2d33468538)
+      expo-router: 6.0.23(6149ca38d0639b1925c576b998911047)
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
     transitivePeerDependencies:
       - bufferutil
@@ -25459,10 +25496,6 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
-  '@types/node@25.2.3':
-    dependencies:
-      undici-types: 7.16.0
-
   '@types/normalize-package-data@2.4.4': {}
 
   '@types/parse-json@4.0.2': {}
@@ -25589,7 +25622,7 @@ snapshots:
 
   '@types/sqlite3@3.1.11':
     dependencies:
-      '@types/node': 25.2.3
+      '@types/node': 24.10.4
 
   '@types/stack-utils@2.0.3': {}
 

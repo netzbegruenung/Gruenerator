@@ -1,0 +1,211 @@
+name: Docs Desktop Release
+
+on:
+  push:
+    tags:
+      - 'docs-desktop-v*'
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: true
+        type: boolean
+      platforms:
+        description: 'Platforms to build'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            args: ''
+            os_type: linux
+          # macOS Intel
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            args: '--target x86_64-apple-darwin'
+            os_type: macos
+          # macOS Apple Silicon
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            args: '--target aarch64-apple-darwin'
+            os_type: macos
+          # Windows x86_64
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: ''
+            os_type: windows
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Check platform filter
+        id: check
+        shell: bash
+        run: |
+          SELECTED="${{ github.event.inputs.platforms }}"
+          OS_TYPE="${{ matrix.os_type }}"
+          if [[ "$SELECTED" == "all" || "$SELECTED" == "" || "$SELECTED" == "$OS_TYPE" ]]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Skipping $OS_TYPE build (selected: $SELECTED)"
+          fi
+
+      - name: Checkout repository
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Setup pnpm
+        if: steps.check.outputs.should_run == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        if: steps.check.outputs.should_run == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        if: steps.check.outputs.should_run == 'true'
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/docs-desktop/src-tauri -> target
+
+      - name: Install dependencies
+        if: steps.check.outputs.should_run == 'true'
+        run: pnpm install
+
+      - name: Build Tauri app
+        if: steps.check.outputs.should_run == 'true'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_ENV_PLATFORM: ${{ matrix.target }}
+        with:
+          projectPath: apps/docs-desktop
+          tauriScript: pnpm tauri
+          args: ${{ matrix.args }}
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Grünerator Docs Desktop ${{ github.ref_name }}'
+          releaseBody: |
+            ## Grünerator Docs Desktop ${{ github.ref_name }}
+
+            Collaborative document editor with real-time sync.
+
+            ## Downloads
+            - **Windows**: `.msi` or `.exe` (NSIS installer)
+            - **macOS Intel**: `_x64.dmg`
+            - **macOS Apple Silicon**: `_aarch64.dmg`
+            - **Linux**: `.AppImage` or `.deb`
+          releaseDraft: ${{ github.event.inputs.draft || true }}
+          prerelease: false
+
+  # Generate update manifest after all builds complete
+  update-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/docs-desktop-v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download signature files from release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#docs-desktop-v}"
+          REPO="${{ github.repository }}"
+
+          mkdir -p signatures
+
+          curl -sL -o signatures/linux.sig \
+            "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/gruenerator-docs-desktop_${VERSION}_amd64.AppImage.tar.gz.sig" || echo "" > signatures/linux.sig
+
+          curl -sL -o signatures/darwin-x64.sig \
+            "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator+Docs_${VERSION}_x64.app.tar.gz.sig" || echo "" > signatures/darwin-x64.sig
+
+          curl -sL -o signatures/darwin-aarch64.sig \
+            "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator+Docs_${VERSION}_aarch64.app.tar.gz.sig" || echo "" > signatures/darwin-aarch64.sig
+
+          curl -sL -o signatures/windows.sig \
+            "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator+Docs_${VERSION}_x64-setup.nsis.zip.sig" || echo "" > signatures/windows.sig
+
+      - name: Generate latest.json for updater
+        run: |
+          VERSION="${GITHUB_REF_NAME#docs-desktop-v}"
+          REPO="${{ github.repository }}"
+
+          LINUX_SIG=$(cat signatures/linux.sig 2>/dev/null || echo "")
+          DARWIN_X64_SIG=$(cat signatures/darwin-x64.sig 2>/dev/null || echo "")
+          DARWIN_AARCH64_SIG=$(cat signatures/darwin-aarch64.sig 2>/dev/null || echo "")
+          WINDOWS_SIG=$(cat signatures/windows.sig 2>/dev/null || echo "")
+
+          cat > latest.json << EOF
+          {
+            "version": "${VERSION}",
+            "notes": "See release notes on GitHub",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "linux-x86_64": {
+                "signature": "${LINUX_SIG}",
+                "url": "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/gruenerator-docs-desktop_${VERSION}_amd64.AppImage.tar.gz"
+              },
+              "darwin-x86_64": {
+                "signature": "${DARWIN_X64_SIG}",
+                "url": "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator+Docs_${VERSION}_x64.app.tar.gz"
+              },
+              "darwin-aarch64": {
+                "signature": "${DARWIN_AARCH64_SIG}",
+                "url": "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator+Docs_${VERSION}_aarch64.app.tar.gz"
+              },
+              "windows-x86_64": {
+                "signature": "${WINDOWS_SIG}",
+                "url": "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator+Docs_${VERSION}_x64-setup.nsis.zip"
+              }
+            }
+          }
+          EOF
+
+      - name: Upload latest.json to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

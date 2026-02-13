@@ -74,6 +74,7 @@
     "build:web": "turbo run build --filter=@gruenerator/web",
     "build:shared": "turbo run build --filter=@gruenerator/shared",
     "build:desktop": "turbo run build --filter=@gruenerator/desktop",
+    "build:docs-desktop": "turbo run build --filter=@gruenerator/docs-desktop",
     "dev:sites": "turbo run dev --filter=@gruenerator/sites",
     "build:sites": "turbo run build --filter=@gruenerator/sites",
     "dev:docs": "turbo run dev --filter=@gruenerator/docs",
