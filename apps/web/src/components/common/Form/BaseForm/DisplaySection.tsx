@@ -1,5 +1,7 @@
-import React, { forwardRef, type ReactNode } from 'react';
+import { useDocumentStore, createDocsApiClient } from '@gruenerator/docs';
+import React, { forwardRef, lazy, Suspense, type ReactNode, useMemo } from 'react';
 
+import { webAppDocsAdapter } from '../../../../features/docs/docsAdapter';
 import { useLazyAuth } from '../../../../hooks/useAuth';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
@@ -17,6 +19,8 @@ import type {
   CustomExportOption,
   ContentMetadata,
 } from '@/types/baseform';
+
+const DocsEditorModal = lazy(() => import('../../DocsEditorModal'));
 
 // Extended content type for internal use that includes all possible properties
 interface ExtendedContent {
@@ -202,6 +206,41 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       }
     }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
 
+    // "Edit in Docs" — create a collaborative document and open full-screen modal
+    const createDocument = useDocumentStore((state) => state.createDocument);
+    const docsApiClient = useMemo(() => createDocsApiClient(webAppDocsAdapter), []);
+    const [editInDocsLoading, setEditInDocsLoading] = React.useState(false);
+    const [editorModal, setEditorModal] = React.useState<{
+      documentId: string;
+      initialContent: string;
+      title: string;
+    } | null>(null);
+
+    const handleEditInDocs = React.useCallback(async () => {
+      if (!currentExportableContent) return;
+
+      setEditInDocsLoading(true);
+      try {
+        const docTitle = storeGeneratedTextMetadata?.title || title || 'Generierter Text';
+        const doc = await createDocument(docsApiClient, docTitle);
+        setEditorModal({
+          documentId: doc.id,
+          initialContent: currentExportableContent,
+          title: docTitle,
+        });
+      } catch (error) {
+        console.error('[DisplaySection] Failed to create document:', error);
+      } finally {
+        setEditInDocsLoading(false);
+      }
+    }, [
+      currentExportableContent,
+      storeGeneratedTextMetadata,
+      title,
+      createDocument,
+      docsApiClient,
+    ]);
+
     const actionButtons = (
       <ActionButtons
         isEditing={false}
@@ -225,6 +264,8 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         title={storeGeneratedTextMetadata?.title || title}
         componentName={componentName}
         onRequestEdit={onRequestEdit}
+        onEditInDocs={handleEditInDocs}
+        editInDocsLoading={editInDocsLoading}
         showReset={showResetButton}
         onReset={onReset}
         customExportOptions={customExportOptions}
@@ -294,6 +335,17 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         )}
         {/* Render additional display actions if provided */}
         {displayActions && <div className="display-action-section">{displayActions}</div>}
+        {/* Full-screen docs editor modal */}
+        {editorModal && (
+          <Suspense fallback={null}>
+            <DocsEditorModal
+              documentId={editorModal.documentId}
+              initialContent={editorModal.initialContent}
+              title={editorModal.title}
+              onClose={() => setEditorModal(null)}
+            />
+          </Suspense>
+        )}
       </div>
     );
   }
