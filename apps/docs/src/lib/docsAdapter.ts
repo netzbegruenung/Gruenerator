@@ -1,6 +1,8 @@
 import type { DocsAdapter } from '@gruenerator/docs';
 
-const HOCUSPOCUS_URL = import.meta.env.VITE_HOCUSPOCUS_URL || 'ws://localhost:1240';
+const HOCUSPOCUS_URL =
+  import.meta.env.VITE_HOCUSPOCUS_URL ||
+  `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
