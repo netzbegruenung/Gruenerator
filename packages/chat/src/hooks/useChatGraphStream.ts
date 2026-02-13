@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { useChatAdapter } from '../context/ChatContext';
+import { chatFetch } from '../context/ChatContext';
 import type { ProcessedFile } from '../lib/fileUtils';
 
 export type ProgressStage =
@@ -139,8 +139,6 @@ export function useChatGraphStream(
     onComplete,
   } = options;
 
-  const adapter = useChatAdapter();
-
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [progress, setProgress] = useState<ChatProgress>({
     stage: 'idle',
@@ -193,8 +191,6 @@ export function useChatGraphStream(
       abortControllerRef.current = new AbortController();
 
       try {
-        const apiBaseUrl = adapter.getApiBaseUrl();
-
         const allMessages = [...(messages || []), userMessage];
         const formattedMessages = allMessages.map((m, idx) => {
           const parts: Array<
@@ -221,7 +217,7 @@ export function useChatGraphStream(
           return { id: m.id, role: m.role, parts };
         });
 
-        const response = await adapter.fetch(`${apiBaseUrl}/api/chat-graph/stream`, {
+        const response = await chatFetch('/api/chat-graph/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -450,7 +446,6 @@ export function useChatGraphStream(
       onThreadCreated,
       onComplete,
       onError,
-      adapter,
     ]
   );
 

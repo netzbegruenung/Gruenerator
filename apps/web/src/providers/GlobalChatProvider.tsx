@@ -1,14 +1,8 @@
-import {
-  ChatProvider,
-  GrueneratorChatProvider,
-  ChatThreadList,
-  TooltipProvider,
-} from '@gruenerator/chat';
+import { GrueneratorChatProvider, ChatThreadList, TooltipProvider } from '@gruenerator/chat';
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { webChatAdapter } from '../features/chat/lib/webChatAdapter';
 import { useOptimizedAuth } from '../hooks/useAuth';
 
 const PORTAL_SLOT_ID = 'chat-thread-portal-slot';
@@ -60,13 +54,11 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const { user } = useOptimizedAuth();
 
   return (
-    <ChatProvider adapter={webChatAdapter}>
-      <GrueneratorChatProvider userId={user?.id}>
-        <TooltipProvider>
-          {children}
-          <ChatThreadPortal />
-        </TooltipProvider>
-      </GrueneratorChatProvider>
-    </ChatProvider>
+    <GrueneratorChatProvider userId={user?.id}>
+      <TooltipProvider>
+        {children}
+        <ChatThreadPortal />
+      </TooltipProvider>
+    </GrueneratorChatProvider>
   );
 }

@@ -36,11 +36,11 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 
 - **`apps/web`** — React 19 + Vite 7 frontend. Feature-sliced design with 26 feature modules in `src/features/`. Routes defined in `src/config/routes.ts`.
 - **`apps/api`** — Express 5 backend running in Node.js cluster mode. AI calls are offloaded to a dedicated worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, business logic in `services/`.
-- **`apps/chat`** — Next.js chat interface using Assistant UI and AI SDK. Runs on port 3210.
 - **`apps/docs`** — Collaborative document editor with Hocuspocus real-time sync.
 - **`apps/sites`** — Site builder/management interface.
 - **`apps/mobile`** — Expo 54 / React Native app with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around the web frontend.
+- **`packages/chat`** — Shared chat UI components, runtime adapters (Assistant UI), stores, and hooks. Consumed by `apps/web` at `/chat`.
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, tiptap-editor, media-library, search).
 - **`services/mcp`** — Model Context Protocol server.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.

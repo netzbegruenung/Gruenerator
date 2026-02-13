@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 
-import { AddTemplateModal } from '../../../../../../../../components/common/AddTemplateModal';
 import { ProfileActionButton } from '../../../../../../../../components/profile/actions/ProfileActionButton';
 import SharedContentSelector from '../../../../../../../../features/groups/components/SharedContentSelector';
 
@@ -44,7 +43,6 @@ interface GroupContent {
   texts?: SharedContentItemBase[];
   notebooks?: SharedContentItemBase[];
   generators?: SharedContentItemBase[];
-  templates?: SharedContentItemBase[];
 }
 
 /** Share permissions for content */
@@ -58,13 +56,6 @@ interface SharePermissions {
 interface ShareOptions {
   permissions: SharePermissions | Record<string, boolean>;
   targetGroupId: string | null;
-}
-
-/** Template data returned from AddTemplateModal */
-interface TemplateData {
-  title: string;
-  id?: string;
-  description?: string;
 }
 
 /** Error object with message property */
@@ -107,7 +98,6 @@ const GroupSharedContentSection: React.FC<GroupSharedContentSectionProps> = ({
   onErrorMessage,
 }) => {
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
   const handleOpenContentModal = useCallback(() => {
     setIsContentModalOpen(true);
@@ -115,14 +105,6 @@ const GroupSharedContentSection: React.FC<GroupSharedContentSectionProps> = ({
 
   const handleCloseContentModal = useCallback(() => {
     setIsContentModalOpen(false);
-  }, []);
-
-  const handleOpenTemplateModal = useCallback(() => {
-    setIsTemplateModalOpen(true);
-  }, []);
-
-  const handleCloseTemplateModal = useCallback(() => {
-    setIsTemplateModalOpen(false);
   }, []);
 
   const handleContentShareSuccess = useCallback(
@@ -140,14 +122,6 @@ const GroupSharedContentSection: React.FC<GroupSharedContentSectionProps> = ({
       onErrorMessage?.(`Fehler beim Hinzufügen: ${errorMessage}`);
     },
     [onErrorMessage]
-  );
-
-  const handleTemplateSuccess = useCallback(
-    (template: TemplateData) => {
-      onSuccessMessage?.(`Vorlage "${template.title}" erfolgreich zur Gruppe hinzugefügt.`);
-      void onRefetch?.();
-    },
-    [onSuccessMessage, onRefetch]
   );
 
   const handleRefresh = useCallback(async () => {
@@ -173,65 +147,32 @@ const GroupSharedContentSection: React.FC<GroupSharedContentSectionProps> = ({
           disabled={isLoadingGroupContent}
         />
       </div>
-      <div className="profile-cards-grid">
-        <div className="profile-card">
-          <div className="profile-card-header">
-            <h3>Geteilte Inhalte</h3>
-            <ProfileActionButton
-              action="add"
-              label="Hinzufügen"
-              variant="secondary"
-              size="s"
-              onClick={handleOpenContentModal}
-            />
-          </div>
-          <div className="profile-card-content">
-            <SharedContentSelector
-              groupContent={groupContent}
-              isLoading={isLoadingGroupContent}
-              isAdmin={isAdmin}
-              onUnshare={onUnshare}
-              isUnsharing={isUnsharing}
-              config={{
-                hideHeader: true,
-                excludeTypes: ['database'],
-                hideFilters: ['permissions'],
-                cardStyle: 'default',
-              }}
-            />
-          </div>
+      <div className="profile-card">
+        <div className="profile-card-header">
+          <h3>Geteilte Inhalte</h3>
+          <ProfileActionButton
+            action="add"
+            label="Hinzufügen"
+            variant="secondary"
+            size="s"
+            onClick={handleOpenContentModal}
+          />
         </div>
-
-        <div className="profile-card">
-          <div className="profile-card-header">
-            <h3>Geteilte Vorlagen</h3>
-            <ProfileActionButton
-              action="add"
-              label="Hinzufügen"
-              variant="secondary"
-              size="s"
-              onClick={handleOpenTemplateModal}
-            />
-          </div>
-          <div className="profile-card-content">
-            <SharedContentSelector
-              groupContent={groupContent}
-              isLoading={isLoadingGroupContent}
-              isAdmin={isAdmin}
-              onUnshare={onUnshare}
-              isUnsharing={isUnsharing}
-              config={{
-                hideHeader: true,
-                contentFilter: 'database',
-                hideFilters: ['contentType', 'permissions'],
-                cardStyle: 'template-square',
-                gridConfig: {
-                  minCardWidth: '280px',
-                  aspectRatio: '1:1',
-                },
-              }}
-            />
-          </div>
+        <div className="profile-card-content">
+          <SharedContentSelector
+            groupContent={groupContent}
+            isLoading={isLoadingGroupContent}
+            isAdmin={isAdmin}
+            onUnshare={onUnshare}
+            isUnsharing={isUnsharing}
+            onAddContent={handleOpenContentModal}
+            config={{
+              hideHeader: true,
+              excludeTypes: ['database'],
+              hideFilters: ['permissions'],
+              cardStyle: 'default',
+            }}
+          />
         </div>
       </div>
 
@@ -244,14 +185,6 @@ const GroupSharedContentSection: React.FC<GroupSharedContentSectionProps> = ({
         onSuccess={handleContentShareSuccess}
         onError={handleContentShareError}
         initialContentType="content"
-      />
-
-      <AddTemplateModal
-        isOpen={isTemplateModalOpen}
-        onClose={handleCloseTemplateModal}
-        groupId={groupId}
-        onShareContent={onShareContent}
-        onSuccess={handleTemplateSuccess}
       />
     </div>
   );

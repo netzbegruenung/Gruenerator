@@ -1,8 +1,13 @@
-import { useMemo, useCallback, memo, useState } from 'react';
+import { useMemo, useCallback, memo } from 'react';
 
 import Icon from '../../../components/common/Icon';
-import MenuDropdown from '../../../components/common/MenuDropdown';
 import '../../../components/common/TabbedLayout/TabbedLayout.css';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
 import { type TabId, type UniversalSubType, TAB_CONFIGS } from '../types';
 import './TabSelector.css';
 
@@ -58,8 +63,6 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
     disabled = false,
     isAuthenticated = false,
   }) => {
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-
     const tabs = useMemo(
       () =>
         TAB_CONFIGS.filter((config) => config.id !== 'universal').map((config) => ({
@@ -101,19 +104,8 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
           onUniversalSubTypeChange(subType);
         }
         onTabChange('universal');
-        setDropdownOpen(false);
       },
       [onUniversalSubTypeChange, onTabChange]
-    );
-
-    const handleDropdownKeyDown = useCallback(
-      (event: React.KeyboardEvent, subType: UniversalSubType) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          handleUniversalOptionSelect(subType);
-        }
-      },
-      [handleUniversalOptionSelect]
     );
 
     const isUniversalActive = activeTab === 'universal';
@@ -155,14 +147,12 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
         })}
 
         {universalTabConfig && (
-          <MenuDropdown
-            trigger={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 role="tab"
                 aria-selected={isUniversalActive}
-                aria-haspopup="menu"
-                aria-expanded={dropdownOpen}
                 className={`tabbed-layout__tab has-dropdown ${isUniversalActive ? 'tabbed-layout__tab--active' : ''}`}
                 disabled={disabled}
                 tabIndex={isUniversalActive ? 0 : -1}
@@ -174,7 +164,9 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                   className="texte-tab-icon"
                 />
                 <span className="tabbed-layout__tab-label">{universalTabConfig.label}</span>
-                <span className="tabbed-layout__tab-label-short">{universalTabConfig.shortLabel}</span>
+                <span className="tabbed-layout__tab-label-short">
+                  {universalTabConfig.shortLabel}
+                </span>
                 {!isAuthenticated && (
                   <Icon category="actions" name="lock" size={12} className="texte-tab-lock-icon" />
                 )}
@@ -185,34 +177,20 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                   className="texte-tab-dropdown-icon"
                 />
               </button>
-            }
-            alignRight={false}
-            className="texte-tab-dropdown-container"
-          >
-            {({ onClose }) => (
-              <div className="texte-tab-dropdown-menu">
-                {UNIVERSAL_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className="texte-tab-dropdown-item"
-                    onClick={() => {
-                      handleUniversalOptionSelect(option.value);
-                      onClose();
-                    }}
-                    onKeyDown={(e) => handleDropdownKeyDown(e, option.value)}
-                  >
-                    <Icon
-                      category={option.icon.category as any}
-                      name={option.icon.name}
-                      size={16}
-                    />
-                    <span>{option.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </MenuDropdown>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {UNIVERSAL_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  className="texte-tab-dropdown-item"
+                  onSelect={() => handleUniversalOptionSelect(option.value)}
+                >
+                  <Icon category={option.icon.category as any} name={option.icon.name} size={16} />
+                  <span>{option.label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     );
