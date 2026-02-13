@@ -38,7 +38,6 @@
 @import url('./components/form/form-inputs.css') layer(legacy);
 @import url('./components/form/file-upload.css') layer(legacy);
 @import url('./components/form/form-image-select.css') layer(legacy);
-@import url('./components/edit-mode/edit-mode-overlay.css') layer(legacy);
 
 @import url('./components/actions/advanced-editing.css') layer(legacy);
 @import url('./components/actions/linksave.css') layer(legacy);

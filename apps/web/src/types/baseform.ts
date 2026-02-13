@@ -98,8 +98,6 @@ export interface FormUIConfig {
   showProfileSelector?: boolean;
   /** Show image upload component */
   showImageUpload?: boolean;
-  /** Enable edit mode for generated content */
-  enableEditMode?: boolean;
   /** Use markdown rendering for content */
   useMarkdown?: boolean | null;
   /** Hide the display container completely */
@@ -251,7 +249,6 @@ export interface ContentRendererProps {
   componentName?: string;
   helpContent?: HelpContent | string | null;
   onEditModeToggle?: () => void;
-  isEditModeActive?: boolean;
 }
 
 // =============================================================================
@@ -279,8 +276,6 @@ export interface DisplaySectionProps {
   generatedContent?: GeneratedContent;
   useMarkdown?: boolean;
   onEditModeToggle?: () => void;
-  isEditModeActive?: boolean;
-  showEditModeToggle?: boolean;
   displayActions?: ReactNode;
   generatedPost?: unknown;
   onGeneratePost?: () => void;
@@ -385,7 +380,6 @@ export interface FormExtrasSectionProps {
 export interface FormSectionProps {
   isFormVisible?: boolean;
   isMultiStep?: boolean;
-  useEditMode?: boolean;
   isImageEditActive?: boolean;
   isStartMode?: boolean;
   onSubmit?: (data?: Record<string, unknown>) => void | Promise<void>;
@@ -419,8 +413,6 @@ export interface FormSectionProps {
   uploadedImage?: unknown;
   onImageChange?: (image: unknown) => void;
   customEditContent?: ReactNode;
-  onCloseEditMode?: () => void;
-  registerEditHandler?: (handler: () => void) => void;
   enableKnowledgeSelector?: boolean;
   showProfileSelector?: boolean;
   documentSelectorTabIndex?: number;
@@ -449,8 +441,6 @@ export interface BaseFormProps {
   // Generation callbacks
   onGeneratePost?: () => void | Promise<void>;
   generatedPost?: string;
-  onEditSubmit?: ((content: string) => void | Promise<void>) | null;
-
   // Advanced configuration
   submitButtonProps?: Record<string, unknown>;
   headerContent?: ReactNode;
@@ -545,8 +535,6 @@ export interface BaseFormProps {
   onImageChange?: ((image: unknown) => void) | null;
   onImageEditModeChange?: ((isActive: boolean) => void) | null;
 
-  /** @deprecated Use `uiConfig.enableEditMode` instead */
-  enableEditMode?: boolean;
   customEditContent?: ReactNode;
 
   // DEPRECATED: Legacy platform props (use platformConfig instead)

@@ -446,10 +446,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     textStore.clearGeneratedText('grueneratorChat');
 
-    if (typeof textStore.clearEditChat === 'function') {
-      textStore.clearEditChat('grueneratorChat');
-    }
-
     localStorage.removeItem(CHAT_STORAGE_KEY);
   },
 

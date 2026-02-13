@@ -1,5 +1,5 @@
 import { type JSX, useState, useEffect, useRef, type ReactNode, useCallback } from 'react';
-import { HiCog, HiPencil, HiSave } from 'react-icons/hi';
+import { HiCog, HiSave } from 'react-icons/hi';
 import {
   IoCopyOutline,
   IoCheckmarkOutline,
@@ -42,14 +42,12 @@ interface ActionButtonsProps {
   showRegenerate?: boolean;
   showSave?: boolean;
   showSaveToLibrary?: boolean;
-  showEditMode?: boolean;
   showUndo?: boolean;
   showRedo?: boolean;
   onEditModeToggle?: () => void;
   onRequestEdit?: () => void;
   onReset?: () => void;
   showReset?: boolean;
-  isEditModeActive?: boolean;
   onRegenerate?: () => void;
   onSave?: () => void;
   onSaveToLibrary?: () => void;
@@ -86,14 +84,12 @@ const ActionButtons = ({
   showRegenerate = false,
   showSave = false,
   showSaveToLibrary = true,
-  showEditMode: _showEditMode = false,
   showUndo = true,
   showRedo = true,
   onEditModeToggle,
   onRequestEdit,
   onReset,
   showReset = false,
-  isEditModeActive = false,
   onRegenerate,
   onSave,
   onSaveToLibrary,
@@ -319,7 +315,7 @@ const ActionButtons = ({
           showMoreMenu={false}
         />
       ),
-      undo: showUndo && (canUndoState || isEditModeActive) && (
+      undo: showUndo && canUndoState && (
         <button
           key="undo"
           onClick={handleUndo}
@@ -334,7 +330,7 @@ const ActionButtons = ({
           <IoArrowUndoOutline size={16} />
         </button>
       ),
-      redo: showRedo && (canRedoState || isEditModeActive) && (
+      redo: showRedo && canRedoState && (
         <button
           key="redo"
           onClick={handleRedo}
@@ -393,7 +389,6 @@ const ActionButtons = ({
           <IoRefreshOutline size={16} />
         </button>
       ),
-      // TODO: re-enable when suggest_edits backend parsing is fixed
       edit: null,
       more: (showExport || showDownload || showExportDropdown) && isAuthenticated && (
         <ExportDropdown

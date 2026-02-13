@@ -525,7 +525,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     <BaseForm
       {...form.generator?.baseFormProps}
       componentName={componentName}
-      enableEditMode={!isPlanModeActive}
       onSubmit={() => {
         const submitHandler = handleSubmit(async (data: unknown) => {
           await onSubmitRHF(data as unknown as FormValues);

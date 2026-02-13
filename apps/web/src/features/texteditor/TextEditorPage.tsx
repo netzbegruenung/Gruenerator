@@ -237,7 +237,6 @@ const AITextImproverGenerator: React.FC<AITextImproverGeneratorProps> = ({
           error={error}
           generatedContent={generatedContentValue}
           onGeneratedContentChange={handleGeneratedContentChange}
-          enableEditMode={true}
           componentName={componentName}
           firstExtrasChildren={renderActionSelector()}
           helpContent={helpContentConfig}

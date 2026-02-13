@@ -285,7 +285,6 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
       error={combinedError}
       platformOptions={(form.generator?.baseFormProps?.platformOptions || undefined) as any}
       componentName={componentName}
-      enableEditMode={selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE}
     >
       {renderForm()}
     </BaseForm>

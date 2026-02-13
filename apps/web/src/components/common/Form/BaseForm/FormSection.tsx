@@ -4,7 +4,6 @@ import { useShallow } from 'zustand/react/shallow';
 
 import useDragDropFiles from '../../../../hooks/useDragDropFiles';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
-import UniversalEditForm from '../EditMode/UniversalEditForm';
 import { useFormStateSelector } from '../FormStateProvider';
 import useResponsive from '../hooks/useResponsive';
 import InputTip from '../Input/InputTip';
@@ -78,10 +77,7 @@ interface FormSectionProps {
   onPrivacyInfoClick?: () => void;
   onWebSearchInfoClick?: () => void;
   componentName?: string;
-  useEditMode?: boolean;
-  onCloseEditMode?: (() => void) | null;
   isImageEditActive?: boolean;
-  registerEditHandler?: ((handler: () => void) => void) | null;
   enableKnowledgeSelector?: boolean;
   customEditContent?: ReactNode;
   isStartMode?: boolean;
@@ -149,10 +145,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       onPrivacyInfoClick,
       onWebSearchInfoClick,
       componentName,
-      useEditMode = false,
-      onCloseEditMode = null,
       isImageEditActive = false,
-      registerEditHandler = null,
       enableKnowledgeSelector = false,
       customEditContent = null,
       // Start mode props
@@ -253,12 +246,12 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
           )}
 
           <FormCard
-            className={useEditMode ? 'form-card--editmode' : ''}
+            className=""
             variant="elevated"
             size="large"
             hover={false}
-            title={useEditMode || isStartMode ? null : (title ?? null)}
-            subtitle={useEditMode || isStartMode ? undefined : subtitle}
+            title={isStartMode ? null : (title ?? null)}
+            subtitle={isStartMode ? undefined : subtitle}
             showHideButton={showHideButton}
             onHide={onHide}
             isStartMode={isStartMode}
@@ -285,13 +278,13 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
               className="form-section__form"
             >
               {/* Mobile: firstExtrasChildren above everything (except in start mode or edit mode) */}
-              {isMobileView && firstExtrasChildren && !isStartMode && !useEditMode && (
+              {isMobileView && firstExtrasChildren && !isStartMode && (
                 <div className="form-section__mobile-first-extras">{firstExtrasChildren}</div>
               )}
 
               <div className="form-section__container">
                 {/* Input Section - hidden when hideInputSection is true and not in edit mode */}
-                {(!hideInputSection || useEditMode) && (
+                {!hideInputSection && (
                   <FormInputSection
                     isMultiStep={isMultiStep}
                     onBack={onBack}
@@ -300,13 +293,11 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
                     validationRules={validationRules}
                     useModernForm={useModernForm}
                     onFormChange={onFormChange}
-                    showSubmitButton={
-                      useEditMode ? false : showSubmitButtonInInputSection && showSubmitButton
-                    }
+                    showSubmitButton={showSubmitButtonInInputSection && showSubmitButton}
                     onSubmit={onSubmit}
                     nextButtonText={nextButtonText}
                     submitButtonProps={submitButtonProps}
-                    enablePlatformSelector={!useEditMode && enablePlatformSelector}
+                    enablePlatformSelector={enablePlatformSelector}
                     platformOptions={platformOptions}
                     platformSelectorLabel={platformSelectorLabel}
                     platformSelectorPlaceholder={platformSelectorPlaceholder}
@@ -318,21 +309,12 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
                     isStartMode={isStartMode}
                     inputHeaderContent={inputHeaderContent}
                   >
-                    {isImageEditActive ? (
-                      customEditContent
-                    ) : useEditMode ? (
-                      <UniversalEditForm
-                        componentName={componentName || 'default'}
-                        onClose={onCloseEditMode ?? undefined}
-                      />
-                    ) : (
-                      children
-                    )}
+                    {isImageEditActive ? customEditContent : children}
                   </FormInputSection>
                 )}
 
                 {/* Extras Section - also hidden when hideInputSection is true */}
-                {!hideExtrasSection && !hideInputSection && (isImageEditActive || !useEditMode) && (
+                {!hideExtrasSection && !hideInputSection && (
                   <FormExtrasSection
                     interactiveModeToggle={interactiveModeToggle ?? null}
                     useInteractiveModeToggle={useInteractiveModeToggle}
@@ -344,12 +326,8 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
                     isMultiStep={isMultiStep}
                     nextButtonText={nextButtonText}
                     submitButtonProps={submitButtonProps}
-                    showSubmitButton={
-                      useEditMode ? false : showSubmitButton && !showSubmitButtonInInputSection
-                    }
-                    firstExtrasChildren={
-                      (!isMobileView || isStartMode) && !useEditMode ? firstExtrasChildren : null
-                    }
+                    showSubmitButton={showSubmitButton && !showSubmitButtonInInputSection}
+                    firstExtrasChildren={!isMobileView || isStartMode ? firstExtrasChildren : null}
                     featureIconsTabIndex={featureIconsTabIndex}
                     knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
                     knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
