@@ -3,10 +3,10 @@ import { HiCog, HiSave } from 'react-icons/hi';
 import {
   IoCopyOutline,
   IoCheckmarkOutline,
-  IoCloseOutline,
   IoRefreshOutline,
   IoArrowUndoOutline,
   IoArrowRedoOutline,
+  IoCreateOutline,
 } from 'react-icons/io5';
 import '../../assets/styles/components/actions/action-buttons.css';
 
@@ -61,6 +61,8 @@ interface ActionButtonsProps {
   generatedContent?: GeneratedContent;
   title?: string;
   componentName?: string;
+  onEditInDocs?: () => void;
+  editInDocsLoading?: boolean;
   customExportOptions?: {
     id?: string;
     label?: string;
@@ -103,6 +105,8 @@ const ActionButtons = ({
   generatedContent,
   title,
   componentName = 'default',
+  onEditInDocs,
+  editInDocsLoading = false,
   customExportOptions = [],
   hideDefaultExportOptions = false,
 }: ActionButtonsProps): JSX.Element => {
@@ -389,7 +393,21 @@ const ActionButtons = ({
           <IoRefreshOutline size={16} />
         </button>
       ),
-      edit: null,
+      edit: onEditInDocs && isAuthenticated && (
+        <button
+          key="edit"
+          onClick={onEditInDocs}
+          className="action-button"
+          aria-label="Im Editor bearbeiten"
+          disabled={editInDocsLoading}
+          {...(!isMobileView && {
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Im Editor bearbeiten',
+          })}
+        >
+          <IoCreateOutline size={16} />
+        </button>
+      ),
       more: (showExport || showDownload || showExportDropdown) && isAuthenticated && (
         <ExportDropdown
           key="more"
