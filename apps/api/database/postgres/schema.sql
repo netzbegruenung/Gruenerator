@@ -86,12 +86,14 @@ CREATE TABLE IF NOT EXISTS profiles (
     nextcloud_share_links JSONB DEFAULT '[]',
     document_mode TEXT DEFAULT 'manual',
     auto_save_on_export BOOLEAN DEFAULT FALSE,
-    user_defaults JSONB DEFAULT '{}'
+    user_defaults JSONB DEFAULT '{}',
+    docs BOOLEAN DEFAULT FALSE
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS scanner BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS prompts BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
 
 
 -- ════════════════════════════════════════════════════════════════════════════

@@ -40,6 +40,7 @@ const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeat
     // DEPRECATED: chat: 'chat',
     labor_enabled: 'labor',
     scanner: 'scanner',
+    docs: 'docs',
   };
 
   const normalized: BetaFeatures = {};

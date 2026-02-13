@@ -243,8 +243,32 @@ const DatabaseIndexPage = lazy(() => import('../features/database/pages/Database
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
-const DocsListPage = lazy(() => import('../features/docs/DocsListPage'));
-const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
+const DocsListPage = lazy(() =>
+  Promise.all([
+    import('../features/docs/DocsListPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([docsModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(docsModule.default, props),
+        featureKey: 'docs',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
+const DocsEditorPage = lazy(() =>
+  Promise.all([
+    import('../features/docs/DocsEditorPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([docsModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(docsModule.default, props),
+        featureKey: 'docs',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
 
 /**
  * Lazy loading für Grüneratoren Bundle

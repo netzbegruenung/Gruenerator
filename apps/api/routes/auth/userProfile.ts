@@ -261,6 +261,7 @@ router.patch(
         'automatischPlanMode',
         'prompts',
         'scanner',
+        'docs',
       ];
 
       if (!allowedFeatures.includes(feature)) {
