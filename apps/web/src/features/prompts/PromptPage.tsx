@@ -242,7 +242,6 @@ const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true })
           title={promptData.name}
           startPageDescription={promptData.description}
           useStartPageLayout={true}
-          enableEditMode={true}
           onSubmit={handleSubmit}
           loading={isSubmitting}
           inputHeaderContent={inputHeaderContent}

@@ -6,7 +6,6 @@ export { useMultiStepForm } from './useMultiStepForm';
 export { default as useAutoScrollToContent } from './useAutoScrollToContent';
 export { useFormConfiguration } from './useFormConfiguration';
 export { useFormStateSyncing } from './useFormStateSyncing';
-export { useEditMode } from './useEditMode';
 export { useContentManagement } from './useContentManagement';
 export { useStartMode } from './useStartMode';
 export { useFeatureConfigs } from './useFeatureConfigs';

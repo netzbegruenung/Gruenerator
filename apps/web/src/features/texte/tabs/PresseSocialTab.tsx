@@ -745,7 +745,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
           displayContent?.content || (generatedContentWithHandler as GeneratedContent)
         }
         useMarkdown={displayContent?.useMarkdown ?? false}
-        enableEditMode={!isPlanModeActive}
         enableKnowledgeSelector={true}
         helpContent={helpContent}
         componentName={componentName}

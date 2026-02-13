@@ -137,7 +137,6 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
         <BaseForm
           {...restBaseFormProps}
           componentName={COMPONENT_NAME}
-          enableEditMode={true}
           onSubmit={handleSubmit}
           loading={isLoading}
           useStartPageLayout={true}

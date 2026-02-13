@@ -43,8 +43,6 @@ interface DisplaySectionProps {
   componentName?: string;
   onErrorDismiss?: () => void;
   onEditModeToggle?: () => void;
-  isEditModeActive?: boolean;
-  showEditModeToggle?: boolean;
   onRequestEdit?: () => void;
   showUndoControls?: boolean;
   showRedoControls?: boolean;
@@ -86,8 +84,6 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       componentName = 'default',
       onErrorDismiss,
       onEditModeToggle,
-      isEditModeActive = false,
-      showEditModeToggle = true,
       onRequestEdit,
       showUndoControls = true,
       showRedoControls = true,
@@ -214,14 +210,12 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         showRegenerate={true}
         showSave={!!onSave}
         showSaveToLibrary={true}
-        showEditMode={showEditModeToggle}
         showUndo={showUndoControls}
         showRedo={showRedoControls}
         onRegenerate={onGeneratePost}
         onSave={onSave}
         onSaveToLibrary={handleSaveToLibrary}
         onEditModeToggle={onEditModeToggle}
-        isEditModeActive={isEditModeActive}
         regenerateLoading={generatePostLoading || isStreaming}
         saveLoading={saveLoading}
         saveToLibraryLoading={saveToLibraryLoading}
@@ -242,7 +236,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       renderActions ? (
         renderActions(actionButtons)
       ) : (
-        <div className={`display-header ${isEditModeActive ? 'display-header--edit-mode' : ''}`}>
+        <div className="display-header">
           {actionButtons}
           <AutoSaveIndicator componentName={componentName} />
         </div>
@@ -285,7 +279,6 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
                   componentName={componentName}
                   helpContent={helpContent}
                   onEditModeToggle={onEditModeToggle}
-                  isEditModeActive={isEditModeActive}
                 />
               )}
             </>

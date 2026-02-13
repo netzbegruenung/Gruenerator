@@ -55,7 +55,6 @@ import {
   wahlprogrammRouter,
   buergeranfragenRouter,
   textAdjustmentRouter as claudeTextAdjustmentRoute,
-  suggestEditsRouter as claudeSuggestEditsRoute,
   textImproverRouter as claudeTextImproverRoute,
   grueneJugendRouter as claudeGrueneJugendRoute,
   subtitlesRouter as claudeSubtitlesRoute,
@@ -177,7 +176,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/leichte_sprache', leichteSpracheRoute);
   app.use('/api/claude_rede', redeRouter);
   app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
-  app.use('/api/claude_suggest_edits', claudeSuggestEditsRoute);
   app.use('/api/claude_text_improver', claudeTextImproverRoute);
   app.use('/api/chat', grueneratorChatRoute);
   app.use('/api/chat-service', chatServiceRouter);

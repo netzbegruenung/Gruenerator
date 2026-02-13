@@ -4,7 +4,6 @@ interface BaseContainerClassesParams {
   title?: string;
   generatedContent?: GeneratedContent;
   isFormVisible?: boolean;
-  isEditModeActive?: boolean;
   isStartMode?: boolean;
 }
 
@@ -12,7 +11,6 @@ export function getBaseContainerClasses({
   title,
   generatedContent,
   isFormVisible,
-  isEditModeActive,
   isStartMode,
 }: BaseContainerClassesParams): string {
   const hasContent =
@@ -25,7 +23,6 @@ export function getBaseContainerClasses({
   const classes = [
     'base-container',
     hasContent ? 'has-generated-content' : '',
-    isEditModeActive ? 'edit-mode-active' : '',
     isStartMode ? 'base-container--start-mode' : '',
     !hasContent && !isStartMode ? 'no-content-column' : '',
   ];

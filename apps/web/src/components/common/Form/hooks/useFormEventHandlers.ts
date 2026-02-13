@@ -1,12 +1,10 @@
-import { useCallback, type MutableRefObject } from 'react';
+import { useCallback } from 'react';
 
 import type { HelpContent, ExamplePrompt } from '@/types/baseform';
 
 interface UseFormEventHandlersParams {
   onSubmit?: (data?: Record<string, unknown>) => void | Promise<void>;
   onExamplePromptClick?: ((prompt: ExamplePrompt) => void) | null;
-  editSubmitHandlerRef: MutableRefObject<(() => void | Promise<void>) | null>;
-  isEditModeActive: boolean;
   getFeatureState: () => any;
   handleFormError: (error: string) => void;
   setInlineHelpContentOverride: (content: HelpContent | null) => void;
@@ -18,8 +16,6 @@ export function useFormEventHandlers(params: UseFormEventHandlersParams) {
   const {
     onSubmit,
     onExamplePromptClick,
-    editSubmitHandlerRef,
-    isEditModeActive,
     getFeatureState,
     handleFormError,
     setInlineHelpContentOverride,
@@ -30,11 +26,6 @@ export function useFormEventHandlers(params: UseFormEventHandlersParams) {
   const handleEnhancedSubmit = useCallback(
     async (formData?: Record<string, unknown>) => {
       try {
-        if (isEditModeActive && typeof editSubmitHandlerRef.current === 'function') {
-          await editSubmitHandlerRef.current();
-          return;
-        }
-
         const featureState = getFeatureState();
 
         const enhancedFormData = {
@@ -56,7 +47,7 @@ export function useFormEventHandlers(params: UseFormEventHandlersParams) {
         handleFormError(errorMessage);
       }
     },
-    [onSubmit, isEditModeActive, editSubmitHandlerRef, getFeatureState, handleFormError]
+    [onSubmit, getFeatureState, handleFormError]
   );
 
   const handleExamplePromptClick = useCallback(
