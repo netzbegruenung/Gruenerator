@@ -76,6 +76,7 @@ const BETA_VIEWS = {
   VORLAGEN: 'vorlagen',
   SCANNER: 'scanner',
   DOCS: 'docs',
+  CHAT: 'chat',
 };
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({
@@ -125,19 +126,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           checkboxLabel: 'Automatisches Speichern bei jedem Export aktivieren',
           icon: HiSave,
         };
-      // DEPRECATED: Grünerator Chat case
-      // case BETA_VIEWS.CHAT:
-      //   return {
-      //     title: 'Grünerator Chat',
-      //     description: 'KI-Chat für Fragen und Antworten',
-      //     checked: getBetaFeatureState('chat'),
-      //     setter: (value: boolean) => updateUserBetaFeatures('chat', value),
-      //     featureName: 'Grünerator Chat',
-      //     checkboxLabel: 'Grünerator Chat aktivieren',
-      //     linkTo: '/chat',
-      //     linkText: 'Zum Chat',
-      //     icon: HiOutlineChat,
-      //   };
+      case BETA_VIEWS.CHAT:
+        return {
+          title: 'Grünerator Chat',
+          description: 'KI-Chat für Fragen und Antworten',
+          checked: getBetaFeatureState('chat'),
+          setter: (value: boolean) => updateUserBetaFeatures('chat', value),
+          featureName: 'Grünerator Chat',
+          checkboxLabel: 'Grünerator Chat aktivieren',
+          linkTo: '/chat',
+          linkText: 'Zum Chat',
+          icon: HiOutlineChat,
+        };
       case BETA_VIEWS.GROUPS:
         return {
           title: 'Gruppen',
