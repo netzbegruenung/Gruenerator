@@ -303,3 +303,31 @@
 [data-theme='dark'] .document-card-delete:hover {
   background-color: rgba(220, 38, 38, 0.2);
 }
+
+/* ─────────────────────────────────────────────
+   Mobile FAB + Desktop template visibility
+   ───────────────────────────────────────────── */
+
+.mobile-fab-container {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .desktop-only-templates {
+    display: none;
+  }
+
+  .mobile-fab-container {
+    display: block;
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 100;
+  }
+
+  .mobile-fab {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.15),
+      0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}

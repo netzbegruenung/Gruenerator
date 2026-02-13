@@ -1,7 +1,6 @@
 import { memo } from 'react';
-import { Group, Text, Stack } from '@mantine/core';
+import { Avatar, Group, Text, Paper, Stack } from '@mantine/core';
 import type { ChatMessage as ChatMessageType } from '../../hooks/useDocumentChat';
-import './ChatMessage.css';
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -43,23 +42,45 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
       gap="xs"
       align="flex-start"
       wrap="nowrap"
-      className={`chat-msg ${isOwnMessage ? 'chat-msg--own' : ''}`}
+      style={{ flexDirection: isOwnMessage ? 'row-reverse' : 'row' }}
     >
-      <div className="chat-msg-avatar" style={{ backgroundColor: message.userColor }}>
-        {getInitials(message.userName)}
-      </div>
+      <Avatar
+        size={28}
+        radius="xl"
+        color={message.userColor}
+        style={{ backgroundColor: message.userColor }}
+      >
+        <Text size="xs" fw={700} c="white" lh={1}>
+          {getInitials(message.userName)}
+        </Text>
+      </Avatar>
+
       <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
-        <Group gap="xs" align="baseline">
-          <Text size="sm" fw={600} truncate>
+        <Group gap="xs" align="baseline" justify={isOwnMessage ? 'flex-end' : 'flex-start'}>
+          <Text size="xs" fw={600} truncate>
             {message.userName}
           </Text>
           <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
             {formatRelativeTime(message.timestamp)}
           </Text>
         </Group>
-        <Text size="sm" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {message.text}
-        </Text>
+
+        <Paper
+          px="sm"
+          py={6}
+          radius="lg"
+          style={{
+            backgroundColor: isOwnMessage
+              ? 'light-dark(var(--secondary-100, #D5E1DC), var(--secondary-800, #3A5448))'
+              : 'light-dark(var(--grey-100, #f3f4f6), var(--grey-800, #1f2937))',
+            alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
+            maxWidth: '85%',
+          }}
+        >
+          <Text size="sm" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {message.text}
+          </Text>
+        </Paper>
       </Stack>
     </Group>
   );

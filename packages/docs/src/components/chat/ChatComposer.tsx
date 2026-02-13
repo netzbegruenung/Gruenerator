@@ -28,7 +28,14 @@ export const ChatComposer = ({ onSend, disabled }: ChatComposerProps) => {
   );
 
   return (
-    <Group gap={6} align="flex-end" wrap="nowrap" p="sm">
+    <Group
+      gap={6}
+      align="flex-end"
+      wrap="nowrap"
+      px="sm"
+      py="xs"
+      style={{ borderTop: '1px solid var(--grey-200, #e5e7eb)' }}
+    >
       <Textarea
         value={text}
         onChange={(e) => setText(e.currentTarget.value)}
@@ -44,12 +51,12 @@ export const ChatComposer = ({ onSend, disabled }: ChatComposerProps) => {
       />
       <ActionIcon
         variant={text.trim() ? 'filled' : 'subtle'}
-        color="green"
         size="lg"
         radius="xl"
         onClick={handleSend}
         disabled={disabled || !text.trim()}
         aria-label="Senden"
+        style={text.trim() ? { backgroundColor: '#5F8575' } : undefined}
       >
         <FiSend size={15} />
       </ActionIcon>
