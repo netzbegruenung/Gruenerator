@@ -241,7 +241,19 @@ const PromptPage = lazy(() => import('../features/prompts/PromptPage'));
 const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
 const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
-const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
+const ScannerPage = lazy(() =>
+  Promise.all([
+    import('../features/scanner/ScannerPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([scannerModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(scannerModule.default, props),
+        featureKey: 'scanner',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
 const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
 const DocsListPage = lazy(() =>
   Promise.all([
@@ -368,8 +380,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
-  // Scanner Route (dev only)
-  ...(import.meta.env.DEV ? [{ path: '/scanner', component: GrueneratorenBundle.Scanner }] : []),
+  { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
