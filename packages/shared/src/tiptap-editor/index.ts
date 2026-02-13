@@ -4,7 +4,6 @@ export {
   ActionSheetItem,
   ActionSheetDivider,
   PresenceAvatars,
-  VersionHistory,
   ShareModal,
 } from './components';
 

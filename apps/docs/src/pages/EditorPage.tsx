@@ -8,7 +8,7 @@ import {
 import { MantineProvider } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiDownload, FiShare2, FiClock, FiMessageSquare, FiUsers } from 'react-icons/fi';
+import { FiDownload, FiShare2, FiMessageSquare, FiUsers } from 'react-icons/fi';
 import { useParams } from 'react-router-dom';
 
 import { useAuthStore } from '../stores/authStore';
@@ -18,9 +18,6 @@ import type { BlockNoteEditor } from '@blocknote/core';
 import '@mantine/core/styles.css';
 import './EditorPage.css';
 
-const VersionHistory = lazy(() =>
-  import('@gruenerator/shared/tiptap-editor').then((m) => ({ default: m.VersionHistory }))
-);
 const ShareModal = lazy(() =>
   import('@gruenerator/shared/tiptap-editor').then((m) => ({ default: m.ShareModal }))
 );
@@ -39,7 +36,6 @@ export const EditorPage = () => {
     queryFn: () => apiClient.get<any>(`/docs/${id}`),
     enabled: !!id,
   });
-  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCommentsSidebar, setShowCommentsSidebar] = useState(false);
@@ -175,14 +171,6 @@ export const EditorPage = () => {
           <button className="glass-btn" onClick={() => setShowShareModal(true)} aria-label="Teilen">
             <FiShare2 />
           </button>
-
-          <button
-            className="glass-btn"
-            onClick={() => setShowVersionHistory(true)}
-            aria-label="Versionen"
-          >
-            <FiClock />
-          </button>
         </div>
 
         {/* Sidebar toggles - bottom right */}
@@ -207,16 +195,6 @@ export const EditorPage = () => {
         </div>
 
         {/* Modals */}
-        {showVersionHistory && (
-          <Suspense fallback={null}>
-            <VersionHistory
-              documentId={id!}
-              onClose={() => setShowVersionHistory(false)}
-              onRestore={() => window.location.reload()}
-            />
-          </Suspense>
-        )}
-
         {showShareModal && (
           <Suspense fallback={null}>
             <ShareModal documentId={id!} onClose={() => setShowShareModal(false)} />
