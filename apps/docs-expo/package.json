@@ -18,7 +18,7 @@
     "@gruenerator/shared": "workspace:*",
     "@mantine/core": "^8.0.0",
     "@mantine/hooks": "^8.0.0",
-    "axios": "^1.8.4",
+    "axios": "^1.13.5",
     "expo": "~54.0.33",
     "expo-auth-session": "~7.0.10",
     "expo-font": "~14.0.11",

@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
-    "@sentry/react": "^9.27.0",
     "@mdxeditor/editor": "^3.52.3",
+    "@sentry/react": "^9.27.0",
     "@tanstack/react-query": "^5.90.16",
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
