@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
-import { StyleSheet, View, Text, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useGeneratedTextStore } from '@gruenerator/shared/stores';
-import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
+import { useState, useCallback } from 'react';
+import { StyleSheet, View, Text, useColorScheme } from 'react-native';
+
 import { ContentDisplay } from '../../../components/content';
 import { TextImproverForm } from '../../../components/generators';
+import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
 
 const COMPONENT_NAME = 'texteditor-mobile';
 

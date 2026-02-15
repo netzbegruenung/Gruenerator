@@ -589,4 +589,141 @@ router.delete('/mobile/sessions', async (req: AuthRequest, res: Response): Promi
   }
 });
 
+// In-memory store for single-use bridge codes (short TTL, auto-cleanup)
+const bridgeCodes = new Map<string, { userId: string; redirect: string; expiresAt: number }>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, entry] of bridgeCodes) {
+    if (entry.expiresAt < now) bridgeCodes.delete(code);
+  }
+}, 60_000);
+
+const BRIDGE_CODE_TTL_MS = 30_000; // 30 seconds
+const MAX_BRIDGE_CODES = 1000;
+
+function sanitizeRedirect(redirect: string): string {
+  if (!redirect.startsWith('/') || redirect.startsWith('//') || redirect.includes('\\')) {
+    return '/';
+  }
+  return redirect;
+}
+
+/**
+ * POST /auth/mobile/session-bridge
+ *
+ * Step 1: Exchange a mobile JWT for a single-use bridge code.
+ * The code is opaque and short-lived (30s). No sensitive token in URLs.
+ */
+router.post('/mobile/session-bridge', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    const redirect = req.body?.redirect as string;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Authorization header with Bearer token required' });
+      return;
+    }
+
+    if (!redirect) {
+      res.status(400).json({ error: 'Missing redirect' });
+      return;
+    }
+
+    const token = authHeader.substring(7);
+
+    let payload;
+    try {
+      const result = await jwtVerify(token, JWT_SECRET, {
+        issuer: 'gruenerator-api',
+        audience: 'gruenerator-app',
+      });
+      payload = result.payload;
+    } catch {
+      res.status(401).json({ error: 'Invalid or expired token' });
+      return;
+    }
+
+    if (payload.token_use !== 'access' || !payload.sub) {
+      res.status(401).json({ error: 'Invalid token' });
+      return;
+    }
+
+    if (bridgeCodes.size >= MAX_BRIDGE_CODES) {
+      res.status(503).json({ error: 'Too many pending bridge requests' });
+      return;
+    }
+
+    const code = randomBytes(32).toString('base64url');
+    const safeRedirect = sanitizeRedirect(redirect);
+
+    bridgeCodes.set(code, {
+      userId: payload.sub as string,
+      redirect: safeRedirect,
+      expiresAt: Date.now() + BRIDGE_CODE_TTL_MS,
+    });
+
+    log.info('[SessionBridge] Bridge code created', {
+      userId: payload.sub,
+      redirect: safeRedirect,
+    });
+
+    res.json({ code });
+  } catch (error) {
+    log.error('[SessionBridge] Error creating bridge code:', error);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+/**
+ * GET /auth/mobile/session-bridge
+ *
+ * Step 2: Consume the single-use bridge code, create a session, and redirect.
+ * The WebView loads this URL — the code is opaque, short-lived, and single-use.
+ */
+router.get('/mobile/session-bridge', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const code = req.query.code as string;
+
+    if (!code) {
+      res.status(400).send('Missing code');
+      return;
+    }
+
+    const entry = bridgeCodes.get(code);
+    bridgeCodes.delete(code); // single-use: always delete immediately
+
+    if (!entry || entry.expiresAt < Date.now()) {
+      res.status(401).send('Invalid or expired code');
+      return;
+    }
+
+    const { getProfileService } = await import('../../services/user/ProfileService.js');
+    const profileService = getProfileService();
+    const user = await profileService.getProfileById(entry.userId);
+
+    if (!user) {
+      res.status(404).send('User not found');
+      return;
+    }
+
+    req.login(user, (err) => {
+      if (err) {
+        log.error('[SessionBridge] Failed to create session:', err);
+        res.status(500).send('Failed to create session');
+        return;
+      }
+
+      log.info('[SessionBridge] Session created for user', {
+        userId: entry.userId,
+        redirect: entry.redirect,
+      });
+      res.redirect(entry.redirect);
+    });
+  } catch (error) {
+    log.error('[SessionBridge] Error:', error);
+    res.status(500).send('Internal error');
+  }
+});
+
 export default router;

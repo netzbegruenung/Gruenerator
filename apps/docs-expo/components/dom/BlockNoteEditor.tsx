@@ -155,19 +155,28 @@ export default function BlockNoteEditor({
   onNavigateBack,
   onTitleChange,
 }: BlockNoteEditorProps) {
-  const adapter = createDomAdapter(authToken, apiBaseUrl, hocuspocusUrl);
-
   return (
-    <DocsProvider adapter={adapter}>
-      <EditorWithCollaboration
-        documentId={documentId}
-        documentTitle={documentTitle}
-        userId={userId}
-        userName={userName}
-        userEmail={userEmail}
-        onNavigateBack={onNavigateBack}
-        onTitleChange={onTitleChange}
-      />
-    </DocsProvider>
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+        background: '#ff0',
+        padding: 20,
+        overflow: 'auto',
+        fontFamily: 'monospace',
+      }}
+    >
+      <h2 style={{ color: '#000' }}>DOM Component Loaded</h2>
+      <p>documentId: {documentId}</p>
+      <p>apiBaseUrl: {apiBaseUrl}</p>
+      <p>hocuspocusUrl: {hocuspocusUrl}</p>
+      <p>userId: {userId}</p>
+      <p>authToken: {authToken ? authToken.substring(0, 20) + '...' : 'NONE'}</p>
+    </div>
   );
 }

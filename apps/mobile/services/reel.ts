@@ -1,5 +1,6 @@
-import * as tus from 'tus-js-client';
 import { Paths, File as ExpoFile, downloadAsync } from 'expo-file-system';
+import * as tus from 'tus-js-client';
+
 import { secureStorage } from './storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
@@ -204,6 +205,76 @@ export async function getManualResult(
   };
 }
 
+export interface ExportProgressResponse {
+  status: 'exporting' | 'complete' | 'error';
+  progress: number;
+  error: string | null;
+}
+
+/**
+ * Start video export with burned-in subtitles
+ * POST /api/subtitler/export
+ * Returns exportToken for polling progress
+ */
+export async function exportVideo(params: {
+  uploadId: string;
+  subtitles: { startTime: number; endTime: number; text: string }[];
+  stylePreference: string;
+  heightPreference: string;
+}): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/subtitler/export`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uploadId: params.uploadId,
+      subtitles: params.subtitles,
+      stylePreference: params.stylePreference,
+      heightPreference: params.heightPreference,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Export fehlgeschlagen: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.exportToken;
+}
+
+/**
+ * Poll export progress
+ * GET /api/subtitler/export-progress/:exportToken
+ */
+export async function pollExportProgress(exportToken: string): Promise<ExportProgressResponse> {
+  const response = await fetch(`${API_BASE_URL}/subtitler/export-progress/${exportToken}`);
+
+  if (!response.ok) {
+    throw new Error(`Export-Fortschritt konnte nicht abgerufen werden: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Download exported video to local cache
+ * GET /api/subtitler/export-download/:exportToken
+ */
+export async function downloadExportedVideo(exportToken: string): Promise<string> {
+  const localFile = new ExpoFile(Paths.cache, `export_${exportToken}.mp4`);
+
+  const downloadResult = await downloadAsync(
+    `${API_BASE_URL}/subtitler/export-download/${exportToken}`,
+    localFile.uri
+  );
+
+  if (downloadResult.status !== 200) {
+    throw new Error(`Download fehlgeschlagen mit Status: ${downloadResult.status}`);
+  }
+
+  return downloadResult.uri;
+}
+
 export const reelApi = {
   uploadVideo,
   startAutoProcess,
@@ -211,4 +282,7 @@ export const reelApi = {
   downloadVideo,
   startManualProcess,
   getManualResult,
+  exportVideo,
+  pollExportProgress,
+  downloadExportedVideo,
 };

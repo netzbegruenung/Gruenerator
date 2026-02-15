@@ -1,13 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
+import { ACCESSIBILITY_MODES, type AccessibilityMode } from '@gruenerator/shared/generators';
+import { useGeneratedTextStore } from '@gruenerator/shared/stores';
+import { useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, useColorScheme, BackHandler } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useGeneratedTextStore } from '@gruenerator/shared/stores';
-import { ACCESSIBILITY_MODES, type AccessibilityMode } from '@gruenerator/shared/generators';
-import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
-import { ContentDisplay } from '../../../components/content';
+
 import { ChipGroup } from '../../../components/common';
+import { ContentDisplay } from '../../../components/content';
 import { AltTextForm, LeichteSpracheForm } from '../../../components/generators';
+import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
 
 const COMPONENT_NAME = 'barrierefreiheit-mobile';
 
