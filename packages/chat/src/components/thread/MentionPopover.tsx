@@ -1,26 +1,20 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { agentsList, type AgentListItem } from '../../lib/agents';
+import { filterMentionables, type Mentionable } from '../../lib/mentionables';
 
 interface MentionPopoverProps {
   query: string;
   visible: boolean;
-  onSelect: (agent: AgentListItem) => void;
+  onSelect: (mentionable: Mentionable) => void;
   onDismiss: () => void;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
 }
 
-function filterAgents(query: string): AgentListItem[] {
-  if (!query) return agentsList;
-  const q = query.toLowerCase();
-  return agentsList.filter(
-    (a) =>
-      a.mention.toLowerCase().includes(q) ||
-      a.title.toLowerCase().includes(q) ||
-      a.identifier.toLowerCase().includes(q)
-  );
+function getFilteredItems(query: string): Mentionable[] {
+  const { agents, customAgents, notebooks, tools } = filterMentionables(query);
+  return [...tools, ...agents, ...customAgents, ...notebooks];
 }
 
 export function MentionPopover({
@@ -32,15 +26,18 @@ export function MentionPopover({
   anchorRect,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const filtered = filterAgents(query);
+  const { agents, customAgents, notebooks, tools } = filterMentionables(query);
+  const allItems = [...tools, ...agents, ...customAgents, ...notebooks];
 
   useEffect(() => {
     if (!visible) return;
-    const el = listRef.current?.children[selectedIndex] as HTMLElement | undefined;
+    const el = listRef.current?.querySelector('[data-selected="true"]') as HTMLElement | undefined;
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, visible]);
 
-  if (!visible || filtered.length === 0 || !anchorRect) return null;
+  if (!visible || allItems.length === 0 || !anchorRect) return null;
+
+  let itemIndex = 0;
 
   return (
     <div
@@ -53,35 +50,118 @@ export function MentionPopover({
         marginBottom: '0.5rem',
       }}
     >
-      {filtered.map((agent, i) => (
-        <button
-          key={agent.identifier}
-          role="option"
-          aria-selected={i === selectedIndex}
-          className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
-            i === selectedIndex
-              ? 'bg-primary/10 text-foreground'
-              : 'text-foreground-muted hover:bg-primary/5'
-          }`}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            onSelect(agent);
-          }}
-        >
-          <span
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm"
-            style={{ backgroundColor: agent.backgroundColor }}
-          >
-            {agent.avatar}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{agent.title}</p>
-            <p className="truncate text-xs text-foreground-muted">@{agent.mention}</p>
+      {tools.length > 0 && (
+        <>
+          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+            Werkzeuge
           </div>
-        </button>
-      ))}
+          {tools.map((tool) => {
+            const idx = itemIndex++;
+            return (
+              <MentionItem
+                key={tool.identifier}
+                mentionable={tool}
+                isSelected={idx === selectedIndex}
+                onSelect={onSelect}
+              />
+            );
+          })}
+        </>
+      )}
+      {agents.length > 0 && (
+        <>
+          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+            Assistenten
+          </div>
+          {agents.map((agent) => {
+            const idx = itemIndex++;
+            return (
+              <MentionItem
+                key={agent.identifier}
+                mentionable={agent}
+                isSelected={idx === selectedIndex}
+                onSelect={onSelect}
+              />
+            );
+          })}
+        </>
+      )}
+      {customAgents.length > 0 && (
+        <>
+          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+            Meine Agenten
+          </div>
+          {customAgents.map((agent) => {
+            const idx = itemIndex++;
+            return (
+              <MentionItem
+                key={agent.identifier}
+                mentionable={agent}
+                isSelected={idx === selectedIndex}
+                onSelect={onSelect}
+              />
+            );
+          })}
+        </>
+      )}
+      {notebooks.length > 0 && (
+        <>
+          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+            Notizbücher
+          </div>
+          {notebooks.map((notebook) => {
+            const idx = itemIndex++;
+            return (
+              <MentionItem
+                key={notebook.identifier}
+                mentionable={notebook}
+                isSelected={idx === selectedIndex}
+                onSelect={onSelect}
+              />
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
 
-export { filterAgents };
+function MentionItem({
+  mentionable,
+  isSelected,
+  onSelect,
+}: {
+  mentionable: Mentionable;
+  isSelected: boolean;
+  onSelect: (m: Mentionable) => void;
+}) {
+  return (
+    <button
+      role="option"
+      aria-selected={isSelected}
+      data-selected={isSelected}
+      className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
+        isSelected
+          ? 'bg-primary/10 text-foreground'
+          : 'text-foreground-muted hover:bg-primary/5'
+      }`}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onSelect(mentionable);
+      }}
+    >
+      <span
+        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm"
+        style={{ backgroundColor: mentionable.backgroundColor }}
+      >
+        {mentionable.avatar}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground">{mentionable.title}</p>
+        <p className="truncate text-xs text-foreground-muted">@{mentionable.mention}</p>
+      </div>
+    </button>
+  );
+}
+
+export { getFilteredItems as filterMentionables };

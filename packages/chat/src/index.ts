@@ -1,5 +1,14 @@
 // Context & API Client
-export { chatFetch, chatApiClient, type ChatApiClient } from './context/ChatContext';
+export { chatFetch, chatApiClient, createChatApiClient, type ChatApiClient } from './context/ChatContext';
+
+// Config Store
+export {
+  useChatConfigStore,
+  useChatFetch,
+  useChatEndpoints,
+  type ChatConfig,
+  type ResolvedEndpoints,
+} from './stores/chatConfigStore';
 
 // Runtime
 export { GrueneratorChatProvider } from './runtime/GrueneratorChatProvider';
@@ -83,7 +92,27 @@ export {
   type AgentConfig,
   type AgentListItem,
 } from './lib/agents';
-export { parseMention, extractAgentFromMessage, type MentionResult } from './lib/mentionParser';
+export {
+  parseMention,
+  extractAgentFromMessage,
+  parseAllMentions,
+  type MentionResult,
+  type ParsedMentions,
+} from './lib/mentionParser';
+export {
+  resolveMentionable,
+  filterMentionables,
+  agentMentionables,
+  notebookMentionables,
+  allMentionables,
+  getAllMentionables,
+  setCustomAgents,
+  getCustomAgentMentionables,
+  customAgentToMentionable,
+  type Mentionable,
+  type MentionableType,
+  type CustomAgentMentionable,
+} from './lib/mentionables';
 export {
   validateFile,
   validateFiles,

@@ -1,7 +1,8 @@
 'use client';
 
-import { ThreadPrimitive, SelectionToolbarPrimitive, useThread } from '@assistant-ui/react';
-import { PanelLeft, QuoteIcon } from 'lucide-react';
+import { useMemo } from 'react';
+import { ThreadPrimitive, ThreadListPrimitive, SelectionToolbarPrimitive, useThread } from '@assistant-ui/react';
+import { PanelLeft, QuoteIcon, MessageSquarePlus } from 'lucide-react';
 import { ModelSelector } from '../ModelSelector';
 import { WelcomeScreen } from './WelcomeScreen';
 import { UserMessage } from './UserMessage';
@@ -15,19 +16,28 @@ interface GrueneratorThreadProps {
 
 export function GrueneratorThread({ sidebarOpen, onToggleSidebar }: GrueneratorThreadProps) {
   const thread = useThread();
+  const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
 
   return (
     <ThreadPrimitive.Root className="relative flex h-full flex-col bg-background">
       <div className="floating-controls-wrapper">
         <div className="floating-controls-left">
           {!sidebarOpen && onToggleSidebar && (
-            <button
-              onClick={onToggleSidebar}
-              className="flex items-center justify-center rounded-lg p-2 text-foreground-muted transition-colors hover:bg-primary/10 hover:text-foreground"
-              aria-label="Seitenleiste öffnen"
-            >
-              <PanelLeft className="h-5 w-5" />
-            </button>
+            <>
+              <button
+                onClick={onToggleSidebar}
+                className="flex items-center justify-center rounded-lg p-2 text-foreground-muted transition-colors hover:bg-primary/10 hover:text-foreground"
+                aria-label="Seitenleiste öffnen"
+              >
+                <PanelLeft className="h-5 w-5" />
+              </button>
+              <ThreadListPrimitive.New
+                className="flex items-center justify-center rounded-lg p-2 text-foreground-muted transition-colors hover:bg-primary/10 hover:text-foreground"
+                aria-label="Neuer Chat"
+              >
+                <MessageSquarePlus className="h-5 w-5" />
+              </ThreadListPrimitive.New>
+            </>
           )}
           <ModelSelector />
         </div>
@@ -39,12 +49,7 @@ export function GrueneratorThread({ sidebarOpen, onToggleSidebar }: GrueneratorT
             <WelcomeScreen />
           </ThreadPrimitive.Empty>
 
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage,
-              AssistantMessage,
-            }}
-          />
+          <ThreadPrimitive.Messages components={messageComponents} />
         </div>
       </ThreadPrimitive.Viewport>
 

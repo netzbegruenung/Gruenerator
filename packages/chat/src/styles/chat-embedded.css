@@ -58,6 +58,14 @@
   --color-collection-web-bg: rgba(234,88,12,0.25);
   --color-collection-research: #818cf8;
   --color-collection-research-bg: rgba(79,70,229,0.25);
+  --color-collection-landesverband: #2dd4bf;
+  --color-collection-landesverband-bg: rgba(13,148,136,0.25);
+  --color-collection-boell: #a78bfa;
+  --color-collection-boell-bg: rgba(124,58,237,0.25);
+  --color-collection-examples: #f472b6;
+  --color-collection-examples-bg: rgba(236,72,153,0.25);
+  --color-collection-oesterreich: #22d3ee;
+  --color-collection-oesterreich-bg: rgba(8,145,178,0.25);
   --color-relevance-high: #4ade80;
   --color-relevance-medium: #facc15;
   --color-relevance-low: #f87171;
@@ -436,6 +444,8 @@
   color: var(--color-border);
 }
 
+/* ThreadListItemMore dropdown — must be above app sidebar (z-index: 1001 in sidebar.css).
+   Keep in sync with chat.css. */
 [data-radix-popper-content-wrapper] {
-  z-index: 50 !important;
+  z-index: 1100 !important;
 }

@@ -34,24 +34,8 @@ export interface AgentListItem {
 
 export const agentsList: AgentListItem[] = [
   {
-    identifier: 'gruenerator-universal',
-    title: 'Universal Assistent',
-    description: 'Alle Textformen mit Programmsuche',
-    avatar: '\u2728',
-    backgroundColor: '#316049',
-    mention: 'universal',
-  },
-  {
-    identifier: 'gruene-oesterreich',
-    title: 'Grüne Österreich Assistent',
-    description: 'Texte für Die Grünen Österreich',
-    avatar: '🇦🇹',
-    backgroundColor: '#88B04B',
-    mention: 'österreich',
-  },
-  {
     identifier: 'gruenerator-antrag',
-    title: 'Antragsschreiber*in',
+    title: 'Antrag',
     description: 'Anträge & Anfragen',
     avatar: '📝',
     backgroundColor: '#316049',
@@ -59,7 +43,7 @@ export const agentsList: AgentListItem[] = [
   },
   {
     identifier: 'gruenerator-buergerservice',
-    title: 'Bürgerservice',
+    title: 'Bürger*innenanfragen',
     description: 'Bürgeranfragen beantworten',
     avatar: '💬',
     backgroundColor: '#316049',
@@ -83,7 +67,7 @@ export const agentsList: AgentListItem[] = [
   },
   {
     identifier: 'gruenerator-rede-schreiber',
-    title: 'Rede-Schreiber*in',
+    title: 'Rede',
     description: 'Politische Reden',
     avatar: '🎙️',
     backgroundColor: '#316049',

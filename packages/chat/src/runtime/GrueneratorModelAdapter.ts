@@ -3,7 +3,7 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
-import { chatFetch } from '../context/ChatContext';
+import { useChatConfigStore } from '../stores/chatConfigStore';
 import type {
   ProgressStage,
   SearchIntent,
@@ -14,7 +14,7 @@ import type {
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
 import type { ToolKey } from '../stores/chatStore';
-import { extractAgentFromMessage } from '../lib/mentionParser';
+import { parseAllMentions } from '../lib/mentionParser';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -27,7 +27,7 @@ export type GrueneratorMessageMetadata = {
 };
 
 export interface GrueneratorAdapterConfig {
-  agentId: string;
+  agentId: string | null;
   modelId: string;
   enabledTools: Record<ToolKey, boolean>;
   threadId: string | null;
@@ -102,8 +102,10 @@ export function createGrueneratorModelAdapter(
         return { id: m.id, role: m.role, parts };
       });
 
-      // Extract @-mention from the last user message for per-message agent routing
+      // Extract @-mentions from the last user message for agent routing + notebook scoping
       let effectiveAgentId = config.agentId;
+      let notebookIds: string[] = [];
+      let forcedTools: string[] = [];
       for (let i = formattedMessages.length - 1; i >= 0; i--) {
         const msg = formattedMessages[i];
         if (msg.role !== 'user') continue;
@@ -111,15 +113,18 @@ export function createGrueneratorModelAdapter(
           (p): p is { type: 'text'; text: string } => p.type === 'text'
         );
         if (textPart) {
-          const { agentId: mentionAgent, cleanText } = extractAgentFromMessage(textPart.text);
-          effectiveAgentId = mentionAgent;
-          textPart.text = cleanText;
+          const parsed = parseAllMentions(textPart.text);
+          effectiveAgentId = parsed.agentId;
+          notebookIds = parsed.notebookIds;
+          forcedTools = parsed.forcedTools;
+          textPart.text = parsed.cleanText;
         }
         break;
       }
 
-      const endpoint = config.useDeepAgent ? '/api/chat-deep/stream' : '/api/chat-graph/stream';
-      const response = await chatFetch(endpoint, {
+      const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+      const endpoint = config.useDeepAgent ? endpoints.deepStream : endpoints.chatStream;
+      const response = await configFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,6 +133,8 @@ export function createGrueneratorModelAdapter(
           threadId: config.threadId,
           enabledTools: config.enabledTools,
           modelId: config.modelId,
+          notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
+          forcedTools: forcedTools.length > 0 ? forcedTools : undefined,
         }),
         signal: abortSignal,
       });
@@ -388,7 +395,6 @@ export function createGrueneratorModelAdapter(
                 };
                 currentProgress = { stage: 'searching', message: title };
               } else if (status === 'completed') {
-                // Find and update the matching tool call
                 if (activeToolCall?.toolCallId === stepId) {
                   activeToolCall = { ...activeToolCall, result: result || {} };
                   allToolCalls.push(activeToolCall);
@@ -401,8 +407,7 @@ export function createGrueneratorModelAdapter(
             }
 
             case 'text_delta': {
-              const { text } = data as { text: string };
-              accumulatedText += text;
+              accumulatedText += (data as { text: string }).text;
               yield buildResult();
               break;
             }
@@ -431,6 +436,7 @@ export function createGrueneratorModelAdapter(
             }
           }
         }
+
       }
 
       // Final yield with all accumulated data

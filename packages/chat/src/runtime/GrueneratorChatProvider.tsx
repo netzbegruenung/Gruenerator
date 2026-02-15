@@ -1,6 +1,7 @@
 'use client';
 
-import { type ReactNode, useMemo, useCallback, type PropsWithChildren } from 'react';
+import { type ReactNode, useMemo, useCallback, useEffect, type PropsWithChildren } from 'react';
+import { useShallow } from 'zustand/shallow';
 import {
   AssistantRuntimeProvider,
   useLocalRuntime,
@@ -13,9 +14,11 @@ import {
   RuntimeAdapterProvider,
   ExportedMessageRepository,
 } from '@assistant-ui/react';
-import { chatApiClient } from '../context/ChatContext';
+import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
+import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
+import { setCustomAgents, type CustomAgentMentionable } from '../lib/mentionables';
 import {
   createGrueneratorModelAdapter,
   type GrueneratorAdapterConfig,
@@ -33,6 +36,7 @@ import type {
 interface GrueneratorChatProviderProps {
   children: ReactNode;
   userId?: string;
+  config?: ChatConfig;
 }
 
 interface PersistedToolCall {
@@ -146,7 +150,14 @@ function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLik
 function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
   const aui = useAui();
   const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
-  const { loadCompactionState } = useAgentStore();
+  const loadCompactionState = useAgentStore((s) => s.loadCompactionState);
+  const fetchFn = useChatConfigStore((s) => s.fetch);
+  const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
+  const endpoints = useChatConfigStore((s) => s.endpoints);
+  const apiClient = useMemo(
+    () => createChatApiClient(fetchFn, onUnauthorized),
+    [fetchFn, onUnauthorized]
+  );
 
   const history = useMemo(
     () => ({
@@ -157,11 +168,11 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
           useAgentStore.getState().setCurrentThread(remoteId);
 
           try {
-            const msgs = await chatApiClient.get<LoadedMessage[]>(
-              `/api/chat-service/messages?threadId=${remoteId}`
+            const msgs = await apiClient.get<LoadedMessage[]>(
+              `${endpoints.messages}?threadId=${remoteId}`
             );
             const converted = convertToThreadMessageLike(msgs);
-            loadCompactionState(remoteId, chatApiClient);
+            loadCompactionState(remoteId, apiClient);
             return ExportedMessageRepository.fromArray(converted);
           } catch (error) {
             console.error('Error loading messages:', error);
@@ -174,7 +185,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
         // Messages are persisted by the backend SSE stream handler
       },
     }),
-    [aui, loadCompactionState]
+    [aui, loadCompactionState, apiClient, endpoints.messages]
   );
 
   const adapters = useMemo(
@@ -189,15 +200,13 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 }
 
 function useGrueneratorThreadRuntime() {
-  const {
-    selectedAgentId,
-    selectedModel,
-    enabledTools,
-    incrementMessageCount,
-    needsCompaction,
-    compactionState,
-    triggerCompaction,
-  } = useAgentStore();
+  const { selectedAgentId, selectedModel, enabledTools, useDeepAgent } = useAgentStore(
+    useShallow((s) => ({ selectedAgentId: s.selectedAgentId, selectedModel: s.selectedModel, enabledTools: s.enabledTools, useDeepAgent: s.useDeepAgent }))
+  );
+  const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
+  const needsCompaction = useAgentStore((s) => s.needsCompaction);
+  const compactionState = useAgentStore((s) => s.compactionState);
+  const triggerCompaction = useAgentStore((s) => s.triggerCompaction);
 
   const getConfig = useCallback(
     (): GrueneratorAdapterConfig => ({
@@ -205,13 +214,21 @@ function useGrueneratorThreadRuntime() {
       modelId: selectedModel,
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
+      useDeepAgent,
     }),
-    [selectedAgentId, selectedModel, enabledTools]
+    [selectedAgentId, selectedModel, enabledTools, useDeepAgent]
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
     useAgentStore.getState().setCurrentThread(newThreadId);
   }, []);
+
+  const fetchFn = useChatConfigStore((s) => s.fetch);
+  const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
+  const runtimeApiClient = useMemo(
+    () => createChatApiClient(fetchFn, onUnauthorized),
+    [fetchFn, onUnauthorized]
+  );
 
   const onComplete = useCallback(
     (_metadata: StreamMetadata) => {
@@ -221,11 +238,11 @@ function useGrueneratorThreadRuntime() {
         incrementMessageCount();
 
         if (needsCompaction && !compactionState.summary) {
-          triggerCompaction(tid, chatApiClient);
+          triggerCompaction(tid, runtimeApiClient);
         }
       }
     },
-    [incrementMessageCount, needsCompaction, compactionState.summary, triggerCompaction]
+    [incrementMessageCount, needsCompaction, compactionState.summary, triggerCompaction, runtimeApiClient]
   );
 
   const modelAdapter = useMemo(
@@ -236,14 +253,51 @@ function useGrueneratorThreadRuntime() {
   return useLocalRuntime(modelAdapter);
 }
 
-export function GrueneratorChatProvider({ children, userId }: GrueneratorChatProviderProps) {
+export function GrueneratorChatProvider({ children, userId, config }: GrueneratorChatProviderProps) {
+  useEffect(() => {
+    useChatConfigStore.getState().configure(config);
+  }, [config]);
+
+  const fetchFn = useChatConfigStore((s) => s.fetch);
+  const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
+  const providerApiClient = useMemo(
+    () => createChatApiClient(fetchFn, onUnauthorized),
+    [fetchFn, onUnauthorized]
+  );
+
+  // Load user's custom prompts for @mention support
+  useEffect(() => {
+    const loadCustomAgents = async () => {
+      try {
+        const [ownPrompts, savedPrompts] = await Promise.all([
+          providerApiClient.get<{ prompts?: CustomAgentMentionable[] }>('/auth/custom_prompts'),
+          providerApiClient.get<{ prompts?: CustomAgentMentionable[] }>('/auth/saved_prompts'),
+        ]);
+        const own = ownPrompts?.prompts || [];
+        const saved = savedPrompts?.prompts || [];
+        const seenIds = new Set<string>();
+        const merged: CustomAgentMentionable[] = [];
+        for (const p of [...own, ...saved]) {
+          if (!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            merged.push(p);
+          }
+        }
+        setCustomAgents(merged);
+      } catch {
+        // Silently ignore — custom agents in @mention are optional
+      }
+    };
+    loadCustomAgents();
+  }, [providerApiClient]);
+
   const threadListAdapter = useMemo(() => {
-    const base = createGrueneratorThreadListAdapter(chatApiClient, getDefaultAgent());
+    const base = createGrueneratorThreadListAdapter(providerApiClient, getDefaultAgent());
     return {
       ...base,
       unstable_Provider: GrueneratorHistoryProvider,
     } satisfies RemoteThreadListAdapter;
-  }, []);
+  }, [providerApiClient]);
 
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: useGrueneratorThreadRuntime,

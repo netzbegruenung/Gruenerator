@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Copy, Check, Download, Loader2 } from 'lucide-react';
-import { chatFetch } from '../../context/ChatContext';
+import { memo, useState } from 'react';
+import { Copy, Check, Download, FileEdit, Loader2 } from 'lucide-react';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
 interface MessageActionsProps {
@@ -10,9 +10,10 @@ interface MessageActionsProps {
   metadata?: ChatMessage['metadata'];
 }
 
-export function MessageActions({ content, metadata }: MessageActionsProps) {
+export const MessageActions = memo(function MessageActions({ content, metadata }: MessageActionsProps) {
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isCreatingDoc, setIsCreatingDoc] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -25,7 +26,8 @@ export function MessageActions({ content, metadata }: MessageActionsProps) {
     setIsExporting(true);
 
     try {
-      const response = await chatFetch('/api/exports/chat-message', {
+      const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+      const response = await configFetch(endpoints.exportMessage, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,6 +60,41 @@ export function MessageActions({ content, metadata }: MessageActionsProps) {
     }
   };
 
+  const handleEditInDocs = async () => {
+    if (isCreatingDoc) return;
+    setIsCreatingDoc(true);
+
+    try {
+      const { fetch: configFetch, endpoints, getDocsUrl } = useChatConfigStore.getState();
+
+      const htmlContent = content
+        .split('\n\n')
+        .map((block) => `<p>${block.replace(/\n/g, '<br />')}</p>`)
+        .join('');
+
+      const response = await configFetch(endpoints.exportToDocs, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: htmlContent,
+          title: `Chat-Antwort – ${new Date().toLocaleDateString('de-DE')}`,
+          documentType: 'chat-response',
+        }),
+      });
+
+      if (!response.ok) throw new Error('Document creation failed');
+
+      const data = await response.json();
+      if (data.documentId) {
+        window.open(`${getDocsUrl()}/document/${data.documentId}`, '_blank');
+      }
+    } catch (error) {
+      console.error('Edit in Docs error:', error);
+    } finally {
+      setIsCreatingDoc(false);
+    }
+  };
+
   return (
     <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
       <button
@@ -79,6 +116,18 @@ export function MessageActions({ content, metadata }: MessageActionsProps) {
           <Download className="h-4 w-4" />
         )}
       </button>
+      <button
+        onClick={handleEditInDocs}
+        disabled={isCreatingDoc}
+        className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
+        aria-label="Im Editor bearbeiten"
+      >
+        {isCreatingDoc ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <FileEdit className="h-4 w-4" />
+        )}
+      </button>
     </div>
   );
-}
+});
