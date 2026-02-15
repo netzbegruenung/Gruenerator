@@ -4,6 +4,7 @@ import { memo, useMemo } from 'react';
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
 import { useAgentStore } from '../../stores/chatStore';
 import { agentsList } from '../../lib/agents';
+import { ChatIcon } from '../icons';
 import { MarkdownContent } from '../MarkdownContent';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
@@ -62,12 +63,16 @@ export function AssistantMessage() {
 
   return (
     <MessagePrimitive.Root className="group mx-auto flex w-full max-w-3xl items-start gap-4">
-      <div
-        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm"
-        style={{ backgroundColor: selectedAgent?.backgroundColor || '#316049' }}
-      >
-        {selectedAgent?.avatar}
-      </div>
+      {selectedAgent ? (
+        <div
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm"
+          style={{ backgroundColor: selectedAgent.backgroundColor }}
+        >
+          {selectedAgent.avatar}
+        </div>
+      ) : (
+        <ChatIcon size={32} className="flex-shrink-0" />
+      )}
       <div className="min-w-0 flex-1">
         {isStreaming && custom?.progress && !hasToolCall && (
           <ProgressIndicator
@@ -80,9 +85,7 @@ export function AssistantMessage() {
 
         <CitationProvider citations={citations}>
           <MessagePrimitive.Parts components={partComponents} />
-          {!isStreaming && citations.length > 0 && (
-            <SearchResultsSection citations={citations} />
-          )}
+          {!isStreaming && citations.length > 0 && <SearchResultsSection citations={citations} />}
         </CitationProvider>
 
         {!isStreaming && textContent && (

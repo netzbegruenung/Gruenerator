@@ -2,6 +2,7 @@
 
 import { ThreadPrimitive, SuggestionPrimitive } from '@assistant-ui/react';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
+import { ChatIcon } from '../icons';
 
 function SuggestionItem() {
   return (
@@ -23,12 +24,16 @@ export function WelcomeScreen() {
 
   return (
     <div className="flex w-full flex-grow flex-col items-center justify-center px-4">
-      <div
-        className="flex h-14 w-14 items-center justify-center rounded-full border border-border text-2xl"
-        style={{ backgroundColor: defaultAgent?.backgroundColor || '#316049' }}
-      >
-        {defaultAgent?.avatar}
-      </div>
+      {defaultAgent ? (
+        <div
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-border text-2xl"
+          style={{ backgroundColor: defaultAgent.backgroundColor }}
+        >
+          {defaultAgent.avatar}
+        </div>
+      ) : (
+        <ChatIcon size={56} />
+      )}
       <h1 className="mt-4 text-xl font-medium text-foreground">
         {defaultAgent?.title || 'Grünerator Chat'}
       </h1>

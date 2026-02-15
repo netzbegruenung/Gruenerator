@@ -59,3 +59,6 @@ export {
   MAX_FILE_SIZE,
 } from './lib/blockNoteUtils';
 export { defaultDocumentContent } from './lib/defaultContent';
+
+// Icons
+export { DocsIcon } from './components/icons/DocsIcon';
