@@ -1,9 +1,9 @@
 import { DocsProvider, useCollaboration } from '@gruenerator/docs';
+import { EditorTopBar } from '@gruenerator/shared/tiptap-editor/components';
 import { MantineProvider } from '@mantine/core';
 import { marked } from 'marked';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IoCloseOutline } from 'react-icons/io5';
 
 import { webAppDocsAdapter } from '../../features/docs/docsAdapter';
 import { useLazyAuth } from '../../hooks/useAuth';
@@ -24,12 +24,16 @@ interface DocsEditorModalProps {
 
 const SYNC_TIMEOUT_MS = 8000;
 
-const EditorWithCollaboration = ({
+const DocsEditorContent = ({
   documentId,
   initialContent,
+  title,
+  onClose,
 }: {
   documentId: string;
   initialContent?: string;
+  title?: string;
+  onClose: () => void;
 }) => {
   const { user } = useLazyAuth();
   const [syncTimedOut, setSyncTimedOut] = useState(false);
@@ -39,12 +43,11 @@ const EditorWithCollaboration = ({
     [user]
   );
 
-  const { ydoc, provider, isSynced } = useCollaboration({
+  const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId,
     user: collabUser,
   });
 
-  // Timeout fallback — don't wait forever for Hocuspocus sync
   useEffect(() => {
     if (!provider || isSynced || syncTimedOut) return;
     const timer = setTimeout(() => setSyncTimedOut(true), SYNC_TIMEOUT_MS);
@@ -57,26 +60,38 @@ const EditorWithCollaboration = ({
     return marked.parse(initialContent, { async: false }) as string;
   }, [initialContent]);
 
+  const connectionStatus: 'connected' | 'syncing' | 'disconnected' = !isConnected
+    ? 'disconnected'
+    : isSynced
+      ? 'connected'
+      : 'syncing';
+
   const isReady = provider && (isSynced || syncTimedOut);
 
-  // Gate rendering: only mount BlockNoteEditor once collaboration is ready.
-  // This avoids the race where the editor is created without collaboration,
-  // then re-created when the provider arrives — losing initialContent.
-  if (!isReady) {
-    return <div className="docs-modal-loading">Verbinde mit Server...</div>;
-  }
-
   return (
-    <Suspense fallback={<div className="docs-modal-loading">Lädt Editor...</div>}>
-      <BlockNoteEditor
-        documentId={documentId}
-        initialContent={htmlContent}
-        ydoc={ydoc}
-        provider={provider}
-        isSynced={isSynced || syncTimedOut}
-        showComments={false}
+    <>
+      <EditorTopBar
+        title={title || 'Dokument bearbeiten'}
+        connectionStatus={connectionStatus}
+        onBack={onClose}
       />
-    </Suspense>
+      <div className="docs-modal-body">
+        {!isReady ? (
+          <div className="docs-modal-loading">Verbinde mit Server...</div>
+        ) : (
+          <Suspense fallback={<div className="docs-modal-loading">Lädt Editor...</div>}>
+            <BlockNoteEditor
+              documentId={documentId}
+              initialContent={htmlContent}
+              ydoc={ydoc}
+              provider={provider}
+              isSynced={isSynced || syncTimedOut}
+              showComments={false}
+            />
+          </Suspense>
+        )}
+      </div>
+    </>
   );
 };
 
@@ -103,19 +118,16 @@ const DocsEditorModal = ({ documentId, initialContent, title, onClose }: DocsEdi
   return createPortal(
     <div className={`docs-modal-overlay ${isClosing ? 'docs-modal-closing' : ''}`}>
       <div className="docs-modal">
-        <header className="docs-modal-header">
-          <h2 className="docs-modal-title">{title || 'Dokument bearbeiten'}</h2>
-          <button className="docs-modal-close" onClick={handleClose} aria-label="Schließen">
-            <IoCloseOutline size={20} />
-          </button>
-        </header>
-        <div className="docs-modal-body">
-          <DocsProvider adapter={webAppDocsAdapter}>
-            <MantineProvider>
-              <EditorWithCollaboration documentId={documentId} initialContent={initialContent} />
-            </MantineProvider>
-          </DocsProvider>
-        </div>
+        <DocsProvider adapter={webAppDocsAdapter}>
+          <MantineProvider>
+            <DocsEditorContent
+              documentId={documentId}
+              initialContent={initialContent}
+              title={title}
+              onClose={handleClose}
+            />
+          </MantineProvider>
+        </DocsProvider>
       </div>
     </div>,
     document.body

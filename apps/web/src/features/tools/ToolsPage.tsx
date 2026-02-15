@@ -28,6 +28,13 @@ const tools: ToolEntry[] = [
     path: '/notebooks',
     tags: ['Dokumente', 'Q&A'],
   },
+  {
+    id: 'research',
+    title: 'Research',
+    description: 'Manuelle Suche über alle gescrapten Dokumente und Programme.',
+    path: '/research',
+    tags: ['Dokumente', 'Qdrant'],
+  },
   ...(import.meta.env.DEV
     ? [
         {

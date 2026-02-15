@@ -65,7 +65,17 @@ main {
 /* Web desktop layout adjustments (excludes Tauri) */
 @media (min-width: 1024px) {
   .content-wrapper:not(.desktop-main) {
-    min-height: 95vh;
     margin-top: var(--spacing-large);
   }
+}
+
+/* Chat page: full-viewport layout, no extra spacing */
+.content-wrapper:has(.chat-page-root) {
+  margin-top: 0;
+  margin-bottom: 0;
+  min-height: auto;
+}
+
+.chat-page-root {
+  height: calc(100vh - var(--header-height, 80px));
 } 

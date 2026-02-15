@@ -98,6 +98,16 @@ export const NOTEBOOK_CONFIGS = {
         locale: 'de-DE',
       },
       {
+        id: 'thueringen-system',
+        name: 'Grüne Thüringen',
+        icon: HiDocumentText,
+        description: 'Beschlüsse, Wahlprogramme und Pressemitteilungen',
+        documentCount: 'Archiv',
+        externalUrl: 'https://gruene-thueringen.de',
+        linkType: 'url',
+        locale: 'de-DE',
+      },
+      {
         id: 'bayern-system',
         name: 'Grüne Bayern',
         icon: HiDocumentText,
@@ -302,6 +312,34 @@ export const NOTEBOOK_CONFIGS = {
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
   },
+  thueringen: {
+    id: 'thueringen',
+    title: 'Frag Grüne Thüringen',
+    authTitle: 'Frag Grüne Thüringen',
+    collectionType: 'single',
+    collections: [{ id: 'thueringen-system', name: 'Grüne Thüringen' }],
+    startPageTitle: 'Was möchtest du über die Grünen Thüringen wissen?',
+    placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Thüringen...',
+    infoPanelDescription:
+      'Durchsuchbar sind Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen.',
+    headerIcon: HiInformationCircle,
+    exampleQuestions: [
+      { icon: '🌳', text: 'Was sagen die Grünen Thüringen zum Waldschutz?' },
+      { icon: '🌍', text: 'Welche Klimaziele hat das Wahlprogramm?' },
+      { icon: '🏘️', text: 'Was steht zum Strukturwandel in Thüringen?' },
+    ],
+    documents: [
+      { title: 'Wahlprogramme', detail: '5 Landtagswahlen' },
+      { title: 'Beschlüsse', detail: '~90 LDK-Beschlüsse' },
+      { title: 'Pressemitteilungen', detail: 'LV + Landtagsfraktion' },
+    ],
+    externalUrl: 'https://gruene-thueringen.de',
+    sources: [{ name: 'Grüne Thüringen', count: 'Archiv' }],
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   kommunalwiki: {
     id: 'kommunalwiki',
     title: 'Frag KommunalWiki',

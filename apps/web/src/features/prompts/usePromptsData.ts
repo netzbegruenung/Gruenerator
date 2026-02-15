@@ -10,6 +10,7 @@ import type { CustomPrompt, CustomPromptCreateData, CustomPromptUpdateData } fro
 
 const QUERY_KEYS = {
   customPrompts: (userId: string | undefined) => ['customPrompts', userId],
+  savedPrompts: (userId: string | undefined) => ['savedPrompts', userId],
 };
 
 interface UseCustomPromptsOptions {
@@ -25,6 +26,25 @@ export const useCustomPromptsData = (options: UseCustomPromptsOptions = {}) => {
     queryKey: QUERY_KEYS.customPrompts(user?.id),
     queryFn: async (): Promise<CustomPrompt[]> => {
       const response = await apiClient.get('/auth/custom_prompts');
+      return response.data?.prompts || [];
+    },
+    enabled: enabled && !!user?.id && isActive,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  return { query };
+};
+
+export const useSavedPromptsData = (options: UseCustomPromptsOptions = {}) => {
+  const { isActive = true, enabled = true } = options;
+  const { user } = useOptimizedAuth();
+
+  const query = useQuery<CustomPrompt[], Error>({
+    queryKey: QUERY_KEYS.savedPrompts(user?.id),
+    queryFn: async (): Promise<CustomPrompt[]> => {
+      const response = await apiClient.get('/auth/saved_prompts');
       return response.data?.prompts || [];
     },
     enabled: enabled && !!user?.id && isActive,
@@ -70,12 +90,23 @@ export const usePromptMutations = () => {
     },
   });
 
+  const unsaveMutation = useMutation({
+    mutationFn: async (promptId: string): Promise<void> => {
+      await apiClient.delete(`/auth/saved_prompts/${promptId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.savedPrompts(user?.id) });
+    },
+  });
+
   return {
     createPrompt: createMutation.mutateAsync,
     updatePrompt: updateMutation.mutateAsync,
     deletePrompt: deleteMutation.mutateAsync,
+    unsavePrompt: unsaveMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isUnsaving: unsaveMutation.isPending,
   };
 };

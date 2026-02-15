@@ -1,4 +1,4 @@
-import { type JSX, useState } from 'react';
+import { type JSX, useState, memo } from 'react';
 import { HiPlus } from 'react-icons/hi';
 
 import SearchBar from '../../../features/search/components/SearchBar';
@@ -37,7 +37,7 @@ interface GalleryControlsProps {
   onSearchModeChange?: (mode: string) => void;
 }
 
-const GalleryControls = ({
+const GalleryControls = memo(({
   searchTerm,
   onSearchChange,
   placeholder,
@@ -153,6 +153,8 @@ const GalleryControls = ({
       />
     </div>
   );
-};
+});
+
+GalleryControls.displayName = 'GalleryControls';
 
 export default GalleryControls;

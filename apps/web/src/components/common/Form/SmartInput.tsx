@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { Controller, type Control } from 'react-hook-form';
 
 import { useLazyAuth } from '../../../hooks/useAuth';
@@ -137,6 +137,9 @@ const SmartInput: React.FC<SmartInputProps> = ({
     }));
   }, [recentValues]);
 
+  const [inputText, setInputText] = useState('');
+  const lastFieldValueRef = useRef<string>('');
+
   const showDropdown = isAuthenticated && !isLoading && recentValues.length > 0;
 
   if (!showDropdown) {
@@ -163,20 +166,30 @@ const SmartInput: React.FC<SmartInputProps> = ({
       defaultValue=""
       render={({ field, fieldState: { error } }) => {
         const currentValue = field.value as string | undefined;
-        const selectedValue: SingleValue<EnhancedSelectOption> = currentValue
-          ? {
-              value: currentValue,
-              label: currentValue,
-              tag: { label: '', variant: '' },
-              __isRecentValue: false,
-              __recentIndex: -1,
-            }
-          : null;
+
+        // Sync inputText when field.value changes externally (auto-fill, form reset)
+        if (currentValue !== lastFieldValueRef.current) {
+          lastFieldValueRef.current = currentValue || '';
+          if (inputText !== (currentValue || '')) {
+            setInputText(currentValue || '');
+          }
+        }
+
+        // Only show a selected option when the value matches a recent option
+        const selectedOption: SingleValue<EnhancedSelectOption> =
+          recentOptions.find((o) => o.value === currentValue) || null;
 
         return (
           <EnhancedSelect
-            value={selectedValue}
-            onBlur={field.onBlur}
+            value={selectedOption}
+            inputValue={inputText}
+            onBlur={() => {
+              field.onBlur();
+              if (inputText && inputText !== currentValue) {
+                field.onChange(inputText);
+                lastFieldValueRef.current = inputText;
+              }
+            }}
             inputId={name}
             label={label}
             required={rules?.required ? true : false}
@@ -188,21 +201,17 @@ const SmartInput: React.FC<SmartInputProps> = ({
               newValue: MultiValue<EnhancedSelectOption> | SingleValue<EnhancedSelectOption>,
               _actionMeta: ActionMeta<EnhancedSelectOption>
             ) => {
-              // Handle both multi-value and single-value cases
-              if (Array.isArray(newValue)) {
-                // Multi-value: take the first item
-                const selectedOption = newValue[0] as RecentOption | undefined;
-                field.onChange(selectedOption ? selectedOption.value : '');
-              } else {
-                // Single value
-                const selectedOption = newValue as RecentOption | null;
-                field.onChange(selectedOption ? selectedOption.value : '');
-              }
+              const val = Array.isArray(newValue)
+                ? (newValue[0] as RecentOption | undefined)?.value || ''
+                : (newValue as RecentOption | null)?.value || '';
+              field.onChange(val);
+              lastFieldValueRef.current = val;
+              setInputText('');
             }}
             isSearchable={true}
-            onInputChange={(inputValue: string, actionMeta: { action: string }) => {
+            onInputChange={(newInput: string, actionMeta: { action: string }) => {
               if (actionMeta.action === 'input-change') {
-                field.onChange(inputValue);
+                setInputText(newInput);
               }
             }}
             noOptionsMessage={() => null}

@@ -9,6 +9,8 @@
   cursor: pointer;
   height: 100%;
   box-shadow: var(--card-shadow-subtle);
+  will-change: transform;
+  contain: content;
 }
 
 .index-card:hover {

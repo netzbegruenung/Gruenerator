@@ -52,6 +52,17 @@ const PRODUCTION_NOTEBOOKS = [
     category: 'landesebene',
   },
   {
+    id: 'thueringen-notebook',
+    path: '/gruene-thueringen',
+    title: 'Frag Grüne Thüringen',
+    description:
+      'Durchsuchbar sind Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen.',
+    meta: 'Archiv',
+    tags: ['Thüringen', 'Beschlüsse', 'Wahlprogramme', 'Presse'],
+    order: 6,
+    category: 'landesebene',
+  },
+  {
     id: 'oesterreich-notebook',
     path: '/gruene-oesterreich',
     title: 'Frag Die Grünen Österreich',

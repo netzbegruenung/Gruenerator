@@ -3,6 +3,7 @@ import { type JSX, useMemo, useState, useCallback } from 'react';
 import IndexCard from '../IndexCard';
 import TemplatePreviewModal from '../TemplatePreviewModal';
 
+import AgentPreviewModal from './AgentPreviewModal';
 import { GallerySkeleton, cardAdapters, type GalleryItem } from './cards';
 import { DEFAULT_GALLERY_TYPE, GALLERY_CONTENT_TYPES, ORDERED_CONTENT_TYPE_IDS } from './config';
 import GalleryControls from './GalleryControls';
@@ -76,18 +77,20 @@ const GalleryContainer = ({
     Array.isArray(categories) &&
     categories.length > 0;
 
-  const handleContentTypeChange = (nextType: string) => {
+  const handleContentTypeChange = useCallback((nextType: string) => {
     if (!GALLERY_CONTENT_TYPES[nextType]) return;
     setContentType(nextType);
-  };
+  }, []);
 
-  const renderList = (list: GalleryItem[], rendererId: string): React.ReactNode[] | null => {
+  const renderList = useCallback((list: GalleryItem[], rendererId: string): React.ReactNode[] | null => {
     if (!Array.isArray(list) || list.length === 0) return null;
     const adapter = cardAdapters[rendererId as keyof typeof cardAdapters] || cardAdapters.default;
     const adapterOptions =
       rendererId === 'vorlagen'
         ? { onTagClick: handleTagClick, onOpenPreview: handleOpenPreview }
-        : {};
+        : rendererId === 'agents'
+          ? { onOpenPreview: handleOpenPreview }
+          : {};
 
     return list.map((item) => {
       const result = adapter(item, adapterOptions);
@@ -96,9 +99,9 @@ const GalleryContainer = ({
       const { title, ...restProps } = props;
       return <IndexCard key={key} title={String(title)} {...restProps} />;
     });
-  };
+  }, [handleTagClick, handleOpenPreview]);
 
-  const renderContent = () => {
+  const renderedContent = useMemo(() => {
     if (loading && (!items || items.length === 0)) {
       return (
         <div className="content-section-grid">
@@ -145,7 +148,7 @@ const GalleryContainer = ({
         {renderList(items as GalleryItem[], activeConfig.cardRenderer || contentType)}
       </div>
     );
-  };
+  }, [items, sections, loading, error, activeConfig, renderList, contentType]);
 
   return (
     <div className="gallery-layout">
@@ -156,26 +159,30 @@ const GalleryContainer = ({
         <div className="gallery-main-searchbar-section">
           <GalleryControls
             searchTerm={inputValue}
-            onSearchChange={(value: string) => setInputValue(value)}
+            onSearchChange={setInputValue}
             placeholder={placeholder}
             contentTypes={typeOptions}
             activeContentType={contentType}
-            onContentTypeChange={(id: string) => handleContentTypeChange(id)}
+            onContentTypeChange={handleContentTypeChange}
             categories={(Array.isArray(categories) ? categories : []) as CategoryItem[]}
             selectedCategory={selectedCategory}
-            onCategoryChange={(id: string) => setSelectedCategory(id)}
+            onCategoryChange={setSelectedCategory}
             showCategoryFilter={showCategoryFilter}
             onRefresh={refetch}
             searchModes={activeConfig.searchModes}
             selectedSearchMode={searchMode}
-            onSearchModeChange={(mode: string) => setSearchMode(mode)}
+            onSearchModeChange={setSearchMode}
           />
         </div>
       </div>
 
-      <div className="gallery-grid">{renderContent()}</div>
+      <div className="gallery-grid">{renderedContent}</div>
 
-      {previewTemplate && (
+      {previewTemplate && contentType === 'agents' && (
+        <AgentPreviewModal agent={previewTemplate} onClose={handleClosePreview} />
+      )}
+
+      {previewTemplate && contentType !== 'agents' && (
         <TemplatePreviewModal
           isOpen={!!previewTemplate}
           onClose={handleClosePreview}

@@ -1,7 +1,8 @@
 import { IoHeart, IoHeartOutline } from 'react-icons/io5';
+import { memo, type JSX, type ReactNode } from 'react';
 
-import type { JSX, ReactNode, MouseEvent } from 'react';
-import '../../assets/styles/components/common/index-card.css';
+import { cn } from '@/utils/cn';
+import { Badge } from '@/components/ui/badge';
 
 export interface IndexCardProps {
   id?: string;
@@ -22,7 +23,7 @@ export interface IndexCardProps {
   onLikeToggle?: (id: string) => void;
 }
 
-const IndexCard = ({
+const IndexCard = memo(({
   id,
   title,
   description,
@@ -39,9 +40,8 @@ const IndexCard = ({
   onTagClick,
   isLiked = false,
   onLikeToggle,
-  ...props
 }: IndexCardProps): JSX.Element => {
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (onClick && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       onClick(e);
@@ -64,26 +64,39 @@ const IndexCard = ({
 
   const isClickable = !!onClick;
   const hasImage = !!thumbnailUrl;
-  const variantClass = variant !== 'default' ? `index-card--${variant}` : '';
-  const clickableClass = !isClickable ? 'index-card--non-clickable' : '';
-  const imageClass = hasImage ? 'index-card--has-image' : '';
 
   return (
     <div
-      className={`index-card ${variantClass} ${clickableClass} ${imageClass} ${className}`}
+      className={cn(
+        'flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md shadow-card-subtle h-full',
+        isClickable && 'cursor-pointer',
+        !isClickable && 'cursor-default',
+        variant === 'elevated' && 'shadow-card-subtle',
+        variant === 'subtle' && 'bg-background-alt border-transparent',
+        hasImage ? 'p-0' : 'p-lg max-md:p-md',
+        className,
+      )}
       onClick={isClickable ? onClick : undefined}
-      onKeyPress={isClickable ? handleKeyPress : undefined}
+      onKeyDown={isClickable ? handleKeyDown : undefined}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
-      {...props}
     >
       {thumbnailUrl && (
-        <div className="index-card__image">
-          <img src={thumbnailUrl} alt={imageAlt || title} loading="lazy" />
+        <div className="relative w-full aspect-video overflow-hidden bg-background-alt rounded-t-md">
+          <img
+            src={thumbnailUrl}
+            alt={imageAlt || title}
+            loading="lazy"
+            className="w-full h-full object-contain"
+          />
           {onLikeToggle != null && (
             <button
               type="button"
-              className={`index-card__like-button ${isLiked ? 'index-card__like-button--liked' : ''}`}
+              className={cn(
+                'absolute top-sm right-sm w-9 h-9 border-none rounded-full bg-white/90 text-grey-400 cursor-pointer flex items-center justify-center text-xl shadow-sm',
+                isLiked && 'text-primary-600',
+                isLiked && 'hover:text-primary-700',
+              )}
               onClick={handleLikeClick}
               aria-label={isLiked ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
             >
@@ -93,37 +106,49 @@ const IndexCard = ({
         </div>
       )}
 
-      <div className="index-card__body">
-        <div className="index-card__header">
-          <h3 className="index-card__title">{title}</h3>
-          {headerActions && <div className="index-card__header-actions">{headerActions}</div>}
+      <div className={cn(
+        'flex flex-col flex-1',
+        hasImage && 'p-lg max-md:p-md',
+      )}>
+        <div className="flex justify-between items-start mb-md">
+          <h3 className="text-xl max-md:text-lg font-semibold text-foreground-heading m-0 flex-1">
+            {title}
+          </h3>
+          {headerActions && <div className="ml-sm">{headerActions}</div>}
         </div>
 
-        <div className="index-card__content">
-          {description && <p className="index-card__description">{description}</p>}
+        <div className="flex-1 mb-md">
+          {description && (
+            <p className="text-foreground leading-relaxed m-0">{description}</p>
+          )}
         </div>
 
         {tags.length > 0 && (
-          <div className="index-card__tags">
-            {tags.map((tag, index) => (
-              <span
-                key={index}
-                className={`index-card__tag ${onTagClick != null ? 'index-card__tag--clickable' : ''}`}
-                onClick={onTagClick != null ? (e) => handleTagClick(e, tag) : undefined}
+          <div className="flex flex-wrap gap-xs mb-sm">
+            {tags.map((tag) => (
+              <Badge
+                key={tag}
+                variant="secondary"
+                className={cn(
+                  'bg-secondary-600 text-white border-transparent',
+                  onTagClick != null && 'cursor-pointer transition-colors duration-200 hover:bg-primary-500 hover:text-white focus:outline-2 focus:outline-primary-600 focus:outline-offset-1',
+                )}
+                onClick={onTagClick != null ? (e: React.MouseEvent<HTMLSpanElement>) => handleTagClick(e, tag) : undefined}
                 role={onTagClick != null ? 'button' : undefined}
                 tabIndex={onTagClick != null ? 0 : undefined}
               >
                 {tag}
-              </span>
+              </Badge>
             ))}
           </div>
         )}
 
         {authorName && (
-          <div className="index-card__author">
+          <div className="text-sm text-foreground mb-sm">
             {authorEmail ? (
               <a
                 href={`mailto:${authorEmail}`}
+                className="text-primary-600 no-underline hover:underline"
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
               >
                 {authorName}
@@ -134,10 +159,27 @@ const IndexCard = ({
           </div>
         )}
 
-        {meta && <div className="index-card__meta">{meta}</div>}
+        {meta && (
+          <div className="flex justify-between items-center text-foreground text-sm pt-sm border-t border-grey-200 dark:border-grey-700">
+            {meta}
+          </div>
+        )}
       </div>
     </div>
   );
-};
+}, (prev, next) => {
+  return prev.title === next.title
+    && prev.description === next.description
+    && prev.meta === next.meta
+    && prev.className === next.className
+    && prev.thumbnailUrl === next.thumbnailUrl
+    && prev.isLiked === next.isLiked
+    && prev.id === next.id
+    && prev.variant === next.variant
+    && prev.authorName === next.authorName
+    && prev.authorEmail === next.authorEmail;
+});
+
+IndexCard.displayName = 'IndexCard';
 
 export default IndexCard;
