@@ -1,5 +1,10 @@
 // Context & API Client
-export { chatFetch, chatApiClient, createChatApiClient, type ChatApiClient } from './context/ChatContext';
+export {
+  chatFetch,
+  chatApiClient,
+  createChatApiClient,
+  type ChatApiClient,
+} from './context/ChatContext';
 
 // Config Store
 export {
@@ -129,3 +134,6 @@ export {
   type ProcessedFile,
   type FileSummary,
 } from './lib/fileUtils';
+
+// Icons
+export { ChatIcon } from './components/icons/ChatIcon';

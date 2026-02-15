@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { PanelLeftClose, Sun, Moon, LogOut, MoreVertical } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { ChatThreadList } from './ChatThreadList';
+import { ChatIcon } from './icons';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -31,7 +32,7 @@ export function ChatSidebar({ isOpen, onToggle, userId, onLogout }: SidebarProps
       >
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🌻</span>
+            <ChatIcon size={28} />
             <span className="font-semibold text-primary">Grünerator Chat</span>
           </div>
           <button
