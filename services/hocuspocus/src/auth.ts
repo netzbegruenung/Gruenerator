@@ -1,4 +1,5 @@
 import { parse as parseCookie } from 'cookie';
+import { randomUUID } from 'crypto';
 import { jwtVerify } from 'jose';
 
 import { createLogger } from './logger.js';
@@ -25,7 +26,7 @@ export class AuthService {
   }
 
   async authenticateConnection(data: AuthenticationData): Promise<AuthenticationResult> {
-    const { documentName, requestHeaders, token } = data;
+    const { documentName, requestHeaders, requestParameters, token } = data;
 
     log.info(`[Auth] ========== Starting authentication ==========`);
     log.info(`[Auth] Document: ${documentName}, hasToken: ${!!token}`);
@@ -34,14 +35,23 @@ export class AuthService {
       if (token) {
         log.info(`[Auth] Using token-based authentication`);
         const result = await this.authenticateByToken(token, documentName);
-        log.info(`[Auth] ========== Authentication complete ==========`);
-        return result;
+        if (result.authenticated) {
+          log.info(`[Auth] ========== Authentication complete ==========`);
+          return result;
+        }
       }
 
       log.info(`[Auth] Using cookie-based authentication`);
-      const result = await this.authenticateByCookie(requestHeaders, documentName);
+      const cookieResult = await this.authenticateByCookie(requestHeaders, documentName);
+      if (cookieResult.authenticated) {
+        log.info(`[Auth] ========== Authentication complete ==========`);
+        return cookieResult;
+      }
+
+      log.info(`[Auth] Auth methods failed, trying guest access for public document`);
+      const guestResult = await this.authenticateAsGuest(documentName, requestParameters);
       log.info(`[Auth] ========== Authentication complete ==========`);
-      return result;
+      return guestResult;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Auth] EXCEPTION: ${err.message}`);
@@ -50,6 +60,46 @@ export class AuthService {
         authenticated: false,
         reason: 'Internal authentication error',
       };
+    }
+  }
+
+  private async authenticateAsGuest(
+    documentName: string,
+    requestParameters: URLSearchParams
+  ): Promise<AuthenticationResult> {
+    try {
+      const result = await this.db(
+        `SELECT id, is_public, share_permission, is_deleted
+         FROM collaborative_documents
+         WHERE id = $1`,
+        [documentName]
+      );
+
+      if (
+        result.length === 0 ||
+        result[0].is_deleted ||
+        !result[0].is_public
+      ) {
+        log.warn(`[Auth-Guest] Document ${documentName} not publicly accessible`);
+        return { authenticated: false, reason: 'Document not publicly accessible' };
+      }
+
+      const guestId = requestParameters?.get('guestId') || `guest-${randomUUID().slice(0, 8)}`;
+      const guestName = requestParameters?.get('guestName') || 'Gast';
+      const readOnly = result[0].share_permission === 'viewer';
+
+      log.info(`[Auth-Guest] Guest ${guestId} (${guestName}) authenticated for ${documentName} (${readOnly ? 'read-only' : 'read-write'})`);
+
+      return {
+        authenticated: true,
+        userId: guestId,
+        userName: guestName,
+        readOnly,
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      log.error(`[Auth-Guest] Error checking public access: ${err.message}`);
+      return { authenticated: false, reason: 'Failed to check public access' };
     }
   }
 

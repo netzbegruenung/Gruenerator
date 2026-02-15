@@ -263,85 +263,25 @@
 }
 
 /* ============================================
-   Comments Sidebar Styles
+   Comment Thread Styles (used by portal target)
    ============================================ */
 
-/* Wrapper with sidebar layout */
-.blocknote-wrapper.with-sidebar {
-  max-width: none;
-}
-
-.blocknote-wrapper.with-sidebar .bn-container {
-  display: flex;
-  flex-direction: row;
-}
-
-.blocknote-wrapper.with-sidebar .bn-container > .bn-editor {
-  flex: 1;
-  min-width: 0;
-}
-
-/* Comments Sidebar */
-.comments-sidebar {
-  width: 320px;
-  min-width: 320px;
-  max-width: 320px;
-  border-left: 1px solid var(--grey-300, #d1d5db);
-  background: var(--background-color, #ffffff);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-[data-theme="dark"] .comments-sidebar {
-  background: var(--grey-900, #111827);
-  border-color: var(--grey-700, #374151);
-}
-
-.comments-sidebar-header {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--grey-200, #e5e7eb);
-  flex-shrink: 0;
-}
-
-[data-theme="dark"] .comments-sidebar-header {
-  border-color: var(--grey-700, #374151);
-}
-
-.comments-sidebar-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--grey-800, #1f2937);
-}
-
-[data-theme="dark"] .comments-sidebar-header h3 {
-  color: var(--grey-100, #f3f4f6);
-}
-
-/* ThreadsSidebar container inside our wrapper */
-.comments-sidebar > div:last-child {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.75rem;
-}
-
-/* Thread card styling (sidebar threads) */
-.comments-sidebar .bn-thread {
+/* Thread card styling */
+.comments-portal-content .bn-thread {
   margin-bottom: 0.75rem;
   border: 1px solid var(--grey-200, #e5e7eb);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.comments-sidebar .bn-thread:hover {
+.comments-portal-content .bn-thread:hover {
   border-color: var(--grey-300, #d1d5db);
 }
 
-[data-theme="dark"] .comments-sidebar .bn-thread {
+[data-theme="dark"] .comments-portal-content .bn-thread {
   border-color: var(--grey-700, #374151);
 }
 
-[data-theme="dark"] .comments-sidebar .bn-thread:hover {
+[data-theme="dark"] .comments-portal-content .bn-thread:hover {
   border-color: var(--grey-600, #4b5563);
 }
 
@@ -554,22 +494,3 @@
   background: var(--grey-600, #4b5563);
 }
 
-/* Mobile responsiveness for sidebar */
-@media (max-width: 768px) {
-  .blocknote-wrapper.with-sidebar .bn-container {
-    flex-direction: column;
-  }
-
-  .comments-sidebar {
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
-    max-height: 50vh;
-    border-left: none;
-    border-top: 1px solid var(--grey-300, #d1d5db);
-  }
-
-  [data-theme="dark"] .comments-sidebar {
-    border-top-color: var(--grey-700, #374151);
-  }
-}

@@ -12,6 +12,7 @@ interface ChatSidebarProps {
   onSend: (text: string) => void;
   isConnected: boolean;
   onClose?: () => void;
+  hideHeader?: boolean;
 }
 
 export const ChatSidebar = ({
@@ -20,6 +21,7 @@ export const ChatSidebar = ({
   onSend,
   isConnected,
   onClose,
+  hideHeader = false,
 }: ChatSidebarProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -44,25 +46,29 @@ export const ChatSidebar = ({
 
   return (
     <Flex direction="column" className="chat-sidebar">
-      <Flex align="center" justify="space-between" px="md" py="sm">
-        <Text fw={600} size="sm">
-          Chat
-        </Text>
-        {onClose && (
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="sm"
-            onClick={onClose}
-            aria-label="Chat schließen"
-            className="chat-sidebar-close"
-          >
-            <FiX size={16} />
-          </ActionIcon>
-        )}
-      </Flex>
+      {!hideHeader && (
+        <>
+          <Flex align="center" justify="space-between" px="md" py="sm">
+            <Text fw={600} size="sm">
+              Chat
+            </Text>
+            {onClose && (
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                onClick={onClose}
+                aria-label="Chat schließen"
+                className="chat-sidebar-close"
+              >
+                <FiX size={16} />
+              </ActionIcon>
+            )}
+          </Flex>
 
-      <Divider />
+          <Divider />
+        </>
+      )}
 
       <ScrollArea
         style={{ flex: 1 }}
