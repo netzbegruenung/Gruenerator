@@ -13,6 +13,7 @@ const styleLabels: Record<GeneratedImage['style'], string> = {
   illustration: 'Illustration',
   realistic: 'Realistisch',
   pixel: 'Pixel Art',
+  'green-edit': 'Stadt begrünen',
 };
 
 export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {

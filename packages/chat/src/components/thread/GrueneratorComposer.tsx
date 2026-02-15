@@ -5,9 +5,9 @@ import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
 import { ArrowUp, Square, X } from 'lucide-react';
 import { ToolToggles } from '../ToolToggles';
 import { ComposerAttachments, ComposerAddAttachment } from '../assistant-ui/attachment';
-import { MentionPopover, filterAgents } from './MentionPopover';
+import { MentionPopover, filterMentionables } from './MentionPopover';
 import { getCaretCoords } from '../../lib/caretPosition';
-import type { AgentListItem } from '../../lib/agents';
+import type { Mentionable } from '../../lib/mentionables';
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
@@ -59,20 +59,20 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
   const dismissPopover = useCallback(() => setMention(INITIAL_MENTION_STATE), []);
 
   const handleSelect = useCallback(
-    (agent: AgentListItem) => {
+    (mentionable: Mentionable) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
 
       const currentText = composerRuntime.getState().text;
       const before = currentText.slice(0, mention.mentionStart);
       const after = currentText.slice(textarea.selectionStart);
-      const newText = `${before}@${agent.mention} ${after}`;
+      const newText = `${before}@${mentionable.mention} ${after}`;
 
       composerRuntime.setText(newText);
       dismissPopover();
 
       requestAnimationFrame(() => {
-        const cursorPos = before.length + agent.mention.length + 2; // +2 for @ and space
+        const cursorPos = before.length + mentionable.mention.length + 2; // +2 for @ and space
         textarea.setSelectionRange(cursorPos, cursorPos);
         textarea.focus();
       });
@@ -118,7 +118,7 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (!mention.visible) return;
 
-      const filtered = filterAgents(mention.query);
+      const filtered = filterMentionables(mention.query);
       if (filtered.length === 0) return;
 
       switch (e.key) {
@@ -179,7 +179,7 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
           <ComposerPrimitive.Input
             ref={textareaRef}
             autoFocus
-            placeholder="Nachricht schreiben — @presse, @antrag, @rede..."
+            placeholder="Nachricht schreiben — @presse, @hamburg, @bundestag..."
             className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 pl-2 text-foreground outline-none placeholder:text-foreground-muted"
             onChange={handleChange}
             onKeyDown={handleKeyDown}

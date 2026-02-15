@@ -50,7 +50,8 @@ const TOOL_CONFIGS: ToolConfig[] = [
 ];
 
 export function ToolToggles() {
-  const { enabledTools, toggleTool } = useAgentStore();
+  const enabledTools = useAgentStore((s) => s.enabledTools);
+  const toggleTool = useAgentStore((s) => s.toggleTool);
   const enabledCount = Object.values(enabledTools).filter(Boolean).length;
 
   return (

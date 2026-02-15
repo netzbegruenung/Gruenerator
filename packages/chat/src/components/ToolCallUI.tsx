@@ -13,6 +13,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useState, memo, useMemo, Fragment } from 'react';
+import { getCollectionStyle } from '../lib/collectionStyles';
 
 interface ToolCallUIProps {
   toolName: string;
@@ -204,11 +205,17 @@ const CompactSearchResults = memo(function CompactSearchResults({
         const excerpt = getString(item, 'excerpt') || getString(item, 'content');
         const url = getString(item, 'url');
         const relevance = getString(item, 'relevance');
+        const style = source ? getCollectionStyle(source) : undefined;
 
         return (
           <div key={i} className="text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="font-medium text-foreground">{source || 'Quelle'}</span>
+              <span
+                className="text-[10px] font-medium px-1 py-px rounded"
+                style={style ? { backgroundColor: style.bg, color: style.color } : undefined}
+              >
+                {style?.label || source || 'Quelle'}
+              </span>
               {relevance && (
                 <span className="text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary">
                   {relevance}

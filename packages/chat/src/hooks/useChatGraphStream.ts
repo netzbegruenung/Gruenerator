@@ -5,8 +5,8 @@
  * Uses ChatAdapter for platform-agnostic API communication.
  */
 
-import { useState, useCallback, useRef } from 'react';
-import { chatFetch } from '../context/ChatContext';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useChatConfigStore } from '../stores/chatConfigStore';
 import type { ProcessedFile } from '../lib/fileUtils';
 
 export type ProgressStage =
@@ -18,14 +18,14 @@ export type ProgressStage =
   | 'complete'
   | 'error';
 
-export type SearchIntent = 'research' | 'search' | 'web' | 'examples' | 'image' | 'direct';
+export type SearchIntent = 'research' | 'search' | 'web' | 'examples' | 'image' | 'image_edit' | 'direct';
 
 export interface GeneratedImage {
   base64: string;
   url: string;
   filename: string;
   prompt: string;
-  style: 'illustration' | 'realistic' | 'pixel';
+  style: 'illustration' | 'realistic' | 'pixel' | 'green-edit';
   generationTimeMs: number;
 }
 
@@ -47,6 +47,7 @@ export interface Citation {
   collectionName?: string;
   domain?: string;
   relevance?: number;
+  contentType?: string;
 }
 
 export interface SearchResult {
@@ -83,6 +84,7 @@ export interface UseChatGraphStreamOptions {
   agentId?: string;
   modelId?: string;
   enabledTools?: Record<string, boolean>;
+  forcedTools?: string[];
   onThreadCreated?: (threadId: string) => void;
   onError?: (error: string) => void;
   onComplete?: (metadata: StreamMetadata) => void;
@@ -131,9 +133,10 @@ export function useChatGraphStream(
   options: UseChatGraphStreamOptions = {}
 ): UseChatGraphStreamReturn {
   const {
-    agentId = 'gruenerator-universal',
+    agentId,
     modelId,
     enabledTools,
+    forcedTools,
     onThreadCreated,
     onError,
     onComplete,
@@ -152,6 +155,8 @@ export function useChatGraphStream(
   const [citations, setCitations] = useState<Citation[]>([]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   const abort = useCallback(() => {
     if (abortControllerRef.current) {
@@ -191,7 +196,7 @@ export function useChatGraphStream(
       abortControllerRef.current = new AbortController();
 
       try {
-        const allMessages = [...(messages || []), userMessage];
+        const allMessages = [...(messagesRef.current || []), userMessage];
         const formattedMessages = allMessages.map((m, idx) => {
           const parts: Array<
             | { type: 'text'; text: string }
@@ -217,7 +222,8 @@ export function useChatGraphStream(
           return { id: m.id, role: m.role, parts };
         });
 
-        const response = await chatFetch('/api/chat-graph/stream', {
+        const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+        const response = await configFetch(endpoints.chatStream, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -226,6 +232,7 @@ export function useChatGraphStream(
             threadId,
             enabledTools,
             modelId,
+            forcedTools: forcedTools && forcedTools.length > 0 ? forcedTools : undefined,
             attachments: attachments || undefined,
           }),
           signal: abortControllerRef.current.signal,
@@ -280,7 +287,7 @@ export function useChatGraphStream(
                 let stage: ProgressStage = 'searching';
                 if (intent === 'direct') {
                   stage = 'generating';
-                } else if (intent === 'image') {
+                } else if (intent === 'image' || intent === 'image_edit') {
                   stage = 'generating_image';
                 }
                 setProgress({
@@ -437,11 +444,11 @@ export function useChatGraphStream(
       }
     },
     [
-      messages,
       threadId,
       agentId,
       modelId,
       enabledTools,
+      forcedTools,
       isLoading,
       onThreadCreated,
       onComplete,

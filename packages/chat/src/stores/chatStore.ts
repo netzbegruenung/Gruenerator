@@ -30,7 +30,7 @@ interface TriggerCompactionResponse {
 
 export type Provider = 'mistral' | 'litellm';
 
-export type ModelId = 'mistral-large' | 'mistral-medium' | 'pixtral-large' | 'litellm';
+export type ModelId = 'auto' | 'mistral-large' | 'mistral-medium' | 'magistral-medium' | 'pixtral-large' | 'litellm';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
@@ -40,10 +40,18 @@ export interface ModelOption {
   description: string;
   model: string;
   provider: Provider;
-  icon: 'sparkles' | 'zap' | 'eye' | 'server';
+  icon: 'sparkles' | 'zap' | 'eye' | 'server' | 'brain';
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
+  {
+    id: 'auto',
+    name: 'Automatisch',
+    description: 'Optimales Modell je Assistent',
+    model: 'auto',
+    provider: 'mistral',
+    icon: 'sparkles',
+  },
   {
     id: 'mistral-large',
     name: 'Mistral Large',
@@ -51,6 +59,14 @@ export const MODEL_OPTIONS: ModelOption[] = [
     model: 'mistral-large-latest',
     provider: 'mistral',
     icon: 'sparkles',
+  },
+  {
+    id: 'magistral-medium',
+    name: 'Magistral Medium',
+    description: 'Reasoning & Analyse',
+    model: 'magistral-medium-latest',
+    provider: 'mistral',
+    icon: 'brain',
   },
   {
     id: 'mistral-medium',
@@ -101,21 +117,23 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
 ];
 
 interface AgentState {
-  selectedAgentId: string;
+  selectedAgentId: string | null;
   selectedProvider: Provider;
   selectedModel: ModelId;
   currentThreadId: string | null;
   enabledTools: Record<ToolKey, boolean>;
+  useDeepAgent: boolean;
   compactionState: CompactionState;
   compactionLoading: boolean;
   messageCount: number;
   needsCompaction: boolean;
-  setSelectedAgent: (agentId: string) => void;
+  setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
   setCurrentThread: (threadId: string | null) => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
+  toggleDeepAgent: () => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -138,11 +156,12 @@ const DEFAULT_COMPACTION_STATE: CompactionState = {
 export const useAgentStore = create<AgentState>()(
   persist(
     (set) => ({
-      selectedAgentId: 'gruenerator-universal',
+      selectedAgentId: null,
       selectedProvider: 'mistral',
-      selectedModel: 'mistral-large',
+      selectedModel: 'auto',
       currentThreadId: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
+      useDeepAgent: true,
       compactionState: { ...DEFAULT_COMPACTION_STATE },
       compactionLoading: false,
       messageCount: 0,
@@ -184,6 +203,9 @@ export const useAgentStore = create<AgentState>()(
             research: enabled,
           },
         }),
+
+      toggleDeepAgent: () =>
+        set((state) => ({ useDeepAgent: !state.useDeepAgent })),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
@@ -242,6 +264,7 @@ export const useAgentStore = create<AgentState>()(
         selectedModel: state.selectedModel,
         currentThreadId: state.currentThreadId,
         enabledTools: state.enabledTools,
+        useDeepAgent: state.useDeepAgent,
       }),
     }
   )
