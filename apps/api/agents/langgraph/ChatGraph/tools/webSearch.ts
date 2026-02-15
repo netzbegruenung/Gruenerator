@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { executeDirectWebSearch } from '../../../../routes/chat/agents/directSearch.js';
 import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
+import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { ToolDependencies } from './registry.js';
@@ -30,9 +31,26 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
         .enum(['day', 'week', 'month', 'year'])
         .optional()
         .describe('Zeitraum-Filter (z.B. "day" für heute, "week" für diese Woche)'),
+      max_results: z
+        .number()
+        .min(1)
+        .max(10)
+        .optional()
+        .describe('Anzahl gewünschter Ergebnisse (Standard: 5, max: 10)'),
     }),
-    func: async ({ query, time_range }) => {
-      log.info(`[WebSearch] query="${query.slice(0, 60)}" time_range=${time_range || 'none'}`);
+    func: async ({ query, time_range, max_results }) => {
+      const effectiveMaxResults = max_results ?? 5;
+      // Auto-detect temporal expressions if agent didn't set time_range
+      let effectiveTimeRange = time_range;
+      if (!effectiveTimeRange) {
+        const temporal = analyzeTemporality(query);
+        if (temporal.suggestedTimeRange) {
+          effectiveTimeRange = temporal.suggestedTimeRange as typeof time_range;
+          log.info(`[WebSearch] Auto-detected time_range="${effectiveTimeRange}" (urgency=${temporal.urgency})`);
+        }
+      }
+
+      log.info(`[WebSearch] query="${query.slice(0, 60)}" time_range=${effectiveTimeRange || 'none'}`);
 
       // Query expansion for broader coverage
       let allQueries = [query];
@@ -48,7 +66,7 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
 
       // Search all variants in parallel
       const webPromises = allQueries.map((q) =>
-        executeDirectWebSearch({ query: q, searchType: 'general', maxResults: 5 }).catch(
+        executeDirectWebSearch({ query: q, searchType: 'general', maxResults: effectiveMaxResults, timeRange: effectiveTimeRange }).catch(
           (err: any) => {
             log.warn(`[WebSearch] Failed for variant "${q}": ${err.message}`);
             return null;
@@ -85,14 +103,15 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
       }
 
       allResults.sort((a, b) => b.relevance - a.relevance);
-      let results = allResults.slice(0, 8);
+      let results = allResults.slice(0, effectiveMaxResults + 3);
 
       // Crawl top results for full content
+      const maxCrawl = Math.min(2, Math.ceil(effectiveMaxResults / 4));
       try {
         const crawled = await selectAndCrawlTopUrls(
           results.map((r) => ({ ...r, source: 'web' })),
           query,
-          { maxUrls: 2, timeout: 3000 }
+          { maxUrls: maxCrawl, timeout: 3000 }
         );
         results = crawled.map((r) => ({
           ...r,

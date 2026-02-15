@@ -10,7 +10,7 @@
  * 5. Cross-Collection Search (integration — requires Qdrant)
  */
 
-import { heuristicClassify, extractSearchTopic } from './classifierNode.js';
+import { heuristicClassify, extractSearchTopic, extractFilters, heuristicExtractFilters } from './classifierNode.js';
 import { buildSystemMessage } from './respondNode.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
@@ -174,12 +174,16 @@ async function testExpandedContextWindow() {
     threadAttachments: [],
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
+    notebookIds: [],
+    notebookCollectionIds: [],
+    searchSources: [],
     intent: 'search',
     searchQuery: 'test query',
     subQueries: null,
     reasoning: 'test',
     hasTemporal: false,
     complexity: 'moderate',
+    detectedFilters: null,
     searchResults: mockResults,
     citations: [],
     searchCount: 1,
@@ -442,6 +446,110 @@ function testIntegrationFlow() {
 }
 
 // ============================================================================
+// 7. Metadata Filter Extraction Tests
+// ============================================================================
+
+function testFilterExtraction() {
+  section('7. Metadata Filter Extraction');
+
+  // Test extractFilters (LLM output processing)
+  const cases: Array<{
+    input: Parameters<typeof extractFilters>[0];
+    expected: ReturnType<typeof extractFilters>;
+    description: string;
+  }> = [
+    {
+      input: { content_type: 'presse', landesverband: 'HH', primary_category: null, date_from: null, date_to: null, person: null },
+      expected: { content_type: 'presse', region: 'HH' },
+      description: 'Pressemitteilungen Hamburg → content_type + region',
+    },
+    {
+      input: { content_type: 'beschluss', landesverband: null, primary_category: null, date_from: '2024-01-01', date_to: null, person: null },
+      expected: { content_type: 'beschluss', date_from: '2024-01-01' },
+      description: 'Beschlüsse seit 2024 → content_type + date_from',
+    },
+    {
+      input: { content_type: null, landesverband: 'TH', primary_category: 'Klimaschutz', date_from: null, date_to: null, person: null },
+      expected: { region: ['TH', 'TH-F'], primary_category: 'Klimaschutz' },
+      description: 'Klimapolitik Thüringen → region (with Fraktion) + primary_category',
+    },
+    {
+      input: { content_type: null, landesverband: null, primary_category: null, date_from: null, date_to: null, person: null },
+      expected: null,
+      description: 'All nulls → null (no filters)',
+    },
+    {
+      input: { content_type: null, landesverband: null, primary_category: null, date_from: 'invalid', date_to: null, person: null },
+      expected: null,
+      description: 'Invalid date format → ignored',
+    },
+    {
+      input: { content_type: null, landesverband: null, primary_category: null, date_from: null, date_to: null, person: 'Habeck' },
+      expected: null,
+      description: 'Person only → null (person kept in query, not as filter)',
+    },
+  ];
+
+  for (const c of cases) {
+    const result = extractFilters(c.input);
+    const resultStr = JSON.stringify(result);
+    const expectedStr = JSON.stringify(c.expected);
+    assert(
+      resultStr === expectedStr,
+      c.description,
+      `Got: ${resultStr}, Expected: ${expectedStr}`
+    );
+  }
+
+  // Test heuristicExtractFilters
+  section('7b. Heuristic Filter Extraction');
+
+  const heuristicCases: Array<{
+    input: string;
+    expectedKeys: string[];
+    description: string;
+  }> = [
+    {
+      input: 'Pressemitteilungen zum Klimaschutz',
+      expectedKeys: ['content_type'],
+      description: 'Pressemitteilungen → content_type detected',
+    },
+    {
+      input: 'Beschlüsse der Grünen Hamburg',
+      expectedKeys: ['content_type', 'region'],
+      description: 'Beschlüsse + Hamburg → content_type + region',
+    },
+    {
+      input: 'Was ist die Position der Grünen?',
+      expectedKeys: [],
+      description: 'Generic question → no filters',
+    },
+    {
+      input: 'Anträge aus Thüringen',
+      expectedKeys: ['content_type', 'region'],
+      description: 'Anträge + Thüringen → content_type + region',
+    },
+    {
+      input: 'Wahlprogramm Bayern',
+      expectedKeys: ['content_type', 'region'],
+      description: 'Wahlprogramm + Bayern → content_type + region',
+    },
+  ];
+
+  for (const c of heuristicCases) {
+    const result = heuristicExtractFilters(c.input);
+    const keys = result ? Object.keys(result) : [];
+    const hasExpectedKeys = c.expectedKeys.every(k => keys.includes(k));
+    const noExtraKeys = keys.every(k => c.expectedKeys.includes(k));
+    assert(
+      hasExpectedKeys && noExtraKeys,
+      c.description,
+      `Got keys: [${keys.join(', ')}], Expected: [${c.expectedKeys.join(', ')}]`
+    );
+  }
+}
+
+// ============================================================================
 // Run All Tests
 // ============================================================================
 
@@ -456,6 +564,7 @@ async function runAllTests() {
   await testRerankScoreParsing();
   testCrossCollectionLogic();
   testIntegrationFlow();
+  testFilterExtraction();
 
   console.log(`\n${'═'.repeat(60)}`);
   console.log(`  Results: ${passed} passed, ${failed} failed, ${skipped} skipped`);

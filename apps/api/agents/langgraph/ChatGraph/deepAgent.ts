@@ -1,8 +1,9 @@
 /**
  * Deep Agent — ReAct Agent using LangGraph's createReactAgent
  *
- * Replaces the fixed pipeline (classify → search → rerank → respond) with
- * an autonomous agent that decides which tools to call based on the conversation.
+ * Default chat pipeline. Replaces the fixed pipeline (classify → search →
+ * rerank → respond) with an autonomous agent that decides which tools to
+ * call based on the conversation.
  *
  * The LLM:
  * - Reasons about what information it needs
@@ -10,8 +11,6 @@
  * - Observes tool results
  * - Iterates if results are insufficient
  * - Generates the final response when it has enough context
- *
- * This runs alongside the old ChatGraph (separate endpoint) for migration safety.
  */
 
 import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
@@ -42,7 +41,10 @@ export interface DeepAgentInput {
   aiWorkerPool: any;
   attachmentContext?: string;
   threadAttachments?: ThreadAttachment[];
+  imageAttachments?: import('./types.js').ImageAttachment[];
   memoryContext?: string | null;
+  notebookContext?: string;
+  notebookCollectionIds?: string[];
 }
 
 /**
@@ -78,6 +80,7 @@ export async function createDeepAgent(input: DeepAgentInput): Promise<DeepAgentI
     aiWorkerPool: input.aiWorkerPool,
     enabledTools: input.enabledTools,
     threadAttachments: input.threadAttachments,
+    imageAttachments: input.imageAttachments,
     _generatedImage: null,
   };
 
@@ -90,6 +93,8 @@ export async function createDeepAgent(input: DeepAgentInput): Promise<DeepAgentI
     memoryContext: input.memoryContext,
     attachmentContext: input.attachmentContext,
     threadAttachments: input.threadAttachments,
+    notebookContext: input.notebookContext,
+    notebookCollectionIds: input.notebookCollectionIds,
   });
 
   log.info(`[DeepAgent] Creating agent with ${tools.length} tools, model=${agentConfig.model}`);

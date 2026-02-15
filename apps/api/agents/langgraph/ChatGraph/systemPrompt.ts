@@ -16,6 +16,21 @@ export interface SystemPromptContext {
   memoryContext?: string | null;
   attachmentContext?: string | null;
   threadAttachments?: ThreadAttachment[];
+  notebookContext?: string;
+  notebookCollectionIds?: string[];
+}
+
+/**
+ * Check if a tool key is effectively enabled for this agent+session combo.
+ */
+function isToolEnabled(
+  key: string,
+  agentWhitelist: string[] | undefined,
+  frontendToggles: Record<string, boolean>,
+): boolean {
+  if (agentWhitelist && !agentWhitelist.includes(key)) return false;
+  if (frontendToggles[key] === false) return false;
+  return true;
 }
 
 /**
@@ -24,104 +39,247 @@ export interface SystemPromptContext {
  */
 export function buildDeepAgentSystemPrompt(ctx: SystemPromptContext): string {
   const sections: string[] = [];
+  const agentWhitelist = ctx.agentConfig.enabledTools;
 
   // 1. Agent role (from agentConfig)
   sections.push(ctx.agentConfig.systemRole);
 
-  // 2. Tool usage guidelines
-  sections.push(buildToolGuidelines(ctx.enabledTools));
+  // 2. Current date for temporal awareness
+  const today = new Date().toLocaleDateString('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  sections.push(`Heutiges Datum: ${today}`);
 
-  // 3. Citation instructions
+  // 3. Few-shot examples (if configured)
+  const fewShotSection = buildFewShotSection(ctx.agentConfig);
+  if (fewShotSection) {
+    sections.push(fewShotSection);
+  }
+
+  // 4. Tool usage guidelines (filtered by agent whitelist + frontend toggles)
+  sections.push(buildToolGuidelines(ctx.enabledTools, agentWhitelist));
+
+  // 5. Citation instructions
   sections.push(CITATION_INSTRUCTIONS);
 
-  // 4. Memory context (if available)
+  // 6. Notebook context (scoped search instructions)
+  if (ctx.notebookContext) {
+    sections.push(ctx.notebookContext);
+  }
+
+  // 7. Memory context (if available)
   if (ctx.memoryContext) {
     sections.push(formatMemoryContext(ctx.memoryContext));
   }
 
-  // 5. Attachment context (uploaded documents)
+  // 8. Attachment context (uploaded documents)
   if (ctx.attachmentContext) {
     sections.push(formatAttachmentContext(ctx.attachmentContext));
   }
 
-  // 6. Thread attachments (from previous messages)
+  // 9. Thread attachments (from previous messages)
   if (ctx.threadAttachments?.length) {
     sections.push(formatThreadAttachments(ctx.threadAttachments));
   }
 
-  // 7. Response rules
+  // 10. Response rules
   sections.push(RESPONSE_RULES);
 
   return sections.join('\n\n');
 }
 
-function buildToolGuidelines(enabledTools: Record<string, boolean>): string {
+function buildToolGuidelines(
+  frontendToggles: Record<string, boolean>,
+  agentWhitelist?: string[],
+): string {
+  const check = (key: string) => isToolEnabled(key, agentWhitelist, frontendToggles);
+
   const tools: string[] = [];
 
-  if (enabledTools.search !== false) {
+  if (check('search')) {
     tools.push(
       '- **search_documents**: Durchsuche Grüne Positionen, Programme und Dokumente.\n' +
-        '  Nutze dieses Tool bei Fragen zu Partei-Positionen, Wahlprogrammen, Grundsatzprogramm.'
+        '  Nutze dieses Tool bei Fragen zu Partei-Positionen, Wahlprogrammen, Grundsatzprogramm.',
     );
   }
 
-  if (enabledTools.web !== false) {
+  if (check('web')) {
     tools.push(
       '- **web_search**: Suche aktuelle Informationen im Web.\n' +
-        '  Nutze dieses Tool bei Fragen zu aktuellen Ereignissen, Nachrichten, externen Fakten.'
+        '  Nutze dieses Tool bei Fragen zu aktuellen Ereignissen, Nachrichten, externen Fakten.',
     );
   }
 
-  if (enabledTools.research !== false) {
+  if (check('research')) {
     tools.push(
       '- **research**: Führe eine strukturierte Recherche mit mehreren Quellen durch.\n' +
-        '  Nutze dieses Tool für komplexe Fragen, Vergleiche, detaillierte Analysen.'
+        '  Nutze dieses Tool für komplexe Fragen, Vergleiche, detaillierte Analysen.',
     );
   }
 
-  if (enabledTools.examples !== false) {
+  if (check('examples')) {
     tools.push(
-      '- **search_examples**: Suche Social-Media-Beispiele und Vorlagen.\n' +
-        '  Nutze dieses Tool wenn nach Beispiel-Posts oder Vorlagen gefragt wird.'
+      '- **search_examples**: Suche echte, erfolgreiche Social-Media-Beispiele und Vorlagen.\n' +
+        '  Nutze dieses Tool IMMER bei Social-Media-Inhalten als Stilvorlage. Orientiere dich an Ton, Aufbau und Formatierung der Ergebnisse.',
     );
   }
 
-  if (enabledTools.image !== false) {
+  if (check('image')) {
     tools.push(
       '- **generate_image**: Generiere ein Bild mit KI.\n' +
-        '  Nutze dieses Tool wenn der Nutzer ein Bild, Grafik oder Illustration erstellen möchte.'
+        '  Nutze dieses Tool wenn der Nutzer ein Bild, Grafik oder Illustration erstellen möchte.',
     );
   }
 
-  tools.push(
-    '- **scrape_url**: Lade den Inhalt einer URL.\n' +
-      '  Nutze dieses Tool wenn der Nutzer eine URL teilt und den Inhalt analysieren möchte.'
-  );
+  if (check('image_edit')) {
+    tools.push(
+      '- **edit_image**: Bearbeite ein angehängtes Bild mit grüner Stadtbegrünung.\n' +
+        '  Nutze dieses Tool wenn der Nutzer ein Foto hochgeladen hat und es mit Bäumen, Radwegen, Grünflächen transformieren möchte.',
+    );
+  }
 
-  tools.push(
-    '- **recall_memory**: Rufe gespeicherte Informationen über den Nutzer ab.\n' +
-      '  Nutze dieses Tool wenn der Nutzer auf frühere Gespräche verweist.'
-  );
+  if (check('scrape')) {
+    tools.push(
+      '- **scrape_url**: Lade den Inhalt einer URL.\n' +
+        '  Nutze dieses Tool wenn der Nutzer eine URL teilt und den Inhalt analysieren möchte.',
+    );
+  }
 
-  tools.push(
-    '- **save_memory**: Speichere wichtige Informationen über den Nutzer.\n' +
-      '  Nutze dieses Tool wenn der Nutzer persönliche Infos teilt ("merke dir", "ich bin...").'
-  );
+  if (check('memory')) {
+    tools.push(
+      '- **recall_memory**: Rufe gespeicherte Informationen über den Nutzer ab.\n' +
+        '  Nutze dieses Tool wenn der Nutzer auf frühere Gespräche verweist.',
+    );
+  }
 
-  return `## VERFÜGBARE WERKZEUGE
+  if (check('memory_save')) {
+    tools.push(
+      '- **save_memory**: Speichere wichtige Informationen über den Nutzer.\n' +
+        '  Nutze dieses Tool wenn der Nutzer persönliche Infos teilt ("merke dir", "ich bin...").',
+    );
+  }
+
+  if (check('self_review')) {
+    tools.push(
+      '- **self_review**: Bewerte einen Entwurf gegen Qualitätskriterien.\n' +
+        '  Nutze dieses Tool NACH dem Erstellen eines Entwurfs. Wenn der Score unter 4 liegt, überarbeite und prüfe erneut.',
+    );
+  }
+
+  if (check('draft_structured')) {
+    tools.push(
+      '- **draft_structured**: Erstelle einen strukturierten Entwurf mit allen Pflichtabschnitten.\n' +
+        '  Nutze dieses Tool zum Erstellen des finalen Dokuments — es validiert Vollständigkeit und formatiert korrekt.',
+    );
+  }
+
+  const guidelines: string[] = [
+    '- Bei einfachen Begrüßungen, Dank oder rein kreativen Aufgaben: KEIN Tool verwenden, direkt antworten.',
+  ];
+
+  if (check('search')) {
+    guidelines.push('- Bei Fragen zu Grünen Positionen/Programmen: Zuerst search_documents verwenden.');
+  }
+  if (check('web')) {
+    guidelines.push(
+      '- Bei Fragen zu aktuellen Ereignissen: web_search verwenden.',
+      '- Bei zeitbezogenen Fragen ("heute", "letzte Woche", "aktuell"): Setze den time_range Parameter bei web_search (day/week/month/year).',
+    );
+  }
+  if (check('research')) {
+    guidelines.push('- Bei komplexen Fragen die mehrere Quellen brauchen: research verwenden.');
+  }
+  if (check('search') && check('web')) {
+    guidelines.push('- Bei Vergleichsfragen: Mehrere Tools kombinieren (z.B. search_documents + web_search).');
+  }
+  guidelines.push('- Wenn die ersten Suchergebnisse nicht ausreichen: Erneut suchen mit angepasster Query.');
+  if (check('scrape')) {
+    guidelines.push('- URLs im Nutzer-Text: scrape_url verwenden um den Inhalt zu lesen.');
+  }
+  if (check('memory')) {
+    guidelines.push('- Erinnerungen: recall_memory wenn Nutzer Kontext aus früheren Gesprächen erwartet.');
+  }
+  if (check('image_edit')) {
+    guidelines.push('- Bildbearbeitung: edit_image nur wenn ein Bild angehängt ist und grüne Transformation gewünscht wird.');
+  }
+
+  // Self-review workflow guidance
+  if (check('self_review')) {
+    guidelines.push(
+      '- **QUALITÄTSPRÜFUNG**: Nachdem du einen Entwurf erstellt hast, nutze IMMER self_review um die Qualität zu prüfen. Wenn der Score unter 4 liegt, überarbeite den Entwurf basierend auf den Vorschlägen und prüfe erneut.',
+    );
+  }
+
+  // Draft structured workflow guidance
+  if (check('draft_structured')) {
+    guidelines.push(
+      '- **STRUKTURIERTES ERSTELLEN**: Nutze draft_structured zum Erstellen des Dokuments. Es stellt sicher, dass alle Pflichtabschnitte vorhanden sind.',
+    );
+  }
+
+  let result = `## VERFÜGBARE WERKZEUGE
 
 ${tools.join('\n\n')}
 
 ### WERKZEUG-NUTZUNGS-RICHTLINIEN
 
-- Bei einfachen Begrüßungen, Dank oder rein kreativen Aufgaben: KEIN Tool verwenden, direkt antworten.
-- Bei Fragen zu Grünen Positionen/Programmen: Zuerst search_documents verwenden.
-- Bei Fragen zu aktuellen Ereignissen: web_search verwenden.
-- Bei komplexen Fragen die mehrere Quellen brauchen: research verwenden.
-- Bei Vergleichsfragen: Mehrere Tools kombinieren (z.B. search_documents + web_search).
-- Wenn die ersten Suchergebnisse nicht ausreichen: Erneut suchen mit angepasster Query.
-- URLs im Nutzer-Text: scrape_url verwenden um den Inhalt zu lesen.
-- Erinnerungen: recall_memory wenn Nutzer Kontext aus früheren Gesprächen erwartet.`;
+${guidelines.join('\n')}
+
+### PARALLELE WERKZEUG-NUTZUNG
+
+Du kannst mehrere Werkzeuge gleichzeitig aufrufen. Nutze das bei Fragen die verschiedene Quellentypen brauchen:`;
+
+  if (check('search') && check('web')) {
+    result += `
+- Bei Vergleichsfragen zu Grünen Positionen und aktuellen Nachrichten: **search_documents UND web_search gleichzeitig** aufrufen.
+- Bei Fragen die sowohl Partei-Dokumente als auch Webkontext brauchen: Beide Tools parallel starten.`;
+  }
+
+  result += `
+- Bei einfachen Faktenfragen: Ein einzelner Tool-Aufruf reicht.`;
+
+  if (check('research')) {
+    result += `
+- Für tiefe, mehrstufige Recherchen mit Synthese: **research** Tool verwenden (kombiniert intern mehrere Quellen).`;
+  }
+
+  if (check('web')) {
+    result += `
+
+### ERGEBNIS-ANZAHL (max_results bei web_search)
+
+- Einfache Faktenfragen ("Wann ist der nächste Parteitag?"): max_results: 3
+- Standardfragen: max_results weglassen (Standard: 5)
+- Komplexe Recherchen oder Vergleichsfragen: max_results: 8-10`;
+  }
+
+  return result;
+}
+
+/**
+ * Build the few-shot examples section for the system prompt.
+ */
+function buildFewShotSection(agentConfig: AgentConfig): string | null {
+  if (!agentConfig.fewShotExamples?.length) return null;
+
+  const examples = agentConfig.fewShotExamples
+    .map((ex, i) => {
+      const parts = [`### Beispiel ${i + 1}`, `**Anfrage:** ${ex.input}`, `**Antwort:**\n${ex.output}`];
+      if (ex.reasoning) {
+        parts.splice(2, 0, `**Vorgehensweise:** ${ex.reasoning}`);
+      }
+      return parts.join('\n');
+    })
+    .join('\n\n');
+
+  return `## BEISPIELE FÜR IDEALE ANTWORTEN
+
+Die folgenden Beispiele zeigen das erwartete Qualitätsniveau und Format:
+
+${examples}`;
 }
 
 const CITATION_INSTRUCTIONS = `## QUELLEN-VERWEISE
@@ -130,7 +288,9 @@ Wenn du Informationen aus Tool-Ergebnissen verwendest:
 1. Verwende Inline-Quellenverweise [1], [2], etc. direkt nach Aussagen
 2. Nummeriere die Quellen in der Reihenfolge ihres Erscheinens
 3. Setze die Referenz direkt nach der Aussage: "Die Grünen fordern ein Tempolimit [1]."
-4. Erfinde keine Quellen — nur Verweise auf tatsächliche Tool-Ergebnisse verwenden`;
+4. Erfinde keine Quellen — nur Verweise auf tatsächliche Tool-Ergebnisse verwenden
+5. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht einen Verweis
+6. Bevorzuge die relevantesten Quellen statt alle aufzulisten`;
 
 function formatMemoryContext(memoryContext: string): string {
   return `## ERINNERUNGEN AN DIESEN NUTZER
@@ -180,7 +340,11 @@ Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht.`;
 const RESPONSE_RULES = `## ANTWORT-REGELN
 
 1. Beantworte NUR was gefragt wurde — keine ungebetene Zusatzinfo
-2. Kurze, präzise Antworten (max 3-4 Absätze für einfache Fragen)
+2. Passe die Antwortlänge an die Komplexität an:
+   - Einfache Fragen: 1-2 kurze Absätze
+   - Mittlere Fragen: 2-4 Absätze mit Quellenverweisen
+   - Komplexe Recherchen: Strukturiert mit Überschriften, bis zu 6 Absätze
 3. Antworte immer auf Deutsch, es sei denn der Nutzer fragt explizit nach einer anderen Sprache
 4. Erfinde keine Fakten oder Quellennamen
-5. Wenn du unsicher bist ob ein Tool nötig ist, antworte lieber direkt`;
+5. Wenn du unsicher bist ob ein Tool nötig ist, antworte lieber direkt
+6. Erstelle KEINE Quellenliste am Ende — Quellen werden automatisch angezeigt`;

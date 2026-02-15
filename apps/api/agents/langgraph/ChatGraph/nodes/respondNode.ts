@@ -204,7 +204,10 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
 
   // Detect if any results have crawled content (longer than typical snippets)
   const hasCrawledContent = topResults.some((r) => r.content.length > 500);
-  const budget = hasCrawledContent ? SEARCH_CONTEXT_BUDGET_CRAWLED : SEARCH_CONTEXT_BUDGET;
+  // Multi-source results get the higher budget (mixed doc + web content)
+  const isMultiSource = (state.searchSources?.length || 0) > 1;
+  const budget =
+    hasCrawledContent || isMultiSource ? SEARCH_CONTEXT_BUDGET_CRAWLED : SEARCH_CONTEXT_BUDGET;
 
   // Crawled results get 2x weight in budget allocation
   const weightedRelevance = topResults.map((r) => {
@@ -226,7 +229,7 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
     })
     .join('\n\n');
 
-  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}`;
+  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${topResults.length} Quelle(n) verfügbar.]`;
 }
 
 /**
@@ -292,14 +295,14 @@ function formatMemoryContext(memoryContext: string | null): string {
 
   return `
 
-## ERINNERUNGEN AN DIESEN NUTZER
+## KONTEXT ZUM NUTZER (KEINE QUELLEN – NICHT ZITIEREN)
 
-Du hast folgende Informationen über diesen Nutzer aus früheren Gesprächen:
+Folgende Informationen stammen aus früheren Gesprächen mit diesem Nutzer:
 
 ${memoryContext}
 
 ---
-Berücksichtige diese Informationen bei deiner Antwort, aber erwähne sie nur wenn relevant.`;
+Berücksichtige diese nur wenn relevant für die aktuelle Frage. Verwende KEINE Quellenverweise [N] für diese Informationen – sie sind keine Suchergebnisse.`;
 }
 
 /**
@@ -318,20 +321,30 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
       : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
+  const sourceCount = state.searchResults.filter((r) => r.url).length;
   const citationInstruction = hasSources
     ? `
-5. Verwende Inline-Quellenverweise [1], [2], etc. direkt nach Aussagen die auf Suchergebnissen basieren
-6. Nummeriere die Quellen in der Reihenfolge ihres Erscheinens in den SUCHERGEBNISSEN
-7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."`
+5. Du hast genau ${sourceCount} Quelle(n). Verwende NUR [1] bis [${sourceCount}] als Quellenverweise. Höhere Nummern existieren NICHT.
+6. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."
+7. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`
     : '';
 
-  return `${agentConfig.systemRole}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${searchContext}
+  const today = new Date().toLocaleDateString('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return `${agentConfig.systemRole}
+Heutiges Datum: ${today}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
 2. Kurze, präzise Antworten (max 3-4 Absätze für einfache Fragen)
 3. Antworte auf Deutsch
-4. Erfinde keine Fakten oder Quellennamen${citationInstruction}`;
+4. Erfinde keine Fakten oder Quellennamen
+5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt${citationInstruction}`;
 }
 
 /**

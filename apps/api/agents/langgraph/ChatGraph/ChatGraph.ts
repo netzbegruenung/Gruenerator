@@ -1,8 +1,10 @@
 /**
- * ChatGraph - LangGraph-Based Agentic Chat
+ * @deprecated Use DeepAgent (deepAgent.ts) instead. This fixed pipeline is kept
+ * for backwards compatibility but is no longer the default. The DeepAgent's
+ * ReAct loop with autonomous tool selection supersedes the rigid
+ * classify → search → rerank → respond flow.
  *
- * Solves the AI SDK toolChoice: 'required' loop trap by providing explicit
- * control flow for chat with search capabilities.
+ * ChatGraph - LangGraph-Based Agentic Chat (Legacy)
  *
  * Graph flow:
  *   START → classifier → [briefGenerator|search|image|respond] → ... → respond → END
@@ -17,6 +19,7 @@
 import { StateGraph, Annotation, END } from '@langchain/langgraph';
 
 import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
+import { resolveNotebookCollections } from '../../../config/notebookCollectionMap.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
@@ -32,6 +35,7 @@ import type {
   ChatGraphInput,
   ChatGraphOutput,
   SearchIntent,
+  SearchSource,
   SearchResult,
   Citation,
   ImageStyle,
@@ -39,6 +43,7 @@ import type {
   ImageAttachment,
   ThreadAttachment,
 } from './types.js';
+import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ModelMessage } from 'ai';
 
@@ -77,6 +82,14 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? [],
   }),
 
+  // Notebook scoping (from @notebook mentions)
+  notebookIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  notebookCollectionIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+
   // Memory context (from mem0 cross-thread memory)
   memoryContext: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
@@ -88,6 +101,9 @@ const ChatStateAnnotation = Annotation.Root({
   // Classification output
   intent: Annotation<SearchIntent>({
     reducer: (x, y) => y ?? x,
+  }),
+  searchSources: Annotation<SearchSource[]>({
+    reducer: (x, y) => y ?? x ?? [],
   }),
   searchQuery: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
@@ -103,6 +119,11 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   complexity: Annotation<'simple' | 'moderate' | 'complex'>({
     reducer: (x, y) => y ?? x ?? 'moderate',
+  }),
+
+  // Metadata filters extracted by classifier (for Qdrant filtering)
+  detectedFilters: Annotation<SubcategoryFilters | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Research brief (compressed research intent for complex queries)
@@ -230,6 +251,12 @@ function routeAfterClassification(
     return 'image';
   }
 
+  // Image edit intent = handled by controller, route to respond for text generation
+  if (intent === 'image_edit') {
+    log.info('[ChatGraph] Route: classifier → respond (image_edit handled by controller)');
+    return 'respond';
+  }
+
   // Map intent to tool key for enabled check
   const intentToToolKey: Record<SearchIntent, string> = {
     research: 'research',
@@ -238,6 +265,7 @@ function routeAfterClassification(
     web: 'web',
     examples: 'examples',
     image: 'image',
+    image_edit: 'image_edit',
     direct: 'direct',
   };
 
@@ -369,17 +397,23 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
 
+    // Notebook scoping
+    notebookIds: input.notebookIds || [],
+    notebookCollectionIds: input.notebookIds ? resolveNotebookCollections(input.notebookIds) : [],
+
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
 
     // Classification (will be set by classifier node)
     intent: 'direct' as SearchIntent,
+    searchSources: [],
     searchQuery: null,
     subQueries: null,
     reasoning: '',
     hasTemporal: false,
     complexity: 'moderate' as const,
+    detectedFilters: null,
 
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,
@@ -461,6 +495,7 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
         searchedCollections: result.searchedCollections?.length
           ? result.searchedCollections
           : undefined,
+        appliedFilters: result.detectedFilters || undefined,
         imageTimeMs: result.imageTimeMs || undefined,
         responseTimeMs: result.responseTimeMs,
       },
