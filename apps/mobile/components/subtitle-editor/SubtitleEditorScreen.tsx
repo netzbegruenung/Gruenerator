@@ -4,12 +4,17 @@
  * Uses CategoryBar + InlineBar pattern for performant editing
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { getVideoUrl, getProject } from '@gruenerator/shared';
+import { useFocusEffect } from 'expo-router';
+import { useVideoPlayer } from 'expo-video';
 import { useRef, useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  type FlatList,
+  Pressable,
   useColorScheme,
   useWindowDimensions,
   ActivityIndicator,
@@ -17,21 +22,21 @@ import {
   Platform,
   Keyboard,
 } from 'react-native';
-import { useVideoPlayer } from 'expo-video';
-import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+
+import { SUBTITLE_CATEGORIES, type SubtitleEditCategory } from '../../config/subtitleEditorConfig';
+import { useSubtitleEditor } from '../../hooks/useSubtitleEditor';
+import { useSubtitleExport } from '../../hooks/useSubtitleExport';
+import { secureStorage } from '../../services/storage';
+import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 import { DraggableSplitView } from '../common/DraggableSplitView';
 import { CategoryBar, InlineBar } from '../common/editor-toolbar';
-import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
-import { useSubtitleEditor } from '../../hooks/useSubtitleEditor';
-import { VideoPreviewWithSubtitle } from './VideoPreviewWithSubtitle';
-import { SubtitleTimeline } from './SubtitleTimeline';
+
 import { StyleControl, PositionControl } from './controls';
-import { getVideoUrl, getProject } from '@gruenerator/shared';
-import { secureStorage } from '../../services/storage';
-import { SUBTITLE_CATEGORIES, type SubtitleEditCategory } from '../../config/subtitleEditorConfig';
+import { ExportProgressModal } from './ExportProgressModal';
+import { SubtitleTimeline } from './SubtitleTimeline';
+import { VideoPreviewWithSubtitle } from './VideoPreviewWithSubtitle';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 import type { Project } from '@gruenerator/shared';
@@ -66,6 +71,7 @@ export function SubtitleEditorScreen({
   const [splitRatio, setSplitRatio] = useState(0.4);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [inlineCategory, setInlineCategory] = useState<SubtitleEditCategory | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -186,6 +192,18 @@ export function SubtitleEditorScreen({
     }
   }, [saveChanges, onSaved]);
 
+  const exportHook = useSubtitleExport(saveChanges);
+
+  const handleExport = useCallback(() => {
+    setShowExportModal(true);
+    exportHook.startExport();
+  }, [exportHook.startExport]);
+
+  const handleExportModalClose = useCallback(() => {
+    setShowExportModal(false);
+    exportHook.reset();
+  }, [exportHook.reset]);
+
   const handleBack = useCallback(async () => {
     if (hasUnsavedChanges) {
       const shouldDiscard = await confirmDiscardChanges();
@@ -193,6 +211,33 @@ export function SubtitleEditorScreen({
     }
     onBack();
   }, [hasUnsavedChanges, confirmDiscardChanges, onBack]);
+
+  const trailingButtons = (
+    <View style={styles.trailingButtons}>
+      <Pressable
+        onPress={handleSave}
+        disabled={isSaving}
+        style={[styles.saveChip, { opacity: isSaving ? 0.6 : 1 }]}
+      >
+        {isSaving ? (
+          <ActivityIndicator size="small" color={colors.white} />
+        ) : (
+          <>
+            <Ionicons name="checkmark" size={20} color={colors.white} />
+            <Text style={styles.saveChipText}>Speichern</Text>
+          </>
+        )}
+      </Pressable>
+      <Pressable
+        onPress={handleExport}
+        disabled={isSaving || exportHook.status !== 'idle'}
+        style={[styles.exportChip, { opacity: isSaving || exportHook.status !== 'idle' ? 0.6 : 1 }]}
+      >
+        <Ionicons name="download-outline" size={20} color={colors.white} />
+        <Text style={styles.saveChipText}>Exportieren</Text>
+      </Pressable>
+    </View>
+  );
 
   const handleCategorySelect = useCallback(
     (categoryId: SubtitleEditCategory) => {
@@ -301,9 +346,22 @@ export function SubtitleEditorScreen({
               {inlineCategory === 'position' && <PositionControl disabled={isSaving} />}
             </InlineBar>
           ) : (
-            <CategoryBar categories={SUBTITLE_CATEGORIES} onSelectCategory={handleCategorySelect} />
+            <CategoryBar
+              categories={SUBTITLE_CATEGORIES}
+              onSelectCategory={handleCategorySelect}
+              trailing={trailingButtons}
+            />
           ))}
       </KeyboardAvoidingView>
+
+      <ExportProgressModal
+        visible={showExportModal}
+        status={exportHook.status}
+        progress={exportHook.progress}
+        videoUri={exportHook.videoUri}
+        error={exportHook.error}
+        onClose={handleExportModalClose}
+      />
     </SafeAreaView>
   );
 }
@@ -365,5 +423,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.white,
+  },
+  trailingButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  saveChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary[600],
+  },
+  exportChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary[700],
+  },
+  saveChipText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

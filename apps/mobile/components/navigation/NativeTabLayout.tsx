@@ -43,12 +43,20 @@ export function NativeTabLayout() {
         })}
         <Label>Tools</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(notebooks)">
+      <NativeTabs.Trigger name="(notebooks)" hidden />
+      <NativeTabs.Trigger name="(chat)">
         {Platform.select({
-          ios: <Icon sf={{ default: 'text.bubble', selected: 'text.bubble.fill' }} />,
-          android: <Icon src={<VectorIcon family={Ionicons} name="chatbubbles" />} />,
+          ios: (
+            <Icon
+              sf={{
+                default: 'bubble.left.and.text.bubble.right',
+                selected: 'bubble.left.and.text.bubble.right.fill',
+              }}
+            />
+          ),
+          android: <Icon src={<VectorIcon family={Ionicons} name="chatbubble-ellipses" />} />,
         })}
-        <Label>Fragen</Label>
+        <Label>Chat</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>

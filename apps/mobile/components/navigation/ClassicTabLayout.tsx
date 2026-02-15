@@ -66,13 +66,14 @@ export function ClassicTabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="construct" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen name="(notebooks)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
-        name="(notebooks)"
+        name="(chat)"
         options={{
-          title: 'Fragen',
+          title: 'Chat',
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+            <Ionicons name="chatbubble-ellipses" size={size} color={color} />
           ),
         }}
       />
