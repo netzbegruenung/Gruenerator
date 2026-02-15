@@ -33,12 +33,12 @@ function detectStyle(description: string): ImageStyle {
 }
 
 function styleToVariant(style: ImageStyle): VariantKey {
-  const map: Record<ImageStyle, VariantKey> = {
+  const map: Record<Exclude<ImageStyle, 'green-edit'>, VariantKey> = {
     realistic: 'realistic-pure',
     pixel: 'pixel-pure',
     illustration: 'illustration-pure',
   };
-  return map[style];
+  return map[style as Exclude<ImageStyle, 'green-edit'>] || 'illustration-pure';
 }
 
 export function createGenerateImageTool(deps: ToolDependencies): DynamicStructuredTool {

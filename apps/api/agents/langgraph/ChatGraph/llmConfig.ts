@@ -22,6 +22,7 @@ export interface AgentLLMConfig {
 const MODEL_MAP: Record<string, string> = {
   'mistral-large': 'mistral-large-latest',
   'mistral-medium': 'mistral-medium-latest',
+  'magistral-medium': 'magistral-medium-latest',
   'pixtral-large': 'pixtral-large-latest',
 };
 
@@ -34,10 +35,13 @@ const MODEL_MAP: Record<string, string> = {
 export function getAgentLLM(config: AgentLLMConfig): ChatMistralAI {
   const { agentConfig, modelId } = config;
 
-  // Resolve model name: user override → agent default
-  let modelName = agentConfig.model;
-  if (modelId && MODEL_MAP[modelId]) {
+  let modelName: string;
+  if (!modelId || modelId === 'auto') {
+    modelName = agentConfig.defaultModel ?? agentConfig.model;
+  } else if (MODEL_MAP[modelId]) {
     modelName = MODEL_MAP[modelId];
+  } else {
+    modelName = agentConfig.model;
   }
 
   return new ChatMistralAI({

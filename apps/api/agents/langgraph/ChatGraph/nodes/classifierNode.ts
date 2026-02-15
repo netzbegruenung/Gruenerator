@@ -10,7 +10,8 @@ import { findBestMatch } from '@gruenerator/shared/utils';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import type { ChatGraphState, SearchIntent, ClassificationResult } from '../types.js';
+import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
+import type { ChatGraphState, SearchIntent, SearchSource, ClassificationResult } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 
@@ -76,6 +77,30 @@ Wenn die Anfrage MEHRERE VERSCHIEDENE Themen vergleicht oder kombiniert:
 - Beispiel: "Energiewende und Kohleausstieg der Grünen" → ["Energiewende Grüne", "Kohleausstieg Grüne"]
 - Bei einfachen Anfragen zu einem Thema: setze subQueries auf null
 
+SCHRITT 6 - MEHRERE SUCHQUELLEN:
+Manche Anfragen brauchen SOWOHL interne Dokumente ALS AUCH Web-Recherche:
+- "Was sagen die Grünen zum Klimaschutz und was sind die aktuellen Entwicklungen?" → searchSources: ["documents", "web"]
+- "Grüne Position zur Energiewende und aktuelle Nachrichten dazu" → searchSources: ["documents", "web"]
+- Nur Parteiprogramm → searchSources: [] (normaler search-Intent reicht)
+- Nur aktuelle Nachrichten → searchSources: [] (normaler web-Intent reicht)
+
+SCHRITT 7 - METADATEN-FILTER ERKENNEN:
+Wenn die Anfrage SPEZIFISCHE Filterkriterien enthält, extrahiere sie:
+
+- content_type: Dokumenttyp — "presse", "beschluss", "antrag", "blog", "wahlprogramm", "position", "rede"
+  Beispiel: "Pressemitteilungen zum Klimaschutz" → content_type: "presse"
+- landesverband: Regionale Zuordnung — "HH" (Hamburg), "SH" (Schleswig-Holstein), "TH" (Thüringen), "BY" (Bayern)
+  Beispiel: "Grüne Hamburg Beschlüsse" → landesverband: "HH"
+- primary_category: Themenbereich wenn EXPLIZIT genannt
+  Beispiel: "Verkehrspolitik der Grünen" → primary_category: "Verkehr"
+- date_from / date_to: Zeitraum im Format "YYYY-MM-DD"
+  Beispiel: "seit Januar 2025" → date_from: "2025-01-01"
+  Beispiel: "Beschlüsse 2024" → date_from: "2024-01-01", date_to: "2024-12-31"
+- person: Personenname wenn EXPLIZIT erwähnt (wird für die Suche verwendet, nicht als Qdrant-Filter)
+  Beispiel: "Was sagt Habeck zu Energie?" → person: "Habeck"
+
+Setze NUR Felder die KLAR aus der Anfrage hervorgehen. Bei Unsicherheit: null.
+
 Antworte NUR mit JSON:
 {
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
@@ -85,16 +110,25 @@ Antworte NUR mit JSON:
   "searchQuery": "..." | null,
   "optimizedSearchQuery": "nur das faktische Thema, ohne Aufgabenanweisung" | null,
   "subQueries": ["thema1", "thema2"] | null,
+  "searchSources": ["documents", "web"] | [],
+  "filters": {
+    "content_type": null | "presse" | "beschluss" | "antrag" | "blog" | "wahlprogramm" | "position" | "rede",
+    "landesverband": null | "HH" | "SH" | "TH" | "BY",
+    "primary_category": null | "Themenbereich",
+    "date_from": null | "YYYY-MM-DD",
+    "date_to": null | "YYYY-MM-DD",
+    "person": null | "Personenname"
+  },
   "reasoning": "..."
 }
 
-Bei "direct" und "image" setze searchQuery, optimizedSearchQuery und subQueries auf null.`;
+Bei "direct" und "image" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].`;
 
 /**
  * Keywords for fuzzy matching in heuristic fallback.
  * Maps intents to their trigger keywords.
  */
-const INTENT_KEYWORDS: Record<Exclude<SearchIntent, 'direct'>, string[]> = {
+const INTENT_KEYWORDS: Record<Exclude<SearchIntent, 'direct' | 'image_edit'>, string[]> = {
   research: ['recherchiere', 'recherche', 'untersuche', 'analysiere', 'erforsche'],
   image: ['visualisiere', 'zeichne', 'illustriere', 'grafik', 'illustration'],
   web: ['internet', 'netz', 'online', 'aktuell', 'nachricht', 'news'],
@@ -324,7 +358,112 @@ interface ClassifierLLMResponse {
   searchQuery: string | null;
   optimizedSearchQuery?: string | null;
   subQueries?: string[] | null;
+  searchSources?: string[] | null;
+  filters?: {
+    content_type?: string | null;
+    landesverband?: string | null;
+    primary_category?: string | null;
+    date_from?: string | null;
+    date_to?: string | null;
+    person?: string | null;
+  } | null;
   reasoning: string;
+}
+
+/**
+ * Landesverband name-to-code mapping.
+ * Maps German state names and common abbreviations to the codes used in Qdrant metadata.
+ * Thüringen maps to both TH and TH-F (includes Fraktion documents).
+ */
+const LANDESVERBAND_ALIASES: Record<string, string | string[]> = {
+  hamburg: 'HH',
+  hh: 'HH',
+  'schleswig-holstein': 'SH',
+  sh: 'SH',
+  thüringen: ['TH', 'TH-F'],
+  thueringen: ['TH', 'TH-F'],
+  th: ['TH', 'TH-F'],
+  bayern: 'BY',
+  by: 'BY',
+};
+
+/**
+ * Extract SubcategoryFilters from the LLM's raw filter output.
+ * Strips null values and maps landesverband aliases.
+ */
+function extractFilters(raw: ClassifierLLMResponse['filters']): SubcategoryFilters | null {
+  if (!raw) return null;
+
+  const filters: SubcategoryFilters = {};
+
+  if (raw.content_type) {
+    filters.content_type = raw.content_type;
+  }
+
+  if (raw.landesverband) {
+    // Map to actual Qdrant codes (e.g., "TH" → ["TH", "TH-F"])
+    const code = raw.landesverband;
+    const alias = LANDESVERBAND_ALIASES[code.toLowerCase()];
+    if (alias) {
+      filters.region = alias; // SubcategoryFilters uses 'region' for landesverband
+    } else {
+      // Use the code as-is if it's already a valid code (e.g., "HH")
+      filters.region = code;
+    }
+  }
+
+  if (raw.primary_category) {
+    filters.primary_category = raw.primary_category;
+  }
+
+  if (raw.date_from && /^\d{4}-\d{2}-\d{2}$/.test(raw.date_from)) {
+    filters.date_from = raw.date_from;
+  }
+
+  if (raw.date_to && /^\d{4}-\d{2}-\d{2}$/.test(raw.date_to)) {
+    filters.date_to = raw.date_to;
+  }
+
+  // Person is kept in the search query, not as a Qdrant filter (no person field in Qdrant)
+  // We log it for observability but don't add to filters
+  if (raw.person) {
+    log.debug(`[Classifier] Person detected: "${raw.person}" (kept in search query, not filtered)`);
+  }
+
+  return Object.keys(filters).length > 0 ? filters : null;
+}
+
+/**
+ * Heuristic filter detection for high-confidence paths that skip LLM.
+ * Extracts obvious filters from the query text using regex patterns.
+ */
+function heuristicExtractFilters(query: string): SubcategoryFilters | null {
+  const q = query.toLowerCase();
+  const filters: SubcategoryFilters = {};
+
+  // Content type detection
+  if (/\b(pressemitteilung|pressemeldung|pressemitteilungen|presse)\b/i.test(q)) {
+    filters.content_type = 'presse';
+  } else if (/\b(beschluss|beschlüsse)\b/i.test(q)) {
+    filters.content_type = 'beschluss';
+  } else if (/\b(antrag|anträge)\b/i.test(q)) {
+    filters.content_type = 'antrag';
+  } else if (/\b(wahlprogramm|wahlprogramme)\b/i.test(q)) {
+    filters.content_type = 'wahlprogramm';
+  } else if (/\b(positionspapier|positionspapiere)\b/i.test(q)) {
+    filters.content_type = 'position';
+  }
+
+  // Landesverband detection
+  for (const [name, code] of Object.entries(LANDESVERBAND_ALIASES)) {
+    if (name.length <= 2) continue; // Skip abbreviations, only match full names
+    if (q.includes(name)) {
+      filters.region = code;
+      break;
+    }
+  }
+
+  return Object.keys(filters).length > 0 ? filters : null;
 }
 
 /**
@@ -391,10 +530,28 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
         );
       }
 
+      // Extract search sources for parallel multi-source search
+      const validSources = ['documents', 'web'];
+      const searchSources = parsed.searchSources?.filter((s): s is SearchSource =>
+        validSources.includes(s)
+      ) || [];
+
+      if (searchSources.length > 1) {
+        log.debug(`[Classifier] Multi-source search: ${searchSources.join(' + ')}`);
+      }
+
+      // Extract metadata filters
+      const filters = extractFilters(parsed.filters);
+      if (filters) {
+        log.debug(`[Classifier] Detected filters: ${JSON.stringify(filters)}`);
+      }
+
       return {
         intent: parsed.intent as SearchIntent,
         searchQuery: effectiveSearchQuery,
         subQueries,
+        searchSources,
+        filters,
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
       };
     }
@@ -504,6 +661,38 @@ function detectComplexity(query: string): 'simple' | 'moderate' | 'complex' {
 }
 
 /**
+ * Detect whether a query needs multiple search sources (documents + web).
+ * Returns an array of search sources to query in parallel.
+ * Empty array means single-source mode (backward compatible, uses intent-based routing).
+ */
+function detectSearchSources(query: string, intent: SearchIntent): SearchSource[] {
+  // Only applies to search-type intents
+  if (!['search', 'web', 'research'].includes(intent)) {
+    return [];
+  }
+
+  const q = query.toLowerCase();
+
+  const partyKeywords =
+    /\b(grüne|grünen|partei|programm|position|wahlprogramm|beschluss|grundsatzprogramm|fraktion|bundestagsfraktion|antrag)\b/i;
+  const temporalKeywords =
+    /\b(aktuell|aktuelle|aktuellen|entwicklung|entwicklungen|nachrichten|news|heute|kürzlich|neueste|neuste|jüngste|letzte|momentan|derzeit|gegenwärtig)\b/i;
+  const comparativePattern =
+    /\b(und\s+(was|wie|welche)\s+(sind|ist|gibt|waren)|und\s+(aktuelle|die\s+aktuellen?)|sowie\s+(aktuelle|die))\b/i;
+
+  const hasPartyKeywords = partyKeywords.test(q);
+  const hasTemporalKeywords = temporalKeywords.test(q);
+  const hasComparative = comparativePattern.test(q);
+
+  // Party content + temporal/current context → both sources
+  if (hasPartyKeywords && (hasTemporalKeywords || hasComparative)) {
+    return ['documents', 'web'];
+  }
+
+  return [];
+}
+
+/**
  * Classifier node implementation.
  * Uses heuristics-first approach: high-confidence patterns skip LLM entirely.
  * Falls back to LLM for ambiguous queries where heuristics are uncertain.
@@ -534,6 +723,68 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const temporal = analyzeTemporality(userContent);
     const complexity = detectComplexity(userContent);
 
+    // If notebooks are specified, bias toward search intent
+    const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
+
+    // If notebooks are mentioned, force search intent but use LLM for query optimization
+    if (hasNotebooks && userContent.length > 0) {
+      log.info(`[Classifier] Notebook mention detected, forcing search intent with LLM query optimization`);
+
+      // Use LLM to correct typos and optimize the search query
+      try {
+        const response = await aiWorkerPool.processRequest(
+          {
+            type: 'chat_intent_classification',
+            provider: 'mistral',
+            systemPrompt: CLASSIFIER_PROMPT,
+            messages: [{ role: 'user', content: `Analysiere: "${userContent}"` }],
+            options: {
+              model: 'mistral-small-latest',
+              max_tokens: 250,
+              temperature: 0.1,
+              response_format: { type: 'json_object' },
+            },
+          },
+          null
+        );
+
+        const classification = parseClassifierResponse(response.content || '', userContent);
+        const classificationTimeMs = Date.now() - startTime;
+
+        // Use LLM's optimized query but always force search intent
+        const optimizedQuery = classification.searchQuery || extractSearchTopic(userContent);
+        log.info(
+          `[Classifier] Notebook + LLM: query "${userContent}" → "${optimizedQuery}" (LLM intent was: ${classification.intent})`
+        );
+
+        return {
+          intent: 'search',
+          searchSources: [],
+          searchQuery: optimizedQuery,
+          subQueries: classification.subQueries || null,
+          detectedFilters: classification.filters || null,
+          reasoning: `Notebook mention forces search intent; LLM optimized query (was: ${classification.intent})`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs,
+        };
+      } catch (error: any) {
+        // Fallback to heuristic if LLM fails
+        log.warn(`[Classifier] LLM failed for notebook query, using heuristic: ${error.message}`);
+        const optimizedQuery = extractSearchTopic(userContent);
+        return {
+          intent: 'search',
+          searchSources: [],
+          searchQuery: optimizedQuery || userContent,
+          detectedFilters: heuristicExtractFilters(userContent),
+          reasoning: 'Notebook mention forces search intent (LLM failed, heuristic fallback)',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
       const result = heuristicClassify(userContent);
@@ -542,7 +793,9 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       );
       return {
         intent: result.intent,
+        searchSources: [],
         searchQuery: result.searchQuery,
+        detectedFilters: null,
         reasoning: result.reasoning,
         hasTemporal: temporal.hasTemporal,
         complexity,
@@ -569,12 +822,19 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         }
       }
 
+      const heuristicSearchSources = detectSearchSources(userContent, heuristic.intent);
+      const heuristicFilters = heuristicExtractFilters(userContent);
+      if (heuristicFilters) {
+        log.debug(`[Classifier] Heuristic filters: ${JSON.stringify(heuristicFilters)}`);
+      }
       log.info(
-        `[Classifier] Heuristics (confidence: ${heuristic.confidence.toFixed(2)}): ${heuristic.intent} - ${heuristic.reasoning}`
+        `[Classifier] Heuristics (confidence: ${heuristic.confidence.toFixed(2)}): ${heuristic.intent} - ${heuristic.reasoning}${heuristicSearchSources.length > 1 ? ` [multi-source: ${heuristicSearchSources.join('+')}]` : ''}`
       );
       return {
         intent: heuristic.intent,
+        searchSources: heuristicSearchSources,
         searchQuery: optimizedQuery,
+        detectedFilters: heuristicFilters,
         reasoning: `${heuristic.reasoning} (heuristic, confidence: ${heuristic.confidence.toFixed(2)})`,
         hasTemporal: temporal.hasTemporal,
         complexity,
@@ -608,14 +868,26 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const classification = parseClassifierResponse(response.content || '', userContent);
     const classificationTimeMs = Date.now() - startTime;
 
+    // Use LLM searchSources if provided, otherwise fall back to heuristic detection
+    const llmSearchSources = classification.searchSources?.length
+      ? classification.searchSources
+      : detectSearchSources(userContent, classification.intent);
+
+    if (classification.filters) {
+      log.info(
+        `[Classifier] LLM filters: ${JSON.stringify(classification.filters)}`
+      );
+    }
     log.info(
-      `[Classifier] LLM: ${classification.intent} in ${classificationTimeMs}ms - ${classification.reasoning}`
+      `[Classifier] LLM: ${classification.intent} in ${classificationTimeMs}ms - ${classification.reasoning}${llmSearchSources.length > 1 ? ` [multi-source: ${llmSearchSources.join('+')}]` : ''}`
     );
 
     return {
       intent: classification.intent,
+      searchSources: llmSearchSources,
       searchQuery: classification.searchQuery,
       subQueries: classification.subQueries || null,
+      detectedFilters: classification.filters || null,
       reasoning: classification.reasoning,
       hasTemporal: temporal.hasTemporal,
       complexity,
@@ -632,7 +904,9 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
     return {
       intent: fallbackResult.intent,
+      searchSources: [],
       searchQuery: fallbackResult.searchQuery,
+      detectedFilters: null,
       reasoning: `Heuristic fallback (error: ${error.message})`,
       hasTemporal: false,
       complexity: 'moderate' as const,
@@ -647,5 +921,9 @@ export {
   fuzzyMatchIntent,
   extractSearchTopic,
   detectComplexity,
+  detectSearchSources,
+  extractFilters,
+  heuristicExtractFilters,
+  LANDESVERBAND_ALIASES,
   INTENT_KEYWORDS,
 };
