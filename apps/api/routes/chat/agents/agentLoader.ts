@@ -33,7 +33,12 @@ export async function loadAgents(): Promise<AgentConfig[]> {
   const agents = await Promise.all(
     jsonFiles.map(async (file) => {
       const content = await fs.readFile(path.join(agentsDir, file), 'utf-8');
-      return JSON.parse(content) as AgentConfig;
+      try {
+        return JSON.parse(content) as AgentConfig;
+      } catch (error) {
+        log.error(`Failed to parse agent config: ${file}`, error);
+        throw error;
+      }
     })
   );
 
@@ -91,7 +96,9 @@ export async function getAgentOrCustomPrompt(
     const defaultAgent = await getAgent(DEFAULT_AGENT);
     if (!defaultAgent) return undefined;
 
-    log.info(`[AgentLoader] Resolved custom prompt "${customPrompt.name}" (${customPrompt.id}) as agent`);
+    log.info(
+      `[AgentLoader] Resolved custom prompt "${customPrompt.name}" (${customPrompt.id}) as agent`
+    );
 
     return {
       ...defaultAgent,

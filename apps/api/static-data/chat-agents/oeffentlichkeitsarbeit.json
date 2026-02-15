@@ -22,12 +22,21 @@
   ],
   "locale": "de-DE",
   "author": "Grünerator",
-  "enabledTools": ["search", "web", "examples", "scrape", "image", "memory", "memory_save", "self_review"],
+  "enabledTools": [
+    "search",
+    "web",
+    "examples",
+    "scrape",
+    "image",
+    "memory",
+    "memory_save",
+    "self_review"
+  ],
   "fewShotExamples": [
     {
       "input": "Pressemitteilung: Wir haben im Stadtrat erfolgreich einen Antrag für 1000 neue Straßenbäume durchgebracht",
       "reasoning": "Für eine PM brauche ich den journalistischen Nachrichtenstil mit Lead-Absatz und W-Fragen. Ich recherchiere kurz Hintergrund-Fakten zu Stadtbäumen.",
-      "output": "**PRESSEMITTEILUNG**\n\n**Grüne setzen 1000 neue Straßenbäume für Musterstadt durch**\n\n*Stadtrat beschließt umfassendes Baumpflanzprogramm — Fraktion feiert wichtigen Erfolg für Klimaanpassung*\n\nMusterstadt, [Datum]. Die Fraktion von Bündnis 90/Die Grünen hat im Stadtrat erfolgreich einen Antrag für die Pflanzung von 1000 neuen Straßenbäumen im Stadtgebiet durchgesetzt. Der Beschluss sieht vor, dass die Verwaltung innerhalb der nächsten drei Jahre ein flächendeckendes Baumpflanzprogramm umsetzt. Die Kosten werden auf rund 2,5 Millionen Euro geschätzt.\n\n„Jeder Baum ist ein natürlicher Klimaschützer. Er kühlt unsere Straßen, filtert Feinstaub und macht unsere Stadt lebenswerter", erklärt [Name], Fraktionsvorsitzende*r der Grünen. „Mit diesem Beschluss investieren wir in die Zukunft unserer Stadt und in die Gesundheit aller Bürger*innen."\n\nDer Antrag sieht vor, hitzeresistente und standortgerechte Baumarten zu verwenden, die den Herausforderungen des Klimawandels gewachsen sind. Bürger*innen sollen über ein Beteiligungsverfahren bei der Standortwahl einbezogen werden.\n\n**Hintergrund:** Laut Umweltbundesamt sind städtische Bäume eine der wirksamsten Maßnahmen zur Klimaanpassung. Ein ausgewachsener Stadtbaum kann die Umgebungstemperatur um bis zu 3°C senken und bindet jährlich rund 10 kg Feinstaub."
+      "output": "**PRESSEMITTEILUNG**\n\n**Grüne setzen 1000 neue Straßenbäume für Musterstadt durch**\n\n*Stadtrat beschließt umfassendes Baumpflanzprogramm — Fraktion feiert wichtigen Erfolg für Klimaanpassung*\n\nMusterstadt, [Datum]. Die Fraktion von Bündnis 90/Die Grünen hat im Stadtrat erfolgreich einen Antrag für die Pflanzung von 1000 neuen Straßenbäumen im Stadtgebiet durchgesetzt. Der Beschluss sieht vor, dass die Verwaltung innerhalb der nächsten drei Jahre ein flächendeckendes Baumpflanzprogramm umsetzt. Die Kosten werden auf rund 2,5 Millionen Euro geschätzt.\n\n\\\"Jeder Baum ist ein natürlicher Klimaschützer. Er kühlt unsere Straßen, filtert Feinstaub und macht unsere Stadt lebenswerter\\\", erklärt [Name], Fraktionsvorsitzende*r der Grünen. \\\"Mit diesem Beschluss investieren wir in die Zukunft unserer Stadt und in die Gesundheit aller Bürger*innen.\\\"\n\nDer Antrag sieht vor, hitzeresistente und standortgerechte Baumarten zu verwenden, die den Herausforderungen des Klimawandels gewachsen sind. Bürger*innen sollen über ein Beteiligungsverfahren bei der Standortwahl einbezogen werden.\n\n**Hintergrund:** Laut Umweltbundesamt sind städtische Bäume eine der wirksamsten Maßnahmen zur Klimaanpassung. Ein ausgewachsener Stadtbaum kann die Umgebungstemperatur um bis zu 3°C senken und bindet jährlich rund 10 kg Feinstaub."
     }
   ]
 }
