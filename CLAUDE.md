@@ -64,6 +64,10 @@ Keycloak OIDC via Passport.js. Supports multiple identity providers (.de, .at, .
 
 ## Development Conventions
 
+### Git Safety
+
+**Never use `git stash` or `git stash pop`** without explicit user permission. These commands can silently lose uncommitted work and are almost never necessary.
+
 ### Expo Apps
 
 Always use `npx expo install` (not `pnpm add`) for Expo native dependencies to ensure SDK version alignment:
@@ -156,8 +160,8 @@ cd apps/docs-expo && npx expo-doctor
 # 2. (Re)generate native project (always run after dependency changes)
 cd apps/docs-expo && npx expo prebuild --platform android --clean
 
-# 3. Build the debug APK
-cd apps/docs-expo/android && ./gradlew assembleDebug
+# 3. Build the debug APK (single-arch for speed — device is arm64-v8a)
+cd apps/docs-expo/android && ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a
 
 # 4. APK output location:
 #    apps/docs-expo/android/app/build/outputs/apk/debug/app-debug.apk
@@ -184,3 +188,8 @@ cd apps/docs-expo && npx expo start --port 8081 --localhost
 - **ADB reverse ports are ephemeral**: They reset after app uninstall/reinstall or ADB daemon restarts. Always re-run `adb reverse` after reinstalling.
 - **Signature conflicts on reinstall**: `expo prebuild --clean` regenerates the debug keystore. Must `adb uninstall` before `adb install` (no `-r`) to avoid signature mismatch.
 - **Yjs/lib0 dependency**: `isomorphic-webcrypto` is required for the Yjs collaboration layer used by BlockNoteEditor DOM components. If missing, the DOM bundle fails silently and documents show blank pages.
+- **Fast debug builds**: Pass `-PreactNativeArchitectures=arm64-v8a` to `./gradlew assembleDebug` to build only for the target device arch. The default builds all 4 archs (armeabi-v7a, arm64-v8a, x86, x86_64) which is ~4x slower.
+- **Avoid unnecessary `prebuild --clean`**: Only needed when native dependencies change. Incremental `./gradlew assembleDebug` reuses Gradle caches and is much faster.
+- **Metro port conflicts in WSL**: Port 8081 is often occupied. Use 8082 and mirror both: `adb reverse tcp:8082 tcp:8082 && adb reverse tcp:8081 tcp:8082` (device app defaults to 8081).
+- **DOM component debugging**: `console.log` inside `'use dom'` components goes to the WebView console (Chrome DevTools → Remote Devices), NOT Metro terminal. Render debug state on-screen instead.
+- **Docs Expo domains**: API is at `docs.gruenerator.eu/api`, Hocuspocus at `docs.gruenerator.eu/hocuspocus` (NOT `gruenerator.eu`).
