@@ -1,7 +1,7 @@
 /**
- * Deep Agent Controller
+ * Deep Agent Controller (Default)
  *
- * Route handler for the ReAct-based deep agent chat system.
+ * Primary route handler for the ReAct-based chat system.
  * Uses SSE streaming with thinking_step events for tool call visibility.
  *
  * SSE Event Flow:
@@ -20,7 +20,12 @@ import {
   createDeepAgent,
   convertToLangChainMessages,
 } from '../../agents/langgraph/ChatGraph/deepAgent.js';
+import { imageNode } from '../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { TOOL_LABELS } from '../../agents/langgraph/ChatGraph/tools/registry.js';
+import { isKnownNotebook, resolveNotebookCollections } from '../../config/notebookCollectionMap.js';
+import { trimMessagesToTokenLimit } from '../../services/counters/TokenCounter.js';
+import type { Message as TokenCounterMessage } from '../../services/counters/types.js';
+import { getAgent } from './agents/agentLoader.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getMem0Instance } from '../../services/mem0/index.js';
 import { OCRService } from '../../services/OcrService/index.js';
@@ -32,8 +37,10 @@ import {
   getThreadAttachments,
 } from './services/attachmentPersistenceService.js';
 import { createSSEStream, PROGRESS_MESSAGES } from './services/sseHelpers.js';
+import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 
 import type {
+  ChatGraphState,
   GeneratedImageResult,
   ProcessedAttachment,
   ImageAttachment,
@@ -121,7 +128,7 @@ async function processAttachments(
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);
         }
       } catch (error) {
-        log.error(`[${requestId}] Failed to extract text from ${attachment.name}:`, error);
+        log.error(`[${requestId}] Failed to extract text from ${attachment.name}: ${error instanceof Error ? error.message : String(error)}`);
         documentTexts.push(`### ${attachment.name}\n\n[Fehler beim Extrahieren des Textes]`);
         processedMeta.push({
           name: attachment.name,
@@ -170,12 +177,175 @@ async function touchThread(threadId: string) {
   ]);
 }
 
-async function updateThreadTitle(threadId: string, title: string) {
-  const postgres = getPostgresInstance();
-  await postgres.query(
-    `UPDATE chat_threads SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-    [title, threadId]
-  );
+
+/**
+ * Detect image generation intent using the same heuristic as classifierNode.
+ * Matches German patterns like "erstelle ein bild von..." with 0.92 confidence.
+ */
+function detectImageIntent(text: string): boolean {
+  const q = text.toLowerCase();
+  const imageKeywords =
+    /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster|sharepic)\b/i;
+  const imageKeywordsAlt =
+    /\b(bild|grafik|illustration|foto|poster|sharepic).{0,20}(erstell|generier|erzeug|mach)\b/i;
+  return imageKeywords.test(q) || imageKeywordsAlt.test(q);
+}
+
+/**
+ * Handle image generation directly via imageNode, bypassing the ReAct agent.
+ * Mirrors the ChatGraph's proven image handling flow.
+ */
+async function handleDirectImageGeneration(params: {
+  sse: ReturnType<typeof createSSEStream>;
+  requestId: string;
+  startTime: number;
+  userId: string;
+  agentId: string;
+  validMessages: any[];
+  lastUserMessage: any;
+  actualThreadId: string | undefined;
+  isNewThread: boolean;
+  aiWorkerPool: any;
+}): Promise<void> {
+  const {
+    sse, requestId, startTime, userId, agentId,
+    validMessages, lastUserMessage, actualThreadId, isNewThread, aiWorkerPool,
+  } = params;
+
+  const stepId = `img_${Date.now()}`;
+
+  // Send thinking step: image generation starting
+  sse.sendRaw('thinking_step', {
+    stepId,
+    toolName: 'generate_image',
+    title: 'Bild generieren',
+    status: 'in_progress',
+    args: {},
+  });
+
+  // Build minimal ChatGraphState for imageNode
+  const agentConfig = await getAgent(agentId || 'gruenerator-universal');
+  if (!agentConfig) {
+    sse.send('error', { error: 'Agent not found' });
+    sse.end();
+    return;
+  }
+  (agentConfig as any).userId = userId;
+
+  const minimalState = {
+    messages: validMessages,
+    agentConfig,
+    enabledTools: { image: true },
+    aiWorkerPool,
+    threadId: actualThreadId || null,
+    attachmentContext: null,
+    imageAttachments: [],
+    threadAttachments: [],
+    notebookIds: [],
+    notebookCollectionIds: [],
+    memoryContext: null,
+  } as unknown as ChatGraphState;
+
+  // Run imageNode (wrapped in try/catch for user-visible errors)
+  let generatedImage: GeneratedImageResult | null = null;
+  let imageError: string | null = null;
+  let imageTimeMs = 0;
+
+  try {
+    const imageResult = await imageNode(minimalState);
+    generatedImage = imageResult.generatedImage || null;
+    imageError = imageResult.error || null;
+    imageTimeMs = imageResult.imageTimeMs || 0;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error(`[${requestId}] imageNode threw: ${msg}`);
+    imageError = 'Bildgenerierung fehlgeschlagen. Bitte versuche es erneut.';
+    imageTimeMs = Date.now() - startTime;
+  }
+
+  // Send thinking step: completed
+  sse.sendRaw('thinking_step', {
+    stepId,
+    toolName: 'generate_image',
+    title: 'Bild generieren',
+    status: 'completed',
+    result: {
+      image: generatedImage,
+      error: imageError,
+    },
+  });
+
+  // Generate a short text response about the image
+  let fullText = '';
+  if (generatedImage) {
+    try {
+      const userText = extractTextContent(lastUserMessage.content);
+      const result = await aiWorkerPool.processRequest({
+        type: 'chat_response',
+        provider: 'mistral',
+        systemPrompt: 'Du bist ein hilfreicher Assistent. Ein Bild wurde basierend auf der Anfrage des Nutzers generiert. Beschreibe kurz, was erstellt wurde, und biete an, Anpassungen vorzunehmen.',
+        messages: [
+          { role: 'user', content: userText },
+        ],
+        options: { model: 'mistral-small-latest', max_tokens: 300, temperature: 0.7 },
+      }, null);
+
+      fullText = result?.content || '';
+    } catch (err) {
+      log.warn(`[${requestId}] Text generation after image failed: ${err instanceof Error ? err.message : String(err)}`);
+      fullText = 'Hier ist dein generiertes Bild! Möchtest du Anpassungen vornehmen?';
+    }
+  } else if (imageError) {
+    fullText = imageError;
+  }
+
+  // Stream text response
+  if (fullText) {
+    sse.send('text_delta', { text: fullText });
+  }
+
+  // Persist assistant message
+  if (actualThreadId && (fullText || generatedImage)) {
+    try {
+      await createMessage(actualThreadId, 'assistant', fullText || null, {
+        generatedImage: generatedImage
+          ? {
+              url: generatedImage.url,
+              filename: generatedImage.filename,
+              prompt: generatedImage.prompt,
+              style: generatedImage.style,
+            }
+          : undefined,
+      });
+      await touchThread(actualThreadId);
+
+      if (isNewThread && lastUserMessage) {
+        const userText = extractTextContent(lastUserMessage.content);
+        generateThreadTitle(actualThreadId, userText, fullText, aiWorkerPool, {
+          imageGenerated: !!generatedImage,
+        }).catch((err: unknown) => log.warn(`[DeepAgent] Thread title generation failed: ${err instanceof Error ? err.message : String(err)}`));
+      }
+    } catch (error) {
+      log.error(`[DeepAgent] Error persisting image message: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Done event
+  const totalTimeMs = Date.now() - startTime;
+  sse.send('done', {
+    threadId: actualThreadId,
+    citations: [],
+    generatedImage,
+    metadata: {
+      intent: 'image' as any,
+      searchCount: 0,
+      totalTimeMs,
+      imageTimeMs,
+    },
+  });
+
+  log.info(`[DeepAgent] Image generation complete in ${totalTimeMs}ms`);
+  sse.end();
 }
 
 /**
@@ -240,6 +410,7 @@ router.post('/stream', async (req, res) => {
       enabledTools,
       modelId,
       attachments,
+      notebookIds: rawNotebookIds,
     } = req.body as {
       messages: UIMessage[];
       agentId?: string;
@@ -247,6 +418,7 @@ router.post('/stream', async (req, res) => {
       enabledTools?: Record<string, boolean>;
       modelId?: string;
       attachments?: ProcessedAttachment[];
+      notebookIds?: string[];
     };
 
     const user = getUser(req);
@@ -280,7 +452,7 @@ router.post('/stream', async (req, res) => {
     try {
       modelMessages = await convertToModelMessages(clientMessages);
     } catch (err) {
-      log.error('[DeepAgent] Error converting messages:', err);
+      log.error(`[DeepAgent] Error converting messages: ${err instanceof Error ? err.message : String(err)}`);
       sse.send('error', { error: 'Failed to process messages' });
       sse.end();
       return;
@@ -319,10 +491,12 @@ router.post('/stream', async (req, res) => {
 
     // Process attachments
     let attachmentContext = '';
+    let imageAttachments: import('../../agents/langgraph/ChatGraph/types.js').ImageAttachment[] = [];
     let processedMeta: ProcessedAttachmentMeta[] = [];
     if (attachments?.length) {
       const processed = await processAttachments(attachments, requestId);
       attachmentContext = processed.attachmentContext;
+      imageAttachments = processed.imageAttachments;
       processedMeta = processed.processedMeta;
     }
 
@@ -340,7 +514,45 @@ router.post('/stream', async (req, res) => {
           memoryContext = memories.map((m: any) => `- ${m.memory}`).join('\n');
         }
       } catch (err) {
-        log.warn(`[${requestId}] Memory retrieval failed:`, err);
+        log.warn(`[${requestId}] Memory retrieval failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // Validate and resolve notebook mentions
+    const notebookIds = rawNotebookIds?.filter(isKnownNotebook) || [];
+    const notebookCollectionIds = notebookIds.length > 0 ? resolveNotebookCollections(notebookIds) : [];
+    let notebookContext: string | undefined;
+
+    if (notebookCollectionIds.length > 0) {
+      log.info(`[DeepAgent] Notebook scoping: ${notebookIds.join(', ')} → collections: ${notebookCollectionIds.join(', ')}`);
+      notebookContext = `## NOTIZBUCH-KONTEXT
+
+Der Nutzer hat folgende Notizbücher ausgewählt: ${notebookIds.join(', ')}
+
+Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen Sammlungen: ${notebookCollectionIds.join(', ')}
+Übergib den Parameter collection_ids mit diesen Werten an search_documents.`;
+    }
+
+    // Fast path: detect image requests and handle directly, bypassing ReAct agent
+    if (lastUserMessage) {
+      const lastUserText = extractTextContent(lastUserMessage.content);
+      const isImageRequest = detectImageIntent(lastUserText);
+      log.debug(`[DeepAgent] Image intent check: "${lastUserText.slice(0, 60)}" → ${isImageRequest}`);
+      if (isImageRequest && enabledTools?.image !== false) {
+        log.info(`[DeepAgent] Image intent detected, using direct image generation`);
+        await handleDirectImageGeneration({
+          sse,
+          requestId,
+          startTime,
+          userId,
+          agentId: agentId || 'gruenerator-universal',
+          validMessages,
+          lastUserMessage,
+          actualThreadId,
+          isNewThread,
+          aiWorkerPool,
+        });
+        return;
       }
     }
 
@@ -355,15 +567,39 @@ router.post('/stream', async (req, res) => {
         research: true,
         examples: true,
         image: true,
+        image_edit: true,
       },
       aiWorkerPool,
       attachmentContext: attachmentContext || undefined,
       threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
+      imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
       memoryContext,
+      notebookContext,
+      notebookCollectionIds: notebookCollectionIds.length > 0 ? notebookCollectionIds : undefined,
     });
 
+    // Context pruning: trim long conversations to token budget
+    const MAX_CONTEXT_TOKENS = 6000;
+    const messagesForTokenCount: TokenCounterMessage[] = validMessages.map((msg: any) => ({
+      role: msg.role,
+      content: typeof msg.content === 'string'
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.filter((p: any) => p?.type === 'text').map((p: any) => p.text || '').join('')
+          : '',
+    }));
+
+    const prunedTokenMessages = trimMessagesToTokenLimit(messagesForTokenCount, MAX_CONTEXT_TOKENS);
+    const keepCount = prunedTokenMessages.filter((m) => m.role !== 'system').length;
+    const conversationMessages = validMessages.filter((m: any) => m.role !== 'system');
+    const prunedMessages = conversationMessages.slice(-keepCount);
+
+    if (prunedMessages.length < conversationMessages.length) {
+      log.info(`[DeepAgent] Context pruned: ${conversationMessages.length} → ${prunedMessages.length} messages`);
+    }
+
     // Convert messages to LangChain format
-    const langChainMessages = convertToLangChainMessages(validMessages as any);
+    const langChainMessages = convertToLangChainMessages(prunedMessages as any);
 
     // Stream agent events
     const stream = agent.graph.streamEvents(
@@ -374,68 +610,117 @@ router.post('/stream', async (req, res) => {
     let fullText = '';
     const toolCalls: Array<{ name: string; args: any; output: string; runId: string }> = [];
     let isStreamingFinalResponse = false;
+    const toolStartTimes = new Map<string, number>();
 
-    for await (const event of stream) {
-      switch (event.event) {
-        case 'on_chat_model_stream': {
-          // Only stream tokens from the top-level agent LLM (not from tools that use LLMs internally)
-          if (event.tags?.includes('seq:step:1') || event.metadata?.langgraph_node === 'agent') {
-            const content = event.data?.chunk?.content;
-            if (typeof content === 'string' && content) {
-              if (!isStreamingFinalResponse) {
-                isStreamingFinalResponse = true;
+    const SEARCH_TOOLS = new Set(['search_documents', 'web_search', 'research', 'search_examples']);
+    const IMAGE_TOOLS = new Set(['generate_image', 'edit_image']);
+
+    try {
+      for await (const event of stream) {
+        switch (event.event) {
+          case 'on_chat_model_stream': {
+            // Only stream tokens from the top-level agent LLM (not from tools that use LLMs internally)
+            if (event.tags?.includes('seq:step:1') || event.metadata?.langgraph_node === 'agent') {
+              const content = event.data?.chunk?.content;
+              if (typeof content === 'string' && content) {
+                if (!isStreamingFinalResponse) {
+                  isStreamingFinalResponse = true;
+                }
+                fullText += content;
+                sse.send('text_delta', { text: content });
               }
-              fullText += content;
-              sse.send('text_delta', { text: content });
             }
+            break;
           }
-          break;
+
+          case 'on_tool_start': {
+            isStreamingFinalResponse = false;
+            const toolName = event.name;
+            const title = TOOL_LABELS[toolName] || toolName;
+            toolStartTimes.set(event.run_id, Date.now());
+            log.info(`[DeepAgent] Tool start: ${toolName}`);
+
+            sse.sendRaw('thinking_step', {
+              stepId: event.run_id,
+              toolName,
+              title,
+              status: 'in_progress',
+              args: event.data?.input,
+            });
+
+            // Emit structured events for frontend progress UI
+            if (SEARCH_TOOLS.has(toolName)) {
+              sse.sendRaw('search_start', { message: PROGRESS_MESSAGES.searchStart, toolName });
+            } else if (IMAGE_TOOLS.has(toolName)) {
+              sse.sendRaw('image_start', { message: PROGRESS_MESSAGES.imageStart, toolName });
+            }
+            break;
+          }
+
+          case 'on_tool_end': {
+            const toolName = event.name;
+            const title = TOOL_LABELS[toolName] || toolName;
+            const output =
+              typeof event.data?.output === 'string'
+                ? event.data.output
+                : JSON.stringify(event.data?.output || '');
+            const toolDurationMs = toolStartTimes.has(event.run_id)
+              ? Date.now() - toolStartTimes.get(event.run_id)!
+              : undefined;
+            toolStartTimes.delete(event.run_id);
+
+            toolCalls.push({
+              name: toolName,
+              args: event.data?.input || {},
+              output,
+              runId: event.run_id,
+            });
+
+            log.info(`[DeepAgent] Tool end: ${toolName} (${output.length} chars${toolDurationMs ? `, ${toolDurationMs}ms` : ''})`);
+
+            const resultCount = countResultsInOutput(output);
+
+            sse.sendRaw('thinking_step', {
+              stepId: event.run_id,
+              toolName,
+              title,
+              status: 'completed',
+              result: { resultCount },
+            });
+
+            // Emit structured completion events for frontend progress UI
+            if (SEARCH_TOOLS.has(toolName)) {
+              sse.sendRaw('search_complete', {
+                message: PROGRESS_MESSAGES.searchComplete(resultCount),
+                resultCount,
+                toolName,
+                durationMs: toolDurationMs,
+              });
+            } else if (IMAGE_TOOLS.has(toolName)) {
+              sse.sendRaw('image_complete', {
+                message: PROGRESS_MESSAGES.imageComplete,
+                image: agent.deps._generatedImage || null,
+                toolName,
+                durationMs: toolDurationMs,
+              });
+            }
+            break;
+          }
         }
+      }
+    } catch (streamError: unknown) {
+      const msg = streamError instanceof Error ? streamError.message : JSON.stringify(streamError);
+      const stack = streamError instanceof Error ? streamError.stack : undefined;
+      log.error(`[DeepAgent] Stream iteration error: ${msg}`);
+      if (stack) {
+        log.error(`[DeepAgent] Stream stack: ${stack}`);
+      }
 
-        case 'on_tool_start': {
-          isStreamingFinalResponse = false;
-          const toolName = event.name;
-          const title = TOOL_LABELS[toolName] || toolName;
-          log.info(`[DeepAgent] Tool start: ${toolName}`);
-
-          sse.sendRaw('thinking_step', {
-            stepId: event.run_id,
-            toolName,
-            title,
-            status: 'in_progress',
-            args: event.data?.input,
-          });
-          break;
-        }
-
-        case 'on_tool_end': {
-          const toolName = event.name;
-          const title = TOOL_LABELS[toolName] || toolName;
-          const output =
-            typeof event.data?.output === 'string'
-              ? event.data.output
-              : JSON.stringify(event.data?.output || '');
-
-          toolCalls.push({
-            name: toolName,
-            args: event.data?.input || {},
-            output,
-            runId: event.run_id,
-          });
-
-          log.info(`[DeepAgent] Tool end: ${toolName} (${output.length} chars)`);
-
-          sse.sendRaw('thinking_step', {
-            stepId: event.run_id,
-            toolName,
-            title,
-            status: 'completed',
-            result: {
-              resultCount: countResultsInOutput(output),
-            },
-          });
-          break;
-        }
+      // If we already have partial text, try to send what we have.
+      // Otherwise send a helpful error message as a text response.
+      if (!fullText) {
+        fullText = 'Es ist ein Fehler bei der Verarbeitung aufgetreten. Bitte versuche es erneut oder formuliere deine Anfrage anders.';
+        sse.send('text_delta', { text: fullText });
       }
     }
 
@@ -467,19 +752,13 @@ router.post('/stream', async (req, res) => {
         await touchThread(actualThreadId);
 
         if (isNewThread) {
-          let title: string | null = null;
-          if (fullText && fullText.length > 10) {
-            const firstSentence = fullText.split(/[.!?]/)[0];
-            title = firstSentence.length > 50 ? firstSentence.slice(0, 50) + '...' : firstSentence;
-          } else if (generatedImage) {
-            title = 'Generiertes Bild';
-          }
-          if (title && title.length > 3) {
-            await updateThreadTitle(actualThreadId, title);
-          }
+          const userText = extractTextContent(lastUserMessage!.content);
+          generateThreadTitle(actualThreadId!, userText, fullText, aiWorkerPool, {
+            imageGenerated: !!generatedImage,
+          }).catch((err: unknown) => log.warn(`[DeepAgent] Thread title generation failed: ${err instanceof Error ? err.message : String(err)}`));
         }
       } catch (error) {
-        log.error('[DeepAgent] Error persisting message:', error);
+        log.error(`[DeepAgent] Error persisting message: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -498,7 +777,7 @@ router.post('/stream', async (req, res) => {
             extractedText: meta.extractedText,
           });
         } catch (err) {
-          log.error(`[DeepAgent] Failed to save attachment ${meta.name}:`, err);
+          log.error(`[DeepAgent] Failed to save attachment ${meta.name}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
     }
@@ -515,7 +794,7 @@ router.post('/stream', async (req, res) => {
           userId,
           { threadId: actualThreadId }
         )
-        .catch((err: any) => log.warn(`[${requestId}] Async memory save failed:`, err));
+        .catch((err: unknown) => log.warn(`[${requestId}] Async memory save failed: ${err instanceof Error ? err.message : String(err)}`));
     }
 
     // Done event
@@ -538,10 +817,28 @@ router.post('/stream', async (req, res) => {
     );
     sse.end();
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[DeepAgent] Controller error:', errorMessage);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    log.error(`[DeepAgent] Controller error (${error instanceof Error ? 'Error' : typeof error}): ${errorMessage || '(empty message)'}`);
+    if (errorStack) {
+      log.error(`[DeepAgent] Controller stack: ${errorStack}`);
+    }
+    if (!(error instanceof Error)) {
+      log.error(`[DeepAgent] Raw error value: ${JSON.stringify(error)?.slice(0, 500)}`);
+    }
     if (!sse.isEnded()) {
-      sse.send('error', { error: PROGRESS_MESSAGES.internalError });
+      const userFacingMessage = 'Es ist ein Fehler aufgetreten. Bitte versuche es erneut oder formuliere deine Anfrage anders.';
+      sse.send('text_delta', { text: userFacingMessage });
+      sse.send('done', {
+        threadId: undefined,
+        citations: [],
+        generatedImage: undefined,
+        metadata: {
+          intent: 'direct' as any,
+          searchCount: 0,
+          totalTimeMs: Date.now() - startTime,
+        },
+      });
       sse.end();
     }
   }

@@ -199,6 +199,19 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
     defaultFilter: { field: 'landesverband', value: 'SH' },
   },
+  'thueringen-system': {
+    id: 'thueringen-system',
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Thüringen',
+    description: 'Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+    ],
+    defaultFilter: { field: 'landesverband', value: ['TH', 'TH-F'] },
+  },
   'bayern-system': {
     id: 'bayern-system',
     qdrantCollection: 'landesverbaende_documents',

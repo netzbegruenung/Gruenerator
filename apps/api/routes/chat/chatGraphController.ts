@@ -1,5 +1,9 @@
 /**
- * ChatGraph Controller
+ * @deprecated Use chatDeepController.ts instead. This controller uses the legacy
+ * fixed-pipeline ChatGraph. The DeepAgent (ReAct) controller is now the default.
+ * Kept for backwards compatibility — will be removed in a future release.
+ *
+ * ChatGraph Controller (Legacy)
  *
  * Route handler for the LangGraph-based agentic chat system.
  * Uses SSE (Server-Sent Events) for streaming with progress indicators.
@@ -24,6 +28,7 @@ import {
   searchNode,
   rerankNode,
   imageNode,
+  imageEditNode,
   buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -49,6 +54,8 @@ import {
   getThreadAttachments,
 } from './services/attachmentPersistenceService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
+import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
+import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 
 import type {
   ChatGraphState,
@@ -269,16 +276,6 @@ async function touchThread(threadId: string): Promise<void> {
   ]);
 }
 
-/**
- * Update thread title.
- */
-async function updateThreadTitle(threadId: string, title: string): Promise<void> {
-  const postgres = getPostgresInstance();
-  await postgres.query(
-    `UPDATE chat_threads SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-    [title, threadId]
-  );
-}
 
 /**
  * POST /api/chat-graph/stream
@@ -298,6 +295,8 @@ router.post('/stream', async (req, res) => {
       enabledTools,
       modelId,
       attachments,
+      notebookIds: rawNotebookIds,
+      forcedTools,
     } = req.body as {
       messages: UIMessage[];
       agentId?: string;
@@ -305,6 +304,8 @@ router.post('/stream', async (req, res) => {
       enabledTools?: Record<string, boolean>;
       modelId?: string;
       attachments?: ProcessedAttachment[];
+      notebookIds?: string[];
+      forcedTools?: string[];
     };
 
     const user = getUser(req);
@@ -330,8 +331,14 @@ router.post('/stream', async (req, res) => {
       return;
     }
 
+    // Validate notebook IDs (silently filter unknowns)
+    const notebookIds = rawNotebookIds?.filter(isKnownNotebook) || [];
+
     log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId || 'default'}`);
     log.info(`[ChatGraph] Received ${clientMessages?.length || 0} messages`);
+    if (notebookIds.length > 0) {
+      log.info(`[ChatGraph] Notebook scoping: ${notebookIds.join(', ')}`);
+    }
 
     // Debug: log message structure
     if (clientMessages?.length > 0) {
@@ -479,11 +486,13 @@ router.post('/stream', async (req, res) => {
         examples: true,
         research: true,
         image: true,
+        image_edit: true,
       },
       aiWorkerPool,
       attachmentContext: attachmentContext || undefined,
       imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
       threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
+      notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     });
 
     // Inject userId into agentConfig for imageNode rate limiting
@@ -502,7 +511,19 @@ router.post('/stream', async (req, res) => {
       ...(await classifierNode(initialState)),
     } as ChatGraphState;
 
-    // Send intent event with German message
+    // Override intent if @tool mention was used (forcedTools from frontend)
+    let forcedTool = false;
+    if (forcedTools && forcedTools.length > 0) {
+      const TOOL_PRIORITY = ['image', 'image_edit', 'research', 'web', 'search'] as const;
+      const forced = TOOL_PRIORITY.find(t => forcedTools.includes(t));
+      if (forced) {
+        classifiedState.intent = forced;
+        forcedTool = true;
+        log.info(`[ChatGraph] Intent forced to "${forced}" via @tool mention`);
+      }
+    }
+
+    // Send intent event with German message (after potential override)
     sse.send('intent', {
       intent: classifiedState.intent,
       message: getIntentMessage(classifiedState.intent),
@@ -523,7 +544,7 @@ router.post('/stream', async (req, res) => {
 
     if (classifiedState.intent === 'image') {
       // Handle image generation intent
-      const imageToolEnabled = enabledTools?.['image'] !== false;
+      const imageToolEnabled = forcedTool || enabledTools?.['image'] !== false;
 
       if (imageToolEnabled) {
         sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
@@ -552,9 +573,44 @@ router.post('/stream', async (req, res) => {
       } else {
         log.info('[ChatGraph] Image tool is disabled, skipping image generation');
       }
+    } else if (classifiedState.intent === 'image_edit') {
+      const imageEditToolEnabled = forcedTool || enabledTools?.['image_edit'] !== false;
+
+      if (imageEditToolEnabled) {
+        if (!imageAttachments || imageAttachments.length === 0) {
+          sse.send('image_complete', {
+            message: PROGRESS_MESSAGES.imageEditNoAttachment,
+            error: PROGRESS_MESSAGES.imageEditNoAttachment,
+          });
+          log.warn('[ChatGraph] Image edit requested but no image attachment provided');
+        } else {
+          sse.send('image_start', { message: PROGRESS_MESSAGES.imageEditStart });
+
+          log.info('[ChatGraph] Running image editing...');
+          const imageEditResult = await imageEditNode(classifiedState);
+          finalState = { ...classifiedState, ...imageEditResult } as ChatGraphState;
+
+          if (finalState.generatedImage) {
+            generatedImage = finalState.generatedImage;
+            sse.send('image_complete', {
+              message: PROGRESS_MESSAGES.imageEditComplete,
+              image: generatedImage,
+            });
+            log.info(`[ChatGraph] Image edited: ${generatedImage.filename}`);
+          } else if (finalState.error) {
+            sse.send('image_complete', {
+              message: PROGRESS_MESSAGES.imageError(finalState.error),
+              error: finalState.error,
+            });
+            log.warn(`[ChatGraph] Image editing failed: ${finalState.error}`);
+          }
+        }
+      } else {
+        log.info('[ChatGraph] Image edit tool is disabled, skipping');
+      }
     } else if (classifiedState.intent !== 'direct') {
-      // Handle search intents
-      const toolEnabled = enabledTools?.[classifiedState.intent] !== false;
+      // Handle search intents — forced tools bypass the enabledTools gate
+      const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
 
       if (toolEnabled) {
         // Generate research brief for complex research queries
@@ -816,18 +872,12 @@ router.post('/stream', async (req, res) => {
 
         await touchThread(actualThreadId);
 
-        // Update title for new threads
+        // Update title for new threads (fallback + async AI title)
         if (isNewThread) {
-          let title: string | null = null;
-          if (fullText && fullText.length > 10) {
-            const firstSentence = fullText.split(/[.!?]/)[0];
-            title = firstSentence.length > 50 ? firstSentence.slice(0, 50) + '...' : firstSentence;
-          } else if (generatedImage) {
-            title = 'Generiertes Bild';
-          }
-          if (title && title.length > 3) {
-            await updateThreadTitle(actualThreadId, title);
-          }
+          const userText = extractTextContent(lastUserMessage!.content);
+          generateThreadTitle(actualThreadId, userText, fullText, aiWorkerPool, {
+            imageGenerated: !!generatedImage,
+          }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
         }
 
         log.info(`[ChatGraph] Message persisted for thread ${actualThreadId}`);

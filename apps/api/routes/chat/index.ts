@@ -22,13 +22,20 @@ router.use('/summarize', summarizeRouter);
 router.get('/agents', async (_req, res) => {
   try {
     const agents = await loadAgents();
-    const clientAgents = agents.map((agent) => ({
+    const defaultId = getDefaultAgentId();
+    const clientAgents = agents
+      .filter((agent) => agent.identifier !== defaultId)
+      .map((agent) => ({
       identifier: agent.identifier,
       title: agent.title,
       description: agent.description,
       avatar: agent.avatar,
       backgroundColor: agent.backgroundColor,
+      tags: agent.tags,
+      openingMessage: agent.openingMessage,
       openingQuestions: agent.openingQuestions,
+      locale: agent.locale,
+      author: agent.author,
     }));
     res.json(clientAgents);
   } catch (error) {

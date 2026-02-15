@@ -60,6 +60,7 @@ import {
   subtitlesRouter as claudeSubtitlesRoute,
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
+import researchRouter from './routes/research/researchController.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import voiceRouter from './routes/voice/voiceController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
@@ -153,6 +154,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
+  const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
@@ -264,6 +266,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/share', shareRouter);
   app.use('/api/mem0', requireAuth, mem0Router);
   app.use('/api/media', requireAuth, mediaRouter);
+  app.use('/api/docs/public', publicDocRouter);
   app.use('/api/docs', requireAuth, docsRouter);
   app.use('/api/users', requireAuth, usersRouter);
   app.use('/api/voice', voiceRouter);
@@ -272,6 +275,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/image-picker', imagePickerRoute);
   app.use('/api/unsplash', unsplashRouter);
   app.use('/api/web-search', webSearchRouter);
+  app.use('/api/research', requireAuth, researchRouter);
   app.use('/api/image-generation', imageGenerationRouter);
   app.use('/api/rate-limit', rateLimitRouter);
 

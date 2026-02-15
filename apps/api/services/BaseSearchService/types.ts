@@ -152,6 +152,7 @@ export interface DocumentData {
   title?: string;
   filename?: string;
   created_at?: string;
+  source_url?: string;
   chunks: ChunkData[];
   maxSimilarity: number;
   avgSimilarity: number;
@@ -173,6 +174,7 @@ export interface DocumentResult {
   title?: string;
   filename?: string;
   created_at?: string;
+  source_url?: string;
   relevant_content: string;
   similarity_score: number;
   max_similarity: number;

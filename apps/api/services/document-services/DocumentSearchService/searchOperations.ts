@@ -235,7 +235,7 @@ export async function findSimilarChunks(
 
   return results.map((result) => ({
     id: result.id,
-    document_id: (result.payload.document_id as string) || (result.payload.url as string),
+    document_id: (result.payload.document_id as string) || (result.payload.source_url as string) || (result.payload.url as string),
     chunk_index: result.payload.chunk_index as number,
     chunk_text: result.payload.chunk_text as string,
     similarity: result.score,
@@ -244,9 +244,9 @@ export async function findSimilarChunks(
     content_type: (result.payload.content_type as string) ?? null,
     page_number: (result.payload.page_number as number) ?? null,
     created_at: result.payload.created_at as string | undefined,
-    url: result.payload.url as string | undefined,
+    url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
     documents: {
-      id: (result.payload.document_id as string) || (result.payload.url as string),
+      id: (result.payload.document_id as string) || (result.payload.source_url as string) || (result.payload.url as string),
       title:
         (result.payload.title as string) ||
         (result.payload.metadata?.title as string) ||
@@ -328,7 +328,7 @@ export async function findHybridChunks(
     const metadata = result.payload.metadata as Record<string, unknown> | undefined;
     return {
       id: result.id,
-      document_id: (result.payload.document_id as string) || (result.payload.url as string),
+      document_id: (result.payload.document_id as string) || (result.payload.source_url as string) || (result.payload.url as string),
       chunk_index: result.payload.chunk_index as number,
       chunk_text: result.payload.chunk_text as string,
       similarity: result.score,
@@ -337,12 +337,12 @@ export async function findHybridChunks(
       content_type: (result.payload.content_type as string) ?? null,
       page_number: (result.payload.page_number as number) ?? null,
       created_at: result.payload.created_at as string | undefined,
-      url: result.payload.url as string | undefined,
+      url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
       searchMethod: result.searchMethod || 'hybrid',
       originalVectorScore: result.originalVectorScore ?? null,
       originalTextScore: result.originalTextScore ?? null,
       documents: {
-        id: (result.payload.document_id as string) || (result.payload.url as string),
+        id: (result.payload.document_id as string) || (result.payload.source_url as string) || (result.payload.url as string),
         title: (result.payload.title as string) || (metadata?.title as string) || 'Untitled',
         filename: (result.payload.filename as string) || (metadata?.filename as string) || '',
         created_at: result.payload.created_at as string | undefined,
