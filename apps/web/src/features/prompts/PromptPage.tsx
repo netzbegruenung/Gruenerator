@@ -96,11 +96,11 @@ const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true })
           setIsOwner(response.data.prompt.is_owner || false);
           setIsSaved(response.data.prompt.is_saved || false);
         } else {
-          setFetchError(response.data?.message || 'Prompt nicht gefunden');
+          setFetchError(response.data?.message || 'Agent nicht gefunden');
         }
       } catch (err) {
         const error = err as Error;
-        setFetchError(error.message || 'Fehler beim Laden des Prompts');
+        setFetchError(error.message || 'Fehler beim Laden des Agenten');
       } finally {
         setFetchLoading(false);
       }
@@ -185,7 +185,7 @@ const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true })
             onClick={handleSave}
             disabled={isSaving}
           >
-            {isSaving ? 'Speichert...' : 'Prompt speichern'}
+            {isSaving ? 'Speichert...' : 'Agent speichern'}
           </button>
         )}
         {isSaved && !isOwner && <span className="prompt-page__saved-badge">✓ Gespeichert</span>}

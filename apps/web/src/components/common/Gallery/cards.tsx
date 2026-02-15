@@ -146,24 +146,55 @@ export const cardAdapters: Record<string, CardAdapter> = {
       },
     };
   },
-  prompts: (item) => {
+  agents: (item, options = {}) => {
+    const handleClick = options?.onOpenPreview
+      ? () => options.onOpenPreview?.(item)
+      : () => {
+          if (typeof window === 'undefined') return;
+          if (item._isBuiltIn) {
+            window.location.href = `/chat?agent=${item.identifier}`;
+          } else {
+            window.location.href = `/agent/${item.slug}`;
+          }
+        };
+
+    if (item._isBuiltIn) {
+      return {
+        key: String(item.identifier || item.id),
+        props: {
+          title: `${item.avatar || ''} ${item.title || item.name || ''}`.trim(),
+          description: String(item.description || ''),
+          meta: 'System-Agent',
+          onClick: handleClick,
+          className: 'agent-card agent-card--builtin',
+        },
+      };
+    }
+
     const promptText = item.prompt_preview || item.prompt || '';
     const preview =
       String(promptText).length > 150
         ? String(promptText).substring(0, 150) + '...'
         : String(promptText);
 
+    let meta = item.owner_first_name ? `von ${item.owner_first_name}` : '';
+    let className = 'agent-card';
+    if (item._isOwn) {
+      meta = item.is_public ? 'Eigener Agent · Öffentlich' : 'Eigener Agent';
+      className = 'agent-card agent-card--own';
+    } else if (item._isSaved) {
+      meta = item.owner_first_name ? `Gespeichert · von ${item.owner_first_name}` : 'Gespeichert';
+      className = 'agent-card agent-card--saved';
+    }
+
     return {
       key: String(item.prompt_id || item.id),
       props: {
         title: item.name || '',
         description: preview,
-        meta: item.owner_first_name ? `von ${item.owner_first_name}` : 'System-Prompt',
-        onClick: () => {
-          if (typeof window === 'undefined') return;
-          window.location.href = `/prompt/${item.slug}`;
-        },
-        className: 'prompt-card',
+        meta,
+        onClick: handleClick,
+        className,
       },
     };
   },

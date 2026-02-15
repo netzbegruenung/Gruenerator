@@ -178,6 +178,11 @@ const SchleswigHolsteinNotebookPage = lazy(() =>
     default: m.createNotebookPage('schleswigHolstein'),
   }))
 );
+const ThueringenNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('thueringen'),
+  }))
+);
 const BayernNotebookPage = lazy(() =>
   import('../features/notebook/components/NotebookPage').then((m) => ({
     default: m.createNotebookPage('bayern'),
@@ -238,7 +243,19 @@ const CustomExamplePage = lazy(() =>
 );
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 const PromptPage = lazy(() => import('../features/prompts/PromptPage'));
-const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
+const AgentsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
+
+// Redirects for old prompt URLs
+const PromptsGalleryRedirect = lazy(() =>
+  Promise.resolve({ default: createRedirect('/datenbank/agents') })
+);
+const PromptSlugRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { slug } = useParams();
+  return createElement(Navigate, { to: `/agent/${slug || ''}`, replace: true });
+};
+const PromptSlugRedirect = lazy(() =>
+  Promise.resolve({ default: PromptSlugRedirectComponent })
+);
 const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
 const ScannerPage = lazy(() =>
@@ -255,6 +272,7 @@ const ScannerPage = lazy(() =>
   }))
 );
 const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
+const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const DocsListPage = lazy(() =>
   Promise.all([
     import('../features/docs/DocsListPage'),
@@ -301,6 +319,7 @@ export const GrueneratorenBundle = {
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
   HamburgNotebook: HamburgNotebookPage,
   SchleswigHolsteinNotebook: SchleswigHolsteinNotebookPage,
+  ThueringenNotebook: ThueringenNotebookPage,
   BayernNotebook: BayernNotebookPage,
   KommunalwikiNotebook: KommunalwikiNotebookPage,
   BoellStiftungNotebook: BoellStiftungNotebookPage,
@@ -343,11 +362,13 @@ const standardRoutes: RouteConfig[] = [
   { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
   { path: '/tools', component: ToolsPage },
+  { path: '/research', component: ResearchPage },
   { path: '/datenbank', component: GrueneratorenBundle.DatabaseIndex },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
-  { path: '/datenbank/prompts', component: PromptsGalleryPage },
+  { path: '/datenbank/agents', component: AgentsGalleryPage },
+  { path: '/datenbank/prompts', component: PromptsGalleryRedirect },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
@@ -373,6 +394,11 @@ const standardRoutes: RouteConfig[] = [
     component: GrueneratorenBundle.SchleswigHolsteinNotebook,
     withForm: true,
   },
+  {
+    path: '/gruene-thueringen',
+    component: GrueneratorenBundle.ThueringenNotebook,
+    withForm: true,
+  },
   { path: '/gruene-bayern', component: GrueneratorenBundle.BayernNotebook, withForm: true },
   { path: '/kommunalwiki', component: GrueneratorenBundle.KommunalwikiNotebook, withForm: true },
   { path: '/boell-stiftung', component: GrueneratorenBundle.BoellStiftungNotebook, withForm: true },
@@ -385,7 +411,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
-  { path: '/prompt/:slug', component: PromptPage, withForm: true },
+  { path: '/agent/:slug', component: PromptPage, withForm: true },
+  { path: '/prompt/:slug', component: PromptSlugRedirect },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '/support', component: Support },

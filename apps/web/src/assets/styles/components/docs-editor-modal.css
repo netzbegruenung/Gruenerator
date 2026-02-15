@@ -28,54 +28,6 @@
   animation: docs-modal-slide-down 0.2s ease-in forwards;
 }
 
-/* Header */
-.docs-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid var(--grey-200, #e5e7eb);
-  flex-shrink: 0;
-}
-
-[data-theme="dark"] .docs-modal-header {
-  border-bottom-color: var(--grey-700, #374151);
-}
-
-.docs-modal-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--font-color-h, #1a1a1a);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docs-modal-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  border-radius: 0.5rem;
-  background: transparent;
-  color: var(--grey-500, #6b7280);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.docs-modal-close:hover {
-  background: var(--grey-100, #f3f4f6);
-  color: var(--grey-800, #1f2937);
-}
-
-[data-theme="dark"] .docs-modal-close:hover {
-  background: var(--grey-800, #1f2937);
-  color: var(--grey-200, #e5e7eb);
-}
-
 /* Body / Editor area */
 .docs-modal-body {
   flex: 1;
@@ -121,10 +73,6 @@
 
 /* Mobile */
 @media (max-width: 768px) {
-  .docs-modal-header {
-    padding: 0.625rem 1rem;
-  }
-
   .docs-modal-body {
     padding: 0.5rem 0.75rem 1.5rem;
   }

@@ -1,17 +1,12 @@
-import React, { useState, useCallback, lazy, Suspense, memo, useMemo } from 'react';
+import React, { useCallback, lazy, Suspense, memo, useMemo } from 'react';
 
 import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
 import Icon from '../../../components/common/Icon';
-import StatusBadge from '../../../components/common/StatusBadge/StatusBadge';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/useProfileData';
 import './EigeneTab.css';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
-const PromptsTab = lazy(() => import('../../prompts/PromptsTab'));
-
-type SubTabType = 'generators' | 'prompts';
 
 interface EigeneTabProps {
   isActive: boolean;
@@ -38,7 +33,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = memo(({ onLogin }) => (
   <div className="eigene-login-prompt">
     <EigeneIcon />
     <h2>Eigene Grüneratoren</h2>
-    <p>Melde dich an, um deine eigenen Grüneratoren und Prompts zu erstellen.</p>
+    <p>Melde dich an, um deine eigenen Grüneratoren und Agenten zu erstellen.</p>
     <button onClick={onLogin} className="btn-primary">
       Anmelden
     </button>
@@ -56,10 +51,7 @@ const LoadingSpinner = memo(() => (
 LoadingSpinner.displayName = 'LoadingSpinner';
 
 const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
-  const [activeSubTab, setActiveSubTab] = useState<SubTabType>('generators');
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
-  const { canAccessBetaFeature } = useBetaFeatures();
-  const showPromptsTab = import.meta.env.DEV || canAccessBetaFeature('prompts');
 
   const { query: generatorsQuery } = useCustomGeneratorsData({
     isActive,
@@ -91,9 +83,6 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
     window.location.href = '/login';
   }, []);
 
-  const switchToPrompts = useCallback(() => setActiveSubTab('prompts'), []);
-  const switchToGenerators = useCallback(() => setActiveSubTab('generators'), []);
-
   if (authLoading || isLoading) {
     return <LoadingSpinner />;
   }
@@ -106,40 +95,13 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
     <div className="eigene-container">
       <EarlyAccessBanner />
 
-      {showPromptsTab && (
-        <div className="eigene-subtabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeSubTab === 'prompts'}
-            className={`eigene-subtab ${activeSubTab === 'prompts' ? 'active' : ''}`}
-            onClick={switchToPrompts}
-          >
-            Prompts <StatusBadge type="beta" variant="inline" />
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeSubTab === 'generators'}
-            className={`eigene-subtab ${activeSubTab === 'generators' ? 'active' : ''}`}
-            onClick={switchToGenerators}
-          >
-            Grüneratoren
-          </button>
-        </div>
-      )}
-
       <Suspense fallback={<LoadingSpinner />}>
-        {showPromptsTab && activeSubTab === 'prompts' ? (
-          <PromptsTab isActive={isActive && activeSubTab === 'prompts'} />
-        ) : (
-          <CreateCustomGeneratorPage
-            onCompleted={handleCreateCompleted}
-            generators={generators}
-            savedGenerators={savedGenerators}
-            onSelectGenerator={handleSelectGenerator}
-          />
-        )}
+        <CreateCustomGeneratorPage
+          onCompleted={handleCreateCompleted}
+          generators={generators}
+          savedGenerators={savedGenerators}
+          onSelectGenerator={handleSelectGenerator}
+        />
       </Suspense>
     </div>
   );

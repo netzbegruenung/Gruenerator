@@ -1,5 +1,5 @@
 import { type JSX, useEffect, Suspense, lazy, useState, type ReactNode, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { GlobalChatProvider } from '../../../providers/GlobalChatProvider';
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
@@ -34,6 +34,8 @@ const PageLayout = ({
   const sidebarOpen = useSidebarStore((state) => state.isOpen);
   const hideAppSidebar = useSidebarStore((state) => state.hideAppSidebar);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isHomePage = pathname === '/';
   const { createTab, tabs, activeTabId } = useDesktopTabsStore();
 
   useEffect(() => {}, [showHeaderFooter, darkMode, children]);
@@ -98,7 +100,7 @@ const PageLayout = ({
         <Sidebar />
         <div className="app-content">
           <main className="content-wrapper">{children}</main>
-          {showFooter && (
+          {showFooter && isHomePage && (
             <Suspense fallback={<div style={{ height: '80px' }} />}>
               <Footer />
             </Suspense>

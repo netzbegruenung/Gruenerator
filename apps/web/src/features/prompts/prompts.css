@@ -62,6 +62,15 @@
   border-left: 3px solid var(--secondary);
 }
 
+.prompt-card--saved {
+  border-left: 3px solid var(--klee);
+}
+
+.prompt-card-badge--owner {
+  background: var(--grey-100);
+  color: var(--grey-600);
+}
+
 .prompt-card-content {
   flex: 1;
   min-width: 0;
