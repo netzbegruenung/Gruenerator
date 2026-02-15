@@ -13,6 +13,15 @@
   border-color: var(--grey-700, #374151);
 }
 
+/* Embedded inside unified sidebar — inherit size from parent */
+.unified-sidebar .chat-sidebar {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  border-left: none;
+  flex: 1;
+}
+
 /* Close button: hidden on desktop */
 .chat-sidebar-close {
   display: none;

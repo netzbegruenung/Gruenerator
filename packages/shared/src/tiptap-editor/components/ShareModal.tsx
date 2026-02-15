@@ -11,11 +11,17 @@ interface Collaborator {
   granted_by?: string;
 }
 
+interface ShareSettings {
+  is_public: boolean;
+  share_permission: 'viewer' | 'editor';
+}
+
 interface ShareModalProps {
   documentId: string;
   onClose: () => void;
   apiClient?: {
     get: (url: string) => Promise<{ data: any }>;
+    post: (url: string, data?: any) => Promise<{ data: any }>;
     put: (url: string, data: any) => Promise<{ data: any }>;
     delete: (url: string) => Promise<{ data: any }>;
   };
@@ -24,9 +30,11 @@ interface ShareModalProps {
 
 export const ShareModal = ({ documentId, onClose, apiClient, baseUrl }: ShareModalProps) => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [shareSettings, setShareSettings] = useState<ShareSettings>({ is_public: false, share_permission: 'editor' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
 
   const fetchCollaborators = useCallback(async () => {
     if (!apiClient) return;
@@ -44,9 +52,21 @@ export const ShareModal = ({ documentId, onClose, apiClient, baseUrl }: ShareMod
     }
   }, [documentId, apiClient]);
 
+  const fetchShareSettings = useCallback(async () => {
+    if (!apiClient) return;
+
+    try {
+      const response = await apiClient.get(`/docs/${documentId}/share`);
+      setShareSettings(response.data);
+    } catch (err) {
+      console.error('Failed to fetch share settings:', err);
+    }
+  }, [documentId, apiClient]);
+
   useEffect(() => {
     fetchCollaborators();
-  }, [fetchCollaborators]);
+    fetchShareSettings();
+  }, [fetchCollaborators, fetchShareSettings]);
 
   const getShareUrl = () => {
     const base = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -62,6 +82,36 @@ export const ShareModal = ({ documentId, onClose, apiClient, baseUrl }: ShareMod
     } catch (err) {
       console.error('Failed to copy link:', err);
       setError('Fehler beim Kopieren des Links');
+    }
+  };
+
+  const togglePublicSharing = async () => {
+    if (!apiClient) return;
+
+    try {
+      setIsTogglingPublic(true);
+      const endpoint = shareSettings.is_public
+        ? `/docs/${documentId}/share/disable`
+        : `/docs/${documentId}/share/enable`;
+      const response = await apiClient.post(endpoint);
+      setShareSettings(response.data);
+    } catch (err) {
+      console.error('Failed to toggle public sharing:', err);
+      setError('Fehler beim Ändern der Freigabe');
+    } finally {
+      setIsTogglingPublic(false);
+    }
+  };
+
+  const updateSharePermission = async (permission: 'viewer' | 'editor') => {
+    if (!apiClient) return;
+
+    try {
+      const response = await apiClient.put(`/docs/${documentId}/share/permission`, { permission });
+      setShareSettings(response.data);
+    } catch (err) {
+      console.error('Failed to update share permission:', err);
+      setError('Fehler beim Ändern der Berechtigung');
     }
   };
 
@@ -132,28 +182,52 @@ export const ShareModal = ({ documentId, onClose, apiClient, baseUrl }: ShareMod
         {error && <div className="share-error">{error}</div>}
 
         <div className="share-link-section">
-          <h3>Link teilen</h3>
-          <p
-            style={{
-              fontSize: '0.875rem',
-              color: 'var(--font-color-secondary)',
-              marginBottom: '0.75rem',
-            }}
-          >
-            Jeder mit diesem Link kann das Dokument öffnen
-          </p>
-          <div className="link-container">
-            <input
-              type="text"
-              value={getShareUrl()}
-              readOnly
-              className="link-input"
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
-            <button onClick={copyShareLink} className="copy-button">
-              {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
-            </button>
+          <div className="public-sharing-toggle">
+            <div className="public-sharing-info">
+              <h3>Jeder mit dem Link</h3>
+              <p className="public-sharing-description">
+                {shareSettings.is_public
+                  ? 'Jeder mit dem Link kann dieses Dokument öffnen'
+                  : 'Nur eingeladene Personen haben Zugriff'}
+              </p>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={shareSettings.is_public}
+                onChange={togglePublicSharing}
+                disabled={isTogglingPublic}
+              />
+              <span className="toggle-slider" />
+            </label>
           </div>
+
+          {shareSettings.is_public && (
+            <>
+              <div className="public-permission-row">
+                <select
+                  value={shareSettings.share_permission}
+                  onChange={(e) => updateSharePermission(e.target.value as 'viewer' | 'editor')}
+                  className="permission-select"
+                >
+                  <option value="editor">Kann bearbeiten</option>
+                  <option value="viewer">Kann ansehen</option>
+                </select>
+              </div>
+              <div className="link-container">
+                <input
+                  type="text"
+                  value={getShareUrl()}
+                  readOnly
+                  className="link-input"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button onClick={copyShareLink} className="copy-button">
+                  {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="collaborators-section">

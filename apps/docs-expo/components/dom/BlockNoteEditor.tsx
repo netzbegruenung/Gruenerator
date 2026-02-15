@@ -60,10 +60,23 @@ function EditorWithCollaboration({
   onNavigateBack: () => void;
   onTitleChange: (title: string) => void;
 }) {
-  const { ydoc, provider, isSynced } = useCollaboration({
+  const { ydoc, provider, isSynced, isConnected } = useCollaboration({
     documentId,
     user: { id: userId, display_name: userName, email: userEmail },
   });
+
+  if (!isSynced) {
+    return (
+      <div style={{ padding: 20, fontFamily: 'monospace', fontSize: 14 }}>
+        <h3>Debug: Waiting for sync...</h3>
+        <p>documentId: {documentId}</p>
+        <p>isConnected: {String(isConnected)}</p>
+        <p>isSynced: {String(isSynced)}</p>
+        <p>hasProvider: {String(!!provider)}</p>
+        <p>userId: {userId}</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>

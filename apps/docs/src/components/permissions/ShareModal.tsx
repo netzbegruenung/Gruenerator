@@ -1,13 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../../lib/apiClient';
 import './ShareModal.css';
-
-interface User {
-  id: string;
-  email: string;
-  display_name: string;
-  avatar_url?: string;
-}
 
 interface Collaborator {
   user_id: string;
@@ -19,6 +12,11 @@ interface Collaborator {
   granted_by?: string;
 }
 
+interface ShareSettings {
+  is_public: boolean;
+  share_permission: 'viewer' | 'editor';
+}
+
 interface ShareModalProps {
   documentId: string;
   onClose: () => void;
@@ -26,15 +24,13 @@ interface ShareModalProps {
 
 export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [shareSettings, setShareSettings] = useState<ShareSettings>({ is_public: false, share_permission: 'editor' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
 
-  useEffect(() => {
-    fetchCollaborators();
-  }, [documentId]);
-
-  const fetchCollaborators = async () => {
+  const fetchCollaborators = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await apiClient.get(`/docs/${documentId}/permissions`);
@@ -46,7 +42,21 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [documentId]);
+
+  const fetchShareSettings = useCallback(async () => {
+    try {
+      const response = await apiClient.get(`/docs/${documentId}/share`);
+      setShareSettings(response.data);
+    } catch (error) {
+      console.error('Failed to fetch share settings:', error);
+    }
+  }, [documentId]);
+
+  useEffect(() => {
+    fetchCollaborators();
+    fetchShareSettings();
+  }, [fetchCollaborators, fetchShareSettings]);
 
   const copyShareLink = async () => {
     const shareUrl = `${window.location.origin}/document/${documentId}`;
@@ -57,6 +67,32 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     } catch (error) {
       console.error('Failed to copy link:', error);
       setError('Fehler beim Kopieren des Links');
+    }
+  };
+
+  const togglePublicSharing = async () => {
+    try {
+      setIsTogglingPublic(true);
+      const endpoint = shareSettings.is_public
+        ? `/docs/${documentId}/share/disable`
+        : `/docs/${documentId}/share/enable`;
+      const response = await apiClient.post(endpoint);
+      setShareSettings(response.data);
+    } catch (error) {
+      console.error('Failed to toggle public sharing:', error);
+      setError('Fehler beim Ändern der Freigabe');
+    } finally {
+      setIsTogglingPublic(false);
+    }
+  };
+
+  const updateSharePermission = async (permission: 'viewer' | 'editor') => {
+    try {
+      const response = await apiClient.put(`/docs/${documentId}/share/permission`, { permission });
+      setShareSettings(response.data);
+    } catch (error) {
+      console.error('Failed to update share permission:', error);
+      setError('Fehler beim Ändern der Berechtigung');
     }
   };
 
@@ -124,28 +160,52 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
         {error && <div className="share-error">{error}</div>}
 
         <div className="share-link-section">
-          <h3>Link teilen</h3>
-          <p
-            style={{
-              fontSize: '0.875rem',
-              color: 'var(--font-color-secondary)',
-              marginBottom: '0.75rem',
-            }}
-          >
-            Jeder mit diesem Link kann das Dokument öffnen
-          </p>
-          <div className="link-container">
-            <input
-              type="text"
-              value={`${window.location.origin}/document/${documentId}`}
-              readOnly
-              className="link-input"
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
-            <button onClick={copyShareLink} className="copy-button">
-              {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
-            </button>
+          <div className="public-sharing-toggle">
+            <div className="public-sharing-info">
+              <h3>Jeder mit dem Link</h3>
+              <p className="public-sharing-description">
+                {shareSettings.is_public
+                  ? 'Jeder mit dem Link kann dieses Dokument öffnen'
+                  : 'Nur eingeladene Personen haben Zugriff'}
+              </p>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={shareSettings.is_public}
+                onChange={togglePublicSharing}
+                disabled={isTogglingPublic}
+              />
+              <span className="toggle-slider" />
+            </label>
           </div>
+
+          {shareSettings.is_public && (
+            <>
+              <div className="public-permission-row">
+                <select
+                  value={shareSettings.share_permission}
+                  onChange={(e) => updateSharePermission(e.target.value as 'viewer' | 'editor')}
+                  className="permission-select"
+                >
+                  <option value="editor">Kann bearbeiten</option>
+                  <option value="viewer">Kann ansehen</option>
+                </select>
+              </div>
+              <div className="link-container">
+                <input
+                  type="text"
+                  value={`${window.location.origin}/document/${documentId}`}
+                  readOnly
+                  className="link-input"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button onClick={copyShareLink} className="copy-button">
+                  {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="collaborators-section">

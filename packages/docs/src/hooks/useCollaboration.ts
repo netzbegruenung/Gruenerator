@@ -32,12 +32,15 @@ const generateUserColor = () => {
   return colors[Math.floor(Math.random() * colors.length)];
 };
 
-interface UseCollaborationOptions {
+export interface UseCollaborationOptions {
   documentId: string;
   user: { id: string; display_name?: string; email?: string } | null;
+  isGuest?: boolean;
+  guestId?: string;
+  guestName?: string;
 }
 
-export const useCollaboration = ({ documentId, user }: UseCollaborationOptions) => {
+export const useCollaboration = ({ documentId, user, isGuest, guestId, guestName }: UseCollaborationOptions) => {
   const adapter = useDocsAdapter();
   const [state, setState] = useState<CollaborationState>(() => ({
     ydoc: new Y.Doc(),
@@ -49,28 +52,28 @@ export const useCollaboration = ({ documentId, user }: UseCollaborationOptions) 
   const providerRef = useRef<HocuspocusProvider | null>(null);
 
   useEffect(() => {
-    if (!documentId || !user) return;
+    if (!documentId) return;
+    if (!isGuest && !user) return;
 
     const ydoc = new Y.Doc();
 
     const initProvider = async () => {
       const url = adapter.getHocuspocusUrl();
-      const token = await adapter.getHocuspocusToken();
+      const token = isGuest ? null : await adapter.getHocuspocusToken();
 
       const provider = new HocuspocusProvider({
         url,
         name: documentId,
         document: ydoc,
         token: token ?? undefined,
+        ...(isGuest && guestId ? { parameters: { guestId, guestName: guestName || 'Gast' } } : {}),
       });
 
       providerRef.current = provider;
 
-      const awarenessUser: CollaborationUser = {
-        id: user.id,
-        name: user.display_name || user.email || 'Anonymous',
-        color: generateUserColor(),
-      };
+      const awarenessUser: CollaborationUser = isGuest
+        ? { id: guestId || 'guest', name: guestName || 'Gast', color: generateUserColor() }
+        : { id: user!.id, name: user!.display_name || user!.email || 'Anonymous', color: generateUserColor() };
 
       provider.awareness?.setLocalStateField('user', awarenessUser);
 
@@ -103,7 +106,7 @@ export const useCollaboration = ({ documentId, user }: UseCollaborationOptions) 
       providerRef.current?.awareness?.setLocalState(null);
       providerRef.current?.destroy();
     };
-  }, [documentId, user, adapter]);
+  }, [documentId, user, isGuest, guestId, guestName, adapter]);
 
   return state;
 };
