@@ -18,6 +18,12 @@ export interface ToolRestrictions {
   personSearchEnabled?: boolean;
 }
 
+export interface FewShotExample {
+  input: string;
+  output: string;
+  reasoning?: string;
+}
+
 export interface AgentConfig {
   identifier: string;
   title: string;
@@ -27,6 +33,7 @@ export interface AgentConfig {
   backgroundColor: string;
   tags: string[];
   model: string;
+  defaultModel?: string;
   provider: 'mistral' | 'anthropic' | 'litellm';
   params: {
     max_tokens: number;
@@ -39,6 +46,10 @@ export interface AgentConfig {
   plugins?: string[];
   /** Tool restrictions for per-agent collection/country filtering */
   toolRestrictions?: ToolRestrictions;
+  /** Whitelist of tool registry keys this agent can use. undefined = all tools. */
+  enabledTools?: string[];
+  /** Few-shot examples injected into the system prompt to guide output quality */
+  fewShotExamples?: FewShotExample[];
 }
 
 export interface Thread {

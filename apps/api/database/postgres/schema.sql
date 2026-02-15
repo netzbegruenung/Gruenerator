@@ -295,6 +295,8 @@ CREATE TABLE IF NOT EXISTS collaborative_documents (
 ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS folder_id UUID;
 ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS document_subtype TEXT DEFAULT 'docs';
+ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS share_permission TEXT DEFAULT 'editor'
+  CHECK (share_permission IN ('viewer', 'editor'));
 
 CREATE TABLE IF NOT EXISTS collaborative_documents_init (
     document_id UUID REFERENCES collaborative_documents(id) ON DELETE CASCADE,

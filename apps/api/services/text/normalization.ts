@@ -166,8 +166,51 @@ export function generateQueryVariants(query: string): string[] {
 }
 
 /**
+ * Levenshtein distance between two strings.
+ * Used for fuzzy term matching to handle typos in search queries.
+ */
+export function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  let curr = new Array<number>(n + 1);
+
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+/**
+ * Check if any word in the text fuzzy-matches the query word.
+ * Allows 1 edit for words ≤8 chars, 2 edits for longer words.
+ * Only considers text words of similar length (±maxDist) to avoid false positives.
+ */
+function fuzzyWordMatch(normText: string, queryWord: string): boolean {
+  const maxDist = queryWord.length > 8 ? 2 : 1;
+  const minLen = queryWord.length - maxDist;
+  const maxLen = queryWord.length + maxDist;
+
+  const textWords = normText.split(/\s+/);
+  for (const tw of textWords) {
+    if (tw.length < minLen || tw.length > maxLen) continue;
+    if (levenshteinDistance(tw, queryWord) <= maxDist) return true;
+  }
+  return false;
+}
+
+/**
  * Check if text contains any normalized variant of the query
  * For multi-word queries, checks if ALL words are present (not necessarily as exact phrase)
+ * Falls back to fuzzy matching (Levenshtein) for single-word queries to handle typos
  */
 export function containsNormalized(text: string, query: string): boolean {
   if (!query) return false;
@@ -193,6 +236,15 @@ export function containsNormalized(text: string, query: string): boolean {
       return wordVariants.some((v) => normText.includes(v));
     });
     if (allWordsPresent) return true;
+
+    // Fuzzy fallback: allow each word to fuzzy-match
+    const allWordsFuzzy = words.every((word) => fuzzyWordMatch(normText, word));
+    if (allWordsFuzzy) return true;
+  }
+
+  // Fuzzy fallback for single-word queries (e.g. "klimaschtz" → "klimaschutz")
+  if (words.length === 1 && words[0].length >= 5) {
+    if (fuzzyWordMatch(normText, words[0])) return true;
   }
 
   return false;

@@ -104,6 +104,7 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   web: 'Suche aktuelle Informationen im Web...',
   examples: 'Suche Social-Media-Beispiele...',
   image: 'Generiere Bild...',
+  image_edit: 'Bearbeite Bild...',
   direct: 'Beantworte direkt...',
 };
 
@@ -117,6 +118,9 @@ export const PROGRESS_MESSAGES = {
   imageStart: 'Generiere Bild...',
   imageComplete: 'Bild erfolgreich generiert',
   imageError: (error: string) => `Bildgenerierung fehlgeschlagen: ${error}`,
+  imageEditStart: 'Bearbeite Bild mit KI...',
+  imageEditComplete: 'Bild erfolgreich bearbeitet',
+  imageEditNoAttachment: 'Bitte hänge ein Bild an, das bearbeitet werden soll.',
   responseStart: 'Erstelle Antwort...',
   streamInterrupted: 'Stream interrupted',
   unauthorized: 'Unauthorized',

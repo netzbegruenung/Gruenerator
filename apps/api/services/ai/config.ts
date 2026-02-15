@@ -220,6 +220,8 @@ export function determineTopP(options: GenerationOptions): number {
 
   // Temperature-based defaults
   const effectiveTemp = temperature ?? determineTemperature(options);
+  // Greedy sampling (temp=0) requires top_p=1 on Mistral
+  if (effectiveTemp === 0) return 1.0;
   if (effectiveTemp <= 0.3) return 0.85;
   if (effectiveTemp <= 0.5) return 0.9;
 
