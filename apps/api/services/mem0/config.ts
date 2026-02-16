@@ -103,8 +103,9 @@ class LiteLLMAdapter {
     let content = response.choices[0]?.message?.content || '';
 
     // GPT-OSS often outputs chain-of-thought reasoning before JSON.
-    // Try each { or [ as a potential JSON start, with end-trimming fallback.
-    if (wantsJson && content) {
+    // Always attempt extraction: mem0 internally expects JSON but doesn't always
+    // pass response_format through the LangChain adapter interface.
+    if (content && !content.trimStart().startsWith('{') && !content.trimStart().startsWith('[')) {
       const bracketRe = /[[{]/g;
       let match: RegExpExecArray | null;
       let extracted = false;
