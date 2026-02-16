@@ -69,14 +69,22 @@ main {
   }
 }
 
-/* Chat page: full-viewport layout, no extra spacing */
+/* Chat page: full-viewport layout with proper flex height chain */
+.app-content:has(.chat-page-root) {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
 .content-wrapper:has(.chat-page-root) {
   margin-top: 0;
   margin-bottom: 0;
-  min-height: auto;
+  min-height: 0;
+  flex: 1;
 }
 
 .chat-page-root {
-  height: 100vh;
-  height: 100dvh;
+  flex: 1;
+  min-height: 0;
 } 
