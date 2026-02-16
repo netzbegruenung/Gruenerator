@@ -1,4 +1,4 @@
 {
-  "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write"],
+  "*.{ts,tsx,js,jsx}": ["eslint --fix --ignore-pattern '**/*.vitest.ts'", "prettier --write"],
   "*.{json,md,yaml,yml}": ["prettier --write"]
 }
