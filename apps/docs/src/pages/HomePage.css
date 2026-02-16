@@ -8,7 +8,7 @@
 .home-page-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--spacing-medium);
+  padding: var(--spacing-large) var(--spacing-medium) var(--spacing-medium);
 }
 
 /* Mobile-first header - stacks on small screens */

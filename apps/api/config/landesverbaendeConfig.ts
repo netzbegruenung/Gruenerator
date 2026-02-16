@@ -24,7 +24,7 @@ export interface ContentPath {
   paginationPattern?: string;
   maxPages?: number;
   isPdfArchive?: boolean;
-  paginationOffset?: number; // Offset for page number substitution (default: 0). Use -1 for Drupal 0-indexed pagination.
+  paginationOffset?: number; // Offset for page number in pagination (default: 0). Use -1 for Drupal 0-indexed pagination.
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
 }
