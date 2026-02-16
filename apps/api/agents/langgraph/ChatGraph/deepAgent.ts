@@ -24,7 +24,7 @@ import { buildDeepAgentSystemPrompt } from './systemPrompt.js';
 import { buildTools } from './tools/registry.js';
 
 import type { ToolDependencies } from './tools/registry.js';
-import type { ThreadAttachment, GeneratedImageResult } from './types.js';
+import type { ThreadAttachment, GeneratedImageResult, ImageAttachment } from './types.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { CompiledGraph } from '@langchain/langgraph';
 
@@ -41,10 +41,11 @@ export interface DeepAgentInput {
   aiWorkerPool: any;
   attachmentContext?: string;
   threadAttachments?: ThreadAttachment[];
-  imageAttachments?: import('./types.js').ImageAttachment[];
+  imageAttachments?: ImageAttachment[];
   memoryContext?: string | null;
   notebookContext?: string;
   notebookCollectionIds?: string[];
+  userInstructions?: string;
 }
 
 /**
@@ -95,6 +96,7 @@ export async function createDeepAgent(input: DeepAgentInput): Promise<DeepAgentI
     threadAttachments: input.threadAttachments,
     notebookContext: input.notebookContext,
     notebookCollectionIds: input.notebookCollectionIds,
+    userInstructions: input.userInstructions,
   });
 
   log.info(`[DeepAgent] Creating agent with ${tools.length} tools, model=${agentConfig.model}`);

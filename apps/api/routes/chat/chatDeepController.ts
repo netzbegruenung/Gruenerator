@@ -448,6 +448,7 @@ router.post('/stream', async (req, res) => {
     }
 
     const userId = user.id;
+    const userInstructions = user.custom_prompt?.trim() || undefined;
     const aiWorkerPool = req.app.locals.aiWorkerPool;
 
     if (!aiWorkerPool) {
@@ -604,6 +605,7 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
       memoryContext,
       notebookContext,
       notebookCollectionIds: notebookCollectionIds.length > 0 ? notebookCollectionIds : undefined,
+      userInstructions,
     });
 
     // Context pruning: trim long conversations to token budget

@@ -1,14 +1,17 @@
 import { parentPort } from 'worker_threads';
-import * as providerSelector from '../services/providers/providerSelector.js';
+
 import * as providerFallback from '../services/providers/providerFallback.js';
+import * as providerSelector from '../services/providers/providerSelector.js';
+
 import * as providers from './providers/index.js';
+
 import type {
   WorkerRequestMessage,
   AIRequestData,
   AIWorkerResult,
   AIRequestOptions,
 } from './types.js';
-import type { ProviderName } from '../services/providers/types.js';
+import type { ProviderName, PrivacyProviderData } from '../services/providers/types.js';
 
 const SHAREPIC_TYPES = [
   'sharepic_dreizeilen',
@@ -97,7 +100,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     selectedModel: selection.model,
     useProMode: !!effectiveOptions.useProMode,
     useUltraMode: !!effectiveOptions.useUltraMode,
-    temperature: effectiveOptions.temperature || 'default',
+    temperature: effectiveOptions.temperature ?? 'default',
     explicitProvider: data.provider || 'none',
   });
 
@@ -111,7 +114,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     const explicitProvider = data.provider || null;
     if (explicitProvider) {
       console.log(
-        `[AI Worker ${requestId}] Using explicit provider: ${explicitProvider} with temperature: ${effectiveOptions.temperature || 'default'}`
+        `[AI Worker ${requestId}] Using explicit provider: ${explicitProvider} with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
       result = await providers.executeProvider(explicitProvider, requestId, {
@@ -123,7 +126,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
       // Ultra Mode now uses IONOS with high-quality model
       console.log(
-        `[AI Worker ${requestId}] Using Ultra Mode (IONOS) with temperature: ${effectiveOptions.temperature || 'default'}`
+        `[AI Worker ${requestId}] Using Ultra Mode (IONOS) with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
       effectiveOptions.model = 'openai/gpt-oss-120b';
@@ -133,7 +136,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       });
     } else if (!result && effectiveOptions.useProMode === true && !explicitProvider) {
       console.log(
-        `[AI Worker ${requestId}] Using Pro Mode (Magistral) provider with temperature: ${effectiveOptions.temperature || 'default'}`
+        `[AI Worker ${requestId}] Using Pro Mode (Magistral) provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
       result = await providers.executeProvider('mistral', requestId, {
@@ -142,7 +145,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       });
     } else if (!result && selection.provider === 'ionos' && !explicitProvider) {
       console.log(
-        `[AI Worker ${requestId}] Using IONOS provider with temperature: ${effectiveOptions.temperature || 'default'}`
+        `[AI Worker ${requestId}] Using IONOS provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
       result = await providers.executeProvider('ionos', requestId, {
@@ -151,7 +154,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       });
     } else if (!result && selection.provider === 'litellm' && !explicitProvider) {
       console.log(
-        `[AI Worker ${requestId}] Using LiteLLM provider with temperature: ${effectiveOptions.temperature || 'default'}`
+        `[AI Worker ${requestId}] Using LiteLLM provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
       result = await providers.executeProvider('litellm', requestId, {
@@ -160,7 +163,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       });
     } else if (!result && !explicitProvider) {
       console.log(
-        `[AI Worker ${requestId}] Using default Mistral provider with temperature: ${effectiveOptions.temperature || 'default'}`
+        `[AI Worker ${requestId}] Using default Mistral provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
       result = await providers.executeProvider('mistral', requestId, {
@@ -187,7 +190,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         {
           ...data,
           options: data.options || {},
-        } as unknown as import('../services/providers/types.js').PrivacyProviderData
+        } as unknown as PrivacyProviderData
       );
       result = { ...fallbackResult, success: true } as AIWorkerResult;
     }
@@ -210,7 +213,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         async (providerName: ProviderName, privacyData) => {
           const temp = (privacyData.options as unknown as { temperature?: number })?.temperature;
           console.log(
-            `[AI Worker ${requestId}] Trying fallback provider: ${providerName} with temperature: ${temp || 'default'}`
+            `[AI Worker ${requestId}] Trying fallback provider: ${providerName} with temperature: ${temp ?? 'default'}`
           );
           return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
         },
@@ -218,7 +221,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         {
           ...data,
           options: data.options || {},
-        } as unknown as import('../services/providers/types.js').PrivacyProviderData
+        } as unknown as PrivacyProviderData
       );
       return { ...fallbackResult, success: true } as AIWorkerResult;
     } catch {
