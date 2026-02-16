@@ -37,27 +37,28 @@ RUN pnpm build
 RUN pnpm exec tsc --project tsconfig.server.json
 
 # =============================================================================
-# Stage 2: Production runtime (lightweight)
+# Stage 2: Production runtime (lightweight Alpine image)
 # =============================================================================
-FROM node:20-slim AS production
+FROM node:20-alpine AS production
 
 LABEL org.opencontainers.image.title="Gruenerator Docs"
 LABEL org.opencontainers.image.description="Gruenerator Documentation App"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
 
 # Install curl for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10 --activate
 
-# Create non-root user
-RUN groupadd -g 1001 gruenerator && \
-    useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator
+# Create non-root user and give ownership of /app
+RUN addgroup -g 1001 gruenerator && \
+    adduser -u 1001 -G gruenerator -s /bin/sh -D gruenerator && \
+    mkdir -p /app && chown gruenerator:gruenerator /app
 
 WORKDIR /app
 
-# Copy workspace config and lockfile (--chown avoids slow chown -R later)
+# Copy workspace config and lockfile
 COPY --chown=gruenerator:gruenerator pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 
 # Copy only package.json files for production install
@@ -65,12 +66,13 @@ COPY --chown=gruenerator:gruenerator packages/shared/package.json ./packages/sha
 COPY --chown=gruenerator:gruenerator packages/docs/package.json ./packages/docs/
 COPY --chown=gruenerator:gruenerator apps/docs/package.json ./apps/docs/
 
-# Install production dependencies
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --ignore-scripts --filter @gruenerator/apps-docs
+# Switch to non-root user BEFORE install — files are created with correct ownership,
+# eliminating the slow `chown -R` that previously took ~103s
+USER gruenerator
 
-# Fix ownership of pnpm-installed node_modules
-RUN chown -R gruenerator:gruenerator node_modules packages/shared/node_modules apps/docs/node_modules 2>/dev/null; true
+# Install production dependencies (as gruenerator user, no chown needed)
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
+    pnpm install --prod --frozen-lockfile --ignore-scripts --filter @gruenerator/apps-docs
 
 # Copy Vite-built frontend
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/docs/dist ./apps/docs/dist
@@ -82,8 +84,6 @@ WORKDIR /app/apps/docs
 
 ENV NODE_ENV=production
 ENV PORT=3000
-
-USER gruenerator
 
 EXPOSE 3000
 
