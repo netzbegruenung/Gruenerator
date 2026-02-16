@@ -30,7 +30,13 @@ interface TriggerCompactionResponse {
 
 export type Provider = 'mistral' | 'litellm';
 
-export type ModelId = 'auto' | 'mistral-large' | 'mistral-medium' | 'magistral-medium' | 'pixtral-large' | 'litellm';
+export type ModelId =
+  | 'auto'
+  | 'mistral-large'
+  | 'mistral-medium'
+  | 'magistral-medium'
+  | 'pixtral-large'
+  | 'litellm';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
@@ -161,7 +167,7 @@ export const useAgentStore = create<AgentState>()(
       selectedModel: 'auto',
       currentThreadId: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
-      useDeepAgent: true,
+      useDeepAgent: false,
       compactionState: { ...DEFAULT_COMPACTION_STATE },
       compactionLoading: false,
       messageCount: 0,
@@ -204,8 +210,7 @@ export const useAgentStore = create<AgentState>()(
           },
         }),
 
-      toggleDeepAgent: () =>
-        set((state) => ({ useDeepAgent: !state.useDeepAgent })),
+      toggleDeepAgent: () => set((state) => ({ useDeepAgent: !state.useDeepAgent })),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
