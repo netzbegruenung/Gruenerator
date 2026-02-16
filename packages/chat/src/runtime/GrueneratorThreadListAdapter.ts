@@ -77,7 +77,7 @@ export function createGrueneratorThreadListAdapter(
       };
     },
 
-    async generateTitle(_remoteId, messages) {
+    async generateTitle(remoteId, messages) {
       return createAssistantStream((controller) => {
         const firstUserMsg = messages.find((m) => m.role === 'user');
         if (!firstUserMsg) {
@@ -101,6 +101,12 @@ export function createGrueneratorThreadListAdapter(
           title = title.slice(0, 47) + '...';
         }
         controller.appendText(title);
+
+        // Persist fallback title to DB immediately
+        apiClient.patch('/api/chat-service/threads', { threadId: remoteId, title }).catch(() => {});
+
+        // Trigger async AI title generation (upgrades to Mistral-generated title)
+        apiClient.post(`/api/chat-service/threads/${remoteId}/generate-title`).catch(() => {});
       });
     },
   };

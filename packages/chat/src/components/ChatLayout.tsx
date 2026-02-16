@@ -25,10 +25,7 @@ export function ChatLayout({ userId, onLogout }: ChatLayoutProps) {
             onLogout={onLogout}
           />
           <main className="flex flex-1 flex-col overflow-hidden">
-            <GrueneratorThread
-              sidebarOpen={sidebarOpen}
-              onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-            />
+            <GrueneratorThread />
           </main>
         </div>
       </TooltipProvider>

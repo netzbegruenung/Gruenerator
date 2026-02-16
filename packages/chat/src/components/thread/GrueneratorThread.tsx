@@ -1,20 +1,15 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ThreadPrimitive, ThreadListPrimitive, SelectionToolbarPrimitive, useThread } from '@assistant-ui/react';
-import { PanelLeft, QuoteIcon, MessageSquarePlus } from 'lucide-react';
+import { ThreadPrimitive, SelectionToolbarPrimitive, useThread } from '@assistant-ui/react';
+import { QuoteIcon } from 'lucide-react';
 import { ModelSelector } from '../ModelSelector';
 import { WelcomeScreen } from './WelcomeScreen';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { GrueneratorComposer } from './GrueneratorComposer';
 
-interface GrueneratorThreadProps {
-  sidebarOpen?: boolean;
-  onToggleSidebar?: () => void;
-}
-
-export function GrueneratorThread({ sidebarOpen, onToggleSidebar }: GrueneratorThreadProps) {
+export function GrueneratorThread() {
   const thread = useThread();
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
 
@@ -22,23 +17,6 @@ export function GrueneratorThread({ sidebarOpen, onToggleSidebar }: GrueneratorT
     <ThreadPrimitive.Root className="relative flex h-full flex-col bg-background">
       <div className="floating-controls-wrapper">
         <div className="floating-controls-left">
-          {!sidebarOpen && onToggleSidebar && (
-            <>
-              <button
-                onClick={onToggleSidebar}
-                className="flex items-center justify-center rounded-lg p-2 text-foreground-muted transition-colors hover:bg-primary/10 hover:text-foreground"
-                aria-label="Seitenleiste öffnen"
-              >
-                <PanelLeft className="h-5 w-5" />
-              </button>
-              <ThreadListPrimitive.New
-                className="flex items-center justify-center rounded-lg p-2 text-foreground-muted transition-colors hover:bg-primary/10 hover:text-foreground"
-                aria-label="Neuer Chat"
-              >
-                <MessageSquarePlus className="h-5 w-5" />
-              </ThreadListPrimitive.New>
-            </>
-          )}
           <ModelSelector />
         </div>
       </div>
