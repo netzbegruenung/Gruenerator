@@ -103,16 +103,32 @@ class LiteLLMAdapter {
     let content = response.choices[0]?.message?.content || '';
 
     // GPT-OSS often outputs chain-of-thought reasoning before JSON.
-    // Extract the first valid JSON object/array from the response.
+    // Try each { or [ as a potential JSON start, with end-trimming fallback.
     if (wantsJson && content) {
-      const jsonStart = content.search(/[[{]/);
-      if (jsonStart > 0) {
-        const candidate = content.slice(jsonStart);
-        const jsonEnd = candidate.lastIndexOf('}');
-        const arrayEnd = candidate.lastIndexOf(']');
-        const end = Math.max(jsonEnd, arrayEnd);
-        if (end >= 0) {
-          content = candidate.slice(0, end + 1);
+      const bracketRe = /[[{]/g;
+      let match: RegExpExecArray | null;
+      let extracted = false;
+      while (!extracted && (match = bracketRe.exec(content)) !== null) {
+        if (match.index === 0) continue; // already valid JSON at position 0
+        const candidate = content.slice(match.index);
+        try {
+          JSON.parse(candidate);
+          content = candidate;
+          extracted = true;
+        } catch {
+          for (let end = candidate.length - 1; end > 0; end--) {
+            const ch = candidate[end];
+            if (ch === '}' || ch === ']') {
+              try {
+                JSON.parse(candidate.slice(0, end + 1));
+                content = candidate.slice(0, end + 1);
+                extracted = true;
+                break;
+              } catch {
+                /* continue scanning */
+              }
+            }
+          }
         }
       }
     }
