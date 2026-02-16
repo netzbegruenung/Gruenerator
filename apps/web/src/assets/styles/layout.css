@@ -77,5 +77,6 @@ main {
 }
 
 .chat-page-root {
-  height: calc(100vh - var(--header-height, 80px));
+  height: 100vh;
+  height: 100dvh;
 } 
