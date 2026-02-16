@@ -4,6 +4,7 @@
  */
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -224,6 +225,66 @@ router.delete('/', async (req, res) => {
   } catch (error) {
     log.error('Error deleting thread:', error);
     res.status(500).json({ error: 'Failed to delete thread' });
+  }
+});
+
+router.post('/:threadId/generate-title', async (req, res) => {
+  try {
+    const user = getUser(req);
+    if (!user?.id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { threadId } = req.params;
+    const postgres = getPostgresInstance();
+
+    const threads = await postgres.query(
+      `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+      [threadId]
+    );
+
+    if (threads.length === 0) {
+      return res.status(404).json({ error: 'Thread not found' });
+    }
+
+    if (threads[0].user_id !== user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const messages = await postgres.query(
+      `SELECT role, content FROM chat_messages
+       WHERE thread_id = $1
+       ORDER BY created_at ASC
+       LIMIT 4`,
+      [threadId]
+    );
+
+    const userMsg = messages.find((m: any) => m.role === 'user');
+    const assistantMsg = messages.find((m: any) => m.role === 'assistant');
+
+    if (!userMsg || !assistantMsg) {
+      return res.status(202).json({ status: 'skipped', reason: 'insufficient messages' });
+    }
+
+    const aiWorkerPool = req.app.locals.aiWorkerPool;
+    if (!aiWorkerPool) {
+      return res.status(503).json({ error: 'AI worker pool not available' });
+    }
+
+    // Fire-and-forget: generates fallback + async AI title
+    generateThreadTitle(
+      threadId,
+      String(userMsg.content),
+      String(assistantMsg.content),
+      aiWorkerPool
+    ).catch((err) => {
+      log.warn(`[generate-title] Failed for thread ${threadId}:`, err);
+    });
+
+    res.status(202).json({ status: 'accepted' });
+  } catch (error) {
+    log.error('Error generating thread title:', error);
+    res.status(500).json({ error: 'Failed to generate title' });
   }
 });
 

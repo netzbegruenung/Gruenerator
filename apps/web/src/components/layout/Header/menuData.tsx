@@ -85,6 +85,17 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     },
   };
 
+  if (betaFeatures.chatBetaEnabled) {
+    items.chat = {
+      id: 'chat',
+      path: '/chat',
+      title: 'Chat',
+      description: 'KI-Chat',
+      icon: getIcon('navigation', 'messenger'),
+      badge: 'beta',
+    };
+  }
+
   return items;
 };
 

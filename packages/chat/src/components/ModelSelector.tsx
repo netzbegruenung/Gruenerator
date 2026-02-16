@@ -1,13 +1,12 @@
 'use client';
 
-import { Sparkles, Zap, Eye, Server, Check, BrainCircuit } from 'lucide-react';
+import { Sparkles, Zap, Server, Check, BrainCircuit } from 'lucide-react';
 import { useAgentStore, MODEL_OPTIONS, type ModelOption } from '../stores/chatStore';
 import { Dropdown, DropdownItem, ToggleSwitch } from './ui/Dropdown';
 
 const MODEL_ICONS: Record<ModelOption['icon'], typeof Sparkles> = {
   sparkles: Sparkles,
   zap: Zap,
-  eye: Eye,
   server: Server,
   brain: BrainCircuit,
 };
@@ -32,7 +31,10 @@ export function ModelSelector() {
       }
       footer={
         <p className="text-xs text-foreground-muted">
-          Modell: <span className="font-mono">{selectedModel === 'auto' ? 'Automatisch' : currentModel?.model}</span>
+          Modell:{' '}
+          <span className="font-mono">
+            {selectedModel === 'auto' ? 'Automatisch' : currentModel?.model}
+          </span>
         </p>
       }
     >
@@ -47,21 +49,23 @@ export function ModelSelector() {
             selected={selectedModel === model.id}
             onClick={() => setSelectedModel(model.id)}
             trailing={
-              selectedModel === model.id && (
-                <Check className="h-4 w-4 text-secondary-600" />
-              )
+              selectedModel === model.id && <Check className="h-4 w-4 text-secondary-600" />
             }
           />
         );
       })}
-      <div className="border-t border-border my-1" />
-      <DropdownItem
-        icon={<BrainCircuit className="h-4 w-4 text-foreground-muted" />}
-        label="Deep Agent"
-        description="Autonome Tool-Nutzung"
-        onClick={toggleDeepAgent}
-        trailing={<ToggleSwitch enabled={useDeepAgent} />}
-      />
+      {import.meta.env.DEV && (
+        <>
+          <div className="border-t border-border my-1" />
+          <DropdownItem
+            icon={<BrainCircuit className="h-4 w-4 text-foreground-muted" />}
+            label="Deep Agent"
+            description="Autonome Tool-Nutzung"
+            onClick={toggleDeepAgent}
+            trailing={<ToggleSwitch enabled={useDeepAgent} />}
+          />
+        </>
+      )}
     </Dropdown>
   );
 }

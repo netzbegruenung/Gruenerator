@@ -30,13 +30,7 @@ interface TriggerCompactionResponse {
 
 export type Provider = 'mistral' | 'litellm';
 
-export type ModelId =
-  | 'auto'
-  | 'mistral-large'
-  | 'mistral-medium'
-  | 'magistral-medium'
-  | 'pixtral-large'
-  | 'litellm';
+export type ModelId = 'auto' | 'mistral-large' | 'mistral-medium' | 'magistral-medium' | 'litellm';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
@@ -46,7 +40,7 @@ export interface ModelOption {
   description: string;
   model: string;
   provider: Provider;
-  icon: 'sparkles' | 'zap' | 'eye' | 'server' | 'brain';
+  icon: 'sparkles' | 'zap' | 'server' | 'brain';
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
@@ -81,14 +75,6 @@ export const MODEL_OPTIONS: ModelOption[] = [
     model: 'mistral-medium-latest',
     provider: 'mistral',
     icon: 'zap',
-  },
-  {
-    id: 'pixtral-large',
-    name: 'Pixtral Large',
-    description: 'Vision & Reasoning',
-    model: 'pixtral-large-latest',
-    provider: 'mistral',
-    icon: 'eye',
   },
   {
     id: 'litellm',

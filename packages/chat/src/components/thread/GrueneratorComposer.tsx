@@ -171,7 +171,7 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
           anchorRect={mention.anchorRect}
         />
 
-        <div className="flex items-end">
+        <div className="flex items-center">
           <div className="input-tools-button flex items-center gap-1">
             <ComposerAddAttachment />
             <ToolToggles />
