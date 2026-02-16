@@ -122,6 +122,76 @@ describe('Tool Schemas — Zod v3 compatibility', () => {
   }
 });
 
+// --- Mistral SDK Zod Compatibility Test ---
+// This reproduces the exact error path: chatStream.ts:85 calls
+// ChatCompletionStreamRequest$outboundSchema.parse(value)
+// which fails with Zod v4 due to instanceof ZodError mismatch.
+
+describe('Mistral SDK — ChatCompletionStreamRequest schema validation', () => {
+  it('outbound schema parses a realistic tool-call request', async () => {
+    const { ChatCompletionStreamRequest$outboundSchema } =
+      await import('@mistralai/mistralai/models/components/chatcompletionstreamrequest.js');
+
+    const request = {
+      model: 'mistral-small-latest',
+      messages: [
+        { role: 'system', content: 'Du bist ein hilfreicher Assistent.' },
+        { role: 'user', content: 'Suche nach Klimapolitik' },
+      ],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'search_documents',
+            description: 'Search documents',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: { type: 'string', description: 'Search query' },
+              },
+              required: ['query'],
+            },
+          },
+        },
+      ],
+      toolChoice: 'auto',
+      temperature: 0.7,
+      maxTokens: 4096,
+      stream: true,
+    };
+
+    // This is the exact call from chatStream.ts:85 that throws
+    // "Cannot read properties of undefined (reading '_zod')" with Zod v4
+    expect(() => {
+      ChatCompletionStreamRequest$outboundSchema.parse(request);
+    }).not.toThrow();
+  });
+
+  it('safeParse wraps errors as SDKValidationError (not raw ZodError)', async () => {
+    const { safeParse } = await import('@mistralai/mistralai/lib/schemas.js');
+    const { ChatCompletionStreamRequest$outboundSchema } =
+      await import('@mistralai/mistralai/models/components/chatcompletionstreamrequest.js');
+
+    // Invalid request (missing required 'model' field)
+    const invalid = { messages: [] };
+    const result = safeParse(
+      invalid,
+      (v: any) => ChatCompletionStreamRequest$outboundSchema.parse(v),
+      'Input validation failed'
+    );
+
+    // With Zod v4, this would throw instead of returning ERR
+    // because instanceof ZodError fails in schemas.js:22
+    expect(result.ok).toBe(false);
+  });
+
+  it('zod version is v3 (not v4)', () => {
+    // Guard rail: if this fails, the Mistral SDK will break
+    expect(z.string()._def).toBeDefined();
+    expect((z.string() as any)._zod).toBeUndefined();
+  });
+});
+
 // --- LiteLLM JSON Extraction Tests ---
 
 // We can't easily import the private LiteLLMAdapter class, so we replicate the
