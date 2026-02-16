@@ -26,8 +26,8 @@ const TOOL_CONFIG: Record<string, { icon: typeof Search; label: string; color: s
   gruenerator_search: { icon: Search, label: 'Dokumente', color: 'text-emerald-600' },
   gruenerator_person_search: { icon: User, label: 'Person', color: 'text-blue-600' },
   gruenerator_examples_search: { icon: Image, label: 'Beispiele', color: 'text-purple-600' },
-  web_search: { icon: Globe, label: 'Web', color: 'text-orange-600' },
-  research: { icon: BookOpen, label: 'Recherche', color: 'text-indigo-600' },
+  web_search: { icon: Globe, label: 'Websuche', color: 'text-orange-600' },
+  research: { icon: BookOpen, label: 'Deep Research', color: 'text-indigo-600' },
   generate_image: { icon: Sparkles, label: 'Bild', color: 'text-pink-600' },
   scrape_url: { icon: ExternalLink, label: 'URL', color: 'text-cyan-600' },
   recall_memory: { icon: MessageCircle, label: 'Erinnerung', color: 'text-amber-600' },
@@ -63,6 +63,13 @@ export const ToolCallUI = memo(function ToolCallUI({
     return 0;
   }, [result, state]);
 
+  const researchMeta = useMemo(() => {
+    if (toolName !== 'research' || !result || state !== 'result') return null;
+    const confidence = getString(result, 'confidence');
+    const searchSteps = getArray(result, 'searchSteps');
+    return { confidence, searchStepsCount: searchSteps?.length ?? 0 };
+  }, [toolName, result, state]);
+
   return (
     <div className="my-1.5 text-sm">
       <button
@@ -86,7 +93,38 @@ export const ToolCallUI = memo(function ToolCallUI({
         {state === 'result' && resultCount > 0 && (
           <>
             <span className="text-foreground-muted">&middot;</span>
-            <span className="text-primary font-medium">{resultCount}</span>
+            {researchMeta ? (
+              <>
+                {researchMeta.confidence && (
+                  <span
+                    className={`text-[11px] font-medium ${
+                      researchMeta.confidence === 'high'
+                        ? 'text-status-green'
+                        : researchMeta.confidence === 'medium'
+                          ? 'text-status-yellow'
+                          : 'text-status-red'
+                    }`}
+                  >
+                    {researchMeta.confidence === 'high'
+                      ? 'Hohe Konfidenz'
+                      : researchMeta.confidence === 'medium'
+                        ? 'Mittlere Konfidenz'
+                        : 'Niedrige Konfidenz'}
+                  </span>
+                )}
+                {researchMeta.searchStepsCount > 0 && (
+                  <>
+                    <span className="text-foreground-muted">&middot;</span>
+                    <span className="text-foreground-muted text-[11px]">
+                      {researchMeta.searchStepsCount} Suche
+                      {researchMeta.searchStepsCount > 1 ? 'n' : ''}
+                    </span>
+                  </>
+                )}
+              </>
+            ) : (
+              <span className="text-primary font-medium">{resultCount}</span>
+            )}
             <ChevronRight
               className={`h-3.5 w-3.5 text-foreground-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
             />

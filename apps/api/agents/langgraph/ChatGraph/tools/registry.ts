@@ -95,8 +95,8 @@ export function buildTools(deps: ToolDependencies): DynamicStructuredTool[] {
  */
 export const TOOL_LABELS: Record<string, string> = {
   search_documents: 'Durchsuche Dokumente...',
-  web_search: 'Suche im Web...',
-  research: 'Recherchiere...',
+  web_search: 'Websuche...',
+  research: 'Deep Research...',
   search_examples: 'Suche Beispiele...',
   generate_image: 'Generiere Bild...',
   edit_image: 'Bearbeite Bild...',
