@@ -23,21 +23,20 @@ import {
 import { imageNode } from '../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { TOOL_LABELS } from '../../agents/langgraph/ChatGraph/tools/registry.js';
 import { isKnownNotebook, resolveNotebookCollections } from '../../config/notebookCollectionMap.js';
-import { trimMessagesToTokenLimit } from '../../services/counters/TokenCounter.js';
-import type { Message as TokenCounterMessage } from '../../services/counters/types.js';
-import { getAgent } from './agents/agentLoader.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
+import { trimMessagesToTokenLimit } from '../../services/counters/TokenCounter.js';
 import { getMem0Instance } from '../../services/mem0/index.js';
 import { OCRService } from '../../services/OcrService/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { getAgent } from './agents/agentLoader.js';
 import {
   saveThreadAttachment,
   getThreadAttachments,
 } from './services/attachmentPersistenceService.js';
 import { createSSEStream, PROGRESS_MESSAGES } from './services/sseHelpers.js';
-import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 
 import type {
   ChatGraphState,
@@ -46,6 +45,7 @@ import type {
   ImageAttachment,
   Citation,
 } from '../../agents/langgraph/ChatGraph/types.js';
+import type { Message as TokenCounterMessage } from '../../services/counters/types.js';
 import type { UserProfile } from '../../services/user/types.js';
 import type { UIMessage } from 'ai';
 import type express from 'express';
@@ -128,7 +128,9 @@ async function processAttachments(
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);
         }
       } catch (error) {
-        log.error(`[${requestId}] Failed to extract text from ${attachment.name}: ${error instanceof Error ? error.message : String(error)}`);
+        log.error(
+          `[${requestId}] Failed to extract text from ${attachment.name}: ${error instanceof Error ? error.message : String(error)}`
+        );
         documentTexts.push(`### ${attachment.name}\n\n[Fehler beim Extrahieren des Textes]`);
         processedMeta.push({
           name: attachment.name,
@@ -177,7 +179,6 @@ async function touchThread(threadId: string) {
   ]);
 }
 
-
 /**
  * Detect image generation intent using the same heuristic as classifierNode.
  * Matches German patterns like "erstelle ein bild von..." with 0.92 confidence.
@@ -208,8 +209,16 @@ async function handleDirectImageGeneration(params: {
   aiWorkerPool: any;
 }): Promise<void> {
   const {
-    sse, requestId, startTime, userId, agentId,
-    validMessages, lastUserMessage, actualThreadId, isNewThread, aiWorkerPool,
+    sse,
+    requestId,
+    startTime,
+    userId,
+    agentId,
+    validMessages,
+    lastUserMessage,
+    actualThreadId,
+    isNewThread,
+    aiWorkerPool,
   } = params;
 
   const stepId = `img_${Date.now()}`;
@@ -280,19 +289,23 @@ async function handleDirectImageGeneration(params: {
   if (generatedImage) {
     try {
       const userText = extractTextContent(lastUserMessage.content);
-      const result = await aiWorkerPool.processRequest({
-        type: 'chat_response',
-        provider: 'mistral',
-        systemPrompt: 'Du bist ein hilfreicher Assistent. Ein Bild wurde basierend auf der Anfrage des Nutzers generiert. Beschreibe kurz, was erstellt wurde, und biete an, Anpassungen vorzunehmen.',
-        messages: [
-          { role: 'user', content: userText },
-        ],
-        options: { model: 'mistral-small-latest', max_tokens: 300, temperature: 0.7 },
-      }, null);
+      const result = await aiWorkerPool.processRequest(
+        {
+          type: 'chat_response',
+          provider: 'mistral',
+          systemPrompt:
+            'Du bist ein hilfreicher Assistent. Ein Bild wurde basierend auf der Anfrage des Nutzers generiert. Beschreibe kurz, was erstellt wurde, und biete an, Anpassungen vorzunehmen.',
+          messages: [{ role: 'user', content: userText }],
+          options: { model: 'mistral-small-latest', max_tokens: 300, temperature: 0.7 },
+        },
+        null
+      );
 
       fullText = result?.content || '';
     } catch (err) {
-      log.warn(`[${requestId}] Text generation after image failed: ${err instanceof Error ? err.message : String(err)}`);
+      log.warn(
+        `[${requestId}] Text generation after image failed: ${err instanceof Error ? err.message : String(err)}`
+      );
       fullText = 'Hier ist dein generiertes Bild! Möchtest du Anpassungen vornehmen?';
     }
   } else if (imageError) {
@@ -323,10 +336,16 @@ async function handleDirectImageGeneration(params: {
         const userText = extractTextContent(lastUserMessage.content);
         generateThreadTitle(actualThreadId, userText, fullText, aiWorkerPool, {
           imageGenerated: !!generatedImage,
-        }).catch((err: unknown) => log.warn(`[DeepAgent] Thread title generation failed: ${err instanceof Error ? err.message : String(err)}`));
+        }).catch((err: unknown) =>
+          log.warn(
+            `[DeepAgent] Thread title generation failed: ${err instanceof Error ? err.message : String(err)}`
+          )
+        );
       }
     } catch (error) {
-      log.error(`[DeepAgent] Error persisting image message: ${error instanceof Error ? error.message : String(error)}`);
+      log.error(
+        `[DeepAgent] Error persisting image message: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -452,7 +471,9 @@ router.post('/stream', async (req, res) => {
     try {
       modelMessages = await convertToModelMessages(clientMessages);
     } catch (err) {
-      log.error(`[DeepAgent] Error converting messages: ${err instanceof Error ? err.message : String(err)}`);
+      log.error(
+        `[DeepAgent] Error converting messages: ${err instanceof Error ? err.message : String(err)}`
+      );
       sse.send('error', { error: 'Failed to process messages' });
       sse.end();
       return;
@@ -491,7 +512,7 @@ router.post('/stream', async (req, res) => {
 
     // Process attachments
     let attachmentContext = '';
-    let imageAttachments: import('../../agents/langgraph/ChatGraph/types.js').ImageAttachment[] = [];
+    let imageAttachments: ImageAttachment[] = [];
     let processedMeta: ProcessedAttachmentMeta[] = [];
     if (attachments?.length) {
       const processed = await processAttachments(attachments, requestId);
@@ -514,17 +535,22 @@ router.post('/stream', async (req, res) => {
           memoryContext = memories.map((m: any) => `- ${m.memory}`).join('\n');
         }
       } catch (err) {
-        log.warn(`[${requestId}] Memory retrieval failed: ${err instanceof Error ? err.message : String(err)}`);
+        log.warn(
+          `[${requestId}] Memory retrieval failed: ${err instanceof Error ? err.message : String(err)}`
+        );
       }
     }
 
     // Validate and resolve notebook mentions
     const notebookIds = rawNotebookIds?.filter(isKnownNotebook) || [];
-    const notebookCollectionIds = notebookIds.length > 0 ? resolveNotebookCollections(notebookIds) : [];
+    const notebookCollectionIds =
+      notebookIds.length > 0 ? resolveNotebookCollections(notebookIds) : [];
     let notebookContext: string | undefined;
 
     if (notebookCollectionIds.length > 0) {
-      log.info(`[DeepAgent] Notebook scoping: ${notebookIds.join(', ')} → collections: ${notebookCollectionIds.join(', ')}`);
+      log.info(
+        `[DeepAgent] Notebook scoping: ${notebookIds.join(', ')} → collections: ${notebookCollectionIds.join(', ')}`
+      );
       notebookContext = `## NOTIZBUCH-KONTEXT
 
 Der Nutzer hat folgende Notizbücher ausgewählt: ${notebookIds.join(', ')}
@@ -537,7 +563,9 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
     if (lastUserMessage) {
       const lastUserText = extractTextContent(lastUserMessage.content);
       const isImageRequest = detectImageIntent(lastUserText);
-      log.debug(`[DeepAgent] Image intent check: "${lastUserText.slice(0, 60)}" → ${isImageRequest}`);
+      log.debug(
+        `[DeepAgent] Image intent check: "${lastUserText.slice(0, 60)}" → ${isImageRequest}`
+      );
       if (isImageRequest && enabledTools?.image !== false) {
         log.info(`[DeepAgent] Image intent detected, using direct image generation`);
         await handleDirectImageGeneration({
@@ -582,11 +610,15 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
     const MAX_CONTEXT_TOKENS = 6000;
     const messagesForTokenCount: TokenCounterMessage[] = validMessages.map((msg: any) => ({
       role: msg.role,
-      content: typeof msg.content === 'string'
-        ? msg.content
-        : Array.isArray(msg.content)
-          ? msg.content.filter((p: any) => p?.type === 'text').map((p: any) => p.text || '').join('')
-          : '',
+      content:
+        typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? msg.content
+                .filter((p: any) => p?.type === 'text')
+                .map((p: any) => p.text || '')
+                .join('')
+            : '',
     }));
 
     const prunedTokenMessages = trimMessagesToTokenLimit(messagesForTokenCount, MAX_CONTEXT_TOKENS);
@@ -595,7 +627,9 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
     const prunedMessages = conversationMessages.slice(-keepCount);
 
     if (prunedMessages.length < conversationMessages.length) {
-      log.info(`[DeepAgent] Context pruned: ${conversationMessages.length} → ${prunedMessages.length} messages`);
+      log.info(
+        `[DeepAgent] Context pruned: ${conversationMessages.length} → ${prunedMessages.length} messages`
+      );
     }
 
     // Convert messages to LangChain format
@@ -676,16 +710,19 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
               runId: event.run_id,
             });
 
-            log.info(`[DeepAgent] Tool end: ${toolName} (${output.length} chars${toolDurationMs ? `, ${toolDurationMs}ms` : ''})`);
+            log.info(
+              `[DeepAgent] Tool end: ${toolName} (${output.length} chars${toolDurationMs ? `, ${toolDurationMs}ms` : ''})`
+            );
 
             const resultCount = countResultsInOutput(output);
+            const parsedResults = parseToolOutputResults(output);
 
             sse.sendRaw('thinking_step', {
               stepId: event.run_id,
               toolName,
               title,
               status: 'completed',
-              result: { resultCount },
+              result: { resultCount, ...(parsedResults.length > 0 && { results: parsedResults }) },
             });
 
             // Emit structured completion events for frontend progress UI
@@ -719,7 +756,8 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
       // If we already have partial text, try to send what we have.
       // Otherwise send a helpful error message as a text response.
       if (!fullText) {
-        fullText = 'Es ist ein Fehler bei der Verarbeitung aufgetreten. Bitte versuche es erneut oder formuliere deine Anfrage anders.';
+        fullText =
+          'Es ist ein Fehler bei der Verarbeitung aufgetreten. Bitte versuche es erneut oder formuliere deine Anfrage anders.';
         sse.send('text_delta', { text: fullText });
       }
     }
@@ -755,10 +793,16 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
           const userText = extractTextContent(lastUserMessage!.content);
           generateThreadTitle(actualThreadId!, userText, fullText, aiWorkerPool, {
             imageGenerated: !!generatedImage,
-          }).catch((err: unknown) => log.warn(`[DeepAgent] Thread title generation failed: ${err instanceof Error ? err.message : String(err)}`));
+          }).catch((err: unknown) =>
+            log.warn(
+              `[DeepAgent] Thread title generation failed: ${err instanceof Error ? err.message : String(err)}`
+            )
+          );
         }
       } catch (error) {
-        log.error(`[DeepAgent] Error persisting message: ${error instanceof Error ? error.message : String(error)}`);
+        log.error(
+          `[DeepAgent] Error persisting message: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
@@ -777,7 +821,9 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
             extractedText: meta.extractedText,
           });
         } catch (err) {
-          log.error(`[DeepAgent] Failed to save attachment ${meta.name}: ${err instanceof Error ? err.message : String(err)}`);
+          log.error(
+            `[DeepAgent] Failed to save attachment ${meta.name}: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       }
     }
@@ -794,7 +840,11 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
           userId,
           { threadId: actualThreadId }
         )
-        .catch((err: unknown) => log.warn(`[${requestId}] Async memory save failed: ${err instanceof Error ? err.message : String(err)}`));
+        .catch((err: unknown) =>
+          log.warn(
+            `[${requestId}] Async memory save failed: ${err instanceof Error ? err.message : String(err)}`
+          )
+        );
     }
 
     // Done event
@@ -819,7 +869,9 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    log.error(`[DeepAgent] Controller error (${error instanceof Error ? 'Error' : typeof error}): ${errorMessage || '(empty message)'}`);
+    log.error(
+      `[DeepAgent] Controller error (${error instanceof Error ? 'Error' : typeof error}): ${errorMessage || '(empty message)'}`
+    );
     if (errorStack) {
       log.error(`[DeepAgent] Controller stack: ${errorStack}`);
     }
@@ -827,7 +879,8 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
       log.error(`[DeepAgent] Raw error value: ${JSON.stringify(error)?.slice(0, 500)}`);
     }
     if (!sse.isEnded()) {
-      const userFacingMessage = 'Es ist ein Fehler aufgetreten. Bitte versuche es erneut oder formuliere deine Anfrage anders.';
+      const userFacingMessage =
+        'Es ist ein Fehler aufgetreten. Bitte versuche es erneut oder formuliere deine Anfrage anders.';
       sse.send('text_delta', { text: userFacingMessage });
       sse.send('done', {
         threadId: undefined,
@@ -847,6 +900,22 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
 function countResultsInOutput(output: string): number {
   const matches = output.match(/\[\d+\]/g);
   return matches ? matches.length : 0;
+}
+
+function parseToolOutputResults(
+  output: string
+): Array<{ title: string; url: string; snippet: string }> {
+  const results: Array<{ title: string; url: string; snippet: string }> = [];
+  const pattern = /\[(\d+)\]\s+(.+?)\s+\((https?:\/\/[^\s)]+)\)\n([\s\S]*?)(?=\n\n\[\d+\]|$)/g;
+  let match;
+  while ((match = pattern.exec(output)) !== null) {
+    results.push({
+      title: match[2].trim(),
+      url: match[3].trim(),
+      snippet: match[4].trim().slice(0, 200),
+    });
+  }
+  return results;
 }
 
 export default router;

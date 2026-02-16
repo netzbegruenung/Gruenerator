@@ -46,11 +46,15 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
         const temporal = analyzeTemporality(query);
         if (temporal.suggestedTimeRange) {
           effectiveTimeRange = temporal.suggestedTimeRange as typeof time_range;
-          log.info(`[WebSearch] Auto-detected time_range="${effectiveTimeRange}" (urgency=${temporal.urgency})`);
+          log.info(
+            `[WebSearch] Auto-detected time_range="${effectiveTimeRange}" (urgency=${temporal.urgency})`
+          );
         }
       }
 
-      log.info(`[WebSearch] query="${query.slice(0, 60)}" time_range=${effectiveTimeRange || 'none'}`);
+      log.info(
+        `[WebSearch] query="${query.slice(0, 60)}" time_range=${effectiveTimeRange || 'none'}`
+      );
 
       // Query expansion for broader coverage
       let allQueries = [query];
@@ -66,12 +70,15 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
 
       // Search all variants in parallel
       const webPromises = allQueries.map((q) =>
-        executeDirectWebSearch({ query: q, searchType: 'general', maxResults: effectiveMaxResults, timeRange: effectiveTimeRange }).catch(
-          (err: any) => {
-            log.warn(`[WebSearch] Failed for variant "${q}": ${err.message}`);
-            return null;
-          }
-        )
+        executeDirectWebSearch({
+          query: q,
+          searchType: 'general',
+          maxResults: effectiveMaxResults,
+          timeRange: effectiveTimeRange,
+        }).catch((err: any) => {
+          log.warn(`[WebSearch] Failed for variant "${q}": ${err.message}`);
+          return null;
+        })
       );
       const webResults = await Promise.all(webPromises);
 
@@ -105,14 +112,20 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
       allResults.sort((a, b) => b.relevance - a.relevance);
       let results = allResults.slice(0, effectiveMaxResults + 3);
 
-      // Crawl top results for full content
+      // Crawl top results for full content (hard 8s deadline to prevent hangs)
       const maxCrawl = Math.min(2, Math.ceil(effectiveMaxResults / 4));
+      const CRAWL_DEADLINE_MS = 8000;
       try {
-        const crawled = await selectAndCrawlTopUrls(
-          results.map((r) => ({ ...r, source: 'web' })),
-          query,
-          { maxUrls: maxCrawl, timeout: 3000 }
-        );
+        const crawled = await Promise.race([
+          selectAndCrawlTopUrls(
+            results.map((r) => ({ ...r, source: 'web' })),
+            query,
+            { maxUrls: maxCrawl, timeout: 3000 }
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Crawl deadline exceeded')), CRAWL_DEADLINE_MS)
+          ),
+        ]);
         results = crawled.map((r) => ({
           ...r,
           title: r.title || '',
@@ -123,7 +136,7 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
           content: (r as any).fullContent || r.content,
         }));
       } catch (err: any) {
-        log.warn(`[WebSearch] Crawling failed: ${err.message}`);
+        log.warn(`[WebSearch] Crawling skipped: ${err.message}`);
       }
 
       if (results.length === 0) {
