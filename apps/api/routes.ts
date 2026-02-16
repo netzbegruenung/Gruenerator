@@ -16,9 +16,9 @@ import {
 import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { oparlRouter } from './routes/oparl/index.js';
-import planModeRouter from './routes/plan-mode/index.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
+import researchRouter from './routes/research/researchController.js';
 import scannerRouter from './routes/scanner/index.js';
 import {
   searchController as searchRouter,
@@ -60,7 +60,6 @@ import {
   subtitlesRouter as claudeSubtitlesRoute,
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
-import researchRouter from './routes/research/researchController.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import voiceRouter from './routes/voice/voiceController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
@@ -168,7 +167,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/crawl-url', crawlUrlRouter);
   app.use('/api/recent-values', recentValuesRouter);
   app.use('/api/antraege', requireAuth, antraegeRouter);
-  app.use('/api/plan-mode', requireAuth, planModeRouter);
   app.use('/api/scanner', scannerRouter);
   app.use('/api/protokoll', protokollRouter);
 

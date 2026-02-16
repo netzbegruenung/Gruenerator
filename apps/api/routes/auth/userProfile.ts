@@ -258,7 +258,6 @@ router.patch(
         'vorlagen',
         'videoEditor',
         'igel_modus',
-        'automatischPlanMode',
         'prompts',
         'scanner',
         'docs',

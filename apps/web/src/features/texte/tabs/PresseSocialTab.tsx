@@ -1,25 +1,13 @@
 import { AnimatePresence } from 'motion/react';
-import React, {
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  lazy,
-  Suspense,
-  memo,
-} from 'react';
+import React, { useState, useCallback, useMemo, useRef, lazy, memo } from 'react';
 import { useWatch, type Control } from 'react-hook-form';
 
 import BaseForm from '../../../components/common/BaseForm';
-import CorrectionSection from '../../../components/common/Form/BaseForm/CorrectionSection';
-import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import Icon from '../../../components/common/Icon';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import useFormTips from '../../../hooks/useFormTips';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
@@ -28,7 +16,6 @@ import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
-import { usePlanModeWorkflow } from '../antrag/hooks/usePlanModeWorkflow';
 import PressemitteilungForm, {
   type PressemitteilungFormRef,
 } from '../presse/components/PressemitteilungForm';
@@ -43,9 +30,6 @@ import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
 import type { GeneratedContent, ExamplePrompt } from '../../../types/baseform';
 
 import '../presse/presse-social.css';
-
-const AutomatischIcon = memo(() => <Icon category="platforms" name="automatisch" size={16} />);
-AutomatischIcon.displayName = 'AutomatischIcon';
 
 const PressemitteilungIcon = memo(() => (
   <Icon category="platforms" name="pressemitteilung" size={16} />
@@ -104,12 +88,9 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
   const isAustrian = locale === 'de-AT';
   // Sharepic temporarily disabled — will return in a future update
   const canUseSharepic = false; // was: isAuthenticated && !isAustrian
-  const { getBetaFeatureState } = useBetaFeatures();
-  const canUseAutomatischPlanMode = getBetaFeatureState('automatischPlanMode');
 
   const platformOptions = useMemo(() => {
     const options = [
-      { id: 'automatisch', label: 'Automatisch', icon: <AutomatischIcon /> },
       { id: 'pressemitteilung', label: 'Pressemitteilung', icon: <PressemitteilungIcon /> },
       { id: 'instagram', label: 'Instagram', icon: <InstagramIcon /> },
       { id: 'facebook', label: 'Facebook', icon: <FacebookIcon /> },
@@ -120,12 +101,8 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       { id: 'actionIdeas', label: 'Aktionsideen', icon: <ActionIdeasIcon /> },
       { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <ReelScriptIcon /> },
     ];
-    let filtered = options;
-    if (!canUseAutomatischPlanMode) {
-      filtered = filtered.filter((opt) => opt.id !== 'automatisch');
-    }
-    return filtered;
-  }, [canUseAutomatischPlanMode]);
+    return options;
+  }, []);
 
   const platformTags = useMemo(() => {
     const tags = [
@@ -158,7 +135,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
   );
 
   const defaultPlatforms = useMemo(() => {
-    let selectedPlatforms: string[] = canUseAutomatischPlanMode ? ['automatisch'] : ['instagram'];
+    let selectedPlatforms: string[] = ['instagram'];
     const typedInitialContent = initialContent as
       | { platforms?: Record<string, boolean>; isFromSharepic?: boolean }
       | undefined;
@@ -167,22 +144,15 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         (key) => typedInitialContent.platforms?.[key]
       );
       if (selectedPlatforms.length > 0) {
-        let filtered = selectedPlatforms.filter((p) => p !== 'sharepic');
-        if (!canUseAutomatischPlanMode) {
-          filtered = filtered.filter((p) => p !== 'automatisch');
-        }
+        const filtered = selectedPlatforms.filter((p) => p !== 'sharepic');
         return filtered;
       }
     }
     if (typedInitialContent?.isFromSharepic) {
       selectedPlatforms = ['instagram'];
     }
-    let filtered = selectedPlatforms;
-    if (!canUseAutomatischPlanMode) {
-      filtered = filtered.filter((p) => p !== 'automatisch');
-    }
-    return filtered;
-  }, [initialContent, canUseAutomatischPlanMode]);
+    return selectedPlatforms;
+  }, [initialContent]);
 
   const typedInitialContent = initialContent as
     | { inhalt?: string; thema?: string; zitatgeber?: string }
@@ -250,9 +220,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
   const [processedAttachments, setProcessedAttachments] = useState<unknown[]>([]);
   const [editingSharepic, setEditingSharepic] = useState<SharepicDataItem | null>(null);
   const [editingSharepicIndex, setEditingSharepicIndex] = useState<number>(-1);
-  const [questionAnswers, setQuestionAnswers] = useState<Record<string, string | string[]>>({});
-
-  const planMode = usePlanModeWorkflow();
 
   const setup = useGeneratorSetup({
     instructionType: 'social',
@@ -327,19 +294,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
           uploadedImage: null,
         };
 
-        if (combinedFormData.platforms.includes('automatisch')) {
-          await planMode.initiatePlan({
-            generatorType: 'pr' as 'antrag',
-            inhalt: combinedFormData.inhalt,
-            useWebSearch: setup.features.useWebSearchTool,
-            usePrivacyMode: setup.features.usePrivacyMode,
-            selectedDocumentIds: Array.from(setup.selectedDocumentIds || []),
-            selectedTextIds: Array.from(setup.selectedTextIds || []),
-          });
-          setStoreIsLoading(false);
-          return;
-        }
-
         const result = await submitHandler.submitStandard(combinedFormData);
 
         if (result && (result.sharepic || result.social)) {
@@ -347,7 +301,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
             combinedFormData.platforms.some((p: string) => p !== 'sharepic') &&
             result.social?.content;
 
-          // Create simplified serializable version for store (no functions, no redundant social wrapper)
           const serializableContent = {
             content: hasTextContent ? result.social!.content : '',
             metadata: result.social?.metadata || {},
@@ -355,7 +308,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
             ...(result.sharepic ? { sharepic: result.sharepic } : {}),
           };
 
-          // Full object with handler for local state only
           const finalContent: GeneratedContentResult = {
             ...serializableContent,
             onEditSharepic: async () => {},
@@ -370,16 +322,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         setStoreIsLoading(false);
       }
     },
-    [
-      submitHandler,
-      setStoreIsLoading,
-      setGeneratedText,
-      componentName,
-      planMode,
-      setup.features,
-      setup.selectedDocumentIds,
-      setup.selectedTextIds,
-    ]
+    [submitHandler, setStoreIsLoading, setGeneratedText, componentName]
   );
 
   const handleAttachmentClick = useCallback((files?: File[]) => {
@@ -457,105 +400,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     setEditingSharepicIndex(-1);
   }, []);
 
-  const handleAnswerChange = useCallback((questionId: string, answer: string | string[]) => {
-    setQuestionAnswers((prev) => ({ ...prev, [questionId]: answer }));
-  }, []);
-
-  const handleQuestionSubmit = useCallback(async () => {
-    if (planMode.state.workflowId) {
-      await planMode.submitAnswers(planMode.state.workflowId, questionAnswers);
-    }
-  }, [planMode, questionAnswers]);
-
-  const handleGenerateProduction = useCallback(async () => {
-    if (planMode.state.workflowId) {
-      const result = await planMode.generateProduction(planMode.state.workflowId);
-      if (result?.production_data?.content) {
-        setSocialMediaContent(result.production_data.content);
-        setGeneratedText(componentName, result.production_data.content, {});
-      }
-    }
-  }, [planMode, setGeneratedText, componentName]);
-
-  const handleRequestQuestions = useCallback(() => {
-    planMode.startAnswering();
-  }, [planMode]);
-
-  const handlePlanModeReset = useCallback(() => {
-    planMode.reset();
-    setQuestionAnswers({});
-    setSocialMediaContent('');
-  }, [planMode]);
-
-  const handleStartCorrections = useCallback(() => {
-    planMode.startCorrections();
-  }, [planMode]);
-
-  const handleSubmitCorrections = useCallback(
-    async (corrections: string) => {
-      if (planMode.state.workflowId) {
-        await planMode.submitCorrections(planMode.state.workflowId, corrections);
-      }
-    },
-    [planMode]
-  );
-
-  const handleCancelCorrections = useCallback(() => {
-    planMode.cancelCorrections();
-  }, [planMode]);
-
-  const watchAutomatisch = Array.isArray(watchPlatforms) && watchPlatforms.includes('automatisch');
-  const isPlanModeActive = watchAutomatisch && planMode.state.status !== 'idle';
-  const showFormInputs = !isPlanModeActive || planMode.state.status === 'error';
-
-  const displayContent = useMemo(() => {
-    if (watchAutomatisch && planMode.state.status !== 'idle') {
-      const { status, plan, revisedPlan, correctedPlan, production } = planMode.state;
-
-      if (status === 'completed' && production) {
-        return {
-          content: production,
-          title: null,
-          metadata: {},
-          useMarkdown: false,
-        };
-      }
-
-      const showPlanStates = ['plan_generated', 'answering_questions', 'providing_corrections'];
-      if (showPlanStates.includes(status) && (plan || revisedPlan || correctedPlan)) {
-        const displayPlan = correctedPlan || revisedPlan || plan;
-        let planTitle = '📋 Strategischer Plan';
-        if (correctedPlan) {
-          planTitle = '✏️ Korrigierter Plan';
-        } else if (revisedPlan) {
-          planTitle = '📝 Verfeinerter Plan';
-        }
-        return {
-          content: `## ${planTitle}\n\n${displayPlan}`,
-          title: null,
-          metadata: {},
-          useMarkdown: true,
-        };
-      }
-    }
-    return null;
-  }, [watchAutomatisch, planMode.state]);
-
-  const getSubmitButtonText = useCallback(() => {
-    if (!watchAutomatisch || planMode.state.status === 'idle') return 'Grünerieren';
-
-    switch (planMode.state.status) {
-      case 'generating_plan':
-        return 'Plan wird erstellt...';
-      case 'revising_plan':
-        return 'Plan wird verfeinert...';
-      case 'generating_production':
-        return 'Wird generiert...';
-      default:
-        return 'Grünerieren';
-    }
-  }, [watchAutomatisch, planMode.state.status]);
-
   const generatedContentWithHandler = useMemo((): GeneratedContentResult | string | null => {
     let content: unknown = storeGeneratedText || socialMediaContent;
 
@@ -603,113 +447,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     [watchPlatforms, setValue]
   );
 
-  const renderPlanModeContent = () => {
-    const { status, plan, revisedPlan, correctedPlan, questions, correctionSummary } =
-      planMode.state;
-
-    if (status === 'plan_generated' && (plan || revisedPlan || correctedPlan)) {
-      const hasQuestions = questions && questions.length > 0;
-
-      let statusMessage = 'Dein strategischer Plan wurde erstellt. Wie möchtest du fortfahren?';
-      if (correctedPlan) {
-        statusMessage = correctionSummary
-          ? `Der Plan wurde korrigiert (${correctionSummary}). Wie möchtest du fortfahren?`
-          : 'Der Plan wurde korrigiert. Wie möchtest du fortfahren?';
-      } else if (revisedPlan) {
-        statusMessage = 'Der Plan wurde verfeinert. Wie möchtest du fortfahren?';
-      }
-
-      return (
-        <div className="plan-mode-actions">
-          <p style={{ marginBottom: '1rem', color: 'var(--font-color-secondary)' }}>
-            {statusMessage}
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <button
-              type="button"
-              className="btn-primary size-m"
-              onClick={handleGenerateProduction}
-              disabled={planMode.isLoading}
-            >
-              Jetzt generieren
-            </button>
-            <button
-              type="button"
-              className="btn-secondary size-m"
-              onClick={handleStartCorrections}
-              disabled={planMode.isLoading}
-            >
-              Plan korrigieren
-            </button>
-            {hasQuestions && (
-              <button
-                type="button"
-                className="btn-secondary size-m"
-                onClick={handleRequestQuestions}
-                disabled={planMode.isLoading}
-              >
-                Fragen beantworten
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn-ghost size-m"
-              onClick={handlePlanModeReset}
-              disabled={planMode.isLoading}
-            >
-              Neu starten
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (status === 'providing_corrections') {
-      return (
-        <CorrectionSection
-          onSubmit={handleSubmitCorrections}
-          onCancel={handleCancelCorrections}
-          loading={false}
-        />
-      );
-    }
-
-    if (status === 'answering_questions' && questions && questions.length > 0) {
-      return (
-        <QuestionAnswerSection
-          questions={questions}
-          answers={questionAnswers}
-          onAnswerChange={handleAnswerChange}
-          onSubmit={handleQuestionSubmit}
-          loading={planMode.state.status === 'revising_plan'}
-          submitButtonProps={{ defaultText: 'Plan verfeinern' }}
-        />
-      );
-    }
-
-    if (
-      [
-        'generating_plan',
-        'revising_plan',
-        'applying_corrections',
-        'generating_production',
-      ].includes(status)
-    ) {
-      let loadingText = getSubmitButtonText();
-      if (status === 'applying_corrections') {
-        loadingText = 'Korrekturen werden angewendet...';
-      }
-      return (
-        <div className="plan-mode-loading" style={{ textAlign: 'center', padding: '2rem' }}>
-          <div className="loading-spinner" />
-          <p style={{ marginTop: '1rem', color: 'var(--font-color-secondary)' }}>{loadingText}</p>
-        </div>
-      );
-    }
-
-    return null;
-  };
-
   const helpContent = useMemo(
     () => ({
       content: 'Erstelle professionelle Pressemitteilungen und Social Media Inhalte',
@@ -737,14 +474,11 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
       <BaseForm
         useStartPageLayout={false}
         onSubmit={() => void handleSubmit(onSubmitRHF)()}
-        loading={submitHandler.loading || planMode.isLoading}
+        loading={submitHandler.loading}
         success={false}
-        error={planMode.state.error || submitHandler.error}
-        showNextButton={!isPlanModeActive || planMode.state.status === 'idle'}
-        generatedContent={
-          displayContent?.content || (generatedContentWithHandler as GeneratedContent)
-        }
-        useMarkdown={displayContent?.useMarkdown ?? false}
+        error={submitHandler.error}
+        generatedContent={generatedContentWithHandler as GeneratedContent}
+        useMarkdown={false}
         enableKnowledgeSelector={true}
         helpContent={helpContent}
         componentName={componentName}
@@ -774,60 +508,47 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         examplePrompts={platformTags as ExamplePrompt[]}
         onExamplePromptClick={handlePlatformTagClick as (prompt: ExamplePrompt) => void}
         selectedPlatforms={watchPlatforms}
-        nextButtonText={getSubmitButtonText()}
-        hideFormExtras={isPlanModeActive && planMode.state.status !== 'idle'}
+        nextButtonText="Grünerieren"
         firstExtrasChildren={
-          isPlanModeActive && planMode.state.status !== 'idle' ? (
-            renderPlanModeContent()
-          ) : (
-            <>
-              <PlatformSelector
-                name="platforms"
-                control={control}
-                platformOptions={platformOptions}
-                label=""
-                placeholder="Formate"
-                required={true}
-                tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
-                enableAutoSelect={true}
-              />
-            </>
-          )
+          <PlatformSelector
+            name="platforms"
+            control={control}
+            platformOptions={platformOptions}
+            label=""
+            placeholder="Formate"
+            required={true}
+            tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
+            enableAutoSelect={true}
+          />
         }
       >
-        {showFormInputs ? (
-          <>
-            <SocialMediaForm
-              ref={socialMediaFormRef}
+        <SocialMediaForm
+          ref={socialMediaFormRef}
+          defaultValues={{
+            inhalt: typedInitialContent?.inhalt || typedInitialContent?.thema || '',
+          }}
+          tabIndex={{
+            inhalt: form.generator?.tabIndex?.inhalt,
+          }}
+          onUrlsDetected={handleUrlsDetected}
+        />
+        <AnimatePresence>
+          {watchPressemitteilung && !hasGeneratedContent && (
+            <PressemitteilungForm
+              ref={pressemitteilungFormRef}
               defaultValues={{
-                inhalt: typedInitialContent?.inhalt || typedInitialContent?.thema || '',
+                zitatgeber: typedInitialContent?.zitatgeber || userDisplayName,
               }}
               tabIndex={{
-                inhalt: form.generator?.tabIndex?.inhalt,
+                zitatgeber: (form.generator?.tabIndex as Record<string, number> | undefined)
+                  ?.zitatgeber,
               }}
-              onUrlsDetected={handleUrlsDetected}
+              isVisible={watchPressemitteilung}
+              success={false}
             />
-            <AnimatePresence>
-              {watchPressemitteilung && !hasGeneratedContent && (
-                <PressemitteilungForm
-                  ref={pressemitteilungFormRef}
-                  defaultValues={{
-                    zitatgeber: typedInitialContent?.zitatgeber || userDisplayName,
-                  }}
-                  tabIndex={{
-                    zitatgeber: (form.generator?.tabIndex as Record<string, number> | undefined)
-                      ?.zitatgeber,
-                  }}
-                  isVisible={watchPressemitteilung}
-                  success={false}
-                />
-              )}
-            </AnimatePresence>
-            {/* Sharepic temporarily disabled */}
-          </>
-        ) : (
-          renderPlanModeContent()
-        )}
+          )}
+        </AnimatePresence>
+        {/* Sharepic temporarily disabled */}
       </BaseForm>
 
       {/* SharepicMasterEditorModal temporarily disabled */}
