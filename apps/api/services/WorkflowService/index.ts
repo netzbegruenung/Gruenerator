@@ -4,16 +4,11 @@
  * No permanent storage - workflows auto-expire after 1 hour of inactivity
  */
 
-import { redisClient } from '../../utils/redis/client.js';
 import { v4 as uuidv4 } from 'uuid';
 
-export type WorkflowType =
-  | 'pr_agent'
-  | 'text_generator'
-  | 'image_studio'
-  | 'speech_generator'
-  | 'plan_mode_pr'
-  | 'plan_mode_antrag';
+import { redisClient } from '../../utils/redis/client.js';
+
+export type WorkflowType = 'pr_agent' | 'text_generator' | 'image_studio' | 'speech_generator';
 export type WorkflowStatus =
   | 'draft'
   | 'awaiting_approval'
@@ -21,9 +16,6 @@ export type WorkflowStatus =
   | 'approved'
   | 'completed'
   | 'cancelled'
-  | 'plan_generated'
-  | 'questions_asked'
-  | 'plan_revised'
   | 'generating';
 
 export interface Workflow {

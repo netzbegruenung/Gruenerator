@@ -1,9 +1,6 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
 
 import BaseForm from '../../../components/common/BaseForm';
-import FeatureToggle from '../../../components/common/FeatureToggle';
-import CorrectionSection from '../../../components/common/Form/BaseForm/CorrectionSection';
-import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { FormTextarea } from '../../../components/common/Form/Input';
 import SmartInput from '../../../components/common/Form/SmartInput';
@@ -15,7 +12,6 @@ import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useUserDefaults } from '../../../hooks/useUserDefaults';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { usePlanModeWorkflow } from '../antrag/hooks/usePlanModeWorkflow';
 
 interface AntragTabProps {
   isActive: boolean;
@@ -53,11 +49,6 @@ const REQUEST_TYPE_ICONS: Record<string, () => React.ReactNode> = {
   [REQUEST_TYPES.GROSSE_ANFRAGE]: () => <GrosseAnfrageIcon />,
 };
 
-const PlanModeIcon = memo(({ className }: { className?: string }) => (
-  <Icon category="ui" name="strategy" className={className} />
-));
-PlanModeIcon.displayName = 'PlanModeIcon';
-
 const EMPTY_ARRAY: unknown[] = [];
 
 const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
@@ -70,9 +61,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     | typeof REQUEST_TYPES.KLEINE_ANFRAGE
     | typeof REQUEST_TYPES.GROSSE_ANFRAGE
   >(REQUEST_TYPES.ANTRAG);
-  const [usePlanMode, setUsePlanMode] = useState(false);
-  const [questionAnswers, setQuestionAnswers] = useState<Record<string, string | string[]>>({});
-  const planMode = usePlanModeWorkflow();
 
   const [antragContent, setAntragContent] = useState('');
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(
@@ -130,27 +118,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
       setStoreIsLoading(true);
 
       try {
-        if (usePlanMode) {
-          const submissionData = builder.buildSubmissionData({
-            requestType: selectedRequestType,
-            inhalt: rhfData.inhalt,
-            gliederung: rhfData.gliederung,
-          });
-
-          await planMode.initiatePlan({
-            generatorType: 'antrag',
-            inhalt: rhfData.inhalt,
-            requestType: selectedRequestType,
-            useWebSearch: submissionData.useWebSearchTool,
-            usePrivacyMode: submissionData.usePrivacyMode,
-            selectedDocumentIds: submissionData.selectedDocumentIds,
-            selectedTextIds: submissionData.selectedTextIds,
-          });
-
-          setStoreIsLoading(false);
-          return;
-        }
-
         const formDataToSubmit = builder.buildSubmissionData({
           requestType: selectedRequestType,
           inhalt: rhfData.inhalt,
@@ -188,50 +155,10 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
       componentName,
       selectedRequestType,
       builder,
-      usePlanMode,
-      planMode,
     ]
   );
 
-  const handleGeneratedContentChange = useCallback(
-    (content: string) => {
-      setAntragContent(content);
-      setGeneratedText(componentName, content);
-    },
-    [setGeneratedText, componentName]
-  );
-
   const displayContent = useMemo(() => {
-    if (usePlanMode) {
-      const { status, plan, revisedPlan, correctedPlan, production } = planMode.state;
-
-      if (status === 'completed' && production) {
-        return {
-          content: production,
-          title: null,
-          metadata: {},
-          useMarkdown: false,
-        };
-      }
-
-      const showPlanStates = ['plan_generated', 'answering_questions', 'providing_corrections'];
-      if (showPlanStates.includes(status) && (plan || revisedPlan || correctedPlan)) {
-        const displayPlan = correctedPlan || revisedPlan || plan;
-        let planTitle = '📋 Strategischer Plan';
-        if (correctedPlan) {
-          planTitle = '✏️ Korrigierter Plan';
-        } else if (revisedPlan) {
-          planTitle = '📝 Verfeinerter Plan';
-        }
-        return {
-          content: `## ${planTitle}\n\n${displayPlan}`,
-          title: null,
-          metadata: {},
-          useMarkdown: true,
-        };
-      }
-    }
-
     const content = storeGeneratedText || antragContent;
 
     if (content) {
@@ -244,69 +171,7 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     }
 
     return null;
-  }, [storeGeneratedText, antragContent, usePlanMode, planMode.state]);
-
-  const getSubmitButtonText = useCallback(() => {
-    if (!usePlanMode) return 'Grünerieren';
-
-    switch (planMode.state.status) {
-      case 'idle':
-        return 'Plan erstellen';
-      case 'generating_plan':
-        return 'Plan wird erstellt...';
-      case 'revising_plan':
-        return 'Plan wird verfeinert...';
-      case 'generating_production':
-        return 'Wird generiert...';
-      default:
-        return 'Grünerieren';
-    }
-  }, [usePlanMode, planMode.state.status]);
-
-  const handleAnswerChange = useCallback((questionId: string, answer: string | string[]) => {
-    setQuestionAnswers((prev) => ({ ...prev, [questionId]: answer }));
-  }, []);
-
-  const handleQuestionSubmit = useCallback(async () => {
-    if (planMode.state.workflowId) {
-      await planMode.submitAnswers(planMode.state.workflowId, questionAnswers);
-    }
-  }, [planMode, questionAnswers]);
-
-  const handleGenerateProduction = useCallback(async () => {
-    if (planMode.state.workflowId) {
-      await planMode.generateProduction(planMode.state.workflowId);
-    }
-  }, [planMode]);
-
-  const handleRequestQuestions = useCallback(() => {
-    planMode.startAnswering();
-  }, [planMode]);
-
-  const handlePlanModeReset = useCallback(() => {
-    planMode.reset();
-    setQuestionAnswers({});
-  }, [planMode]);
-
-  const handleStartCorrections = useCallback(() => {
-    planMode.startCorrections();
-  }, [planMode]);
-
-  const handleSubmitCorrections = useCallback(
-    async (corrections: string) => {
-      if (planMode.state.workflowId) {
-        await planMode.submitCorrections(planMode.state.workflowId, corrections);
-      }
-    },
-    [planMode]
-  );
-
-  const handleCancelCorrections = useCallback(() => {
-    planMode.cancelCorrections();
-  }, [planMode]);
-
-  const isPlanModeActive = usePlanMode && planMode.state.status !== 'idle';
-  const showFormInputs = !isPlanModeActive || planMode.state.status === 'error';
+  }, [storeGeneratedText, antragContent]);
 
   const requestTypeOptions = useMemo(
     () =>
@@ -320,7 +185,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
 
   const handleRequestTypeChange = useCallback(
     (value: string | number | (string | number)[] | null | undefined) => {
-      // Extract first value if array (shouldn't happen with isMulti=false but type union expects it)
       const val = Array.isArray(value) ? value[0] : value;
       setSelectedRequestType(
         String(val ?? REQUEST_TYPES.ANTRAG) as
@@ -330,14 +194,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
       );
     },
     []
-  );
-
-  const handlePlanModeToggle = useCallback(
-    (checked: boolean) => {
-      setUsePlanMode(checked);
-      if (!checked) handlePlanModeReset();
-    },
-    [handlePlanModeReset]
   );
 
   const renderRequestTypeSection = useCallback(
@@ -396,129 +252,9 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     );
   };
 
-  const renderPlanModeContent = () => {
-    const { status, plan, revisedPlan, correctedPlan, questions, correctionSummary } =
-      planMode.state;
-
-    if (status === 'plan_generated' && (plan || revisedPlan || correctedPlan)) {
-      const hasQuestions = questions && questions.length > 0;
-
-      let statusMessage = 'Dein strategischer Plan wurde erstellt. Wie möchtest du fortfahren?';
-      if (correctedPlan) {
-        statusMessage = correctionSummary
-          ? `Der Plan wurde korrigiert (${correctionSummary}). Wie möchtest du fortfahren?`
-          : 'Der Plan wurde korrigiert. Wie möchtest du fortfahren?';
-      } else if (revisedPlan) {
-        statusMessage = 'Der Plan wurde verfeinert. Wie möchtest du fortfahren?';
-      }
-
-      return (
-        <div className="plan-mode-actions">
-          <p style={{ marginBottom: '1rem', color: 'var(--font-color-secondary)' }}>
-            {statusMessage}
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <button
-              type="button"
-              className="btn-primary size-m"
-              onClick={handleGenerateProduction}
-              disabled={planMode.isLoading}
-            >
-              Jetzt generieren
-            </button>
-            <button
-              type="button"
-              className="btn-secondary size-m"
-              onClick={handleStartCorrections}
-              disabled={planMode.isLoading}
-            >
-              Plan korrigieren
-            </button>
-            {hasQuestions && (
-              <button
-                type="button"
-                className="btn-secondary size-m"
-                onClick={handleRequestQuestions}
-                disabled={planMode.isLoading}
-              >
-                Fragen beantworten
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn-ghost size-m"
-              onClick={handlePlanModeReset}
-              disabled={planMode.isLoading}
-            >
-              Neu starten
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (status === 'providing_corrections') {
-      return (
-        <CorrectionSection
-          onSubmit={handleSubmitCorrections}
-          onCancel={handleCancelCorrections}
-          loading={false}
-        />
-      );
-    }
-
-    if (status === 'answering_questions' && questions && questions.length > 0) {
-      return (
-        <QuestionAnswerSection
-          questions={questions}
-          answers={questionAnswers}
-          onAnswerChange={handleAnswerChange}
-          onSubmit={handleQuestionSubmit}
-          loading={planMode.state.status === 'revising_plan'}
-          submitButtonProps={{ defaultText: 'Plan verfeinern' }}
-        />
-      );
-    }
-
-    if (
-      [
-        'generating_plan',
-        'revising_plan',
-        'applying_corrections',
-        'generating_production',
-      ].includes(status)
-    ) {
-      let loadingText = getSubmitButtonText();
-      if (status === 'applying_corrections') {
-        loadingText = 'Korrekturen werden angewendet...';
-      }
-      return (
-        <div className="plan-mode-loading" style={{ textAlign: 'center', padding: '2rem' }}>
-          <div className="loading-spinner" />
-          <p style={{ marginTop: '1rem', color: 'var(--font-color-secondary)' }}>{loadingText}</p>
-        </div>
-      );
-    }
-
-    return renderFormInputs();
-  };
-
   const renderFirstExtras = useCallback(
-    () => (
-      <>
-        {renderRequestTypeSection()}
-        <FeatureToggle
-          label="Plan Mode"
-          isActive={usePlanMode}
-          onToggle={handlePlanModeToggle}
-          icon={PlanModeIcon}
-          description="Erst planen, dann generieren"
-          noBorder={true}
-          disabled={isPlanModeActive}
-        />
-      </>
-    ),
-    [renderRequestTypeSection, usePlanMode, handlePlanModeToggle, isPlanModeActive]
+    () => <>{renderRequestTypeSection()}</>,
+    [renderRequestTypeSection]
   );
 
   return (
@@ -531,21 +267,20 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
         });
         return submitHandler();
       }}
-      loading={loading || planMode.isLoading}
-      success={success && !usePlanMode}
-      error={planMode.state.error || error}
+      loading={loading}
+      success={success}
+      error={error}
       generatedContent={displayContent?.content || ''}
       useMarkdown={displayContent?.useMarkdown ?? false}
-      nextButtonText={getSubmitButtonText()}
+      nextButtonText="Grünerieren"
       firstExtrasChildren={renderFirstExtras()}
       platformOptions={
         (form.generator?.baseFormProps?.platformOptions ?? undefined) as unknown as
           | any[]
           | undefined
       }
-      hideFormExtras={isPlanModeActive && planMode.state.status !== 'idle'}
     >
-      {usePlanMode ? renderPlanModeContent() : renderFormInputs()}
+      {renderFormInputs()}
     </BaseForm>
   );
 });

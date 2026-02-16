@@ -70,13 +70,6 @@ const useApiSubmit = (endpoint: string) => {
 
       const response = (await processText(endpoint, requestData)) as ApiSubmitResponse;
 
-      // Special handling for plan mode responses
-      // Plan mode returns { workflowId, plan, questions, ... } instead of { content, metadata }
-      if (response && typeof response === 'object' && 'workflowId' in response) {
-        // Return plan mode response directly without parsing
-        return response;
-      }
-
       // Special validation for /claude_social endpoint to catch raw AI responses
       if (endpoint === '/claude_social' && response && typeof response === 'object') {
         if ('tool_calls' in response) {

@@ -61,12 +61,6 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
     isAdminOnly: false,
     defaultEnabled: true,
   },
-  {
-    key: 'automatischPlanMode',
-    label: 'Automatisch Plan-Modus',
-    isAdminOnly: false,
-    defaultEnabled: false,
-  },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
   { key: 'prompts', label: 'Eigene Prompts', isAdminOnly: false },
   { key: 'docs', label: 'Dokumente', isAdminOnly: false },
