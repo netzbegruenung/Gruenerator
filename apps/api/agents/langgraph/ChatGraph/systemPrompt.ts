@@ -18,6 +18,7 @@ export interface SystemPromptContext {
   threadAttachments?: ThreadAttachment[];
   notebookContext?: string;
   notebookCollectionIds?: string[];
+  userInstructions?: string;
 }
 
 /**
@@ -85,7 +86,12 @@ export function buildDeepAgentSystemPrompt(ctx: SystemPromptContext): string {
     sections.push(formatThreadAttachments(ctx.threadAttachments));
   }
 
-  // 10. Response rules
+  // 10. User instructions (personal preferences from profile settings)
+  if (ctx.userInstructions) {
+    sections.push(formatUserInstructions(ctx.userInstructions));
+  }
+
+  // 11. Response rules
   sections.push(RESPONSE_RULES);
 
   return sections.join('\n\n');
@@ -315,7 +321,6 @@ Du hast folgende Informationen über diesen Nutzer aus früheren Gesprächen:
 
 ${memoryContext}
 
----
 Berücksichtige diese Informationen bei deiner Antwort, aber erwähne sie nur wenn relevant.`;
 }
 
@@ -333,7 +338,6 @@ Der Nutzer hat Dokumente angehängt. Hier ist der extrahierte Text:
 
 ${limited}
 
----
 Beantworte Fragen zu den Dokumenten basierend auf deren Inhalt.`;
 }
 
@@ -349,8 +353,17 @@ function formatThreadAttachments(attachments: ThreadAttachment[]): string {
 
 ${docs}
 
----
 Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht.`;
+}
+
+function formatUserInstructions(userInstructions: string): string {
+  return `## PERSÖNLICHE ANWEISUNGEN DES NUTZERS
+
+Der Nutzer hat folgende Anweisungen hinterlegt:
+
+${userInstructions}
+
+Befolge diese Anweisungen bei allen Antworten.`;
 }
 
 const RESPONSE_RULES = `## ANTWORT-REGELN
@@ -363,4 +376,5 @@ const RESPONSE_RULES = `## ANTWORT-REGELN
 3. Antworte immer auf Deutsch, es sei denn der Nutzer fragt explizit nach einer anderen Sprache
 4. Erfinde keine Fakten oder Quellennamen
 5. Wenn der Gesprächsverlauf bereits genug Kontext enthält, antworte direkt OHNE Tool-Aufruf
-6. Erstelle KEINE Quellenliste am Ende — Quellen werden automatisch angezeigt`;
+6. Erstelle KEINE Quellenliste am Ende — Quellen werden automatisch angezeigt
+7. Verwende KEINE horizontalen Trennlinien (---) in deinen Antworten`;
