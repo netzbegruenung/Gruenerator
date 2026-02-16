@@ -20,9 +20,6 @@ export type AppRoute =
   // Media routes
   | '/(tabs)/(media)/reel'
   | '/(tabs)/(media)/image-studio'
-  | '/(tabs)/(media)/image-studio/image'
-  | '/(tabs)/(media)/image-studio/ki-input'
-  | '/(tabs)/(media)/image-studio/result'
   // Tools routes
   | '/(tabs)/(tools)/suche'
   | '/(tabs)/(tools)/texteditor'
@@ -39,6 +36,12 @@ export type AppRoute =
   // Auth routes
   | '/(auth)/login'
   | '/auth/callback'
+  // Focused routes
+  | '/(focused)/chat-conversation'
+  | '/(focused)/notebook-chat'
+  | '/(focused)/image-studio-create/image'
+  | '/(focused)/image-studio-create/ki-input'
+  | '/(focused)/image-studio-create/result'
   // Fullscreen routes
   | '/(fullscreen)/subtitle-editor'
   | '/(fullscreen)/image-studio-editor'
@@ -53,6 +56,13 @@ export interface ModalRouteParams {
   };
   '/(modals)/gruenerator-chat': {
     initialMessage?: string;
+  };
+  '/(focused)/chat-conversation': {
+    threadId: string;
+    initialMessage?: string;
+  };
+  '/(focused)/notebook-chat': {
+    notebookId: string;
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;

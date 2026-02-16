@@ -1,17 +1,12 @@
-/**
- * Image Upload Screen
- * Image upload step for Image Studio (KI edit types)
- */
-
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ImageUploadStep } from '../../../../components/image-studio/ImageUploadStep';
-import { useImageStudioStore } from '../../../../stores/imageStudioStore';
-import { lightTheme, darkTheme } from '../../../../theme';
-import { route } from '../../../../types/routes';
+import { ImageUploadStep } from '../../../components/image-studio/ImageUploadStep';
+import { useImageStudioStore } from '../../../stores/imageStudioStore';
+import { lightTheme, darkTheme } from '../../../theme';
+import { route } from '../../../types/routes';
 
 export default function ImageScreen() {
   const colorScheme = useColorScheme();
@@ -20,7 +15,7 @@ export default function ImageScreen() {
   const { kiType, uploadedImageUri, setUploadedImage, clearUploadedImage } = useImageStudioStore();
 
   const handleNext = () => {
-    router.push(route('/(tabs)/(media)/image-studio/ki-input'));
+    router.push(route('/(focused)/image-studio-create/ki-input'));
   };
 
   useEffect(() => {
@@ -34,7 +29,7 @@ export default function ImageScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top', 'bottom']}>
       <ImageUploadStep
         uploadedImageUri={uploadedImageUri}
         onImageSelected={setUploadedImage}

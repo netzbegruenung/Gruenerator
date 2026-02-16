@@ -118,6 +118,14 @@ CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_user ON app_refresh_tokens(use
 CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_hash ON app_refresh_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_expires ON app_refresh_tokens(expires_at) WHERE revoked_at IS NULL;
 
+-- Push notification tokens (Expo Push) for mobile devices
+ALTER TABLE app_refresh_tokens ADD COLUMN IF NOT EXISTS push_token TEXT;
+ALTER TABLE app_refresh_tokens ADD COLUMN IF NOT EXISTS push_token_updated_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_push
+  ON app_refresh_tokens(user_id)
+  WHERE push_token IS NOT NULL AND revoked_at IS NULL;
+
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 3: GROUPS & MEMBERSHIPS

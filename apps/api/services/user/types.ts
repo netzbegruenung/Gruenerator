@@ -40,6 +40,7 @@ export interface UserProfile {
   docs?: boolean;
   bundestag_api_enabled?: boolean;
   memory_enabled?: boolean;
+  custom_prompt?: string;
   canva_user_id?: string;
 
   // Timestamps

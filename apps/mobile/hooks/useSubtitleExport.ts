@@ -1,4 +1,7 @@
+import { useAuthStore } from '@gruenerator/shared/stores';
+import * as Notifications from 'expo-notifications';
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { Platform } from 'react-native';
 
 import { reelApi } from '../services/reel';
 import { useSubtitleEditorStore } from '../stores/subtitleEditorStore';
@@ -48,6 +51,10 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
     reset();
     setState({ ...initialState, status: 'saving' });
 
+    if (Platform.OS === 'ios') {
+      await Notifications.requestPermissionsAsync();
+    }
+
     const saved = await saveChanges();
     if (!saved) {
       if (isMountedRef.current) {
@@ -58,10 +65,19 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
 
     if (!isMountedRef.current) return;
 
-    const { uploadId, segments, stylePreference, heightPreference } =
+    const { uploadId, projectId, segments, stylePreference, heightPreference } =
       useSubtitleEditorStore.getState();
 
-    if (!uploadId || segments.length === 0) {
+    if (!uploadId && !projectId) {
+      setState({
+        ...initialState,
+        status: 'error',
+        error: 'Kein Video zum Exportieren gefunden (weder Upload-ID noch Projekt-ID vorhanden)',
+      });
+      return;
+    }
+
+    if (segments.length === 0) {
       setState({
         ...initialState,
         status: 'error',
@@ -79,8 +95,12 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
         text: s.text,
       }));
 
+      const userId = useAuthStore.getState().user?.id ?? null;
+
       const exportToken = await reelApi.exportVideo({
         uploadId,
+        projectId,
+        userId,
         subtitles: subtitleData,
         stylePreference,
         heightPreference,
@@ -109,6 +129,13 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
               const videoUri = await reelApi.downloadExportedVideo(exportToken);
               if (isMountedRef.current) {
                 setState({ status: 'complete', progress: 100, videoUri, error: null });
+                Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: 'Export fertig',
+                    body: 'Dein Video wurde erfolgreich exportiert.',
+                  },
+                  trigger: null,
+                });
               }
             } catch (downloadErr) {
               if (isMountedRef.current) {

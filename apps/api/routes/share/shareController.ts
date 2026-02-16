@@ -1318,4 +1318,74 @@ router.get(
   }
 );
 
+// ============================================================================
+// PUSH TO PHONE
+// ============================================================================
+
+/**
+ * GET /share/devices
+ * Get the current user's registered mobile devices (for push-to-phone UI)
+ */
+router.get('/devices', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { getUserDevices } = await import('../../services/pushNotificationService.js');
+    const devices = await getUserDevices(userId);
+
+    res.json({ success: true, devices });
+  } catch (error) {
+    log.error('Failed to get devices:', error);
+    res.status(500).json({ success: false, error: 'Failed to get devices' });
+  }
+});
+
+/**
+ * POST /share/push-to-phone
+ * Send a shared media item to the user's mobile device(s) via push notification
+ */
+router.post('/push-to-phone', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { shareToken } = req.body as { shareToken: string };
+
+    if (!shareToken) {
+      return res.status(400).json({ success: false, error: 'shareToken is required' });
+    }
+
+    // Verify the user owns this share
+    const service = await getSharedMediaService();
+    const share = await service.getShareByToken(shareToken);
+
+    if (!share) {
+      return res.status(404).json({ success: false, error: 'Share not found' });
+    }
+
+    if (share.user_id !== userId) {
+      return res.status(403).json({ success: false, error: 'Not authorized' });
+    }
+
+    const mediaType = share.media_type || 'image';
+    const title = mediaType === 'video' ? 'Neues Video empfangen' : 'Neues Bild empfangen';
+    const body = share.title || 'Von Grünerator gesendet';
+
+    const { sendPushToUser } = await import('../../services/pushNotificationService.js');
+    const pushedToDevices = await sendPushToUser(userId, {
+      title,
+      body,
+      data: {
+        type: 'pushed_content',
+        shareToken,
+        mediaType,
+      },
+    });
+
+    log.info(`Push-to-phone: sent to ${pushedToDevices} device(s)`, { userId, shareToken });
+
+    return res.json({ success: true, pushedToDevices });
+  } catch (error) {
+    log.error('Failed to push to phone:', error);
+    return res.status(500).json({ success: false, error: 'Failed to send to phone' });
+  }
+});
+
 export default router;

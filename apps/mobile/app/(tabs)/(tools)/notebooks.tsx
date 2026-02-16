@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable } from 'react-native';
 
-import { NotebookChat } from '../../../components/notebooks';
 import { NOTEBOOK_LIST, type NotebookConfig } from '../../../config/notebooksConfig';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { routeWithParams } from '../../../types/routes';
 
 const ICON_MAP: Record<NotebookConfig['icon'], keyof typeof Ionicons.glyphMap> = {
   library: 'library',
@@ -67,22 +67,7 @@ function NotebookCard({ notebook, onPress }: { notebook: NotebookConfig; onPress
 export default function NotebooksScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const [selectedNotebook, setSelectedNotebook] = useState<string | null>(null);
-
-  if (selectedNotebook) {
-    return (
-      <View style={[styles.chatContainer, { backgroundColor: theme.background }]}>
-        <Pressable
-          onPress={() => setSelectedNotebook(null)}
-          style={[styles.backButton, { borderBottomColor: theme.border }]}
-        >
-          <Ionicons name="arrow-back" size={20} color={colors.primary[600]} />
-          <Text style={[styles.backText, { color: colors.primary[600] }]}>Notebooks</Text>
-        </Pressable>
-        <NotebookChat notebookId={selectedNotebook} />
-      </View>
-    );
-  }
+  const router = useRouter();
 
   return (
     <ScrollView
@@ -102,7 +87,9 @@ export default function NotebooksScreen() {
           <NotebookCard
             key={notebook.id}
             notebook={notebook}
-            onPress={() => setSelectedNotebook(notebook.id)}
+            onPress={() =>
+              router.push(routeWithParams('/(focused)/notebook-chat', { notebookId: notebook.id }))
+            }
           />
         ))}
       </View>
@@ -175,19 +162,5 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 11,
-  },
-  chatContainer: {
-    flex: 1,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    borderBottomWidth: 1,
-  },
-  backText: {
-    ...typography.label,
   },
 });

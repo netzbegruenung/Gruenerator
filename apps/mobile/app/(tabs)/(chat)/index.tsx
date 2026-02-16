@@ -38,13 +38,13 @@ export default function ThreadListScreen() {
 
   const handleNewChat = useCallback(() => {
     startNewChat();
-    router.push('/(tabs)/(chat)/new' as any);
+    router.push('/(focused)/chat-conversation?threadId=new' as any);
   }, [startNewChat, router]);
 
   const handleThreadPress = useCallback(
     (threadId: string) => {
       switchThread(threadId);
-      router.push(`/(tabs)/(chat)/${threadId}` as any);
+      router.push(`/(focused)/chat-conversation?threadId=${threadId}` as any);
     },
     [switchThread, router]
   );
@@ -66,7 +66,10 @@ export default function ThreadListScreen() {
   const handleSuggestion = useCallback(
     (text: string) => {
       startNewChat();
-      router.push({ pathname: '/(tabs)/(chat)/new' as any, params: { initialMessage: text } });
+      router.push({
+        pathname: '/(focused)/chat-conversation' as any,
+        params: { threadId: 'new', initialMessage: text },
+      });
     },
     [startNewChat, router]
   );

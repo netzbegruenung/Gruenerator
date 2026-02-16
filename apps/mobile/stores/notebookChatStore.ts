@@ -1,5 +1,5 @@
-import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
 
 export interface NotebookSource {
   title: string;
@@ -10,6 +10,8 @@ export interface NotebookSource {
   index?: number | string;
   cited_text?: string;
   similarity_score?: number;
+  chunk_index?: number;
+  collection_id?: string;
 }
 
 export interface NotebookChatMessage {

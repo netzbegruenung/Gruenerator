@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+
 import { initializeApiClient } from '../services/api';
 import { configureAuthStore, checkAuthStatus } from '../services/auth';
+import { registerForPushNotifications } from '../services/pushNotifications';
 import { usePreferencesStore } from '../stores/preferencesStore';
 
 export function useAppInitialization() {
@@ -12,7 +14,14 @@ export function useAppInitialization() {
       try {
         initializeApiClient();
         configureAuthStore();
-        await Promise.all([checkAuthStatus(), loadPreferences()]);
+        const [isAuthenticated] = await Promise.all([checkAuthStatus(), loadPreferences()]);
+
+        // Register push token after successful auth (non-blocking)
+        if (isAuthenticated) {
+          registerForPushNotifications().catch((err) =>
+            console.warn('[App] Push registration failed:', err)
+          );
+        }
       } catch (error) {
         console.error('[App] Initialization error:', error);
       } finally {

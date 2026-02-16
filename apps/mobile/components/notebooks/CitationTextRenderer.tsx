@@ -1,8 +1,11 @@
 import { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import Markdown, { MarkdownProps } from 'react-native-markdown-display';
-import { CitationModal } from './CitationModal';
+import Markdown, { type MarkdownProps } from 'react-native-markdown-display';
+
 import { colors, spacing } from '../../theme';
+
+import { CitationModal } from './CitationModal';
+
 import type { NotebookSource } from '../../stores/notebookChatStore';
 
 interface CitationTextRendererProps {
@@ -98,9 +101,7 @@ export function CitationTextRenderer({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: {},
   citationList: {
     marginTop: spacing.small,
   },

@@ -1,3 +1,13 @@
+import { useActionSheet } from '@expo/react-native-action-sheet';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  useProjectsStore,
+  formatDuration,
+  formatDate,
+  type Project,
+  getThumbnailUrl,
+} from '@gruenerator/shared';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -11,18 +21,9 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useActionSheet } from '@expo/react-native-action-sheet';
-import {
-  useProjectsStore,
-  formatDuration,
-  formatDate,
-  type Project,
-  getThumbnailUrl,
-} from '@gruenerator/shared';
-import { useAuthStore } from '@gruenerator/shared/stores';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+
 import { secureStorage } from '../../services/storage';
+import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 
 interface ProjectListProps {
   onSelectProject: (project: Project) => void;
@@ -132,7 +133,10 @@ export function ProjectList({
 
       return (
         <TouchableOpacity
-          style={[styles.projectCard, { backgroundColor: theme.card }]}
+          style={[
+            styles.projectCard,
+            { backgroundColor: theme.card, borderColor: theme.cardBorder },
+          ]}
           onPress={() => onSelectProject(item)}
           onLongPress={() => showProjectOptions(item)}
           activeOpacity={0.7}
@@ -306,16 +310,19 @@ const styles = StyleSheet.create({
   projectCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.medium,
     borderRadius: 12,
     marginBottom: spacing.medium,
     gap: spacing.medium,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   thumbnailContainer: {
     width: 80,
     height: 60,
     borderRadius: 8,
     overflow: 'hidden',
+    marginLeft: spacing.medium,
+    marginVertical: spacing.medium,
   },
   thumbnail: {
     width: '100%',
@@ -344,6 +351,7 @@ const styles = StyleSheet.create({
   projectInfo: {
     flex: 1,
     gap: 4,
+    paddingVertical: spacing.medium,
   },
   projectTitle: {
     fontSize: 16,
@@ -358,7 +366,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   moreButton: {
-    padding: spacing.small,
+    padding: spacing.medium,
   },
   emptyContainer: {
     flex: 1,

@@ -1,18 +1,4 @@
-import { useState, useCallback } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { spacing, typography, lightTheme, darkTheme } from '../../theme';
-import { TextInput, Button, ChipGroup } from '../common';
-import { FeatureIcons } from './FeatureIcons';
-import { useGeneratorSelectionStore } from '../../stores';
+import { type Ionicons } from '@expo/vector-icons';
 import {
   useTextGeneration,
   GENERATOR_ENDPOINTS,
@@ -22,6 +8,16 @@ import {
   type AntragRequestType,
   type AntragRequest,
 } from '@gruenerator/shared/generators';
+import { useState, useCallback } from 'react';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+
+import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
+import { useGeneratorSelectionStore } from '../../stores';
+import { spacing, typography, lightTheme, darkTheme } from '../../theme';
+import { TextInput, Button, ChipGroup, MicButton } from '../common';
+
+import { FeatureIcons } from './FeatureIcons';
 
 interface AntragFormProps {
   onResult: (result: string) => void;
@@ -40,6 +36,7 @@ export function AntragForm({ onResult, onError }: AntragFormProps) {
 
   const [requestType, setRequestType] = useState<AntragRequestType>('antrag');
   const [inhalt, setInhalt] = useState('');
+  const { isListening, toggle: toggleSpeech } = useSpeechToText();
 
   const { generate, loading } = useTextGeneration({
     endpoint: GENERATOR_ENDPOINTS.ANTRAG,
@@ -76,51 +73,58 @@ export function AntragForm({ onResult, onError }: AntragFormProps) {
   }, [requestType, inhalt, generate, onError]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAwareScrollView
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.header, { color: theme.text }]}>Welchen Antrag planst du?</Text>
+      <Text style={[styles.header, { color: theme.text }]}>Welchen Antrag planst du?</Text>
 
-        <ChipGroup
-          options={ANTRAG_TYPES}
-          selected={requestType}
-          onSelect={(value) => setRequestType(value as AntragRequestType)}
-          icons={TYPE_ICONS}
+      <ChipGroup
+        options={ANTRAG_TYPES}
+        selected={requestType}
+        onSelect={(value) => setRequestType(value as AntragRequestType)}
+        icons={TYPE_ICONS}
+      />
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          placeholder="Thema und Details..."
+          value={inhalt}
+          onChangeText={setInhalt}
+          multiline
+          numberOfLines={6}
         />
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            placeholder="Thema und Details..."
-            value={inhalt}
-            onChangeText={setInhalt}
-            multiline
-            numberOfLines={6}
+        <View style={styles.inputToolbar}>
+          <FeatureIcons />
+          <MicButton
+            isListening={isListening}
+            onMicPress={() => toggleSpeech((t) => setInhalt((prev) => appendTranscript(prev, t)))}
+            hasText={!!inhalt.trim()}
+            onSubmit={handleSubmit}
           />
-          <View style={styles.featureIconsContainer}>
-            <FeatureIcons />
-          </View>
         </View>
+      </View>
 
-        <Button onPress={handleSubmit} loading={loading}>
-          Grünerieren
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Button onPress={handleSubmit} loading={loading}>
+        Grünerieren
+      </Button>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
   header: { ...typography.h2, marginBottom: spacing.small },
   inputContainer: {
     position: 'relative',
   },
-  featureIconsContainer: {
+  inputToolbar: {
     position: 'absolute',
     bottom: spacing.medium + 4,
     left: spacing.medium,
+    right: spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });

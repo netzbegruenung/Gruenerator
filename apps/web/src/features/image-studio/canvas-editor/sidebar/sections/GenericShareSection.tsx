@@ -1,10 +1,21 @@
 import { useShareStore } from '@gruenerator/shared/share';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { FaDownload, FaImages, FaSave, FaCheck, FaInstagram, FaCopy, FaFileArchive, FaFileImage } from 'react-icons/fa';
+import {
+  FaDownload,
+  FaImages,
+  FaSave,
+  FaCheck,
+  FaInstagram,
+  FaCopy,
+  FaFileArchive,
+  FaFileImage,
+} from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { MdTextFields } from 'react-icons/md';
 
+// TODO: enable when push-to-phone backend is deployed
+// import { PushToPhoneButton } from '../../../../../components/common/PushToPhoneButton';
 import Spinner from '../../../../../components/common/Spinner';
 import { useGenerateSocialPost } from '../../../../../components/hooks/useGenerateSocialPost';
 import { useAutoSaveStore } from '../../../hooks/useAutoSaveStore';
@@ -58,8 +69,10 @@ function usePortalDropdown() {
 
     const handleClickOutside = (e: MouseEvent) => {
       if (
-        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
-        menuRef.current && !menuRef.current.contains(e.target as Node)
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node) &&
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node)
       ) {
         setOpen(false);
       }
@@ -221,44 +234,46 @@ function DownloadShareSubsection({
             )}
           </button>
 
-          {dlDropdown.open && isMultiPage && createPortal(
-            <div
-              ref={dlDropdown.menuRef}
-              className="download-dropdown-content"
-              style={dlDropdown.style}
-              role="menu"
-            >
-              <button
-                className="download-dropdown-option"
-                onClick={handleSingleDownload}
-                role="menuitem"
-                type="button"
+          {dlDropdown.open &&
+            isMultiPage &&
+            createPortal(
+              <div
+                ref={dlDropdown.menuRef}
+                className="download-dropdown-content"
+                style={dlDropdown.style}
+                role="menu"
               >
-                <FaFileImage />
-                <span>Diese Seite (PNG)</span>
-              </button>
-              <button
-                className="download-dropdown-option"
-                onClick={handleDownloadAllZip}
-                disabled={isMultiExporting}
-                role="menuitem"
-                type="button"
-              >
-                {isMultiExporting ? (
-                  <>
-                    <Spinner size="small" />
-                    <span>Exportiere...</span>
-                  </>
-                ) : (
-                  <>
-                    <FaFileArchive />
-                    <span>Alle {pageCount} Seiten (ZIP)</span>
-                  </>
-                )}
-              </button>
-            </div>,
-            document.body
-          )}
+                <button
+                  className="download-dropdown-option"
+                  onClick={handleSingleDownload}
+                  role="menuitem"
+                  type="button"
+                >
+                  <FaFileImage />
+                  <span>Diese Seite (PNG)</span>
+                </button>
+                <button
+                  className="download-dropdown-option"
+                  onClick={handleDownloadAllZip}
+                  disabled={isMultiExporting}
+                  role="menuitem"
+                  type="button"
+                >
+                  {isMultiExporting ? (
+                    <>
+                      <Spinner size="small" />
+                      <span>Exportiere...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaFileArchive />
+                      <span>Alle {pageCount} Seiten (ZIP)</span>
+                    </>
+                  )}
+                </button>
+              </div>,
+              document.body
+            )}
         </div>
 
         {canUseNativeShare && (
@@ -274,40 +289,53 @@ function DownloadShareSubsection({
               aria-expanded={isMultiPage && onShareAllPages ? shareDropdown.open : undefined}
               type="button"
             >
-              {isSharing ? <Spinner size="small" /> : shareSuccess ? <FaCheck /> : <IoShareOutline />}
+              {isSharing ? (
+                <Spinner size="small" />
+              ) : shareSuccess ? (
+                <FaCheck />
+              ) : (
+                <IoShareOutline />
+              )}
             </button>
 
-            {shareDropdown.open && isMultiPage && onShareAllPages && createPortal(
-              <div
-                ref={shareDropdown.menuRef}
-                className="download-dropdown-content"
-                style={shareDropdown.style}
-                role="menu"
-              >
-                <button
-                  className="download-dropdown-option"
-                  onClick={handleNativeShare}
-                  role="menuitem"
-                  type="button"
+            {shareDropdown.open &&
+              isMultiPage &&
+              onShareAllPages &&
+              createPortal(
+                <div
+                  ref={shareDropdown.menuRef}
+                  className="download-dropdown-content"
+                  style={shareDropdown.style}
+                  role="menu"
                 >
-                  <IoShareOutline />
-                  <span>Diese Seite teilen</span>
-                </button>
-                <button
-                  className="download-dropdown-option"
-                  onClick={handleShareAllPages}
-                  disabled={isSharing}
-                  role="menuitem"
-                  type="button"
-                >
-                  <FaImages />
-                  <span>Alle Seiten teilen</span>
-                </button>
-              </div>,
-              document.body
-            )}
+                  <button
+                    className="download-dropdown-option"
+                    onClick={handleNativeShare}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <IoShareOutline />
+                    <span>Diese Seite teilen</span>
+                  </button>
+                  <button
+                    className="download-dropdown-option"
+                    onClick={handleShareAllPages}
+                    disabled={isSharing}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <FaImages />
+                    <span>Alle Seiten teilen</span>
+                  </button>
+                </div>,
+                document.body
+              )}
           </div>
         )}
+
+        {/* TODO: enable when push-to-phone backend is deployed
+        <PushToPhoneButton shareToken={shareToken} onCaptureCanvas={onCaptureCanvas} />
+        */}
       </div>
 
       {/* Multi-page export progress */}

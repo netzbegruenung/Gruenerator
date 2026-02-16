@@ -1,9 +1,12 @@
-import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
+import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { SubtitleEditorScreen } from '../../components/subtitle-editor';
 import { lightTheme, darkTheme, colors } from '../../theme';
+
 import type { Project } from '@gruenerator/shared';
 
 export default function FullscreenSubtitleEditor() {
@@ -25,7 +28,9 @@ export default function FullscreenSubtitleEditor() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <SubtitleEditorScreen project={project} onBack={handleClose} onSaved={handleClose} />
+      <ErrorBoundary>
+        <SubtitleEditorScreen project={project} onBack={handleClose} onSaved={handleClose} />
+      </ErrorBoundary>
       <Pressable
         style={[styles.closeButton, { top: insets.top + 8 }]}
         onPress={handleClose}
