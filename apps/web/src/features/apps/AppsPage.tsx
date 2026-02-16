@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FaWindows, FaApple, FaLinux } from 'react-icons/fa';
-import { HiDownload, HiRefresh, HiChevronDown, HiChevronUp } from 'react-icons/hi';
+import { HiDownload, HiRefresh } from 'react-icons/hi';
 
-import { Markdown } from '../../components/common/Markdown';
-import '../../assets/styles/pages/Impressum_datenschutz.css';
-import '../../assets/styles/components/ui/button.css';
-import './AppsPage.css';
+import Spinner from '../../components/common/Spinner';
+
+import { cn } from '@/utils/cn';
 
 // Type augmentation for Navigator with userAgentData
 interface NavigatorUAData {
@@ -21,7 +20,9 @@ declare global {
 
 const RELEASES_API_URL = `${import.meta.env.VITE_API_BASE_URL || '/api'}/releases/latest`;
 
-const detectPlatform = () => {
+type Platform = 'windows' | 'macos' | 'linux';
+
+const detectPlatform = (): Platform => {
   const userAgent = navigator.userAgent.toLowerCase();
   const platform = navigator.platform?.toLowerCase() || '';
 
@@ -34,36 +35,19 @@ const detectPlatform = () => {
   if (userAgent.includes('linux') || platform.includes('linux')) {
     return 'linux';
   }
-  return 'windows'; // Default fallback
+  return 'windows';
 };
 
 const detectArchitecture = () => {
   const userAgent = navigator.userAgent.toLowerCase();
   const platform = navigator.platform?.toLowerCase() || '';
 
-  // Check for Apple Silicon (M1/M2/M3)
-  // On Apple Silicon Macs, navigator.platform returns "MacIntel" for compatibility
-  // but we can detect ARM through various means
   if (platform.includes('mac') || userAgent.includes('mac')) {
-    // Check if running in Rosetta or native ARM
-    // Modern browsers expose this through userAgentData
     if (navigator.userAgentData?.platform === 'macOS') {
-      // Chrome/Edge on macOS may expose architecture
       const arch = navigator.userAgentData?.architecture;
       if (arch === 'arm') return 'arm64';
     }
 
-    // Fallback: Check for Apple Silicon hints in userAgent
-    // Safari on Apple Silicon includes specific identifiers
-    if (
-      userAgent.includes('macintosh') &&
-      userAgent.includes('applewebkit') &&
-      !userAgent.includes('intel')
-    ) {
-      // Could be Apple Silicon, but not definitive
-    }
-
-    // Use WebGL renderer as fallback detection
     try {
       const canvas = document.createElement('canvas');
       const gl =
@@ -80,14 +64,13 @@ const detectArchitecture = () => {
           }
         }
       }
-    } catch (e) {
+    } catch {
       // WebGL not available
     }
 
-    return 'x64'; // Default to Intel for Mac
+    return 'x64';
   }
 
-  // Windows ARM detection
   if (platform.includes('win')) {
     if (userAgent.includes('arm64') || userAgent.includes('aarch64')) {
       return 'arm64';
@@ -95,7 +78,6 @@ const detectArchitecture = () => {
     return 'x64';
   }
 
-  // Linux ARM detection
   if (platform.includes('linux')) {
     if (userAgent.includes('aarch64') || userAgent.includes('arm64')) {
       return 'arm64';
@@ -103,40 +85,50 @@ const detectArchitecture = () => {
     return 'x64';
   }
 
-  return 'x64'; // Default fallback
-};
-
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('de-DE', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  return 'x64';
 };
 
 const formatSize = (bytes: number): string => {
   const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(1)} MB`;
-};
-
-const getAssetLabel = (filename: string): string => {
-  const lower = filename.toLowerCase();
-  if (lower.includes('.msi')) return '.msi';
-  if (lower.includes('.exe')) return '.exe';
-  if (lower.includes('.dmg') && lower.includes('aarch64')) return 'Apple Silicon';
-  if (lower.includes('.dmg') && lower.includes('x64')) return 'Intel';
-  if (lower.includes('.dmg')) return '.dmg';
-  if (lower.includes('.appimage')) return 'AppImage';
-  if (lower.includes('.deb')) return '.deb';
-  if (lower.includes('.rpm')) return '.rpm';
-  return filename;
+  return `${mb.toFixed(0)} MB`;
 };
 
 const getAssetArchitecture = (filename: string): string => {
   const lower = filename.toLowerCase();
   if (lower.includes('aarch64') || lower.includes('arm64')) return 'arm64';
   if (lower.includes('x64') || lower.includes('x86_64') || lower.includes('amd64')) return 'x64';
-  return 'x64'; // Default
+  return 'x64';
+};
+
+const getDownloadLabel = (filename: string, platform: Platform): string => {
+  const lower = filename.toLowerCase();
+
+  if (platform === 'windows') {
+    if (lower.includes('.exe')) return 'Download für Windows';
+    if (lower.includes('.msi')) return 'Download für Windows';
+  }
+  if (platform === 'macos') {
+    const arch = getAssetArchitecture(filename);
+    if (arch === 'arm64') return 'Download für Apple Silicon';
+    return 'Download für Intel';
+  }
+  if (platform === 'linux') {
+    if (lower.includes('.appimage')) return 'Download für Linux';
+    if (lower.includes('.deb')) return 'Download für Linux';
+  }
+  return 'Download';
+};
+
+const getSecondaryLabel = (filename: string): string => {
+  const lower = filename.toLowerCase();
+  if (lower.includes('.msi')) return '.msi';
+  if (lower.includes('.exe')) return '.exe';
+  if (lower.includes('.deb')) return '.deb';
+  if (lower.includes('.appimage')) return 'AppImage';
+  if (lower.includes('.dmg') && lower.includes('aarch64')) return 'Apple Silicon (.dmg)';
+  if (lower.includes('.dmg') && lower.includes('x64')) return 'Intel (.dmg)';
+  if (lower.includes('.dmg')) return '.dmg';
+  return filename;
 };
 
 interface ReleaseAsset {
@@ -169,71 +161,51 @@ const categorizeAssets = (assets: ReleaseAsset[] | undefined): CategorizedAssets
 
 interface GitHubRelease {
   tag_name: string;
-  published_at: string;
   assets: ReleaseAsset[];
-  body?: string;
 }
 
-interface PlatformSectionProps {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  assets: ReleaseAsset[];
-  isCurrentPlatform: boolean;
-  userArchitecture: string;
+const PLATFORM_TABS: { key: Platform; label: string; icon: typeof FaWindows }[] = [
+  { key: 'macos', label: 'macOS', icon: FaApple },
+  { key: 'linux', label: 'Linux', icon: FaLinux },
+  { key: 'windows', label: 'Windows', icon: FaWindows },
+];
+
+function selectPrimaryAsset(
+  assets: ReleaseAsset[],
+  platform: Platform,
+  architecture: string
+): ReleaseAsset | null {
+  if (assets.length === 0) return null;
+  if (assets.length === 1) return assets[0];
+
+  if (platform === 'windows') {
+    return assets.find((a) => /\.exe$/i.test(a.name)) || assets[0];
+  }
+
+  if (platform === 'macos') {
+    const archMatch = assets.find((a) => getAssetArchitecture(a.name) === architecture);
+    return archMatch || assets[0];
+  }
+
+  if (platform === 'linux') {
+    return assets.find((a) => /\.appimage$/i.test(a.name)) || assets[0];
+  }
+
+  return assets[0];
 }
-
-const PlatformSection = ({
-  title,
-  icon: Icon,
-  assets,
-  isCurrentPlatform,
-  userArchitecture,
-}: PlatformSectionProps): React.ReactElement | null => {
-  if (!assets || assets.length === 0) return null;
-
-  // Sort assets to put the user's architecture first
-  const sortedAssets = [...assets].sort((a, b) => {
-    const archA = getAssetArchitecture(a.name);
-    const archB = getAssetArchitecture(b.name);
-    if (archA === userArchitecture && archB !== userArchitecture) return -1;
-    if (archB === userArchitecture && archA !== userArchitecture) return 1;
-    return 0;
-  });
-
-  return (
-    <div className={`apps-platform-section ${isCurrentPlatform ? 'apps-platform-current' : ''}`}>
-      <h3>
-        <Icon className="platform-icon" />
-        {title}
-        {isCurrentPlatform && <span className="apps-platform-badge">Dein System</span>}
-      </h3>
-      <ul className="apps-download-list">
-        {sortedAssets.map((asset) => (
-          <li key={asset.id}>
-            <a
-              href={asset.browser_download_url}
-              className="btn-primary apps-download-btn"
-              download
-            >
-              <HiDownload />
-              <span className="download-label">{getAssetLabel(asset.name)}</span>
-              <span className="download-size">({formatSize(asset.size)})</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
 
 const AppsPage = () => {
   const [release, setRelease] = useState<GitHubRelease | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform>('windows');
 
   const currentPlatform = useMemo(() => detectPlatform(), []);
   const currentArchitecture = useMemo(() => detectArchitecture(), []);
+
+  useEffect(() => {
+    setSelectedPlatform(currentPlatform);
+  }, [currentPlatform]);
 
   const fetchRelease = useCallback(async () => {
     setLoading(true);
@@ -259,22 +231,37 @@ const AppsPage = () => {
     void fetchRelease();
   }, [fetchRelease]);
 
+  const categorizedAssets = useMemo(() => categorizeAssets(release?.assets), [release?.assets]);
+
+  const selectedAssets = categorizedAssets[selectedPlatform] || [];
+  const primaryAsset = useMemo(
+    () => selectPrimaryAsset(selectedAssets, selectedPlatform, currentArchitecture),
+    [selectedAssets, selectedPlatform, currentArchitecture]
+  );
+  const secondaryAssets = useMemo(
+    () => selectedAssets.filter((a) => a !== primaryAsset),
+    [selectedAssets, primaryAsset]
+  );
+
   if (loading) {
     return (
-      <div className="page-container">
-        <h1>Grünerator Desktop App</h1>
-        <p>Laden...</p>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Spinner size="medium" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="page-container">
-        <h1>Grünerator Desktop App</h1>
-        <p className="apps-error">{error}</p>
-        <button onClick={fetchRelease} className="btn-primary">
-          <HiRefresh /> Erneut versuchen
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
+        <h1 className="text-2xl font-bold text-foreground-heading">Download Grünerator</h1>
+        <p className="text-error">{error}</p>
+        <button
+          onClick={fetchRelease}
+          className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-5 py-2 text-sm text-white transition-opacity hover:opacity-90"
+        >
+          <HiRefresh />
+          Erneut versuchen
         </button>
       </div>
     );
@@ -282,113 +269,73 @@ const AppsPage = () => {
 
   if (!release) {
     return (
-      <div className="page-container">
-        <h1>Grünerator Desktop App</h1>
-        <p>Keine Releases verfügbar.</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
+        <h1 className="text-2xl font-bold text-foreground-heading">Download Grünerator</h1>
+        <p className="text-grey-500">Keine Releases verfügbar.</p>
       </div>
     );
   }
 
-  const categorizedAssets = categorizeAssets(release.assets);
-  const hasAnyAssets =
-    categorizedAssets.windows.length > 0 ||
-    categorizedAssets.macos.length > 0 ||
-    categorizedAssets.linux.length > 0;
-
   return (
-    <div className="page-container">
-      <h1>Grünerator Desktop App</h1>
-      <p>
-        Lade die Grünerator Desktop-App herunter für schnelleren Zugriff auf alle Funktionen - auch
-        offline verfügbar.
-      </p>
+    <div className="flex min-h-[60vh] flex-col items-center px-4 py-12">
+      {/* Hero heading */}
+      <h1 className="mb-6 text-center text-2xl font-bold text-foreground-heading">
+        Download Grünerator
+      </h1>
 
-      <div className="apps-version-info">
-        <span className="apps-version-badge">{release.tag_name}</span>
-        <span className="apps-release-date">
-          Veröffentlicht am {formatDate(release.published_at)}
-        </span>
+      {/* Platform tabs */}
+      <div className="mb-8 flex gap-2">
+        {PLATFORM_TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setSelectedPlatform(key)}
+            className={cn(
+              'flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors',
+              selectedPlatform === key
+                ? 'border-primary-600 bg-primary-600 text-white'
+                : 'border-grey-200 bg-background text-foreground hover:border-grey-400'
+            )}
+          >
+            <Icon className="text-lg" />
+            {label}
+          </button>
+        ))}
       </div>
 
-      {hasAnyAssets ? (
-        <div className="apps-platforms">
-          <h2>Downloads</h2>
-          {(() => {
-            const platformConfigs = [
-              {
-                key: 'windows',
-                title: 'Windows',
-                icon: FaWindows,
-                assets: categorizedAssets.windows,
-              },
-              { key: 'macos', title: 'macOS', icon: FaApple, assets: categorizedAssets.macos },
-              { key: 'linux', title: 'Linux', icon: FaLinux, assets: categorizedAssets.linux },
-            ];
+      {/* Primary download */}
+      {primaryAsset ? (
+        <div className="flex flex-col items-center gap-3">
+          <a
+            href={primaryAsset.browser_download_url}
+            download
+            className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90"
+          >
+            <HiDownload />
+            {getDownloadLabel(primaryAsset.name, selectedPlatform)}
+          </a>
 
-            const currentPlatformConfig = platformConfigs.find((p) => p.key === currentPlatform);
-            const otherPlatforms = platformConfigs.filter((p) => p.key !== currentPlatform);
-
-            return (
-              <>
-                {currentPlatformConfig && currentPlatformConfig.assets.length > 0 && (
-                  <div className="apps-platforms-grid">
-                    <PlatformSection
-                      key={currentPlatformConfig.key}
-                      title={currentPlatformConfig.title}
-                      icon={currentPlatformConfig.icon}
-                      assets={currentPlatformConfig.assets}
-                      isCurrentPlatform={true}
-                      userArchitecture={currentArchitecture}
-                    />
-                  </div>
-                )}
-
-                {otherPlatforms.some((p) => p.assets.length > 0) && (
-                  <>
-                    <button
-                      className="apps-show-more-btn"
-                      onClick={() => setShowAllPlatforms(!showAllPlatforms)}
-                    >
-                      {showAllPlatforms ? (
-                        <>
-                          <HiChevronUp /> Weniger anzeigen
-                        </>
-                      ) : (
-                        <>
-                          <HiChevronDown /> Andere Systeme
-                        </>
-                      )}
-                    </button>
-
-                    {showAllPlatforms && (
-                      <div className="apps-platforms-grid apps-other-platforms">
-                        {otherPlatforms.map((platform) => (
-                          <PlatformSection
-                            key={platform.key}
-                            title={platform.title}
-                            icon={platform.icon}
-                            assets={platform.assets}
-                            isCurrentPlatform={false}
-                            userArchitecture={currentArchitecture}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            );
-          })()}
+          {/* Secondary downloads */}
+          {secondaryAssets.length > 0 && (
+            <p className="text-xs text-grey-500">
+              Auch verfügbar als{' '}
+              {secondaryAssets.map((asset, i) => (
+                <span key={asset.id || asset.name}>
+                  {i > 0 && ', '}
+                  <a
+                    href={asset.browser_download_url}
+                    download
+                    className="text-link underline underline-offset-2 hover:opacity-80"
+                  >
+                    {getSecondaryLabel(asset.name)}
+                  </a>
+                  <span className="text-grey-400"> ({formatSize(asset.size)})</span>
+                </span>
+              ))}
+            </p>
+          )}
         </div>
       ) : (
-        <p>Keine Download-Dateien in diesem Release verfügbar.</p>
-      )}
-
-      {release.body && (
-        <div className="apps-release-notes">
-          <h2>Änderungen in dieser Version</h2>
-          <Markdown>{release.body}</Markdown>
-        </div>
+        <p className="text-sm text-grey-500">Keine Downloads für diese Plattform verfügbar.</p>
       )}
     </div>
   );

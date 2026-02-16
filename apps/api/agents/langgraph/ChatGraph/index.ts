@@ -22,7 +22,11 @@ export {
   respondNode,
   buildSystemMessage,
 } from './nodes/index.js';
-export { buildCitations, COLLECTION_LABELS } from './nodes/searchNode.js';
+export {
+  buildCitations,
+  COLLECTION_LABELS,
+  getDefaultCollectionsForLocale,
+} from './nodes/searchNode.js';
 
 export type {
   ChatGraphInput,
@@ -38,4 +42,5 @@ export type {
   ProcessedAttachment,
   ImageAttachment,
   ThreadAttachment,
+  UserLocale,
 } from './types.js';

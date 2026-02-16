@@ -5,8 +5,9 @@
 
 import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
-import type { LanguageModel } from 'ai';
+
 import type { AgentConfig } from './types.js';
+import type { LanguageModel } from 'ai';
 
 const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
 
@@ -14,18 +15,23 @@ const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
  * Available models that can be selected by the user.
  * Maps user-facing model IDs to provider/model configurations.
  */
-export const AVAILABLE_MODELS: Record<string, { provider: 'mistral' | 'litellm'; model: string }> = {
-  'mistral-large': { provider: 'mistral', model: 'mistral-large-latest' },
-  'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest' },
-  'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest' },
-  'litellm': { provider: 'litellm', model: 'gpt-oss:120b' },
-};
+export const AVAILABLE_MODELS: Record<string, { provider: 'mistral' | 'litellm'; model: string }> =
+  {
+    // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
+    // Legacy IDs kept for backward compatibility (old stored client preferences)
+    'mistral-large': { provider: 'mistral', model: 'mistral-large-latest' },
+    'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest' },
+    'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest' },
+    litellm: { provider: 'litellm', model: 'gpt-oss:120b' },
+  };
 
 /**
  * Get model configuration by user-facing model ID.
  * Returns null if model ID is not recognized.
  */
-export function getModelConfig(modelId: string): { provider: 'mistral' | 'litellm'; model: string } | null {
+export function getModelConfig(
+  modelId: string
+): { provider: 'mistral' | 'litellm'; model: string } | null {
   return AVAILABLE_MODELS[modelId] || null;
 }
 
@@ -83,13 +89,17 @@ export function isProviderConfigured(provider: AgentConfig['provider']): boolean
   switch (provider) {
     case 'mistral':
       configured = !!process.env.MISTRAL_API_KEY;
-      console.log(`[providers] Checking mistral: MISTRAL_API_KEY=${configured ? 'set' : 'NOT SET'}`);
+      console.log(
+        `[providers] Checking mistral: MISTRAL_API_KEY=${configured ? 'set' : 'NOT SET'}`
+      );
       return configured;
     case 'litellm':
       const hasBaseUrl = !!process.env.LITELLM_BASE_URL;
       const hasApiKey = !!process.env.LITELLM_API_KEY;
       configured = hasBaseUrl && hasApiKey;
-      console.log(`[providers] Checking litellm: BASE_URL=${hasBaseUrl ? 'set' : 'NOT SET'}, API_KEY=${hasApiKey ? 'set' : 'NOT SET'}`);
+      console.log(
+        `[providers] Checking litellm: BASE_URL=${hasBaseUrl ? 'set' : 'NOT SET'}, API_KEY=${hasApiKey ? 'set' : 'NOT SET'}`
+      );
       return configured;
     case 'anthropic':
       return false;

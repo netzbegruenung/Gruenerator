@@ -20,6 +20,8 @@ export interface AgentLLMConfig {
  * Maps user-facing model IDs to LangChain-compatible model names.
  */
 const MODEL_MAP: Record<string, string> = {
+  // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
+  // Legacy IDs kept for backward compatibility
   'mistral-large': 'mistral-large-latest',
   'mistral-medium': 'mistral-medium-latest',
   'magistral-medium': 'magistral-medium-latest',
@@ -36,7 +38,7 @@ export function getAgentLLM(config: AgentLLMConfig): ChatMistralAI {
   const { agentConfig, modelId } = config;
 
   let modelName: string;
-  if (!modelId || modelId === 'auto') {
+  if (!modelId || modelId === 'auto' || modelId === 'mistral') {
     modelName = agentConfig.defaultModel ?? agentConfig.model;
   } else if (MODEL_MAP[modelId]) {
     modelName = MODEL_MAP[modelId];

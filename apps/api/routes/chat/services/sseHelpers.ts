@@ -7,6 +7,7 @@
 
 import type {
   SearchIntent,
+  SearchSource,
   GeneratedImageResult,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Response } from 'express';
@@ -24,6 +25,7 @@ export type SSEEventType =
   | 'response_start'
   | 'thinking_step'
   | 'text_delta'
+  | 'interrupt'
   | 'done'
   | 'error';
 
@@ -61,7 +63,14 @@ export interface ThinkingStepPayload {
  */
 export interface SSEEventPayloads {
   thread_created: { threadId: string };
-  intent: { intent: SearchIntent; message: string; reasoning?: string; searchQuery?: string };
+  intent: {
+    intent: SearchIntent;
+    message: string;
+    reasoning?: string;
+    searchQuery?: string;
+    subQueries?: string[] | null;
+    searchSources?: SearchSource[] | null;
+  };
   search_start: { message: string };
   search_complete: {
     message: string;
@@ -77,10 +86,17 @@ export interface SSEEventPayloads {
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
   text_delta: { text: string };
+  interrupt: {
+    interruptType: 'clarification';
+    question: string;
+    options?: string[];
+    threadId?: string;
+  };
   done: {
     threadId?: string | null;
     citations?: unknown[];
     generatedImage?: GeneratedImageResult | null;
+    interrupted?: boolean;
     metadata?: {
       intent: SearchIntent;
       searchCount: number;

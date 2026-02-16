@@ -8,6 +8,7 @@ export interface ChatConfig {
   /** API endpoint overrides (all have defaults matching current paths) */
   endpoints?: {
     chatStream?: string;
+    chatResume?: string;
     deepStream?: string;
     messages?: string;
     threads?: string;
@@ -21,6 +22,7 @@ export interface ChatConfig {
 
 export interface ResolvedEndpoints {
   chatStream: string;
+  chatResume: string;
   deepStream: string;
   messages: string;
   threads: string;
@@ -43,6 +45,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   chatStream: '/api/chat-graph/stream',
+  chatResume: '/api/chat-graph/resume',
   deepStream: '/api/chat-deep/stream',
   messages: '/api/chat-service/messages',
   threads: '/api/chat-service/threads',

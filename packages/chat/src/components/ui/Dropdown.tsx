@@ -10,9 +10,11 @@ interface DropdownProps {
   children: ReactNode;
   footer?: ReactNode;
   width?: string;
+  maxHeight?: string;
   align?: 'left' | 'right';
   direction?: 'up' | 'down';
   showChevron?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function Dropdown({
@@ -21,17 +23,24 @@ export function Dropdown({
   children,
   footer,
   width = 'w-64',
+  maxHeight,
   align = 'left',
   direction = 'down',
   showChevron = true,
+  onOpenChange,
 }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const updateOpen = (open: boolean) => {
+    setIsOpen(open);
+    onOpenChange?.(open);
+  };
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        updateOpen(false);
       }
     }
 
@@ -42,7 +51,7 @@ export function Dropdown({
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => updateOpen(!isOpen)}
         className={cn(
           'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-foreground-muted transition-colors',
           'hover:text-foreground hover:bg-hover-overlay',
@@ -70,7 +79,12 @@ export function Dropdown({
             direction === 'down' ? 'top-full mt-1' : 'bottom-full mb-1'
           )}
         >
-          <div className="p-1">{children}</div>
+          <div
+            className={cn('p-1', maxHeight && 'overflow-y-auto')}
+            style={maxHeight ? { maxHeight } : undefined}
+          >
+            {children}
+          </div>
           {footer && <div className="border-t border-border px-3 py-2">{footer}</div>}
         </div>
       )}

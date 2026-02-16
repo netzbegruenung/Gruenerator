@@ -13,8 +13,8 @@ interface MentionPopoverProps {
 }
 
 function getFilteredItems(query: string): Mentionable[] {
-  const { agents, customAgents, notebooks, tools } = filterMentionables(query);
-  return [...tools, ...agents, ...customAgents, ...notebooks];
+  const { notebooks, tools, documents } = filterMentionables(query);
+  return [...tools, ...documents, ...notebooks];
 }
 
 export function MentionPopover({
@@ -26,8 +26,8 @@ export function MentionPopover({
   anchorRect,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const { agents, customAgents, notebooks, tools } = filterMentionables(query);
-  const allItems = [...tools, ...agents, ...customAgents, ...notebooks];
+  const { notebooks, tools, documents } = filterMentionables(query);
+  const allItems = [...tools, ...documents, ...notebooks];
 
   useEffect(() => {
     if (!visible) return;
@@ -68,35 +68,17 @@ export function MentionPopover({
           })}
         </>
       )}
-      {agents.length > 0 && (
+      {documents.length > 0 && (
         <>
           <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Assistenten
+            Dateien
           </div>
-          {agents.map((agent) => {
+          {documents.map((doc) => {
             const idx = itemIndex++;
             return (
               <MentionItem
-                key={agent.identifier}
-                mentionable={agent}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
-        </>
-      )}
-      {customAgents.length > 0 && (
-        <>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Meine Agenten
-          </div>
-          {customAgents.map((agent) => {
-            const idx = itemIndex++;
-            return (
-              <MentionItem
-                key={agent.identifier}
-                mentionable={agent}
+                key={doc.identifier}
+                mentionable={doc}
                 isSelected={idx === selectedIndex}
                 onSelect={onSelect}
               />
@@ -141,9 +123,7 @@ function MentionItem({
       aria-selected={isSelected}
       data-selected={isSelected}
       className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
-        isSelected
-          ? 'bg-primary/10 text-foreground'
-          : 'text-foreground-muted hover:bg-primary/5'
+        isSelected ? 'bg-primary/10 text-foreground' : 'text-foreground-muted hover:bg-primary/5'
       }`}
       onMouseDown={(e) => {
         e.preventDefault();
@@ -158,7 +138,10 @@ function MentionItem({
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{mentionable.title}</p>
-        <p className="truncate text-xs text-foreground-muted">@{mentionable.mention}</p>
+        <p className="truncate text-xs text-foreground-muted">
+          {mentionable.trigger}
+          {mentionable.mention}
+        </p>
       </div>
     </button>
   );

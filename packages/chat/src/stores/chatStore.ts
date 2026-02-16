@@ -30,7 +30,7 @@ interface TriggerCompactionResponse {
 
 export type Provider = 'mistral' | 'litellm';
 
-export type ModelId = 'auto' | 'mistral-large' | 'mistral-medium' | 'magistral-medium' | 'litellm';
+export type ModelId = 'mistral' | 'litellm';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
@@ -40,41 +40,17 @@ export interface ModelOption {
   description: string;
   model: string;
   provider: Provider;
-  icon: 'sparkles' | 'zap' | 'server' | 'brain';
+  icon: 'sparkles' | 'server';
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
-    id: 'auto',
-    name: 'Automatisch',
-    description: 'Optimales Modell je Assistent',
-    model: 'auto',
+    id: 'mistral',
+    name: 'Mistral',
+    description: 'EU-gehostet',
+    model: 'mistral',
     provider: 'mistral',
     icon: 'sparkles',
-  },
-  {
-    id: 'mistral-large',
-    name: 'Mistral Large',
-    description: 'Leistungsstark für komplexe Aufgaben',
-    model: 'mistral-large-latest',
-    provider: 'mistral',
-    icon: 'sparkles',
-  },
-  {
-    id: 'magistral-medium',
-    name: 'Magistral Medium',
-    description: 'Reasoning & Analyse',
-    model: 'magistral-medium-latest',
-    provider: 'mistral',
-    icon: 'brain',
-  },
-  {
-    id: 'mistral-medium',
-    name: 'Mistral Medium',
-    description: 'Schnell & ausgewogen',
-    model: 'mistral-medium-latest',
-    provider: 'mistral',
-    icon: 'zap',
   },
   {
     id: 'litellm',
@@ -98,7 +74,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     id: 'mistral',
     name: 'Mistral AI',
     description: 'Schnell & zuverlässig',
-    model: 'mistral-large-latest',
+    model: 'mistral',
   },
   {
     id: 'litellm',
@@ -115,6 +91,7 @@ interface AgentState {
   currentThreadId: string | null;
   enabledTools: Record<ToolKey, boolean>;
   useDeepAgent: boolean;
+  selectedNotebookId: string;
   compactionState: CompactionState;
   compactionLoading: boolean;
   messageCount: number;
@@ -126,6 +103,7 @@ interface AgentState {
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
   toggleDeepAgent: () => void;
+  setSelectedNotebook: (notebookId: string) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -150,10 +128,11 @@ export const useAgentStore = create<AgentState>()(
     (set) => ({
       selectedAgentId: null,
       selectedProvider: 'mistral',
-      selectedModel: 'auto',
+      selectedModel: 'mistral',
       currentThreadId: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
       useDeepAgent: false,
+      selectedNotebookId: 'gruenerator-notebook',
       compactionState: { ...DEFAULT_COMPACTION_STATE },
       compactionLoading: false,
       messageCount: 0,
@@ -197,6 +176,8 @@ export const useAgentStore = create<AgentState>()(
         }),
 
       toggleDeepAgent: () => set((state) => ({ useDeepAgent: !state.useDeepAgent })),
+
+      setSelectedNotebook: (notebookId) => set({ selectedNotebookId: notebookId }),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
@@ -249,6 +230,24 @@ export const useAgentStore = create<AgentState>()(
     }),
     {
       name: 'gruenerator-chat-store',
+      version: 2,
+      migrate: (persisted: any, version: number) => {
+        if (version === 0) {
+          const old = persisted.selectedModel;
+          if (
+            old === 'auto' ||
+            old === 'mistral-large' ||
+            old === 'mistral-medium' ||
+            old === 'magistral-medium'
+          ) {
+            persisted.selectedModel = 'mistral';
+          }
+        }
+        if (version < 2) {
+          persisted.selectedNotebookId = persisted.selectedNotebookId || 'gruenerator-notebook';
+        }
+        return persisted;
+      },
       partialize: (state) => ({
         selectedAgentId: state.selectedAgentId,
         selectedProvider: state.selectedProvider,
@@ -256,6 +255,7 @@ export const useAgentStore = create<AgentState>()(
         currentThreadId: state.currentThreadId,
         enabledTools: state.enabledTools,
         useDeepAgent: state.useDeepAgent,
+        selectedNotebookId: state.selectedNotebookId,
       }),
     }
   )

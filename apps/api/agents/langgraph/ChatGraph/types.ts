@@ -10,8 +10,8 @@
  * keeping the graph decoupled from transport concerns.
  */
 
-import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
+import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ModelMessage } from 'ai';
 
 /**
@@ -20,6 +20,12 @@ import type { ModelMessage } from 'ai';
  * and merges/deduplicates the results before reranking.
  */
 export type SearchSource = 'documents' | 'web';
+
+/**
+ * Supported user locales for locale-aware collection routing.
+ * Austrian users (de-AT) get Austrian collections, German users (de-DE) get German defaults.
+ */
+export type UserLocale = 'de-DE' | 'de-AT';
 
 /**
  * Intent classification for routing to appropriate search tools.
@@ -130,6 +136,10 @@ export interface ChatGraphInput {
   imageAttachments?: ImageAttachment[];
   threadAttachments?: ThreadAttachment[];
   notebookIds?: string[];
+  defaultNotebookId?: string;
+  documentIds?: string[];
+  textIds?: string[];
+  userLocale?: UserLocale;
 }
 
 /**
@@ -146,6 +156,7 @@ export interface ChatGraphState {
   agentConfig: AgentConfig;
   enabledTools: Record<string, boolean>;
   aiWorkerPool: any;
+  userLocale: UserLocale;
 
   // Attachment context
   attachmentContext: string | null;
@@ -155,6 +166,12 @@ export interface ChatGraphState {
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];
   notebookCollectionIds: string[];
+
+  // Default notebook scoping (from persistent UI selection)
+  defaultNotebookCollectionIds: string[];
+
+  // Document scoping (from @datei mentions)
+  documentIds: string[];
 
   // Memory context (from mem0 cross-thread memory)
   memoryContext: string | null;
@@ -168,6 +185,11 @@ export interface ChatGraphState {
   reasoning: string;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
+
+  // Clarification (HITL interrupt)
+  needsClarification: boolean;
+  clarificationQuestion: string | null;
+  clarificationOptions: string[] | null;
 
   // Metadata filters extracted by classifier (for Qdrant filtering)
   detectedFilters: SubcategoryFilters | null;
@@ -241,4 +263,7 @@ export interface ClassificationResult {
   subQueries?: string[] | null;
   filters?: SubcategoryFilters | null;
   reasoning: string;
+  needsClarification?: boolean;
+  clarificationQuestion?: string;
+  clarificationOptions?: string[];
 }

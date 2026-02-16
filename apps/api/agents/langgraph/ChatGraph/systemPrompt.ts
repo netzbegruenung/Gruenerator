@@ -18,7 +18,11 @@ export interface SystemPromptContext {
   threadAttachments?: ThreadAttachment[];
   notebookContext?: string;
   notebookCollectionIds?: string[];
+  documentContext?: string;
+  documentIds?: string[];
   userInstructions?: string;
+  conversationSummary?: string;
+  userLocale?: string;
 }
 
 /**
@@ -54,6 +58,17 @@ export function buildDeepAgentSystemPrompt(ctx: SystemPromptContext): string {
   });
   sections.push(`Heutiges Datum: ${today}`);
 
+  // 2b. Locale context (Austrian vs German)
+  if (ctx.userLocale === 'de-AT') {
+    sections.push(`## LÄNDERKONTEXT: ÖSTERREICH
+
+Der Nutzer ist in Österreich. Beachte:
+- "Hauptstadt" = Wien, "Parlament" = Nationalrat, "Bundesregierung" = österreichische Bundesregierung
+- "Die Grünen" bezieht sich auf Die Grünen – Die Grüne Alternative (Österreich), nicht auf Bündnis 90/Die Grünen (Deutschland)
+- Verwende österreichische Begriffe wenn passend (z.B. "Landeshauptmann" statt "Ministerpräsident")
+- Politische Referenzen beziehen sich auf österreichische Politik, sofern nicht anders angegeben`);
+  }
+
   // 3. Few-shot examples (if configured)
   const fewShotSection = buildFewShotSection(ctx.agentConfig);
   if (fewShotSection) {
@@ -71,27 +86,37 @@ export function buildDeepAgentSystemPrompt(ctx: SystemPromptContext): string {
     sections.push(ctx.notebookContext);
   }
 
-  // 7. Memory context (if available)
+  // 6b. Document context (scoped document search instructions)
+  if (ctx.documentContext) {
+    sections.push(ctx.documentContext);
+  }
+
+  // 7. Conversation summary from compaction (for long threads)
+  if (ctx.conversationSummary) {
+    sections.push(formatConversationSummary(ctx.conversationSummary));
+  }
+
+  // 8. Memory context (if available)
   if (ctx.memoryContext) {
     sections.push(formatMemoryContext(ctx.memoryContext));
   }
 
-  // 8. Attachment context (uploaded documents)
+  // 9. Attachment context (uploaded documents)
   if (ctx.attachmentContext) {
     sections.push(formatAttachmentContext(ctx.attachmentContext));
   }
 
-  // 9. Thread attachments (from previous messages)
+  // 10. Thread attachments (from previous messages)
   if (ctx.threadAttachments?.length) {
     sections.push(formatThreadAttachments(ctx.threadAttachments));
   }
 
-  // 10. User instructions (personal preferences from profile settings)
+  // 11. User instructions (personal preferences from profile settings)
   if (ctx.userInstructions) {
     sections.push(formatUserInstructions(ctx.userInstructions));
   }
 
-  // 11. Response rules
+  // 12. Response rules
   sections.push(RESPONSE_RULES);
 
   return sections.join('\n\n');
@@ -168,6 +193,14 @@ function buildToolGuidelines(
     );
   }
 
+  if (check('user_content')) {
+    tools.push(
+      '- **search_user_content**: Durchsuche die hochgeladenen Dokumente und gespeicherten Texte des Nutzers.\n' +
+        '  Nutze dieses Tool wenn der Nutzer auf eigene Inhalte Bezug nimmt — z.B. "mein Antrag",\n' +
+        '  "meine Notizen", "das Dokument das ich hochgeladen habe", "fasse meinen Text zusammen".'
+    );
+  }
+
   if (check('self_review')) {
     tools.push(
       '- **self_review**: Bewerte einen Entwurf gegen Qualitätskriterien.\n' +
@@ -215,7 +248,20 @@ function buildToolGuidelines(
   }
   if (check('memory')) {
     guidelines.push(
-      '- Erinnerungen: recall_memory wenn Nutzer Kontext aus früheren Gesprächen erwartet.'
+      '- Erinnerungen: recall_memory wenn Nutzer Kontext aus früheren Gesprächen erwartet.',
+      '- Bei der Erstellung von Texten (Social Media, Pressemitteilung, Rede): Prüfe mit recall_memory ob der Nutzer Stilpräferenzen oder thematische Schwerpunkte hat.',
+      '- Wenn du bei einer Recherche auf ein Thema stößt, bei dem der Nutzer möglicherweise früher Präferenzen geäußert hat: Nutze recall_memory mit einer spezifischen Anfrage zu diesem Thema.'
+    );
+  }
+  if (check('memory_save')) {
+    guidelines.push(
+      '- Wichtige Informationen PROAKTIV speichern: Wenn der Nutzer seinen Wahlkreis, seine Funktion, thematische Schwerpunkte oder Stilpräferenzen erwähnt, nutze save_memory auch ohne explizite Aufforderung.'
+    );
+  }
+  if (check('user_content')) {
+    guidelines.push(
+      '- Bei Bezug auf eigene Dokumente oder Texte: search_user_content verwenden.',
+      '- Schlüsselwörter: "mein/meine", "hochgeladen", "gespeichert", "mein Antrag", "meine Datei".'
     );
   }
   if (check('image_edit')) {
@@ -258,6 +304,12 @@ Du kannst mehrere Werkzeuge gleichzeitig aufrufen. Nutze das bei Fragen die vers
 
   result += `
 - Bei einfachen Faktenfragen: Ein einzelner Tool-Aufruf reicht.`;
+
+  if (check('user_content') && check('search')) {
+    result +=
+      '\n- Wenn der Nutzer nach eigenen Dokumenten UND Partei-Positionen fragt: ' +
+      '**search_user_content UND search_documents gleichzeitig** aufrufen.';
+  }
 
   if (check('research')) {
     result += `
@@ -313,6 +365,17 @@ Wenn du Informationen aus Tool-Ergebnissen verwendest:
 4. Erfinde keine Quellen — nur Verweise auf tatsächliche Tool-Ergebnisse verwenden
 5. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht einen Verweis
 6. Bevorzuge die relevantesten Quellen statt alle aufzulisten`;
+
+function formatConversationSummary(summary: string): string {
+  return `## GESPRÄCHSZUSAMMENFASSUNG
+
+Das folgende ist eine Zusammenfassung des bisherigen Gesprächsverlaufs:
+
+${summary}
+
+---
+Die folgenden Nachrichten sind die aktuellsten im Gespräch.`;
+}
 
 function formatMemoryContext(memoryContext: string): string {
   return `## ERINNERUNGEN AN DIESEN NUTZER

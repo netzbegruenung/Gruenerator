@@ -51,7 +51,7 @@ export const ASPECT_RATIOS: Record<AspectRatioKey, AspectRatioConfig> = {
   landscape: { ratio: '16:9', width: 1360, height: 768, useCase: 'Landscapes, cinematic shots' },
   classic: { ratio: '4:3', width: 1152, height: 864, useCase: 'Magazine layouts, presentations' },
   ultrawide: { ratio: '21:9', width: 1680, height: 720, useCase: 'Panoramas, wide scenes' },
-  instagram: { ratio: '4:5', width: 1080, height: 1350, useCase: 'Instagram posts' },
+  instagram: { ratio: '4:5', width: 1088, height: 1360, useCase: 'Instagram posts' },
 };
 
 export interface VariantConfig {

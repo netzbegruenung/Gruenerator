@@ -10,8 +10,14 @@
  * 5. Cross-Collection Search (integration — requires Qdrant)
  */
 
-import { heuristicClassify, extractSearchTopic, extractFilters, heuristicExtractFilters } from './classifierNode.js';
+import {
+  heuristicClassify,
+  extractSearchTopic,
+  extractFilters,
+  heuristicExtractFilters,
+} from './classifierNode.js';
 import { buildSystemMessage } from './respondNode.js';
+import { getDefaultCollectionsForLocale } from './searchNode.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
 
@@ -169,6 +175,7 @@ async function testExpandedContextWindow() {
     } as any,
     enabledTools: {},
     aiWorkerPool: null,
+    userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
     threadAttachments: [],
@@ -176,6 +183,8 @@ async function testExpandedContextWindow() {
     memoryRetrieveTimeMs: 0,
     notebookIds: [],
     notebookCollectionIds: [],
+    defaultNotebookCollectionIds: [],
+    documentIds: [],
     searchSources: [],
     intent: 'search',
     searchQuery: 'test query',
@@ -183,6 +192,9 @@ async function testExpandedContextWindow() {
     reasoning: 'test',
     hasTemporal: false,
     complexity: 'moderate',
+    needsClarification: false,
+    clarificationQuestion: null,
+    clarificationOptions: null,
     detectedFilters: null,
     searchResults: mockResults,
     citations: [],
@@ -459,32 +471,74 @@ function testFilterExtraction() {
     description: string;
   }> = [
     {
-      input: { content_type: 'presse', landesverband: 'HH', primary_category: null, date_from: null, date_to: null, person: null },
+      input: {
+        content_type: 'presse',
+        landesverband: 'HH',
+        primary_category: null,
+        date_from: null,
+        date_to: null,
+        person: null,
+      },
       expected: { content_type: 'presse', region: 'HH' },
       description: 'Pressemitteilungen Hamburg → content_type + region',
     },
     {
-      input: { content_type: 'beschluss', landesverband: null, primary_category: null, date_from: '2024-01-01', date_to: null, person: null },
+      input: {
+        content_type: 'beschluss',
+        landesverband: null,
+        primary_category: null,
+        date_from: '2024-01-01',
+        date_to: null,
+        person: null,
+      },
       expected: { content_type: 'beschluss', date_from: '2024-01-01' },
       description: 'Beschlüsse seit 2024 → content_type + date_from',
     },
     {
-      input: { content_type: null, landesverband: 'TH', primary_category: 'Klimaschutz', date_from: null, date_to: null, person: null },
+      input: {
+        content_type: null,
+        landesverband: 'TH',
+        primary_category: 'Klimaschutz',
+        date_from: null,
+        date_to: null,
+        person: null,
+      },
       expected: { region: ['TH', 'TH-F'], primary_category: 'Klimaschutz' },
       description: 'Klimapolitik Thüringen → region (with Fraktion) + primary_category',
     },
     {
-      input: { content_type: null, landesverband: null, primary_category: null, date_from: null, date_to: null, person: null },
+      input: {
+        content_type: null,
+        landesverband: null,
+        primary_category: null,
+        date_from: null,
+        date_to: null,
+        person: null,
+      },
       expected: null,
       description: 'All nulls → null (no filters)',
     },
     {
-      input: { content_type: null, landesverband: null, primary_category: null, date_from: 'invalid', date_to: null, person: null },
+      input: {
+        content_type: null,
+        landesverband: null,
+        primary_category: null,
+        date_from: 'invalid',
+        date_to: null,
+        person: null,
+      },
       expected: null,
       description: 'Invalid date format → ignored',
     },
     {
-      input: { content_type: null, landesverband: null, primary_category: null, date_from: null, date_to: null, person: 'Habeck' },
+      input: {
+        content_type: null,
+        landesverband: null,
+        primary_category: null,
+        date_from: null,
+        date_to: null,
+        person: 'Habeck',
+      },
       expected: null,
       description: 'Person only → null (person kept in query, not as filter)',
     },
@@ -494,11 +548,7 @@ function testFilterExtraction() {
     const result = extractFilters(c.input);
     const resultStr = JSON.stringify(result);
     const expectedStr = JSON.stringify(c.expected);
-    assert(
-      resultStr === expectedStr,
-      c.description,
-      `Got: ${resultStr}, Expected: ${expectedStr}`
-    );
+    assert(resultStr === expectedStr, c.description, `Got: ${resultStr}, Expected: ${expectedStr}`);
   }
 
   // Test heuristicExtractFilters
@@ -539,14 +589,50 @@ function testFilterExtraction() {
   for (const c of heuristicCases) {
     const result = heuristicExtractFilters(c.input);
     const keys = result ? Object.keys(result) : [];
-    const hasExpectedKeys = c.expectedKeys.every(k => keys.includes(k));
-    const noExtraKeys = keys.every(k => c.expectedKeys.includes(k));
+    const hasExpectedKeys = c.expectedKeys.every((k) => keys.includes(k));
+    const noExtraKeys = keys.every((k) => c.expectedKeys.includes(k));
     assert(
       hasExpectedKeys && noExtraKeys,
       c.description,
       `Got keys: [${keys.join(', ')}], Expected: [${c.expectedKeys.join(', ')}]`
     );
   }
+}
+
+// ============================================================================
+// 8. Locale-Aware Collection Selection Tests
+// ============================================================================
+
+function testLocaleAwareCollections() {
+  section('8. Locale-Aware Collection Selection');
+
+  const deDE = getDefaultCollectionsForLocale('de-DE');
+  assert(
+    deDE.length === 4 && deDE.includes('deutschland') && deDE.includes('bundestagsfraktion'),
+    'de-DE returns 4 German collections',
+    `Got: [${deDE.join(', ')}]`
+  );
+
+  const deAT = getDefaultCollectionsForLocale('de-AT');
+  assert(
+    deAT.length === 2 && deAT.includes('oesterreich') && deAT.includes('gruene-at'),
+    'de-AT returns 2 Austrian collections',
+    `Got: [${deAT.join(', ')}]`
+  );
+
+  const undef = getDefaultCollectionsForLocale(undefined);
+  assert(
+    undef.length === 4 && undef.includes('deutschland'),
+    'undefined locale falls back to German collections',
+    `Got: [${undef.join(', ')}]`
+  );
+
+  const unknown = getDefaultCollectionsForLocale('en-US');
+  assert(
+    unknown.length === 4 && unknown.includes('deutschland'),
+    'Unknown locale falls back to German collections',
+    `Got: [${unknown.join(', ')}]`
+  );
 }
 
 // ============================================================================
@@ -565,6 +651,7 @@ async function runAllTests() {
   testCrossCollectionLogic();
   testIntegrationFlow();
   testFilterExtraction();
+  testLocaleAwareCollections();
 
   console.log(`\n${'═'.repeat(60)}`);
   console.log(`  Results: ${passed} passed, ${failed} failed, ${skipped} skipped`);

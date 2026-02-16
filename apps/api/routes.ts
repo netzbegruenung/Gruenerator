@@ -146,7 +146,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
-  const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js');
+  const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js'); // @experimental — DeepAgent, not production-ready
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: publicSiteRouter } =
     await import('./routes/sites/index.js');
@@ -156,6 +156,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
+  const { default: contentTitleRouter } = await import('./routes/texte/contentTitleRoute.js');
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
 
   // Auth routes - combined TypeScript router
@@ -180,7 +181,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/chat', grueneratorChatRoute);
   app.use('/api/chat-service', chatServiceRouter);
   app.use('/api/chat-graph', chatGraphRouter);
-  app.use('/api/chat-deep', chatDeepRouter);
+  app.use('/api/chat-deep', chatDeepRouter); // @experimental — DeepAgent route, not production-ready
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
@@ -249,6 +250,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_wahlprogramm', wahlprogrammRouter);
   app.use('/api/claude_universal', universalRouter);
   app.use('/api/texte/smart', smartTexteRouter);
+  app.use('/api/generate-content-title', contentTitleRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
   app.use('/api/custom_generator', customGeneratorRoute);

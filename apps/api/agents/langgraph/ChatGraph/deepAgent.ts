@@ -1,9 +1,10 @@
 /**
+ * @experimental ReAct agent factory — experimental, not used in production.
+ * The production chat pipeline is ChatGraph (classify → search → rerank → respond).
+ *
  * Deep Agent — ReAct Agent using LangGraph's createReactAgent
  *
- * Default chat pipeline. Replaces the fixed pipeline (classify → search →
- * rerank → respond) with an autonomous agent that decides which tools to
- * call based on the conversation.
+ * Autonomous agent that decides which tools to call based on the conversation.
  *
  * The LLM:
  * - Reasons about what information it needs
@@ -45,7 +46,12 @@ export interface DeepAgentInput {
   memoryContext?: string | null;
   notebookContext?: string;
   notebookCollectionIds?: string[];
+  defaultNotebookCollectionIds?: string[];
+  documentContext?: string;
+  documentIds?: string[];
   userInstructions?: string;
+  conversationSummary?: string;
+  userLocale?: string;
 }
 
 /**
@@ -83,6 +89,9 @@ export async function createDeepAgent(input: DeepAgentInput): Promise<DeepAgentI
     threadAttachments: input.threadAttachments,
     imageAttachments: input.imageAttachments,
     _generatedImage: null,
+    userId: input.userId,
+    userLocale: input.userLocale,
+    defaultNotebookCollectionIds: input.defaultNotebookCollectionIds,
   };
 
   const llm = getAgentLLM({ agentConfig, modelId: input.modelId });
@@ -96,7 +105,11 @@ export async function createDeepAgent(input: DeepAgentInput): Promise<DeepAgentI
     threadAttachments: input.threadAttachments,
     notebookContext: input.notebookContext,
     notebookCollectionIds: input.notebookCollectionIds,
+    documentContext: input.documentContext,
+    documentIds: input.documentIds,
     userInstructions: input.userInstructions,
+    conversationSummary: input.conversationSummary,
+    userLocale: input.userLocale,
   });
 
   log.info(`[DeepAgent] Creating agent with ${tools.length} tools, model=${agentConfig.model}`);

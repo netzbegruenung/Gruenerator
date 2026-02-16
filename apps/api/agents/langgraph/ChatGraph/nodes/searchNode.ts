@@ -17,8 +17,8 @@ import { expandQuery } from '../../../../services/search/QueryExpansionService.j
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
-import type { ChatGraphState, SearchResult, SearchSource, Citation } from '../types.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
+import type { ChatGraphState, SearchResult, SearchSource, Citation } from '../types.js';
 
 const log = createLogger('ChatGraph:Search');
 
@@ -44,6 +44,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   'gruene-de': 'gruene.de',
   kommunalwiki: 'Kommunalwiki',
   oesterreich: 'Österreich',
+  'gruene-at': 'Grüne Österreich',
   web: 'Web',
   research: 'Recherche',
   research_synthesis: 'Recherche',
@@ -54,6 +55,15 @@ export const COLLECTION_LABELS: Record<string, string> = {
   bayern: 'Bayern',
   'boell-stiftung': 'Böll-Stiftung',
 };
+
+/**
+ * Return default Qdrant collections based on user locale.
+ * Austrian users search Austrian collections; everyone else gets German defaults.
+ */
+export function getDefaultCollectionsForLocale(locale: string | undefined): string[] {
+  if (locale === 'de-AT') return ['oesterreich', 'gruene-at'];
+  return ['deutschland', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+}
 
 /**
  * Human-readable labels for document content types.
@@ -167,15 +177,26 @@ async function executeDocumentSearchParallel(
   subQueries: string[] | null,
   notebookCollectionIds: string[],
   agentConfig: AgentConfig,
-  filters?: SubcategoryFilters | null
+  filters?: SubcategoryFilters | null,
+  userLocale?: string,
+  defaultNotebookCollectionIds?: string[]
 ): Promise<{ results: SearchResult[]; searchedCollections: string[] }> {
   let collectionsToSearch: string[];
   if (notebookCollectionIds && notebookCollectionIds.length > 0) {
     collectionsToSearch = notebookCollectionIds;
     log.info(`[Search] Using notebook-scoped collections: ${collectionsToSearch.join(', ')}`);
+  } else if (agentConfig.toolRestrictions?.allowedCollections?.length) {
+    collectionsToSearch = agentConfig.toolRestrictions.allowedCollections;
+    log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
+  } else if (agentConfig.toolRestrictions?.defaultCollection) {
+    const dc = agentConfig.toolRestrictions.defaultCollection;
+    collectionsToSearch = [dc, 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+  } else if (defaultNotebookCollectionIds && defaultNotebookCollectionIds.length > 0) {
+    collectionsToSearch = defaultNotebookCollectionIds;
+    log.info(`[Search] Using default notebook collections: ${collectionsToSearch.join(', ')}`);
   } else {
-    const defaultCollection = agentConfig.toolRestrictions?.defaultCollection || 'deutschland';
-    collectionsToSearch = [defaultCollection, 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+    collectionsToSearch = getDefaultCollectionsForLocale(userLocale);
+    log.info(`[Search] Using locale-based collections: ${collectionsToSearch.join(', ')}`);
   }
   const uniqueCollections = [...new Set(collectionsToSearch)];
   const queries = subQueries?.length ? subQueries : [query];
@@ -186,10 +207,12 @@ async function executeDocumentSearchParallel(
 
   const searchPromises = uniqueCollections.flatMap((collection) =>
     queries.map((sq) =>
-      executeDirectSearch({ query: sq, collection, limit: 3, filters: searchFilters }).catch((err: any) => {
-        log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${err.message}`);
-        return null;
-      })
+      executeDirectSearch({ query: sq, collection, limit: 3, filters: searchFilters }).catch(
+        (err: any) => {
+          log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${err.message}`);
+          return null;
+        }
+      )
     )
   );
 
@@ -222,10 +245,7 @@ async function executeDocumentSearchParallel(
 /**
  * Execute web search with query expansion and crawling (extracted from case 'web').
  */
-async function executeWebSearchParallel(
-  query: string,
-  aiWorkerPool: any
-): Promise<SearchResult[]> {
+async function executeWebSearchParallel(query: string, aiWorkerPool: any): Promise<SearchResult[]> {
   let allWebQueries = [query];
   try {
     const expanded = await expandQuery(query, aiWorkerPool);
@@ -328,7 +348,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             state.subQueries || null,
             state.notebookCollectionIds || [],
             agentConfig,
-            detectedFilters
+            detectedFilters,
+            state.userLocale,
+            state.defaultNotebookCollectionIds
           )
             .then((r) => ({ results: r.results, collections: r.searchedCollections }))
             .catch((err) => {
@@ -363,7 +385,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             maxUrls: 2,
             timeout: 3000,
           });
-          const crawledMap = new Map(crawled.filter((r) => r.crawled && r.url).map((r) => [r.url, r]));
+          const crawledMap = new Map(
+            crawled.filter((r) => r.crawled && r.url).map((r) => [r.url, r])
+          );
           results = results.map((r) => {
             const c = r.url ? crawledMap.get(r.url) : undefined;
             return c ? { ...r, content: c.fullContent || r.content } : r;
@@ -444,20 +468,64 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       }
 
       case 'search': {
-        // If notebooks are specified, use ONLY those collections
+        // If specific documents are referenced, use document-scoped search
+        if (state.documentIds && state.documentIds.length > 0) {
+          log.info(`[Search] Using document-scoped search: ${state.documentIds.length} doc(s)`);
+          try {
+            const documentSearchService = (
+              await import('../../../../services/document-services/DocumentSearchService/index.js')
+            ).getQdrantDocumentService();
+            const response = await documentSearchService.search({
+              query: searchQuery || '',
+              userId: (agentConfig as any).userId,
+              options: {
+                limit: 8,
+                mode: 'hybrid',
+                threshold: 0.2,
+              },
+              filters: {
+                documentIds: state.documentIds,
+              },
+            });
+
+            for (const r of response.results || []) {
+              results.push({
+                source: `document:${(r as any).document_id || 'unknown'}`,
+                title: (r as any).title || 'Dokument',
+                content: (r as any).chunk_text || '',
+                url: (r as any).source_url || undefined,
+                relevance: (r as any).score ?? 0.5,
+              });
+            }
+            searchedCollections.push('user-documents');
+          } catch (err: any) {
+            log.warn(`[Search] Document-scoped search failed: ${err.message}`);
+          }
+          break;
+        }
+
+        // Collection selection priority chain
         let collectionsToSearch: string[];
         if (state.notebookCollectionIds && state.notebookCollectionIds.length > 0) {
           collectionsToSearch = state.notebookCollectionIds;
           log.info(`[Search] Using notebook-scoped collections: ${collectionsToSearch.join(', ')}`);
+        } else if (agentConfig.toolRestrictions?.allowedCollections?.length) {
+          collectionsToSearch = agentConfig.toolRestrictions.allowedCollections;
+          log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
+        } else if (agentConfig.toolRestrictions?.defaultCollection) {
+          const dc = agentConfig.toolRestrictions.defaultCollection;
+          collectionsToSearch = [dc, 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+        } else if (
+          state.defaultNotebookCollectionIds &&
+          state.defaultNotebookCollectionIds.length > 0
+        ) {
+          collectionsToSearch = state.defaultNotebookCollectionIds;
+          log.info(
+            `[Search] Using default notebook collections: ${collectionsToSearch.join(', ')}`
+          );
         } else {
-          // Default: cross-collection search (existing behavior)
-          const defaultCollection = agentConfig.toolRestrictions?.defaultCollection || 'deutschland';
-          collectionsToSearch = [
-            defaultCollection,
-            'bundestagsfraktion',
-            'gruene-de',
-            'kommunalwiki',
-          ];
+          collectionsToSearch = getDefaultCollectionsForLocale(state.userLocale);
+          log.info(`[Search] Using locale-based collections: ${collectionsToSearch.join(', ')}`);
         }
         // Deduplicate in case of overlap
         const uniqueCollections = [...new Set(collectionsToSearch)];
@@ -469,7 +537,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         const searchPromises = uniqueCollections.flatMap((collection) =>
           subQueries.map((sq) =>
-            executeDirectSearch({ query: sq, collection, limit: 3, filters: detectedFilters || undefined }).catch((err: any) => {
+            executeDirectSearch({
+              query: sq,
+              collection,
+              limit: 3,
+              filters: detectedFilters || undefined,
+            }).catch((err: any) => {
               log.warn(
                 `[Search] Collection ${collection} failed for query "${sq}": ${err.message}`
               );
@@ -625,8 +698,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       }
 
       case 'examples': {
-        // Social media examples search
-        const country = agentConfig.toolRestrictions?.examplesCountry;
+        // Social media examples search — derive country from locale when agent doesn't set it
+        const country =
+          agentConfig.toolRestrictions?.examplesCountry ||
+          (state.userLocale === 'de-AT' ? 'AT' : undefined);
         const examplesResult = await executeDirectExamplesSearch({
           query: searchQuery || '',
           platform: undefined,

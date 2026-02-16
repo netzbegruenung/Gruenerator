@@ -15,6 +15,7 @@ import { createSaveMemoryTool } from './saveMemory.js';
 import { createScrapeUrlTool } from './scrapeUrl.js';
 import { createSearchDocumentsTool } from './searchDocuments.js';
 import { createSearchExamplesTool } from './searchExamples.js';
+import { createSearchUserContentTool } from './searchUserContent.js';
 import { createSelfReviewTool } from './selfReview.js';
 import { createWebSearchTool } from './webSearch.js';
 
@@ -33,6 +34,9 @@ export interface ToolDependencies {
   threadAttachments?: ThreadAttachment[];
   imageAttachments?: ImageAttachment[];
   _generatedImage?: GeneratedImageResult | null;
+  userId?: string;
+  userLocale?: string;
+  defaultNotebookCollectionIds?: string[];
 }
 
 interface ToolEntry {
@@ -52,6 +56,7 @@ const TOOL_ENTRIES: ToolEntry[] = [
   { key: 'memory_save', factory: createSaveMemoryTool },
   { key: 'self_review', factory: createSelfReviewTool },
   { key: 'draft_structured', factory: createDraftStructuredTool },
+  { key: 'user_content', factory: createSearchUserContentTool },
 ];
 
 /**
@@ -66,7 +71,7 @@ const TOOL_ENTRIES: ToolEntry[] = [
  * - The frontend hasn't disabled it (or it's in the always-enabled set)
  */
 export function buildTools(deps: ToolDependencies): DynamicStructuredTool[] {
-  const alwaysEnabled = new Set(['scrape', 'memory', 'memory_save']);
+  const alwaysEnabled = new Set(['scrape', 'memory', 'memory_save', 'user_content']);
   const agentWhitelist = deps.agentConfig.enabledTools;
   const tools: DynamicStructuredTool[] = [];
 
@@ -105,4 +110,5 @@ export const TOOL_LABELS: Record<string, string> = {
   save_memory: 'Speichere Information...',
   self_review: 'Prüfe Entwurf...',
   draft_structured: 'Erstelle strukturierten Entwurf...',
+  search_user_content: 'Durchsuche Nutzerdokumente...',
 };

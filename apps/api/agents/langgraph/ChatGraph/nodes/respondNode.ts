@@ -306,6 +306,26 @@ Berücksichtige diese nur wenn relevant für die aktuelle Frage. Verwende KEINE 
 }
 
 /**
+ * Build locale context for the system prompt.
+ * Provides country-specific awareness so the AI interprets references correctly
+ * (e.g. "Hauptstadt" = Wien for Austrian users, "Parlament" = Nationalrat).
+ */
+function formatLocaleContext(userLocale: string | undefined): string {
+  if (userLocale === 'de-AT') {
+    return `
+
+## LÄNDERKONTEXT: ÖSTERREICH
+
+Der Nutzer ist in Österreich. Beachte:
+- "Hauptstadt" = Wien, "Parlament" = Nationalrat, "Bundesregierung" = österreichische Bundesregierung
+- "Die Grünen" bezieht sich auf Die Grünen – Die Grüne Alternative (Österreich), nicht auf Bündnis 90/Die Grünen (Deutschland)
+- Verwende österreichische Begriffe wenn passend (z.B. "Landeshauptmann" statt "Ministerpräsident")
+- Politische Referenzen beziehen sich auf österreichische Politik, sofern nicht anders angegeben`;
+  }
+  return '';
+}
+
+/**
  * Build the complete system message with agent role and search context.
  */
 export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
@@ -314,6 +334,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const attachmentContext = formatAttachmentContext(state);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
+  const localeContext = formatLocaleContext(state.userLocale);
 
   const intentGuidance =
     intent === 'direct'
@@ -337,7 +358,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   });
 
   return `${agentConfig.systemRole}
-Heutiges Datum: ${today}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${searchContext}
+Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

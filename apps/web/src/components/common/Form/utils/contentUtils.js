@@ -122,8 +122,16 @@ export const stripWrappingCodeFence = (content) => {
 export const normalizeLineBreaks = (content) => {
   if (!content || typeof content !== 'string') return content;
 
-  // Detect if content is HTML
-  const isHtml = /<[^>]+>/.test(content);
+  // If content looks like Markdown, skip HTML normalization entirely —
+  // Markdown headers or bold/italic are strong indicators
+  const looksLikeMarkdown = /^#{1,6}\s+/m.test(content) || /\*\*.*?\*\*/.test(content);
+
+  // Only treat as HTML if it contains actual HTML block tags (not just any angle bracket)
+  const isHtml =
+    !looksLikeMarkdown &&
+    /<\/?(div|p|span|h[1-6]|ul|ol|li|table|tr|td|th|br|hr|section|article|header|footer|nav|main|blockquote|pre|code|img|a|strong|em|b|i)\b[^>]*>/i.test(
+      content
+    );
 
   if (isHtml) {
     // For HTML: Remove newlines between tags to prevent double spacing

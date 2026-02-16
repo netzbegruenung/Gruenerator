@@ -29,7 +29,9 @@ export function createSearchExamplesTool(deps: ToolDependencies): DynamicStructu
         .describe('Optionale Plattform-Filterung'),
     }),
     func: async ({ query, platform }) => {
-      const country = deps.agentConfig.toolRestrictions?.examplesCountry;
+      const country =
+        deps.agentConfig.toolRestrictions?.examplesCountry ||
+        (deps.userLocale === 'de-AT' ? 'AT' : undefined);
       log.info(`[SearchExamples] query="${query.slice(0, 60)}" platform=${platform || 'all'}`);
 
       const result = await executeDirectExamplesSearch({

@@ -29,12 +29,11 @@ VERFÜGBARE TOOLS:
 - examples: Social-Media-Beispiele, Vorlagen, Posts zum Thema
 - direct: Begrüßungen, Dank, rein kreative Aufgaben OHNE Faktenbedarf
 
-SCHRITT 1 - TIPPFEHLER ERKENNEN:
-Deutsche Tippfehler-Muster:
-- Vertauschte Buchstaben: "recgerchiere" → "recherchiere"
-- Fehlende Buchstaben: "recherchier" → "recherchiere"
-- Doppelte Buchstaben: "programm" ↔ "program"
-- Umlaute: "grüne" = "grune" = "gruene"
+SCHRITT 1 - ORIGINALTEXT BEWAHREN:
+Verwende den ORIGINALEN Wortlaut des Benutzers für searchQuery und optimizedSearchQuery.
+- Korrigiere KEINE Eigennamen, Ortsnamen, Personennamen oder unbekannte Begriffe
+- Die Suchmaschine versteht Tippfehler besser als du — korrigiere NUR offensichtliche deutsche Verben für die Intent-Erkennung
+- typoAnalysis ist NUR zur Protokollierung und darf searchQuery NICHT beeinflussen
 
 SCHRITT 2 - INHALTSTYP ANALYSIEREN:
 Manche Inhalte brauchen AUTOMATISCH Recherche:
@@ -71,10 +70,13 @@ Wenn intent search/research/web/examples ist, erstelle eine optimierte Suchquery
 - Beispiel: "Was sagen die Grünen zum Kohleausstieg?" → "Grüne Kohleausstieg Position"
 
 SCHRITT 5 - KOMPLEXE ANFRAGEN ZERLEGEN:
-Wenn die Anfrage MEHRERE VERSCHIEDENE Themen vergleicht oder kombiniert:
-- Erstelle sub-Queries für jedes einzelne Thema (max 3)
-- Beispiel: "Vergleiche die Klima- und Verkehrspolitik" → ["Klimapolitik Grüne", "Verkehrspolitik Grüne"]
-- Beispiel: "Energiewende und Kohleausstieg der Grünen" → ["Energiewende Grüne", "Kohleausstieg Grüne"]
+Wenn die Anfrage MEHRERE VERSCHIEDENE Themen vergleicht, kombiniert, ODER verschiedene Aufgaben enthält die verschiedene Themen betreffen:
+- Erstelle sub-Queries für jedes einzelne THEMA (max 3)
+- Themenvergleich: "Vergleiche die Klima- und Verkehrspolitik" → ["Klimapolitik Grüne", "Verkehrspolitik Grüne"]
+- Themenverknüpfung: "Energiewende und Kohleausstieg der Grünen" → ["Energiewende Grüne", "Kohleausstieg Grüne"]
+- Aufgabe mit mehreren Themen: "recherchiere Situation in Bonn und schreibe Antrag für Klimaschutz" → ["Situation Bonn", "Klimaschutz"]
+- Aufgabe mit EINEM Thema: "recherchiere Klimaschutz und schreibe PM" → subQueries: null (nur ein Thema)
+- WICHTIG: Zerlege nur nach THEMEN, nicht nach Aufgabentypen
 - Bei einfachen Anfragen zu einem Thema: setze subQueries auf null
 
 SCHRITT 6 - MEHRERE SUCHQUELLEN:
@@ -101,14 +103,27 @@ Wenn die Anfrage SPEZIFISCHE Filterkriterien enthält, extrahiere sie:
 
 Setze NUR Felder die KLAR aus der Anfrage hervorgehen. Bei Unsicherheit: null.
 
+SCHRITT 8 - KLÄRUNGSBEDARF ERKENNEN:
+Wenn die Anfrage MEHRDEUTIG ist und du dir nicht sicher bist welches Thema gemeint ist:
+- Setze "needsClarification": true
+- Formuliere eine kurze Klärungsfrage in "clarificationQuestion"
+- Biete 2-4 konkrete Antwortoptionen in "clarificationOptions" an
+
+Beispiele:
+- "Was ist die Position?" → needsClarification: true, clarificationQuestion: "Zu welchem Thema möchtest du die Position der Grünen erfahren?", clarificationOptions: ["Klimapolitik", "Verkehrspolitik", "Sozialpolitik", "Energiepolitik"]
+- "Erstelle einen Post" → needsClarification: true, clarificationQuestion: "Über welches Thema soll der Post sein?", clarificationOptions: ["Klimaschutz", "Soziale Gerechtigkeit", "Verkehrswende"]
+- "Grüne Position zum Klimaschutz" → needsClarification: false (eindeutig)
+
+Bei EINDEUTIGEN Anfragen: needsClarification: false, clarificationQuestion: null, clarificationOptions: null
+
 Antworte NUR mit JSON:
 {
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
   "intent": "image" | "research" | "search" | "web" | "examples" | "direct",
-  "searchQuery": "..." | null,
-  "optimizedSearchQuery": "nur das faktische Thema, ohne Aufgabenanweisung" | null,
+  "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
+  "optimizedSearchQuery": "nur das faktische Thema aus dem ORIGINALTEXT, ohne Aufgabenanweisung" | null,
   "subQueries": ["thema1", "thema2"] | null,
   "searchSources": ["documents", "web"] | [],
   "filters": {
@@ -119,6 +134,9 @@ Antworte NUR mit JSON:
     "date_to": null | "YYYY-MM-DD",
     "person": null | "Personenname"
   },
+  "needsClarification": false | true,
+  "clarificationQuestion": "..." | null,
+  "clarificationOptions": ["option1", "option2"] | null,
   "reasoning": "..."
 }
 
@@ -177,6 +195,31 @@ function extractSearchTopic(query: string): string {
   }
 
   return query;
+}
+
+/**
+ * Detect whether a query likely contains multiple distinct topics that need decomposition.
+ * Returns true when both sides of a conjunction have substantial content (≥2 words each),
+ * which indicates the LLM should handle sub-query splitting instead of the heuristic path.
+ */
+function looksMultiTopic(query: string): boolean {
+  if (query.length < 40) return false;
+
+  const q = query.toLowerCase();
+
+  // Split on conjunctions: "und", "sowie", "als auch"
+  const conjunctions = /\b(?:und|sowie|als\s+auch)\b/;
+  const match = q.match(conjunctions);
+  if (!match || match.index === undefined) return false;
+
+  const left = q.slice(0, match.index).trim();
+  const right = q.slice(match.index + match[0].length).trim();
+
+  // Each side must have ≥2 substantial words (length ≥ 2 chars)
+  const leftWords = left.split(/\s+/).filter((w) => w.length >= 2);
+  const rightWords = right.split(/\s+/).filter((w) => w.length >= 2);
+
+  return leftWords.length >= 2 && rightWords.length >= 2;
 }
 
 /**
@@ -367,6 +410,9 @@ interface ClassifierLLMResponse {
     date_to?: string | null;
     person?: string | null;
   } | null;
+  needsClarification?: boolean;
+  clarificationQuestion?: string;
+  clarificationOptions?: string[];
   reasoning: string;
 }
 
@@ -510,9 +556,38 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
       const isSearchIntent = !['direct', 'image'].includes(parsed.intent);
 
       // Prefer optimizedSearchQuery for search intents
-      const effectiveSearchQuery = isSearchIntent
+      let effectiveSearchQuery = isSearchIntent
         ? parsed.optimizedSearchQuery || parsed.searchQuery || userContent
         : null;
+
+      // Defense-in-depth: detect if typoAnalysis corrupted the search query
+      // If >40% of original significant words were lost, the LLM likely hallucinated
+      // a "correction" for proper nouns it didn't recognize
+      if (effectiveSearchQuery && parsed.typoAnalysis && isSearchIntent) {
+        const originalWords = userContent
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
+        const queryWords = effectiveSearchQuery
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
+        const preserved = originalWords.filter((w) =>
+          queryWords.some((qw) => qw.includes(w) || w.includes(qw))
+        );
+        const preservedRatio =
+          originalWords.length > 0 ? preserved.length / originalWords.length : 1;
+
+        if (preservedRatio < 0.6) {
+          const fallback = extractSearchTopic(userContent);
+          log.warn(
+            `[Classifier] Typo correction may have corrupted query: "${effectiveSearchQuery}" ` +
+              `(only ${Math.round(preservedRatio * 100)}% words preserved). ` +
+              `Falling back to: "${fallback}"`
+          );
+          effectiveSearchQuery = fallback;
+        }
+      }
 
       if (parsed.optimizedSearchQuery && isSearchIntent) {
         log.debug(
@@ -532,9 +607,8 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
 
       // Extract search sources for parallel multi-source search
       const validSources = ['documents', 'web'];
-      const searchSources = parsed.searchSources?.filter((s): s is SearchSource =>
-        validSources.includes(s)
-      ) || [];
+      const searchSources =
+        parsed.searchSources?.filter((s): s is SearchSource => validSources.includes(s)) || [];
 
       if (searchSources.length > 1) {
         log.debug(`[Classifier] Multi-source search: ${searchSources.join(' + ')}`);
@@ -546,7 +620,7 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
         log.debug(`[Classifier] Detected filters: ${JSON.stringify(filters)}`);
       }
 
-      return {
+      const result: ClassificationResult = {
         intent: parsed.intent as SearchIntent,
         searchQuery: effectiveSearchQuery,
         subQueries,
@@ -554,6 +628,15 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
         filters,
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
       };
+
+      if (parsed.needsClarification && parsed.clarificationQuestion) {
+        result.needsClarification = true;
+        result.clarificationQuestion = parsed.clarificationQuestion;
+        result.clarificationOptions = parsed.clarificationOptions?.slice(0, 4) || undefined;
+        log.info(`[Classifier] Clarification needed: "${parsed.clarificationQuestion}"`);
+      }
+
+      return result;
     }
 
     return null;
@@ -723,12 +806,71 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const temporal = analyzeTemporality(userContent);
     const complexity = detectComplexity(userContent);
 
-    // If notebooks are specified, bias toward search intent
+    // If documents or notebooks are specified, bias toward search intent
     const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
+    const hasDocuments = state.documentIds && state.documentIds.length > 0;
+
+    // If documents are mentioned, force search intent with LLM query optimization
+    if (hasDocuments && userContent.length > 0) {
+      log.info(
+        `[Classifier] Document mention detected, forcing search intent with LLM query optimization`
+      );
+
+      try {
+        const response = await aiWorkerPool.processRequest(
+          {
+            type: 'chat_intent_classification',
+            provider: 'mistral',
+            systemPrompt: CLASSIFIER_PROMPT,
+            messages: [{ role: 'user', content: `Analysiere: "${userContent}"` }],
+            options: {
+              model: 'mistral-small-latest',
+              max_tokens: 250,
+              temperature: 0.1,
+              response_format: { type: 'json_object' },
+            },
+          },
+          null
+        );
+
+        const classification = parseClassifierResponse(response.content || '', userContent);
+        const classificationTimeMs = Date.now() - startTime;
+        const optimizedQuery = classification.searchQuery || extractSearchTopic(userContent);
+
+        log.info(`[Classifier] Document + LLM: query "${userContent}" → "${optimizedQuery}"`);
+
+        return {
+          intent: 'search',
+          searchSources: [],
+          searchQuery: optimizedQuery,
+          subQueries: classification.subQueries || null,
+          detectedFilters: classification.filters || null,
+          reasoning: `Document mention forces search intent; LLM optimized query`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs,
+        };
+      } catch (error: any) {
+        log.warn(`[Classifier] LLM failed for document query, using heuristic: ${error.message}`);
+        const optimizedQuery = extractSearchTopic(userContent);
+        return {
+          intent: 'search',
+          searchSources: [],
+          searchQuery: optimizedQuery || userContent,
+          detectedFilters: heuristicExtractFilters(userContent),
+          reasoning: 'Document mention forces search intent (LLM failed, heuristic fallback)',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
 
     // If notebooks are mentioned, force search intent but use LLM for query optimization
     if (hasNotebooks && userContent.length > 0) {
-      log.info(`[Classifier] Notebook mention detected, forcing search intent with LLM query optimization`);
+      log.info(
+        `[Classifier] Notebook mention detected, forcing search intent with LLM query optimization`
+      );
 
       // Use LLM to correct typos and optimize the search query
       try {
@@ -806,8 +948,21 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     // Try heuristics first - check confidence
     const heuristic = heuristicClassify(userContent);
 
+    // Penalize confidence for multi-topic search queries → forces LLM decomposition
+    const isSearchIntent = !['direct', 'image'].includes(heuristic.intent);
+    const needsDecomposition = isSearchIntent && looksMultiTopic(userContent);
+    const effectiveConfidence = needsDecomposition
+      ? heuristic.confidence - 0.3
+      : heuristic.confidence;
+
+    if (needsDecomposition) {
+      log.info(
+        `[Classifier] Multi-topic detected, forcing LLM (${heuristic.confidence.toFixed(2)} → ${effectiveConfidence.toFixed(2)})`
+      );
+    }
+
     // High confidence: skip LLM, use heuristics directly
-    if (heuristic.confidence >= HEURISTIC_CONFIDENCE_THRESHOLD) {
+    if (effectiveConfidence >= HEURISTIC_CONFIDENCE_THRESHOLD) {
       const classificationTimeMs = Date.now() - startTime;
 
       // Apply query optimization for search intents
@@ -874,12 +1029,10 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       : detectSearchSources(userContent, classification.intent);
 
     if (classification.filters) {
-      log.info(
-        `[Classifier] LLM filters: ${JSON.stringify(classification.filters)}`
-      );
+      log.info(`[Classifier] LLM filters: ${JSON.stringify(classification.filters)}`);
     }
     log.info(
-      `[Classifier] LLM: ${classification.intent} in ${classificationTimeMs}ms - ${classification.reasoning}${llmSearchSources.length > 1 ? ` [multi-source: ${llmSearchSources.join('+')}]` : ''}`
+      `[Classifier] LLM: ${classification.intent} in ${classificationTimeMs}ms - ${classification.reasoning}${llmSearchSources.length > 1 ? ` [multi-source: ${llmSearchSources.join('+')}]` : ''}${classification.needsClarification ? ' [needs-clarification]' : ''}`
     );
 
     return {
@@ -892,6 +1045,9 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       hasTemporal: temporal.hasTemporal,
       complexity,
       classificationTimeMs,
+      needsClarification: classification.needsClarification || false,
+      clarificationQuestion: classification.clarificationQuestion || null,
+      clarificationOptions: classification.clarificationOptions || null,
     };
   } catch (error: any) {
     log.error('[Classifier] Error:', error.message);
@@ -924,6 +1080,8 @@ export {
   detectSearchSources,
   extractFilters,
   heuristicExtractFilters,
+  parseClassifierResponse,
+  looksMultiTopic,
   LANDESVERBAND_ALIASES,
   INTENT_KEYWORDS,
 };

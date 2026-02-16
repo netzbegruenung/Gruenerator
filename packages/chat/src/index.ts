@@ -29,6 +29,9 @@ export { createGrueneratorThreadListAdapter } from './runtime/GrueneratorThreadL
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
+export { FileMentionPopover } from './components/thread/FileMentionPopover';
+export { SkillPopover } from './components/thread/SkillPopover';
+export { PlusMenu } from './components/thread/PlusMenu';
 export { UserMessage } from './components/thread/UserMessage';
 export { AssistantMessage } from './components/thread/AssistantMessage';
 export { WelcomeScreen } from './components/thread/WelcomeScreen';
@@ -109,15 +112,31 @@ export {
   filterMentionables,
   agentMentionables,
   notebookMentionables,
+  documentMentionables,
   allMentionables,
   getAllMentionables,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
+  type MentionableCategory,
   type CustomAgentMentionable,
 } from './lib/mentionables';
+export {
+  registerDocumentSlug,
+  resolveDocumentSlug,
+  clearDocumentSlugs,
+  documentToSlug,
+  type DocumentMention,
+  type DocumentSourceType,
+  type NotebookCollectionItem,
+  type NotebookDocumentItem,
+  type DocumentSearchResult,
+  type UserDocumentItem,
+  type UserTextItem,
+} from './lib/documentMentionables';
 export {
   validateFile,
   validateFiles,
