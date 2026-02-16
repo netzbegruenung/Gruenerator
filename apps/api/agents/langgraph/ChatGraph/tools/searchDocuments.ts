@@ -68,7 +68,12 @@ async function rerankResults(
       null
     );
 
-    const parsed = JSON.parse(response.content || '{}');
+    const rawContent = (response.content || '{}').trim();
+    const cleanedContent = rawContent
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
+    const parsed = JSON.parse(cleanedContent);
     if (parsed.scores && Array.isArray(parsed.scores)) {
       for (const entry of parsed.scores) {
         const idx = Number(entry.index);

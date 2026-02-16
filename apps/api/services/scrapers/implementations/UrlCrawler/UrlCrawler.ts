@@ -64,7 +64,10 @@ export class UrlCrawler {
       // Try Crawlee first (if available and preferred)
       if (this.config.crawlerMode === 'crawlee' || this.config.crawlerMode === 'auto') {
         try {
-          const result = await this.crawleeCrawler.crawlWithCrawlee(url, options);
+          const result = await this.crawleeCrawler.crawlWithCrawlee(url, {
+            ...options,
+            maxRetries: options.maxRetries ?? this.config.maxRetries,
+          });
           html = result.html;
           finalUrl = result.finalUrl;
           statusCode = result.statusCode;

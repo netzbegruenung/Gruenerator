@@ -9,8 +9,8 @@
  * but ContentEnricherNode can delegate actual crawling to this service.
  */
 
-import { urlCrawlerService } from '../scrapers/implementations/UrlCrawler/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { urlCrawlerService } from '../scrapers/implementations/UrlCrawler/index.js';
 
 const log = createLogger('CrawlingService');
 
@@ -56,14 +56,19 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
     return results.map((r) => ({ ...r, crawled: false }));
   }
 
-  log.info(`[Crawl] Crawling top ${crawlCandidates.length} URLs for query: "${query.slice(0, 50)}..."`);
+  log.info(
+    `[Crawl] Crawling top ${crawlCandidates.length} URLs for query: "${query.slice(0, 50)}..."`
+  );
 
   const crawlUrlSet = new Set(crawlCandidates.map((c) => c.url));
 
   // Crawl selected URLs in parallel
   const crawlPromises = crawlCandidates.map(async (candidate) => {
     try {
-      const crawlResult = await urlCrawlerService.crawlUrl(candidate.url!, { timeout });
+      const crawlResult = await urlCrawlerService.crawlUrl(candidate.url!, {
+        timeout,
+        maxRetries: 1,
+      });
 
       if (crawlResult.success && crawlResult.data?.content) {
         log.info(`[Crawl] Success: ${candidate.url} (${crawlResult.data.content.length} chars)`);

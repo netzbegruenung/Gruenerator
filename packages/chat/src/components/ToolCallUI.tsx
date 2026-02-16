@@ -58,6 +58,8 @@ export const ToolCallUI = memo(function ToolCallUI({
     if (arr) return arr.length;
     if (Array.isArray(result)) return result.length;
     if (getObject(result, 'person')) return 1;
+    const rc = getNumber(result, 'resultCount');
+    if (rc !== null && rc > 0) return rc;
     return 0;
   }, [result, state]);
 
@@ -123,6 +125,14 @@ function getObject(obj: unknown, key: string): Record<string, unknown> | null {
     return val && typeof val === 'object' && !Array.isArray(val)
       ? (val as Record<string, unknown>)
       : null;
+  }
+  return null;
+}
+
+function getNumber(obj: unknown, key: string): number | null {
+  if (obj && typeof obj === 'object' && key in obj) {
+    const val = (obj as Record<string, unknown>)[key];
+    return typeof val === 'number' ? val : null;
   }
   return null;
 }
