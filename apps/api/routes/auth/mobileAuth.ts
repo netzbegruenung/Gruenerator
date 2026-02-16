@@ -111,6 +111,7 @@ function sanitizeUserForResponse(user: UserProfile): Partial<UserProfile> {
     video_editor,
     scanner,
     prompts,
+    custom_prompt,
   } = user;
 
   return {
@@ -140,6 +141,7 @@ function sanitizeUserForResponse(user: UserProfile): Partial<UserProfile> {
     video_editor,
     scanner,
     prompts,
+    custom_prompt,
   };
 }
 
@@ -586,6 +588,125 @@ router.delete('/mobile/sessions', async (req: AuthRequest, res: Response): Promi
       error: 'server_error',
       message: 'Failed to revoke sessions',
     });
+  }
+});
+
+/**
+ * POST /auth/mobile/register-push-token
+ *
+ * Register an Expo push token for the current device.
+ * Requires both the Bearer access token and the refresh token to identify the device row.
+ */
+router.post(
+  '/mobile/register-push-token',
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ success: false, error: 'missing_token' });
+        return;
+      }
+
+      const token = authHeader.substring(7);
+      let payload;
+      try {
+        const result = await jwtVerify(token, JWT_SECRET, {
+          issuer: 'gruenerator-api',
+          audience: 'gruenerator-app',
+        });
+        payload = result.payload;
+      } catch {
+        res.status(401).json({ success: false, error: 'invalid_token' });
+        return;
+      }
+
+      if (!payload.sub) {
+        res.status(401).json({ success: false, error: 'invalid_token' });
+        return;
+      }
+
+      const { expoPushToken, refresh_token } = req.body as {
+        expoPushToken: string;
+        refresh_token: string;
+      };
+
+      if (!expoPushToken || !refresh_token) {
+        res.status(400).json({
+          success: false,
+          error: 'missing_params',
+          message: 'expoPushToken and refresh_token are required',
+        });
+        return;
+      }
+
+      // Validate Expo push token format
+      if (
+        !expoPushToken.startsWith('ExponentPushToken[') &&
+        !expoPushToken.startsWith('ExpoPushToken[')
+      ) {
+        res.status(400).json({
+          success: false,
+          error: 'invalid_push_token',
+          message: 'Invalid Expo push token format',
+        });
+        return;
+      }
+
+      const userId = payload.sub as string;
+      const refreshTokenHash = hashToken(refresh_token);
+
+      const { registerPushToken } = await import('../../services/pushNotificationService.js');
+      await registerPushToken(userId, refreshTokenHash, expoPushToken);
+
+      log.info('[MobileAuth] Push token registered', { userId });
+      res.json({ success: true });
+    } catch (error) {
+      log.error('[MobileAuth] Error registering push token:', error);
+      res.status(500).json({ success: false, error: 'server_error' });
+    }
+  }
+);
+
+/**
+ * GET /auth/mobile/devices
+ *
+ * Get all active devices for the authenticated user.
+ */
+router.get('/mobile/devices', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ success: false, error: 'missing_token' });
+      return;
+    }
+
+    const token = authHeader.substring(7);
+    let payload;
+    try {
+      const result = await jwtVerify(token, JWT_SECRET, {
+        issuer: 'gruenerator-api',
+        audience: 'gruenerator-app',
+      });
+      payload = result.payload;
+    } catch {
+      res.status(401).json({ success: false, error: 'invalid_token' });
+      return;
+    }
+
+    if (!payload.sub) {
+      res.status(401).json({ success: false, error: 'invalid_token' });
+      return;
+    }
+
+    const { getUserDevices } = await import('../../services/pushNotificationService.js');
+    const devices = await getUserDevices(payload.sub as string);
+
+    res.json({ success: true, devices });
+  } catch (error) {
+    log.error('[MobileAuth] Error getting devices:', error);
+    res.status(500).json({ success: false, error: 'server_error' });
   }
 });
 

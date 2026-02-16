@@ -4,29 +4,17 @@
  * Collapsible section with BalkenOffset, BalkenGruppe, and Sonnenblumen controls
  */
 
-import { useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+
+import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 import {
   BalkenOffsetControl,
   BalkenGruppeControl,
   SonnenblumenControl,
   CreditInput,
 } from '../../image-modification';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 interface AdvancedSectionProps {
   showCredit?: boolean;
@@ -39,7 +27,6 @@ export function AdvancedSection({ showCredit = true, disabled = false }: Advance
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   const toggleExpanded = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsExpanded(!isExpanded);
   };
 

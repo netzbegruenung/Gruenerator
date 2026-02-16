@@ -1,8 +1,3 @@
-/**
- * Result Screen
- * Final generated image display for Image Studio (KI generation only)
- */
-
 import { Ionicons } from '@expo/vector-icons';
 import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { router } from 'expo-router';
@@ -11,10 +6,10 @@ import { useEffect, useCallback, useRef } from 'react';
 import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ResultDisplay } from '../../../../components/image-studio/ResultDisplay';
-import { useImageStudioStore } from '../../../../stores/imageStudioStore';
-import { lightTheme, darkTheme, colors } from '../../../../theme';
-import { route } from '../../../../types/routes';
+import { ResultDisplay } from '../../../components/image-studio/ResultDisplay';
+import { useImageStudioStore } from '../../../stores/imageStudioStore';
+import { lightTheme, darkTheme, colors } from '../../../theme';
+import { route } from '../../../types/routes';
 
 export default function ResultScreen() {
   const colorScheme = useColorScheme();

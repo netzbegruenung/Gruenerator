@@ -48,7 +48,7 @@ export default function TexteLayout() {
         <MaterialTopTabs.Screen name="presse" options={{ title: 'Presse & Social' }} />
         <MaterialTopTabs.Screen name="antrag" options={{ title: 'Anträge' }} />
         <MaterialTopTabs.Screen name="universal" options={{ title: 'Universal' }} />
-        <MaterialTopTabs.Screen name="barrierefreiheit" options={{ title: 'Barrierefrei' }} />
+        <MaterialTopTabs.Screen name="barrierefreiheit" options={{ title: 'Leichte Sprache' }} />
         <MaterialTopTabs.Screen name="texteditor" options={{ title: 'Text Editor' }} />
       </MaterialTopTabs>
     </SafeAreaView>

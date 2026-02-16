@@ -1,27 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ACCESSIBILITY_MODES, type AccessibilityMode } from '@gruenerator/shared/generators';
 import { useGeneratedTextStore } from '@gruenerator/shared/stores';
 import { useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, useColorScheme, BackHandler } from 'react-native';
 
-import { ChipGroup } from '../../../components/common';
 import { ContentDisplay } from '../../../components/content';
-import { AltTextForm, LeichteSpracheForm } from '../../../components/generators';
+import { LeichteSpracheForm } from '../../../components/generators';
 import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
 
 const COMPONENT_NAME = 'barrierefreiheit-mobile';
 
-const MODE_ICONS: Record<AccessibilityMode, keyof typeof Ionicons.glyphMap> = {
-  'alt-text': 'image-outline',
-  'leichte-sprache': 'text-outline',
-};
-
-export default function BarrierefreiheitScreen() {
+export default function LeichteSpracheScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  const [mode, setMode] = useState<AccessibilityMode>('alt-text');
   const [error, setError] = useState<string | null>(null);
 
   const content = useGeneratedTextStore((state) => state.generatedTexts[COMPONENT_NAME] || '');
@@ -48,13 +40,6 @@ export default function BarrierefreiheitScreen() {
     setError(null);
   }, [clearGeneratedText]);
 
-  const handleModeSelect = useCallback((value: AccessibilityMode | AccessibilityMode[]) => {
-    const selectedMode = Array.isArray(value) ? value[0] : value;
-    if (selectedMode) {
-      setMode(selectedMode);
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -62,16 +47,12 @@ export default function BarrierefreiheitScreen() {
           handleNewGeneration();
           return true;
         }
-        if (mode !== 'alt-text') {
-          setMode('alt-text');
-          return true;
-        }
         return false;
       };
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => subscription.remove();
-    }, [hasResult, mode, handleNewGeneration])
+    }, [hasResult, handleNewGeneration])
   );
 
   if (hasResult) {
@@ -84,15 +65,6 @@ export default function BarrierefreiheitScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.modeSelector}>
-        <ChipGroup
-          options={ACCESSIBILITY_MODES}
-          selected={mode}
-          onSelect={handleModeSelect}
-          icons={MODE_ICONS}
-        />
-      </View>
-
       {error && (
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={16} color={colors.error[500]} />
@@ -101,11 +73,7 @@ export default function BarrierefreiheitScreen() {
       )}
 
       <View style={styles.formContainer}>
-        {mode === 'alt-text' ? (
-          <AltTextForm onResult={handleResult} onError={handleError} />
-        ) : (
-          <LeichteSpracheForm onResult={handleResult} onError={handleError} />
-        )}
+        <LeichteSpracheForm onResult={handleResult} onError={handleError} />
       </View>
     </View>
   );
@@ -114,11 +82,6 @@ export default function BarrierefreiheitScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  modeSelector: {
-    padding: spacing.medium,
-    paddingTop: spacing.xlarge,
-    paddingBottom: 0,
   },
   errorContainer: {
     flexDirection: 'row',

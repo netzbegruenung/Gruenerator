@@ -54,7 +54,11 @@ export {
   getShareInfo,
   deleteShare,
   shareApi,
+  getUserDevices,
+  pushToPhone,
 } from './api/index.js';
+
+export type { UserDevice, PushToPhoneResponse, DevicesResponse } from './api/index.js';
 
 // Hooks / Store
 export { useShareStore } from './hooks/index.js';

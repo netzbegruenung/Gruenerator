@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   StyleSheet,
@@ -8,11 +9,11 @@ import {
   ActivityIndicator,
   Image,
   Linking,
-  ImageSourcePropType,
+  type ImageSourcePropType,
 } from 'react-native';
-import { router } from 'expo-router';
-import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
+
 import { login, type AuthSource } from '../../services/auth';
+import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
 
 interface LoginProvider {
   enabled: boolean;
@@ -22,26 +23,27 @@ interface LoginProvider {
   logo: ImageSourcePropType | null;
 }
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const LOGIN_PROVIDERS: Record<string, LoginProvider> = {
   gruenesNetz: {
     enabled: true,
     source: 'gruenes-netz-login',
-    title: 'Grünes Netz',
-    description: 'Für Mitglieder von BÜNDNIS 90/DIE GRÜNEN',
+    title: 'Grünes Netz Login',
+    description: 'Mit deinem Grünes Netz Account anmelden',
     logo: require('../../assets/images/sonnenblume.png'),
   },
   grueneOesterreich: {
     enabled: true,
     source: 'gruene-oesterreich-login',
-    title: 'Die Grünen Österreich',
-    description: 'Für Mitglieder der Grünen Österreich',
+    title: 'Die Grünen – Die Grüne Alternative',
+    description: 'Mit deinem Groupware Account (Zimbra) anmelden',
     logo: require('../../assets/images/gruene-at-logo.png'),
   },
   netzbegruenung: {
     enabled: true,
     source: 'netzbegruenung-login',
-    title: 'Netzbegrünung',
-    description: 'Für Mitglieder der Netzbegrünung',
+    title: 'Netzbegrünung Login',
+    description: 'Mit deinem Netzbegrünung Account anmelden',
     logo: require('../../assets/images/nb-icon.png'),
   },
   gruenerator: {
@@ -126,9 +128,9 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Willkommen beim Grünerator</Text>
+      <Text style={[styles.title, { color: theme.text }]}>Willkommen!</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-        Melde dich an, um alle Funktionen zu nutzen
+        Melde dich an, um die App zu nutzen
       </Text>
 
       {error && (

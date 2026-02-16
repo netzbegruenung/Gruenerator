@@ -1,4 +1,4 @@
-import { Paths, File as ExpoFile, downloadAsync } from 'expo-file-system';
+import { Paths, File as ExpoFile } from 'expo-file-system';
 import * as tus from 'tus-js-client';
 
 import { secureStorage } from './storage';
@@ -125,21 +125,18 @@ export async function getAutoProgress(uploadId: string): Promise<AutoProgressRes
  */
 export async function downloadVideo(uploadId: string): Promise<string> {
   const token = await secureStorage.getToken();
-  const localFile = new ExpoFile(Paths.cache, `reel_${uploadId}.mp4`);
+  const destination = new ExpoFile(Paths.cache, `reel_${uploadId}.mp4`);
 
-  const downloadResult = await downloadAsync(
+  const file = await ExpoFile.downloadFileAsync(
     `${API_BASE_URL}/subtitler/auto-download/${uploadId}`,
-    localFile.uri,
+    destination,
     {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      idempotent: true,
     }
   );
 
-  if (downloadResult.status !== 200) {
-    throw new Error(`Download failed with status: ${downloadResult.status}`);
-  }
-
-  return downloadResult.uri;
+  return file.uri;
 }
 
 /**
@@ -217,16 +214,25 @@ export interface ExportProgressResponse {
  * Returns exportToken for polling progress
  */
 export async function exportVideo(params: {
-  uploadId: string;
+  uploadId: string | null;
+  projectId: string | null;
+  userId: string | null;
   subtitles: { startTime: number; endTime: number; text: string }[];
   stylePreference: string;
   heightPreference: string;
 }): Promise<string> {
+  const token = await secureStorage.getToken();
+
   const response = await fetch(`${API_BASE_URL}/subtitler/export`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({
-      uploadId: params.uploadId,
+      ...(params.uploadId ? { uploadId: params.uploadId } : {}),
+      ...(params.projectId ? { projectId: params.projectId } : {}),
+      ...(params.userId ? { userId: params.userId } : {}),
       subtitles: params.subtitles,
       stylePreference: params.stylePreference,
       heightPreference: params.heightPreference,
@@ -261,18 +267,15 @@ export async function pollExportProgress(exportToken: string): Promise<ExportPro
  * GET /api/subtitler/export-download/:exportToken
  */
 export async function downloadExportedVideo(exportToken: string): Promise<string> {
-  const localFile = new ExpoFile(Paths.cache, `export_${exportToken}.mp4`);
+  const destination = new ExpoFile(Paths.cache, `export_${exportToken}.mp4`);
 
-  const downloadResult = await downloadAsync(
+  const file = await ExpoFile.downloadFileAsync(
     `${API_BASE_URL}/subtitler/export-download/${exportToken}`,
-    localFile.uri
+    destination,
+    { idempotent: true }
   );
 
-  if (downloadResult.status !== 200) {
-    throw new Error(`Download fehlgeschlagen mit Status: ${downloadResult.status}`);
-  }
-
-  return downloadResult.uri;
+  return file.uri;
 }
 
 export const reelApi = {

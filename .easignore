@@ -1,0 +1,38 @@
+# Dependencies (EAS installs these in the cloud)
+**/node_modules/
+
+# Native build artifacts (EAS runs prebuild)
+apps/mobile/android/
+apps/mobile/ios/
+apps/docs-expo/android/
+apps/docs-expo/ios/
+
+# Other apps not needed for mobile build
+apps/web/dist/
+apps/web/web-build/
+apps/docs/dist/
+apps/desktop/
+
+# Services
+services/comfyui/
+
+# Dev/build artifacts
+**/.expo/
+**/dist/
+**/*.tsbuildinfo
+
+# Large media/test files
+*.mp4
+*.mov
+*.avi
+
+# Git
+.git/
+
+# IDE
+.idea/
+.vscode/
+
+# Secrets
+**/google-service-account.json
+**/.env*.local

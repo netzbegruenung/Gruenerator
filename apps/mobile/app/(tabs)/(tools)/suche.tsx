@@ -1,22 +1,21 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useSearch, type SearchMode } from '@gruenerator/shared/search';
+import { useGeneratedTextStore } from '@gruenerator/shared/stores';
+import { useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   useColorScheme,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   BackHandler,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useGeneratedTextStore } from '@gruenerator/shared/stores';
-import { useSearch, type SearchMode } from '@gruenerator/shared/search';
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
-import { SearchInput, SourceList } from '../../../components/search';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+
 import { ContentDisplay } from '../../../components/content';
+import { SearchInput, SourceList } from '../../../components/search';
+import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
 const COMPONENT_NAME_WEB = 'search-web-summary';
 const COMPONENT_NAME_DEEP = 'search-deep-dossier';
@@ -93,113 +92,99 @@ export default function SucheScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAwareScrollView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      contentContainerStyle={[
+        styles.scrollContent,
+        !hasResults && !loading && !error && styles.scrollContentCentered,
+      ]}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        contentContainerStyle={[
-          styles.scrollContent,
-          !hasResults && !loading && !error && styles.scrollContentCentered,
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <SearchInput onSearch={handleSearch} loading={loading} />
+      <SearchInput onSearch={handleSearch} loading={loading} />
 
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-              {currentMode === 'deep' ? 'Führe Tiefenrecherche durch...' : 'Durchsuche das Web...'}
-            </Text>
-          </View>
-        )}
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+            {currentMode === 'deep' ? 'Führe Tiefenrecherche durch...' : 'Durchsuche das Web...'}
+          </Text>
+        </View>
+      )}
 
-        {error && (
-          <View style={[styles.errorBox, { backgroundColor: colors.semantic.error + '15' }]}>
-            <Ionicons name="alert-circle" size={20} color={colors.semantic.error} />
-            <Text style={[styles.errorText, { color: colors.semantic.error }]}>{error}</Text>
-          </View>
-        )}
+      {error && (
+        <View style={[styles.errorBox, { backgroundColor: colors.semantic.error + '15' }]}>
+          <Ionicons name="alert-circle" size={20} color={colors.semantic.error} />
+          <Text style={[styles.errorText, { color: colors.semantic.error }]}>{error}</Text>
+        </View>
+      )}
 
-        {hasWebResults && currentMode === 'web' && webContent && (
-          <View style={styles.resultsContainer}>
-            <View style={[styles.summaryCard, { backgroundColor: theme.surface }]}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="sparkles" size={20} color={colors.primary[600]} />
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>AI-Zusammenfassung</Text>
-              </View>
-              <ContentDisplay
-                componentName={COMPONENT_NAME_WEB}
-                onNewGeneration={handleNewSearch}
-              />
+      {hasWebResults && currentMode === 'web' && webContent && (
+        <View style={styles.resultsContainer}>
+          <View style={[styles.summaryCard, { backgroundColor: theme.surface }]}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="sparkles" size={20} color={colors.primary[600]} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>AI-Zusammenfassung</Text>
             </View>
-
-            {webResults.results && webResults.results.length > 0 && (
-              <SourceList
-                sources={webResults.results.map((r) => ({
-                  url: r.url,
-                  title: r.title,
-                  snippet: r.snippet,
-                }))}
-                title={`Web-Suchergebnisse (${webResults.resultCount})`}
-              />
-            )}
-
-            {webResults.suggestions && webResults.suggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
-                <Text style={[styles.suggestionsTitle, { color: theme.text }]}>Suchvorschläge</Text>
-                <View style={styles.suggestionsList}>
-                  {webResults.suggestions.map((suggestion, index) => (
-                    <Text
-                      key={index}
-                      style={[styles.suggestion, { color: colors.primary[600] }]}
-                      onPress={() => handleSearch(suggestion, 'web')}
-                    >
-                      {suggestion}
-                    </Text>
-                  ))}
-                </View>
-              </View>
-            )}
+            <ContentDisplay componentName={COMPONENT_NAME_WEB} onNewGeneration={handleNewSearch} />
           </View>
-        )}
 
-        {hasDeepResults && currentMode === 'deep' && deepContent && (
-          <View style={styles.resultsContainer}>
-            <View style={[styles.dossierCard, { backgroundColor: theme.surface }]}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="document-text" size={20} color={colors.primary[600]} />
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>Recherche-Dossier</Text>
-              </View>
-              <ContentDisplay
-                componentName={COMPONENT_NAME_DEEP}
-                onNewGeneration={handleNewSearch}
-              />
-            </View>
+          {webResults.results && webResults.results.length > 0 && (
+            <SourceList
+              sources={webResults.results.map((r) => ({
+                url: r.url,
+                title: r.title,
+                snippet: r.snippet,
+              }))}
+              title={`Web-Suchergebnisse (${webResults.resultCount})`}
+            />
+          )}
 
-            {categorizedSources && Object.keys(categorizedSources).length > 0 && (
-              <View style={styles.categorizedSources}>
-                <Text style={[styles.categorizedTitle, { color: theme.text }]}>
-                  Quellen nach Themenbereichen
-                </Text>
-                {Object.entries(categorizedSources).map(([category, sources]) => (
-                  <SourceList key={category} sources={sources} title={category} />
+          {webResults.suggestions && webResults.suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <Text style={[styles.suggestionsTitle, { color: theme.text }]}>Suchvorschläge</Text>
+              <View style={styles.suggestionsList}>
+                {webResults.suggestions.map((suggestion, index) => (
+                  <Text
+                    key={index}
+                    style={[styles.suggestion, { color: colors.primary[600] }]}
+                    onPress={() => handleSearch(suggestion, 'web')}
+                  >
+                    {suggestion}
+                  </Text>
                 ))}
               </View>
-            )}
+            </View>
+          )}
+        </View>
+      )}
+
+      {hasDeepResults && currentMode === 'deep' && deepContent && (
+        <View style={styles.resultsContainer}>
+          <View style={[styles.dossierCard, { backgroundColor: theme.surface }]}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="document-text" size={20} color={colors.primary[600]} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Recherche-Dossier</Text>
+            </View>
+            <ContentDisplay componentName={COMPONENT_NAME_DEEP} onNewGeneration={handleNewSearch} />
           </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          {categorizedSources && Object.keys(categorizedSources).length > 0 && (
+            <View style={styles.categorizedSources}>
+              <Text style={[styles.categorizedTitle, { color: theme.text }]}>
+                Quellen nach Themenbereichen
+              </Text>
+              {Object.entries(categorizedSources).map(([category, sources]) => (
+                <SourceList key={category} sources={sources} title={category} />
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },

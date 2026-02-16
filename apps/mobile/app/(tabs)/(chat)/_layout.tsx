@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
-import { lightTheme, darkTheme, colors } from '../../../theme';
+import { lightTheme, darkTheme } from '../../../theme';
 
 export default function ChatLayout() {
   const colorScheme = useColorScheme();
@@ -19,14 +19,6 @@ export default function ChatLayout() {
         name="index"
         options={{
           title: 'Chat',
-        }}
-      />
-      <Stack.Screen
-        name="[threadId]"
-        options={{
-          title: '',
-          headerBackTitle: 'Chat',
-          headerTintColor: colors.primary[600],
         }}
       />
     </Stack>

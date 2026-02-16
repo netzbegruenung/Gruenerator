@@ -3,6 +3,8 @@
  * Modal for sharing videos with QR code and share link
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { useShareStore, getShareUrl } from '@gruenerator/shared';
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -12,19 +14,18 @@ import {
   Pressable,
   TextInput,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
-  ViewStyle,
-  TextStyle,
+  type ViewStyle,
+  type TextStyle,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useShareStore, getShareUrl } from '@gruenerator/shared';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+
 import { shareService } from '../../services/share';
-import { ShareLinkDisplay } from './ShareLinkDisplay';
-import { Button } from '../common/Button';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 import { getErrorMessage } from '../../utils/errors';
+import { Button } from '../common/Button';
+
+import { ShareLinkDisplay } from './ShareLinkDisplay';
 
 interface ShareModalProps {
   visible: boolean;
@@ -225,10 +226,7 @@ export function ShareModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
+      <KeyboardAvoidingView behavior="padding" style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Teilen</Text>
           <Pressable onPress={onClose} style={styles.closeButton}>

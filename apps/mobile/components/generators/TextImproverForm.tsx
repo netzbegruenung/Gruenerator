@@ -1,18 +1,4 @@
-import { useState, useCallback } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { spacing, typography, lightTheme, darkTheme } from '../../theme';
-import { TextInput, Button, ChipGroup } from '../common';
-import { FeatureIcons } from './FeatureIcons';
-import { useGeneratorSelectionStore } from '../../stores';
+import { type Ionicons } from '@expo/vector-icons';
 import {
   useTextGeneration,
   GENERATOR_ENDPOINTS,
@@ -21,6 +7,16 @@ import {
   getFirstError,
   type TextImproverAction,
 } from '@gruenerator/shared/generators';
+import { useState, useCallback } from 'react';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+
+import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
+import { useGeneratorSelectionStore } from '../../stores';
+import { spacing, typography, lightTheme, darkTheme } from '../../theme';
+import { TextInput, Button, ChipGroup, MicButton } from '../common';
+
+import { FeatureIcons } from './FeatureIcons';
 
 interface TextImproverFormProps {
   onResult: (result: string) => void;
@@ -42,6 +38,7 @@ export function TextImproverForm({ onResult, onError }: TextImproverFormProps) {
 
   const [action, setAction] = useState<TextImproverAction>('improve');
   const [originalText, setOriginalText] = useState('');
+  const { isListening, toggle: toggleSpeech } = useSpeechToText();
 
   const { generate, loading } = useTextGeneration({
     endpoint: GENERATOR_ENDPOINTS.TEXT_IMPROVER,
@@ -88,52 +85,59 @@ export function TextImproverForm({ onResult, onError }: TextImproverFormProps) {
   }, [originalText, action, generate, onError]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAwareScrollView
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.header, { color: theme.text }]}>
-          Wie soll dein Text besser werden?
-        </Text>
-        <ChipGroup
-          options={TEXT_IMPROVER_ACTIONS}
-          selected={action}
-          onSelect={handleActionSelect}
-          icons={ACTION_ICONS}
+      <Text style={[styles.header, { color: theme.text }]}>Wie soll dein Text besser werden?</Text>
+      <ChipGroup
+        options={TEXT_IMPROVER_ACTIONS}
+        selected={action}
+        onSelect={handleActionSelect}
+        icons={ACTION_ICONS}
+      />
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          placeholder="Füge hier den Text ein, den du bearbeiten möchtest..."
+          value={originalText}
+          onChangeText={setOriginalText}
+          multiline
+          numberOfLines={10}
         />
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            placeholder="Füge hier den Text ein, den du bearbeiten möchtest..."
-            value={originalText}
-            onChangeText={setOriginalText}
-            multiline
-            numberOfLines={10}
+        <View style={styles.inputToolbar}>
+          <FeatureIcons />
+          <MicButton
+            isListening={isListening}
+            onMicPress={() =>
+              toggleSpeech((t) => setOriginalText((prev) => appendTranscript(prev, t)))
+            }
+            hasText={!!originalText.trim()}
+            onSubmit={handleSubmit}
           />
-          <View style={styles.featureIconsContainer}>
-            <FeatureIcons />
-          </View>
         </View>
+      </View>
 
-        <Button onPress={handleSubmit} loading={loading} disabled={!originalText.trim()}>
-          Text bearbeiten
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Button onPress={handleSubmit} loading={loading} disabled={!originalText.trim()}>
+        Text bearbeiten
+      </Button>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
   header: { ...typography.h2, marginBottom: spacing.small },
   inputContainer: {
     position: 'relative',
   },
-  featureIconsContainer: {
+  inputToolbar: {
     position: 'absolute',
     bottom: spacing.medium + 4,
     left: spacing.medium,
+    right: spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });

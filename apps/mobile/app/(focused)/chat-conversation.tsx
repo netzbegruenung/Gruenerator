@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, useColorScheme, Pressable } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, Pressable } from 'react-native';
 import { GiftedChat, type IMessage } from 'react-native-gifted-chat';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,16 +10,18 @@ import {
   CURRENT_USER,
   ThinkingStepIndicator,
   CitationsList,
-} from '../../../components/chat';
-import { useDeepChatStore, toGiftedMessages } from '../../../stores/deepChatStore';
-import { colors, spacing, lightTheme, darkTheme } from '../../../theme';
+} from '../../components/chat';
+import { useDeepChatStore, toGiftedMessages } from '../../stores/deepChatStore';
+import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 
 export default function ChatConversationScreen() {
-  const { threadId } = useLocalSearchParams<{ threadId: string }>();
+  const { threadId, initialMessage } = useLocalSearchParams<{
+    threadId: string;
+    initialMessage?: string;
+  }>();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const router = useRouter();
 
   const {
@@ -38,34 +40,18 @@ export default function ChatConversationScreen() {
 
   const isNewChat = threadId === 'new';
 
-  // Load thread messages on mount (unless it's a new chat)
   useEffect(() => {
     if (!isNewChat && threadId && threadId !== activeThreadId) {
       switchThread(threadId);
     }
   }, [threadId, isNewChat, activeThreadId, switchThread]);
 
-  // Handle initial message from params (suggestion chip)
-  const params = useLocalSearchParams<{ initialMessage?: string }>();
   useEffect(() => {
-    if (isNewChat && params.initialMessage) {
-      sendMessage(params.initialMessage);
+    if (isNewChat && initialMessage) {
+      sendMessage(initialMessage);
     }
-    // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Update header with cancel button during streaming
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () =>
-        isStreaming ? (
-          <Pressable onPress={cancelStream} style={{ padding: spacing.xsmall }}>
-            <Ionicons name="stop-circle" size={24} color={colors.error[500]} />
-          </Pressable>
-        ) : null,
-    });
-  }, [isStreaming, cancelStream, navigation]);
 
   const chatRenderers = useMemo(() => createChatRenderers(theme), [theme]);
 
@@ -84,12 +70,38 @@ export default function ChatConversationScreen() {
     [sendMessage]
   );
 
-  // Get citations from the last assistant message
   const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
   const citations = lastAssistant?.citations;
 
+  const headerTitle = isNewChat ? 'Neue Unterhaltung' : 'Chat';
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top,
+            backgroundColor: theme.background,
+            borderBottomColor: theme.border,
+          },
+        ]}
+      >
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
+          <Ionicons name="chevron-back" size={28} color={colors.primary[600]} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+          {headerTitle}
+        </Text>
+        <View style={styles.headerButton}>
+          {isStreaming ? (
+            <Pressable onPress={cancelStream} hitSlop={12}>
+              <Ionicons name="stop-circle" size={24} color={colors.error[500]} />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+
       {thinkingSteps.length > 0 && isStreaming && (
         <ThinkingStepIndicator steps={thinkingSteps} theme={theme} />
       )}
@@ -117,5 +129,24 @@ export default function ChatConversationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xsmall,
+    paddingBottom: spacing.small,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

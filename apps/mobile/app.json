@@ -27,6 +27,7 @@
         "backgroundColor": "#005538"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "adjustNothing",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -38,6 +39,15 @@
           ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
+      ],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
       ]
     },
     "web": {
@@ -69,10 +79,19 @@
           "supportsPictureInPicture": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-notifications",
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "86989c3a-549f-47fe-b141-df891ff6e075"
+      }
+    },
+    "owner": "moritzius"
   }
 }

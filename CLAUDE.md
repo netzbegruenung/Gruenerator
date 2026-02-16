@@ -76,6 +76,21 @@ cd apps/docs-expo && npx expo install <package-name>
 cd apps/mobile && npx expo install <package-name>
 ```
 
+### KeyboardStickyView in Nested Navigators
+
+When using `KeyboardStickyView` (from `react-native-keyboard-controller`) inside nested navigators (e.g., Bottom Tabs > Material Top Tabs), **always set offsets to zero** and handle bottom insets externally via `paddingBottom`:
+
+```tsx
+// CORRECT — handle insets externally
+<KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+  <View style={{ paddingBottom: insets.bottom + 16 }}>
+
+// WRONG — causes double-counting with nested navigators
+<KeyboardStickyView offset={{ closed: Math.max(insets.bottom, 24), opened: 0 }}>
+```
+
+The reason: `KeyboardStickyView` positions from the **window bottom** (absolute). Nested tab navigators each add their own safe area handling, so using `insets.bottom` as an offset causes compounding — the input bar ends up behind the Android gesture bar.
+
 ### Styling
 
 **Tailwind CSS v4** for new code. Existing CSS continues to work unchanged.
