@@ -10,14 +10,17 @@ interface ProgressIndicatorProps {
 }
 
 export function ProgressIndicator({ progress, agentColor }: ProgressIndicatorProps) {
-  if (progress.stage === 'idle' || progress.stage === 'complete' || progress.intent === 'direct') {
+  if (
+    progress.stage === 'idle' ||
+    progress.stage === 'complete' ||
+    progress.stage === 'classifying' ||
+    progress.intent === 'direct'
+  ) {
     return null;
   }
 
   const getIcon = () => {
     switch (progress.stage) {
-      case 'classifying':
-        return <Loader2 className="h-4 w-4 animate-spin" />;
       case 'searching':
         return <Search className="h-4 w-4" />;
       case 'generating_image':
