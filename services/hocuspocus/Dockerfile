@@ -27,7 +27,7 @@ RUN pnpm exec tsc --project tsconfig.build.json
 # =============================================================================
 # Stage 2: Production - Fresh install with production deps only
 # =============================================================================
-FROM node:20-slim AS production
+FROM node:20-alpine AS production
 
 LABEL org.opencontainers.image.title="Gruenerator Hocuspocus"
 LABEL org.opencontainers.image.description="Real-time collaborative editing WebSocket server"
@@ -35,11 +35,12 @@ LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruener
 LABEL org.opencontainers.image.vendor="netzbegruenung"
 
 # Install curl for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
-# Create non-root user
-RUN groupadd -g 1001 gruenerator && \
-    useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator
+# Create non-root user and /app directory with correct ownership
+RUN addgroup -g 1001 gruenerator && \
+    adduser -u 1001 -G gruenerator -s /bin/sh -D gruenerator && \
+    mkdir -p /app && chown gruenerator:gruenerator /app
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10 --activate
@@ -54,12 +55,12 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 # Copy package.json for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 
-# Install production dependencies only
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --filter @gruenerator/hocuspocus
+# Switch to non-root user before install (files written as gruenerator, no chown needed)
+USER gruenerator
 
-# Fix ownership of pnpm-installed node_modules
-RUN chown -R gruenerator:gruenerator node_modules services/hocuspocus/node_modules 2>/dev/null; true
+# Install production dependencies only
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
+    pnpm install --prod --frozen-lockfile --filter @gruenerator/hocuspocus
 
 # Copy compiled server
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
@@ -72,9 +73,6 @@ ENV NODE_ENV=production
 ENV HOCUSPOCUS_PORT=1240
 ENV HOCUSPOCUS_HOST=0.0.0.0
 ENV HEALTH_PORT=1241
-
-# Run as non-root user
-USER gruenerator
 
 EXPOSE 1240 1241
 

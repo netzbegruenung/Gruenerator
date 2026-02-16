@@ -77,8 +77,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user and /app directory with correct ownership
 RUN groupadd -g 1001 gruenerator && \
-    useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator
+    useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator && \
+    mkdir -p /app && chown gruenerator:gruenerator /app
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10 --activate
@@ -95,12 +97,12 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json ./apps/api/
 
-# Install production dependencies only (no tsx, typescript, @types/*, etc.)
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --filter @gruenerator/api...
+# Switch to non-root user before install (files written as gruenerator, no chown needed)
+USER gruenerator
 
-# Fix ownership of pnpm-installed node_modules
-RUN chown -R gruenerator:gruenerator node_modules packages/shared/node_modules apps/api/node_modules services/hocuspocus/node_modules 2>/dev/null; true
+# Install production dependencies only (no tsx, typescript, @types/*, etc.)
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
+    pnpm install --prod --frozen-lockfile --filter @gruenerator/api...
 
 # Copy compiled shared package (resolves @gruenerator/shared/* imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
@@ -123,7 +125,7 @@ RUN ln -s dist/static-data static-data && \
     ln -s dist/public public
 
 # Create runtime directories owned by app user
-RUN mkdir -p uploads logs && chown gruenerator:gruenerator uploads logs
+RUN mkdir -p uploads logs
 
 # Symlink uploads/logs inside dist/ for code using __dirname-relative paths
 # (compiled JS runs from dist/, so __dirname resolves inside dist/)
@@ -132,8 +134,6 @@ RUN ln -s /app/apps/api/uploads dist/uploads && \
 
 ENV NODE_ENV=production
 ENV PORT=3001
-
-USER gruenerator
 
 EXPOSE 3001
 
