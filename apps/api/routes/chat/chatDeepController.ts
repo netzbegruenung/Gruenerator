@@ -1,7 +1,9 @@
 /**
- * Deep Agent Controller (Default)
+ * @experimental ReAct agent controller — not production-ready. Use chatGraphController instead.
  *
- * Primary route handler for the ReAct-based chat system.
+ * Deep Agent Controller
+ *
+ * Route handler for the ReAct-based chat system.
  * Uses SSE streaming with thinking_step events for tool call visibility.
  *
  * SSE Event Flow:
@@ -36,6 +38,8 @@ import {
   saveThreadAttachment,
   getThreadAttachments,
 } from './services/attachmentPersistenceService.js';
+import { getCompactionState } from './services/compactionService.js';
+import { fetchDocumentContext, fetchTextContext } from './services/documentContextService.js';
 import { createSSEStream, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 
 import type {
@@ -430,6 +434,9 @@ router.post('/stream', async (req, res) => {
       modelId,
       attachments,
       notebookIds: rawNotebookIds,
+      documentIds: rawDocumentIds,
+      textIds: rawTextIds,
+      defaultNotebookId: rawDefaultNotebookId,
     } = req.body as {
       messages: UIMessage[];
       agentId?: string;
@@ -438,6 +445,9 @@ router.post('/stream', async (req, res) => {
       modelId?: string;
       attachments?: ProcessedAttachment[];
       notebookIds?: string[];
+      documentIds?: string[];
+      textIds?: string[];
+      defaultNotebookId?: string;
     };
 
     const user = getUser(req);
@@ -525,13 +535,24 @@ router.post('/stream', async (req, res) => {
     // Load previous thread attachments
     const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
-    // Memory retrieval
+    // Load compaction summary for long threads
+    const compactionState = actualThreadId
+      ? await getCompactionState(actualThreadId)
+      : { summary: null, compactedUpToMessageId: null, compactionUpdatedAt: null };
+
+    // Memory retrieval — use recent context for better embedding match on follow-ups
     let memoryContext: string | null = null;
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage) {
       try {
-        const userQuery = extractTextContent(lastUserMessage.content);
-        const memories = await mem0.searchMemories(userQuery, userId, 5);
+        const recentMsgs = validMessages.slice(-4);
+        const queryParts: string[] = [];
+        for (const msg of recentMsgs) {
+          const text = extractTextContent(msg.content);
+          if (text.length > 10) queryParts.push(text.slice(0, 200));
+        }
+        const memoryQuery = queryParts.join(' ');
+        const memories = await mem0.searchMemories(memoryQuery, userId, 5);
         if (memories.length > 0) {
           memoryContext = memories.map((m: any) => `- ${m.memory}`).join('\n');
         }
@@ -546,6 +567,13 @@ router.post('/stream', async (req, res) => {
     const notebookIds = rawNotebookIds?.filter(isKnownNotebook) || [];
     const notebookCollectionIds =
       notebookIds.length > 0 ? resolveNotebookCollections(notebookIds) : [];
+    const defaultNotebookId =
+      rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
+        ? rawDefaultNotebookId
+        : undefined;
+    const defaultNotebookCollectionIds = defaultNotebookId
+      ? resolveNotebookCollections([defaultNotebookId])
+      : [];
     let notebookContext: string | undefined;
 
     if (notebookCollectionIds.length > 0) {
@@ -558,6 +586,58 @@ Der Nutzer hat folgende Notizbücher ausgewählt: ${notebookIds.join(', ')}
 
 Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen Sammlungen: ${notebookCollectionIds.join(', ')}
 Übergib den Parameter collection_ids mit diesen Werten an search_documents.`;
+    }
+
+    // Handle @datei document references (smart mode: inject small docs, scope large docs)
+    let documentContext: string | undefined;
+    let documentIdsForScoping: string[] = [];
+    if (rawDocumentIds?.length) {
+      try {
+        const docResult = await fetchDocumentContext(userId, rawDocumentIds);
+        if (docResult.text) {
+          // Small doc: inject full text as attachment context
+          attachmentContext = attachmentContext
+            ? `${attachmentContext}\n\n---\n\n## REFERENZIERTE DOKUMENTE\n\n${docResult.text}`
+            : `## REFERENZIERTE DOKUMENTE\n\n${docResult.text}`;
+          log.info(`[DeepAgent] Document context injected: ${docResult.totalChars} chars`);
+        } else if (docResult.documents.length > 0) {
+          // Large doc: pass IDs for search scoping
+          documentIdsForScoping = docResult.documents.map((d) => d.id);
+          const titles = docResult.documents.map((d) => d.title).join(', ');
+          documentContext = `## DOKUMENT-KONTEXT
+
+Der Nutzer hat folgende Dokumente referenziert: ${titles}
+
+Wenn du search_documents verwendest, beschränke die Suche auf diese Dokument-IDs: ${documentIdsForScoping.join(', ')}
+Übergib den Parameter document_ids mit diesen Werten an search_documents.`;
+          log.info(
+            `[DeepAgent] Document scoping: ${documentIdsForScoping.length} doc(s), ${docResult.totalChars} chars`
+          );
+        }
+      } catch (err) {
+        log.warn(
+          `[DeepAgent] Document context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+
+    // Handle @datei text references (saved/generated texts from user_documents)
+    if (rawTextIds?.length) {
+      try {
+        const textResult = await fetchTextContext(userId, rawTextIds);
+        if (textResult.text) {
+          attachmentContext = attachmentContext
+            ? `${attachmentContext}\n\n---\n\n## REFERENZIERTE TEXTE\n\n${textResult.text}`
+            : `## REFERENZIERTE TEXTE\n\n${textResult.text}`;
+          log.info(
+            `[DeepAgent] Text context injected: ${textResult.totalChars} chars from ${textResult.count} text(s)`
+          );
+        }
+      } catch (err) {
+        log.warn(
+          `[DeepAgent] Text context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
     }
 
     // Fast path: detect image requests and handle directly, bypassing ReAct agent
@@ -605,7 +685,13 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
       memoryContext,
       notebookContext,
       notebookCollectionIds: notebookCollectionIds.length > 0 ? notebookCollectionIds : undefined,
+      defaultNotebookCollectionIds:
+        defaultNotebookCollectionIds.length > 0 ? defaultNotebookCollectionIds : undefined,
+      documentContext,
+      documentIds: documentIdsForScoping.length > 0 ? documentIdsForScoping : undefined,
       userInstructions,
+      conversationSummary: compactionState.summary || undefined,
+      userLocale: (user as any)?.locale || 'de-DE',
     });
 
     // Context pruning: trim long conversations to token budget
@@ -648,7 +734,13 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
     let isStreamingFinalResponse = false;
     const toolStartTimes = new Map<string, number>();
 
-    const SEARCH_TOOLS = new Set(['search_documents', 'web_search', 'research', 'search_examples']);
+    const SEARCH_TOOLS = new Set([
+      'search_documents',
+      'web_search',
+      'research',
+      'search_examples',
+      'search_user_content',
+    ]);
     const IMAGE_TOOLS = new Set(['generate_image', 'edit_image']);
 
     try {
@@ -830,18 +922,30 @@ Wenn du search_documents verwendest, beschränke die Suche auf die zugehörigen 
       }
     }
 
-    // Async memory saving
+    // Async memory saving — include relevant tool outputs for richer fact extraction
     if (mem0 && lastUserMessage && fullText) {
       const userText = extractTextContent(lastUserMessage.content);
+      const memoryMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
+        { role: 'user', content: userText },
+      ];
+      const MEMORY_TOOL_NAMES = new Set([
+        'search_documents',
+        'web_search',
+        'research',
+        'recall_memory',
+      ]);
+      for (const tc of toolCalls) {
+        if (MEMORY_TOOL_NAMES.has(tc.name) && tc.output) {
+          memoryMessages.push({
+            role: 'assistant',
+            content: `[${tc.name}] ${tc.output.slice(0, 500)}`,
+          });
+        }
+      }
+      memoryMessages.push({ role: 'assistant', content: fullText });
+
       mem0
-        .addMemories(
-          [
-            { role: 'user', content: userText },
-            { role: 'assistant', content: fullText },
-          ],
-          userId,
-          { threadId: actualThreadId }
-        )
+        .addMemories(memoryMessages, userId, { threadId: actualThreadId })
         .catch((err: unknown) =>
           log.warn(
             `[${requestId}] Async memory save failed: ${err instanceof Error ? err.message : String(err)}`

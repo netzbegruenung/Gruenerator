@@ -129,6 +129,7 @@ export type GeneratedContent =
 
 export interface ContentMetadata {
   title?: string;
+  titleSource?: 'extracted' | 'smart' | 'ai';
   contentType?: string;
   citations?: unknown[];
   enrichmentSummary?: Record<string, unknown>;

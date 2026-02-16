@@ -249,6 +249,12 @@ class FluxImageService {
           console.log(
             `[FluxImageService] ${operationType} failed (attempt ${attempt + 1}/${this.retryConfig.maxRetries + 1}), error: ${errorInfo.type} - ${error.message}`
           );
+          if (error.response?.data) {
+            console.log(
+              `[FluxImageService] API response body:`,
+              JSON.stringify(error.response.data)
+            );
+          }
           break;
         }
       }
@@ -285,7 +291,7 @@ class FluxImageService {
           userMessage: 'Insufficient credits. Please add credits to your account.',
         };
       }
-      if (status === '400') {
+      if (status === '400' || status === '422') {
         return { type: 'validation', retryable: false, userMessage: 'Invalid request parameters' };
       }
       if (this.retryableErrors.has(status)) {
@@ -323,7 +329,10 @@ class FluxImageService {
 
   private createUserFriendlyError(originalError: any): FluxError {
     const errorInfo = this.classifyError(originalError);
-    const error = new Error(errorInfo.userMessage) as FluxError;
+    const apiMessage =
+      originalError.response?.data?.detail || originalError.response?.data?.message;
+    const message = apiMessage ? `${errorInfo.userMessage}: ${apiMessage}` : errorInfo.userMessage;
+    const error = new Error(message) as FluxError;
     error.originalError = originalError;
     error.type = errorInfo.type;
     error.retryable = errorInfo.retryable;

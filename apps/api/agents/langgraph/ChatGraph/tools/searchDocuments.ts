@@ -10,8 +10,10 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
 import { executeDirectSearch } from '../../../../routes/chat/agents/directSearch.js';
+import { getQdrantDocumentService } from '../../../../services/document-services/DocumentSearchService/index.js';
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { getDefaultCollectionsForLocale } from '../nodes/searchNode.js';
 
 import type { ToolDependencies } from './registry.js';
 
@@ -62,6 +64,7 @@ async function rerankResults(
           model: 'mistral-small-latest',
           max_tokens: 200,
           temperature: 0.0,
+          top_p: 1.0,
           response_format: { type: 'json_object' },
         },
       },
@@ -111,14 +114,75 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
         .describe(
           'Optionale Qdrant-Collections (z.B. "deutschland", "bundestagsfraktion", "gruene-de", "kommunalwiki"). Standard: alle'
         ),
+      document_ids: z
+        .array(z.string())
+        .optional()
+        .describe('Optionale Dokument-IDs zur Einschränkung der Suche auf bestimmte Dokumente'),
       topK: z.number().optional().describe('Maximale Ergebnisanzahl pro Collection (Standard: 3)'),
     }),
-    func: async ({ query, collections, topK }) => {
-      const defaultCollection =
-        deps.agentConfig.toolRestrictions?.defaultCollection || 'deutschland';
-      const collectionsToSearch = collections?.length
-        ? collections
-        : [defaultCollection, 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+    func: async ({ query, collections, document_ids, topK }) => {
+      // Document-scoped search: filter by specific document IDs
+      if (document_ids?.length) {
+        const userId = (deps.agentConfig as any).userId;
+        log.info(
+          `[SearchDocuments] Document-scoped search: query="${query.slice(0, 60)}" docs=${document_ids.length}`
+        );
+
+        try {
+          const documentSearchService = getQdrantDocumentService();
+          const response = await documentSearchService.search({
+            query,
+            userId,
+            options: {
+              limit: topK || 8,
+              mode: 'hybrid',
+              threshold: 0.2,
+            },
+            filters: {
+              documentIds: document_ids,
+            },
+          });
+
+          const results: ScoredResult[] = (response.results || []).map((r: any) => ({
+            source: `document:${r.document_id || 'unknown'}`,
+            title: r.title || r.source || 'Dokument',
+            content: r.chunk_text || r.excerpt || '',
+            url: r.source_url || undefined,
+            relevance: r.score ?? 0.5,
+          }));
+
+          const reranked = await rerankResults(results, query, deps.aiWorkerPool);
+
+          if (reranked.length === 0) {
+            return 'Keine relevanten Inhalte in den referenzierten Dokumenten gefunden.';
+          }
+
+          const formatted = reranked
+            .map((r, i) => {
+              const urlTag = r.url ? ` (${r.url})` : '';
+              return `[${i + 1}] ${r.title}${urlTag}\n${r.content.slice(0, 600)}`;
+            })
+            .join('\n\n');
+
+          return `${reranked.length} Ergebnisse aus referenzierten Dokumenten:\n\n${formatted}`;
+        } catch (err: any) {
+          log.warn(`[SearchDocuments] Document-scoped search failed: ${err.message}`);
+          return 'Fehler bei der Dokumentensuche. Bitte versuche es erneut.';
+        }
+      }
+
+      let defaultCollections: string[];
+      if (deps.agentConfig.toolRestrictions?.allowedCollections?.length) {
+        defaultCollections = deps.agentConfig.toolRestrictions.allowedCollections;
+      } else if (deps.agentConfig.toolRestrictions?.defaultCollection) {
+        const dc = deps.agentConfig.toolRestrictions.defaultCollection;
+        defaultCollections = [dc, 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+      } else if (deps.defaultNotebookCollectionIds?.length) {
+        defaultCollections = deps.defaultNotebookCollectionIds;
+      } else {
+        defaultCollections = getDefaultCollectionsForLocale(deps.userLocale);
+      }
+      const collectionsToSearch = collections?.length ? collections : defaultCollections;
       const uniqueCollections = [...new Set<string>(collectionsToSearch)];
       const limit = topK || 3;
 

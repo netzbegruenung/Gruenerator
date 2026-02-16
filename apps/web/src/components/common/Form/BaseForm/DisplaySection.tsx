@@ -3,6 +3,7 @@ import React, { forwardRef, lazy, Suspense, type ReactNode, useMemo } from 'reac
 
 import { webAppDocsAdapter } from '../../../../features/docs/docsAdapter';
 import { useLazyAuth } from '../../../../hooks/useAuth';
+import { useDeferredTitle, awaitDeferredTitle } from '../../../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import ActionButtons from '../../ActionButtons';
@@ -193,18 +194,17 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
 
     const handleSaveToLibrary = React.useCallback(async () => {
       try {
-        // Priority: metadata title > prop title > fallback
-        const titleToUse = storeGeneratedTextMetadata?.title || title || 'Unbenannter Text';
+        await awaitDeferredTitle(componentName);
+        const meta = useGeneratedTextStore
+          .getState()
+          .getGeneratedTextMetadata(componentName) as ContentMetadata | null;
+        const titleToUse = meta?.title || title || 'Unbenannter Text';
 
-        await saveToLibrary(
-          currentExportableContent,
-          titleToUse,
-          storeGeneratedTextMetadata?.contentType || 'universal'
-        );
+        await saveToLibrary(currentExportableContent, titleToUse, meta?.contentType || 'universal');
       } catch (error) {
         // Error handling is managed by the hook
       }
-    }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
+    }, [currentExportableContent, title, componentName, saveToLibrary]);
 
     // "Edit in Docs" — create a collaborative document and open full-screen modal
     const createDocument = useDocumentStore((state) => state.createDocument);
@@ -216,12 +216,23 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       title: string;
     } | null>(null);
 
+    useDeferredTitle(
+      componentName,
+      currentExportableContent,
+      storeGeneratedTextMetadata,
+      isStreaming
+    );
+
     const handleEditInDocs = React.useCallback(async () => {
       if (!currentExportableContent) return;
 
       setEditInDocsLoading(true);
       try {
-        const docTitle = storeGeneratedTextMetadata?.title || title || 'Generierter Text';
+        await awaitDeferredTitle(componentName);
+        const meta = useGeneratedTextStore
+          .getState()
+          .getGeneratedTextMetadata(componentName) as ContentMetadata | null;
+        const docTitle = meta?.title || title || 'Generierter Text';
         const doc = await createDocument(docsApiClient, docTitle);
         setEditorModal({
           documentId: doc.id,
@@ -233,13 +244,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       } finally {
         setEditInDocsLoading(false);
       }
-    }, [
-      currentExportableContent,
-      storeGeneratedTextMetadata,
-      title,
-      createDocument,
-      docsApiClient,
-    ]);
+    }, [currentExportableContent, componentName, title, createDocument, docsApiClient]);
 
     const actionButtons = (
       <ActionButtons

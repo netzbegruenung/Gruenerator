@@ -25,7 +25,7 @@
     "grosse_anfrage": "eine große Anfrage",
     "default": "einen kommunalpolitischen Antrag"
   },
-  "requestTemplate": "Erstelle {{requestTypeText}}:\n\n{{inhalt}}\n\n{{#if gliederung}}\nFür die Gliederung: {{gliederung}}\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "requestTemplate": "Erstelle {{requestTypeText}}:\n\n{{inhalt}}\n\n{{#if gliederung}}\nFür die Gliederung: {{gliederung}}\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.",
   "customPromptTemplate": {
     "requestType": "{{requestTypeText}}",
     "inhalt": "{{inhalt|default:'Nicht angegeben'}}",

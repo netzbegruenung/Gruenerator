@@ -124,6 +124,20 @@ The reason: `KeyboardStickyView` positions from the **window bottom** (absolute)
 - CSS variables in `variables.css` remain the source of truth
 - Always test UI changes in both light and dark modes
 
+### shadcn/ui Components
+
+**Prefer shadcn/ui** for new UI components whenever possible. Add components to the appropriate package (`packages/chat` for chat UI, `apps/web` for web-only UI). For chat features, **prefer Assistant UI (`@assistant-ui/react`)** primitives and components — use its built-in thread, composer, message, and runtime APIs before building custom alternatives.
+
+When adding shadcn/ui components to `packages/chat` (or any shared package), **always replace `@/` path aliases with relative imports** after generation. Vite resolves `@/` using the consuming app's alias, not the package's `tsconfig.json` paths, so `@/lib/utils` will fail at runtime.
+
+```tsx
+// WRONG — breaks when consumed by apps/web via Vite
+import { cn } from "@/lib/utils"
+
+// CORRECT — works in any consuming context
+import { cn } from "../../lib/utils"
+```
+
 ### State Management
 
 Zustand for global state. TanStack Query (React Query v5) for server state/data fetching with axios.

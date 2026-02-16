@@ -9,9 +9,10 @@
  * when combined with cross-collection search (which increases candidate volume).
  */
 
-import type { ChatGraphState, SearchResult } from '../types.js';
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../../utils/logger.js';
+
+import type { ChatGraphState, SearchResult } from '../types.js';
 
 const log = createLogger('ChatGraph:Rerank');
 
@@ -47,9 +48,7 @@ Antworte NUR mit JSON:
  * Rerank search results using Mistral-small.
  * Batches all passages into a single LLM call for efficiency.
  */
-export async function rerankNode(
-  state: ChatGraphState
-): Promise<Partial<ChatGraphState>> {
+export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   const { searchResults, searchQuery, aiWorkerPool, hasTemporal } = state;
 
@@ -61,7 +60,9 @@ export async function rerankNode(
 
   const candidates = searchResults.slice(0, RERANK_INPUT_LIMIT);
 
-  log.info(`[Rerank] Reranking ${candidates.length} results for query: "${searchQuery?.slice(0, 50)}..."`);
+  log.info(
+    `[Rerank] Reranking ${candidates.length} results for query: "${searchQuery?.slice(0, 50)}..."`
+  );
 
   try {
     // Build the passage list for the LLM
@@ -84,6 +85,7 @@ ${passageList}`;
           model: 'mistral-small-latest',
           max_tokens: 200,
           temperature: 0.0,
+          top_p: 1.0,
           response_format: { type: 'json_object' },
         },
       },
@@ -102,7 +104,7 @@ ${passageList}`;
     // Apply scores and re-sort
     const scoredResults: SearchResult[] = candidates.map((r, i) => ({
       ...r,
-      relevance: parsed[i] !== undefined ? parsed[i] / 5 : (r.relevance || 0.5),
+      relevance: parsed[i] !== undefined ? parsed[i] / 5 : r.relevance || 0.5,
     }));
 
     scoredResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
@@ -112,12 +114,12 @@ ${passageList}`;
 
     // B3: Apply MMR diversity reranking as second pass
     // Keep top 2 results unchanged, apply diversity for positions 3+
-    const diverse = filtered.length > 3
-      ? applyMMR(filtered, 0.7, 2)
-      : filtered;
+    const diverse = filtered.length > 3 ? applyMMR(filtered, 0.7, 2) : filtered;
     const reranked = diverse.slice(0, RERANK_OUTPUT_LIMIT);
 
-    log.info(`[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`);
+    log.info(
+      `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`
+    );
 
     return {
       searchResults: reranked,
@@ -133,7 +135,10 @@ ${passageList}`;
  * Parse the rerank LLM response into a score map.
  * Returns index→score mapping, or null if parsing fails.
  */
-function parseRerankResponse(content: string, candidateCount: number): Record<number, number> | null {
+function parseRerankResponse(
+  content: string,
+  candidateCount: number
+): Record<number, number> | null {
   try {
     const parsed = JSON.parse(content);
     const scores: Record<number, number> = {};

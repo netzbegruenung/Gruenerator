@@ -15,7 +15,7 @@
     "required": ["frage"],
     "errorMessage": "Die Frage ist ein Pflichtfeld oder ein benutzerdefinierter Prompt muss angegeben werden."
   },
-  "requestTemplate": "Erstelle eine professionelle Antwort auf folgende Bürger*innenanfrage:\n\n{{#if gremium}}\n<gremium>\nZuständiges Gremium/Position: {{gremium}}\n</gremium>\n{{/if}}\n\n<frage>\n{{frage}}\n</frage>\n\n<antwort>\nGewünschte Art der Antwort: {{antwort}}\n</antwort>\n\nAktuelles Datum: {{currentDate}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "requestTemplate": "Erstelle eine professionelle Antwort auf folgende Bürger*innenanfrage:\n\n{{#if gremium}}\n<gremium>\nZuständiges Gremium/Position: {{gremium}}\n</gremium>\n{{/if}}\n\n<frage>\n{{frage}}\n</frage>\n\n<antwort>\nGewünschte Art der Antwort: {{antwort}}\n</antwort>\n\nAktuelles Datum: {{currentDate}}",
   "customPromptTemplate": {
     "gremium": "{{gremium|default:''}}",
     "frage": "{{frage|default:'Nicht angegeben'}}",

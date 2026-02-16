@@ -1,14 +1,12 @@
 'use client';
 
-import { Sparkles, Zap, Server, Check, BrainCircuit } from 'lucide-react';
+import { Sparkles, Server, Check, BrainCircuit } from 'lucide-react';
 import { useAgentStore, MODEL_OPTIONS, type ModelOption } from '../stores/chatStore';
 import { Dropdown, DropdownItem, ToggleSwitch } from './ui/Dropdown';
 
 const MODEL_ICONS: Record<ModelOption['icon'], typeof Sparkles> = {
   sparkles: Sparkles,
-  zap: Zap,
   server: Server,
-  brain: BrainCircuit,
 };
 
 export function ModelSelector() {
@@ -26,15 +24,12 @@ export function ModelSelector() {
       trigger={
         <>
           <Icon className="h-4 w-4" />
-          <span>{currentModel?.name || 'Mistral Large'}</span>
+          <span>{currentModel?.name || 'Mistral'}</span>
         </>
       }
       footer={
         <p className="text-xs text-foreground-muted">
-          Modell:{' '}
-          <span className="font-mono">
-            {selectedModel === 'auto' ? 'Automatisch' : currentModel?.model}
-          </span>
+          Modell: <span className="font-mono">{currentModel?.name}</span>
         </p>
       }
     >

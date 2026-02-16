@@ -12,6 +12,7 @@ import '../../assets/styles/components/actions/action-buttons.css';
 
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
+import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useProfileStore } from '../../stores/profileStore';
@@ -20,6 +21,8 @@ import { extractTitleFromContent } from '../../utils/titleExtractor';
 import { copyFormattedContent } from '../utils/commonFunctions';
 
 import ExportDropdown from './ExportDropdown';
+
+import type { ContentMetadata } from '@/types/baseform';
 
 interface GeneratedContentObject {
   content?: string;
@@ -178,33 +181,33 @@ const ActionButtons = ({
       hasContent: !!activeContent,
     });
 
-    // Then check if auto-save is enabled
     if (!profile?.auto_save_on_export || !isAuthenticated || !activeContent) {
       return;
     }
 
-    // Extract string content for hashing (handle both object and string content)
     const contentForHash = contentString;
 
-    const contentHash = hashContent(contentForHash, title);
-    if (exportedContentHashesRef.current.has(contentHash)) {
-      console.log('[ActionButtons Auto-save] Skipping duplicate content');
-      return;
-    }
-
     try {
-      const contentType = generatedTextMetadata?.contentType || 'universal';
-      console.log('[ActionButtons Auto-save] Saving to library', { contentType });
+      await awaitDeferredTitle(componentName);
+      const meta = useGeneratedTextStore
+        .getState()
+        .getGeneratedTextMetadata(componentName) as ContentMetadata | null;
+      const freshTitle = meta?.title || title;
 
-      // Use the same content extraction for saving
+      const contentHash = hashContent(contentForHash, freshTitle);
+      if (exportedContentHashesRef.current.has(contentHash)) {
+        return;
+      }
+
+      const contentType = meta?.contentType || 'universal';
+
       await autoSaveToLibrary(
         contentForHash,
-        title || extractTitleFromContent(contentForHash) || 'Auto-gespeichert',
+        freshTitle || extractTitleFromContent(contentForHash) || 'Auto-gespeichert',
         contentType
       );
 
       exportedContentHashesRef.current.add(contentHash);
-      console.log('[ActionButtons Auto-save] Successfully saved');
     } catch (error) {
       console.warn('[ActionButtons Auto-save] Failed:', error);
     }

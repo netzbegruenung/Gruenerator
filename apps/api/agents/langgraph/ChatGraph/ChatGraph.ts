@@ -18,8 +18,8 @@
 
 import { StateGraph, Annotation, END } from '@langchain/langgraph';
 
-import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
 import { resolveNotebookCollections } from '../../../config/notebookCollectionMap.js';
+import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
@@ -42,6 +42,7 @@ import type {
   GeneratedImageResult,
   ImageAttachment,
   ThreadAttachment,
+  UserLocale,
 } from './types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -70,6 +71,9 @@ const ChatStateAnnotation = Annotation.Root({
   aiWorkerPool: Annotation<any>({
     reducer: (x, y) => y ?? x,
   }),
+  userLocale: Annotation<UserLocale>({
+    reducer: (x, y) => y ?? x,
+  }),
 
   // Attachment context
   attachmentContext: Annotation<string | null>({
@@ -87,6 +91,13 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? [],
   }),
   notebookCollectionIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  // Default notebook scoping (from persistent UI selection)
+  defaultNotebookCollectionIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  documentIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
 
@@ -119,6 +130,17 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   complexity: Annotation<'simple' | 'moderate' | 'complex'>({
     reducer: (x, y) => y ?? x ?? 'moderate',
+  }),
+
+  // Clarification (HITL interrupt)
+  needsClarification: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+  clarificationQuestion: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+  clarificationOptions: Annotation<string[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Metadata filters extracted by classifier (for Qdrant filtering)
@@ -391,6 +413,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
       image: true,
     },
     aiWorkerPool: input.aiWorkerPool,
+    userLocale: input.userLocale || 'de-DE',
 
     // Attachment context
     attachmentContext: input.attachmentContext || null,
@@ -400,6 +423,14 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Notebook scoping
     notebookIds: input.notebookIds || [],
     notebookCollectionIds: input.notebookIds ? resolveNotebookCollections(input.notebookIds) : [],
+
+    // Default notebook scoping (from persistent UI selection)
+    defaultNotebookCollectionIds: input.defaultNotebookId
+      ? resolveNotebookCollections([input.defaultNotebookId])
+      : [],
+
+    // Document scoping (from @datei mentions)
+    documentIds: input.documentIds || [],
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
@@ -413,6 +444,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     reasoning: '',
     hasTemporal: false,
     complexity: 'moderate' as const,
+    needsClarification: false,
+    clarificationQuestion: null,
+    clarificationOptions: null,
     detectedFilters: null,
 
     // Research brief (will be set by briefGenerator node for complex research)

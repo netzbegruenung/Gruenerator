@@ -200,9 +200,16 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 }
 
 function useGrueneratorThreadRuntime() {
-  const { selectedAgentId, selectedModel, enabledTools, useDeepAgent } = useAgentStore(
-    useShallow((s) => ({ selectedAgentId: s.selectedAgentId, selectedModel: s.selectedModel, enabledTools: s.enabledTools, useDeepAgent: s.useDeepAgent }))
-  );
+  const { selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId } =
+    useAgentStore(
+      useShallow((s) => ({
+        selectedAgentId: s.selectedAgentId,
+        selectedModel: s.selectedModel,
+        enabledTools: s.enabledTools,
+        useDeepAgent: s.useDeepAgent,
+        selectedNotebookId: s.selectedNotebookId,
+      }))
+    );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
   const needsCompaction = useAgentStore((s) => s.needsCompaction);
   const compactionState = useAgentStore((s) => s.compactionState);
@@ -215,8 +222,9 @@ function useGrueneratorThreadRuntime() {
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
       useDeepAgent,
+      selectedNotebookId,
     }),
-    [selectedAgentId, selectedModel, enabledTools, useDeepAgent]
+    [selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId]
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
@@ -242,7 +250,13 @@ function useGrueneratorThreadRuntime() {
         }
       }
     },
-    [incrementMessageCount, needsCompaction, compactionState.summary, triggerCompaction, runtimeApiClient]
+    [
+      incrementMessageCount,
+      needsCompaction,
+      compactionState.summary,
+      triggerCompaction,
+      runtimeApiClient,
+    ]
   );
 
   const modelAdapter = useMemo(
@@ -253,7 +267,11 @@ function useGrueneratorThreadRuntime() {
   return useLocalRuntime(modelAdapter);
 }
 
-export function GrueneratorChatProvider({ children, userId, config }: GrueneratorChatProviderProps) {
+export function GrueneratorChatProvider({
+  children,
+  userId,
+  config,
+}: GrueneratorChatProviderProps) {
   useEffect(() => {
     useChatConfigStore.getState().configure(config);
   }, [config]);
