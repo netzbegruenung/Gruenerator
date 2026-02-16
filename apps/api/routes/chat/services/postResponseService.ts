@@ -132,11 +132,25 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
 
     await touchThread(threadId);
 
+    log.info(
+      `[ChatGraph] Title generation check: isNewThread=${isNewThread}, hasLastUserMessage=${!!lastUserMessage}, threadId=${threadId}`
+    );
     if (isNewThread && lastUserMessage) {
       const userText = extractTextContent(lastUserMessage.content);
+      log.info(`[ChatGraph] Triggering title generation for ${threadId}`, {
+        userTextLen: userText?.length ?? 0,
+        userTextPreview: userText?.slice(0, 100),
+        fullTextLen: fullText?.length ?? 0,
+        fullTextPreview: fullText?.slice(0, 100),
+        imageGenerated: !!generatedImage,
+      });
       generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
         imageGenerated: !!generatedImage,
       }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
+    } else if (!isNewThread) {
+      log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
+    } else if (!lastUserMessage) {
+      log.warn(`[ChatGraph] Skipping title generation — no lastUserMessage (threadId=${threadId})`);
     }
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);

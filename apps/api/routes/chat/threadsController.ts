@@ -236,6 +236,7 @@ router.post('/:threadId/generate-title', async (req, res) => {
     }
 
     const { threadId } = req.params;
+    log.info(`[generate-title] Endpoint hit for threadId=${threadId}, userId=${user.id}`);
     const postgres = getPostgresInstance();
 
     const threads = await postgres.query(
@@ -244,10 +245,14 @@ router.post('/:threadId/generate-title', async (req, res) => {
     );
 
     if (threads.length === 0) {
+      log.warn(`[generate-title] Thread not found: ${threadId}`);
       return res.status(404).json({ error: 'Thread not found' });
     }
 
     if (threads[0].user_id !== user.id) {
+      log.warn(
+        `[generate-title] Forbidden — thread owner=${threads[0].user_id}, requester=${user.id}`
+      );
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -259,17 +264,33 @@ router.post('/:threadId/generate-title', async (req, res) => {
       [threadId]
     );
 
+    log.info(
+      `[generate-title] Found ${messages.length} messages for thread ${threadId}:`,
+      messages.map((m: any) => ({ role: m.role, contentLen: String(m.content).length }))
+    );
+
     const userMsg = messages.find((m: any) => m.role === 'user');
     const assistantMsg = messages.find((m: any) => m.role === 'assistant');
 
     if (!userMsg || !assistantMsg) {
+      log.warn(`[generate-title] Skipping — userMsg=${!!userMsg}, assistantMsg=${!!assistantMsg}`);
       return res.status(202).json({ status: 'skipped', reason: 'insufficient messages' });
     }
 
+    log.info(
+      `[generate-title] User message (first 100 chars): ${String(userMsg.content).slice(0, 100)}`
+    );
+    log.info(
+      `[generate-title] Assistant message (first 100 chars): ${String(assistantMsg.content).slice(0, 100)}`
+    );
+
     const aiWorkerPool = req.app.locals.aiWorkerPool;
     if (!aiWorkerPool) {
+      log.error(`[generate-title] AI worker pool not available!`);
       return res.status(503).json({ error: 'AI worker pool not available' });
     }
+
+    log.info(`[generate-title] Calling generateThreadTitle for ${threadId}`);
 
     // Fire-and-forget: generates fallback + async AI title
     generateThreadTitle(

@@ -1,6 +1,13 @@
 'use client';
 
-import { type ReactNode, useMemo, useCallback, useEffect, type PropsWithChildren } from 'react';
+import {
+  type ReactNode,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+  type PropsWithChildren,
+} from 'react';
 import { useShallow } from 'zustand/shallow';
 import {
   AssistantRuntimeProvider,
@@ -267,6 +274,40 @@ function useGrueneratorThreadRuntime() {
   return useLocalRuntime(modelAdapter);
 }
 
+/**
+ * Watches for first message completion and triggers title generation.
+ * Assistant UI's built-in trigger never fires because initialize() pre-creates
+ * the thread (status transitions to "regular" before the first message).
+ * This effect bypasses that by calling generateTitle() directly via aui.
+ */
+function ThreadTitleEffect() {
+  const aui = useAui();
+  const messageCount = useAgentStore((s) => s.messageCount);
+  const currentThreadId = useAgentStore((s) => s.currentThreadId);
+  const titleTriggeredRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    titleTriggeredRef.current = null;
+  }, [currentThreadId]);
+
+  useEffect(() => {
+    if (messageCount >= 2 && currentThreadId && titleTriggeredRef.current !== currentThreadId) {
+      const state = aui.threadListItem().getState();
+      if (!state.title) {
+        titleTriggeredRef.current = currentThreadId;
+        console.log('[TitleGen] Triggering generateTitle via aui for', currentThreadId);
+        try {
+          aui.threadListItem().generateTitle();
+        } catch (err: unknown) {
+          console.warn('[TitleGen] aui.generateTitle() failed:', err);
+        }
+      }
+    }
+  }, [messageCount, currentThreadId, aui]);
+
+  return null;
+}
+
 export function GrueneratorChatProvider({
   children,
   userId,
@@ -350,6 +391,7 @@ export function GrueneratorChatProvider({
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <ThreadTitleEffect />
       {children}
     </AssistantRuntimeProvider>
   );
