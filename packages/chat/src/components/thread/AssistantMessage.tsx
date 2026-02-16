@@ -7,6 +7,7 @@ import { agentsList } from '../../lib/agents';
 import { ChatIcon } from '../icons';
 import { MarkdownContent } from '../MarkdownContent';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
+import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { MessageActions } from '../message-parts/MessageActions';
 import { SearchResultsSection } from '../message-parts/SearchResultsSection';
@@ -74,12 +75,28 @@ export function AssistantMessage() {
         <ChatIcon size={32} className="flex-shrink-0" />
       )}
       <div className="min-w-0 flex-1">
-        {isStreaming && custom?.progress && !hasToolCall && (
-          <ProgressIndicator
-            progress={custom.progress}
-            agentColor={selectedAgent?.backgroundColor || '#316049'}
-          />
-        )}
+        {isStreaming &&
+          !hasToolCall &&
+          (() => {
+            const stage = custom?.progress?.stage;
+            const hasConcreteProgress =
+              stage === 'searching' || stage === 'generating' || stage === 'generating_image';
+
+            if (hasConcreteProgress) {
+              return (
+                <ProgressIndicator
+                  progress={custom!.progress!}
+                  agentColor={selectedAgent?.backgroundColor || '#316049'}
+                />
+              );
+            }
+
+            if (!textContent) {
+              return <TypingIndicator />;
+            }
+
+            return null;
+          })()}
 
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 

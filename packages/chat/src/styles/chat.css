@@ -573,6 +573,35 @@
   color: var(--color-border);
 }
 
+/* Typing indicator dots */
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1); }
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-foreground-muted);
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
 /* ThreadListItemMore dropdown — must be above app sidebar (z-index: 1001 in sidebar.css).
    Keep in sync with chat-embedded.css. */
 [data-radix-popper-content-wrapper] {
