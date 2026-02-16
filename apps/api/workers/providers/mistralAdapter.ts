@@ -4,13 +4,15 @@
  */
 
 import { generateText, type ModelMessage, type Tool } from 'ai';
-import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
+
 import {
   getGenerationConfig,
   applyProModeConfig,
   type GenerationOptions,
 } from '../../services/ai/config.js';
+import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
+
 import { mergeMetadata } from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
@@ -223,7 +225,9 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
   // Check provider availability
   if (!isProviderConfigured('mistral')) {
-    throw new Error('Mistral provider is not configured. Check MISTRAL_API_KEY environment variable.');
+    throw new Error(
+      'Mistral provider is not configured. Check MISTRAL_API_KEY environment variable.'
+    );
   }
 
   const model = options.model || 'mistral-large-2512';
@@ -245,6 +249,11 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Apply Pro Mode adjustments for reasoning models
   if (options.useProMode) {
     config = applyProModeConfig(config, model);
+  }
+
+  // Mistral requires top_p=1 when temperature=0 (greedy sampling)
+  if (config.temperature === 0 && config.topP !== 1) {
+    config = { ...config, topP: 1.0 };
   }
 
   // Convert messages to Vercel AI SDK format
