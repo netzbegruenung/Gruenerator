@@ -570,7 +570,7 @@
   .mobile-only { display: flex !important; }
 
   .top-section {
-    padding: 16px 1.25rem 2rem;
+    padding: 32px 1.25rem 2rem;
   }
 
   .animated-heading .typing-text,
