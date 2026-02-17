@@ -59,7 +59,7 @@ export function SkillPopover({
             const idx = itemIndex++;
             return (
               <SkillItem
-                key={agent.identifier}
+                key={agent.mention}
                 mentionable={agent}
                 isSelected={idx === selectedIndex}
                 onSelect={onSelect}
@@ -77,7 +77,7 @@ export function SkillPopover({
             const idx = itemIndex++;
             return (
               <SkillItem
-                key={agent.identifier}
+                key={agent.mention}
                 mentionable={agent}
                 isSelected={idx === selectedIndex}
                 onSelect={onSelect}

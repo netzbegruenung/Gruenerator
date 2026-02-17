@@ -30,6 +30,7 @@ export interface AgentListItem {
   avatar: string;
   backgroundColor: string;
   mention: string;
+  contextPrefix?: string;
 }
 
 export const agentsList: AgentListItem[] = [
@@ -59,11 +60,66 @@ export const agentsList: AgentListItem[] = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
-    title: 'Öffentlichkeitsarbeit',
-    description: 'Presse & Social Media',
-    avatar: '📢',
+    title: 'Pressemitteilung',
+    description: 'Pressemitteilungen verfassen',
+    avatar: '📰',
     backgroundColor: '#316049',
     mention: 'presse',
+    contextPrefix: '[Plattform: Pressemitteilung]',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit',
+    title: 'Instagram',
+    description: 'Instagram-Posts & Captions',
+    avatar: '📸',
+    backgroundColor: '#E1306C',
+    mention: 'instagram',
+    contextPrefix: '[Plattform: Instagram]',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit',
+    title: 'Facebook',
+    description: 'Facebook-Posts & Beiträge',
+    avatar: '👍',
+    backgroundColor: '#1877F2',
+    mention: 'facebook',
+    contextPrefix: '[Plattform: Facebook]',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit',
+    title: 'Twitter / X',
+    description: 'Tweets & Threads',
+    avatar: '🐦',
+    backgroundColor: '#1DA1F2',
+    mention: 'twitter',
+    contextPrefix: '[Plattform: Twitter]',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit',
+    title: 'LinkedIn',
+    description: 'LinkedIn-Posts & Artikel',
+    avatar: '💼',
+    backgroundColor: '#0A66C2',
+    mention: 'linkedin',
+    contextPrefix: '[Plattform: LinkedIn]',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit',
+    title: 'Reel / TikTok',
+    description: 'Reel- & TikTok-Skripte',
+    avatar: '🎬',
+    backgroundColor: '#FE2C55',
+    mention: 'reel',
+    contextPrefix: '[Plattform: Reel/TikTok-Skript]',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit',
+    title: 'Aktionsideen',
+    description: 'Kreative Aktionsideen entwickeln',
+    avatar: '💡',
+    backgroundColor: '#F59E0B',
+    mention: 'aktion',
+    contextPrefix: '[Plattform: Aktionsideen]',
   },
   {
     identifier: 'gruenerator-rede-schreiber',

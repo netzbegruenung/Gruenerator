@@ -86,13 +86,15 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
       const after = mention.mentionStart >= 0 ? currentText.slice(textarea.selectionStart) : '';
       const prefix =
         before.length > 0 && !before.endsWith(' ') && mention.mentionStart < 0 ? ' ' : '';
-      const newText = `${before}${prefix}${trigger}${mentionable.mention} ${after}`;
+      const ctxSuffix = mentionable.contextPrefix ? `${mentionable.contextPrefix} ` : '';
+      const newText = `${before}${prefix}${trigger}${mentionable.mention} ${ctxSuffix}${after}`;
 
       composerRuntime.setText(newText);
       dismissPopover();
 
       requestAnimationFrame(() => {
-        const cursorPos = before.length + prefix.length + mentionable.mention.length + 2; // +2 for trigger and space
+        const cursorPos =
+          before.length + prefix.length + mentionable.mention.length + 2 + ctxSuffix.length; // +2 for trigger and space
         textarea.setSelectionRange(cursorPos, cursorPos);
         textarea.focus();
       });
