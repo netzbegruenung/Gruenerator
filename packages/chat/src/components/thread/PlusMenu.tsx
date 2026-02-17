@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PlusIcon, Upload, FileSearch, ChevronRight, ArrowLeft, Check } from 'lucide-react';
+import { PlusIcon, Upload, FileSearch, ChevronRight, Check } from 'lucide-react';
 import { Dropdown, DropdownItem } from '../ui/Dropdown';
 import { useAgentStore } from '../../stores/chatStore';
 import {
@@ -12,7 +12,7 @@ import {
   type Mentionable,
 } from '../../lib/mentionables';
 
-type MenuView = 'main' | 'skills' | 'quellen';
+type Submenu = 'skills' | 'quellen' | 'funktionen' | 'dateien';
 
 interface PlusMenuProps {
   onInsertMention: (mentionable: Mentionable) => void;
@@ -21,15 +21,18 @@ interface PlusMenuProps {
 }
 
 export function PlusMenu({ onInsertMention, onOpenFileBrowser, onUploadFile }: PlusMenuProps) {
-  const [view, setView] = useState<MenuView>('main');
+  const [expandedSubmenu, setExpandedSubmenu] = useState<Submenu | null>(null);
   const customAgents = getCustomAgentMentionables();
   const allSkills = [...agentMentionables, ...customAgents];
   const selectedNotebookId = useAgentStore((s) => s.selectedNotebookId);
   const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
-  const selectedNotebook = notebookMentionables.find((n) => n.identifier === selectedNotebookId);
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) setView('main');
+    if (!open) setExpandedSubmenu(null);
+  };
+
+  const toggleSubmenu = (menu: Submenu) => {
+    setExpandedSubmenu((prev) => (prev === menu ? null : menu));
   };
 
   return (
@@ -37,123 +40,96 @@ export function PlusMenu({ onInsertMention, onOpenFileBrowser, onUploadFile }: P
       trigger={<PlusIcon className="h-5 w-5 stroke-[1.5px]" />}
       direction="up"
       align="left"
-      width="w-80"
-      maxHeight="24rem"
+      width="min-w-80 w-fit"
       showChevron={false}
       onOpenChange={handleOpenChange}
     >
-      {view === 'main' && (
-        <>
-          {/* Skills → submenu */}
+      <div className="flex">
+        {/* Main menu — always visible */}
+        <div className="w-80 flex-shrink-0">
           <DropdownItem
             icon={<span className="text-base">🎯</span>}
             label="Skills"
-            description={`${allSkills.length} Assistenten`}
-            onClick={() => setView('skills')}
+            selected={expandedSubmenu === 'skills'}
+            onClick={() => toggleSubmenu('skills')}
             trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
           />
-
-          {/* Divider */}
-          <div className="my-1 border-t border-border" />
-
-          {/* Functions section — compact inline */}
-          <div className="px-3 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Funktionen
-          </div>
-          {toolMentionables.map((tool) => (
-            <button
-              key={tool.identifier}
-              onClick={() => onInsertMention(tool)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors hover:bg-hover-overlay"
-            >
-              <span className="flex h-5 w-5 items-center justify-center text-sm">
-                {tool.avatar}
-              </span>
-              <span className="text-foreground">{tool.title}</span>
-            </button>
-          ))}
-
-          {/* Divider */}
-          <div className="my-1 border-t border-border" />
-
-          {/* Quellen → submenu */}
           <DropdownItem
             icon={<span className="text-base">📚</span>}
             label="Quellen"
-            description={selectedNotebook?.title || 'Alle Quellen'}
-            onClick={() => setView('quellen')}
+            selected={expandedSubmenu === 'quellen'}
+            onClick={() => toggleSubmenu('quellen')}
             trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
           />
-
-          {/* Divider */}
-          <div className="my-1 border-t border-border" />
-
-          {/* File actions */}
           <DropdownItem
-            icon={<Upload className="h-4 w-4 text-foreground-muted" />}
-            label="Datei hochladen"
-            onClick={onUploadFile}
+            icon={<span className="text-base">⚡</span>}
+            label="Funktionen"
+            selected={expandedSubmenu === 'funktionen'}
+            onClick={() => toggleSubmenu('funktionen')}
+            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
           />
           <DropdownItem
-            icon={<FileSearch className="h-4 w-4 text-foreground-muted" />}
-            label="Dokument referenzieren"
-            onClick={onOpenFileBrowser}
+            icon={<span className="text-base">📎</span>}
+            label="Dateien"
+            selected={expandedSubmenu === 'dateien'}
+            onClick={() => toggleSubmenu('dateien')}
+            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
           />
-        </>
-      )}
+        </div>
 
-      {view === 'skills' && (
-        <>
-          <button
-            onClick={() => setView('main')}
-            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-hover-overlay rounded-lg transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Skills
-          </button>
-          <div className="my-1 border-t border-border" />
-          {allSkills.map((agent) => (
-            <button
-              key={agent.identifier}
-              onClick={() => onInsertMention(agent)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors hover:bg-hover-overlay"
-            >
-              <span className="flex h-5 w-5 items-center justify-center text-sm">
-                {agent.avatar}
-              </span>
-              <span className="text-foreground">{agent.title}</span>
-            </button>
-          ))}
-        </>
-      )}
-
-      {view === 'quellen' && (
-        <>
-          <button
-            onClick={() => setView('main')}
-            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-hover-overlay rounded-lg transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Quellen
-          </button>
-          <div className="my-1 border-t border-border" />
-          {notebookMentionables.map((notebook) => (
-            <button
-              key={notebook.identifier}
-              onClick={() => setSelectedNotebook(notebook.identifier)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors hover:bg-hover-overlay"
-            >
-              <span className="flex h-5 w-5 items-center justify-center text-sm">
-                {notebook.avatar}
-              </span>
-              <span className="flex-1 text-foreground">{notebook.title}</span>
-              {selectedNotebookId === notebook.identifier && (
-                <Check className="h-4 w-4 text-primary-500" />
-              )}
-            </button>
-          ))}
-        </>
-      )}
+        {/* Submenu panel — appears alongside main menu */}
+        {expandedSubmenu && (
+          <div className="w-72 flex-shrink-0 border-l border-border max-h-[24rem] overflow-y-auto">
+            {expandedSubmenu === 'skills' &&
+              allSkills.map((agent) => (
+                <DropdownItem
+                  key={agent.mention}
+                  icon={<span className="text-base">{agent.avatar}</span>}
+                  label={agent.title}
+                  onClick={() => onInsertMention(agent)}
+                />
+              ))}
+            {expandedSubmenu === 'quellen' &&
+              notebookMentionables.map((notebook) => (
+                <DropdownItem
+                  key={notebook.identifier}
+                  icon={<span className="text-base">{notebook.avatar}</span>}
+                  label={notebook.title}
+                  selected={selectedNotebookId === notebook.identifier}
+                  onClick={() => setSelectedNotebook(notebook.identifier)}
+                  trailing={
+                    selectedNotebookId === notebook.identifier ? (
+                      <Check className="h-4 w-4 text-primary-500" />
+                    ) : undefined
+                  }
+                />
+              ))}
+            {expandedSubmenu === 'funktionen' &&
+              toolMentionables.map((tool) => (
+                <DropdownItem
+                  key={tool.identifier}
+                  icon={<span className="text-base">{tool.avatar}</span>}
+                  label={tool.title}
+                  onClick={() => onInsertMention(tool)}
+                />
+              ))}
+            {expandedSubmenu === 'dateien' && (
+              <>
+                <DropdownItem
+                  icon={<Upload className="h-4 w-4 text-foreground-muted" />}
+                  label="Datei hochladen"
+                  onClick={onUploadFile}
+                />
+                <DropdownItem
+                  icon={<FileSearch className="h-4 w-4 text-foreground-muted" />}
+                  label="Dokument referenzieren"
+                  onClick={onOpenFileBrowser}
+                />
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </Dropdown>
   );
 }
