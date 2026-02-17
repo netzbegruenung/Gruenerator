@@ -1,5 +1,8 @@
 import { Router, type Request, type Response } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+
+import { DOCS_SUBTYPES } from './constants.js';
 
 interface DocumentRow {
   id: string;
@@ -14,19 +17,20 @@ const router = Router();
 const db = getPostgresInstance();
 
 function isOwner(doc: DocumentRow, userId: string): boolean {
-  return (
-    doc.created_by === userId ||
-    doc.permissions?.[userId]?.level === 'owner'
-  );
+  return doc.created_by === userId || doc.permissions?.[userId]?.level === 'owner';
 }
 
-async function getOwnedDocument(id: string, userId: string, res: Response): Promise<DocumentRow | null> {
-  const result = await db.query(
+async function getOwnedDocument(
+  id: string,
+  userId: string,
+  res: Response
+): Promise<DocumentRow | null> {
+  const result = (await db.query(
     `SELECT id, created_by, permissions, is_public, share_permission, is_deleted
      FROM collaborative_documents
-     WHERE id = $1 AND document_subtype = 'docs' AND is_deleted = false`,
-    [id]
-  ) as unknown as DocumentRow[];
+     WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false`,
+    [id, DOCS_SUBTYPES]
+  )) as unknown as DocumentRow[];
 
   if (result.length === 0) {
     res.status(404).json({ error: 'Document not found' });

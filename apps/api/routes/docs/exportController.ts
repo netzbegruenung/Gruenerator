@@ -5,6 +5,8 @@ import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
+import { DOCS_SUBTYPES } from './constants.js';
+
 /**
  * Permission entry for a user on a document
  */
@@ -138,8 +140,8 @@ router.get('/:id/export/html', async (req: Request, res: Response) => {
     const documentResult = (await db.query(
       `SELECT id, title, permissions
        FROM collaborative_documents
-       WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
-      [id]
+       WHERE id = $1 AND is_deleted = false AND document_subtype = ANY($2::text[])`,
+      [id, DOCS_SUBTYPES]
     )) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
@@ -257,8 +259,8 @@ router.get('/:id/export/markdown', async (req: Request, res: Response) => {
     const documentResult = (await db.query(
       `SELECT id, title, permissions
        FROM collaborative_documents
-       WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
-      [id]
+       WHERE id = $1 AND is_deleted = false AND document_subtype = ANY($2::text[])`,
+      [id, DOCS_SUBTYPES]
     )) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
@@ -326,8 +328,8 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
     const documentResult = (await db.query(
       `SELECT id, title, permissions
        FROM collaborative_documents
-       WHERE id = $1 AND is_deleted = false AND document_subtype = 'docs'`,
-      [id]
+       WHERE id = $1 AND is_deleted = false AND document_subtype = ANY($2::text[])`,
+      [id, DOCS_SUBTYPES]
     )) as DocumentWithPermissions[];
 
     if (documentResult.length === 0) {
