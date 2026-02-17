@@ -1,8 +1,9 @@
-import express, { Request, Response, Router } from 'express';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import fs from 'fs';
-import path from 'path';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import express, { type Request, type Response, type Router } from 'express';
+
 import { createLogger } from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -178,6 +179,20 @@ router.get('/test', async (req: Request, res: Response) => {
       type: 'DatabaseTestError',
       timestamp: new Date().toISOString(),
     } as DatabaseTestResponse);
+  }
+});
+
+router.post('/sync-schema', async (req: Request, res: Response) => {
+  try {
+    log.info('[DatabaseSync] Starting full schema sync');
+    const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+    const postgresService = getPostgresInstance();
+    await postgresService.initSchema();
+    log.info('[DatabaseSync] Schema sync complete');
+    res.json({ success: true, message: 'Schema sync complete' });
+  } catch (error) {
+    log.error('[DatabaseSync] Schema sync failed:', error);
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 
