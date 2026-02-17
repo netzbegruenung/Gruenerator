@@ -68,6 +68,7 @@ export default [
       '**/.next/**',
       '**/.expo/**',
       '**/coverage/**',
+      'packages/shared/src/tiptap-editor/**',
       'pnpm-lock.yaml',
     ],
   },

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import { apiClient } from '../../lib/apiClient';
 import './ShareModal.css';
 
@@ -24,7 +25,10 @@ interface ShareModalProps {
 
 export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [shareSettings, setShareSettings] = useState<ShareSettings>({ is_public: false, share_permission: 'editor' });
+  const [shareSettings, setShareSettings] = useState<ShareSettings>({
+    is_public: false,
+    share_permission: 'editor',
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -54,8 +58,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   }, [documentId]);
 
   useEffect(() => {
-    fetchCollaborators();
-    fetchShareSettings();
+    void fetchCollaborators();
+    void fetchShareSettings();
   }, [fetchCollaborators, fetchShareSettings]);
 
   const copyShareLink = async () => {
@@ -162,11 +166,11 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
         <div className="share-link-section">
           <div className="public-sharing-toggle">
             <div className="public-sharing-info">
-              <h3>Jeder mit dem Link</h3>
+              <h3>Gastzugang</h3>
               <p className="public-sharing-description">
                 {shareSettings.is_public
-                  ? 'Jeder mit dem Link kann dieses Dokument öffnen'
-                  : 'Nur eingeladene Personen haben Zugriff'}
+                  ? 'Jeder mit dem Link kann ohne Anmeldung zugreifen'
+                  : 'Nur angemeldete Nutzer haben Zugriff'}
               </p>
             </div>
             <label className="toggle-switch">
