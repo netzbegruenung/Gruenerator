@@ -71,11 +71,9 @@ const RouteComponent = ({
         toggleDarkMode={toggleDarkMode}
         showHeaderFooter={showHeaderFooter}
       >
-        <div>
-          <Suspense fallback={<div />}>
-            <ComponentToRender key={path} darkMode={darkMode} showHeaderFooter={showHeaderFooter} />
-          </Suspense>
-        </div>
+        <Suspense fallback={<div />}>
+          <ComponentToRender key={path} darkMode={darkMode} showHeaderFooter={showHeaderFooter} />
+        </Suspense>
       </PageLayout>
     </AppProviders>
   );
