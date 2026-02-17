@@ -13,6 +13,7 @@ export interface Mentionable {
   avatar: string;
   backgroundColor: string;
   mention: string;
+  contextPrefix?: string;
 }
 
 export interface CustomAgentMentionable {
@@ -33,6 +34,7 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     avatar: agent.avatar,
     backgroundColor: agent.backgroundColor,
     mention: agent.mention,
+    contextPrefix: agent.contextPrefix,
   };
 }
 

@@ -14,7 +14,7 @@ export default function ChatPage() {
 
   return (
     <div className="chat-page-root flex overflow-hidden bg-background">
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className="flex flex-1 flex-col overflow-hidden pt-4 md:pt-0">
         <GrueneratorThread />
       </main>
     </div>

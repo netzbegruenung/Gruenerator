@@ -4,10 +4,11 @@ import {
   BlockNoteEditor as BlockNoteEditorComponent,
   useDocsAdapter,
   createDocsApiClient,
+  type Document,
 } from '@gruenerator/docs';
+import { EditorTopBar } from '@gruenerator/shared/tiptap-editor/components';
 import { MantineProvider, SegmentedControl, ScrollArea } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
-import { EditorTopBar } from '@gruenerator/shared/tiptap-editor/components';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -20,7 +21,7 @@ import '@mantine/core/styles.css';
 import './EditorPage.css';
 
 const ShareModal = lazy(() =>
-  import('@gruenerator/shared/tiptap-editor').then((m) => ({ default: m.ShareModal }))
+  import('../components/permissions/ShareModal').then((m) => ({ default: m.ShareModal }))
 );
 const ChatSidebar = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
@@ -29,13 +30,33 @@ const ChatSidebar = lazy(() =>
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const GUEST_ANIMAL_NAMES = [
-  'Eichhörnchen', 'Igel', 'Fuchs', 'Reh', 'Dachs', 'Hase', 'Eule',
-  'Specht', 'Otter', 'Biber', 'Falke', 'Luchs', 'Marder', 'Drossel',
+  'Eichhörnchen',
+  'Igel',
+  'Fuchs',
+  'Reh',
+  'Dachs',
+  'Hase',
+  'Eule',
+  'Specht',
+  'Otter',
+  'Biber',
+  'Falke',
+  'Luchs',
+  'Marder',
+  'Drossel',
 ];
 
 const GUEST_COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-  '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788',
+  '#FF6B6B',
+  '#4ECDC4',
+  '#45B7D1',
+  '#FFA07A',
+  '#98D8C8',
+  '#F7DC6F',
+  '#BB8FCE',
+  '#85C1E2',
+  '#F8B739',
+  '#52B788',
 ];
 
 function getOrCreateGuestIdentity(): { guestId: string; guestName: string; guestColor: string } {
@@ -43,7 +64,9 @@ function getOrCreateGuestIdentity(): { guestId: string; guestName: string; guest
   if (stored) {
     try {
       return JSON.parse(stored);
-    } catch { /* regenerate */ }
+    } catch {
+      /* regenerate */
+    }
   }
 
   const identity = {
@@ -74,7 +97,7 @@ export const EditorPage = () => {
         if (!res.ok) return null;
         return res.json();
       }
-      return apiClient.get<any>(`/docs/${id}`);
+      return apiClient.get<Document>(`/docs/${id}`);
     },
     enabled: !!id,
   });
@@ -138,8 +161,7 @@ export const EditorPage = () => {
   const handleExportPDF = useCallback(async () => {
     if (!docData || !editor) return;
     try {
-      const { PDFExporter, pdfDefaultSchemaMappings } =
-        await import('@blocknote/xl-pdf-exporter');
+      const { PDFExporter, pdfDefaultSchemaMappings } = await import('@blocknote/xl-pdf-exporter');
       const { pdf } = await import('@react-pdf/renderer');
 
       const exporter = new PDFExporter(editor.schema, pdfDefaultSchemaMappings);
@@ -161,8 +183,7 @@ export const EditorPage = () => {
   const handleExportODT = useCallback(async () => {
     if (!docData || !editor) return;
     try {
-      const { ODTExporter, odtDefaultSchemaMappings } =
-        await import('@blocknote/xl-odt-exporter');
+      const { ODTExporter, odtDefaultSchemaMappings } = await import('@blocknote/xl-odt-exporter');
       const exporter = new ODTExporter(editor.schema, odtDefaultSchemaMappings);
       const blob = await exporter.toODTDocument(editor.document);
 
@@ -183,7 +204,9 @@ export const EditorPage = () => {
   }, []);
 
   useEffect(() => {
-    setCommentsPortalTarget(sidebarOpen && sidebarTab === 'comments' ? commentsPortalRef.current : null);
+    setCommentsPortalTarget(
+      sidebarOpen && sidebarTab === 'comments' ? commentsPortalRef.current : null
+    );
   }, [sidebarOpen, sidebarTab]);
 
   if (docIsLoading) {
