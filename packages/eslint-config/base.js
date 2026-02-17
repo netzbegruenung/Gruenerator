@@ -91,7 +91,6 @@ export default tseslint.config(
       '**/.next/**',
       '**/coverage/**',
       '**/*.vitest.ts',
-      'packages/shared/src/tiptap-editor/**',
     ],
   }
 );
