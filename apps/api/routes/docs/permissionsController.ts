@@ -1,5 +1,8 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+
+import { DOCS_SUBTYPES } from './constants.js';
 
 /**
  * Permission entry for a user on a document
@@ -58,8 +61,8 @@ router.get('/:id/permissions', async (req: Request, res: Response) => {
     }
 
     const docResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-      [id, 'docs']
+      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+      [id, DOCS_SUBTYPES]
     )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
@@ -132,8 +135,8 @@ router.post('/:id/permissions', async (req: Request, res: Response) => {
     }
 
     const docResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-      [id, 'docs']
+      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+      [id, DOCS_SUBTYPES]
     )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
@@ -203,8 +206,8 @@ router.put('/:id/permissions/:targetUserId', async (req: Request, res: Response)
     }
 
     const docResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-      [id, 'docs']
+      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+      [id, DOCS_SUBTYPES]
     )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
@@ -264,8 +267,8 @@ router.delete('/:id/permissions/:targetUserId', async (req: Request, res: Respon
     }
 
     const docResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-      [id, 'docs']
+      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+      [id, DOCS_SUBTYPES]
     )) as DocumentWithPermissions[];
 
     if (docResult.length === 0) {
