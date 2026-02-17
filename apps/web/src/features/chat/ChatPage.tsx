@@ -13,8 +13,8 @@ export default function ChatPage() {
   }, [searchParams]);
 
   return (
-    <div className="chat-page-root flex overflow-hidden bg-background">
-      <main className="flex flex-1 flex-col overflow-hidden pt-4 md:pt-0">
+    <div className="chat-page-root flex min-h-0 bg-background">
+      <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
         <GrueneratorThread />
       </main>
     </div>

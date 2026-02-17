@@ -14,7 +14,7 @@ export function GrueneratorThread() {
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
 
   return (
-    <ThreadPrimitive.Root className="relative flex h-full flex-col bg-background">
+    <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col bg-background">
       <div className="floating-controls-wrapper">
         <div className="floating-controls-left">
           <ModelSelector />
