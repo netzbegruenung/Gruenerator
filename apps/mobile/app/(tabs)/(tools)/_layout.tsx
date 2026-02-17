@@ -1,7 +1,8 @@
-import { useColorScheme } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
+import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { lightTheme, darkTheme, colors } from '../../../theme';
 
 const { Navigator } = createMaterialTopTabNavigator();
@@ -35,17 +36,19 @@ export default function ToolsLayout() {
             textTransform: 'none',
           },
           tabBarPressColor: colors.primary[100],
-          tabBarScrollEnabled: false,
+          tabBarScrollEnabled: true,
           tabBarItemStyle: {
-            flex: 1,
+            width: 'auto',
+            minWidth: 80,
           },
           swipeEnabled: true,
           lazy: true,
         }}
       >
         <MaterialTopTabs.Screen name="suche" options={{ title: 'Suche' }} />
-        <MaterialTopTabs.Screen name="barrierefreiheit" options={{ title: 'Barrierefreiheit' }} />
-        <MaterialTopTabs.Screen name="texteditor" options={{ title: 'Text Editor' }} />
+        <MaterialTopTabs.Screen name="scanner" options={{ title: 'Scanner' }} />
+        <MaterialTopTabs.Screen name="research" options={{ title: 'Recherche' }} />
+        <MaterialTopTabs.Screen name="notebooks" options={{ title: 'Notebooks' }} />
       </MaterialTopTabs>
     </SafeAreaView>
   );

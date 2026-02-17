@@ -2,10 +2,10 @@ import { memo } from 'react';
 
 import GalleryContainer from '../../components/common/Gallery/GalleryContainer';
 
-const PromptsGalleryPage = memo(() => (
-  <GalleryContainer initialContentType="prompts" availableContentTypes={['prompts']} />
+const AgentsGalleryPage = memo(() => (
+  <GalleryContainer initialContentType="agents" availableContentTypes={['agents']} />
 ));
 
-PromptsGalleryPage.displayName = 'PromptsGalleryPage';
+AgentsGalleryPage.displayName = 'AgentsGalleryPage';
 
-export default PromptsGalleryPage;
+export default AgentsGalleryPage;

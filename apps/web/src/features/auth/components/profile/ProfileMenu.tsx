@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { FaUsers, FaChevronDown, FaChevronUp, FaFolder } from 'react-icons/fa';
-import { SiCanva } from 'react-icons/si';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
@@ -38,7 +37,6 @@ const PROFILE_MENU_ITEMS: MenuItem[] = [
     hasSubmenu: true,
   },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
-  { key: 'canva', label: 'Canva', path: '/profile/canva', betaFeature: 'canva', icon: SiCanva },
 ];
 
 const ProfileMenu = ({

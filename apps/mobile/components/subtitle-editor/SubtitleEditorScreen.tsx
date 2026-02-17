@@ -4,34 +4,43 @@
  * Uses CategoryBar + InlineBar pattern for performant editing
  */
 
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { getVideoUrl, getProject } from '@gruenerator/shared';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useVideoPlayer } from 'expo-video';
+import { useRef, useEffect, useCallback, useState, lazy, Suspense } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  type FlatList,
+  Pressable,
   useColorScheme,
   useWindowDimensions,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Modal,
 } from 'react-native';
-import { useVideoPlayer } from 'expo-video';
-import { useFocusEffect } from 'expo-router';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+
+import { SUBTITLE_CATEGORIES, type SubtitleEditCategory } from '../../config/subtitleEditorConfig';
+import { useSubtitleEditor } from '../../hooks/useSubtitleEditor';
+import { useSubtitleExport } from '../../hooks/useSubtitleExport';
+import { secureStorage } from '../../services/storage';
+import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 import { DraggableSplitView } from '../common/DraggableSplitView';
 import { CategoryBar, InlineBar } from '../common/editor-toolbar';
-import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
-import { useSubtitleEditor } from '../../hooks/useSubtitleEditor';
-import { VideoPreviewWithSubtitle } from './VideoPreviewWithSubtitle';
-import { SubtitleTimeline } from './SubtitleTimeline';
+
 import { StyleControl, PositionControl } from './controls';
-import { getVideoUrl, getProject } from '@gruenerator/shared';
-import { secureStorage } from '../../services/storage';
-import { SUBTITLE_CATEGORIES, type SubtitleEditCategory } from '../../config/subtitleEditorConfig';
+import { SubtitleTimeline } from './SubtitleTimeline';
+
+const LazyExportScreen = lazy(() =>
+  import('./ExportResultScreen').then((m) => ({ default: m.ExportScreen }))
+);
+import { VideoPreviewWithSubtitle } from './VideoPreviewWithSubtitle';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 import type { Project } from '@gruenerator/shared';
@@ -57,6 +66,7 @@ export function SubtitleEditorScreen({
 }: SubtitleEditorScreenProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const timelineRef = useRef<FlatList<SubtitleSegment>>(null);
@@ -66,6 +76,7 @@ export function SubtitleEditorScreen({
   const [splitRatio, setSplitRatio] = useState(0.4);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [inlineCategory, setInlineCategory] = useState<SubtitleEditCategory | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -127,11 +138,13 @@ export function SubtitleEditorScreen({
       heightPreference,
       duration
     );
+  }, [project, loadProjectToStore, isLoadingProject, needsFullProjectFetch]);
 
+  useEffect(() => {
     return () => {
       reset();
     };
-  }, [project, loadProjectToStore, reset, isLoadingProject, needsFullProjectFetch]);
+  }, [reset]);
 
   const videoUri = isTempProject
     ? `${API_BASE_URL}/subtitler/internal-video/${project.upload_id}`
@@ -186,6 +199,20 @@ export function SubtitleEditorScreen({
     }
   }, [saveChanges, onSaved]);
 
+  const exportHook = useSubtitleExport(saveChanges);
+
+  const handleExport = useCallback(() => {
+    exportHook.startExport();
+  }, [exportHook.startExport]);
+
+  const handleBackToEditor = useCallback(() => {
+    exportHook.reset();
+  }, [exportHook.reset]);
+
+  const handleGoHome = useCallback(() => {
+    router.replace('/(tabs)/start');
+  }, [router]);
+
   const handleBack = useCallback(async () => {
     if (hasUnsavedChanges) {
       const shouldDiscard = await confirmDiscardChanges();
@@ -193,6 +220,19 @@ export function SubtitleEditorScreen({
     }
     onBack();
   }, [hasUnsavedChanges, confirmDiscardChanges, onBack]);
+
+  const handleShareSave = useCallback(async () => {
+    setShowShareModal(false);
+    const success = await saveChanges();
+    if (success) {
+      onBack();
+    }
+  }, [saveChanges, onBack]);
+
+  const handleShareExport = useCallback(() => {
+    setShowShareModal(false);
+    handleExport();
+  }, [handleExport]);
 
   const handleCategorySelect = useCallback(
     (categoryId: SubtitleEditCategory) => {
@@ -228,12 +268,35 @@ export function SubtitleEditorScreen({
     );
   }
 
+  if (exportHook.status !== 'idle') {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={['top']}
+      >
+        <Suspense
+          fallback={
+            <View style={[styles.container, styles.loadingContainer]}>
+              <ActivityIndicator size="large" color={colors.primary[600]} />
+            </View>
+          }
+        >
+          <LazyExportScreen
+            status={exportHook.status}
+            progress={exportHook.progress}
+            videoUri={exportHook.videoUri}
+            error={exportHook.error}
+            onBackToEditor={handleBackToEditor}
+            onGoHome={handleGoHome}
+          />
+        </Suspense>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={styles.container} behavior="padding">
         {error && (
           <View style={styles.errorBanner}>
             <Ionicons name="alert-circle" size={16} color={colors.error[500]} />
@@ -301,9 +364,63 @@ export function SubtitleEditorScreen({
               {inlineCategory === 'position' && <PositionControl disabled={isSaving} />}
             </InlineBar>
           ) : (
-            <CategoryBar categories={SUBTITLE_CATEGORIES} onSelectCategory={handleCategorySelect} />
+            <CategoryBar
+              categories={SUBTITLE_CATEGORIES}
+              onSelectCategory={handleCategorySelect}
+              trailing={
+                <Pressable
+                  style={[styles.shareChip, { backgroundColor: theme.background }]}
+                  onPress={() => setShowShareModal(true)}
+                >
+                  <Ionicons name="share-outline" size={20} color={colors.primary[600]} />
+                  <Text style={[styles.shareChipText, { color: theme.text }]}>Teilen</Text>
+                </Pressable>
+              }
+            />
           ))}
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showShareModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowShareModal(false)}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <Pressable
+              style={[styles.modalOption, { borderBottomColor: theme.border }]}
+              onPress={handleShareSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color={colors.primary[600]} />
+              ) : (
+                <Ionicons name="checkmark-circle-outline" size={24} color={colors.primary[600]} />
+              )}
+              <View style={styles.modalOptionText}>
+                <Text style={[styles.modalOptionTitle, { color: theme.text }]}>Speichern</Text>
+                <Text style={[styles.modalOptionDesc, { color: theme.textSecondary }]}>
+                  Änderungen sichern und zurück
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={styles.modalOption}
+              onPress={handleShareExport}
+              disabled={isSaving || exportHook.status !== 'idle'}
+            >
+              <Ionicons name="download-outline" size={24} color={colors.primary[600]} />
+              <View style={styles.modalOptionText}>
+                <Text style={[styles.modalOptionTitle, { color: theme.text }]}>Exportieren</Text>
+                <Text style={[styles.modalOptionDesc, { color: theme.textSecondary }]}>
+                  Video mit Untertiteln erstellen
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -365,5 +482,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.white,
+  },
+  shareChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: borderRadius.full,
+  },
+  shareChipText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xlarge,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: borderRadius.large,
+    overflow: 'hidden',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.medium,
+    padding: spacing.large,
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
+  },
+  modalOptionText: {
+    flex: 1,
+  },
+  modalOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOptionDesc: {
+    fontSize: 13,
+    marginTop: 2,
   },
 });

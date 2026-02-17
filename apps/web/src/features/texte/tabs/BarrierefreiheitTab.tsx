@@ -13,7 +13,6 @@ import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
-import { convertCanvaDesignToBase64 } from '../../../utils/canvaImageHelper';
 import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
 import AltTextForm from '../accessibility/components/AltTextForm';
 import LeichteSpracheForm from '../accessibility/components/LeichteSpracheForm';
@@ -23,7 +22,6 @@ import type { HelpContent, GeneratedContent } from '../../../types/baseform';
 interface FormRef {
   getFormData: () => Record<string, unknown> | null;
   isValid: () => boolean;
-  setCanvaDesign?: (designData: unknown) => void;
 }
 
 interface BarrierefreiheitTabProps {
@@ -165,39 +163,14 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
 
     try {
       if (selectedType === ACCESSIBILITY_TYPES.ALT_TEXT) {
-        interface CanvaDesignData {
-          design: unknown;
-          title?: string;
-        }
         const hasUploadedImage = formData.hasUploadedImage as boolean;
-        const hasCanvaImage = formData.hasCanvaImage as boolean;
         const uploadedImage = formData.uploadedImage as File | null;
-        const selectedCanvaDesign = formData.selectedCanvaDesign as CanvaDesignData | null;
-        const imageSource = formData.imageSource as string;
         const imageDescription = formData.imageDescription as string | null;
 
-        if (!hasUploadedImage && !hasCanvaImage) return;
+        if (!hasUploadedImage || !uploadedImage) return;
 
-        let imageBase64;
-        let imageContext = '';
-
-        if (imageSource === 'upload' && hasUploadedImage && uploadedImage) {
-          imageBase64 = await fileToBase64(uploadedImage);
-          imageContext = `Bild: ${uploadedImage.name}`;
-        } else if (imageSource === 'canva' && hasCanvaImage && selectedCanvaDesign) {
-          const conversionResult = await convertCanvaDesignToBase64(
-            selectedCanvaDesign.design as {
-              thumbnail_url?: string;
-              title?: string;
-              id?: string;
-              [key: string]: unknown;
-            }
-          );
-          imageBase64 = conversionResult.base64;
-          imageContext = `Canva Design: ${selectedCanvaDesign.title || 'Untitled'}`;
-        } else {
-          throw new Error('Invalid image source');
-        }
+        const imageBase64 = await fileToBase64(uploadedImage);
+        const imageContext = `Bild: ${uploadedImage.name}`;
 
         let fullDescription = imageDescription || '';
         if (imageContext) {
@@ -312,7 +285,6 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
       error={combinedError}
       platformOptions={(form.generator?.baseFormProps?.platformOptions || undefined) as any}
       componentName={componentName}
-      enableEditMode={selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE}
     >
       {renderForm()}
     </BaseForm>

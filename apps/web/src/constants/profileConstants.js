@@ -36,16 +36,7 @@ export const SUCCESS_MESSAGES = {
 };
 
 // Tab configurations
-export const CONTENT_MANAGEMENT_TABS = [
-  { key: 'canva', label: 'Canva' },
-  { key: 'documents', label: 'Dokumente & Texte' },
-];
-
-export const CANVA_SUBTABS = [
-  { key: 'overview', label: 'Übersicht' },
-  { key: 'vorlagen', label: 'Canva Vorlagen' },
-  { key: 'assets', label: 'Assets' },
-];
+export const CONTENT_MANAGEMENT_TABS = [{ key: 'documents', label: 'Dokumente & Texte' }];
 
 export const DOCUMENTS_SUBTABS = [
   { key: 'documents', label: 'Meine Dokumente' },

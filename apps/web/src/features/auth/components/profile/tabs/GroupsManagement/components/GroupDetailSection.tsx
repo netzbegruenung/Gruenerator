@@ -6,8 +6,8 @@ import { useAutosave } from '../../../../../../../hooks/useAutosave';
 import { useInstructionsUiStore } from '../../../../../../../stores/auth/instructionsUiStore';
 import { useAnweisungenWissen } from '../../../../../hooks/useProfileData';
 
+import AddContentToGroupModal from './subcomponents/AddContentToGroupModal';
 import GroupInfoSection from './subcomponents/GroupInfoSection';
-import GroupSharedContentSection from './subcomponents/GroupSharedContentSection';
 
 interface GroupData {
   instructionsEnabled?: boolean;
@@ -46,6 +46,7 @@ const GroupDetailSection = memo(
     const [editedGroupDescription, setEditedGroupDescription] = useState('');
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
     const [customPrompt, setCustomPrompt] = useState('');
+    const [contentModalOpen, setContentModalOpen] = useState(false);
 
     const isInitialized = useRef(false);
 
@@ -255,6 +256,9 @@ const GroupDetailSection = memo(
       );
     }
 
+    const handleOpenContentModal = () => setContentModalOpen(true);
+    const handleCloseContentModal = () => setContentModalOpen(false);
+
     return (
       <motion.div
         className="group-detail-cards-layout"
@@ -287,25 +291,32 @@ const GroupDetailSection = memo(
           tabIndex={{ ...tabIndex, groupNameEdit: tabIndex.groupNameEdit ?? 0 }}
           customPrompt={customPrompt}
           setCustomPrompt={setCustomPrompt}
-        />
-
-        <GroupSharedContentSection
           groupContent={groupContent}
           isLoadingGroupContent={isLoadingGroupContent}
-          isFetchingGroupContent={isFetchingGroupContent}
-          isAdmin={data?.isAdmin ?? false}
           onUnshare={(contentType: string, contentId: string) =>
             unshareContent(contentType, contentId)
           }
           isUnsharing={isUnsharing}
+          onAddContent={handleOpenContentModal}
+        />
+
+        <AddContentToGroupModal
+          isOpen={contentModalOpen}
+          onClose={handleCloseContentModal}
           groupId={groupId}
           onShareContent={async (contentType: string, itemId: string | number, options: any) => {
             shareContent(contentType, String(itemId), options);
           }}
           isSharing={isSharing}
-          onRefetch={refetchGroupContent}
-          onSuccessMessage={onSuccessMessage}
-          onErrorMessage={onErrorMessage}
+          onSuccess={(count: number) => {
+            onSuccessMessage(`${count} Inhalt(e) erfolgreich zur Gruppe hinzugefügt.`);
+            void refetchGroupContent?.();
+            handleCloseContentModal();
+          }}
+          onError={(error: any) => {
+            onErrorMessage(`Fehler beim Hinzufügen: ${error?.message || String(error)}`);
+          }}
+          initialContentType="content"
         />
       </motion.div>
     );

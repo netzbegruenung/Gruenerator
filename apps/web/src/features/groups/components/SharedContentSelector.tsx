@@ -106,6 +106,7 @@ interface SharedContentSelectorProps {
   isAdmin: boolean;
   onUnshare: (contentType: string, contentId: string) => void;
   isUnsharing: boolean;
+  onAddContent?: () => void;
   config?: SharedContentSelectorConfig;
 }
 
@@ -134,6 +135,7 @@ const SharedContentSelector = ({
   isAdmin,
   onUnshare,
   isUnsharing,
+  onAddContent,
   config: configProp = {},
 }: SharedContentSelectorProps) => {
   const config = { ...defaultConfig, ...configProp };
@@ -810,14 +812,21 @@ const SharedContentSelector = ({
       {filteredContent.length === 0 ? (
         <div className="shared-content-empty">
           {allContent.length === 0 ? (
-            <div className="shared-content-empty-state">
-              <HiCollection className="shared-content-empty-icon" />
-              <p className="shared-content-empty-text">Noch keine Inhalte</p>
-              <Link to="/profile/inhalte" className="pabtn pabtn--m pabtn--secondary">
+            onAddContent ? (
+              <button className="pabtn pabtn--s pabtn--secondary" onClick={onAddContent}>
                 <HiOutlinePlus className="pabtn__icon" />
-                <span className="pabtn__label">Inhalte hinzufügen</span>
-              </Link>
-            </div>
+                <span className="pabtn__label">Inhalt hinzufügen</span>
+              </button>
+            ) : (
+              <div className="shared-content-empty-state">
+                <HiCollection className="shared-content-empty-icon" />
+                <p className="shared-content-empty-text">Noch keine Inhalte</p>
+                <Link to="/profile/inhalte" className="pabtn pabtn--m pabtn--secondary">
+                  <HiOutlinePlus className="pabtn__icon" />
+                  <span className="pabtn__label">Inhalte hinzufügen</span>
+                </Link>
+              </div>
+            )
           ) : (
             <div className="shared-content-no-results">
               <p>Keine Ergebnisse für "{searchQuery}" gefunden.</p>

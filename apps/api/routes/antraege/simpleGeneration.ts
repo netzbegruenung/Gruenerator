@@ -3,11 +3,10 @@
  *
  * Handles straightforward Antrag/Anfrage generation using LangGraph processing.
  * Single POST endpoint that processes user input and returns generated text.
- *
- * Note: Plan Mode requests are handled by /api/plan-mode/* endpoints directly.
  */
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
+
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
 import { createLogger } from '../../utils/logger.js';
 

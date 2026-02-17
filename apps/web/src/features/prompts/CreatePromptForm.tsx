@@ -43,7 +43,7 @@ const CreatePromptForm: React.FC<CreatePromptFormProps> = memo(
         setError(null);
 
         if (!prompt.trim()) {
-          setError('Bitte gib einen Prompt ein.');
+          setError('Bitte gib eine Anweisung ein.');
           return;
         }
 
@@ -76,7 +76,7 @@ const CreatePromptForm: React.FC<CreatePromptFormProps> = memo(
           id="prompt-textarea"
           value={prompt}
           onChange={handlePromptChange}
-          placeholder="Schreibe deinen Prompt hier... Der Titel wird automatisch generiert."
+          placeholder="Schreibe deine Anweisung hier... Der Titel wird automatisch generiert."
           rows={6}
         />
 

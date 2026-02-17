@@ -14,17 +14,14 @@ import {
   Pressable,
   ActivityIndicator,
   useColorScheme,
-  Dimensions,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useImageAutoSave } from '../../hooks/useImageAutoSave';
 import { saveImageToGallery, shareImage, getImageDataUri } from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
-import { Button } from '../common';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IMAGE_SIZE = SCREEN_WIDTH - spacing.medium * 2;
+import { Button, PulseLoader } from '../common';
 
 interface ResultDisplayProps {
   generatedImage: string | null;
@@ -46,6 +43,7 @@ export function ResultDisplay({
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const insets = useSafeAreaInsets();
 
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -76,14 +74,12 @@ export function ResultDisplay({
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-          Bild wird generiert...
-        </Text>
-        <Text style={[styles.loadingHint, { color: theme.textSecondary }]}>
-          Das kann bis zu 30 Sekunden dauern
-        </Text>
+      <View style={styles.container}>
+        <PulseLoader
+          title="Bild wird generiert"
+          subtitle="Das kann bis zu 30 Sekunden dauern"
+          icon="color-wand"
+        />
       </View>
     );
   }
@@ -122,13 +118,16 @@ export function ResultDisplay({
   const imageUri = getImageDataUri(generatedImage);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.medium }]}
+    >
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>Dein Sharepic</Text>
       </View>
 
       <View style={styles.imageContainer}>
-        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="contain" />
+        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
         {/* Device gallery saved badge */}
         {saved && (
           <View style={styles.savedBadge}>
@@ -143,65 +142,66 @@ export function ResultDisplay({
             <Text style={styles.savedBadgeText}>Wird synchronisiert...</Text>
           </View>
         )}
-        {autoSaveStatus === 'saved' && !saved && (
-          <View style={[styles.savedBadge, styles.cloudBadge]}>
-            <Ionicons name="cloud-done" size={16} color={colors.white} />
-            <Text style={styles.savedBadgeText}>In Galerie gesichert</Text>
-          </View>
-        )}
       </View>
 
       <View style={styles.actions}>
-        <Button
+        <Pressable
           onPress={handleSave}
-          variant={saved ? 'secondary' : 'primary'}
-          loading={saving}
-          style={styles.actionButton}
+          disabled={saving}
+          style={({ pressed }) => [
+            styles.iconButton,
+            {
+              backgroundColor: saved ? theme.surface : colors.primary[600],
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
         >
-          <View style={styles.buttonContent}>
+          {saving ? (
+            <ActivityIndicator size="small" color={saved ? colors.primary[600] : colors.white} />
+          ) : (
             <Ionicons
-              name={saved ? 'checkmark-circle' : 'download-outline'}
-              size={18}
+              name={saved ? 'checkmark-circle' : 'arrow-down-circle-outline'}
+              size={22}
               color={saved ? colors.primary[600] : colors.white}
             />
-            <Text
-              style={[styles.buttonText, { color: saved ? colors.primary[600] : colors.white }]}
-            >
-              {saved ? 'Gespeichert' : 'Speichern'}
-            </Text>
-          </View>
-        </Button>
+          )}
+        </Pressable>
 
-        <Button
+        <Pressable
           onPress={handleShare}
-          variant="secondary"
-          loading={sharing}
-          style={styles.actionButton}
+          disabled={sharing}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
+          ]}
         >
-          <View style={styles.buttonContent}>
-            <Ionicons name="share-outline" size={18} color={colors.primary[600]} />
-            <Text style={[styles.buttonText, { color: colors.primary[600] }]}>Teilen</Text>
-          </View>
-        </Button>
-      </View>
+          {sharing ? (
+            <ActivityIndicator size="small" color={colors.primary[600]} />
+          ) : (
+            <Ionicons name="share-social-outline" size={22} color={colors.primary[600]} />
+          )}
+        </Pressable>
 
-      <View style={styles.footerActions}>
         {autoSaveStatus === 'saved' && shareToken && (
           <Pressable
             onPress={() => router.push('/(tabs)/(media)/image-studio/gallery')}
-            style={styles.galleryButton}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
+            ]}
           >
-            <Ionicons name="images-outline" size={20} color={colors.primary[600]} />
-            <Text style={[styles.galleryButtonText, { color: colors.primary[600] }]}>
-              In Galerie anzeigen
-            </Text>
+            <Ionicons name="images-outline" size={22} color={colors.primary[600]} />
           </Pressable>
         )}
-        <Pressable onPress={onNewGeneration} style={styles.newButton}>
-          <Ionicons name="add-circle-outline" size={20} color={colors.primary[600]} />
-          <Text style={[styles.newButtonText, { color: colors.primary[600] }]}>
-            Neues Sharepic erstellen
-          </Text>
+
+        <Pressable
+          onPress={onNewGeneration}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="add" size={22} color={colors.primary[600]} />
         </Pressable>
       </View>
     </ScrollView>
@@ -227,18 +227,17 @@ const styles = StyleSheet.create({
     ...typography.h3,
   },
   imageContainer: {
-    alignItems: 'center',
     position: 'relative',
   },
   image: {
-    width: IMAGE_SIZE,
-    height: IMAGE_SIZE,
-    borderRadius: borderRadius.large,
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: borderRadius.medium,
   },
   savedBadge: {
     position: 'absolute',
-    bottom: spacing.medium + spacing.small,
-    right: spacing.medium + spacing.small,
+    bottom: spacing.medium,
+    right: spacing.medium,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -254,61 +253,24 @@ const styles = StyleSheet.create({
   savingBadge: {
     backgroundColor: 'rgba(0,0,0,0.7)',
   },
-  cloudBadge: {
-    backgroundColor: colors.primary[600],
-  },
   actions: {
     flexDirection: 'row',
-    gap: spacing.medium,
-    marginTop: spacing.medium,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xsmall,
-  },
-  buttonText: {
-    ...typography.button,
-  },
-  footerActions: {
-    alignItems: 'center',
+    gap: spacing.large,
     marginTop: spacing.large,
     marginBottom: spacing.medium,
   },
-  newButton: {
-    flexDirection: 'row',
+  iconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
-    gap: spacing.xsmall,
-    padding: spacing.medium,
-  },
-  newButtonText: {
-    ...typography.body,
-    fontWeight: '500',
-  },
-  galleryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    padding: spacing.medium,
-    backgroundColor: colors.primary[50],
-    borderRadius: borderRadius.medium,
-    marginBottom: spacing.xsmall,
-  },
-  galleryButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-  },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.medium,
-  },
-  loadingHint: {
-    ...typography.caption,
-    marginTop: spacing.xsmall,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   errorTitle: {
     ...typography.h4,

@@ -1,41 +1,52 @@
 /**
- * ChatGraph - LangGraph-Based Agentic Chat
+ * @deprecated Use DeepAgent (deepAgent.ts) instead. This fixed pipeline is kept
+ * for backwards compatibility but is no longer the default. The DeepAgent's
+ * ReAct loop with autonomous tool selection supersedes the rigid
+ * classify → search → rerank → respond flow.
  *
- * Solves the AI SDK toolChoice: 'required' loop trap by providing explicit
- * control flow for chat with search capabilities.
+ * ChatGraph - LangGraph-Based Agentic Chat (Legacy)
  *
  * Graph flow:
- *   START → classifier → [search|image|respond] → ... → respond → END
+ *   START → classifier → [briefGenerator|search|image|respond] → ... → respond → END
  *
  * The classifier determines intent, and the graph routes accordingly:
+ * - complex research → briefGenerator → search → rerank → qualityGate → respond
  * - search intents → search node → rerank node → respond node
  * - image intent → image node → respond node
  * - direct intent → respond node directly
  */
 
 import { StateGraph, Annotation, END } from '@langchain/langgraph';
+
+import { resolveNotebookCollections } from '../../../config/notebookCollectionMap.js';
+import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
+import { createLogger } from '../../../utils/logger.js';
+
+import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
+import { classifierNode } from './nodes/classifierNode.js';
+import { imageNode } from './nodes/imageNode.js';
+import { qualityGateNode } from './nodes/qualityGateNode.js';
+import { rerankNode } from './nodes/rerankNode.js';
+import { respondNode } from './nodes/respondNode.js';
+import { searchNode } from './nodes/searchNode.js';
+
 import type {
   ChatGraphState,
   ChatGraphInput,
   ChatGraphOutput,
   SearchIntent,
+  SearchSource,
   SearchResult,
   Citation,
   ImageStyle,
   GeneratedImageResult,
   ImageAttachment,
   ThreadAttachment,
+  UserLocale,
 } from './types.js';
-import { classifierNode } from './nodes/classifierNode.js';
-import { searchNode } from './nodes/searchNode.js';
-import { rerankNode } from './nodes/rerankNode.js';
-import { qualityGateNode } from './nodes/qualityGateNode.js';
-import { imageNode } from './nodes/imageNode.js';
-import { respondNode } from './nodes/respondNode.js';
-import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
-import { createLogger } from '../../../utils/logger.js';
-import type { ModelMessage } from 'ai';
+import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph');
 
@@ -60,6 +71,9 @@ const ChatStateAnnotation = Annotation.Root({
   aiWorkerPool: Annotation<any>({
     reducer: (x, y) => y ?? x,
   }),
+  userLocale: Annotation<UserLocale>({
+    reducer: (x, y) => y ?? x,
+  }),
 
   // Attachment context
   attachmentContext: Annotation<string | null>({
@@ -69,6 +83,21 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? [],
   }),
   threadAttachments: Annotation<ThreadAttachment[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+
+  // Notebook scoping (from @notebook mentions)
+  notebookIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  notebookCollectionIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  // Default notebook scoping (from persistent UI selection)
+  defaultNotebookCollectionIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  documentIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
 
@@ -84,6 +113,9 @@ const ChatStateAnnotation = Annotation.Root({
   intent: Annotation<SearchIntent>({
     reducer: (x, y) => y ?? x,
   }),
+  searchSources: Annotation<SearchSource[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
   searchQuery: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
   }),
@@ -98,6 +130,27 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   complexity: Annotation<'simple' | 'moderate' | 'complex'>({
     reducer: (x, y) => y ?? x ?? 'moderate',
+  }),
+
+  // Clarification (HITL interrupt)
+  needsClarification: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+  clarificationQuestion: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+  clarificationOptions: Annotation<string[] | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  // Metadata filters extracted by classifier (for Qdrant filtering)
+  detectedFilters: Annotation<SubcategoryFilters | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  // Research brief (compressed research intent for complex queries)
+  researchBrief: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Search results (replaced by each node — search sets initial results, rerank replaces with filtered set)
@@ -198,8 +251,10 @@ type ChatState = typeof ChatStateAnnotation.State;
  * - Intent is 'direct'
  * - The required tool is disabled
  */
-function routeAfterClassification(state: ChatState): 'search' | 'image' | 'respond' {
-  const { intent, enabledTools } = state;
+function routeAfterClassification(
+  state: ChatState
+): 'briefGenerator' | 'search' | 'image' | 'respond' {
+  const { intent, enabledTools, complexity } = state;
 
   // Direct intent = no search or image needed
   if (intent === 'direct') {
@@ -218,6 +273,12 @@ function routeAfterClassification(state: ChatState): 'search' | 'image' | 'respo
     return 'image';
   }
 
+  // Image edit intent = handled by controller, route to respond for text generation
+  if (intent === 'image_edit') {
+    log.info('[ChatGraph] Route: classifier → respond (image_edit handled by controller)');
+    return 'respond';
+  }
+
   // Map intent to tool key for enabled check
   const intentToToolKey: Record<SearchIntent, string> = {
     research: 'research',
@@ -226,6 +287,7 @@ function routeAfterClassification(state: ChatState): 'search' | 'image' | 'respo
     web: 'web',
     examples: 'examples',
     image: 'image',
+    image_edit: 'image_edit',
     direct: 'direct',
   };
 
@@ -235,6 +297,12 @@ function routeAfterClassification(state: ChatState): 'search' | 'image' | 'respo
   if (enabledTools && enabledTools[toolKey] === false) {
     log.info(`[ChatGraph] Route: classifier → respond (tool "${toolKey}" disabled)`);
     return 'respond';
+  }
+
+  // Complex research queries: generate a research brief first
+  if (complexity === 'complex' && intent === 'research') {
+    log.info('[ChatGraph] Route: classifier → briefGenerator (complex research)');
+    return 'briefGenerator';
   }
 
   log.info(`[ChatGraph] Route: classifier → search (intent: ${intent})`);
@@ -256,7 +324,9 @@ function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
 
   // Loop back to search if quality is insufficient and we have retries left
   if (qualityScore > 0 && qualityScore < 3 && searchCount < maxSearches) {
-    log.info(`[ChatGraph] Route: qualityGate → search (score: ${qualityScore}/5, search ${searchCount}/${maxSearches})`);
+    log.info(
+      `[ChatGraph] Route: qualityGate → search (score: ${qualityScore}/5, search ${searchCount}/${maxSearches})`
+    );
     return 'search';
   }
 
@@ -277,6 +347,7 @@ function createChatGraph() {
   const graph = new StateGraph(ChatStateAnnotation)
     // Add nodes
     .addNode('classifier', classifierNode as any)
+    .addNode('briefGenerator', briefGeneratorNode as any)
     .addNode('search', searchNode as any)
     .addNode('rerank', rerankNode as any)
     .addNode('qualityGate', qualityGateNode as any)
@@ -286,12 +357,16 @@ function createChatGraph() {
     // START → classifier
     .addEdge('__start__', 'classifier')
 
-    // classifier → conditional routing
+    // classifier → conditional routing (including briefGenerator for complex research)
     .addConditionalEdges('classifier', routeAfterClassification, {
+      briefGenerator: 'briefGenerator',
       search: 'search',
       image: 'image',
       respond: 'respond',
     })
+
+    // briefGenerator → search (always proceeds to search after generating brief)
+    .addEdge('briefGenerator', 'search')
 
     // search → rerank → qualityGate → [conditional: search OR respond]
     .addEdge('search', 'rerank')
@@ -338,11 +413,24 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
       image: true,
     },
     aiWorkerPool: input.aiWorkerPool,
+    userLocale: input.userLocale || 'de-DE',
 
     // Attachment context
     attachmentContext: input.attachmentContext || null,
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
+
+    // Notebook scoping
+    notebookIds: input.notebookIds || [],
+    notebookCollectionIds: input.notebookIds ? resolveNotebookCollections(input.notebookIds) : [],
+
+    // Default notebook scoping (from persistent UI selection)
+    defaultNotebookCollectionIds: input.defaultNotebookId
+      ? resolveNotebookCollections([input.defaultNotebookId])
+      : [],
+
+    // Document scoping (from @datei mentions)
+    documentIds: input.documentIds || [],
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
@@ -350,11 +438,19 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Classification (will be set by classifier node)
     intent: 'direct' as SearchIntent,
+    searchSources: [],
     searchQuery: null,
     subQueries: null,
     reasoning: '',
     hasTemporal: false,
     complexity: 'moderate' as const,
+    needsClarification: false,
+    clarificationQuestion: null,
+    clarificationOptions: null,
+    detectedFilters: null,
+
+    // Research brief (will be set by briefGenerator node for complex research)
+    researchBrief: null,
 
     // Search results (will be set by search node)
     searchResults: [],
@@ -430,7 +526,10 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
         classificationTimeMs: result.classificationTimeMs,
         searchTimeMs: result.searchTimeMs,
         rerankTimeMs: result.rerankTimeMs || undefined,
-        searchedCollections: result.searchedCollections?.length ? result.searchedCollections : undefined,
+        searchedCollections: result.searchedCollections?.length
+          ? result.searchedCollections
+          : undefined,
+        appliedFilters: result.detectedFilters || undefined,
         imageTimeMs: result.imageTimeMs || undefined,
         responseTimeMs: result.responseTimeMs,
       },

@@ -1,78 +1,65 @@
-/* Existing CSS imports */
-@import url('./common/reset.css');
-@import url('./common/variables.css');
-@import url('./common/typography.css');
-@import url('./common/global.css');
-@import url('./common/markdown-styles.css');
-
-
-@import url('./layout.css');
-
-
-@import url('./components/layout/footer.css');
-@import url('./components/layout/header.css');
-@import url('./components/layout/profile-dropdown.css');
-@import url('./components/layout/sidebar.css');
-
-
-/* Moved to component level: spinner.css, image-slider.css, animatedcheckbox.css, tooltip.css, SegmentedControl.css, menu-dropdown.css, TypingIndicator.css, success-screen.css, profile-skeleton.css */
-@import url('./components/ui/button.css');
-@import url('./components/profile/profile-action-buttons.css');
-/* Moved to component level: form-toggle-button.css, FeatureToggle.css, AttachedFilesList.css, knowledge-selector.css, error-boundary.css, image-display.css, ChatUI.css, react-select.css, enhanced-select.css */
-
-@import url('./components/ui/quote-form.css');
-@import url('./components/ui/LogLevelSelector.css');
-@import url('./components/help-tooltip.css');
-@import url('./components/common/auto-save-indicator.css');
-@import url('./components/common/recent-texts.css');
-@import url('./components/ui/form-select-modern.css');
-@import url('./components/ui/forms.css');
-@import url('./components/form/form-inputs.css');
-@import url('./components/form/file-upload.css');
-@import url('./components/form/form-image-select.css');
-@import url('./components/edit-mode/edit-mode-overlay.css');
-/* @import url('../../components/common/KnowledgeSelector/style.css'); */
-
-
-
-/* Moved to component level: exportToDocument.css, verify.css, action-buttons.css, welcome.css, help.css, welcome-popup.css, popup.css, AntragSavePopup.css */
-@import url('./components/actions/advanced-editing.css');
-@import url('./components/actions/linksave.css');
-@import url('./components/actions/collection-actions.css');
-
-
-/* Feature styles */
-@import url('./features/auth/profile-cards.css');
-
-
-
-
-@import url('./pages/homepage.css');
-@import url('./pages/notfound.css');
-@import url('./pages/Impressum_datenschutz.css');
-
-
 /*
- * Tailwind CSS v4 - Utilities only (no preflight/reset)
- * This preserves existing CSS while enabling Tailwind utilities for new code.
+ * CSS Cascade Layer Ordering
+ * Pre-declare Tailwind's internal layers with "legacy" inserted between
+ * base (preflight) and components. This gives us:
+ *   base (preflight) → legacy → components → utilities
+ *
+ * - Preflight provides global resets (box-sizing, border-style, etc.)
+ * - Legacy CSS overrides preflight (headings, images stay styled)
+ * - Chat component styles sit above legacy
+ * - Tailwind utilities always win
  */
-@import "tailwindcss/utilities" layer(utilities);
+@layer base, legacy, components, utilities;
+
+/* ── Legacy styles (including reset) ── */
+@import url('./common/reset.css') layer(legacy);
+@import url('./common/variables.css') layer(legacy);
+@import url('./common/typography.css') layer(legacy);
+@import url('./common/global.css') layer(legacy);
+@import url('./common/markdown-styles.css') layer(legacy);
+
+@import url('./layout.css') layer(legacy);
+
+@import url('./components/layout/footer.css') layer(legacy);
+@import url('./components/layout/header.css') layer(legacy);
+@import url('./components/layout/profile-dropdown.css') layer(legacy);
+@import url('./components/layout/sidebar.css') layer(legacy);
+
+@import url('./components/ui/button.css') layer(legacy);
+@import url('./components/profile/profile-action-buttons.css') layer(legacy);
+
+@import url('./components/ui/quote-form.css') layer(legacy);
+@import url('./components/ui/LogLevelSelector.css') layer(legacy);
+@import url('./components/help-tooltip.css') layer(legacy);
+@import url('./components/common/auto-save-indicator.css') layer(legacy);
+@import url('./components/common/recent-texts.css') layer(legacy);
+@import url('./components/ui/form-select-modern.css') layer(legacy);
+@import url('./components/ui/forms.css') layer(legacy);
+@import url('./components/form/form-inputs.css') layer(legacy);
+@import url('./components/form/file-upload.css') layer(legacy);
+@import url('./components/form/form-image-select.css') layer(legacy);
+
+@import url('./components/actions/advanced-editing.css') layer(legacy);
+@import url('./components/actions/linksave.css') layer(legacy);
+@import url('./components/actions/collection-actions.css') layer(legacy);
+
+@import url('./features/auth/profile-cards.css') layer(legacy);
+
+@import url('./pages/homepage.css') layer(legacy);
+@import url('./pages/notfound.css') layer(legacy);
+@import url('./pages/Impressum_datenschutz.css') layer(legacy);
+
+/* ── Full Tailwind (preflight + base + utilities) ── */
+@import "tailwindcss";
+
+/* ── Chat package component styles (merges into Tailwind's components layer) ── */
+@import "../../../../../packages/chat/src/styles/chat-embedded.css" layer(components);
 
 /*
  * Source paths for Tailwind class detection
- * Helps Tailwind v4 find dynamic classes across the project
  */
 @source "../../**/*.{js,ts,jsx,tsx}";
-
-/*
- * Dark Mode Strategy:
- * 1. Attribute: [data-theme="dark"] - for manual theme toggle
- * 2. System: @media (prefers-color-scheme: dark) - for auto detection
- * 3. Tailwind: dark: prefix works via attribute selector
- *
- * CSS variables in variables.css change automatically based on theme.
- * Usage: <div className="bg-background dark:bg-grey-950">
- */
+@source "../../../../../packages/chat/src/**/*.{js,ts,jsx,tsx}";
 
 /*
  * Tailwind Theme Configuration
@@ -186,4 +173,184 @@
   --spacing-titlebar: var(--titlebar-height);
   --spacing-sidebar-collapsed: var(--sidebar-collapsed-width);
   --spacing-sidebar-expanded: var(--sidebar-expanded-width);
+
+  /* ── Chat package tokens (@gruenerator/chat) ── */
+
+  /* Primary/Secondary shortcuts (used as bg-primary, text-primary, etc.) */
+  --color-primary: var(--primary-500);
+  --color-primary-light: #46962b;
+  --color-primary-dark: #1a332a;
+  --color-secondary: var(--secondary-500);
+
+  /* Surface & Layout */
+  --color-surface: #f3f4f6;
+  --color-surface-hover: #e5e7eb;
+  --color-hover-overlay: rgba(0,0,0,0.05);
+  --color-user-bubble: #f0f8f4;
+  --color-background-secondary: #f8faf9;
+  --color-background-dark: #1a332a;
+
+  /* Text */
+  --color-foreground-muted: #666666;
+  --color-foreground-dark: #e5e5e5;
+  --color-muted-foreground: #666666;
+
+  /* Borders */
+  --color-border: #e5e5e5;
+  --color-border-dark: #374151;
+
+  /* Card */
+  --color-card: #ffffff;
+  --color-card-foreground: #1a1a1a;
+
+  /* Accent & Actions */
+  --color-accent-hover: #3d8225;
+  --color-destructive: #dc2626;
+
+  /* Code Blocks */
+  --color-code-block-bg: #111827;
+  --color-code-block-fg: #e5e7eb;
+  --color-code-inline-bg: #f3f4f6;
+
+  /* Error */
+  --color-error-bg: #fef2f2;
+
+  /* Badge Colors */
+  --color-badge-purple: #7c3aed;
+  --color-badge-purple-bg: rgba(139,92,246,0.1);
+  --color-badge-indigo: #4338ca;
+  --color-badge-indigo-bg: rgba(99,102,241,0.1);
+  --color-badge-indigo-hover: rgba(99,102,241,0.15);
+
+  /* Status Colors */
+  --color-status-green: #16a34a;
+  --color-status-yellow: #ca8a04;
+  --color-status-red: #dc2626;
+
+  /* Muted / Disabled */
+  --color-muted-disabled: #9ca3af;
+
+  /* Tool Colors */
+  --color-tool-indigo: #4f46e5;
+  --color-tool-indigo-bg: #e0e7ff;
+  --color-tool-emerald: #059669;
+  --color-tool-emerald-bg: #d1fae5;
+  --color-tool-orange: #ea580c;
+  --color-tool-orange-bg: #ffedd5;
+  --color-tool-purple: #9333ea;
+  --color-tool-purple-bg: #f3e8ff;
+
+  /* Section / Toggle */
+  --color-section-border: #e5e7eb;
+  --color-toggle-track: #cbd5e1;
+
+  /* Collection Badge Colors */
+  --color-collection-grundsatzprogramm: #059669;
+  --color-collection-grundsatzprogramm-bg: rgba(5,150,105,0.1);
+  --color-collection-bundestagsfraktion: #2563eb;
+  --color-collection-bundestagsfraktion-bg: rgba(37,99,235,0.1);
+  --color-collection-gruene-de: #16a34a;
+  --color-collection-gruene-de-bg: rgba(22,163,74,0.1);
+  --color-collection-kommunalwiki: #d97706;
+  --color-collection-kommunalwiki-bg: rgba(217,119,6,0.1);
+  --color-collection-web: #ea580c;
+  --color-collection-web-bg: rgba(234,88,12,0.1);
+  --color-collection-research: #4f46e5;
+  --color-collection-research-bg: rgba(79,70,229,0.1);
+  --color-collection-landesverband: #0d9488;
+  --color-collection-landesverband-bg: rgba(13,148,136,0.1);
+  --color-collection-boell: #7c3aed;
+  --color-collection-boell-bg: rgba(124,58,237,0.1);
+  --color-collection-examples: #ec4899;
+  --color-collection-examples-bg: rgba(236,72,153,0.1);
+  --color-collection-oesterreich: #0891b2;
+  --color-collection-oesterreich-bg: rgba(8,145,178,0.1);
+
+  /* Relevance Indicator Colors */
+  --color-relevance-high: #16a34a;
+  --color-relevance-medium: #ca8a04;
+  --color-relevance-low: #dc2626;
+
+  /* Animations */
+  --animate-slide-in: slide-in 0.3s ease-out;
+  --animate-fade-in: fade-in 0.2s ease-out;
+
+  /* ── Standard shadcn semantic tokens (required by packages/chat UI primitives) ── */
+  --color-primary-foreground: #ffffff;
+  --color-secondary-foreground: #ffffff;
+  --color-accent-foreground: #1a1a1a;
+  --color-muted: #f3f4f6;
+  --color-destructive-foreground: #ffffff;
+  --color-input: #e5e5e5;
+  --color-ring: var(--primary-500);
+}
+
+/*
+ * Chat package dark-mode overrides (un-layered).
+ *
+ * The @theme block above hardcodes light-mode values for chat tokens.
+ * chat-embedded.css's [data-theme='dark'] sits inside layer(components),
+ * which loses to @theme in the cascade. Un-layered styles always win,
+ * so these overrides work correctly.
+ */
+[data-theme='dark'] {
+  --color-background-secondary: #242424;
+  --color-foreground-muted: #999999;
+  --color-muted-foreground: #999999;
+  --color-border: #374151;
+  --color-card: #242424;
+  --color-card-foreground: #e5e5e5;
+  --color-surface: rgba(255,255,255,0.05);
+  --color-surface-hover: rgba(255,255,255,0.1);
+  --color-hover-overlay: rgba(255,255,255,0.05);
+  --color-user-bubble: rgba(255,255,255,0.1);
+  --color-code-inline-bg: #1f2937;
+  --color-error-bg: rgba(153,27,27,0.2);
+  --color-badge-purple: #c4b5fd;
+  --color-badge-purple-bg: rgba(91,33,182,0.3);
+  --color-badge-indigo: #a5b4fc;
+  --color-badge-indigo-bg: rgba(67,56,202,0.4);
+  --color-badge-indigo-hover: rgba(67,56,202,0.5);
+  --color-status-green: #4ade80;
+  --color-status-yellow: #facc15;
+  --color-status-red: #f87171;
+  --color-muted-disabled: #6b7280;
+  --color-tool-indigo: #818cf8;
+  --color-tool-indigo-bg: rgba(67,56,202,0.3);
+  --color-tool-emerald: #34d399;
+  --color-tool-emerald-bg: rgba(5,150,105,0.3);
+  --color-tool-orange: #fb923c;
+  --color-tool-orange-bg: rgba(234,88,12,0.3);
+  --color-tool-purple: #c084fc;
+  --color-tool-purple-bg: rgba(147,51,234,0.3);
+  --color-section-border: #374151;
+  --color-toggle-track: #4b5563;
+  --color-collection-grundsatzprogramm: #34d399;
+  --color-collection-grundsatzprogramm-bg: rgba(5,150,105,0.25);
+  --color-collection-bundestagsfraktion: #60a5fa;
+  --color-collection-bundestagsfraktion-bg: rgba(37,99,235,0.25);
+  --color-collection-gruene-de: #4ade80;
+  --color-collection-gruene-de-bg: rgba(22,163,74,0.25);
+  --color-collection-kommunalwiki: #fbbf24;
+  --color-collection-kommunalwiki-bg: rgba(217,119,6,0.25);
+  --color-collection-web: #fb923c;
+  --color-collection-web-bg: rgba(234,88,12,0.25);
+  --color-collection-research: #818cf8;
+  --color-collection-research-bg: rgba(79,70,229,0.25);
+  --color-collection-landesverband: #2dd4bf;
+  --color-collection-landesverband-bg: rgba(13,148,136,0.25);
+  --color-collection-boell: #a78bfa;
+  --color-collection-boell-bg: rgba(124,58,237,0.25);
+  --color-collection-examples: #f472b6;
+  --color-collection-examples-bg: rgba(236,72,153,0.25);
+  --color-collection-oesterreich: #22d3ee;
+  --color-collection-oesterreich-bg: rgba(8,145,178,0.25);
+  --color-relevance-high: #4ade80;
+  --color-relevance-medium: #facc15;
+  --color-relevance-low: #f87171;
+  --color-accent-foreground: #e5e5e5;
+  --color-muted: #2a2a2a;
+  --color-destructive: #f87171;
+  --color-input: #374151;
+  --color-ring: #56a17e;
 }

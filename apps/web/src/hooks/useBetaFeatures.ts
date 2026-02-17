@@ -52,8 +52,7 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false, defaultEnabled: true },
-  // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
-  // DEPRECATED: { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
+  { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false },
   // { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true }, // Removed - outdated
   { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
   {
@@ -62,14 +61,10 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
     isAdminOnly: false,
     defaultEnabled: true,
   },
-  {
-    key: 'automatischPlanMode',
-    label: 'Automatisch Plan-Modus',
-    isAdminOnly: false,
-    defaultEnabled: false,
-  },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
   { key: 'prompts', label: 'Eigene Prompts', isAdminOnly: false },
+  { key: 'docs', label: 'Dokumente', isAdminOnly: false },
+  { key: 'scanner', label: 'Scanner (OCR)', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },
@@ -105,10 +100,14 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
   // Helper functions - memoized with stable dependencies
   const getBetaFeatureState = React.useCallback(
     (key: string): boolean => {
+      const isDev = import.meta.env.DEV;
+      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === key);
+      if (isDev && featureConfig?.devOnly) {
+        return true;
+      }
       if (betaFeatures?.[key] !== undefined) {
         return !!betaFeatures[key];
       }
-      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === key);
       return featureConfig?.defaultEnabled ?? false;
     },
     [betaFeatures]

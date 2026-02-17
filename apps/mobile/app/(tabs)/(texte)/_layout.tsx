@@ -1,7 +1,8 @@
-import { useColorScheme } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
+import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { lightTheme, darkTheme, colors } from '../../../theme';
 
 const { Navigator } = createMaterialTopTabNavigator();
@@ -35,9 +36,10 @@ export default function TexteLayout() {
             textTransform: 'none',
           },
           tabBarPressColor: colors.primary[100],
-          tabBarScrollEnabled: false,
+          tabBarScrollEnabled: true,
           tabBarItemStyle: {
-            flex: 1,
+            width: 'auto',
+            minWidth: 80,
           },
           swipeEnabled: true,
           lazy: true,
@@ -46,6 +48,8 @@ export default function TexteLayout() {
         <MaterialTopTabs.Screen name="presse" options={{ title: 'Presse & Social' }} />
         <MaterialTopTabs.Screen name="antrag" options={{ title: 'Anträge' }} />
         <MaterialTopTabs.Screen name="universal" options={{ title: 'Universal' }} />
+        <MaterialTopTabs.Screen name="barrierefreiheit" options={{ title: 'Leichte Sprache' }} />
+        <MaterialTopTabs.Screen name="texteditor" options={{ title: 'Text Editor' }} />
       </MaterialTopTabs>
     </SafeAreaView>
   );

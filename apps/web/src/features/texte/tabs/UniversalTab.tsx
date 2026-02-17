@@ -299,7 +299,6 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
         <BaseForm
           {...restBaseFormProps}
           componentName={componentName}
-          enableEditMode={true}
           onSubmit={handleSubmit}
           loading={isLoading}
           firstExtrasChildren={renderExtrasInput()}

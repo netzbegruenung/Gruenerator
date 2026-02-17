@@ -1,19 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  useColorScheme,
-  Pressable,
-  Text,
-  ScrollView,
-  Platform,
-  LayoutAnimation,
-  UIManager,
-} from 'react-native';
-import { GiftedChat, IMessage } from 'react-native-gifted-chat';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import {
   useGeneratedTextStore,
@@ -22,20 +7,21 @@ import {
   type ChatMessage,
   type EditChange,
 } from '@gruenerator/shared/generators';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { View, StyleSheet, useColorScheme, Pressable, Text, ScrollView } from 'react-native';
+import { GiftedChat, type IMessage } from 'react-native-gifted-chat';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
   FloatingGlassMenu,
   createChatRenderers,
   ASSISTANT_USER,
   CURRENT_USER,
 } from '../../components/chat';
-import { getErrorMessage } from '../../utils/errors';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 import { API_ENDPOINTS } from '../../services/api';
+import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { getErrorMessage } from '../../utils/errors';
 
 interface ExpandableTextPreviewProps {
   text: string;
@@ -46,7 +32,6 @@ function ExpandableTextPreview({ text, theme }: ExpandableTextPreviewProps) {
   const [expanded, setExpanded] = useState(false);
 
   const toggleExpanded = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(!expanded);
   };
 
@@ -154,7 +139,7 @@ export default function EditChatModal() {
       if (!rawData?.raw) return null;
 
       try {
-        let cleaned = rawData.raw
+        const cleaned = rawData.raw
           .replace(/```json\s*|\s*```/g, '')
           .replace(/(\*\*|__|~~)\s*"/g, '"')
           .replace(/"\s*(\*\*|__|~~)/g, '"')
@@ -284,6 +269,7 @@ export default function EditChatModal() {
   }, [componentName, canRedo, redo]);
 
   const chatRenderers = useMemo(() => createChatRenderers(theme), [theme]);
+  const insets = useSafeAreaInsets();
 
   if (!componentName) {
     return (
@@ -292,8 +278,6 @@ export default function EditChatModal() {
       </View>
     );
   }
-
-  const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>

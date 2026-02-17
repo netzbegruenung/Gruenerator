@@ -17,14 +17,12 @@ import {
 } from 'react-icons/pi';
 
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-import EditOverlay from '../../../components/common/Form/EditMode/EditOverlay';
 import { FormStateProvider } from '../../../components/common/Form/FormStateProvider';
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
 import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import useApplyAiEdit from '../../../stores/hooks/useApplyAiEdit';
 import { uploadZoneVariants, AnimatedUploadIcon, AnimatedFileIcon } from '../ScannerAnimations';
 
 const CameraScanner = lazy(() => import('../CameraScanner'));
@@ -90,7 +88,7 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScannerResult | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isEditModeActive, setIsEditModeActive] = useState(false);
+  const [isTransforming, setIsTransforming] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
@@ -101,22 +99,35 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
   const transformPresets = useMemo(() => getTransformPresets(partyName), [partyName]);
 
   const setGeneratedText = useGeneratedTextStore((state) => state.setGeneratedText);
+  const setTextWithHistory = useGeneratedTextStore((state) => state.setTextWithHistory);
   const clearGeneratedText = useGeneratedTextStore((state) => state.clearGeneratedText);
-
-  const handleEditModeToggle = useCallback(() => {
-    setIsEditModeActive((prev) => !prev);
-  }, []);
-
-  const { applyInstruction, isProcessing: isTransforming } = useApplyAiEdit(COMPONENT_NAME);
 
   const handleTransform = useCallback(
     async (instruction: string) => {
-      const result = await applyInstruction(instruction);
-      if (!result.success) {
-        setError(result.error || 'Transformation fehlgeschlagen.');
+      const currentText = useGeneratedTextStore.getState().getGeneratedText(COMPONENT_NAME);
+      if (!currentText || typeof currentText !== 'string') return;
+
+      setIsTransforming(true);
+      try {
+        const response = await apiClient.post('/claude_text_adjustment', {
+          originalText: currentText,
+          modification: instruction,
+          fullText: currentText,
+        });
+
+        if (response.data?.suggestions?.[0]) {
+          setTextWithHistory(COMPONENT_NAME, response.data.suggestions[0]);
+        } else {
+          setError('Keine Transformation erhalten.');
+        }
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(error.response?.data?.error || error.message || 'Transformation fehlgeschlagen.');
+      } finally {
+        setIsTransforming(false);
       }
     },
-    [applyInstruction]
+    [setTextWithHistory]
   );
 
   useEffect(() => {
@@ -225,7 +236,6 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
     setSelectedFiles([]);
     setResult(null);
     setError(null);
-    setIsEditModeActive(false);
     setScannerState('upload');
     clearGeneratedText(COMPONENT_NAME);
     if (fileInputRef.current) {
@@ -473,22 +483,12 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
                     value={result.text}
                     componentName={COMPONENT_NAME}
                     useMarkdown={true}
-                    showEditModeToggle={true}
-                    isEditModeActive={isEditModeActive}
-                    onEditModeToggle={handleEditModeToggle}
                     showUndoControls={true}
                     showRedoControls={true}
                     showResetButton={true}
                     onReset={handleClearFile}
                   />
                 </FormStateProvider>
-
-                {isEditModeActive && (
-                  <EditOverlay
-                    componentName={COMPONENT_NAME}
-                    onClose={handleEditModeToggle}
-                  />
-                )}
               </div>
 
               <div className="scanner-transform-panel">

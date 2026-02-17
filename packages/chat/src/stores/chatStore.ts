@@ -2,14 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ChatApiClient } from '../context/ChatContext';
 
-interface Thread {
-  id: string;
-  title: string | null;
-  agentId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface CompactionState {
   summary: string | null;
   compactedUpToMessageId: string | null;
@@ -38,7 +30,7 @@ interface TriggerCompactionResponse {
 
 export type Provider = 'mistral' | 'litellm';
 
-export type ModelId = 'mistral-large' | 'mistral-medium' | 'pixtral-large' | 'litellm';
+export type ModelId = 'mistral' | 'litellm';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
@@ -48,33 +40,17 @@ export interface ModelOption {
   description: string;
   model: string;
   provider: Provider;
-  icon: 'sparkles' | 'zap' | 'eye' | 'server';
+  icon: 'sparkles' | 'server';
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
-    id: 'mistral-large',
-    name: 'Mistral Large',
-    description: 'Leistungsstark für komplexe Aufgaben',
-    model: 'mistral-large-latest',
+    id: 'mistral',
+    name: 'Mistral',
+    description: 'EU-gehostet',
+    model: 'mistral',
     provider: 'mistral',
     icon: 'sparkles',
-  },
-  {
-    id: 'mistral-medium',
-    name: 'Mistral Medium',
-    description: 'Schnell & ausgewogen',
-    model: 'mistral-medium-latest',
-    provider: 'mistral',
-    icon: 'zap',
-  },
-  {
-    id: 'pixtral-large',
-    name: 'Pixtral Large',
-    description: 'Vision & Reasoning',
-    model: 'pixtral-large-latest',
-    provider: 'mistral',
-    icon: 'eye',
   },
   {
     id: 'litellm',
@@ -98,7 +74,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     id: 'mistral',
     name: 'Mistral AI',
     description: 'Schnell & zuverlässig',
-    model: 'mistral-large-latest',
+    model: 'mistral',
   },
   {
     id: 'litellm',
@@ -109,26 +85,25 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
 ];
 
 interface AgentState {
-  selectedAgentId: string;
+  selectedAgentId: string | null;
   selectedProvider: Provider;
   selectedModel: ModelId;
   currentThreadId: string | null;
-  threads: Thread[];
   enabledTools: Record<ToolKey, boolean>;
+  useDeepAgent: boolean;
+  selectedNotebookId: string;
   compactionState: CompactionState;
   compactionLoading: boolean;
   messageCount: number;
   needsCompaction: boolean;
-  setSelectedAgent: (agentId: string) => void;
+  setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
   setCurrentThread: (threadId: string | null) => void;
-  addThread: (thread: Thread) => void;
-  updateThread: (threadId: string, updates: Partial<Thread>) => void;
-  deleteThread: (threadId: string) => void;
-  clearThreads: () => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
+  toggleDeepAgent: () => void;
+  setSelectedNotebook: (notebookId: string) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -151,12 +126,13 @@ const DEFAULT_COMPACTION_STATE: CompactionState = {
 export const useAgentStore = create<AgentState>()(
   persist(
     (set) => ({
-      selectedAgentId: 'gruenerator-universal',
+      selectedAgentId: null,
       selectedProvider: 'mistral',
-      selectedModel: 'mistral-large',
+      selectedModel: 'mistral',
       currentThreadId: null,
-      threads: [],
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
+      useDeepAgent: false,
+      selectedNotebookId: 'gruenerator-notebook',
       compactionState: { ...DEFAULT_COMPACTION_STATE },
       compactionLoading: false,
       messageCount: 0,
@@ -181,41 +157,6 @@ export const useAgentStore = create<AgentState>()(
           needsCompaction: false,
         }),
 
-      addThread: (thread) =>
-        set((state) => ({
-          threads: [thread, ...state.threads],
-          currentThreadId: thread.id,
-          compactionState: { ...DEFAULT_COMPACTION_STATE },
-          messageCount: 0,
-          needsCompaction: false,
-        })),
-
-      updateThread: (threadId, updates) =>
-        set((state) => ({
-          threads: state.threads.map((t) =>
-            t.id === threadId ? { ...t, ...updates, updatedAt: new Date() } : t
-          ),
-        })),
-
-      deleteThread: (threadId) =>
-        set((state) => ({
-          threads: state.threads.filter((t) => t.id !== threadId),
-          currentThreadId: state.currentThreadId === threadId ? null : state.currentThreadId,
-          compactionState:
-            state.currentThreadId === threadId
-              ? { ...DEFAULT_COMPACTION_STATE }
-              : state.compactionState,
-        })),
-
-      clearThreads: () =>
-        set({
-          threads: [],
-          currentThreadId: null,
-          compactionState: { ...DEFAULT_COMPACTION_STATE },
-          messageCount: 0,
-          needsCompaction: false,
-        }),
-
       toggleTool: (tool) =>
         set((state) => ({
           enabledTools: {
@@ -233,6 +174,10 @@ export const useAgentStore = create<AgentState>()(
             research: enabled,
           },
         }),
+
+      toggleDeepAgent: () => set((state) => ({ useDeepAgent: !state.useDeepAgent })),
+
+      setSelectedNotebook: (notebookId) => set({ selectedNotebookId: notebookId }),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
@@ -285,13 +230,32 @@ export const useAgentStore = create<AgentState>()(
     }),
     {
       name: 'gruenerator-chat-store',
+      version: 2,
+      migrate: (persisted: any, version: number) => {
+        if (version === 0) {
+          const old = persisted.selectedModel;
+          if (
+            old === 'auto' ||
+            old === 'mistral-large' ||
+            old === 'mistral-medium' ||
+            old === 'magistral-medium'
+          ) {
+            persisted.selectedModel = 'mistral';
+          }
+        }
+        if (version < 2) {
+          persisted.selectedNotebookId = persisted.selectedNotebookId || 'gruenerator-notebook';
+        }
+        return persisted;
+      },
       partialize: (state) => ({
         selectedAgentId: state.selectedAgentId,
         selectedProvider: state.selectedProvider,
         selectedModel: state.selectedModel,
         currentThreadId: state.currentThreadId,
-        threads: state.threads,
         enabledTools: state.enabledTools,
+        useDeepAgent: state.useDeepAgent,
+        selectedNotebookId: state.selectedNotebookId,
       }),
     }
   )

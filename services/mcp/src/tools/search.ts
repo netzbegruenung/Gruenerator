@@ -63,7 +63,7 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
   inputSchema: {
     query: z.string().describe('Suchbegriff oder Frage auf Deutsch'),
     collection: z
-      .enum(COLLECTION_KEYS)
+      .enum(COLLECTION_KEYS as [string, ...string[]])
       .describe(
         'Exakte Sammlung wie vom Nutzer genannt. Bei mehreren Sammlungen: Tool mehrfach aufrufen.'
       ),

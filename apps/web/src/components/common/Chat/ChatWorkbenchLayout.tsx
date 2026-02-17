@@ -71,7 +71,6 @@ interface ChatWorkbenchLayoutProps {
   infoPanelContent?: ReactNode;
   className?: string;
   submitLabel?: ReactNode;
-  isEditModeActive?: boolean;
   // DEPRECATED: hideModeSelector removed - mode selector no longer exists
   hideModeSelector?: boolean; // Kept for backwards compatibility, ignored
   hideHeader?: boolean;
@@ -112,7 +111,6 @@ const ChatWorkbenchLayout = ({
   infoPanelContent,
   className = '',
   submitLabel = null,
-  isEditModeActive = false,
   hideModeSelector: _hideModeSelector = false, // DEPRECATED: unused
   hideHeader = false,
   onVoiceRecorderTranscription,
@@ -210,7 +208,6 @@ const ChatWorkbenchLayout = ({
       <div className="chat-header">
         <div className="chat-header-content">
           {headerContent || (title ? <h2>{title}</h2> : null)}
-          {isEditModeActive && <span className="qa-chat-edit-badge">Edit-Modus aktiv</span>}
         </div>
       </div>
     );
@@ -351,7 +348,7 @@ const ChatWorkbenchLayout = ({
 
   return (
     <motion.div
-      className={`qa-chat-container qa-chat-chat ${isEditModeActive ? 'qa-chat-edit-active' : ''} ${className}`.trim()}
+      className={`qa-chat-container qa-chat-chat ${className}`.trim()}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}

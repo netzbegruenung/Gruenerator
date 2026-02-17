@@ -1,11 +1,5 @@
 import { create } from 'zustand';
 
-// Types for edit chat messages
-interface EditChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
 // Link configuration for vector documents
 interface LinkConfig {
   type: 'vectorDocument' | 'none';
@@ -24,7 +18,6 @@ interface GeneratedTextStoreState {
   generatedTexts: Record<string, StoredContent>;
   generatedTextMetadata: Record<string, unknown | null>;
   quillInstances: Record<string, unknown>;
-  editChats: Record<string, EditChatMessage[]>;
   isLoading: boolean;
   isStreaming: boolean;
   history: Record<string, StoredContent[]>;
@@ -40,7 +33,6 @@ interface GeneratedTextStoreState {
   getGeneratedTextMetadata: (componentName: string) => unknown | null;
   getLinkConfig: (componentName: string) => LinkConfig;
   getQuillInstance: (componentName: string) => unknown | null;
-  getEditChat: (componentName: string) => EditChatMessage[];
   canUndo: (componentName: string) => boolean;
   canRedo: (componentName: string) => boolean;
 
@@ -55,7 +47,6 @@ interface GeneratedTextStoreState {
   setIsLoading: (loading: boolean) => void;
   setIsStreaming: (streaming: boolean) => void;
   setQuillInstance: (componentName: string, instance: unknown) => void;
-  setEditChat: (componentName: string, messages: EditChatMessage[]) => void;
 
   // Auto-save status setters
   setAutoSaveStatus: (componentName: string, status: 'idle' | 'saving' | 'saved' | 'error') => void;
@@ -66,7 +57,6 @@ interface GeneratedTextStoreState {
   // Actions
   clearGeneratedText: (componentName: string) => void;
   clearAllGeneratedTexts: () => void;
-  clearEditChat: (componentName: string) => void;
   updateText: (componentName: string, text: string) => void;
   pushToHistory: (componentName: string) => void;
   undo: (componentName: string) => void;
@@ -81,8 +71,6 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
   generatedTextMetadata: {},
   // Store Quill instances by component type (replacing FormContext quillRef)
   quillInstances: {},
-  // Store edit mode chat history by component name
-  editChats: {},
   // Global loading state
   isLoading: false,
   // Streaming state for real-time updates
@@ -245,15 +233,10 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
         ...state.generatedTextMetadata,
         [componentName]: null,
       },
-      editChats: {
-        ...state.editChats,
-        [componentName]: [],
-      },
     })),
 
   // Clear all generated texts (if needed)
-  clearAllGeneratedTexts: () =>
-    set({ generatedTexts: {}, generatedTextMetadata: {}, editChats: {} }),
+  clearAllGeneratedTexts: () => set({ generatedTexts: {}, generatedTextMetadata: {} }),
 
   setIsLoading: (loading) => set({ isLoading: loading }),
 
@@ -273,28 +256,6 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
     const state = get();
     return state.quillInstances[componentName] || null;
   },
-
-  // Edit chat management
-  getEditChat: (componentName) => {
-    const state = get();
-    return state.editChats[componentName] || [];
-  },
-
-  setEditChat: (componentName, messages) =>
-    set((state) => ({
-      editChats: {
-        ...state.editChats,
-        [componentName]: messages,
-      },
-    })),
-
-  clearEditChat: (componentName) =>
-    set((state) => ({
-      editChats: {
-        ...state.editChats,
-        [componentName]: [],
-      },
-    })),
 
   // Direct text editing (replaces FormContext value/setValue) - without automatic history tracking
   updateText: (componentName, text) =>

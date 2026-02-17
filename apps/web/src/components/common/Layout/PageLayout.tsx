@@ -1,6 +1,7 @@
 import { type JSX, useEffect, Suspense, lazy, useState, type ReactNode, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
+import { GlobalChatProvider } from '../../../providers/GlobalChatProvider';
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { isDesktopApp } from '../../../utils/platform';
@@ -33,6 +34,8 @@ const PageLayout = ({
   const sidebarOpen = useSidebarStore((state) => state.isOpen);
   const hideAppSidebar = useSidebarStore((state) => state.hideAppSidebar);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isHomePage = pathname === '/';
   const { createTab, tabs, activeTabId } = useDesktopTabsStore();
 
   useEffect(() => {}, [showHeaderFooter, darkMode, children]);
@@ -88,21 +91,23 @@ const PageLayout = ({
     .join(' ');
 
   return (
-    <div className={layoutClasses}>
-      <SidebarToggle />
-      <div className="header-actions">
-        <ProfileButton />
+    <GlobalChatProvider>
+      <div className={layoutClasses}>
+        <SidebarToggle />
+        <div className="header-actions">
+          <ProfileButton />
+        </div>
+        <Sidebar />
+        <div className="app-content">
+          <main className="content-wrapper">{children}</main>
+          {showFooter && isHomePage && (
+            <Suspense fallback={<div style={{ height: '80px' }} />}>
+              <Footer />
+            </Suspense>
+          )}
+        </div>
       </div>
-      <Sidebar />
-      <div className="app-content">
-        <main className="content-wrapper">{children}</main>
-        {showFooter && (
-          <Suspense fallback={<div style={{ height: '80px' }} />}>
-            <Footer />
-          </Suspense>
-        )}
-      </div>
-    </div>
+    </GlobalChatProvider>
   );
 };
 

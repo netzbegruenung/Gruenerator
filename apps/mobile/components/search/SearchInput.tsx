@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -7,9 +9,11 @@ import {
   Keyboard,
   TextInput as RNTextInput,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+
+import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
 import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+import { MicButton } from '../common';
+
 import type { SearchMode } from '@gruenerator/shared/search';
 
 interface ExampleQuestion {
@@ -40,6 +44,13 @@ export function SearchInput({ onSearch, loading = false, initialQuery = '' }: Se
 
   const [query, setQuery] = useState(initialQuery);
   const [mode, setMode] = useState<SearchMode>('web');
+  const { isListening, toggle: toggleSpeech } = useSpeechToText();
+
+  const handleMicPress = () => {
+    toggleSpeech((transcript) => {
+      setQuery((prev) => appendTranscript(prev, transcript));
+    });
+  };
 
   const handleSearch = () => {
     if (query.trim().length < 2) return;
@@ -98,18 +109,15 @@ export function SearchInput({ onSearch, loading = false, initialQuery = '' }: Se
               {mode === 'deep' ? 'Tiefenrecherche' : 'Web'}
             </Text>
           </Pressable>
-          <Pressable
-            onPress={handleSearch}
-            disabled={loading || query.trim().length < 2}
-            style={({ pressed }) => [
-              styles.submitButton,
-              { backgroundColor: colors.primary[600] },
-              (loading || query.trim().length < 2) && { opacity: 0.5 },
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Ionicons name={loading ? 'hourglass' : 'search'} size={18} color="#fff" />
-          </Pressable>
+          <MicButton
+            isListening={isListening}
+            onMicPress={handleMicPress}
+            hasText={query.trim().length >= 2}
+            onSubmit={handleSearch}
+            loading={loading}
+            size={32}
+            submitIcon="search"
+          />
         </View>
       </View>
 
@@ -186,13 +194,6 @@ const styles = StyleSheet.create({
   modeText: {
     fontSize: 12,
     fontWeight: '500',
-  },
-  submitButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   exampleContainer: {
     marginTop: spacing.small,

@@ -4,6 +4,7 @@ import { GiHedgehog } from 'react-icons/gi';
 
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
 import Spinner from '../../../../../../components/common/Spinner';
+import MemoriesSection from '../../../../../../components/profile/MemoriesSection';
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
 
 import SettingsSection from './SettingsSection';
@@ -314,6 +315,8 @@ const ProfileView = ({
           compact
         />
       </div>
+
+      <MemoriesSection />
 
       {showDeleteAccountForm && (
         <form className="auth-form" onSubmit={onDeleteAccountSubmit}>

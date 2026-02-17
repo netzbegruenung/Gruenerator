@@ -350,6 +350,7 @@ export class BaseSearchService {
           title: this.extractDocumentTitle(chunk),
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
+          source_url: (chunk as any).url || undefined,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -357,6 +358,9 @@ export class BaseSearchService {
       }
 
       const docData = documentMap.get(docId)!;
+      if (!docData.source_url && (chunk as any).url) {
+        docData.source_url = (chunk as any).url;
+      }
       const chunkData = this.extractChunkData(chunk);
 
       // Lexical-aware adjustments per chunk
@@ -383,9 +387,14 @@ export class BaseSearchService {
 
     // Calculate enhanced scores and format results
     const results: (DocumentResult | null)[] = Array.from(documentMap.values()).map((doc) => {
-      // For short queries, require at least one literal match
+      // For short queries without literal term match, use graduated filtering
+      // (aligned with hybrid path: reject only low-scoring, penalize medium-scoring)
+      let noTermMatchPenalty = 0;
       if (normQuery && isShortQuery && !doc.chunks.some((c) => c.has_term)) {
-        return null;
+        if (doc.maxSimilarity < 0.55) {
+          return null;
+        }
+        noTermMatchPenalty = doc.maxSimilarity >= 0.7 ? 0.05 : 0.12;
       }
 
       // Sort chunks by adjusted similarity
@@ -432,8 +441,9 @@ export class BaseSearchService {
         title: doc.title,
         filename: doc.filename,
         created_at: doc.created_at,
+        source_url: doc.source_url,
         relevant_content: relevantContent,
-        similarity_score: enhancedScore.finalScore,
+        similarity_score: enhancedScore.finalScore - noTermMatchPenalty,
         max_similarity: enhancedScore.maxSimilarity,
         avg_similarity: enhancedScore.avgSimilarity,
         position_score: enhancedScore.positionScore,
@@ -702,6 +712,7 @@ export class BaseSearchService {
           title: this.extractDocumentTitle(chunk),
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
+          source_url: (chunk as any).url || undefined,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -716,6 +727,9 @@ export class BaseSearchService {
       }
 
       const docData = documentMap.get(docId)!;
+      if (!docData.source_url && (chunk as any).url) {
+        docData.source_url = (chunk as any).url;
+      }
       const chunkData = this.extractChunkData(chunk);
 
       // Lexical-aware adjustments
@@ -819,6 +833,7 @@ export class BaseSearchService {
         title: doc.title,
         filename: doc.filename,
         created_at: doc.created_at,
+        source_url: doc.source_url,
         relevant_content: relevantContent,
         similarity_score: Math.max(0, enhancedScore.finalScore - noTermMatchPenalty),
         max_similarity: enhancedScore.maxSimilarity,
@@ -1021,6 +1036,7 @@ export class BaseSearchService {
           title: chunk.documents?.title || chunk.document_title || 'Untitled',
           filename: chunk.documents?.filename || chunk.document_filename || '',
           created_at: chunk.documents?.created_at || chunk.document_created_at,
+          source_url: (chunk as any).url || undefined,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -1029,6 +1045,9 @@ export class BaseSearchService {
       }
 
       const doc = documentMap.get(docId)!;
+      if (!doc.source_url && (chunk as any).url) {
+        doc.source_url = (chunk as any).url;
+      };
       const chunkData: ChunkData = {
         chunk_id: chunk.id,
         chunk_index: chunk.chunk_index,
@@ -1064,6 +1083,7 @@ export class BaseSearchService {
         title: doc.title,
         filename: doc.filename,
         created_at: doc.created_at,
+        source_url: doc.source_url,
         relevant_content: relevantContent,
         similarity_score: enhancedScore.finalScore,
         max_similarity: enhancedScore.maxSimilarity,

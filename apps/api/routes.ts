@@ -7,10 +7,6 @@ import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import exportDocumentsRouter from './routes/exports/index.js';
-import { markdownController as markdownRouter } from './routes/markdown/index.js';
-import { releasesRouter } from './routes/releases/index.js';
-import { oparlRouter } from './routes/oparl/index.js';
-import voiceRouter from './routes/voice/voiceController.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import {
@@ -18,9 +14,11 @@ import {
   generationController as imageGenerationRouter,
 } from './routes/image/index.js';
 import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
-import promptRoute from './routes/sharepic/promptRoute.js';
-import planModeRouter from './routes/plan-mode/index.js';
+import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import { oparlRouter } from './routes/oparl/index.js';
 import protokollRouter from './routes/protokoll/index.js';
+import { releasesRouter } from './routes/releases/index.js';
+import researchRouter from './routes/research/researchController.js';
 import scannerRouter from './routes/scanner/index.js';
 import {
   searchController as searchRouter,
@@ -28,6 +26,7 @@ import {
 } from './routes/search/index.js';
 import shareRouter from './routes/share/shareController.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
+import promptRoute from './routes/sharepic/promptRoute.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
@@ -56,13 +55,13 @@ import {
   wahlprogrammRouter,
   buergeranfragenRouter,
   textAdjustmentRouter as claudeTextAdjustmentRoute,
-  suggestEditsRouter as claudeSuggestEditsRoute,
   textImproverRouter as claudeTextImproverRoute,
   grueneJugendRouter as claudeGrueneJugendRoute,
   subtitlesRouter as claudeSubtitlesRoute,
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
 import { recentValuesRouter } from './routes/user/index.js';
+import voiceRouter from './routes/voice/voiceController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { createLogger } from './utils/logger.js';
@@ -142,21 +141,23 @@ export async function setupRoutes(app: Application): Promise<void> {
     collectionsRouter: notebookCollectionsRouter,
     interactionRouter: notebookInteractionRouter,
   } = await import('./routes/notebook/index.js');
-  const { default: canvaAuthRouter } = await import('./routes/canva/canvaAuth.js');
-  const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
+  const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js'); // @experimental — DeepAgent, not production-ready
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: publicSiteRouter } =
     await import('./routes/sites/index.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
+  const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
+  const { default: contentTitleRouter } = await import('./routes/texte/contentTitleRoute.js');
+  const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
 
   // Auth routes - combined TypeScript router
   app.use('/api/auth', authRouter);
@@ -167,7 +168,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/crawl-url', crawlUrlRouter);
   app.use('/api/recent-values', recentValuesRouter);
   app.use('/api/antraege', requireAuth, antraegeRouter);
-  app.use('/api/plan-mode', requireAuth, planModeRouter);
   app.use('/api/scanner', scannerRouter);
   app.use('/api/protokoll', protokollRouter);
 
@@ -177,11 +177,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/leichte_sprache', leichteSpracheRoute);
   app.use('/api/claude_rede', redeRouter);
   app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
-  app.use('/api/claude_suggest_edits', claudeSuggestEditsRoute);
   app.use('/api/claude_text_improver', claudeTextImproverRoute);
   app.use('/api/chat', grueneratorChatRoute);
   app.use('/api/chat-service', chatServiceRouter);
   app.use('/api/chat-graph', chatGraphRouter);
+  app.use('/api/chat-deep', chatDeepRouter); // @experimental — DeepAgent route, not production-ready
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
@@ -250,6 +250,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_wahlprogramm', wahlprogrammRouter);
   app.use('/api/claude_universal', universalRouter);
   app.use('/api/texte/smart', smartTexteRouter);
+  app.use('/api/generate-content-title', contentTitleRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
   app.use('/api/custom_generator', customGeneratorRoute);
@@ -263,7 +264,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/subtitler/projects', subtitlerProjectRouter);
   app.use('/api/subtitler/share', subtitlerShareRouter);
   app.use('/api/share', shareRouter);
+  app.use('/api/mem0', requireAuth, mem0Router);
   app.use('/api/media', requireAuth, mediaRouter);
+  app.use('/api/docs/public', publicDocRouter);
   app.use('/api/docs', requireAuth, docsRouter);
   app.use('/api/users', requireAuth, usersRouter);
   app.use('/api/voice', voiceRouter);
@@ -272,6 +275,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/image-picker', imagePickerRoute);
   app.use('/api/unsplash', unsplashRouter);
   app.use('/api/web-search', webSearchRouter);
+  app.use('/api/research', requireAuth, researchRouter);
   app.use('/api/image-generation', imageGenerationRouter);
   app.use('/api/rate-limit', rateLimitRouter);
 
@@ -306,8 +310,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     }
   });
 
-  app.use('/api/canva/auth', canvaAuthRouter);
-  app.use('/api/canva', canvaApiRouter);
   app.use('/api/nextcloud', nextcloudApiRouter);
   app.use('/api/sites', sitesRouter);
   app.use('/api/flux/green-edit', fluxImageEditingRoute);

@@ -49,7 +49,6 @@ import '../../../../assets/styles/components/form/file-upload.css';
 import '../../../../assets/styles/components/baseform/base.css';
 import '../../../../assets/styles/components/baseform/form-layout.css';
 import '../../../../assets/styles/components/baseform/form-toggle-fab.css';
-import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
 import '../../../../assets/styles/components/help-tooltip.css';
 import '../../../../assets/styles/pages/baseform.css';
 import '../../../../assets/styles/components/baseform/start-page.css';
@@ -67,7 +66,6 @@ import RecentTextsSection from '../../RecentTexts/RecentTextsSection';
 import { useErrorHandling, useResponsive, useAutoScrollToContent } from '../hooks';
 import { useBaseFormAccessibility } from '../hooks/useBaseFormAccessibility';
 import { useContentManagement } from '../hooks/useContentManagement';
-import { useEditMode } from '../hooks/useEditMode';
 import { useFeatureConfigs } from '../hooks/useFeatureConfigs';
 import { useFormConfiguration } from '../hooks/useFormConfiguration';
 import { useFormEventHandlers } from '../hooks/useFormEventHandlers';
@@ -102,7 +100,6 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   isMultiStep = false,
   onBack,
   showBackButton = false,
-  onEditSubmit = null,
   nextButtonText,
   generatedContent,
   hideDisplayContainer = false,
@@ -154,7 +151,6 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   firstExtrasChildren = null,
   extrasChildren = null,
   useMarkdown = null,
-  enableEditMode = false,
   customEditContent = null, // Custom edit component for specialized editing (e.g., campaign sharepic editor)
   // TabIndex configuration
   featureIconsTabIndex = {
@@ -194,7 +190,6 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState<HelpContent | null>(
     null
   );
-  const editSubmitHandlerRef = useRef<(() => void | Promise<void>) | null>(null);
 
   // Batched store selectors using useShallow for optimal performance
   // This reduces subscriptions from 24 to 3, preventing cascade re-renders
@@ -313,13 +308,11 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     enableKnowledgeSelector,
     showProfileSelector,
     showImageUpload,
-    enableEditMode,
     useMarkdown,
     submitConfig,
     showNextButton,
     nextButtonText,
     submitButtonProps,
-    isEditModeActive: false, // Will be updated below after edit mode hook
   });
 
   const {
@@ -388,30 +381,13 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   };
   const { isMobileView, getDisplayTitle } = responsiveState;
 
-  // Edit mode hook
-  const editMode = useEditMode({
-    enableEditMode: resolvedUIConfig.enableEditMode,
-    hasEditableContent,
-    isMobileView,
-    onImageEditModeChange,
-  });
-
-  const {
-    isEditModeToggled,
-    isEditModeActive,
-    isImageEditActive,
-    handleToggleEditMode,
-    handleToggleImageEdit,
-  } = editMode;
-
-  // Update configs with actual isEditModeActive value
-  const effectiveSubmitButtonPropsUpdated = React.useMemo(() => {
-    const base = (resolvedSubmitConfig.buttonProps || {}) as Record<string, unknown>;
-    if (isEditModeActive) {
-      return { ...base, defaultText: (base.defaultText as string) || 'Verbessern' };
-    }
-    return base;
-  }, [resolvedSubmitConfig.buttonProps, isEditModeActive]);
+  // Image edit mode state (for sharepic inline editing)
+  const [isImageEditActive, setIsImageEditActive] = useState(false);
+  const handleToggleImageEdit = useCallback(() => {
+    const newState = !isImageEditActive;
+    setIsImageEditActive(newState);
+    if (onImageEditModeChange) onImageEditModeChange(newState);
+  }, [isImageEditActive, onImageEditModeChange]);
 
   // Start mode and form visibility hook
   const fallbackFormVisibility = useFormVisibility(hasEditableContent, disableAutoCollapse) as {
@@ -429,21 +405,6 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   });
 
   const { isStartMode, isFormVisible, toggleFormVisibility } = startModeState;
-
-  // Auto-activate edit mode when new text is generated (desktop only)
-  // const prevHasEditableContentRef = useRef(hasEditableContent);
-  // useEffect(() => {
-  //   // Only auto-activate if:
-  //   // 1. Edit mode is enabled for this component
-  //   // 2. We just got content (transition from no content to has content)
-  //   // 3. Edit mode isn't already active
-  //   // 4. Not on mobile device
-  //   const isMobileDevice = window.innerWidth <= 768;
-  //   if (enableEditMode && !prevHasEditableContentRef.current && hasEditableContent && !isEditModeToggled && !isMobileDevice) {
-  //     setIsEditModeToggled(true);
-  //   }
-  //   prevHasEditableContentRef.current = hasEditableContent;
-  // }, [hasEditableContent, enableEditMode, isEditModeToggled]);
 
   const showSubmitButtonFinal = resolvedSubmitConfig.showButton;
 
@@ -517,8 +478,6 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   } = useFormEventHandlers({
     onSubmit,
     onExamplePromptClick,
-    editSubmitHandlerRef,
-    isEditModeActive,
     getFeatureState: getFeatureState!,
     handleFormError,
     setInlineHelpContentOverride,
@@ -546,10 +505,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         title: typeof title === 'string' ? title : undefined,
         generatedContent,
         isFormVisible,
-        isEditModeActive,
         isStartMode,
       }),
-    [title, generatedContent, isFormVisible, isEditModeActive, isStartMode]
+    [title, generatedContent, isFormVisible, isStartMode]
   );
 
   return (
@@ -565,19 +523,13 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         id="main-content"
       >
         <AnimatePresence initial={false}>
-          {!isFormVisible && hasAnyContent && !isEditModeActive && (
+          {!isFormVisible && hasAnyContent && (
             <FormToggleButtonFAB onClick={toggleFormVisibility} />
           )}
         </AnimatePresence>
 
-        {/*
-          Mobile edit mode: UniversalEditForm now handles full-screen chat takeover.
-          DisplaySection is hidden on mobile edit mode since the chat shows the full text.
-        */}
-
         <AnimatePresence initial={false}>
-          {/* Show FormSection when form is visible, OR when edit mode is active (for UniversalEditForm) */}
-          {(isFormVisible || isEditModeActive) && (
+          {isFormVisible && (
             <motion.div
               key="form-section"
               /* layout="position" */
@@ -594,13 +546,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 ref={formSectionRef}
                 title={title}
                 subtitle={subtitle}
-                onSubmit={
-                  isEditModeActive && onEditSubmit
-                    ? () => onEditSubmit('')
-                    : useModernForm
-                      ? handleEnhancedSubmit
-                      : onSubmit
-                }
+                onSubmit={useModernForm ? handleEnhancedSubmit : onSubmit}
                 isFormVisible={isFormVisible}
                 isMultiStep={isMultiStep}
                 onBack={onBack}
@@ -644,13 +590,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 onImageChange={onImageChange}
                 componentName={componentName}
                 onWebSearchInfoClick={handleWebSearchInfoClick}
-                useEditMode={isEditModeActive}
-                onCloseEditMode={handleToggleEditMode}
                 isImageEditActive={isImageEditActive}
                 customEditContent={customEditContent}
-                registerEditHandler={(fn) => {
-                  editSubmitHandlerRef.current = fn;
-                }}
                 enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
                 hideExtrasSection={hideFormExtras}
                 hideInputSection={hideInputSection}
@@ -669,8 +610,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
           )}
         </AnimatePresence>
 
-        {/* In desktop mode or non-edit mode, show DisplaySection after FormSection (hidden in start mode or when no content) */}
-        {(!isEditModeActive || !isMobileView) && !isStartMode && hasAnyContent && (
+        {!isStartMode && hasAnyContent && (
           <motion.div
             /* layout */
             transition={{ duration: 0.25, ease: 'easeOut' }}
@@ -691,9 +631,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
               onSave={onSave}
               componentName={componentName}
               onErrorDismiss={handleErrorDismiss}
-              onEditModeToggle={customEditContent ? handleToggleImageEdit : handleToggleEditMode}
-              isEditModeActive={isEditModeActive}
-              showEditModeToggle={resolvedUIConfig.enableEditMode}
+              onEditModeToggle={customEditContent ? handleToggleImageEdit : undefined}
               customEditContent={customEditContent}
               customRenderer={customRenderer}
               customExportOptions={customExportOptions}
@@ -803,7 +741,6 @@ const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean =
     'onImageChange',
     'onSave',
     'onBack',
-    'onEditSubmit',
     'onGeneratePost',
   ];
 

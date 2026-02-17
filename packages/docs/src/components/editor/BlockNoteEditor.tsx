@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BlockNoteEditor as BlockNoteEditorCore,
   BlockNoteSchema,
@@ -50,7 +51,7 @@ export interface BlockNoteEditorProps {
   documentSubtype?: string;
   editable?: boolean;
   showComments?: boolean;
-  showCommentsSidebar?: boolean;
+  commentsPortalTarget?: HTMLElement | null;
   ydoc?: Y.Doc;
   provider?: HocuspocusProvider | null;
   isSynced?: boolean;
@@ -129,7 +130,7 @@ const BlockNoteEditorInner = ({
   documentSubtype = 'blank',
   editable = true,
   showComments = true,
-  showCommentsSidebar = false,
+  commentsPortalTarget,
   ydoc,
   provider,
   isSynced = false,
@@ -283,7 +284,7 @@ const BlockNoteEditorInner = ({
   }
 
   return (
-    <div className={`blocknote-wrapper ${showCommentsSidebar ? 'with-sidebar' : ''}`}>
+    <div className="blocknote-wrapper">
       <ErrorBoundary>
         <BlockNoteView editor={editor} theme="light" formattingToolbar={false} slashMenu={false}>
           <AIMenuController />
@@ -305,14 +306,8 @@ const BlockNoteEditorInner = ({
             }
           />
           {showComments && threadStore && <StableFloatingComposer />}
-          {showCommentsSidebar && showComments && threadStore && (
-            <div className="comments-sidebar">
-              <div className="comments-sidebar-header">
-                <h3>Kommentare</h3>
-              </div>
-              <ThreadsSidebar filter="all" />
-            </div>
-          )}
+          {commentsPortalTarget && showComments && threadStore &&
+            createPortal(<ThreadsSidebar filter="all" />, commentsPortalTarget)}
         </BlockNoteView>
       </ErrorBoundary>
     </div>

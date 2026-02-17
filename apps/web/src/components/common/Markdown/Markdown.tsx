@@ -1,8 +1,38 @@
-import { lazy, Suspense, type JSX, type AnchorHTMLAttributes, type ReactNode } from 'react';
+import {
+  Component,
+  lazy,
+  Suspense,
+  type ErrorInfo,
+  type JSX,
+  type AnchorHTMLAttributes,
+  type ReactNode,
+} from 'react';
 
 import type { Components } from 'react-markdown';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
+
+class MarkdownErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.warn('[Markdown] Rendering failed, showing raw text fallback:', error.message, info);
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 /**
  * Preprocesses markdown to fix common formatting issues from Qdrant chunks.
@@ -11,8 +41,12 @@ const preprocessMarkdown = (text: string): string => {
   let result = text;
 
   // 1. Join multi-line headers: "# Header\nContinuation" → "# Header Continuation"
-  // Detects when header text is split across lines (no sentence-ending punctuation)
-  result = result.replace(/(#{1,6}\s+[^\n.!?]{2,30})\n+([A-ZÄÖÜ][a-zäöüß]+)/g, '$1 $2');
+  // Only join when the next line is a short continuation (≤3 words, no sentence structure)
+  // Avoids merging headers with body paragraphs (e.g. "## Betreff\nDer Verband beantragt...")
+  result = result.replace(
+    /(#{1,6}\s+[^\n.!?]{2,30})\n+([A-ZÄÖÜ][a-zäöüß]+(?:\s+[a-zäöüß]+){0,2})\s*$/gm,
+    '$1 $2'
+  );
 
   // 2. Add line break BEFORE headers appearing after sentences
   result = result.replace(/([.!?])\s+(#{1,6}\s+)/g, '$1\n\n$2');
@@ -54,14 +88,18 @@ export const Markdown = ({
   const Wrapper = inline ? 'span' : 'div';
   const processedContent = inline ? children : preprocessMarkdown(children);
 
+  const rawFallback = fallback ?? <span>{children}</span>;
+
   return (
-    <Suspense fallback={fallback ?? <span>{children}</span>}>
-      <Wrapper className={className}>
-        <ReactMarkdown components={{ ...baseComponents, ...components }}>
-          {processedContent}
-        </ReactMarkdown>
-      </Wrapper>
-    </Suspense>
+    <MarkdownErrorBoundary fallback={rawFallback}>
+      <Suspense fallback={rawFallback}>
+        <Wrapper className={className}>
+          <ReactMarkdown components={{ ...baseComponents, ...components }}>
+            {processedContent}
+          </ReactMarkdown>
+        </Wrapper>
+      </Suspense>
+    </MarkdownErrorBoundary>
   );
 };
 

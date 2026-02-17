@@ -263,7 +263,6 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
       error={error}
       generatedContent={generatedContentValue}
       onGeneratedContentChange={handleGeneratedContentChange}
-      enableEditMode={true}
       componentName={componentName}
       firstExtrasChildren={renderActionSelector()}
       helpContent={HELP_CONTENT_CONFIG}

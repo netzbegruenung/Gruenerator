@@ -1,4 +1,4 @@
 export { ActionSheet, ActionSheetItem, ActionSheetDivider } from './ActionSheet';
+export { EditorTopBar } from './EditorTopBar';
 export { PresenceAvatars } from './PresenceAvatars';
-export { VersionHistory } from './VersionHistory';
 export { ShareModal } from './ShareModal';

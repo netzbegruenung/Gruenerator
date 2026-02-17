@@ -1,14 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@gruenerator/shared/stores';
-import { useDocsStore, type Document } from '../../stores/docsStore';
 import { secureStorage } from '../../services/storage';
 import { lightTheme, darkTheme, colors } from '../../theme';
-import { API_BASE_URL, HOCUSPOCUS_URL } from '../../config';
-import BlockNoteEditor from '../../components/dom/BlockNoteEditor';
+import { API_BASE_URL } from '../../config';
+import { WebView } from 'react-native-webview';
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
@@ -30,65 +29,34 @@ export default function DocumentScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const webViewRef = useRef<WebView>(null);
 
   const { user } = useAuthStore();
-  const { updateDocument, fetchDocument } = useDocsStore();
 
   const [token, setToken] = useState<string | null>(null);
-  const [document, setDocument] = useState<Document | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadToken = async () => {
       if (!id) {
         setError('Keine Dokument-ID angegeben');
         setIsLoading(false);
         return;
       }
 
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const authToken = await secureStorage.getToken();
-        if (!authToken) {
-          setError('Nicht angemeldet');
-          setIsLoading(false);
-          return;
-        }
-        setToken(authToken);
-
-        const doc = await fetchDocument(id);
-        if (!doc) {
-          setError('Dokument nicht gefunden');
-          setIsLoading(false);
-          return;
-        }
-        setDocument(doc);
-      } catch (err) {
-        console.error('[DocumentScreen] Failed to load document:', err);
-        setError('Fehler beim Laden des Dokuments');
-      } finally {
+      const authToken = await secureStorage.getToken();
+      if (!authToken) {
+        setError('Nicht angemeldet');
         setIsLoading(false);
+        return;
       }
+      setToken(authToken);
+      setIsLoading(false);
     };
 
-    loadData();
-  }, [id, fetchDocument]);
-
-  const handleNavigateBack = () => {
-    router.back();
-  };
-
-  const handleTitleChange = async (newTitle: string) => {
-    if (!id) return;
-    try {
-      await updateDocument(id, { title: newTitle });
-    } catch (err) {
-      console.error('[DocumentScreen] Failed to update title:', err);
-    }
-  };
+    loadToken();
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -101,7 +69,7 @@ export default function DocumentScreen() {
     );
   }
 
-  if (error || !token || !document || !user) {
+  if (error || !token || !user) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
         <Ionicons name="alert-circle-outline" size={64} color={colors.error[500]} />
@@ -119,24 +87,94 @@ export default function DocumentScreen() {
     );
   }
 
+  const [bridgeUrl, setBridgeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token || !id) return;
+
+    const fetchBridgeCode = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/mobile/session-bridge`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ redirect: `/document/${id}` }),
+        });
+
+        if (!response.ok) {
+          setError('Sitzung abgelaufen — bitte erneut anmelden');
+          return;
+        }
+
+        const { code } = await response.json();
+        setBridgeUrl(`${API_BASE_URL}/auth/mobile/session-bridge?code=${encodeURIComponent(code)}`);
+      } catch {
+        setError('Verbindung fehlgeschlagen');
+      }
+    };
+
+    fetchBridgeCode();
+  }, [token, id]);
+
+  if (!bridgeUrl) {
+    return (
+      <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+          Dokument wird geladen...
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <BlockNoteEditor
-      documentId={id}
-      authToken={token}
-      userId={user.id}
-      userName={user.display_name || user.email}
-      userEmail={user.email}
-      documentTitle={document.title}
-      hocuspocusUrl={HOCUSPOCUS_URL}
-      apiBaseUrl={API_BASE_URL}
-      onNavigateBack={handleNavigateBack}
-      onTitleChange={handleTitleChange}
-      dom={{ useExpoDOMWebView: true, style: { flex: 1 } }}
-    />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        </TouchableOpacity>
+      </View>
+      <WebView
+        ref={webViewRef}
+        source={{ uri: bridgeUrl }}
+        style={{ flex: 1 }}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        originWhitelist={['*']}
+        sharedCookiesEnabled={true}
+        thirdPartyCookiesEnabled={true}
+        startInLoadingState={true}
+        renderLoading={() => (
+          <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
+            <ActivityIndicator size="large" color={colors.primary[600]} />
+          </View>
+        )}
+        onError={(e) => console.log('[WebView] error:', e.nativeEvent)}
+        onHttpError={(e) => {
+          if (e.nativeEvent.statusCode === 401) {
+            setError('Sitzung abgelaufen — bitte erneut anmelden');
+          }
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  backIcon: {
+    padding: 8,
+  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',

@@ -1,17 +1,18 @@
 import { type JSX, useState, useEffect, useRef, type ReactNode, useCallback } from 'react';
-import { HiCog, HiPencil, HiSave } from 'react-icons/hi';
+import { HiCog, HiSave } from 'react-icons/hi';
 import {
   IoCopyOutline,
   IoCheckmarkOutline,
-  IoCloseOutline,
   IoRefreshOutline,
   IoArrowUndoOutline,
   IoArrowRedoOutline,
+  IoCreateOutline,
 } from 'react-icons/io5';
 import '../../assets/styles/components/actions/action-buttons.css';
 
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
+import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useProfileStore } from '../../stores/profileStore';
@@ -20,6 +21,8 @@ import { extractTitleFromContent } from '../../utils/titleExtractor';
 import { copyFormattedContent } from '../utils/commonFunctions';
 
 import ExportDropdown from './ExportDropdown';
+
+import type { ContentMetadata } from '@/types/baseform';
 
 interface GeneratedContentObject {
   content?: string;
@@ -42,14 +45,12 @@ interface ActionButtonsProps {
   showRegenerate?: boolean;
   showSave?: boolean;
   showSaveToLibrary?: boolean;
-  showEditMode?: boolean;
   showUndo?: boolean;
   showRedo?: boolean;
   onEditModeToggle?: () => void;
   onRequestEdit?: () => void;
   onReset?: () => void;
   showReset?: boolean;
-  isEditModeActive?: boolean;
   onRegenerate?: () => void;
   onSave?: () => void;
   onSaveToLibrary?: () => void;
@@ -63,6 +64,8 @@ interface ActionButtonsProps {
   generatedContent?: GeneratedContent;
   title?: string;
   componentName?: string;
+  onEditInDocs?: () => void;
+  editInDocsLoading?: boolean;
   customExportOptions?: {
     id?: string;
     label?: string;
@@ -86,14 +89,12 @@ const ActionButtons = ({
   showRegenerate = false,
   showSave = false,
   showSaveToLibrary = true,
-  showEditMode: _showEditMode = false,
   showUndo = true,
   showRedo = true,
   onEditModeToggle,
   onRequestEdit,
   onReset,
   showReset = false,
-  isEditModeActive = false,
   onRegenerate,
   onSave,
   onSaveToLibrary,
@@ -107,6 +108,8 @@ const ActionButtons = ({
   generatedContent,
   title,
   componentName = 'default',
+  onEditInDocs,
+  editInDocsLoading = false,
   customExportOptions = [],
   hideDefaultExportOptions = false,
 }: ActionButtonsProps): JSX.Element => {
@@ -178,33 +181,33 @@ const ActionButtons = ({
       hasContent: !!activeContent,
     });
 
-    // Then check if auto-save is enabled
     if (!profile?.auto_save_on_export || !isAuthenticated || !activeContent) {
       return;
     }
 
-    // Extract string content for hashing (handle both object and string content)
     const contentForHash = contentString;
 
-    const contentHash = hashContent(contentForHash, title);
-    if (exportedContentHashesRef.current.has(contentHash)) {
-      console.log('[ActionButtons Auto-save] Skipping duplicate content');
-      return;
-    }
-
     try {
-      const contentType = generatedTextMetadata?.contentType || 'universal';
-      console.log('[ActionButtons Auto-save] Saving to library', { contentType });
+      await awaitDeferredTitle(componentName);
+      const meta = useGeneratedTextStore
+        .getState()
+        .getGeneratedTextMetadata(componentName) as ContentMetadata | null;
+      const freshTitle = meta?.title || title;
 
-      // Use the same content extraction for saving
+      const contentHash = hashContent(contentForHash, freshTitle);
+      if (exportedContentHashesRef.current.has(contentHash)) {
+        return;
+      }
+
+      const contentType = meta?.contentType || 'universal';
+
       await autoSaveToLibrary(
         contentForHash,
-        title || extractTitleFromContent(contentForHash) || 'Auto-gespeichert',
+        freshTitle || extractTitleFromContent(contentForHash) || 'Auto-gespeichert',
         contentType
       );
 
       exportedContentHashesRef.current.add(contentHash);
-      console.log('[ActionButtons Auto-save] Successfully saved');
     } catch (error) {
       console.warn('[ActionButtons Auto-save] Failed:', error);
     }
@@ -319,7 +322,7 @@ const ActionButtons = ({
           showMoreMenu={false}
         />
       ),
-      undo: showUndo && (canUndoState || isEditModeActive) && (
+      undo: showUndo && canUndoState && (
         <button
           key="undo"
           onClick={handleUndo}
@@ -334,7 +337,7 @@ const ActionButtons = ({
           <IoArrowUndoOutline size={16} />
         </button>
       ),
-      redo: showRedo && (canRedoState || isEditModeActive) && (
+      redo: showRedo && canRedoState && (
         <button
           key="redo"
           onClick={handleRedo}
@@ -393,8 +396,21 @@ const ActionButtons = ({
           <IoRefreshOutline size={16} />
         </button>
       ),
-      // TODO: re-enable when suggest_edits backend parsing is fixed
-      edit: null,
+      edit: onEditInDocs && isAuthenticated && (
+        <button
+          key="edit"
+          onClick={onEditInDocs}
+          className="action-button"
+          aria-label="Im Editor bearbeiten"
+          disabled={editInDocsLoading}
+          {...(!isMobileView && {
+            'data-tooltip-id': 'action-tooltip',
+            'data-tooltip-content': 'Im Editor bearbeiten',
+          })}
+        >
+          <IoCreateOutline size={16} />
+        </button>
+      ),
       more: (showExport || showDownload || showExportDropdown) && isAuthenticated && (
         <ExportDropdown
           key="more"

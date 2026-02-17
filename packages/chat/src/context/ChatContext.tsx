@@ -1,42 +1,26 @@
-'use client';
-
-import { createContext, useContext, type ReactNode } from 'react';
-
 /**
- * Platform-agnostic interface for chat API communication.
+ * Chat API client with injectable config via chatConfigStore.
  *
- * Each consumer (Next.js app, Vite web, Tauri desktop, Expo mobile)
- * provides its own adapter implementation.
+ * createChatApiClient() builds a ChatApiClient from any fetch function +
+ * unauthorized handler. The module-level chatFetch / chatApiClient exports
+ * use the config store's current values for backwards compatibility.
  */
-export interface ChatAdapter {
-  /** Perform a fetch request with appropriate auth (cookies, bearer, etc.) */
-  fetch: (url: string, options?: RequestInit) => Promise<Response>;
-  /** Base URL for the API (e.g. 'https://api.gruenerator.de' or '') */
-  getApiBaseUrl(): string;
-  /** Get auth headers for non-fetch usage (e.g. SSE streams) */
-  getAuthHeaders(): Promise<Record<string, string>>;
-  /** Called on 401 — redirect to login or show auth UI */
-  onUnauthorized(): void;
-}
 
-/**
- * Typed API client derived from a ChatAdapter.
- * Used by Zustand stores which can't call React hooks.
- */
+import { useChatConfigStore } from '../stores/chatConfigStore';
+
 export interface ChatApiClient {
   get<T>(url: string): Promise<T>;
   post<T>(url: string, data?: unknown): Promise<T>;
+  patch<T>(url: string, data?: unknown): Promise<T>;
   delete<T>(url: string): Promise<T>;
 }
 
-/**
- * Create a ChatApiClient from a ChatAdapter.
- */
-export function createApiClient(adapter: ChatAdapter): ChatApiClient {
+export function createChatApiClient(
+  fetchFn: (url: string, options?: RequestInit) => Promise<Response>,
+  onUnauthorized: () => void
+): ChatApiClient {
   async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = endpoint.startsWith('http') ? endpoint : `${adapter.getApiBaseUrl()}${endpoint}`;
-
-    const response = await adapter.fetch(url, {
+    const response = await fetchFn(endpoint, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -45,7 +29,7 @@ export function createApiClient(adapter: ChatAdapter): ChatApiClient {
     });
 
     if (response.status === 401) {
-      adapter.onUnauthorized();
+      onUnauthorized();
       throw new Error('Unauthorized');
     }
 
@@ -74,20 +58,36 @@ export function createApiClient(adapter: ChatAdapter): ChatApiClient {
         method: 'POST',
         body: data ? JSON.stringify(data) : undefined,
       }),
+    patch: <T,>(endpoint: string, data?: unknown) =>
+      request<T>(endpoint, {
+        method: 'PATCH',
+        body: data ? JSON.stringify(data) : undefined,
+      }),
     delete: <T,>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
   };
 }
 
-const ChatAdapterContext = createContext<ChatAdapter | null>(null);
-
-export function ChatProvider({ adapter, children }: { adapter: ChatAdapter; children: ReactNode }) {
-  return <ChatAdapterContext.Provider value={adapter}>{children}</ChatAdapterContext.Provider>;
+/** Backwards-compatible fetch — delegates to the config store's current fetch. */
+export function chatFetch(url: string, options?: RequestInit): Promise<Response> {
+  return useChatConfigStore.getState().fetch(url, options);
 }
 
-export function useChatAdapter(): ChatAdapter {
-  const adapter = useContext(ChatAdapterContext);
-  if (!adapter) {
-    throw new Error('useChatAdapter must be used within a ChatProvider');
-  }
-  return adapter;
-}
+/** Backwards-compatible singleton — delegates to the config store's current config. */
+export const chatApiClient: ChatApiClient = {
+  get: <T,>(endpoint: string) => {
+    const { fetch: fetchFn, onUnauthorized } = useChatConfigStore.getState();
+    return createChatApiClient(fetchFn, onUnauthorized).get<T>(endpoint);
+  },
+  post: <T,>(endpoint: string, data?: unknown) => {
+    const { fetch: fetchFn, onUnauthorized } = useChatConfigStore.getState();
+    return createChatApiClient(fetchFn, onUnauthorized).post<T>(endpoint, data);
+  },
+  patch: <T,>(endpoint: string, data?: unknown) => {
+    const { fetch: fetchFn, onUnauthorized } = useChatConfigStore.getState();
+    return createChatApiClient(fetchFn, onUnauthorized).patch<T>(endpoint, data);
+  },
+  delete: <T,>(endpoint: string) => {
+    const { fetch: fetchFn, onUnauthorized } = useChatConfigStore.getState();
+    return createChatApiClient(fetchFn, onUnauthorized).delete<T>(endpoint);
+  },
+};

@@ -1,17 +1,3 @@
-import { useState, useCallback } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  View,
-  Text,
-  useColorScheme,
-} from 'react-native';
-import { spacing, typography, lightTheme, darkTheme } from '../../theme';
-import { TextInput, Button, ImagePicker } from '../common';
-import { FeatureIcons } from './FeatureIcons';
-import { useGeneratorSelectionStore } from '../../stores';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import {
   GENERATOR_ENDPOINTS,
@@ -20,6 +6,16 @@ import {
   parseGeneratorResponse,
   parseGeneratorError,
 } from '@gruenerator/shared/generators';
+import { useState, useCallback } from 'react';
+import { StyleSheet, View, Text, useColorScheme } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+
+import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
+import { useGeneratorSelectionStore } from '../../stores';
+import { spacing, typography, lightTheme, darkTheme } from '../../theme';
+import { TextInput, Button, ImagePicker, MicButton } from '../common';
+
+import { FeatureIcons } from './FeatureIcons';
 
 interface AltTextFormProps {
   onResult: (result: string) => void;
@@ -36,6 +32,7 @@ export function AltTextForm({ onResult, onError }: AltTextFormProps) {
   );
   const [imageDescription, setImageDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const { isListening, toggle: toggleSpeech } = useSpeechToText();
 
   const handleImageSelected = useCallback((base64: string, fileName: string) => {
     setImageBase64(base64);
@@ -97,56 +94,65 @@ export function AltTextForm({ onResult, onError }: AltTextFormProps) {
   }, [imageBase64, imageDescription, onResult, onError]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAwareScrollView
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.header, { color: theme.text }]}>Welches Bild beschreiben wir?</Text>
-        <ImagePicker
-          onImageSelected={handleImageSelected}
-          onError={handleImageError}
-          selectedImage={selectedImage}
-          onClear={handleImageClear}
-        />
+      <Text style={[styles.header, { color: theme.text }]}>Welches Bild beschreiben wir?</Text>
+      <ImagePicker
+        onImageSelected={handleImageSelected}
+        onError={handleImageError}
+        selectedImage={selectedImage}
+        onClear={handleImageClear}
+      />
 
-        {selectedImage && (
-          <View style={styles.descriptionContainer}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                label="Zusätzliche Beschreibung (optional)"
-                placeholder="Kontext oder besondere Details zum Bild..."
-                value={imageDescription}
-                onChangeText={setImageDescription}
-                multiline
-                numberOfLines={3}
+      {selectedImage && (
+        <View style={styles.descriptionContainer}>
+          <View style={styles.inputContainer}>
+            <TextInput
+              label="Zusätzliche Beschreibung (optional)"
+              placeholder="Kontext oder besondere Details zum Bild..."
+              value={imageDescription}
+              onChangeText={setImageDescription}
+              multiline
+              numberOfLines={3}
+            />
+            <View style={styles.inputToolbar}>
+              <FeatureIcons showContent={false} />
+              <MicButton
+                isListening={isListening}
+                onMicPress={() =>
+                  toggleSpeech((t) => setImageDescription((prev) => appendTranscript(prev, t)))
+                }
+                hasText={!!imageBase64}
+                onSubmit={handleSubmit}
               />
-              <View style={styles.featureIconsContainer}>
-                <FeatureIcons showContent={false} />
-              </View>
             </View>
-
-            <Button onPress={handleSubmit} loading={loading}>
-              Alt-Text grünerieren
-            </Button>
           </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          <Button onPress={handleSubmit} loading={loading}>
+            Alt-Text grünerieren
+          </Button>
+        </View>
+      )}
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
   header: { ...typography.h2, marginBottom: spacing.small },
   descriptionContainer: { gap: spacing.medium },
   inputContainer: {
     position: 'relative',
   },
-  featureIconsContainer: {
+  inputToolbar: {
     position: 'absolute',
     bottom: spacing.medium + 4,
     left: spacing.medium,
+    right: spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });

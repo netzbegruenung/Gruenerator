@@ -184,8 +184,9 @@ export class Mem0Service {
         limit,
       });
 
-      const memories = (response?.results || []).map(toMem0Memory);
-      log.info(`[Mem0] Found ${memories.length} relevant memories for user ${userId}`);
+      const allMemories = (response?.results || []).map(toMem0Memory);
+      const memories = allMemories.filter((m) => (m.score ?? 1) >= 0.4);
+      log.info(`[Mem0] Found ${memories.length} relevant memories (${allMemories.length - memories.length} filtered below threshold) for user ${userId}`);
 
       return memories;
     } catch (error) {

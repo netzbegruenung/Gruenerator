@@ -83,12 +83,52 @@
   width: var(--sidebar-expanded-width);
 }
 
+/* Sidebar Header - Home & Close buttons */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--card-border-radius-small);
+  color: var(--font-color-h);
+  font-size: 1.4rem;
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-header-btn:hover {
+  background-color: var(--hover-color-alt);
+}
+
+/* Hide header buttons when sidebar is collapsed (behind hamburger) */
+.sidebar-header {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar--open .sidebar-header {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Navigation Container */
 .sidebar-nav {
-  flex: 1;
-  overflow-y: auto;
+  flex: 0 0 auto;
   overflow-x: hidden;
-  padding: 60px 0 var(--spacing-small);
+  padding: 0 0 var(--spacing-small);
 }
 
 /* Main Navigation */
@@ -97,9 +137,6 @@
   flex-direction: column;
   gap: 2px;
   padding: 0;
-  margin-bottom: var(--spacing-small);
-  border-bottom: var(--border-subtle);
-  padding-bottom: var(--spacing-small);
 }
 
 /* Menu Links - Icon-first design */
@@ -531,3 +568,40 @@
   opacity: 1;
   transform: translateX(0);
 }
+
+/* ── Chat thread list portal slot ── */
+.sidebar-chat-threads {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  border-top: var(--border-subtle);
+}
+
+.sidebar--open .sidebar-chat-threads {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Force-expanded sidebar for /chat route */
+.sidebar--chat {
+  width: var(--sidebar-expanded-width);
+}
+
+.sidebar--chat .sidebar-item-title,
+.sidebar--chat .sidebar-section-title,
+.sidebar--chat .sidebar-section-caret,
+.sidebar--chat .sidebar-caret {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar--chat .sidebar-footer-link-title {
+  opacity: 1;
+}
+
+

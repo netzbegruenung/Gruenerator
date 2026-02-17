@@ -4,6 +4,7 @@
  */
 
 import { apiRequest } from '../../api/client.js';
+
 import type {
   Share,
   ShareResponse,
@@ -31,6 +32,8 @@ export const SHARE_ENDPOINTS = {
   UPDATE_IMAGE: (token: string) => `/share/${token}/image`,
   DELETE_SHARE: (token: string) => `/share/${token}`,
   SAVE_AS_TEMPLATE: (token: string) => `/share/${token}/save-as-template`,
+  PUSH_TO_PHONE: '/share/push-to-phone',
+  DEVICES: '/share/devices',
 } as const;
 
 /**
@@ -108,6 +111,43 @@ export async function saveAsTemplate(
   });
 }
 
+// ============================================================================
+// PUSH TO PHONE
+// ============================================================================
+
+export interface UserDevice {
+  id: string;
+  device_name: string | null;
+  device_type: string;
+  has_push_token: boolean;
+  last_used_at: string | null;
+}
+
+export interface PushToPhoneResponse {
+  success: boolean;
+  pushedToDevices: number;
+  error?: string;
+}
+
+export interface DevicesResponse {
+  success: boolean;
+  devices: UserDevice[];
+}
+
+/**
+ * Get user's registered mobile devices
+ */
+export async function getUserDevices(): Promise<DevicesResponse> {
+  return apiRequest<DevicesResponse>('get', SHARE_ENDPOINTS.DEVICES);
+}
+
+/**
+ * Push shared content to user's mobile device(s)
+ */
+export async function pushToPhone(shareToken: string): Promise<PushToPhoneResponse> {
+  return apiRequest<PushToPhoneResponse>('post', SHARE_ENDPOINTS.PUSH_TO_PHONE, { shareToken });
+}
+
 /**
  * Share API object for convenient access
  */
@@ -120,5 +160,7 @@ export const shareApi = {
   getShareInfo,
   deleteShare,
   saveAsTemplate,
+  getUserDevices,
+  pushToPhone,
   endpoints: SHARE_ENDPOINTS,
 };

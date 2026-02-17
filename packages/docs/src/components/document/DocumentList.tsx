@@ -1,4 +1,7 @@
+import { Menu, ActionIcon } from '@mantine/core';
 import { useEffect, useMemo, useState } from 'react';
+import { FiPlus, FiFile, FiGrid } from 'react-icons/fi';
+
 import { useDocumentStore } from '../../stores/documentStore';
 import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 import { templates, type TemplateType, getTemplateContent } from '../../lib/templates';
@@ -50,10 +53,13 @@ export const DocumentList = () => {
 
   return (
     <div className="document-list">
-      <TemplateCarousel
-        onTemplateSelect={handleTemplateSelect}
-        onShowGallery={() => setShowGallery(true)}
-      />
+      {/* Desktop: full template carousel */}
+      <div className="desktop-only-templates">
+        <TemplateCarousel
+          onTemplateSelect={handleTemplateSelect}
+          onShowGallery={() => setShowGallery(true)}
+        />
+      </div>
 
       {documents.length === 0 ? (
         <div className="document-list-empty">
@@ -114,6 +120,36 @@ export const DocumentList = () => {
           })}
         </div>
       )}
+
+      {/* Mobile: floating action button */}
+      <div className="mobile-fab-container">
+        <Menu position="top-end" shadow="lg" withArrow offset={8}>
+          <Menu.Target>
+            <ActionIcon
+              size={52}
+              radius="xl"
+              variant="filled"
+              className="mobile-fab"
+              aria-label="Neues Dokument erstellen"
+              style={{ backgroundColor: '#5F8575' }}
+            >
+              <FiPlus size={24} />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>Neues Dokument</Menu.Label>
+            <Menu.Item
+              leftSection={<FiFile size={16} />}
+              onClick={() => handleTemplateSelect('blank')}
+            >
+              Leeres Dokument
+            </Menu.Item>
+            <Menu.Item leftSection={<FiGrid size={16} />} onClick={() => setShowGallery(true)}>
+              Aus Vorlage...
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      </div>
 
       {showGallery && (
         <TemplatePicker onSelect={handleTemplateSelect} onClose={() => setShowGallery(false)} />

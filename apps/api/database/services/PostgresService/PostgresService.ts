@@ -4,8 +4,32 @@
  */
 
 import pkg from 'pg';
+
 const { Pool } = pkg;
 import fs from 'fs';
+
+import { loadConfig, getSafeConfigForLog } from './config.js';
+import { runMigrations, createDatabaseIfNotExists } from './migrations.js';
+import {
+  buildInsertQuery,
+  buildUpdateQuery,
+  buildDeleteQuery,
+  buildUpsertQuery,
+  buildBulkInsertQuery,
+  transactionQuery,
+  transactionQueryOne,
+  transactionExec,
+} from './queries.js';
+import {
+  parseSchemaFile,
+  extractCreateTableStatements,
+  getSchemaPath,
+  loadSchemaCache,
+  validateTableName as schemaValidateTableName,
+  validateColumnNames as schemaValidateColumnNames,
+  generateAlterStatements,
+  sanitizeBackupPath,
+} from './schema.js';
 
 import type {
   PostgresConfig,
@@ -23,28 +47,6 @@ import type {
   Pool as PoolType,
   PoolClient,
 } from './types.js';
-
-import { loadConfig, getSafeConfigForLog } from './config.js';
-import {
-  parseSchemaFile,
-  getSchemaPath,
-  loadSchemaCache,
-  validateTableName as schemaValidateTableName,
-  validateColumnNames as schemaValidateColumnNames,
-  generateAlterStatements,
-  sanitizeBackupPath,
-} from './schema.js';
-import { runMigrations, createDatabaseIfNotExists } from './migrations.js';
-import {
-  buildInsertQuery,
-  buildUpdateQuery,
-  buildDeleteQuery,
-  buildUpsertQuery,
-  buildBulkInsertQuery,
-  transactionQuery,
-  transactionQueryOne,
-  transactionExec,
-} from './queries.js';
 
 export class PostgresService {
   config: PostgresConfig;
@@ -222,7 +224,35 @@ export class PostgresService {
 
       const schemaContent = fs.readFileSync(schemaPath, 'utf8');
       const expectedTables = parseSchemaFile(schemaContent);
-      const existingTables = await this.getExistingColumns();
+      let existingTables = await this.getExistingColumns();
+
+      // Create missing tables before syncing columns
+      const missingTableNames = Object.keys(expectedTables).filter((t) => !existingTables[t]);
+      if (missingTableNames.length > 0) {
+        console.log(
+          `[PostgresService] Found ${missingTableNames.length} missing tables to create: ${missingTableNames.join(', ')}`
+        );
+        const createStatements = extractCreateTableStatements(schemaContent);
+        const client = await this.pool!.connect();
+        try {
+          for (const tableName of missingTableNames) {
+            if (!createStatements[tableName]) continue;
+            try {
+              await client.query(createStatements[tableName]);
+              console.log(`[PostgresService] ✅ Created table ${tableName}`);
+            } catch (error) {
+              console.warn(
+                `[PostgresService] ⚠️ Failed to create table ${tableName}:`,
+                (error as Error).message
+              );
+            }
+          }
+        } finally {
+          client.release();
+        }
+        // Re-fetch after creating tables so column sync doesn't duplicate
+        existingTables = await this.getExistingColumns();
+      }
 
       const alterStatements = generateAlterStatements(expectedTables, existingTables);
 

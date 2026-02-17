@@ -63,6 +63,7 @@ import {
   PiSquaresFour,
   PiHouse,
   PiScan,
+  PiChatCircle,
 } from 'react-icons/pi';
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
@@ -137,7 +138,8 @@ export type NavigationIconName =
   | 'texte'
   | 'eigene'
   | 'home'
-  | 'scanner';
+  | 'scanner'
+  | 'messenger';
 
 /**
  * Action icon names
@@ -247,6 +249,7 @@ export const ICONS: IconRegistry = {
     eigene: PiWrench,
     home: PiHouse,
     scanner: PiScan,
+    messenger: PiChatCircle,
   },
 
   actions: {

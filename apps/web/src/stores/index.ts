@@ -17,7 +17,7 @@ export {
 // Active stores:
 export { default as useGeneratedTextStore } from './core/generatedTextStore';
 export { default as useFormStateStore } from './core/formStateStore';
-export { default as useTextEditActions } from './hooks/useTextEditActions';
+export { extractEditableText } from './hooks/useTextEditActions';
 
 // Canvas Editor
 export {

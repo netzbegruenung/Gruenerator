@@ -1,20 +1,17 @@
-import React, { lazy, Suspense, type ReactNode, ReactElement } from 'react';
+import React, { type ReactNode } from 'react';
 
+import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
+import { CitationBadge } from '../../Citation';
+import ImageDisplay, { type SharepicDataItem } from '../../ImageDisplay';
 import { Markdown } from '../../Markdown';
-
-import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
-
-const FinetuneEditor = lazy(() => import('../EditMode/FinetuneEditor'));
-
 import {
   isMarkdownContent,
   normalizeLineBreaks,
   removeGruenTitleTags,
   stripWrappingCodeFence,
 } from '../utils/contentUtils';
-import { CitationBadge } from '../../Citation';
-import ImageDisplay, { type SharepicDataItem } from '../../ImageDisplay';
-import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
+
+import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
 
 interface Citation {
   index: string | number;
@@ -79,14 +76,12 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   componentName = 'default',
   helpContent,
   onEditModeToggle,
-  isEditModeActive = false,
 }) => {
   const getGeneratedTextMetadata = useGeneratedTextStore((state) => state.getGeneratedTextMetadata);
 
   let processedGeneratedContent: GeneratedContent | undefined = generatedContent;
 
   // Parse JSON string if store returned stringified mixed content
-  // This handles the case where BaseForm stores content as JSON.stringify()
   if (typeof processedGeneratedContent === 'string') {
     const trimmed = processedGeneratedContent.trim();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -95,8 +90,6 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
         if (parsed && typeof parsed === 'object') {
           processedGeneratedContent = parsed;
 
-          // Restore function handlers from metadata (functions can't be JSON.stringified)
-          // BaseForm stores the original object with handlers as metadata
           const storedMetadata = getGeneratedTextMetadata(componentName) as Record<
             string,
             unknown
@@ -121,7 +114,6 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     processedGeneratedContent = (processedGeneratedContent as { content: string }).content;
   }
 
-  // Detect mixed content: has sharepic OR has selectedPlatforms (simplified social content structure)
   const isMixedContent =
     processedGeneratedContent &&
     typeof processedGeneratedContent === 'object' &&
@@ -129,7 +121,6 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
 
   const mixedContent = processedGeneratedContent as MixedContent | undefined;
 
-  // Extract content directly (simplified structure has content at top level, no social wrapper)
   const rawContent =
     isMixedContent && mixedContent
       ? mixedContent.content || ''
@@ -150,21 +141,19 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
         ? [mixedContent.sharepic]
         : [];
 
-    // Only load FinetuneEditor if there's actual text content (not just whitespace)
-    // This prevents loading the heavy MDXEditor bundle for sharepic-only content
     const hasTextContent = typeof contentToRender === 'string' && contentToRender.trim().length > 0;
 
     return (
       <div className="generated-content-wrapper mixed-content">
         {hasTextContent && (
           <div className="social-content-section">
-            <Suspense fallback={<div className="finetune-loading">Editor wird geladen...</div>}>
-              <FinetuneEditor componentName={componentName} readOnly={!isEditModeActive} />
-            </Suspense>
+            <div className="content-display markdown-content">
+              <Markdown>{contentToRender as string}</Markdown>
+            </div>
           </div>
         )}
 
-        {sharepicItems.length > 0 && !isEditModeActive && (
+        {sharepicItems.length > 0 && (
           <div className="sharepic-content-section">
             {sharepicItems.length > 1 ? (
               <ImageDisplay
@@ -250,17 +239,16 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     return processedGeneratedContent;
   }
 
-  // Calculate shouldUseMarkdown BEFORE checking string type
   const shouldUseMarkdown =
     useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender as string);
 
-  // If string content AND markdown rendering NOT requested → use FinetuneEditor
-  if (typeof contentToRender === 'string' && !shouldUseMarkdown) {
+  // All text content now renders as Markdown
+  if (typeof contentToRender === 'string') {
     return (
-      <div className={`generated-content-wrapper ${isEditModeActive ? 'editable' : ''}`}>
-        <Suspense fallback={<div className="finetune-loading">Editor wird geladen...</div>}>
-          <FinetuneEditor componentName={componentName} readOnly={!isEditModeActive} />
-        </Suspense>
+      <div className="generated-content-wrapper">
+        <div className="content-display markdown-content">
+          <Markdown>{contentToRender}</Markdown>
+        </div>
       </div>
     );
   }
@@ -364,7 +352,6 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       );
     }
   } else {
-    // contentToRender is not a string at this point, render it as a string representation
     const contentString =
       typeof contentToRender === 'string' ? contentToRender : JSON.stringify(contentToRender);
     let enhancedContent: ReactNode = contentString;

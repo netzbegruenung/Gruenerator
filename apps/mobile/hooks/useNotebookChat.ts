@@ -1,12 +1,13 @@
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { useState, useEffect, useCallback } from 'react';
+
+import { getNotebookConfig, type NotebookConfig } from '../config/notebooksConfig';
+import { queryNotebook, queryMultiNotebook } from '../services/notebook';
 import {
   useNotebookChatStore,
   type NotebookChatMessage,
   type NotebookSource,
 } from '../stores/notebookChatStore';
-import { queryNotebook, queryMultiNotebook } from '../services/notebook';
-import { getNotebookConfig, type NotebookConfig } from '../config/notebooksConfig';
-import { useAuthStore } from '@gruenerator/shared/stores';
 import { getErrorMessage } from '../utils/errors';
 
 interface UseNotebookChatOptions {
@@ -78,7 +79,10 @@ export function useNotebookChat({ notebookId }: UseNotebookChatOptions): UseNote
 
           answer = response.answer;
 
-          // Flatten sources from all collections
+          // Use top-level citations (have index fields for inline ⚡CITE⚡ rendering)
+          citations = response.citations || [];
+
+          // Flatten sources from all collections for the sources list
           for (const [collectionId, collectionSources] of Object.entries(
             response.sourcesByCollection || {}
           )) {
@@ -91,8 +95,7 @@ export function useNotebookChat({ notebookId }: UseNotebookChatOptions): UseNote
               }))
             );
           }
-          // For multi-collection, sources act as citations
-          citations = sources;
+          if (citations.length === 0) citations = sources;
         } else {
           // Single collection query
           const collectionId = config.collections[0]?.id;

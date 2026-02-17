@@ -4,7 +4,6 @@ import { GiHedgehog } from 'react-icons/gi';
 import {
   HiOutlineExternalLink,
   HiOutlineDatabase,
-  HiOutlinePhotograph,
   HiOutlineUsers,
   HiSave,
   HiOutlineChat,
@@ -71,13 +70,13 @@ const LocaleSelector: React.FC = () => {
 const BETA_VIEWS = {
   DATABASE: 'database',
   COLLAB: 'collab',
-  CANVA: 'canva',
   AUTO_SAVE_EXPORT: 'autoSaveOnExport',
-  // DEPRECATED: CHAT: 'chat',
   GROUPS: 'groups',
   WEBSITE: 'website',
   VORLAGEN: 'vorlagen',
   SCANNER: 'scanner',
+  DOCS: 'docs',
+  CHAT: 'chat',
 };
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({
@@ -117,16 +116,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers,
         };
-      case BETA_VIEWS.CANVA:
-        return {
-          title: 'Canva Integration',
-          description: 'Designs und Assets aus Canva nutzen',
-          checked: getBetaFeatureState('canva'),
-          setter: (value: boolean) => updateUserBetaFeatures('canva', value),
-          featureName: 'Canva Integration',
-          checkboxLabel: 'Canva-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
-          icon: HiOutlinePhotograph,
-        };
       case BETA_VIEWS.AUTO_SAVE_EXPORT:
         return {
           title: 'Auto-Speichern',
@@ -137,19 +126,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           checkboxLabel: 'Automatisches Speichern bei jedem Export aktivieren',
           icon: HiSave,
         };
-      // DEPRECATED: Grünerator Chat case
-      // case BETA_VIEWS.CHAT:
-      //   return {
-      //     title: 'Grünerator Chat',
-      //     description: 'KI-Chat für Fragen und Antworten',
-      //     checked: getBetaFeatureState('chat'),
-      //     setter: (value: boolean) => updateUserBetaFeatures('chat', value),
-      //     featureName: 'Grünerator Chat',
-      //     checkboxLabel: 'Grünerator Chat aktivieren',
-      //     linkTo: '/chat',
-      //     linkText: 'Zum Chat',
-      //     icon: HiOutlineChat,
-      //   };
+      case BETA_VIEWS.CHAT:
+        return {
+          title: 'Grünerator Chat',
+          description: 'KI-Chat für Fragen und Antworten',
+          checked: getBetaFeatureState('chat'),
+          setter: (value: boolean) => updateUserBetaFeatures('chat', value),
+          featureName: 'Grünerator Chat',
+          checkboxLabel: 'Grünerator Chat aktivieren',
+          linkTo: '/chat',
+          linkText: 'Zum Chat',
+          icon: HiOutlineChat,
+        };
       case BETA_VIEWS.GROUPS:
         return {
           title: 'Gruppen',
@@ -197,6 +185,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkTo: '/scanner',
           linkText: 'Zum Scanner',
           icon: getIcon('navigation', 'scanner') as IconType,
+        };
+      case BETA_VIEWS.DOCS:
+        return {
+          title: 'Dokumente',
+          description: 'Kollaborativer Dokumenten-Editor mit Echtzeit-Zusammenarbeit',
+          checked: getBetaFeatureState('docs'),
+          setter: (value: boolean) => updateUserBetaFeatures('docs', value),
+          featureName: 'Dokumente',
+          checkboxLabel: 'Kollaborativen Dokumenten-Editor aktivieren',
+          linkTo: '/docs',
+          linkText: 'Zu den Dokumenten',
+          icon: HiOutlineDocumentSearch,
         };
       default:
         return null;

@@ -1,6 +1,7 @@
-import type { AIWorkerResult, EnhancedAIWorkerResult, FormData } from './types.js';
 import { detectContentType } from './contentType.js';
 import { extractTitleFromResponse } from './titleUtils.js';
+
+import type { AIWorkerResult, EnhancedAIWorkerResult, FormData } from './types.js';
 
 const SOCIAL_LIKE_TYPES = new Set([
   'instagram',
@@ -64,15 +65,18 @@ export function processResponseWithTitle(
   const extractedTitle = extractTitleFromResponse(result.content, contentType, formData);
 
   let cleanContent = result.content;
+  let titleSource: 'extracted' | 'smart' = 'smart';
 
   const gruentitleMatch = result.content.match(/<GRUEN_TITLE>.*?<\/GRUEN_TITLE>/s);
   if (gruentitleMatch) {
     cleanContent = result.content.replace(/<GRUEN_TITLE>.*?<\/GRUEN_TITLE>/s, '').trim();
+    titleSource = 'extracted';
     console.log('[processResponseWithTitle] Removed GRUEN_TITLE markers from content');
   } else {
     const titleMatch = result.content.match(/Titel:\s*(.+)$/im);
     if (titleMatch) {
       cleanContent = result.content.replace(/\n*Titel:\s*(.+)$/im, '').trim();
+      titleSource = 'extracted';
       console.log('[processResponseWithTitle] Removed legacy title line from content');
     }
   }
@@ -94,6 +98,7 @@ export function processResponseWithTitle(
     metadata: {
       ...result.metadata,
       title: extractedTitle,
+      titleSource,
       contentType: contentType,
     },
   };

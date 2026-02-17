@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { ScrollArea, Stack, Text, Box } from '@mantine/core';
+import { ScrollArea, Stack, Text, Flex, ActionIcon, Divider } from '@mantine/core';
+import { FiX, FiMessageCircle } from 'react-icons/fi';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import type { ChatMessage } from '../../hooks/useDocumentChat';
@@ -10,9 +11,18 @@ interface ChatSidebarProps {
   currentUserId: string | null;
   onSend: (text: string) => void;
   isConnected: boolean;
+  onClose?: () => void;
+  hideHeader?: boolean;
 }
 
-export const ChatSidebar = ({ messages, currentUserId, onSend, isConnected }: ChatSidebarProps) => {
+export const ChatSidebar = ({
+  messages,
+  currentUserId,
+  onSend,
+  isConnected,
+  onClose,
+  hideHeader = false,
+}: ChatSidebarProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
@@ -35,12 +45,30 @@ export const ChatSidebar = ({ messages, currentUserId, onSend, isConnected }: Ch
   }, []);
 
   return (
-    <div className="chat-sidebar">
-      <Box px="md" py="sm" className="chat-sidebar-header">
-        <Text fw={600} size="sm">
-          Chat
-        </Text>
-      </Box>
+    <Flex direction="column" className="chat-sidebar">
+      {!hideHeader && (
+        <>
+          <Flex align="center" justify="space-between" px="md" py="sm">
+            <Text fw={600} size="sm">
+              Chat
+            </Text>
+            {onClose && (
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                onClick={onClose}
+                aria-label="Chat schließen"
+                className="chat-sidebar-close"
+              >
+                <FiX size={16} />
+              </ActionIcon>
+            )}
+          </Flex>
+
+          <Divider />
+        </>
+      )}
 
       <ScrollArea
         style={{ flex: 1 }}
@@ -48,21 +76,14 @@ export const ChatSidebar = ({ messages, currentUserId, onSend, isConnected }: Ch
         onScrollPositionChange={checkIfAtBottom}
       >
         {messages.length === 0 ? (
-          <Box
-            p="xl"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 200,
-            }}
-          >
+          <Flex align="center" justify="center" direction="column" gap="xs" py={60}>
+            <FiMessageCircle size={32} color="var(--grey-300, #bdbdbd)" />
             <Text c="dimmed" size="sm">
               Noch keine Nachrichten
             </Text>
-          </Box>
+          </Flex>
         ) : (
-          <Stack gap={4} px="sm" py="xs">
+          <Stack gap="xs" px="sm" py="xs">
             {messages.map((msg) => (
               <ChatMessageComponent
                 key={msg.id}
@@ -75,6 +96,6 @@ export const ChatSidebar = ({ messages, currentUserId, onSend, isConnected }: Ch
       </ScrollArea>
 
       <ChatComposer onSend={onSend} disabled={!isConnected} />
-    </div>
+    </Flex>
   );
 };

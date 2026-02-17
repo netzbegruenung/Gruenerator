@@ -537,7 +537,6 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
         componentName={componentName}
         useFeatureIcons={false}
         helpContent={helpContent}
-        enableEditMode={true}
         customEditContent={customEditContent}
         onImageEditModeChange={setIsImageEditMode}
         firstExtrasChildren={renderCampaignSelector()}

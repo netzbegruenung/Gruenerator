@@ -34,7 +34,7 @@ RUN pnpm exec tsc --project tsconfig.build.json
 # =============================================================================
 # Stage 2: Production - Fresh install with production deps only
 # =============================================================================
-FROM node:20-slim AS production
+FROM node:20-alpine AS production
 
 # OCI Image Labels
 LABEL org.opencontainers.image.title="Gruenerator MCP Server"
@@ -49,11 +49,12 @@ LABEL mcp.transport="streamable-http"
 LABEL mcp.endpoint="/mcp"
 
 # Install curl for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
-# Create non-root user
-RUN groupadd -g 1001 gruenerator && \
-    useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator
+# Create non-root user and /app directory with correct ownership
+RUN addgroup -g 1001 gruenerator && \
+    adduser -u 1001 -G gruenerator -s /bin/sh -D gruenerator && \
+    mkdir -p /app && chown gruenerator:gruenerator /app
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10 --activate
@@ -69,12 +70,12 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/mcp/package.json ./services/mcp/
 
-# Install production dependencies only (no tsx, typescript, @types/*, etc.)
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --filter @gruenerator/mcp...
+# Switch to non-root user before install (files written as gruenerator, no chown needed)
+USER gruenerator
 
-# Fix ownership of pnpm-installed node_modules
-RUN chown -R gruenerator:gruenerator node_modules packages/shared/node_modules services/mcp/node_modules 2>/dev/null; true
+# Install production dependencies only (no tsx, typescript, @types/*, etc.)
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
+    pnpm install --prod --frozen-lockfile --filter @gruenerator/mcp...
 
 # Copy compiled shared package (resolves @gruenerator/shared imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
@@ -90,9 +91,6 @@ WORKDIR /app/services/mcp
 # Environment
 ENV NODE_ENV=production
 ENV PORT=3004
-
-# Run as non-root user
-USER gruenerator
 
 EXPOSE 3004
 

@@ -111,6 +111,7 @@ function sanitizeUserForResponse(user: UserProfile): Partial<UserProfile> {
     video_editor,
     scanner,
     prompts,
+    custom_prompt,
   } = user;
 
   return {
@@ -140,6 +141,7 @@ function sanitizeUserForResponse(user: UserProfile): Partial<UserProfile> {
     video_editor,
     scanner,
     prompts,
+    custom_prompt,
   };
 }
 
@@ -586,6 +588,262 @@ router.delete('/mobile/sessions', async (req: AuthRequest, res: Response): Promi
       error: 'server_error',
       message: 'Failed to revoke sessions',
     });
+  }
+});
+
+/**
+ * POST /auth/mobile/register-push-token
+ *
+ * Register an Expo push token for the current device.
+ * Requires both the Bearer access token and the refresh token to identify the device row.
+ */
+router.post(
+  '/mobile/register-push-token',
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ success: false, error: 'missing_token' });
+        return;
+      }
+
+      const token = authHeader.substring(7);
+      let payload;
+      try {
+        const result = await jwtVerify(token, JWT_SECRET, {
+          issuer: 'gruenerator-api',
+          audience: 'gruenerator-app',
+        });
+        payload = result.payload;
+      } catch {
+        res.status(401).json({ success: false, error: 'invalid_token' });
+        return;
+      }
+
+      if (!payload.sub) {
+        res.status(401).json({ success: false, error: 'invalid_token' });
+        return;
+      }
+
+      const { expoPushToken, refresh_token } = req.body as {
+        expoPushToken: string;
+        refresh_token: string;
+      };
+
+      if (!expoPushToken || !refresh_token) {
+        res.status(400).json({
+          success: false,
+          error: 'missing_params',
+          message: 'expoPushToken and refresh_token are required',
+        });
+        return;
+      }
+
+      // Validate Expo push token format
+      if (
+        !expoPushToken.startsWith('ExponentPushToken[') &&
+        !expoPushToken.startsWith('ExpoPushToken[')
+      ) {
+        res.status(400).json({
+          success: false,
+          error: 'invalid_push_token',
+          message: 'Invalid Expo push token format',
+        });
+        return;
+      }
+
+      const userId = payload.sub as string;
+      const refreshTokenHash = hashToken(refresh_token);
+
+      const { registerPushToken } = await import('../../services/pushNotificationService.js');
+      await registerPushToken(userId, refreshTokenHash, expoPushToken);
+
+      log.info('[MobileAuth] Push token registered', { userId });
+      res.json({ success: true });
+    } catch (error) {
+      log.error('[MobileAuth] Error registering push token:', error);
+      res.status(500).json({ success: false, error: 'server_error' });
+    }
+  }
+);
+
+/**
+ * GET /auth/mobile/devices
+ *
+ * Get all active devices for the authenticated user.
+ */
+router.get('/mobile/devices', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ success: false, error: 'missing_token' });
+      return;
+    }
+
+    const token = authHeader.substring(7);
+    let payload;
+    try {
+      const result = await jwtVerify(token, JWT_SECRET, {
+        issuer: 'gruenerator-api',
+        audience: 'gruenerator-app',
+      });
+      payload = result.payload;
+    } catch {
+      res.status(401).json({ success: false, error: 'invalid_token' });
+      return;
+    }
+
+    if (!payload.sub) {
+      res.status(401).json({ success: false, error: 'invalid_token' });
+      return;
+    }
+
+    const { getUserDevices } = await import('../../services/pushNotificationService.js');
+    const devices = await getUserDevices(payload.sub as string);
+
+    res.json({ success: true, devices });
+  } catch (error) {
+    log.error('[MobileAuth] Error getting devices:', error);
+    res.status(500).json({ success: false, error: 'server_error' });
+  }
+});
+
+// In-memory store for single-use bridge codes (short TTL, auto-cleanup)
+const bridgeCodes = new Map<string, { userId: string; redirect: string; expiresAt: number }>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, entry] of bridgeCodes) {
+    if (entry.expiresAt < now) bridgeCodes.delete(code);
+  }
+}, 60_000);
+
+const BRIDGE_CODE_TTL_MS = 30_000; // 30 seconds
+const MAX_BRIDGE_CODES = 1000;
+
+function sanitizeRedirect(redirect: string): string {
+  if (!redirect.startsWith('/') || redirect.startsWith('//') || redirect.includes('\\')) {
+    return '/';
+  }
+  return redirect;
+}
+
+/**
+ * POST /auth/mobile/session-bridge
+ *
+ * Step 1: Exchange a mobile JWT for a single-use bridge code.
+ * The code is opaque and short-lived (30s). No sensitive token in URLs.
+ */
+router.post('/mobile/session-bridge', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    const redirect = req.body?.redirect as string;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Authorization header with Bearer token required' });
+      return;
+    }
+
+    if (!redirect) {
+      res.status(400).json({ error: 'Missing redirect' });
+      return;
+    }
+
+    const token = authHeader.substring(7);
+
+    let payload;
+    try {
+      const result = await jwtVerify(token, JWT_SECRET, {
+        issuer: 'gruenerator-api',
+        audience: 'gruenerator-app',
+      });
+      payload = result.payload;
+    } catch {
+      res.status(401).json({ error: 'Invalid or expired token' });
+      return;
+    }
+
+    if (payload.token_use !== 'access' || !payload.sub) {
+      res.status(401).json({ error: 'Invalid token' });
+      return;
+    }
+
+    if (bridgeCodes.size >= MAX_BRIDGE_CODES) {
+      res.status(503).json({ error: 'Too many pending bridge requests' });
+      return;
+    }
+
+    const code = randomBytes(32).toString('base64url');
+    const safeRedirect = sanitizeRedirect(redirect);
+
+    bridgeCodes.set(code, {
+      userId: payload.sub as string,
+      redirect: safeRedirect,
+      expiresAt: Date.now() + BRIDGE_CODE_TTL_MS,
+    });
+
+    log.info('[SessionBridge] Bridge code created', {
+      userId: payload.sub,
+      redirect: safeRedirect,
+    });
+
+    res.json({ code });
+  } catch (error) {
+    log.error('[SessionBridge] Error creating bridge code:', error);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+/**
+ * GET /auth/mobile/session-bridge
+ *
+ * Step 2: Consume the single-use bridge code, create a session, and redirect.
+ * The WebView loads this URL — the code is opaque, short-lived, and single-use.
+ */
+router.get('/mobile/session-bridge', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const code = req.query.code as string;
+
+    if (!code) {
+      res.status(400).send('Missing code');
+      return;
+    }
+
+    const entry = bridgeCodes.get(code);
+    bridgeCodes.delete(code); // single-use: always delete immediately
+
+    if (!entry || entry.expiresAt < Date.now()) {
+      res.status(401).send('Invalid or expired code');
+      return;
+    }
+
+    const { getProfileService } = await import('../../services/user/ProfileService.js');
+    const profileService = getProfileService();
+    const user = await profileService.getProfileById(entry.userId);
+
+    if (!user) {
+      res.status(404).send('User not found');
+      return;
+    }
+
+    req.login(user, (err) => {
+      if (err) {
+        log.error('[SessionBridge] Failed to create session:', err);
+        res.status(500).send('Failed to create session');
+        return;
+      }
+
+      log.info('[SessionBridge] Session created for user', {
+        userId: entry.userId,
+        redirect: entry.redirect,
+      });
+      res.redirect(entry.redirect);
+    });
+  } catch (error) {
+    log.error('[SessionBridge] Error:', error);
+    res.status(500).send('Internal error');
   }
 });
 

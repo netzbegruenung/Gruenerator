@@ -13,8 +13,8 @@
  * - excludePatterns: URL patterns to skip
  */
 
-export type ContentType = 'presse' | 'beschluss' | 'antrag' | 'blog';
-export type CMSType = 'wordpress' | 'neos' | 'typo3' | 'custom';
+export type ContentType = 'presse' | 'beschluss' | 'antrag' | 'blog' | 'wahlprogramm';
+export type CMSType = 'wordpress' | 'neos' | 'typo3' | 'custom' | 'drupal';
 export type SourceType = 'landesverband' | 'fraktion';
 
 export interface ContentPath {
@@ -24,6 +24,7 @@ export interface ContentPath {
   paginationPattern?: string;
   maxPages?: number;
   isPdfArchive?: boolean;
+  paginationOffset?: number; // Offset for page number in pagination (default: 0). Use -1 for Drupal 0-indexed pagination.
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
 }
@@ -264,6 +265,87 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       },
       excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:'],
     },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // THÜRINGEN
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      id: 'thueringen-lv',
+      name: 'Grüne Thüringen',
+      shortName: 'TH',
+      type: 'landesverband',
+      baseUrl: 'https://gruene-thueringen.de',
+      cms: 'wordpress',
+      maxAgeYears: 12,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/category/service/pressemitteilungen/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          paginationPattern: '/page/{page}/',
+          maxPages: 50,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
+        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      id: 'thueringen-fraktion',
+      name: 'Grüne Fraktion Thüringen',
+      shortName: 'TH-F',
+      type: 'fraktion',
+      baseUrl: 'https://www.gruene-thl.de',
+      cms: 'drupal',
+      maxAgeYears: 12,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/presse',
+          listSelector: 'h3 a, .views-row a, .node-title a, article a[href]',
+          paginationPattern: '?page={page}',
+          paginationOffset: -1,
+          maxPages: 497,
+        },
+        {
+          type: 'blog',
+          path: '/in-aktion',
+          listSelector: 'h3 a, .views-row a, .node-title a, article a[href]',
+          paginationPattern: '?page={page}',
+          paginationOffset: -1,
+          maxPages: 55,
+        },
+        {
+          type: 'antrag',
+          path: '/parlament',
+          listSelector: 'h3 a, .views-row a, .node-title a, article a[href]',
+          paginationPattern: '?page={page}',
+          paginationOffset: -1,
+          maxPages: 50,
+        },
+        {
+          type: 'blog',
+          path: '/bilanz',
+          listSelector: 'h3 a, .views-row a, .node-title a, article a[href]',
+          paginationPattern: '?page={page}',
+          paginationOffset: -1,
+          maxPages: 20,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1', '.page-title', 'h1.title', 'meta[property="og:title"]'],
+        date: ['time[datetime]', 'time', '.date', '.field--name-created'],
+        content: ['article', '.node__content', '.field--name-body', 'main .content'],
+        categories: ['.field--name-field-tags a', '.tags a'],
+        author: ['.author', '.field--name-uid'],
+      },
+      excludePatterns: ['/sites/default/files/', '/modules/', '/themes/', '#', 'javascript:'],
+    },
   ],
 };
 
@@ -272,6 +354,7 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   beschluss: 'Beschluss/Resolution',
   antrag: 'Antrag/Motion',
   blog: 'Blog/News',
+  wahlprogramm: 'Wahlprogramm',
 };
 
 export const CMS_TYPES: Record<CMSType, CMSType> = {
@@ -279,6 +362,7 @@ export const CMS_TYPES: Record<CMSType, CMSType> = {
   neos: 'neos',
   typo3: 'typo3',
   custom: 'custom',
+  drupal: 'drupal',
 };
 
 export function getSourceById(id: string): LandesverbandSource | undefined {

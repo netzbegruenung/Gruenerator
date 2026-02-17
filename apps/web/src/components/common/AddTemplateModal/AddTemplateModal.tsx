@@ -1,7 +1,6 @@
-import React, { useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { HiX } from 'react-icons/hi';
-import { SiCanva } from 'react-icons/si';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { useTagAutocomplete } from '../TemplateModal';
@@ -42,19 +41,6 @@ interface AddTemplateModalProps {
     | null;
 }
 
-const isCanvaTemplateShareLink = (url: string): boolean => {
-  try {
-    const urlObj = new URL(url);
-    const utmSource = urlObj.searchParams.get('utm_source');
-    return (
-      utmSource !== null &&
-      ['publishsharelink', 'sharebutton', 'shareyourdesignpanel'].includes(utmSource)
-    );
-  } catch {
-    return false;
-  }
-};
-
 const AddTemplateModal = ({
   isOpen,
   onClose,
@@ -62,19 +48,16 @@ const AddTemplateModal = ({
   groupId = null,
   onShareContent = null,
 }: AddTemplateModalProps) => {
-  const [mode, setMode] = useState<string>('canva');
-  const [canvaUrl, setCanvaUrl] = useState<string>('');
+  const [templateUrl, setTemplateUrl] = useState<string>('');
   const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [externalUrl, setExternalUrl] = useState<string>('');
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [notShareLinkError, setNotShareLinkError] = useState<boolean>(false);
 
   const [authorName, setAuthorName] = useState<string>('');
   const [contactEmail, setContactEmail] = useState<string>('');
@@ -83,15 +66,12 @@ const AddTemplateModal = ({
 
   useEffect(() => {
     if (!isOpen) {
-      setMode('canva');
-      setCanvaUrl('');
+      setTemplateUrl('');
       setPreviewData(null);
       setPreviewError(null);
       setTitle('');
       setDescription('');
-      setExternalUrl('');
       setSubmitError(null);
-      setNotShareLinkError(false);
       setAuthorName('');
       setContactEmail('');
       tagAutocomplete.reset();
@@ -107,16 +87,8 @@ const AddTemplateModal = ({
   }, [isOpen]);
 
   const handleLoadPreview = useCallback(async () => {
-    if (!canvaUrl.trim()) {
-      setPreviewError('Bitte eine Canva URL eingeben.');
-      return;
-    }
-
-    setNotShareLinkError(false);
-
-    if (!isCanvaTemplateShareLink(canvaUrl.trim())) {
-      setNotShareLinkError(true);
-      setPreviewData(null);
+    if (!templateUrl.trim()) {
+      setPreviewError('Bitte eine URL eingeben.');
       return;
     }
 
@@ -126,7 +98,7 @@ const AddTemplateModal = ({
 
     try {
       const response = await apiClient.post<ApiResponse>('/auth/user-templates/from-url', {
-        url: canvaUrl.trim(),
+        url: templateUrl.trim(),
         preview: true,
       });
       const data = response.data;
@@ -138,7 +110,7 @@ const AddTemplateModal = ({
       if (data.preview) {
         setPreviewData(data.preview);
         const existingDesc = data.preview.description || '';
-        const suggestedTags = suggestTagsFromTemplate(data.preview, 'canva');
+        const suggestedTags = suggestTagsFromTemplate(data.preview, 'url');
         setDescription(
           existingDesc + (existingDesc && suggestedTags ? '\n\n' : '') + suggestedTags
         );
@@ -152,25 +124,22 @@ const AddTemplateModal = ({
     } finally {
       setIsLoadingPreview(false);
     }
-  }, [canvaUrl]);
+  }, [templateUrl]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
     setIsSubmitting(true);
 
     try {
+      if (!title.trim()) {
+        throw new Error('Titel ist erforderlich.');
+      }
+
       let templateId: string | undefined;
 
-      if (mode === 'canva') {
-        if (!previewData) {
-          throw new Error('Bitte zuerst die Vorschau laden.');
-        }
-        if (!title.trim()) {
-          throw new Error('Titel ist erforderlich.');
-        }
-
+      if (previewData) {
         const response = await apiClient.post<ApiResponse>('/auth/user-templates/from-url', {
-          url: canvaUrl.trim(),
+          url: templateUrl.trim(),
           title: title.trim(),
           description: description.trim(),
           metadata: {
@@ -187,20 +156,14 @@ const AddTemplateModal = ({
 
         templateId = data.data?.id;
       } else {
-        if (!title.trim()) {
-          throw new Error('Titel ist erforderlich.');
-        }
-        if (!description.trim()) {
-          throw new Error('Beschreibung ist erforderlich.');
-        }
-        if (!externalUrl.trim()) {
+        if (!templateUrl.trim()) {
           throw new Error('URL ist erforderlich.');
         }
 
         const response = await apiClient.post<ApiResponse>('/auth/user-templates', {
           title: title.trim(),
           description: description.trim(),
-          canva_url: externalUrl.trim(),
+          canva_url: templateUrl.trim(),
           template_type: 'external',
           metadata: {
             author_name: authorName.trim() || null,
@@ -236,12 +199,10 @@ const AddTemplateModal = ({
       setIsSubmitting(false);
     }
   }, [
-    mode,
     previewData,
     title,
     description,
-    externalUrl,
-    canvaUrl,
+    templateUrl,
     groupId,
     onShareContent,
     onSuccess,
@@ -281,10 +242,7 @@ const AddTemplateModal = ({
 
   if (!isOpen) return null;
 
-  const isCanvaMode = mode === 'canva';
-  const canSubmit = isCanvaMode
-    ? previewData && title.trim() && !notShareLinkError
-    : title.trim() && description.trim() && externalUrl.trim();
+  const canSubmit = previewData ? title.trim() : title.trim() && templateUrl.trim();
 
   const renderGhostText = () =>
     tagAutocomplete.suggestionSuffix && (
@@ -311,129 +269,94 @@ const AddTemplateModal = ({
           </button>
         </div>
 
-        <div className="template-modal-tabs">
-          <button
-            className={`template-modal-tab ${isCanvaMode ? 'active' : ''}`}
-            onClick={() => setMode('canva')}
-          >
-            <SiCanva className="template-modal-tab-icon" />
-            <span>Canva</span>
-          </button>
-          <button
-            className={`template-modal-tab ${!isCanvaMode ? 'active' : ''}`}
-            onClick={() => setMode('other')}
-          >
-            <span>Andere Vorlage</span>
-          </button>
-        </div>
-
         <div className="template-modal-body">
-          {isCanvaMode ? (
-            <>
-              <div className="template-modal-field">
-                <label>Canva URL</label>
-                <div className="template-modal-url-row">
-                  <input
-                    type="url"
-                    value={canvaUrl}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setCanvaUrl(e.target.value)
-                    }
-                    placeholder="https://www.canva.com/design/..."
-                    disabled={isLoadingPreview}
-                  />
-                  <button
-                    className="pabtn pabtn--s pabtn--secondary"
-                    onClick={handleLoadPreview}
-                    disabled={isLoadingPreview || !canvaUrl.trim()}
-                  >
-                    {isLoadingPreview ? 'Lädt...' : 'Vorschau laden'}
-                  </button>
-                </div>
-                {previewError && <p className="template-modal-error">{previewError}</p>}
-                {notShareLinkError && (
-                  <div className="template-modal-share-error">
-                    <p>
-                      Diese URL ist kein Vorlagen-Link. Um die Vorlage zu teilen, musst du in Canva
-                      einen Vorlagen-Link erstellen.
-                    </p>
-                    <a
-                      href="https://www.canva.com/de_de/help/share-template-link/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Anleitung: Vorlagen-Link erstellen →
-                    </a>
-                  </div>
-                )}
-              </div>
+          <div className="template-modal-field">
+            <label>URL</label>
+            <div className="template-modal-url-row">
+              <input
+                type="url"
+                value={templateUrl}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setTemplateUrl(e.target.value)
+                }
+                placeholder="https://..."
+                disabled={isLoadingPreview}
+              />
+              <button
+                className="pabtn pabtn--s pabtn--secondary"
+                onClick={handleLoadPreview}
+                disabled={isLoadingPreview || !templateUrl.trim()}
+              >
+                {isLoadingPreview ? 'Lädt...' : 'Vorschau laden'}
+              </button>
+            </div>
+            {previewError && <p className="template-modal-error">{previewError}</p>}
+          </div>
 
-              {previewData && (
-                <div className="template-modal-preview">
-                  {previewData.thumbnail_url && (
-                    <div className="template-modal-preview-image">
-                      <img
-                        src={previewData.thumbnail_url}
-                        alt="Vorschau"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  )}
-                  <div className="template-modal-preview-fields">
-                    <div className="template-modal-field">
-                      <label>Titel *</label>
-                      <input
-                        type="text"
-                        value={title}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setTitle(e.target.value)
-                        }
-                        placeholder="Titel der Vorlage"
-                      />
-                    </div>
-                    <div className="template-modal-field">
-                      <label>Beschreibung</label>
-                      <div className="template-modal-textarea-wrapper">
-                        {renderGhostText()}
-                        <textarea
-                          ref={tagAutocomplete.textareaRef}
-                          value={description}
-                          onChange={tagAutocomplete.handleChange}
-                          onKeyDown={tagAutocomplete.handleKeyDown}
-                          placeholder="Beschreibung der Vorlage..."
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                    <div className="template-modal-field">
-                      <label>Autor*in</label>
-                      <input
-                        type="text"
-                        value={authorName}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setAuthorName(e.target.value)
-                        }
-                        placeholder="Name des Erstellers"
-                      />
-                    </div>
-                    <div className="template-modal-field">
-                      <label>Kontakt E-Mail</label>
-                      <input
-                        type="email"
-                        value={contactEmail}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setContactEmail(e.target.value)
-                        }
-                        placeholder="email@example.com"
-                      />
-                    </div>
-                  </div>
+          {previewData && (
+            <div className="template-modal-preview">
+              {previewData.thumbnail_url && (
+                <div className="template-modal-preview-image">
+                  <img
+                    src={previewData.thumbnail_url}
+                    alt="Vorschau"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
                 </div>
               )}
-            </>
-          ) : (
+              <div className="template-modal-preview-fields">
+                <div className="template-modal-field">
+                  <label>Titel *</label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+                    placeholder="Titel der Vorlage"
+                  />
+                </div>
+                <div className="template-modal-field">
+                  <label>Beschreibung</label>
+                  <div className="template-modal-textarea-wrapper">
+                    {renderGhostText()}
+                    <textarea
+                      ref={tagAutocomplete.textareaRef}
+                      value={description}
+                      onChange={tagAutocomplete.handleChange}
+                      onKeyDown={tagAutocomplete.handleKeyDown}
+                      placeholder="Beschreibung der Vorlage..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <div className="template-modal-field">
+                  <label>Autor*in</label>
+                  <input
+                    type="text"
+                    value={authorName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setAuthorName(e.target.value)
+                    }
+                    placeholder="Name des Erstellers"
+                  />
+                </div>
+                <div className="template-modal-field">
+                  <label>Kontakt E-Mail</label>
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setContactEmail(e.target.value)
+                    }
+                    placeholder="email@example.com"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!previewData && (
             <>
               <div className="template-modal-field">
                 <label>Titel *</label>
@@ -445,7 +368,7 @@ const AddTemplateModal = ({
                 />
               </div>
               <div className="template-modal-field">
-                <label>Beschreibung *</label>
+                <label>Beschreibung</label>
                 <div className="template-modal-textarea-wrapper">
                   {renderGhostText()}
                   <textarea
@@ -457,17 +380,6 @@ const AddTemplateModal = ({
                     rows={3}
                   />
                 </div>
-              </div>
-              <div className="template-modal-field">
-                <label>URL *</label>
-                <input
-                  type="url"
-                  value={externalUrl}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setExternalUrl(e.target.value)
-                  }
-                  placeholder="https://..."
-                />
               </div>
               <div className="template-modal-field">
                 <label>Autor*in</label>

@@ -4,7 +4,10 @@
  */
 
 import { useState, useCallback } from 'react';
+
 import { getGlobalApiClient } from '../../api/client.js';
+import { KI_TYPE_CONFIGS } from '../constants.js';
+
 import type {
   KiCreateRequest,
   KiEditRequest,
@@ -12,7 +15,6 @@ import type {
   UseKiImageGenerationReturn,
   ImageStudioKiType,
 } from '../types.js';
-import { KI_TYPE_CONFIGS } from '../constants.js';
 
 /**
  * Error messages for KI generation
@@ -127,13 +129,17 @@ export function useKiImageGeneration(
           variant: request.variant,
         });
 
-        // Extract image from response
-        const imageData = response.data?.image || response.data?.imageUrl;
-        if (!imageData) {
+        // Extract image from response — API returns { image: { base64 } } or legacy { image: string }
+        const rawImage = response.data?.image;
+        const imageData =
+          typeof rawImage === 'object' && rawImage?.base64
+            ? rawImage.base64
+            : rawImage || response.data?.imageUrl;
+
+        if (!imageData || typeof imageData !== 'string') {
           throw new Error(KI_ERROR_MESSAGES.GENERATION_ERROR);
         }
 
-        // Ensure base64 format
         const imageBase64 = imageData.startsWith('data:')
           ? imageData
           : `data:image/png;base64,${imageData}`;
@@ -195,19 +201,38 @@ export function useKiImageGeneration(
         }
 
         const client = getGlobalApiClient();
-        const response = await client.post(config.endpoint, {
-          prompt,
-          image: request.imageData,
-          mode: type === 'green-edit' ? 'green-edit' : 'universal',
+
+        // Build FormData for multipart upload (API uses multer)
+        const formData = new FormData();
+
+        // Convert base64 image to Blob
+        const cleanBase64 = request.imageData.replace(/^data:image\/\w+;base64,/, '');
+        const binaryString = atob(cleanBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'image/png' });
+        formData.append('image', blob, 'image.png');
+
+        formData.append('text', prompt);
+        formData.append('type', type === 'green-edit' ? 'green-edit' : 'universal');
+
+        const response = await client.post(config.endpoint, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        // Extract image from response
-        const imageData = response.data?.image || response.data?.imageUrl;
-        if (!imageData) {
+        // Extract image from response — API returns { image: { base64 } } or legacy { image: string }
+        const rawImage = response.data?.image;
+        const imageData =
+          typeof rawImage === 'object' && rawImage?.base64
+            ? rawImage.base64
+            : rawImage || response.data?.imageUrl;
+
+        if (!imageData || typeof imageData !== 'string') {
           throw new Error(KI_ERROR_MESSAGES.GENERATION_ERROR);
         }
 
-        // Ensure base64 format
         const imageBase64 = imageData.startsWith('data:')
           ? imageData
           : `data:image/png;base64,${imageData}`;

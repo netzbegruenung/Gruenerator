@@ -45,7 +45,7 @@ interface VorlagenSectionProps {
 const EMPTY_STATE_CONFIG = {
   noDocuments: 'Du hast noch keine Vorlagen gespeichert.',
   createMessage:
-    'Füge Canva-Vorlagen über den Button oben hinzu oder durchsuche die öffentliche Galerie.',
+    'Füge Vorlagen über den Button oben hinzu oder durchsuche die öffentliche Galerie.',
 } as const;
 
 const VorlagenSection = memo(
@@ -125,7 +125,7 @@ const VorlagenSection = memo(
         if (template.external_url || template.content_data?.originalUrl) {
           actions.push({
             icon: HiExternalLink,
-            label: 'In Canva öffnen',
+            label: 'Vorlage öffnen',
             onClick: () =>
               window.open(template.content_data?.originalUrl || template.external_url, '_blank'),
           });

@@ -14,14 +14,16 @@
  * - retrievalController: Document retrieval, stats, delete operations
  */
 
-import express, { Router } from 'express';
-import passport from '../../config/passportSetup.js';
-import modeController from './modeController.js';
+import express, { type Router } from 'express';
+
+import authMiddleware from '../../middleware/authMiddleware.js';
+
 import manualController from './manualController.js';
-import wolkeController from './wolkeController.js';
+import modeController from './modeController.js';
+import qdrantController from './qdrantController.js';
 import retrievalController from './retrievalController.js';
 import searchController from './searchController.js';
-import qdrantController from './qdrantController.js';
+import wolkeController from './wolkeController.js';
 
 const router: Router = express.Router();
 
@@ -29,8 +31,8 @@ const router: Router = express.Router();
 // Shared Middleware
 // ============================================================================
 
-// Add Passport session middleware for all document routes
-router.use(passport.session());
+// Supports both JWT Bearer tokens (mobile) and session cookies (web)
+router.use(authMiddleware.requireAuth);
 
 // ============================================================================
 // Controller Mounting
