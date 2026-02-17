@@ -9,24 +9,35 @@
   border: var(--card-border);
   border-radius: var(--card-border-radius-medium);
   box-shadow: var(--card-shadow-floating);
-  z-index: 1000;
+  z-index: 9999;
   min-width: 140px;
-  overflow: hidden;
-  animation: dropdown-appear 0.15s ease-out;
-  /* Initial position off-screen until calculated */
+  width: max-content;
+  overflow: visible;
+  animation: dropdown-appear 0.15s ease-out forwards;
   position: absolute;
-  top: -9999px;
-  left: -9999px;
+}
+
+/* Clip hover backgrounds to rounded corners on first/last direct children */
+.menu-dropdown-content > :first-child {
+  border-radius: var(--card-border-radius-medium) var(--card-border-radius-medium) 0 0;
+}
+
+.menu-dropdown-content > :last-child {
+  border-radius: 0 0 var(--card-border-radius-medium) var(--card-border-radius-medium);
+}
+
+.menu-dropdown-content > :only-child {
+  border-radius: var(--card-border-radius-medium);
 }
 
 @keyframes dropdown-appear {
   from {
     opacity: 0;
-    transform: translateY(-4px) scale(0.95);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -98,7 +109,7 @@
   visibility: hidden;
   transform: translateX(-8px);
   transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .menu-dropdown-submenu-trigger:hover .menu-dropdown-submenu-content {

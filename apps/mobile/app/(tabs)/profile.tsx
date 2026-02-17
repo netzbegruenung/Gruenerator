@@ -1,7 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
+import { type Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { router } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,8 +13,11 @@ import {
   RefreshControl,
   ScrollView,
   Pressable,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,13 +35,13 @@ const SECTION_ORDER: SectionId[] = ['inhalte', 'anweisungen', 'einstellungen'];
 
 const PROFILE_SECTIONS = [
   { id: 'inhalte' as const, label: 'Inhalte' },
-  { id: 'anweisungen' as const, label: 'Anweisungen' },
+  { id: 'anweisungen' as const, label: 'Prompt' },
   { id: 'einstellungen' as const, label: 'Einstellungen' },
 ];
 
 const SECTION_ICONS: Record<SectionId, keyof typeof Ionicons.glyphMap> = {
   inhalte: 'folder-outline',
-  anweisungen: 'settings-outline',
+  anweisungen: 'chatbox-ellipses-outline',
   einstellungen: 'person-outline',
 };
 
@@ -131,18 +135,87 @@ function InhalteSection() {
   );
 }
 
-function AnweisungenSection() {
+const MAX_PROMPT_LENGTH = 2000;
+
+function PromptSection() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const { user } = useAuth();
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const [promptText, setPromptText] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const initialPromptRef = useRef('');
+
+  useEffect(() => {
+    const current = (user?.custom_prompt as string) || '';
+    setPromptText(current);
+    initialPromptRef.current = current;
+  }, [user?.custom_prompt]);
+
+  const hasChanges = promptText !== initialPromptRef.current;
+
+  const handleSave = useCallback(async () => {
+    if (!hasChanges || isSaving) return;
+    setIsSaving(true);
+    try {
+      await updateProfile({ custom_prompt: promptText.trim() || null } as any);
+      initialPromptRef.current = promptText.trim();
+      setPromptText(promptText.trim());
+    } catch {
+      Alert.alert('Fehler', 'Der Prompt konnte nicht gespeichert werden.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [hasChanges, isSaving, promptText, updateProfile]);
 
   return (
-    <View style={[styles.sectionContent, styles.centered]}>
-      <Ionicons name="document-text-outline" size={48} color={theme.textSecondary} />
-      <Text style={[styles.emptyStateTitle, { color: theme.text }]}>Anweisungen verwalten</Text>
-      <Text style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}>
-        Anweisungen können im Profil auf der Webseite unter "Eigener Prompt" verwaltet werden.
+    <KeyboardAwareScrollView
+      style={styles.sectionContent}
+      contentContainerStyle={styles.promptContainer}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Text style={[styles.promptLabel, { color: theme.textSecondary }]}>
+        Persönliche Anweisungen
       </Text>
-    </View>
+      <Text style={[styles.promptHint, { color: theme.textSecondary }]}>
+        Dieser Text wird bei jeder Textgenerierung als Kontext mitgesendet.
+      </Text>
+      <TextInput
+        style={[
+          styles.promptInput,
+          {
+            color: theme.text,
+            backgroundColor: theme.surface,
+            borderColor: hasChanges ? colors.primary[500] : theme.cardBorder,
+          },
+        ]}
+        value={promptText}
+        onChangeText={setPromptText}
+        placeholder="z.B. Ich bin Kreisvorstandsmitglied in Musterstadt und möchte einen formellen Ton..."
+        placeholderTextColor={theme.textSecondary}
+        multiline
+        maxLength={MAX_PROMPT_LENGTH}
+        textAlignVertical="top"
+      />
+      <View style={styles.promptFooter}>
+        <Text style={[styles.promptCharCount, { color: theme.textSecondary }]}>
+          {promptText.length}/{MAX_PROMPT_LENGTH}
+        </Text>
+        {hasChanges && (
+          <Pressable
+            onPress={handleSave}
+            disabled={isSaving}
+            style={[styles.promptSaveButton, { opacity: isSaving ? 0.6 : 1 }]}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Text style={styles.promptSaveText}>Speichern</Text>
+            )}
+          </Pressable>
+        )}
+      </View>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -252,7 +325,7 @@ export default function ProfileScreen() {
       <GestureDetector gesture={swipeGesture}>
         <Animated.View style={styles.contentContainer}>
           {activeSection === 'inhalte' && <InhalteSection />}
-          {activeSection === 'anweisungen' && <AnweisungenSection />}
+          {activeSection === 'anweisungen' && <PromptSection />}
           {activeSection === 'einstellungen' && <EinstellungenSection />}
         </Animated.View>
       </GestureDetector>
@@ -376,6 +449,45 @@ const styles = StyleSheet.create({
   },
   pickerItemText: {
     ...typography.body,
+  },
+  promptContainer: {
+    padding: spacing.medium,
+    gap: spacing.small,
+  },
+  promptLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  promptHint: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  promptInput: {
+    minHeight: 160,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: spacing.medium,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  promptFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  promptCharCount: {
+    fontSize: 12,
+  },
+  promptSaveButton: {
+    backgroundColor: colors.primary[600],
+    paddingVertical: spacing.xsmall,
+    paddingHorizontal: spacing.medium,
+    borderRadius: 20,
+  },
+  promptSaveText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
   pickerCancel: {
     paddingVertical: spacing.medium,

@@ -13,6 +13,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useState, memo, useMemo, Fragment } from 'react';
+import { getCollectionStyle } from '../lib/collectionStyles';
 
 interface ToolCallUIProps {
   toolName: string;
@@ -25,8 +26,12 @@ const TOOL_CONFIG: Record<string, { icon: typeof Search; label: string; color: s
   gruenerator_search: { icon: Search, label: 'Dokumente', color: 'text-emerald-600' },
   gruenerator_person_search: { icon: User, label: 'Person', color: 'text-blue-600' },
   gruenerator_examples_search: { icon: Image, label: 'Beispiele', color: 'text-purple-600' },
-  web_search: { icon: Globe, label: 'Web', color: 'text-orange-600' },
-  research: { icon: BookOpen, label: 'Recherche', color: 'text-indigo-600' },
+  web_search: { icon: Globe, label: 'Websuche', color: 'text-orange-600' },
+  research: { icon: BookOpen, label: 'Deep Research', color: 'text-indigo-600' },
+  generate_image: { icon: Sparkles, label: 'Bild', color: 'text-pink-600' },
+  scrape_url: { icon: ExternalLink, label: 'URL', color: 'text-cyan-600' },
+  recall_memory: { icon: MessageCircle, label: 'Erinnerung', color: 'text-amber-600' },
+  save_memory: { icon: MessageCircle, label: 'Speichern', color: 'text-amber-600' },
 };
 
 export const ToolCallUI = memo(function ToolCallUI({
@@ -53,8 +58,17 @@ export const ToolCallUI = memo(function ToolCallUI({
     if (arr) return arr.length;
     if (Array.isArray(result)) return result.length;
     if (getObject(result, 'person')) return 1;
+    const rc = getNumber(result, 'resultCount');
+    if (rc !== null && rc > 0) return rc;
     return 0;
   }, [result, state]);
+
+  const researchMeta = useMemo(() => {
+    if (toolName !== 'research' || !result || state !== 'result') return null;
+    const confidence = getString(result, 'confidence');
+    const searchSteps = getArray(result, 'searchSteps');
+    return { confidence, searchStepsCount: searchSteps?.length ?? 0 };
+  }, [toolName, result, state]);
 
   return (
     <div className="my-1.5 text-sm">
@@ -62,7 +76,7 @@ export const ToolCallUI = memo(function ToolCallUI({
         onClick={() => state === 'result' && setIsExpanded(!isExpanded)}
         disabled={state !== 'result'}
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors ${
-          state === 'result' ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer' : 'bg-surface'
+          state === 'result' ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer' : 'bg-primary/5'
         }`}
       >
         {isLoading ? (
@@ -79,7 +93,38 @@ export const ToolCallUI = memo(function ToolCallUI({
         {state === 'result' && resultCount > 0 && (
           <>
             <span className="text-foreground-muted">&middot;</span>
-            <span className="text-primary font-medium">{resultCount}</span>
+            {researchMeta ? (
+              <>
+                {researchMeta.confidence && (
+                  <span
+                    className={`text-[11px] font-medium ${
+                      researchMeta.confidence === 'high'
+                        ? 'text-status-green'
+                        : researchMeta.confidence === 'medium'
+                          ? 'text-status-yellow'
+                          : 'text-status-red'
+                    }`}
+                  >
+                    {researchMeta.confidence === 'high'
+                      ? 'Hohe Konfidenz'
+                      : researchMeta.confidence === 'medium'
+                        ? 'Mittlere Konfidenz'
+                        : 'Niedrige Konfidenz'}
+                  </span>
+                )}
+                {researchMeta.searchStepsCount > 0 && (
+                  <>
+                    <span className="text-foreground-muted">&middot;</span>
+                    <span className="text-foreground-muted text-[11px]">
+                      {researchMeta.searchStepsCount} Suche
+                      {researchMeta.searchStepsCount > 1 ? 'n' : ''}
+                    </span>
+                  </>
+                )}
+              </>
+            ) : (
+              <span className="text-primary font-medium">{resultCount}</span>
+            )}
             <ChevronRight
               className={`h-3.5 w-3.5 text-foreground-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
             />
@@ -122,11 +167,28 @@ function getObject(obj: unknown, key: string): Record<string, unknown> | null {
   return null;
 }
 
+function getNumber(obj: unknown, key: string): number | null {
+  if (obj && typeof obj === 'object' && key in obj) {
+    const val = (obj as Record<string, unknown>)[key];
+    return typeof val === 'number' ? val : null;
+  }
+  return null;
+}
+
 function getBoolean(obj: unknown, key: string): boolean {
   if (obj && typeof obj === 'object' && key in obj) {
     return !!(obj as Record<string, unknown>)[key];
   }
   return false;
+}
+
+function extractDomain(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
 }
 
 const ToolResultRenderer = memo(function ToolResultRenderer({
@@ -187,15 +249,21 @@ const CompactSearchResults = memo(function CompactSearchResults({
   return (
     <div className="space-y-1.5">
       {results.slice(0, 5).map((item, i) => {
-        const source = getString(item, 'source');
-        const excerpt = getString(item, 'excerpt');
+        const source = getString(item, 'source') || getString(item, 'title');
+        const excerpt = getString(item, 'excerpt') || getString(item, 'content');
         const url = getString(item, 'url');
         const relevance = getString(item, 'relevance');
+        const style = source ? getCollectionStyle(source) : undefined;
 
         return (
           <div key={i} className="text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="font-medium text-foreground">{source || 'Quelle'}</span>
+              <span
+                className="text-[10px] font-medium px-1 py-px rounded"
+                style={style ? { backgroundColor: style.bg, color: style.color } : undefined}
+              >
+                {style?.label || source || 'Quelle'}
+              </span>
               {relevance && (
                 <span className="text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary">
                   {relevance}
@@ -282,10 +350,10 @@ const CompactWebResults = memo(function CompactWebResults({ result }: { result: 
   return (
     <div className="space-y-1.5">
       {items.slice(0, 5).map((item, i) => {
-        const title = getString(item, 'title');
+        const title = getString(item, 'title') || getString(item, 'source');
         const url = getString(item, 'url');
-        const snippet = getString(item, 'snippet');
-        const domain = getString(item, 'domain');
+        const snippet = getString(item, 'snippet') || getString(item, 'content');
+        const domain = getString(item, 'domain') || extractDomain(url);
 
         return (
           <div key={i} className="text-xs">

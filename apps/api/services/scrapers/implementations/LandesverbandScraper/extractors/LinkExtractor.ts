@@ -37,9 +37,10 @@ export class LinkExtractor {
       if (currentPage === 1) {
         pageUrl = source.baseUrl + contentPath.path;
       } else {
+        const offset = contentPath.paginationOffset ?? 0;
         const paginationPath = contentPath.paginationPattern.replace(
           '{page}',
-          currentPage.toString()
+          (currentPage + offset).toString()
         );
         pageUrl = source.baseUrl + contentPath.path + paginationPath;
       }

@@ -46,13 +46,6 @@ export type DirectMenuItemsResult = Record<string, MenuItemType>;
 // Direkte Menüpunkte ohne Dropdown
 export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuItemsResult => {
   const items: DirectMenuItemsResult = {
-    home: {
-      id: 'home',
-      path: '/',
-      title: 'Start',
-      description: 'Zurück zur Startseite',
-      icon: getIcon('navigation', 'home'),
-    },
     texte: {
       id: 'texte',
       path: '/texte',
@@ -76,13 +69,6 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     //   icon: getIcon('navigation', 'sharepic'),
     //   badge: 'early-access'
     // },
-    suche: {
-      id: 'suche',
-      path: '/suche',
-      title: 'Suche',
-      description: 'Webrecherche für aktuelle Informationen',
-      icon: getIcon('navigation', 'suche'),
-    },
     imagine: {
       id: 'imagine',
       path: '/imagine',
@@ -90,46 +76,25 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       description: 'KI-Bildgenerierung',
       icon: getIcon('navigation', 'sharepic'),
     },
-    notebooks: {
-      id: 'notebooks',
-      path: '/notebooks',
-      title: 'Notebooks',
-      description: 'Wissenssammlungen durchsuchen',
-      icon: getIcon('ui', 'notebook'),
-      badge: 'early-access',
+    tools: {
+      id: 'tools',
+      path: '/tools',
+      title: 'Tools',
+      description: 'Suche, Notebooks, Datenbank & mehr',
+      icon: getIcon('navigation', 'tools'),
     },
-    ...(import.meta.env.DEV && {
-      scanner: {
-        id: 'scanner',
-        path: '/scanner',
-        title: 'Scanner',
-        description: 'Text aus Dokumenten extrahieren (OCR)',
-        icon: getIcon('navigation', 'scanner'),
-        badge: 'early-access',
-      },
-    }),
-    ...(import.meta.env.DEV && {
-      datenbank: {
-        id: 'datenbank',
-        path: '/datenbank',
-        title: 'Datenbank',
-        description: 'Vorlagen, Prompts und Anträge',
-        icon: getIcon('navigation', 'datenbank'),
-        badge: 'early-access',
-      },
-    }),
   };
 
-  // DEPRECATED: Chat menu item - disabled
-  // if (betaFeatures.chatBetaEnabled) {
-  //   items.chat = {
-  //     id: 'chat',
-  //     path: '/chat',
-  //     title: 'Chat',
-  //     description: 'KI-Assistent für alle Textarten',
-  //     icon: getIcon('ui', 'assistant'),
-  //   };
-  // }
+  if (betaFeatures.chatBetaEnabled) {
+    items.chat = {
+      id: 'chat',
+      path: '/chat',
+      title: 'Chat',
+      description: 'KI-Chat',
+      icon: getIcon('navigation', 'messenger'),
+      badge: 'beta',
+    };
+  }
 
   return items;
 };

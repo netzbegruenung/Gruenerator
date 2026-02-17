@@ -207,18 +207,6 @@ async function startWorker(): Promise<void> {
     log.warn(`AI Search Agent init failed: ${err.message}`);
   }
 
-  // Initialize Plan Mode Worker Pool
-  try {
-    const planModeModule = (await import('./routes/plan-mode/index.js')) as any;
-    if (typeof planModeModule.setPlanModeWorkerPool === 'function') {
-      planModeModule.setPlanModeWorkerPool(aiWorkerPool);
-      log.debug('Plan Mode Worker Pool initialized');
-    }
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    log.warn(`Plan Mode Worker Pool init failed: ${err.message}`);
-  }
-
   // Initialize Temporary Image Storage
   try {
     const { default: TemporaryImageStorage } =

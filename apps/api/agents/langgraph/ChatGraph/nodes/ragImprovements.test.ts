@@ -10,8 +10,15 @@
  * 5. Cross-Collection Search (integration — requires Qdrant)
  */
 
-import { heuristicClassify, extractSearchTopic } from './classifierNode.js';
+import {
+  heuristicClassify,
+  extractSearchTopic,
+  extractFilters,
+  heuristicExtractFilters,
+} from './classifierNode.js';
 import { buildSystemMessage } from './respondNode.js';
+import { getDefaultCollectionsForLocale } from './searchNode.js';
+
 import type { ChatGraphState, SearchResult } from '../types.js';
 
 // ============================================================================
@@ -145,7 +152,7 @@ function testHeuristicQueryOptimization() {
 // 3. Expanded Context Window Tests
 // ============================================================================
 
-function testExpandedContextWindow() {
+async function testExpandedContextWindow() {
   section('3. Expanded Context Window (budget-based allocation)');
 
   // Create mock search results with varying relevance
@@ -160,24 +167,40 @@ function testExpandedContextWindow() {
   const mockState: ChatGraphState = {
     messages: [],
     threadId: null,
-    agentConfig: { systemRole: 'Du bist ein Testassistent.', model: 'test', name: 'test', description: 'test' } as any,
+    agentConfig: {
+      systemRole: 'Du bist ein Testassistent.',
+      model: 'test',
+      name: 'test',
+      description: 'test',
+    } as any,
     enabledTools: {},
     aiWorkerPool: null,
+    userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
     threadAttachments: [],
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
+    notebookIds: [],
+    notebookCollectionIds: [],
+    defaultNotebookCollectionIds: [],
+    documentIds: [],
+    searchSources: [],
     intent: 'search',
     searchQuery: 'test query',
     subQueries: null,
     reasoning: 'test',
     hasTemporal: false,
     complexity: 'moderate',
+    needsClarification: false,
+    clarificationQuestion: null,
+    clarificationOptions: null,
+    detectedFilters: null,
     searchResults: mockResults,
     citations: [],
     searchCount: 1,
     maxSearches: 3,
+    researchBrief: null,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
@@ -195,23 +218,17 @@ function testExpandedContextWindow() {
     error: null,
   };
 
-  const systemMessage = buildSystemMessage(mockState);
+  const systemMessage = await buildSystemMessage(mockState);
 
   // Check that SUCHERGEBNISSE section exists
   assert(
     systemMessage.includes('## SUCHERGEBNISSE'),
-    'System message includes SUCHERGEBNISSE section',
+    'System message includes SUCHERGEBNISSE section'
   );
 
   // Check that all 5 result titles are included
-  assert(
-    systemMessage.includes('**Highly Relevant**'),
-    'High relevance result included',
-  );
-  assert(
-    systemMessage.includes('**Short Content**'),
-    'Short content result included',
-  );
+  assert(systemMessage.includes('**Highly Relevant**'), 'High relevance result included');
+  assert(systemMessage.includes('**Short Content**'), 'Short content result included');
 
   // Check that high-relevance result gets more content than low-relevance
   const highRelevantSection = systemMessage.split('**Highly Relevant**')[1]?.split('**')[0] || '';
@@ -231,10 +248,10 @@ function testExpandedContextWindow() {
 
   // Test with empty results
   const emptyState = { ...mockState, searchResults: [] };
-  const emptyMessage = buildSystemMessage(emptyState);
+  const emptyMessage = await buildSystemMessage(emptyState);
   assert(
     !emptyMessage.includes('## SUCHERGEBNISSE'),
-    'No SUCHERGEBNISSE section when results are empty',
+    'No SUCHERGEBNISSE section when results are empty'
   );
 }
 
@@ -249,47 +266,42 @@ async function testRerankScoreParsing() {
   // by importing the module and testing the exported function pattern
 
   // Test valid JSON parsing
-  const validJson = '{ "scores": [{"index": 0, "score": 5}, {"index": 1, "score": 3}, {"index": 2, "score": 1}] }';
+  const validJson =
+    '{ "scores": [{"index": 0, "score": 5}, {"index": 1, "score": 3}, {"index": 2, "score": 1}] }';
   try {
     const parsed = JSON.parse(validJson);
-    assert(
-      parsed.scores.length === 3,
-      'Valid rerank JSON parses correctly',
-    );
+    assert(parsed.scores.length === 3, 'Valid rerank JSON parses correctly');
     assert(
       parsed.scores[0].score === 5 && parsed.scores[1].score === 3,
-      'Scores have correct values',
+      'Scores have correct values'
     );
   } catch {
     assert(false, 'Valid rerank JSON should parse');
   }
 
   // Test JSON embedded in text
-  const textWithJson = 'Some preamble text\n{ "scores": [{"index": 0, "score": 4}] }\nSome trailing text';
+  const textWithJson =
+    'Some preamble text\n{ "scores": [{"index": 0, "score": 4}] }\nSome trailing text';
   const jsonMatch = textWithJson.match(/\{[\s\S]*\}/);
-  assert(
-    jsonMatch !== null,
-    'JSON extracted from surrounding text',
-  );
+  assert(jsonMatch !== null, 'JSON extracted from surrounding text');
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
-      assert(
-        parsed.scores?.[0]?.score === 4,
-        'Extracted JSON has correct scores',
-      );
+      assert(parsed.scores?.[0]?.score === 4, 'Extracted JSON has correct scores');
     } catch {
       assert(false, 'Extracted JSON should be parseable');
     }
   }
 
   // Test score filtering: out-of-range values should be rejected
-  const badScores = { scores: [
-    { index: 0, score: 5 },
-    { index: 1, score: 6 },  // > 5, should be filtered
-    { index: -1, score: 3 }, // negative index, should be filtered
-    { index: 2, score: 0 },  // < 1, should be filtered
-  ] };
+  const badScores = {
+    scores: [
+      { index: 0, score: 5 },
+      { index: 1, score: 6 }, // > 5, should be filtered
+      { index: -1, score: 3 }, // negative index, should be filtered
+      { index: 2, score: 0 }, // < 1, should be filtered
+    ],
+  };
 
   let validCount = 0;
   for (const entry of badScores.scores) {
@@ -315,11 +327,41 @@ function testCrossCollectionLogic() {
 
   // Test deduplication by URL
   const resultsWithDupes: SearchResult[] = [
-    { source: 'gruenerator:deutschland', title: 'Doc A', content: 'Content A', url: 'https://example.com/a', relevance: 0.9 },
-    { source: 'gruenerator:bundestagsfraktion', title: 'Doc A (dupe)', content: 'Content A variant', url: 'https://example.com/a', relevance: 0.7 },
-    { source: 'gruenerator:gruene-de', title: 'Doc B', content: 'Content B', url: 'https://example.com/b', relevance: 0.8 },
-    { source: 'gruenerator:kommunalwiki', title: 'Doc C', content: 'Content C', url: undefined, relevance: 0.6 },
-    { source: 'gruenerator:kommunalwiki', title: 'Doc D', content: 'Content D', url: undefined, relevance: 0.5 },
+    {
+      source: 'gruenerator:deutschland',
+      title: 'Doc A',
+      content: 'Content A',
+      url: 'https://example.com/a',
+      relevance: 0.9,
+    },
+    {
+      source: 'gruenerator:bundestagsfraktion',
+      title: 'Doc A (dupe)',
+      content: 'Content A variant',
+      url: 'https://example.com/a',
+      relevance: 0.7,
+    },
+    {
+      source: 'gruenerator:gruene-de',
+      title: 'Doc B',
+      content: 'Content B',
+      url: 'https://example.com/b',
+      relevance: 0.8,
+    },
+    {
+      source: 'gruenerator:kommunalwiki',
+      title: 'Doc C',
+      content: 'Content C',
+      url: undefined,
+      relevance: 0.6,
+    },
+    {
+      source: 'gruenerator:kommunalwiki',
+      title: 'Doc D',
+      content: 'Content D',
+      url: undefined,
+      relevance: 0.5,
+    },
   ];
 
   // Simulate deduplication logic
@@ -339,15 +381,12 @@ function testCrossCollectionLogic() {
 
   assert(
     deduped[0].title === 'Doc A' && deduped[0].relevance === 0.9,
-    'Keeps first occurrence (higher relevance) of duplicate URL',
+    'Keeps first occurrence (higher relevance) of duplicate URL'
   );
 
   // Results without URLs should all be kept
-  const noUrlResults = deduped.filter(r => !r.url);
-  assert(
-    noUrlResults.length === 2,
-    'Results without URLs are all kept (no false dedup)',
-  );
+  const noUrlResults = deduped.filter((r) => !r.url);
+  assert(noUrlResults.length === 2, 'Results without URLs are all kept (no false dedup)');
 
   // Test collection set deduplication
   const collections = ['deutschland', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
@@ -372,7 +411,7 @@ function testCrossCollectionLogic() {
   unsorted.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
   assert(
     unsorted[0].relevance === 0.9 && unsorted[1].relevance === 0.8,
-    'Results sorted by relevance descending',
+    'Results sorted by relevance descending'
   );
 }
 
@@ -419,6 +458,184 @@ function testIntegrationFlow() {
 }
 
 // ============================================================================
+// 7. Metadata Filter Extraction Tests
+// ============================================================================
+
+function testFilterExtraction() {
+  section('7. Metadata Filter Extraction');
+
+  // Test extractFilters (LLM output processing)
+  const cases: Array<{
+    input: Parameters<typeof extractFilters>[0];
+    expected: ReturnType<typeof extractFilters>;
+    description: string;
+  }> = [
+    {
+      input: {
+        content_type: 'presse',
+        landesverband: 'HH',
+        primary_category: null,
+        date_from: null,
+        date_to: null,
+        person: null,
+      },
+      expected: { content_type: 'presse', region: 'HH' },
+      description: 'Pressemitteilungen Hamburg → content_type + region',
+    },
+    {
+      input: {
+        content_type: 'beschluss',
+        landesverband: null,
+        primary_category: null,
+        date_from: '2024-01-01',
+        date_to: null,
+        person: null,
+      },
+      expected: { content_type: 'beschluss', date_from: '2024-01-01' },
+      description: 'Beschlüsse seit 2024 → content_type + date_from',
+    },
+    {
+      input: {
+        content_type: null,
+        landesverband: 'TH',
+        primary_category: 'Klimaschutz',
+        date_from: null,
+        date_to: null,
+        person: null,
+      },
+      expected: { region: ['TH', 'TH-F'], primary_category: 'Klimaschutz' },
+      description: 'Klimapolitik Thüringen → region (with Fraktion) + primary_category',
+    },
+    {
+      input: {
+        content_type: null,
+        landesverband: null,
+        primary_category: null,
+        date_from: null,
+        date_to: null,
+        person: null,
+      },
+      expected: null,
+      description: 'All nulls → null (no filters)',
+    },
+    {
+      input: {
+        content_type: null,
+        landesverband: null,
+        primary_category: null,
+        date_from: 'invalid',
+        date_to: null,
+        person: null,
+      },
+      expected: null,
+      description: 'Invalid date format → ignored',
+    },
+    {
+      input: {
+        content_type: null,
+        landesverband: null,
+        primary_category: null,
+        date_from: null,
+        date_to: null,
+        person: 'Habeck',
+      },
+      expected: null,
+      description: 'Person only → null (person kept in query, not as filter)',
+    },
+  ];
+
+  for (const c of cases) {
+    const result = extractFilters(c.input);
+    const resultStr = JSON.stringify(result);
+    const expectedStr = JSON.stringify(c.expected);
+    assert(resultStr === expectedStr, c.description, `Got: ${resultStr}, Expected: ${expectedStr}`);
+  }
+
+  // Test heuristicExtractFilters
+  section('7b. Heuristic Filter Extraction');
+
+  const heuristicCases: Array<{
+    input: string;
+    expectedKeys: string[];
+    description: string;
+  }> = [
+    {
+      input: 'Pressemitteilungen zum Klimaschutz',
+      expectedKeys: ['content_type'],
+      description: 'Pressemitteilungen → content_type detected',
+    },
+    {
+      input: 'Beschlüsse der Grünen Hamburg',
+      expectedKeys: ['content_type', 'region'],
+      description: 'Beschlüsse + Hamburg → content_type + region',
+    },
+    {
+      input: 'Was ist die Position der Grünen?',
+      expectedKeys: [],
+      description: 'Generic question → no filters',
+    },
+    {
+      input: 'Anträge aus Thüringen',
+      expectedKeys: ['content_type', 'region'],
+      description: 'Anträge + Thüringen → content_type + region',
+    },
+    {
+      input: 'Wahlprogramm Bayern',
+      expectedKeys: ['content_type', 'region'],
+      description: 'Wahlprogramm + Bayern → content_type + region',
+    },
+  ];
+
+  for (const c of heuristicCases) {
+    const result = heuristicExtractFilters(c.input);
+    const keys = result ? Object.keys(result) : [];
+    const hasExpectedKeys = c.expectedKeys.every((k) => keys.includes(k));
+    const noExtraKeys = keys.every((k) => c.expectedKeys.includes(k));
+    assert(
+      hasExpectedKeys && noExtraKeys,
+      c.description,
+      `Got keys: [${keys.join(', ')}], Expected: [${c.expectedKeys.join(', ')}]`
+    );
+  }
+}
+
+// ============================================================================
+// 8. Locale-Aware Collection Selection Tests
+// ============================================================================
+
+function testLocaleAwareCollections() {
+  section('8. Locale-Aware Collection Selection');
+
+  const deDE = getDefaultCollectionsForLocale('de-DE');
+  assert(
+    deDE.length === 4 && deDE.includes('deutschland') && deDE.includes('bundestagsfraktion'),
+    'de-DE returns 4 German collections',
+    `Got: [${deDE.join(', ')}]`
+  );
+
+  const deAT = getDefaultCollectionsForLocale('de-AT');
+  assert(
+    deAT.length === 2 && deAT.includes('oesterreich') && deAT.includes('gruene-at'),
+    'de-AT returns 2 Austrian collections',
+    `Got: [${deAT.join(', ')}]`
+  );
+
+  const undef = getDefaultCollectionsForLocale(undefined);
+  assert(
+    undef.length === 4 && undef.includes('deutschland'),
+    'undefined locale falls back to German collections',
+    `Got: [${undef.join(', ')}]`
+  );
+
+  const unknown = getDefaultCollectionsForLocale('en-US');
+  assert(
+    unknown.length === 4 && unknown.includes('deutschland'),
+    'Unknown locale falls back to German collections',
+    `Got: [${unknown.join(', ')}]`
+  );
+}
+
+// ============================================================================
 // Run All Tests
 // ============================================================================
 
@@ -429,10 +646,12 @@ async function runAllTests() {
 
   testQueryReformulation();
   testHeuristicQueryOptimization();
-  testExpandedContextWindow();
+  await testExpandedContextWindow();
   await testRerankScoreParsing();
   testCrossCollectionLogic();
   testIntegrationFlow();
+  testFilterExtraction();
+  testLocaleAwareCollections();
 
   console.log(`\n${'═'.repeat(60)}`);
   console.log(`  Results: ${passed} passed, ${failed} failed, ${skipped} skipped`);

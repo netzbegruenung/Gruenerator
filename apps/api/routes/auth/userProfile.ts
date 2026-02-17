@@ -249,7 +249,6 @@ router.patch(
         'advanced_editor',
         'collaborative_editing',
         'contentManagement',
-        'canva',
         'chat',
         'labor',
         'sites',
@@ -259,9 +258,9 @@ router.patch(
         'vorlagen',
         'videoEditor',
         'igel_modus',
-        'automatischPlanMode',
         'prompts',
         'scanner',
+        'docs',
       ];
 
       if (!allowedFeatures.includes(feature)) {

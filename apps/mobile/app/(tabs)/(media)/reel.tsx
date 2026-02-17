@@ -1,18 +1,18 @@
+import { type Project, getVideoUrl, saveProject, useProjectsStore } from '@gruenerator/shared';
+import { useFocusEffect, router } from 'expo-router';
 import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
   useColorScheme,
-  ActivityIndicator,
   Text,
   BackHandler,
-  ViewStyle,
-  TextStyle,
+  type ViewStyle,
+  type TextStyle,
 } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
-import { useReelProcessing } from '../../../hooks/useReelProcessing';
+
+import { PulseLoader } from '../../../components/common';
 import {
   VideoUploader,
   ProcessingProgress,
@@ -20,8 +20,10 @@ import {
   ProjectList,
   ModeSelector,
 } from '../../../components/reel';
-import { type Project, getVideoUrl, saveProject, useProjectsStore } from '@gruenerator/shared';
+import { useReelProcessing } from '../../../hooks/useReelProcessing';
 import { shareService } from '../../../services/share';
+import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
+
 import type { ReelMode } from '../../../components/reel/ModeSelector';
 
 type ScreenMode = 'projects' | 'creating' | 'mode-select' | 'processing' | 'transcribing';
@@ -234,17 +236,15 @@ export default function ReelScreen() {
       }
 
       return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-          <Text style={[styles.loadingText, { color: theme.text }]}>
-            {isSavingProject
+        <PulseLoader
+          title={
+            isSavingProject
               ? 'Projekt wird gespeichert...'
-              : stageName || 'Untertitel werden grüneriert...'}
-          </Text>
-          <Text style={[styles.loadingSubtext, { color: theme.textSecondary }]}>
-            {isSavingProject ? 'Fast fertig!' : 'Dies kann einige Minuten dauern'}
-          </Text>
-        </View>
+              : stageName || 'Untertitel werden grüneriert...'
+          }
+          subtitle={isSavingProject ? 'Fast fertig!' : 'Dies kann einige Minuten dauern'}
+          icon="text-outline"
+        />
       );
     }
 
@@ -277,12 +277,11 @@ export default function ReelScreen() {
 
       if (status === 'downloading') {
         return (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
-            <Text style={[styles.loadingText, { color: theme.text }]}>
-              Video wird heruntergeladen...
-            </Text>
-          </View>
+          <PulseLoader
+            title="Video wird heruntergeladen..."
+            subtitle="Fast fertig!"
+            icon="cloud-download-outline"
+          />
         );
       }
 

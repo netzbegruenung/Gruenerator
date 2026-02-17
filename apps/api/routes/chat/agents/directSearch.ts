@@ -18,7 +18,9 @@ import {
   getSearchParams,
   buildSubcategoryFilter,
   applyDefaultFilter,
+  type SubcategoryFilters,
 } from '../../../config/systemCollectionsConfig.js';
+import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import { createLogger } from '../../../utils/logger.js';
 import { withRetry, searxngCircuit } from '../../../services/search/index.js';
 import { validateCitations, stripUngroundedCitations } from '../../../services/search/CitationGrounder.js';
@@ -64,6 +66,22 @@ const COLLECTION_MAP: Record<string, { qdrantCollection: string; systemId: strin
     qdrantCollection: 'boell_stiftung_documents',
     systemId: 'boell-stiftung-system',
   },
+  hamburg: {
+    qdrantCollection: 'landesverbaende_documents',
+    systemId: 'hamburg-system',
+  },
+  'schleswig-holstein': {
+    qdrantCollection: 'landesverbaende_documents',
+    systemId: 'schleswig-holstein-system',
+  },
+  thueringen: {
+    qdrantCollection: 'landesverbaende_documents',
+    systemId: 'thueringen-system',
+  },
+  bayern: {
+    qdrantCollection: 'landesverbaende_documents',
+    systemId: 'bayern-system',
+  },
 };
 
 export interface DirectSearchResult {
@@ -78,6 +96,7 @@ export interface DirectSearchResult {
     url?: string;
     excerpt: string;
     searchMethod: string;
+    contentType?: string;
   }>;
   cached?: boolean;
   error?: boolean;
@@ -146,10 +165,11 @@ export async function executeDirectSearch(params: {
   query: string;
   collection?: string;
   limit?: number;
+  filters?: SubcategoryFilters;
 }): Promise<DirectSearchResult> {
-  const { query, collection = 'deutschland', limit = 5 } = params;
+  const { query, collection = 'deutschland', limit = 5, filters } = params;
 
-  log.info(`[Direct Search] query="${query}" collection="${collection}" limit=${limit}`);
+  log.info(`[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}`);
 
   const mapping = COLLECTION_MAP[collection];
   if (!mapping) {
@@ -159,8 +179,22 @@ export async function executeDirectSearch(params: {
   const { qdrantCollection, systemId } = mapping || COLLECTION_MAP.deutschland;
   const searchParams = getSearchParams(systemId);
 
+  // Build filter: merge collection default filter with user-detected filters
+  const collectionDefault = applyDefaultFilter(systemId);
+  const userFilter = buildSubcategoryFilter(filters);
+  let additionalFilter: QdrantFilter | undefined;
+
+  if (collectionDefault && userFilter) {
+    // Merge both must arrays
+    additionalFilter = {
+      must: [...(collectionDefault.must || []), ...(userFilter.must || [])] as QdrantFilter['must'],
+    };
+  } else {
+    additionalFilter = userFilter || collectionDefault;
+  }
+
   try {
-    const response = await documentSearchService.search({
+    let response = await documentSearchService.search({
       query,
       userId: undefined,
       options: {
@@ -172,19 +206,47 @@ export async function executeDirectSearch(params: {
         searchCollection: qdrantCollection,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
+        additionalFilter,
       },
     });
 
     if (!response.success || !response.results || response.results.length === 0) {
-      log.info(`[Direct Search] No results found for query: "${query}" in ${collection}`);
-      return {
-        collection,
-        query,
-        searchMode: 'hybrid',
-        resultsCount: 0,
-        results: [],
-        message: 'Keine Ergebnisse gefunden.',
-      };
+      // If we had user filters, retry without them (over-filtering fallback)
+      if (userFilter) {
+        log.info(`[Direct Search] No results with filters, retrying without user filters for "${query}" in ${collection}`);
+        const fallbackFilter = collectionDefault;
+        const fallbackResponse = await documentSearchService.search({
+          query,
+          userId: undefined,
+          options: {
+            limit: Math.min(limit * 2, 30),
+            mode: 'hybrid',
+            vectorWeight: searchParams.vectorWeight,
+            textWeight: searchParams.textWeight,
+            threshold: searchParams.threshold,
+            searchCollection: qdrantCollection,
+            recallLimit: searchParams.recallLimit,
+            qualityMin: searchParams.qualityMin,
+            additionalFilter: fallbackFilter,
+          },
+        });
+        if (fallbackResponse.success && fallbackResponse.results?.length > 0) {
+          log.info(`[Direct Search] Fallback without filters found ${fallbackResponse.results.length} results`);
+          response = fallbackResponse;
+        }
+      }
+
+      if (!response.success || !response.results || response.results.length === 0) {
+        log.info(`[Direct Search] No results found for query: "${query}" in ${collection}`);
+        return {
+          collection,
+          query,
+          searchMode: 'hybrid',
+          resultsCount: 0,
+          results: [],
+          message: 'Keine Ergebnisse gefunden.',
+        };
+      }
     }
 
     const formattedResults = response.results.slice(0, limit).map((result: any, index: number) => ({
@@ -194,6 +256,7 @@ export async function executeDirectSearch(params: {
       url: result.source_url || result.url || undefined,
       excerpt: truncateText(result.snippet || result.chunk_text || result.content || '', 800),
       searchMethod: result.searchMethod || 'hybrid',
+      contentType: result.top_chunks?.[0]?.content_type || result.content_type || undefined,
     }));
 
     log.info(`[Direct Search] Found ${formattedResults.length} results for "${query}"`);
@@ -398,19 +461,24 @@ export async function executeDirectWebSearch(params: {
   query: string;
   searchType?: 'general' | 'news';
   maxResults?: number;
+  timeRange?: string;
 }): Promise<DirectWebSearchResult> {
-  const { query, searchType = 'general', maxResults = 5 } = params;
+  const { query, searchType = 'general', maxResults = 5, timeRange } = params;
 
   log.info(`[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults}`);
 
   try {
-    const searchOptions = {
+    const searchOptions: Record<string, any> = {
       maxResults: Math.min(maxResults, 10),
       language: 'de-DE',
       safesearch: 0,
       categories: searchType === 'news' ? 'news' : 'general',
       page: 1,
     };
+
+    if (timeRange) {
+      searchOptions.time_range = timeRange;
+    }
 
     const searchResults = await withRetry(
       () => searxngService.performWebSearch(query, searchOptions),

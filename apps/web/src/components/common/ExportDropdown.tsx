@@ -25,6 +25,7 @@ import { useLocation } from 'react-router-dom';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
+import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { useExportStore } from '../../stores/core/exportStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
@@ -40,6 +41,8 @@ import {
   extractFormattedText as extractFormattedTextJs,
   extractHTMLContent as extractHTMLContentJs,
 } from '../utils/contentExtractor';
+
+import type { ContentMetadata } from '@/types/baseform';
 
 // Type assertions for JS functions that return Promises
 const extractPlainText = extractPlainTextJs as unknown as (content: unknown) => Promise<string>;
@@ -148,27 +151,17 @@ const ExportDropdown = ({
 
   const handleExportWithAutoSave = useCallback(
     async (exportFn: () => Promise<void>, exportName: string = 'Export') => {
-      console.log('[DEBUG] handleExportWithAutoSave called', exportName);
-      console.log('[DEBUG] About to call exportFn');
       await exportFn();
-      console.log('[DEBUG] exportFn completed');
 
       const isAutoSaveEnabled = canAccessBetaFeature('autoSaveOnExport');
-
-      console.log('[Auto-save check]', {
-        enabled: isAutoSaveEnabled,
-        authenticated: isAuthenticated,
-        hasContent: !!content,
-      });
-
       if (!isAutoSaveEnabled || !isAuthenticated || !content) {
         return;
       }
 
-      const contentHash = hashContent(content, title);
+      const freshTitle = await getFreshTitle();
+      const contentHash = hashContent(content, freshTitle);
 
       if (exportedContentHashes.current.has(contentHash)) {
-        console.log('[Auto-save] Skipping duplicate content');
         return;
       }
 
@@ -179,16 +172,13 @@ const ExportDropdown = ({
           .getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
         const contentType = generatedTextMetadata?.contentType || 'universal';
 
-        console.log('[Auto-save] Saving to library', { exportName, contentType });
-
         await autoSaveToLibrary(
           content,
-          title || extractTitleFromContent(content) || `Auto-gespeichert: ${exportName}`,
+          freshTitle || extractTitleFromContent(content) || `Auto-gespeichert: ${exportName}`,
           contentType
         );
 
         exportedContentHashes.current.add(contentHash);
-        console.log('[Auto-save] Successfully saved');
       } catch (error) {
         console.warn('[Auto-save on export] Failed to auto-save:', error);
       }
@@ -252,6 +242,15 @@ const ExportDropdown = ({
     if (lastPart.includes('generator')) return lastPart;
 
     return lastPart;
+  };
+
+  const getFreshTitle = async (): Promise<string> => {
+    const cn = getComponentName();
+    await awaitDeferredTitle(cn);
+    const meta = useGeneratedTextStore
+      .getState()
+      .getGeneratedTextMetadata(cn) as ContentMetadata | null;
+    return meta?.title || title || '';
   };
 
   const tryGetTextWithFallbacks = (primaryComponentName: string) => {
@@ -318,9 +317,9 @@ const ExportDropdown = ({
         return;
       }
 
-      // Create document title
+      const freshTitle = await getFreshTitle();
       const documentTitle =
-        title || `${getDocumentType()} - ${new Date().toLocaleDateString('de-DE')}`;
+        freshTitle || `${getDocumentType()} - ${new Date().toLocaleDateString('de-DE')}`;
 
       // Submit to backend
       const response = await submitForm({
@@ -381,7 +380,7 @@ const ExportDropdown = ({
       } finally {
         setShowPastePopup(true);
       }
-      if (response && response.padURL) {
+      if (response && typeof response.padURL === 'string') {
         setPadURL(response.padURL);
       }
     } catch (err) {
@@ -421,8 +420,9 @@ const ExportDropdown = ({
         return;
       }
 
+      const freshTitle = await getFreshTitle();
       await shareContent({
-        title: title || 'Grünerator Text',
+        title: freshTitle || 'Grünerator Text',
         text: plainContent,
       });
     } catch (error) {
@@ -438,8 +438,9 @@ const ExportDropdown = ({
   const handleDOCXDownloadInner = useCallback(async () => {
     setShowDropdown(false);
     try {
+      const freshTitle = await getFreshTitle();
       const formattedContent = await extractFormattedText(content);
-      await generateDOCX(formattedContent, title || '');
+      await generateDOCX(formattedContent, freshTitle);
     } catch (error) {
       console.error('DOCX download failed:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -476,16 +477,17 @@ const ExportDropdown = ({
     setUploadingToWolke(true);
 
     try {
+      const freshTitle = await getFreshTitle();
       const { extractFilenameFromContent } = await import('../utils/titleExtractor');
       const formattedContent = await extractFormattedText(content);
-      const baseFileName = extractFilenameFromContent(formattedContent, title);
+      const baseFileName = extractFilenameFromContent(formattedContent, freshTitle);
       const filename = `${baseFileName}.docx`;
 
       const response = await apiClient.post(
         '/exports/docx',
         {
           content: formattedContent,
-          title,
+          title: freshTitle,
         },
         {
           responseType: 'blob',

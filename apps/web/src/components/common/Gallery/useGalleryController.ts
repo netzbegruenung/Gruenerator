@@ -183,6 +183,76 @@ const fetchPublicPrompts = async ({ searchTerm, searchMode, signal }: FetchOptio
   return Array.isArray(data?.results) ? data.results : [];
 };
 
+const fetchAgents = async ({ searchTerm, searchMode, signal }: FetchOptions) => {
+  const [builtInResponse, userCreated, ownResponse, savedResponse] = await Promise.all([
+    apiClient.get('/chat-service/agents', { signal }),
+    fetchPublicPrompts({ searchTerm, searchMode, signal }),
+    apiClient.get('/auth/custom_prompts', { signal }).catch(() => ({ data: { prompts: [] } })),
+    apiClient.get('/auth/saved_prompts', { signal }).catch(() => ({ data: { prompts: [] } })),
+  ]);
+
+  const builtInData = builtInResponse.data;
+  const builtInAgents = (Array.isArray(builtInData) ? builtInData : []).map(
+    (agent: Record<string, unknown>) => ({
+      ...agent,
+      id: agent.identifier,
+      name: agent.title,
+      _isBuiltIn: true,
+    })
+  );
+
+  const ownAgents = (ownResponse.data?.prompts || []).map((p: Record<string, unknown>) => ({
+    ...p,
+    _isOwn: true,
+  }));
+  const savedAgents = (savedResponse.data?.prompts || []).map((p: Record<string, unknown>) => ({
+    ...p,
+    _isSaved: true,
+  }));
+
+  const q = (searchTerm || '').toLowerCase();
+
+  const filterByQuery = (items: Record<string, unknown>[]) =>
+    q
+      ? items.filter(
+          (a) =>
+            String(a.title || a.name || '').toLowerCase().includes(q) ||
+            String(a.description || '').toLowerCase().includes(q)
+        )
+      : items;
+
+  const filteredBuiltIn = filterByQuery(builtInAgents);
+  const filteredOwn = filterByQuery(ownAgents);
+  const filteredSaved = filterByQuery(savedAgents);
+
+  // Exclude own/saved IDs from community list to avoid duplicates
+  const excludeIds = new Set([
+    ...ownAgents.map((a: Record<string, unknown>) => String(a.id)),
+    ...savedAgents.map((a: Record<string, unknown>) => String(a.id)),
+  ]);
+  const community = userCreated.filter(
+    (a: Record<string, unknown>) => !excludeIds.has(String(a.prompt_id || a.id))
+  );
+  const filteredCommunity = filterByQuery(community);
+
+  const allItems = [...filteredOwn, ...filteredSaved, ...filteredBuiltIn, ...filteredCommunity];
+
+  // When searching, return flat results; otherwise return sections
+  if (q) {
+    return { items: allItems };
+  }
+
+  return {
+    items: allItems,
+    sections: {
+      own: filteredOwn,
+      saved: filteredSaved,
+      builtin: filteredBuiltIn,
+      community: filteredCommunity,
+    },
+  };
+};
+
 const categoryQueryOptions = {
   antraege: {
     queryKey: ['antraegeCategories'],
@@ -210,6 +280,7 @@ const fetcherMap = {
   fetchUnified: fetchUnified,
   fetchVorlagen: fetchVorlagen,
   fetchPublicPrompts: fetchPublicPrompts,
+  fetchAgents: fetchAgents,
 };
 
 interface UseGalleryControllerProps {
@@ -255,8 +326,8 @@ export const useGalleryController = ({
 
   const dataQuery = useQuery({
     queryKey: ['gallery-data', resolvedType, searchTerm, searchMode, selectedCategory],
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30_000,
+    gcTime: 60_000,
     refetchOnMount: 'always',
     queryFn: async ({ signal }): Promise<Record<string, unknown>> => {
       const fetcherName = config.fetcher;
@@ -274,6 +345,10 @@ export const useGalleryController = ({
           sectionOrder: config.sectionOrder,
           sectionTypeMap: config.sectionTypeMap,
         });
+      }
+
+      if (fetcherName === 'fetchAgents') {
+        return fetcher({ searchTerm, searchMode, signal });
       }
 
       // For vorlagen, parse hashtags from search term
@@ -339,9 +414,9 @@ export const useGalleryController = ({
 
   const handleTagClick = useCallback(
     (tag: string) => {
-      setInputValue(addTagToSearch(inputValue, tag));
+      setInputValue((prev) => addTagToSearch(prev, tag));
     },
-    [inputValue]
+    []
   );
 
   return {

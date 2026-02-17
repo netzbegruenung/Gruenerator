@@ -1,8 +1,17 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import { HiX, HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import { SiCanva } from 'react-icons/si';
-import './TemplatePreviewModal.css';
+
+import { cn } from '@/utils/cn';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 const formatDate = (value: string | number | Date | null | undefined) => {
   if (!value) return '';
@@ -31,6 +40,7 @@ interface TemplateMetadata {
 }
 
 interface Template {
+  id?: string;
   content_data?: TemplateContentData;
   metadata?: TemplateMetadata;
   external_url?: string;
@@ -89,40 +99,18 @@ const TemplatePreviewModal = ({
     setActiveImageIndex(0);
   }, [template?.id]);
 
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (hasMultipleImages) {
-        if (e.key === 'ArrowLeft') {
-          setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
-        } else if (e.key === 'ArrowRight') {
-          setActiveImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
-        }
-      }
-    },
-    [onClose, hasMultipleImages, allImages.length]
-  );
-
   useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
+    if (!isOpen || !hasMultipleImages) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
+      } else if (e.key === 'ArrowRight') {
+        setActiveImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
+      }
     };
-  }, [isOpen, handleKeyDown]);
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isOpen, hasMultipleImages, allImages.length]);
 
   const handleOpenExternal = useCallback(() => {
     const url = template?.content_data?.originalUrl || template?.external_url;
@@ -141,23 +129,7 @@ const TemplatePreviewModal = ({
     [onTagClick, onClose]
   );
 
-  const handlePrevImage = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
-    },
-    [allImages.length]
-  );
-
-  const handleNextImage = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setActiveImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
-    },
-    [allImages.length]
-  );
-
-  if (!isOpen || !template) return null;
+  if (!template) return null;
 
   const templateType = template.template_type
     ? template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)
@@ -166,87 +138,96 @@ const TemplatePreviewModal = ({
   const dimensions = template.content_data?.dimensions || template.metadata?.dimensions;
   const tags = Array.isArray(template.tags) ? template.tags : [];
 
-  const modalContent = (
-    <div className="template-preview-modal-backdrop" onClick={handleBackdropClick}>
-      <div
-        className="template-preview-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="template-preview-title"
-      >
-        <div className="template-preview-modal-header">
-          <h2 id="template-preview-title">{template.title || 'Vorlage'}</h2>
-          <button className="template-preview-modal-close" onClick={onClose} aria-label="Schließen">
-            <HiX />
-          </button>
-        </div>
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[900px] max-h-[80vh] p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-lg py-md border-b border-grey-200 dark:border-grey-700">
+          <DialogTitle className="truncate pr-md">
+            {template.title || 'Vorlage'}
+          </DialogTitle>
+        </DialogHeader>
 
-        <div className="template-preview-modal-body">
-          <div className="template-preview-layout">
+        <div className="flex-1 overflow-hidden min-h-0 flex">
+          <div className="flex flex-col max-md:flex-col md:flex-row flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
             {currentImage?.url ? (
-              <div className="template-preview-image-section">
-                <div className="template-preview-image-container">
+              <div className="flex-shrink-0 bg-background-alt flex flex-col min-h-0">
+                <div className="relative flex items-center justify-center p-md">
                   {hasMultipleImages && (
                     <button
-                      className="template-preview-nav template-preview-nav-prev"
-                      onClick={handlePrevImage}
+                      className="absolute left-sm top-1/2 -translate-y-1/2 bg-background border-none rounded-full w-9 h-9 flex items-center justify-center cursor-pointer shadow-md text-foreground z-10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
+                      }}
                       aria-label="Vorheriges Bild"
                     >
-                      <HiChevronLeft />
+                      <HiChevronLeft className="w-5 h-5" />
                     </button>
                   )}
                   <img
                     src={currentImage.url}
                     alt={currentImage.title || template.title || 'Vorschau'}
-                    className="template-preview-main-image"
+                    className="max-w-full max-h-[calc(80vh-140px)] max-md:max-h-[35vh] w-auto h-auto object-contain rounded-sm"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                   {hasMultipleImages && (
                     <button
-                      className="template-preview-nav template-preview-nav-next"
-                      onClick={handleNextImage}
+                      className="absolute right-sm top-1/2 -translate-y-1/2 bg-background border-none rounded-full w-9 h-9 flex items-center justify-center cursor-pointer shadow-md text-foreground z-10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
+                      }}
                       aria-label="Nächstes Bild"
                     >
-                      <HiChevronRight />
+                      <HiChevronRight className="w-5 h-5" />
                     </button>
                   )}
                 </div>
 
                 {hasMultipleImages && (
-                  <div className="template-preview-thumbnails">
+                  <div className="flex gap-sm px-md pb-md overflow-x-auto justify-center shrink-0">
                     {allImages.map((img, index) => (
                       <button
                         key={`thumb-${index}`}
-                        className={`template-preview-thumbnail${index === activeImageIndex ? ' active' : ''}`}
+                        className={cn(
+                          'w-12 h-12 p-0 border-2 border-transparent rounded-md overflow-hidden cursor-pointer bg-background shrink-0',
+                          index === activeImageIndex && 'border-primary-500',
+                        )}
                         onClick={() => setActiveImageIndex(index)}
                         aria-label={`Bild ${index + 1}`}
                       >
-                        <img src={img.url} alt="" />
+                        <img src={img.url} alt="" className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>
                 )}
               </div>
             ) : (
-              <div className="template-preview-no-image">
+              <div className="shrink-0 flex items-center justify-center bg-background-alt text-grey-500 text-sm min-h-[200px] min-w-[300px] max-md:min-h-[150px] max-md:min-w-0">
                 <span>Keine Vorschau verfügbar</span>
               </div>
             )}
 
-            <div className="template-preview-info">
+            <div className="flex-1 p-lg max-md:p-md flex flex-col overflow-y-auto min-h-0">
               {template.description && (
-                <p className="template-preview-description">{template.description}</p>
+                <p className="m-0 mb-md text-foreground leading-relaxed text-sm">
+                  {template.description}
+                </p>
               )}
 
               {template.metadata?.author_name && (
-                <p className="template-preview-author">
-                  <strong>Autor*in:</strong> {template.metadata.author_name}
+                <p className="m-0 mb-md text-sm text-grey-500">
+                  <strong className="text-foreground font-medium">Autor*in:</strong>{' '}
+                  {template.metadata.author_name}
                   {template.metadata?.contact_email && (
                     <>
                       {' · '}
-                      <a href={`mailto:${template.metadata.contact_email}`}>
+                      <a
+                        href={`mailto:${template.metadata.contact_email}`}
+                        className="text-primary-600 no-underline hover:underline"
+                      >
                         {template.metadata.contact_email}
                       </a>
                     </>
@@ -255,43 +236,46 @@ const TemplatePreviewModal = ({
               )}
 
               {tags.length > 0 && (
-                <div className="template-preview-tags">
+                <div className="flex flex-wrap gap-sm mb-md">
                   {tags.map((tag: string) => (
-                    <span
+                    <Badge
                       key={tag}
-                      className={`template-preview-tag${onTagClick ? ' clickable' : ''}`}
+                      variant="secondary"
+                      className={cn(
+                        onTagClick && 'cursor-pointer transition-colors duration-200 hover:bg-primary-500 hover:text-white',
+                      )}
                       onClick={onTagClick ? () => handleTagClick(tag) : undefined}
                       role={onTagClick ? 'button' : undefined}
                       tabIndex={onTagClick ? 0 : undefined}
                     >
                       #{tag}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               )}
 
-              <div className="template-preview-meta">
+              <div className="flex flex-wrap gap-sm items-center text-grey-600 dark:text-grey-400 text-xs mt-auto">
                 {templateType && (
-                  <span className="template-preview-type">
-                    {isCanva && <SiCanva className="template-preview-type-icon" />}
+                  <Badge variant="outline" className="gap-1.5">
+                    {isCanva && <SiCanva className="w-3.5 h-3.5" />}
                     {templateType}
-                  </span>
+                  </Badge>
                 )}
                 {dimensions && (
-                  <span className="template-preview-dimensions">
+                  <span className="font-mono text-xs">
                     {dimensions.width} × {dimensions.height}
                   </span>
                 )}
                 {template.created_at && (
-                  <span className="template-preview-date">{formatDate(template.created_at)}</span>
+                  <span>{formatDate(template.created_at)}</span>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="template-preview-modal-footer">
-          <button className="pabtn pabtn--m pabtn--primary" onClick={handleOpenExternal}>
+        <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700">
+          <Button onClick={handleOpenExternal}>
             {isCanva ? (
               <>
                 <SiCanva />
@@ -303,13 +287,11 @@ const TemplatePreviewModal = ({
                 <span>Öffnen</span>
               </>
             )}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-
-  return createPortal(modalContent, document.body);
 };
 
 export default TemplatePreviewModal;

@@ -138,7 +138,7 @@ export const KI_TYPE_CONFIGS: Record<ImageStudioKiType, KiTypeConfig> = {
 
   'green-edit': {
     id: 'green-edit',
-    label: 'Grüne Straße',
+    label: 'Grün verwandeln',
     description: 'Verwandle Straßen in grüne, nachhaltige Räume',
     category: 'ki',
     subcategory: 'edit',

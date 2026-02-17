@@ -7,7 +7,7 @@ import express from 'express';
 import { streamText, tool, ModelMessage, Tool, stepCountIs, ToolSet } from 'ai';
 import { z } from 'zod';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
-import { getAgent, getDefaultAgentId } from './agents/agentLoader.js';
+import { getAgent, getDefaultAgentId, getAgentOrCustomPrompt } from './agents/agentLoader.js';
 import {
   executeDirectSearch,
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
@@ -19,6 +19,7 @@ import type { ResearchResult } from './agents/directSearch.js';
 import { getModel, isProviderConfigured } from './agents/providers.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import type { UserProfile } from '../../services/user/types.js';
 import type { AgentConfig } from './agents/types.js';
 import {
@@ -331,13 +332,6 @@ async function touchThread(threadId: string): Promise<void> {
   );
 }
 
-async function updateThreadTitle(threadId: string, title: string): Promise<void> {
-  const postgres = getPostgresInstance();
-  await postgres.query(
-    `UPDATE chat_threads SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-    [title, threadId]
-  );
-}
 
 router.post('/', async (req, res) => {
   try {
@@ -371,7 +365,7 @@ router.post('/', async (req, res) => {
     const userId = user.id;
     log.info(`[Chat Debug] User: ${userId}`);
 
-    const agent = await getAgent(agentId || getDefaultAgentId());
+    const agent = await getAgentOrCustomPrompt(agentId || getDefaultAgentId(), userId);
     if (!agent) {
       log.warn(`[Chat Debug] Agent not found: ${agentId}`);
       return res.status(404).json({ error: 'Agent not found' });
@@ -434,7 +428,7 @@ Du MUSST für jede Nachricht ein Tool wählen. Entscheide semantisch basierend a
 1. **Fokus**: Beantworte NUR was gefragt wurde. Keine ungebetene Spekulation.
 2. **Kürze**: Kurze, präzise Antworten. Maximal 3-4 Absätze für einfache Fragen.
 3. **Zitieren**: Bei research-Tool Inline-Zitate [1], [2] in Antwort übernehmen.
-4. **Quellen**: Relevante Quellen am Ende nennen wenn Suche durchgeführt.
+4. **Quellen**: Verwende NUR Inline-Verweise [1], [2] etc. Erstelle KEINE Quellenliste am Ende — die Quellen werden automatisch in der Oberfläche angezeigt.
 
 Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`;
 
@@ -551,12 +545,15 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
 
             await touchThread(actualThreadId);
 
-            if (isNewThread && text && text.length > 10) {
-              const firstSentence = text.split(/[.!?]/)[0];
-              const title =
-                firstSentence.length > 50 ? firstSentence.slice(0, 50) + '...' : firstSentence;
-              if (title && title.length > 5) {
-                await updateThreadTitle(actualThreadId, title);
+            if (isNewThread && text) {
+              const aiWorkerPool = req.app.locals.aiWorkerPool;
+              const userContent = typeof lastUserMessage.content === 'string'
+                ? lastUserMessage.content
+                : JSON.stringify(lastUserMessage.content);
+              if (aiWorkerPool) {
+                generateThreadTitle(actualThreadId, userContent, text, aiWorkerPool).catch(
+                  (err) => log.warn('[Chat] Thread title generation failed:', err)
+                );
               }
             }
           } catch (error) {

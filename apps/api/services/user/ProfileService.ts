@@ -218,6 +218,7 @@ class ProfileService {
         videoEditor: 'video_editor',
         prompts: 'prompts',
         scanner: 'scanner',
+        docs: 'docs',
       };
 
       if (featureColumnMap[feature]) {
@@ -455,6 +456,7 @@ class ProfileService {
       videoEditor: profile.video_editor || false,
       prompts: profile.prompts || false,
       scanner: profile.scanner || false,
+      docs: profile.docs || false,
     };
 
     return {

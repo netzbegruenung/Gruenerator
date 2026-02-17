@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,44 +13,126 @@ import {
   Linking,
 } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
-import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useNotebookChat } from '../../hooks/useNotebookChat';
+import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
+import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
+import { MicButton } from '../common';
+
+import { CitationModal } from './CitationModal';
 import { CitationTextRenderer } from './CitationTextRenderer';
+
 import type { NotebookChatMessage, NotebookSource } from '../../stores/notebookChatStore';
 
-function SourceItem({ source }: { source: NotebookSource }) {
+interface DocumentGroup {
+  documentId: string;
+  title: string;
+  url?: string;
+  relevance?: number;
+  citations: NotebookSource[];
+  collectionName?: string;
+}
+
+function groupSourcesByDocument(sources: NotebookSource[]): DocumentGroup[] {
+  const groupMap = new Map<string, DocumentGroup>();
+
+  for (const source of sources) {
+    const key = source.documentId || source.title || 'unknown';
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        documentId: key,
+        title: source.title,
+        url: source.url,
+        relevance: source.similarity_score,
+        citations: [],
+        collectionName: source.collectionName,
+      });
+    }
+    const group = groupMap.get(key)!;
+    group.citations.push(source);
+    if (
+      source.similarity_score &&
+      (!group.relevance || source.similarity_score > group.relevance)
+    ) {
+      group.relevance = source.similarity_score;
+    }
+  }
+
+  // Sort by first citation index (lowest first)
+  return Array.from(groupMap.values()).sort((a, b) => {
+    const aIdx = a.citations[0]?.index ? Number(a.citations[0].index) : Infinity;
+    const bIdx = b.citations[0]?.index ? Number(b.citations[0].index) : Infinity;
+    return aIdx - bIdx;
+  });
+}
+
+function DocumentGroupItem({
+  group,
+  onCitationPress,
+}: {
+  group: DocumentGroup;
+  onCitationPress: (citation: NotebookSource, index: string) => void;
+}) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-
-  const handlePress = () => {
-    if (source.url) {
-      Linking.openURL(source.url);
-    }
-  };
+  const relevancePercent = group.relevance ? Math.round(group.relevance * 100) : null;
 
   return (
-    <Pressable
-      style={[styles.sourceItem, { backgroundColor: theme.background, borderColor: theme.border }]}
-      onPress={handlePress}
-      disabled={!source.url}
-    >
-      <Ionicons
-        name={source.url ? 'link-outline' : 'document-outline'}
-        size={14}
-        color={colors.primary[600]}
-      />
-      <Text style={[styles.sourceTitle, { color: theme.text }]} numberOfLines={1}>
-        {source.title}
-      </Text>
-      {source.collectionName && (
-        <Text style={[styles.sourceCollection, { color: theme.textSecondary }]} numberOfLines={1}>
-          {source.collectionName}
+    <View style={[styles.docGroup, { borderColor: theme.border }]}>
+      <View style={styles.docGroupHeader}>
+        <Pressable
+          style={styles.docGroupTitleRow}
+          onPress={group.url ? () => Linking.openURL(group.url!) : undefined}
+          disabled={!group.url}
+        >
+          <Ionicons
+            name={group.url ? 'link-outline' : 'document-outline'}
+            size={14}
+            color={colors.primary[600]}
+          />
+          <Text
+            style={[styles.docGroupTitle, { color: group.url ? colors.primary[600] : theme.text }]}
+            numberOfLines={2}
+          >
+            {group.title}
+          </Text>
+        </Pressable>
+        {relevancePercent !== null && (
+          <Text style={[styles.relevanceBadge, { color: theme.textSecondary }]}>
+            {relevancePercent}%
+          </Text>
+        )}
+      </View>
+
+      {group.collectionName && (
+        <Text style={[styles.docGroupCollection, { color: theme.textSecondary }]}>
+          {group.collectionName}
         </Text>
       )}
-    </Pressable>
+
+      {group.citations.map((citation, idx) => {
+        if (!citation.cited_text) return null;
+        const citationIndex = citation.index?.toString() || '';
+        return (
+          <Pressable
+            key={idx}
+            style={[styles.citationExcerpt, { backgroundColor: theme.surface }]}
+            onPress={() => onCitationPress(citation, citationIndex)}
+          >
+            {citationIndex ? (
+              <View style={styles.citationExcerptBadge}>
+                <Text style={styles.citationExcerptBadgeText}>{citationIndex}</Text>
+              </View>
+            ) : null}
+            <Text style={[styles.citationExcerptText, { color: theme.text }]} numberOfLines={3}>
+              &bdquo;{citation.cited_text.replace(/\*\*/g, '')}&ldquo;
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -59,8 +142,29 @@ function MessageBubble({ message }: { message: NotebookChatMessage }) {
   const isUser = message.type === 'user';
   const isError = message.type === 'error';
   const [showSources, setShowSources] = useState(false);
+  const [selectedCitation, setSelectedCitation] = useState<NotebookSource | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState('');
+
+  const handleCitationPress = useCallback((citation: NotebookSource, index: string) => {
+    setSelectedCitation(citation);
+    setSelectedIndex(index);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setSelectedCitation(null);
+    setSelectedIndex('');
+  }, []);
 
   const hasSources = message.sources && message.sources.length > 0;
+
+  const documentGroups = useMemo(() => {
+    if (!hasSources) return [];
+    // Use citations if available (have index + cited_text), fall back to sources
+    const citationsWithText = message.citations?.filter((c) => c.cited_text) || [];
+    return groupSourcesByDocument(
+      citationsWithText.length > 0 ? citationsWithText : message.sources!
+    );
+  }, [hasSources, message.citations, message.sources]);
 
   // Markdown styles for assistant messages
   const markdownStyles = useMemo(
@@ -191,24 +295,30 @@ function MessageBubble({ message }: { message: NotebookChatMessage }) {
               color={theme.textSecondary}
             />
             <Text style={[styles.sourcesToggleText, { color: theme.textSecondary }]}>
-              {message.sources!.length} Quellen
+              {documentGroups.length} {documentGroups.length === 1 ? 'Quelle' : 'Quellen'}
             </Text>
           </Pressable>
 
           {showSources && (
             <View style={styles.sourcesList}>
-              {message.sources!.slice(0, 5).map((source, index) => (
-                <SourceItem key={`${source.title}-${index}`} source={source} />
+              {documentGroups.map((group, index) => (
+                <DocumentGroupItem
+                  key={group.documentId || `group-${index}`}
+                  group={group}
+                  onCitationPress={handleCitationPress}
+                />
               ))}
-              {message.sources!.length > 5 && (
-                <Text style={[styles.moreSourcesText, { color: theme.textSecondary }]}>
-                  +{message.sources!.length - 5} weitere Quellen
-                </Text>
-              )}
             </View>
           )}
         </View>
       )}
+
+      <CitationModal
+        visible={!!selectedCitation}
+        onClose={handleCloseModal}
+        citation={selectedCitation}
+        citationIndex={selectedIndex}
+      />
     </View>
   );
 }
@@ -241,9 +351,10 @@ function ExampleQuestion({
 
 interface NotebookChatProps {
   notebookId: string;
+  onBack?: () => void;
 }
 
-export function NotebookChat({ notebookId }: NotebookChatProps) {
+export function NotebookChat({ notebookId, onBack }: NotebookChatProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const flatListRef = useRef<FlatList>(null);
@@ -254,12 +365,19 @@ export function NotebookChat({ notebookId }: NotebookChatProps) {
   });
 
   const [inputText, setInputText] = useState('');
+  const { isListening, toggle: toggleSpeech } = useSpeechToText();
 
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
     const text = inputText;
     setInputText('');
     await sendMessage(text);
+  };
+
+  const handleMicPress = () => {
+    toggleSpeech((transcript) => {
+      setInputText((prev) => appendTranscript(prev, transcript));
+    });
   };
 
   const handleExamplePress = (text: string) => {
@@ -279,7 +397,13 @@ export function NotebookChat({ notebookId }: NotebookChatProps) {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {isEmpty ? (
-        <View style={styles.emptyState}>
+        <View style={[styles.emptyState, { paddingBottom: insets.bottom + 80 }]}>
+          {onBack && (
+            <Pressable onPress={onBack} style={styles.inlineBack}>
+              <Ionicons name="chevron-back" size={20} color={theme.textSecondary} />
+              <Text style={[styles.inlineBackText, { color: theme.textSecondary }]}>Notebooks</Text>
+            </Pressable>
+          )}
           <View style={[styles.emptyIconContainer, { backgroundColor: config.color + '15' }]}>
             <Ionicons name="chatbubbles" size={32} color={config.color} />
           </View>
@@ -315,10 +439,7 @@ export function NotebookChat({ notebookId }: NotebookChatProps) {
         <View
           style={[
             styles.inputWrapper,
-            {
-              backgroundColor: theme.background,
-              paddingBottom: Math.max(insets.bottom, spacing.small),
-            },
+            { backgroundColor: theme.background, paddingBottom: insets.bottom + 16 },
           ]}
         >
           <View
@@ -337,27 +458,14 @@ export function NotebookChat({ notebookId }: NotebookChatProps) {
               maxLength={2000}
               editable={!isLoading}
             />
-            <Pressable
-              style={[
-                styles.sendButton,
-                {
-                  backgroundColor:
-                    inputText.trim() && !isLoading ? colors.primary[600] : 'transparent',
-                },
-              ]}
-              onPress={handleSend}
-              disabled={!inputText.trim() || isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color={colors.primary[600]} />
-              ) : (
-                <Ionicons
-                  name="arrow-up"
-                  size={20}
-                  color={inputText.trim() ? colors.white : theme.textSecondary}
-                />
-              )}
-            </Pressable>
+            <MicButton
+              isListening={isListening}
+              onMicPress={handleMicPress}
+              hasText={!!inputText.trim()}
+              onSubmit={handleSend}
+              loading={isLoading}
+              size={32}
+            />
           </View>
         </View>
       </KeyboardStickyView>
@@ -377,6 +485,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.large,
+  },
+  inlineBack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    position: 'absolute',
+    top: spacing.medium,
+    left: spacing.medium,
+  },
+  inlineBackText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   emptyIconContainer: {
     width: 64,
@@ -417,7 +537,7 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     padding: spacing.medium,
-    paddingBottom: spacing.large,
+    paddingBottom: 100,
   },
   messageContainer: {
     marginBottom: spacing.medium,
@@ -427,7 +547,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   messageBubble: {
-    maxWidth: '85%',
+    maxWidth: '95%',
     padding: spacing.medium,
     borderRadius: borderRadius.large,
     borderWidth: 1,
@@ -451,42 +571,82 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sourcesSection: {
-    marginTop: spacing.xsmall,
-    maxWidth: '85%',
+    marginTop: spacing.small,
+    width: '100%',
   },
   sourcesToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xsmall,
-    paddingVertical: spacing.xsmall,
+    paddingVertical: spacing.small,
   },
   sourcesToggleText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   sourcesList: {
-    gap: spacing.xsmall,
+    gap: spacing.medium,
     marginTop: spacing.xsmall,
   },
-  sourceItem: {
+  docGroup: {
+    borderWidth: 1,
+    borderRadius: borderRadius.large,
+    padding: spacing.medium,
+    gap: spacing.small,
+  },
+  docGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.small,
+  },
+  docGroupTitleRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.small,
-    borderRadius: borderRadius.small,
-    borderWidth: 1,
-    gap: spacing.xsmall,
+    gap: spacing.small,
   },
-  sourceTitle: {
+  docGroupTitle: {
     flex: 1,
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
-  sourceCollection: {
+  docGroupCollection: {
+    fontSize: 12,
+    marginLeft: 22,
+    marginTop: 2,
+  },
+  relevanceBadge: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  citationExcerpt: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.small,
+    padding: spacing.small,
+    borderRadius: borderRadius.medium,
+  },
+  citationExcerptBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary[600],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  citationExcerptBadgeText: {
+    color: colors.white,
     fontSize: 11,
+    fontWeight: '600',
   },
-  moreSourcesText: {
-    fontSize: 12,
-    paddingVertical: spacing.xsmall,
+  citationExcerptText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    fontStyle: 'italic',
   },
   inputWrapper: {
     paddingHorizontal: spacing.medium,
@@ -507,12 +667,5 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 16,
     lineHeight: 20,
-  },
-  sendButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

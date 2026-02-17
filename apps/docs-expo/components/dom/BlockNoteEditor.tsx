@@ -60,10 +60,23 @@ function EditorWithCollaboration({
   onNavigateBack: () => void;
   onTitleChange: (title: string) => void;
 }) {
-  const { ydoc, provider, isSynced } = useCollaboration({
+  const { ydoc, provider, isSynced, isConnected } = useCollaboration({
     documentId,
     user: { id: userId, display_name: userName, email: userEmail },
   });
+
+  if (!isSynced) {
+    return (
+      <div style={{ padding: 20, fontFamily: 'monospace', fontSize: 14 }}>
+        <h3>Debug: Waiting for sync...</h3>
+        <p>documentId: {documentId}</p>
+        <p>isConnected: {String(isConnected)}</p>
+        <p>isSynced: {String(isSynced)}</p>
+        <p>hasProvider: {String(!!provider)}</p>
+        <p>userId: {userId}</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -142,19 +155,28 @@ export default function BlockNoteEditor({
   onNavigateBack,
   onTitleChange,
 }: BlockNoteEditorProps) {
-  const adapter = createDomAdapter(authToken, apiBaseUrl, hocuspocusUrl);
-
   return (
-    <DocsProvider adapter={adapter}>
-      <EditorWithCollaboration
-        documentId={documentId}
-        documentTitle={documentTitle}
-        userId={userId}
-        userName={userName}
-        userEmail={userEmail}
-        onNavigateBack={onNavigateBack}
-        onTitleChange={onTitleChange}
-      />
-    </DocsProvider>
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+        background: '#ff0',
+        padding: 20,
+        overflow: 'auto',
+        fontFamily: 'monospace',
+      }}
+    >
+      <h2 style={{ color: '#000' }}>DOM Component Loaded</h2>
+      <p>documentId: {documentId}</p>
+      <p>apiBaseUrl: {apiBaseUrl}</p>
+      <p>hocuspocusUrl: {hocuspocusUrl}</p>
+      <p>userId: {userId}</p>
+      <p>authToken: {authToken ? authToken.substring(0, 20) + '...' : 'NONE'}</p>
+    </div>
   );
 }

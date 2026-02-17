@@ -6,6 +6,7 @@ interface Source {
   document_id?: string;
   document_title?: string;
   url?: string;
+  source_url?: string;
   similarity_score?: number;
   chunk_text?: string;
   [key: string]: unknown;
@@ -15,6 +16,7 @@ interface Citation {
   document_id?: string;
   document_title?: string;
   url?: string;
+  source_url?: string;
   similarity_score?: number;
   cited_text?: string;
   index?: number;
@@ -83,7 +85,20 @@ const CitationSourcesDisplay = ({
       const docTitle =
         (linkConfig.titleKey ? source[linkConfig.titleKey] : undefined) || source.document_title;
       const docUrl =
-        source.url || (linkConfig.urlKey ? source[linkConfig.urlKey] : undefined) || null;
+        source.url ||
+        source.source_url ||
+        (linkConfig.urlKey ? source[linkConfig.urlKey] : undefined) ||
+        null;
+
+      // DEBUG: URL resolution chain for each source
+      console.log(`[CitationSources] URL resolve "${source.document_title}":`, {
+        'source.url': source.url ?? '(undefined)',
+        'source.source_url': source.source_url ?? '(undefined)',
+        [`source[${linkConfig.urlKey}]`]: linkConfig.urlKey
+          ? source[linkConfig.urlKey]
+          : '(no urlKey)',
+        resolved: docUrl,
+      });
 
       if (!groupMap.has(docId)) {
         groupMap.set(docId, {
@@ -105,7 +120,7 @@ const CitationSourcesDisplay = ({
         groupMap.set(docId, {
           documentId: docId,
           documentTitle: citation.document_title,
-          url: citation.url || null,
+          url: citation.url || citation.source_url || null,
           relevance: citation.similarity_score,
           citations: [],
           additionalContent: '',
@@ -144,9 +159,46 @@ const CitationSourcesDisplay = ({
     );
   }, [sources, citations, linkConfig]);
 
+  // DEBUG: Raw input data — what fields do the sources actually carry?
+  if (sources.length > 0 || citations.length > 0) {
+    console.group('[CitationSources] Input data');
+    sources.forEach((s, i) => {
+      console.log(`source[${i}]:`, {
+        document_title: s.document_title,
+        url: s.url,
+        source_url: s.source_url,
+        allKeys: Object.keys(s),
+        linkConfig_urlKey: linkConfig.urlKey,
+        linkConfig_urlKey_value: linkConfig.urlKey ? s[linkConfig.urlKey] : '(no urlKey)',
+      });
+    });
+    citations.forEach((c, i) => {
+      console.log(`citation[${i}]:`, {
+        document_title: c.document_title,
+        url: c.url,
+        source_url: c.source_url,
+        allKeys: Object.keys(c),
+      });
+    });
+    console.log('linkConfig:', linkConfig);
+    console.groupEnd();
+  }
+
   if (sources.length === 0 && citations.length === 0 && additionalSources.length === 0) return null;
 
   const documentGroups = createDocumentGroups();
+
+  // DEBUG: Resolved document groups — did URL resolution work?
+  console.group('[CitationSources] Document groups');
+  documentGroups.forEach((g, i) => {
+    console.log(`group[${i}]:`, {
+      documentTitle: g.documentTitle,
+      url: g.url,
+      urlTruthy: !!g.url,
+      citationCount: g.citations.length,
+    });
+  });
+  console.groupEnd();
 
   // Group additional sources (handle both ExpandedChunkResult and Source property names)
   const additionalGrouped = additionalSources.reduce(
@@ -180,6 +232,19 @@ const CitationSourcesDisplay = ({
     (a, b) => b.maxScore - a.maxScore
   );
 
+  // DEBUG: Additional source groups
+  if (additionalSourceGroups.length > 0) {
+    console.group('[CitationSources] Additional sources');
+    additionalSourceGroups.forEach((s, i) => {
+      console.log(`additional[${i}]:`, {
+        document_title: s.document_title,
+        url: s.url,
+        urlTruthy: !!s.url,
+      });
+    });
+    console.groupEnd();
+  }
+
   return (
     <div className={`ask-sources-section ${className}`}>
       <div className="ask-sources-header">
@@ -193,7 +258,20 @@ const CitationSourcesDisplay = ({
             className="ask-document-group"
           >
             <div className="ask-document-header">
-              <h5 className="ask-document-title">{group.documentTitle}</h5>
+              <h5 className="ask-document-title">
+                {group.url ? (
+                  <a
+                    href={group.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ask-document-title-link"
+                  >
+                    {group.documentTitle}
+                  </a>
+                ) : (
+                  group.documentTitle
+                )}
+              </h5>
               {group.relevance && (
                 <span className="ask-document-relevance">{Math.round(group.relevance * 100)}%</span>
               )}
@@ -248,7 +326,20 @@ const CitationSourcesDisplay = ({
                 className="ask-additional-source-item"
               >
                 <div className="ask-additional-source-header">
-                  <span className="ask-additional-source-title">{source.document_title}</span>
+                  <span className="ask-additional-source-title">
+                    {source.url ? (
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ask-additional-source-title-link"
+                      >
+                        {source.document_title}
+                      </a>
+                    ) : (
+                      source.document_title
+                    )}
+                  </span>
                   {source.maxScore > 0 && (
                     <span className="ask-additional-source-score">
                       {Math.round(source.maxScore * 100)}%

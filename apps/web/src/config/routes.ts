@@ -178,6 +178,11 @@ const SchleswigHolsteinNotebookPage = lazy(() =>
     default: m.createNotebookPage('schleswigHolstein'),
   }))
 );
+const ThueringenNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('thueringen'),
+  }))
+);
 const BayernNotebookPage = lazy(() =>
   import('../features/notebook/components/NotebookPage').then((m) => ({
     default: m.createNotebookPage('bayern'),
@@ -211,26 +216,20 @@ const MediaLibraryPage = lazy(() =>
 // Notebook Chat Komponente importieren
 const NotebookChat = lazy(() => import('../features/notebook/components/NotebookChat'));
 
-// DEPRECATED: Grünerator Chat - disabled, keeping backend intact
-// const GrueneratorChat = lazy(() => import('../features/chat/components/GrueneratorChat'));
-
-// Beta Feature Wrapper importieren
-const BetaFeatureWrapper = lazy(() => import('../components/common/BetaFeatureWrapper'));
-
-// DEPRECATED: Wrapped Chat Component für Beta Feature
-// const WrappedGrueneratorChat = lazy(() =>
-//   Promise.all([
-//     import('../features/chat/components/GrueneratorChat'),
-//     import('../components/common/BetaFeatureWrapper'),
-//   ]).then(([chatModule, wrapperModule]) => ({
-//     default: (props: Record<string, unknown>) =>
-//       wrapperModule.default({
-//         children: chatModule.default(),
-//         featureKey: 'chat',
-//         fallbackPath: '/profile?tab=labor',
-//       }),
-//   }))
-// );
+// Chat page (uses @gruenerator/chat shared package)
+const WrappedChatPage = lazy(() =>
+  Promise.all([
+    import('../features/chat/ChatPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([chatModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(chatModule.default, props),
+        featureKey: 'chat',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
 
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
@@ -244,12 +243,62 @@ const CustomExamplePage = lazy(() =>
 );
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 const PromptPage = lazy(() => import('../features/prompts/PromptPage'));
-const PromptsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
+const AgentsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
+
+// Redirects for old prompt URLs
+const PromptsGalleryRedirect = lazy(() =>
+  Promise.resolve({ default: createRedirect('/datenbank/agents') })
+);
+const PromptSlugRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { slug } = useParams();
+  return createElement(Navigate, { to: `/agent/${slug || ''}`, replace: true });
+};
+const PromptSlugRedirect = lazy(() =>
+  Promise.resolve({ default: PromptSlugRedirectComponent })
+);
 const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
-const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
-const DocsListPage = lazy(() => import('../features/docs/DocsListPage'));
-const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
+const ScannerPage = lazy(() =>
+  Promise.all([
+    import('../features/scanner/ScannerPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([scannerModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(scannerModule.default, props),
+        featureKey: 'scanner',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
+const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
+const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
+const DocsListPage = lazy(() =>
+  Promise.all([
+    import('../features/docs/DocsListPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([docsModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(docsModule.default, props),
+        featureKey: 'docs',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
+const DocsEditorPage = lazy(() =>
+  Promise.all([
+    import('../features/docs/DocsEditorPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([docsModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(docsModule.default, props),
+        featureKey: 'docs',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -270,6 +319,7 @@ export const GrueneratorenBundle = {
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
   HamburgNotebook: HamburgNotebookPage,
   SchleswigHolsteinNotebook: SchleswigHolsteinNotebookPage,
+  ThueringenNotebook: ThueringenNotebookPage,
   BayernNotebook: BayernNotebookPage,
   KommunalwikiNotebook: KommunalwikiNotebookPage,
   BoellStiftungNotebook: BoellStiftungNotebookPage,
@@ -281,7 +331,7 @@ export const GrueneratorenBundle = {
   Reel: Reel,
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
-  // DEPRECATED: Chat: WrappedGrueneratorChat,
+  Chat: WrappedChatPage,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
@@ -311,11 +361,14 @@ const standardRoutes: RouteConfig[] = [
   { path: '/leichte-sprache', component: LeichteSpracheRedirect },
   { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
+  { path: '/tools', component: ToolsPage },
+  { path: '/research', component: ResearchPage },
   { path: '/datenbank', component: GrueneratorenBundle.DatabaseIndex },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
-  { path: '/datenbank/prompts', component: PromptsGalleryPage },
+  { path: '/datenbank/agents', component: AgentsGalleryPage },
+  { path: '/datenbank/prompts', component: PromptsGalleryRedirect },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
@@ -341,6 +394,11 @@ const standardRoutes: RouteConfig[] = [
     component: GrueneratorenBundle.SchleswigHolsteinNotebook,
     withForm: true,
   },
+  {
+    path: '/gruene-thueringen',
+    component: GrueneratorenBundle.ThueringenNotebook,
+    withForm: true,
+  },
   { path: '/gruene-bayern', component: GrueneratorenBundle.BayernNotebook, withForm: true },
   { path: '/kommunalwiki', component: GrueneratorenBundle.KommunalwikiNotebook, withForm: true },
   { path: '/boell-stiftung', component: GrueneratorenBundle.BoellStiftungNotebook, withForm: true },
@@ -348,13 +406,13 @@ const standardRoutes: RouteConfig[] = [
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
-  // Scanner Route (dev only)
-  ...(import.meta.env.DEV ? [{ path: '/scanner', component: GrueneratorenBundle.Scanner }] : []),
+  { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
-  { path: '/prompt/:slug', component: PromptPage, withForm: true },
+  { path: '/agent/:slug', component: PromptPage, withForm: true },
+  { path: '/prompt/:slug', component: PromptSlugRedirect },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '/support', component: Support },
@@ -369,8 +427,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   // Q&A Chat Routen
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
-  // DEPRECATED: Grünerator Chat Route
-  // { path: '/chat', component: GrueneratorenBundle.Chat },
+  { path: '/chat', component: GrueneratorenBundle.Chat },
   // Text Editor - redirect to unified
   { path: '/texteditor', component: TextEditorRedirect },
   // Apps Download Page

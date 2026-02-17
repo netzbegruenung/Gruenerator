@@ -1,0 +1,155 @@
+/* ─────────────────────────────────────────────
+   Editor Top Bar
+   ───────────────────────────────────────────── */
+
+.editor-topbar {
+  flex-shrink: 0;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .editor-topbar {
+  background: rgba(30, 30, 30, 0.7);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.editor-topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.editor-topbar__title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--font-color);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 24rem;
+}
+
+.editor-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────
+   Glass Button (shared)
+   ───────────────────────────────────────────── */
+
+.glass-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 0.625rem;
+  color: var(--grey-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.glass-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--grey-800);
+}
+
+[data-theme="dark"] .glass-btn {
+  color: var(--grey-400);
+}
+
+[data-theme="dark"] .glass-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--grey-200);
+}
+
+.glass-btn.active {
+  background: var(--secondary-100, #D5E1DC);
+  color: var(--secondary-600, #5F8575);
+}
+
+[data-theme="dark"] .glass-btn.active {
+  background: rgba(95, 133, 117, 0.2);
+  color: var(--secondary-400, #85A899);
+}
+
+.glass-btn svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* ─────────────────────────────────────────────
+   Status Dot
+   ───────────────────────────────────────────── */
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin: 0 0.5rem;
+  flex-shrink: 0;
+}
+
+.status-dot.connected {
+  background: #10b981;
+}
+
+.status-dot.syncing {
+  background: #f59e0b;
+  animation: editorTopBarPulse 1.5s ease-in-out infinite;
+}
+
+.status-dot.disconnected {
+  background: #ef4444;
+}
+
+@keyframes editorTopBarPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ─────────────────────────────────────────────
+   Divider
+   ───────────────────────────────────────────── */
+
+.glass-divider {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--grey-200);
+  margin: 0 0.125rem;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .glass-divider {
+  background: var(--grey-700);
+}
+
+/* ─────────────────────────────────────────────
+   Mobile Adjustments
+   ───────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .editor-topbar {
+    height: 2.75rem;
+    padding: 0 0.5rem;
+  }
+
+  .editor-topbar__title,
+  .editor-topbar__divider {
+    display: none;
+  }
+}

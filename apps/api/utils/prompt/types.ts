@@ -61,6 +61,7 @@ export interface AIWorkerResult {
 export interface EnhancedAIWorkerResult extends AIWorkerResult {
   metadata?: {
     title?: string;
+    titleSource?: 'extracted' | 'smart';
     contentType?: string;
     [key: string]: unknown;
   };

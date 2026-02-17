@@ -147,7 +147,7 @@ function EditorContent() {
             ydoc={ydoc}
             provider={provider}
             isSynced={isSynced}
-            showCommentsSidebar={showCommentsSidebar}
+            showComments={showCommentsSidebar}
             onEditorReady={handleEditorReady}
           />
         </main>

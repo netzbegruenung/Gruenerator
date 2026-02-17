@@ -10,6 +10,7 @@
 
 import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
+
 import type { LanguageModel } from 'ai';
 
 // Provider name types
@@ -21,6 +22,8 @@ const PROVIDER_DEFAULTS = {
   litellm: 'gpt-oss:120b',
   ionos: 'openai/gpt-oss-120b',
 } as const;
+
+const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
 
 // Models incompatible with LiteLLM/IONOS OpenAI-compatible endpoints
 const LITELLM_INCOMPATIBLE_PATTERNS = [
@@ -60,11 +63,8 @@ function getMistralProvider(): ReturnType<typeof createMistral> {
  */
 function getLiteLLMProvider(): ReturnType<typeof createOpenAI> {
   if (!litellmInstance) {
-    const baseURL = process.env.LITELLM_BASE_URL;
+    const baseURL = process.env.LITELLM_BASE_URL || LITELLM_DEFAULT_BASE_URL;
     const apiKey = process.env.LITELLM_API_KEY;
-    if (!baseURL) {
-      throw new Error('LITELLM_BASE_URL environment variable is required');
-    }
     litellmInstance = createOpenAI({
       baseURL: baseURL.endsWith('/v1') ? baseURL : `${baseURL}/v1`,
       apiKey: apiKey || '',
@@ -117,7 +117,7 @@ export function isProviderConfigured(provider: ProviderName | string): boolean {
     case 'mistral':
       return !!process.env.MISTRAL_API_KEY;
     case 'litellm':
-      return !!process.env.LITELLM_BASE_URL && !!process.env.LITELLM_API_KEY;
+      return !!process.env.LITELLM_API_KEY;
     case 'ionos':
       return !!process.env.IONOS_API_TOKEN;
     default:
@@ -140,7 +140,7 @@ export function getModel(provider: ProviderName | string, modelId?: string): Lan
         modelId || PROVIDER_DEFAULTS.litellm,
         PROVIDER_DEFAULTS.litellm
       );
-      return litellm(validatedModel);
+      return litellm.chat(validatedModel);
     }
     case 'ionos': {
       const ionos = getIONOSProvider();
@@ -148,7 +148,7 @@ export function getModel(provider: ProviderName | string, modelId?: string): Lan
         modelId || PROVIDER_DEFAULTS.ionos,
         PROVIDER_DEFAULTS.ionos
       );
-      return ionos(validatedModel);
+      return ionos.chat(validatedModel);
     }
     default:
       throw new Error(`Unknown provider: ${provider}`);

@@ -18,10 +18,10 @@
   gap: var(--spacing-small);
 }
 
-/* Mobile: scroll with content for more reading space */
+/* Mobile: keep fixed positioning for consistent top-right placement */
 @media (max-width: 768px) {
   .header-actions {
-    position: absolute;
+    right: 12px;
   }
 }
 

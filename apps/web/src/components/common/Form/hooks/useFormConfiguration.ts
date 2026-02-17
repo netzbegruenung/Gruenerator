@@ -29,7 +29,6 @@ interface ResolvedUIConfig {
   enableKnowledgeSelector: boolean;
   showProfileSelector: boolean;
   showImageUpload: boolean;
-  enableEditMode: boolean;
   useMarkdown: boolean | null;
 }
 
@@ -69,13 +68,11 @@ interface UseFormConfigurationParams {
   enableKnowledgeSelector?: boolean;
   showProfileSelector?: boolean;
   showImageUpload?: boolean;
-  enableEditMode?: boolean;
   useMarkdown?: boolean | null;
   submitConfig?: SubmitConfig | null;
   showNextButton?: boolean;
   nextButtonText?: string;
   submitButtonProps?: Record<string, unknown>;
-  isEditModeActive?: boolean;
 }
 
 export function useFormConfiguration(
@@ -100,13 +97,11 @@ export function useFormConfiguration(
     enableKnowledgeSelector,
     showProfileSelector,
     showImageUpload,
-    enableEditMode,
     useMarkdown,
     submitConfig,
     showNextButton,
     nextButtonText,
     submitButtonProps,
-    isEditModeActive,
   } = params;
 
   const getConfigValue = React.useCallback(
@@ -225,12 +220,6 @@ export function useFormConfiguration(
         'showImageUpload',
         false
       ),
-      enableEditMode: getConfigValue<boolean>(
-        storeUIConfig as Record<string, boolean | undefined>,
-        enableEditMode,
-        'enableEditMode',
-        false
-      ),
       useMarkdown: getConfigValue<boolean | null>(
         storeUIConfig as Record<string, boolean | null | undefined>,
         useMarkdown,
@@ -244,7 +233,6 @@ export function useFormConfiguration(
       enableKnowledgeSelector,
       showProfileSelector,
       showImageUpload,
-      enableEditMode,
       useMarkdown,
     ]
   );
@@ -291,12 +279,8 @@ export function useFormConfiguration(
   ]);
 
   const effectiveSubmitButtonProps = React.useMemo(() => {
-    const base = (resolvedSubmitConfig.buttonProps || {}) as Record<string, unknown>;
-    if (isEditModeActive) {
-      return { ...base, defaultText: (base.defaultText as string) || 'Verbessern' };
-    }
-    return base;
-  }, [resolvedSubmitConfig.buttonProps, isEditModeActive]);
+    return (resolvedSubmitConfig.buttonProps || {}) as Record<string, unknown>;
+  }, [resolvedSubmitConfig.buttonProps]);
 
   return {
     resolvedTabIndexes,

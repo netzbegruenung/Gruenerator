@@ -16,8 +16,7 @@ interface ContentManagementTabContainerProps {
   onSuccessMessage: (message: string) => void;
   onErrorMessage: (message: string) => void;
   initialTab?: string;
-  canvaSubsection?: string;
-  onTabChange?: (tab: string, subsection?: string) => void;
+  onTabChange?: (tab: string) => void;
 }
 
 const ContentManagementTabContainer = ({

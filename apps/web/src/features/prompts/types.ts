@@ -16,6 +16,7 @@ export interface CustomPrompt {
   is_owner?: boolean;
   owner_first_name?: string;
   owner_last_name?: string;
+  saved_at?: string;
 }
 
 export interface CustomPromptCreateData {

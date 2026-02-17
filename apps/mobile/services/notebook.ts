@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+
 import type { NotebookSource } from '../stores/notebookChatStore';
 
 interface ApiCitation {
@@ -14,6 +15,8 @@ interface ApiCitation {
   similarity_score?: number;
   collection_name?: string;
   collectionName?: string;
+  chunk_index?: number;
+  collection_id?: string;
 }
 
 function mapCitation(citation: ApiCitation): NotebookSource {
@@ -26,6 +29,8 @@ function mapCitation(citation: ApiCitation): NotebookSource {
     cited_text: citation.cited_text,
     similarity_score: citation.similarity_score,
     collectionName: citation.collection_name || citation.collectionName,
+    chunk_index: citation.chunk_index,
+    collection_id: citation.collection_id,
   };
 }
 
@@ -49,10 +54,18 @@ export interface NotebookQueryResponse {
   citations?: NotebookSource[];
 }
 
+interface ApiCollectionSources {
+  name: string;
+  sources: ApiCitation[];
+  allSources?: ApiCitation[];
+}
+
 export interface MultiNotebookQueryResponse {
   resultId: string;
   question: string;
   answer: string;
+  citations?: NotebookSource[];
+  sources?: NotebookSource[];
   sourcesByCollection: Record<string, NotebookSource[]>;
 }
 
@@ -91,7 +104,9 @@ export async function queryMultiNotebook(
     resultId: string;
     question: string;
     answer: string;
-    sourcesByCollection: Record<string, ApiCitation[]>;
+    sources: ApiCitation[];
+    citations?: ApiCitation[];
+    sourcesByCollection: Record<string, ApiCollectionSources | ApiCitation[]>;
   }>('post', '/auth/notebook/multi/ask', {
     question: params.question,
     collectionIds: params.collectionIds,
@@ -100,14 +115,20 @@ export async function queryMultiNotebook(
   });
 
   const mappedSourcesByCollection: Record<string, NotebookSource[]> = {};
-  for (const [collectionId, sources] of Object.entries(response.sourcesByCollection || {})) {
-    mappedSourcesByCollection[collectionId] = (sources || []).map(mapCitation);
+  for (const [collectionId, collectionData] of Object.entries(response.sourcesByCollection || {})) {
+    // Backend returns { name, sources, allSources } per collection, not a flat array
+    const sourcesArray = Array.isArray(collectionData)
+      ? collectionData
+      : (collectionData as ApiCollectionSources)?.sources || [];
+    mappedSourcesByCollection[collectionId] = sourcesArray.map(mapCitation);
   }
 
   return {
     resultId: response.resultId,
     question: response.question,
     answer: response.answer,
+    citations: (response.citations || []).map(mapCitation),
+    sources: (response.sources || []).map(mapCitation),
     sourcesByCollection: mappedSourcesByCollection,
   };
 }

@@ -1,8 +1,25 @@
-import { memo, useCallback } from 'react';
-import { HiPencil, HiCheck, HiX } from 'react-icons/hi';
+import { memo, useCallback, useMemo } from 'react';
+import {
+  HiPencil,
+  HiCheck,
+  HiX,
+  HiOutlinePlus,
+  HiOutlineTrash,
+  HiChevronDown,
+} from 'react-icons/hi';
+import { useNavigate } from 'react-router-dom';
 
 import DeleteWarningTooltip from '../../../../../../../../components/common/DeleteWarningTooltip';
 import { ProfileActionButton } from '../../../../../../../../components/profile/actions/ProfileActionButton';
+import { Badge } from '../../../../../../../../components/ui/badge';
+import { Button } from '../../../../../../../../components/ui/button';
+import { Card } from '../../../../../../../../components/ui/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../../../../../../../../components/ui/collapsible';
+import { Separator } from '../../../../../../../../components/ui/separator';
 import GroupMembersList from '../../../../../../../../features/groups/components/GroupMembersList';
 
 interface GroupInfo {
@@ -21,6 +38,23 @@ interface GroupData {
   groupInfo?: GroupInfo;
   joinToken?: string;
   [key: string]: unknown;
+}
+
+interface SharedContentItem {
+  id: string;
+  title?: string;
+  name?: string;
+  slug?: string;
+  canva_url?: string;
+  external_url?: string;
+  content_data?: { originalUrl?: string };
+}
+
+interface GroupContent {
+  documents?: SharedContentItem[];
+  texts?: SharedContentItem[];
+  notebooks?: SharedContentItem[];
+  generators?: SharedContentItem[];
 }
 
 interface TabIndexConfig {
@@ -53,6 +87,11 @@ interface GroupInfoSectionProps {
   tabIndex: TabIndexConfig;
   customPrompt: string;
   setCustomPrompt: (value: string) => void;
+  groupContent: GroupContent | null;
+  isLoadingGroupContent: boolean;
+  onUnshare: (contentType: string, contentId: string) => void;
+  isUnsharing: boolean;
+  onAddContent: () => void;
 }
 
 const GroupInfoSection = memo(
@@ -81,7 +120,82 @@ const GroupInfoSection = memo(
     tabIndex,
     customPrompt,
     setCustomPrompt,
+    groupContent,
+    isLoadingGroupContent,
+    onUnshare,
+    isUnsharing,
+    onAddContent,
   }: GroupInfoSectionProps) => {
+    const navigate = useNavigate();
+
+    const contentItems = useMemo(() => {
+      if (!groupContent) return [];
+      const items: {
+        id: string;
+        title: string;
+        type: string;
+        contentType: string;
+        slug?: string;
+        canva_url?: string;
+        external_url?: string;
+        content_data?: { originalUrl?: string };
+      }[] = [];
+      groupContent.documents?.forEach((d) =>
+        items.push({
+          id: d.id,
+          title: d.title || d.name || 'Dokument',
+          type: 'Dokument',
+          contentType: 'documents',
+        })
+      );
+      groupContent.texts?.forEach((d) =>
+        items.push({
+          id: d.id,
+          title: d.title || d.name || 'Text',
+          type: 'Text',
+          contentType: 'user_documents',
+        })
+      );
+      groupContent.notebooks?.forEach((d) =>
+        items.push({
+          id: d.id,
+          title: d.title || d.name || 'Notebook',
+          type: 'Notebook',
+          contentType: 'notebook_collections',
+        })
+      );
+      groupContent.generators?.forEach((d) =>
+        items.push({
+          id: d.id,
+          title: d.title || d.name || 'Generator',
+          type: 'Generator',
+          contentType: 'custom_generators',
+          slug: d.slug,
+        })
+      );
+      return items;
+    }, [groupContent]);
+
+    const handleContentClick = useCallback(
+      (item: (typeof contentItems)[0]) => {
+        switch (item.contentType) {
+          case 'user_documents':
+            navigate(`/editor/collab/${item.id}`);
+            break;
+          case 'notebook_collections':
+            navigate(`/notebook/${item.id}`);
+            break;
+          case 'custom_generators':
+            navigate(`/generators/custom/${item.slug || item.id}`);
+            break;
+          case 'documents':
+            navigate(`/documents/${item.id}`);
+            break;
+        }
+      },
+      [navigate]
+    );
+
     // Memoized handlers to prevent inline function recreation
     const handleSaveBoth = useCallback(() => {
       saveGroupName();
@@ -245,39 +359,104 @@ const GroupInfoSection = memo(
           </div>
         </div>
 
-        {/* Group Members Section */}
-        <div className="group-content-card">
-          <GroupMembersList groupId={groupId} isActive={isActive} />
-        </div>
+        {/* Mitglieder + Anweisungen (left) | Geteilte Inhalte (right) */}
+        <Card>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr]">
+            {/* Left column: Mitglieder + Anweisungen */}
+            <div className="p-lg flex flex-col gap-sm">
+              <Collapsible defaultOpen>
+                <CollapsibleTrigger className="group flex w-full items-center justify-between py-xs">
+                  <span className="text-xs font-medium uppercase tracking-wide text-grey-500">
+                    Mitglieder
+                  </span>
+                  <HiChevronDown className="text-grey-400 transition-transform group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <GroupMembersList groupId={groupId} isActive={isActive} hideHeader />
+                </CollapsibleContent>
+              </Collapsible>
 
-        {/* Group Instructions Section */}
-        <div className="group-content-card">
-          <div className="auth-form">
-            <div className="form-group">
-              <div className="form-group-title">Gruppenanweisungen</div>
-              <div className="form-field-wrapper">
-                <textarea
-                  id="groupCustomPrompt"
-                  value={customPrompt}
-                  onChange={handleCustomPromptChange}
-                  placeholder="Diese Anweisungen werden bei allen Text-Generierungen für Gruppenmitglieder berücksichtigt..."
-                  className="form-textarea"
-                  rows={4}
-                  maxLength={2000}
-                  disabled={!data?.isAdmin}
-                />
-                {customPrompt.length > 1500 && (
-                  <div className="form-character-count">{customPrompt.length}/2000 Zeichen</div>
-                )}
+              <Separator />
+
+              <Collapsible defaultOpen>
+                <CollapsibleTrigger className="group flex w-full items-center justify-between py-xs">
+                  <span className="text-xs font-medium uppercase tracking-wide text-grey-500">
+                    Anweisungen
+                  </span>
+                  <HiChevronDown className="text-grey-400 transition-transform group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <textarea
+                    id="groupCustomPrompt"
+                    value={customPrompt}
+                    onChange={handleCustomPromptChange}
+                    placeholder="Anweisungen für Text-Generierungen..."
+                    className="form-textarea mt-xs"
+                    rows={3}
+                    maxLength={2000}
+                    disabled={!data?.isAdmin}
+                  />
+                  {customPrompt.length > 1500 && (
+                    <div className="form-character-count">{customPrompt.length}/2000 Zeichen</div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+
+            {/* Vertical divider (desktop only) */}
+            <Separator orientation="vertical" className="hidden md:block" />
+
+            {/* Right column: Geteilte Inhalte */}
+            <div className="p-lg">
+              <div className="flex items-center justify-between mb-sm">
+                <span className="text-xs font-medium uppercase tracking-wide text-grey-500">
+                  Geteilte Inhalte
+                  {contentItems.length > 0 && (
+                    <span className="font-normal ml-xs">({contentItems.length})</span>
+                  )}
+                </span>
+                <Button variant="ghost" size="xs" onClick={onAddContent}>
+                  <HiOutlinePlus />
+                  Hinzufügen
+                </Button>
               </div>
-              {!data?.isAdmin && (
-                <div className="form-help-text">
-                  Nur Gruppenadministratoren können die Anweisungen bearbeiten
-                </div>
+
+              {contentItems.length === 0 ? (
+                <p className="text-xs text-grey-500 italic">Noch keine Inhalte geteilt.</p>
+              ) : (
+                <ul className="flex flex-col gap-xxs">
+                  {contentItems.map((item) => (
+                    <li
+                      key={`${item.contentType}-${item.id}`}
+                      className="group flex items-center gap-xs px-xs py-xxs rounded-sm border-l-2 border-transparent hover:border-primary-500 hover:bg-grey-100 dark:hover:bg-grey-800 cursor-pointer transition-colors"
+                      onClick={() => handleContentClick(item)}
+                    >
+                      <Badge variant="secondary" className="shrink-0 text-[0.65rem] px-1 py-0">
+                        {item.type}
+                      </Badge>
+                      <span className="text-sm truncate flex-1">{item.title}</span>
+                      {data?.isAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`"${item.title}" aus der Gruppe entfernen?`)) {
+                              onUnshare(item.contentType, item.id);
+                            }
+                          }}
+                          disabled={isUnsharing}
+                          className="opacity-0 group-hover:opacity-100 text-grey-400 hover:text-red-600 transition-all shrink-0"
+                          title="Entfernen"
+                        >
+                          <HiOutlineTrash className="text-sm" />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>
-        </div>
+        </Card>
       </>
     );
   }

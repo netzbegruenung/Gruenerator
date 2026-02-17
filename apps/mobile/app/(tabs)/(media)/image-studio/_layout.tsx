@@ -24,15 +24,6 @@ export default function ImageStudioLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="image" />
-      <Stack.Screen name="ki-input" />
-      <Stack.Screen
-        name="result"
-        options={{
-          presentation: 'fullScreenModal',
-          animation: 'fade',
-        }}
-      />
       <Stack.Screen
         name="gallery"
         options={{

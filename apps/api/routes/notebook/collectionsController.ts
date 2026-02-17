@@ -8,15 +8,16 @@
  * - Public sharing functionality
  */
 
-import express, { Response } from 'express';
+import express, { type Response } from 'express';
+
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
-import { createLogger } from '../../utils/logger.js';
 import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
-import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type {
   CreateCollectionBody,
   UpdateCollectionBody,
@@ -26,6 +27,7 @@ import type {
   TransformedCollection,
   NotebookCollectionFromQdrant,
 } from './types.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('notebookCollections');
 const { requireAuth } = authMiddleware;
@@ -265,7 +267,10 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         const qdrantDocService = getQdrantDocumentService();
         for (const doc of pendingDocs) {
           processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-            log.error(`[Notebook Collections] Background processing failed for doc ${doc.id}:`, err);
+            log.error(
+              `[Notebook Collections] Background processing failed for doc ${doc.id}:`,
+              err
+            );
           });
         }
         log.debug(
@@ -475,6 +480,60 @@ router.post('/:id/sync', requireAuth, async (req: AuthenticatedRequest, res: Res
   } catch (error) {
     log.error('[Notebook Collections] Error in POST /:id/sync:', error);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/notebook-collections/:id/search?q=...
+ * Search documents within a specific collection
+ */
+router.get('/:id/search', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const collectionId = req.params.id;
+    const query = (req.query.q as string)?.trim();
+
+    if (!query) {
+      return res.status(400).json({ error: 'Query parameter "q" is required' });
+    }
+
+    const collection = await notebookHelper.getNotebookCollection(collectionId);
+    if (!collection || collection.user_id !== userId) {
+      return res.status(404).json({ error: 'Notebook collection not found' });
+    }
+
+    const collectionDocs = await notebookHelper.getCollectionDocuments(collectionId);
+    const documentIds = collectionDocs.map((d) => d.document_id);
+
+    if (documentIds.length === 0) {
+      return res.json([]);
+    }
+
+    const documentSearchService = getQdrantDocumentService();
+    const response = await documentSearchService.search({
+      query,
+      userId,
+      options: {
+        limit: 8,
+        mode: 'hybrid',
+        threshold: 0.2,
+      },
+      filters: {
+        documentIds,
+      },
+    });
+
+    const results = (response.results || []).slice(0, 8).map((r: any) => ({
+      documentId: r.document_id || r.documentId,
+      title: r.title || r.source || 'Unbekannt',
+      excerpt: (r.chunk_text || r.excerpt || '').slice(0, 200),
+      score: r.score ?? r.relevance ?? 0,
+    }));
+
+    return res.json(results);
+  } catch (error) {
+    log.error('[Notebook Collections] Error in GET /:id/search:', error);
+    return res.status(500).json({ error: 'Search failed' });
   }
 });
 

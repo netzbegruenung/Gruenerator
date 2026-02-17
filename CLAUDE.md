@@ -36,11 +36,11 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 
 - **`apps/web`** — React 19 + Vite 7 frontend. Feature-sliced design with 26 feature modules in `src/features/`. Routes defined in `src/config/routes.ts`.
 - **`apps/api`** — Express 5 backend running in Node.js cluster mode. AI calls are offloaded to a dedicated worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, business logic in `services/`.
-- **`apps/chat`** — Next.js chat interface using Assistant UI and AI SDK. Runs on port 3210.
 - **`apps/docs`** — Collaborative document editor with Hocuspocus real-time sync.
 - **`apps/sites`** — Site builder/management interface.
 - **`apps/mobile`** — Expo 54 / React Native app with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around the web frontend.
+- **`packages/chat`** — Shared chat UI components, runtime adapters (Assistant UI), stores, and hooks. Consumed by `apps/web` at `/chat`.
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, tiptap-editor, media-library, search).
 - **`services/mcp`** — Model Context Protocol server.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
@@ -64,6 +64,10 @@ Keycloak OIDC via Passport.js. Supports multiple identity providers (.de, .at, .
 
 ## Development Conventions
 
+### Git Safety
+
+**Never use `git stash` or `git stash pop`** without explicit user permission. These commands can silently lose uncommitted work and are almost never necessary.
+
 ### Expo Apps
 
 Always use `npx expo install` (not `pnpm add`) for Expo native dependencies to ensure SDK version alignment:
@@ -71,6 +75,21 @@ Always use `npx expo install` (not `pnpm add`) for Expo native dependencies to e
 cd apps/docs-expo && npx expo install <package-name>
 cd apps/mobile && npx expo install <package-name>
 ```
+
+### KeyboardStickyView in Nested Navigators
+
+When using `KeyboardStickyView` (from `react-native-keyboard-controller`) inside nested navigators (e.g., Bottom Tabs > Material Top Tabs), **always set offsets to zero** and handle bottom insets externally via `paddingBottom`:
+
+```tsx
+// CORRECT — handle insets externally
+<KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+  <View style={{ paddingBottom: insets.bottom + 16 }}>
+
+// WRONG — causes double-counting with nested navigators
+<KeyboardStickyView offset={{ closed: Math.max(insets.bottom, 24), opened: 0 }}>
+```
+
+The reason: `KeyboardStickyView` positions from the **window bottom** (absolute). Nested tab navigators each add their own safe area handling, so using `insets.bottom` as an offset causes compounding — the input bar ends up behind the Android gesture bar.
 
 ### Styling
 
@@ -104,6 +123,20 @@ cd apps/mobile && npx expo install <package-name>
 - Dark mode: `[data-theme="dark"]` attribute (works with both CSS and Tailwind)
 - CSS variables in `variables.css` remain the source of truth
 - Always test UI changes in both light and dark modes
+
+### shadcn/ui Components
+
+**Prefer shadcn/ui** for new UI components whenever possible. Add components to the appropriate package (`packages/chat` for chat UI, `apps/web` for web-only UI). For chat features, **prefer Assistant UI (`@assistant-ui/react`)** primitives and components — use its built-in thread, composer, message, and runtime APIs before building custom alternatives.
+
+When adding shadcn/ui components to `packages/chat` (or any shared package), **always replace `@/` path aliases with relative imports** after generation. Vite resolves `@/` using the consuming app's alias, not the package's `tsconfig.json` paths, so `@/lib/utils` will fail at runtime.
+
+```tsx
+// WRONG — breaks when consumed by apps/web via Vite
+import { cn } from "@/lib/utils"
+
+// CORRECT — works in any consuming context
+import { cn } from "../../lib/utils"
+```
 
 ### State Management
 
@@ -156,8 +189,8 @@ cd apps/docs-expo && npx expo-doctor
 # 2. (Re)generate native project (always run after dependency changes)
 cd apps/docs-expo && npx expo prebuild --platform android --clean
 
-# 3. Build the debug APK
-cd apps/docs-expo/android && ./gradlew assembleDebug
+# 3. Build the debug APK (single-arch for speed — device is arm64-v8a)
+cd apps/docs-expo/android && ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a
 
 # 4. APK output location:
 #    apps/docs-expo/android/app/build/outputs/apk/debug/app-debug.apk
@@ -184,3 +217,8 @@ cd apps/docs-expo && npx expo start --port 8081 --localhost
 - **ADB reverse ports are ephemeral**: They reset after app uninstall/reinstall or ADB daemon restarts. Always re-run `adb reverse` after reinstalling.
 - **Signature conflicts on reinstall**: `expo prebuild --clean` regenerates the debug keystore. Must `adb uninstall` before `adb install` (no `-r`) to avoid signature mismatch.
 - **Yjs/lib0 dependency**: `isomorphic-webcrypto` is required for the Yjs collaboration layer used by BlockNoteEditor DOM components. If missing, the DOM bundle fails silently and documents show blank pages.
+- **Fast debug builds**: Pass `-PreactNativeArchitectures=arm64-v8a` to `./gradlew assembleDebug` to build only for the target device arch. The default builds all 4 archs (armeabi-v7a, arm64-v8a, x86, x86_64) which is ~4x slower.
+- **Avoid unnecessary `prebuild --clean`**: Only needed when native dependencies change. Incremental `./gradlew assembleDebug` reuses Gradle caches and is much faster.
+- **Metro port conflicts in WSL**: Port 8081 is often occupied. Use 8082 and mirror both: `adb reverse tcp:8082 tcp:8082 && adb reverse tcp:8081 tcp:8082` (device app defaults to 8081).
+- **DOM component debugging**: `console.log` inside `'use dom'` components goes to the WebView console (Chrome DevTools → Remote Devices), NOT Metro terminal. Render debug state on-screen instead.
+- **Docs Expo domains**: API is at `docs.gruenerator.eu/api`, Hocuspocus at `docs.gruenerator.eu/hocuspocus` (NOT `gruenerator.eu`).

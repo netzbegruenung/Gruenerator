@@ -1,20 +1,5 @@
-import { useState, useCallback } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  View,
-  Pressable,
-  Text,
-  useColorScheme,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../theme';
-import { TextInput, Button, ChipGroup, ImagePicker } from '../common';
-import { FeatureIcons } from './FeatureIcons';
-import { useGeneratorSelectionStore } from '../../stores';
+import { Ionicons } from '@expo/vector-icons';
 import {
   useTextGeneration,
   GENERATOR_ENDPOINTS,
@@ -32,6 +17,16 @@ import {
   type SharepicType,
   type SharepicResult,
 } from '@gruenerator/shared/sharepic';
+import { useState, useCallback } from 'react';
+import { StyleSheet, View, Pressable, Text, useColorScheme } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+
+import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
+import { useGeneratorSelectionStore } from '../../stores';
+import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { TextInput, Button, ChipGroup, ImagePicker, MicButton } from '../common';
+
+import { FeatureIcons } from './FeatureIcons';
 
 export interface PresseSocialResult {
   text?: string;
@@ -61,6 +56,7 @@ export function PresseSocialForm({ onResult, onError }: PresseSocialFormProps) {
 
   const [selectedPlatforms, setSelectedPlatforms] = useState<SocialPlatform[]>(['instagram']);
   const [inhalt, setInhalt] = useState('');
+  const { isListening, toggle: toggleSpeech } = useSpeechToText();
   const [zitatgeber, setZitatgeber] = useState('');
 
   const [sharepicType, setSharepicType] = useState<SharepicType>('default');
@@ -207,33 +203,37 @@ export function PresseSocialForm({ onResult, onError }: PresseSocialFormProps) {
   ]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAwareScrollView
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.header, { color: theme.text }]}>
-          Welche Botschaft willst du teilen?
-        </Text>
+      <Text style={[styles.header, { color: theme.text }]}>Welche Botschaft willst du teilen?</Text>
 
-        <ChipGroup
-          options={SOCIAL_PLATFORMS_MOBILE}
-          selected={selectedPlatforms}
-          onSelect={handlePlatformSelect}
-          multiSelect
-          icons={PLATFORM_ICONS}
+      <ChipGroup
+        options={SOCIAL_PLATFORMS_MOBILE}
+        selected={selectedPlatforms}
+        onSelect={handlePlatformSelect}
+        multiSelect
+        icons={PLATFORM_ICONS}
+      />
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          placeholder="Thema und Details..."
+          value={inhalt}
+          onChangeText={setInhalt}
+          multiline
+          numberOfLines={6}
         />
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            placeholder="Thema und Details..."
-            value={inhalt}
-            onChangeText={setInhalt}
-            multiline
-            numberOfLines={6}
-          />
-          <View style={styles.inputToolbar}>
-            <FeatureIcons />
+        <View style={styles.inputToolbar}>
+          <FeatureIcons />
+          <View style={styles.toolbarRight}>
+            <MicButton
+              isListening={isListening}
+              onMicPress={() => toggleSpeech((t) => setInhalt((prev) => appendTranscript(prev, t)))}
+              hasText={!!inhalt.trim()}
+              onSubmit={handleSubmit}
+            />
             {showSharepic && (
               <Pressable
                 onPress={handleSharepicConfig}
@@ -249,51 +249,50 @@ export function PresseSocialForm({ onResult, onError }: PresseSocialFormProps) {
             )}
           </View>
         </View>
+      </View>
 
-        {showZitatgeber && (
-          <TextInput
-            placeholder="Wer soll zitiert werden?"
-            value={zitatgeber}
-            onChangeText={setZitatgeber}
+      {showZitatgeber && (
+        <TextInput
+          placeholder="Wer soll zitiert werden?"
+          value={zitatgeber}
+          onChangeText={setZitatgeber}
+        />
+      )}
+
+      {showSharepicAuthor && (
+        <TextInput
+          placeholder="Zitatgeber*in für Sharepic"
+          value={sharepicAuthor}
+          onChangeText={setSharepicAuthor}
+        />
+      )}
+
+      {showSharepicImage && (
+        <View
+          style={[
+            styles.imagePickerContainer,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <ImagePicker
+            onImageSelected={handleImageSelected}
+            onError={(error) => console.warn('[PresseSocialForm] Image error:', error)}
+            selectedImage={
+              sharepicImageData ? { uri: sharepicImageData, fileName: 'Ausgewähltes Bild' } : null
+            }
+            onClear={handleImageClear}
           />
-        )}
+        </View>
+      )}
 
-        {showSharepicAuthor && (
-          <TextInput
-            placeholder="Zitatgeber*in für Sharepic"
-            value={sharepicAuthor}
-            onChangeText={setSharepicAuthor}
-          />
-        )}
-
-        {showSharepicImage && (
-          <View
-            style={[
-              styles.imagePickerContainer,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <ImagePicker
-              onImageSelected={handleImageSelected}
-              onError={(error) => console.warn('[PresseSocialForm] Image error:', error)}
-              selectedImage={
-                sharepicImageData ? { uri: sharepicImageData, fileName: 'Ausgewähltes Bild' } : null
-              }
-              onClear={handleImageClear}
-            />
-          </View>
-        )}
-
-        <Button onPress={handleSubmit} loading={loading}>
-          Grünerieren
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Button onPress={handleSubmit} loading={loading}>
+        Grünerieren
+      </Button>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
   header: { ...typography.h2, marginBottom: spacing.small },
   inputContainer: {
@@ -307,6 +306,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  toolbarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
   },
   configButton: {
     flexDirection: 'row',

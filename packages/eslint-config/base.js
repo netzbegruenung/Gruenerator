@@ -90,6 +90,7 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/.next/**',
       '**/coverage/**',
+      '**/*.vitest.ts',
     ],
   }
 );

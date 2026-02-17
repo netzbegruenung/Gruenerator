@@ -9,19 +9,13 @@ import {
   type UniversalRequest,
 } from '@gruenerator/shared/generators';
 import { useState, useCallback, useEffect } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
 import { useGeneratorSelectionStore } from '../../stores';
 import { spacing, typography, lightTheme, darkTheme } from '../../theme';
-import { TextInput, Button, ChipGroup, Slider } from '../common';
+import { TextInput, Button, ChipGroup, Slider, MicButton } from '../common';
 
 import { FeatureIcons } from './FeatureIcons';
 
@@ -63,6 +57,11 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
 
   // Leichte Sprache fields
   const [originalText, setOriginalText] = useState('');
+
+  const { isListening, toggle: toggleSpeech } = useSpeechToText();
+  const micFor = (setter: React.Dispatch<React.SetStateAction<string>>) => () => {
+    toggleSpeech((t) => setter((prev) => appendTranscript(prev, t)));
+  };
 
   // Reset type-specific fields when switching
   useEffect(() => {
@@ -197,8 +196,14 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
                 multiline
                 numberOfLines={5}
               />
-              <View style={styles.featureIconsContainer}>
+              <View style={styles.inputToolbar}>
                 <FeatureIcons />
+                <MicButton
+                  isListening={isListening}
+                  onMicPress={micFor(setThema)}
+                  hasText={!!thema.trim()}
+                  onSubmit={handleSubmit}
+                />
               </View>
             </View>
             <Slider
@@ -225,8 +230,14 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
                 multiline
                 numberOfLines={6}
               />
-              <View style={styles.featureIconsContainer}>
+              <View style={styles.inputToolbar}>
                 <FeatureIcons />
+                <MicButton
+                  isListening={isListening}
+                  onMicPress={micFor(setInhalt)}
+                  hasText={!!inhalt.trim()}
+                  onSubmit={handleSubmit}
+                />
               </View>
             </View>
             <Slider
@@ -259,8 +270,14 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
                 multiline
                 numberOfLines={5}
               />
-              <View style={styles.featureIconsContainer}>
+              <View style={styles.inputToolbar}>
                 <FeatureIcons />
+                <MicButton
+                  isListening={isListening}
+                  onMicPress={micFor(setFrage)}
+                  hasText={!!frage.trim()}
+                  onSubmit={handleSubmit}
+                />
               </View>
             </View>
             <TextInput
@@ -284,8 +301,14 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
               multiline
               numberOfLines={6}
             />
-            <View style={styles.featureIconsContainer}>
+            <View style={styles.inputToolbar}>
               <FeatureIcons />
+              <MicButton
+                isListening={isListening}
+                onMicPress={micFor(setOriginalText)}
+                hasText={!!originalText.trim()}
+                onSubmit={handleSubmit}
+              />
             </View>
           </View>
         );
@@ -306,8 +329,14 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
                 multiline
                 numberOfLines={6}
               />
-              <View style={styles.featureIconsContainer}>
+              <View style={styles.inputToolbar}>
                 <FeatureIcons />
+                <MicButton
+                  isListening={isListening}
+                  onMicPress={micFor(setInhalt)}
+                  hasText={!!inhalt.trim()}
+                  onSubmit={handleSubmit}
+                />
               </View>
             </View>
           </>
@@ -316,40 +345,41 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAwareScrollView
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.header, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.header, { color: theme.text }]}>{title}</Text>
 
-        <ChipGroup
-          options={UNIVERSAL_TEXT_TYPES}
-          selected={textType}
-          onSelect={(value) => setTextType(value as UniversalTextType)}
-          icons={TYPE_ICONS}
-        />
+      <ChipGroup
+        options={UNIVERSAL_TEXT_TYPES}
+        selected={textType}
+        onSelect={(value) => setTextType(value as UniversalTextType)}
+        icons={TYPE_ICONS}
+      />
 
-        {renderTypeFields()}
+      {renderTypeFields()}
 
-        <Button onPress={handleSubmit} loading={loading}>
-          Grünerieren
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Button onPress={handleSubmit} loading={loading}>
+        Grünerieren
+      </Button>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
   header: { ...typography.h2, marginBottom: spacing.small },
   inputContainer: {
     position: 'relative',
   },
-  featureIconsContainer: {
+  inputToolbar: {
     position: 'absolute',
     bottom: spacing.medium + 4,
     left: spacing.medium,
+    right: spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });

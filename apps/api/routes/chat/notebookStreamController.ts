@@ -20,12 +20,14 @@ import {
   validateAndInjectCitations,
   groupSourcesByCollection,
 } from '../../services/search/index.js';
-import { SYSTEM_COLLECTIONS } from '../../config/systemCollectionsConfig.js';
+import { SYSTEM_COLLECTIONS, getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import type { UserProfile } from '../../services/user/types.js';
 import type { SearchContext } from '../../services/notebook/types.js';
 
 const log = createLogger('NotebookStreamController');
 const router = createAuthenticatedRouter();
+const notebookHelper = new NotebookQdrantHelper();
 
 const getUser = (req: express.Request): UserProfile | undefined =>
   (req as any).user as UserProfile | undefined;
@@ -104,6 +106,15 @@ router.post('/', async (req, res) => {
         collectionIds,
         userId,
         requestFilters: filters,
+        getCollectionFn: async (id: string) => {
+          const systemConfig = getSystemCollectionConfig(id);
+          if (systemConfig) return null;
+          return await notebookHelper.getNotebookCollection(id);
+        },
+        getDocumentIdsFn: async (id: string) => {
+          const docs = await notebookHelper.getCollectionDocuments(id);
+          return docs.map((d) => d.document_id);
+        },
       });
     } catch (error: any) {
       log.error('Search context error:', error);

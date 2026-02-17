@@ -4,7 +4,14 @@
  * Navigation is handled by expo-router stack navigation
  */
 
+import {
+  getDefaultModificationParams,
+  typeSupportsModifications,
+  cloneModificationParams,
+  DEFAULT_STYLE_VARIANT,
+} from '@gruenerator/shared/image-studio';
 import { create } from 'zustand';
+
 import type {
   ImageStudioTemplateType,
   ImageStudioKiType,
@@ -17,12 +24,6 @@ import type {
   ZitatModificationParams,
   VeranstaltungModificationParams,
   ModificationParams,
-} from '@gruenerator/shared/image-studio';
-import {
-  getDefaultModificationParams,
-  typeSupportsModifications,
-  cloneModificationParams,
-  DEFAULT_STYLE_VARIANT,
 } from '@gruenerator/shared/image-studio';
 
 // Re-export shared types for convenience
@@ -72,6 +73,8 @@ interface ImageStudioState {
   kiVariant: KiStyleVariant;
   /** Selected infrastructure options for green-edit */
   kiInfrastructureOptions: GreenEditInfrastructure[];
+  /** Whether the variant was pre-selected on the TypeSelector */
+  kiVariantPreSelected: boolean;
   /** KI generation loading state */
   kiLoading: boolean;
   /** Rate limit exceeded */
@@ -147,7 +150,7 @@ interface ImageStudioActions {
   /** Set KI instruction */
   setKiInstruction: (instruction: string) => void;
   /** Set KI variant */
-  setKiVariant: (variant: KiStyleVariant) => void;
+  setKiVariant: (variant: KiStyleVariant, preSelected?: boolean) => void;
   /** Toggle an infrastructure option */
   toggleKiInfrastructureOption: (option: GreenEditInfrastructure) => void;
   /** Set KI loading state */
@@ -197,6 +200,7 @@ const initialState: ImageStudioState = {
   kiInstruction: '',
   kiVariant: DEFAULT_STYLE_VARIANT,
   kiInfrastructureOptions: [],
+  kiVariantPreSelected: false,
   kiLoading: false,
   rateLimitExceeded: false,
   // Auto-save state
@@ -356,8 +360,8 @@ export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
     set({ kiInstruction: instruction });
   },
 
-  setKiVariant: (variant: KiStyleVariant) => {
-    set({ kiVariant: variant });
+  setKiVariant: (variant: KiStyleVariant, preSelected?: boolean) => {
+    set({ kiVariant: variant, kiVariantPreSelected: preSelected ?? false });
   },
 
   toggleKiInfrastructureOption: (option: GreenEditInfrastructure) => {

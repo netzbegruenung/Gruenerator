@@ -1,6 +1,9 @@
-import React, { forwardRef, type ReactNode } from 'react';
+import { useDocumentStore, createDocsApiClient } from '@gruenerator/docs';
+import React, { forwardRef, lazy, Suspense, type ReactNode, useMemo } from 'react';
 
+import { webAppDocsAdapter } from '../../../../features/docs/docsAdapter';
 import { useLazyAuth } from '../../../../hooks/useAuth';
+import { useDeferredTitle, awaitDeferredTitle } from '../../../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import ActionButtons from '../../ActionButtons';
@@ -17,6 +20,8 @@ import type {
   CustomExportOption,
   ContentMetadata,
 } from '@/types/baseform';
+
+const DocsEditorModal = lazy(() => import('../../DocsEditorModal'));
 
 // Extended content type for internal use that includes all possible properties
 interface ExtendedContent {
@@ -43,8 +48,6 @@ interface DisplaySectionProps {
   componentName?: string;
   onErrorDismiss?: () => void;
   onEditModeToggle?: () => void;
-  isEditModeActive?: boolean;
-  showEditModeToggle?: boolean;
   onRequestEdit?: () => void;
   showUndoControls?: boolean;
   showRedoControls?: boolean;
@@ -86,8 +89,6 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       componentName = 'default',
       onErrorDismiss,
       onEditModeToggle,
-      isEditModeActive = false,
-      showEditModeToggle = true,
       onRequestEdit,
       showUndoControls = true,
       showRedoControls = true,
@@ -193,18 +194,57 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
 
     const handleSaveToLibrary = React.useCallback(async () => {
       try {
-        // Priority: metadata title > prop title > fallback
-        const titleToUse = storeGeneratedTextMetadata?.title || title || 'Unbenannter Text';
+        await awaitDeferredTitle(componentName);
+        const meta = useGeneratedTextStore
+          .getState()
+          .getGeneratedTextMetadata(componentName) as ContentMetadata | null;
+        const titleToUse = meta?.title || title || 'Unbenannter Text';
 
-        await saveToLibrary(
-          currentExportableContent,
-          titleToUse,
-          storeGeneratedTextMetadata?.contentType || 'universal'
-        );
+        await saveToLibrary(currentExportableContent, titleToUse, meta?.contentType || 'universal');
       } catch (error) {
         // Error handling is managed by the hook
       }
-    }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
+    }, [currentExportableContent, title, componentName, saveToLibrary]);
+
+    // "Edit in Docs" — create a collaborative document and open full-screen modal
+    const createDocument = useDocumentStore((state) => state.createDocument);
+    const docsApiClient = useMemo(() => createDocsApiClient(webAppDocsAdapter), []);
+    const [editInDocsLoading, setEditInDocsLoading] = React.useState(false);
+    const [editorModal, setEditorModal] = React.useState<{
+      documentId: string;
+      initialContent: string;
+      title: string;
+    } | null>(null);
+
+    useDeferredTitle(
+      componentName,
+      currentExportableContent,
+      storeGeneratedTextMetadata,
+      isStreaming
+    );
+
+    const handleEditInDocs = React.useCallback(async () => {
+      if (!currentExportableContent) return;
+
+      setEditInDocsLoading(true);
+      try {
+        await awaitDeferredTitle(componentName);
+        const meta = useGeneratedTextStore
+          .getState()
+          .getGeneratedTextMetadata(componentName) as ContentMetadata | null;
+        const docTitle = meta?.title || title || 'Generierter Text';
+        const doc = await createDocument(docsApiClient, docTitle);
+        setEditorModal({
+          documentId: doc.id,
+          initialContent: currentExportableContent,
+          title: docTitle,
+        });
+      } catch (error) {
+        console.error('[DisplaySection] Failed to create document:', error);
+      } finally {
+        setEditInDocsLoading(false);
+      }
+    }, [currentExportableContent, componentName, title, createDocument, docsApiClient]);
 
     const actionButtons = (
       <ActionButtons
@@ -214,14 +254,12 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         showRegenerate={true}
         showSave={!!onSave}
         showSaveToLibrary={true}
-        showEditMode={showEditModeToggle}
         showUndo={showUndoControls}
         showRedo={showRedoControls}
         onRegenerate={onGeneratePost}
         onSave={onSave}
         onSaveToLibrary={handleSaveToLibrary}
         onEditModeToggle={onEditModeToggle}
-        isEditModeActive={isEditModeActive}
         regenerateLoading={generatePostLoading || isStreaming}
         saveLoading={saveLoading}
         saveToLibraryLoading={saveToLibraryLoading}
@@ -231,6 +269,8 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         title={storeGeneratedTextMetadata?.title || title}
         componentName={componentName}
         onRequestEdit={onRequestEdit}
+        onEditInDocs={handleEditInDocs}
+        editInDocsLoading={editInDocsLoading}
         showReset={showResetButton}
         onReset={onReset}
         customExportOptions={customExportOptions}
@@ -242,7 +282,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       renderActions ? (
         renderActions(actionButtons)
       ) : (
-        <div className={`display-header ${isEditModeActive ? 'display-header--edit-mode' : ''}`}>
+        <div className="display-header">
           {actionButtons}
           <AutoSaveIndicator componentName={componentName} />
         </div>
@@ -285,7 +325,6 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
                   componentName={componentName}
                   helpContent={helpContent}
                   onEditModeToggle={onEditModeToggle}
-                  isEditModeActive={isEditModeActive}
                 />
               )}
             </>
@@ -301,6 +340,17 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         )}
         {/* Render additional display actions if provided */}
         {displayActions && <div className="display-action-section">{displayActions}</div>}
+        {/* Full-screen docs editor modal */}
+        {editorModal && (
+          <Suspense fallback={null}>
+            <DocsEditorModal
+              documentId={editorModal.documentId}
+              initialContent={editorModal.initialContent}
+              title={editorModal.title}
+              onClose={() => setEditorModal(null)}
+            />
+          </Suspense>
+        )}
       </div>
     );
   }

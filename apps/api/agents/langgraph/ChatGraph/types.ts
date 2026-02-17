@@ -10,8 +10,22 @@
  * keeping the graph decoupled from transport concerns.
  */
 
-import type { ModelMessage } from 'ai';
+import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { ModelMessage } from 'ai';
+
+/**
+ * Search source backends that can be queried in parallel.
+ * When multiple sources are specified, the search node runs them concurrently
+ * and merges/deduplicates the results before reranking.
+ */
+export type SearchSource = 'documents' | 'web';
+
+/**
+ * Supported user locales for locale-aware collection routing.
+ * Austrian users (de-AT) get Austrian collections, German users (de-DE) get German defaults.
+ */
+export type UserLocale = 'de-DE' | 'de-AT';
 
 /**
  * Intent classification for routing to appropriate search tools.
@@ -24,12 +38,13 @@ export type SearchIntent =
   | 'web' // Web search (current events, external facts)
   | 'examples' // Social media examples/templates
   | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
+  | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
   | 'direct'; // No search needed (greetings, creative tasks without fact needs)
 
 /**
  * Image style for generation.
  */
-export type ImageStyle = 'illustration' | 'realistic' | 'pixel';
+export type ImageStyle = 'illustration' | 'realistic' | 'pixel' | 'green-edit';
 
 /**
  * Processed file attachment from the frontend.
@@ -72,16 +87,24 @@ export interface SearchResult {
   content: string;
   url?: string;
   relevance?: number;
+  contentType?: string;
 }
 
 /**
  * Citation structure for response attribution.
+ * Enriched with provenance data for inline popovers and grouped source cards.
  */
 export interface Citation {
   id: number;
   title: string;
   url: string;
   snippet: string;
+  citedText?: string;
+  source: string;
+  collectionName?: string;
+  domain?: string;
+  relevance?: number;
+  contentType?: string;
 }
 
 /**
@@ -112,6 +135,11 @@ export interface ChatGraphInput {
   attachmentContext?: string;
   imageAttachments?: ImageAttachment[];
   threadAttachments?: ThreadAttachment[];
+  notebookIds?: string[];
+  defaultNotebookId?: string;
+  documentIds?: string[];
+  textIds?: string[];
+  userLocale?: UserLocale;
 }
 
 /**
@@ -128,11 +156,22 @@ export interface ChatGraphState {
   agentConfig: AgentConfig;
   enabledTools: Record<string, boolean>;
   aiWorkerPool: any;
+  userLocale: UserLocale;
 
   // Attachment context
   attachmentContext: string | null;
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
+
+  // Notebook scoping (from @notebook mentions)
+  notebookIds: string[];
+  notebookCollectionIds: string[];
+
+  // Default notebook scoping (from persistent UI selection)
+  defaultNotebookCollectionIds: string[];
+
+  // Document scoping (from @datei mentions)
+  documentIds: string[];
 
   // Memory context (from mem0 cross-thread memory)
   memoryContext: string | null;
@@ -140,17 +179,29 @@ export interface ChatGraphState {
 
   // Classification output
   intent: SearchIntent;
+  searchSources: SearchSource[];
   searchQuery: string | null;
   subQueries: string[] | null;
   reasoning: string;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
+  // Clarification (HITL interrupt)
+  needsClarification: boolean;
+  clarificationQuestion: string | null;
+  clarificationOptions: string[] | null;
+
+  // Metadata filters extracted by classifier (for Qdrant filtering)
+  detectedFilters: SubcategoryFilters | null;
+
   // Search results (accumulated)
   searchResults: SearchResult[];
   citations: Citation[];
   searchCount: number;
   maxSearches: number;
+
+  // Research brief (compressed research intent for complex queries)
+  researchBrief: string | null;
 
   // Quality gate (iterative search)
   qualityScore: number;
@@ -194,6 +245,7 @@ export interface ChatGraphOutput {
     searchTimeMs: number;
     rerankTimeMs?: number;
     searchedCollections?: string[];
+    appliedFilters?: SubcategoryFilters | null;
     imageTimeMs?: number;
     memoryRetrieveTimeMs?: number;
     responseTimeMs: number;
@@ -206,7 +258,12 @@ export interface ChatGraphOutput {
  */
 export interface ClassificationResult {
   intent: SearchIntent;
+  searchSources?: SearchSource[];
   searchQuery: string | null;
   subQueries?: string[] | null;
+  filters?: SubcategoryFilters | null;
   reasoning: string;
+  needsClarification?: boolean;
+  clarificationQuestion?: string;
+  clarificationOptions?: string[];
 }

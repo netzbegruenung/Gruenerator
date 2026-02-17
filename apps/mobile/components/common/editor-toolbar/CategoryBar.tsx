@@ -4,9 +4,10 @@
  * Shared between image-studio and subtitle-editor
  */
 
-import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
   colors,
   spacing,
@@ -17,6 +18,8 @@ import {
   verticalScale,
 } from '../../../theme';
 
+import type { ReactNode } from 'react';
+
 export interface CategoryConfig<T extends string = string> {
   id: T;
   label: string;
@@ -26,11 +29,13 @@ export interface CategoryConfig<T extends string = string> {
 export interface CategoryBarProps<T extends string = string> {
   categories: CategoryConfig<T>[];
   onSelectCategory: (categoryId: T) => void;
+  trailing?: ReactNode;
 }
 
 export function CategoryBar<T extends string = string>({
   categories,
   onSelectCategory,
+  trailing,
 }: CategoryBarProps<T>) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -64,6 +69,7 @@ export function CategoryBar<T extends string = string>({
             </Text>
           </Pressable>
         ))}
+        {trailing}
       </ScrollView>
     </View>
   );

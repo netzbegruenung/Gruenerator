@@ -46,6 +46,7 @@ const TYPE_TEMPERATURE_DEFAULTS: Record<string, number> = {
   leichte_sprache: 0.3,
   image_picker: 0.2,
   qa_tools: 0.3,
+  chat_rerank: 0,
 
   // Creative content
   antrag_question_generation: 0.7,
@@ -220,6 +221,8 @@ export function determineTopP(options: GenerationOptions): number {
 
   // Temperature-based defaults
   const effectiveTemp = temperature ?? determineTemperature(options);
+  // Greedy sampling (temp=0) requires top_p=1 on Mistral
+  if (effectiveTemp === 0) return 1.0;
   if (effectiveTemp <= 0.3) return 0.85;
   if (effectiveTemp <= 0.5) return 0.9;
 
