@@ -31,6 +31,10 @@
     "@radix-ui/react-popover": "^1.1.15",
     "@react-pdf/renderer": "^4.3.2",
     "@tanstack/react-query": "^5.90.16",
+    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-shell": "^2",
     "@tiptap/core": "^3.15.3",
     "@tiptap/extension-collaboration": "^2.10.0",
     "@tiptap/extension-collaboration-cursor": "^2.10.0",
@@ -58,6 +62,7 @@
     "dotenv": "^17.0.0",
     "express": "^5",
     "helmet": "^8.1.0",
+    "http-proxy-middleware": "^3.0.5",
     "lodash.throttle": "^4.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -66,11 +71,7 @@
     "react-router-dom": "^7.12.0",
     "y-websocket": "^2.0.4",
     "yjs": "^13.6.20",
-    "zustand": "^5.0.9",
-    "@tauri-apps/api": "^2.9.0",
-    "@tauri-apps/plugin-fs": "^2",
-    "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-shell": "^2"
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
