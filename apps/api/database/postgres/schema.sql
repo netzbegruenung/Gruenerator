@@ -481,7 +481,7 @@ CREATE TABLE IF NOT EXISTS user_templates (
     type TEXT DEFAULT 'template',
     title TEXT NOT NULL,
     description TEXT,
-    template_type TEXT DEFAULT 'canva',
+    template_type TEXT DEFAULT 'template',
     external_url TEXT,
     thumbnail_url TEXT,
     images JSONB DEFAULT '[]',

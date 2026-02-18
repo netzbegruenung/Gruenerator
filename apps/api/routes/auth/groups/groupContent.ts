@@ -448,8 +448,8 @@ router.get(
             ...(type === 'database' && {
               template_type:
                 (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)
-                  ?.template_type || 'canva',
-              canva_url: item.external_url,
+                  ?.template_type || 'template',
+              external_url: item.external_url,
             }),
           };
         });

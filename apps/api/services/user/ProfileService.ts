@@ -89,25 +89,7 @@ class ProfileService {
     }
   }
 
-  /**
-   * Get user profile by Canva user ID
-   */
-  async getProfileByCanvaId(
-    canvaUserId: string
-  ): Promise<Pick<UserProfile, 'id' | 'email' | 'display_name'> | null> {
-    try {
-      await this.db.ensureInitialized();
-      const profile = await this.db.queryOne(
-        'SELECT id, email, display_name FROM profiles WHERE canva_user_id = $1',
-        [canvaUserId],
-        { table: this.tableName }
-      );
-      return profile;
-    } catch (error: any) {
-      console.error('[ProfileService] Error getting profile by Canva ID:', error);
-      return null;
-    }
-  }
+
 
   /**
    * Create a new user profile
@@ -125,7 +107,6 @@ class ProfileService {
         notebook: profileData.notebook || false,
         sharepic: profileData.sharepic || false,
         anweisungen: profileData.anweisungen || false,
-        canva: profileData.canva || false,
         avatar_robot_id: profileData.avatar_robot_id || 1,
         interactive_antrag_enabled: profileData.interactive_antrag_enabled ?? true,
       };
@@ -208,7 +189,7 @@ class ProfileService {
         notebook: 'notebook',
         sharepic: 'sharepic',
         anweisungen: 'anweisungen',
-        canva: 'canva',
+
         labor: 'labor_enabled',
         sites: 'sites_enabled',
         chat: 'chat',
@@ -446,7 +427,6 @@ class ProfileService {
       notebook: profile.notebook || false,
       sharepic: profile.sharepic || false,
       anweisungen: profile.anweisungen || false,
-      canva: profile.canva || false,
       labor: profile.labor_enabled || false,
       sites: profile.sites_enabled || false,
       chat: profile.chat || false,
@@ -485,7 +465,6 @@ class ProfileService {
       notebook: 'notebook',
       sharepic: 'sharepic',
       anweisungen: 'anweisungen',
-      canva: 'canva',
       labor: 'labor_enabled',
       sites: 'sites_enabled',
       chat: 'chat',

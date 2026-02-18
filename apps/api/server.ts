@@ -273,8 +273,6 @@ async function startWorker(): Promise<void> {
             'data:',
             'blob:',
             'https://*.unsplash.com',
-            'https://*.canva.com',
-            'https://static.canva.com',
             'https://umami-f0s4w04kg4oww8cg44ssg4w8.moritz-waechter.de',
           ],
           connectSrc: [
