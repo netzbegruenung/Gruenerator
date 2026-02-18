@@ -206,6 +206,28 @@ export class AuthService {
       return { authenticated: false, reason: 'Access denied - no permission to view document' };
     }
 
+    if (shareMode === 'authenticated' && !isOwner && !userPermission) {
+      const permissionEntry = JSON.stringify({
+        [userId]: {
+          level: sharePermission,
+          granted_at: new Date().toISOString(),
+          granted_by: 'auto:share_link',
+        },
+      });
+
+      this.db(
+        `UPDATE collaborative_documents
+         SET permissions = COALESCE(permissions, '{}')::jsonb || $1::jsonb,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+           AND NOT (COALESCE(permissions, '{}')::jsonb ? $3)`,
+        [permissionEntry, documentName, userId]
+      ).catch((err: unknown) => {
+        const error = err instanceof Error ? err : new Error(String(err));
+        log.error(`[Auth] Error auto-adding user to permissions: ${error.message}`);
+      });
+    }
+
     const permissionLevel = userPermission?.level;
     let readOnly: boolean;
     if (isOwner) {
