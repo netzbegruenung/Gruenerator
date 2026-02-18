@@ -33,6 +33,7 @@ interface CollaborativeDocument {
   folder_id: string | null;
   permissions: DocumentPermissions | null;
   is_public: boolean;
+  share_mode?: 'private' | 'authenticated' | 'public';
   is_deleted: boolean;
   created_at: string;
   updated_at: string;
@@ -159,6 +160,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     const hasAccess =
       document.created_by === userId ||
       document.is_public ||
+      document.share_mode === 'authenticated' ||
       (document.permissions && document.permissions[userId]);
 
     if (!hasAccess) {
@@ -318,6 +320,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     const hasAccess =
       original.created_by === userId ||
       original.is_public ||
+      original.share_mode === 'authenticated' ||
       (original.permissions && original.permissions[userId]);
 
     if (!hasAccess) {
