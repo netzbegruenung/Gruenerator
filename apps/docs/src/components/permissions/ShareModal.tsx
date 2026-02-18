@@ -16,6 +16,7 @@ interface Collaborator {
 interface ShareSettings {
   is_public: boolean;
   share_permission: 'viewer' | 'editor';
+  share_mode: 'private' | 'authenticated' | 'public';
 }
 
 interface ShareModalProps {
@@ -23,16 +24,33 @@ interface ShareModalProps {
   onClose: () => void;
 }
 
+type ShareMode = 'private' | 'authenticated' | 'public';
+
+const SHARE_MODE_OPTIONS: { value: ShareMode; label: string; description: string }[] = [
+  { value: 'private', label: 'Privat', description: 'Nur eingeladene Personen haben Zugriff' },
+  {
+    value: 'authenticated',
+    label: 'Mit Anmeldung',
+    description: 'Jeder angemeldete Nutzer mit dem Link kann zugreifen',
+  },
+  {
+    value: 'public',
+    label: 'Öffentlich',
+    description: 'Jeder mit dem Link kann ohne Anmeldung zugreifen',
+  },
+];
+
 export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     is_public: false,
     share_permission: 'editor',
+    share_mode: 'private',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
+  const [isChangingMode, setIsChangingMode] = useState(false);
 
   const fetchCollaborators = useCallback(async () => {
     try {
@@ -51,7 +69,12 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const fetchShareSettings = useCallback(async () => {
     try {
       const response = await apiClient.get(`/docs/${documentId}/share`);
-      setShareSettings(response.data);
+      const data = response.data;
+      setShareSettings({
+        is_public: data.is_public,
+        share_permission: data.share_permission || 'editor',
+        share_mode: data.share_mode || (data.is_public ? 'public' : 'private'),
+      });
     } catch (err) {
       console.error('Failed to fetch share settings:', err);
     }
@@ -74,26 +97,30 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     }
   };
 
-  const togglePublicSharing = async () => {
+  const changeShareMode = async (mode: ShareMode) => {
     try {
-      setIsTogglingPublic(true);
-      const endpoint = shareSettings.is_public
-        ? `/docs/${documentId}/share/disable`
-        : `/docs/${documentId}/share/enable`;
-      const response = await apiClient.post(endpoint);
-      setShareSettings(response.data);
+      setIsChangingMode(true);
+      const response = await apiClient.put(`/docs/${documentId}/share/mode`, { mode });
+      setShareSettings({
+        is_public: response.data.is_public,
+        share_permission: response.data.share_permission || 'editor',
+        share_mode: response.data.share_mode,
+      });
     } catch (err) {
-      console.error('Failed to toggle public sharing:', err);
+      console.error('Failed to change share mode:', err);
       setError('Fehler beim Ändern der Freigabe');
     } finally {
-      setIsTogglingPublic(false);
+      setIsChangingMode(false);
     }
   };
 
   const updateSharePermission = async (permission: 'viewer' | 'editor') => {
     try {
       const response = await apiClient.put(`/docs/${documentId}/share/permission`, { permission });
-      setShareSettings(response.data);
+      setShareSettings((prev) => ({
+        ...prev,
+        share_permission: response.data.share_permission,
+      }));
     } catch (err) {
       console.error('Failed to update share permission:', err);
       setError('Fehler beim Ändern der Berechtigung');
@@ -151,6 +178,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     }
   };
 
+  const showLinkSection = shareSettings.share_mode !== 'private';
+
   return (
     <div className="share-modal-overlay" onClick={onClose}>
       <div className="share-modal-panel" onClick={(e) => e.stopPropagation()}>
@@ -164,27 +193,30 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
         {error && <div className="share-error">{error}</div>}
 
         <div className="share-link-section">
-          <div className="public-sharing-toggle">
-            <div className="public-sharing-info">
-              <h3>Gastzugang</h3>
-              <p className="public-sharing-description">
-                {shareSettings.is_public
-                  ? 'Jeder mit dem Link kann ohne Anmeldung zugreifen'
-                  : 'Nur angemeldete Nutzer haben Zugriff'}
-              </p>
-            </div>
-            <label className="toggle-switch">
-              <input
-                type="checkbox"
-                checked={shareSettings.is_public}
-                onChange={togglePublicSharing}
-                disabled={isTogglingPublic}
-              />
-              <span className="toggle-slider" />
-            </label>
+          <h3>Zugriff über Link</h3>
+          <div className="share-mode-options">
+            {SHARE_MODE_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`share-mode-option ${shareSettings.share_mode === option.value ? 'active' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="share_mode"
+                  value={option.value}
+                  checked={shareSettings.share_mode === option.value}
+                  onChange={() => changeShareMode(option.value)}
+                  disabled={isChangingMode}
+                />
+                <div className="share-mode-content">
+                  <span className="share-mode-label">{option.label}</span>
+                  <span className="share-mode-description">{option.description}</span>
+                </div>
+              </label>
+            ))}
           </div>
 
-          {shareSettings.is_public && (
+          {showLinkSection && (
             <>
               <div className="public-permission-row">
                 <select

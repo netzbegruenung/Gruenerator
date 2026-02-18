@@ -81,75 +81,60 @@
   margin: 0 0 1rem 0;
 }
 
-/* ─── Public sharing toggle ─── */
+/* ─── Share mode radio group ─── */
 
-.public-sharing-toggle {
+.share-mode-options {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
-.public-sharing-info h3 {
-  margin: 0 0 0.25rem 0;
+.share-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
 }
 
-.public-sharing-description {
-  font-size: 0.8125rem;
+.share-mode-option:hover {
+  background-color: var(--background-hover, rgba(0, 0, 0, 0.02));
+}
+
+.share-mode-option.active {
+  border-color: var(--secondary-600);
+  background-color: var(--secondary-100, rgba(95, 133, 117, 0.08));
+}
+
+.share-mode-option input[type="radio"] {
+  margin-top: 0.125rem;
+  accent-color: var(--secondary-600);
+  flex-shrink: 0;
+}
+
+.share-mode-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.share-mode-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+.share-mode-description {
+  font-size: 0.75rem;
   color: var(--font-color-secondary);
-  margin: 0;
 }
 
 .public-permission-row {
   margin-bottom: 0.75rem;
-}
-
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-  flex-shrink: 0;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background-color: var(--grey-300, #d1d5db);
-  border-radius: 24px;
-  transition: background-color 0.2s;
-}
-
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-
-.toggle-switch input:checked + .toggle-slider {
-  background-color: var(--secondary-600);
-}
-
-.toggle-switch input:checked + .toggle-slider::before {
-  transform: translateX(20px);
-}
-
-.toggle-switch input:disabled + .toggle-slider {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .link-container {
@@ -411,4 +396,12 @@
 
 [data-theme="dark"] .revoke-button:hover {
   background-color: rgba(220, 38, 38, 0.15);
+}
+
+[data-theme="dark"] .share-mode-option:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .share-mode-option.active {
+  background-color: rgba(95, 133, 117, 0.15);
 }
