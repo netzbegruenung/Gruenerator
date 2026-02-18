@@ -44,7 +44,7 @@ export const ChatComposer = ({ onSend, disabled }: ChatComposerProps) => {
       />
       <ActionIcon
         variant={text.trim() ? 'filled' : 'subtle'}
-        color="green"
+        color="var(--primary-600)"
         size="lg"
         radius="xl"
         onClick={handleSend}
