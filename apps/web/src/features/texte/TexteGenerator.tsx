@@ -40,10 +40,6 @@ const BarrierefreiheitTab = lazy(() => import('./tabs/BarrierefreiheitTab'));
 const TextEditorTab = lazy(() => import('./tabs/TextEditorTab'));
 const EigeneTab = lazy(() => import('./tabs/EigeneTab'));
 
-interface TexteGeneratorProps {
-  showHeaderFooter?: boolean;
-}
-
 const LOADING_FALLBACK_STYLE: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
@@ -96,9 +92,7 @@ const LEGACY_TAB_TO_PATH: Record<string, string> = {
  *   /texte/texteditor                → TextEditorTab
  *   /texte/eigene                    → EigeneTab
  */
-const TexteGenerator: React.FC<TexteGeneratorProps> = ({
-  showHeaderFooter: _showHeaderFooter = true,
-}) => {
+const TexteGenerator: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();

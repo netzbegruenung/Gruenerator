@@ -17,14 +17,7 @@ import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 
 import type { HelpContent } from '../../../types/baseform';
 
-
-interface GrueneJugendGeneratorProps {
-  showHeaderFooter?: boolean;
-}
-
-const GrueneJugendGenerator = ({
-  showHeaderFooter = true,
-}: GrueneJugendGeneratorProps): JSX.Element => {
+const GrueneJugendGenerator = (): JSX.Element => {
   const componentName = 'gruene-jugend';
   const { initialContent } = useSharedContent();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
@@ -231,7 +224,7 @@ const GrueneJugendGenerator = ({
 
   return (
     <ErrorBoundary>
-      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+      <div className="container with-header">
         <BaseForm
           {...baseFormProps}
           title={<span className="gradient-title">Grüne Jugend</span>}

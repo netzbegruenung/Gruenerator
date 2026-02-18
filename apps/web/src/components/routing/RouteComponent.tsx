@@ -72,7 +72,7 @@ const RouteComponent = ({
         showHeaderFooter={showHeaderFooter}
       >
         <Suspense fallback={<div />}>
-          <ComponentToRender key={path} darkMode={darkMode} showHeaderFooter={showHeaderFooter} />
+          <ComponentToRender key={path} darkMode={darkMode} />
         </Suspense>
       </PageLayout>
     </AppProviders>

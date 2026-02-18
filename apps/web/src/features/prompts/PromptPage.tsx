@@ -18,10 +18,6 @@ interface FormRef {
   resetForm: (data?: Record<string, unknown>) => void;
 }
 
-interface PromptPageProps {
-  showHeaderFooter?: boolean;
-}
-
 interface PromptResponse {
   success: boolean;
   prompt?: CustomPrompt & {
@@ -33,7 +29,7 @@ interface PromptResponse {
 
 const COMPONENT_NAME = 'prompt-executor';
 
-const PromptPage: React.FC<PromptPageProps> = memo(({ showHeaderFooter = true }) => {
+const PromptPage: React.FC = memo(() => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
