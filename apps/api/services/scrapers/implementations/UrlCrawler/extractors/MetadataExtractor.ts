@@ -3,8 +3,8 @@
  * Extracts enhanced metadata from HTML for rich content
  */
 
-import type { CheerioAPI } from 'cheerio';
 import type { EnhancedMetadata } from '../types.js';
+import type { CheerioAPI } from 'cheerio';
 
 export class MetadataExtractor {
   /**

@@ -11,14 +11,17 @@
  * - POST /crawl-url-default - Default crawl (redirects to manual)
  */
 
-import express, { Router, Response } from 'express';
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { randomUUID } from 'crypto';
+
+import express, { type Router, type Response } from 'express';
 import multer from 'multer';
+
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type {
   DocumentRequest,
   UploadManualRequestBody,
@@ -102,7 +105,9 @@ router.post(
         },
       });
 
-      log.debug(`[POST /upload-only] File saved to disk: ${file.path}, doc ID: ${documentMetadata.id}`);
+      log.debug(
+        `[POST /upload-only] File saved to disk: ${file.path}, doc ID: ${documentMetadata.id}`
+      );
 
       res.json({
         success: true,
@@ -135,37 +140,40 @@ router.post(
 /**
  * GET /:id/status - Get document processing status
  */
-router.get('/:id/status', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.get(
+  '/:id/status',
+  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    const document = await postgresDocumentService.getDocumentById(req.params.id, userId);
-    if (!document) {
-      res.status(404).json({ success: false, message: 'Document not found' });
-      return;
-    }
+      const document = await postgresDocumentService.getDocumentById(req.params.id, userId);
+      if (!document) {
+        res.status(404).json({ success: false, message: 'Document not found' });
+        return;
+      }
 
-    res.json({
-      success: true,
-      data: {
-        id: document.id,
-        status: document.status,
-        title: document.title,
-        vectorCount: document.vector_count || 0,
-      },
-    });
-  } catch (error) {
-    log.error('[GET /:id/status] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to get document status',
-    });
+      res.json({
+        success: true,
+        data: {
+          id: document.id,
+          status: document.status,
+          title: document.title,
+          vectorCount: document.vector_count || 0,
+        },
+      });
+    } catch (error) {
+      log.error('[GET /:id/status] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to get document status',
+      });
+    }
   }
-});
+);
 
 /**
  * POST /upload-manual - Manual file upload (no file storage, vectors only)

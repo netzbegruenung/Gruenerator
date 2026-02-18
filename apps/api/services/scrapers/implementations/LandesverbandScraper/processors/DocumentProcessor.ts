@@ -4,16 +4,17 @@
  * Handles: validation, age filter, deduplication, chunking, embedding, storage
  */
 
-import { smartChunkDocument } from '../../../../document-services/index.js';
-import { mistralEmbeddingService } from '../../../../mistral/index.js';
+import { CONTENT_TYPE_LABELS } from '../../../../../config/landesverbaendeConfig.js';
 import {
   scrollDocuments,
   batchDelete,
   batchUpsert,
 } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
-import { CONTENT_TYPE_LABELS } from '../../../../../config/landesverbaendeConfig.js';
-import type { ProcessResult, ExtractedContent } from '../types.js';
+import { smartChunkDocument } from '../../../../document-services/index.js';
+import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
+
+import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 
 /**

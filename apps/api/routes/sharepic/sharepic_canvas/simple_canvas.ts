@@ -4,29 +4,31 @@
  * Replaces original simple_canvas.ts with comprehensive rendering capabilities
  */
 
-import { Router, Request, Response } from 'express';
 import {
   createCanvas,
   type Canvas,
   type SKRSContext2D as CanvasRenderingContext2D,
 } from '@napi-rs/canvas';
+import { Router, type Request, type Response } from 'express';
+
 import { registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
-import { validateFreeCanvasRequest } from '../../../services/sharepic/canvas/utils/layerValidator.js';
 import { renderBackground } from '../../../services/sharepic/canvas/renderers/backgroundRenderer.js';
 import { renderBalken } from '../../../services/sharepic/canvas/renderers/balkenRenderer.js';
+import { renderIcon } from '../../../services/sharepic/canvas/renderers/iconRenderer.js';
 import { renderIllustration } from '../../../services/sharepic/canvas/renderers/illustrationRenderer.js';
 import { renderShape } from '../../../services/sharepic/canvas/renderers/shapeRenderer.js';
-import { renderIcon } from '../../../services/sharepic/canvas/renderers/iconRenderer.js';
 import { renderText } from '../../../services/sharepic/canvas/renderers/textRenderer.js';
+import { validateFreeCanvasRequest } from '../../../services/sharepic/canvas/utils/layerValidator.js';
+import { createLogger } from '../../../utils/logger.js';
+
 import type {
   FreeCanvasRequest,
   FreeCanvasResponse,
 } from '../../../services/sharepic/canvas/types/freeCanvasTypes.js';
-import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('simple_canvas');
 const router: Router = Router();

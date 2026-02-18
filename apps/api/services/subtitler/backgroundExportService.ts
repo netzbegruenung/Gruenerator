@@ -4,20 +4,22 @@
  * Handles async video export processing with FFmpeg.
  */
 
-import path from 'path';
 import fs from 'fs';
-import { ffmpeg } from './ffmpegWrapper.js';
-import { ffmpegPool } from './ffmpegPool.js';
+import path from 'path';
+
+import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
+
 import AssSubtitleService from './assSubtitleService.js';
-import { saveToExistingProject, autoSaveProject } from './projectSavingService.js';
-import * as hwaccel from './hwaccelUtils.js';
 import {
   calculateScaleFilter,
   buildFFmpegOutputOptions,
   buildVideoFilters,
 } from './ffmpegExportUtils.js';
-import { redisClient } from '../../utils/redis/index.js';
-import { createLogger } from '../../utils/logger.js';
+import { ffmpegPool } from './ffmpegPool.js';
+import { ffmpeg } from './ffmpegWrapper.js';
+import * as hwaccel from './hwaccelUtils.js';
+import { saveToExistingProject, autoSaveProject } from './projectSavingService.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('background-export');

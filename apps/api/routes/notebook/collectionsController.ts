@@ -301,322 +301,351 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
  * PUT /api/notebook-collections/:id
  * Update Notebook collection
  */
-router.put('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const collectionId = req.params.id;
-    const {
-      name,
-      description,
-      custom_prompt,
-      selection_mode = 'documents',
-      document_ids = [],
-      wolke_share_link_ids = [],
-      auto_sync,
-      remove_missing_on_sync,
-    } = req.body as UpdateCollectionBody;
+router.put(
+  '/:id',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const collectionId = req.params.id;
+      const {
+        name,
+        description,
+        custom_prompt,
+        selection_mode = 'documents',
+        document_ids = [],
+        wolke_share_link_ids = [],
+        auto_sync,
+        remove_missing_on_sync,
+      } = req.body as UpdateCollectionBody;
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Name is required' });
-    }
-
-    if (Array.isArray(document_ids) && document_ids.length > 1) {
-      return res.status(400).json({ error: 'Currently limited to 1 document per notebook' });
-    }
-
-    const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
-    if (!existingCollection || existingCollection.user_id !== userId) {
-      return res.status(404).json({ error: 'Notebook collection not found' });
-    }
-
-    let allDocumentIds: string[] = [];
-    let wolkeDocuments: DocumentRecord[] = [];
-
-    if (selection_mode === 'wolke') {
-      if (
-        !wolke_share_link_ids ||
-        !Array.isArray(wolke_share_link_ids) ||
-        wolke_share_link_ids.length === 0
-      ) {
-        return res.status(400).json({ error: 'At least one Wolke share link must be selected' });
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Name is required' });
       }
 
-      const hasAccess = await validateWolkeShareLinks(userId, wolke_share_link_ids);
-      if (!hasAccess) {
-        return res.status(403).json({ error: 'Access denied to one or more Wolke share links' });
+      if (Array.isArray(document_ids) && document_ids.length > 1) {
+        return res.status(400).json({ error: 'Currently limited to 1 document per notebook' });
       }
 
-      wolkeDocuments = await resolveWolkeLinksToDocuments(userId, wolke_share_link_ids);
-      allDocumentIds = wolkeDocuments.map((doc) => doc.id);
-
-      if (allDocumentIds.length === 0) {
-        return res.status(400).json({
-          error: 'No documents found in the selected Wolke folders. Please sync the folders first.',
-        });
-      }
-    } else {
-      if (!document_ids || !Array.isArray(document_ids) || document_ids.length === 0) {
-        return res.status(400).json({ error: 'At least one document must be selected' });
+      const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!existingCollection || existingCollection.user_id !== userId) {
+        return res.status(404).json({ error: 'Notebook collection not found' });
       }
 
-      const userDocuments = (await postgres.query(
-        'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2)',
-        [userId, document_ids]
-      )) as Array<{ id: string }>;
+      let allDocumentIds: string[] = [];
+      let wolkeDocuments: DocumentRecord[] = [];
 
-      if (userDocuments.length !== document_ids.length) {
-        return res.status(403).json({ error: 'Access denied to one or more documents' });
+      if (selection_mode === 'wolke') {
+        if (
+          !wolke_share_link_ids ||
+          !Array.isArray(wolke_share_link_ids) ||
+          wolke_share_link_ids.length === 0
+        ) {
+          return res.status(400).json({ error: 'At least one Wolke share link must be selected' });
+        }
+
+        const hasAccess = await validateWolkeShareLinks(userId, wolke_share_link_ids);
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'Access denied to one or more Wolke share links' });
+        }
+
+        wolkeDocuments = await resolveWolkeLinksToDocuments(userId, wolke_share_link_ids);
+        allDocumentIds = wolkeDocuments.map((doc) => doc.id);
+
+        if (allDocumentIds.length === 0) {
+          return res.status(400).json({
+            error:
+              'No documents found in the selected Wolke folders. Please sync the folders first.',
+          });
+        }
+      } else {
+        if (!document_ids || !Array.isArray(document_ids) || document_ids.length === 0) {
+          return res.status(400).json({ error: 'At least one document must be selected' });
+        }
+
+        const userDocuments = (await postgres.query(
+          'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2)',
+          [userId, document_ids]
+        )) as Array<{ id: string }>;
+
+        if (userDocuments.length !== document_ids.length) {
+          return res.status(403).json({ error: 'Access denied to one or more documents' });
+        }
+
+        allDocumentIds = document_ids;
       }
 
-      allDocumentIds = document_ids;
+      const updateData: Record<string, any> = {
+        name: name.trim(),
+        description: description?.trim() || null,
+        custom_prompt: custom_prompt?.trim() || null,
+        selection_mode,
+        document_count: allDocumentIds.length,
+        wolke_share_link_ids: selection_mode === 'wolke' ? wolke_share_link_ids : null,
+      };
+
+      if (selection_mode === 'wolke') {
+        if (typeof auto_sync === 'boolean') updateData.auto_sync = auto_sync;
+        if (typeof remove_missing_on_sync === 'boolean')
+          updateData.remove_missing_on_sync = remove_missing_on_sync;
+      } else {
+        updateData.auto_sync = false;
+        updateData.remove_missing_on_sync = false;
+      }
+
+      await notebookHelper.updateNotebookCollection(collectionId, updateData);
+
+      const existingDocuments = await notebookHelper.getCollectionDocuments(collectionId);
+      const existingDocIds = existingDocuments.map((doc) => doc.document_id);
+
+      if (existingDocIds.length > 0) {
+        await notebookHelper.removeDocumentsFromCollection(collectionId, existingDocIds);
+      }
+
+      await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
+
+      return res.json({
+        success: true,
+        message: `Notebook collection updated successfully with ${allDocumentIds.length} document(s)`,
+        documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
+        wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
+      });
+    } catch (error) {
+      log.error('[Notebook Collections] Error in PUT /:id:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
-
-    const updateData: Record<string, any> = {
-      name: name.trim(),
-      description: description?.trim() || null,
-      custom_prompt: custom_prompt?.trim() || null,
-      selection_mode,
-      document_count: allDocumentIds.length,
-      wolke_share_link_ids: selection_mode === 'wolke' ? wolke_share_link_ids : null,
-    };
-
-    if (selection_mode === 'wolke') {
-      if (typeof auto_sync === 'boolean') updateData.auto_sync = auto_sync;
-      if (typeof remove_missing_on_sync === 'boolean')
-        updateData.remove_missing_on_sync = remove_missing_on_sync;
-    } else {
-      updateData.auto_sync = false;
-      updateData.remove_missing_on_sync = false;
-    }
-
-    await notebookHelper.updateNotebookCollection(collectionId, updateData);
-
-    const existingDocuments = await notebookHelper.getCollectionDocuments(collectionId);
-    const existingDocIds = existingDocuments.map((doc) => doc.document_id);
-
-    if (existingDocIds.length > 0) {
-      await notebookHelper.removeDocumentsFromCollection(collectionId, existingDocIds);
-    }
-
-    await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
-
-    return res.json({
-      success: true,
-      message: `Notebook collection updated successfully with ${allDocumentIds.length} document(s)`,
-      documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
-      wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
-    });
-  } catch (error) {
-    log.error('[Notebook Collections] Error in PUT /:id:', error);
-    return res.status(500).json({ error: 'Internal server error' });
   }
-});
+);
 
 /**
  * POST /api/notebook-collections/:id/sync
  * Sync Wolke-based collection with current documents
  */
-router.post('/:id/sync', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const collectionId = req.params.id;
+router.post(
+  '/:id/sync',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const collectionId = req.params.id;
 
-    const collection = await notebookHelper.getNotebookCollection(collectionId);
-    if (!collection || collection.user_id !== userId) {
-      return res.status(404).json({ error: 'Notebook collection not found' });
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection || collection.user_id !== userId) {
+        return res.status(404).json({ error: 'Notebook collection not found' });
+      }
+
+      if ((collection.selection_mode || 'documents') !== 'wolke') {
+        return res
+          .status(400)
+          .json({ error: 'Sync is only available for Wolke-based collections' });
+      }
+
+      const wolkeLinkIds = collection.wolke_share_link_ids || [];
+      if (!Array.isArray(wolkeLinkIds) || wolkeLinkIds.length === 0) {
+        return res
+          .status(400)
+          .json({ error: 'No Wolke share links configured for this collection' });
+      }
+
+      const hasAccess = await validateWolkeShareLinks(userId, wolkeLinkIds);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Access denied to one or more Wolke share links' });
+      }
+
+      const wolkeDocuments = await resolveWolkeLinksToDocuments(userId, wolkeLinkIds);
+      const currentDocIds = new Set((wolkeDocuments || []).map((d) => d.id));
+
+      const existing = await notebookHelper.getCollectionDocuments(collectionId);
+      const existingIds = new Set((existing || []).map((ed) => ed.document_id));
+
+      const docsToAdd = [...currentDocIds].filter((id) => !existingIds.has(id));
+      const shouldRemove = !!collection.remove_missing_on_sync;
+      const docsToRemove = shouldRemove
+        ? [...existingIds].filter((id) => !currentDocIds.has(id))
+        : [];
+
+      let addedCount = 0;
+      if (docsToAdd.length > 0) {
+        await notebookHelper.addDocumentsToCollection(collectionId, docsToAdd, userId);
+        addedCount = docsToAdd.length;
+      }
+
+      let removedCount = 0;
+      if (docsToRemove.length > 0) {
+        await notebookHelper.removeDocumentsFromCollection(collectionId, docsToRemove);
+        removedCount = docsToRemove.length;
+      }
+
+      const newTotal = existingIds.size + addedCount - removedCount;
+      await notebookHelper.updateNotebookCollection(collectionId, {
+        document_count: newTotal,
+      });
+
+      return res.json({
+        success: true,
+        message: `Collection synchronized. ${addedCount} added, ${removedCount} removed.`,
+        added_count: addedCount,
+        removed_count: removedCount,
+        total_count: newTotal,
+        wolke_share_links: wolkeLinkIds,
+      });
+    } catch (error) {
+      log.error('[Notebook Collections] Error in POST /:id/sync:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
-
-    if ((collection.selection_mode || 'documents') !== 'wolke') {
-      return res.status(400).json({ error: 'Sync is only available for Wolke-based collections' });
-    }
-
-    const wolkeLinkIds = collection.wolke_share_link_ids || [];
-    if (!Array.isArray(wolkeLinkIds) || wolkeLinkIds.length === 0) {
-      return res.status(400).json({ error: 'No Wolke share links configured for this collection' });
-    }
-
-    const hasAccess = await validateWolkeShareLinks(userId, wolkeLinkIds);
-    if (!hasAccess) {
-      return res.status(403).json({ error: 'Access denied to one or more Wolke share links' });
-    }
-
-    const wolkeDocuments = await resolveWolkeLinksToDocuments(userId, wolkeLinkIds);
-    const currentDocIds = new Set((wolkeDocuments || []).map((d) => d.id));
-
-    const existing = await notebookHelper.getCollectionDocuments(collectionId);
-    const existingIds = new Set((existing || []).map((ed) => ed.document_id));
-
-    const docsToAdd = [...currentDocIds].filter((id) => !existingIds.has(id));
-    const shouldRemove = !!collection.remove_missing_on_sync;
-    const docsToRemove = shouldRemove
-      ? [...existingIds].filter((id) => !currentDocIds.has(id))
-      : [];
-
-    let addedCount = 0;
-    if (docsToAdd.length > 0) {
-      await notebookHelper.addDocumentsToCollection(collectionId, docsToAdd, userId);
-      addedCount = docsToAdd.length;
-    }
-
-    let removedCount = 0;
-    if (docsToRemove.length > 0) {
-      await notebookHelper.removeDocumentsFromCollection(collectionId, docsToRemove);
-      removedCount = docsToRemove.length;
-    }
-
-    const newTotal = existingIds.size + addedCount - removedCount;
-    await notebookHelper.updateNotebookCollection(collectionId, {
-      document_count: newTotal,
-    });
-
-    return res.json({
-      success: true,
-      message: `Collection synchronized. ${addedCount} added, ${removedCount} removed.`,
-      added_count: addedCount,
-      removed_count: removedCount,
-      total_count: newTotal,
-      wolke_share_links: wolkeLinkIds,
-    });
-  } catch (error) {
-    log.error('[Notebook Collections] Error in POST /:id/sync:', error);
-    return res.status(500).json({ error: 'Internal server error' });
   }
-});
+);
 
 /**
  * GET /api/notebook-collections/:id/search?q=...
  * Search documents within a specific collection
  */
-router.get('/:id/search', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const collectionId = req.params.id;
-    const query = (req.query.q as string)?.trim();
+router.get(
+  '/:id/search',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const collectionId = req.params.id;
+      const query = (req.query.q as string)?.trim();
 
-    if (!query) {
-      return res.status(400).json({ error: 'Query parameter "q" is required' });
+      if (!query) {
+        return res.status(400).json({ error: 'Query parameter "q" is required' });
+      }
+
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection || collection.user_id !== userId) {
+        return res.status(404).json({ error: 'Notebook collection not found' });
+      }
+
+      const collectionDocs = await notebookHelper.getCollectionDocuments(collectionId);
+      const documentIds = collectionDocs.map((d) => d.document_id);
+
+      if (documentIds.length === 0) {
+        return res.json([]);
+      }
+
+      const documentSearchService = getQdrantDocumentService();
+      const response = await documentSearchService.search({
+        query,
+        userId,
+        options: {
+          limit: 8,
+          mode: 'hybrid',
+          threshold: 0.2,
+        },
+        filters: {
+          documentIds,
+        },
+      });
+
+      const results = (response.results || []).slice(0, 8).map((r: any) => ({
+        documentId: r.document_id || r.documentId,
+        title: r.title || r.source || 'Unbekannt',
+        excerpt: (r.chunk_text || r.excerpt || '').slice(0, 200),
+        score: r.score ?? r.relevance ?? 0,
+      }));
+
+      return res.json(results);
+    } catch (error) {
+      log.error('[Notebook Collections] Error in GET /:id/search:', error);
+      return res.status(500).json({ error: 'Search failed' });
     }
-
-    const collection = await notebookHelper.getNotebookCollection(collectionId);
-    if (!collection || collection.user_id !== userId) {
-      return res.status(404).json({ error: 'Notebook collection not found' });
-    }
-
-    const collectionDocs = await notebookHelper.getCollectionDocuments(collectionId);
-    const documentIds = collectionDocs.map((d) => d.document_id);
-
-    if (documentIds.length === 0) {
-      return res.json([]);
-    }
-
-    const documentSearchService = getQdrantDocumentService();
-    const response = await documentSearchService.search({
-      query,
-      userId,
-      options: {
-        limit: 8,
-        mode: 'hybrid',
-        threshold: 0.2,
-      },
-      filters: {
-        documentIds,
-      },
-    });
-
-    const results = (response.results || []).slice(0, 8).map((r: any) => ({
-      documentId: r.document_id || r.documentId,
-      title: r.title || r.source || 'Unbekannt',
-      excerpt: (r.chunk_text || r.excerpt || '').slice(0, 200),
-      score: r.score ?? r.relevance ?? 0,
-    }));
-
-    return res.json(results);
-  } catch (error) {
-    log.error('[Notebook Collections] Error in GET /:id/search:', error);
-    return res.status(500).json({ error: 'Search failed' });
   }
-});
+);
 
 /**
  * DELETE /api/notebook-collections/:id
  * Delete Notebook collection
  */
-router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const collectionId = req.params.id;
+router.delete(
+  '/:id',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const collectionId = req.params.id;
 
-    const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
-    if (!existingCollection || existingCollection.user_id !== userId) {
-      return res.status(404).json({ error: 'Notebook collection not found' });
+      const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!existingCollection || existingCollection.user_id !== userId) {
+        return res.status(404).json({ error: 'Notebook collection not found' });
+      }
+
+      await notebookHelper.deleteNotebookCollection(collectionId);
+
+      return res.json({
+        success: true,
+        message: 'Notebook collection deleted successfully',
+      });
+    } catch (error) {
+      log.error('[Notebook Collections] Error in DELETE /:id:', error);
+      return res.status(500).json({ error: 'Failed to delete Notebook collection' });
     }
-
-    await notebookHelper.deleteNotebookCollection(collectionId);
-
-    return res.json({
-      success: true,
-      message: 'Notebook collection deleted successfully',
-    });
-  } catch (error) {
-    log.error('[Notebook Collections] Error in DELETE /:id:', error);
-    return res.status(500).json({ error: 'Failed to delete Notebook collection' });
   }
-});
+);
 
 /**
  * POST /api/notebook-collections/:id/share
  * Generate public sharing link
  */
-router.post('/:id/share', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const collectionId = req.params.id;
+router.post(
+  '/:id/share',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const collectionId = req.params.id;
 
-    const collection = await notebookHelper.getNotebookCollection(collectionId);
-    if (!collection || collection.user_id !== userId) {
-      return res.status(404).json({ error: 'Notebook collection not found' });
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection || collection.user_id !== userId) {
+        return res.status(404).json({ error: 'Notebook collection not found' });
+      }
+
+      const result = await notebookHelper.createPublicAccess(collectionId, userId);
+      const publicUrl = `${process.env.BASE_URL}/notebook/public/${result.access_token}`;
+
+      return res.json({
+        success: true,
+        public_url: publicUrl,
+        access_token: result.access_token,
+        message: 'Public link generated successfully',
+      });
+    } catch (error) {
+      log.error('[Notebook Collections] Error in POST /:id/share:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
-
-    const result = await notebookHelper.createPublicAccess(collectionId, userId);
-    const publicUrl = `${process.env.BASE_URL}/notebook/public/${result.access_token}`;
-
-    return res.json({
-      success: true,
-      public_url: publicUrl,
-      access_token: result.access_token,
-      message: 'Public link generated successfully',
-    });
-  } catch (error) {
-    log.error('[Notebook Collections] Error in POST /:id/share:', error);
-    return res.status(500).json({ error: 'Internal server error' });
   }
-});
+);
 
 /**
  * DELETE /api/notebook-collections/:id/share
  * Revoke public access
  */
-router.delete('/:id/share', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const collectionId = req.params.id;
+router.delete(
+  '/:id/share',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const collectionId = req.params.id;
 
-    const collection = await notebookHelper.getNotebookCollection(collectionId);
-    if (!collection || collection.user_id !== userId) {
-      return res.status(404).json({ error: 'Notebook collection not found' });
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection || collection.user_id !== userId) {
+        return res.status(404).json({ error: 'Notebook collection not found' });
+      }
+
+      await notebookHelper.revokePublicAccess(collectionId);
+
+      return res.json({
+        success: true,
+        message: 'Public access revoked successfully',
+      });
+    } catch (error) {
+      log.error('[Notebook Collections] Error in DELETE /:id/share:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
-
-    await notebookHelper.revokePublicAccess(collectionId);
-
-    return res.json({
-      success: true,
-      message: 'Public access revoked successfully',
-    });
-  } catch (error) {
-    log.error('[Notebook Collections] Error in DELETE /:id/share:', error);
-    return res.status(500).json({ error: 'Internal server error' });
   }
-});
+);
 
 /**
  * DELETE /api/notebook-collections/bulk

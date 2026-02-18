@@ -8,6 +8,7 @@
  */
 
 import { addUnsplashUTM } from '../../utils/unsplashUtils.js';
+
 import type { UnsplashAttribution } from '../image/types.js';
 
 // ============================================================================

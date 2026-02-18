@@ -4,21 +4,23 @@
  * Supports three modes: pure, sharepic (with title), and edit (image-to-image)
  */
 
-import path from 'path';
 import fs from 'fs';
-import { createLogger } from '../../utils/logger.js';
+import path from 'path';
+
+import { addKiLabel } from '../../routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
+import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { buildFluxPrompt, VARIANTS, type VariantKey } from '../../services/flux/index.js';
 import {
   composeImagineCreate,
   OUTPUT_WIDTH,
   OUTPUT_HEIGHT,
 } from '../../services/image/ImagineCanvasRenderer.js';
-import { addKiLabel } from '../../routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
-import { ImageGenerationCounter } from '../../services/counters/index.js';
+import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import type { Request } from 'express';
-import type { UserProfile } from '../../services/user/types.js';
+
 import type { ImagineVariant } from '../../services/image/types.js';
+import type { UserProfile } from '../../services/user/types.js';
+import type { Request } from 'express';
 
 const log = createLogger('imagineGenService');
 

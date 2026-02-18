@@ -3,10 +3,11 @@
  * Combines and re-exports all group-related routers
  */
 
-import express, { Router } from 'express';
+import express, { type Router } from 'express';
+
+import groupContentRouter from './groupContent.js';
 import groupCoreRouter, { getPostgresAndCheckMembership } from './groupCore.js';
 import groupKnowledgeRouter from './groupKnowledge.js';
-import groupContentRouter from './groupContent.js';
 
 const router: Router = express.Router();
 

@@ -16,7 +16,6 @@ import type {
   QdrantFilter,
   QdrantDocument,
 } from './types.js';
-
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 
 /**

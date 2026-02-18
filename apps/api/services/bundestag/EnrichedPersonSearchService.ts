@@ -9,10 +9,12 @@
  * 4. DIP Aktivitäten - Speeches, questions, activities
  */
 
-import { getPersonDetectionService } from './PersonDetectionService.js';
-import { getBundestagMCPClient, type BundestagMCPClient } from './BundestagMCPClient.js';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
 import MistralEmbeddingClient from '../mistral/MistralEmbeddingService/MistralEmbeddingClient.js';
+
+import { getBundestagMCPClient, type BundestagMCPClient } from './BundestagMCPClient.js';
+import { getPersonDetectionService } from './PersonDetectionService.js';
+
 import type {
   Person,
   SearchResult,

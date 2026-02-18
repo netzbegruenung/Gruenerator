@@ -3,12 +3,15 @@
  * Handles group CRUD, join/leave, and membership operations
  */
 
-import express, { Router, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+
+import express, { type Router, type Response, type NextFunction } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
-import crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../../utils/logger.js';
+
 import type { AuthRequest } from '../types.js';
 
 const log = createLogger('userGroups');
@@ -208,7 +211,7 @@ router.post(
 router.delete(
   '/groups/:groupId',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -314,7 +317,7 @@ router.delete(
 router.get(
   '/groups/verify-token/:joinToken',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ joinToken: string }>, res: Response): Promise<void> => {
     try {
       const { joinToken } = req.params;
       const userId = req.user!.id;
@@ -444,7 +447,7 @@ router.post(
 router.get(
   '/groups/:groupId/details',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -532,7 +535,7 @@ router.get(
 router.put(
   '/groups/:groupId/info',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -636,7 +639,7 @@ router.put(
 router.put(
   '/groups/:groupId/name',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -689,7 +692,7 @@ router.put(
 router.get(
   '/groups/:groupId/members',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;

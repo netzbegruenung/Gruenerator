@@ -3,9 +3,11 @@
  * Ensures proper error responses when database is unavailable
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { type Request, type Response, type NextFunction } from 'express';
+
 import { getPostgresInstance } from '../database/services/PostgresService.js';
-import { DatabaseHealth } from './types.js';
+
+import { type DatabaseHealth } from './types.js';
 
 /**
  * Middleware to check database health before processing requests

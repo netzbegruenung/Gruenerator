@@ -3,10 +3,11 @@
  * Combines and re-exports all content-related routers
  */
 
-import express, { Router } from 'express';
+import express, { type Router } from 'express';
+
+import userGalleryRouter from './userGallery.js';
 import userInstructionsRouter from './userInstructions.js';
 import userLibraryRouter from './userLibrary.js';
-import userGalleryRouter from './userGallery.js';
 
 const router: Router = express.Router();
 

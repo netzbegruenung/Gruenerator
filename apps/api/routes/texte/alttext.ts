@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import { type Router, type Request, type Response } from 'express';
+
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('claude_alttext');

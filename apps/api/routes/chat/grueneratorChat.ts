@@ -3,27 +3,17 @@
  * Thin HTTP layer that delegates to services
  */
 
-import express from 'express';
-import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import crypto from 'crypto';
-import { createLogger } from '../../utils/logger.js';
-import { classifyIntent } from '../../agents/chat/IntentClassifier.js';
-import { withErrorHandler } from '../../utils/errors/index.js';
-import * as chatMemory from '../../services/chat/ChatMemoryService.js';
-import { trimMessagesToTokenLimit } from '../../services/counters/index.js';
-import { DocumentQnAService } from '../../services/document-services/DocumentQnAService/index.js';
-import { redisClient } from '../../utils/redis/index.js';
-import mistralClient from '../../workers/mistralClient.js';
+
+import express from 'express';
+
 import {
-  detectSimpleMessage,
-  generateSimpleResponse,
-} from '../../services/chat/simple-messages/index.js';
-import { isWebSearchConfirmation } from '../../agents/chat/InformationRequestHandler.js';
-import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
-import {
+  isWebSearchConfirmation,
   extractRequestedInformation,
   completePendingRequest,
 } from '../../agents/chat/InformationRequestHandler.js';
+import { classifyIntent } from '../../agents/chat/IntentClassifier.js';
+import * as chatMemory from '../../services/chat/ChatMemoryService.js';
 import { processConversationRequest } from '../../services/chat/ConversationService.js';
 import {
   processMultiIntentRequest,
@@ -32,6 +22,19 @@ import {
   isImagineIntent,
 } from '../../services/chat/IntentService.js';
 import { generateSharepicForChat } from '../../services/chat/sharepicGenerationService.js';
+import {
+  detectSimpleMessage,
+  generateSimpleResponse,
+} from '../../services/chat/simple-messages/index.js';
+import { trimMessagesToTokenLimit } from '../../services/counters/index.js';
+import { DocumentQnAService } from '../../services/document-services/DocumentQnAService/index.js';
+import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
+import { withErrorHandler } from '../../utils/errors/index.js';
+import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
+import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
+import mistralClient from '../../workers/mistralClient.js';
+
 import type { UserProfile } from '../../services/user/types.js';
 
 const log = createLogger('grueneratorChat');

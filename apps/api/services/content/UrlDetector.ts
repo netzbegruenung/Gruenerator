@@ -4,6 +4,7 @@
  */
 
 import { URL_REGEX, URL_SCANNABLE_FIELDS } from './constants.js';
+
 import type { UrlDetectionResult, AttachmentWithUrl } from './types.js';
 
 export class UrlDetector {

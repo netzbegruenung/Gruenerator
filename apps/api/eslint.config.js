@@ -10,6 +10,15 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'uploads/**', 'test/**', 'tests/**', 'scripts/**'],
+    ignores: [
+      'dist/**',
+      'uploads/**',
+      'test/**',
+      'tests/**',
+      'scripts/**',
+      'eslint.config.js',
+      '**/test-*.ts',
+      'services/comfyui/**',
+    ],
   },
 ];

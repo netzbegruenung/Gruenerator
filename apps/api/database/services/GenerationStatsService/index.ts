@@ -1,4 +1,5 @@
-import { getPostgresInstance, PostgresService } from '../PostgresService.js';
+import { getPostgresInstance, type PostgresService } from '../PostgresService.js';
+
 import type {
   LogGenerationParams,
   GenerationStatsRow,

@@ -6,13 +6,14 @@
  * Example: benjamin-jopen-2SfssudtyIA-unsplash.jpg
  */
 
+import { buildUnsplashUrls as buildUrlsWithUTM } from '../../utils/unsplashUtils.js';
+
 import type {
   UnsplashParsedFilename,
   UnsplashUrls,
   UnsplashAttribution,
   ImageWithAttribution,
 } from './types.js';
-import { buildUnsplashUrls as buildUrlsWithUTM } from '../../utils/unsplashUtils.js';
 
 export class UnsplashAttributionService {
   private readonly UNSPLASH_SUFFIX = '-unsplash.jpg';

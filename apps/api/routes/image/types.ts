@@ -2,13 +2,16 @@
  * Image Routes - Type Definitions
  */
 
-import { Request } from 'express';
-import { UserProfile } from '../../services/user/types.js';
+import { type Request } from 'express';
+
+import { type UserProfile } from '../../services/user/types.js';
+
 import type {
   ImageGenerationStatus,
   ImageGenerationResult,
 } from '../../services/counters/types.js';
 import type { ImageCatalogEntry } from '../../services/image/types.js';
+import type { ParamsDictionary } from 'express-serve-static-core';
 
 // ============================================================================
 // Request Types
@@ -17,7 +20,7 @@ import type { ImageCatalogEntry } from '../../services/image/types.js';
 /**
  * Base authenticated request with user attached
  */
-export interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
   user?: UserProfile;
   app: Request['app'] & {
     locals: {

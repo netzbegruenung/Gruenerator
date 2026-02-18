@@ -1,10 +1,11 @@
+import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import {
   loadPromptConfig,
   buildConstraints,
   buildRequestContent,
   SimpleTemplateEngine,
 } from '../../PromptProcessor.js';
-import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
+
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest, SocialPlatformConfig } from '../types.js';
 

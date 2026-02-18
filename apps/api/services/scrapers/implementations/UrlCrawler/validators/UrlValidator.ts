@@ -4,6 +4,7 @@
  */
 
 import { URL } from 'url';
+
 import type { ValidationResult } from '../types.js';
 
 const MAX_URL_LENGTH = 8192;

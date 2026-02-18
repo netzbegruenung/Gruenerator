@@ -3,14 +3,17 @@
  * Handles PDF document generation with custom fonts
  */
 
-import express, { Request, Response } from 'express';
-import path from 'path';
 import fs from 'fs/promises';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+
+import express, { type Request, type Response } from 'express';
+
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
+
 import { htmlToPlainText, parseSections } from './contentParser.js';
+
 import type { ExportRequestBody, ExportResponse, ContentSection } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,7 +34,10 @@ function sanitizeFilename(name: string, fallback = 'Dokument'): string {
  */
 router.post(
   '/',
-  async (req: Request<{}, Buffer | ExportResponse, ExportRequestBody>, res: Response) => {
+  async (
+    req: Request<Record<string, never>, Buffer | ExportResponse, ExportRequestBody>,
+    res: Response
+  ) => {
     try {
       const { content, title } = req.body || {};
       const plain = htmlToPlainText(content);

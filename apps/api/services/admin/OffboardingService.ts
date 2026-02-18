@@ -5,9 +5,11 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+
 import { GrueneApiClient } from './GrueneApiClient.js';
-import { RetryManager } from './RetryManager.js';
 import { GrueneratorOffboarding } from './GrueneratorOffboarding.js';
+import { RetryManager } from './RetryManager.js';
+
 import type { GrueneApiConfig, OffboardingUser, BatchUpdateEntry } from './types.js';
 
 const log = createLogger('OffboardingService');

@@ -8,10 +8,12 @@
  * - GET /stats - Qdrant vector statistics
  */
 
-import express, { Router, Response } from 'express';
+import express, { type Router, type Response } from 'express';
+
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type { DocumentRequest, BulkFullTextRequestBody, QdrantListQuery } from './types.js';
 
 const log = createLogger('documents:qdrant');
@@ -24,63 +26,66 @@ const postgresDocumentService = getPostgresDocumentService();
 /**
  * GET /:documentId/full-text - Get document full text from Qdrant chunks
  */
-router.get('/:documentId/full-text', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { documentId } = req.params;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.get(
+  '/:documentId/full-text',
+  async (req: DocumentRequest<{ documentId: string }>, res: Response): Promise<void> => {
+    try {
+      const { documentId } = req.params;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    log.debug(`[GET /:documentId/full-text] Retrieving full text for document: ${documentId}`);
+      log.debug(`[GET /:documentId/full-text] Retrieving full text for document: ${documentId}`);
 
-    // First verify the document belongs to the user (from PostgreSQL metadata)
-    const documentMeta = await postgresDocumentService.getDocumentById(documentId, userId);
+      // First verify the document belongs to the user (from PostgreSQL metadata)
+      const documentMeta = await postgresDocumentService.getDocumentById(documentId, userId);
 
-    if (!documentMeta) {
-      res.status(404).json({
-        success: false,
-        message: 'Document not found or access denied',
-      });
-      return;
-    }
+      if (!documentMeta) {
+        res.status(404).json({
+          success: false,
+          message: 'Document not found or access denied',
+        });
+        return;
+      }
 
-    // Get full text from Qdrant
-    const result = await documentSearchService.getDocumentFullText(userId, documentId);
+      // Get full text from Qdrant
+      const result = await documentSearchService.getDocumentFullText(userId, documentId);
 
-    if (!result.success) {
-      res.status(404).json({
-        success: false,
-        message: result.error || 'Document text not found',
-      });
-      return;
-    }
+      if (!result.success) {
+        res.status(404).json({
+          success: false,
+          message: result.error || 'Document text not found',
+        });
+        return;
+      }
 
-    log.debug(`[GET /:documentId/full-text] Retrieved text with ${result.chunkCount} chunks`);
+      log.debug(`[GET /:documentId/full-text] Retrieved text with ${result.chunkCount} chunks`);
 
-    res.json({
-      success: true,
-      data: {
-        id: documentId,
-        fullText: result.fullText,
-        chunkCount: result.chunkCount,
-        metadata: {
-          // Merge with PostgreSQL metadata
-          ...documentMeta,
-          // Include any additional metadata from result if it exists
-          ...((result as any).metadata || {}),
+      res.json({
+        success: true,
+        data: {
+          id: documentId,
+          fullText: result.fullText,
+          chunkCount: result.chunkCount,
+          metadata: {
+            // Merge with PostgreSQL metadata
+            ...documentMeta,
+            // Include any additional metadata from result if it exists
+            ...((result as any).metadata || {}),
+          },
         },
-      },
-    });
-  } catch (error) {
-    log.error(`[GET /:documentId/full-text] Error:`, error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to retrieve document text',
-    });
+      });
+    } catch (error) {
+      log.error(`[GET /:documentId/full-text] Error:`, error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to retrieve document text',
+      });
+    }
   }
-});
+);
 
 /**
  * POST /bulk/full-text - Get multiple documents with full text (bulk retrieval)
@@ -208,7 +213,7 @@ router.get('/list', async (req: DocumentRequest, res: Response): Promise<void> =
  */
 router.get(
   '/:documentId/chunk-context',
-  async (req: DocumentRequest, res: Response): Promise<void> => {
+  async (req: DocumentRequest<{ documentId: string }>, res: Response): Promise<void> => {
     try {
       const { documentId } = req.params;
       const { chunkIndex, window = '2', collection = 'user' } = req.query;

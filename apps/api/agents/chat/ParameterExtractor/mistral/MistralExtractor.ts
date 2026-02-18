@@ -4,9 +4,11 @@
  */
 
 import mistralClient from '../../../../workers/mistralClient.js';
+
+import { createExtractionPrompt } from './prompts.js';
+
 import type { ChatContext } from '../../types.js';
 import type { MistralExtractionResponse } from '../types.js';
-import { createExtractionPrompt } from './prompts.js';
 
 /**
  * Extract parameters using Mistral AI for better semantic understanding

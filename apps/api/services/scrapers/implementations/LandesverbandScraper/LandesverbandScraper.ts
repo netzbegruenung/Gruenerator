@@ -23,8 +23,8 @@ import {
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { ocrService } from '../../../OcrService/index.js';
-
 import { BaseScraper } from '../../base/BaseScraper.js';
+
 import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';

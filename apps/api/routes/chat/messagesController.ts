@@ -3,12 +3,13 @@
  * CRUD operations for chat messages
  */
 
-import express from 'express';
-import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
-import type { UserProfile } from '../../services/user/types.js';
+
 import type { Thread, Message } from './agents/types.js';
+import type { UserProfile } from '../../services/user/types.js';
+import type express from 'express';
 
 const log = createLogger('MessagesController');
 const router = createAuthenticatedRouter();
@@ -67,9 +68,13 @@ router.get('/', async (req, res) => {
     // Debug: Log what we got from the database
     for (const msg of messages) {
       if (msg.tool_calls || msg.tool_results) {
-        log.info(`[Load] Message ${msg.id}: tool_calls=${msg.tool_calls ? 'present' : 'null'}, tool_results=${msg.tool_results ? 'present' : 'null'}`);
+        log.info(
+          `[Load] Message ${msg.id}: tool_calls=${msg.tool_calls ? 'present' : 'null'}, tool_results=${msg.tool_results ? 'present' : 'null'}`
+        );
         if (msg.tool_calls) {
-          log.info(`[Load] tool_calls type: ${typeof msg.tool_calls}, isArray: ${Array.isArray(msg.tool_calls)}`);
+          log.info(
+            `[Load] tool_calls type: ${typeof msg.tool_calls}, isArray: ${Array.isArray(msg.tool_calls)}`
+          );
         }
       }
     }

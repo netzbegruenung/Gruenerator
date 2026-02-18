@@ -4,6 +4,7 @@
  */
 
 import { patterns } from './patterns.js';
+
 import type { ChapterMatch, SectionMatch, ListMatch } from './types.js';
 
 /**
@@ -93,8 +94,8 @@ export function isPageBreak(line: string): boolean {
  * Determine list type
  */
 export function getListType(line: string): 'ordered' | 'alpha' | 'unordered' {
-  if (/^[\s]*\d+[\.\)]/.test(line)) return 'ordered';
-  if (/^[\s]*[a-z][\.\)]/.test(line)) return 'alpha';
+  if (/^[\s]*\d+[.)]/.test(line)) return 'ordered';
+  if (/^[\s]*[a-z][.)]/.test(line)) return 'alpha';
   return 'unordered';
 }
 

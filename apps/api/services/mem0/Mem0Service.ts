@@ -13,15 +13,13 @@
  */
 
 import { Memory, type MemoryItem, type SearchResult } from 'mem0ai/oss';
-import { buildMem0Config, isMem0Available, validateMem0Environment } from './config.js';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
-import type {
-  Mem0Message,
-  Mem0Memory,
-  Mem0MemoryMetadata,
-  Mem0HistoryRecord,
-} from './types.js';
+
+import { buildMem0Config, isMem0Available, validateMem0Environment } from './config.js';
+
+import type { Mem0Message, Mem0Memory, Mem0MemoryMetadata, Mem0HistoryRecord } from './types.js';
 
 const log = createLogger('Mem0Service');
 
@@ -164,11 +162,7 @@ export class Mem0Service {
    * @param userId - User ID for memory isolation
    * @param limit - Maximum number of memories to return
    */
-  async searchMemories(
-    query: string,
-    userId: string,
-    limit: number = 5
-  ): Promise<Mem0Memory[]> {
+  async searchMemories(query: string, userId: string, limit: number = 5): Promise<Mem0Memory[]> {
     try {
       await this.ensureInitialized();
 
@@ -186,7 +180,9 @@ export class Mem0Service {
 
       const allMemories = (response?.results || []).map(toMem0Memory);
       const memories = allMemories.filter((m) => (m.score ?? 1) >= 0.4);
-      log.info(`[Mem0] Found ${memories.length} relevant memories (${allMemories.length - memories.length} filtered below threshold) for user ${userId}`);
+      log.info(
+        `[Mem0] Found ${memories.length} relevant memories (${allMemories.length - memories.length} filtered below threshold) for user ${userId}`
+      );
 
       return memories;
     } catch (error) {

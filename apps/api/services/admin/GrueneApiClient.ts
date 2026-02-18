@@ -5,7 +5,9 @@
  */
 
 import axios, { type AxiosInstance } from 'axios';
+
 import { createLogger } from '../../utils/logger.js';
+
 import type { GrueneApiConfig, OffboardingUsersResponse, BatchUpdateEntry } from './types.js';
 
 const log = createLogger('GrueneApiClient');

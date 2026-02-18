@@ -4,6 +4,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+
 import type { EditContext, EditOperationType, AIWorkerPool } from '../../agents/chat/types.js';
 
 const log = createLogger('EditIntentService');

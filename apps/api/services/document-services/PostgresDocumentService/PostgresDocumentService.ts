@@ -5,6 +5,21 @@
  */
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+
+// Import module functions
+import {
+  saveDocumentMetadata,
+  updateDocumentMetadata,
+  getDocumentsBySourceType,
+  getDocumentById,
+  deleteDocument,
+  bulkDeleteDocuments,
+} from './metadataOperations.js';
+import { getDocumentStats, getUserTexts } from './statistics.js';
+import { storeDocumentText, getDocumentText, createDocumentWithText } from './textOperations.js';
+import { getUserDocumentMode, setUserDocumentMode } from './userPreferences.js';
+import { getDocumentByWolkeFile } from './wolkeOperations.js';
+
 import type {
   DocumentMetadata,
   DocumentRecord,
@@ -16,24 +31,6 @@ import type {
   DocumentStats,
   UserTextDocument,
 } from './types.js';
-
-// Import module functions
-import {
-  saveDocumentMetadata,
-  updateDocumentMetadata,
-  getDocumentsBySourceType,
-  getDocumentById,
-  deleteDocument,
-  bulkDeleteDocuments,
-} from './metadataOperations.js';
-
-import { storeDocumentText, getDocumentText, createDocumentWithText } from './textOperations.js';
-
-import { getDocumentByWolkeFile } from './wolkeOperations.js';
-
-import { getUserDocumentMode, setUserDocumentMode } from './userPreferences.js';
-
-import { getDocumentStats, getUserTexts } from './statistics.js';
 
 /**
  * Main PostgresDocumentService class

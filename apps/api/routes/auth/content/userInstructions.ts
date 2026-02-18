@@ -148,7 +148,7 @@ router.put(
 router.delete(
   '/anweisungen-wissen/:id',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;

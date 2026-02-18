@@ -39,6 +39,7 @@ import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { ParamsDictionary } from 'express-serve-static-core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -48,7 +49,7 @@ const router: Router = express.Router();
 const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Regular.ttf');
 const assService = new AssSubtitleService();
 
-interface SubtitlerRequest extends AuthenticatedRequest {
+interface SubtitlerRequest<P = ParamsDictionary> extends AuthenticatedRequest<P> {
   app: AuthenticatedRequest['app'] & { locals: { aiWorkerPool?: any } };
 }
 
@@ -122,38 +123,41 @@ router.post('/process', async (req: SubtitlerRequest, res: Response): Promise<vo
 });
 
 // GET /result/:uploadId - Get transcription result
-router.get('/result/:uploadId', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const { uploadId } = req.params;
-  const {
-    subtitlePreference = 'manual',
-    stylePreference = 'standard',
-    heightPreference = 'tief',
-  } = req.query;
-  const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
+router.get(
+  '/result/:uploadId',
+  async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
+    const { uploadId } = req.params;
+    const {
+      subtitlePreference = 'manual',
+      stylePreference = 'standard',
+      heightPreference = 'tief',
+    } = req.query;
+    const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
 
-  try {
-    const data = (await redisClient.get(jobKey)) as string | null;
-    if (!data) {
-      res.status(404).json({ status: 'not_found' });
-      return;
+    try {
+      const data = (await redisClient.get(jobKey)) as string | null;
+      if (!data) {
+        res.status(404).json({ status: 'not_found' });
+        return;
+      }
+      const job = JSON.parse(data);
+      const compression = await getCompressionStatus(uploadId as string);
+      res.json({
+        status: job.status,
+        subtitles: job.data,
+        compression,
+        error: job.status === 'error' ? job.data : undefined,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
     }
-    const job = JSON.parse(data);
-    const compression = await getCompressionStatus(uploadId as string);
-    res.json({
-      status: job.status,
-      subtitles: job.data,
-      compression,
-      error: job.status === 'error' ? job.data : undefined,
-    });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
   }
-});
+);
 
 // GET /export-progress/:exportToken
 router.get(
   '/export-progress/:exportToken',
-  async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  async (req: SubtitlerRequest<{ exportToken: string }>, res: Response): Promise<void> => {
     const { exportToken } = req.params;
     try {
       const data = (await redisClient.get(`export:${exportToken}`)) as string | null;
@@ -171,7 +175,7 @@ router.get(
 // GET /compression-status/:uploadId
 router.get(
   '/compression-status/:uploadId',
-  async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
     const { uploadId } = req.params;
     try {
       res.json(await getCompressionStatus(uploadId));
@@ -182,7 +186,10 @@ router.get(
 );
 
 // DELETE/POST /cleanup/:uploadId
-async function handleCleanup(req: SubtitlerRequest, res: Response): Promise<void> {
+async function handleCleanup(
+  req: SubtitlerRequest<{ uploadId: string }>,
+  res: Response
+): Promise<void> {
   const { uploadId } = req.params;
   if (!uploadId) {
     res.status(400).json({ error: 'Upload-ID fehlt' });
@@ -209,18 +216,24 @@ router.post('/export-token', async (req: SubtitlerRequest, res: Response): Promi
 });
 
 // GET /download/:token
-router.get('/download/:token', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  try {
-    await processDirectDownload(req.params.token, res);
-  } catch (e: any) {
-    if (!res.headersSent) res.status(500).json({ error: e.message });
+router.get(
+  '/download/:token',
+  async (req: SubtitlerRequest<{ token: string }>, res: Response): Promise<void> => {
+    try {
+      await processDirectDownload(req.params.token, res);
+    } catch (e: any) {
+      if (!res.headersSent) res.status(500).json({ error: e.message });
+    }
   }
-});
+);
 
 // GET /download-chunk/:uploadId/:chunkIndex
 router.get(
   '/download-chunk/:uploadId/:chunkIndex',
-  async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  async (
+    req: SubtitlerRequest<{ uploadId: string; chunkIndex: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       await processChunkedDownload(req.params.uploadId, parseInt(req.params.chunkIndex), res);
     } catch (e: any) {
@@ -232,7 +245,7 @@ router.get(
 // GET /export-download/:exportToken
 router.get(
   '/export-download/:exportToken',
-  async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  async (req: SubtitlerRequest<{ exportToken: string }>, res: Response): Promise<void> => {
     const { exportToken } = req.params;
     try {
       const data = (await redisClient.get(`export:${exportToken}`)) as string | null;
@@ -277,7 +290,7 @@ router.get(
 // GET /internal-video/:uploadId - Internal video streaming
 router.get(
   '/internal-video/:uploadId',
-  async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
     const { uploadId } = req.params;
     try {
       const videoPath = getFilePathFromUploadId(uploadId);
@@ -625,7 +638,7 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
 // GET /auto-progress/:uploadId
 router.get(
   '/auto-progress/:uploadId',
-  async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
     const { uploadId } = req.params;
     try {
       const data = (await redisClient.get(`auto:${uploadId}`)) as string | null;
@@ -643,7 +656,7 @@ router.get(
 // GET /auto-download/:uploadId
 router.get(
   '/auto-download/:uploadId',
-  async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
     const { uploadId } = req.params;
     try {
       const data = (await redisClient.get(`auto:${uploadId}`)) as string | null;

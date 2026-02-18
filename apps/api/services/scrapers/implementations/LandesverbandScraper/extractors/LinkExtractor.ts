@@ -5,6 +5,7 @@
  */
 
 import * as cheerio from 'cheerio';
+
 import type { PdfLink } from '../types.js';
 
 /**
@@ -54,7 +55,7 @@ export class LinkExtractor {
 
         // Extract links using content path's list selector
         $(contentPath.listSelector).each((_, el) => {
-          let href = $(el).attr('href');
+          const href = $(el).attr('href');
           if (!href) return;
 
           const normalized = this.normalizeUrl(href, source.baseUrl);

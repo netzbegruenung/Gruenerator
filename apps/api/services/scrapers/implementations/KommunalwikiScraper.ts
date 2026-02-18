@@ -3,11 +3,12 @@
  * Fetches articles, categories, and metadata from kommunalwiki.boell.de
  */
 
-import { BaseScraper } from '../base/BaseScraper.js';
-import type { ScraperConfig, ScraperResult, MediaWikiPage } from '../types.js';
+import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
-import { getQdrantInstance } from '../../../database/services/QdrantService.js';
+import { BaseScraper } from '../base/BaseScraper.js';
+
+import type { ScraperConfig, ScraperResult, MediaWikiPage } from '../types.js';
 
 interface ArticleTitle {
   title: string;

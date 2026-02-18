@@ -3,8 +3,9 @@
  * Generates search queries based on mode (normal vs deep research)
  */
 
-import type { WebSearchState } from '../types.js';
 import { optimizeSearchQuery, generateResearchQuestions } from '../utilities/queryOptimizer.js';
+
+import type { WebSearchState } from '../types.js';
 
 /**
  * Planner Node: Generate search queries based on mode

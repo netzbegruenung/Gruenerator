@@ -4,9 +4,11 @@
  * Works for both authenticated and anonymous users
  */
 
-import express, { Request, Response, Router } from 'express';
+import express, { type Request, type Response, type Router } from 'express';
+
 import { rateLimiter } from '../../middleware/rateLimitMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type { RequestWithUser } from '../../utils/redis/types.js';
 
 const log = createLogger('rateLimit');
@@ -27,7 +29,7 @@ interface LimitConfig {
   window?: string;
 }
 
-router.get('/:resourceType', async (req: Request, res: Response) => {
+router.get('/:resourceType', async (req: Request<{ resourceType: string }>, res: Response) => {
   try {
     const { resourceType } = req.params;
 
@@ -120,47 +122,50 @@ router.post('/bulk', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/reset/:resourceType', async (req: Request, res: Response) => {
-  try {
-    const { resourceType } = req.params;
+router.post(
+  '/reset/:resourceType',
+  async (req: Request<{ resourceType: string }>, res: Response) => {
+    try {
+      const { resourceType } = req.params;
 
-    const userType = rateLimiter.getUserType(req as unknown as RequestWithUser);
-    const identifier = rateLimiter.getIdentifier(req as unknown as RequestWithUser, userType);
+      const userType = rateLimiter.getUserType(req as unknown as RequestWithUser);
+      const identifier = rateLimiter.getIdentifier(req as unknown as RequestWithUser, userType);
 
-    if (process.env.NODE_ENV === 'production' && userType === 'anonymous') {
-      return res.status(403).json({
-        success: false,
-        error: 'Anonymous users cannot reset counters in production',
-      });
-    }
+      if (process.env.NODE_ENV === 'production' && userType === 'anonymous') {
+        return res.status(403).json({
+          success: false,
+          error: 'Anonymous users cannot reset counters in production',
+        });
+      }
 
-    const limitConfig = rateLimiter.getLimitConfig(resourceType, userType) as LimitConfig | null;
-    const window = limitConfig?.window || 'daily';
+      const limitConfig = rateLimiter.getLimitConfig(resourceType, userType) as LimitConfig | null;
+      const window = limitConfig?.window || 'daily';
 
-    const success = await rateLimiter.resetUserCounter(resourceType, identifier, window);
+      const success = await rateLimiter.resetUserCounter(resourceType, identifier, window);
 
-    if (success) {
-      return res.json({
-        success: true,
-        message: `Counter reset successfully for ${resourceType}`,
-      });
-    } else {
+      if (success) {
+        return res.json({
+          success: true,
+          message: `Counter reset successfully for ${resourceType}`,
+        });
+      } else {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to reset counter',
+        });
+      }
+    } catch (error) {
+      log.error('[RateLimitAPI] Error resetting counter:', error);
       return res.status(500).json({
         success: false,
         error: 'Failed to reset counter',
       });
     }
-  } catch (error) {
-    log.error('[RateLimitAPI] Error resetting counter:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to reset counter',
-    });
   }
-});
+);
 
 if (process.env.NODE_ENV === 'development') {
-  router.get('/config/:resourceType', (req: Request, res: Response) => {
+  router.get('/config/:resourceType', (req: Request<{ resourceType: string }>, res: Response) => {
     const { resourceType } = req.params;
     const userType = rateLimiter.getUserType(req as unknown as RequestWithUser);
     const config = rateLimiter.getLimitConfig(resourceType, userType);

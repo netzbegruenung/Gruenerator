@@ -3,9 +3,10 @@
  * Handles direct text content processing (no file upload)
  */
 
-import type { TextProcessingResult } from './types.js';
-import { generateContentPreview } from './textExtraction.js';
 import { chunkAndEmbedText } from './chunkingPipeline.js';
+import { generateContentPreview } from './textExtraction.js';
+
+import type { TextProcessingResult } from './types.js';
 
 /**
  * Process text content directly (no file upload)

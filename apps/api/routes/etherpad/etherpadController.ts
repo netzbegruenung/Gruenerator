@@ -4,10 +4,11 @@
  * Provides API endpoints for creating collaborative Etherpad documents.
  */
 
-import express, { Request, Response, Router } from 'express';
+import express, { type Request, type Response, type Router } from 'express';
+
 import { createPadWithText } from '../../services/etherpad/index.js';
-import { generateSecureId } from '../../utils/validation/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { generateSecureId } from '../../utils/validation/index.js';
 
 const log = createLogger('etherpad');
 

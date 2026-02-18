@@ -9,21 +9,27 @@
  * - event: error, data: {"error": "message"} - error messages
  */
 
-import express from 'express';
-import { streamText, ModelMessage } from 'ai';
-import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
-import { getModel, isProviderConfigured } from './agents/providers.js';
+import { streamText, type ModelMessage } from 'ai';
+
+import {
+  SYSTEM_COLLECTIONS,
+  getSystemCollectionConfig,
+} from '../../config/systemCollectionsConfig.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { notebookQAService } from '../../services/notebook/index.js';
-import { createLogger } from '../../utils/logger.js';
 import {
   renumberCitationsInOrder,
   validateAndInjectCitations,
   groupSourcesByCollection,
 } from '../../services/search/index.js';
-import { SYSTEM_COLLECTIONS, getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
-import type { UserProfile } from '../../services/user/types.js';
+import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
+import { createLogger } from '../../utils/logger.js';
+
+import { getModel, isProviderConfigured } from './agents/providers.js';
+
 import type { SearchContext } from '../../services/notebook/types.js';
+import type { UserProfile } from '../../services/user/types.js';
+import type express from 'express';
 
 const log = createLogger('NotebookStreamController');
 const router = createAuthenticatedRouter();

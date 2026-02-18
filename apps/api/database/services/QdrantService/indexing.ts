@@ -3,9 +3,12 @@
  * Extracted indexing operations for document and content vectors
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
-import { chunkToNumericId, stringToNumericId } from './utils.js';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../utils/logger.js';
+
+import { chunkToNumericId, stringToNumericId } from './utils.js';
+
 import type {
   IndexResult,
   ChunkData,
@@ -49,9 +52,7 @@ export interface WebContentMetadata {
   content_hash?: string;
 }
 
-export interface ContentExampleMetadata extends ContentExampleMeta {
-  // Inherits all fields from types.ts ContentExampleMetadata
-}
+export type ContentExampleMetadata = ContentExampleMeta;
 
 export interface SocialMediaIndexMetadata {
   country?: 'DE' | 'AT';

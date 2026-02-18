@@ -3,14 +3,15 @@
  * Handles social media posts and press releases
  */
 
-import type { SocialMediaParameters, GrueneJugendParameters, BaseParameters } from '../types.js';
-import type { ChatContext } from '../../types.js';
 import {
   extractTheme,
   extractDetails,
   extractPlatforms,
   extractQuoteAuthor,
 } from '../utils/extractionUtils.js';
+
+import type { ChatContext } from '../../types.js';
+import type { SocialMediaParameters, GrueneJugendParameters, BaseParameters } from '../types.js';
 
 /**
  * Extract parameters for social media and press release agents

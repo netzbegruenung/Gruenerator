@@ -6,10 +6,11 @@
  * and only the summary + recent messages are sent to the LLM.
  */
 
-import { generateText, ModelMessage } from 'ai';
-import { getModel } from '../agents/providers.js';
+import { generateText, type ModelMessage } from 'ai';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { getModel } from '../agents/providers.js';
 
 const log = createLogger('CompactionService');
 
@@ -45,10 +46,7 @@ export interface Message {
 /**
  * Check if a thread needs compaction based on message count
  */
-export function needsCompaction(
-  messageCount: number,
-  existingSummary: string | null
-): boolean {
+export function needsCompaction(messageCount: number, existingSummary: string | null): boolean {
   if (!existingSummary) {
     return messageCount >= COMPACTION_THRESHOLD;
   }

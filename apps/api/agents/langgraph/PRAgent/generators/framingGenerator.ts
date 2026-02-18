@@ -1,5 +1,6 @@
-import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
+import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
+
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest } from '../types.js';
 

@@ -43,7 +43,7 @@ const tableNameMap: Record<string, string> = {
 router.post(
   '/groups/:groupId/share',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -166,7 +166,7 @@ router.post(
 router.delete(
   '/groups/:groupId/share',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -239,7 +239,7 @@ router.delete(
 router.get(
   '/groups/:groupId/content',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -495,7 +495,10 @@ router.get(
 router.put(
   '/groups/:groupId/content/:contentId/permissions',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (
+    req: AuthRequest<{ groupId: string; contentId: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId, contentId } = req.params;
       const userId = req.user!.id;
@@ -576,7 +579,10 @@ router.put(
 router.delete(
   '/groups/:groupId/content/:contentId',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (
+    req: AuthRequest<{ groupId: string; contentId: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId, contentId } = req.params;
       const userId = req.user!.id;

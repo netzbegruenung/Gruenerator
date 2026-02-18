@@ -3,14 +3,15 @@
  * Convert markdown content to HTML, plain text, and export formats
  */
 
-import express, { Request, Response } from 'express';
-import { createLogger } from '../../utils/logger.js';
+import express, { type Request, type Response } from 'express';
+
 import {
   markdownToHtml,
   markdownToPlainText,
   markdownForExport,
   isMarkdownContent,
 } from '../../services/markdown/index.js';
+import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('markdown');
 
@@ -35,7 +36,10 @@ interface MarkdownResponse {
  */
 router.post(
   '/to-html',
-  async (req: Request<{}, MarkdownResponse, ContentRequest>, res: Response<MarkdownResponse>) => {
+  async (
+    req: Request<Record<string, never>, MarkdownResponse, ContentRequest>,
+    res: Response<MarkdownResponse>
+  ) => {
     try {
       const { content } = req.body;
 
@@ -71,7 +75,10 @@ router.post(
  */
 router.post(
   '/to-plain-text',
-  async (req: Request<{}, MarkdownResponse, ContentRequest>, res: Response<MarkdownResponse>) => {
+  async (
+    req: Request<Record<string, never>, MarkdownResponse, ContentRequest>,
+    res: Response<MarkdownResponse>
+  ) => {
     try {
       const { content } = req.body;
 
@@ -107,7 +114,10 @@ router.post(
  */
 router.post(
   '/for-export',
-  async (req: Request<{}, MarkdownResponse, ContentRequest>, res: Response<MarkdownResponse>) => {
+  async (
+    req: Request<Record<string, never>, MarkdownResponse, ContentRequest>,
+    res: Response<MarkdownResponse>
+  ) => {
     try {
       const { content } = req.body;
 
@@ -143,7 +153,10 @@ router.post(
  */
 router.post(
   '/check',
-  async (req: Request<{}, MarkdownResponse, ContentRequest>, res: Response<MarkdownResponse>) => {
+  async (
+    req: Request<Record<string, never>, MarkdownResponse, ContentRequest>,
+    res: Response<MarkdownResponse>
+  ) => {
     try {
       const { content } = req.body;
 

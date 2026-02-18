@@ -3,12 +3,15 @@
  * Handles Word document generation with formatting and citations
  */
 
-import express, { Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
+
+import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
-import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
-import { parseFormattedContent } from './contentParser.js';
+
 import { parseCitationMarkers, createSourcesSection } from './citationParser.js';
+import { parseFormattedContent } from './contentParser.js';
+
 import type { ExportRequestBody, ExportResponse } from './types.js';
 
 const log = createLogger('exportDocx');
@@ -26,7 +29,10 @@ function sanitizeFilename(name: string, fallback = 'Dokument'): string {
  */
 router.post(
   '/',
-  async (req: Request<{}, Buffer | ExportResponse, ExportRequestBody>, res: Response) => {
+  async (
+    req: Request<Record<string, never>, Buffer | ExportResponse, ExportRequestBody>,
+    res: Response
+  ) => {
     try {
       const { content, title, citations } = req.body || {};
       const formattedParagraphs = parseFormattedContent(content);

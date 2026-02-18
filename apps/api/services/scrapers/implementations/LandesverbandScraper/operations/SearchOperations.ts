@@ -3,8 +3,9 @@
  * Semantic search and collection statistics
  */
 
-import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { LANDESVERBAENDE_CONFIG } from '../../../../../config/landesverbaendeConfig.js';
+import { mistralEmbeddingService } from '../../../../mistral/index.js';
+
 import type { LandesverbandSearchOptions, LandesverbandSearchResult } from '../types.js';
 
 /**

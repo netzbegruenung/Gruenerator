@@ -2,7 +2,6 @@
  * Domain Utilities - Uses centralized config
  * @see config/domains.js for domain configuration
  */
-import type { Request } from 'express';
 import {
   PRIMARY_DOMAIN,
   PRIMARY_URL,
@@ -11,6 +10,8 @@ import {
   ALLOWED_DOMAINS,
   DEV_DOMAINS,
 } from '../config/domains.js';
+
+import type { Request } from 'express';
 
 export function getAllowedDomains(includeDevDomains = false): string[] {
   return includeDevDomains ? [...ALLOWED_DOMAINS, ...DEV_DOMAINS] : [...ALLOWED_DOMAINS];

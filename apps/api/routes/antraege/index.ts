@@ -6,10 +6,12 @@
  * - /experimental - Interactive multi-step generation
  */
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
+
 import { createLogger } from '../../utils/logger.js';
-import simpleGenerationRouter from './simpleGeneration.js';
+
 import interactiveGenerationRouter from './interactiveGeneration.js';
+import simpleGenerationRouter from './simpleGeneration.js';
 
 const router = express.Router();
 const log = createLogger('antraege');

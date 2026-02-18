@@ -3,14 +3,16 @@
  * Handles saving texts to library, saved texts CRUD, and semantic search
  */
 
-import express, { Router, Response } from 'express';
-import { getPostgresInstance } from '../../../database/services/PostgresService.js';
-import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import express, { type Router, type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
-import { mistralEmbeddingService } from '../../../services/mistral/index.js';
+import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { smartChunkDocument } from '../../../services/document-services/TextChunker/index.js';
+import { mistralEmbeddingService } from '../../../services/mistral/index.js';
 import { createLogger } from '../../../utils/logger.js';
+
 import type {
   AuthRequest,
   SaveToLibraryBody,
@@ -404,7 +406,7 @@ router.get(
 router.delete(
   '/saved-texts/:id',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
@@ -454,7 +456,7 @@ router.delete(
 router.post(
   '/saved-texts/:id/metadata',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
@@ -513,7 +515,7 @@ router.post(
 router.put(
   '/saved-texts/:id/content',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
@@ -785,7 +787,7 @@ router.post(
       const qdrant = getQdrantInstance();
       await mistralEmbeddingService.init();
 
-      if (!qdrant.isAvailable()) {
+      if (!(await qdrant.isAvailable())) {
         res.status(503).json({
           success: false,
           message: 'Vector search is currently unavailable',

@@ -8,6 +8,8 @@
  * - Relevance information formatting
  */
 
+import { vectorConfig } from '../../../config/vectorConfig.js';
+
 import type {
   ChunkData,
   DocumentChunkData,
@@ -20,7 +22,6 @@ import type {
 
 // Import vectorConfig for scoring configuration
 // Note: This is a JavaScript module, so we use .js extension
-import { vectorConfig } from '../../../config/vectorConfig.js';
 
 /**
  * Compute a stable base score using configured weights

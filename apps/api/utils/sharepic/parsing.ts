@@ -89,7 +89,7 @@ export function extractQuoteArray(content: string | null | undefined): QuoteItem
     return null;
   }
 
-  let candidate = match[0]
+  const candidate = match[0]
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '')
     .replace(/^\s*\/\/.*$/gm, '')

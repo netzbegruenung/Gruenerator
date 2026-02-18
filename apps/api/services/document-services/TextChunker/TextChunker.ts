@@ -4,10 +4,12 @@
  */
 
 import { cleanTextForEmbedding } from '../../text/index.js';
-import { LangChainChunker } from './langchainIntegration.js';
-import { hierarchicalChunkDocument } from './structureAwareChunking.js';
-import { splitTextByPageMarkers, buildPageRangesFromRaw } from './pageMarkerProcessing.js';
+
 import { sentenceRepack, enrichChunkWithMetadata } from './chunkPostProcessing.js';
+import { LangChainChunker } from './langchainIntegration.js';
+import { splitTextByPageMarkers, buildPageRangesFromRaw } from './pageMarkerProcessing.js';
+import { hierarchicalChunkDocument } from './structureAwareChunking.js';
+
 import type { Chunk, ChunkingOptions } from './types.js';
 
 /**
