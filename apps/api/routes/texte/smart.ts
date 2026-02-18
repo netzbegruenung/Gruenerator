@@ -3,11 +3,13 @@
  * Automatically detects text type and routes to appropriate generator
  */
 
-import express, { Router, Request, Response } from 'express';
+import express, { type Router, type Request, type Response } from 'express';
+
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
+import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
 import { detectTextType, TEXT_TYPE_MAPPINGS } from '../../services/texte/index.js';
-import { createLogger } from '../../utils/logger.js';
 import { withErrorHandler } from '../../utils/errors/index.js';
+import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('smart_texte');
 
@@ -69,6 +71,9 @@ smartRouter.post(
 
       // Route to appropriate processor
       log.debug('[smart_texte] Routing to:', detection.route);
+      if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
+        return processGraphRequestStreaming(detection.route, req, res);
+      }
       await processGraphRequest(detection.route, req, res);
     } catch (error) {
       log.error('[smart_texte] Processing error:', error);

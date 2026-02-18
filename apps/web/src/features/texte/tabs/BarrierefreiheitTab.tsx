@@ -6,12 +6,10 @@ import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import Icon from '../../../components/common/Icon';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
-import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
 import AltTextForm from '../accessibility/components/AltTextForm';
@@ -71,8 +69,6 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
   const [generatedContent, setGeneratedContent] = useState('');
   const formRef = useRef<FormRef>(null);
 
-  const { setGeneratedText } = useGeneratedTextStore();
-
   useOptimizedAuth();
 
   const setup = useGeneratorSetup({
@@ -122,13 +118,6 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
     error: altTextError,
   } = useAltTextGeneration();
 
-  const {
-    submitForm: submitLeichteSprache,
-    loading: leichteSpracheLoading,
-    success: leichteSpracheSuccess,
-    error: leichteSpracheError,
-  } = useApiSubmit(API_ENDPOINTS[ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]);
-
   const { crawledUrls, isCrawling, detectAndCrawlUrls } = useUrlCrawler();
 
   const allAttachments = useMemo(
@@ -150,10 +139,6 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
     },
     [detectAndCrawlUrls, isCrawling, selectedType, usePrivacyMode]
   );
-
-  const combinedLoading = altTextLoading || leichteSpracheLoading;
-  const combinedSuccess = altTextSuccess || leichteSpracheSuccess;
-  const combinedError = altTextError || leichteSpracheError;
 
   const handleSubmit = useCallback(async () => {
     if (!formRef.current?.getFormData || !formRef.current?.isValid()) return;
@@ -193,7 +178,7 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
           targetLanguage: formData.targetLanguage,
         });
 
-        const response = await submitLeichteSprache(
+        const response = await form.generator!.submitForm(
           formDataToSubmit as unknown as Record<string, unknown>
         );
         if (response) {
@@ -211,7 +196,7 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
         form.handleSubmitError?.(error);
       }
     }
-  }, [selectedType, generateAltTextForImage, submitLeichteSprache, form, builder]);
+  }, [selectedType, generateAltTextForImage, form, builder]);
 
   const renderForm = () => {
     const tabIndexValue = form.generator?.tabIndex as
@@ -269,21 +254,19 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive
     [accessibilityTypeOptions, selectedType, handleTypeChange]
   );
 
-  const storeGeneratedText = useGeneratedTextStore((state) =>
-    state.getGeneratedText(componentName)
-  );
+  const baseFormProps = form.generator?.baseFormProps || {};
 
   return (
     <BaseForm
-      {...form.generator?.baseFormProps}
-      generatedContent={(storeGeneratedText || generatedContent) as GeneratedContent}
+      {...baseFormProps}
+      generatedContent={(generatedContent || baseFormProps.generatedContent) as GeneratedContent}
       onSubmit={handleSubmit}
       firstExtrasChildren={renderTypeSelector()}
       useFeatureIcons={false}
-      loading={combinedLoading}
-      success={combinedSuccess}
-      error={combinedError}
-      platformOptions={(form.generator?.baseFormProps?.platformOptions || undefined) as any}
+      loading={(baseFormProps.loading as boolean) || altTextLoading}
+      success={(baseFormProps.success as boolean) || altTextSuccess}
+      error={(baseFormProps.error as string) || altTextError}
+      platformOptions={(baseFormProps.platformOptions || undefined) as any}
       componentName={componentName}
     >
       {renderForm()}

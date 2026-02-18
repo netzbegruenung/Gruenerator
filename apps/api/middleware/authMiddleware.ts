@@ -3,10 +3,12 @@
  * Supports both JWT tokens (mobile) and Express sessions (web)
  */
 
-import { Response, NextFunction } from 'express';
-import jwtAuthMiddleware from './jwtAuthMiddleware.js';
+import { type Response, type NextFunction } from 'express';
+
 import { BRAND } from '../utils/domainUtils.js';
-import { AuthenticatedRequest } from './types.js';
+
+import jwtAuthMiddleware from './jwtAuthMiddleware.js';
+import { type AuthenticatedRequest } from './types.js';
 
 function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   // SECURITY: Fail-fast if dev bypass is enabled in production
@@ -49,7 +51,6 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
         notebook: false,
         sharepic: false,
         anweisungen: false,
-        canva: false,
         labor_enabled: false,
         sites_enabled: false,
         chat: false,

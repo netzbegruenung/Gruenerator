@@ -89,6 +89,9 @@ interface FormSectionProps {
   inputHeaderContent?: ReactNode;
   hideInputSection?: boolean;
   helpContent?: HelpContent | null;
+  isStreaming?: boolean;
+  streamingMessage?: string;
+  onAbort?: () => void;
 }
 
 const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
@@ -158,6 +161,9 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       inputHeaderContent = null,
       hideInputSection = false,
       helpContent = null,
+      isStreaming = false,
+      streamingMessage,
+      onAbort,
     },
     ref
   ) => {
@@ -344,6 +350,9 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
                     examplePrompts={isStartMode ? examplePrompts : []}
                     onExamplePromptClick={onExamplePromptClick}
                     selectedPlatforms={selectedPlatforms}
+                    isStreaming={isStreaming}
+                    streamingMessage={streamingMessage}
+                    onAbort={onAbort}
                   >
                     {extrasChildren}
                   </FormExtrasSection>

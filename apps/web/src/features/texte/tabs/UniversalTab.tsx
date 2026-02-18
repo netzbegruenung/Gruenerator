@@ -90,7 +90,6 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
   const leichteSpracheFormRef = useRef<FormRef>(null);
 
   const [extrasValue, setExtrasValue] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const getCurrentFormRef = (): RefObject<FormRef | null> | null => {
     switch (selectedType) {
@@ -160,11 +159,13 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
     };
   }, [selectedType]);
 
+  const selectedEndpoint = API_ENDPOINTS[selectedType];
+
   const form = useBaseForm({
     defaultValues: {} as Record<string, unknown>,
     generatorType: 'universal-text',
     componentName: componentName,
-    endpoint: '/placeholder',
+    endpoint: selectedEndpoint,
     disableKnowledgeSystem: false,
     features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'UNIVERSAL',
@@ -203,18 +204,16 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
 
     const formDataToSubmit = builder.buildSubmissionData(dataWithExtras);
 
-    setIsLoading(true);
     try {
-      const { default: apiClient } = await import('../../../components/utils/apiClient');
+      const response = await form.generator!.submitForm(
+        formDataToSubmit as unknown as Record<string, unknown>
+      );
 
-      const endpoint = API_ENDPOINTS[selectedType];
-      const response = await apiClient.post(endpoint, formDataToSubmit);
-      const responseData = response.data || response;
-
-      const content = typeof responseData === 'string' ? responseData : responseData.content;
+      const content =
+        typeof response === 'string' ? response : (response as Record<string, unknown>).content;
 
       if (content && form.generator) {
-        form.generator.handleGeneratedContentChange(content);
+        form.generator.handleGeneratedContentChange(content as string);
       }
     } catch (error) {
       console.error('[UniversalTab] Error submitting form:', error);
@@ -223,8 +222,6 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
       } else {
         form.handleSubmitError(new Error(String(error)));
       }
-    } finally {
-      setIsLoading(false);
     }
   }, [selectedType, form, currentFormRef, builder, extrasValue]);
 
@@ -300,7 +297,6 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType
           {...restBaseFormProps}
           componentName={componentName}
           onSubmit={handleSubmit}
-          loading={isLoading}
           firstExtrasChildren={renderExtrasInput()}
         >
           {renderForm()}

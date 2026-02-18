@@ -77,6 +77,7 @@ const BETA_VIEWS = {
   SCANNER: 'scanner',
   DOCS: 'docs',
   CHAT: 'chat',
+  AUTO_SAVE_GENERATED: 'autoSaveGenerated',
 };
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({
@@ -197,6 +198,16 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkTo: '/docs',
           linkText: 'Zu den Dokumenten',
           icon: HiOutlineDocumentSearch,
+        };
+      case BETA_VIEWS.AUTO_SAVE_GENERATED:
+        return {
+          title: 'Auto-Speichern generierter Texte',
+          description: 'Generierte Texte automatisch in der Bibliothek speichern',
+          checked: getBetaFeatureState('autoSaveGenerated'),
+          setter: (value: boolean) => updateUserBetaFeatures('autoSaveGenerated', value),
+          featureName: 'Auto-Speichern generierter Texte',
+          checkboxLabel: 'Automatisches Speichern generierter Texte in der Bibliothek aktivieren',
+          icon: HiSave,
         };
       default:
         return null;
