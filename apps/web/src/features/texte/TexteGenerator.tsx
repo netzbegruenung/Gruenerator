@@ -1,5 +1,5 @@
-import React, { useEffect, Suspense, lazy, useMemo, memo, useCallback, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { Suspense, lazy, useMemo, memo, useCallback } from 'react';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -9,12 +9,28 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useProfileData } from '../../stores/profileStore';
 
 import TabSelector from './components/TabSelector';
-import { useTabPersistence } from './hooks/useTabPersistence';
 import { type TabId, type UniversalSubType } from './types';
 import './components/TabSelector.css';
 
 // Tabs that are accessible without login
 const PUBLIC_TABS: TabId[] = ['presse-social'];
+
+const VALID_TABS: TabId[] = [
+  'texte',
+  'presse-social',
+  'antrag',
+  'universal',
+  'barrierefreiheit',
+  'texteditor',
+  'eigene',
+];
+
+const VALID_UNIVERSAL_SUB_TYPES: UniversalSubType[] = [
+  'rede',
+  'wahlprogramm',
+  'buergeranfragen',
+  'leichte_sprache',
+];
 
 const TexteTab = lazy(() => import('./tabs/TexteTab'));
 const PresseSocialTab = lazy(() => import('./tabs/PresseSocialTab'));
@@ -27,17 +43,6 @@ const EigeneTab = lazy(() => import('./tabs/EigeneTab'));
 interface TexteGeneratorProps {
   showHeaderFooter?: boolean;
 }
-
-const LEGACY_ROUTE_MAP: Record<string, TabId> = {
-  '/presse-social': 'presse-social',
-  '/antrag': 'antrag',
-  '/universal': 'universal',
-  '/rede': 'universal',
-  '/wahlprogramm': 'universal',
-  '/buergerinnenanfragen': 'universal',
-  '/barrierefreiheit': 'barrierefreiheit',
-  '/texteditor': 'texteditor',
-};
 
 const LOADING_FALLBACK_STYLE: React.CSSProperties = {
   display: 'flex',
@@ -66,22 +71,72 @@ const TAB_COMPONENT_NAMES: Record<TabId, string> = {
 
 const UNIVERSAL_SUB_TYPES = ['rede', 'wahlprogramm', 'buergeranfragen', 'leichte_sprache'];
 
+// Map legacy ?tab= values to new path segments
+const LEGACY_TAB_TO_PATH: Record<string, string> = {
+  texte: '/texte/texte',
+  'presse-social': '/texte/presse-social',
+  antrag: '/texte/antrag',
+  universal: '/texte/universal/rede',
+  barrierefreiheit: '/texte/barrierefreiheit',
+  texteditor: '/texte/texteditor',
+  eigene: '/texte/eigene',
+};
+
 /**
- * TexteGenerator - Main text generation interface with tabbed navigation.
+ * TexteGenerator - Main text generation interface with route-based tab navigation.
  *
- * Uses the generic TabbedLayout for structure but with custom TabSelector
- * for specialized features like dropdown menus and auth-locked tabs.
+ * URL structure:
+ *   /texte                           → redirect to /texte/presse-social
+ *   /texte/texte                     → TexteTab
+ *   /texte/presse-social             → PresseSocialTab (default, public)
+ *   /texte/antrag                    → AntragTab
+ *   /texte/universal                 → redirect to /texte/universal/rede
+ *   /texte/universal/<subtype>       → UniversalTab
+ *   /texte/barrierefreiheit          → BarrierefreiheitTab
+ *   /texte/texteditor                → TextEditorTab
+ *   /texte/eigene                    → EigeneTab
  */
-const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true }) => {
-  const location = useLocation();
+const TexteGenerator: React.FC<TexteGeneratorProps> = ({
+  showHeaderFooter: _showHeaderFooter = true,
+}) => {
   const navigate = useNavigate();
-  const { activeTab, setActiveTab } = useTabPersistence();
+  const params = useParams();
+  const [searchParams] = useSearchParams();
   const generatedTexts = useGeneratedTextStore((state) => state.generatedTexts);
   const profile = useProfileData();
   const user = useAuthStore((state) => state.user);
-  const [universalSubType, setUniversalSubType] = useState<UniversalSubType>('rede');
 
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
+
+  // Parse the splat (everything after /texte/) into activeTab + universalSubType
+  // Compute redirectTo without early returns so hooks below remain unconditional
+  const splat = params['*'] || '';
+  const segments = splat.split('/').filter(Boolean);
+  const legacyTab = searchParams.get('tab');
+
+  let redirectTo: string | null = null;
+  let activeTab: TabId = 'presse-social';
+  let universalSubType: UniversalSubType = 'rede';
+
+  if (legacyTab && LEGACY_TAB_TO_PATH[legacyTab]) {
+    redirectTo = LEGACY_TAB_TO_PATH[legacyTab];
+  } else if (segments.length === 0) {
+    redirectTo = '/texte/presse-social';
+  } else {
+    const firstSegment = segments[0] as TabId;
+    if (!VALID_TABS.includes(firstSegment)) {
+      redirectTo = '/texte/presse-social';
+    } else {
+      activeTab = firstSegment;
+      if (activeTab === 'universal' && segments.length === 1) {
+        redirectTo = '/texte/universal/rede';
+      } else if (activeTab === 'universal' && segments.length >= 2) {
+        universalSubType = VALID_UNIVERSAL_SUB_TYPES.includes(segments[1] as UniversalSubType)
+          ? (segments[1] as UniversalSubType)
+          : 'rede';
+      }
+    }
+  }
 
   const requiresAuth = !PUBLIC_TABS.includes(activeTab);
   const showLoginRequired = requiresAuth && !isAuthenticated && !authLoading;
@@ -109,23 +164,23 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
     });
   }, [generatedTexts]);
 
-  useEffect(() => {
-    const legacyTab = LEGACY_ROUTE_MAP[location.pathname];
-    if (legacyTab && location.pathname !== '/texte') {
-      navigate(`/texte?tab=${legacyTab}`, { replace: true });
-    }
-  }, [location.pathname, navigate]);
-
   const handleTabChange = useCallback(
     (tab: TabId) => {
-      setActiveTab(tab);
+      if (tab === 'universal') {
+        navigate('/texte/universal/rede');
+      } else {
+        navigate(`/texte/${tab}`);
+      }
     },
-    [setActiveTab]
+    [navigate]
   );
 
-  const handleUniversalSubTypeChange = useCallback((subType: UniversalSubType) => {
-    setUniversalSubType(subType);
-  }, []);
+  const handleUniversalSubTypeChange = useCallback(
+    (subType: UniversalSubType) => {
+      navigate(`/texte/universal/${subType}`);
+    },
+    [navigate]
+  );
 
   const wrapperClassName = useMemo(
     () =>
@@ -143,21 +198,31 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
     [hasGeneratedContent]
   );
 
-  // Build tab content map for the layout
-  const tabContent = useMemo(
-    () => ({
-      texte: <TexteTab isActive={activeTab === 'texte'} />,
-      'presse-social': <PresseSocialTab isActive={activeTab === 'presse-social'} />,
-      antrag: <AntragTab isActive={activeTab === 'antrag'} />,
-      universal: (
-        <UniversalTab isActive={activeTab === 'universal'} selectedType={universalSubType} />
-      ),
-      barrierefreiheit: <BarrierefreiheitTab isActive={activeTab === 'barrierefreiheit'} />,
-      texteditor: <TextEditorTab isActive={activeTab === 'texteditor'} />,
-      eigene: <EigeneTab isActive={activeTab === 'eigene'} />,
-    }),
-    [activeTab, universalSubType]
-  );
+  if (redirectTo) {
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  // Render only the active tab (conditional rendering replaces grid stacking)
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case 'texte':
+        return <TexteTab />;
+      case 'presse-social':
+        return <PresseSocialTab />;
+      case 'antrag':
+        return <AntragTab />;
+      case 'universal':
+        return <UniversalTab selectedType={universalSubType} />;
+      case 'barrierefreiheit':
+        return <BarrierefreiheitTab />;
+      case 'texteditor':
+        return <TextEditorTab />;
+      case 'eigene':
+        return <EigeneTab />;
+      default:
+        return <PresseSocialTab />;
+    }
+  };
 
   return (
     <ErrorBoundary>
@@ -172,25 +237,26 @@ const TexteGenerator: React.FC<TexteGeneratorProps> = ({ showHeaderFooter = true
             activeTab={activeTab}
             onTabChange={handleTabChange}
             onUniversalSubTypeChange={handleUniversalSubTypeChange}
+            selectedUniversalSubType={universalSubType}
             isAuthenticated={isAuthenticated}
           />
         </header>
-        <div className="tabbed-layout__content">
+        <div
+          id={`tabpanel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${activeTab}`}
+          tabIndex={0}
+          className="tabbed-layout__content"
+        >
           {showLoginRequired ? (
             <LoginRequired
               variant="fullpage"
               title="Anmeldung erforderlich"
               message="Melde dich an, um diese Funktion zu nutzen. Der Presse & Social Tab ist auch ohne Anmeldung verfügbar."
-              onClose={() => setActiveTab('presse-social')}
+              onClose={() => navigate('/texte/presse-social')}
             />
           ) : (
-            <Suspense fallback={<LoadingFallback />}>
-              {Object.entries(tabContent).map(([tabId, content]) => (
-                <div key={tabId} className="tabbed-layout__panel" data-active={activeTab === tabId}>
-                  {content}
-                </div>
-              ))}
-            </Suspense>
+            <Suspense fallback={<LoadingFallback />}>{renderActiveTab()}</Suspense>
           )}
         </div>
       </div>
