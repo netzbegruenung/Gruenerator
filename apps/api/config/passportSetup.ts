@@ -11,6 +11,7 @@ const log = createLogger('Passport');
  * Fallback user object when profile sync fails
  */
 interface FallbackUser {
+  id: string;
   keycloak_id: string;
   email: string | null;
   display_name: string;
@@ -82,6 +83,7 @@ function createFallbackUser(profile: PassportProfile, req: Request | null): Fall
   }
 
   return {
+    id: randomUUID(),
     keycloak_id: keycloakId,
     email: email || null,
     display_name: name,
@@ -111,6 +113,11 @@ passport.serializeUser((user: Express.User, done) => {
 // Deserialize user from session
 passport.deserializeUser(async (userData: any, done) => {
   try {
+    // Fallback users have no DB row yet — skip the lookup
+    if (typeof userData === 'object' && userData._profileSyncPending === true) {
+      return done(null, userData as Express.User);
+    }
+
     if (typeof userData === 'object' && userData.id) {
       const userToReturn = await getUserById(userData.id);
       if (userToReturn) {

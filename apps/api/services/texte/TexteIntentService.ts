@@ -277,20 +277,20 @@ export async function detectTextType(
 ): Promise<TextTypeDetectionResult> {
   log.debug('[TexteIntentService] Detecting text type for:', message.substring(0, 100));
 
-  // Step 1: Try AI detection
+  // Step 1: Try fast keyword detection first (instant, no network)
+  const keywordResult = detectTypeByKeywords(message);
+  if (keywordResult) {
+    log.debug('[TexteIntentService] Using keyword detection:', keywordResult.detectedType);
+    return keywordResult;
+  }
+
+  // Step 2: AI detection only when keywords don't match
   if (aiWorkerPool) {
     const aiResult = await detectTypeWithAI(message, aiWorkerPool);
     if (aiResult && aiResult.confidence >= 0.7) {
       log.debug('[TexteIntentService] Using AI detection:', aiResult.detectedType);
       return aiResult;
     }
-  }
-
-  // Step 2: Keyword fallback
-  const keywordResult = detectTypeByKeywords(message);
-  if (keywordResult) {
-    log.debug('[TexteIntentService] Using keyword detection:', keywordResult.detectedType);
-    return keywordResult;
   }
 
   // Step 3: Default fallback

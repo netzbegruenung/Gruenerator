@@ -21,17 +21,17 @@ Zur Einführung in Funktionen, Datenschutz und Open‑Source‑Grundlagen siehe 
 - Landesverbände (LV)
 - Abgeordnetenbüros
 
-## Preise für Landesverbände (pro Jahr)
+## Preise für Landesverbände (pro Notebook / Jahr)
 
-**Groß (≥ 20.000): 8.000 €**
+**Groß (≥ 20.000): 6.000 €**
 
 - Baden‑Württemberg, Bayern, Nordrhein‑Westfalen
 
-**Mittel (10.000–19.999): 4.000 €**
+**Mittel (10.000–19.999): 3.000 €**
 
 - Berlin, Hessen, Niedersachsen
 
-**Klein (5.000–9.999): 2.000 €**
+**Klein (5.000–9.999): 1.500 €**
 
 - Hamburg, Rheinland‑Pfalz, Schleswig‑Holstein
 
@@ -43,7 +43,7 @@ Zur Einführung in Funktionen, Datenschutz und Open‑Source‑Grundlagen siehe 
 
 - Brandenburg, Mecklenburg‑Vorpommern, Sachsen, Sachsen‑Anhalt, Thüringen
 
-## Preise für Abgeordnetenbüros (pro Jahr)
+## Preise für Abgeordnetenbüros (pro Notebook / Jahr)
 
 - Bundestag / Europa: 500 €
 

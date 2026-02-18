@@ -48,14 +48,17 @@ export interface UserProfile {
 }
 
 export interface ProfileCreateData {
+  id?: string;
   keycloak_id?: string;
-  email: string;
+  email?: string;
   username?: string;
   display_name?: string;
   avatar_robot_id?: number;
   chat_color?: string;
   beta_features?: Record<string, boolean>;
   user_defaults?: Record<string, Record<string, any>>;
+  locale?: string;
+  last_login?: string;
   igel_modus?: boolean;
   groups_enabled?: boolean;
   custom_generators?: boolean;

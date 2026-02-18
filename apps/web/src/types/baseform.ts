@@ -372,6 +372,9 @@ export interface FormExtrasSectionProps {
   examplePrompts?: ExamplePrompt[];
   onExamplePromptClick?: ((prompt: ExamplePrompt) => void) | null;
   selectedPlatforms?: string[];
+  isStreaming?: boolean;
+  streamingMessage?: string;
+  onAbort?: () => void;
 }
 
 // =============================================================================
@@ -619,6 +622,11 @@ export interface BaseFormProps {
 
   // New addition
   inputHeaderContent?: ReactNode;
+
+  // Streaming
+  streamingProgress?: { stage: string; message: string };
+  isStreaming?: boolean;
+  abortStreaming?: () => void;
 
   // Style
   style?: CSSProperties;

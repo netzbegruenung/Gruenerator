@@ -254,6 +254,7 @@ router.patch(
         'sites',
         'interactiveAntrag',
         'autoSaveOnExport',
+        'autoSaveGenerated',
         'website',
         'vorlagen',
         'videoEditor',

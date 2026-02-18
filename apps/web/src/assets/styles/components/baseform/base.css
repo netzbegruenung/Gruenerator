@@ -84,8 +84,74 @@
         background-color: rgba(211, 47, 47, 0.15);
         border-color: rgba(211, 47, 47, 0.6);
     }
-    
+
     :root:not([data-theme="light"]) .form-error-message .error-dismiss-button:hover {
         background-color: rgba(211, 47, 47, 0.2);
     }
+}
+
+/* Streaming progress indicator */
+.streaming-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+}
+
+.streaming-progress__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--primary-green, #46962b);
+    animation: streaming-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes streaming-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+.streaming-progress__message {
+    font-style: italic;
+}
+
+.streaming-abort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    margin: 4px 16px 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-secondary, #666);
+    background: transparent;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.streaming-abort-btn:hover {
+    color: var(--error-red, #d32f2f);
+    border-color: var(--error-red, #d32f2f);
+    background-color: rgba(211, 47, 47, 0.05);
+}
+
+.streaming-placeholder {
+    padding: 16px 0;
+}
+
+/* Streaming cursor for content being generated */
+.generated-content-wrapper.is-streaming .content-display::after {
+    content: '▊';
+    animation: streaming-cursor-blink 0.8s step-end infinite;
+    color: var(--primary-green, #46962b);
+    font-weight: bold;
+}
+
+@keyframes streaming-cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
 }

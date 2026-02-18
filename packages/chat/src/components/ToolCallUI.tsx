@@ -23,15 +23,15 @@ interface ToolCallUIProps {
 }
 
 const TOOL_CONFIG: Record<string, { icon: typeof Search; label: string; color: string }> = {
-  gruenerator_search: { icon: Search, label: 'Dokumente', color: 'text-emerald-600' },
-  gruenerator_person_search: { icon: User, label: 'Person', color: 'text-blue-600' },
-  gruenerator_examples_search: { icon: Image, label: 'Beispiele', color: 'text-purple-600' },
-  web_search: { icon: Globe, label: 'Websuche', color: 'text-orange-600' },
-  research: { icon: BookOpen, label: 'Deep Research', color: 'text-indigo-600' },
-  generate_image: { icon: Sparkles, label: 'Bild', color: 'text-pink-600' },
-  scrape_url: { icon: ExternalLink, label: 'URL', color: 'text-cyan-600' },
-  recall_memory: { icon: MessageCircle, label: 'Erinnerung', color: 'text-amber-600' },
-  save_memory: { icon: MessageCircle, label: 'Speichern', color: 'text-amber-600' },
+  gruenerator_search: { icon: Search, label: 'Dokumente', color: 'text-primary-500' },
+  gruenerator_person_search: { icon: User, label: 'Person', color: 'text-secondary-600' },
+  gruenerator_examples_search: { icon: Image, label: 'Beispiele', color: 'text-secondary-600' },
+  web_search: { icon: Globe, label: 'Websuche', color: 'text-secondary-700' },
+  research: { icon: BookOpen, label: 'Deep Research', color: 'text-secondary-700' },
+  generate_image: { icon: Sparkles, label: 'Bild', color: 'text-primary-400' },
+  scrape_url: { icon: ExternalLink, label: 'URL', color: 'text-secondary-700' },
+  recall_memory: { icon: MessageCircle, label: 'Erinnerung', color: 'text-primary-400' },
+  save_memory: { icon: MessageCircle, label: 'Speichern', color: 'text-primary-400' },
 };
 
 export const ToolCallUI = memo(function ToolCallUI({
@@ -303,7 +303,7 @@ const CompactPersonResult = memo(function CompactPersonResult({ result }: { resu
   return (
     <div className="text-xs">
       <div className="flex items-center gap-2">
-        <User className="h-4 w-4 text-blue-600" />
+        <User className="h-4 w-4 text-secondary-600" />
         <span className="font-medium">{name || 'Unbekannt'}</span>
       </div>
       <p className="text-foreground-muted mt-0.5">
@@ -330,7 +330,7 @@ const CompactExampleResults = memo(function CompactExampleResults({
         return (
           <div key={i} className="text-xs">
             {platform && (
-              <span className="text-[10px] px-1 py-0.5 rounded bg-badge-purple-bg text-badge-purple">
+              <span className="text-[10px] px-1 py-0.5 rounded bg-badge-platform-bg text-badge-platform">
                 {platform}
               </span>
             )}
@@ -415,7 +415,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium bg-badge-indigo-bg text-badge-indigo rounded hover:bg-badge-indigo-hover mx-0.5 align-super"
+              className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium bg-badge-citation-bg text-badge-citation rounded hover:bg-badge-citation-hover mx-0.5 align-super"
               title={`${citation.title} (${citation.domain})`}
             >
               {citationId}

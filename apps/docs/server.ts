@@ -58,23 +58,16 @@ app.get('/health', (_req, res) => {
 });
 
 // Proxy /api and /auth requests to the API backend
-const API_TARGET = process.env.VITE_API_TARGET || 'http://api:3001';
+const API_TARGET = process.env.API_TARGET || process.env.VITE_API_TARGET || 'http://api:3001';
 app.use(
   ['/api', '/auth'],
   createProxyMiddleware({
     target: API_TARGET,
     changeOrigin: true,
     cookieDomainRewrite: '',
-    on: {
-      proxyReq: (proxyReq, req) => {
-        if (req.headers.cookie) {
-          proxyReq.setHeader('cookie', req.headers.cookie);
-        }
-      },
-    },
   })
 );
-console.log(`[Docs] API proxy configured: /api → ${API_TARGET}`);
+console.log(`[Docs] API proxy: /api → ${API_TARGET}`);
 
 // Serve static files from dist
 app.use(

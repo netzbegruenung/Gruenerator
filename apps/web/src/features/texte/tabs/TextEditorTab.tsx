@@ -12,9 +12,7 @@ import BaseForm from '../../../components/common/BaseForm';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { FormTextarea } from '../../../components/common/Form/Input';
 import PlatformSelector from '../../../components/common/PlatformSelector';
-import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 
 import type { BaseFormProps, HelpContent, PlatformOption } from '@/types/baseform';
@@ -34,17 +32,16 @@ interface ActionOption {
 interface UseBaseFormReturn {
   control: Control<FieldValues>;
   handleSubmit: <T>(handler: (data: T) => Promise<void>) => () => Promise<void>;
+  handleSubmitError: (error: unknown) => void;
   generator?: {
     attachedFiles?: Array<{ name: string; content: string }>;
     tabIndex?: Record<string, number>;
     baseFormTabIndex?: { platformSelectorTabIndex?: number };
     baseFormProps?: Partial<BaseFormProps>;
+    submitForm: (formData: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    handleGeneratedContentChange: (content: string) => void;
+    success?: boolean;
   };
-}
-
-interface ApiResponse {
-  content?: string;
-  metadata?: Record<string, unknown>;
 }
 
 interface TextEditorTabProps {
@@ -107,7 +104,6 @@ const BASE_FORM_CONFIG = {
 
 const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
   const componentName = 'text-improver';
-  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   const getFeatureState = useGeneratorSelectionStore((state) => state.getFeatureState);
   const selectedDocumentIds = useGeneratorSelectionStore((state) => state.selectedDocumentIds);
@@ -119,13 +115,6 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
   ) as UseBaseFormReturn;
 
   const { control, handleSubmit } = form;
-
-  const [improvedContent, setImprovedContent] = useState('');
-  const { submitForm, loading, success, resetSuccess, error } =
-    useApiSubmit('/claude_text_improver');
-  const storeGeneratedText = useGeneratedTextStore((state) =>
-    state.getGeneratedText(componentName)
-  );
 
   const { crawledUrls, detectAndCrawlUrls, isCrawling } = useUrlCrawler();
 
@@ -140,8 +129,6 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
 
   const onSubmitRHF = useCallback(
     async (rhfData: TextImproverFormValues) => {
-      setStoreIsLoading(true);
-
       try {
         const features = getFeatureState();
         const selectedAction = Array.isArray(rhfData.action) ? rhfData.action[0] : rhfData.action;
@@ -158,44 +145,26 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
           searchQuery: rhfData.originalText?.substring(0, 200) || '',
         };
 
-        const response = (await submitForm(formDataToSubmit)) as string | ApiResponse | null;
+        const response = await form.generator!.submitForm(formDataToSubmit);
 
         if (response) {
-          const content = typeof response === 'string' ? response : response.content;
-          const metadata =
-            typeof response === 'object' && response !== null ? response.metadata || {} : {};
+          const content =
+            typeof response === 'string' ? response : (response as { content?: string }).content;
 
-          if (content) {
-            setImprovedContent(content);
-            setGeneratedText(componentName, content, metadata);
-            setTimeout(resetSuccess, 3000);
+          if (content && form.generator) {
+            form.generator.handleGeneratedContentChange(content);
           }
         }
       } catch (submitError) {
         console.error('[TextEditorTab] Error:', submitError);
-      } finally {
-        setStoreIsLoading(false);
+        if (submitError instanceof Error) {
+          form.handleSubmitError(submitError);
+        } else {
+          form.handleSubmitError(new Error(String(submitError)));
+        }
       }
     },
-    [
-      submitForm,
-      resetSuccess,
-      setGeneratedText,
-      setStoreIsLoading,
-      form.generator,
-      crawledUrls,
-      selectedDocumentIds,
-      selectedTextIds,
-      getFeatureState,
-    ]
-  );
-
-  const handleGeneratedContentChange = useCallback(
-    (content: string) => {
-      setImprovedContent(content);
-      setGeneratedText(componentName, content);
-    },
-    [setGeneratedText, componentName]
+    [form, crawledUrls, selectedDocumentIds, selectedTextIds, getFeatureState]
   );
 
   const platformOptionsForSelector = useMemo<PlatformOption[]>(
@@ -247,22 +216,11 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
   );
 
   const baseFormProps = form.generator?.baseFormProps || {};
-  const generatedContentValue =
-    typeof storeGeneratedText === 'string'
-      ? storeGeneratedText
-      : storeGeneratedText
-        ? String(storeGeneratedText)
-        : improvedContent;
 
   return (
     <BaseForm
       {...baseFormProps}
       onSubmit={() => handleSubmit<TextImproverFormValues>(onSubmitRHF)()}
-      loading={loading}
-      success={success}
-      error={error}
-      generatedContent={generatedContentValue}
-      onGeneratedContentChange={handleGeneratedContentChange}
       componentName={componentName}
       firstExtrasChildren={renderActionSelector()}
       helpContent={HELP_CONTENT_CONFIG}
