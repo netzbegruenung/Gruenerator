@@ -49,7 +49,6 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
         notebook: false,
         sharepic: false,
         anweisungen: false,
-        canva: false,
         labor_enabled: false,
         sites_enabled: false,
         chat: false,
