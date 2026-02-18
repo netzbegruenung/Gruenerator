@@ -6,9 +6,6 @@
 // Redis Client exports
 export { default as redisClient, redisClient as client } from './client.js';
 
-// OAuth State Manager exports
-export { default as redisOAuthStateManager, RedisOAuthStateManager } from './OAuthStateManager.js';
-
 // Desktop OAuth State Manager exports (for Tauri PKCE auth)
 export {
   default as desktopOAuthStateManager,

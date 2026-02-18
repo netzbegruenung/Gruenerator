@@ -1,6 +1,6 @@
 /**
  * User templates CRUD operations
- * Handles personal template management including Canva URL imports
+ * Handles personal template management
  */
 
 import express, { Router, Response, NextFunction } from 'express';
@@ -8,17 +8,21 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
 import type { AuthRequest } from '../types.js';
-import { extractTagsFromDescription, processCanvaUrl } from '../../../utils/canvaUtils.js';
-
-// Re-export for backwards compatibility
-export {
-  extractTagsFromDescription,
-  processCanvaUrl,
-  validateCanvaUrl,
-} from '../../../utils/canvaUtils.js';
 
 const log = createLogger('userTemplates');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
+
+function extractTagsFromDescription(description: string | undefined | null): string[] {
+  if (!description || typeof description !== 'string') return [];
+  const tagPattern = /#([\w-]+)/g;
+  const tags: string[] = [];
+  let match;
+  while ((match = tagPattern.exec(description)) !== null) {
+    const tag = match[1].toLowerCase();
+    if (tag && !tags.includes(tag)) tags.push(tag);
+  }
+  return tags;
+}
 
 const router: Router = express.Router();
 
@@ -40,7 +44,7 @@ router.get(
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
-      // Fetch user's Canva templates from user_templates table (excluding examples)
+      // Fetch user's templates from user_templates table (excluding examples)
       const templates = await postgres.query(
         `SELECT * FROM user_templates
        WHERE user_id = $1 AND type = $2 AND is_example = $3
@@ -56,7 +60,7 @@ router.get(
         description: template.description,
         type: template.type,
         template_type: template.template_type,
-        canva_url: template.external_url,
+        external_url: template.external_url,
         preview_image_url: template.thumbnail_url,
         images: template.images || [],
         categories: template.categories || [],
@@ -94,8 +98,8 @@ router.post(
       const {
         title,
         description,
-        template_type = 'canva',
-        canva_url,
+        template_type = 'template',
+        external_url: externalUrl,
         preview_image_url,
         images = [],
         categories = [],
@@ -129,7 +133,7 @@ router.post(
         title: title.trim(),
         description: description?.trim() || null,
         template_type,
-        external_url: canva_url || null,
+        external_url: externalUrl || null,
         thumbnail_url: preview_image_url || null,
         images: JSON.stringify(Array.isArray(images) ? images : []),
         categories: JSON.stringify(Array.isArray(categories) ? categories : []),
@@ -183,7 +187,7 @@ router.post(
         description: newTemplate.description,
         type: newTemplate.type,
         template_type: newTemplate.template_type,
-        canva_url: newTemplate.external_url,
+        external_url: newTemplate.external_url,
         preview_image_url: newTemplate.thumbnail_url,
         images: newTemplate.images || [],
         categories: newTemplate.categories || [],
@@ -224,7 +228,7 @@ router.put(
         title,
         description,
         template_type,
-        canva_url,
+        external_url: externalUrlUpdate,
         preview_image_url,
         images,
         categories,
@@ -267,7 +271,7 @@ router.put(
       if (title !== undefined) updateData.title = title.trim();
       if (description !== undefined) updateData.description = description?.trim() || null;
       if (template_type !== undefined) updateData.template_type = template_type;
-      if (canva_url !== undefined) updateData.external_url = canva_url;
+      if (externalUrlUpdate !== undefined) updateData.external_url = externalUrlUpdate;
       if (preview_image_url !== undefined) updateData.thumbnail_url = preview_image_url;
       if (images !== undefined) updateData.images = Array.isArray(images) ? images : [];
       if (categories !== undefined)
@@ -301,7 +305,7 @@ router.put(
         description: updatedTemplate.description,
         type: updatedTemplate.type,
         template_type: updatedTemplate.template_type,
-        canva_url: updatedTemplate.external_url,
+        external_url: updatedTemplate.external_url,
         preview_image_url: updatedTemplate.thumbnail_url,
         images: updatedTemplate.images || [],
         categories: updatedTemplate.categories || [],
@@ -367,216 +371,6 @@ router.delete(
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Löschen der Vorlage.',
-      });
-    }
-  }
-);
-
-// Create template from URL (specifically for Canva URLs)
-router.post(
-  '/user-templates/from-url',
-  ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const {
-        url,
-        enhancedMetadata = false,
-        preview = false,
-        title: customTitle,
-        description: customDescription,
-        metadata: inputMetadata = {},
-      } = req.body;
-
-      // Validate required fields
-      if (!url) {
-        res.status(400).json({
-          success: false,
-          message: 'URL ist erforderlich.',
-        });
-        return;
-      }
-
-      log.debug(
-        '[User Templates /user-templates/from-url POST] Processing URL with enhanced metadata:',
-        enhancedMetadata,
-        'preview:',
-        preview
-      );
-
-      // Process the Canva URL with optional enhanced metadata
-      const processResult = await processCanvaUrl(url.trim(), true);
-      if (!processResult.success || !processResult.templateData) {
-        res.status(400).json({
-          success: false,
-          message: processResult.error,
-        });
-        return;
-      }
-
-      const { templateData } = processResult;
-
-      // If preview mode, return the scraped data without creating the template
-      if (preview) {
-        res.json({
-          success: true,
-          preview: {
-            title: templateData.title,
-            description: templateData.description || '',
-            thumbnail_url: templateData.preview_image_url || null,
-            external_url: templateData.canva_url,
-            template_type: templateData.template_type,
-            designId: templateData.designId,
-            dimensions: templateData.dimensions || null,
-          },
-        });
-        return;
-      }
-
-      // Apply custom title/description if provided
-      if (customTitle) {
-        templateData.title = customTitle.trim();
-      }
-      if (customDescription !== undefined) {
-        templateData.description = customDescription?.trim() || '';
-      }
-
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      // Check if a template with this Canva URL already exists for this user
-      const existingTemplate = await postgres.queryOne(
-        `SELECT id, title FROM user_templates
-       WHERE user_id = $1 AND type = $2 AND external_url = $3`,
-        [userId, 'template', templateData.canva_url],
-        { table: 'user_templates' }
-      );
-
-      if (existingTemplate) {
-        res.status(409).json({
-          success: false,
-          message: `Eine Vorlage mit dieser URL existiert bereits: "${existingTemplate.title}"`,
-        });
-        return;
-      }
-
-      // Extract tags from description (lowercase for case-insensitive search)
-      const descriptionTags = extractTagsFromDescription(templateData.description).map((t) =>
-        t.toLowerCase()
-      );
-
-      // Prepare template data for user_templates table
-      const categoriesArray =
-        templateData.categories && templateData.categories.length > 0
-          ? [...new Set([...templateData.categories, 'canva'])]
-          : ['canva'];
-      const tagsArray = [
-        ...new Set([
-          ...descriptionTags,
-          ...(templateData.categories || []).map((c) => c.toLowerCase()),
-        ]),
-      ];
-      const contentDataObj = {
-        originalUrl: templateData.originalUrl,
-        designId: templateData.designId,
-        ...(templateData.dimensions && { dimensions: templateData.dimensions }),
-      };
-      const metadataObj = {
-        source: 'url_import',
-        designId: templateData.designId,
-        ...(templateData.dimensions && { dimensions: templateData.dimensions }),
-        enhanced_metadata: true,
-        ...(inputMetadata?.author_name && { author_name: inputMetadata.author_name }),
-        ...(inputMetadata?.contact_email && { contact_email: inputMetadata.contact_email }),
-      };
-
-      const newTemplateData = {
-        user_id: userId,
-        type: 'template',
-        title: templateData.title,
-        description: templateData.description || null,
-        template_type: templateData.template_type,
-        external_url: templateData.canva_url,
-        thumbnail_url: templateData.preview_image_url || null,
-        images: JSON.stringify([]),
-        categories: JSON.stringify(categoriesArray),
-        tags: JSON.stringify(tagsArray),
-        content_data: JSON.stringify(contentDataObj),
-        metadata: JSON.stringify(metadataObj),
-        is_private: false,
-        is_example: false,
-        status: 'published',
-      };
-
-      // Insert template with retry logic for status constraint issues
-      let newTemplate: any;
-      let insertError: Error | null = null;
-      const statusFallbacks = ['published', 'private', 'public', 'enabled', 'active'];
-
-      for (const statusValue of statusFallbacks) {
-        try {
-          const templateDataWithStatus = { ...newTemplateData, status: statusValue };
-          newTemplate = await postgres.insert('user_templates', templateDataWithStatus);
-
-          insertError = null;
-          log.debug(`[User Templates] Successfully created template with status: ${statusValue}`);
-          break;
-        } catch (error) {
-          insertError = error as Error;
-          log.debug(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
-
-          if (
-            insertError.message.includes('valid_template_status') ||
-            insertError.message.includes('status')
-          ) {
-            log.debug(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
-            continue;
-          }
-          throw insertError;
-        }
-      }
-
-      if (insertError) {
-        log.error(
-          '[User Templates /user-templates/from-url POST] All status values failed:',
-          insertError
-        );
-        throw new Error(
-          'Template konnte nicht erstellt werden. Datenbankkonflikt bei Status-Feld.'
-        );
-      }
-
-      // Format response
-      const formattedTemplate = {
-        id: newTemplate.id,
-        title: newTemplate.title,
-        description: newTemplate.description,
-        type: newTemplate.type,
-        template_type: newTemplate.template_type,
-        canva_url: newTemplate.external_url,
-        preview_image_url: newTemplate.thumbnail_url,
-        images: newTemplate.images || [],
-        categories: newTemplate.categories || [],
-        tags: newTemplate.tags || [],
-        content_data: newTemplate.content_data,
-        metadata: newTemplate.metadata,
-        is_private: newTemplate.is_private,
-        status: newTemplate.status,
-        created_at: newTemplate.created_at,
-        updated_at: newTemplate.updated_at,
-      };
-
-      res.status(201).json({
-        success: true,
-        data: formattedTemplate,
-        message: 'Canva Vorlage wurde erfolgreich hinzugefügt.',
-      });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[User Templates /user-templates/from-url POST] Error:', err);
-      res.status(500).json({
-        success: false,
-        message: err.message || 'Fehler beim Hinzufügen der Canva Vorlage.',
       });
     }
   }
