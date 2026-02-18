@@ -90,8 +90,6 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
 
       const content =
         typeof response === 'string' ? response : (response as Record<string, unknown>).content;
-      const metadata =
-        typeof response === 'object' ? (response as Record<string, unknown>).metadata : {};
 
       if (content && form.generator) {
         form.generator.handleGeneratedContentChange(content as string);
