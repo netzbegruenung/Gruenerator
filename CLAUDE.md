@@ -55,6 +55,22 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 
 Keycloak OIDC via Passport.js. Supports multiple identity providers (.de, .at, .eu domains). Sessions stored in Redis.
 
+#### Dev Auth Bypass (Playwright MCP Testing)
+
+For local Playwright MCP testing without Keycloak, set these env vars and restart dev servers:
+
+| File | Env Vars |
+|------|----------|
+| `apps/web/.env` | `VITE_E2E_AUTH_BYPASS=true`, `VITE_DEV_AUTH_BYPASS_TOKEN=local-dev-bypass-token` |
+| `.env` (root, symlinked to `apps/api/.env`) | `ALLOW_DEV_AUTH_BYPASS=true`, `DEV_AUTH_BYPASS_TOKEN=local-dev-bypass-token` |
+
+**How it works:**
+- **Frontend** (`useAuth.ts` queryFn): When `VITE_E2E_AUTH_BYPASS=true`, returns mock authenticated user with all feature flags enabled — no `/api/auth/status` call
+- **Backend** (`authMiddleware.ts`): When `x-dev-auth-bypass` header matches `DEV_AUTH_BYPASS_TOKEN`, attaches mock `req.user` and skips Keycloak session check
+- **Vite proxy** (`vite.config.ts`): Automatically injects `x-dev-auth-bypass` header on all `/api/*` requests when bypass is active
+
+**Safety:** Backend has a production fail-fast guard — if `ALLOW_DEV_AUTH_BYPASS=true` in production, ALL requests return HTTP 500. `VITE_*` vars are compile-time only and don't exist in production builds. To disable: remove `VITE_E2E_AUTH_BYPASS` from `apps/web/.env` and restart.
+
 ### AI Providers
 
 - **Mistral AI** — Primary text generation (EU-hosted).

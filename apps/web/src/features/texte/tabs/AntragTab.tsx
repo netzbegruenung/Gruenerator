@@ -6,12 +6,10 @@ import { FormTextarea } from '../../../components/common/Form/Input';
 import SmartInput from '../../../components/common/Form/SmartInput';
 import Icon from '../../../components/common/Icon';
 import PlatformSelector from '../../../components/common/PlatformSelector';
-import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useUserDefaults } from '../../../hooks/useUserDefaults';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
 interface AntragTabProps {
   isActive: boolean;
@@ -62,16 +60,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
     | typeof REQUEST_TYPES.GROSSE_ANFRAGE
   >(REQUEST_TYPES.ANTRAG);
 
-  const [antragContent, setAntragContent] = useState('');
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(
-    '/antraege/generate-simple'
-  );
-
-  const storeGeneratedText = useGeneratedTextStore((state) =>
-    state.getGeneratedText(componentName)
-  );
-  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
-
   const setup = useGeneratorSetup({
     instructionType: 'antrag',
     componentName: 'antrag-generator',
@@ -82,13 +70,13 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
       inhalt: '',
       gliederung: '',
     },
-    generatorType: 'antrag' as unknown as null,
-    componentName: componentName as unknown as null,
-    endpoint: '/antraege/generate-simple' as unknown as null,
-    instructionType: 'antrag' as unknown as null,
-    features: ['webSearch', 'privacyMode'] as unknown as never[],
-    tabIndexKey: 'ANTRAG' as unknown as null,
-    defaultMode: 'pro' as unknown as null,
+    generatorType: 'antrag',
+    componentName: componentName,
+    endpoint: '/antraege/generate-simple',
+    instructionType: 'antrag',
+    features: ['webSearch', 'privacyMode'],
+    tabIndexKey: 'ANTRAG',
+    defaultMode: 'pro',
     helpContent: {
       content:
         'Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.',
@@ -99,8 +87,8 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
         'Formuliere deine Idee klar und präzise',
         'Nutze die Websuche für aktuelle Informationen',
       ],
-    } as unknown as null,
-  });
+    },
+  } as unknown as Parameters<typeof useBaseForm>[0]);
 
   const { control, handleSubmit, setValue } = form;
   const getValues = form.getValues as (name?: string) => unknown;
@@ -115,8 +103,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
 
   const onSubmitRHF = useCallback(
     async (rhfData: FormValues) => {
-      setStoreIsLoading(true);
-
       try {
         const formDataToSubmit = builder.buildSubmissionData({
           requestType: selectedRequestType,
@@ -124,54 +110,31 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
           gliederung: rhfData.gliederung,
         });
 
-        const response = await submitForm(formDataToSubmit as unknown as Record<string, unknown>);
+        const response = await form.generator!.submitForm(
+          formDataToSubmit as unknown as Record<string, unknown>
+        );
 
         if (response) {
           const content =
             typeof response === 'string' ? response : (response as { content?: string }).content;
-          const metadata =
-            typeof response === 'object'
-              ? (response as { metadata?: Record<string, unknown> }).metadata
-              : undefined;
 
-          if (content) {
-            setAntragContent(content);
-            setGeneratedText(componentName, content, metadata);
-            setTimeout(resetSuccess, 3000);
+          if (content && form.generator) {
+            form.generator.handleGeneratedContentChange(content);
           }
         }
-
-        setStoreIsLoading(false);
       } catch (submitError) {
         console.error('[AntragTab] Error submitting form:', submitError);
-        setStoreIsLoading(false);
+        if (submitError instanceof Error) {
+          form.handleSubmitError(submitError);
+        } else {
+          form.handleSubmitError(new Error(String(submitError)));
+        }
       }
     },
-    [
-      submitForm,
-      resetSuccess,
-      setGeneratedText,
-      setStoreIsLoading,
-      componentName,
-      selectedRequestType,
-      builder,
-    ]
+    [form, selectedRequestType, builder]
   );
 
-  const displayContent = useMemo(() => {
-    const content = storeGeneratedText || antragContent;
-
-    if (content) {
-      return {
-        content,
-        title: null,
-        metadata: {},
-        useMarkdown: false,
-      };
-    }
-
-    return null;
-  }, [storeGeneratedText, antragContent]);
+  const success = form.generator?.success ?? false;
 
   const requestTypeOptions = useMemo(
     () =>
@@ -267,11 +230,7 @@ const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
         });
         return submitHandler();
       }}
-      loading={loading}
-      success={success}
-      error={error}
-      generatedContent={displayContent?.content || ''}
-      useMarkdown={displayContent?.useMarkdown ?? false}
+      useMarkdown={false}
       nextButtonText="Grünerieren"
       firstExtrasChildren={renderFirstExtras()}
       platformOptions={

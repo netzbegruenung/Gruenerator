@@ -3,12 +3,15 @@
  * Handles fetching, executing, and searching custom prompt configurations
  */
 
-import express, { Request, Response, Router } from 'express';
-import { requireAuth } from '../../middleware/authMiddleware.js';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import express, { type Request, type Response, type Router } from 'express';
+
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
-import { createLogger } from '../../utils/logger.js';
+import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { requireAuth } from '../../middleware/authMiddleware.js';
 import { getPromptVectorService } from '../../services/prompts/index.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('custom_prompt');
@@ -131,6 +134,9 @@ router.get(
  */
 router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   log.debug('[custom_prompt] Request received via promptProcessor');
+  if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
+    return processGraphRequestStreaming('custom_prompt', req as any, res);
+  }
   await processGraphRequest('custom_prompt', req, res);
 });
 

@@ -5,6 +5,7 @@ import compression from 'compression';
 import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 // Load environment variables (process.cwd() = WORKDIR in Docker = apps/docs/)
 dotenv.config({ path: path.join(process.cwd(), '.env.local') });
@@ -55,6 +56,18 @@ app.get('/health', (_req, res) => {
     service: 'gruenerator-docs',
   });
 });
+
+// Proxy /api and /auth requests to the API backend
+const API_TARGET = process.env.API_TARGET || process.env.VITE_API_TARGET || 'http://api:3001';
+app.use(
+  ['/api', '/auth'],
+  createProxyMiddleware({
+    target: API_TARGET,
+    changeOrigin: true,
+    cookieDomainRewrite: '',
+  })
+);
+console.log(`[Docs] API proxy: /api → ${API_TARGET}`);
 
 // Serve static files from dist
 app.use(
