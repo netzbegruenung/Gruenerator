@@ -3,9 +3,10 @@
  * Combines and re-exports all template-related routers
  */
 
-import express, { Router } from 'express';
-import userTemplatesRouter from './userTemplates.js';
+import express, { type Router } from 'express';
+
 import templateGalleryRouter from './templateGallery.js';
+import userTemplatesRouter from './userTemplates.js';
 
 const router: Router = express.Router();
 
@@ -17,6 +18,3 @@ export default router;
 
 // Also export individual routers for flexibility
 export { userTemplatesRouter, templateGalleryRouter };
-
-// Re-export helper functions from userTemplates
-export { extractTagsFromDescription, validateCanvaUrl, processCanvaUrl } from './userTemplates.js';
