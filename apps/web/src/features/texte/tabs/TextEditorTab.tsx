@@ -44,9 +44,7 @@ interface UseBaseFormReturn {
   };
 }
 
-interface TextEditorTabProps {
-  isActive: boolean;
-}
+type TextEditorTabProps = Record<string, never>;
 
 // Memoized icon components to prevent recreation on every render
 const ImproveIcon = memo(() => <PiMagicWand size={16} />);
@@ -102,7 +100,7 @@ const BASE_FORM_CONFIG = {
   helpContent: HELP_CONTENT_CONFIG,
 };
 
-const TextEditorTab: React.FC<TextEditorTabProps> = memo(({ isActive }) => {
+const TextEditorTab: React.FC<TextEditorTabProps> = memo(() => {
   const componentName = 'text-improver';
 
   const getFeatureState = useGeneratorSelectionStore((state) => state.getFeatureState);

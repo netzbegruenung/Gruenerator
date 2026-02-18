@@ -32,52 +32,52 @@ const LeichteSpracheRedirect = lazy(() =>
   })
 );
 
-// Redirects for unified TexteGenerator
+// Redirects for unified TexteGenerator (path-based routing)
 const PresseSocialRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/texte?tab=presse-social'),
+    default: createRedirect('/texte/presse-social'),
   })
 );
 
 const AntragRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/texte?tab=antrag'),
+    default: createRedirect('/texte/antrag'),
   })
 );
 
 const UniversalRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/texte?tab=universal'),
+    default: createRedirect('/texte/universal/rede'),
   })
 );
 
 const RedeRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/texte?tab=universal'),
+    default: createRedirect('/texte/universal/rede'),
   })
 );
 
 const WahlprogrammRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/texte?tab=universal'),
+    default: createRedirect('/texte/universal/wahlprogramm'),
   })
 );
 
 const BuergeranfragenRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/texte?tab=universal'),
+    default: createRedirect('/texte/universal/buergeranfragen'),
   })
 );
 
 const BarrierefreiheitRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/texte?tab=barrierefreiheit'),
+    default: createRedirect('/texte/barrierefreiheit'),
   })
 );
 
 const TextEditorRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/texte?tab=texteditor'),
+    default: createRedirect('/texte/texteditor'),
   })
 );
 
@@ -253,9 +253,7 @@ const PromptSlugRedirectComponent: FC<Record<string, unknown>> = () => {
   const { slug } = useParams();
   return createElement(Navigate, { to: `/agent/${slug || ''}`, replace: true });
 };
-const PromptSlugRedirect = lazy(() =>
-  Promise.resolve({ default: PromptSlugRedirectComponent })
-);
+const PromptSlugRedirect = lazy(() => Promise.resolve({ default: PromptSlugRedirectComponent }));
 const DatabaseIndexPage = lazy(() => import('../features/database/pages/DatabaseIndexPage'));
 
 const ScannerPage = lazy(() =>
@@ -344,8 +342,8 @@ export const GrueneratorenBundle = {
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
   { path: '/', component: HomeWrapper },
-  // Unified Text Generator route
-  { path: '/texte', component: GrueneratorenBundle.Texte, withForm: true },
+  // Unified Text Generator route (wildcard for path-based tab navigation)
+  { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   // Redirects from old routes to unified generator
   { path: '/universal', component: UniversalRedirect },
   { path: '/antrag', component: AntragRedirect },
@@ -465,7 +463,15 @@ const specialRoutes: RouteConfig[] = [];
 const createNoHeaderFooterRoute = (route: RouteConfig): RouteConfig | null => {
   if (route.path === '*') return null;
 
-  const noHeaderPath = route.path === '/' ? '/no-header-footer' : `${route.path}-no-header-footer`;
+  let noHeaderPath: string;
+  if (route.path === '/') {
+    noHeaderPath = '/no-header-footer';
+  } else if (route.path.endsWith('/*')) {
+    // /texte/* → /texte-no-header-footer/*
+    noHeaderPath = `${route.path.slice(0, -2)}-no-header-footer/*`;
+  } else {
+    noHeaderPath = `${route.path}-no-header-footer`;
+  }
 
   return {
     ...route,
