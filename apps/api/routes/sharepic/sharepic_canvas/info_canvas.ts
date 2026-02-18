@@ -1,22 +1,23 @@
-import { Router, Request, Response } from 'express';
+import fs from 'fs/promises';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import multer from 'multer';
+
 import {
   createCanvas,
   loadImage,
   type Canvas,
   type SKRSContext2D as CanvasRenderingContext2D,
 } from '@napi-rs/canvas';
-import fs from 'fs/promises';
-import path from 'path';
+import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
+
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
-import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);

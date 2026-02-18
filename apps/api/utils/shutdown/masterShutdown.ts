@@ -4,6 +4,7 @@
  */
 
 import cluster from 'cluster';
+
 import type { MasterShutdownOptions, MasterShutdownHandler, Logger } from './types.js';
 
 const DEFAULT_WORKER_TIMEOUT = 10000; // 10 seconds

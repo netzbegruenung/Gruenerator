@@ -1,4 +1,5 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
+
 import { OffboardingService } from '../../services/admin/index.js';
 import { createLogger } from '../../utils/logger.js';
 

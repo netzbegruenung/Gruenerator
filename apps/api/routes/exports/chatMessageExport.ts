@@ -3,10 +3,12 @@
  * Exports individual chat messages as Word documents
  */
 
-import express, { Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
+
+import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
-import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
+
 import { parseFormattedContent } from './contentParser.js';
 
 const log = createLogger('chatMessageExport');
@@ -59,7 +61,14 @@ function getRoleLabel(role: 'user' | 'assistant'): string {
  */
 router.post(
   '/',
-  async (req: Request<{}, Buffer | { success: boolean; error?: string }, ChatMessageExportRequest>, res: Response) => {
+  async (
+    req: Request<
+      Record<string, never>,
+      Buffer | { success: boolean; error?: string },
+      ChatMessageExportRequest
+    >,
+    res: Response
+  ) => {
     try {
       const { content, role, timestamp, metadata } = req.body || {};
 
@@ -73,7 +82,8 @@ router.post(
       const formattedParagraphs = parseFormattedContent(content);
 
       const docx = await import('docx');
-      const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, BorderStyle } = docx;
+      const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, BorderStyle } =
+        docx;
 
       const children: any[] = [];
       const roleLabel = getRoleLabel(role || 'assistant');
@@ -270,7 +280,10 @@ router.post(
       const buffer = await Packer.toBuffer(doc);
 
       // Create filename from content preview
-      const contentPreview = content.slice(0, 30).replace(/[^a-zA-Z0-9äöüÄÖÜß\s]/g, '').trim();
+      const contentPreview = content
+        .slice(0, 30)
+        .replace(/[^a-zA-Z0-9äöüÄÖÜß\s]/g, '')
+        .trim();
       const filename = `${sanitizeFilename(contentPreview || 'Chat-Nachricht')}.docx`;
 
       res.setHeader(

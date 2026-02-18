@@ -12,9 +12,10 @@
  */
 
 import { generateText } from 'ai';
-import { getModel } from '../agents/providers.js';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { getModel } from '../agents/providers.js';
 
 const log = createLogger('AttachmentPersistenceService');
 
@@ -47,16 +48,7 @@ interface SaveAttachmentParams {
  * and summary generation is triggered asynchronously.
  */
 export async function saveThreadAttachment(params: SaveAttachmentParams): Promise<string> {
-  const {
-    threadId,
-    messageId,
-    userId,
-    name,
-    mimeType,
-    sizeBytes,
-    isImage,
-    extractedText,
-  } = params;
+  const { threadId, messageId, userId, name, mimeType, sizeBytes, isImage, extractedText } = params;
 
   const postgres = getPostgresInstance();
 
@@ -110,7 +102,9 @@ export async function getThreadAttachments(
 
   attachments.reverse();
 
-  log.debug(`[AttachmentPersistence] Loaded ${attachments.length} attachments for thread ${threadId}`);
+  log.debug(
+    `[AttachmentPersistence] Loaded ${attachments.length} attachments for thread ${threadId}`
+  );
   return attachments;
 }
 
@@ -134,9 +128,10 @@ Fokussiere dich auf:
 
 Halte die Zusammenfassung sehr kompakt (max. 150 Wörter). Beginne direkt mit dem Inhalt, nicht mit "Das Dokument...".`;
 
-  const textToSummarize = extractedText.length > 15000
-    ? extractedText.slice(0, 15000) + '\n\n[... Text gekürzt ...]'
-    : extractedText;
+  const textToSummarize =
+    extractedText.length > 15000
+      ? extractedText.slice(0, 15000) + '\n\n[... Text gekürzt ...]'
+      : extractedText;
 
   try {
     const result = await generateText({
@@ -150,12 +145,14 @@ Halte die Zusammenfassung sehr kompakt (max. 150 Wörter). Beginne direkt mit de
     const summary = result.text;
 
     const postgres = getPostgresInstance();
-    await postgres.query(
-      `UPDATE chat_thread_attachments SET summary = $1 WHERE id = $2`,
-      [summary, attachmentId]
-    );
+    await postgres.query(`UPDATE chat_thread_attachments SET summary = $1 WHERE id = $2`, [
+      summary,
+      attachmentId,
+    ]);
 
-    log.info(`[AttachmentPersistence] Saved summary for attachment ${attachmentId}: ${summary.length} chars`);
+    log.info(
+      `[AttachmentPersistence] Saved summary for attachment ${attachmentId}: ${summary.length} chars`
+    );
     return summary;
   } catch (error) {
     log.error(`[AttachmentPersistence] Failed to generate summary for ${attachmentId}:`, error);
@@ -188,10 +185,7 @@ export async function getAttachmentText(attachmentId: string): Promise<string | 
 export async function deleteThreadAttachments(threadId: string): Promise<void> {
   const postgres = getPostgresInstance();
 
-  await postgres.query(
-    `DELETE FROM chat_thread_attachments WHERE thread_id = $1`,
-    [threadId]
-  );
+  await postgres.query(`DELETE FROM chat_thread_attachments WHERE thread_id = $1`, [threadId]);
 
   log.info(`[AttachmentPersistence] Deleted all attachments for thread ${threadId}`);
 }

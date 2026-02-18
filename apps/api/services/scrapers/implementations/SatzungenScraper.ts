@@ -4,11 +4,12 @@
  * Supports both PDF (with Mistral OCR) and HTML sources
  */
 
+import { promises as fs } from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+
 import * as cheerio from 'cheerio';
-import { BaseScraper } from '../base/BaseScraper.js';
-import type { ScraperResult } from '../types.js';
-import { smartChunkDocument } from '../../document-services/index.js';
-import { mistralEmbeddingService } from '../../mistral/index.js';
+
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import {
   scrollDocuments,
@@ -18,12 +19,14 @@ import {
 } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
+import { smartChunkDocument } from '../../document-services/index.js';
+import { mistralEmbeddingService } from '../../mistral/index.js';
 import { ocrService } from '../../OcrService/index.js';
+import { BaseScraper } from '../base/BaseScraper.js';
 import { extractMainContent } from '../utils/contentExtractor.js';
 import { extractTitle, removeUnwantedElements } from '../utils/htmlCleaner.js';
-import { promises as fs } from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+
+import type { ScraperResult } from '../types.js';
 
 /**
  * Satzung source definition

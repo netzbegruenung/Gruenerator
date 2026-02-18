@@ -12,17 +12,18 @@
  * - User statistics and management
  */
 
-import { BaseSearchService } from '../../BaseSearchService/index.js';
-import { getQdrantInstance } from '../../../database/services/QdrantService.js';
-import { QdrantOperations } from '../../../database/services/QdrantOperations.js';
-// @ts-ignore - JavaScript module without types
-import { InputValidator } from '../../../utils/validation/index.js';
-// @ts-ignore - JavaScript module without types
-import { vectorConfig } from '../../../config/vectorConfig.js';
-// @ts-ignore - JavaScript module without types
 import { isSystemQdrantCollection } from '../../../config/systemCollectionsConfig.js';
-// @ts-ignore - JavaScript module without types
+import { vectorConfig } from '../../../config/vectorConfig.js';
+import { QdrantOperations } from '../../../database/services/QdrantOperations.js';
+import { getQdrantInstance } from '../../../database/services/QdrantService.js';
+import { InputValidator } from '../../../utils/validation/index.js';
+import { BaseSearchService } from '../../BaseSearchService/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
+
+import * as docRetrieval from './documentRetrieval.js';
+import * as scoring from './scoring.js';
+import * as searchOps from './searchOperations.js';
+import * as vectorOps from './vectorOperations.js';
 
 import type {
   DocumentSearchParams,
@@ -48,19 +49,12 @@ import type {
   FindSimilarChunksParams,
   FindHybridChunksParams,
 } from './types.js';
-
+import type { QdrantService } from '../../../database/services/QdrantService.js';
 import type {
   SearchParams,
   SearchResponse,
   HybridMetadata,
 } from '../../BaseSearchService/types.js';
-
-import type { QdrantService } from '../../../database/services/QdrantService.js';
-
-import * as vectorOps from './vectorOperations.js';
-import * as docRetrieval from './documentRetrieval.js';
-import * as searchOps from './searchOperations.js';
-import * as scoring from './scoring.js';
 
 /**
  * Main DocumentSearchService class

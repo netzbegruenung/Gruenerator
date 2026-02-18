@@ -81,7 +81,7 @@ router.post('/production', async (req: Request, res: Response): Promise<void> =>
  * GET /api/social/workflow/:id
  * Fetch workflow state
  */
-router.get('/workflow/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/workflow/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
     const workflow = await prAgentWorkflow.getWorkflow(
       req.params.id,

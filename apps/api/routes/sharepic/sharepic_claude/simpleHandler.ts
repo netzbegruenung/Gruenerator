@@ -3,11 +3,12 @@
  * Generates headline + subtext combinations from a theme description
  */
 
-import type { Response } from 'express';
 import prompts from '../../../prompts/sharepic/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { isThrottlingError, replaceTemplate } from '../../../utils/sharepic/index.js';
+
 import type { SharepicRequest } from './types.js';
+import type { Response } from 'express';
 
 const log = createLogger('sharepic_simple');
 

@@ -4,15 +4,18 @@
  * Processes project exports with FFmpeg and ASS subtitles.
  */
 
-import path from 'path';
 import fs from 'fs/promises';
+import path from 'path';
 import { fileURLToPath } from 'url';
+
 import { v4 as uuidv4 } from 'uuid';
+
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import * as hwaccel from './hwaccelUtils.js';
-import { ffmpeg, FFprobeMetadata } from './ffmpegWrapper.js';
+
 import { buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
+import { ffmpeg, type FFprobeMetadata } from './ffmpegWrapper.js';
+import * as hwaccel from './hwaccelUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -297,7 +300,9 @@ async function processProjectExport(
                 }),
                 { EX: 60 * 60 }
               );
-            } catch {}
+            } catch {
+              /* ignore progress update error */
+            }
           })
           .on('error', (err: Error) => {
             log.error(`FFmpeg error: ${err.message}`);
@@ -314,7 +319,9 @@ async function processProjectExport(
     try {
       if (assFilePath) await fs.unlink(assFilePath).catch(() => {});
       if (tempFontPath) await fs.unlink(tempFontPath).catch(() => {});
-    } catch {}
+    } catch {
+      /* ignore temp file cleanup error */
+    }
 
     await redisClient.set(
       `export:${exportToken}`,

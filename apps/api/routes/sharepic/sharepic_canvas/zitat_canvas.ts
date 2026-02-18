@@ -1,3 +1,7 @@
+import fs from 'fs';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
 import {
   createCanvas,
   loadImage,
@@ -5,13 +9,10 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,

@@ -51,7 +51,7 @@ const db = getPostgresInstance();
  * @desc    List all permissions for a document
  * @access  Private (document collaborators only)
  */
-router.get('/:id/permissions', async (req: Request, res: Response) => {
+router.get('/:id/permissions', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -86,7 +86,7 @@ router.get('/:id/permissions', async (req: Request, res: Response) => {
     }
 
     const profilesResult = (await db.query(
-      'SELECT id, display_name, email, avatar_url FROM profiles WHERE id = ANY($1)',
+      'SELECT id, display_name, email, avatar_url, avatar_robot_id FROM profiles WHERE id = ANY($1)',
       [userIds]
     )) as ProfileRow[];
 
@@ -97,6 +97,7 @@ router.get('/:id/permissions', async (req: Request, res: Response) => {
         display_name: profile.display_name,
         email: profile.email,
         avatar_url: profile.avatar_url,
+        avatar_robot_id: profile.avatar_robot_id,
         permission_level: permissions[odId].level,
         granted_at: permissions[odId].granted_at,
       };
@@ -114,7 +115,7 @@ router.get('/:id/permissions', async (req: Request, res: Response) => {
  * @desc    Grant permission to a user
  * @access  Private (owner only)
  */
-router.post('/:id/permissions', async (req: Request, res: Response) => {
+router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     const { user_id, permission_level } = req.body;
@@ -187,125 +188,133 @@ router.post('/:id/permissions', async (req: Request, res: Response) => {
  * @desc    Update a user's permission level
  * @access  Private (owner only)
  */
-router.put('/:id/permissions/:targetUserId', async (req: Request, res: Response) => {
-  try {
-    const { id, targetUserId } = req.params;
-    const { permission_level } = req.body;
-    const userId = req.user?.id;
+router.put(
+  '/:id/permissions/:targetUserId',
+  async (req: Request<{ id: string; targetUserId: string }>, res: Response) => {
+    try {
+      const { id, targetUserId } = req.params;
+      const { permission_level } = req.body;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      if (!permission_level) {
+        return res.status(400).json({ error: 'permission_level is required' });
+      }
+
+      if (!['owner', 'editor', 'viewer'].includes(permission_level)) {
+        return res.status(400).json({ error: 'Invalid permission level' });
+      }
+
+      const docResult = (await db.query(
+        'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+        [id, DOCS_SUBTYPES]
+      )) as DocumentWithPermissions[];
+
+      if (docResult.length === 0) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      const document = docResult[0];
+      const userPermission = document.permissions?.[userId];
+      const isOwner =
+        document.created_by === userId || (userPermission && userPermission.level === 'owner');
+
+      if (!isOwner) {
+        return res.status(403).json({ error: 'Only owners can manage permissions' });
+      }
+
+      const permissions: DocumentPermissions = document.permissions || {};
+
+      if (!permissions[targetUserId]) {
+        return res.status(404).json({ error: 'User does not have access to this document' });
+      }
+
+      permissions[targetUserId] = {
+        ...permissions[targetUserId],
+        level: permission_level,
+        updated_at: new Date().toISOString(),
+        updated_by: userId,
+      };
+
+      await db.query(
+        'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [JSON.stringify(permissions), id]
+      );
+
+      return res.json({
+        message: 'Permission updated successfully',
+        user_id: targetUserId,
+        permission_level,
+      });
+    } catch (error: any) {
+      console.error('[Docs] Error updating permission:', error);
+      return res.status(500).json({ error: 'Failed to update permission', details: error.message });
     }
-
-    if (!permission_level) {
-      return res.status(400).json({ error: 'permission_level is required' });
-    }
-
-    if (!['owner', 'editor', 'viewer'].includes(permission_level)) {
-      return res.status(400).json({ error: 'Invalid permission level' });
-    }
-
-    const docResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
-      [id, DOCS_SUBTYPES]
-    )) as DocumentWithPermissions[];
-
-    if (docResult.length === 0) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
-
-    const document = docResult[0];
-    const userPermission = document.permissions?.[userId];
-    const isOwner =
-      document.created_by === userId || (userPermission && userPermission.level === 'owner');
-
-    if (!isOwner) {
-      return res.status(403).json({ error: 'Only owners can manage permissions' });
-    }
-
-    const permissions: DocumentPermissions = document.permissions || {};
-
-    if (!permissions[targetUserId]) {
-      return res.status(404).json({ error: 'User does not have access to this document' });
-    }
-
-    permissions[targetUserId] = {
-      ...permissions[targetUserId],
-      level: permission_level,
-      updated_at: new Date().toISOString(),
-      updated_by: userId,
-    };
-
-    await db.query(
-      'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [JSON.stringify(permissions), id]
-    );
-
-    return res.json({
-      message: 'Permission updated successfully',
-      user_id: targetUserId,
-      permission_level,
-    });
-  } catch (error: any) {
-    console.error('[Docs] Error updating permission:', error);
-    return res.status(500).json({ error: 'Failed to update permission', details: error.message });
   }
-});
+);
 
 /**
  * @route   DELETE /api/docs/:id/permissions/:userId
  * @desc    Revoke a user's permission
  * @access  Private (owner only)
  */
-router.delete('/:id/permissions/:targetUserId', async (req: Request, res: Response) => {
-  try {
-    const { id, targetUserId } = req.params;
-    const userId = req.user?.id;
+router.delete(
+  '/:id/permissions/:targetUserId',
+  async (req: Request<{ id: string; targetUserId: string }>, res: Response) => {
+    try {
+      const { id, targetUserId } = req.params;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const docResult = (await db.query(
+        'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+        [id, DOCS_SUBTYPES]
+      )) as DocumentWithPermissions[];
+
+      if (docResult.length === 0) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      const document = docResult[0];
+      const userPermission = document.permissions?.[userId];
+      const isOwner =
+        document.created_by === userId || (userPermission && userPermission.level === 'owner');
+
+      if (!isOwner) {
+        return res.status(403).json({ error: 'Only owners can manage permissions' });
+      }
+
+      if (targetUserId === document.created_by) {
+        return res
+          .status(400)
+          .json({ error: 'Cannot revoke permissions from the document creator' });
+      }
+
+      const permissions: DocumentPermissions = document.permissions || {};
+
+      if (!permissions[targetUserId]) {
+        return res.status(404).json({ error: 'User does not have access to this document' });
+      }
+
+      delete permissions[targetUserId];
+
+      await db.query(
+        'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [JSON.stringify(permissions), id]
+      );
+
+      return res.json({ message: 'Permission revoked successfully' });
+    } catch (error: any) {
+      console.error('[Docs] Error revoking permission:', error);
+      return res.status(500).json({ error: 'Failed to revoke permission', details: error.message });
     }
-
-    const docResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
-      [id, DOCS_SUBTYPES]
-    )) as DocumentWithPermissions[];
-
-    if (docResult.length === 0) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
-
-    const document = docResult[0];
-    const userPermission = document.permissions?.[userId];
-    const isOwner =
-      document.created_by === userId || (userPermission && userPermission.level === 'owner');
-
-    if (!isOwner) {
-      return res.status(403).json({ error: 'Only owners can manage permissions' });
-    }
-
-    if (targetUserId === document.created_by) {
-      return res.status(400).json({ error: 'Cannot revoke permissions from the document creator' });
-    }
-
-    const permissions: DocumentPermissions = document.permissions || {};
-
-    if (!permissions[targetUserId]) {
-      return res.status(404).json({ error: 'User does not have access to this document' });
-    }
-
-    delete permissions[targetUserId];
-
-    await db.query(
-      'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [JSON.stringify(permissions), id]
-    );
-
-    return res.json({ message: 'Permission revoked successfully' });
-  } catch (error: any) {
-    console.error('[Docs] Error revoking permission:', error);
-    return res.status(500).json({ error: 'Failed to revoke permission', details: error.message });
   }
-});
+);
 
 export default router;

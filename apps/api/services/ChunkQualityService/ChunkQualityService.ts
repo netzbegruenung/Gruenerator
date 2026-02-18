@@ -10,6 +10,7 @@
 
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { detectContentType, detectMarkdownStructure } from '../content/index.js';
+
 import type { ChunkMetadata } from './types.js';
 
 class ChunkQualityService {
@@ -165,7 +166,7 @@ class ChunkQualityService {
     const hasNumbers = /\d/.test(text);
     const acronyms = (text.match(/\b[A-ZÄÖÜ]{2,}\b/g) || []).length;
 
-    let score = ratio + (hasNumbers ? 0.02 : 0) + Math.min(0.05, acronyms * 0.012);
+    const score = ratio + (hasNumbers ? 0.02 : 0) + Math.min(0.05, acronyms * 0.012);
     return Math.max(0, Math.min(1, score));
   }
 
@@ -189,8 +190,8 @@ class ChunkQualityService {
     return (text || '')
       .toLowerCase()
       .normalize('NFKC')
-      .replace(/[""„\"''`]/g, ' ')
-      .replace(/[^a-zäöüß0-9\-]+/gi, ' ')
+      .replace(/[""„"''`]/g, ' ')
+      .replace(/[^a-zäöüß0-9-]+/gi, ' ')
       .split(/\s+/)
       .filter(Boolean);
   }

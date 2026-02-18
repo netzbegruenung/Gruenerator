@@ -5,8 +5,10 @@
  */
 
 import path from 'path';
-import * as hwaccel from './hwaccelUtils.js';
+
 import { createLogger } from '../../utils/logger.js';
+
+import * as hwaccel from './hwaccelUtils.js';
 
 const log = createLogger('ffmpeg-export-utils');
 

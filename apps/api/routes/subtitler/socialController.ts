@@ -3,8 +3,10 @@
  * Handles social media text generation from subtitles.
  */
 
-import express, { Response, Router } from 'express';
+import express, { type Response, type Router } from 'express';
+
 import { createLogger } from '../../utils/logger.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('subtitler-social');

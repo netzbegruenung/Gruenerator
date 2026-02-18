@@ -5,8 +5,9 @@
  */
 
 import { generateSharepicForChat } from '../../chat/sharepicGenerationService.js';
-import type { Request } from 'express';
+
 import type { SharepicRequestBody, DefaultSharepicResult, DefaultSharepic } from './types.js';
+import type { Request } from 'express';
 
 // Cast type for compatibility with sharepicGenerationService
 type ExpressRequest = Parameters<typeof generateSharepicForChat>[0];

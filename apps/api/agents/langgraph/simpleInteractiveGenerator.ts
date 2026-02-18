@@ -13,7 +13,17 @@
  * 3. Call with generatorType: '{type}'
  */
 
-import type { Request } from 'express';
+import { getQuestionsForType } from '../../config/antragQuestions.js';
+import {
+  setExperimentalSession,
+  getExperimentalSession,
+  updateExperimentalSession,
+} from '../../services/chat/ChatMemoryService.js';
+import { enrichRequest } from '../../utils/requestEnrichment.js';
+
+import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
+import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
+
 import type {
   AIWorkerPool,
   AIWorkerRequest,
@@ -40,18 +50,9 @@ import type {
   GeneratorConfig,
   Locale,
 } from './types/index.js';
-import type { ExperimentalSession } from '../../services/chat/types.js';
 import type { PromptConfig } from './types/promptProcessor.js';
-
-import {
-  setExperimentalSession,
-  getExperimentalSession,
-  updateExperimentalSession,
-} from '../../services/chat/ChatMemoryService.js';
-import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
-import { getQuestionsForType } from '../../config/antragQuestions.js';
-import { enrichRequest } from '../../utils/requestEnrichment.js';
-import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
+import type { ExperimentalSession } from '../../services/chat/types.js';
+import type { Request } from 'express';
 
 // Lazy-loaded optional services
 let _searxngService: SearxngService | null = null;

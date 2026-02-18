@@ -4,6 +4,7 @@
  */
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+
 import type {
   NextcloudShareLink,
   ShareLinkValidation,
@@ -456,7 +457,7 @@ export class NextcloudShareManager {
         ? rawShareLinksStats
         : [];
 
-      let stats: UsageStats = {
+      const stats: UsageStats = {
         totalLinks: shareLinks.length,
         activeLinks: shareLinks.filter((link: NextcloudShareLink) => link.is_active).length,
         inactiveLinks: shareLinks.filter((link: NextcloudShareLink) => !link.is_active).length,

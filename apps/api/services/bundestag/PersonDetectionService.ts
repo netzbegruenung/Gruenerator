@@ -5,6 +5,7 @@
  */
 
 import { getBundestagMCPClient } from './BundestagMCPClient.js';
+
 import type {
   Person,
   PersonDetectionResult,
@@ -15,7 +16,7 @@ import type {
 } from './types.js';
 
 // MP cache: normalizedName -> person object
-let mpCache = new Map<string, Person>();
+const mpCache = new Map<string, Person>();
 let cacheLastUpdated = 0;
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 

@@ -3,12 +3,10 @@
  * HTTP-specific error handling for Express routes
  */
 
-import type { Request, Response, NextFunction } from 'express';
-import type { ErrorClassification, RequestWithCorrelation, AIWorkerErrorResult } from './types.js';
 import { sendErrorResponse } from '../request/index.js';
-import { ERROR_TYPES } from './constants.js';
+
 import {
-  VectorBackendError,
+  type VectorBackendError,
   ValidationError,
   AIWorkerError,
   DatabaseError,
@@ -19,6 +17,10 @@ import {
   ResourceError,
   isVectorBackendError,
 } from './classes.js';
+import { ERROR_TYPES } from './constants.js';
+
+import type { ErrorClassification, RequestWithCorrelation, AIWorkerErrorResult } from './types.js';
+import type { Request, Response, NextFunction } from 'express';
 
 /**
  * Classify error and determine HTTP status code

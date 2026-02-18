@@ -4,10 +4,10 @@
  * Handles saving and updating subtitled video projects.
  */
 
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import fsPromises from 'fs/promises';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
 import { createLogger } from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);

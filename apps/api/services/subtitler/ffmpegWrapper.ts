@@ -5,6 +5,7 @@
  */
 
 import { spawn } from 'child_process';
+
 import { createLogger } from '../../utils/logger.js';
 
 export const ffmpegPath = '/usr/bin/ffmpeg';

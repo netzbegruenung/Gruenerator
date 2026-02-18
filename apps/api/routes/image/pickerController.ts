@@ -348,26 +348,29 @@ router.post('/download-track', async (req: AuthenticatedRequest, res: Response) 
  * Serves a stock image file directly (used for dev proxy compatibility)
  * Query params: ?size=thumb for 400px thumbnail
  */
-router.get('/stock-image/:filename', (req: AuthenticatedRequest, res: Response) => {
-  const { filename } = req.params;
-  const { size } = req.query as StockImageQuery;
-  const sanitizedFilename = basename(filename);
+router.get(
+  '/stock-image/:filename',
+  (req: AuthenticatedRequest<{ filename: string }>, res: Response) => {
+    const { filename } = req.params;
+    const { size } = req.query as StockImageQuery;
+    const sanitizedFilename = basename(filename);
 
-  let imagePath: string;
-  if (size === 'thumb') {
-    const thumbName = sanitizedFilename.replace(/\.\w+$/, '.jpg');
-    imagePath = join(__dirname, '../../public/sharepic_example_bg/thumbs', thumbName);
-  } else {
-    imagePath = join(__dirname, '../../public/sharepic_example_bg', sanitizedFilename);
-  }
-
-  res.set('Cache-Control', 'public, max-age=86400');
-  res.sendFile(imagePath, (err) => {
-    if (err) {
-      log.error('[ImagePicker API] Stock image serve error:', err);
-      res.status(404).json({ error: 'Image not found' });
+    let imagePath: string;
+    if (size === 'thumb') {
+      const thumbName = sanitizedFilename.replace(/\.\w+$/, '.jpg');
+      imagePath = join(__dirname, '../../public/sharepic_example_bg/thumbs', thumbName);
+    } else {
+      imagePath = join(__dirname, '../../public/sharepic_example_bg', sanitizedFilename);
     }
-  });
-});
+
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.sendFile(imagePath, (err) => {
+      if (err) {
+        log.error('[ImagePicker API] Stock image serve error:', err);
+        res.status(404).json({ error: 'Image not found' });
+      }
+    });
+  }
+);
 
 export default router;

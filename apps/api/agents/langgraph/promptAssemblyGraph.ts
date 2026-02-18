@@ -9,6 +9,7 @@
  */
 
 import { localizePlaceholders } from '../../services/localization/index.js';
+
 import type {
   PromptAssemblyState,
   RequestObject,
@@ -474,7 +475,9 @@ async function runDocumentQnA(
           );
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      /* ignore provider error logging failure */
+    }
     return null;
   }
 }

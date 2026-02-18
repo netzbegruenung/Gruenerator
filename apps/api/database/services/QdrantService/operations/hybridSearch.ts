@@ -3,15 +3,18 @@
  * Combines vector and text search with various fusion methods
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { vectorConfig } from '../../../../config/vectorConfig.js';
-import { createLogger } from '../../../../utils/logger.js';
 import {
   generateQueryVariants,
   normalizeQuery,
   tokenizeQuery,
 } from '../../../../services/text/index.js';
+import { createLogger } from '../../../../utils/logger.js';
+
 import { vectorSearch } from './vectorSearch.js';
+
 import type {
   HybridSearchOptions,
   HybridSearchResponse,

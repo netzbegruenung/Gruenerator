@@ -3,19 +3,20 @@
  * Handles zitat, info, headline, and dreizeilen sharepics
  */
 
-import type {
-  SharepicParameters,
-  ZitatParameters,
-  DreiZeilenParameters,
-  BaseParameters,
-} from '../types.js';
-import type { ChatContext } from '../../types.js';
 import {
   extractTheme,
   extractDetails,
   extractQuoteAuthor,
   extractLines,
 } from '../utils/extractionUtils.js';
+
+import type { ChatContext } from '../../types.js';
+import type {
+  SharepicParameters,
+  ZitatParameters,
+  DreiZeilenParameters,
+  BaseParameters,
+} from '../types.js';
 
 /**
  * Extract parameters for sharepic agents

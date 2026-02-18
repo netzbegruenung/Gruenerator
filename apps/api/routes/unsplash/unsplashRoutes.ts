@@ -10,7 +10,8 @@
  * - GET  /api/unsplash/stats - Get service statistics
  */
 
-import express, { Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
+
 import {
   getUnsplashService,
   UnsplashApiError,

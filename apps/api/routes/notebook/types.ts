@@ -2,7 +2,9 @@
  * Type definitions for Notebook Routes
  */
 
-import { AuthenticatedRequest } from '../../middleware/types.js';
+import { type AuthenticatedRequest } from '../../middleware/types.js';
+
+import type { ParamsDictionary } from 'express-serve-static-core';
 
 // =============================================================================
 // Request Body Types
@@ -237,7 +239,7 @@ export interface PublicAccessRecord {
 /**
  * Express request with app locals for AI worker pool
  */
-export interface NotebookRequest extends AuthenticatedRequest {
+export interface NotebookRequest<P = ParamsDictionary> extends AuthenticatedRequest<P> {
   app: {
     locals: {
       aiWorkerPool?: any;

@@ -1,6 +1,8 @@
-import express, { Request, Response, Router } from 'express';
+import express, { type Request, type Response, type Router } from 'express';
+
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type {
   FormattedSearchResults,
   FormattedSearchResultsWithSummary,

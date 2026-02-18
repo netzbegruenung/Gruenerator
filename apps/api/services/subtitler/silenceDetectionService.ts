@@ -5,7 +5,9 @@
  */
 
 import { spawn } from 'child_process';
+
 import { createLogger } from '../../utils/logger.js';
+
 import { ffmpegPath, ffprobe } from './ffmpegWrapper.js';
 
 const log = createLogger('silence-detection');

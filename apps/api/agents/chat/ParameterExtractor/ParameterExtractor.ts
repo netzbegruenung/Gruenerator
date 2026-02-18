@@ -3,21 +3,22 @@
  * Main orchestrator that routes parameter extraction to specialized extractors
  */
 
-import type { ExtractedParameters, BaseParameters } from './types.js';
-import type { ChatContext } from '../types.js';
+import { extractAntragParams } from './extractors/AntragExtractor.js';
+import { extractImagineParams } from './extractors/ImagineExtractor.js';
+import { extractSharepicParams } from './extractors/SharepicExtractor.js';
 import {
   extractSocialParams,
   extractGrueneJugendParams,
 } from './extractors/SocialMediaExtractor.js';
-import { extractSharepicParams } from './extractors/SharepicExtractor.js';
-import { extractAntragParams } from './extractors/AntragExtractor.js';
 import {
   extractUniversalParams,
   extractLeichteSpracheParams,
 } from './extractors/UniversalExtractor.js';
-import { extractImagineParams } from './extractors/ImagineExtractor.js';
 import { extractParametersWithMistral } from './mistral/MistralExtractor.js';
 import { analyzeParameterConfidence } from './utils/confidenceAnalyzer.js';
+
+import type { ChatContext } from '../types.js';
+import type { ExtractedParameters, BaseParameters } from './types.js';
 
 /**
  * Extract parameters from user message based on target agent

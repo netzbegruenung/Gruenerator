@@ -3,12 +3,14 @@
  * Crawls a URL and returns structured content for use as attachment
  */
 
-import express, { Response } from 'express';
+import express, { type Response } from 'express';
+
 import {
   urlCrawlerService,
   UrlValidator,
 } from '../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { CrawlResult } from '../../services/scrapers/implementations/UrlCrawler/types.js';
 

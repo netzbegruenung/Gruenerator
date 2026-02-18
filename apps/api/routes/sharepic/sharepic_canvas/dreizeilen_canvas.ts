@@ -1,5 +1,5 @@
-import { Router, Request, Response } from 'express';
-import multer from 'multer';
+import fs from 'fs/promises';
+
 import {
   createCanvas,
   loadImage,
@@ -7,20 +7,22 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import fs from 'fs/promises';
+import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
+
 import {
   TESTBILD_PATH,
   params,
   SUNFLOWER_PATH,
   COLORS,
 } from '../../../services/sharepic/canvas/config.js';
-import { isValidHexColor, getDefaultColor } from '../../../services/sharepic/canvas/utils.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
-import { validateParams } from '../../../services/sharepic/canvas/paramValidation.js';
 import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import { validateParams } from '../../../services/sharepic/canvas/paramValidation.js';
+import { isValidHexColor, getDefaultColor } from '../../../services/sharepic/canvas/utils.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('dreizeilen_canv');

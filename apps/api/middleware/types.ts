@@ -6,6 +6,8 @@ import { type Request } from 'express';
 
 import { type UserProfile } from '../services/user/types.js';
 
+import type { ParamsDictionary } from 'express-serve-static-core';
+
 // ============================================================================
 // Extended Express Request Types
 // ============================================================================
@@ -14,7 +16,7 @@ import { type UserProfile } from '../services/user/types.js';
  * Base authenticated request with user attached
  * Extends Express Request to maintain compatibility with router handlers
  */
-export interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
   user?: UserProfile;
   mobileAuth?: boolean;
   jwtToken?: any;

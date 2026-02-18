@@ -51,7 +51,7 @@ async function getOwnedDocument(
  * @desc    Get share settings for a document
  * @access  Private (owner only)
  */
-router.get('/:id/share', async (req: Request, res: Response) => {
+router.get('/:id/share', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'User not authenticated' });
@@ -75,7 +75,7 @@ router.get('/:id/share', async (req: Request, res: Response) => {
  * @desc    Enable public sharing
  * @access  Private (owner only)
  */
-router.post('/:id/share/enable', async (req: Request, res: Response) => {
+router.post('/:id/share/enable', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'User not authenticated' });
@@ -106,7 +106,7 @@ router.post('/:id/share/enable', async (req: Request, res: Response) => {
  * @desc    Disable public sharing
  * @access  Private (owner only)
  */
-router.post('/:id/share/disable', async (req: Request, res: Response) => {
+router.post('/:id/share/disable', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'User not authenticated' });
@@ -137,7 +137,7 @@ router.post('/:id/share/disable', async (req: Request, res: Response) => {
  * @desc    Update public share permission level
  * @access  Private (owner only)
  */
-router.put('/:id/share/permission', async (req: Request, res: Response) => {
+router.put('/:id/share/permission', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'User not authenticated' });
@@ -173,7 +173,7 @@ router.put('/:id/share/permission', async (req: Request, res: Response) => {
  * @desc    Set share mode (private, authenticated, public)
  * @access  Private (owner only)
  */
-router.put('/:id/share/mode', async (req: Request, res: Response) => {
+router.put('/:id/share/mode', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'User not authenticated' });

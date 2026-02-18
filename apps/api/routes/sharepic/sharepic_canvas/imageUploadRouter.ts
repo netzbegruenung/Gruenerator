@@ -1,5 +1,6 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
+
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('imageUpload');

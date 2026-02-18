@@ -1,13 +1,16 @@
-import express, { Router, Request, Response } from 'express';
+import express, { type Router, type Request, type Response } from 'express';
+
+import passport from '../../config/passportSetup.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
-import passport from '../../config/passportSetup.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   SEARCH_DOCUMENTS_TOOL,
   processAIResponseWithCitations,
 } from '../../utils/prompt/index.js';
+
+import type { UserProfile } from '../../services/user/types.js';
 import type {
   ToolCall,
   ToolResult,
@@ -15,9 +18,8 @@ import type {
   DocumentContext,
   MessageContent,
 } from '../../types/routes.js';
-import type { Citation, SourceInfo } from '../../utils/prompt/types.js';
 import type { AIWorkerPool } from '../../types/workers.js';
-import type { UserProfile } from '../../services/user/types.js';
+import type { Citation, SourceInfo } from '../../utils/prompt/types.js';
 
 const log = createLogger('claude_gruenerator_ask');
 const documentSearchService = new DocumentSearchService();
@@ -141,7 +143,7 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
     },
   ];
 
-  let allSearchResults: SearchResult[] = [];
+  const allSearchResults: SearchResult[] = [];
   let searchCount = 0;
   const maxSearches = 5;
 

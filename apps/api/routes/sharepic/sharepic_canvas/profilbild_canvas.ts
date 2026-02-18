@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
-import multer from 'multer';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
+
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
 import { createLogger } from '../../../utils/logger.js';
 

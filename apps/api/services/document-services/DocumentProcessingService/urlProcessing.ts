@@ -3,8 +3,9 @@
  * Handles crawled URL content processing
  */
 
-import type { UrlProcessingResult } from './types.js';
 import { chunkAndEmbedText } from './chunkingPipeline.js';
+
+import type { UrlProcessingResult } from './types.js';
 
 /**
  * Process crawled URL content

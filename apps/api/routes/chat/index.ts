@@ -4,12 +4,13 @@
  */
 
 import express from 'express';
+
+import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
 import chatStreamRouter from './chatStreamController.js';
-import threadsRouter from './threadsController.js';
 import messagesRouter from './messagesController.js';
 import notebookStreamRouter from './notebookStreamController.js';
 import summarizeRouter from './summarizeController.js';
-import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
+import threadsRouter from './threadsController.js';
 
 const router = express.Router();
 
@@ -26,17 +27,17 @@ router.get('/agents', async (_req, res) => {
     const clientAgents = agents
       .filter((agent) => agent.identifier !== defaultId)
       .map((agent) => ({
-      identifier: agent.identifier,
-      title: agent.title,
-      description: agent.description,
-      avatar: agent.avatar,
-      backgroundColor: agent.backgroundColor,
-      tags: agent.tags,
-      openingMessage: agent.openingMessage,
-      openingQuestions: agent.openingQuestions,
-      locale: agent.locale,
-      author: agent.author,
-    }));
+        identifier: agent.identifier,
+        title: agent.title,
+        description: agent.description,
+        avatar: agent.avatar,
+        backgroundColor: agent.backgroundColor,
+        tags: agent.tags,
+        openingMessage: agent.openingMessage,
+        openingQuestions: agent.openingQuestions,
+        locale: agent.locale,
+        author: agent.author,
+      }));
     res.json(clientAgents);
   } catch (error) {
     console.error('Error loading agents:', error);
@@ -74,10 +75,6 @@ router.get('/health', (_req, res) => {
   });
 });
 
-export {
-  getAgent,
-  loadAgents,
-  getDefaultAgentId,
-};
+export { getAgent, loadAgents, getDefaultAgentId };
 
 export default router;

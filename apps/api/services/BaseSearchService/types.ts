@@ -4,8 +4,8 @@
  * Provides TypeScript interfaces for search parameters, results, and scoring.
  */
 
-import type { Request } from 'express';
 import type { SearchPatternResult } from './keyword-extractor-types.js';
+import type { Request } from 'express';
 
 // ============ Search Parameters ============
 

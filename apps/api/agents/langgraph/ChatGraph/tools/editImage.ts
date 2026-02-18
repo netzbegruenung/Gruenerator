@@ -9,8 +9,8 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
-import { FluxImageService } from '../../../../services/flux/index.js';
 import { buildGreenEditPrompt } from '../../../../services/flux/greenEditPrompt.js';
+import { FluxImageService } from '../../../../services/flux/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 

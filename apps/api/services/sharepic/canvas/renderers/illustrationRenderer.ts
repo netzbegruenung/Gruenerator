@@ -4,15 +4,16 @@
  * Supports: OpenDoodles, Undraw (Kawaii is phase 2 - requires React SSR)
  */
 
+import fs from 'fs/promises';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
 import {
   loadImage,
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import fs from 'fs/promises';
+
 import type { IllustrationLayer } from '../types/freeCanvasTypes.js';
 
 const __filename = fileURLToPath(import.meta.url);

@@ -3,8 +3,9 @@
  * Searches official Green Party Grundsatz documents (deep mode only)
  */
 
-import type { WebSearchState } from '../types.js';
 import { DocumentSearchService } from '../../../../services/document-services/DocumentSearchService/index.js';
+
+import type { WebSearchState } from '../types.js';
 
 const documentSearchService = new DocumentSearchService();
 

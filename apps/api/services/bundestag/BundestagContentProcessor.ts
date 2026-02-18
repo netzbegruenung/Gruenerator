@@ -1,10 +1,10 @@
-import { mistralEmbeddingService } from '../mistral/index.js';
+import { createLogger } from '../../utils/logger.js';
 import {
   smartChunkDocument,
   hierarchicalChunkDocument,
   estimateTokens,
 } from '../document-services/index.js';
-import { createLogger } from '../../utils/logger.js';
+import { mistralEmbeddingService } from '../mistral/index.js';
 
 const log = createLogger('BundestagProcessor');
 

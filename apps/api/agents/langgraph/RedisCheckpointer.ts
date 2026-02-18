@@ -6,8 +6,10 @@
  */
 
 import { BaseCheckpointSaver } from '@langchain/langgraph';
-import type { RedisClientType } from 'redis';
+
 import { createLogger } from '../../utils/logger.js';
+
+import type { RedisClientType } from 'redis';
 
 const log = createLogger('Checkpointer');
 const CHECKPOINT_TTL = 7200; // 2 hours to match session TTL

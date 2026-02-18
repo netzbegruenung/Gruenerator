@@ -3,6 +3,8 @@
  * This file exists solely to verify that all types compile correctly
  */
 
+import { runWebSearch } from './WebSearchGraph.js';
+
 import type {
   WebSearchState,
   WebSearchInput,
@@ -17,8 +19,6 @@ import type {
   CrawlMetadata,
   SearchOptions,
 } from './types.js';
-
-import { runWebSearch } from './WebSearchGraph.js';
 
 // Type verification tests - these should all compile without errors
 

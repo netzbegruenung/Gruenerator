@@ -1,13 +1,16 @@
+import fsSync from 'fs';
+import fs from 'fs/promises';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import campaignCanvasRouter from '../../routes/sharepic/sharepic_canvas/campaign_canvas.js';
+import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
+import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
+import zitatCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_canvas.js';
+import zitatPureCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
 import sharepicClaudeRouter, {
   handleClaudeRequest as sharepicClaudeHandler,
 } from '../../routes/sharepic/sharepic_claude/index.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
-import zitatPureCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
-import zitatCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_canvas.js';
-import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
-import campaignCanvasRouter from '../../routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import {
   getFirstImageAttachment,
   convertToBuffer,
@@ -16,17 +19,14 @@ import {
 } from '../../services/attachments/index.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import { parseResponse, type ParserConfig } from '../../utils/campaign/index.js';
-import fs from 'fs/promises';
-import fsSync from 'fs';
-import path from 'path';
 import { createLogger } from '../../utils/logger.js';
-import type { Request, Response } from 'express';
-import type { Router } from 'express';
-import type { UserProfile } from '../../services/user/types.js';
+
 import type {
   ImageAttachment as AttachmentsImageAttachment,
   Attachment,
 } from '../../services/attachments/types.js';
+import type { UserProfile } from '../../services/user/types.js';
+import type { Request, Response, Router } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -264,11 +264,15 @@ const selectAndPrepareImage = async (
   }
 };
 
-const getRouteHandler = (router: Router): Function => {
+const getRouteHandler = (router: Router): ((...args: unknown[]) => unknown) => {
   const stack = (
     router as unknown as {
       stack?: Array<{
-        route?: { path: string; methods?: { post?: boolean }; stack: Array<{ handle: Function }> };
+        route?: {
+          path: string;
+          methods?: { post?: boolean };
+          stack: Array<{ handle: (...args: unknown[]) => unknown }>;
+        };
       }>;
     }
   ).stack;
@@ -329,10 +333,12 @@ const callSharepicClaude = async (
 
   return new Promise<CanvasResult>((resolve, reject) => {
     const res = createMockResponse(resolve, reject);
-    const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any);
+    const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any) as
+      | Promise<unknown>
+      | undefined;
 
-    if (maybePromise && typeof maybePromise.then === 'function') {
-      maybePromise.catch(reject);
+    if (maybePromise != null && typeof maybePromise.then === 'function') {
+      void maybePromise.catch(reject);
     }
   }).then((result) => result.payload as Record<string, unknown>);
 };
@@ -360,10 +366,10 @@ const callCanvasRoute = async (
         if (err) {
           reject(err);
         }
-      });
+      }) as Promise<unknown> | undefined;
 
       if (maybePromise && typeof maybePromise.then === 'function') {
-        maybePromise.catch(reject);
+        void maybePromise.catch(reject);
       }
     } catch (error) {
       reject(error);

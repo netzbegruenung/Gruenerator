@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+
 import {
   createCanvas,
   loadImage,
@@ -9,8 +10,8 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import path from 'path';
-import fs from 'fs';
+import { Router, type Request, type Response } from 'express';
+
 import {
   FONT_PATH,
   PTSANS_REGULAR_PATH,
@@ -403,7 +404,7 @@ async function generateCampaignCanvas(
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body as CampaignRequestBody;
-    let campaignConfig = body.campaignConfig;
+    const campaignConfig = body.campaignConfig;
     let textData = body.textData;
 
     const location = body.location || body.thema || '';

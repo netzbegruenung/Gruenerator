@@ -3,8 +3,10 @@
  * Batch upsert, delete, scroll, and health check
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../../utils/logger.js';
+
 import type {
   BatchUpsertOptions,
   BatchUpsertResult,

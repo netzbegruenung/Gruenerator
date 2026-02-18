@@ -1,12 +1,14 @@
-import express, { Response, Router } from 'express';
+import express, { type Response, type Router } from 'express';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { createLogger } from '../../utils/logger.js';
 import {
   saveRecentValue,
   getRecentValues,
   clearRecentValues,
   getFieldTypesWithCounts,
 } from '../../services/chat/RecentValuesService.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('recentValues');
@@ -44,63 +46,71 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
   }
 });
 
-router.get('/:fieldType', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { fieldType } = req.params;
-    const { limit } = req.query;
-    const userId = req.user!.id;
+router.get(
+  '/:fieldType',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ fieldType: string }>, res: Response) => {
+    try {
+      const { fieldType } = req.params;
+      const { limit } = req.query;
+      const userId = req.user!.id;
 
-    if (!fieldType) {
-      return res.status(400).json({
-        error: 'fieldType parameter is required',
+      if (!fieldType) {
+        return res.status(400).json({
+          error: 'fieldType parameter is required',
+        });
+      }
+
+      const values = await getRecentValues(
+        userId,
+        fieldType,
+        limit ? parseInt(limit as string, 10) : undefined
+      );
+
+      return res.json({
+        success: true,
+        data: values,
+        fieldType,
+        count: values.length,
+      });
+    } catch (error) {
+      log.error('[RecentValues API] Error retrieving recent values:', error);
+      return res.status(500).json({
+        error: (error as Error).message || 'Failed to retrieve recent values',
       });
     }
-
-    const values = await getRecentValues(
-      userId,
-      fieldType,
-      limit ? parseInt(limit as string, 10) : undefined
-    );
-
-    return res.json({
-      success: true,
-      data: values,
-      fieldType,
-      count: values.length,
-    });
-  } catch (error) {
-    log.error('[RecentValues API] Error retrieving recent values:', error);
-    return res.status(500).json({
-      error: (error as Error).message || 'Failed to retrieve recent values',
-    });
   }
-});
+);
 
-router.delete('/:fieldType', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { fieldType } = req.params;
-    const userId = req.user!.id;
+router.delete(
+  '/:fieldType',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ fieldType: string }>, res: Response) => {
+    try {
+      const { fieldType } = req.params;
+      const userId = req.user!.id;
 
-    if (!fieldType) {
-      return res.status(400).json({
-        error: 'fieldType parameter is required',
+      if (!fieldType) {
+        return res.status(400).json({
+          error: 'fieldType parameter is required',
+        });
+      }
+
+      const deletedCount = await clearRecentValues(userId, fieldType);
+
+      return res.json({
+        success: true,
+        message: `Cleared ${deletedCount} recent values for ${fieldType}`,
+        deletedCount,
+      });
+    } catch (error) {
+      log.error('[RecentValues API] Error clearing recent values:', error);
+      return res.status(500).json({
+        error: (error as Error).message || 'Failed to clear recent values',
       });
     }
-
-    const deletedCount = await clearRecentValues(userId, fieldType);
-
-    return res.json({
-      success: true,
-      message: `Cleared ${deletedCount} recent values for ${fieldType}`,
-      deletedCount,
-    });
-  } catch (error) {
-    log.error('[RecentValues API] Error clearing recent values:', error);
-    return res.status(500).json({
-      error: (error as Error).message || 'Failed to clear recent values',
-    });
   }
-});
+);
 
 router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {

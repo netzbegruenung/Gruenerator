@@ -4,15 +4,16 @@
  * Orchestrates video transcription: audio extraction, provider selection, and subtitle generation.
  */
 
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import fs from 'fs/promises';
-import { transcribeWithGladia } from './gladiaService.js';
-import { extractAudio } from './videoUploadService.js';
-import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
-import { startBackgroundCompression } from './backgroundCompressionService.js';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
 import { createLogger } from '../../utils/logger.js';
+
+import { startBackgroundCompression } from './backgroundCompressionService.js';
+import { transcribeWithGladia } from './gladiaService.js';
+import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
+import { extractAudio } from './videoUploadService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

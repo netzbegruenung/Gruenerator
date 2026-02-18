@@ -4,19 +4,21 @@
  * Video export processing with FFmpeg, ASS subtitles, and streaming.
  */
 
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import fs from 'fs';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import { type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { Response } from 'express';
-import { ffmpeg } from './ffmpegWrapper.js';
-import { getVideoMetadata, cleanupFiles } from './videoUploadService.js';
-import { getFilePathFromUploadId, checkFileExists } from './tusService.js';
-import { redisClient } from '../../utils/redis/index.js';
-import AssSubtitleService from './assSubtitleService.js';
+
 import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
+
+import AssSubtitleService from './assSubtitleService.js';
+import { ffmpeg } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
+import { getFilePathFromUploadId, checkFileExists } from './tusService.js';
+import { getVideoMetadata, cleanupFiles } from './videoUploadService.js';
 
 const fsPromises = fs.promises;
 const __filename = fileURLToPath(import.meta.url);

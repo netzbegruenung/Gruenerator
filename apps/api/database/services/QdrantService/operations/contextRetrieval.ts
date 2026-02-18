@@ -3,8 +3,10 @@
  * Fetch chunks with surrounding context
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../../utils/logger.js';
+
 import type { ContextOptions, ChunkWithContext } from './types.js';
 
 const logger = createLogger('QdrantOperations:contextRetrieval');

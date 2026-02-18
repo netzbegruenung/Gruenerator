@@ -1,8 +1,11 @@
-import { Worker } from 'worker_threads';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import config from './worker.config.js';
+import { Worker } from 'worker_threads';
+
 import { PrivacyCounter } from '../services/counters/index.js';
+
+import config from './worker.config.js';
+
 import type {
   WorkerInstance,
   PendingRequest,
@@ -161,7 +164,7 @@ class AIWorkerPool {
   ): Promise<AIWorkerResult> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
-    let processedData = { ...data };
+    const processedData = { ...data };
 
     if (data.usePrivacyMode && this.privacyCounter && req) {
       try {

@@ -3,11 +3,13 @@
  * Handles daily image generation limits and status
  */
 
-import express, { Response, Router } from 'express';
-import { ImageGenerationCounter } from '../../services/counters/index.js';
-import { redisClient } from '../../utils/redis/index.js';
+import express, { type Response, type Router } from 'express';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
+
 import type {
   AuthenticatedRequest,
   GenerationStatusResponse,

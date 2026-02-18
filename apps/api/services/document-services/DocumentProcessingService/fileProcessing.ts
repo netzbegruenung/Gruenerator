@@ -4,9 +4,11 @@
  */
 
 import fs from 'fs';
-import type { UploadedFile, FileUploadResult } from './types.js';
-import { extractTextFromFile, generateContentPreview } from './textExtraction.js';
+
 import { chunkAndEmbedText } from './chunkingPipeline.js';
+import { extractTextFromFile, generateContentPreview } from './textExtraction.js';
+
+import type { UploadedFile, FileUploadResult } from './types.js';
 
 /**
  * Process a file upload (handles extraction and processing)
@@ -151,7 +153,10 @@ export async function processUploadedDocument(
       sourceType: document.source_type || 'manual',
     };
   } catch (error) {
-    console.error(`[DocumentProcessingService] Deferred processing failed for ${documentId}:`, error);
+    console.error(
+      `[DocumentProcessingService] Deferred processing failed for ${documentId}:`,
+      error
+    );
 
     try {
       await postgresDocumentService.updateDocumentMetadata(documentId, userId, {

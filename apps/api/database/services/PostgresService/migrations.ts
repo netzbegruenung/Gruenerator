@@ -3,8 +3,10 @@
  */
 
 import fs from 'fs';
-import type { Pool, PoolClient } from 'pg';
+
 import { getMigrationsPath } from './schema.js';
+
+import type { Pool, PoolClient } from 'pg';
 
 /**
  * Run database migrations with timeout protection

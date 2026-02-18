@@ -2,8 +2,8 @@
  * SQL query builder helpers
  */
 
-import type { PoolClient } from 'pg';
 import type { ExecResult } from './types.js';
+import type { PoolClient } from 'pg';
 
 /**
  * Build INSERT query

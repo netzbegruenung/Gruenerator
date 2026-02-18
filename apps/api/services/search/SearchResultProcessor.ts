@@ -431,7 +431,7 @@ export function summarizeReferencesForPrompt(
 export function parseAIJsonResponse(content: string, fallback: any = {}): any {
   try {
     if (!content) return fallback;
-    let clean = content
+    const clean = content
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
       .replace(/```\s*$/g, '')

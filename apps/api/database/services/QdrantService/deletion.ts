@@ -3,8 +3,10 @@
  * Extracted deletion operations for vector data removal
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../utils/logger.js';
+
 import type { Logger } from 'winston';
 
 const defaultLogger = createLogger('QdrantDeletion');

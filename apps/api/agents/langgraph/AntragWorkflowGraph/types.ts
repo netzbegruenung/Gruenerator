@@ -3,8 +3,8 @@
  * Type definitions for the LangGraph-based Antrag workflow
  */
 
-import type { Request } from 'express';
 import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
+import type { Request } from 'express';
 
 // ============================================================================
 // Input & Output Types

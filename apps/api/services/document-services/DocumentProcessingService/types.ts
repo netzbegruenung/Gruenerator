@@ -34,16 +34,12 @@ export interface ProcessingResult {
 /**
  * File upload result
  */
-export interface FileUploadResult extends ProcessingResult {
-  // Same as ProcessingResult
-}
+export type FileUploadResult = ProcessingResult;
 
 /**
  * Text processing result
  */
-export interface TextProcessingResult extends ProcessingResult {
-  // Same as ProcessingResult
-}
+export type TextProcessingResult = ProcessingResult;
 
 /**
  * URL processing result

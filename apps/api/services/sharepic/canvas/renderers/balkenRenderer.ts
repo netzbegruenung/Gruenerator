@@ -4,13 +4,14 @@
  * Based on dreizeilen_canvas.ts lines 226-249 and balkenMath.ts
  */
 
-import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
-import type { BalkenLayer } from '../types/freeCanvasTypes.js';
 import {
   calculateParallelogramPoints,
   getColorScheme,
   BALKEN_CONFIG,
 } from '../utils/balkenMath.js';
+
+import type { BalkenLayer } from '../types/freeCanvasTypes.js';
+import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 
 /**
  * Render a balken layer (single or triple parallelogram bars with text)

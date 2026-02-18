@@ -4,6 +4,7 @@
  */
 
 import { promises as fs } from 'fs';
+
 import type { DocumentLimits } from './types.js';
 
 /**

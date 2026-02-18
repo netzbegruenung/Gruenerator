@@ -1,6 +1,8 @@
-import { Router, Request, Response } from 'express';
-import { processText } from './dreizeilen_canvas.js';
+import { Router, type Request, type Response } from 'express';
+
 import { createLogger } from '../../../utils/logger.js';
+
+import { processText } from './dreizeilen_canvas.js';
 
 const log = createLogger('processText');
 const router: Router = Router();
@@ -20,11 +22,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     res.json({ success: true, message: 'Text erfolgreich verarbeitet', result });
   } catch (error) {
     log.error('Fehler bei der Textverarbeitung:', error);
-    res
-      .status(500)
-      .json({
-        error: (error as Error).message || 'Interner Serverfehler bei der Textverarbeitung',
-      });
+    res.status(500).json({
+      error: (error as Error).message || 'Interner Serverfehler bei der Textverarbeitung',
+    });
   }
 });
 

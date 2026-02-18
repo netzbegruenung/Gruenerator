@@ -4,8 +4,11 @@
  */
 
 import { QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../utils/logger.js';
+
 import { extractMultiFieldContent } from './search.js';
+
 import type { Logger } from 'winston';
 
 const logger = createLogger('QdrantService:random');

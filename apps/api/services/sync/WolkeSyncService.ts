@@ -4,19 +4,21 @@
  * Syncs folders, processes files, and stores vectors in Qdrant
  */
 
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
+import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
 import {
   DocumentSearchService,
   getPostgresDocumentService,
   smartChunkDocument,
 } from '../document-services/index.js';
-import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
-import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
-import { ocrService } from '../OcrService/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
+import { ocrService } from '../OcrService/index.js';
+
 import type { WolkeSyncStatus, NextcloudFile, FileProcessResult, SyncResult } from './types.js';
 
 export class WolkeSyncService {
@@ -347,7 +349,9 @@ export class WolkeSyncService {
         } catch (error) {
           try {
             await fs.unlink(tempFilePath);
-          } catch {}
+          } catch {
+            /* ignore temp file cleanup error */
+          }
           throw error;
         }
       } else if (['.txt', '.md'].includes(fileExtension)) {

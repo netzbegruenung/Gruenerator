@@ -4,9 +4,12 @@
  */
 
 import { generateText, type ModelMessage, type Tool } from 'ai';
+
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
+
 import { mergeMetadata } from './adapterUtils.js';
+
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
 
 /**
@@ -86,7 +89,9 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
   // Check provider availability
   if (!isProviderConfigured('ionos')) {
-    throw new Error('IONOS provider is not configured. Check IONOS_API_TOKEN environment variable.');
+    throw new Error(
+      'IONOS provider is not configured. Check IONOS_API_TOKEN environment variable.'
+    );
   }
 
   // Default to IONOS-compatible model
@@ -173,7 +178,10 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       content: textContent,
       stop_reason: stopReason,
       tool_calls: toolCalls,
-      raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : [{ type: 'text', text: textContent || '' }],
+      raw_content_blocks:
+        rawContentBlocks.length > 0
+          ? rawContentBlocks
+          : [{ type: 'text', text: textContent || '' }],
       success: true,
       metadata: mergeMetadata(requestMetadata, {
         provider: 'ionos',

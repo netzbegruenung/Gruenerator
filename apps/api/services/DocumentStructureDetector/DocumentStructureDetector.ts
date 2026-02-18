@@ -4,7 +4,8 @@
  * for better context-aware chunking
  */
 
-import { patterns } from './patterns.js';
+import { enhanceStructure } from './analysis.js';
+import { findSemanticBoundaries } from './boundaries.js';
 import {
   detectChapter,
   detectSection,
@@ -14,8 +15,8 @@ import {
   calculateSectionLevel,
   getPositionFromLine,
 } from './detection.js';
-import { enhanceStructure } from './analysis.js';
-import { findSemanticBoundaries } from './boundaries.js';
+import { patterns } from './patterns.js';
+
 import type { PatternCollection, DocumentStructure, SemanticBoundary } from './types.js';
 
 /**

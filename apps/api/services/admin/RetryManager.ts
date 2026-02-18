@@ -5,7 +5,9 @@
  */
 
 import fs from 'fs/promises';
+
 import { createLogger } from '../../utils/logger.js';
+
 import type { GrueneApiClient } from './GrueneApiClient.js';
 import type { BatchUpdateEntry } from './types.js';
 

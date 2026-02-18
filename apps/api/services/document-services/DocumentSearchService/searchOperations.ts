@@ -8,6 +8,8 @@
  * - Bundestag content search
  */
 
+import { vectorConfig } from '../../../config/vectorConfig.js';
+
 import type {
   DocumentSearchOptions,
   DocumentSearchFilters,
@@ -20,14 +22,9 @@ import type {
   BundestagResultGroup,
   QdrantSearchResult,
 } from './types.js';
-
-import type { SearchResponse } from '../../BaseSearchService/types.js';
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 import type { QdrantService } from '../../../database/services/QdrantService.js';
-
-// Import JavaScript dependencies
-// @ts-ignore - JavaScript module without types
-import { vectorConfig } from '../../../config/vectorConfig.js';
+import type { SearchResponse } from '../../BaseSearchService/types.js';
 
 /**
  * Perform full-text (keyword-only) search over document chunks
@@ -235,7 +232,10 @@ export async function findSimilarChunks(
 
   return results.map((result) => ({
     id: result.id,
-    document_id: (result.payload.document_id as string) || (result.payload.source_url as string) || (result.payload.url as string),
+    document_id:
+      (result.payload.document_id as string) ||
+      (result.payload.source_url as string) ||
+      (result.payload.url as string),
     chunk_index: result.payload.chunk_index as number,
     chunk_text: result.payload.chunk_text as string,
     similarity: result.score,
@@ -246,7 +246,10 @@ export async function findSimilarChunks(
     created_at: result.payload.created_at as string | undefined,
     url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
     documents: {
-      id: (result.payload.document_id as string) || (result.payload.source_url as string) || (result.payload.url as string),
+      id:
+        (result.payload.document_id as string) ||
+        (result.payload.source_url as string) ||
+        (result.payload.url as string),
       title:
         (result.payload.title as string) ||
         (result.payload.metadata?.title as string) ||
@@ -328,7 +331,10 @@ export async function findHybridChunks(
     const metadata = result.payload.metadata as Record<string, unknown> | undefined;
     return {
       id: result.id,
-      document_id: (result.payload.document_id as string) || (result.payload.source_url as string) || (result.payload.url as string),
+      document_id:
+        (result.payload.document_id as string) ||
+        (result.payload.source_url as string) ||
+        (result.payload.url as string),
       chunk_index: result.payload.chunk_index as number,
       chunk_text: result.payload.chunk_text as string,
       similarity: result.score,
@@ -342,7 +348,10 @@ export async function findHybridChunks(
       originalVectorScore: result.originalVectorScore ?? null,
       originalTextScore: result.originalTextScore ?? null,
       documents: {
-        id: (result.payload.document_id as string) || (result.payload.source_url as string) || (result.payload.url as string),
+        id:
+          (result.payload.document_id as string) ||
+          (result.payload.source_url as string) ||
+          (result.payload.url as string),
         title: (result.payload.title as string) || (metadata?.title as string) || 'Untitled',
         filename: (result.payload.filename as string) || (metadata?.filename as string) || '',
         created_at: result.payload.created_at as string | undefined,

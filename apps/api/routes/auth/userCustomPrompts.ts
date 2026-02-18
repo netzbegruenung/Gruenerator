@@ -3,13 +3,16 @@
  * Handles custom prompt CRUD, saved prompts, and semantic search
  */
 
-import express, { Router, Response, NextFunction } from 'express';
 import { randomBytes } from 'crypto';
+
 import { Mistral } from '@mistralai/mistralai';
+import express, { type Router, type Response, type NextFunction } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import { createLogger } from '../../utils/logger.js';
 import { getPromptVectorService } from '../../services/prompts/index.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type { AuthRequest } from './types.js';
 
 const mistral = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
@@ -171,7 +174,7 @@ router.post(
 router.put(
   '/custom_prompts/:id',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
@@ -235,7 +238,7 @@ router.put(
 router.delete(
   '/custom_prompts/:id',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
@@ -335,7 +338,7 @@ router.get(
 router.post(
   '/saved_prompts/:promptId',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ promptId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { promptId } = req.params;
@@ -413,7 +416,7 @@ router.post(
 router.delete(
   '/saved_prompts/:promptId',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ promptId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { promptId } = req.params;

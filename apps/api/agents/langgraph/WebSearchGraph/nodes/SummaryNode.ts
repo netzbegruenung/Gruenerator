@@ -3,9 +3,10 @@
  * Generates AI summary using enriched results (normal mode only)
  */
 
-import type { WebSearchState, Citation } from '../types.js';
-import { extractKeyParagraphs } from '../utilities/contentExtractor.js';
 import { validateAndInjectCitations } from '../../../../services/search/index.js';
+import { extractKeyParagraphs } from '../utilities/contentExtractor.js';
+
+import type { WebSearchState, Citation } from '../types.js';
 
 /**
  * Intelligent Summary Node: Generate AI summary with citations
