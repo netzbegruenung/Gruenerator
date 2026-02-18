@@ -27,7 +27,6 @@ export interface UserProfile {
   notebook: boolean;
   sharepic: boolean;
   anweisungen: boolean;
-  canva: boolean;
   labor_enabled: boolean;
   sites_enabled: boolean;
   chat: boolean;
@@ -41,7 +40,6 @@ export interface UserProfile {
   bundestag_api_enabled?: boolean;
   memory_enabled?: boolean;
   custom_prompt?: string;
-  canva_user_id?: string;
 
   // Timestamps
   created_at: Date | string;
@@ -66,7 +64,6 @@ export interface ProfileCreateData {
   notebook?: boolean;
   sharepic?: boolean;
   anweisungen?: boolean;
-  canva?: boolean;
   interactive_antrag_enabled?: boolean;
 }
 
@@ -90,7 +87,6 @@ export interface BetaFeatures {
   notebook: boolean;
   sharepic: boolean;
   anweisungen: boolean;
-  canva: boolean;
   labor: boolean;
   sites: boolean;
   chat: boolean;
