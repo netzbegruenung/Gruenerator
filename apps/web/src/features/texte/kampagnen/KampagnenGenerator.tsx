@@ -31,10 +31,6 @@ import './KampagnenGenerator.css';
 // Type Definitions
 // =============================================================================
 
-interface KampagnenGeneratorProps {
-  showHeaderFooter?: boolean;
-}
-
 interface CampaignVariant {
   id: string;
   displayName: string;
@@ -141,7 +137,7 @@ interface UseCampaignSharepicEditReturn {
   clearError: () => void;
 }
 
-const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFooter = true }) => {
+const KampagnenGenerator: React.FC = () => {
   const componentName = 'kampagnen-generator';
 
   // Campaign data loaded from registry

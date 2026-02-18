@@ -14,7 +14,7 @@ import { useGeneratorSelectionStore } from '../../stores/core/generatorSelection
 import type { Control } from 'react-hook-form';
 import './website.css';
 
-const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
+const WebsiteGeneratorContent = () => {
   const componentName = 'website-generator';
   const { setGeneratedText } = useGeneratedTextStore();
   const user = useAuthStore((state) => state.user);
@@ -182,7 +182,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
   }, []);
 
   return (
-    <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+    <div className="container with-header">
       <BaseForm
         title="Was möchtest du heute grünerieren?"
         subtitle="Generiere Website-Inhalte als JSON"
@@ -210,15 +210,11 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
   );
 };
 
-interface WebsiteGeneratorProps {
-  showHeaderFooter?: boolean;
-}
-
-const WebsiteGenerator = (props: WebsiteGeneratorProps) => {
+const WebsiteGenerator = () => {
   return (
     <ErrorBoundary>
       <BetaFeatureWrapper featureKey="website" fallbackPath="/profile?tab=labor">
-        <WebsiteGeneratorContent {...props} />
+        <WebsiteGeneratorContent />
       </BetaFeatureWrapper>
     </ErrorBoundary>
   );

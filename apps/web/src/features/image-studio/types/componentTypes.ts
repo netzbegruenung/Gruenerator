@@ -36,14 +36,6 @@ export interface ImageStudioFormSectionProps {
   updateFormData: (data: Record<string, any>) => void;
 }
 
-export interface ImageStudioPageContentProps {
-  showHeaderFooter?: boolean;
-}
-
-export interface ImageStudioPageProps {
-  showHeaderFooter?: boolean;
-}
-
 // Slogan alternative type for text generation results
 export interface SloganAlternative {
   line1?: string;
