@@ -21,6 +21,9 @@ interface SubmitButtonProps {
   };
   iconOnly?: boolean;
   disabled?: boolean;
+  isStreaming?: boolean;
+  streamingMessage?: string;
+  onAbort?: () => void;
 }
 
 const SubmitButton = ({
@@ -38,6 +41,9 @@ const SubmitButton = ({
   imageLimitInfo,
   iconOnly = false,
   disabled,
+  isStreaming = false,
+  streamingMessage,
+  onAbort,
 }: SubmitButtonProps): JSX.Element => {
   const [internalSuccess, setInternalSuccess] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,6 +67,12 @@ const SubmitButton = ({
   }, [success, internalSuccess]);
 
   const handleClick = (event: React.MouseEvent) => {
+    if (isStreaming && onAbort) {
+      event.preventDefault();
+      onAbort();
+      return;
+    }
+
     if (!loading && onClick) {
       const activeElement = document.activeElement as HTMLElement | null;
 
@@ -79,6 +91,10 @@ const SubmitButton = ({
   };
 
   const getDisplayText = () => {
+    if (isStreaming) {
+      return 'Grüneriere...';
+    }
+
     if (loading && statusMessage && showStatus) {
       return statusMessage;
     }
@@ -94,19 +110,30 @@ const SubmitButton = ({
     return text;
   };
 
+  const isStreamingActive = isStreaming && onAbort;
+
   return (
     <button
-      type={type}
+      type={isStreamingActive ? 'button' : type}
       onClick={handleClick}
-      className={`btn-primary ${className} ${loading ? 'btn-loading' : ''} ${internalSuccess ? 'btn-success' : ''} ${iconOnly ? 'btn-icon-only' : ''}`}
-      aria-busy={loading}
-      aria-label={ariaLabel || text}
-      disabled={loading || disabled}
+      className={`btn-primary ${className} ${loading && !isStreaming ? 'btn-loading' : ''} ${internalSuccess ? 'btn-success' : ''} ${iconOnly && !isStreaming ? 'btn-icon-only' : ''} ${isStreamingActive ? 'btn-streaming' : ''}`}
+      aria-busy={loading || isStreaming}
+      aria-label={isStreamingActive ? 'Abbrechen' : ariaLabel || text}
+      disabled={loading && !isStreaming}
       tabIndex={tabIndex}
     >
-      {loading && <Spinner size="small" white />}
-      {icon && !loading && <span className="btn-icon">{icon}</span>}
-      {!iconOnly && <span>{getDisplayText()}</span>}
+      {isStreamingActive ? (
+        <>
+          <Spinner size="small" white />
+          <span>{getDisplayText()}</span>
+        </>
+      ) : (
+        <>
+          {loading && <Spinner size="small" white />}
+          {icon && !loading && <span className="btn-icon">{icon}</span>}
+          {!iconOnly && <span>{getDisplayText()}</span>}
+        </>
+      )}
     </button>
   );
 };

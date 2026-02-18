@@ -15,7 +15,6 @@ export function useContentManagement(params: UseContentManagementParams) {
   const { componentName, generatedContent, initialContent } = params;
 
   const value = useGeneratedTextStore((state) => state.getGeneratedText(componentName));
-  const isStreaming = useGeneratedTextStore((state) => state.isStreaming);
   const setGeneratedText = useGeneratedTextStore((state) => state.setGeneratedText);
   const pushToHistory = useGeneratedTextStore((state) => state.pushToHistory);
 
@@ -38,7 +37,7 @@ export function useContentManagement(params: UseContentManagementParams) {
     return false;
   }, [editableSource]);
 
-  const hasEditableContent = isStreaming || editableText.length > 0;
+  const hasEditableContent = editableText.length > 0;
   const hasAnyContent = hasEditableContent || hasSharepicContent;
 
   // Initialize with initial content if needed

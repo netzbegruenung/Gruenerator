@@ -78,6 +78,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   onEditModeToggle,
 }) => {
   const getGeneratedTextMetadata = useGeneratedTextStore((state) => state.getGeneratedTextMetadata);
+  const isStoreStreaming = useGeneratedTextStore((state) => state.isStreaming);
 
   let processedGeneratedContent: GeneratedContent | undefined = generatedContent;
 
@@ -245,7 +246,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   // All text content now renders as Markdown
   if (typeof contentToRender === 'string') {
     return (
-      <div className="generated-content-wrapper">
+      <div className={`generated-content-wrapper${isStoreStreaming ? ' is-streaming' : ''}`}>
         <div className="content-display markdown-content">
           <Markdown>{contentToRender}</Markdown>
         </div>
@@ -334,7 +335,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       const customComponents = createCitationComponents(citations);
 
       return (
-        <div className="generated-content-wrapper">
+        <div className={`generated-content-wrapper${isStoreStreaming ? ' is-streaming' : ''}`}>
           <div className="content-display markdown-content">
             <Markdown components={customComponents as Record<string, unknown>}>
               {contentToRender as string}
@@ -344,7 +345,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       );
     } else {
       return (
-        <div className="generated-content-wrapper">
+        <div className={`generated-content-wrapper${isStoreStreaming ? ' is-streaming' : ''}`}>
           <div className="content-display markdown-content">
             <Markdown>{contentToRender as string}</Markdown>
           </div>
@@ -360,7 +361,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     }
 
     return (
-      <div className="generated-content-wrapper">
+      <div className={`generated-content-wrapper${isStoreStreaming ? ' is-streaming' : ''}`}>
         <div className="content-display">
           {typeof enhancedContent === 'string' ? (
             <div dangerouslySetInnerHTML={{ __html: enhancedContent }} />

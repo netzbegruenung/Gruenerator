@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import apiClient from '../components/utils/apiClient';
 import { useAuthStore, type AuthStore } from '../stores/authStore';
@@ -372,6 +373,36 @@ export const useAuth = (options: AuthOptions = {}) => {
   } = useQuery<AuthData>({
     queryKey: ['authStatus'],
     queryFn: async (): Promise<AuthData> => {
+      if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
+        return {
+          isAuthenticated: true,
+          user: {
+            id: 'dev-user-123',
+            email: 'dev@gruenerator.de',
+            display_name: 'Test User',
+            avatar_robot_id: 1,
+            beta_features: {},
+            user_defaults: {},
+            locale: 'de-DE',
+            igel_modus: false,
+            groups_enabled: true,
+            custom_generators: true,
+            database_access: true,
+            collab: true,
+            notebook: true,
+            sharepic: true,
+            anweisungen: true,
+            canva: true,
+            labor_enabled: true,
+            sites_enabled: true,
+            chat: true,
+            interactive_antrag_enabled: true,
+            auto_save_on_export: true,
+            vorlagen: true,
+            video_editor: true,
+          },
+        };
+      }
       const response = await apiClient.get('/auth/status', {
         skipAuthRedirect: true,
       } as ExtendedAxiosRequestConfig);

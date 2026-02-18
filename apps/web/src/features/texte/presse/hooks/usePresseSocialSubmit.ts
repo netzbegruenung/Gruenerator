@@ -48,6 +48,12 @@ interface SubmissionConfig {
    * Whether user can use sharepic feature
    */
   canUseSharepic: boolean;
+
+  /**
+   * External submit function (e.g. streaming submit from useBaseForm).
+   * When provided, replaces the internal useApiSubmit for social text generation.
+   */
+  externalSubmitForm?: (formData: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
 /**
@@ -140,7 +146,10 @@ interface SubmitReturn {
  * ```
  */
 export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
-  const { submitForm, loading: socialLoading, error: socialError } = useApiSubmit('/claude_social');
+  const internalApi = useApiSubmit('/claude_social');
+  const socialSubmitForm = config.externalSubmitForm || internalApi.submitForm;
+  const socialLoading = config.externalSubmitForm ? false : internalApi.loading;
+  const socialError = config.externalSubmitForm ? null : internalApi.error;
   const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
   const prWorkflow = usePRWorkflow();
 
@@ -234,7 +243,7 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
         // Prepare social generation promise
         if (otherPlatforms.length > 0) {
           generationPromises.push(
-            submitForm(submissionData)
+            socialSubmitForm(submissionData)
               .then((result) => ({ type: 'social', result }))
               .catch((error) => ({ type: 'social', error }))
           );
@@ -302,7 +311,7 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
       }
     },
     [
-      submitForm,
+      socialSubmitForm,
       generateSharepic,
       config.canUseSharepic,
       config.features,

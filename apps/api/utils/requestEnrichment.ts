@@ -778,9 +778,6 @@ class RequestEnricher {
       // Try to generate AI summary
       try {
         if (aiWorkerPool) {
-          // Add small delay to allow connection cleanup before next AI request
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
           const summary = await searxngWebSearchService.generateAISummary(
             searchResults,
             searchQuery,

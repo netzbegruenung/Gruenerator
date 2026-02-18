@@ -184,6 +184,8 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     generator?: {
       tabIndex?: Record<string, number>;
       baseFormTabIndex?: Record<string, number>;
+      baseFormProps?: Record<string, unknown>;
+      submitForm?: (formData: Record<string, unknown>) => Promise<Record<string, unknown>>;
     };
     [key: string]: unknown;
   };
@@ -245,6 +247,9 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     selectedTextIds: setup.selectedTextIds,
     attachments: allAttachments,
     canUseSharepic,
+    externalSubmitForm: form.generator?.submitForm as
+      | ((formData: Record<string, unknown>) => Promise<Record<string, unknown>>)
+      | undefined,
   });
 
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
@@ -469,14 +474,19 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
     []
   );
 
+  const baseFormProps = (form.generator as Record<string, unknown> | undefined)?.baseFormProps as
+    | Record<string, unknown>
+    | undefined;
+
   return (
     <>
       <BaseForm
+        {...baseFormProps}
         useStartPageLayout={false}
         onSubmit={() => void handleSubmit(onSubmitRHF)()}
-        loading={submitHandler.loading}
+        loading={submitHandler.loading || !!baseFormProps?.loading}
         success={false}
-        error={submitHandler.error}
+        error={submitHandler.error || (baseFormProps?.error as string) || undefined}
         generatedContent={generatedContentWithHandler as GeneratedContent}
         useMarkdown={false}
         enableKnowledgeSelector={true}
@@ -486,24 +496,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
         onAttachmentClick={handleAttachmentClick}
         onRemoveFile={handleRemoveFile}
         attachedFiles={attachedFiles}
-        featureIconsTabIndex={{
-          webSearch: (form.generator?.tabIndex as Record<string, number> | undefined)?.webSearch,
-          privacyMode: (form.generator?.tabIndex as Record<string, number> | undefined)
-            ?.privacyMode,
-          attachment: (form.generator?.tabIndex as Record<string, number> | undefined)?.attachment,
-        }}
-        knowledgeSelectorTabIndex={
-          (form.generator?.baseFormTabIndex as Record<string, number> | undefined)
-            ?.knowledgeSelectorTabIndex
-        }
-        knowledgeSourceSelectorTabIndex={
-          (form.generator?.baseFormTabIndex as Record<string, number> | undefined)
-            ?.knowledgeSourceSelectorTabIndex
-        }
-        submitButtonTabIndex={
-          (form.generator?.baseFormTabIndex as Record<string, number> | undefined)
-            ?.submitButtonTabIndex
-        }
         contextualTip={activeTip}
         examplePrompts={platformTags as ExamplePrompt[]}
         onExamplePromptClick={handlePlatformTagClick as (prompt: ExamplePrompt) => void}

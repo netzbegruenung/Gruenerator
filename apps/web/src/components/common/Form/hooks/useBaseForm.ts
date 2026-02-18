@@ -9,6 +9,7 @@ import {
 import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
+import useStreamingSubmit from '../../../../hooks/useStreamingSubmit';
 import { useTabIndex, useBaseFormTabIndex } from '../../../../hooks/useTabIndex';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
@@ -45,6 +46,9 @@ interface GeneratorLogic {
   tabIndex: unknown;
   baseFormTabIndex: unknown;
   baseFormProps: Record<string, unknown>;
+  isStreaming: boolean;
+  abortStreaming: () => void;
+  submitForm: (formData: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
 /**
@@ -231,7 +235,11 @@ const useBaseForm = ({
   const baseFormTabIndex = useBaseFormTabIndex((tabIndexKey ?? undefined) as string | undefined);
 
   // Store hooks
-  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+  const {
+    setGeneratedText,
+    setIsLoading: setStoreIsLoading,
+    setIsStreaming: setStoreIsStreaming,
+  } = useGeneratedTextStore();
   const { setUIConfig, setAvailableDocuments, setAvailableTexts } = useGeneratorSelectionStore();
   const {
     fetchCombinedContent,
@@ -243,10 +251,22 @@ const useBaseForm = ({
   const [attachedFiles, setAttachedFiles] = useState<unknown[]>([]);
   const [processedAttachments, setProcessedAttachments] = useState<unknown[]>([]);
 
-  // API hook - pass empty string when not needed
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(
-    generatorType && endpoint ? endpoint : ''
-  );
+  // API hook - use streaming when generator is active
+  const hasEndpoint = !!(generatorType && endpoint);
+  const nonStreamingApi = useApiSubmit(hasEndpoint ? endpoint! : '');
+  const streamingApi = useStreamingSubmit(hasEndpoint ? endpoint! : '', componentName || '');
+
+  const submitForm = hasEndpoint ? streamingApi.submitForm : nonStreamingApi.submitForm;
+  const loading = hasEndpoint ? streamingApi.loading : nonStreamingApi.loading;
+  const success = hasEndpoint ? streamingApi.success : nonStreamingApi.success;
+  const resetSuccess = hasEndpoint ? streamingApi.resetSuccess : nonStreamingApi.resetSuccess;
+  const error = hasEndpoint ? streamingApi.error : nonStreamingApi.error;
+  const {
+    progress: streamingProgress,
+    streamingText,
+    isStreaming,
+    abort: abortStreaming,
+  } = streamingApi;
 
   // Enhanced reset function that preserves original API
   const enhancedReset = useCallback(
@@ -611,6 +631,18 @@ const useBaseForm = ({
     ]
   );
 
+  // Sync streaming state to store
+  useEffect(() => {
+    setStoreIsStreaming(isStreaming);
+  }, [isStreaming, setStoreIsStreaming]);
+
+  // Sync streaming text to store during streaming
+  useEffect(() => {
+    if (isStreaming && streamingText && componentName) {
+      setGeneratedText(componentName, streamingText);
+    }
+  }, [isStreaming, streamingText, componentName, setGeneratedText]);
+
   // Generated content handling
   const generatedContent =
     useGeneratedTextStore((state) => state.getGeneratedText(componentName ?? '')) || '';
@@ -669,6 +701,9 @@ const useBaseForm = ({
         ?.documentSelectorTabIndex,
       submitButtonTabIndex: (baseFormTabIndex as Record<string, unknown>)?.submitButtonTabIndex,
       formControl: control,
+      streamingProgress,
+      isStreaming,
+      abortStreaming,
     }),
     [
       helpContent,
@@ -693,6 +728,9 @@ const useBaseForm = ({
       baseFormTabIndex,
       control,
       useFeatureIcons,
+      streamingProgress,
+      isStreaming,
+      abortStreaming,
     ]
   );
 
@@ -713,6 +751,9 @@ const useBaseForm = ({
         tabIndex,
         baseFormTabIndex,
         baseFormProps,
+        isStreaming,
+        abortStreaming,
+        submitForm,
       }
     : null;
 

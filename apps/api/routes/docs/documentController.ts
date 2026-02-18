@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
+import { DOCS_SUBTYPES } from './constants.js';
+
 /**
  * Permission entry for a user on a document
  */
@@ -41,15 +43,6 @@ interface CollaborativeDocument {
 
 const router = Router();
 const db = getPostgresInstance();
-
-const DOCS_SUBTYPES = [
-  'blank',
-  'antrag',
-  'pressemitteilung',
-  'protokoll',
-  'notizen',
-  'redaktionsplan',
-];
 
 /**
  * @route   POST /api/docs

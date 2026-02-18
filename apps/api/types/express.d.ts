@@ -1,6 +1,6 @@
+import type { AIWorkerPool } from './workers';
 import type { Request, Response, NextFunction } from 'express';
 import type { Session, SessionData } from 'express-session';
-import type { AIWorkerPool } from './workers';
 
 // Define UserProfile shape directly here to avoid circular imports in declaration merging
 interface UserProfileShape {
@@ -22,7 +22,6 @@ interface UserProfileShape {
   notebook: boolean;
   sharepic: boolean;
   anweisungen: boolean;
-  canva: boolean;
   labor_enabled: boolean;
   sites_enabled: boolean;
   chat: boolean;
@@ -53,7 +52,7 @@ declare module 'express-session' {
 
 declare global {
   namespace Express {
-    // Define User as UserProfile for Passport integration
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     interface User extends UserProfileShape {}
 
     interface Request {
