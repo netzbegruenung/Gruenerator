@@ -7,7 +7,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
-import useNotebookStreamChat from '../hooks/useNotebookStreamChat';
+import useNotebookChat from '../hooks/useNotebookChat';
 
 import ActiveFiltersDisplay from './ActiveFiltersDisplay';
 import FilterDropdownButton from './FilterDropdownButton';
@@ -123,33 +123,15 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
     chatMessages,
     inputValue,
     submitLoading,
-    streamingText,
     isMobileView,
     activeCollections,
     setInputValue,
     handleSubmitQuestion,
-  } = useNotebookStreamChat({
+  } = useNotebookChat({
     collections: selectedCollections,
     persistMessages: config.persistMessages,
     extraApiParams,
   });
-
-  // Combine chat messages with streaming text for display
-  const displayMessages = useMemo(() => {
-    if (submitLoading && streamingText) {
-      return [
-        ...chatMessages,
-        {
-          type: 'assistant' as const,
-          content: streamingText,
-          timestamp: Date.now(),
-          id: 'streaming',
-          isStreaming: true,
-        },
-      ];
-    }
-    return chatMessages;
-  }, [chatMessages, submitLoading, streamingText]);
 
   const HeaderIcon = config.headerIcon;
 
@@ -249,7 +231,7 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
         modes={{ chat: { label: 'Chat' } }}
         onModeChange={() => {}}
         title={config.title}
-        messages={displayMessages}
+        messages={chatMessages}
         onSubmit={(value) => {
           if (typeof value === 'string') handleSubmitQuestion(value);
         }}
