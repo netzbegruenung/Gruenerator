@@ -62,6 +62,12 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
     defaultEnabled: true,
   },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
+  {
+    key: 'autoSaveGenerated',
+    label: 'Auto-Speichern generierter Texte',
+    isAdminOnly: false,
+    defaultEnabled: true,
+  },
   { key: 'prompts', label: 'Eigene Prompts', isAdminOnly: false },
   { key: 'docs', label: 'Dokumente', isAdminOnly: false },
   { key: 'scanner', label: 'Scanner (OCR)', isAdminOnly: false },

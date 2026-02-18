@@ -213,7 +213,7 @@ export function loadPromptConfig(type: string): PromptConfig {
  * @param slug - Generator slug
  * @returns Generator data from database
  */
-async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
+export async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
   const postgresService = getPostgresInstance();
   const generators = await postgresService.query(
@@ -235,7 +235,7 @@ async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
  * @param config - Prompt configuration
  * @returns Error message or null if valid
  */
-function validateRequest(requestBody: any, config: PromptConfig): string | null {
+export function validateRequest(requestBody: any, config: PromptConfig): string | null {
   const { validation } = config;
   if (!validation?.required) return null;
 
@@ -259,7 +259,7 @@ function validateRequest(requestBody: any, config: PromptConfig): string | null 
  * @param type - Request type
  * @returns Modified request data
  */
-async function applyProfileDefaults(requestData: any, req: any, type: string): Promise<any> {
+export async function applyProfileDefaults(requestData: any, req: any, type: string): Promise<any> {
   if (!req?.user?.id) return requestData;
   try {
     const { getProfileService } = await import('../../services/user/index.js');
@@ -510,7 +510,7 @@ export function getTaskInstructions(config: PromptConfig, requestData: any): str
  * @param requestData - Request data
  * @returns Output format instructions or null
  */
-function getOutputFormat(config: PromptConfig, requestData: any): string | null {
+export function getOutputFormat(config: PromptConfig, requestData: any): string | null {
   if (!config.outputFormat) return null;
   return SimpleTemplateEngine.render(config.outputFormat, {
     ...requestData,

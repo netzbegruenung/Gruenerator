@@ -5,6 +5,7 @@ interface BaseContainerClassesParams {
   generatedContent?: GeneratedContent;
   isFormVisible?: boolean;
   isStartMode?: boolean;
+  isGenerating?: boolean;
 }
 
 export function getBaseContainerClasses({
@@ -12,6 +13,7 @@ export function getBaseContainerClasses({
   generatedContent,
   isFormVisible,
   isStartMode,
+  isGenerating,
 }: BaseContainerClassesParams): string {
   const hasContent =
     generatedContent &&
@@ -24,7 +26,7 @@ export function getBaseContainerClasses({
     'base-container',
     hasContent ? 'has-generated-content' : '',
     isStartMode ? 'base-container--start-mode' : '',
-    !hasContent && !isStartMode ? 'no-content-column' : '',
+    !hasContent && !isStartMode && !isGenerating ? 'no-content-column' : '',
   ];
   return classes.filter(Boolean).join(' ');
 }
