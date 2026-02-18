@@ -6,7 +6,7 @@ import {
   createDocsApiClient,
   type Document,
 } from '@gruenerator/docs';
-import { EditorTopBar } from '@gruenerator/shared/tiptap-editor/components';
+import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { MantineProvider, SegmentedControl, ScrollArea } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
