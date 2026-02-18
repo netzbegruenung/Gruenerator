@@ -16,7 +16,6 @@ import {
   extractLocaleFromRequest,
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
-import { handleValidationError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
@@ -83,7 +82,6 @@ export async function processGraphRequestStreaming(
     const requestData = req.body;
     const {
       customPrompt,
-      useWebSearchTool,
       usePrivacyMode,
       provider,
       knowledgeContent,

@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
+import { useEffect, useState } from 'react';
 
 import apiClient from '../components/utils/apiClient';
 import { useAuthStore, type AuthStore } from '../stores/authStore';
