@@ -1,5 +1,5 @@
 import { DocsProvider, useCollaboration } from '@gruenerator/docs';
-import { EditorTopBar } from '@gruenerator/shared/tiptap-editor/components';
+import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { MantineProvider } from '@mantine/core';
 import { marked } from 'marked';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
