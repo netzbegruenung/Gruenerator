@@ -840,6 +840,23 @@
   background-color: var(--success-green, #22c55e);
 }
 
+.btn-primary.btn-streaming {
+  cursor: pointer;
+  opacity: 1;
+  padding: var(--primary-button-padding-s);
+  min-width: 160px;
+}
+
+.btn-primary.btn-streaming:not(:disabled) {
+  background-color: var(--primary-button-bg);
+  color: var(--primary-button-text);
+}
+
+.btn-primary.btn-streaming:hover:not(:disabled) {
+  background-color: var(--error-red, #d32f2f);
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.25);
+}
+
 @media (max-width: 768px) {
   .btn-primary {
     min-height: 52px;

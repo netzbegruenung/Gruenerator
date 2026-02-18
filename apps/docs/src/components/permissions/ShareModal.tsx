@@ -40,8 +40,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
       const response = await apiClient.get(`/docs/${documentId}/permissions`);
       setCollaborators(response.data);
       setError(null);
-    } catch (error) {
-      console.error('Failed to fetch collaborators:', error);
+    } catch (err) {
+      console.error('Failed to fetch collaborators:', err);
       setError('Fehler beim Laden der Mitarbeiter');
     } finally {
       setIsLoading(false);
@@ -52,8 +52,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     try {
       const response = await apiClient.get(`/docs/${documentId}/share`);
       setShareSettings(response.data);
-    } catch (error) {
-      console.error('Failed to fetch share settings:', error);
+    } catch (err) {
+      console.error('Failed to fetch share settings:', err);
     }
   }, [documentId]);
 
@@ -68,8 +68,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
       await navigator.clipboard.writeText(shareUrl);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy link:', error);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
       setError('Fehler beim Kopieren des Links');
     }
   };
@@ -82,8 +82,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
         : `/docs/${documentId}/share/enable`;
       const response = await apiClient.post(endpoint);
       setShareSettings(response.data);
-    } catch (error) {
-      console.error('Failed to toggle public sharing:', error);
+    } catch (err) {
+      console.error('Failed to toggle public sharing:', err);
       setError('Fehler beim Ändern der Freigabe');
     } finally {
       setIsTogglingPublic(false);
@@ -94,8 +94,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     try {
       const response = await apiClient.put(`/docs/${documentId}/share/permission`, { permission });
       setShareSettings(response.data);
-    } catch (error) {
-      console.error('Failed to update share permission:', error);
+    } catch (err) {
+      console.error('Failed to update share permission:', err);
       setError('Fehler beim Ändern der Berechtigung');
     }
   };
@@ -109,8 +109,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
         permission_level: newLevel,
       });
       await fetchCollaborators();
-    } catch (error) {
-      console.error('Failed to update permission:', error);
+    } catch (err) {
+      console.error('Failed to update permission:', err);
       setError('Fehler beim Aktualisieren der Berechtigung');
     }
   };
@@ -123,8 +123,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     try {
       await apiClient.delete(`/docs/${documentId}/permissions/${userId}`);
       await fetchCollaborators();
-    } catch (error) {
-      console.error('Failed to revoke permission:', error);
+    } catch (err) {
+      console.error('Failed to revoke permission:', err);
       setError('Fehler beim Entziehen der Berechtigung');
     }
   };

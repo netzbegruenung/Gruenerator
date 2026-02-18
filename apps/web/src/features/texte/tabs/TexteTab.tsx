@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, memo } from 'react';
+import React, { useCallback, useMemo, useRef, memo } from 'react';
 
 import BaseForm from '../../../components/common/BaseForm';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
@@ -27,7 +27,6 @@ const EXAMPLE_PROMPTS: ExamplePrompt[] = [
 ];
 
 const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
-  const [isLoading, setIsLoading] = useState(false);
   const texteFormRef = useRef<FormRef>(null);
 
   const setup = useGeneratorSetup({
@@ -85,19 +84,15 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
       return;
     }
 
-    setIsLoading(true);
-
     try {
       const formDataToSubmit = builder.buildSubmissionData(formData);
+      const response = await form.generator!.submitForm(formDataToSubmit);
 
-      const { default: apiClient } = await import('../../../components/utils/apiClient');
-      const response = await apiClient.post('/texte/smart', formDataToSubmit);
-      const responseData = response.data || response;
-
-      const content = typeof responseData === 'string' ? responseData : responseData.content;
+      const content =
+        typeof response === 'string' ? response : (response as Record<string, unknown>).content;
 
       if (content && form.generator) {
-        form.generator.handleGeneratedContentChange(content);
+        form.generator.handleGeneratedContentChange(content as string);
       }
     } catch (error) {
       console.error('[TexteTab] Error submitting form:', error);
@@ -106,8 +101,6 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
       } else {
         form.handleSubmitError(new Error(String(error)));
       }
-    } finally {
-      setIsLoading(false);
     }
   }, [form, builder]);
 
@@ -138,7 +131,6 @@ const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
           {...restBaseFormProps}
           componentName={COMPONENT_NAME}
           onSubmit={handleSubmit}
-          loading={isLoading}
           useStartPageLayout={true}
           examplePrompts={EXAMPLE_PROMPTS}
           onExamplePromptClick={handleExamplePromptClick}

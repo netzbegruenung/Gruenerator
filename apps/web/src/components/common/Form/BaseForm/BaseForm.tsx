@@ -60,6 +60,7 @@ import '../../../../assets/styles/components/baseform/start-page.css';
 // Import utilities
 
 // Auto-save and Recent Texts
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useTextAutoSave } from '../../../../hooks/useTextAutoSave';
 import { getDocumentType } from '../../../../utils/documentTypeMapper';
 import RecentTextsSection from '../../RecentTexts/RecentTextsSection';
@@ -183,6 +184,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   contextualTip = null, // Tip shown below example prompts { icon, text }
   selectedPlatforms = [], // Array of selected platform IDs for highlighting platform tags
   inputHeaderContent = null, // Content rendered above the textarea inside the form card
+  streamingProgress,
+  isStreaming: propIsStreaming = false,
+  abortStreaming,
 }) => {
   const baseFormRef = useRef<HTMLDivElement>(null);
   const formSectionRef = useRef<HTMLDivElement>(null);
@@ -398,6 +402,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   const startModeState = useStartMode({
     useStartPageLayout,
     hasAnyContent,
+    isGenerating: propIsStreaming || loading,
     storeIsFormVisible,
     toggleStoreFormVisibility,
     fallbackFormVisibility,
@@ -485,10 +490,11 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     setError,
   });
 
-  // Auto-save hook
+  // Auto-save hook (controlled by user preference)
+  const { getBetaFeatureState: getAutoSaveFeatureState } = useBetaFeatures();
   useTextAutoSave({
     componentName,
-    enabled: true,
+    enabled: getAutoSaveFeatureState('autoSaveGenerated'),
     debounceMs: 3000,
   });
 
@@ -506,8 +512,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         generatedContent,
         isFormVisible,
         isStartMode,
+        isGenerating: propIsStreaming || loading,
       }),
-    [title, generatedContent, isFormVisible, isStartMode]
+    [title, generatedContent, isFormVisible, isStartMode, propIsStreaming, loading]
   );
 
   return (
@@ -603,6 +610,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 selectedPlatforms={selectedPlatforms}
                 inputHeaderContent={inputHeaderContent}
                 helpContent={helpContent}
+                isStreaming={propIsStreaming}
+                streamingMessage={streamingProgress?.message}
+                onAbort={abortStreaming}
               >
                 {children}
               </FormSection>
@@ -610,7 +620,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
           )}
         </AnimatePresence>
 
-        {!isStartMode && hasAnyContent && (
+        {!isStartMode && (hasAnyContent || !!(error || propError)) && (
           <motion.div
             /* layout */
             transition={{ duration: 0.25, ease: 'easeOut' }}

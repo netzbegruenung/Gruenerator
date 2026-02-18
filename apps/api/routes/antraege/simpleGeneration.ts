@@ -8,6 +8,7 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
+import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
 import { createLogger } from '../../utils/logger.js';
 
 const router = express.Router();
@@ -86,6 +87,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     useWebSearchTool: req.body.useWebSearchTool,
   });
 
+  if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
+    return processGraphRequestStreaming('antrag_simple', req, res);
+  }
   await processGraphRequest('antrag_simple', req, res);
 });
 

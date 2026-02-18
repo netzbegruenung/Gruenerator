@@ -56,6 +56,9 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
   examplePrompts = [],
   onExamplePromptClick = null,
   selectedPlatforms = [],
+  isStreaming = false,
+  streamingMessage,
+  onAbort,
 }) => {
   const { isMobileView } = useResponsive();
 
@@ -162,6 +165,9 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                     ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
                     type="submit"
                     tabIndex={submitButtonTabIndex}
+                    isStreaming={isStreaming}
+                    streamingMessage={streamingMessage}
+                    onAbort={onAbort}
                     {...submitButtonProps}
                   />
                 )}
@@ -231,6 +237,9 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                   ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
                   type="submit"
                   tabIndex={submitButtonTabIndex}
+                  isStreaming={isStreaming}
+                  streamingMessage={streamingMessage}
+                  onAbort={onAbort}
                   {...submitButtonProps}
                 />
               </div>

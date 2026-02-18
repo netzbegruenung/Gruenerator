@@ -89,8 +89,6 @@ class ProfileService {
     }
   }
 
-
-
   /**
    * Create a new user profile
    */
@@ -189,7 +187,6 @@ class ProfileService {
         notebook: 'notebook',
         sharepic: 'sharepic',
         anweisungen: 'anweisungen',
-
         labor: 'labor_enabled',
         sites: 'sites_enabled',
         chat: 'chat',
@@ -397,16 +394,34 @@ class ProfileService {
   async getProfileStats(): Promise<ProfileStats> {
     try {
       await this.db.ensureInitialized();
-      const stats = await this.db.queryOne(`
-        SELECT
-          COUNT(*) as total_profiles,
-          COUNT(*) FILTER (WHERE igel_modus = true) as igel_users,
-          COUNT(*) FILTER (WHERE bundestag_api_enabled = true) as bundestag_users,
-          COUNT(*) FILTER (WHERE memory_enabled = true) as memory_users,
-          COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
-        FROM profiles
-      `);
-      return stats as ProfileStats;
+      try {
+        const stats = await this.db.queryOne(`
+          SELECT
+            COUNT(*) as total_profiles,
+            COUNT(*) FILTER (WHERE igel_modus = true) as igel_users,
+            COUNT(*) FILTER (WHERE bundestag_api_enabled = true) as bundestag_users,
+            COUNT(*) FILTER (WHERE memory_enabled = true) as memory_users,
+            COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
+          FROM profiles
+        `);
+        return stats as ProfileStats;
+      } catch (innerError: any) {
+        // PostgreSQL error 42703 = undefined_column
+        if (innerError?.code === '42703') {
+          console.warn('[ProfileService] Column missing in getProfileStats, using fallback query');
+          const stats = await this.db.queryOne(`
+            SELECT
+              COUNT(*) as total_profiles,
+              COUNT(*) FILTER (WHERE igel_modus = true) as igel_users,
+              0 as bundestag_users,
+              0 as memory_users,
+              COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
+            FROM profiles
+          `);
+          return stats as ProfileStats;
+        }
+        throw innerError;
+      }
     } catch (error: any) {
       console.error('[ProfileService] Error getting profile stats:', error);
       throw error;
