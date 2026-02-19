@@ -28,7 +28,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .blocknote-wrapper {
     margin: 0;
     padding: 1.5rem 1rem;
