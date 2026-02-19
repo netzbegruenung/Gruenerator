@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useParams } from 'react-router-dom';
 
 import BaseForm from '../../components/common/BaseForm';
@@ -128,15 +128,17 @@ const CustomGeneratorPage: React.FC = memo(() => {
     }
   }, [slug, isAuthenticated, user?.id, authLoading]);
 
-  // Handle URL detection and crawling
+  const isCrawlingRef = useRef(isCrawling);
+  isCrawlingRef.current = isCrawling;
+
   const handleUrlsDetected = useCallback(
     async (urls: string[]) => {
-      if (!isCrawling && urls.length > 0 && form.generator) {
+      if (!isCrawlingRef.current && urls.length > 0 && form.generator) {
         const { toggles } = form.generator as unknown as { toggles: { privacyMode: boolean } };
         await detectAndCrawlUrls(urls.join(' '), toggles.privacyMode);
       }
     },
-    [detectAndCrawlUrls, isCrawling, form.generator]
+    [detectAndCrawlUrls, form.generator]
   );
 
   // Custom submission handler for dynamic generator configuration

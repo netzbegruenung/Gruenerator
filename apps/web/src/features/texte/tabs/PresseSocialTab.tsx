@@ -227,6 +227,8 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
   });
 
   const { crawledUrls, detectAndCrawlUrls, isCrawling } = useUrlCrawler();
+  const isCrawlingRef = useRef(isCrawling);
+  isCrawlingRef.current = isCrawling;
 
   const allAttachments = useMemo(
     () => [...processedAttachments, ...crawledUrls],
@@ -259,11 +261,11 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
 
   const handleUrlsDetected = useCallback(
     async (urls: string[]) => {
-      if (!isCrawling && urls.length > 0) {
+      if (!isCrawlingRef.current && urls.length > 0) {
         await detectAndCrawlUrls(urls.join(' '), setup.features.usePrivacyMode);
       }
     },
-    [detectAndCrawlUrls, isCrawling, setup.features.usePrivacyMode]
+    [detectAndCrawlUrls, setup.features.usePrivacyMode]
   );
 
   const onSubmitRHF = useCallback(
