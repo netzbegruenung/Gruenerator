@@ -368,7 +368,14 @@ const useBaseForm = ({
       const errorObj = error as Record<string, unknown>;
       if (errorObj.response && typeof errorObj.response === 'object') {
         const response = errorObj.response as Record<string, unknown>;
-        if (response.status) {
+        if (response.status === 400 && response.data && typeof response.data === 'object') {
+          const data = response.data as Record<string, unknown>;
+          if (data.error && typeof data.error === 'string') {
+            setGlobalError(data.error);
+          } else {
+            setGlobalError(String(response.status));
+          }
+        } else if (response.status) {
           setGlobalError(String(response.status));
         }
       }

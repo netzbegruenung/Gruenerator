@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   PiMagicWand,
   PiArrowsClockwise,
@@ -107,14 +107,16 @@ const AITextImproverGenerator: React.FC = () => {
   );
 
   const { crawledUrls, detectAndCrawlUrls, isCrawling } = useUrlCrawler();
+  const isCrawlingRef = useRef(isCrawling);
+  isCrawlingRef.current = isCrawling;
 
   const handleUrlsDetected = useCallback(
     async (urls: string[]) => {
-      if (!isCrawling && urls.length > 0) {
+      if (!isCrawlingRef.current && urls.length > 0) {
         await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
       }
     },
-    [detectAndCrawlUrls, isCrawling, usePrivacyMode]
+    [detectAndCrawlUrls, usePrivacyMode]
   );
 
   const onSubmitRHF = useCallback(

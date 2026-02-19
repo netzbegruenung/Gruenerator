@@ -327,15 +327,15 @@ const FeatureIcons = ({
             </button>
           </div>
         )}
-
-        {/* Attached Files List - inside the row for inline display */}
-        <AttachedFilesList
-          files={attachedFiles}
-          onRemoveFile={onRemoveFile}
-          fileMetadata={fileMetadata}
-          compact={true}
-        />
       </div>
+
+      {/* Attached Files List - below icons row to save space */}
+      <AttachedFilesList
+        files={attachedFiles}
+        onRemoveFile={onRemoveFile}
+        fileMetadata={fileMetadata}
+        compact={true}
+      />
 
       {/* Selected Documents and Texts */}
       {(selectedDocumentIds.length > 0 || selectedTextIds.length > 0) && (
