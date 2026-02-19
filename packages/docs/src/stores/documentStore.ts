@@ -14,6 +14,8 @@ export interface Document {
   is_public: boolean;
   document_subtype: string;
   content?: string;
+  share_mode?: 'private' | 'authenticated' | 'public';
+  share_permission?: 'viewer' | 'editor';
   permissions: Record<string, { level: string; granted_at: string }>;
   metadata?: Record<string, unknown>;
 }
