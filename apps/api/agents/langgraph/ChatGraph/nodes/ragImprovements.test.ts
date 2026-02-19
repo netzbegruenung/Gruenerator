@@ -185,6 +185,7 @@ async function testExpandedContextWindow() {
     notebookCollectionIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
+    documentChatIds: [],
     searchSources: [],
     intent: 'search',
     searchQuery: 'test query',

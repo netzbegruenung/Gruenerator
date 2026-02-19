@@ -227,6 +227,7 @@ async function evaluateBudgetAllocation() {
     notebookCollectionIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
+    documentChatIds: [],
     searchSources: [],
     intent: 'search',
     searchQuery: 'Klimapolitik der Grünen',

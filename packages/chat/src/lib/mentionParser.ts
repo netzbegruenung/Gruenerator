@@ -13,6 +13,7 @@ export interface ParsedMentions {
   forcedTools: string[];
   documentIds: string[];
   textIds: string[];
+  documentChatIds: string[];
   cleanText: string;
 }
 
@@ -79,6 +80,13 @@ export function parseAllMentions(text: string): ParsedMentions {
       continue;
     }
 
+    // Handle bare @dokumentchat trigger (strip from text; actual IDs come from the store)
+    if (trigger === '@' && alias === 'dokumentchat') {
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
     const mentionable = resolveMentionable(alias);
     if (!mentionable) continue;
 
@@ -125,6 +133,7 @@ export function parseAllMentions(text: string): ParsedMentions {
     forcedTools,
     documentIds,
     textIds,
+    documentChatIds: [],
     cleanText,
   };
 }

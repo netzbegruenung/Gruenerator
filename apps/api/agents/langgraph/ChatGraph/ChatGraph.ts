@@ -100,6 +100,10 @@ const ChatStateAnnotation = Annotation.Root({
   documentIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
+  // Document chat scoping (from @dokumentchat multi-select)
+  documentChatIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
 
   // Memory context (from mem0 cross-thread memory)
   memoryContext: Annotation<string | null>({
@@ -431,6 +435,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Document scoping (from @datei mentions)
     documentIds: input.documentIds || [],
+
+    // Document chat scoping (from @dokumentchat multi-select)
+    documentChatIds: input.documentChatIds || [],
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,

@@ -116,6 +116,7 @@ function limitAttachmentContext(
  */
 const SEARCH_CONTEXT_BUDGET = 4000;
 const SEARCH_CONTEXT_BUDGET_CRAWLED = 6000;
+const SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT = 8000;
 const MAX_SEARCH_RESULTS = 8;
 
 const FINDINGS_CLEANING_PROMPT = `Du bist ein Forschungsassistent. Fasse die folgenden Suchergebnisse zu einem kohärenten Überblick zusammen, fokussiert auf den Recherche-Auftrag.
@@ -202,12 +203,17 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
   // Default: budget-based truncation
   const topResults = state.searchResults.slice(0, MAX_SEARCH_RESULTS);
 
+  // Document chat gets the highest budget for focused Q&A
+  const isDocumentChat = state.documentChatIds?.length > 0;
   // Detect if any results have crawled content (longer than typical snippets)
   const hasCrawledContent = topResults.some((r) => r.content.length > 500);
   // Multi-source results get the higher budget (mixed doc + web content)
   const isMultiSource = (state.searchSources?.length || 0) > 1;
-  const budget =
-    hasCrawledContent || isMultiSource ? SEARCH_CONTEXT_BUDGET_CRAWLED : SEARCH_CONTEXT_BUDGET;
+  const budget = isDocumentChat
+    ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
+    : hasCrawledContent || isMultiSource
+      ? SEARCH_CONTEXT_BUDGET_CRAWLED
+      : SEARCH_CONTEXT_BUDGET;
 
   // Crawled results get 2x weight in budget allocation
   const weightedRelevance = topResults.map((r) => {
@@ -336,8 +342,10 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const localeContext = formatLocaleContext(state.userLocale);
 
-  const intentGuidance =
-    intent === 'direct'
+  const isDocumentChatMode = state.documentChatIds?.length > 0;
+  const intentGuidance = isDocumentChatMode
+    ? '\nDu chattest mit ausgewählten Dokumenten des Nutzers. Beantworte Fragen basierend auf den Dokumenten. Zitiere relevante Passagen.'
+    : intent === 'direct'
       ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
       : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 

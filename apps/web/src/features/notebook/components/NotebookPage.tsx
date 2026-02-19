@@ -1,20 +1,26 @@
+import { ThreadPrimitive } from '@assistant-ui/react';
+import {
+  NotebookChatProvider,
+  NotebookComposer,
+  UserMessage,
+  type NotebookMessageMetadata,
+} from '@gruenerator/chat';
 import React, { useState, useCallback, useMemo } from 'react';
-import { HiDocumentText, HiExternalLink } from 'react-icons/hi';
 
-import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
 import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
-import useNotebookChat from '../hooks/useNotebookChat';
+import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
+import useNotebookStore from '../stores/notebookStore';
 
-import ActiveFiltersDisplay from './ActiveFiltersDisplay';
-import FilterDropdownButton from './FilterDropdownButton';
-import NotebookChatMessage from './NotebookChatMessage';
+import { NotebookAssistantMessage } from './NotebookAssistantMessage';
+import { NotebookStartPage } from './NotebookStartPage';
+
 import '../../../assets/styles/features/notebook/notebook-chat.css';
+import '../../../components/common/Chat/ChatStartPage.css';
 
-// Types for NotebookPage
 interface NotebookCollection {
   id: string;
   name: string;
@@ -26,9 +32,9 @@ interface NotebookCollection {
   locale?: string;
 }
 
-interface NotebookDocument {
-  title: string;
-  detail: string;
+interface ExampleQuestion {
+  icon: string;
+  text: string;
 }
 
 interface NotebookSource {
@@ -36,11 +42,6 @@ interface NotebookSource {
   count?: string;
   id?: string;
   selected?: boolean;
-}
-
-interface ExampleQuestion {
-  icon: string;
-  text: string;
 }
 
 interface NotebookConfig {
@@ -54,7 +55,7 @@ interface NotebookConfig {
   infoPanelDescription: string;
   headerIcon: React.ComponentType<{ className?: string }>;
   exampleQuestions: ExampleQuestion[];
-  documents?: NotebookDocument[];
+  documents?: Array<{ title: string; detail: string }>;
   sources?: NotebookSource[];
   externalUrl?: string;
   persistMessages?: boolean;
@@ -70,154 +71,87 @@ interface NotebookPageProps {
   configId: string;
 }
 
+const SourceToggles = ({
+  collections,
+  selectedIds,
+  onToggle,
+}: {
+  collections: NotebookCollection[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) => (
+  <div className="flex flex-wrap gap-2 px-4 py-2">
+    {collections.map((c) => (
+      <button
+        key={c.id}
+        type="button"
+        onClick={() => onToggle(c.id)}
+        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+          selectedIds.includes(c.id)
+            ? 'bg-primary text-white'
+            : 'bg-surface-secondary text-foreground-muted hover:bg-surface-tertiary'
+        }`}
+      >
+        {c.name}
+      </button>
+    ))}
+  </div>
+);
+
 const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const locale = useAuthStore((state) => state.locale);
+  const { getFiltersForCollection } = useNotebookStore();
 
-  // Filter collections by user locale (de-DE or de-AT)
   const localeCollections = useMemo(() => {
     if (!isMulti) return config.collections;
-    return config.collections.filter((c: NotebookCollection) => !c.locale || c.locale === locale);
+    return config.collections.filter((c) => !c.locale || c.locale === locale);
   }, [isMulti, config.collections, locale]);
 
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
-    isMulti ? localeCollections.map((c: NotebookCollection) => c.id) : []
+    isMulti ? localeCollections.map((c) => c.id) : []
   );
 
   const selectedCollections = useMemo(() => {
     if (isMulti) {
-      return localeCollections.filter((c: NotebookCollection) => selectedIds.includes(c.id));
+      return localeCollections.filter((c) => selectedIds.includes(c.id));
     }
     return localeCollections;
   }, [isMulti, localeCollections, selectedIds]);
 
-  const sources = useMemo((): NotebookSource[] | undefined => {
-    if (isMulti) {
-      return localeCollections.map((c: NotebookCollection) => ({
-        id: c.id,
-        name: c.name,
-        count: String(c.documentCount || ''),
-        selected: selectedIds.includes(c.id),
-      }));
-    }
-    return config.sources;
-  }, [isMulti, localeCollections, config.sources, selectedIds]);
-
   const handleSourceToggle = useCallback((sourceId: string) => {
-    setSelectedIds((prev: string[]) => {
+    setSelectedIds((prev) => {
       if (prev.includes(sourceId)) {
-        return prev.filter((id: string) => id !== sourceId);
+        return prev.filter((id) => id !== sourceId);
       }
       return [...prev, sourceId];
     });
   }, []);
 
-  const extraApiParams = useMemo(() => {
+  const extraParams = useMemo(() => {
     if (config.useSystemUserId && config.systemUserId) {
       return { search_user_id: config.systemUserId };
     }
     return {};
   }, [config.useSystemUserId, config.systemUserId]);
 
-  const {
-    chatMessages,
-    inputValue,
-    submitLoading,
-    isMobileView,
-    activeCollections,
-    setInputValue,
-    handleSubmitQuestion,
-  } = useNotebookChat({
+  const filters = useMemo(() => {
+    if (isMulti) {
+      const aggregated: Record<string, unknown> = {};
+      selectedCollections.forEach((c) => {
+        const f = getFiltersForCollection(c.id);
+        if (Object.keys(f).length > 0) aggregated[c.id] = f;
+      });
+      return Object.keys(aggregated).length > 0 ? aggregated : undefined;
+    }
+    const f = getFiltersForCollection(selectedCollections[0]?.id);
+    return Object.keys(f).length > 0 ? f : undefined;
+  }, [isMulti, selectedCollections, getFiltersForCollection]);
+
+  const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
     persistMessages: config.persistMessages,
-    extraApiParams,
   });
-
-  const HeaderIcon = config.headerIcon;
-
-  const renderInfoPanel = () => (
-    <div className="qa-collection-info">
-      <div className="qa-collection-info-header">
-        <HeaderIcon className="qa-collection-info-icon" />
-        <h3>{config.title}</h3>
-      </div>
-      <div className="qa-collection-info-description">{config.infoPanelDescription}</div>
-
-      <div className="qa-collection-info-documents">
-        <h4>{isMulti ? 'Verfügbare Quellen:' : 'Verfügbare Dokumente:'}</h4>
-        {isMulti ? (
-          localeCollections.map((collection: NotebookCollection) => {
-            const CollectionIcon = collection.icon || HiDocumentText;
-            return (
-              <div key={collection.id} className="qa-multi-collection-item">
-                <div className="qa-multi-collection-header">
-                  <CollectionIcon className="document-icon" />
-                  <span className="qa-multi-collection-name">{collection.name}</span>
-                  <span className="qa-multi-collection-count">{collection.documentCount}</span>
-                </div>
-                {collection.description && (
-                  <div className="qa-multi-collection-description">{collection.description}</div>
-                )}
-                {collection.externalUrl && (
-                  <a
-                    href={collection.externalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="qa-multi-collection-link"
-                  >
-                    <HiExternalLink className="source-icon" />
-                    <span>
-                      {collection.externalUrl.replace('https://', '').replace('www.', '')}
-                    </span>
-                  </a>
-                )}
-              </div>
-            );
-          })
-        ) : (
-          <ul>
-            {config.documents?.map((doc: NotebookDocument, i: number) => (
-              <li key={i}>
-                <HiDocumentText className="document-icon" />
-                <span>
-                  {doc.title} ({doc.detail})
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {config.externalUrl && !isMulti && (
-        <div className="qa-collection-info-source">
-          <a
-            href={config.externalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="source-link"
-          >
-            <HiExternalLink className="source-icon" />
-            <span>{config.externalUrl.replace('https://', '').replace('www.', '')}</span>
-          </a>
-        </div>
-      )}
-
-      {submitLoading && isMulti && activeCollections.length > 0 && (
-        <div className="qa-collection-info-loading">
-          <div className="qa-loading-indicator">
-            Durchsuche {activeCollections.length} Quellen...
-          </div>
-          <div className="qa-loading-collections">
-            {activeCollections.map((name, i) => (
-              <span key={i} className="qa-loading-collection-badge">
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <ErrorBoundary>
@@ -225,36 +159,45 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
         <span>Diese Funktion befindet sich in der Beta-Phase. Antworten können ungenau sein.</span>
       </div>
       <CitationModal />
-      <ChatWorkbenchLayout
-        // DEPRECATED: mode, modes, onModeChange - no longer used, kept for backwards compatibility
-        mode="chat"
-        modes={{ chat: { label: 'Chat' } }}
-        onModeChange={() => {}}
-        title={config.title}
-        messages={chatMessages}
-        onSubmit={(value) => {
-          if (typeof value === 'string') handleSubmitQuestion(value);
-        }}
-        isProcessing={submitLoading}
-        placeholder={config.placeholder}
-        inputValue={inputValue}
-        onInputChange={setInputValue}
-        disabled={submitLoading}
-        renderMessage={(msg, i) => (
-          <NotebookChatMessage key={msg.timestamp || `msg-${i}`} msg={msg as any} index={i} />
-        )}
-        infoPanelContent={isMobileView ? null : renderInfoPanel()}
-        hideHeader={true}
-        hideModeSelector={true}
-        singleLine={true}
-        showStartPage={true}
-        startPageTitle={config.startPageTitle}
-        exampleQuestions={config.exampleQuestions}
-        sources={sources}
-        onSourceToggle={isMulti ? handleSourceToggle : undefined}
-        filterButton={<FilterDropdownButton collections={selectedCollections} />}
-        filterBar={<ActiveFiltersDisplay collections={selectedCollections} />}
-      />
+      <NotebookChatProvider
+        collections={selectedCollections.map((c) => ({
+          id: c.id,
+          name: c.name,
+          linkType: c.linkType,
+        }))}
+        locale={locale}
+        filters={filters}
+        extraParams={extraParams}
+        initialMessages={initialMessages}
+        onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
+      >
+        <div className="qa-chat-container">
+          {isMulti && (
+            <SourceToggles
+              collections={localeCollections}
+              selectedIds={selectedIds}
+              onToggle={handleSourceToggle}
+            />
+          )}
+          <ThreadPrimitive.Root className="flex h-full flex-col">
+            <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto">
+              <ThreadPrimitive.Empty>
+                <NotebookStartPage
+                  title={config.startPageTitle}
+                  exampleQuestions={config.exampleQuestions}
+                />
+              </ThreadPrimitive.Empty>
+              <ThreadPrimitive.Messages
+                components={{
+                  UserMessage,
+                  AssistantMessage: NotebookAssistantMessage,
+                }}
+              />
+            </ThreadPrimitive.Viewport>
+            <NotebookComposer placeholder={config.placeholder} />
+          </ThreadPrimitive.Root>
+        </div>
+      </NotebookChatProvider>
     </ErrorBoundary>
   );
 };
