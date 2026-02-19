@@ -3,8 +3,17 @@
  * Centralizes common document processing logic for upload, text addition, and URL crawling
  */
 
-import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
 import { getQdrantDocumentService } from '../DocumentSearchService/index.js';
+import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
+
+// Import module functions
+
+import { chunkAndEmbedText } from './chunkingPipeline.js';
+import { processFileUpload } from './fileProcessing.js';
+import { extractTextFromFile, generateContentPreview } from './textExtraction.js';
+import { processTextContent } from './textProcessing.js';
+import { processUrlContent } from './urlProcessing.js';
+
 import type {
   UploadedFile,
   FileUploadResult,
@@ -13,17 +22,6 @@ import type {
   ChunkingOptions,
   ChunkAndEmbedResult,
 } from './types.js';
-
-// Import module functions
-import { extractTextFromFile, generateContentPreview } from './textExtraction.js';
-
-import { chunkAndEmbedText } from './chunkingPipeline.js';
-
-import { processFileUpload } from './fileProcessing.js';
-
-import { processTextContent } from './textProcessing.js';
-
-import { processUrlContent } from './urlProcessing.js';
 
 /**
  * Main DocumentProcessingService class

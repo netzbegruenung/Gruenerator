@@ -3,8 +3,8 @@
  * Defines interfaces for interactive question generation and session management
  */
 
-import type { Request } from 'express';
 import type { PromptAssemblyResult, Locale } from './promptAssembly.js';
+import type { Request } from 'express';
 
 /**
  * AI Worker Pool interface for processing AI requests

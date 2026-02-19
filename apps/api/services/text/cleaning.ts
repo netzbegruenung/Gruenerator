@@ -4,6 +4,7 @@
  */
 
 import { SOFT_HYPHEN, GERMAN_CHARS } from './constants.js';
+
 import type { CleaningOptions } from './types.js';
 
 /**
@@ -16,7 +17,7 @@ export function removeMarkdownImages(text: string): string {
   let out = text;
 
   // Remove markdown image syntax ![alt](url)
-  out = out.replace(/!\[[^\]]*\]\([^\)]+\)/g, '');
+  out = out.replace(/!\[[^\]]*\]\([^)]+\)/g, '');
 
   // Remove reference-style image lines: [id]: url.ext "title"
   out = out.replace(/^\s*\[[^\]]+\]:\s*\S+\.(png|jpe?g|gif|webp|svg)\b.*$/gim, '');
@@ -25,7 +26,7 @@ export function removeMarkdownImages(text: string): string {
   out = out.replace(/<img\b[^>]*>/gi, '');
 
   // Remove bare image-only lines (e.g., img-0.jpeg markdown from OCR)
-  out = out.replace(/^\s*!\[[^\]]*\]\([^\)]+\)\s*$/gim, '');
+  out = out.replace(/^\s*!\[[^\]]*\]\([^)]+\)\s*$/gim, '');
 
   return out;
 }

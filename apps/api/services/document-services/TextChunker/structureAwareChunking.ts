@@ -4,12 +4,14 @@
  */
 
 import { documentStructureDetector } from '../../DocumentStructureDetector/index.js';
+
+import { estimateTokens } from './validation.js';
+
+import type { Chunk, ChunkContext, SemanticBoundary } from './types.js';
 import type {
   DocumentStructure,
   SemanticBoundary as DetectorSemanticBoundary,
 } from '../../DocumentStructureDetector/types.js';
-import { estimateTokens } from './validation.js';
-import type { Chunk, ChunkContext, SemanticBoundary } from './types.js';
 
 /**
  * Chunk document hierarchically based on structure
@@ -71,7 +73,7 @@ function createSemanticChunks(
   let currentTokens = 0;
   let chunkIndex = 0;
   let chunkStart = 0;
-  let currentContext: ChunkContext = {
+  const currentContext: ChunkContext = {
     level: 0,
   };
 
@@ -237,7 +239,7 @@ function createChunkWithMetadata(
 ): Chunk {
   // Detect chunk characteristics
   const chunkType = detectChunkType(text);
-  const containsLists = /^[\s]*[•\-\*\d+]/m.test(text);
+  const containsLists = /^[\s]*[•\-*\d+]/m.test(text);
   const containsTables = /\|.*\|/.test(text) || /\t.*\t/.test(text);
 
   return {
@@ -272,7 +274,7 @@ function createChunkWithMetadata(
  * Detect the type of content in a chunk
  */
 function detectChunkType(text: string): string {
-  if (/^[\s]*[•\-\*]\s+/.test(text)) return 'list_content';
+  if (/^[\s]*[•\-*]\s+/.test(text)) return 'list_content';
   if (/\|.*\|/.test(text)) return 'table_content';
   if (/^(Kapitel|Chapter|Teil)\s+/i.test(text)) return 'chapter_heading';
   if (/^\d+\.?\d*\s+/.test(text)) return 'section_content';

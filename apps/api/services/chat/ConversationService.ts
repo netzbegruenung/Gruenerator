@@ -3,13 +3,16 @@
  * Handles conversational chat interactions with AI
  */
 
-import { createLogger } from '../../utils/logger.js';
-import { localizePlaceholders } from '../localization/index.js';
-import type { Locale } from '../localization/types.js';
-import * as chatMemory from './index.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+import { createLogger } from '../../utils/logger.js';
+import { localizePlaceholders } from '../localization/index.js';
+
+import * as chatMemory from './index.js';
+
+import type { Locale } from '../localization/types.js';
 
 const log = createLogger('ConversationService');
 

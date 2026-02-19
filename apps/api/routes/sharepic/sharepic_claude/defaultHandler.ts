@@ -1,7 +1,8 @@
-import type { Response } from 'express';
 import { generateDefaultSharepics } from '../../../services/image/sharepic/index.js';
 import { createLogger } from '../../../utils/logger.js';
+
 import type { SharepicRequest, DefaultResponse } from './types.js';
+import type { Response } from 'express';
 
 const log = createLogger('sharepic_default');
 

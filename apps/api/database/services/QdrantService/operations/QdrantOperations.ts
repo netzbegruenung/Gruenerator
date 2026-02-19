@@ -3,14 +3,12 @@
  * Main class that orchestrates search, batch, and context operations
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 // Import operations from modules
-import { vectorSearch, searchWithQuality, searchWithIntent } from './vectorSearch.js';
-import { hybridSearch, performTextSearch, calculateTextSearchScore } from './hybridSearch.js';
-import { getChunkWithContext } from './contextRetrieval.js';
 import {
   batchUpsert,
   batchDelete,
@@ -18,7 +16,10 @@ import {
   healthCheck,
   getCollectionStats,
 } from './batchOperations.js';
+import { getChunkWithContext } from './contextRetrieval.js';
 import { mergeFilters } from './filterUtils.js';
+import { hybridSearch, performTextSearch, calculateTextSearchScore } from './hybridSearch.js';
+import { vectorSearch, searchWithQuality, searchWithIntent } from './vectorSearch.js';
 
 // Import types
 import type {

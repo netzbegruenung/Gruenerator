@@ -6,6 +6,7 @@
  */
 
 import crypto from 'crypto';
+
 import type { CacheStats, RedisClient } from './types.js';
 
 class EmbeddingCache {

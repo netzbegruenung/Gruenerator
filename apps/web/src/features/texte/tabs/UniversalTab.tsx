@@ -28,7 +28,6 @@ interface FormRef {
 }
 
 interface UniversalTabProps {
-  isActive: boolean;
   selectedType: UniversalSubType;
 }
 
@@ -81,7 +80,7 @@ const EXTRAS_CONFIG: Partial<Record<UniversalSubType, ExtrasInputConfig>> = {
   },
 };
 
-const UniversalTab: React.FC<UniversalTabProps> = memo(({ isActive, selectedType }) => {
+const UniversalTab: React.FC<UniversalTabProps> = memo(({ selectedType }) => {
   const componentName = `universal-text-${selectedType}`;
 
   const redeFormRef = useRef<FormRef>(null);

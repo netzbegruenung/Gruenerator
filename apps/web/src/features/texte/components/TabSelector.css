@@ -101,6 +101,11 @@
   transition: background-color 0.15s ease;
 }
 
+.texte-tab-dropdown-item--active {
+  background: var(--hover-color-alt);
+  font-weight: 600;
+}
+
 .texte-tab-dropdown-item:hover {
   background: var(--hover-color-alt);
 }

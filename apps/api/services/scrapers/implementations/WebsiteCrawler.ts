@@ -4,13 +4,16 @@
  * Optimized for German Green Party websites (TYPO3 support)
  */
 
-import * as cheerio from 'cheerio';
-import type { Element, AnyNode } from 'domhandler';
 import { URL } from 'url';
-import { BaseScraper } from '../base/BaseScraper.js';
-import type { ScraperResult } from '../types.js';
-import { createLogger } from '../../../utils/logger.js';
+
+import * as cheerio from 'cheerio';
+
 import { BRAND } from '../../../utils/domainUtils.js';
+import { createLogger } from '../../../utils/logger.js';
+import { BaseScraper } from '../base/BaseScraper.js';
+
+import type { ScraperResult } from '../types.js';
+import type { Element, AnyNode } from 'domhandler';
 
 const log = createLogger('WebsiteCrawler');
 

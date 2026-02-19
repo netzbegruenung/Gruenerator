@@ -2,11 +2,12 @@
  * Shared type definitions for document routes
  */
 
-import type { Request } from 'express';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { Request } from 'express';
+import type { ParamsDictionary } from 'express-serve-static-core';
 
 // Use Express.Request directly - it already has user?: Express.User with proper type augmentation
-export type DocumentRequest = Request;
+export type DocumentRequest<P = ParamsDictionary> = Request<P>;
 
 // Re-export for convenience
 export type { AuthenticatedRequest };

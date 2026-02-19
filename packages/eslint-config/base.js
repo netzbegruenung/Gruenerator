@@ -16,10 +16,8 @@ export default tseslint.config(
       parserOptions: {
         projectService: {
           allowDefaultProject: [
-            'eslint.config.js',
             'eslint.config.mjs',
             'apps/web/eslint.config.js',
-            'apps/api/eslint.config.js',
             'apps/docs/eslint.config.js',
             'apps/mobile/eslint.config.js',
             'apps/desktop/eslint.config.mjs',

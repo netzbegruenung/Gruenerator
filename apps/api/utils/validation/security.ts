@@ -4,8 +4,9 @@
  */
 
 import * as crypto from 'crypto';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+
 import type { PathSanitizationOptions } from './types.js';
 
 const MAX_PATH_LENGTH = 4096;
@@ -73,6 +74,7 @@ export function sanitizeFilename(filename: any, fallback: string = 'file'): stri
     .replace(/[\n\r]+/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/\.\./g, '_')
+    // eslint-disable-next-line no-control-regex -- Intentional: strip control characters for filename security
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
     .replace(/^\.+/, '')
     .trim()

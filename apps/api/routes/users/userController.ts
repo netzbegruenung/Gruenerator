@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
 const router = Router();

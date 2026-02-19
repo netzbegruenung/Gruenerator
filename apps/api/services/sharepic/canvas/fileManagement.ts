@@ -1,7 +1,10 @@
 import fs from 'fs/promises';
+
 import { GlobalFonts } from '@napi-rs/canvas';
-import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH } from './config.js';
+
 import { createLogger } from '../../../utils/logger.js';
+
+import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH } from './config.js';
 
 const log = createLogger('fileManagement');
 

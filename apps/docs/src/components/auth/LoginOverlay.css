@@ -1,0 +1,78 @@
+@import '../../../../web/src/assets/styles/common/variables.css';
+
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: loginOverlayFadeIn 0.3s ease-out;
+}
+
+.login-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.login-overlay-card {
+  position: relative;
+  background-color: var(--card-background);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 2.5rem;
+  max-width: 450px;
+  width: 90%;
+  text-align: center;
+  animation: loginOverlaySlideUp 0.3s ease-out;
+}
+
+.login-overlay-branding {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--secondary-600);
+  margin-bottom: 1.5rem;
+}
+
+.login-overlay-document {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--font-color);
+  margin: 0 0 0.5rem 0;
+  word-break: break-word;
+}
+
+.login-overlay-message {
+  font-size: 0.875rem;
+  color: var(--font-color-secondary);
+  margin: 0 0 2rem 0;
+}
+
+.login-overlay-redirecting {
+  font-size: 0.8125rem;
+  color: var(--font-color-secondary);
+  margin: 1rem 0 0 0;
+}
+
+@keyframes loginOverlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes loginOverlaySlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Dark mode ─── */
+
+[data-theme="dark"] .login-overlay-card {
+  border: 1px solid var(--grey-700);
+}

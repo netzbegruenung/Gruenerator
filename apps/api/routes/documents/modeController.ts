@@ -9,9 +9,11 @@
  * (lines 61-95 and 253-298 were identical)
  */
 
-import express, { Router, Response } from 'express';
+import express, { type Router, type Response } from 'express';
+
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type { DocumentRequest, SetModeRequestBody } from './types.js';
 
 const log = createLogger('documents:mode');

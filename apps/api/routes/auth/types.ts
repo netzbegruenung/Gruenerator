@@ -2,8 +2,11 @@
  * Type definitions for auth routes
  */
 
-import { Request, Response, NextFunction } from 'express';
-import { UserProfile } from '../../services/user/types.js';
+import { type Request, type Response, type NextFunction } from 'express';
+
+import { type UserProfile } from '../../services/user/types.js';
+
+import type { ParamsDictionary } from 'express-serve-static-core';
 
 // ============================================================================
 // Request Types
@@ -12,7 +15,7 @@ import { UserProfile } from '../../services/user/types.js';
 /**
  * Authenticated request with user attached
  */
-export interface AuthRequest extends Request {
+export interface AuthRequest<P = ParamsDictionary> extends Request<P> {
   user?: UserProfile & {
     _redirectTo?: string;
     _originDomain?: string;
@@ -216,7 +219,7 @@ export interface UserTemplateCreateBody {
   is_public?: boolean;
 }
 
-export interface UserTemplateUpdateBody extends Partial<UserTemplateCreateBody> {}
+export type UserTemplateUpdateBody = Partial<UserTemplateCreateBody>;
 
 export interface TemplateFromUrlBody {
   url: string;

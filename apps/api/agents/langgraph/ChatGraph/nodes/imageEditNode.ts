@@ -5,12 +5,13 @@
  * Used by the @stadtbegruenen tool mention for green urban transformation.
  */
 
-import type { ChatGraphState, GeneratedImageResult } from '../types.js';
-import { FluxImageService } from '../../../../services/flux/index.js';
-import { buildGreenEditPrompt } from '../../../../services/flux/greenEditPrompt.js';
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
-import { redisClient } from '../../../../utils/redis/index.js';
+import { buildGreenEditPrompt } from '../../../../services/flux/greenEditPrompt.js';
+import { FluxImageService } from '../../../../services/flux/index.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { redisClient } from '../../../../utils/redis/index.js';
+
+import type { ChatGraphState, GeneratedImageResult } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageEditNode');
 
@@ -20,9 +21,7 @@ const imageCounter = new ImageGenerationCounter(redisClient as any);
  * Image edit node implementation.
  * Transforms an attached image using FLUX image-to-image with green urban editing.
  */
-export async function imageEditNode(
-  state: ChatGraphState
-): Promise<Partial<ChatGraphState>> {
+export async function imageEditNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   log.info('[ImageEditNode] Starting image editing');
 
@@ -50,7 +49,9 @@ export async function imageEditNode(
 
     const limitStatus = await imageCounter.checkLimit(userId);
     if (!limitStatus.canGenerate) {
-      log.info(`[ImageEditNode] User ${userId} has reached daily image limit (${limitStatus.count}/${limitStatus.limit})`);
+      log.info(
+        `[ImageEditNode] User ${userId} has reached daily image limit (${limitStatus.count}/${limitStatus.limit})`
+      );
       return {
         generatedImage: null,
         imagePrompt: userContent,
@@ -79,18 +80,18 @@ export async function imageEditNode(
     log.info(`[ImageEditNode] Built green-edit prompt (${prompt.length} chars)`);
 
     const flux = await FluxImageService.create();
-    const { stored } = await flux.generateFromImage(
-      prompt,
-      imageBuffer,
-      mimeType,
-      { output_format: 'jpeg', safety_tolerance: 2 }
-    ) as any;
+    const { stored } = (await flux.generateFromImage(prompt, imageBuffer, mimeType, {
+      output_format: 'jpeg',
+      safety_tolerance: 2,
+    })) as any;
 
     await imageCounter.incrementCount(userId);
     const updatedStatus = await imageCounter.checkLimit(userId);
 
     const imageTimeMs = Date.now() - startTime;
-    log.info(`[ImageEditNode] Image edited in ${imageTimeMs}ms, user usage: ${updatedStatus.count}/${updatedStatus.limit}`);
+    log.info(
+      `[ImageEditNode] Image edited in ${imageTimeMs}ms, user usage: ${updatedStatus.count}/${updatedStatus.limit}`
+    );
 
     const imageUrl = `/uploads/flux/results/${stored.relativePath.split('/').slice(-2).join('/')}`;
 

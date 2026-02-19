@@ -35,13 +35,13 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 ### Monorepo Layout
 
 - **`apps/web`** — React 19 + Vite 7 frontend. Feature-sliced design with 26 feature modules in `src/features/`. Routes defined in `src/config/routes.ts`.
-- **`apps/api`** — Express 5 backend running in Node.js cluster mode. AI calls are offloaded to a dedicated worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, business logic in `services/`.
+- **`apps/api`** — Express 5 backend running in Node.js cluster mode. AI calls are offloaded to a dedicated worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, business logic in `services/`. See [Express 5 Route Typing](#express-5-route-typing) below.
 - **`apps/docs`** — Collaborative document editor with Hocuspocus real-time sync.
 - **`apps/sites`** — Site builder/management interface.
 - **`apps/mobile`** — Expo 54 / React Native app with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around the web frontend.
 - **`packages/chat`** — Shared chat UI components, runtime adapters (Assistant UI), stores, and hooks. Consumed by `apps/web` at `/chat`.
-- **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, tiptap-editor, media-library, search).
+- **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, media-library, search). Shared components in `src/components/`.
 - **`services/mcp`** — Model Context Protocol server.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
 
@@ -154,6 +154,14 @@ import { cn } from "@/lib/utils"
 import { cn } from "../../lib/utils"
 ```
 
+### Docs App (Mantine)
+
+`apps/docs` uses **Mantine v8** (not Tailwind/shadcn). `MantineProvider` lives in each page component (e.g., `EditorPage.tsx`) with `forceColorScheme={colorScheme}`.
+
+- **Color**: Mantine defaults to blue. Always pass `color="var(--primary-600)"` on `Button`, `Badge`, etc. to use the Grünerator green (`#316049`). Destructive actions use `color="red"`.
+- **z-index**: Modals use `z-index: 1000`. Mantine `Select`/`Combobox` dropdowns default to ~300 and render in a portal — pass `comboboxProps={{ zIndex: 1100 }}` inside modals.
+- **Avatars**: Use `getAvatarDisplayProps()` and `getRobotAvatarPath()` from `@gruenerator/shared/avatar` — renders robot SVGs (`/images/profileimages/{1-9}.svg`) or initials. Don't use Mantine `Avatar`.
+
 ### State Management
 
 Zustand for global state. TanStack Query (React Query v5) for server state/data fetching with axios.
@@ -166,9 +174,34 @@ Conventional Commits enforced by commitlint: `feat:`, `fix:`, `chore:`, `refacto
 
 Strict mode. The entire stack is TypeScript — frontend, backend, shared packages, and mobile.
 
+- **Type-only imports**: ESLint enforces `consistent-type-imports` with inline style. Always use `import { type Foo } from './types'` (not `import type { Foo }`). Auto-fixable with `eslint --fix`.
+
+### Express 5 Route Typing
+
+Express 5 changed `req.params` values from `string` to `string | string[]`. All route handlers must declare their params explicitly:
+
+```typescript
+// Pass route params as a generic to the request type:
+router.get('/:id', async (req: AuthRequest<{ id: string }>, res: Response) => {
+  const { id } = req.params; // correctly typed as string
+});
+
+// Custom request types (AuthRequest, AuthenticatedRequest, DocumentRequest,
+// SubtitlerRequest) all accept an optional params generic P:
+router.delete('/:groupId/content/:contentId',
+  async (req: AuthRequest<{ groupId: string; contentId: string }>, res: Response) => { ... }
+);
+
+// For complex cases, use the getParam() bridge helper:
+import { getParam } from '../../utils/params.js';
+const id = getParam(req.params, 'id'); // safely extracts string from string | string[]
+```
+
 ### Code Quality
 
 ESLint (flat config), Prettier, Husky pre-commit hooks (lint-staged), Knip for unused code detection.
+
+- **`allowDefaultProject`**: Do not add files to `packages/eslint-config/base.js` `allowDefaultProject` if they are already discovered by TypeScript's project service (causes a parsing error). Only list files that no `tsconfig.json` covers.
 
 ## Deployment
 

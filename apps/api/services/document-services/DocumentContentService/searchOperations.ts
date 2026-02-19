@@ -3,13 +3,14 @@
  * Handles vector search and content aggregation
  */
 
-import type { DocumentRecord } from '../PostgresDocumentService/types.js';
+import { createIntelligentExcerpt } from './contentExtraction.js';
+
 import type {
   DocumentContentResult,
   ContentSearchResponse,
   ContentSearchMetadata,
 } from './types.js';
-import { createIntelligentExcerpt } from './contentExtraction.js';
+import type { DocumentRecord } from '../PostgresDocumentService/types.js';
 
 /**
  * Perform vector search within user's accessible documents

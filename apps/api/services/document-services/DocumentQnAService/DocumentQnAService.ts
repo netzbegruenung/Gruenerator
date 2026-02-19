@@ -4,15 +4,11 @@
  * Stores raw documents in Redis and extracts relevant information on-demand using Mistral
  */
 
-import type {
-  Intent,
-  Attachment,
-  StoredDocument,
-  KnowledgeExtractionOptions,
-  ClearUserDataResult,
-} from './types.js';
-
 // Import module functions
+
+import { generateQuestionsForIntent } from './contextExtraction.js';
+import { generateCacheKey, getCachedKnowledge, cacheKnowledge } from './contextManagement.js';
+import { askMistralAboutDocuments } from './mistralIntegration.js';
 import {
   getDocumentsFromRedis,
   storeAttachment,
@@ -21,11 +17,13 @@ import {
   clearUserDocuments,
 } from './redisOperations.js';
 
-import { generateQuestionsForIntent } from './contextExtraction.js';
-
-import { askMistralAboutDocuments } from './mistralIntegration.js';
-
-import { generateCacheKey, getCachedKnowledge, cacheKnowledge } from './contextManagement.js';
+import type {
+  Intent,
+  Attachment,
+  StoredDocument,
+  KnowledgeExtractionOptions,
+  ClearUserDataResult,
+} from './types.js';
 
 /**
  * Main DocumentQnAService class

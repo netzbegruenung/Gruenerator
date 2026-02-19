@@ -9,8 +9,9 @@
  * for up to maxSearches iterations before falling through to respond.
  */
 
-import type { ChatGraphState } from '../types.js';
 import { createLogger } from '../../../../utils/logger.js';
+
+import type { ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:QualityGate');
 
@@ -34,9 +35,7 @@ oder
  * Quality gate node implementation.
  * Checks if search results adequately cover the query.
  */
-export async function qualityGateNode(
-  state: ChatGraphState
-): Promise<Partial<ChatGraphState>> {
+export async function qualityGateNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   const { searchResults, searchQuery, searchCount, maxSearches, aiWorkerPool } = state;
 
@@ -51,7 +50,9 @@ export async function qualityGateNode(
     return { qualityAssessmentTimeMs: Date.now() - startTime };
   }
 
-  log.info(`[QualityGate] Assessing ${searchResults.length} results for: "${searchQuery?.slice(0, 50)}..."`);
+  log.info(
+    `[QualityGate] Assessing ${searchResults.length} results for: "${searchQuery?.slice(0, 50)}..."`
+  );
 
   try {
     // Build a compact summary of results for the LLM
@@ -65,10 +66,12 @@ export async function qualityGateNode(
         type: 'chat_quality_gate',
         provider: 'mistral',
         systemPrompt: QUALITY_PROMPT,
-        messages: [{
-          role: 'user',
-          content: `Suchanfrage: "${searchQuery}"\n\nErgebnisse:\n${resultsSummary}`,
-        }],
+        messages: [
+          {
+            role: 'user',
+            content: `Suchanfrage: "${searchQuery}"\n\nErgebnisse:\n${resultsSummary}`,
+          },
+        ],
         options: {
           model: 'mistral-small-latest',
           max_tokens: 80,
@@ -83,7 +86,9 @@ export async function qualityGateNode(
     const qualityAssessmentTimeMs = Date.now() - startTime;
 
     if (parsed) {
-      log.info(`[QualityGate] Score: ${parsed.score}/5, sufficient: ${parsed.sufficient} (${qualityAssessmentTimeMs}ms)`);
+      log.info(
+        `[QualityGate] Score: ${parsed.score}/5, sufficient: ${parsed.sufficient} (${qualityAssessmentTimeMs}ms)`
+      );
 
       if (!parsed.sufficient && parsed.refinedQuery) {
         log.info(`[QualityGate] Refined query: "${parsed.refinedQuery}"`);

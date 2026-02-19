@@ -1,6 +1,7 @@
+import { createRequire } from 'module';
+
 import { Mistral } from '@mistralai/mistralai';
 
-import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 require('dotenv').config({ quiet: true });
 

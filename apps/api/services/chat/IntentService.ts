@@ -3,23 +3,26 @@
  * Handles single and multi-intent request processing with orchestration
  */
 
-import { createLogger } from '../../utils/logger.js';
-import {
-  extractParameters,
-  analyzeParameterConfidence,
-} from '../../agents/chat/ParameterExtractor/index.js';
 import {
   handleInformationRequest,
   getWebSearchQuestion,
 } from '../../agents/chat/InformationRequestHandler.js';
 import { isQuestionMessage } from '../../agents/chat/IntentClassifier.js';
+import {
+  extractParameters,
+  analyzeParameterConfidence,
+} from '../../agents/chat/ParameterExtractor/index.js';
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
-import * as chatMemory from './index.js';
-import { DocumentQnAService } from '../document-services/DocumentQnAService/index.js';
+import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import mistralClient from '../../workers/mistralClient.js';
-import { generateSharepicForChat } from './sharepicGenerationService.js';
+import { DocumentQnAService } from '../document-services/DocumentQnAService/index.js';
+
 import { generateImagineForChat } from './imagineGenerationService.js';
+import { generateSharepicForChat } from './sharepicGenerationService.js';
+
+import * as chatMemory from './index.js';
+
 import type {
   Intent as DocumentIntent,
   AgentType,
@@ -598,87 +601,86 @@ async function processIntentAsync(
   req: any,
   baseContext: BaseContext
 ): Promise<any> {
-  return new Promise(async (resolve, reject) => {
+  const requestType = baseContext.requestType || 'content_creation';
+
+  const extractedParams = await extractParameters(
+    baseContext.originalMessage,
+    intent.agent,
+    baseContext.chatContext
+  );
+
+  let documentKnowledge: string | null = null;
+  if (baseContext.documentIds && baseContext.documentIds.length > 0) {
     try {
-      const requestType = baseContext.requestType || 'content_creation';
-
-      const extractedParams = await extractParameters(
+      documentKnowledge = await documentQnAService.extractKnowledgeForIntent(
+        baseContext.documentIds,
+        toDocumentIntent(intent),
         baseContext.originalMessage,
-        intent.agent,
-        baseContext.chatContext
+        req.user?.id || `anon_${req.ip}`
       );
-
-      let documentKnowledge: string | null = null;
-      if (baseContext.documentIds && baseContext.documentIds.length > 0) {
-        try {
-          documentKnowledge = await documentQnAService.extractKnowledgeForIntent(
-            baseContext.documentIds,
-            toDocumentIntent(intent),
-            baseContext.originalMessage,
-            req.user?.id || `anon_${req.ip}`
-          );
-        } catch (error) {
-          log.error('[IntentService] Error extracting async document knowledge:', error);
-        }
-      }
-
-      const enableAutoSearch = requestType !== 'conversation';
-      const autoSearchQuery = enableAutoSearch
-        ? buildAutoSearchQuery(baseContext.originalMessage, extractedParams, intent)
-        : null;
-
-      const intentReq: any = {
-        ...req,
-        app: req.app,
-        headers: req.headers,
-        user: req.user,
-        body: {
-          ...extractedParams,
-          ...intent.params,
-          agent: intent.agent,
-          documentKnowledge: documentKnowledge,
-          ...baseContext,
-          useAutomaticSearch: enableAutoSearch,
-          searchQuery: autoSearchQuery,
-        },
-        startTime: Date.now(),
-      };
-
-      const responseCollector: any = {
-        statusCode: 200,
-        responseData: null,
-
-        status: function (code: number) {
-          this.statusCode = code;
-          return this;
-        },
-
-        json: function (data: any) {
-          this.responseData = data;
-          if (this.statusCode >= 400) {
-            reject(new Error(`Processing failed: ${data.error || 'Unknown error'}`));
-          } else {
-            resolve(data);
-          }
-        },
-
-        send: function (data: any) {
-          this.responseData = data;
-          resolve(data);
-        },
-      };
-
-      const routeType = intent.route || intent.agent;
-
-      if (routeType === 'sharepic' || routeType.startsWith('sharepic_')) {
-        await processSharepicRequest(intent, intentReq, responseCollector, baseContext.userId);
-      } else {
-        await processGraphRequest(routeType, intentReq, responseCollector);
-      }
     } catch (error) {
+      log.error('[IntentService] Error extracting async document knowledge:', error);
+    }
+  }
+
+  const enableAutoSearch = requestType !== 'conversation';
+  const autoSearchQuery = enableAutoSearch
+    ? buildAutoSearchQuery(baseContext.originalMessage, extractedParams, intent)
+    : null;
+
+  const intentReq: any = {
+    ...req,
+    app: req.app,
+    headers: req.headers,
+    user: req.user,
+    body: {
+      ...extractedParams,
+      ...intent.params,
+      agent: intent.agent,
+      documentKnowledge: documentKnowledge,
+      ...baseContext,
+      useAutomaticSearch: enableAutoSearch,
+      searchQuery: autoSearchQuery,
+    },
+    startTime: Date.now(),
+  };
+
+  return new Promise((resolve, reject) => {
+    const responseCollector: any = {
+      statusCode: 200,
+      responseData: null,
+
+      status: function (code: number) {
+        this.statusCode = code;
+        return this;
+      },
+
+      json: function (data: any) {
+        this.responseData = data;
+        if (this.statusCode >= 400) {
+          reject(new Error(`Processing failed: ${data.error || 'Unknown error'}`));
+        } else {
+          resolve(data);
+        }
+      },
+
+      send: function (data: any) {
+        this.responseData = data;
+        resolve(data);
+      },
+    };
+
+    const routeType = intent.route || intent.agent;
+
+    const processPromise =
+      routeType === 'sharepic' || routeType.startsWith('sharepic_')
+        ? processSharepicRequest(intent, intentReq, responseCollector, baseContext.userId)
+        : processGraphRequest(routeType, intentReq, responseCollector);
+
+    processPromise.catch((error) => {
       log.error(`[IntentService] Async processing error for ${intent.agent}:`, error);
       reject(error);
-    }
+    });
   });
 }
 

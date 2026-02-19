@@ -9,6 +9,7 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
+
 import type { BackgroundConfig } from '../types/freeCanvasTypes.js';
 
 /**

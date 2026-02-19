@@ -16,7 +16,7 @@ import client from './client.js';
 import type { OIDCSessionData } from '../../config/keycloakOIDCStrategy.js';
 
 const KEY_PREFIX = 'oidc:state:';
-const TTL_SECONDS = 600; // 10 minutes — matches session staleness check
+const TTL_SECONDS = 900; // 15 minutes — matches OIDC_SESSION_MAX_AGE_MS in keycloakOIDCStrategy
 
 /**
  * Store OIDC session data in Redis, keyed by the state parameter.

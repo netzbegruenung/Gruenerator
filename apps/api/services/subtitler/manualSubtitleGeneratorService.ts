@@ -268,7 +268,7 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
 
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
-    const cleanWordLength = word.word.replace(/[.!?,:;""''()\[\]{}]/g, '').length;
+    const cleanWordLength = word.word.replace(/[.!?,:;""''()[\]{}]/g, '').length;
     const isLongWord = cleanWordLength >= CONFIG.longWordThreshold;
 
     if (isLongWord && currentSegment.words.length > 0) {

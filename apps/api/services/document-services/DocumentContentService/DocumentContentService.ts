@@ -3,9 +3,9 @@
  * Handles intelligent document content search and extraction
  */
 
-import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
 import { getQdrantDocumentService } from '../DocumentSearchService/index.js';
-import type { ContentSearchOptions, ContentSearchResponse } from './types.js';
+import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
+
 import { getAccessibleDocuments, getAccessibleDocumentIds } from './accessControl.js';
 import {
   determineContentStrategy,
@@ -18,6 +18,8 @@ import {
   fillMissingDocuments,
   createSearchResponse,
 } from './searchOperations.js';
+
+import type { ContentSearchOptions, ContentSearchResponse } from './types.js';
 
 /**
  * Main DocumentContentService class

@@ -10,22 +10,28 @@
  */
 
 import { generateText } from 'ai';
-import { DocumentSearchService } from '../../../services/document-services/index.js';
+
 // import { getEnrichedPersonSearchService } from '../../../services/bundestag/index.js'; // DISABLED: Person search not production ready
-import { contentExamplesService } from '../../../services/contentExamplesService.js';
-import { searxngService } from '../../../services/search/SearxngService.js';
 import {
   getSearchParams,
   buildSubcategoryFilter,
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../../config/systemCollectionsConfig.js';
-import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
-import { createLogger } from '../../../utils/logger.js';
-import { withRetry, searxngCircuit } from '../../../services/search/index.js';
-import { validateCitations, stripUngroundedCitations } from '../../../services/search/CitationGrounder.js';
+import { contentExamplesService } from '../../../services/contentExamplesService.js';
+import { DocumentSearchService } from '../../../services/document-services/index.js';
+import {
+  validateCitations,
+  stripUngroundedCitations,
+} from '../../../services/search/CitationGrounder.js';
 import { applyMMR } from '../../../services/search/DiversityReranker.js';
+import { withRetry, searxngCircuit } from '../../../services/search/index.js';
+import { searxngService } from '../../../services/search/SearxngService.js';
+import { createLogger } from '../../../utils/logger.js';
+
 import { getModel } from './providers.js';
+
+import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 
 const log = createLogger('DirectSearch');
 
@@ -169,7 +175,9 @@ export async function executeDirectSearch(params: {
 }): Promise<DirectSearchResult> {
   const { query, collection = 'deutschland', limit = 5, filters } = params;
 
-  log.info(`[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}`);
+  log.info(
+    `[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}`
+  );
 
   const mapping = COLLECTION_MAP[collection];
   if (!mapping) {
@@ -213,7 +221,9 @@ export async function executeDirectSearch(params: {
     if (!response.success || !response.results || response.results.length === 0) {
       // If we had user filters, retry without them (over-filtering fallback)
       if (userFilter) {
-        log.info(`[Direct Search] No results with filters, retrying without user filters for "${query}" in ${collection}`);
+        log.info(
+          `[Direct Search] No results with filters, retrying without user filters for "${query}" in ${collection}`
+        );
         const fallbackFilter = collectionDefault;
         const fallbackResponse = await documentSearchService.search({
           query,
@@ -231,7 +241,9 @@ export async function executeDirectSearch(params: {
           },
         });
         if (fallbackResponse.success && fallbackResponse.results?.length > 0) {
-          log.info(`[Direct Search] Fallback without filters found ${fallbackResponse.results.length} results`);
+          log.info(
+            `[Direct Search] Fallback without filters found ${fallbackResponse.results.length} results`
+          );
           response = fallbackResponse;
         }
       }
@@ -383,7 +395,9 @@ export async function executeDirectExamplesSearch(params: {
   const { query, platform, country } = params;
 
   const countryInfo = country ? ` country="${country}"` : '';
-  log.info(`[Direct Examples Search] query="${query}" platform="${platform || 'all'}"${countryInfo}`);
+  log.info(
+    `[Direct Examples Search] query="${query}" platform="${platform || 'all'}"${countryInfo}`
+  );
 
   try {
     const results = await contentExamplesService.searchSocialMediaExamples(query, {
@@ -616,8 +630,12 @@ function planResearch(question: string): SearchPlan {
   // Detect question type
   // DISABLED: Person search not production ready
   // const isPersonQuery = /\b(wer ist|wer war|politiker|abgeordnet|minister|kandidat)\b/i.test(q);
-  const isPartyQuery = /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag)\b/i.test(q);
-  const isCurrentEvents = /\b(aktuell|heute|gestern|diese woche|kürzlich|news|nachricht)\b/i.test(q);
+  const isPartyQuery = /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag)\b/i.test(
+    q
+  );
+  const isCurrentEvents = /\b(aktuell|heute|gestern|diese woche|kürzlich|news|nachricht)\b/i.test(
+    q
+  );
   const isLocalQuery = /\b(ort|stadt|stadtteil|region|gemeinde|kreis|wahlkreis)\b/i.test(q);
 
   // DISABLED: Person search not production ready
@@ -658,7 +676,7 @@ function planResearch(question: string): SearchPlan {
   }
 
   // Add local/geographic web search if location mentioned
-  if (isLocalQuery && !queries.some(q => q.tool === 'web_search')) {
+  if (isLocalQuery && !queries.some((q) => q.tool === 'web_search')) {
     queries.push({
       tool: 'web_search',
       query: question,
@@ -733,7 +751,8 @@ async function executeSearches(
               url: result.url || '',
               domain: 'gruene.de',
               snippet: result.excerpt,
-              relevance: result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
+              relevance:
+                result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
               sourceType: 'document',
             });
           }
@@ -785,7 +804,7 @@ async function executeSearches(
 
   // Sort sources by relevance and deduplicate by URL
   const seenUrls = new Set<string>();
-  const uniqueSources = sources.filter(s => {
+  const uniqueSources = sources.filter((s) => {
     if (!s.url || seenUrls.has(s.url)) return !s.url ? true : false;
     seenUrls.add(s.url);
     return true;
@@ -855,9 +874,9 @@ function synthesizeAnswer(
   const usedSources = new Set<number>();
 
   // Group sources by type
-  const personSources = sources.filter(s => s.sourceType === 'person');
-  const docSources = sources.filter(s => s.sourceType === 'document');
-  const webSources = sources.filter(s => s.sourceType === 'web');
+  const personSources = sources.filter((s) => s.sourceType === 'person');
+  const docSources = sources.filter((s) => s.sourceType === 'document');
+  const webSources = sources.filter((s) => s.sourceType === 'web');
 
   // Lead with most relevant information
   if (personSources.length > 0 && strategy === 'biographical_summary') {
@@ -897,7 +916,7 @@ function synthesizeAnswer(
 
   // Determine confidence based on source quality and quantity
   let confidence: 'high' | 'medium' | 'low' = 'medium';
-  if (usedSources.size >= 3 && sources.some(s => s.relevance > 0.8)) {
+  if (usedSources.size >= 3 && sources.some((s) => s.relevance > 0.8)) {
     confidence = 'high';
   } else if (usedSources.size < 2) {
     confidence = 'low';
@@ -963,7 +982,7 @@ Regeln:
 
     // Determine confidence based on source quality and quantity
     let confidence: 'high' | 'medium' | 'low' = 'medium';
-    if (sources.length >= 3 && sources.some(s => s.relevance > 0.8)) {
+    if (sources.length >= 3 && sources.some((s) => s.relevance > 0.8)) {
       confidence = 'high';
     } else if (sources.length < 2) {
       confidence = 'low';
@@ -1031,31 +1050,44 @@ export async function executeResearch(params: {
 
   // For thorough mode, ensure both web and document search are included per topic
   if (depth === 'thorough') {
-    const hasWeb = plan.queries.some(q => q.tool === 'web_search');
-    const hasDoc = plan.queries.some(q => q.tool === 'gruenerator_search');
+    const hasWeb = plan.queries.some((q) => q.tool === 'web_search');
+    const hasDoc = plan.queries.some((q) => q.tool === 'gruenerator_search');
     if (!hasWeb) {
-      plan.queries.push({ tool: 'web_search', query: question, priority: 3, reason: 'Thorough: supplementary web search' });
+      plan.queries.push({
+        tool: 'web_search',
+        query: question,
+        priority: 3,
+        reason: 'Thorough: supplementary web search',
+      });
     }
     if (!hasDoc) {
-      plan.queries.push({ tool: 'gruenerator_search', query: question, priority: 3, reason: 'Thorough: supplementary document search' });
+      plan.queries.push({
+        tool: 'gruenerator_search',
+        query: question,
+        priority: 3,
+        reason: 'Thorough: supplementary document search',
+      });
     }
     plan.queries = plan.queries.slice(0, maxQueries);
   }
 
-  log.info(`[Research] Plan: ${plan.queries.length} queries (depth: ${depth}), strategy: ${plan.synthesisStrategy}`);
+  log.info(
+    `[Research] Plan: ${plan.queries.length} queries (depth: ${depth}), strategy: ${plan.synthesisStrategy}`
+  );
 
   // Phase 2: Execute searches
   const { sources, searchSteps } = await executeSearches(plan);
   log.info(`[Research] Collected ${sources.length} sources from ${searchSteps.length} searches`);
 
   // B3: Apply MMR diversity to sources before synthesis
-  const diverseSources = sources.length > 3
-    ? applyMMR(
-        sources.map(s => ({ ...s, relevance: s.relevance, content: s.snippet })),
-        0.7,
-        2
-      ).map((s, i) => ({ ...s, id: i + 1 })) as CollectedSource[]
-    : sources;
+  const diverseSources =
+    sources.length > 3
+      ? (applyMMR(
+          sources.map((s) => ({ ...s, relevance: s.relevance, content: s.snippet })),
+          0.7,
+          2
+        ).map((s, i) => ({ ...s, id: i + 1 })) as CollectedSource[])
+      : sources;
 
   // Phase 3: Synthesize answer
   const limitedSources = diverseSources.slice(0, maxSources);
@@ -1071,11 +1103,13 @@ export async function executeResearch(params: {
   if (useLLMSynthesis && answer) {
     const groundingResult = validateCitations(
       answer,
-      limitedSources.map(s => ({ id: s.id, content: s.snippet }))
+      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
     );
 
     if (groundingResult.ungroundedCitations.length > 0) {
-      log.warn(`[Research] ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`);
+      log.warn(
+        `[Research] ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`
+      );
       answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
 
       // If >50% ungrounded, fall back to template synthesis
@@ -1092,7 +1126,7 @@ export async function executeResearch(params: {
   const followUpQuestions = generateFollowUpQuestions(question, limitedSources);
 
   // Build citations list
-  const citations: ResearchCitation[] = limitedSources.map(s => ({
+  const citations: ResearchCitation[] = limitedSources.map((s) => ({
     id: s.id,
     title: s.title,
     url: s.url,

@@ -3,8 +3,9 @@
  * AI decides which URLs to crawl for full content
  */
 
-import type { WebSearchState, CrawlDecision } from '../types.js';
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
+
+import type { WebSearchState, CrawlDecision } from '../types.js';
 
 /**
  * Intelligent Crawler Agent Node: AI decides which URLs to crawl

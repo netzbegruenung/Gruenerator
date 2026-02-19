@@ -1,8 +1,10 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
+import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type { ShareLinkUpdates } from '../../utils/integrations/nextcloud/types.js';
 
 const log = createLogger('nextcloud');
@@ -180,44 +182,47 @@ router.post('/share-links', async (req: Request, res: Response): Promise<void> =
  * Delete a Nextcloud share link
  * DELETE /api/nextcloud/share-links/:id
  */
-router.delete('/share-links/:id', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.delete(
+  '/share-links/:id',
+  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    const shareLinkId = req.params.id;
+      const shareLinkId = req.params.id;
 
-    log.debug('[NextcloudApi] Deleting share link', { userId, shareLinkId });
+      log.debug('[NextcloudApi] Deleting share link', { userId, shareLinkId });
 
-    if (!shareLinkId) {
-      res.status(400).json({ error: 'Share link ID is required' });
-      return;
-    }
+      if (!shareLinkId) {
+        res.status(400).json({ error: 'Share link ID is required' });
+        return;
+      }
 
-    const result = await NextcloudShareManager.deleteShareLink(userId, shareLinkId);
+      const result = await NextcloudShareManager.deleteShareLink(userId, shareLinkId);
 
-    res.json(result);
-  } catch (error) {
-    const err = error as Error;
-    log.error('[NextcloudApi] Error deleting share link', { error: err.message });
+      res.json(result);
+    } catch (error) {
+      const err = error as Error;
+      log.error('[NextcloudApi] Error deleting share link', { error: err.message });
 
-    if (err.message.includes('not found') || err.message.includes('no permission')) {
-      res.status(404).json({
-        error: 'Share link not found',
+      if (err.message.includes('not found') || err.message.includes('no permission')) {
+        res.status(404).json({
+          error: 'Share link not found',
+          message: err.message,
+        });
+        return;
+      }
+
+      res.status(500).json({
+        error: 'Failed to delete share link',
         message: err.message,
       });
-      return;
     }
-
-    res.status(500).json({
-      error: 'Failed to delete share link',
-      message: err.message,
-    });
   }
-});
+);
 
 /**
  * Test connection to a Nextcloud share
@@ -417,100 +422,106 @@ router.post('/upload-test', async (req: Request, res: Response): Promise<void> =
  * Get share information (list files)
  * GET /api/nextcloud/share-links/:id/info
  */
-router.get('/share-links/:id/info', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+router.get(
+  '/share-links/:id/info',
+  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const shareLinkId = req.params.id;
+
+      log.debug('[NextcloudApi] Getting share info', { userId, shareLinkId });
+
+      if (!shareLinkId) {
+        res.status(400).json({ error: 'Share link ID is required' });
+        return;
+      }
+
+      const shareLink = await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
+
+      if (!shareLink || !shareLink.is_active) {
+        res.status(404).json({ error: 'Share link not found or inactive' });
+        return;
+      }
+
+      const client = new NextcloudApiClient(shareLink.share_link);
+      const shareInfo = await client.getShareInfo();
+
+      res.json(shareInfo);
+    } catch (error) {
+      const err = error as Error;
+      log.error('[NextcloudApi] Error getting share info', { error: err.message });
+      res.status(500).json({
+        error: 'Failed to get share information',
+        message: err.message,
+      });
     }
-
-    const shareLinkId = req.params.id;
-
-    log.debug('[NextcloudApi] Getting share info', { userId, shareLinkId });
-
-    if (!shareLinkId) {
-      res.status(400).json({ error: 'Share link ID is required' });
-      return;
-    }
-
-    const shareLink = await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
-
-    if (!shareLink || !shareLink.is_active) {
-      res.status(404).json({ error: 'Share link not found or inactive' });
-      return;
-    }
-
-    const client = new NextcloudApiClient(shareLink.share_link);
-    const shareInfo = await client.getShareInfo();
-
-    res.json(shareInfo);
-  } catch (error) {
-    const err = error as Error;
-    log.error('[NextcloudApi] Error getting share info', { error: err.message });
-    res.status(500).json({
-      error: 'Failed to get share information',
-      message: err.message,
-    });
   }
-});
+);
 
 /**
  * Update share link
  * PUT /api/nextcloud/share-links/:id
  */
-router.put('/share-links/:id', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.put(
+  '/share-links/:id',
+  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    const shareLinkId = req.params.id;
-    const { label, is_active } = req.body as UpdateShareLinkBody;
+      const shareLinkId = req.params.id;
+      const { label, is_active } = req.body as UpdateShareLinkBody;
 
-    log.debug('[NextcloudApi] Updating share link', { userId, shareLinkId });
+      log.debug('[NextcloudApi] Updating share link', { userId, shareLinkId });
 
-    if (!shareLinkId) {
-      res.status(400).json({ error: 'Share link ID is required' });
-      return;
-    }
+      if (!shareLinkId) {
+        res.status(400).json({ error: 'Share link ID is required' });
+        return;
+      }
 
-    const updates: ShareLinkUpdates = {};
-    if (typeof label === 'string') {
-      updates.label = label.trim() || null;
-    }
-    if (typeof is_active === 'boolean') {
-      updates.is_active = is_active;
-    }
+      const updates: ShareLinkUpdates = {};
+      if (typeof label === 'string') {
+        updates.label = label.trim() || null;
+      }
+      if (typeof is_active === 'boolean') {
+        updates.is_active = is_active;
+      }
 
-    if (Object.keys(updates).length === 0) {
-      res.status(400).json({ error: 'No valid updates provided' });
-      return;
-    }
+      if (Object.keys(updates).length === 0) {
+        res.status(400).json({ error: 'No valid updates provided' });
+        return;
+      }
 
-    const updatedLink = await NextcloudShareManager.updateShareLink(userId, shareLinkId, updates);
+      const updatedLink = await NextcloudShareManager.updateShareLink(userId, shareLinkId, updates);
 
-    res.json(updatedLink);
-  } catch (error) {
-    const err = error as Error;
-    log.error('[NextcloudApi] Error updating share link', { error: err.message });
+      res.json(updatedLink);
+    } catch (error) {
+      const err = error as Error;
+      log.error('[NextcloudApi] Error updating share link', { error: err.message });
 
-    if (err.message.includes('not found') || err.message.includes('no permission')) {
-      res.status(404).json({
-        error: 'Share link not found',
+      if (err.message.includes('not found') || err.message.includes('no permission')) {
+        res.status(404).json({
+          error: 'Share link not found',
+          message: err.message,
+        });
+        return;
+      }
+
+      res.status(500).json({
+        error: 'Failed to update share link',
         message: err.message,
       });
-      return;
     }
-
-    res.status(500).json({
-      error: 'Failed to update share link',
-      message: err.message,
-    });
   }
-});
+);
 
 /**
  * Debug route to check database state

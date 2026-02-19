@@ -1,23 +1,25 @@
-import { enrichRequest } from '../../../utils/requestEnrichment.js';
-import { sendSuccessResponse } from '../../../utils/request/index.js';
+import { getGenerationStatsService } from '../../../database/services/GenerationStatsService/index.js';
 import {
   generateSharepicForChat,
   type ExpressRequest,
   type SharepicResult,
 } from '../../../services/chat/sharepicGenerationService.js';
+import { prAgentWorkflow } from '../../../services/WorkflowService/index.js';
+import { sendSuccessResponse } from '../../../utils/request/index.js';
+import { enrichRequest } from '../../../utils/requestEnrichment.js';
+
+import { searchArgumentsFromNotebooks } from './generators/argumentsGenerator.js';
+import { summarizeArguments } from './generators/argumentsSummarizer.js';
 import { generateStrategicFraming } from './generators/framingGenerator.js';
 import { generatePlatformContent } from './generators/platformGenerator.js';
 import { generateRiskAnalysis } from './generators/riskGenerator.js';
 import { generateVisualBriefing } from './generators/visualGenerator.js';
-import { searchArgumentsFromNotebooks } from './generators/argumentsGenerator.js';
-import { summarizeArguments } from './generators/argumentsSummarizer.js';
 import {
   formatPRAgentResponse,
   formatStrategyApprovalResponse,
 } from './utils/responseFormatter.js';
+
 import type { PRAgentRequest } from './types.js';
-import { getGenerationStatsService } from '../../../database/services/GenerationStatsService/index.js';
-import { prAgentWorkflow } from '../../../services/WorkflowService/index.js';
 
 /**
  * PR Agent Main Orchestrator

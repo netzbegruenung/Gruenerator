@@ -4,6 +4,7 @@
  */
 
 import { QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../utils/logger.js';
 
 const logger = createLogger('QdrantService:search');

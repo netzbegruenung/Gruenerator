@@ -63,9 +63,7 @@ const SharepicMasterEditorModal = lazy(() =>
   }))
 );
 
-interface PresseSocialTabProps {
-  isActive: boolean;
-}
+type PresseSocialTabProps = Record<string, never>;
 
 interface GeneratedContentResult {
   sharepic?: unknown[];
@@ -79,7 +77,7 @@ interface GeneratedContentResult {
   onEditSharepic: (sharepicData: unknown) => Promise<void>;
 }
 
-const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(({ isActive }) => {
+const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
   const { isAuthenticated } = useOptimizedAuth();

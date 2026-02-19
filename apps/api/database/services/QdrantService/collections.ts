@@ -3,8 +3,10 @@
  * Functions for creating and managing Qdrant collections and indexes
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../utils/logger.js';
+
 import type { CollectionStats, CollectionNames, CollectionKey } from './types.js';
 import type { Logger } from 'winston';
 

@@ -4,6 +4,16 @@
  */
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
+
+import { aggregatorNode } from './nodes/AggregatorNode.js';
+import { contentEnricherNode } from './nodes/ContentEnricherNode.js';
+import { dossierNode } from './nodes/DossierNode.js';
+import { grundsatzNode } from './nodes/GrundsatzNode.js';
+import { intelligentCrawlerNode } from './nodes/IntelligentCrawlerNode.js';
+import { plannerNode } from './nodes/PlannerNode.js';
+import { searxngNode } from './nodes/SearxngNode.js';
+import { summaryNode } from './nodes/SummaryNode.js';
+
 import type {
   WebSearchState,
   WebSearchInput,
@@ -11,14 +21,6 @@ import type {
   NormalSearchOutput,
   DeepSearchOutput,
 } from './types.js';
-import { plannerNode } from './nodes/PlannerNode.js';
-import { searxngNode } from './nodes/SearxngNode.js';
-import { intelligentCrawlerNode } from './nodes/IntelligentCrawlerNode.js';
-import { contentEnricherNode } from './nodes/ContentEnricherNode.js';
-import { grundsatzNode } from './nodes/GrundsatzNode.js';
-import { aggregatorNode } from './nodes/AggregatorNode.js';
-import { summaryNode } from './nodes/SummaryNode.js';
-import { dossierNode } from './nodes/DossierNode.js';
 
 // State schema for the search graph
 const SearchState = Annotation.Root({

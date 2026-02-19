@@ -3,9 +3,9 @@
  * Searches Green Party knowledge bases for relevant arguments using Qdrant
  */
 
+import { SYSTEM_COLLECTIONS } from '../../../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import { mistralEmbeddingService } from '../../../../services/mistral/MistralEmbeddingService/index.js';
-import { SYSTEM_COLLECTIONS } from '../../../../config/systemCollectionsConfig.js';
 
 export interface ArgumentResult {
   source: string;
@@ -49,7 +49,7 @@ export async function searchArgumentsFromNotebooks(
   await qdrant.init();
   await mistralEmbeddingService.init();
 
-  if (!qdrant.isAvailable() || !mistralEmbeddingService.isReady()) {
+  if (!(await qdrant.isAvailable()) || !mistralEmbeddingService.isReady()) {
     console.warn('[ArgumentsGenerator] Qdrant or Mistral not available');
     return [];
   }

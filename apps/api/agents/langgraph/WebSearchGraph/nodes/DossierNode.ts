@@ -3,7 +3,6 @@
  * Generates comprehensive research dossier (deep mode only)
  */
 
-import type { WebSearchState, Citation, ResearchDossier, SearchResult } from '../types.js';
 import {
   normalizeSearchResult,
   dedupeAndDiversify,
@@ -17,6 +16,8 @@ import {
   buildDossierPrompt,
   buildMethodologySection,
 } from '../utilities/dossierBuilder.js';
+
+import type { WebSearchState, Citation, ResearchDossier, SearchResult } from '../types.js';
 
 /**
  * Dossier Node: Generate comprehensive research dossier with citations

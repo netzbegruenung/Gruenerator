@@ -1,7 +1,9 @@
-import { Router, Request, Response } from 'express';
+import { type Router, type Request, type Response } from 'express';
+
+import imagePickerService from '../../services/image/ImageSelectionService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
-import imagePickerService from '../../services/image/ImageSelectionService.js';
+
 import type { WebsiteContent } from '../../types/routes.js';
 const log = createLogger('claude_website');
 const router: Router = createAuthenticatedRouter();

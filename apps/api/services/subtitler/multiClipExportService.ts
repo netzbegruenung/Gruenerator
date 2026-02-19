@@ -4,21 +4,24 @@
  * Exports videos with segment cuts from multiple input clips.
  */
 
-import path from 'path';
 import fs from 'fs/promises';
+import path from 'path';
 import { fileURLToPath } from 'url';
+
 import { v4 as uuidv4 } from 'uuid';
+
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import * as hwaccel from './hwaccelUtils.js';
-import { ffmpeg, ffprobe } from './ffmpegWrapper.js';
+
 import { ffmpegPool } from './ffmpegPool.js';
+import { ffmpeg, ffprobe } from './ffmpegWrapper.js';
+import * as hwaccel from './hwaccelUtils.js';
 import {
   buildMultiClipFilterComplex,
   buildMultiClipVideoOnlyFilterComplex,
   calculateTotalDuration,
-  Segment,
-  Clip,
+  type Segment,
+  type Clip,
 } from './segmentFilterBuilders.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -360,7 +363,9 @@ export async function exportMultiClipWithSegments(
                 }),
                 { EX: 60 * 60 }
               );
-            } catch {}
+            } catch {
+              /* ignore progress update error */
+            }
           })
           .on('error', (err: Error) => {
             log.error(`FFmpeg multi-clip export error: ${err.message}`);
@@ -624,7 +629,9 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
                 }),
                 { EX: 60 * 60 }
               );
-            } catch {}
+            } catch {
+              /* ignore progress update error */
+            }
           })
           .on('error', (err: Error) => {
             log.error(`FFmpeg error: ${err.message}`);
@@ -641,7 +648,9 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
     try {
       if (assFilePath) await fs.unlink(assFilePath).catch(() => {});
       if (tempFontPath) await fs.unlink(tempFontPath).catch(() => {});
-    } catch {}
+    } catch {
+      /* ignore temp file cleanup error */
+    }
 
     await redisClient.set(
       `export:${exportToken}`,

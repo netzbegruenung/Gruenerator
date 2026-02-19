@@ -4,14 +4,17 @@
  * Bypasses the complex chat flow for direct, no-followup generation
  */
 
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { getProfileService } from '../../services/user/ProfileService.js';
-import { handleUnifiedRequest } from './sharepic_claude/unifiedHandler.js';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+
+import { handleUnifiedRequest } from './sharepic_claude/unifiedHandler.js';
+
 import type { SharepicRequest } from './sharepic_claude/types.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('promptRoute');
 const router = Router();

@@ -4,9 +4,10 @@
  * Handles normal web search, deep research, and analysis endpoints
  */
 
-import express, { Response, Router } from 'express';
+import express, { type Response, type Router } from 'express';
+
 import { createLogger } from '../../utils/logger.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+
 import type {
   WebSearchInput,
   NormalSearchOutput,
@@ -21,6 +22,7 @@ import type {
   Source,
   SearchMetadata,
 } from '../../agents/langgraph/WebSearchGraph/types.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('search');
 

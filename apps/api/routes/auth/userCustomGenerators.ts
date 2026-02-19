@@ -3,10 +3,12 @@
  * Handles custom generator CRUD, document linking, and saved generators
  */
 
-import express, { Router, Response, NextFunction } from 'express';
+import express, { type Router, type Response, type NextFunction } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type { AuthRequest } from './types.js';
 
 const log = createLogger('userCustomGener');

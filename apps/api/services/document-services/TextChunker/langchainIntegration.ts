@@ -5,8 +5,10 @@
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
 import { cleanTextForEmbedding } from '../../text/index.js';
-import { estimateTokens } from './validation.js';
+
 import { GERMAN_SEPARATORS } from './germanLanguageRules.js';
+import { estimateTokens } from './validation.js';
+
 import type { Chunk, ChunkingOptions, LangChainChunkerOptions } from './types.js';
 
 /**
@@ -19,8 +21,8 @@ export class LangChainChunker {
 
   constructor(options: LangChainChunkerOptions = {}) {
     const chunking = vectorConfig.get('chunking');
-    this.chunkSize = options.chunkSize || 1600 || chunking?.adaptive?.defaultSize;
-    this.chunkOverlap = options.chunkOverlap || 400 || chunking?.adaptive?.overlapSize;
+    this.chunkSize = options.chunkSize || 1600;
+    this.chunkOverlap = options.chunkOverlap || 400;
   }
 
   /**
@@ -34,17 +36,17 @@ export class LangChainChunker {
     };
 
     try {
-      // @ts-ignore - LangChain is an optional dependency
+      // @ts-expect-error - LangChain is an optional dependency
       const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
       return new RecursiveCharacterTextSplitter(opts);
     } catch (err1) {
       try {
-        // @ts-ignore - LangChain is an optional dependency
+        // @ts-expect-error - LangChain is an optional dependency
         const { RecursiveCharacterTextSplitter } = await import('@langchain/core/text_splitter');
         return new RecursiveCharacterTextSplitter(opts);
       } catch (err2) {
         try {
-          // @ts-ignore - LangChain is an optional dependency
+          // @ts-expect-error - LangChain is an optional dependency
           const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
           return new RecursiveCharacterTextSplitter(opts);
         } catch (err3) {
@@ -140,7 +142,7 @@ export class LangChainChunker {
     let i = 0;
 
     while (i < chunks.length) {
-      let cur = { ...chunks[i] };
+      const cur = { ...chunks[i] };
       cur.metadata = cur.metadata || {};
 
       while (cur.text.length < minChars && i + 1 < chunks.length) {

@@ -4,8 +4,10 @@
  */
 
 import * as cheerio from 'cheerio';
-import type { HtmlExtractionOptions, ExtractionResult } from '../types.js';
+
 import { cleanText, removeUnwantedElements, extractTitle } from './htmlCleaner.js';
+
+import type { HtmlExtractionOptions, ExtractionResult } from '../types.js';
 
 /**
  * Extract main content from HTML using selectors
@@ -231,7 +233,7 @@ export function extractArticleUrls(html: string, baseUrl: string): string[] {
 
   for (const selector of articleSelectors) {
     $(selector).each((_, el) => {
-      let href = $(el).attr('href');
+      const href = $(el).attr('href');
       if (href) {
         try {
           const absoluteUrl = new URL(href, baseUrl).toString();

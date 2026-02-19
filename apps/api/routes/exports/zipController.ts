@@ -3,8 +3,9 @@
  * Creates ZIP archives from multiple images (PNG base64 data URLs)
  */
 
-import express, { Request, Response } from 'express';
 import archiver from 'archiver';
+import express, { type Request, type Response } from 'express';
+
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('exportZip');

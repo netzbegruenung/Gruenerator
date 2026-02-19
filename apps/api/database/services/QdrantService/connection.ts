@@ -3,10 +3,13 @@
  * Extracted connection functions for Qdrant vector database
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
 import * as http from 'http';
 import * as https from 'https';
+
+import { QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../utils/logger.js';
+
 import type { Logger } from 'winston';
 
 const logger = createLogger('QdrantConnection');

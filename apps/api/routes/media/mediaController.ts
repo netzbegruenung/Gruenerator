@@ -1,5 +1,6 @@
-import express, { Request, Response, Router } from 'express';
-import multer, { FileFilterCallback } from 'multer';
+import express, { type Request, type Response, type Router } from 'express';
+import multer, { type FileFilterCallback } from 'multer';
+
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
 
 import type { AllowedMimeType, SharedMediaRow } from '../../types/media.js';
@@ -176,7 +177,7 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
  * GET /api/media/:id
  * Get single media item by ID
  */
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -260,7 +261,7 @@ router.post(
  * PUT /api/media/:id
  * Update media metadata (title, alt text)
  */
-router.put('/:id', async (req: Request, res: Response): Promise<void> => {
+router.put('/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -306,7 +307,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
  * DELETE /api/media/:id
  * Delete media item
  */
-router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {

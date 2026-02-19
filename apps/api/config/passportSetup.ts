@@ -1,8 +1,12 @@
-import passport from 'passport';
 import { randomUUID } from 'crypto';
-import { initializeKeycloakOIDCStrategy, type PassportProfile } from './keycloakOIDCStrategy.js';
+
+import passport from 'passport';
+
 import { getProfileService } from '../services/user/ProfileService.js';
 import { createLogger } from '../utils/logger.js';
+
+import { initializeKeycloakOIDCStrategy, type PassportProfile } from './keycloakOIDCStrategy.js';
+
 import type { Request } from 'express';
 
 const log = createLogger('Passport');
@@ -102,7 +106,9 @@ try {
   log.info('Keycloak OIDC initialized');
 } catch (error) {
   log.error(`OIDC init failed: ${(error as Error).message}`);
-  log.error('Server will start without authentication - auth requests will fail until Keycloak is reachable');
+  log.error(
+    'Server will start without authentication - auth requests will fail until Keycloak is reachable'
+  );
 }
 
 // Serialize user for session
@@ -138,11 +144,11 @@ passport.deserializeUser(async (userData: any, done) => {
           userToReturn.supabaseSession = userData.supabaseSession;
         }
         // CRITICAL: Preserve profile settings that may have been updated in session
-        if (userData.hasOwnProperty('igel_modus')) {
+        if (Object.hasOwn(userData, 'igel_modus')) {
           userToReturn.igel_modus = userData.igel_modus;
         }
         // CRITICAL: Preserve avatar_robot_id from session if it was updated
-        if (userData.hasOwnProperty('avatar_robot_id') && userData.avatar_robot_id) {
+        if (Object.hasOwn(userData, 'avatar_robot_id') && userData.avatar_robot_id) {
           userToReturn.avatar_robot_id = userData.avatar_robot_id;
         }
         // Preserve _redirectTo field if it exists (used for redirect after auth)
@@ -186,7 +192,7 @@ export async function handleUserProfile(
 
   try {
     // Check for existing user by keycloak_id
-    let existingUser = await getUserByKeycloakId(keycloakId);
+    const existingUser = await getUserByKeycloakId(keycloakId);
 
     if (existingUser) {
       // Check if email change would cause conflict

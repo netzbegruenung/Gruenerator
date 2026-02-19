@@ -13,7 +13,7 @@ export class VectorBackendError extends Error {
   public readonly code: ErrorCode;
   public readonly details: ErrorDetails;
   public readonly timestamp: string;
-  public readonly isVectorBackendError: true = true;
+  public readonly isVectorBackendError = true as const;
 
   constructor(message: string, code: ErrorCode, details: ErrorDetails = {}) {
     super(message);

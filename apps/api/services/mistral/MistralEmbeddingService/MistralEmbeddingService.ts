@@ -4,7 +4,6 @@
  * Provides caching and batch processing capabilities
  */
 
-import MistralEmbeddingClient from './MistralEmbeddingClient.js';
 import { embeddingCache } from './embeddingCache.js';
 import {
   validateText,
@@ -14,6 +13,8 @@ import {
   generateMockBatchEmbeddings,
   estimateTokenCount,
 } from './embeddingOperations.js';
+import MistralEmbeddingClient from './MistralEmbeddingClient.js';
+
 import type { ModelInfo } from './types.js';
 
 /**

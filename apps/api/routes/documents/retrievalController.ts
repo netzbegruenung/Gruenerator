@@ -11,11 +11,14 @@
  * - DELETE /bulk - Bulk delete documents
  */
 
-import express, { Router, Response } from 'express';
-import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import express, { type Router, type Response } from 'express';
+
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
+import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import { enrichDocumentWithPreview } from './helpers.js';
+
 import type { DocumentRequest, BulkDeleteRequestBody, GetDocumentsBySourceQuery } from './types.js';
 
 const log = createLogger('documents:retrieval');
@@ -143,44 +146,47 @@ router.get('/combined-content', async (req: DocumentRequest, res: Response): Pro
 /**
  * GET /by-source/:sourceType - Get documents by source type
  */
-router.get('/by-source/:sourceType', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { sourceType } = req.params;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.get(
+  '/by-source/:sourceType',
+  async (req: DocumentRequest<{ sourceType: string }>, res: Response): Promise<void> => {
+    try {
+      const { sourceType } = req.params;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    // Validate source type
-    if (sourceType && !['manual', 'wolke'].includes(sourceType)) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid source type. Must be "manual" or "wolke"',
+      // Validate source type
+      if (sourceType && !['manual', 'wolke'].includes(sourceType)) {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid source type. Must be "manual" or "wolke"',
+        });
+        return;
+      }
+
+      const documents = await postgresDocumentService.getDocumentsBySourceType(
+        userId,
+        sourceType as any
+      );
+      const enriched = documents.map((doc) => enrichDocumentWithPreview(doc, {}));
+
+      res.json({
+        success: true,
+        data: enriched,
+        sourceType,
+        count: enriched.length,
       });
-      return;
+    } catch (error) {
+      log.error('[GET /by-source/:sourceType] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to get documents by source type',
+      });
     }
-
-    const documents = await postgresDocumentService.getDocumentsBySourceType(
-      userId,
-      sourceType as any
-    );
-    const enriched = documents.map((doc) => enrichDocumentWithPreview(doc, {}));
-
-    res.json({
-      success: true,
-      data: enriched,
-      sourceType,
-      count: enriched.length,
-    });
-  } catch (error) {
-    log.error('[GET /by-source/:sourceType] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to get documents by source type',
-    });
   }
-});
+);
 
 /**
  * GET /stats - Get document statistics
@@ -211,117 +217,123 @@ router.get('/stats', async (req: DocumentRequest, res: Response): Promise<void> 
 /**
  * GET /:id/content - Get document content (PostgreSQL + Qdrant only)
  */
-router.get('/:id/content', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    // Get document metadata from PostgreSQL
-    const document = await postgresDocumentService.getDocumentById(id, userId);
-
-    if (!document) {
-      res.status(404).json({
-        success: false,
-        message: 'Document not found or access denied',
-      });
-      return;
-    }
-
-    // Get text content from Qdrant vectors
-    let ocrText = '';
+router.get(
+  '/:id/content',
+  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
-      log.debug(`[GET /:id/content] Fetching text from Qdrant for document ${id}`);
-      const qdrantResult = await documentSearchService.getDocumentFullText(userId, id);
-      if (qdrantResult.success && qdrantResult.fullText) {
-        ocrText = qdrantResult.fullText;
-        log.debug(
-          `[GET /:id/content] Successfully retrieved ${qdrantResult.chunkCount} chunks from Qdrant for document ${id}`
-        );
-      } else {
-        log.warn(`[GET /:id/content] No text found in Qdrant for document ${id}`);
+      const { id } = req.params;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
       }
-    } catch (qdrantError) {
-      log.error(
-        `[GET /:id/content] Error retrieving text from Qdrant for document ${id}:`,
-        qdrantError
-      );
-      // Continue with empty text - don't fail the request
-    }
 
-    res.json({
-      success: true,
-      data: {
-        id: document.id,
-        title: document.title,
-        filename: document.filename || null,
-        status: document.status,
-        vector_count: document.vector_count || 0,
-        source_type: document.source_type,
-        ocr_text: ocrText, // Always from Qdrant
-        created_at: document.created_at,
-      },
-    });
-  } catch (error) {
-    log.error('[GET /:id/content] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to get document content',
-    });
+      // Get document metadata from PostgreSQL
+      const document = await postgresDocumentService.getDocumentById(id, userId);
+
+      if (!document) {
+        res.status(404).json({
+          success: false,
+          message: 'Document not found or access denied',
+        });
+        return;
+      }
+
+      // Get text content from Qdrant vectors
+      let ocrText = '';
+      try {
+        log.debug(`[GET /:id/content] Fetching text from Qdrant for document ${id}`);
+        const qdrantResult = await documentSearchService.getDocumentFullText(userId, id);
+        if (qdrantResult.success && qdrantResult.fullText) {
+          ocrText = qdrantResult.fullText;
+          log.debug(
+            `[GET /:id/content] Successfully retrieved ${qdrantResult.chunkCount} chunks from Qdrant for document ${id}`
+          );
+        } else {
+          log.warn(`[GET /:id/content] No text found in Qdrant for document ${id}`);
+        }
+      } catch (qdrantError) {
+        log.error(
+          `[GET /:id/content] Error retrieving text from Qdrant for document ${id}:`,
+          qdrantError
+        );
+        // Continue with empty text - don't fail the request
+      }
+
+      res.json({
+        success: true,
+        data: {
+          id: document.id,
+          title: document.title,
+          filename: document.filename || null,
+          status: document.status,
+          vector_count: document.vector_count || 0,
+          source_type: document.source_type,
+          ocr_text: ocrText, // Always from Qdrant
+          created_at: document.created_at,
+        },
+      });
+    } catch (error) {
+      log.error('[GET /:id/content] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to get document content',
+      });
+    }
   }
-});
+);
 
 /**
  * DELETE /:id - Delete document (PostgreSQL + Qdrant only)
  */
-router.delete('/:id', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    // Delete document metadata from PostgreSQL (includes ownership check)
-    await postgresDocumentService.deleteDocument(id, userId);
-
-    // Delete document vectors from Qdrant
+router.delete(
+  '/:id',
+  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
-      await documentSearchService.deleteDocumentVectors(id, userId);
-      log.debug(`[DELETE /:id] Successfully deleted vectors for document ${id}`);
-    } catch (vectorError) {
-      log.warn('[DELETE /:id] Vector deletion warning:', vectorError);
-      // Continue even if vector deletion fails - document metadata is already deleted
-    }
+      const { id } = req.params;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    res.json({
-      success: true,
-      message: 'Document deleted successfully',
-    });
-  } catch (error) {
-    log.error('[DELETE /:id] Error:', error);
+      // Delete document metadata from PostgreSQL (includes ownership check)
+      await postgresDocumentService.deleteDocument(id, userId);
 
-    if (
-      (error as Error).message.includes('not found') ||
-      (error as Error).message.includes('access denied')
-    ) {
-      res.status(404).json({
-        success: false,
-        message: 'Document not found or access denied',
+      // Delete document vectors from Qdrant
+      try {
+        await documentSearchService.deleteDocumentVectors(id, userId);
+        log.debug(`[DELETE /:id] Successfully deleted vectors for document ${id}`);
+      } catch (vectorError) {
+        log.warn('[DELETE /:id] Vector deletion warning:', vectorError);
+        // Continue even if vector deletion fails - document metadata is already deleted
+      }
+
+      res.json({
+        success: true,
+        message: 'Document deleted successfully',
       });
-      return;
-    }
+    } catch (error) {
+      log.error('[DELETE /:id] Error:', error);
 
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to delete document',
-    });
+      if (
+        (error as Error).message.includes('not found') ||
+        (error as Error).message.includes('access denied')
+      ) {
+        res.status(404).json({
+          success: false,
+          message: 'Document not found or access denied',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to delete document',
+      });
+    }
   }
-});
+);
 
 /**
  * DELETE /bulk - Bulk delete documents (PostgreSQL + Qdrant only)

@@ -22,9 +22,7 @@ interface FormRef {
   isValid: () => boolean;
 }
 
-interface BarrierefreiheitTabProps {
-  isActive: boolean;
-}
+type BarrierefreiheitTabProps = Record<string, never>;
 
 const ACCESSIBILITY_TYPES = {
   ALT_TEXT: 'alt-text',
@@ -54,7 +52,7 @@ const API_ENDPOINTS = {
   [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: '/leichte_sprache',
 };
 
-const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(({ isActive }) => {
+const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(() => {
   const [searchParams] = useSearchParams();
 
   const initialType = useMemo(() => {

@@ -6,8 +6,9 @@
  * hardcoded year strings.
  */
 
-import type { SearchOptions } from '../types.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
+
+import type { SearchOptions } from '../types.js';
 
 /**
  * Get intelligent search options based on query content and mode
@@ -52,7 +53,9 @@ export function getIntelligentSearchOptions(
     if (temporal.suggestedTimeRange) {
       options.time_range = temporal.suggestedTimeRange;
     }
-    console.log(`[WebSearchGraph] Temporal detected (${temporal.urgency}): time_range=${temporal.suggestedTimeRange} for: "${query}"`);
+    console.log(
+      `[WebSearchGraph] Temporal detected (${temporal.urgency}): time_range=${temporal.suggestedTimeRange} for: "${query}"`
+    );
   }
 
   return options;

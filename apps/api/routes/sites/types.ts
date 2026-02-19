@@ -2,14 +2,15 @@
  * Sites Routes - Type Definitions
  */
 
-import type { Request } from 'express';
 import type { UserProfile } from '../../services/user/types.js';
+import type { Request } from 'express';
+import type { ParamsDictionary } from 'express-serve-static-core';
 
 /**
  * Request type for sites routes
  * Note: Using `any` for Express compatibility with router handlers
  */
-export type SitesRequest = Request & {
+export type SitesRequest<P = ParamsDictionary> = Request<P> & {
   user?: UserProfile;
   siteData?: UserSite;
 };

@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+
 import { useAuth } from '../../hooks/useAuth';
+
+import { LoginOverlay } from './LoginOverlay';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
+
+type PublicCheckState = 'idle' | 'checking' | 'public' | 'private' | 'requires_auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -12,7 +17,8 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  const [publicCheckState, setPublicCheckState] = useState<'idle' | 'checking' | 'public' | 'private'>('idle');
+  const [publicCheckState, setPublicCheckState] = useState<PublicCheckState>('idle');
+  const [documentTitle, setDocumentTitle] = useState<string | undefined>();
 
   const documentMatch = location.pathname.match(/^\/document\/([^/]+)/);
   const documentId = documentMatch?.[1];
@@ -25,8 +31,20 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     setPublicCheckState('checking');
 
     fetch(`${API_BASE}/docs/public/${documentId}`)
-      .then((res) => {
-        setPublicCheckState(res.ok ? 'public' : 'private');
+      .then(async (res) => {
+        if (!res.ok) {
+          setPublicCheckState('private');
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.share_mode === 'authenticated') {
+          setDocumentTitle(data.title);
+          setPublicCheckState('requires_auth');
+        } else {
+          setPublicCheckState('public');
+        }
       })
       .catch(() => {
         setPublicCheckState('private');
@@ -74,6 +92,15 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
     if (publicCheckState === 'public') {
       return <>{children}</>;
+    }
+
+    if (publicCheckState === 'requires_auth') {
+      return (
+        <LoginOverlay
+          documentTitle={documentTitle}
+          redirectTo={location.pathname + location.search}
+        />
+      );
     }
   }
 

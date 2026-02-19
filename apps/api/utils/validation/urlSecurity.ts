@@ -3,8 +3,8 @@
  * SSRF protection and URL validation
  */
 
-import { URL } from 'url';
 import * as dns from 'dns';
+import { URL } from 'url';
 import { promisify } from 'util';
 
 const dnsLookup = promisify(dns.lookup);

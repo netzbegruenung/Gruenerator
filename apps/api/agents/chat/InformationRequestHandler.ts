@@ -4,6 +4,7 @@
  */
 
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
+
 import type { RequestType } from '../../config/antragQuestions.js';
 
 /**

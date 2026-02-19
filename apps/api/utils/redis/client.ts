@@ -3,9 +3,10 @@
  * Creates and exports a configured Redis client with reconnection strategy
  */
 
-import { createClient } from 'redis';
-import type { RedisClient } from './types.js';
 import * as dotenv from 'dotenv';
+import { createClient } from 'redis';
+
+import type { RedisClient } from './types.js';
 
 dotenv.config({ quiet: true });
 

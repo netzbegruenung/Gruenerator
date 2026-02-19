@@ -11,9 +11,7 @@ import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useUserDefaults } from '../../../hooks/useUserDefaults';
 
-interface AntragTabProps {
-  isActive: boolean;
-}
+type AntragTabProps = Record<string, never>;
 
 interface FormValues {
   inhalt: string;
@@ -49,7 +47,7 @@ const REQUEST_TYPE_ICONS: Record<string, () => React.ReactNode> = {
 
 const EMPTY_ARRAY: unknown[] = [];
 
-const AntragTab: React.FC<AntragTabProps> = memo(({ isActive }) => {
+const AntragTab: React.FC<AntragTabProps> = memo(() => {
   const componentName = 'antrag-generator';
 
   useUserDefaults('antrag');

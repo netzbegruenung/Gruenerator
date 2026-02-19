@@ -4,11 +4,15 @@
  * Manages video sharing with expiration and download tracking.
  */
 
-import { getPostgresInstance, PostgresService } from '../../database/services/PostgresService.js';
-import path from 'path';
-import fs from 'fs/promises';
 import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
 import { fileURLToPath } from 'url';
+
+import {
+  getPostgresInstance,
+  type PostgresService,
+} from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -171,7 +175,9 @@ class SubtitlerShareService {
     } catch (error: any) {
       try {
         await fs.rm(shareDir, { recursive: true, force: true });
-      } catch {}
+      } catch {
+        /* ignore cleanup error */
+      }
       log.error('[SubtitlerShareService] Failed to create share:', error);
       throw new Error(`Failed to create share: ${error.message}`);
     }
@@ -366,7 +372,9 @@ class SubtitlerShareService {
     } catch (error: any) {
       try {
         await fs.rm(shareDir, { recursive: true, force: true });
-      } catch {}
+      } catch {
+        /* ignore cleanup error */
+      }
       log.error('[SubtitlerShareService] Failed to create pending share:', error);
       throw new Error(`Failed to create pending share: ${error.message}`);
     }

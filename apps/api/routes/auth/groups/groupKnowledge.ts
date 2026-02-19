@@ -3,10 +3,13 @@
  * Handles group instructions configuration and knowledge entries
  */
 
-import express, { Router, Response } from 'express';
+import express, { type Router, type Response } from 'express';
+
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
+
 import { getPostgresAndCheckMembership } from './groupCore.js';
+
 import type { AuthRequest } from '../types.js';
 
 const log = createLogger('groupKnowledge');
@@ -22,7 +25,7 @@ const router: Router = express.Router();
 router.get(
   '/groups/:groupId/instructions',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -67,7 +70,7 @@ router.get(
 router.put(
   '/groups/:groupId/instructions',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -141,7 +144,7 @@ router.put(
 router.post(
   '/groups/:groupId/knowledge',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -198,7 +201,10 @@ router.post(
 router.get(
   '/groups/:groupId/knowledge/:knowledgeId',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (
+    req: AuthRequest<{ groupId: string; knowledgeId: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId, knowledgeId } = req.params;
       const userId = req.user!.id;
@@ -247,7 +253,10 @@ router.get(
 router.put(
   '/groups/:groupId/knowledge/:knowledgeId',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (
+    req: AuthRequest<{ groupId: string; knowledgeId: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId, knowledgeId } = req.params;
       const userId = req.user!.id;
@@ -323,7 +332,10 @@ router.put(
 router.delete(
   '/groups/:groupId/knowledge/:knowledgeId',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (
+    req: AuthRequest<{ groupId: string; knowledgeId: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId, knowledgeId } = req.params;
       const userId = req.user!.id;

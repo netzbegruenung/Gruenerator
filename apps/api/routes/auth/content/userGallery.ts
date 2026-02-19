@@ -3,10 +3,12 @@
  * Handles unified gallery, categories, and content type listings
  */
 
-import express, { Router, Response } from 'express';
+import express, { type Router, type Response } from 'express';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
+
 import type { AuthRequest } from '../types.js';
 
 const log = createLogger('userGallery');
@@ -55,7 +57,7 @@ router.get(
           conditions.push(`type IN (${typeIn})`);
         }
         if (category && category !== 'all') {
-          const catJson = `[\"${String(category).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}\"]`;
+          const catJson = `["${String(category).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
           conditions.push(`categories @> '${catJson.replace(/'/g, "''")}'::jsonb`);
         }
 
@@ -173,14 +175,12 @@ router.get(
     } catch (err) {
       const error = err as Error;
       log.error('[Gallery] /database GET error:', error);
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Fehler beim Laden der Datenbank-Inhalte',
-          details: error.message,
-          data: [],
-        });
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Laden der Datenbank-Inhalte',
+        details: error.message,
+        data: [],
+      });
     }
   }
 );
@@ -214,13 +214,11 @@ router.get(
     } catch (err) {
       const error = err as Error;
       log.error('[Gallery] /antraege-categories error:', error);
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Fehler beim Laden der Kategorien',
-          details: error.message,
-        });
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Laden der Kategorien',
+        details: error.message,
+      });
     }
   }
 );
@@ -268,14 +266,12 @@ router.get(
     } catch (err) {
       const error = err as Error;
       log.error('[Gallery] /antraege GET error:', error);
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Fehler beim Laden der Anträge',
-          details: error.message,
-          antraege: [],
-        });
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Laden der Anträge',
+        details: error.message,
+        antraege: [],
+      });
     }
   }
 );
@@ -331,14 +327,12 @@ router.get(
     } catch (err) {
       const error = err as Error;
       log.error('[Gallery] /custom-generators GET error:', error);
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Fehler beim Laden der Grüneratoren',
-          details: error.message,
-          generators: [],
-        });
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Laden der Grüneratoren',
+        details: error.message,
+        generators: [],
+      });
     }
   }
 );
@@ -421,13 +415,11 @@ router.get(
     } catch (err) {
       const error = err as Error;
       log.error('[Gallery] /pr-texts GET error:', error);
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Fehler beim Laden der PR-Texte',
-          details: error.message,
-        });
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Laden der PR-Texte',
+        details: error.message,
+      });
     }
   }
 );
@@ -472,13 +464,11 @@ router.get(
     } catch (err) {
       const error = err as Error;
       log.error('[Gallery] /pr-texts/categories GET error:', error);
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Fehler beim Laden der PR-Kategorien',
-          details: error.message,
-        });
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Laden der PR-Kategorien',
+        details: error.message,
+      });
     }
   }
 );

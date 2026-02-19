@@ -3,10 +3,14 @@
  * Handles AI chat streaming via Vercel AI SDK
  */
 
-import express from 'express';
-import { streamText, tool, ModelMessage, Tool, stepCountIs, ToolSet } from 'ai';
+import { streamText, tool, type ModelMessage, Tool, stepCountIs, type ToolSet } from 'ai';
 import { z } from 'zod';
+
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
+import { createLogger } from '../../utils/logger.js';
+
 import { getAgent, getDefaultAgentId, getAgentOrCustomPrompt } from './agents/agentLoader.js';
 import {
   executeDirectSearch,
@@ -15,18 +19,17 @@ import {
   executeDirectWebSearch,
   executeResearch,
 } from './agents/directSearch.js';
-import type { ResearchResult } from './agents/directSearch.js';
 import { getModel, isProviderConfigured } from './agents/providers.js';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { createLogger } from '../../utils/logger.js';
-import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
-import type { UserProfile } from '../../services/user/types.js';
-import type { AgentConfig } from './agents/types.js';
 import {
   getCompactionState,
   prepareMessagesWithCompaction,
   type CompactionState,
 } from './services/compactionService.js';
+
+import type { ResearchResult } from './agents/directSearch.js';
+import type { AgentConfig } from './agents/types.js';
+import type { UserProfile } from '../../services/user/types.js';
+import type express from 'express';
 
 const log = createLogger('ChatStreamController');
 const router = createAuthenticatedRouter();
@@ -236,17 +239,23 @@ NICHT FÜR: Einfache Begrüßungen, Dankeschöns, kreative Aufgaben ohne Faktenb
         .enum(['quick', 'thorough'])
         .optional()
         .default('quick')
-        .describe('Recherchetiefe: quick (schnell, 1-2 Quellen) oder thorough (gründlich, mehr Quellen)'),
+        .describe(
+          'Recherchetiefe: quick (schnell, 1-2 Quellen) oder thorough (gründlich, mehr Quellen)'
+        ),
     }),
     execute: async ({ question, depth }) => {
       try {
-        log.info(`[Research Tool] Starting research: "${question.slice(0, 50)}..." (depth: ${depth})`);
+        log.info(
+          `[Research Tool] Starting research: "${question.slice(0, 50)}..." (depth: ${depth})`
+        );
         const result = await executeResearch({
           question,
           depth,
           maxSources: depth === 'thorough' ? 10 : 6,
         });
-        log.info(`[Research Tool] Complete: ${result.citations.length} citations, confidence: ${result.confidence}`);
+        log.info(
+          `[Research Tool] Complete: ${result.citations.length} citations, confidence: ${result.confidence}`
+        );
         return result;
       } catch (error) {
         log.error('Research tool error:', error);
@@ -326,12 +335,10 @@ async function createMessage(
 
 async function touchThread(threadId: string): Promise<void> {
   const postgres = getPostgresInstance();
-  await postgres.query(
-    `UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-    [threadId]
-  );
+  await postgres.query(`UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [
+    threadId,
+  ]);
 }
-
 
 router.post('/', async (req, res) => {
   try {
@@ -352,8 +359,14 @@ router.post('/', async (req, res) => {
       log.info(`[Chat Debug] Last message:`, {
         role: lastMsg.role,
         contentType: typeof lastMsg.content,
-        contentLength: typeof lastMsg.content === 'string' ? lastMsg.content.length : JSON.stringify(lastMsg.content).length,
-        contentPreview: typeof lastMsg.content === 'string' ? lastMsg.content.slice(0, 100) : JSON.stringify(lastMsg.content).slice(0, 100),
+        contentLength:
+          typeof lastMsg.content === 'string'
+            ? lastMsg.content.length
+            : JSON.stringify(lastMsg.content).length,
+        contentPreview:
+          typeof lastMsg.content === 'string'
+            ? lastMsg.content.slice(0, 100)
+            : JSON.stringify(lastMsg.content).slice(0, 100),
       });
     }
 
@@ -433,12 +446,18 @@ Du MUSST für jede Nachricht ein Tool wählen. Entscheide semantisch basierend a
 Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`;
 
     // Load compaction state if thread exists
-    let compactionState: CompactionState = { summary: null, compactedUpToMessageId: null, compactionUpdatedAt: null };
+    let compactionState: CompactionState = {
+      summary: null,
+      compactedUpToMessageId: null,
+      compactionUpdatedAt: null,
+    };
     if (actualThreadId) {
       try {
         compactionState = await getCompactionState(actualThreadId);
         if (compactionState.summary) {
-          log.info(`[Chat] Thread ${actualThreadId} has compaction summary (${compactionState.summary.length} chars)`);
+          log.info(
+            `[Chat] Thread ${actualThreadId} has compaction summary (${compactionState.summary.length} chars)`
+          );
         }
       } catch (error) {
         log.warn(`[Chat] Failed to load compaction state for thread ${actualThreadId}:`, error);
@@ -452,7 +471,10 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
       baseSystemMessage
     );
 
-    const aiMessages: ModelMessage[] = [{ role: 'system', content: systemMessage }, ...preparedMessages];
+    const aiMessages: ModelMessage[] = [
+      { role: 'system', content: systemMessage },
+      ...preparedMessages,
+    ];
 
     if (!isProviderConfigured(effectiveProvider)) {
       log.error(`[Chat Debug] Provider not configured: ${effectiveProvider}`);
@@ -474,7 +496,10 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
     if (hasTools && enabledTools) {
       for (const [key, toolName] of Object.entries(TOOL_KEY_TO_NAME)) {
         // direct_response is always included as the escape hatch
-        if (toolName === 'direct_response' || (enabledTools[key as ToolKey] && agentTools[toolName])) {
+        if (
+          toolName === 'direct_response' ||
+          (enabledTools[key as ToolKey] && agentTools[toolName])
+        ) {
           filteredTools[toolName] = agentTools[toolName];
         }
       }
@@ -487,7 +512,9 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
 
     // AI decides semantically which tool to use
     // direct_response tool is the escape hatch for non-search cases
-    log.info(`[Chat Debug] Tool config: hasTools=${hasTools}, activeTools=${Object.keys(filteredTools)}, toolChoice=${activeTools ? 'required' : 'none'}`);
+    log.info(
+      `[Chat Debug] Tool config: hasTools=${hasTools}, activeTools=${Object.keys(filteredTools)}, toolChoice=${activeTools ? 'required' : 'none'}`
+    );
     log.info(`[Chat Debug] Calling streamText with:`, {
       model: effectiveModel,
       messagesCount: aiMessages.length,
@@ -513,55 +540,66 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
           }
         },
         onStepFinish: ({ toolCalls, toolResults, text }) => {
-          log.info(`[Chat Debug] Step finished: tools=${toolCalls?.length || 0}, text=${text?.length || 0} chars`);
+          log.info(
+            `[Chat Debug] Step finished: tools=${toolCalls?.length || 0}, text=${text?.length || 0} chars`
+          );
         },
         experimental_telemetry: { isEnabled: false },
         onFinish: async ({ text, toolCalls, toolResults, finishReason, usage }) => {
-          log.info(`[Chat Debug] Stream finished: reason=${finishReason}, usage=${JSON.stringify(usage)}`);
+          log.info(
+            `[Chat Debug] Stream finished: reason=${finishReason}, usage=${JSON.stringify(usage)}`
+          );
           if (finishReason === 'error') {
             log.error('[Chat Debug] Stream finished with error');
           }
-        log.info(`[Chat Debug] Stream finished:`, {
-          textLength: text?.length || 0,
-          toolCallsCount: toolCalls?.length || 0,
-          toolResultsCount: toolResults?.length || 0,
-        });
-        if (actualThreadId) {
-          try {
-            log.info(`[Chat] Saving message: text=${text?.length || 0} chars, toolCalls=${toolCalls?.length || 0}, toolResults=${toolResults?.length || 0}`);
-            if (toolCalls && toolCalls.length > 0) {
-              log.info(`[Chat] Tool calls: ${JSON.stringify(toolCalls.map(tc => ({ id: tc.toolCallId, name: tc.toolName })))}`);
-            }
-            if (toolResults && toolResults.length > 0) {
-              log.info(`[Chat] Tool results: ${JSON.stringify(toolResults.map(tr => ({ id: tr.toolCallId, hasResult: !!(tr as any).result })))}`);
-            }
-            await createMessage(
-              actualThreadId,
-              'assistant',
-              text,
-              toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
-              toolResults && toolResults.length > 0 ? toolResults : undefined
-            );
-
-            await touchThread(actualThreadId);
-
-            if (isNewThread && text) {
-              const aiWorkerPool = req.app.locals.aiWorkerPool;
-              const userContent = typeof lastUserMessage.content === 'string'
-                ? lastUserMessage.content
-                : JSON.stringify(lastUserMessage.content);
-              if (aiWorkerPool) {
-                generateThreadTitle(actualThreadId, userContent, text, aiWorkerPool).catch(
-                  (err) => log.warn('[Chat] Thread title generation failed:', err)
+          log.info(`[Chat Debug] Stream finished:`, {
+            textLength: text?.length || 0,
+            toolCallsCount: toolCalls?.length || 0,
+            toolResultsCount: toolResults?.length || 0,
+          });
+          if (actualThreadId) {
+            try {
+              log.info(
+                `[Chat] Saving message: text=${text?.length || 0} chars, toolCalls=${toolCalls?.length || 0}, toolResults=${toolResults?.length || 0}`
+              );
+              if (toolCalls && toolCalls.length > 0) {
+                log.info(
+                  `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc) => ({ id: tc.toolCallId, name: tc.toolName })))}`
                 );
               }
+              if (toolResults && toolResults.length > 0) {
+                log.info(
+                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr) => ({ id: tr.toolCallId, hasResult: !!(tr as any).result })))}`
+                );
+              }
+              await createMessage(
+                actualThreadId,
+                'assistant',
+                text,
+                toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
+                toolResults && toolResults.length > 0 ? toolResults : undefined
+              );
+
+              await touchThread(actualThreadId);
+
+              if (isNewThread && text) {
+                const aiWorkerPool = req.app.locals.aiWorkerPool;
+                const userContent =
+                  typeof lastUserMessage.content === 'string'
+                    ? lastUserMessage.content
+                    : JSON.stringify(lastUserMessage.content);
+                if (aiWorkerPool) {
+                  generateThreadTitle(actualThreadId, userContent, text, aiWorkerPool).catch(
+                    (err) => log.warn('[Chat] Thread title generation failed:', err)
+                  );
+                }
+              }
+            } catch (error) {
+              log.error('Failed to save assistant message:', error);
             }
-          } catch (error) {
-            log.error('Failed to save assistant message:', error);
           }
-        }
-      },
-    });
+        },
+      });
     } catch (streamTextError) {
       log.error('[Chat Debug] streamText creation error:', streamTextError);
       throw streamTextError;
@@ -604,7 +642,6 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
         res.status(500).json({ error: 'Stream failed' });
       }
     }
-
   } catch (error) {
     log.error('[Chat Debug] Chat API error:', error);
     log.error('[Chat Debug] Error stack:', error instanceof Error ? error.stack : 'No stack');

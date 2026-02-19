@@ -8,11 +8,13 @@
  * - POST /hybrid-test - Hybrid search testing endpoint
  */
 
-import express, { Router, Request, Response } from 'express';
-import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
+import express, { type Router, Request, type Response } from 'express';
+
 import { getDocumentContentService } from '../../services/document-services/DocumentContentService/index.js';
+import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type {
   DocumentRequest,
   SearchDocumentsRequestBody,

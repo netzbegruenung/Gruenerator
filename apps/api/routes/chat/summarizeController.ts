@@ -3,11 +3,10 @@
  * Handles context compaction/summarization for long conversations
  */
 
-import express from 'express';
-import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
-import type { UserProfile } from '../../services/user/types.js';
+
 import {
   getCompactionState,
   getMessageCount,
@@ -17,6 +16,9 @@ import {
   COMPACTION_THRESHOLD,
   KEEP_RECENT,
 } from './services/compactionService.js';
+
+import type { UserProfile } from '../../services/user/types.js';
+import type express from 'express';
 
 const log = createLogger('SummarizeController');
 const router = createAuthenticatedRouter();
@@ -42,10 +44,9 @@ router.get('/', async (req, res) => {
 
     // Verify thread ownership
     const postgres = getPostgresInstance();
-    const threads = await postgres.query(
-      `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
-      [threadId]
-    );
+    const threads = await postgres.query(`SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`, [
+      threadId,
+    ]);
 
     if (threads.length === 0) {
       return res.status(404).json({ error: 'Thread not found' });
@@ -113,10 +114,9 @@ router.post('/', async (req, res) => {
 
     // Verify thread ownership
     const postgres = getPostgresInstance();
-    const threads = await postgres.query(
-      `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
-      [threadId]
-    );
+    const threads = await postgres.query(`SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`, [
+      threadId,
+    ]);
 
     if (threads.length === 0) {
       return res.status(404).json({ error: 'Thread not found' });

@@ -6,8 +6,8 @@
  * - publicController: Public HTML page rendering (subdomain routing)
  */
 
-import sitesController from './sitesController.js';
 import publicController from './publicController.js';
+import sitesController from './sitesController.js';
 
 export { sitesController, publicController };
 

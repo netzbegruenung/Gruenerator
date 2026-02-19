@@ -4,10 +4,12 @@
  * Extracts metadata and audio from video files using FFmpeg.
  */
 
-import path from 'path';
 import fs from 'fs';
-import { ffmpeg, FFprobeMetadata } from './ffmpegWrapper.js';
+import path from 'path';
+
 import { createLogger } from '../../utils/logger.js';
+
+import { ffmpeg, type FFprobeMetadata } from './ffmpegWrapper.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('videoUpload');

@@ -4,11 +4,13 @@
  * Manages video projects with subtitles, including file storage and database operations
  */
 
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import path from 'path';
+import { spawn, type ChildProcess } from 'child_process';
 import fs from 'fs/promises';
-import { spawn, ChildProcess } from 'child_process';
+import path from 'path';
 import { fileURLToPath } from 'url';
+
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
+
 import type {
   SubtitlerProject,
   SubtitlerProjectListItem,
@@ -245,7 +247,9 @@ export class SubtitlerProjectService {
       try {
         await fs.access(thumbnailPath);
         thumbnailExists = true;
-      } catch {}
+      } catch {
+        /* file does not exist */
+      }
 
       const project = await this.postgres.insert('subtitler_projects', {
         id: projectId,

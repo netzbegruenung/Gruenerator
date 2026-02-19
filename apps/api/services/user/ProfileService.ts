@@ -8,6 +8,7 @@ import type {
   ProfileStats,
   HealthCheckResult,
 } from './types.js';
+import type { DeleteResult } from '../../database/services/PostgresService/types.js';
 
 interface PostgresService {
   init(): Promise<void>;
@@ -17,7 +18,7 @@ interface PostgresService {
   insert(table: string, data: any): Promise<any>;
   update(table: string, data: any, where: any): Promise<{ data: any[] }>;
   upsert(table: string, data: any, conflictKey: string[]): Promise<any>;
-  delete(table: string, where: any): Promise<any[]>;
+  delete(table: string, where: any): Promise<DeleteResult>;
 }
 
 /**
@@ -323,7 +324,7 @@ class ProfileService {
   /**
    * Delete user profile
    */
-  async deleteProfile(userId: string): Promise<any[]> {
+  async deleteProfile(userId: string): Promise<DeleteResult> {
     try {
       console.log(`[ProfileService] Starting profile deletion for user ${userId}`);
       await this.db.ensureInitialized();
@@ -344,10 +345,10 @@ class ProfileService {
       console.log(`[ProfileService] Executing DELETE from ${this.tableName} WHERE id = ${userId}`);
       const result = await this.db.delete(this.tableName, { id: userId });
 
-      if (result && result.length > 0) {
+      if (result && result.changes > 0) {
         console.log(
           `[ProfileService] ✅ Successfully deleted user profile ${userId}. Deleted rows:`,
-          result.length
+          result.changes
         );
         console.log(
           `[ProfileService] CASCADE deletion will now automatically remove related data from tables with ON DELETE CASCADE constraints`

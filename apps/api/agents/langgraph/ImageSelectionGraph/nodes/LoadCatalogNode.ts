@@ -4,6 +4,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+
 import type { ImageSelectionState, ImageCatalog } from '../types.js';
 
 /**

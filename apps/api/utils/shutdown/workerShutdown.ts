@@ -3,7 +3,6 @@
  * Handles graceful shutdown of worker processes with resource cleanup
  */
 
-import type { Server } from 'http';
 import type {
   WorkerShutdownOptions,
   WorkerShutdownHandler,
@@ -11,6 +10,7 @@ import type {
   Logger,
   ClusterMessage,
 } from './types.js';
+import type { Server } from 'http';
 
 const defaultLogger: Logger = {
   info: (msg: string) => console.log(`[Worker] ${msg}`),

@@ -2,8 +2,9 @@
  * Validation utilities for attachment processing
  */
 
-import type { Attachment, FileAttachment, CrawledUrlAttachment } from './types.js';
 import { ALLOWED_ATTACHMENT_TYPES, MAX_FILE_SIZE } from './constants.js';
+
+import type { Attachment, FileAttachment, CrawledUrlAttachment } from './types.js';
 
 /**
  * Type guard: Check if attachment is a file attachment
