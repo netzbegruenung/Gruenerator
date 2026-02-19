@@ -111,6 +111,56 @@ try {
   );
 }
 
+/**
+ * Attempt to create a missing profile row for a fallback user.
+ * Returns the real profile on success, or the original fallback on failure.
+ */
+async function syncPendingProfile(fallbackUser: FallbackUser): Promise<UserWithSession> {
+  try {
+    const profileService = getProfileService();
+
+    // 1. Check if profile was already created (race condition guard)
+    const byKeycloak = await profileService.getProfileByKeycloakId(fallbackUser.keycloak_id);
+    if (byKeycloak) {
+      log.info(
+        `[syncPendingProfile] Found existing profile by keycloak_id for ${fallbackUser.keycloak_id}`
+      );
+      return byKeycloak as unknown as UserWithSession;
+    }
+
+    // 2. Check by email (same person, different login path)
+    if (fallbackUser.email) {
+      const byEmail = await profileService.getProfileByEmail(fallbackUser.email);
+      if (byEmail) {
+        log.info(`[syncPendingProfile] Found existing profile by email for ${fallbackUser.email}`);
+        return byEmail as unknown as UserWithSession;
+      }
+    }
+
+    // 3. Create the profile row using the fallback user's UUID
+    const newProfile = await profileService.createProfile({
+      id: fallbackUser.id,
+      keycloak_id: fallbackUser.keycloak_id,
+      email: fallbackUser.email ?? undefined,
+      display_name: fallbackUser.display_name,
+      username: fallbackUser.username,
+      locale: fallbackUser.locale,
+      avatar_robot_id: 1,
+      beta_features: {},
+    } as Parameters<typeof profileService.createProfile>[0]);
+
+    log.info(
+      `[syncPendingProfile] Created profile ${newProfile.id} for keycloak_id ${fallbackUser.keycloak_id}`
+    );
+    return newProfile as unknown as UserWithSession;
+  } catch (error) {
+    log.warn(
+      `[syncPendingProfile] DB still unavailable, keeping fallback: ${(error as Error).message}`
+    );
+    return fallbackUser as UserWithSession;
+  }
+}
+
 // Serialize user for session
 passport.serializeUser((user: Express.User, done) => {
   done(null, user);
@@ -119,9 +169,10 @@ passport.serializeUser((user: Express.User, done) => {
 // Deserialize user from session
 passport.deserializeUser(async (userData: any, done) => {
   try {
-    // Fallback users have no DB row yet — skip the lookup
+    // Fallback users have no DB row yet — try to create the profile now
     if (typeof userData === 'object' && userData._profileSyncPending === true) {
-      return done(null, userData as Express.User);
+      const synced = await syncPendingProfile(userData);
+      return done(null, synced as unknown as Express.User);
     }
 
     if (typeof userData === 'object' && userData.id) {
