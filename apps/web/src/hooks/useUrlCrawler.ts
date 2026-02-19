@@ -118,6 +118,7 @@ export const useUrlCrawler = (initialUrls: string[] = []) => {
           }
         }
 
+        processedUrlsRef.current.add(url);
         setCrawlErrors((prev) => ({
           ...prev,
           [url]: userFriendlyError,
