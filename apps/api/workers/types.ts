@@ -1,9 +1,9 @@
-import type { Worker } from 'worker_threads';
 import type {
   ProviderName,
   ProviderOptions,
   RequestMetadata,
 } from '../services/providers/types.js';
+import type { Worker } from 'worker_threads';
 
 // ========================================
 // Worker Message Protocol Types

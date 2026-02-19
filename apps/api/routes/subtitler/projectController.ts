@@ -3,11 +3,14 @@
  * Handles project CRUD operations.
  */
 
-import express, { Response, Router } from 'express';
 import fs from 'fs';
+
+import express, { type Response, type Router } from 'express';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { createLogger } from '../../utils/logger.js';
 import { saveOrUpdateProject } from '../../services/subtitler/projectSavingService.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const fsPromises = fs.promises;

@@ -3,7 +3,8 @@
  * Extracted faceted search functions for filtering and aggregation
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('QdrantFacets');

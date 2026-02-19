@@ -1,6 +1,8 @@
-import { Router, Request, Response } from 'express';
-import { redisClient } from '../../utils/redis/index.js';
+import { Router, type Request, type Response } from 'express';
+
 import { createLogger } from '../../utils/logger.js';
+import { redisClient } from '../../utils/redis/index.js';
+
 import type { EditSessionData, EditSessionResponse } from './types.js';
 
 const log = createLogger('editSession');
@@ -50,71 +52,77 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.get('/:sessionId', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { sessionId } = req.params;
+router.get(
+  '/:sessionId',
+  async (req: Request<{ sessionId: string }>, res: Response): Promise<void> => {
+    try {
+      const { sessionId } = req.params;
 
-    if (!sessionId) {
-      res.status(400).json({
-        error: 'Session ID is required',
+      if (!sessionId) {
+        res.status(400).json({
+          error: 'Session ID is required',
+        });
+        return;
+      }
+
+      const sessionDataString = await redisClient.get(sessionId);
+
+      if (!sessionDataString || typeof sessionDataString !== 'string') {
+        res.status(404).json({
+          error: 'Edit session not found or expired',
+        });
+        return;
+      }
+
+      const sessionData = JSON.parse(sessionDataString) as EditSessionData;
+
+      log.debug(
+        `[EditSession] Retrieved image data for session: ${sessionId}, hasOriginal: ${!!sessionData.originalImageData}`
+      );
+
+      res.json({
+        imageData: sessionData.imageData,
+        originalImageData: sessionData.originalImageData,
+        metadata: sessionData.metadata,
+        createdAt: sessionData.createdAt,
+      } as EditSessionResponse);
+    } catch (error) {
+      log.error('[EditSession] Error retrieving session data:', error);
+      res.status(500).json({
+        error: 'Failed to retrieve edit session data',
       });
-      return;
     }
-
-    const sessionDataString = await redisClient.get(sessionId);
-
-    if (!sessionDataString || typeof sessionDataString !== 'string') {
-      res.status(404).json({
-        error: 'Edit session not found or expired',
-      });
-      return;
-    }
-
-    const sessionData = JSON.parse(sessionDataString) as EditSessionData;
-
-    log.debug(
-      `[EditSession] Retrieved image data for session: ${sessionId}, hasOriginal: ${!!sessionData.originalImageData}`
-    );
-
-    res.json({
-      imageData: sessionData.imageData,
-      originalImageData: sessionData.originalImageData,
-      metadata: sessionData.metadata,
-      createdAt: sessionData.createdAt,
-    } as EditSessionResponse);
-  } catch (error) {
-    log.error('[EditSession] Error retrieving session data:', error);
-    res.status(500).json({
-      error: 'Failed to retrieve edit session data',
-    });
   }
-});
+);
 
-router.delete('/:sessionId', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { sessionId } = req.params;
+router.delete(
+  '/:sessionId',
+  async (req: Request<{ sessionId: string }>, res: Response): Promise<void> => {
+    try {
+      const { sessionId } = req.params;
 
-    if (!sessionId) {
-      res.status(400).json({
-        error: 'Session ID is required',
+      if (!sessionId) {
+        res.status(400).json({
+          error: 'Session ID is required',
+        });
+        return;
+      }
+
+      const deleted = await redisClient.del(sessionId);
+
+      log.debug(`[EditSession] Deleted session: ${sessionId}, success: ${deleted > 0}`);
+
+      res.json({
+        deleted: deleted > 0,
+        sessionId,
+      } as EditSessionResponse);
+    } catch (error) {
+      log.error('[EditSession] Error deleting session data:', error);
+      res.status(500).json({
+        error: 'Failed to delete edit session data',
       });
-      return;
     }
-
-    const deleted = await redisClient.del(sessionId);
-
-    log.debug(`[EditSession] Deleted session: ${sessionId}, success: ${deleted > 0}`);
-
-    res.json({
-      deleted: deleted > 0,
-      sessionId,
-    } as EditSessionResponse);
-  } catch (error) {
-    log.error('[EditSession] Error deleting session data:', error);
-    res.status(500).json({
-      error: 'Failed to delete edit session data',
-    });
   }
-});
+);
 
 export default router;

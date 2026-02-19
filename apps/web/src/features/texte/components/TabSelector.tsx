@@ -1,4 +1,4 @@
-import { useMemo, useCallback, memo } from 'react';
+import { useMemo, useCallback, useRef, memo } from 'react';
 
 import Icon from '../../../components/common/Icon';
 import '../../../components/common/TabbedLayout/TabbedLayout.css';
@@ -18,6 +18,7 @@ interface TabSelectorProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   onUniversalSubTypeChange?: (subType: UniversalSubType) => void;
+  selectedUniversalSubType?: UniversalSubType;
   disabled?: boolean;
   isAuthenticated?: boolean;
 }
@@ -60,6 +61,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
     activeTab,
     onTabChange,
     onUniversalSubTypeChange,
+    selectedUniversalSubType,
     disabled = false,
     isAuthenticated = false,
   }) => {
@@ -79,6 +81,15 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
       []
     );
 
+    const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+    const navigableTabIds = useMemo(() => {
+      const regularIds = TAB_CONFIGS.filter((config) => config.id !== 'universal').map(
+        (config) => config.id
+      );
+      return [...regularIds, 'universal' as TabId];
+    }, []);
+
     const handleTabClick = useCallback(
       (tabId: TabId) => {
         if (!disabled && tabId !== activeTab) {
@@ -88,14 +99,41 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
       [disabled, activeTab, onTabChange]
     );
 
-    const handleKeyDown = useCallback(
-      (event: React.KeyboardEvent, tabId: TabId) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          handleTabClick(tabId);
+    const handleTabListKeyDown = useCallback(
+      (event: React.KeyboardEvent) => {
+        if (disabled) return;
+        const target = event.target as HTMLElement;
+        if (target.getAttribute('role') !== 'tab') return;
+
+        const currentId = navigableTabIds.find((id) => tabRefs.current[id] === target);
+        if (!currentId) return;
+        const currentIndex = navigableTabIds.indexOf(currentId);
+
+        let nextIndex: number | null = null;
+
+        switch (event.key) {
+          case 'ArrowRight':
+            nextIndex = (currentIndex + 1) % navigableTabIds.length;
+            break;
+          case 'ArrowLeft':
+            nextIndex = (currentIndex - 1 + navigableTabIds.length) % navigableTabIds.length;
+            break;
+          case 'Home':
+            nextIndex = 0;
+            break;
+          case 'End':
+            nextIndex = navigableTabIds.length - 1;
+            break;
+          default:
+            return;
         }
+
+        event.preventDefault();
+        const nextId = navigableTabIds[nextIndex];
+        tabRefs.current[nextId]?.focus();
+        onTabChange(nextId);
       },
-      [handleTabClick]
+      [disabled, navigableTabIds, onTabChange]
     );
 
     const handleUniversalOptionSelect = useCallback(
@@ -115,19 +153,24 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
         className={`tabbed-layout__tabs ${disabled ? 'tabbed-layout__tabs--disabled' : ''}`}
         role="tablist"
         aria-label="Text-Generator auswählen"
+        aria-orientation="horizontal"
+        onKeyDown={handleTabListKeyDown}
       >
         {tabs.map((tab) => {
           const isActive = tab.id === activeTab;
           return (
             <button
+              ref={(el) => {
+                tabRefs.current[tab.id] = el;
+              }}
               key={tab.id}
               type="button"
               role="tab"
+              id={`tab-${tab.id}`}
               aria-selected={isActive}
               aria-controls={`tabpanel-${tab.id}`}
               className={`tabbed-layout__tab ${isActive ? 'tabbed-layout__tab--active' : ''}`}
               onClick={() => handleTabClick(tab.id)}
-              onKeyDown={(e) => handleKeyDown(e, tab.id)}
               disabled={disabled}
               tabIndex={isActive ? 0 : -1}
             >
@@ -150,9 +193,14 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                ref={(el) => {
+                  tabRefs.current['universal'] = el;
+                }}
                 type="button"
                 role="tab"
+                id="tab-universal"
                 aria-selected={isUniversalActive}
+                aria-controls="tabpanel-universal"
                 className={`tabbed-layout__tab has-dropdown ${isUniversalActive ? 'tabbed-layout__tab--active' : ''}`}
                 disabled={disabled}
                 tabIndex={isUniversalActive ? 0 : -1}
@@ -182,7 +230,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
               {UNIVERSAL_OPTIONS.map((option) => (
                 <DropdownMenuItem
                   key={option.value}
-                  className="texte-tab-dropdown-item"
+                  className={`texte-tab-dropdown-item${selectedUniversalSubType === option.value ? ' texte-tab-dropdown-item--active' : ''}`}
                   onSelect={() => handleUniversalOptionSelect(option.value)}
                 >
                   <Icon category={option.icon.category as any} name={option.icon.name} size={16} />

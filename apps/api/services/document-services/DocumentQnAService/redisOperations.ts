@@ -4,6 +4,7 @@
  */
 
 import crypto from 'crypto';
+
 import type { Attachment, StoredDocument, ClearUserDataResult } from './types.js';
 
 /**

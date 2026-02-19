@@ -6,12 +6,14 @@
  * - zitat_canvas: expects multer file with path
  */
 
-import type { Attachment, ImageAttachment, MulterMemoryFile, MulterDiskFile } from './types.js';
-import { extractBase64FromDataUrl } from './validation.js';
-import { MIME_TO_EXTENSION, MAX_IMAGE_SIZE } from './constants.js';
+import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as crypto from 'crypto';
+
+import { MIME_TO_EXTENSION, MAX_IMAGE_SIZE } from './constants.js';
+import { extractBase64FromDataUrl } from './validation.js';
+
+import type { Attachment, ImageAttachment, MulterMemoryFile, MulterDiskFile } from './types.js';
 
 /**
  * CanvasAdapter class

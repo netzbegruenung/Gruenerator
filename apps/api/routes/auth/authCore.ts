@@ -361,12 +361,43 @@ router.get('/status-test', (req: AuthRequest, res: Response): void => {
 router.get('/error', (req: AuthSessionRequest, res: Response): void => {
   const errorCode = req.query.message || 'unknown_error';
   const correlationId = req.query.correlationId || 'N/A';
+  const retry = req.query.retry === 'true';
   const keycloakError = req.session?.messages?.slice(-1)[0];
   if (req.session?.messages) delete req.session.messages;
 
   log.error(
     `[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}, Keycloak: ${keycloakError || 'none'}`
   );
+
+  if (retry) {
+    res.status(401).send(`<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="2;url=/auth/login">
+  <title>Anmeldung fehlgeschlagen</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; color: #333; }
+    .card { background: #fff; border-radius: 12px; padding: 2.5rem; max-width: 420px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    h1 { color: #316049; font-size: 1.25rem; margin: 0 0 0.75rem; }
+    p { margin: 0 0 1rem; line-height: 1.5; font-size: 0.95rem; }
+    a { color: #316049; font-weight: 600; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .hint { font-size: 0.8rem; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Anmeldung fehlgeschlagen</h1>
+    <p>Du wirst in wenigen Sekunden automatisch weitergeleitet&hellip;</p>
+    <p><a href="/auth/login">Jetzt erneut anmelden</a></p>
+    <p class="hint">Fehler: ${errorCode} &middot; Referenz: ${correlationId}</p>
+  </div>
+</body>
+</html>`);
+    return;
+  }
 
   res
     .status(401)

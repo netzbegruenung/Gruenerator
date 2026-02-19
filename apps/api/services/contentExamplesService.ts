@@ -5,9 +5,10 @@
  * Supports locale-aware retrieval (de-DE for German, de-AT for Austrian content).
  */
 
-import { getQdrantInstance, QdrantService } from '../database/services/QdrantService/index.js';
-import { mistralEmbeddingService } from './mistral/index.js';
+import { getQdrantInstance, type QdrantService } from '../database/services/QdrantService/index.js';
 import { createLogger } from '../utils/logger.js';
+
+import { mistralEmbeddingService } from './mistral/index.js';
 
 const log = createLogger('ContentExamplesService');
 

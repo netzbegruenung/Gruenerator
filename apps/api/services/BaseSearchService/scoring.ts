@@ -6,6 +6,7 @@
  */
 
 import { vectorConfig } from '../../config/vectorConfig.js';
+
 import type { ChunkData, EnhancedScore, HybridMetadata, DocumentResult } from './types.js';
 
 interface VectorScoringConfig {

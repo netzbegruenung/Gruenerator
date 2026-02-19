@@ -6,7 +6,7 @@
  */
 
 import { processResponseWithTitle } from '../prompt/index.js';
-import type { Response } from 'express';
+
 import type {
   AIWorkerResult,
   AttachmentInfo,
@@ -14,6 +14,7 @@ import type {
   ErrorResponse,
   ErrorResponseWithStatus,
 } from './types.js';
+import type { Response } from 'express';
 
 /**
  * Creates a standardized success response

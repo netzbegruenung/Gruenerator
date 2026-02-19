@@ -1,11 +1,12 @@
-import express, { Request, Response, Router } from 'express';
-import { getQdrantDocumentService } from '../../services/document-services/index.js';
+import express, { type Request, type Response, type Router } from 'express';
+
 import {
   SYSTEM_COLLECTIONS,
   getAllSystemCollectionIds,
   getSearchParams,
   applyDefaultFilter,
 } from '../../config/systemCollectionsConfig.js';
+import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { DocumentResult, TopChunk } from '../../services/BaseSearchService/types.js';
@@ -68,40 +69,42 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
   try {
     const documentSearchService = getQdrantDocumentService();
 
-    const searchPromises = requestedIds.map(async (collectionId): Promise<TaggedDocumentResult[]> => {
-      const config = SYSTEM_COLLECTIONS[collectionId];
-      if (!config) return [];
+    const searchPromises = requestedIds.map(
+      async (collectionId): Promise<TaggedDocumentResult[]> => {
+        const config = SYSTEM_COLLECTIONS[collectionId];
+        if (!config) return [];
 
-      const searchParams = getSearchParams(collectionId);
-      const additionalFilter = applyDefaultFilter(collectionId, undefined);
+        const searchParams = getSearchParams(collectionId);
+        const additionalFilter = applyDefaultFilter(collectionId, undefined);
 
-      try {
-        const resp = await documentSearchService.search({
-          query: trimmedQuery,
-          userId: undefined,
-          options: {
-            limit: searchParams.limit,
-            mode: searchParams.mode,
-            vectorWeight: searchParams.vectorWeight,
-            textWeight: searchParams.textWeight,
-            threshold: searchParams.threshold,
-            searchCollection: config.qdrantCollection,
-            recallLimit: searchParams.recallLimit,
-            qualityMin: searchParams.qualityMin,
-            additionalFilter,
-          },
-        });
+        try {
+          const resp = await documentSearchService.search({
+            query: trimmedQuery,
+            userId: undefined,
+            options: {
+              limit: searchParams.limit,
+              mode: searchParams.mode,
+              vectorWeight: searchParams.vectorWeight,
+              textWeight: searchParams.textWeight,
+              threshold: searchParams.threshold,
+              searchCollection: config.qdrantCollection,
+              recallLimit: searchParams.recallLimit,
+              qualityMin: searchParams.qualityMin,
+              additionalFilter,
+            },
+          });
 
-        return (resp.results || []).map((doc) => ({
-          ...doc,
-          collection_id: collectionId,
-          collection_name: config.name,
-        }));
-      } catch (error: any) {
-        log.error(`Search error for ${collectionId}: ${error.message}`);
-        return [];
+          return (resp.results || []).map((doc) => ({
+            ...doc,
+            collection_id: collectionId,
+            collection_name: config.name,
+          }));
+        } catch (error: any) {
+          log.error(`Search error for ${collectionId}: ${error.message}`);
+          return [];
+        }
       }
-    });
+    );
 
     const allResults = (await Promise.all(searchPromises)).flat();
 

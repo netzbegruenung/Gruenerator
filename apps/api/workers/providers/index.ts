@@ -1,8 +1,9 @@
-import * as mistral from './mistralAdapter.js';
 import * as ionos from './ionosAdapter.js';
 import * as litellm from './litellmAdapter.js';
-import type { AIRequestData, AIWorkerResult } from '../types.js';
+import * as mistral from './mistralAdapter.js';
+
 import type { ProviderName } from '../../services/ai/providers.js';
+import type { AIRequestData, AIWorkerResult } from '../types.js';
 
 interface ProviderModule {
   execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult>;

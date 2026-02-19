@@ -3,14 +3,15 @@
  * Handles general text generation and Leichte Sprache
  */
 
-import type { UniversalParameters, LeichteSpracheParameters, BaseParameters } from '../types.js';
-import type { ChatContext } from '../../types.js';
 import {
   extractTextForm,
   extractStyle,
   extractTheme,
   extractDetails,
 } from '../utils/extractionUtils.js';
+
+import type { ChatContext } from '../../types.js';
+import type { UniversalParameters, LeichteSpracheParameters, BaseParameters } from '../types.js';
 
 /**
  * Extract parameters for universal agent

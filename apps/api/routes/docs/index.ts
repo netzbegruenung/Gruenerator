@@ -1,10 +1,11 @@
 import { Router } from 'express';
+
+import aiController from './aiController.js';
 import documentController from './documentController.js';
-import permissionsController from './permissionsController.js';
-import shareController from './shareController.js';
 import exportController from './exportController.js';
 import exportToDocsController from './exportToDocsController.js';
-import aiController from './aiController.js';
+import permissionsController from './permissionsController.js';
+import shareController from './shareController.js';
 
 const router = Router();
 

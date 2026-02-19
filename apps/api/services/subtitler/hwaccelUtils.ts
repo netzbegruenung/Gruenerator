@@ -6,6 +6,7 @@
 
 import { execSync } from 'child_process';
 import fs from 'fs';
+
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('HWAccel');

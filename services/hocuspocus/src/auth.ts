@@ -1,5 +1,6 @@
-import { parse as parseCookie } from 'cookie';
 import { randomUUID } from 'crypto';
+
+import { parse as parseCookie } from 'cookie';
 import { jwtVerify } from 'jose';
 
 import { createLogger } from './logger.js';
@@ -75,11 +76,7 @@ export class AuthService {
         [documentName]
       );
 
-      if (
-        result.length === 0 ||
-        result[0].is_deleted ||
-        !result[0].is_public
-      ) {
+      if (result.length === 0 || result[0].is_deleted || !result[0].is_public) {
         log.warn(`[Auth-Guest] Document ${documentName} not publicly accessible`);
         return { authenticated: false, reason: 'Document not publicly accessible' };
       }
@@ -88,7 +85,9 @@ export class AuthService {
       const guestName = requestParameters?.get('guestName') || 'Gast';
       const readOnly = result[0].share_permission === 'viewer';
 
-      log.info(`[Auth-Guest] Guest ${guestId} (${guestName}) authenticated for ${documentName} (${readOnly ? 'read-only' : 'read-write'})`);
+      log.info(
+        `[Auth-Guest] Guest ${guestId} (${guestName}) authenticated for ${documentName} (${readOnly ? 'read-only' : 'read-write'})`
+      );
 
       return {
         authenticated: true,
@@ -106,7 +105,7 @@ export class AuthService {
   async canEditDocument(documentId: string, userId: string): Promise<boolean> {
     try {
       const result = await this.db(
-        `SELECT created_by, permissions
+        `SELECT created_by, permissions, share_mode, share_permission
          FROM collaborative_documents
          WHERE id = $1 AND document_subtype = 'docs' AND is_deleted = false`,
         [documentId]
@@ -124,14 +123,22 @@ export class AuthService {
       >;
       const userPermission = permissions[userId];
 
-      return (
-        isOwner ||
-        !!(
-          userPermission &&
-          userPermission.level !== undefined &&
-          ['owner', 'editor'].includes(userPermission.level)
-        )
-      );
+      if (isOwner) return true;
+
+      if (
+        userPermission?.level !== undefined &&
+        ['owner', 'editor'].includes(userPermission.level)
+      ) {
+        return true;
+      }
+
+      const shareMode = (document.share_mode as string) || 'private';
+      const sharePermission = (document.share_permission as string) || 'editor';
+      if (shareMode === 'authenticated' && sharePermission === 'editor') {
+        return true;
+      }
+
+      return false;
     } catch (error) {
       log.error(`[CanEdit] Error checking edit permission: ${error}`);
       return false;
@@ -144,7 +151,7 @@ export class AuthService {
   ): Promise<AuthenticationResult> {
     log.info(`[Auth] Checking document permissions for: ${documentName}`);
     const docResult = await this.db(
-      `SELECT created_by, permissions, is_public, is_deleted
+      `SELECT created_by, permissions, is_public, share_mode, share_permission, is_deleted
        FROM collaborative_documents
        WHERE id = $1 AND document_subtype = 'docs'`,
       [documentName]
@@ -180,6 +187,8 @@ export class AuthService {
 
     const isOwner = document.created_by === userId;
     const isPublic = document.is_public;
+    const shareMode = (document.share_mode as string) || 'private';
+    const sharePermission = (document.share_permission as string) || 'editor';
     const permissions = (document.permissions || {}) as Record<
       string,
       { level?: string } | undefined
@@ -187,18 +196,49 @@ export class AuthService {
     const userPermission = permissions[userId];
 
     log.info(
-      `[Auth] isOwner: ${isOwner}, isPublic: ${isPublic}, userPermission: ${JSON.stringify(userPermission)}`
+      `[Auth] isOwner: ${isOwner}, isPublic: ${isPublic}, shareMode: ${shareMode}, userPermission: ${JSON.stringify(userPermission)}`
     );
 
-    const hasAccess = isOwner || isPublic || userPermission;
+    const hasAccess = isOwner || isPublic || shareMode === 'authenticated' || userPermission;
 
     if (!hasAccess) {
       log.warn(`[Auth] FAILED: Access denied - no permission to view document`);
       return { authenticated: false, reason: 'Access denied - no permission to view document' };
     }
 
+    if (shareMode === 'authenticated' && !isOwner && !userPermission) {
+      const permissionEntry = JSON.stringify({
+        [userId]: {
+          level: sharePermission,
+          granted_at: new Date().toISOString(),
+          granted_by: 'auto:share_link',
+        },
+      });
+
+      this.db(
+        `UPDATE collaborative_documents
+         SET permissions = COALESCE(permissions, '{}')::jsonb || $1::jsonb,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+           AND NOT (COALESCE(permissions, '{}')::jsonb ? $3)`,
+        [permissionEntry, documentName, userId]
+      ).catch((err: unknown) => {
+        const error = err instanceof Error ? err : new Error(String(err));
+        log.error(`[Auth] Error auto-adding user to permissions: ${error.message}`);
+      });
+    }
+
     const permissionLevel = userPermission?.level;
-    const readOnly = permissionLevel === 'viewer';
+    let readOnly: boolean;
+    if (isOwner) {
+      readOnly = false;
+    } else if (permissionLevel) {
+      readOnly = permissionLevel === 'viewer';
+    } else if (shareMode === 'authenticated' || isPublic) {
+      readOnly = sharePermission === 'viewer';
+    } else {
+      readOnly = true;
+    }
 
     const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
 

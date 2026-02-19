@@ -9,8 +9,9 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
 import type { IconLayer } from '../types/freeCanvasTypes.js';
 
 const iconCache = new Map<string, string>();

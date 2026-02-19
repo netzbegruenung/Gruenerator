@@ -48,7 +48,7 @@ const notebookHelper = new NotebookQdrantHelper();
  * GET /api/qa/collections/:id/filters
  * Get available filter values for a system collection
  */
-router.get('/collections/:id/filters', async (req: Request, res: Response) => {
+router.get('/collections/:id/filters', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const collectionId = req.params.id;
     const systemConfig = getSystemCollectionConfig(collectionId);
@@ -194,55 +194,59 @@ router.post('/multi/ask', requireAuth, async (req: NotebookRequest, res: Respons
  * POST /api/qa/:id/ask
  * Submit question to single collection
  */
-router.post('/:id/ask', requireAuth, async (req: NotebookRequest, res: Response) => {
-  const startTime = Date.now();
-
-  try {
-    const userId = req.user!.id;
-    const collectionId = req.params.id;
-    const { question, filters, fastMode } = req.body as AskQuestionBody;
-
-    if (!question || !question.trim()) {
-      return res.status(400).json({ error: 'Question is required' });
-    }
-
-    const result = await notebookQAService.askSingleCollection({
-      collectionId,
-      question,
-      userId,
-      requestFilters: filters,
-      aiWorkerPool: req.app.locals.aiWorkerPool,
-      getCollectionFn: async (id: string) => {
-        const systemConfig = getSystemCollectionConfig(id);
-        if (systemConfig) return null;
-        return await notebookHelper.getNotebookCollection(id);
-      },
-      getDocumentIdsFn: async (id: string) => {
-        const docs = await notebookHelper.getCollectionDocuments(id);
-        return docs.map((d) => d.document_id);
-      },
-      fastMode: fastMode || false,
-    });
+router.post(
+  '/:id/ask',
+  requireAuth,
+  async (req: NotebookRequest<{ id: string }>, res: Response) => {
+    const startTime = Date.now();
 
     try {
-      await notebookHelper.logNotebookUsage(
-        collectionId,
-        userId,
-        question.trim(),
-        (result.answer || '').length,
-        Date.now() - startTime
-      );
-    } catch (logError) {
-      log.error('[QA Interaction] Error logging usage:', logError);
-    }
+      const userId = req.user!.id;
+      const collectionId = req.params.id;
+      const { question, filters, fastMode } = req.body as AskQuestionBody;
 
-    return res.json(result);
-  } catch (error) {
-    log.error('[QA Interaction] Error in POST /:id/ask:', error);
-    const err = error as Error;
-    return res.status(500).json({ error: err.message || 'Internal server error' });
+      if (!question || !question.trim()) {
+        return res.status(400).json({ error: 'Question is required' });
+      }
+
+      const result = await notebookQAService.askSingleCollection({
+        collectionId,
+        question,
+        userId,
+        requestFilters: filters,
+        aiWorkerPool: req.app.locals.aiWorkerPool,
+        getCollectionFn: async (id: string) => {
+          const systemConfig = getSystemCollectionConfig(id);
+          if (systemConfig) return null;
+          return await notebookHelper.getNotebookCollection(id);
+        },
+        getDocumentIdsFn: async (id: string) => {
+          const docs = await notebookHelper.getCollectionDocuments(id);
+          return docs.map((d) => d.document_id);
+        },
+        fastMode: fastMode || false,
+      });
+
+      try {
+        await notebookHelper.logNotebookUsage(
+          collectionId,
+          userId,
+          question.trim(),
+          (result.answer || '').length,
+          Date.now() - startTime
+        );
+      } catch (logError) {
+        log.error('[QA Interaction] Error logging usage:', logError);
+      }
+
+      return res.json(result);
+    } catch (error) {
+      log.error('[QA Interaction] Error in POST /:id/ask:', error);
+      const err = error as Error;
+      return res.status(500).json({ error: err.message || 'Internal server error' });
+    }
   }
-});
+);
 
 // =============================================================================
 // Public Access Routes
@@ -252,7 +256,7 @@ router.post('/:id/ask', requireAuth, async (req: NotebookRequest, res: Response)
  * GET /api/qa/public/:token
  * Public Notebook access (no auth)
  */
-router.get('/public/:token', async (req: Request, res: Response) => {
+router.get('/public/:token', async (req: Request<{ token: string }>, res: Response) => {
   try {
     const accessToken = req.params.token;
     const publicAccess = (await notebookHelper.getPublicAccess(
@@ -294,7 +298,7 @@ router.get('/public/:token', async (req: Request, res: Response) => {
  * POST /api/qa/public/:token/ask
  * Ask question to public Notebook (no auth)
  */
-router.post('/public/:token/ask', async (req: Request, res: Response) => {
+router.post('/public/:token/ask', async (req: Request<{ token: string }>, res: Response) => {
   const startTime = Date.now();
 
   try {

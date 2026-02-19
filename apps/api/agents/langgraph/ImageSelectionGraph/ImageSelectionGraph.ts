@@ -6,9 +6,11 @@
  */
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
-import type { ImageSelectionState, ImageSelectionInput, ImageSelectionOutput } from './types.js';
+
 import { loadCatalogNode } from './nodes/LoadCatalogNode.js';
 import { selectImageNode } from './nodes/SelectImageNode.js';
+
+import type { ImageSelectionState, ImageSelectionInput, ImageSelectionOutput } from './types.js';
 
 // State schema for the image selection graph
 const ImageSelectionStateAnnotation = Annotation.Root({

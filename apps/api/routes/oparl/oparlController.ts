@@ -3,12 +3,14 @@
  * Access to German parliamentary documents via OParl API
  */
 
-import express, { Response, Router } from 'express';
+import express, { type Response, type Router } from 'express';
+
+import passport from '../../config/passportSetup.js';
+import { requireAuth } from '../../middleware/authMiddleware.js';
 import oparlApiClient from '../../services/api-clients/oparlApiClient.js';
 import { oparlScraperService } from '../../services/scrapers/implementations/OparlScraper.js';
-import { requireAuth } from '../../middleware/authMiddleware.js';
-import passport from '../../config/passportSetup.js';
 import { createLogger } from '../../utils/logger.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { OparlEndpoint } from '../../services/api-clients/oparlApiClient.js';
 

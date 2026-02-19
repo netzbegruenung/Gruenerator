@@ -445,7 +445,7 @@ router.get(
 
 router.get(
   '/template-previews/:fileName',
-  async (req: express.Request, res: Response): Promise<void> => {
+  async (req: express.Request<{ fileName: string }>, res: Response): Promise<void> => {
     try {
       const { fileName } = req.params;
       const decodedFileName = decodeURIComponent(fileName);
@@ -489,7 +489,7 @@ router.get(
 // Serve system file thumbnail (optimized for gallery display)
 router.get(
   '/system-files/thumbs/:fileName',
-  async (req: express.Request, res: Response): Promise<void> => {
+  async (req: express.Request<{ fileName: string }>, res: Response): Promise<void> => {
     try {
       const { fileName } = req.params;
       const decodedFileName = decodeURIComponent(fileName);
@@ -533,7 +533,7 @@ router.get(
 // Download system file
 router.get(
   '/system-files/:fileName',
-  async (req: express.Request, res: Response): Promise<void> => {
+  async (req: express.Request<{ fileName: string }>, res: Response): Promise<void> => {
     try {
       const { fileName } = req.params;
       const decodedFileName = decodeURIComponent(fileName);
@@ -622,7 +622,7 @@ router.get(
 router.post(
   '/vorlagen/:templateId/like',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ templateId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { templateId } = req.params;
@@ -658,7 +658,7 @@ router.post(
 router.delete(
   '/vorlagen/:templateId/like',
   ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest<{ templateId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { templateId } = req.params;

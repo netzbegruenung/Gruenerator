@@ -4,12 +4,13 @@
  * Generates Advanced SubStation Alpha (ASS) subtitle files with styling support.
  */
 
+import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs/promises';
+
+import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { sanitizeFilename } from '../../utils/validation/index.js';
-import { createLogger } from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

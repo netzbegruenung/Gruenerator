@@ -3,10 +3,12 @@
  * AI-powered creation of custom generator configurations
  */
 
-import express, { Response, Router } from 'express';
+import express, { type Response, type Router } from 'express';
+
+import { extractJsonObject } from '../../utils/jsonParser.js';
 import { createLogger } from '../../utils/logger.js';
 import { generateSanitizedName, sanitizeSlug } from '../../utils/stringUtils.js';
-import { extractJsonObject } from '../../utils/jsonParser.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('generator_configurator');

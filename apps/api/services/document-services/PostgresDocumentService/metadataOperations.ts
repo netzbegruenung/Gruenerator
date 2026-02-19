@@ -3,6 +3,8 @@
  * Handles saving, updating, retrieving, and deleting document metadata
  */
 
+import { parseMetadata } from '../../../routes/documents/helpers.js';
+
 import type {
   DocumentMetadata,
   DocumentRecord,
@@ -10,7 +12,6 @@ import type {
   DeleteResult,
   BulkDeleteResult,
 } from './types.js';
-import { parseMetadata } from '../../../routes/documents/helpers.js';
 
 /**
  * Save document metadata (no file content)
@@ -115,7 +116,7 @@ export async function getDocumentsBySourceType(
     await postgres.ensureInitialized();
 
     let query = 'SELECT * FROM documents WHERE user_id = $1';
-    let params: any[] = [userId];
+    const params: any[] = [userId];
 
     if (sourceType) {
       query += ' AND source_type = $2';

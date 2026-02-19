@@ -8,9 +8,7 @@ import './EigeneTab.css';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
 
-interface EigeneTabProps {
-  isActive: boolean;
-}
+type EigeneTabProps = Record<string, never>;
 
 interface GeneratorListItem {
   id: string;
@@ -50,14 +48,17 @@ const LoadingSpinner = memo(() => (
 
 LoadingSpinner.displayName = 'LoadingSpinner';
 
-const EigeneTab: React.FC<EigeneTabProps> = memo(({ isActive }) => {
+const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
 
   const { query: generatorsQuery } = useCustomGeneratorsData({
-    isActive,
+    isActive: true,
     enabled: isAuthenticated,
   } as any);
-  const { query: savedQuery } = useSavedGenerators({ isActive, enabled: isAuthenticated } as any);
+  const { query: savedQuery } = useSavedGenerators({
+    isActive: true,
+    enabled: isAuthenticated,
+  } as any);
 
   const generators = useMemo(
     () => (generatorsQuery.data || []) as GeneratorListItem[],

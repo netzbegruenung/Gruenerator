@@ -163,7 +163,7 @@ router.get('/updater/latest.json', (_req: Request, res: Response) => {
 
 // GET /api/releases/download/file/:filename - Redirect to GitHub release file (for direct downloads)
 // IMPORTANT: This route must come BEFORE /download/:platform to avoid :platform matching "file"
-router.get('/download/file/:filename', (req: Request, res: Response) => {
+router.get('/download/file/:filename', (req: Request<{ filename: string }>, res: Response) => {
   const { filename } = req.params;
   const version = UPDATER_CONFIG.version;
 
@@ -179,7 +179,7 @@ router.get('/download/file/:filename', (req: Request, res: Response) => {
 });
 
 // GET /api/releases/download/:platform - Redirect to GitHub release for platform (Tauri updater)
-router.get('/download/:platform', (req: Request, res: Response) => {
+router.get('/download/:platform', (req: Request<{ platform: string }>, res: Response) => {
   const { platform } = req.params;
   const version = UPDATER_CONFIG.version;
 
@@ -197,7 +197,7 @@ router.get('/download/:platform', (req: Request, res: Response) => {
 });
 
 // GET /api/releases/download/:platform/signature - Get signature for platform (from config)
-router.get('/download/:platform/signature', (req: Request, res: Response) => {
+router.get('/download/:platform/signature', (req: Request<{ platform: string }>, res: Response) => {
   const { platform } = req.params;
 
   const platformConfig = UPDATER_CONFIG.platforms[platform];

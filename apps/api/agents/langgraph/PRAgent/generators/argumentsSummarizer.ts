@@ -1,4 +1,5 @@
 import mistralClient from '../../../../workers/mistralClient.js';
+
 import type { ArgumentResult } from './argumentsGenerator.js';
 
 /**

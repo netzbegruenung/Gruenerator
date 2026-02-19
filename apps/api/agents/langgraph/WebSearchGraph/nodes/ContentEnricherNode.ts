@@ -3,8 +3,9 @@
  * Performs actual crawling of selected URLs
  */
 
-import type { WebSearchState, EnrichedResult } from '../types.js';
 import { urlCrawlerService } from '../../../../services/scrapers/implementations/UrlCrawler/index.js';
+
+import type { WebSearchState, EnrichedResult } from '../types.js';
 
 /**
  * Content Enricher Node: Performs actual crawling of selected URLs

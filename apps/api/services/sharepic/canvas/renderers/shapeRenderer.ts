@@ -4,8 +4,8 @@
  * Uses canvas path drawing for SVG-like rendering
  */
 
-import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 import type { ShapeLayer } from '../types/freeCanvasTypes.js';
+import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 
 function renderRect(ctx: CanvasRenderingContext2D, shape: ShapeLayer): void {
   ctx.fillRect(-shape.width / 2, -shape.height / 2, shape.width, shape.height);

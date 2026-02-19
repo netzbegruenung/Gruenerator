@@ -27,31 +27,34 @@ function toFrontendMemory(m: Mem0Memory): FrontendMemory {
 }
 
 // GET /api/mem0/user/:userId — list all memories for the authenticated user
-router.get('/user/:userId', async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { userId } = req.params;
+router.get(
+  '/user/:userId',
+  async (req: AuthRequest<{ userId: string }>, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
 
-    if (req.user!.id !== userId) {
-      res.status(403).json({ success: false, message: 'Zugriff verweigert.' });
-      return;
+      if (req.user!.id !== userId) {
+        res.status(403).json({ success: false, message: 'Zugriff verweigert.' });
+        return;
+      }
+
+      const mem0 = getMem0Instance();
+      if (!mem0) {
+        res.json({ success: true, memories: [] });
+        return;
+      }
+
+      const memories = await mem0.getAllMemories(userId);
+      res.json({ success: true, memories: memories.map(toFrontendMemory) });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[mem0 GET /user/:userId] Error:', err);
+      res
+        .status(500)
+        .json({ success: false, message: err.message || 'Fehler beim Laden der Erinnerungen.' });
     }
-
-    const mem0 = getMem0Instance();
-    if (!mem0) {
-      res.json({ success: true, memories: [] });
-      return;
-    }
-
-    const memories = await mem0.getAllMemories(userId);
-    res.json({ success: true, memories: memories.map(toFrontendMemory) });
-  } catch (error) {
-    const err = error as Error;
-    log.error('[mem0 GET /user/:userId] Error:', err);
-    res
-      .status(500)
-      .json({ success: false, message: err.message || 'Fehler beim Laden der Erinnerungen.' });
   }
-});
+);
 
 // POST /api/mem0/add-text — add a text memory for the authenticated user
 router.post('/add-text', async (req: AuthRequest, res: Response): Promise<void> => {
@@ -91,63 +94,74 @@ router.post('/add-text', async (req: AuthRequest, res: Response): Promise<void> 
 });
 
 // DELETE /api/mem0/:memoryId — delete a single memory
-router.delete('/:memoryId', async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { memoryId } = req.params;
-    const userId = req.user!.id;
+router.delete(
+  '/:memoryId',
+  async (req: AuthRequest<{ memoryId: string }>, res: Response): Promise<void> => {
+    try {
+      const { memoryId } = req.params;
+      const userId = req.user!.id;
 
-    const mem0 = getMem0Instance();
-    if (!mem0) {
-      res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
-      return;
+      const mem0 = getMem0Instance();
+      if (!mem0) {
+        res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
+        return;
+      }
+
+      const deleted = await mem0.deleteMemory(memoryId, userId);
+      if (!deleted) {
+        res.status(404).json({ success: false, message: 'Erinnerung nicht gefunden.' });
+        return;
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[mem0 DELETE /:memoryId] Error:', err);
+      res
+        .status(500)
+        .json({ success: false, message: err.message || 'Fehler beim Löschen der Erinnerung.' });
     }
-
-    const deleted = await mem0.deleteMemory(memoryId, userId);
-    if (!deleted) {
-      res.status(404).json({ success: false, message: 'Erinnerung nicht gefunden.' });
-      return;
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    const err = error as Error;
-    log.error('[mem0 DELETE /:memoryId] Error:', err);
-    res
-      .status(500)
-      .json({ success: false, message: err.message || 'Fehler beim Löschen der Erinnerung.' });
   }
-});
+);
 
 // DELETE /api/mem0/user/:userId/all — delete all memories (GDPR)
-router.delete('/user/:userId/all', async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { userId } = req.params;
+router.delete(
+  '/user/:userId/all',
+  async (req: AuthRequest<{ userId: string }>, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
 
-    if (req.user!.id !== userId) {
-      res.status(403).json({ success: false, message: 'Zugriff verweigert.' });
-      return;
+      if (req.user!.id !== userId) {
+        res.status(403).json({ success: false, message: 'Zugriff verweigert.' });
+        return;
+      }
+
+      const mem0 = getMem0Instance();
+      if (!mem0) {
+        res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
+        return;
+      }
+
+      const deleted = await mem0.deleteAllUserMemories(userId);
+      if (!deleted) {
+        res
+          .status(500)
+          .json({ success: false, message: 'Fehler beim Löschen aller Erinnerungen.' });
+        return;
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[mem0 DELETE /user/:userId/all] Error:', err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          message: err.message || 'Fehler beim Löschen aller Erinnerungen.',
+        });
     }
-
-    const mem0 = getMem0Instance();
-    if (!mem0) {
-      res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
-      return;
-    }
-
-    const deleted = await mem0.deleteAllUserMemories(userId);
-    if (!deleted) {
-      res.status(500).json({ success: false, message: 'Fehler beim Löschen aller Erinnerungen.' });
-      return;
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    const err = error as Error;
-    log.error('[mem0 DELETE /user/:userId/all] Error:', err);
-    res
-      .status(500)
-      .json({ success: false, message: err.message || 'Fehler beim Löschen aller Erinnerungen.' });
   }
-});
+);
 
 export default router;

@@ -4,6 +4,7 @@
  */
 
 import { GERMAN_ABBREVIATIONS, isNewSentenceStart } from './germanLanguageRules.js';
+
 import type { SentenceSegment, PageMarker, SentenceOverlap } from './types.js';
 
 /**

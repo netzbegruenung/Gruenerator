@@ -3,8 +3,6 @@
  * Handles AI image generation with FLUX
  */
 
-import type { ImagineParameters, BaseParameters } from '../types.js';
-import type { ChatContext } from '../../types.js';
 import {
   detectImagineMode,
   extractImagineSubject,
@@ -12,6 +10,9 @@ import {
   extractImagineTitle,
   extractEditAction,
 } from '../utils/imagineUtils.js';
+
+import type { ChatContext } from '../../types.js';
+import type { ImagineParameters, BaseParameters } from '../types.js';
 
 /**
  * Extract parameters for imagine agent (FLUX image generation)

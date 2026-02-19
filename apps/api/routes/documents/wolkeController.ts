@@ -9,14 +9,18 @@
  * - POST /import - Import selected files from Wolke
  */
 
-import express, { Router, Request, Response } from 'express';
-import type { DocumentRequest } from './types.js';
 import path from 'path';
-import { getWolkeSyncService } from '../../services/sync/index.js';
+
+import express, { type Router, Request, type Response } from 'express';
+
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { getWolkeSyncService } from '../../services/sync/index.js';
 import { createLogger } from '../../utils/logger.js';
+
 import { formatFileSize } from './helpers.js';
+
 import type {
+  DocumentRequest,
   WolkeSyncRequestBody,
   WolkeAutoSyncRequestBody,
   WolkeImportRequestBody,
@@ -147,70 +151,73 @@ router.post('/auto-sync', async (req: DocumentRequest, res: Response): Promise<v
 /**
  * GET /browse/:shareLinkId - Browse files in a Wolke share without syncing
  */
-router.get('/browse/:shareLinkId', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { shareLinkId } = req.params;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.get(
+  '/browse/:shareLinkId',
+  async (req: DocumentRequest<{ shareLinkId: string }>, res: Response): Promise<void> => {
+    try {
+      const { shareLinkId } = req.params;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    if (!shareLinkId) {
-      res.status(400).json({
-        success: false,
-        message: 'Share link ID is required',
+      if (!shareLinkId) {
+        res.status(400).json({
+          success: false,
+          message: 'Share link ID is required',
+        });
+        return;
+      }
+
+      log.debug(`[GET /browse/:shareLinkId] Browsing files for share link ${shareLinkId}`);
+
+      // Get the share link
+      const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
+
+      // List files in the folder
+      const files = await wolkeSyncService.listFolderContents(shareLink);
+
+      // Filter and enrich files with additional metadata for UI
+      const enrichedFiles = files.map((file) => {
+        const fileExtension = path.extname(file.name).toLowerCase();
+        const lastModified = file.lastModified;
+        const lastModifiedStr = lastModified
+          ? (typeof lastModified === 'string'
+              ? new Date(lastModified)
+              : lastModified
+            ).toLocaleDateString('de-DE')
+          : 'Unknown';
+
+        return {
+          ...file,
+          fileExtension,
+          isSupported: SUPPORTED_FILE_TYPES.includes(fileExtension),
+          sizeFormatted: file.size ? formatFileSize(file.size) : 'Unknown',
+          lastModifiedFormatted: lastModifiedStr,
+        };
       });
-      return;
+
+      res.json({
+        success: true,
+        shareLink: {
+          id: shareLink.id,
+          label: shareLink.label,
+          baseUrl: shareLink.base_url,
+        },
+        files: enrichedFiles,
+        totalFiles: enrichedFiles.length,
+        supportedFiles: enrichedFiles.filter((f) => f.isSupported).length,
+      });
+    } catch (error) {
+      log.error('[GET /browse/:shareLinkId] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to browse Wolke files',
+      });
     }
-
-    log.debug(`[GET /browse/:shareLinkId] Browsing files for share link ${shareLinkId}`);
-
-    // Get the share link
-    const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
-
-    // List files in the folder
-    const files = await wolkeSyncService.listFolderContents(shareLink);
-
-    // Filter and enrich files with additional metadata for UI
-    const enrichedFiles = files.map((file) => {
-      const fileExtension = path.extname(file.name).toLowerCase();
-      const lastModified = file.lastModified;
-      const lastModifiedStr = lastModified
-        ? (typeof lastModified === 'string'
-            ? new Date(lastModified)
-            : lastModified
-          ).toLocaleDateString('de-DE')
-        : 'Unknown';
-
-      return {
-        ...file,
-        fileExtension,
-        isSupported: SUPPORTED_FILE_TYPES.includes(fileExtension),
-        sizeFormatted: file.size ? formatFileSize(file.size) : 'Unknown',
-        lastModifiedFormatted: lastModifiedStr,
-      };
-    });
-
-    res.json({
-      success: true,
-      shareLink: {
-        id: shareLink.id,
-        label: shareLink.label,
-        baseUrl: shareLink.base_url,
-      },
-      files: enrichedFiles,
-      totalFiles: enrichedFiles.length,
-      supportedFiles: enrichedFiles.filter((f) => f.isSupported).length,
-    });
-  } catch (error) {
-    log.error('[GET /browse/:shareLinkId] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to browse Wolke files',
-    });
   }
-});
+);
 
 /**
  * POST /import - Import selected files from Wolke

@@ -15,12 +15,7 @@ import ImageStudioTypeSelector from './components/ImageStudioTypeSelector';
 import TemplateStudioFlow from './flows/TemplateStudioFlow';
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useTemplateClone } from './hooks/useTemplateClone';
-import {
-  type FormErrors,
-  type ImageStudioPageContentProps,
-  type ImageStudioPageProps,
-  type UrlTypeMapKey,
-} from './types/componentTypes';
+import { type FormErrors, type UrlTypeMapKey } from './types/componentTypes';
 import {
   IMAGE_STUDIO_TYPES,
   KI_SUBCATEGORIES,
@@ -36,9 +31,7 @@ import './image-studio-shared.css';
 import '../../assets/styles/components/form/form-inputs.css';
 import '../../assets/styles/components/baseform/form-layout.css';
 
-const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({
-  showHeaderFooter: _showHeaderFooter = true,
-}) => {
+const ImageStudioPageContent: React.FC = () => {
   const { category: urlCategory, type: urlType } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -560,8 +553,8 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({
   return <ErrorBoundary>{renderCurrentStep()}</ErrorBoundary>;
 };
 
-const ImageStudioPage: React.FC<ImageStudioPageProps> = ({ showHeaderFooter = true }) => {
-  return <ImageStudioPageContent showHeaderFooter={showHeaderFooter} />;
+const ImageStudioPage: React.FC = () => {
+  return <ImageStudioPageContent />;
 };
 
 export default withAuthRequired(ImageStudioPage);

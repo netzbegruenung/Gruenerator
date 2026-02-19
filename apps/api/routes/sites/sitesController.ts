@@ -2,10 +2,12 @@
  * Sites Controller - API endpoints for user site management
  */
 
-import express, { Response, Router, RequestHandler } from 'express';
+import express, { type Response, type Router, type RequestHandler } from 'express';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
+
 import {
   RESERVED_SUBDOMAINS,
   AVAILABLE_THEMES,
@@ -40,7 +42,10 @@ const ALLOWED_UPDATE_FIELDS = [
 /**
  * GET /public/:subdomain - Get public site data (no auth required)
  */
-router.get('/public/:subdomain', (async (req: SitesRequest, res: Response): Promise<void> => {
+router.get('/public/:subdomain', (async (
+  req: SitesRequest<{ subdomain: string }>,
+  res: Response
+): Promise<void> => {
   try {
     const { subdomain } = req.params;
     const subdomainLower = subdomain.toLowerCase().trim();
@@ -153,7 +158,7 @@ router.post('/create', (async (req: SitesRequest, res: Response): Promise<void> 
 /**
  * PUT /:id - Update a site
  */
-router.put('/:id', (async (req: SitesRequest, res: Response): Promise<void> => {
+router.put('/:id', (async (req: SitesRequest<{ id: string }>, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -206,7 +211,10 @@ router.put('/:id', (async (req: SitesRequest, res: Response): Promise<void> => {
 /**
  * POST /:id/publish - Publish or unpublish a site
  */
-router.post('/:id/publish', (async (req: SitesRequest, res: Response): Promise<void> => {
+router.post('/:id/publish', (async (
+  req: SitesRequest<{ id: string }>,
+  res: Response
+): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -275,7 +283,7 @@ router.get('/check-subdomain', (async (req: SitesRequest, res: Response): Promis
 /**
  * DELETE /:id - Delete a site
  */
-router.delete('/:id', (async (req: SitesRequest, res: Response): Promise<void> => {
+router.delete('/:id', (async (req: SitesRequest<{ id: string }>, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {

@@ -3,9 +3,11 @@
  * Detects and handles user-specific subdomains for custom sites
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { Request, type Response, type NextFunction } from 'express';
+
 import { getPostgresInstance } from '../database/services/PostgresService.js';
-import { SubdomainRequest, UserSiteData } from './types.js';
+
+import { type SubdomainRequest, type UserSiteData } from './types.js';
 
 const db = getPostgresInstance();
 

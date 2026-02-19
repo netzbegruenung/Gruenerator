@@ -4,6 +4,7 @@
  */
 
 import { applyMarkdownFormatting } from './textFormatting.js';
+
 import type {
   PDFInfo,
   ParseabilityCheck,

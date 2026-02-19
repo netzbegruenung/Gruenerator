@@ -6,13 +6,14 @@ import {
   createDocsApiClient,
   type Document,
 } from '@gruenerator/docs';
-import { EditorTopBar } from '@gruenerator/shared/tiptap-editor/components';
+import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { MantineProvider, SegmentedControl, ScrollArea } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { useColorScheme } from '../hooks/useColorScheme';
 import { useAuthStore } from '../stores/authStore';
 
 import type { BlockNoteEditor } from '@blocknote/core';
@@ -119,6 +120,7 @@ export const EditorPage = () => {
     guestName: guestIdentity?.guestName,
   });
   const { messages, sendMessage, getLocalUser } = useDocumentChat({ ydoc, provider, isSynced });
+  const colorScheme = useColorScheme();
 
   const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
     setEditor(editorInstance);
@@ -233,7 +235,7 @@ export const EditorPage = () => {
   const localUser = getLocalUser();
 
   return (
-    <MantineProvider>
+    <MantineProvider forceColorScheme={colorScheme}>
       <div className="editor-page">
         {isGuest && (
           <div className="guest-banner">

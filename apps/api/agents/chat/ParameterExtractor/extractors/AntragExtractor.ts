@@ -3,14 +3,15 @@
  * Handles municipal proposals and parliamentary inquiries
  */
 
-import type { AntragParameters, BaseParameters } from '../types.js';
-import type { ChatContext } from '../../types.js';
 import {
   extractTheme,
   extractDetails,
   extractStructure,
   determineRequestType,
 } from '../utils/extractionUtils.js';
+
+import type { ChatContext } from '../../types.js';
+import type { AntragParameters, BaseParameters } from '../types.js';
 
 /**
  * Extract parameters for proposal/inquiry agents

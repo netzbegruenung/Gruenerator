@@ -9,10 +9,11 @@
  */
 
 import express from 'express';
-import pdfRouter from './pdfController.js';
-import docxRouter from './docxController.js';
-import zipRouter from './zipController.js';
+
 import chatMessageRouter from './chatMessageExport.js';
+import docxRouter from './docxController.js';
+import pdfRouter from './pdfController.js';
+import zipRouter from './zipController.js';
 
 const router = express.Router();
 

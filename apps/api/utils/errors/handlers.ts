@@ -3,10 +3,8 @@
  * Central error handling with logging and monitoring
  */
 
-import type { ErrorHandlerOptions, ErrorContext, APIErrorResponse } from './types.js';
-import { SENSITIVE_FIELDS, MAX_LOG_STRING_LENGTH } from './constants.js';
 import {
-  VectorBackendError,
+  type VectorBackendError,
   ValidationError,
   SearchError,
   EmbeddingError,
@@ -17,6 +15,9 @@ import {
   ResourceError,
   isVectorBackendError,
 } from './classes.js';
+import { SENSITIVE_FIELDS, MAX_LOG_STRING_LENGTH } from './constants.js';
+
+import type { ErrorHandlerOptions, ErrorContext, APIErrorResponse } from './types.js';
 
 /**
  * Error handler with logging and monitoring hooks

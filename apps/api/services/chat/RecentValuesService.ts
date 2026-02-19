@@ -36,35 +36,24 @@ export async function saveRecentValue(
 
   const trimmedValue = fieldValue.trim();
 
-  // Check if this exact value already exists for this user/field
-  const existingResult = await db.query(
-    'SELECT id FROM user_recent_values WHERE user_id = $1 AND field_type = $2 AND field_value = $3',
-    [userId, fieldType, trimmedValue]
-  );
-
-  if (existingResult && existingResult.length > 0) {
-    // Update the created_at timestamp to move it to the top
-    const updateResult = await db.query(
-      'UPDATE user_recent_values SET created_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
-      [existingResult[0].id]
-    );
-    return updateResult[0] as unknown as RecentValue;
-  }
-
-  // Insert new value
-  const dataToInsert = {
+  const dataToUpsert = {
     user_id: userId,
     field_type: fieldType,
     field_value: trimmedValue,
     form_name: formName,
+    created_at: new Date(),
   };
 
   try {
-    const result = await db.insert('user_recent_values', dataToInsert);
+    const result = await db.upsert('user_recent_values', dataToUpsert, [
+      'user_id',
+      'field_type',
+      'field_value',
+    ]);
     return result as unknown as RecentValue;
   } catch (error: any) {
     console.error('[RecentValuesService] Error saving recent value:', error);
-    if (error.code === '23503') {
+    if (error.message?.includes('23503') || error.code === '23503') {
       throw new Error('Invalid user ID provided');
     }
     throw new Error(error.message || 'Failed to save recent value');

@@ -14,9 +14,7 @@ interface FormRef {
   resetForm: (data?: Record<string, unknown>) => void;
 }
 
-interface TexteTabProps {
-  isActive: boolean;
-}
+type TexteTabProps = Record<string, never>;
 
 const COMPONENT_NAME = 'texte-generator';
 
@@ -26,7 +24,7 @@ const EXAMPLE_PROMPTS: ExamplePrompt[] = [
   { label: 'Zusammenfassung', text: 'Fasse folgenden Text zusammen: ' },
 ];
 
-const TexteTab: React.FC<TexteTabProps> = memo(({ isActive }) => {
+const TexteTab: React.FC<TexteTabProps> = memo(() => {
   const texteFormRef = useRef<FormRef>(null);
 
   const setup = useGeneratorSetup({

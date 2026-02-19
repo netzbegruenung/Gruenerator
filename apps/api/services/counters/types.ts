@@ -46,7 +46,7 @@ export interface ImageGenerationResult extends ImageGenerationStatus {
  * Using union type to be compatible with redis package's return types
  */
 export interface RedisClient {
-  get(key: string): Promise<string | null | {}>;
+  get(key: string): Promise<string | null | Record<string, never>>;
   set(key: string, value: string | number, ...args: unknown[]): Promise<unknown>;
   incr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<unknown>;

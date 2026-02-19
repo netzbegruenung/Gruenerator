@@ -1,4 +1,5 @@
-import express, { Router, Request, Response } from 'express';
+import express, { type Router, type Request, type Response } from 'express';
+
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('claude_text_adj');

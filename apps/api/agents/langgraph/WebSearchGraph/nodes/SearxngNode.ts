@@ -8,10 +8,11 @@
  * - Circuit breaker auto-resets after 5 minutes
  */
 
-import type { WebSearchState, WebSearchBatch, SearchResult } from '../types.js';
-import { searxngService, withRetry, searxngCircuit } from '../../../../services/search/index.js';
 import { MistralWebSearchService } from '../../../../services/mistral/index.js';
+import { searxngService, withRetry, searxngCircuit } from '../../../../services/search/index.js';
 import { getIntelligentSearchOptions } from '../utilities/searchOptions.js';
+
+import type { WebSearchState, WebSearchBatch, SearchResult } from '../types.js';
 
 const mistralSearchService = new MistralWebSearchService();
 
@@ -46,7 +47,9 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
     const searchResults: WebSearchBatch[] = [];
 
     if (useMistralFallback) {
-      console.log('[WebSearchGraph] SearXNG circuit breaker is open, starting with Mistral fallback');
+      console.log(
+        '[WebSearchGraph] SearXNG circuit breaker is open, starting with Mistral fallback'
+      );
     }
 
     for (let index = 0; index < (state.subqueries || []).length; index++) {
@@ -93,10 +96,14 @@ export async function searxngNode(state: WebSearchState): Promise<Partial<WebSea
           if (searxngCircuit.isOpen()) {
             useMistralFallback = true;
             fallbackReason = errorMessage;
-            console.warn(`[WebSearchGraph] SearXNG circuit opened after query ${index + 1}: ${errorMessage}`);
+            console.warn(
+              `[WebSearchGraph] SearXNG circuit opened after query ${index + 1}: ${errorMessage}`
+            );
             console.log('[WebSearchGraph] Activating Mistral fallback for remaining queries');
           } else {
-            console.warn(`[WebSearchGraph] SearXNG failed for query ${index + 1} (circuit still closed): ${errorMessage}`);
+            console.warn(
+              `[WebSearchGraph] SearXNG failed for query ${index + 1} (circuit still closed): ${errorMessage}`
+            );
           }
 
           // Retry this specific query with Mistral

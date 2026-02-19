@@ -5,11 +5,16 @@
  * Handles style detection, rate limiting, and returns base64 + URL for display.
  */
 
-import type { ChatGraphState, ImageStyle, GeneratedImageResult } from '../types.js';
-import { FluxImageService, buildFluxPrompt, type VariantKey } from '../../../../services/flux/index.js';
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
-import { redisClient } from '../../../../utils/redis/index.js';
+import {
+  FluxImageService,
+  buildFluxPrompt,
+  type VariantKey,
+} from '../../../../services/flux/index.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { redisClient } from '../../../../utils/redis/index.js';
+
+import type { ChatGraphState, ImageStyle, GeneratedImageResult } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageNode');
 
@@ -73,7 +78,10 @@ function extractSubjectFromPrompt(userContent: string): string {
   }
 
   // Clean up any leading/trailing punctuation and whitespace
-  subject = subject.replace(/^[:\-,.\s]+/, '').replace(/[:\-,.\s]+$/, '').trim();
+  subject = subject
+    .replace(/^[:\-,.\s]+/, '')
+    .replace(/[:\-,.\s]+$/, '')
+    .trim();
 
   // If we stripped too much, use the original
   if (subject.length < 5) {
@@ -87,9 +95,7 @@ function extractSubjectFromPrompt(userContent: string): string {
  * Image generation node implementation.
  * Generates an image based on the user's prompt using FLUX.
  */
-export async function imageNode(
-  state: ChatGraphState
-): Promise<Partial<ChatGraphState>> {
+export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   log.info('[ImageNode] Starting image generation');
 
@@ -121,7 +127,9 @@ export async function imageNode(
     // Check rate limit
     const limitStatus = await imageCounter.checkLimit(userId);
     if (!limitStatus.canGenerate) {
-      log.info(`[ImageNode] User ${userId} has reached daily image limit (${limitStatus.count}/${limitStatus.limit})`);
+      log.info(
+        `[ImageNode] User ${userId} has reached daily image limit (${limitStatus.count}/${limitStatus.limit})`
+      );
       return {
         generatedImage: null,
         imagePrompt: userContent,
@@ -147,7 +155,9 @@ export async function imageNode(
       subject,
     });
 
-    log.info(`[ImageNode] Built FLUX prompt (${fluxPrompt.length} chars), dimensions: ${dimensions.width}x${dimensions.height}`);
+    log.info(
+      `[ImageNode] Built FLUX prompt (${fluxPrompt.length} chars), dimensions: ${dimensions.width}x${dimensions.height}`
+    );
 
     // Generate image
     const flux = await FluxImageService.create();
@@ -163,7 +173,9 @@ export async function imageNode(
     const updatedStatus = await imageCounter.checkLimit(userId);
 
     const imageTimeMs = Date.now() - startTime;
-    log.info(`[ImageNode] Image generated in ${imageTimeMs}ms, user usage: ${updatedStatus.count}/${updatedStatus.limit}`);
+    log.info(
+      `[ImageNode] Image generated in ${imageTimeMs}ms, user usage: ${updatedStatus.count}/${updatedStatus.limit}`
+    );
 
     // Construct URL for the image
     const imageUrl = `/uploads/flux/results/${stored.relativePath.split('/').slice(-2).join('/')}`;

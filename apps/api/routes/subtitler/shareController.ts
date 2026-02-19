@@ -3,12 +3,15 @@
  * Handles video sharing operations.
  */
 
-import express, { Response, Router } from 'express';
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
+
+import express, { type Response, type Router } from 'express';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
+
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const fsPromises = fs.promises;
@@ -61,7 +64,9 @@ async function triggerBackgroundRender(
 
     try {
       await fsPromises.unlink(result.outputPath);
-    } catch {}
+    } catch {
+      /* ignore cleanup error */
+    }
     log.info(`Background render complete for share ${shareToken}`);
   } catch (error: any) {
     log.error(`Background render failed for ${shareToken}:`, error);
@@ -167,13 +172,11 @@ router.post(
       // Check if we need to render
       if (!project.subtitled_video_path) {
         if (!project.subtitles) {
-          res
-            .status(400)
-            .json({
-              success: false,
-              error: 'Projekt hat keine Untertitel zum Exportieren.',
-              code: 'NO_SUBTITLES',
-            });
+          res.status(400).json({
+            success: false,
+            error: 'Projekt hat keine Untertitel zum Exportieren.',
+            code: 'NO_SUBTITLES',
+          });
           return;
         }
 
@@ -204,13 +207,11 @@ router.post(
         await fsPromises.access(videoPath);
       } catch {
         if (!project.subtitles) {
-          res
-            .status(400)
-            .json({
-              success: false,
-              error: 'Video-Datei nicht gefunden und keine Untertitel zum Rendern.',
-              code: 'NO_SUBTITLES',
-            });
+          res.status(400).json({
+            success: false,
+            error: 'Video-Datei nicht gefunden und keine Untertitel zum Rendern.',
+            code: 'NO_SUBTITLES',
+          });
           return;
         }
 
@@ -473,12 +474,10 @@ router.delete(
     } catch (error: any) {
       log.error('Failed to delete share:', error);
       if (error.message.includes('not found') || error.message.includes('not owned')) {
-        res
-          .status(404)
-          .json({
-            success: false,
-            error: 'Geteiltes Video nicht gefunden oder keine Berechtigung',
-          });
+        res.status(404).json({
+          success: false,
+          error: 'Geteiltes Video nicht gefunden oder keine Berechtigung',
+        });
       } else {
         res
           .status(500)

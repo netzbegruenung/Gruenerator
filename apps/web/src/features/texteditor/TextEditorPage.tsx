@@ -48,13 +48,7 @@ interface ApiResponse {
   metadata?: Record<string, unknown>;
 }
 
-interface AITextImproverGeneratorProps {
-  showHeaderFooter?: boolean;
-}
-
-const AITextImproverGenerator: React.FC<AITextImproverGeneratorProps> = ({
-  showHeaderFooter = true,
-}) => {
+const AITextImproverGenerator: React.FC = () => {
   const componentName = 'text-improver';
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
@@ -226,7 +220,7 @@ const AITextImproverGenerator: React.FC<AITextImproverGeneratorProps> = ({
 
   return (
     <ErrorBoundary>
-      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+      <div className="container with-header">
         <BaseForm
           {...baseFormProps}
           title="Was möchtest du heute grünerieren?"

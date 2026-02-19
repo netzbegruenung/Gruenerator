@@ -4,12 +4,13 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
+import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import {
   detectContentType,
   detectMarkdownStructure,
   extractPageNumber,
 } from '../../content/index.js';
-import { chunkQualityService } from '../../ChunkQualityService/index.js';
+
 import {
   sentenceSegments,
   findPageMarkers,
@@ -17,6 +18,7 @@ import {
   resolvePageNumberForOffset,
 } from './sentenceSegmentation.js';
 import { estimateTokens } from './validation.js';
+
 import type { Chunk, SentenceSegment, PageMarker } from './types.js';
 
 /**

@@ -13,8 +13,6 @@
       "react-dom": "19.1.0",
       "@types/react": "^19.1.8",
       "@types/react-dom": "^19.1.5",
-      "@tiptap/core": "^3.15.3",
-      "@tiptap/pm": "^3.15.3",
       "@hocuspocus/provider": "^3.4.3",
       "@isaacs/brace-expansion": ">=5.0.1",
       "diff": ">=5.2.2",
@@ -23,7 +21,8 @@
       "markdown-it": ">=14.1.0",
       "tar": ">=7.5.7",
       "undici": ">=7.18.2",
-      "zod": "^3.24.1"
+      "zod": "^3.24.1",
+      "@types/express-serve-static-core": "^5.0.0"
     }
   },
   "workspaces": [
@@ -34,26 +33,26 @@
     "documentation"
   ],
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.4",
-    "dotenv": "^16.5.0"
+    "@supabase/supabase-js": "^2.97.0",
+    "dotenv": "^16.6.1"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.2.0",
-    "@commitlint/config-conventional": "^20.2.0",
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^12.0.2",
-    "@types/node": "^24.5.2",
+    "@semantic-release/github": "^12.0.6",
+    "@types/node": "^24.10.13",
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "husky": "^9.1.7",
-    "knip": "^5.63.1",
-    "lint-staged": "^15.4.0",
-    "prettier": "^3.4.0",
-    "semantic-release": "^25.0.2",
-    "turbo": "^2.7.2",
-    "typescript": "^5.9.2",
-    "wait-on": "^9.0.3"
+    "knip": "^5.84.1",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.8.1",
+    "semantic-release": "^25.0.3",
+    "turbo": "^2.8.10",
+    "typescript": "^5.9.3",
+    "wait-on": "^9.0.4"
   },
   "scripts": {
     "knip": "knip",

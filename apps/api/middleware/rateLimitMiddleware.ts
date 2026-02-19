@@ -17,10 +17,13 @@
  * ```
  */
 
-import { Response, NextFunction } from 'express';
-import { RateLimiter, redisClient } from '../utils/redis/index.js';
+import { type Response, type NextFunction } from 'express';
+
 import rateLimitConfig from '../config/rateLimits.js';
-import { RateLimitRequest, RateLimitMiddlewareOptions } from './types.js';
+import { RateLimiter, redisClient } from '../utils/redis/index.js';
+
+import { type RateLimitRequest, type RateLimitMiddlewareOptions } from './types.js';
+
 import type { RateLimiterConfig } from '../utils/redis/types.js';
 
 // Create singleton instance

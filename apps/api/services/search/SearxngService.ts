@@ -4,6 +4,7 @@
  */
 
 import crypto from 'crypto';
+
 import type {
   SearxngSearchOptions,
   SearchResult,

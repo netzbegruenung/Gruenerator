@@ -2,7 +2,8 @@
  * Public Site Controller - Renders public-facing site HTML pages
  */
 
-import express, { Response, Router, RequestHandler } from 'express';
+import express, { type Response, type Router, type RequestHandler } from 'express';
+
 import {
   THEME_STYLES,
   type SitesRequest,

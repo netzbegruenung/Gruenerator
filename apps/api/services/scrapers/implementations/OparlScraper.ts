@@ -4,18 +4,21 @@
  * Uses Mistral OCR for PDF text extraction
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs/promises';
-import path from 'path';
 import os from 'os';
-import { BaseScraper } from '../base/BaseScraper.js';
-import type { ScraperResult, OparlFile, OparlEndpoint } from '../types.js';
-import type { OparlPaper } from '../../api-clients/oparlApiClient.js';
-import { smartChunkDocument } from '../../document-services/index.js';
-import { mistralEmbeddingService } from '../../mistral/index.js';
+import path from 'path';
+
+import { v4 as uuidv4 } from 'uuid';
+
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import oparlApiClient from '../../api-clients/oparlApiClient.js';
+import { smartChunkDocument } from '../../document-services/index.js';
+import { mistralEmbeddingService } from '../../mistral/index.js';
 import { ocrService } from '../../ocrService.js';
+import { BaseScraper } from '../base/BaseScraper.js';
+
+import type { OparlPaper } from '../../api-clients/oparlApiClient.js';
+import type { ScraperResult, OparlFile, OparlEndpoint } from '../types.js';
 
 /**
  * City scraping result

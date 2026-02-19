@@ -4,6 +4,7 @@
  */
 
 import { vectorConfig } from '../config/vectorConfig.js';
+
 import { TimeoutError, createErrorHandler } from './errors/index.js';
 
 interface BatchProcessorOptions {

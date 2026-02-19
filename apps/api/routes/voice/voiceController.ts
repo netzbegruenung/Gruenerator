@@ -3,8 +3,9 @@
  * Handles audio transcription and chat using Mistral Voxtral
  */
 
-import express, { Request, Response, Router } from 'express';
-import multer, { FileFilterCallback } from 'multer';
+import express, { type Request, type Response, type Router } from 'express';
+import multer, { type FileFilterCallback } from 'multer';
+
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import { createLogger } from '../../utils/logger.js';
 

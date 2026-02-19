@@ -5,21 +5,16 @@
  * Eliminates code duplication while allowing customization through inheritance.
  */
 
-import { mistralEmbeddingService } from '../mistral/index.js';
-import { InputValidator, ValidationError } from '../../utils/validation/index.js';
-import { createCache } from '../../utils/redis/index.js';
-import { SearchError, DatabaseError, createErrorHandler } from '../../utils/errors/index.js';
 import { vectorConfig } from '../../config/vectorConfig.js';
-import { normalizeQuery, containsNormalized } from '../text/index.js';
-import { simpleHash as hashString } from '../../utils/validation/index.js';
-
+import { SearchError, DatabaseError, createErrorHandler } from '../../utils/errors/index.js';
+import { createCache } from '../../utils/redis/index.js';
 import {
-  looksLikeTOC,
-  extractMatchedExcerpt,
-  needsTrailingEllipsis,
-  trimToSentenceBoundary,
-  deduplicateParagraphs,
-} from './textUtils.js';
+  InputValidator,
+  ValidationError,
+  simpleHash as hashString,
+} from '../../utils/validation/index.js';
+import { mistralEmbeddingService } from '../mistral/index.js';
+import { normalizeQuery, containsNormalized } from '../text/index.js';
 
 import {
   calculateEnhancedDocumentScore,
@@ -29,6 +24,13 @@ import {
   calculateStaticThreshold,
   applyMMRSelection,
 } from './scoring.js';
+import {
+  looksLikeTOC,
+  extractMatchedExcerpt,
+  needsTrailingEllipsis,
+  trimToSentenceBoundary,
+  deduplicateParagraphs,
+} from './textUtils.js';
 
 import type {
   SearchParams,
@@ -1047,7 +1049,7 @@ export class BaseSearchService {
       const doc = documentMap.get(docId)!;
       if (!doc.source_url && (chunk as any).url) {
         doc.source_url = (chunk as any).url;
-      };
+      }
       const chunkData: ChunkData = {
         chunk_id: chunk.id,
         chunk_index: chunk.chunk_index,

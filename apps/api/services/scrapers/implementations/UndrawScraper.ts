@@ -4,13 +4,15 @@
  * Illustrations are stored in apps/api/public/illustrations/undraw/
  */
 
-import * as cheerio from 'cheerio';
 import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { BaseScraper } from '../base/BaseScraper.js';
-import type { ScraperResult } from '../types.js';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+
+import * as cheerio from 'cheerio';
+
+import { BaseScraper } from '../base/BaseScraper.js';
+
+import type { ScraperResult } from '../types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

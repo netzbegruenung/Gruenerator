@@ -7,15 +7,16 @@
  * 3. GET /status/:sessionId - Check session status and state
  */
 
-import express, { Request, Response, NextFunction } from 'express';
-import { requireAuth } from '../../middleware/authMiddleware.js';
-import { createLogger } from '../../utils/logger.js';
+import express, { type Request, type Response, type NextFunction } from 'express';
+
 import {
   initiateInteractiveGenerator,
   continueInteractiveGenerator,
 } from '../../agents/langgraph/simpleInteractiveGenerator.js';
+import { requireAuth } from '../../middleware/authMiddleware.js';
 import { getExperimentalSession } from '../../services/chat/ChatMemoryService.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+import { createLogger } from '../../utils/logger.js';
+
 import type {
   InitiateGeneratorParams,
   InitiateGeneratorResult,
@@ -24,6 +25,8 @@ import type {
   AIWorkerPool,
   QuestionAnswers,
 } from '../../agents/langgraph/types/simpleInteractiveGenerator.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { ParamsDictionary } from 'express-serve-static-core';
 
 const router = express.Router();
 const log = createLogger('interactiveGeneration');
@@ -32,7 +35,7 @@ const log = createLogger('interactiveGeneration');
  * Extended request with authentication, tracking ID, and AI worker pool
  * Uses any to avoid type conflicts with Express's complex Request type
  */
-interface InteractiveRequest extends Request {
+interface InteractiveRequest<P = ParamsDictionary> extends Request<P> {
   user?: AuthenticatedRequest['user'];
   _reqId?: string;
   app: any;
@@ -278,75 +281,79 @@ router.post('/continue', requireAuth, async (req: InteractiveRequest, res: Respo
  * @param sessionId - Session identifier
  * @returns Current session state, questions, and metadata
  */
-router.get('/status/:sessionId', requireAuth, async (req: InteractiveRequest, res: Response) => {
-  const reqId = req._reqId || 'UNKNOWN';
+router.get(
+  '/status/:sessionId',
+  requireAuth,
+  async (req: InteractiveRequest<{ sessionId: string }>, res: Response) => {
+    const reqId = req._reqId || 'UNKNOWN';
 
-  try {
-    const { sessionId } = req.params;
+    try {
+      const { sessionId } = req.params;
 
-    if (!sessionId) {
-      return res.status(400).json({
+      if (!sessionId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'sessionId ist erforderlich',
+        });
+      }
+
+      // Get user ID from session
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Benutzer nicht authentifiziert',
+        });
+      }
+
+      log.debug(`[interactive][${reqId}] Checking status for session ${sessionId}, user ${userId}`);
+
+      // Retrieve session from Redis
+      const session = await getExperimentalSession(userId, sessionId);
+
+      if (!session) {
+        log.warn(`[interactive][${reqId}] Session not found: ${sessionId}`);
+        return res.status(404).json({
+          status: 'error',
+          message: 'Sitzung nicht gefunden oder abgelaufen',
+          code: 'SESSION_NOT_FOUND',
+        });
+      }
+
+      // Return session data (without sensitive information)
+      const sessionData = {
+        sessionId: session.sessionId,
+        conversationState: session.conversationState,
+        inhalt: session.inhalt,
+        requestType: session.requestType,
+        questionRound: session.questionRound,
+        questions: session.questions,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+        expiresAt: session.expiresAt,
+        metadata: session.metadata,
+      };
+
+      // Include final result if completed
+      if (session.conversationState === 'completed' && session.finalResult) {
+        (sessionData as any).finalResult = session.finalResult;
+      }
+
+      log.debug(`[interactive][${reqId}] Session found: ${session.conversationState}`);
+
+      return res.json({
+        status: 'success',
+        session: sessionData,
+      });
+    } catch (error) {
+      log.error(`[interactive][${reqId}] Unexpected error in status:`, error);
+      return res.status(500).json({
         status: 'error',
-        message: 'sessionId ist erforderlich',
+        message: 'Interner Serverfehler beim Abrufen des Sitzungsstatus',
+        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
       });
     }
-
-    // Get user ID from session
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Benutzer nicht authentifiziert',
-      });
-    }
-
-    log.debug(`[interactive][${reqId}] Checking status for session ${sessionId}, user ${userId}`);
-
-    // Retrieve session from Redis
-    const session = await getExperimentalSession(userId, sessionId);
-
-    if (!session) {
-      log.warn(`[interactive][${reqId}] Session not found: ${sessionId}`);
-      return res.status(404).json({
-        status: 'error',
-        message: 'Sitzung nicht gefunden oder abgelaufen',
-        code: 'SESSION_NOT_FOUND',
-      });
-    }
-
-    // Return session data (without sensitive information)
-    const sessionData = {
-      sessionId: session.sessionId,
-      conversationState: session.conversationState,
-      inhalt: session.inhalt,
-      requestType: session.requestType,
-      questionRound: session.questionRound,
-      questions: session.questions,
-      createdAt: session.createdAt,
-      updatedAt: session.updatedAt,
-      expiresAt: session.expiresAt,
-      metadata: session.metadata,
-    };
-
-    // Include final result if completed
-    if (session.conversationState === 'completed' && session.finalResult) {
-      (sessionData as any).finalResult = session.finalResult;
-    }
-
-    log.debug(`[interactive][${reqId}] Session found: ${session.conversationState}`);
-
-    return res.json({
-      status: 'success',
-      session: sessionData,
-    });
-  } catch (error) {
-    log.error(`[interactive][${reqId}] Unexpected error in status:`, error);
-    return res.status(500).json({
-      status: 'error',
-      message: 'Interner Serverfehler beim Abrufen des Sitzungsstatus',
-      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
-    });
   }
-});
+);
 
 export default router;

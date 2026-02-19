@@ -1,5 +1,6 @@
 import { params } from './config.js';
 import { isValidHexColor } from './utils.js';
+
 import type {
   SharepicInputParams,
   ValidatedSharepicParams,

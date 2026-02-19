@@ -1,7 +1,9 @@
-import { Router, Request, Response } from 'express';
-import Anthropic from '@anthropic-ai/sdk';
-import { createLogger } from '../../../utils/logger.js';
 import { createRequire } from 'module';
+
+import Anthropic from '@anthropic-ai/sdk';
+import { Router, type Request, type Response } from 'express';
+
+import { createLogger } from '../../../utils/logger.js';
 
 const require = createRequire(import.meta.url);
 const log = createLogger('aiImageModifica');

@@ -1,4 +1,5 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { type AxiosInstance, type AxiosError } from 'axios';
+
 import { sanitizeFilename } from '../../utils/validation/index.js';
 
 // Type Definitions
