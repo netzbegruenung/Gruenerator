@@ -187,18 +187,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkText: 'Zum Scanner',
           icon: getIcon('navigation', 'scanner') as IconType,
         };
-      case BETA_VIEWS.DOCS:
-        return {
-          title: 'Dokumente',
-          description: 'Kollaborativer Dokumenten-Editor mit Echtzeit-Zusammenarbeit',
-          checked: getBetaFeatureState('docs'),
-          setter: (value: boolean) => updateUserBetaFeatures('docs', value),
-          featureName: 'Dokumente',
-          checkboxLabel: 'Kollaborativen Dokumenten-Editor aktivieren',
-          linkTo: '/docs',
-          linkText: 'Zu den Dokumenten',
-          icon: HiOutlineDocumentSearch,
-        };
+      // case BETA_VIEWS.DOCS:
+      //   return {
+      //     title: 'Dokumente',
+      //     description: 'Kollaborativer Dokumenten-Editor mit Echtzeit-Zusammenarbeit',
+      //     checked: getBetaFeatureState('docs'),
+      //     setter: (value: boolean) => updateUserBetaFeatures('docs', value),
+      //     featureName: 'Dokumente',
+      //     checkboxLabel: 'Kollaborativen Dokumenten-Editor aktivieren',
+      //     linkTo: '/docs',
+      //     linkText: 'Zu den Dokumenten',
+      //     icon: HiOutlineDocumentSearch,
+      //   };
       case BETA_VIEWS.AUTO_SAVE_GENERATED:
         return {
           title: 'Auto-Speichern generierter Texte',
