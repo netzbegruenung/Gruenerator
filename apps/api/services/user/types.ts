@@ -31,7 +31,6 @@ export interface UserProfile {
   sites_enabled: boolean;
   chat: boolean;
   interactive_antrag_enabled: boolean;
-  auto_save_on_export: boolean;
   vorlagen: boolean;
   video_editor: boolean;
   scanner?: boolean;
@@ -94,7 +93,6 @@ export interface BetaFeatures {
   sites: boolean;
   chat: boolean;
   interactiveAntrag: boolean;
-  autoSaveOnExport: boolean;
   vorlagen: boolean;
   videoEditor: boolean;
   prompts: boolean;

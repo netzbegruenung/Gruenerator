@@ -55,7 +55,6 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
         sites_enabled: false,
         chat: false,
         interactive_antrag_enabled: false,
-        auto_save_on_export: false,
         vorlagen: false,
         video_editor: false,
         created_at: new Date(),
