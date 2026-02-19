@@ -5,6 +5,7 @@
 import * as express from 'express';
 
 import passport from '../../config/passportSetup.js';
+import { ensureProfile } from '../../middleware/ensureProfileMiddleware.js';
 import jwtAuthMiddleware from '../../middleware/jwtAuthMiddleware.js';
 
 import type { Router, RequestHandler } from 'express';
@@ -19,6 +20,7 @@ export function createAuthenticatedRouter(): Router {
 
   router.use(jwtAuthMiddleware);
   router.use(passport.session());
+  router.use(ensureProfile as any);
 
   return router;
 }

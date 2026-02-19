@@ -81,7 +81,16 @@
       ],
       "expo-font",
       "expo-notifications",
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

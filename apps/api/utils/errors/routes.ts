@@ -169,7 +169,7 @@ export function handleRouteError(
  */
 export function handleValidationError(res: Response, routePath: string, message: string): void {
   const error = new ValidationError(`Validation failed: ${message}`);
-  handleRouteError(error, routePath, res);
+  sendErrorResponse(res, routePath, error, message, 400);
 }
 
 /**

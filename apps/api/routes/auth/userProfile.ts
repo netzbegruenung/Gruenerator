@@ -362,14 +362,17 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
-      const profile = await profileService.getProfileById(req.user!.id);
+      let profile = await profileService.getProfileById(req.user!.id);
 
       if (!profile) {
-        res.status(404).json({
-          success: false,
-          message: 'Profil nicht gefunden.',
+        profile = await profileService.createProfile({
+          id: req.user!.id,
+          email: req.user!.email,
+          display_name: req.user!.display_name || req.user!.username || 'User',
+          username: req.user!.username,
+          keycloak_id: req.user!.keycloak_id,
+          avatar_robot_id: 1,
         });
-        return;
       }
 
       const userDefaults = profileService.getUserDefaults(profile);

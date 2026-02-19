@@ -1,4 +1,4 @@
-import { type JSX, useCallback, useMemo } from 'react';
+import { type JSX, useCallback, useMemo, useRef } from 'react';
 import { Controller, type FieldValues } from 'react-hook-form';
 
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
@@ -157,15 +157,16 @@ const GrueneJugendGenerator = (): JSX.Element => {
     [setGeneratedText, componentName]
   );
 
-  // Handle URL detection and crawling
+  const isCrawlingRef = useRef(isCrawling);
+  isCrawlingRef.current = isCrawling;
+
   const handleUrlsDetected = useCallback(
     async (urls: string[]) => {
-      // Only crawl if not already crawling and URLs are detected
-      if (!isCrawling && urls.length > 0) {
+      if (!isCrawlingRef.current && urls.length > 0) {
         await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
       }
     },
-    [detectAndCrawlUrls, isCrawling, usePrivacyMode]
+    [detectAndCrawlUrls, usePrivacyMode]
   );
 
   const renderPlatformSection = () => {

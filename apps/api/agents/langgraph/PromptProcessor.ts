@@ -76,7 +76,16 @@ export class SimpleTemplateEngine {
   static render(template: string, data: TemplateContext = {}): string {
     if (!template || typeof template !== 'string') return template;
 
-    return template.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+    // Pre-process {{#if field}}...{{/if}} conditional blocks
+    const processed = template.replace(
+      /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+      (_match, field, content) => {
+        const value = this.getValue(field, data);
+        return value !== undefined && value !== null && value !== '' ? content : '';
+      }
+    );
+
+    return processed.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
       const cleanKey = key.trim();
 
       // Handle special cases
@@ -100,11 +109,6 @@ export class SimpleTemplateEngine {
       }
       if (cleanKey === 'requestTypeText') {
         return this.getRequestTypeText(data.requestType as string, data.config as PromptConfig);
-      }
-
-      // Handle conditional statements
-      if (cleanKey.startsWith('#if ')) {
-        return ''; // Skip conditional logic for now (advanced feature)
       }
 
       // Handle default values
@@ -239,8 +243,9 @@ export function validateRequest(requestBody: any, config: PromptConfig): string 
   const { validation } = config;
   if (!validation?.required) return null;
 
-  const { customPrompt } = requestBody;
+  const { customPrompt, inhalt } = requestBody;
   if (customPrompt) return null; // Skip validation for custom prompts
+  if (inhalt) return null; // Free-text content is sufficient (e.g. from smart detection)
 
   for (const field of validation.required) {
     if (!requestBody[field]) {

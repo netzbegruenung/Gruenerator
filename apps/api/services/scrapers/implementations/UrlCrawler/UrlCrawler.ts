@@ -21,7 +21,7 @@ export class UrlCrawler {
     this.config = {
       crawlerMode: (process.env.CRAWLER_MODE as 'crawlee' | 'fetch' | 'auto') || 'auto',
       maxConcurrency: 3,
-      maxRetries: 3,
+      maxRetries: 1,
       timeout: 15000,
       maxContentLength: 10 * 1024 * 1024, // 10MB
       userAgent:

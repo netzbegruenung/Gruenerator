@@ -832,21 +832,12 @@
   width: auto;
 }
 
-/* AttachedFilesList inside feature-icons-row */
-.feature-icons-row .attached-files-list {
-  width: auto;
-  margin: 0;
-  margin-left: var(--spacing-xsmall);
-  flex-shrink: 1;
-  min-width: 0;
-  max-width: 200px;
+/* AttachedFilesList below feature-icons-row */
+.feature-icons .attached-files-list {
+  margin: var(--spacing-xsmall) 0 0;
 }
 
-.feature-icons-row .attached-files-list--compact {
+.feature-icons .attached-files-list--compact {
   max-height: none;
   overflow: visible;
-}
-
-.feature-icons-row .attached-files-list--compact .file-tag {
-  max-width: 150px;
 }
