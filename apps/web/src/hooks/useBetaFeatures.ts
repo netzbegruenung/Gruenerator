@@ -61,7 +61,6 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
     isAdminOnly: false,
     defaultEnabled: true,
   },
-  { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
   {
     key: 'autoSaveGenerated',
     label: 'Auto-Speichern generierter Texte',

@@ -1,12 +1,4 @@
-import {
-  type JSX,
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  type ReactNode,
-  type MouseEvent,
-} from 'react';
+import { type JSX, useState, useCallback, useEffect, type ReactNode, type MouseEvent } from 'react';
 import { CiMemoPad } from 'react-icons/ci';
 import { FaCloud } from 'react-icons/fa';
 import { FaFileWord } from 'react-icons/fa6';
@@ -24,15 +16,11 @@ import { useLocation } from 'react-router-dom';
 
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLazyAuth } from '../../hooks/useAuth';
-import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
-import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { useExportStore } from '../../stores/core/exportStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { hashContent } from '../../utils/contentHash';
 import { NextcloudShareManager, type ShareLink } from '../../utils/nextcloudShareManager';
 import { canShare, shareContent } from '../../utils/shareUtils';
-import { extractTitleFromContent } from '../../utils/titleExtractor';
 import useApiSubmit from '../hooks/useApiSubmit';
 import apiClient from '../utils/apiClient';
 import { copyFormattedContent } from '../utils/commonFunctions';
@@ -115,12 +103,8 @@ const ExportDropdown = ({
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
 
   const { isGenerating, generateDOCX } = useExportStore();
-  const { canAccessBetaFeature } = useBetaFeatures();
-  const { saveToLibrary: autoSaveToLibrary } = useSaveToLibrary();
 
   const isMobileView = window.innerWidth <= 768;
-
-  const exportedContentHashes = useRef(new Set());
 
   // Load share links when dropdown opens
   const loadShareLinks = useCallback(async () => {
@@ -148,43 +132,6 @@ const ExportDropdown = ({
       loadShareLinks();
     }
   };
-
-  const handleExportWithAutoSave = useCallback(
-    async (exportFn: () => Promise<void>, exportName: string = 'Export') => {
-      await exportFn();
-
-      const isAutoSaveEnabled = canAccessBetaFeature('autoSaveOnExport');
-      if (!isAutoSaveEnabled || !isAuthenticated || !content) {
-        return;
-      }
-
-      const freshTitle = await getFreshTitle();
-      const contentHash = hashContent(content, freshTitle);
-
-      if (exportedContentHashes.current.has(contentHash)) {
-        return;
-      }
-
-      try {
-        const componentName = getComponentName();
-        const generatedTextMetadata = useGeneratedTextStore
-          .getState()
-          .getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
-        const contentType = generatedTextMetadata?.contentType || 'universal';
-
-        await autoSaveToLibrary(
-          content,
-          freshTitle || extractTitleFromContent(content) || `Auto-gespeichert: ${exportName}`,
-          contentType
-        );
-
-        exportedContentHashes.current.add(contentHash);
-      } catch (error) {
-        console.warn('[Auto-save on export] Failed to auto-save:', error);
-      }
-    },
-    [canAccessBetaFeature, isAuthenticated, content, title, autoSaveToLibrary]
-  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -292,7 +239,7 @@ const ExportDropdown = ({
     return { text: null, componentName: primaryComponentName };
   };
 
-  const handleDocsExportInner = async () => {
+  const handleDocsExport = async () => {
     setShowDropdown(false);
 
     try {
@@ -353,10 +300,7 @@ const ExportDropdown = ({
     }
   };
 
-  const handleDocsExport = async () =>
-    await handleExportWithAutoSave(handleDocsExportInner, 'Grünerator Docs');
-
-  const handleEtherpadExportInner = async () => {
+  const handleEtherpadExport = async () => {
     setShowDropdown(false);
     try {
       if (!content) {
@@ -390,10 +334,7 @@ const ExportDropdown = ({
     }
   };
 
-  const handleEtherpadExport = async () =>
-    await handleExportWithAutoSave(handleEtherpadExportInner, 'Textbegrünung');
-
-  const handleCopyTextInner = async () => {
+  const handleCopyText = async () => {
     await copyFormattedContent(
       content,
       () => {
@@ -406,12 +347,7 @@ const ExportDropdown = ({
     );
   };
 
-  const handleCopyText = async () => {
-    console.log('[DEBUG] handleCopyText called');
-    await handleExportWithAutoSave(handleCopyTextInner, 'Kopieren');
-  };
-
-  const handleNativeShareInner = async () => {
+  const handleNativeShare = async () => {
     setShowDropdown(false);
     try {
       const plainContent = await extractPlainText(content);
@@ -432,10 +368,7 @@ const ExportDropdown = ({
     }
   };
 
-  const handleNativeShare = async () =>
-    await handleExportWithAutoSave(handleNativeShareInner, 'Teilen');
-
-  const handleDOCXDownloadInner = useCallback(async () => {
+  const handleDOCXDownload = useCallback(async () => {
     setShowDropdown(false);
     try {
       const freshTitle = await getFreshTitle();
@@ -447,9 +380,6 @@ const ExportDropdown = ({
       alert('DOCX Download fehlgeschlagen: ' + errorMessage);
     }
   }, [generateDOCX, content, title]);
-
-  const handleDOCXDownload = async () =>
-    await handleExportWithAutoSave(handleDOCXDownloadInner, 'DOCX');
 
   const handleWolkeClick = async () => {
     if (!isAuthenticated) return;
@@ -471,7 +401,7 @@ const ExportDropdown = ({
     }
   };
 
-  const handleWolkeUploadInner = async (shareLinkId: string) => {
+  const handleWolkeUpload = async (shareLinkId: string) => {
     setShowDropdown(false);
     setShowWolkeSubDropdown(false);
     setUploadingToWolke(true);
@@ -525,9 +455,6 @@ const ExportDropdown = ({
       setUploadingToWolke(false);
     }
   };
-
-  const handleWolkeUpload = async (shareLinkId: string) =>
-    await handleExportWithAutoSave(() => handleWolkeUploadInner(shareLinkId), 'Wolke');
 
   const handleSaveToLibrary = () => {
     setShowDropdown(false);
