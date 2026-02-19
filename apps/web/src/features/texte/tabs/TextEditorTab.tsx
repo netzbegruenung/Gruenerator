@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, memo } from 'react';
+import React, { useCallback, useMemo, useRef, memo } from 'react';
 import {
   PiMagicWand,
   PiArrowsClockwise,
