@@ -810,6 +810,65 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
     const hasDocuments = state.documentIds && state.documentIds.length > 0;
 
+    // If document chat IDs are present (from @dokumentchat multi-select), force search intent
+    const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
+    if (hasDocumentChat && userContent.length > 0) {
+      log.info(
+        `[Classifier] Document chat detected (${state.documentChatIds.length} doc(s)), forcing search intent with LLM query optimization`
+      );
+
+      try {
+        const response = await aiWorkerPool.processRequest(
+          {
+            type: 'chat_intent_classification',
+            provider: 'mistral',
+            systemPrompt: CLASSIFIER_PROMPT,
+            messages: [{ role: 'user', content: `Analysiere: "${userContent}"` }],
+            options: {
+              model: 'mistral-small-latest',
+              max_tokens: 250,
+              temperature: 0.1,
+              response_format: { type: 'json_object' },
+            },
+          },
+          null
+        );
+
+        const classification = parseClassifierResponse(response.content || '', userContent);
+        const classificationTimeMs = Date.now() - startTime;
+        const optimizedQuery = classification.searchQuery || extractSearchTopic(userContent);
+
+        log.info(`[Classifier] DocumentChat + LLM: query "${userContent}" → "${optimizedQuery}"`);
+
+        return {
+          intent: 'search',
+          searchSources: [],
+          searchQuery: optimizedQuery,
+          subQueries: classification.subQueries || null,
+          detectedFilters: null,
+          reasoning: `Document chat forces search intent; LLM optimized query`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs,
+        };
+      } catch (error: any) {
+        log.warn(
+          `[Classifier] LLM failed for document chat query, using heuristic: ${error.message}`
+        );
+        const optimizedQuery = extractSearchTopic(userContent);
+        return {
+          intent: 'search',
+          searchSources: [],
+          searchQuery: optimizedQuery || userContent,
+          detectedFilters: null,
+          reasoning: 'Document chat forces search intent (LLM failed, heuristic fallback)',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
     // If documents are mentioned, force search intent with LLM query optimization
     if (hasDocuments && userContent.length > 0) {
       log.info(

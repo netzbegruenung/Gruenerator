@@ -479,6 +479,44 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       }
 
       case 'search': {
+        // Document chat: search within multi-selected user documents
+        if (state.documentChatIds && state.documentChatIds.length > 0) {
+          log.info(
+            `[Search] Using document-chat search: ${state.documentChatIds.length} doc(s), higher limits`
+          );
+          try {
+            const documentSearchService = (
+              await import('../../../../services/document-services/DocumentSearchService/index.js')
+            ).getQdrantDocumentService();
+            const response = await documentSearchService.search({
+              query: searchQuery || '',
+              userId: (agentConfig as any).userId,
+              options: {
+                limit: 12,
+                mode: 'hybrid',
+                threshold: 0.15,
+              },
+              filters: {
+                documentIds: state.documentChatIds,
+              },
+            });
+
+            for (const r of response.results || []) {
+              results.push({
+                source: `documentchat:${(r as any).document_id || 'unknown'}`,
+                title: (r as any).title || 'Dokument',
+                content: (r as any).chunk_text || '',
+                url: (r as any).source_url || undefined,
+                relevance: (r as any).score ?? 0.5,
+              });
+            }
+            searchedCollections.push('documentchat');
+          } catch (err: any) {
+            log.warn(`[Search] Document-chat search failed: ${err.message}`);
+          }
+          break;
+        }
+
         // If specific documents are referenced, use document-scoped search
         if (state.documentIds && state.documentIds.length > 0) {
           log.info(`[Search] Using document-scoped search: ${state.documentIds.length} doc(s)`);

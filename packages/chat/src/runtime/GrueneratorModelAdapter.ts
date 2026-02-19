@@ -15,6 +15,7 @@ import type {
 } from '../hooks/useChatGraphStream';
 import type { ToolKey } from '../stores/chatStore';
 import { parseAllMentions } from '../lib/mentionParser';
+import { useDocumentChatStore } from '../stores/documentChatStore';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -406,6 +407,12 @@ async function* parseSSEStream(
           break;
         }
 
+        case 'document_indexed': {
+          // A new document was indexed server-side (from attachment upload during documentchat)
+          // The store will persist it for this thread on the next getForThread() call
+          break;
+        }
+
         case 'error': {
           const { error } = data as { error: string };
           throw new Error(error);
@@ -592,6 +599,13 @@ export function createGrueneratorModelAdapter(
         break;
       }
 
+      // Read documentChatIds from store (picker-selected + thread-persisted)
+      const dcStore = useDocumentChatStore.getState();
+      const documentChatIds =
+        dcStore.documentChatIds.length > 0
+          ? dcStore.documentChatIds
+          : dcStore.getForThread(config.threadId);
+
       const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
       const endpoint = config.useDeepAgent ? endpoints.deepStream : endpoints.chatStream;
       console.debug(
@@ -610,6 +624,7 @@ export function createGrueneratorModelAdapter(
           forcedTools: forcedTools.length > 0 ? forcedTools : undefined,
           documentIds: documentIds.length > 0 ? documentIds : undefined,
           textIds: textIds.length > 0 ? textIds : undefined,
+          documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
           defaultNotebookId: config.selectedNotebookId || undefined,
         }),
         signal: abortSignal,
@@ -618,6 +633,12 @@ export function createGrueneratorModelAdapter(
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error((errorData as { error?: string }).error || `HTTP error ${response.status}`);
+      }
+
+      // Persist documentChatIds to thread after sending, then clear picker
+      if (documentChatIds.length > 0 && config.threadId) {
+        dcStore.bindToThread(config.threadId);
+        dcStore.clearDocumentChatIds();
       }
 
       const streamOutcome: StreamOutcome = { interrupted: false };

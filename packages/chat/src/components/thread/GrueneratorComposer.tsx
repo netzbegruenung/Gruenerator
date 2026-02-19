@@ -8,9 +8,11 @@ import { ComposerAttachments } from '../assistant-ui/attachment';
 import { MentionPopover, filterMentionables } from './MentionPopover';
 import { SkillPopover, getFilteredSkills } from './SkillPopover';
 import { FileMentionPopover } from './FileMentionPopover';
+import { DocumentChatPicker } from './DocumentChatPicker';
 import { PlusMenu } from './PlusMenu';
 import { getCaretCoords } from '../../lib/caretPosition';
 import { registerDocumentSlug } from '../../lib/documentMentionables';
+import { useDocumentChatStore } from '../../stores/documentChatStore';
 import type { Mentionable } from '../../lib/mentionables';
 import type { DocumentMention } from '../../lib/documentMentionables';
 
@@ -42,7 +44,7 @@ function CancelButton() {
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei';
+  mode: 'functions' | 'skills' | 'datei' | 'documentchat';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -74,6 +76,12 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
       // When user selects the @datei trigger, switch to file browser mode
       if (mentionable.type === 'document' && mentionable.identifier === 'datei-trigger') {
         setMention((prev) => ({ ...prev, mode: 'datei' }));
+        return;
+      }
+
+      // When user selects @dokumentchat, switch to document chat picker
+      if (mentionable.type === 'tool' && mentionable.identifier === 'documentchat') {
+        setMention((prev) => ({ ...prev, mode: 'documentchat' }));
         return;
       }
 
@@ -132,8 +140,8 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      // Don't interfere when file browser is open
-      if (mention.mode === 'datei') return;
+      // Don't interfere when file browser or document chat picker is open
+      if (mention.mode === 'datei' || mention.mode === 'documentchat') return;
 
       const textarea = e.target;
       const text = textarea.value;
@@ -195,8 +203,8 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (!mention.visible) return;
 
-      // In datei mode, only handle Escape (cmdk handles arrow keys internally)
-      if (mention.mode === 'datei') {
+      // In datei/documentchat mode, only handle Escape (cmdk handles arrow keys internally)
+      if (mention.mode === 'datei' || mention.mode === 'documentchat') {
         if (e.key === 'Escape') {
           e.preventDefault();
           dismissPopover();
@@ -246,6 +254,41 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
     ]
   );
 
+  const documentChatIds = useDocumentChatStore((s) => s.documentChatIds);
+  const setDocumentChatIds = useDocumentChatStore((s) => s.setDocumentChatIds);
+  const removeDocumentChatId = useDocumentChatStore((s) => s.removeDocumentChatId);
+
+  const handleDocumentChatConfirm = useCallback(
+    (ids: string[]) => {
+      const textarea = textareaRef.current;
+      setDocumentChatIds(ids);
+
+      const currentText = composerRuntime.getState().text;
+      const insertAt = mention.mentionStart >= 0 ? mention.mentionStart : currentText.length;
+      const before = currentText.slice(0, insertAt);
+      const after =
+        mention.mentionStart >= 0
+          ? textarea
+            ? currentText.slice(textarea.selectionStart)
+            : ''
+          : '';
+      const prefix =
+        before.length > 0 && !before.endsWith(' ') && mention.mentionStart < 0 ? ' ' : '';
+      const newText = `${before}${prefix}@dokumentchat ${after}`;
+
+      composerRuntime.setText(newText);
+      dismissPopover();
+
+      requestAnimationFrame(() => {
+        if (!textarea) return;
+        const cursorPos = before.length + prefix.length + '@dokumentchat '.length;
+        textarea.setSelectionRange(cursorPos, cursorPos);
+        textarea.focus();
+      });
+    },
+    [composerRuntime, mention.mentionStart, dismissPopover, setDocumentChatIds]
+  );
+
   const handlePlusMenuUpload = useCallback(() => {
     uploadRef.current?.click();
   }, []);
@@ -266,7 +309,34 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
 
         <ComposerAttachments />
 
-        {mention.mode === 'datei' ? (
+        {documentChatIds.length > 0 && (
+          <div className="mx-3 mt-2 flex flex-wrap gap-1.5">
+            {documentChatIds.map((id) => (
+              <span
+                key={id}
+                className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+              >
+                <span>💬</span>
+                <span className="max-w-[120px] truncate">{id.slice(0, 8)}...</span>
+                <button
+                  type="button"
+                  onClick={() => removeDocumentChatId(id)}
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {mention.mode === 'documentchat' ? (
+          <DocumentChatPicker
+            visible={mention.visible}
+            onConfirm={handleDocumentChatConfirm}
+            onDismiss={dismissPopover}
+          />
+        ) : mention.mode === 'datei' ? (
           <FileMentionPopover
             visible={mention.visible}
             onSelect={handleDocumentSelect}

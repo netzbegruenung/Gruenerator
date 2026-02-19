@@ -91,6 +91,7 @@ router.post('/stream', async (req, res) => {
       forcedTools,
       documentIds: rawDocumentIds,
       textIds: rawTextIds,
+      documentChatIds: rawDocumentChatIds,
       defaultNotebookId: rawDefaultNotebookId,
     } = req.body as {
       messages: UIMessage[];
@@ -103,6 +104,7 @@ router.post('/stream', async (req, res) => {
       forcedTools?: string[];
       documentIds?: string[];
       textIds?: string[];
+      documentChatIds?: string[];
       defaultNotebookId?: string;
     };
 
@@ -234,6 +236,7 @@ router.post('/stream', async (req, res) => {
       notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
       defaultNotebookId,
       documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
+      documentChatIds: rawDocumentChatIds?.length ? rawDocumentChatIds : undefined,
       userLocale: (user as any)?.locale || 'de-DE',
     });
 
@@ -279,6 +282,60 @@ router.post('/stream', async (req, res) => {
         log.warn(
           `[ChatGraph] Text context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
         );
+      }
+    }
+
+    // === Phase 2: Index uploaded attachments when documentchat is active ===
+    if (rawDocumentChatIds?.length && attachments?.length) {
+      const docAttachments = attachments.filter((a) => !a.isImage);
+      if (docAttachments.length > 0) {
+        try {
+          const { getPostgresDocumentService } =
+            await import('../../services/document-services/PostgresDocumentService/index.js');
+          const { getQdrantDocumentService } =
+            await import('../../services/document-services/DocumentSearchService/index.js');
+          const { processFileUpload } =
+            await import('../../services/document-services/DocumentProcessingService/fileProcessing.js');
+
+          const pgService = getPostgresDocumentService();
+          const qdrantService = getQdrantDocumentService();
+
+          for (const att of docAttachments) {
+            try {
+              const buffer = Buffer.from(att.data, 'base64');
+              const result = await processFileUpload(
+                pgService,
+                qdrantService,
+                userId,
+                {
+                  buffer,
+                  mimetype: att.type,
+                  originalname: att.name,
+                  size: buffer.length,
+                },
+                att.name,
+                'documentchat'
+              );
+
+              initialState.documentChatIds.push(result.id);
+              sse.send('document_indexed', {
+                documentId: result.id,
+                title: result.title,
+              });
+              log.info(
+                `[ChatGraph] Indexed attachment as document: ${result.title} (${result.id})`
+              );
+            } catch (indexErr) {
+              log.warn(
+                `[ChatGraph] Failed to index attachment "${att.name}": ${indexErr instanceof Error ? indexErr.message : String(indexErr)}`
+              );
+            }
+          }
+        } catch (importErr) {
+          log.warn(
+            `[ChatGraph] Document indexing services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
+          );
+        }
       }
     }
 

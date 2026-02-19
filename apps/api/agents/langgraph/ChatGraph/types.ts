@@ -139,6 +139,7 @@ export interface ChatGraphInput {
   defaultNotebookId?: string;
   documentIds?: string[];
   textIds?: string[];
+  documentChatIds?: string[];
   userLocale?: UserLocale;
 }
 
@@ -172,6 +173,9 @@ export interface ChatGraphState {
 
   // Document scoping (from @datei mentions)
   documentIds: string[];
+
+  // Document chat scoping (from @dokumentchat multi-select)
+  documentChatIds: string[];
 
   // Memory context (from mem0 cross-thread memory)
   memoryContext: string | null;

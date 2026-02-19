@@ -1,20 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { HiDocumentText, HiInformationCircle } from 'react-icons/hi';
+import { ThreadPrimitive } from '@assistant-ui/react';
+import {
+  NotebookChatProvider,
+  NotebookComposer,
+  UserMessage,
+  type NotebookMessageMetadata,
+} from '@gruenerator/chat';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
-import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
 import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { type NotebookCollection } from '../../../types/notebook';
-import useNotebookChat from '../hooks/useNotebookChat';
+import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import useNotebookStore from '../stores/notebookStore';
 
-import ActiveFiltersDisplay from './ActiveFiltersDisplay';
-import FilterDropdownButton from './FilterDropdownButton';
-import NotebookChatMessage from './NotebookChatMessage';
+import { NotebookAssistantMessage } from './NotebookAssistantMessage';
+import { NotebookStartPage } from './NotebookStartPage';
 
 import '../../../assets/styles/features/notebook/notebook-chat.css';
+import '../../../components/common/Chat/ChatStartPage.css';
 
 const NotebookChat = () => {
   const { id } = useParams<{ id: string }>();
@@ -40,30 +45,18 @@ const NotebookChat = () => {
       setCollection(found || null);
       setLoading(false);
     };
-    if (id && user) loadCollection();
+    if (id && user) void loadCollection();
   }, [id, getQACollection, fetchQACollections, user, qaCollections]);
 
-  const {
-    chatMessages,
-    inputValue,
-    submitLoading,
-    isMobileView,
-    setInputValue,
-    handleSubmitQuestion,
-  } = useNotebookChat({
-    collections: collection ? [{ id: collection.id, name: collection.name }] : [],
+  const collections = collection ? [{ id: collection.id, name: collection.name }] : [];
+
+  const { initialMessages, onComplete } = useNotebookChatBridge({
+    collections,
     welcomeMessage: collection
       ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.`
       : undefined,
     persistMessages: true,
   });
-
-  // Hooks must be called before early returns (Rules of Hooks)
-  const renderMessage = useCallback((msg: unknown, i: number) => {
-    const timestamp = (msg as Record<string, unknown>)?.timestamp;
-    const key = typeof timestamp === 'number' ? timestamp.toString() : `msg-${i}`;
-    return <NotebookChatMessage key={key} msg={msg as any} index={i} />;
-  }, []);
 
   if (loading)
     return (
@@ -88,64 +81,37 @@ const NotebookChat = () => {
     );
   }
 
-  const documents = (collection.documents as unknown[]) || [];
-
-  const renderInfoPanel = () => (
-    <div className="qa-collection-info">
-      <div className="qa-collection-info-header">
-        <HiInformationCircle className="qa-collection-info-icon" />
-        <h3>{collection?.name}</h3>
-      </div>
-      {collection?.description && (
-        <div className="qa-collection-info-description">{collection.description}</div>
-      )}
-      <div className="qa-collection-info-documents">
-        <h4>Enthaltene Dokumente:</h4>
-        <ul>
-          {documents.map((doc: unknown, i: number) => {
-            const docItem = doc as { id?: string; title?: string; name?: string };
-            return (
-              <li key={docItem.id || i}>
-                <HiDocumentText className="document-icon" />
-                <span>{docItem.title || docItem.name || `Dokument ${i + 1}`}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </div>
-  );
-
-  const effectiveMode = 'chat';
-
   return (
     <>
       <CitationModal />
-      <ChatWorkbenchLayout
-        // DEPRECATED: mode, modes, onModeChange - no longer used, kept for backwards compatibility
-        mode={effectiveMode}
-        modes={{ chat: { label: 'Chat' } }}
-        onModeChange={() => {}}
-        title={collection?.name || ''}
-        messages={chatMessages}
-        onSubmit={(value) => {
-          if (typeof value === 'string') handleSubmitQuestion(value);
-        }}
-        isProcessing={submitLoading}
-        placeholder="Stellen Sie eine Frage zu den Dokumenten..."
-        inputValue={inputValue}
-        onInputChange={setInputValue}
-        disabled={submitLoading}
-        renderMessage={renderMessage}
-        infoPanelContent={isMobileView ? null : renderInfoPanel()}
-        hideHeader={true}
-        hideModeSelector={true}
-        singleLine={true}
-        showStartPage={true}
-        startPageTitle={`Fragen zu "${collection?.name || 'Notebook'}"`}
-        filterButton={<FilterDropdownButton collectionId={id} />}
-        filterBar={<ActiveFiltersDisplay collectionId={id} />}
-      />
+      <NotebookChatProvider
+        collections={[
+          {
+            id: collection.id,
+            name: collection.name,
+            linkType: (collection as NotebookCollection & { linkType?: string }).linkType,
+          },
+        ]}
+        initialMessages={initialMessages}
+        onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
+      >
+        <div className="qa-chat-container">
+          <ThreadPrimitive.Root className="flex h-full flex-col">
+            <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto">
+              <ThreadPrimitive.Empty>
+                <NotebookStartPage title={`Fragen zu "${collection.name || 'Notebook'}"`} />
+              </ThreadPrimitive.Empty>
+              <ThreadPrimitive.Messages
+                components={{
+                  UserMessage,
+                  AssistantMessage: NotebookAssistantMessage,
+                }}
+              />
+            </ThreadPrimitive.Viewport>
+            <NotebookComposer placeholder="Stellen Sie eine Frage zu den Dokumenten..." />
+          </ThreadPrimitive.Root>
+        </div>
+      </NotebookChatProvider>
     </>
   );
 };
