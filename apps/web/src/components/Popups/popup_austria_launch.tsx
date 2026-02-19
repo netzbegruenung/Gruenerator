@@ -5,7 +5,7 @@ import './popup_austria_launch.css';
 
 const PopupAustriaLaunch = () => {
   return (
-    <BasePopup storageKey="austriaLaunchVideo2025Shown" variant="single">
+    <BasePopup storageKey="austriaLaunchVideo2025Shown" variant="single" requireAuth>
       {({ onClose }) => (
         <div className="popup-single-container">
           <div className="popup-slide video-popup">
