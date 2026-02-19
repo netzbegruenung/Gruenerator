@@ -26,7 +26,6 @@ export class UrlCrawler {
       maxContentLength: 10 * 1024 * 1024, // 10MB
       userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      usePersistentStorage: false,
     };
 
     this.contentExtractor = new ContentExtractor();
