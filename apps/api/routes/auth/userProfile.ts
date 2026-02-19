@@ -253,7 +253,6 @@ router.patch(
         'labor',
         'sites',
         'interactiveAntrag',
-        'autoSaveOnExport',
         'autoSaveGenerated',
         'website',
         'vorlagen',

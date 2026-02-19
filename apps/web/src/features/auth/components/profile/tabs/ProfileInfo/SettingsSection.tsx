@@ -70,7 +70,6 @@ const LocaleSelector: React.FC = () => {
 const BETA_VIEWS = {
   DATABASE: 'database',
   COLLAB: 'collab',
-  AUTO_SAVE_EXPORT: 'autoSaveOnExport',
   GROUPS: 'groups',
   WEBSITE: 'website',
   VORLAGEN: 'vorlagen',
@@ -116,16 +115,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           featureName: 'Kollaborative Bearbeitung',
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers,
-        };
-      case BETA_VIEWS.AUTO_SAVE_EXPORT:
-        return {
-          title: 'Auto-Speichern',
-          description: 'Exporte automatisch in Bibliothek speichern',
-          checked: getBetaFeatureState('autoSaveOnExport'),
-          setter: (value: boolean) => updateUserBetaFeatures('autoSaveOnExport', value),
-          featureName: 'Auto-Speichern bei Export',
-          checkboxLabel: 'Automatisches Speichern bei jedem Export aktivieren',
-          icon: HiSave,
         };
       case BETA_VIEWS.CHAT:
         return {
