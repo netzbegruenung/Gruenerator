@@ -3,8 +3,32 @@ import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { usePopupDismiss } from '../../../hooks/usePopupDismiss';
+import { useAuthStore } from '../../../stores/authStore';
 import Icon from '../Icon';
 import './base-popup.css';
+
+const IGNORED_KEYS = new Set([
+  'Shift',
+  'Control',
+  'Alt',
+  'Meta',
+  'CapsLock',
+  'NumLock',
+  'ScrollLock',
+  'Tab',
+  'F1',
+  'F2',
+  'F3',
+  'F4',
+  'F5',
+  'F6',
+  'F7',
+  'F8',
+  'F9',
+  'F10',
+  'F11',
+  'F12',
+]);
 
 interface BasePopupProps {
   storageKey: string;
@@ -15,6 +39,8 @@ interface BasePopupProps {
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
+  closeOnAnyKey?: boolean;
+  requireAuth?: boolean;
 }
 
 const BasePopup = ({
@@ -26,16 +52,20 @@ const BasePopup = ({
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
+  closeOnAnyKey = true,
+  requireAuth = false,
 }: BasePopupProps) => {
   const location = useLocation();
   const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');
   const isAuthRoute =
     location.pathname.startsWith('/profile') || location.pathname.startsWith('/login');
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const { isDismissed, dismiss, isHydrated } = usePopupDismiss(storageKey);
 
   const [isVisible, setIsVisible] = useState(() => {
     if (isNoHeaderFooterRoute || isAuthRoute) return false;
+    if (requireAuth && !isAuthenticated) return false;
     return !isDismissed;
   });
 
@@ -45,6 +75,13 @@ const BasePopup = ({
       setIsVisible(false);
     }
   }, [isHydrated, isDismissed, isVisible]);
+
+  // Show popup when user logs in (if requireAuth and not yet dismissed)
+  useEffect(() => {
+    if (requireAuth && isAuthenticated && !isDismissed && !isNoHeaderFooterRoute && !isAuthRoute) {
+      setIsVisible(true);
+    }
+  }, [requireAuth, isAuthenticated, isDismissed, isNoHeaderFooterRoute, isAuthRoute]);
 
   const handleClose = useCallback(() => {
     dismiss();
@@ -59,10 +96,17 @@ const BasePopup = ({
   };
 
   useEffect(() => {
-    if (!closeOnEscape || !isVisible) return;
+    if (!isVisible) return;
+    if (!closeOnEscape && !closeOnAnyKey) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (closeOnEscape && event.key === 'Escape') {
+        event.preventDefault();
+        handleClose();
+        return;
+      }
+
+      if (closeOnAnyKey && !IGNORED_KEYS.has(event.key) && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         handleClose();
       }
@@ -70,7 +114,7 @@ const BasePopup = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, closeOnEscape, handleClose]);
+  }, [isVisible, closeOnEscape, closeOnAnyKey, handleClose]);
 
   if (!isVisible) return null;
 

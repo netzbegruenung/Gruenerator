@@ -5,6 +5,11 @@ import { useUserDefaultsStore } from '../stores/userDefaultsStore';
 
 const POPUP_GENERATOR = 'popups';
 
+/**
+ * Registry of all popup storageKeys that participate in cross-device sync.
+ * When adding a new popup with `usePopupDismiss`, register its storageKey here
+ * so that dismiss state is synced to the server via `user_defaults` on login.
+ */
 const POPUP_KEYS = ['termsAccepted', 'austriaLaunchVideo2025Shown'] as const;
 
 interface UsePopupDismissReturn {
