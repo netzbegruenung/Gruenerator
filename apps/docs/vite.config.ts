@@ -78,11 +78,12 @@ export default defineConfig(({ command }) => ({
         assetFileNames: 'assets/[name].[hash][extname]',
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-mantine': ['@mantine/core', '@mantine/hooks'],
           'vendor-editor': [
             '@blocknote/core',
             '@blocknote/react',
             '@blocknote/mantine',
+            '@mantine/core',
+            '@mantine/hooks',
             'yjs',
             'y-websocket',
             '@hocuspocus/provider',
