@@ -16,6 +16,8 @@ import { FORM_LABELS } from '../../../components/utils/constants';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
+import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import LeichteSpracheForm from '../accessibility/components/LeichteSpracheForm';
 import { type UniversalSubType } from '../types';
 import BuergeranfragenForm from '../universal/BuergeranfragenForm';
@@ -89,6 +91,8 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ selectedType }) => {
   const leichteSpracheFormRef = useRef<FormRef>(null);
 
   const [extrasValue, setExtrasValue] = useState<string>('');
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [processedAttachments, setProcessedAttachments] = useState<unknown[]>([]);
 
   const getCurrentFormRef = (): RefObject<FormRef | null> | null => {
     switch (selectedType) {
@@ -130,6 +134,8 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ selectedType }) => {
     instructionType: currentInstructionType,
     componentName,
   });
+
+  const { crawledUrls } = useUrlCrawler();
 
   useEffect(() => {
     if (currentFormRef?.current?.resetForm) {
@@ -173,8 +179,8 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ selectedType }) => {
   } as unknown as Parameters<typeof useBaseForm>[0]);
 
   const allAttachments = useMemo(
-    () => form.generator?.attachedFiles || [],
-    [form.generator?.attachedFiles]
+    () => [...processedAttachments, ...crawledUrls],
+    [processedAttachments, crawledUrls]
   );
 
   const builder = useFormDataBuilder({
@@ -223,6 +229,24 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ selectedType }) => {
       }
     }
   }, [selectedType, form, currentFormRef, builder, extrasValue]);
+
+  const handleAttachmentClick = useCallback((files?: File[]) => {
+    if (!files || files.length === 0) return;
+    (async () => {
+      try {
+        const processed = await prepareFilesForSubmission(files);
+        setAttachedFiles((prev) => [...prev, ...files]);
+        setProcessedAttachments((prev) => [...prev, ...processed]);
+      } catch (error) {
+        console.error('[UniversalTab] File processing error:', error);
+      }
+    })();
+  }, []);
+
+  const handleRemoveFile = useCallback((index: number) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+    setProcessedAttachments((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
   const renderForm = () => {
     const rawTabIndex = form.generator?.tabIndex;
@@ -297,6 +321,10 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ selectedType }) => {
           componentName={componentName}
           onSubmit={handleSubmit}
           firstExtrasChildren={renderExtrasInput()}
+          useFeatureIcons={true}
+          onAttachmentClick={handleAttachmentClick}
+          onRemoveFile={handleRemoveFile}
+          attachedFiles={attachedFiles}
         >
           {renderForm()}
         </BaseForm>
