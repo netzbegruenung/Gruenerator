@@ -13,6 +13,9 @@ import { storeOIDCState, consumeOIDCState } from '../utils/redis/OIDCStateStore.
 import type { Request } from 'express';
 import type { Strategy } from 'passport';
 
+/** Maximum age of OIDC session data before it's considered stale (15 minutes). */
+const OIDC_SESSION_MAX_AGE_MS = 900_000;
+
 // openid-client v6 types (extracted from return types)
 type Config = Awaited<ReturnType<typeof discovery>>;
 type TokenSet = Awaited<ReturnType<typeof authorizationCodeGrant>>;
@@ -305,11 +308,25 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         return this.redirect(`/auth/error?message=session_not_found&retry=true`);
       }
 
-      if (sessionData.timestamp && Date.now() - sessionData.timestamp > 600000) {
-        console.error(
-          `[KeycloakOIDC:${correlationId}] Session data is stale (${Math.round((Date.now() - sessionData.timestamp) / 1000)}s old)`
+      if (sessionData.timestamp && Date.now() - sessionData.timestamp > OIDC_SESSION_MAX_AGE_MS) {
+        const ageSeconds = Math.round((Date.now() - sessionData.timestamp) / 1000);
+        console.warn(
+          `[KeycloakOIDC:${correlationId}] Session data is stale (${ageSeconds}s old), redirecting to login`
         );
-        return this.redirect(`/auth/error?message=session_expired&retry=true`);
+
+        // Preserve redirect target and login source for seamless re-auth
+        const redirectTo = sessionData.redirectTo || req.session.redirectTo || '';
+        const source = req.session.preferredSource || '';
+
+        // Clean up stale OIDC data to prevent infinite redirect loop
+        delete req.session['oidc:keycloak'];
+
+        const params = new URLSearchParams();
+        if (source) params.set('source', source);
+        if (redirectTo) params.set('redirectTo', redirectTo);
+        const qs = params.toString();
+
+        return this.redirect(`/auth/login${qs ? `?${qs}` : ''}`);
       }
 
       const protocol =
