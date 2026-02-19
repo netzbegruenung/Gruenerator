@@ -273,15 +273,15 @@ export class CrawleeCrawler {
   private requiresJavaScript(error: unknown): boolean {
     if (!(error instanceof Error)) return false;
 
-    const errorMessage = error.message.toLowerCase();
+    const msg = error.message.toLowerCase();
     return (
-      errorMessage.includes('javascript required') ||
-      errorMessage.includes('javascript') ||
-      errorMessage.includes('blocked') ||
-      errorMessage.includes('403') ||
-      errorMessage.includes('cloudflare') ||
-      errorMessage.includes('bot protection') ||
-      errorMessage.includes('captcha')
+      msg.includes('javascript required') ||
+      msg.includes('javascript is required') ||
+      msg.includes('javascript is disabled') ||
+      msg.includes('please enable javascript') ||
+      msg.includes('cloudflare') ||
+      msg.includes('bot protection') ||
+      msg.includes('captcha')
     );
   }
 
