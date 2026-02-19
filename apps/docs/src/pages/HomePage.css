@@ -69,6 +69,14 @@
   }
 }
 
+/* Small phones - tighter side padding */
+@media (max-width: 380px) {
+  .home-page-container {
+    padding-left: var(--spacing-small);
+    padding-right: var(--spacing-small);
+  }
+}
+
 /* Desktop - more spacing */
 @media (min-width: 769px) {
   .home-page-container {

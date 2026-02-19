@@ -32,6 +32,19 @@
   }
 }
 
+@media (max-width: 640px) {
+  .editor-content .editor-main {
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    background-color: var(--background, #fff);
+  }
+
+  [data-theme="dark"] .editor-content .editor-main {
+    background-color: var(--background-color, #1f2937);
+  }
+}
+
 /* Guest Banner */
 .guest-banner {
   display: flex;
