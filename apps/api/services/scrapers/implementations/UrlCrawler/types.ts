@@ -21,7 +21,6 @@ export interface CrawlerConfig {
   timeout: number;
   maxContentLength: number;
   userAgent: string;
-  usePersistentStorage: boolean;
 }
 
 /**

@@ -32,8 +32,5 @@ export { CrawleeCrawler } from './crawlers/CrawleeCrawler.js';
 export { FetchCrawler } from './crawlers/FetchCrawler.js';
 export { PdfCrawler } from './crawlers/PdfCrawler.js';
 
-// Memory storage (for Crawlee)
-export { MemoryStorage } from './MemoryStorage.js';
-
 // Default export (singleton instance for convenience)
 export { urlCrawler as default } from './UrlCrawler.js';
