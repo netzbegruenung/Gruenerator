@@ -117,6 +117,8 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(() => {
   } = useAltTextGeneration();
 
   const { crawledUrls, isCrawling, detectAndCrawlUrls } = useUrlCrawler();
+  const isCrawlingRef = useRef(isCrawling);
+  isCrawlingRef.current = isCrawling;
 
   const allAttachments = useMemo(
     () => [...(form.generator?.attachedFiles || []), ...crawledUrls],
@@ -131,11 +133,15 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(() => {
 
   const handleUrlsDetected = useCallback(
     async (urls: string[]) => {
-      if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE && !isCrawling && urls.length > 0) {
+      if (
+        selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE &&
+        !isCrawlingRef.current &&
+        urls.length > 0
+      ) {
         await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
       }
     },
-    [detectAndCrawlUrls, isCrawling, selectedType, usePrivacyMode]
+    [detectAndCrawlUrls, selectedType, usePrivacyMode]
   );
 
   const handleSubmit = useCallback(async () => {

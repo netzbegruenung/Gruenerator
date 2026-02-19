@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, memo } from 'react';
 import {
   PiMagicWand,
   PiArrowsClockwise,
@@ -115,14 +115,16 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(() => {
   const { control, handleSubmit } = form;
 
   const { crawledUrls, detectAndCrawlUrls, isCrawling } = useUrlCrawler();
+  const isCrawlingRef = useRef(isCrawling);
+  isCrawlingRef.current = isCrawling;
 
   const handleUrlsDetected = useCallback(
     async (urls: string[]) => {
-      if (!isCrawling && urls.length > 0) {
+      if (!isCrawlingRef.current && urls.length > 0) {
         await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
       }
     },
-    [detectAndCrawlUrls, isCrawling, usePrivacyMode]
+    [detectAndCrawlUrls, usePrivacyMode]
   );
 
   const onSubmitRHF = useCallback(
