@@ -119,7 +119,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                 {useFeatureIcons && (
                   <FeatureIcons
                     onBalancedModeClick={handleBalancedModeClick}
-                    onAttachmentClick={() => (onAttachmentClick as (() => void) | undefined)?.()}
+                    onAttachmentClick={onAttachmentClick}
                     onRemoveFile={() => onRemoveFile?.(0)}
                     onInteractiveModeClick={handleInteractiveMode}
                     interactiveModeActive={
@@ -184,7 +184,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
               <div className="form-extras__item">
                 <FeatureIcons
                   onBalancedModeClick={handleBalancedModeClick}
-                  onAttachmentClick={() => (onAttachmentClick as (() => void) | undefined)?.()}
+                  onAttachmentClick={onAttachmentClick}
                   onRemoveFile={() => onRemoveFile?.(0)}
                   onInteractiveModeClick={handleInteractiveMode}
                   interactiveModeActive={
