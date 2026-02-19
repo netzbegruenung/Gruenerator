@@ -3,17 +3,11 @@
  * Crawlee integration with CheerioCrawler and PlaywrightCrawler fallback
  */
 
-import { MemoryStorage } from '../MemoryStorage.js';
-
 import type { CrawlerConfig, RawCrawlResult, CrawlOptions } from '../types.js';
 import type { CheerioAPI } from 'cheerio';
 
 export class CrawleeCrawler {
-  private memoryStorage: MemoryStorage;
-
-  constructor(private config: CrawlerConfig) {
-    this.memoryStorage = new MemoryStorage();
-  }
+  constructor(private config: CrawlerConfig) {}
 
   /**
    * Crawls URL using Crawlee with memory-only storage
@@ -29,13 +23,17 @@ export class CrawleeCrawler {
       );
     }
 
-    const { CheerioCrawler, PlaywrightCrawler, log } = crawlee;
+    const { CheerioCrawler, PlaywrightCrawler, Configuration, log } = crawlee;
 
     // Reduce Crawlee log verbosity - only show warnings and errors
     log.setLevel(log.LEVELS.WARNING);
 
-    // Clear memory storage before starting
-    await this.memoryStorage.clear();
+    // Per-crawl in-memory configuration to avoid shared disk storage races
+    const crawlerConfig = new Configuration({
+      storageClientOptions: {
+        persistStorage: false,
+      },
+    });
 
     const crawlOptions = {
       ...this.config,
@@ -45,7 +43,7 @@ export class CrawleeCrawler {
 
     // Try CheerioCrawler first
     try {
-      return await this.runCheerioCrawler(url, crawlOptions, CheerioCrawler);
+      return await this.runCheerioCrawler(url, crawlOptions, CheerioCrawler, crawlerConfig);
     } catch (cheerioError) {
       console.log(
         `[CrawleeCrawler] CheerioCrawler failed, trying PlaywrightCrawler:`,
@@ -55,7 +53,12 @@ export class CrawleeCrawler {
       // Check if error suggests JavaScript requirement
       if (this.requiresJavaScript(cheerioError)) {
         try {
-          return await this.runPlaywrightCrawler(url, crawlOptions, PlaywrightCrawler);
+          return await this.runPlaywrightCrawler(
+            url,
+            crawlOptions,
+            PlaywrightCrawler,
+            crawlerConfig
+          );
         } catch (playwrightError) {
           console.error(
             '[CrawleeCrawler] Both crawlers failed for %s:',
@@ -71,100 +74,97 @@ export class CrawleeCrawler {
   }
 
   /**
-   * Runs CheerioCrawler with memory storage
+   * Runs CheerioCrawler with in-memory storage
    */
   private async runCheerioCrawler(
     url: string,
     options: any,
-    CheerioCrawler: any
+    CheerioCrawler: any,
+    crawlerConfig: any
   ): Promise<RawCrawlResult> {
     const results: RawCrawlResult[] = [];
-    const queueId = `queue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Add request to memory storage
-    await this.memoryStorage.addRequest(queueId, {
-      url,
-      uniqueKey: `${url}-${Date.now()}`,
-    });
+    const crawler = new CheerioCrawler(
+      {
+        maxRequestRetries: options.maxRetries,
+        requestHandlerTimeoutSecs: options.requestTimeoutSecs,
+        maxConcurrency: 1, // Single URL crawl
+        maxRequestsPerCrawl: 1,
+        persistCookiesPerSession: false,
+        useSessionPool: false,
 
-    const crawler = new CheerioCrawler({
-      maxRequestRetries: options.maxRetries,
-      requestHandlerTimeoutSecs: options.requestTimeoutSecs,
-      maxConcurrency: 1, // Single URL crawl
-      maxRequestsPerCrawl: 1,
-      persistCookiesPerSession: false,
-      useSessionPool: false,
+        requestHandler: async ({
+          request,
+          response,
+          $,
+        }: {
+          request: any;
+          response: any;
+          $: CheerioAPI;
+        }) => {
+          try {
+            // Validate response
+            if (response.statusCode >= 400) {
+              throw new Error(
+                `HTTP ${response.statusCode}: ${response.statusMessage || 'Request failed'}`
+              );
+            }
 
-      requestHandler: async ({
-        request,
-        response,
-        $,
-      }: {
-        request: any;
-        response: any;
-        $: CheerioAPI;
-      }) => {
-        try {
-          // Validate response
-          if (response.statusCode >= 400) {
-            throw new Error(
-              `HTTP ${response.statusCode}: ${response.statusMessage || 'Request failed'}`
+            // Check content type
+            const contentType = response.headers['content-type'] || '';
+            if (!contentType.includes('text/html')) {
+              throw new Error(`Unsupported content type: ${contentType}`);
+            }
+
+            // Check content length
+            const contentLength = response.headers['content-length'];
+            if (contentLength && parseInt(contentLength) > options.maxContentLength) {
+              throw new Error(`Content too large: ${contentLength} bytes`);
+            }
+
+            const html = $.html();
+
+            // Basic check for JavaScript requirement
+            if (this.detectJavaScriptRequired($, html)) {
+              throw new Error('JavaScript required for this page');
+            }
+
+            results.push({
+              html,
+              finalUrl: request.loadedUrl || request.url,
+              statusCode: response.statusCode || 200,
+            });
+          } catch (error) {
+            console.error(
+              `[CrawleeCrawler] CheerioCrawler request handler error for ${request.url}:`,
+              error instanceof Error ? error.message : 'Unknown error'
             );
+            throw error;
           }
-
-          // Check content type
-          const contentType = response.headers['content-type'] || '';
-          if (!contentType.includes('text/html')) {
-            throw new Error(`Unsupported content type: ${contentType}`);
-          }
-
-          // Check content length
-          const contentLength = response.headers['content-length'];
-          if (contentLength && parseInt(contentLength) > options.maxContentLength) {
-            throw new Error(`Content too large: ${contentLength} bytes`);
-          }
-
-          const html = $.html();
-
-          // Basic check for JavaScript requirement
-          if (this.detectJavaScriptRequired($, html)) {
-            throw new Error('JavaScript required for this page');
-          }
-
-          results.push({
-            html,
-            finalUrl: request.loadedUrl || request.url,
-            statusCode: response.statusCode || 200,
-          });
-        } catch (error) {
-          console.error(
-            `[CrawleeCrawler] CheerioCrawler request handler error for ${request.url}:`,
-            error instanceof Error ? error.message : 'Unknown error'
-          );
-          throw error;
-        }
-      },
-
-      errorHandler: ({ request, error }: { request: any; error: Error }) => {
-        console.error(`[CrawleeCrawler] CheerioCrawler error for ${request.url}:`, error.message);
-      },
-
-      // Custom headers
-      preNavigationHooks: [
-        async ({ request }: { request: any }) => {
-          request.headers = {
-            ...request.headers,
-            'User-Agent': options.userAgent,
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            DNT: '1',
-            Connection: 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-          };
         },
-      ],
-    });
+
+        errorHandler: ({ request, error }: { request: any; error: Error }) => {
+          console.error(`[CrawleeCrawler] CheerioCrawler error for ${request.url}:`, error.message);
+        },
+
+        // Custom headers
+        preNavigationHooks: [
+          async ({ request }: { request: any }) => {
+            request.headers = {
+              ...request.headers,
+              'User-Agent': options.userAgent,
+              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.5',
+              'Accept-Encoding': 'gzip, deflate, br',
+              DNT: '1',
+              Connection: 'keep-alive',
+              'Upgrade-Insecure-Requests': '1',
+            };
+          },
+        ],
+      },
+      crawlerConfig
+    );
 
     try {
       await crawler.run([url]);
@@ -187,65 +187,69 @@ export class CrawleeCrawler {
   }
 
   /**
-   * Runs PlaywrightCrawler with memory storage
+   * Runs PlaywrightCrawler with in-memory storage
    */
   private async runPlaywrightCrawler(
     url: string,
     options: any,
-    PlaywrightCrawler: any
+    PlaywrightCrawler: any,
+    crawlerConfig: any
   ): Promise<RawCrawlResult> {
     const results: RawCrawlResult[] = [];
 
-    const crawler = new PlaywrightCrawler({
-      maxRequestRetries: options.maxRetries,
-      requestHandlerTimeoutSecs: options.requestTimeoutSecs * 2, // More time for browser
-      maxConcurrency: 1,
-      maxRequestsPerCrawl: 1,
-      headless: options.headless !== false, // Default to headless
-      persistCookiesPerSession: false,
-      useSessionPool: false,
+    const crawler = new PlaywrightCrawler(
+      {
+        maxRequestRetries: options.maxRetries,
+        requestHandlerTimeoutSecs: options.requestTimeoutSecs * 2, // More time for browser
+        maxConcurrency: 1,
+        maxRequestsPerCrawl: 1,
+        headless: options.headless !== false, // Default to headless
+        persistCookiesPerSession: false,
+        useSessionPool: false,
 
-      launchContext: {
-        userAgent: options.userAgent,
-      },
+        launchContext: {
+          userAgent: options.userAgent,
+        },
 
-      requestHandler: async ({ request, page }: { request: any; page: any }) => {
-        try {
-          // Wait for page to load
-          await page.waitForLoadState('domcontentloaded');
+        requestHandler: async ({ request, page }: { request: any; page: any }) => {
+          try {
+            // Wait for page to load
+            await page.waitForLoadState('domcontentloaded');
 
-          // Get final URL after redirects
-          const finalUrl = page.url();
+            // Get final URL after redirects
+            const finalUrl = page.url();
 
-          // Get HTML content
-          const html = await page.content();
+            // Get HTML content
+            const html = await page.content();
 
-          // Check content length
-          if (html.length > options.maxContentLength) {
-            throw new Error(`Content too large: ${html.length} characters`);
+            // Check content length
+            if (html.length > options.maxContentLength) {
+              throw new Error(`Content too large: ${html.length} characters`);
+            }
+
+            results.push({
+              html,
+              finalUrl,
+              statusCode: 200, // Playwright doesn't provide direct access to status code
+            });
+          } catch (error) {
+            console.error(
+              `[CrawleeCrawler] PlaywrightCrawler request handler error for ${request.url}:`,
+              error instanceof Error ? error.message : 'Unknown error'
+            );
+            throw error;
           }
+        },
 
-          results.push({
-            html,
-            finalUrl,
-            statusCode: 200, // Playwright doesn't provide direct access to status code
-          });
-        } catch (error) {
+        errorHandler: ({ request, error }: { request: any; error: Error }) => {
           console.error(
-            `[CrawleeCrawler] PlaywrightCrawler request handler error for ${request.url}:`,
-            error instanceof Error ? error.message : 'Unknown error'
+            `[CrawleeCrawler] PlaywrightCrawler error for ${request.url}:`,
+            error.message
           );
-          throw error;
-        }
+        },
       },
-
-      errorHandler: ({ request, error }: { request: any; error: Error }) => {
-        console.error(
-          `[CrawleeCrawler] PlaywrightCrawler error for ${request.url}:`,
-          error.message
-        );
-      },
-    });
+      crawlerConfig
+    );
 
     try {
       await crawler.run([url]);

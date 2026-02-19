@@ -85,7 +85,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     interactive_antrag_enabled BOOLEAN DEFAULT TRUE,
     nextcloud_share_links JSONB DEFAULT '[]',
     document_mode TEXT DEFAULT 'manual',
-    auto_save_on_export BOOLEAN DEFAULT FALSE,
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE
 );
