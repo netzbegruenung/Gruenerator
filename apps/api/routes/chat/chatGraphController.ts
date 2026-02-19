@@ -322,13 +322,6 @@ router.post('/stream', async (req, res) => {
           options: classifiedState.clarificationOptions,
         },
       });
-      sse.sendRaw('thinking_step', {
-        stepId,
-        toolName: 'ask_human',
-        title: 'Stelle Klärungsfrage...',
-        status: 'completed',
-        result: {},
-      });
 
       sse.send('interrupt', {
         interruptType: 'clarification',
@@ -337,7 +330,7 @@ router.post('/stream', async (req, res) => {
         threadId: actualThreadId,
       });
 
-      pipelineStateStore.store(actualThreadId!, {
+      await pipelineStateStore.store(actualThreadId!, {
         classifiedState,
         requestContext: {
           userId,
@@ -549,7 +542,7 @@ router.post('/resume', async (req, res) => {
       return;
     }
 
-    const stored = pipelineStateStore.get(threadId);
+    const stored = await pipelineStateStore.get(threadId);
     if (!stored) {
       sse.send('error', {
         error: 'Pipeline-Status abgelaufen. Bitte sende deine Nachricht erneut.',
@@ -557,7 +550,7 @@ router.post('/resume', async (req, res) => {
       sse.end();
       return;
     }
-    pipelineStateStore.delete(threadId);
+    await pipelineStateStore.delete(threadId);
 
     const { classifiedState, requestContext } = stored;
 

@@ -100,9 +100,15 @@ interface SourcePart {
   parentId?: string;
 }
 
+interface StreamOutcome {
+  interrupted: boolean;
+  lastResult?: ChatModelRunResult;
+}
+
 async function* parseSSEStream(
   response: Response,
-  callbacks: GrueneratorAdapterCallbacks
+  callbacks: GrueneratorAdapterCallbacks,
+  outcome: StreamOutcome
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
   if (!reader) {
@@ -373,6 +379,7 @@ async function* parseSSEStream(
         }
 
         case 'interrupt': {
+          console.debug('[SSE] interrupt event received — will set requires-action status');
           interruptPending = true;
           yield buildResult();
           break;
@@ -407,10 +414,21 @@ async function* parseSSEStream(
     }
   }
 
-  yield buildResult();
+  const finalResult = buildResult();
+  outcome.lastResult = finalResult;
+  yield finalResult;
 
-  if (receivedMetadata) {
+  outcome.interrupted = interruptPending;
+
+  if (receivedMetadata && !interruptPending) {
+    console.debug('[SSE] Stream complete — calling onComplete');
     callbacks.onComplete?.(receivedMetadata);
+  } else {
+    console.debug(
+      '[SSE] Stream complete — onComplete skipped (metadata=%s, interrupt=%s)',
+      !!receivedMetadata,
+      interruptPending
+    );
   }
 }
 
@@ -418,27 +436,58 @@ export function createGrueneratorModelAdapter(
   getConfig: () => GrueneratorAdapterConfig,
   callbacks: GrueneratorAdapterCallbacks
 ): ChatModelAdapter {
-  return {
-    async *run({
-      messages,
-      abortSignal,
-    }: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
-      const config = getConfig();
+  // Tracks which thread has a pending HITL interrupt — persists across run() calls
+  let interruptedThreadId: string | null = null;
+  let lastInterruptedResult: ChatModelRunResult | null = null;
 
-      // Resume detection: check if the last assistant message has an ask_human tool-call with a result
-      const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
-      if (lastAssistant) {
-        const askHumanResult = lastAssistant.content.find(
-          (p) => p.type === 'tool-call' && p.toolName === 'ask_human' && p.result !== undefined
+  return {
+    async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
+      const { messages, abortSignal } = options;
+      const config = getConfig();
+      const runId = `run_${Date.now()}`;
+
+      // unstable_getMessage() provides the current assistant message (not in messages array).
+      // This is where addResult() writes the user's answer for human tool calls.
+      const currentAssistant = options.unstable_getMessage?.();
+      const askHumanInCurrent = currentAssistant?.content?.filter(
+        (p) => p.type === 'tool-call' && p.toolName === 'ask_human'
+      );
+      console.debug(
+        `[ModelAdapter:${runId}] run() called — msgs=${messages.length}, threadId=${config.threadId}, interruptedThread=${interruptedThreadId}, currentAssistant=${currentAssistant ? 'yes' : 'no'}, askHumanInCurrent=${askHumanInCurrent?.length ?? 0}`,
+        askHumanInCurrent?.map((p) => ({
+          toolCallId: p.type === 'tool-call' ? p.toolCallId : '?',
+          hasResult: 'result' in p,
+          resultType: 'result' in p ? typeof p.result : 'none',
+          resultPreview:
+            'result' in p && typeof p.result === 'string' ? String(p.result).slice(0, 50) : null,
+        }))
+      );
+
+      // Resume detection via unstable_getMessage() — the canonical way to read addResult() answers.
+      // assistant-ui writes the result onto the current assistant message, NOT into messages[].
+      if (currentAssistant) {
+        const askHumanResult = currentAssistant.content?.find(
+          (p) =>
+            p.type === 'tool-call' &&
+            p.toolName === 'ask_human' &&
+            'result' in p &&
+            typeof p.result === 'string' &&
+            (p.result as string).length > 0
         );
         if (askHumanResult && askHumanResult.type === 'tool-call') {
+          const answer = String(askHumanResult.result);
+          console.debug(
+            `[ModelAdapter:${runId}] Resuming via unstable_getMessage — answer="${answer.slice(0, 80)}"`
+          );
+          interruptedThreadId = null;
+          lastInterruptedResult = null;
           const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
           const resumeResponse = await configFetch(endpoints.chatResume, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               threadId: config.threadId,
-              resume: String(askHumanResult.result),
+              resume: answer,
             }),
             signal: abortSignal,
           });
@@ -450,9 +499,44 @@ export function createGrueneratorModelAdapter(
             );
           }
 
-          yield* parseSSEStream(resumeResponse, callbacks);
+          const resumeOutcome: StreamOutcome = { interrupted: false };
+          yield* parseSSEStream(resumeResponse, callbacks, resumeOutcome);
+          if (resumeOutcome.interrupted) {
+            interruptedThreadId = config.threadId;
+            lastInterruptedResult = resumeOutcome.lastResult ?? null;
+          }
           return;
         }
+
+        // Current assistant has pending ask_human without result — spurious re-invocation.
+        const pendingAskHuman = currentAssistant.content?.find(
+          (p) =>
+            p.type === 'tool-call' && p.toolName === 'ask_human' && !('result' in p && p.result)
+        );
+        if (pendingAskHuman) {
+          console.debug(
+            `[ModelAdapter:${runId}] BLOCKED — pending ask_human in currentAssistant without answer`
+          );
+          throw new DOMException('Aborted', 'AbortError');
+        }
+      }
+
+      // Stateful guard: block re-invocation if we know this thread has a pending interrupt
+      // (covers case where unstable_getMessage returns undefined after history rehydration)
+      if (interruptedThreadId && interruptedThreadId === config.threadId) {
+        console.debug(
+          `[ModelAdapter:${runId}] BLOCKED — interruptedThreadId=${interruptedThreadId}, throwing AbortError`
+        );
+        throw new DOMException('Aborted', 'AbortError');
+      }
+
+      // Clear stale interrupt if switching to a different thread
+      if (interruptedThreadId && interruptedThreadId !== config.threadId) {
+        console.debug(
+          `[ModelAdapter:${runId}] Clearing stale interrupt for thread ${interruptedThreadId}`
+        );
+        interruptedThreadId = null;
+        lastInterruptedResult = null;
       }
 
       const formattedMessages = messages.map((m) => {
@@ -510,6 +594,9 @@ export function createGrueneratorModelAdapter(
 
       const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
       const endpoint = config.useDeepAgent ? endpoints.deepStream : endpoints.chatStream;
+      console.debug(
+        `[ModelAdapter:${runId}] Sending stream request → ${endpoint}, threadId=${config.threadId}`
+      );
       const response = await configFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -533,7 +620,15 @@ export function createGrueneratorModelAdapter(
         throw new Error((errorData as { error?: string }).error || `HTTP error ${response.status}`);
       }
 
-      yield* parseSSEStream(response, callbacks);
+      const streamOutcome: StreamOutcome = { interrupted: false };
+      yield* parseSSEStream(response, callbacks, streamOutcome);
+      if (streamOutcome.interrupted) {
+        interruptedThreadId = config.threadId;
+        lastInterruptedResult = streamOutcome.lastResult ?? null;
+        console.debug(
+          `[ModelAdapter:${runId}] Stream interrupted — set interruptedThreadId=${config.threadId}, hasStoredResult=${!!lastInterruptedResult}`
+        );
+      }
     },
   };
 }

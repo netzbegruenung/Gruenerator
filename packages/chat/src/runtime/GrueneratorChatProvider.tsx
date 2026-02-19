@@ -245,33 +245,43 @@ function useGrueneratorThreadRuntime() {
     [fetchFn, onUnauthorized]
   );
 
+  const needsCompactionRef = useRef(needsCompaction);
+  needsCompactionRef.current = needsCompaction;
+  const compactionSummaryRef = useRef(compactionState.summary);
+  compactionSummaryRef.current = compactionState.summary;
+
   const onComplete = useCallback(
     (_metadata: StreamMetadata) => {
       const tid = useAgentStore.getState().currentThreadId;
+      console.debug(
+        '[ChatProvider] onComplete fired — threadId=',
+        tid,
+        'needsCompaction=',
+        needsCompactionRef.current
+      );
       if (tid) {
         incrementMessageCount();
         incrementMessageCount();
 
-        if (needsCompaction && !compactionState.summary) {
+        if (needsCompactionRef.current && !compactionSummaryRef.current) {
           triggerCompaction(tid, runtimeApiClient);
         }
       }
     },
-    [
-      incrementMessageCount,
-      needsCompaction,
-      compactionState.summary,
-      triggerCompaction,
-      runtimeApiClient,
-    ]
+    [incrementMessageCount, triggerCompaction, runtimeApiClient]
   );
 
-  const modelAdapter = useMemo(
-    () => createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete }),
-    [getConfig, onThreadCreated, onComplete]
-  );
+  const prevAdapterRef = useRef<string>('');
+  const modelAdapter = useMemo(() => {
+    const id = `adapter_${Date.now()}`;
+    console.debug(
+      `[ChatProvider] Creating modelAdapter (${id}) — prev was (${prevAdapterRef.current})`
+    );
+    prevAdapterRef.current = id;
+    return createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete });
+  }, [getConfig, onThreadCreated, onComplete]);
 
-  return useLocalRuntime(modelAdapter);
+  return useLocalRuntime(modelAdapter, { unstable_humanToolNames: ['ask_human'] });
 }
 
 /**

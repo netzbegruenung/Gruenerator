@@ -1,3 +1,4 @@
+import { useAgentStore } from '@gruenerator/chat';
 import { type JSX, useState, useCallback, useEffect, type ReactNode, type MouseEvent } from 'react';
 import { CiMemoPad } from 'react-icons/ci';
 import { FaCloud } from 'react-icons/fa';
@@ -11,11 +12,13 @@ import {
   IoCloseOutline,
   IoCopyOutline,
   IoOpenOutline,
+  IoChatbubbleOutline,
 } from 'react-icons/io5';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLazyAuth } from '../../hooks/useAuth';
+import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useExportStore } from '../../stores/core/exportStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
@@ -98,6 +101,9 @@ const ExportDropdown = ({
 
   const { isAuthenticated } = useLazyAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { getBetaFeatureState } = useBetaFeatures();
+  const hasChatAccess = isAuthenticated && getBetaFeatureState('chat');
   const { submitForm, loading: docsLoading } = useApiSubmit('docs/from-export');
   const { submitForm: submitEtherpad, loading: etherpadLoading } = useApiSubmit('etherpad/create');
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
@@ -468,6 +474,25 @@ const ExportDropdown = ({
     }
   };
 
+  const handleDiscussInChat = async () => {
+    setShowDropdown(false);
+    try {
+      const plainContent = await extractPlainText(content);
+      if (!plainContent?.trim()) {
+        alert('Kein Text zum Besprechen verfügbar.');
+        return;
+      }
+      const freshTitle = await getFreshTitle();
+      const titleLine = freshTitle ? `**${freshTitle}**\n\n` : '';
+      const reviewMessage = `Bitte überprüfe den folgenden Text und gib mir konstruktives Feedback:\n\n${titleLine}---\n${plainContent}\n---`;
+
+      useAgentStore.getState().setPendingMessage(reviewMessage);
+      navigate('/chat');
+    } catch (err) {
+      console.error('Failed to prepare chat review:', err);
+    }
+  };
+
   const handleWolkeSetup = async (shareLink: string, label: string) => {
     const parsed = NextcloudShareManager.parseShareLink(shareLink);
     if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
@@ -623,6 +648,16 @@ const ExportDropdown = ({
                       {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
                     </div>
                     <div className="format-option-subtitle">Für später wiederverwenden</div>
+                  </div>
+                </button>
+              )}
+
+              {hasChatAccess && (
+                <button className="format-option" onClick={handleDiscussInChat}>
+                  <IoChatbubbleOutline size={16} />
+                  <div className="format-option-content">
+                    <div className="format-option-title">Im Chat besprechen</div>
+                    <div className="format-option-subtitle">KI-Feedback zum Text erhalten</div>
                   </div>
                 </button>
               )}

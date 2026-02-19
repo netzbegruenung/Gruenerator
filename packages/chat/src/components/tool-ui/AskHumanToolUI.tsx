@@ -19,6 +19,14 @@ export const AskHumanToolUI = memo(function AskHumanToolUI({
   const question = (args?.question as string) || 'Wie kann ich dir helfen?';
   const options = Array.isArray(args?.options) ? (args.options as string[]) : null;
 
+  console.debug(
+    '[AskHumanToolUI] render — result=%s, hasAddResult=%s, question=%s, optionCount=%d',
+    result !== undefined ? String(result).slice(0, 30) : 'undefined',
+    typeof addResult === 'function',
+    question.slice(0, 40),
+    options?.length ?? 0
+  );
+
   if (result !== undefined) {
     return (
       <div className="my-2 text-sm">
@@ -44,7 +52,11 @@ export const AskHumanToolUI = memo(function AskHumanToolUI({
           {options.map((option, idx) => (
             <button
               key={idx}
-              onClick={() => addResult(option)}
+              onClick={() => {
+                console.debug('[AskHumanToolUI] Option clicked:', option);
+                addResult(option);
+                console.debug('[AskHumanToolUI] addResult() returned');
+              }}
               className="px-3 py-1.5 text-sm rounded-full border border-primary/30 bg-background text-foreground hover:bg-primary/10 hover:border-primary/50 transition-colors cursor-pointer"
             >
               {option}
@@ -60,7 +72,9 @@ export const AskHumanToolUI = memo(function AskHumanToolUI({
           onChange={(e) => setCustomInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && customInput.trim()) {
+              console.debug('[AskHumanToolUI] Enter pressed, custom input:', customInput.trim());
               addResult(customInput.trim());
+              console.debug('[AskHumanToolUI] addResult() returned (custom input)');
             }
           }}
           placeholder="Oder eigene Antwort eingeben..."
