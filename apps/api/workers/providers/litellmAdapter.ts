@@ -94,20 +94,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     );
   }
 
-  // Default to LiteLLM-compatible model
-  let model = options.model || 'gpt-oss:120b';
-
-  // Validate model compatibility
-  const modelStr = String(model).toLowerCase();
-  const looksIncompatible = /mistral|mixtral|gpt-4|gpt-3|claude|anthropic|bedrock|openai/.test(
-    modelStr
-  );
-  if (looksIncompatible && !modelStr.includes('gpt-oss')) {
-    console.warn(
-      `[litellmAdapter ${requestId}] Model "${model}" is incompatible with LiteLLM. Using default.`
-    );
-    model = 'gpt-oss:120b';
-  }
+  // LiteLLM only serves one model — always use it
+  const model = 'gpt-oss:120b';
 
   // Convert messages to Vercel AI SDK format
   const modelMessages = convertMessages(messages, systemPrompt);

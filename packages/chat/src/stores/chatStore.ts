@@ -96,6 +96,8 @@ interface AgentState {
   compactionLoading: boolean;
   messageCount: number;
   needsCompaction: boolean;
+  pendingMessage: string | null;
+  pendingNewThread: boolean;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
@@ -104,6 +106,8 @@ interface AgentState {
   setAllTools: (enabled: boolean) => void;
   toggleDeepAgent: () => void;
   setSelectedNotebook: (notebookId: string) => void;
+  setPendingMessage: (message: string | null) => void;
+  setPendingNewThread: (v: boolean) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -137,6 +141,8 @@ export const useAgentStore = create<AgentState>()(
       compactionLoading: false,
       messageCount: 0,
       needsCompaction: false,
+      pendingMessage: null,
+      pendingNewThread: false,
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
 
@@ -178,6 +184,10 @@ export const useAgentStore = create<AgentState>()(
       toggleDeepAgent: () => set((state) => ({ useDeepAgent: !state.useDeepAgent })),
 
       setSelectedNotebook: (notebookId) => set({ selectedNotebookId: notebookId }),
+
+      setPendingMessage: (message) => set({ pendingMessage: message }),
+
+      setPendingNewThread: (v) => set({ pendingNewThread: v }),
 
       setCompactionState: (state) => set({ compactionState: state }),
 

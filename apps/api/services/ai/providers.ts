@@ -25,8 +25,8 @@ const PROVIDER_DEFAULTS = {
 
 const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
 
-// Models incompatible with LiteLLM/IONOS OpenAI-compatible endpoints
-const LITELLM_INCOMPATIBLE_PATTERNS = [
+// Models incompatible with IONOS OpenAI-compatible endpoint
+const IONOS_INCOMPATIBLE_PATTERNS = [
   /^mistral/i,
   /^mixtral/i,
   /^claude/i,
@@ -94,13 +94,13 @@ function getIONOSProvider(): ReturnType<typeof createOpenAI> {
 }
 
 /**
- * Validate and potentially replace a model ID for LiteLLM/IONOS compatibility
+ * Validate and potentially replace a model ID for IONOS compatibility
  */
-function validateOpenAICompatibleModel(modelId: string, defaultModel: string): string {
-  for (const pattern of LITELLM_INCOMPATIBLE_PATTERNS) {
+function validateIONOSModel(modelId: string, defaultModel: string): string {
+  for (const pattern of IONOS_INCOMPATIBLE_PATTERNS) {
     if (pattern.test(modelId)) {
       console.warn(
-        `[providers] Model "${modelId}" is incompatible with OpenAI-compatible provider. ` +
+        `[providers] Model "${modelId}" is incompatible with IONOS provider. ` +
           `Using default model "${defaultModel}" instead.`
       );
       return defaultModel;
@@ -136,15 +136,11 @@ export function getModel(provider: ProviderName | string, modelId?: string): Lan
     }
     case 'litellm': {
       const litellm = getLiteLLMProvider();
-      const validatedModel = validateOpenAICompatibleModel(
-        modelId || PROVIDER_DEFAULTS.litellm,
-        PROVIDER_DEFAULTS.litellm
-      );
-      return litellm.chat(validatedModel);
+      return litellm.chat(PROVIDER_DEFAULTS.litellm);
     }
     case 'ionos': {
       const ionos = getIONOSProvider();
-      const validatedModel = validateOpenAICompatibleModel(
+      const validatedModel = validateIONOSModel(
         modelId || PROVIDER_DEFAULTS.ionos,
         PROVIDER_DEFAULTS.ionos
       );
