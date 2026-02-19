@@ -47,6 +47,10 @@ vi.mock('../nodes/searchNode.js', () => ({
     if (locale === 'de-AT') return ['oesterreich', 'gruene-at'];
     return ['deutschland', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
   }),
+  getSupplementaryCollectionsForLocale: vi.fn((locale: string | undefined) => {
+    if (locale === 'de-AT') return ['gruene-at'];
+    return ['bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+  }),
 }));
 
 // ─── Import modules under test (after mocks) ─────────────────────────────
@@ -55,7 +59,10 @@ import { createSearchDocumentsTool } from './searchDocuments.js';
 import { executeDirectSearch } from '../../../../routes/chat/agents/directSearch.js';
 import { getQdrantDocumentService } from '../../../../services/document-services/DocumentSearchService/index.js';
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
-import { getDefaultCollectionsForLocale } from '../nodes/searchNode.js';
+import {
+  getDefaultCollectionsForLocale,
+  getSupplementaryCollectionsForLocale,
+} from '../nodes/searchNode.js';
 
 import type { ToolDependencies } from './registry.js';
 
@@ -222,6 +229,28 @@ describe('search_documents tool', () => {
       expect(collections).toEqual(
         expect.arrayContaining(['oesterreich', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'])
       );
+    });
+
+    it('priority 3: agent defaultCollection uses Austrian supplements for de-AT locale', async () => {
+      const tool = createSearchDocumentsTool(
+        makeDeps({
+          userLocale: 'de-AT',
+          agentConfig: {
+            id: 'test',
+            systemRole: 'test',
+            name: 'Test',
+            toolRestrictions: { defaultCollection: 'oesterreich' },
+          } as any,
+        })
+      );
+      await tool.invoke({ query: 'Klimapolitik' });
+
+      const collections = getSearchedCollections();
+      expect(collections).toEqual(expect.arrayContaining(['oesterreich', 'gruene-at']));
+      expect(collections).not.toContain('bundestagsfraktion');
+      expect(collections).not.toContain('gruene-de');
+      expect(collections).not.toContain('kommunalwiki');
+      expect(getSupplementaryCollectionsForLocale).toHaveBeenCalledWith('de-AT');
     });
 
     it('priority 2: agent allowedCollections overrides defaultNotebookCollectionIds', async () => {

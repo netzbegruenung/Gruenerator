@@ -236,10 +236,15 @@ export async function handleUserProfile(
   const authSource = req?.session?.preferredSource || 'gruenerator-login';
 
   // Determine locale based on auth source
+  const isAustrianIdp = authSource === 'gruene-oesterreich-login';
   let locale = 'de-DE';
-  if (authSource === 'gruene-oesterreich-login') {
+  if (isAustrianIdp) {
     locale = 'de-AT';
   }
+
+  log.info(
+    `[handleUserProfile] authSource=${authSource}, isAustrianIdp=${isAustrianIdp}, locale=${locale}`
+  );
 
   try {
     // Check for existing user by keycloak_id
@@ -251,13 +256,14 @@ export async function handleUserProfile(
         const emailConflictUser = await getUserByEmail(email);
         if (emailConflictUser && emailConflictUser.id !== existingUser.id) {
           log.warn('[handleUserProfile] Email conflict detected, keeping existing email');
+          const resolvedLocale = isAustrianIdp ? locale : existingUser.locale || locale;
           return await updateUser(
             existingUser.id!,
             {
               display_name: name,
               username,
               email: existingUser.email || null,
-              locale: existingUser.locale || locale,
+              locale: resolvedLocale,
               last_login: new Date().toISOString(),
             },
             authSource
@@ -265,13 +271,17 @@ export async function handleUserProfile(
         }
       }
 
+      const resolvedLocaleUpdate = isAustrianIdp ? locale : existingUser.locale || locale;
+      log.info(
+        `[handleUserProfile] Updating user ${existingUser.id}: locale ${existingUser.locale} → ${resolvedLocaleUpdate}`
+      );
       return await updateUser(
         existingUser.id!,
         {
           display_name: name,
           username,
           email: email || existingUser.email || null,
-          locale: existingUser.locale || locale,
+          locale: resolvedLocaleUpdate,
           last_login: new Date().toISOString(),
         },
         authSource
@@ -283,13 +293,14 @@ export async function handleUserProfile(
       const userByEmail = await getUserByEmail(email);
 
       if (userByEmail) {
+        const resolvedLocaleLink = isAustrianIdp ? locale : userByEmail.locale || locale;
         return await linkUser(
           userByEmail.id!,
           {
             keycloak_id: keycloakId,
             display_name: name,
             username,
-            locale: userByEmail.locale || locale,
+            locale: resolvedLocaleLink,
             last_login: new Date().toISOString(),
           },
           authSource
