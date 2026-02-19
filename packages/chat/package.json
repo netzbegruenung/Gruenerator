@@ -22,14 +22,14 @@
     "cmdk": "^1.1.1",
     "lucide-react": "^0.475.0",
     "radix-ui": "^1.4.3",
-    "react-markdown": "^9.0.3",
-    "remark-gfm": "^4.0.0",
-    "tailwind-merge": "^3.0.1"
+    "react-markdown": "^9.1.0",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.4.1"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.3"
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "@assistant-ui/react": ">=0.12.0",
