@@ -237,6 +237,9 @@ router.post('/stream', async (req, res) => {
       userLocale: (user as any)?.locale || 'de-DE',
     });
 
+    const userLocale = (user as any)?.locale || 'de-DE';
+    log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
+
     (initialState.agentConfig as any).userId = userId;
     if (memoryContext) {
       initialState.memoryContext = memoryContext;

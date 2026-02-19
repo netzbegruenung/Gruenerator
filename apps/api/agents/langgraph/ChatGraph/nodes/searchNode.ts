@@ -66,6 +66,15 @@ export function getDefaultCollectionsForLocale(locale: string | undefined): stri
 }
 
 /**
+ * Return supplementary collections to pair with an agent's defaultCollection.
+ * Austrian users get Austrian supplements; everyone else gets German defaults.
+ */
+export function getSupplementaryCollectionsForLocale(locale: string | undefined): string[] {
+  if (locale === 'de-AT') return ['gruene-at'];
+  return ['bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+}
+
+/**
  * Human-readable labels for document content types.
  */
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -190,7 +199,7 @@ async function executeDocumentSearchParallel(
     log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
   } else if (agentConfig.toolRestrictions?.defaultCollection) {
     const dc = agentConfig.toolRestrictions.defaultCollection;
-    collectionsToSearch = [dc, 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+    collectionsToSearch = [dc, ...getSupplementaryCollectionsForLocale(userLocale)];
   } else if (defaultNotebookCollectionIds && defaultNotebookCollectionIds.length > 0) {
     collectionsToSearch = defaultNotebookCollectionIds;
     log.info(`[Search] Using default notebook collections: ${collectionsToSearch.join(', ')}`);
@@ -325,7 +334,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     log.info(`[Search] Applying metadata filters: ${JSON.stringify(detectedFilters)}`);
   }
 
-  log.info(`[Search] Executing ${intent} search: "${searchQuery?.slice(0, 50)}..."`);
+  log.info(
+    `[Search] Executing ${intent} search: "${searchQuery?.slice(0, 50)}..." (locale=${state.userLocale})`
+  );
 
   try {
     let results: SearchResult[] = [];
@@ -514,7 +525,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
         } else if (agentConfig.toolRestrictions?.defaultCollection) {
           const dc = agentConfig.toolRestrictions.defaultCollection;
-          collectionsToSearch = [dc, 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+          collectionsToSearch = [dc, ...getSupplementaryCollectionsForLocale(state.userLocale)];
         } else if (
           state.defaultNotebookCollectionIds &&
           state.defaultNotebookCollectionIds.length > 0
