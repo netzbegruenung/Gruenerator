@@ -2,7 +2,9 @@
 
 import { type ReactNode, useMemo, useCallback, useRef } from 'react';
 import {
+  AuiProvider,
   AssistantRuntimeProvider,
+  useAui,
   useLocalRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
@@ -28,7 +30,17 @@ export interface NotebookChatProviderProps {
   onComplete?: (metadata: NotebookMessageMetadata) => void;
 }
 
-export function NotebookChatProvider({
+/**
+ * Resets the AUI context so useLocalRuntime creates a standalone runtime
+ * instead of detecting the parent GrueneratorChatProvider and entering
+ * nesting mode (which leaves thread list methods unimplemented).
+ */
+function NotebookAuiReset({ children }: { children: ReactNode }) {
+  const freshAui = useAui({}, { parent: null });
+  return <AuiProvider value={freshAui}>{children}</AuiProvider>;
+}
+
+function NotebookChatProviderInner({
   children,
   collections,
   locale,
@@ -67,4 +79,12 @@ export function NotebookChatProvider({
   const runtime = useLocalRuntime(adapter, { initialMessages });
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
+}
+
+export function NotebookChatProvider(props: NotebookChatProviderProps) {
+  return (
+    <NotebookAuiReset>
+      <NotebookChatProviderInner {...props} />
+    </NotebookAuiReset>
+  );
 }

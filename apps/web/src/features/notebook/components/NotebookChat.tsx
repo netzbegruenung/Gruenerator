@@ -97,16 +97,18 @@ const NotebookChat = () => {
       >
         <div className="qa-chat-container">
           <ThreadPrimitive.Root className="flex h-full flex-col">
-            <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto">
+            <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
               <ThreadPrimitive.Empty>
                 <NotebookStartPage title={`Fragen zu "${collection.name || 'Notebook'}"`} />
               </ThreadPrimitive.Empty>
-              <ThreadPrimitive.Messages
-                components={{
-                  UserMessage,
-                  AssistantMessage: NotebookAssistantMessage,
-                }}
-              />
+              <div className="mx-auto w-full max-w-3xl flex flex-col gap-4 py-4">
+                <ThreadPrimitive.Messages
+                  components={{
+                    UserMessage,
+                    AssistantMessage: NotebookAssistantMessage,
+                  }}
+                />
+              </div>
             </ThreadPrimitive.Viewport>
             <NotebookComposer placeholder="Stellen Sie eine Frage zu den Dokumenten..." />
           </ThreadPrimitive.Root>
