@@ -14,9 +14,9 @@
   "requestFields": ["rolle", "thema", "redezeit"],
   "validation": {
     "required": ["rolle", "thema"],
-    "errorMessage": "Rolle und Thema sind Pflichtfelder oder ein benutzerdefinierter Prompt muss angegeben werden."
+    "errorMessage": "Bitte gib mindestens einen Inhalt, oder Rolle und Thema an."
   },
-  "requestTemplate": "Erstelle eine politische Rede mit folgenden Anforderungen:\n\n<rolle>\nRolle/Position des Redners: {{rolle}}\n</rolle>\n\n<thema>\nThema, Anlass und Schwerpunkte der Rede: {{thema}}\n</thema>\n\n{{#if redezeit}}\n<redezeit>\nGewünschte Redezeit (in Minuten): {{redezeit}}\n</redezeit>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}",
+  "requestTemplate": "Erstelle eine politische Rede mit folgenden Anforderungen:\n\n{{#if inhalt}}<inhalt>\n{{inhalt}}\n</inhalt>\n\n{{/if}}{{#if rolle}}<rolle>\nRolle/Position des Redners: {{rolle}}\n</rolle>\n\n{{/if}}{{#if thema}}<thema>\nThema, Anlass und Schwerpunkte der Rede: {{thema}}\n</thema>\n\n{{/if}}{{#if redezeit}}<redezeit>\nGewünschte Redezeit (in Minuten): {{redezeit}}\n</redezeit>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}",
   "customPromptTemplate": {
     "rolle": "{{rolle|default:'Nicht angegeben'}}",
     "thema": "{{thema|default:'Nicht angegeben'}}",
