@@ -8,23 +8,28 @@ apps/docs-expo/android/
 apps/docs-expo/ios/
 
 # Other apps not needed for mobile build
-apps/web/dist/
-apps/web/web-build/
-apps/docs/dist/
+apps/web/
+apps/api/
+apps/docs/
+apps/docs-desktop/
+apps/docs-expo/
 apps/desktop/
+apps/sites/
 
-# Services
-services/comfyui/
+# Root-level services not needed for mobile build (leading / = root only)
+/services/
 
 # Dev/build artifacts
 **/.expo/
 **/dist/
 **/*.tsbuildinfo
+**/.turbo/
 
 # Large media/test files
 *.mp4
 *.mov
 *.avi
+*.swp
 
 # Git
 .git/
