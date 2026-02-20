@@ -86,6 +86,40 @@ export function filterEmptyAssistantMessages(messages: any[]): any[] {
 }
 
 /**
+ * Remove content part types that the AI SDK doesn't support.
+ * The SDK's standardizePrompt() validates parts with Zod and rejects unknown types
+ * like {type:'file'} from PDF uploads. Uses an allowlist so new unsupported types
+ * are filtered automatically.
+ *
+ * File content is not lost — it's already extracted by processAttachments() into
+ * attachmentContext, which respondNode injects into the system prompt.
+ */
+export function sanitizeContentPartsForModel(messages: any[]): any[] {
+  const VALID_USER_PART_TYPES = new Set(['text', 'image']);
+  const VALID_ASSISTANT_PART_TYPES = new Set([
+    'text',
+    'reasoning',
+    'tool-call',
+    'redacted-reasoning',
+  ]);
+
+  return messages.map((msg) => {
+    if (!Array.isArray(msg.content)) return msg;
+
+    const allowedTypes =
+      msg.role === 'assistant' ? VALID_ASSISTANT_PART_TYPES : VALID_USER_PART_TYPES;
+
+    const filtered = msg.content.filter(
+      (part: any) => part && typeof part === 'object' && allowedTypes.has(part.type)
+    );
+
+    if (filtered.length === msg.content.length) return msg;
+
+    return { ...msg, content: filtered.length > 0 ? filtered : [{ type: 'text', text: '' }] };
+  });
+}
+
+/**
  * Strip assistant messages with no effective content from the final messages array.
  * Defense-in-depth before sending to the model API.
  */

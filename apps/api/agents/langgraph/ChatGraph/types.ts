@@ -39,6 +39,7 @@ export type SearchIntent =
   | 'examples' // Social media examples/templates
   | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
   | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
+  | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
   | 'direct'; // No search needed (greetings, creative tasks without fact needs)
 
 /**
@@ -88,6 +89,10 @@ export interface SearchResult {
   url?: string;
   relevance?: number;
   contentType?: string;
+  documentId?: string;
+  chunkIndex?: number;
+  similarityScore?: number;
+  collectionId?: string;
 }
 
 /**
@@ -105,6 +110,10 @@ export interface Citation {
   domain?: string;
   relevance?: number;
   contentType?: string;
+  documentId?: string;
+  chunkIndex?: number;
+  similarityScore?: number;
+  collectionId?: string;
 }
 
 /**
@@ -216,6 +225,10 @@ export interface ChatGraphState {
   imageStyle: ImageStyle | null;
   generatedImage: GeneratedImageResult | null;
   imageTimeMs: number;
+
+  // Document summarization
+  summaryContext: string | null;
+  summaryTimeMs: number;
 
   // Response generation
   responseText: string;

@@ -172,6 +172,13 @@ function buildToolGuidelines(
     );
   }
 
+  if (check('summary')) {
+    tools.push(
+      '- **summarize**: Fasse Dokumente zusammen.\n' +
+        '  Nutze dieses Tool wenn der Nutzer eine Zusammenfassung eines angehängten Dokuments anfordert.'
+    );
+  }
+
   if (check('scrape')) {
     tools.push(
       '- **scrape_url**: Lade den Inhalt einer URL.\n' +

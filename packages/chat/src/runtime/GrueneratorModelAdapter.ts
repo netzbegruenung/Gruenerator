@@ -104,6 +104,7 @@ interface SourcePart {
 interface StreamOutcome {
   interrupted: boolean;
   lastResult?: ChatModelRunResult;
+  indexedDocumentIds: string[];
 }
 
 async function* parseSSEStream(
@@ -209,6 +210,7 @@ async function* parseSSEStream(
           let stage: ProgressStage = 'searching';
           if (intent === 'direct') stage = 'generating';
           else if (intent === 'image') stage = 'generating_image';
+          else if (intent === 'summary') stage = 'summarizing';
           currentProgress = { stage, message, intent, reasoning };
 
           const toolName = INTENT_TO_TOOL[intent];
@@ -296,6 +298,20 @@ async function* parseSSEStream(
               (results || []).length
             );
           }
+          yield buildResult();
+          break;
+        }
+
+        case 'summary_start': {
+          const { message } = data as { message: string };
+          currentProgress = { ...currentProgress, stage: 'summarizing', message };
+          yield buildResult();
+          break;
+        }
+
+        case 'summary_complete': {
+          const { message } = data as { message: string };
+          currentProgress = { ...currentProgress, stage: 'generating', message };
           yield buildResult();
           break;
         }
@@ -408,8 +424,8 @@ async function* parseSSEStream(
         }
 
         case 'document_indexed': {
-          // A new document was indexed server-side (from attachment upload during documentchat)
-          // The store will persist it for this thread on the next getForThread() call
+          const { documentId } = data as { documentId: string };
+          outcome.indexedDocumentIds.push(documentId);
           break;
         }
 
@@ -506,7 +522,7 @@ export function createGrueneratorModelAdapter(
             );
           }
 
-          const resumeOutcome: StreamOutcome = { interrupted: false };
+          const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
           yield* parseSSEStream(resumeResponse, callbacks, resumeOutcome);
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
@@ -568,6 +584,27 @@ export function createGrueneratorModelAdapter(
           }
         }
 
+        // Merge attachment content parts into formattedMessages so the backend
+        // can also see them when inspecting the messages array directly.
+        if (m.role === 'user' && 'attachments' in m) {
+          for (const att of (m as any).attachments) {
+            for (const part of att.content) {
+              if (part.type === 'text') {
+                parts.push({ type: 'text', text: part.text });
+              } else if (part.type === 'image') {
+                parts.push({ type: 'image', image: part.image });
+              } else if (part.type === 'file') {
+                parts.push({
+                  type: 'file',
+                  name: att.name ?? 'file',
+                  mimeType: part.mimeType ?? 'application/octet-stream',
+                  data: part.data ?? '',
+                });
+              }
+            }
+          }
+        }
+
         if (parts.length === 0) {
           parts.push({ type: 'text', text: '' });
         }
@@ -575,12 +612,73 @@ export function createGrueneratorModelAdapter(
         return { id: m.id, role: m.role, parts };
       });
 
+      // Extract attachments from AUI's CompleteAttachment objects on the last user message.
+      // AUI stores file/image content in message.attachments[].content, NOT in message.content.
+      const extractedAttachments: Array<{
+        name: string;
+        type: string;
+        size: number;
+        data: string;
+        isImage: boolean;
+      }> = [];
+
+      const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+      if (lastUserMsg && 'attachments' in lastUserMsg) {
+        for (const attachment of lastUserMsg.attachments as unknown as Array<{
+          name?: string;
+          contentType?: string;
+          content: Array<
+            | { type: 'file'; data: string; mimeType: string }
+            | { type: 'image'; image: string }
+            | { type: string }
+          >;
+        }>) {
+          for (const part of attachment.content) {
+            if (part.type === 'file' && 'data' in part) {
+              extractedAttachments.push({
+                name: attachment.name || 'file',
+                type: (part as { mimeType: string }).mimeType,
+                size: Math.ceil(((part as { data: string }).data.length * 3) / 4),
+                data: (part as { data: string }).data,
+                isImage: false,
+              });
+            } else if (part.type === 'image' && 'image' in part) {
+              const imageData = (part as { image: string }).image;
+              const commaIdx = imageData.indexOf(',');
+              const header = commaIdx > 0 ? imageData.slice(0, commaIdx) : '';
+              const base64Data = commaIdx > 0 ? imageData.slice(commaIdx + 1) : imageData;
+              const mimeMatch = header.match(/data:(.*?);/);
+              extractedAttachments.push({
+                name: attachment.name || 'image',
+                type: mimeMatch?.[1] || 'image/jpeg',
+                size: Math.ceil((base64Data.length * 3) / 4),
+                data: base64Data,
+                isImage: true,
+              });
+            }
+          }
+        }
+      }
+
+      if (extractedAttachments.length > 0) {
+        console.debug(
+          `[ModelAdapter:${runId}] Extracted ${extractedAttachments.length} attachment(s):`,
+          extractedAttachments.map((a) => ({
+            name: a.name,
+            type: a.type,
+            size: a.size,
+            isImage: a.isImage,
+          }))
+        );
+      }
+
       // Extract @-mentions from the last user message for agent routing + notebook/document scoping
       let effectiveAgentId = config.agentId;
       let notebookIds: string[] = [];
       let forcedTools: string[] = [];
       let documentIds: string[] = [];
       let textIds: string[] = [];
+      let hasDocumentChat = false;
       for (let i = formattedMessages.length - 1; i >= 0; i--) {
         const msg = formattedMessages[i];
         if (msg.role !== 'user') continue;
@@ -594,17 +692,15 @@ export function createGrueneratorModelAdapter(
           forcedTools = parsed.forcedTools;
           documentIds = parsed.documentIds;
           textIds = parsed.textIds;
+          hasDocumentChat = parsed.hasDocumentChat;
           textPart.text = parsed.cleanText;
         }
         break;
       }
 
-      // Read documentChatIds from store (picker-selected + thread-persisted)
+      // Read thread-persisted documentChatIds for follow-up messages
       const dcStore = useDocumentChatStore.getState();
-      const documentChatIds =
-        dcStore.documentChatIds.length > 0
-          ? dcStore.documentChatIds
-          : dcStore.getForThread(config.threadId);
+      const documentChatIds = dcStore.getForThread(config.threadId);
 
       const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
       const endpoint = config.useDeepAgent ? endpoints.deepStream : endpoints.chatStream;
@@ -620,11 +716,13 @@ export function createGrueneratorModelAdapter(
           threadId: config.threadId,
           enabledTools: config.enabledTools,
           modelId: config.modelId,
+          attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
           notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
           forcedTools: forcedTools.length > 0 ? forcedTools : undefined,
           documentIds: documentIds.length > 0 ? documentIds : undefined,
           textIds: textIds.length > 0 ? textIds : undefined,
           documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
+          documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
           defaultNotebookId: config.selectedNotebookId || undefined,
         }),
         signal: abortSignal,
@@ -635,14 +733,16 @@ export function createGrueneratorModelAdapter(
         throw new Error((errorData as { error?: string }).error || `HTTP error ${response.status}`);
       }
 
-      // Persist documentChatIds to thread after sending, then clear picker
-      if (documentChatIds.length > 0 && config.threadId) {
-        dcStore.bindToThread(config.threadId);
-        dcStore.clearDocumentChatIds();
+      const streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+      yield* parseSSEStream(response, callbacks, streamOutcome);
+
+      // Persist server-indexed document IDs to thread for follow-up messages
+      if (streamOutcome.indexedDocumentIds.length > 0 && config.threadId) {
+        for (const docId of streamOutcome.indexedDocumentIds) {
+          dcStore.addToThread(config.threadId, docId);
+        }
       }
 
-      const streamOutcome: StreamOutcome = { interrupted: false };
-      yield* parseSSEStream(response, callbacks, streamOutcome);
       if (streamOutcome.interrupted) {
         interruptedThreadId = config.threadId;
         lastInterruptedResult = streamOutcome.lastResult ?? null;
