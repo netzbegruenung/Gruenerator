@@ -13,6 +13,8 @@ export interface ParsedMentions {
   forcedTools: string[];
   documentIds: string[];
   textIds: string[];
+  documentChatIds: string[];
+  hasDocumentChat: boolean;
   cleanText: string;
 }
 
@@ -33,6 +35,7 @@ const MENTION_RE = /(?:^|\s)([@/])(\S+)/g;
  */
 export function parseAllMentions(text: string): ParsedMentions {
   let agentId: string | null = null;
+  let hasDocumentChat = false;
   const notebookIds: string[] = [];
   const forcedTools: string[] = [];
   const documentIds: string[] = [];
@@ -74,6 +77,14 @@ export function parseAllMentions(text: string): ParsedMentions {
 
     // Handle bare @datei trigger (just strip it, don't add to documentIds)
     if (trigger === '@' && alias === 'datei') {
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
+    // Handle bare @dokumentchat trigger (strip from text; signal via hasDocumentChat flag)
+    if (trigger === '@' && alias === 'dokumentchat') {
+      hasDocumentChat = true;
       const triggerIndex = match.index + match[0].indexOf('@');
       mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
       continue;
@@ -125,6 +136,8 @@ export function parseAllMentions(text: string): ParsedMentions {
     forcedTools,
     documentIds,
     textIds,
+    documentChatIds: [],
+    hasDocumentChat,
     cleanText,
   };
 }

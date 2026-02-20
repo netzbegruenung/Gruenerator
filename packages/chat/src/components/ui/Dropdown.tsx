@@ -51,6 +51,7 @@ export function Dropdown({
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => updateOpen(!isOpen)}
         className={cn(
           'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-foreground-muted transition-colors',
@@ -113,6 +114,7 @@ export function DropdownItem({
 }: DropdownItemProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
         'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',

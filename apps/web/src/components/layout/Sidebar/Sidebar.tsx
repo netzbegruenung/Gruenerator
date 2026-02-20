@@ -1,3 +1,4 @@
+import { useAgentStore } from '@gruenerator/chat';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PiSun, PiMoon, PiHouse, PiX } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -124,6 +125,16 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     [navigate, close, onNavigate]
   );
 
+  const handleChatClick = useCallback(() => {
+    useAgentStore.getState().setPendingNewThread(true);
+    if (onNavigate) {
+      onNavigate('/chat', 'Chat');
+    } else {
+      navigate('/chat');
+    }
+    close();
+  }, [navigate, close, onNavigate]);
+
   const toggleDarkMode = useCallback(() => {
     const newTheme = darkMode ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', newTheme);
@@ -192,7 +203,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
               ) : isDesktop ? (
                 <button
                   key={item.id}
-                  onClick={() => handleLinkClick(item.path!, item.title)}
+                  onClick={() =>
+                    item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
+                  }
                   className={`sidebar-menu-link ${isActive(item.path!) ? 'sidebar-menu-link--active' : ''}`}
                   aria-current={isActive(item.path!) ? 'page' : undefined}
                   title={!isOpen ? item.title : undefined}
@@ -207,7 +220,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                   key={item.id}
                   to={item.path!}
                   className="sidebar-menu-link"
-                  onClick={() => handleLinkClick(item.path!, item.title)}
+                  onClick={() =>
+                    item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
+                  }
                 >
                   {item.icon && <item.icon aria-hidden="true" className="sidebar-item-icon" />}
                   <span className="sidebar-item-title">{item.title}</span>

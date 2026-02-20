@@ -13,7 +13,10 @@ import { executeDirectSearch } from '../../../../routes/chat/agents/directSearch
 import { getQdrantDocumentService } from '../../../../services/document-services/DocumentSearchService/index.js';
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { getDefaultCollectionsForLocale } from '../nodes/searchNode.js';
+import {
+  getDefaultCollectionsForLocale,
+  getSupplementaryCollectionsForLocale,
+} from '../nodes/searchNode.js';
 
 import type { ToolDependencies } from './registry.js';
 
@@ -176,7 +179,7 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
         defaultCollections = deps.agentConfig.toolRestrictions.allowedCollections;
       } else if (deps.agentConfig.toolRestrictions?.defaultCollection) {
         const dc = deps.agentConfig.toolRestrictions.defaultCollection;
-        defaultCollections = [dc, 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
+        defaultCollections = [dc, ...getSupplementaryCollectionsForLocale(deps.userLocale)];
       } else if (deps.defaultNotebookCollectionIds?.length) {
         defaultCollections = deps.defaultNotebookCollectionIds;
       } else {

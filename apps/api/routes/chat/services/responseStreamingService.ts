@@ -12,7 +12,7 @@ import { streamText } from 'ai';
 import { createLogger } from '../../../utils/logger.js';
 import { getModel, getModelConfig } from '../agents/providers.js';
 
-import { stripEmptyAssistantMessages } from './messageHelpers.js';
+import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -57,7 +57,7 @@ export function resolveModel(agentConfig: any, modelId?: string): ModelResolutio
  */
 export function buildMessagesForAI(systemMessage: string, contextMessages: any[]): any[] {
   const messages = [{ role: 'system', content: systemMessage }, ...contextMessages];
-  return stripEmptyAssistantMessages(messages);
+  return sanitizeContentPartsForModel(stripEmptyAssistantMessages(messages));
 }
 
 /**

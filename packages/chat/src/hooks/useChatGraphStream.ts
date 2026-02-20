@@ -13,12 +13,21 @@ export type ProgressStage =
   | 'idle'
   | 'classifying'
   | 'searching'
+  | 'summarizing'
   | 'generating_image'
   | 'generating'
   | 'complete'
   | 'error';
 
-export type SearchIntent = 'research' | 'search' | 'web' | 'examples' | 'image' | 'image_edit' | 'direct';
+export type SearchIntent =
+  | 'research'
+  | 'search'
+  | 'web'
+  | 'examples'
+  | 'image'
+  | 'image_edit'
+  | 'summary'
+  | 'direct';
 
 export interface GeneratedImage {
   base64: string;
@@ -48,6 +57,10 @@ export interface Citation {
   domain?: string;
   relevance?: number;
   contentType?: string;
+  documentId?: string;
+  chunkIndex?: number;
+  similarityScore?: number;
+  collectionId?: string;
 }
 
 export interface SearchResult {
@@ -132,15 +145,8 @@ function parseSSELine(
 export function useChatGraphStream(
   options: UseChatGraphStreamOptions = {}
 ): UseChatGraphStreamReturn {
-  const {
-    agentId,
-    modelId,
-    enabledTools,
-    forcedTools,
-    onThreadCreated,
-    onError,
-    onComplete,
-  } = options;
+  const { agentId, modelId, enabledTools, forcedTools, onThreadCreated, onError, onComplete } =
+    options;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [progress, setProgress] = useState<ChatProgress>({
@@ -156,7 +162,9 @@ export function useChatGraphStream(
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesRef = useRef(messages);
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const abort = useCallback(() => {
     if (abortControllerRef.current) {
@@ -289,6 +297,8 @@ export function useChatGraphStream(
                   stage = 'generating';
                 } else if (intent === 'image' || intent === 'image_edit') {
                   stage = 'generating_image';
+                } else if (intent === 'summary') {
+                  stage = 'summarizing';
                 }
                 setProgress({
                   stage,
@@ -324,6 +334,26 @@ export function useChatGraphStream(
                   stage: 'generating',
                   message,
                   resultCount,
+                }));
+                break;
+              }
+
+              case 'summary_start': {
+                const { message } = data as { message: string };
+                setProgress((prev) => ({
+                  ...prev,
+                  stage: 'summarizing',
+                  message,
+                }));
+                break;
+              }
+
+              case 'summary_complete': {
+                const { message } = data as { message: string };
+                setProgress((prev) => ({
+                  ...prev,
+                  stage: 'generating',
+                  message,
                 }));
                 break;
               }

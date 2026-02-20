@@ -116,6 +116,7 @@ function limitAttachmentContext(
  */
 const SEARCH_CONTEXT_BUDGET = 4000;
 const SEARCH_CONTEXT_BUDGET_CRAWLED = 6000;
+const SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT = 8000;
 const MAX_SEARCH_RESULTS = 8;
 
 const FINDINGS_CLEANING_PROMPT = `Du bist ein Forschungsassistent. Fasse die folgenden Suchergebnisse zu einem kohärenten Überblick zusammen, fokussiert auf den Recherche-Auftrag.
@@ -202,12 +203,17 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
   // Default: budget-based truncation
   const topResults = state.searchResults.slice(0, MAX_SEARCH_RESULTS);
 
+  // Document chat gets the highest budget for focused Q&A
+  const isDocumentChat = state.documentChatIds?.length > 0;
   // Detect if any results have crawled content (longer than typical snippets)
   const hasCrawledContent = topResults.some((r) => r.content.length > 500);
   // Multi-source results get the higher budget (mixed doc + web content)
   const isMultiSource = (state.searchSources?.length || 0) > 1;
-  const budget =
-    hasCrawledContent || isMultiSource ? SEARCH_CONTEXT_BUDGET_CRAWLED : SEARCH_CONTEXT_BUDGET;
+  const budget = isDocumentChat
+    ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
+    : hasCrawledContent || isMultiSource
+      ? SEARCH_CONTEXT_BUDGET_CRAWLED
+      : SEARCH_CONTEXT_BUDGET;
 
   // Crawled results get 2x weight in budget allocation
   const weightedRelevance = topResults.map((r) => {
@@ -285,6 +291,23 @@ Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF",
 }
 
 /**
+ * Format summary context from document summarization.
+ * Placed between attachments and search results in the system prompt.
+ */
+function formatSummaryContext(summaryContext: string | null): string {
+  if (!summaryContext) return '';
+
+  return `
+
+## DOKUMENTENZUSAMMENFASSUNG
+
+${summaryContext}
+
+---
+Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
+}
+
+/**
  * Format memory context from mem0 cross-thread memories.
  * These are persistent facts and preferences about the user.
  */
@@ -329,17 +352,22 @@ Der Nutzer ist in Österreich. Beachte:
  * Build the complete system message with agent role and search context.
  */
 export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
-  const { agentConfig, intent, threadAttachments, memoryContext } = state;
+  const { agentConfig, intent, threadAttachments, memoryContext, summaryContext } = state;
   const searchContext = await formatSearchContext(state);
   const attachmentContext = formatAttachmentContext(state);
+  const summaryContextFormatted = formatSummaryContext(summaryContext);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const localeContext = formatLocaleContext(state.userLocale);
 
-  const intentGuidance =
-    intent === 'direct'
-      ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
-      : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
+  const isDocumentChatMode = state.documentChatIds?.length > 0;
+  const intentGuidance = isDocumentChatMode
+    ? '\nDu chattest mit ausgewählten Dokumenten des Nutzers. Beantworte Fragen basierend auf den Dokumenten. Zitiere relevante Passagen.'
+    : intent === 'summary'
+      ? '\nDer Nutzer hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.'
+      : intent === 'direct'
+        ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
+        : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
@@ -357,8 +385,15 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     year: 'numeric',
   });
 
-  return `${agentConfig.systemRole}
-Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${searchContext}
+  // Use a neutral, non-partisan system role for document summaries
+  const NEUTRAL_SUMMARY_ROLE =
+    'Du bist ein hilfreicher Assistent, der Dokumente objektiv und neutral zusammenfasst. ' +
+    'Deine Zusammenfassungen sind sachlich, unparteiisch und geben den Inhalt des Dokuments ' +
+    'korrekt wieder — unabhängig vom politischen Kontext.';
+  const systemRole = intent === 'summary' ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
+
+  return `${systemRole}
+Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
