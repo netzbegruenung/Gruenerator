@@ -49,7 +49,12 @@ import {
   isKnownNotebook,
   NOTEBOOK_COLLECTION_MAP,
 } from '../../../../config/notebookCollectionMap.js';
-import { searchNode, getDefaultCollectionsForLocale, buildCitations } from './searchNode.js';
+import {
+  searchNode,
+  getDefaultCollectionsForLocale,
+  getSupplementaryCollectionsForLocale,
+  buildCitations,
+} from './searchNode.js';
 import type { ChatGraphState, SearchResult } from '../types.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
 
@@ -113,6 +118,8 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     imageStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
+    summaryContext: null,
+    summaryTimeMs: 0,
     responseText: '',
     streamingStarted: false,
     startTime: Date.now(),
@@ -207,6 +214,34 @@ describe('getDefaultCollectionsForLocale', () => {
   });
 });
 
+// ─── getSupplementaryCollectionsForLocale ────────────────────────────────
+
+describe('getSupplementaryCollectionsForLocale', () => {
+  it('returns German supplements for de-DE', () => {
+    expect(getSupplementaryCollectionsForLocale('de-DE')).toEqual([
+      'bundestagsfraktion',
+      'gruene-de',
+      'kommunalwiki',
+    ]);
+  });
+
+  it('returns Austrian supplements for de-AT', () => {
+    expect(getSupplementaryCollectionsForLocale('de-AT')).toEqual(['gruene-at']);
+  });
+
+  it('falls back to German for undefined locale', () => {
+    expect(getSupplementaryCollectionsForLocale(undefined)).toEqual(
+      getSupplementaryCollectionsForLocale('de-DE')
+    );
+  });
+
+  it('falls back to German for unknown locale', () => {
+    expect(getSupplementaryCollectionsForLocale('en-US')).toEqual(
+      getSupplementaryCollectionsForLocale('de-DE')
+    );
+  });
+});
+
 // ─── searchNode: full service mock tests ─────────────────────────────────
 
 describe('searchNode – collection priority chain (mocked services)', () => {
@@ -288,6 +323,40 @@ describe('searchNode – collection priority chain (mocked services)', () => {
     const collections = getSearchedCollections();
     expect(collections).toContain('oesterreich');
     expect(collections).not.toContain('hamburg');
+  });
+
+  it('priority 3: agent defaultCollection uses Austrian supplements for de-AT locale', async () => {
+    await searchNode(
+      makeState({
+        userLocale: 'de-AT',
+        agentConfig: makeAgentConfig({
+          toolRestrictions: { defaultCollection: 'oesterreich' },
+        }),
+      })
+    );
+
+    const collections = getSearchedCollections();
+    expect(collections).toEqual(expect.arrayContaining(['oesterreich', 'gruene-at']));
+    expect(collections).not.toContain('bundestagsfraktion');
+    expect(collections).not.toContain('gruene-de');
+    expect(collections).not.toContain('kommunalwiki');
+  });
+
+  it('priority 3: agent defaultCollection uses German supplements for de-DE locale', async () => {
+    await searchNode(
+      makeState({
+        userLocale: 'de-DE',
+        agentConfig: makeAgentConfig({
+          toolRestrictions: { defaultCollection: 'deutschland' },
+        }),
+      })
+    );
+
+    const collections = getSearchedCollections();
+    expect(collections).toEqual(
+      expect.arrayContaining(['deutschland', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'])
+    );
+    expect(collections).not.toContain('gruene-at');
   });
 
   it('priority 2: agent allowedCollections overrides defaultNotebookCollectionIds', async () => {

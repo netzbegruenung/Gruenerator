@@ -35,15 +35,6 @@ export function getModelConfig(
   return AVAILABLE_MODELS[modelId] || null;
 }
 
-const LITELLM_INCOMPATIBLE_PATTERNS = [
-  /^mistral/i,
-  /^claude/i,
-  /^gpt-4/i,
-  /^gpt-3/i,
-  /^o1/i,
-  /^o3/i,
-];
-
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
 let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
 
@@ -69,19 +60,6 @@ function getLiteLLMProvider() {
     });
   }
   return litellmInstance;
-}
-
-function validateLiteLLMModel(modelId: string): string {
-  for (const pattern of LITELLM_INCOMPATIBLE_PATTERNS) {
-    if (pattern.test(modelId)) {
-      console.warn(
-        `[providers] Model "${modelId}" is incompatible with LiteLLM provider. ` +
-          `Using default model "${LITELLM_DEFAULT_MODEL}" instead.`
-      );
-      return LITELLM_DEFAULT_MODEL;
-    }
-  }
-  return modelId;
 }
 
 export function isProviderConfigured(provider: AgentConfig['provider']): boolean {
@@ -119,11 +97,9 @@ export function getModel(provider: AgentConfig['provider'], modelId: string): La
       return model;
     }
     case 'litellm': {
-      console.log(`[providers] Creating LiteLLM model: ${modelId}`);
+      console.log(`[providers] Creating LiteLLM model with default: ${LITELLM_DEFAULT_MODEL}`);
       const litellm = getLiteLLMProvider();
-      const validatedModel = validateLiteLLMModel(modelId);
-      console.log(`[providers] LiteLLM validated model: ${validatedModel}`);
-      const model = litellm(validatedModel);
+      const model = litellm(LITELLM_DEFAULT_MODEL);
       console.log(`[providers] LiteLLM model created successfully`);
       return model;
     }

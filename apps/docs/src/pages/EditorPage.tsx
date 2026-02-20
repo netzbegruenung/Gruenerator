@@ -103,6 +103,15 @@ export const EditorPage = () => {
     enabled: !!id,
   });
 
+  const canEdit = useMemo(() => {
+    if (!docData) return false;
+    if (isGuest) return docData.share_permission !== 'viewer';
+    if (docData.created_by === user?.id) return true;
+    const perm = docData.permissions?.[user?.id ?? ''];
+    if (perm) return ['owner', 'editor'].includes(perm.level);
+    return docData.share_permission !== 'viewer';
+  }, [docData, isGuest, user]);
+
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -239,10 +248,14 @@ export const EditorPage = () => {
       <div className="editor-page">
         {isGuest && (
           <div className="guest-banner">
-            Du bearbeitest als Gast ({guestIdentity?.guestName})
+            {canEdit ? 'Du bearbeitest' : 'Du liest'} als Gast ({guestIdentity?.guestName})
             <span className="guest-banner-separator">&middot;</span>
             <a href={`/login?redirectTo=${encodeURIComponent(`/document/${id}`)}`}>Anmelden</a>
           </div>
+        )}
+
+        {!isGuest && !canEdit && docData && (
+          <div className="guest-banner">Du hast Lesezugriff auf dieses Dokument</div>
         )}
 
         <EditorTopBar
@@ -279,13 +292,15 @@ export const EditorPage = () => {
                     )}
                   </div>
 
-                  <button
-                    className="glass-btn"
-                    onClick={() => setShowShareModal(true)}
-                    aria-label="Teilen"
-                  >
-                    <FiShare2 />
-                  </button>
+                  {canEdit && (
+                    <button
+                      className="glass-btn"
+                      onClick={() => setShowShareModal(true)}
+                      aria-label="Teilen"
+                    >
+                      <FiShare2 />
+                    </button>
+                  )}
 
                   <span className="glass-divider" />
                 </>
@@ -312,6 +327,7 @@ export const EditorPage = () => {
               ydoc={ydoc}
               provider={provider}
               isSynced={isSynced}
+              editable={canEdit}
               commentsPortalTarget={commentsPortalTarget}
               onEditorReady={handleEditorReady}
             />

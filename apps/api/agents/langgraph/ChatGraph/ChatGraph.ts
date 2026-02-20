@@ -100,6 +100,10 @@ const ChatStateAnnotation = Annotation.Root({
   documentIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
+  // Document chat scoping (from @dokumentchat multi-select)
+  documentChatIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
 
   // Memory context (from mem0 cross-thread memory)
   memoryContext: Annotation<string | null>({
@@ -199,6 +203,14 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? 0,
   }),
 
+  // Document summarization
+  summaryContext: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+  summaryTimeMs: Annotation<number>({
+    reducer: (x, y) => y ?? x ?? 0,
+  }),
+
   // Response generation
   responseText: Annotation<string>({
     reducer: (x, y) => y ?? x,
@@ -279,6 +291,12 @@ function routeAfterClassification(
     return 'respond';
   }
 
+  // Summary intent = handled by controller (map-reduce summarization)
+  if (intent === 'summary') {
+    log.info('[ChatGraph] Route: classifier → respond (summary handled by controller)');
+    return 'respond';
+  }
+
   // Map intent to tool key for enabled check
   const intentToToolKey: Record<SearchIntent, string> = {
     research: 'research',
@@ -288,6 +306,7 @@ function routeAfterClassification(
     examples: 'examples',
     image: 'image',
     image_edit: 'image_edit',
+    summary: 'summary',
     direct: 'direct',
   };
 
@@ -432,6 +451,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Document scoping (from @datei mentions)
     documentIds: input.documentIds || [],
 
+    // Document chat scoping (from @dokumentchat multi-select)
+    documentChatIds: input.documentChatIds || [],
+
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
@@ -467,6 +489,10 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     imageStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
+
+    // Document summarization (will be set by summarizeNode)
+    summaryContext: null,
+    summaryTimeMs: 0,
 
     // Response (will be set by respond node)
     responseText: '',

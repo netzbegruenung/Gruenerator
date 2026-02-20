@@ -15,6 +15,7 @@ import type {
 } from '../hooks/useChatGraphStream';
 import type { ToolKey } from '../stores/chatStore';
 import { parseAllMentions } from '../lib/mentionParser';
+import { useDocumentChatStore } from '../stores/documentChatStore';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -100,9 +101,16 @@ interface SourcePart {
   parentId?: string;
 }
 
+interface StreamOutcome {
+  interrupted: boolean;
+  lastResult?: ChatModelRunResult;
+  indexedDocumentIds: string[];
+}
+
 async function* parseSSEStream(
   response: Response,
-  callbacks: GrueneratorAdapterCallbacks
+  callbacks: GrueneratorAdapterCallbacks,
+  outcome: StreamOutcome
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
   if (!reader) {
@@ -202,6 +210,7 @@ async function* parseSSEStream(
           let stage: ProgressStage = 'searching';
           if (intent === 'direct') stage = 'generating';
           else if (intent === 'image') stage = 'generating_image';
+          else if (intent === 'summary') stage = 'summarizing';
           currentProgress = { stage, message, intent, reasoning };
 
           const toolName = INTENT_TO_TOOL[intent];
@@ -293,6 +302,20 @@ async function* parseSSEStream(
           break;
         }
 
+        case 'summary_start': {
+          const { message } = data as { message: string };
+          currentProgress = { ...currentProgress, stage: 'summarizing', message };
+          yield buildResult();
+          break;
+        }
+
+        case 'summary_complete': {
+          const { message } = data as { message: string };
+          currentProgress = { ...currentProgress, stage: 'generating', message };
+          yield buildResult();
+          break;
+        }
+
         case 'image_start': {
           const { message } = data as { message: string };
           currentProgress = { ...currentProgress, stage: 'generating_image', message };
@@ -373,6 +396,7 @@ async function* parseSSEStream(
         }
 
         case 'interrupt': {
+          console.debug('[SSE] interrupt event received — will set requires-action status');
           interruptPending = true;
           yield buildResult();
           break;
@@ -399,6 +423,12 @@ async function* parseSSEStream(
           break;
         }
 
+        case 'document_indexed': {
+          const { documentId } = data as { documentId: string };
+          outcome.indexedDocumentIds.push(documentId);
+          break;
+        }
+
         case 'error': {
           const { error } = data as { error: string };
           throw new Error(error);
@@ -407,10 +437,21 @@ async function* parseSSEStream(
     }
   }
 
-  yield buildResult();
+  const finalResult = buildResult();
+  outcome.lastResult = finalResult;
+  yield finalResult;
 
-  if (receivedMetadata) {
+  outcome.interrupted = interruptPending;
+
+  if (receivedMetadata && !interruptPending) {
+    console.debug('[SSE] Stream complete — calling onComplete');
     callbacks.onComplete?.(receivedMetadata);
+  } else {
+    console.debug(
+      '[SSE] Stream complete — onComplete skipped (metadata=%s, interrupt=%s)',
+      !!receivedMetadata,
+      interruptPending
+    );
   }
 }
 
@@ -418,27 +459,58 @@ export function createGrueneratorModelAdapter(
   getConfig: () => GrueneratorAdapterConfig,
   callbacks: GrueneratorAdapterCallbacks
 ): ChatModelAdapter {
-  return {
-    async *run({
-      messages,
-      abortSignal,
-    }: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
-      const config = getConfig();
+  // Tracks which thread has a pending HITL interrupt — persists across run() calls
+  let interruptedThreadId: string | null = null;
+  let lastInterruptedResult: ChatModelRunResult | null = null;
 
-      // Resume detection: check if the last assistant message has an ask_human tool-call with a result
-      const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
-      if (lastAssistant) {
-        const askHumanResult = lastAssistant.content.find(
-          (p) => p.type === 'tool-call' && p.toolName === 'ask_human' && p.result !== undefined
+  return {
+    async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
+      const { messages, abortSignal } = options;
+      const config = getConfig();
+      const runId = `run_${Date.now()}`;
+
+      // unstable_getMessage() provides the current assistant message (not in messages array).
+      // This is where addResult() writes the user's answer for human tool calls.
+      const currentAssistant = options.unstable_getMessage?.();
+      const askHumanInCurrent = currentAssistant?.content?.filter(
+        (p) => p.type === 'tool-call' && p.toolName === 'ask_human'
+      );
+      console.debug(
+        `[ModelAdapter:${runId}] run() called — msgs=${messages.length}, threadId=${config.threadId}, interruptedThread=${interruptedThreadId}, currentAssistant=${currentAssistant ? 'yes' : 'no'}, askHumanInCurrent=${askHumanInCurrent?.length ?? 0}`,
+        askHumanInCurrent?.map((p) => ({
+          toolCallId: p.type === 'tool-call' ? p.toolCallId : '?',
+          hasResult: 'result' in p,
+          resultType: 'result' in p ? typeof p.result : 'none',
+          resultPreview:
+            'result' in p && typeof p.result === 'string' ? String(p.result).slice(0, 50) : null,
+        }))
+      );
+
+      // Resume detection via unstable_getMessage() — the canonical way to read addResult() answers.
+      // assistant-ui writes the result onto the current assistant message, NOT into messages[].
+      if (currentAssistant) {
+        const askHumanResult = currentAssistant.content?.find(
+          (p) =>
+            p.type === 'tool-call' &&
+            p.toolName === 'ask_human' &&
+            'result' in p &&
+            typeof p.result === 'string' &&
+            (p.result as string).length > 0
         );
         if (askHumanResult && askHumanResult.type === 'tool-call') {
+          const answer = String(askHumanResult.result);
+          console.debug(
+            `[ModelAdapter:${runId}] Resuming via unstable_getMessage — answer="${answer.slice(0, 80)}"`
+          );
+          interruptedThreadId = null;
+          lastInterruptedResult = null;
           const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
           const resumeResponse = await configFetch(endpoints.chatResume, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               threadId: config.threadId,
-              resume: String(askHumanResult.result),
+              resume: answer,
             }),
             signal: abortSignal,
           });
@@ -450,9 +522,44 @@ export function createGrueneratorModelAdapter(
             );
           }
 
-          yield* parseSSEStream(resumeResponse, callbacks);
+          const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+          yield* parseSSEStream(resumeResponse, callbacks, resumeOutcome);
+          if (resumeOutcome.interrupted) {
+            interruptedThreadId = config.threadId;
+            lastInterruptedResult = resumeOutcome.lastResult ?? null;
+          }
           return;
         }
+
+        // Current assistant has pending ask_human without result — spurious re-invocation.
+        const pendingAskHuman = currentAssistant.content?.find(
+          (p) =>
+            p.type === 'tool-call' && p.toolName === 'ask_human' && !('result' in p && p.result)
+        );
+        if (pendingAskHuman) {
+          console.debug(
+            `[ModelAdapter:${runId}] BLOCKED — pending ask_human in currentAssistant without answer`
+          );
+          throw new DOMException('Aborted', 'AbortError');
+        }
+      }
+
+      // Stateful guard: block re-invocation if we know this thread has a pending interrupt
+      // (covers case where unstable_getMessage returns undefined after history rehydration)
+      if (interruptedThreadId && interruptedThreadId === config.threadId) {
+        console.debug(
+          `[ModelAdapter:${runId}] BLOCKED — interruptedThreadId=${interruptedThreadId}, throwing AbortError`
+        );
+        throw new DOMException('Aborted', 'AbortError');
+      }
+
+      // Clear stale interrupt if switching to a different thread
+      if (interruptedThreadId && interruptedThreadId !== config.threadId) {
+        console.debug(
+          `[ModelAdapter:${runId}] Clearing stale interrupt for thread ${interruptedThreadId}`
+        );
+        interruptedThreadId = null;
+        lastInterruptedResult = null;
       }
 
       const formattedMessages = messages.map((m) => {
@@ -477,6 +584,27 @@ export function createGrueneratorModelAdapter(
           }
         }
 
+        // Merge attachment content parts into formattedMessages so the backend
+        // can also see them when inspecting the messages array directly.
+        if (m.role === 'user' && 'attachments' in m) {
+          for (const att of (m as any).attachments) {
+            for (const part of att.content) {
+              if (part.type === 'text') {
+                parts.push({ type: 'text', text: part.text });
+              } else if (part.type === 'image') {
+                parts.push({ type: 'image', image: part.image });
+              } else if (part.type === 'file') {
+                parts.push({
+                  type: 'file',
+                  name: att.name ?? 'file',
+                  mimeType: part.mimeType ?? 'application/octet-stream',
+                  data: part.data ?? '',
+                });
+              }
+            }
+          }
+        }
+
         if (parts.length === 0) {
           parts.push({ type: 'text', text: '' });
         }
@@ -484,12 +612,73 @@ export function createGrueneratorModelAdapter(
         return { id: m.id, role: m.role, parts };
       });
 
+      // Extract attachments from AUI's CompleteAttachment objects on the last user message.
+      // AUI stores file/image content in message.attachments[].content, NOT in message.content.
+      const extractedAttachments: Array<{
+        name: string;
+        type: string;
+        size: number;
+        data: string;
+        isImage: boolean;
+      }> = [];
+
+      const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+      if (lastUserMsg && 'attachments' in lastUserMsg) {
+        for (const attachment of lastUserMsg.attachments as unknown as Array<{
+          name?: string;
+          contentType?: string;
+          content: Array<
+            | { type: 'file'; data: string; mimeType: string }
+            | { type: 'image'; image: string }
+            | { type: string }
+          >;
+        }>) {
+          for (const part of attachment.content) {
+            if (part.type === 'file' && 'data' in part) {
+              extractedAttachments.push({
+                name: attachment.name || 'file',
+                type: (part as { mimeType: string }).mimeType,
+                size: Math.ceil(((part as { data: string }).data.length * 3) / 4),
+                data: (part as { data: string }).data,
+                isImage: false,
+              });
+            } else if (part.type === 'image' && 'image' in part) {
+              const imageData = (part as { image: string }).image;
+              const commaIdx = imageData.indexOf(',');
+              const header = commaIdx > 0 ? imageData.slice(0, commaIdx) : '';
+              const base64Data = commaIdx > 0 ? imageData.slice(commaIdx + 1) : imageData;
+              const mimeMatch = header.match(/data:(.*?);/);
+              extractedAttachments.push({
+                name: attachment.name || 'image',
+                type: mimeMatch?.[1] || 'image/jpeg',
+                size: Math.ceil((base64Data.length * 3) / 4),
+                data: base64Data,
+                isImage: true,
+              });
+            }
+          }
+        }
+      }
+
+      if (extractedAttachments.length > 0) {
+        console.debug(
+          `[ModelAdapter:${runId}] Extracted ${extractedAttachments.length} attachment(s):`,
+          extractedAttachments.map((a) => ({
+            name: a.name,
+            type: a.type,
+            size: a.size,
+            isImage: a.isImage,
+          }))
+        );
+      }
+
       // Extract @-mentions from the last user message for agent routing + notebook/document scoping
       let effectiveAgentId = config.agentId;
       let notebookIds: string[] = [];
       let forcedTools: string[] = [];
       let documentIds: string[] = [];
       let textIds: string[] = [];
+      let hasDocumentChat = false;
       for (let i = formattedMessages.length - 1; i >= 0; i--) {
         const msg = formattedMessages[i];
         if (msg.role !== 'user') continue;
@@ -503,13 +692,21 @@ export function createGrueneratorModelAdapter(
           forcedTools = parsed.forcedTools;
           documentIds = parsed.documentIds;
           textIds = parsed.textIds;
+          hasDocumentChat = parsed.hasDocumentChat;
           textPart.text = parsed.cleanText;
         }
         break;
       }
 
+      // Read thread-persisted documentChatIds for follow-up messages
+      const dcStore = useDocumentChatStore.getState();
+      const documentChatIds = dcStore.getForThread(config.threadId);
+
       const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
       const endpoint = config.useDeepAgent ? endpoints.deepStream : endpoints.chatStream;
+      console.debug(
+        `[ModelAdapter:${runId}] Sending stream request → ${endpoint}, threadId=${config.threadId}`
+      );
       const response = await configFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -519,10 +716,13 @@ export function createGrueneratorModelAdapter(
           threadId: config.threadId,
           enabledTools: config.enabledTools,
           modelId: config.modelId,
+          attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
           notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
           forcedTools: forcedTools.length > 0 ? forcedTools : undefined,
           documentIds: documentIds.length > 0 ? documentIds : undefined,
           textIds: textIds.length > 0 ? textIds : undefined,
+          documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
+          documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
           defaultNotebookId: config.selectedNotebookId || undefined,
         }),
         signal: abortSignal,
@@ -533,7 +733,23 @@ export function createGrueneratorModelAdapter(
         throw new Error((errorData as { error?: string }).error || `HTTP error ${response.status}`);
       }
 
-      yield* parseSSEStream(response, callbacks);
+      const streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+      yield* parseSSEStream(response, callbacks, streamOutcome);
+
+      // Persist server-indexed document IDs to thread for follow-up messages
+      if (streamOutcome.indexedDocumentIds.length > 0 && config.threadId) {
+        for (const docId of streamOutcome.indexedDocumentIds) {
+          dcStore.addToThread(config.threadId, docId);
+        }
+      }
+
+      if (streamOutcome.interrupted) {
+        interruptedThreadId = config.threadId;
+        lastInterruptedResult = streamOutcome.lastResult ?? null;
+        console.debug(
+          `[ModelAdapter:${runId}] Stream interrupted — set interruptedThreadId=${config.threadId}, hasStoredResult=${!!lastInterruptedResult}`
+        );
+      }
     },
   };
 }

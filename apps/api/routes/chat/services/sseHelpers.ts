@@ -20,12 +20,15 @@ export type SSEEventType =
   | 'intent'
   | 'search_start'
   | 'search_complete'
+  | 'summary_start'
+  | 'summary_complete'
   | 'image_start'
   | 'image_complete'
   | 'response_start'
   | 'thinking_step'
   | 'text_delta'
   | 'interrupt'
+  | 'document_indexed'
   | 'done'
   | 'error';
 
@@ -77,6 +80,8 @@ export interface SSEEventPayloads {
     resultCount: number;
     results?: SearchResultPayload[];
   };
+  summary_start: { message: string; documentCount: number };
+  summary_complete: { message: string; summaryLength: number; timeMs: number };
   image_start: { message: string };
   image_complete: {
     message: string;
@@ -86,6 +91,7 @@ export interface SSEEventPayloads {
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
   text_delta: { text: string };
+  document_indexed: { documentId: string; title: string };
   interrupt: {
     interruptType: 'clarification';
     question: string;
@@ -104,6 +110,7 @@ export interface SSEEventPayloads {
       classificationTimeMs?: number;
       searchTimeMs?: number;
       imageTimeMs?: number;
+      summaryTimeMs?: number;
       memoryRetrieveTimeMs?: number;
     };
   };
@@ -121,6 +128,7 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   examples: 'Suche Social-Media-Beispiele...',
   image: 'Generiere Bild...',
   image_edit: 'Bearbeite Bild...',
+  summary: 'Fasse Dokument(e) zusammen...',
   direct: 'Beantworte direkt...',
 };
 
@@ -131,6 +139,9 @@ export const PROGRESS_MESSAGES = {
   searchStart: 'Durchsuche Quellen...',
   searchComplete: (count: number) =>
     count > 0 ? `${count} relevante Quellen gefunden` : 'Keine passenden Quellen gefunden',
+  summaryStart: 'Lese und analysiere Dokument(e)...',
+  summaryComplete: (length: number, timeMs: number) =>
+    `Zusammenfassung erstellt (${length} Zeichen, ${Math.round(timeMs / 1000)}s)`,
   imageStart: 'Generiere Bild...',
   imageComplete: 'Bild erfolgreich generiert',
   imageError: (error: string) => `Bildgenerierung fehlgeschlagen: ${error}`,

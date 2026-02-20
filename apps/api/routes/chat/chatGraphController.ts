@@ -25,6 +25,7 @@ import {
   rerankNode,
   imageNode,
   imageEditNode,
+  summarizeNode,
   buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
@@ -91,6 +92,8 @@ router.post('/stream', async (req, res) => {
       forcedTools,
       documentIds: rawDocumentIds,
       textIds: rawTextIds,
+      documentChatIds: rawDocumentChatIds,
+      documentChatMode,
       defaultNotebookId: rawDefaultNotebookId,
     } = req.body as {
       messages: UIMessage[];
@@ -103,6 +106,8 @@ router.post('/stream', async (req, res) => {
       forcedTools?: string[];
       documentIds?: string[];
       textIds?: string[];
+      documentChatIds?: string[];
+      documentChatMode?: boolean;
       defaultNotebookId?: string;
     };
 
@@ -191,6 +196,8 @@ router.post('/stream', async (req, res) => {
       requestId
     );
 
+    const docAttachments = attachments?.filter((a) => !a.isImage) ?? [];
+
     const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
     // === Memory retrieval (mem0) ===
@@ -234,8 +241,16 @@ router.post('/stream', async (req, res) => {
       notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
       defaultNotebookId,
       documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
+      documentChatIds: rawDocumentChatIds?.length
+        ? rawDocumentChatIds
+        : docAttachments.length > 0 || documentChatMode
+          ? []
+          : undefined,
       userLocale: (user as any)?.locale || 'de-DE',
     });
+
+    const userLocale = (user as any)?.locale || 'de-DE';
+    log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
 
     (initialState.agentConfig as any).userId = userId;
     if (memoryContext) {
@@ -279,6 +294,60 @@ router.post('/stream', async (req, res) => {
       }
     }
 
+    // === Phase 2: Index uploaded document attachments via vector pipeline ===
+    if (docAttachments.length > 0) {
+      try {
+        const { getPostgresDocumentService } =
+          await import('../../services/document-services/PostgresDocumentService/index.js');
+        const { getQdrantDocumentService } =
+          await import('../../services/document-services/DocumentSearchService/index.js');
+        const { processFileUpload } =
+          await import('../../services/document-services/DocumentProcessingService/fileProcessing.js');
+
+        const pgService = getPostgresDocumentService();
+        const qdrantService = getQdrantDocumentService();
+
+        for (const att of docAttachments) {
+          try {
+            const buffer = Buffer.from(att.data, 'base64');
+            const result = await processFileUpload(
+              pgService,
+              qdrantService,
+              userId,
+              {
+                buffer,
+                mimetype: att.type,
+                originalname: att.name,
+                size: buffer.length,
+              },
+              att.name,
+              'documentchat'
+            );
+
+            initialState.documentChatIds.push(result.id);
+            sse.send('document_indexed', {
+              documentId: result.id,
+              title: result.title,
+            });
+            log.info(`[ChatGraph] Indexed attachment as document: ${result.title} (${result.id})`);
+          } catch (indexErr) {
+            log.warn(
+              `[ChatGraph] Failed to index attachment "${att.name}": ${indexErr instanceof Error ? indexErr.message : String(indexErr)}`
+            );
+          }
+        }
+      } catch (importErr) {
+        log.warn(
+          `[ChatGraph] Document indexing services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
+        );
+      }
+    }
+
+    // Clear raw attachment text when vectorization succeeded (use semantic retrieval instead)
+    if (initialState.documentChatIds && initialState.documentChatIds.length > 0) {
+      initialState.attachmentContext = null;
+    }
+
     // === Stage 1: Classify ===
     const classifiedState = {
       ...initialState,
@@ -287,7 +356,14 @@ router.post('/stream', async (req, res) => {
 
     let forcedTool = false;
     if (forcedTools && forcedTools.length > 0) {
-      const TOOL_PRIORITY = ['image', 'image_edit', 'research', 'web', 'search'] as const;
+      const TOOL_PRIORITY = [
+        'image',
+        'image_edit',
+        'summary',
+        'research',
+        'web',
+        'search',
+      ] as const;
       const forced = TOOL_PRIORITY.find((t) => forcedTools.includes(t));
       if (forced) {
         classifiedState.intent = forced;
@@ -308,7 +384,7 @@ router.post('/stream', async (req, res) => {
     });
 
     // === HITL: Check if clarification is needed ===
-    if (classifiedState.needsClarification && !forcedTool) {
+    if (classifiedState.needsClarification && !forcedTool && !initialState.attachmentContext) {
       log.info(`[ChatGraph] Clarification needed: "${classifiedState.clarificationQuestion}"`);
 
       const stepId = `clarify_${Date.now()}`;
@@ -322,13 +398,6 @@ router.post('/stream', async (req, res) => {
           options: classifiedState.clarificationOptions,
         },
       });
-      sse.sendRaw('thinking_step', {
-        stepId,
-        toolName: 'ask_human',
-        title: 'Stelle Klärungsfrage...',
-        status: 'completed',
-        result: {},
-      });
 
       sse.send('interrupt', {
         interruptType: 'clarification',
@@ -337,7 +406,7 @@ router.post('/stream', async (req, res) => {
         threadId: actualThreadId,
       });
 
-      pipelineStateStore.store(actualThreadId!, {
+      await pipelineStateStore.store(actualThreadId!, {
         classifiedState,
         requestContext: {
           userId,
@@ -423,6 +492,21 @@ router.post('/stream', async (req, res) => {
           }
         }
       }
+    } else if (classifiedState.intent === 'summary') {
+      const docCount =
+        (classifiedState.documentChatIds?.length || 0) + (classifiedState.documentIds?.length || 0);
+      sse.send('summary_start', {
+        message: PROGRESS_MESSAGES.summaryStart,
+        documentCount: docCount,
+      });
+      const summaryResult = await summarizeNode(classifiedState);
+      finalState = { ...classifiedState, ...summaryResult } as ChatGraphState;
+      const summaryLength = finalState.summaryContext?.length || 0;
+      sse.send('summary_complete', {
+        message: PROGRESS_MESSAGES.summaryComplete(summaryLength, finalState.summaryTimeMs || 0),
+        summaryLength,
+        timeMs: finalState.summaryTimeMs || 0,
+      });
     } else if (classifiedState.intent !== 'direct') {
       const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
       if (toolEnabled) {
@@ -504,6 +588,7 @@ router.post('/stream', async (req, res) => {
         classificationTimeMs: finalState.classificationTimeMs,
         searchTimeMs: finalState.searchTimeMs || 0,
         imageTimeMs: finalState.imageTimeMs || undefined,
+        summaryTimeMs: finalState.summaryTimeMs || undefined,
         memoryRetrieveTimeMs: memoryRetrieveTimeMs > 0 ? memoryRetrieveTimeMs : undefined,
       },
     });
@@ -549,7 +634,7 @@ router.post('/resume', async (req, res) => {
       return;
     }
 
-    const stored = pipelineStateStore.get(threadId);
+    const stored = await pipelineStateStore.get(threadId);
     if (!stored) {
       sse.send('error', {
         error: 'Pipeline-Status abgelaufen. Bitte sende deine Nachricht erneut.',
@@ -557,7 +642,7 @@ router.post('/resume', async (req, res) => {
       sse.end();
       return;
     }
-    pipelineStateStore.delete(threadId);
+    await pipelineStateStore.delete(threadId);
 
     const { classifiedState, requestContext } = stored;
 

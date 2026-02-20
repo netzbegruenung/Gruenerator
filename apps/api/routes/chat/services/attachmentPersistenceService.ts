@@ -135,7 +135,7 @@ Halte die Zusammenfassung sehr kompakt (max. 150 Wörter). Beginne direkt mit de
 
   try {
     const result = await generateText({
-      model: getModel('litellm', 'gpt-oss:120b'),
+      model: getModel('mistral', 'mistral-small-latest'),
       system: systemPrompt,
       prompt: textToSummarize,
       maxOutputTokens: SUMMARY_MAX_TOKENS,

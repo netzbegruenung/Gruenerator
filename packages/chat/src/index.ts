@@ -26,10 +26,24 @@ export {
 } from './runtime/GrueneratorModelAdapter';
 export { createGrueneratorThreadListAdapter } from './runtime/GrueneratorThreadListAdapter';
 
+// Notebook Runtime
+export {
+  NotebookChatProvider,
+  type NotebookChatProviderProps,
+} from './runtime/NotebookChatProvider';
+export {
+  createNotebookModelAdapter,
+  type NotebookAdapterConfig,
+  type NotebookMessageMetadata,
+  type NotebookAdapterCallbacks,
+} from './runtime/NotebookModelAdapter';
+export { NotebookComposer } from './components/notebook/NotebookComposer';
+
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
+export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
 export { SkillPopover } from './components/thread/SkillPopover';
 export { PlusMenu } from './components/thread/PlusMenu';
 export { UserMessage } from './components/thread/UserMessage';
@@ -90,6 +104,8 @@ export {
   type ModelOption,
   type ProviderOption,
 } from './stores/chatStore';
+
+export { useDocumentChatStore } from './stores/documentChatStore';
 
 // Lib
 export { cn } from './lib/utils';
