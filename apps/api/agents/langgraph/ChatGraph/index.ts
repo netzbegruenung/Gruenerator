@@ -19,6 +19,7 @@ export {
   rerankNode,
   imageNode,
   imageEditNode,
+  summarizeNode,
   respondNode,
   buildSystemMessage,
 } from './nodes/index.js';

@@ -5,50 +5,14 @@ import { Popover as PopoverPrimitive } from 'radix-ui';
 import { ExternalLink } from 'lucide-react';
 import type { Citation } from '../../hooks/useChatGraphStream';
 import { cn } from '../../lib/utils';
-
-const COLLECTION_STYLES: Record<string, { color: string; bg: string }> = {
-  deutschland: {
-    color: 'var(--color-collection-grundsatzprogramm)',
-    bg: 'var(--color-collection-grundsatzprogramm-bg)',
-  },
-  bundestagsfraktion: {
-    color: 'var(--color-collection-bundestagsfraktion)',
-    bg: 'var(--color-collection-bundestagsfraktion-bg)',
-  },
-  'gruene-de': {
-    color: 'var(--color-collection-gruene-de)',
-    bg: 'var(--color-collection-gruene-de-bg)',
-  },
-  kommunalwiki: {
-    color: 'var(--color-collection-kommunalwiki)',
-    bg: 'var(--color-collection-kommunalwiki-bg)',
-  },
-  web: {
-    color: 'var(--color-collection-web)',
-    bg: 'var(--color-collection-web-bg)',
-  },
-  research: {
-    color: 'var(--color-collection-research)',
-    bg: 'var(--color-collection-research-bg)',
-  },
-  research_synthesis: {
-    color: 'var(--color-collection-research)',
-    bg: 'var(--color-collection-research-bg)',
-  },
-};
+import {
+  getCollectionStyle as getSharedCollectionStyle,
+  getRelevanceColor,
+} from '../../lib/collectionStyles';
 
 function getCollectionStyle(source: string): { color: string; bg: string } {
-  const key = source.startsWith('gruenerator:') ? source.slice('gruenerator:'.length) : source;
-  return (
-    COLLECTION_STYLES[key] || { color: 'var(--color-foreground-muted)', bg: 'var(--color-surface)' }
-  );
-}
-
-function getRelevanceColor(relevance: number | undefined): string {
-  if (relevance == null) return 'var(--color-foreground-muted)';
-  if (relevance >= 0.7) return 'var(--color-relevance-high)';
-  if (relevance >= 0.4) return 'var(--color-relevance-medium)';
-  return 'var(--color-relevance-low)';
+  const s = getSharedCollectionStyle(source);
+  return { color: s.color, bg: s.bg };
 }
 
 function getRelevanceLabel(relevance: number | undefined): string {
@@ -76,6 +40,7 @@ export const CitationBadge = memo(function CitationBadge({
   }
 
   const collectionStyle = getCollectionStyle(citation.source);
+  const displayScore = citation.similarityScore ?? citation.relevance;
 
   return (
     <PopoverPrimitive.Root>
@@ -109,7 +74,7 @@ export const CitationBadge = memo(function CitationBadge({
                 <p className="text-sm font-medium text-foreground leading-tight line-clamp-2">
                   {citation.title}
                 </p>
-                <div className="flex items-center gap-1.5 mt-1">
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                   {citation.collectionName && (
                     <span
                       className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
@@ -121,30 +86,42 @@ export const CitationBadge = memo(function CitationBadge({
                       {citation.collectionName}
                     </span>
                   )}
+                  {citation.contentType && (
+                    <span className="text-[10px] text-foreground-muted italic">
+                      {citation.contentType}
+                    </span>
+                  )}
                   {citation.domain && (
                     <span className="text-[10px] text-foreground-muted">{citation.domain}</span>
+                  )}
+                  {citation.chunkIndex != null && (
+                    <span className="text-[10px] text-foreground-muted">
+                      Abschn. {citation.chunkIndex}
+                    </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Relevance indicator */}
-            {citation.relevance != null && (
+            {/* Relevance indicator — use similarityScore when available, fall back to relevance */}
+            {displayScore != null && (
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-1 rounded-full bg-surface overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
-                      width: `${Math.round(citation.relevance * 100)}%`,
-                      backgroundColor: getRelevanceColor(citation.relevance),
+                      width: `${Math.round(displayScore * 100)}%`,
+                      backgroundColor: getRelevanceColor(displayScore),
                     }}
                   />
                 </div>
                 <span
-                  className="text-[10px] font-medium"
-                  style={{ color: getRelevanceColor(citation.relevance) }}
+                  className="text-[10px] font-medium whitespace-nowrap"
+                  style={{ color: getRelevanceColor(displayScore) }}
                 >
-                  {getRelevanceLabel(citation.relevance)}
+                  {citation.similarityScore != null
+                    ? `${Math.round(citation.similarityScore * 100)}%`
+                    : getRelevanceLabel(citation.relevance)}
                 </span>
               </div>
             )}

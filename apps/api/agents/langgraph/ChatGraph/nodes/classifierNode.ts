@@ -27,6 +27,7 @@ VERFÜGBARE TOOLS:
 - search: Grüne Parteiprogramme, Positionen, Beschlüsse, interne Dokumente
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
 - examples: Social-Media-Beispiele, Vorlagen, Posts zum Thema
+- summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
 - direct: Begrüßungen, Dank, rein kreative Aufgaben OHNE Faktenbedarf
 
 SCHRITT 1 - ORIGINALTEXT BEWAHREN:
@@ -55,11 +56,12 @@ REIN KREATIV (→ direct):
 SCHRITT 3 - TOOL WÄHLEN:
 1. Bildgenerierung? → image
 2. EXPLIZITE Web-Suche ("suche im netz")? → web
-3. Faktenbasierter Inhalt über ein Thema? → research
-4. Grüne Politik/Programm/Position? → search
-5. Aktuelle News/Ereignisse? → web
-6. Social-Media-Vorlage suchen? → examples
-7. Rein kreativ ohne Fakten? → direct
+3. Zusammenfassung eines angehängten/referenzierten Dokuments? → summary
+4. Faktenbasierter Inhalt über ein Thema? → research
+5. Grüne Politik/Programm/Position? → search
+6. Aktuelle News/Ereignisse? → web
+7. Social-Media-Vorlage suchen? → examples
+8. Rein kreativ ohne Fakten? → direct
 
 SCHRITT 4 - SUCHQUERY OPTIMIEREN:
 Wenn intent search/research/web/examples ist, erstelle eine optimierte Suchquery:
@@ -121,7 +123,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "image" | "research" | "search" | "web" | "examples" | "direct",
+  "intent": "image" | "research" | "search" | "web" | "examples" | "summary" | "direct",
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
   "optimizedSearchQuery": "nur das faktische Thema aus dem ORIGINALTEXT, ohne Aufgabenanweisung" | null,
   "subQueries": ["thema1", "thema2"] | null,
@@ -152,6 +154,7 @@ const INTENT_KEYWORDS: Record<Exclude<SearchIntent, 'direct' | 'image_edit'>, st
   web: ['internet', 'netz', 'online', 'aktuell', 'nachricht', 'news'],
   search: ['grüne', 'partei', 'programm', 'position', 'wahlprogramm', 'beschluss'],
   examples: ['beispiel', 'vorlage', 'tweet', 'instagram', 'social'],
+  summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
 };
 
 /**
@@ -269,6 +272,20 @@ function heuristicClassify(userContent: string): HeuristicResult {
       searchQuery: null,
       reasoning: 'Image generation request detected',
       confidence: 0.92,
+    };
+  }
+
+  // Medium confidence (0.70): Summary requests — only high-confidence when state confirms docs
+  // Without document context, "fasse zusammen" could also mean web search + summarize results.
+  // The classifierNode overrides to 'summary' when documents are attached.
+  const summaryKeywords =
+    /\b(fass[e]?\s+(das\s+|die\s+|den\s+)?zusammen|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
+  if (summaryKeywords.test(q)) {
+    return {
+      intent: 'summary',
+      searchQuery: null,
+      reasoning: 'Summary keywords detected (needs document context for high confidence)',
+      confidence: 0.7,
     };
   }
 
@@ -518,7 +535,7 @@ function heuristicExtractFilters(query: string): SubcategoryFilters | null {
  */
 function parseClassifierResponse(content: string, userContent: string): ClassificationResult {
   // Valid intents (person removed - feature disabled)
-  const validIntents = ['research', 'search', 'web', 'examples', 'image', 'direct'];
+  const validIntents = ['research', 'search', 'web', 'examples', 'image', 'summary', 'direct'];
 
   /**
    * Process parsed response and build classification result.
@@ -810,8 +827,29 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
     const hasDocuments = state.documentIds && state.documentIds.length > 0;
 
-    // If document chat IDs are present (from @dokumentchat multi-select), force search intent
+    // Summary detection: when documents/attachments are present AND user asks for summary,
+    // force summary intent. Without documents, "fasse zusammen" goes to LLM for disambiguation
+    // (could mean web search + summarize, or conversation summary).
     const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
+    const hasAnyDocuments = hasDocumentChat || hasDocuments || !!state.attachmentContext;
+    const summaryPattern =
+      /\b(fass[e]?\s+(das\s+|die\s+|den\s+)?(dokument\s+|datei\s+)?zusammen|zusammenfass|zusammenfassung|kurzfassung)\b/i;
+    if (hasAnyDocuments && summaryPattern.test(userContent)) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(`[Classifier] Summary request with documents detected, forcing summary intent`);
+      return {
+        intent: 'summary',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Summary request with documents attached',
+        hasTemporal: false,
+        complexity: 'simple' as const,
+        classificationTimeMs,
+      };
+    }
+
+    // If document chat IDs are present (from @dokumentchat multi-select), force search intent
     if (hasDocumentChat && userContent.length > 0) {
       log.info(
         `[Classifier] Document chat detected (${state.documentChatIds.length} doc(s)), forcing search intent with LLM query optimization`
@@ -867,6 +905,25 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
           classificationTimeMs: Date.now() - startTime,
         };
       }
+    }
+
+    // If file attachments were uploaded (OCR-extracted), force direct intent —
+    // the respondNode already formats attachmentContext into the system message.
+    const hasAttachmentContext = !!state.attachmentContext;
+    if (hasAttachmentContext && userContent.length > 0) {
+      log.info(
+        `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'File attachment present — respondNode will use attachmentContext',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
     }
 
     // If documents are mentioned, force search intent with LLM query optimization

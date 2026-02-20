@@ -208,6 +208,8 @@ async function testExpandedContextWindow() {
     imageStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
+    summaryContext: null,
+    summaryTimeMs: 0,
     responseText: '',
     streamingStarted: false,
     startTime: Date.now(),

@@ -16,9 +16,21 @@ import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingServi
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import {
+  COLLECTION_LABELS,
+  CONTENT_TYPE_LABELS,
+  buildCitations,
+  deriveCitationTitle,
+  extractDomain,
+  resolveCollectionName,
+} from './citationUtils.js';
+
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
 import type { ChatGraphState, SearchResult, SearchSource, Citation } from '../types.js';
+
+// Re-export for backward compatibility
+export { COLLECTION_LABELS, buildCitations };
 
 const log = createLogger('ChatGraph:Search');
 
@@ -36,27 +48,6 @@ function normalizeResults(results: any[], source: string): SearchResult[] {
 }
 
 /**
- * Human-readable labels for collection identifiers.
- */
-export const COLLECTION_LABELS: Record<string, string> = {
-  deutschland: 'Grundsatzprogramm',
-  bundestagsfraktion: 'Bundestagsfraktion',
-  'gruene-de': 'gruene.de',
-  kommunalwiki: 'Kommunalwiki',
-  oesterreich: 'Österreich',
-  'gruene-at': 'Grüne Österreich',
-  web: 'Web',
-  research: 'Recherche',
-  research_synthesis: 'Recherche',
-  examples: 'Beispiele',
-  hamburg: 'Hamburg',
-  'schleswig-holstein': 'Schleswig-Holstein',
-  thueringen: 'Thüringen',
-  bayern: 'Bayern',
-  'boell-stiftung': 'Böll-Stiftung',
-};
-
-/**
  * Return default Qdrant collections based on user locale.
  * Austrian users search Austrian collections; everyone else gets German defaults.
  */
@@ -72,109 +63,6 @@ export function getDefaultCollectionsForLocale(locale: string | undefined): stri
 export function getSupplementaryCollectionsForLocale(locale: string | undefined): string[] {
   if (locale === 'de-AT') return ['gruene-at'];
   return ['bundestagsfraktion', 'gruene-de', 'kommunalwiki'];
-}
-
-/**
- * Human-readable labels for document content types.
- */
-const CONTENT_TYPE_LABELS: Record<string, string> = {
-  presse: 'Pressemitteilung',
-  pressemitteilung: 'Pressemitteilung',
-  beschluss: 'Beschluss',
-  antrag: 'Antrag',
-  blog: 'Blogbeitrag',
-  wahlprogramm: 'Wahlprogramm',
-  position: 'Positionspapier',
-  rede: 'Rede',
-};
-
-/**
- * Generic fallback titles that should be replaced with better alternatives.
- */
-const GENERIC_TITLES = new Set(['Untitled', 'Unbekannte Quelle', 'Unknown', '']);
-
-/**
- * Derive a meaningful citation title from available metadata.
- * Priority: real document title → URL-derived title → collection label.
- */
-function deriveCitationTitle(
-  source: string | undefined,
-  url: string | undefined,
-  collection: string
-): string {
-  // 1. Use real title if it's not a generic fallback or collection key
-  if (source && !GENERIC_TITLES.has(source) && source !== collection) {
-    return source;
-  }
-
-  // 2. Extract readable title from URL path
-  if (url) {
-    try {
-      const urlObj = new URL(url);
-      const pathSegments = urlObj.pathname
-        .split('/')
-        .filter((s) => s.length > 0 && !s.match(/^\d+$/));
-      if (pathSegments.length > 0) {
-        const lastSegment = pathSegments[pathSegments.length - 1]
-          .replace(/\.[^.]+$/, '')
-          .replace(/[-_]+/g, ' ')
-          .trim();
-        if (lastSegment.length > 2) {
-          return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
-        }
-      }
-    } catch {
-      // URL parsing failed, fall through
-    }
-  }
-
-  // 3. Fall back to human-readable collection label
-  return COLLECTION_LABELS[collection] || collection;
-}
-
-/**
- * Extract domain from a URL, returning null on failure.
- */
-function extractDomain(url: string | undefined): string | undefined {
-  if (!url) return undefined;
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Resolve a human-readable collection name from a source identifier.
- * Handles both plain names ("web") and prefixed ("gruenerator:bundestagsfraktion").
- */
-function resolveCollectionName(source: string): string | undefined {
-  const key = source.startsWith('gruenerator:') ? source.slice('gruenerator:'.length) : source;
-  return COLLECTION_LABELS[key];
-}
-
-/**
- * Build citations from search results.
- * Enriched with provenance data for inline popovers and grouped source cards.
- */
-export function buildCitations(results: SearchResult[]): Citation[] {
-  return results
-    .filter((r) => r.url)
-    .slice(0, 8)
-    .map((r, i) => ({
-      id: i + 1,
-      title: r.title,
-      url: r.url || '',
-      snippet: r.content.slice(0, 200),
-      citedText: r.content.length > 200 ? r.content.slice(0, 500) : undefined,
-      source: r.source,
-      collectionName: resolveCollectionName(r.source),
-      domain: extractDomain(r.url),
-      relevance: r.relevance,
-      contentType: r.contentType
-        ? CONTENT_TYPE_LABELS[r.contentType.toLowerCase()] || r.contentType
-        : undefined,
-    }));
 }
 
 /**
@@ -243,6 +131,10 @@ async function executeDocumentSearchParallel(
         url: r.url || undefined,
         relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
         contentType: r.contentType || undefined,
+        documentId: r.documentId,
+        chunkIndex: r.chunkIndex,
+        similarityScore: r.score,
+        collectionId: r.collectionId,
       });
     }
   }
@@ -620,6 +512,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               url: r.url || undefined,
               relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
               contentType: r.contentType || undefined,
+              documentId: r.documentId,
+              chunkIndex: r.chunkIndex,
+              similarityScore: r.score,
+              collectionId: r.collectionId,
             });
           }
         }

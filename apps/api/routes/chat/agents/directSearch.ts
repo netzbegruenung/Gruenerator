@@ -103,6 +103,10 @@ export interface DirectSearchResult {
     excerpt: string;
     searchMethod: string;
     contentType?: string;
+    documentId?: string;
+    chunkIndex?: number;
+    score?: number;
+    collectionId?: string;
   }>;
   cached?: boolean;
   error?: boolean;
@@ -269,6 +273,10 @@ export async function executeDirectSearch(params: {
       excerpt: truncateText(result.snippet || result.chunk_text || result.content || '', 800),
       searchMethod: result.searchMethod || 'hybrid',
       contentType: result.top_chunks?.[0]?.content_type || result.content_type || undefined,
+      documentId: result.document_id || undefined,
+      chunkIndex: result.chunk_index ?? result.top_chunks?.[0]?.chunk_index ?? undefined,
+      score: result.score || result.similarity || result.similarity_score || undefined,
+      collectionId: collection,
     }));
 
     log.info(`[Direct Search] Found ${formattedResults.length} results for "${query}"`);
