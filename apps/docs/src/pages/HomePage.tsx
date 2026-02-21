@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useAuthStore } from '../stores/authStore';
 
+import '@gruenerator/docs/styles';
 import '@mantine/core/styles.css';
 import './HomePage.css';
 
