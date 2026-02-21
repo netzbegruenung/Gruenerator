@@ -26,39 +26,38 @@
   gap: var(--spacing-small);
 }
 
+/* Card — single bordered box with DIN A4 portrait proportions */
 .document-card {
   background-color: var(--card-background);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--grey-200);
   border-radius: var(--card-border-radius-small);
   cursor: pointer;
-  transition: background-color 0.15s ease-out;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  min-height: 160px;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
+  transition:
+    box-shadow 0.15s ease-out,
+    border-color 0.15s ease-out;
 }
 
 .document-card:hover {
-  background-color: var(--hover-color-alt);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--grey-300);
 }
 
-.document-card:active {
-  background-color: var(--grey-100);
-}
-
-/* Preview area */
+/* Preview area — fills top ~70% of the card */
 .document-card-preview {
   flex: 1;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 /* Miniature page preview — scaled-down HTML rendering */
 .document-card-preview.document-card-preview-miniature {
   background-color: white;
-  height: 120px;
-  flex: none;
 }
 
 .document-card-preview-miniature::after {
@@ -152,10 +151,9 @@
   justify-content: center;
   color: var(--grey-400);
   font-size: 2rem;
-  padding: var(--spacing-medium);
 }
 
-/* Footer — title, date, delete */
+/* Footer — title, date, delete in the bottom ~30% of the card */
 .document-card-footer {
   border-top: 1px solid var(--grey-100);
   padding: var(--spacing-small) var(--spacing-medium);
@@ -170,7 +168,7 @@
 }
 
 .document-card-title {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--font-color);
   margin: 0;
@@ -184,36 +182,15 @@
   margin-right: var(--spacing-xxsmall);
 }
 
-/* Touch-friendly delete button - 44x44px target */
-.document-card-delete {
-  background: none;
-  border: none;
-  font-size: 1.25rem;
-  color: var(--font-color-secondary);
-  cursor: pointer;
-  padding: 0;
-  min-width: 36px;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--card-border-radius-small);
+/* 3-dot menu trigger — hidden until card hover (desktop), always visible on mobile */
+.document-card-menu {
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 0.15s ease-out;
 }
 
-.document-card:hover .document-card-delete {
+.document-card:hover .document-card-menu {
   opacity: 1;
-}
-
-.document-card-delete:hover {
-  background-color: rgba(220, 38, 38, 0.1);
-  color: var(--error-red);
-}
-
-.document-card-delete:active {
-  background-color: rgba(220, 38, 38, 0.2);
 }
 
 .document-card-meta {
@@ -229,49 +206,56 @@
     grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-medium);
   }
-
-  .document-card {
-    min-height: 200px;
-  }
 }
 
 /* Desktop: 3-4 column grid with hover effects */
 @media (min-width: 769px) {
   .document-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: var(--spacing-large);
   }
 
   .document-card {
     transition:
       transform 0.1s ease-out,
-      box-shadow 0.1s ease-out;
+      box-shadow 0.15s ease-out,
+      border-color 0.15s ease-out;
   }
 
   .document-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
-    background-color: var(--card-background);
   }
 }
 
 /* Large screens */
 @media (min-width: 1024px) {
   .document-grid {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
 }
 
-/* On mobile, always show delete button (no hover) */
+/* On mobile, always show menu button and cap card height */
 @media (max-width: 480px) {
-  .document-card-delete {
+  .document-card {
+    aspect-ratio: auto;
+    max-height: 220px;
+  }
+
+  .document-card-menu {
     opacity: 1;
-    min-width: 44px;
-    min-height: 44px;
   }
 }
 
 /* Dark mode adjustments */
+[data-theme='dark'] .document-card {
+  border-color: var(--grey-600);
+}
+
+[data-theme='dark'] .document-card:hover {
+  border-color: var(--grey-500);
+}
+
 [data-theme='dark'] .document-card:active {
   background-color: var(--grey-700);
 }
@@ -298,10 +282,6 @@
 
 [data-theme='dark'] .document-card-preview-page blockquote {
   border-left-color: var(--grey-500);
-}
-
-[data-theme='dark'] .document-card-delete:hover {
-  background-color: rgba(220, 38, 38, 0.2);
 }
 
 /* ─────────────────────────────────────────────
