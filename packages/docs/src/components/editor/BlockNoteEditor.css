@@ -31,9 +31,13 @@
 @media (max-width: 767px) {
   .blocknote-wrapper {
     margin: 0;
-    padding: 1.5rem 1rem;
+    padding: 1rem 0;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  .bn-editor {
+    padding-inline: 16px;
   }
 }
 
