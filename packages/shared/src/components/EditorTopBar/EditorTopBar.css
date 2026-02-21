@@ -38,6 +38,44 @@
   max-width: 24rem;
 }
 
+.editor-topbar__title--editable {
+  cursor: pointer;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.editor-topbar__title--editable:hover {
+  border-color: var(--grey-300);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="dark"] .editor-topbar__title--editable:hover {
+  border-color: var(--grey-600);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.editor-topbar__title-input {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--font-color);
+  margin: 0;
+  padding: 0.125rem 0.375rem;
+  max-width: 24rem;
+  width: 24rem;
+  background: transparent;
+  border: 1px solid var(--secondary-400, #85A899);
+  border-radius: 0.25rem;
+  outline: none;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+[data-theme="dark"] .editor-topbar__title-input {
+  border-color: var(--secondary-600, #5F8575);
+}
+
 .editor-topbar__right {
   display: flex;
   align-items: center;
@@ -149,6 +187,7 @@
   }
 
   .editor-topbar__title,
+  .editor-topbar__title-input,
   .editor-topbar__divider {
     display: none;
   }
