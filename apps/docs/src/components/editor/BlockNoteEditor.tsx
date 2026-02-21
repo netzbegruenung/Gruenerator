@@ -43,7 +43,7 @@ import { isEditorEmpty } from '@/lib/blockNoteUtils';
 import { defaultDocumentContent } from '@/lib/defaultContent';
 import { getTemplateContent } from '@/lib/templates';
 import { useEditorStore } from '@/stores/editorStore';
-import './BlockNoteEditor.css';
+import '@gruenerator/docs/editor-styles';
 
 interface BlockNoteEditorProps {
   documentId: string;
@@ -344,7 +344,9 @@ const BlockNoteEditorInner = ({
             }
           />
           {showComments && threadStore && <StableFloatingComposer />}
-          {commentsPortalTarget && showComments && threadStore &&
+          {commentsPortalTarget &&
+            showComments &&
+            threadStore &&
             createPortal(<ThreadsSidebar filter="all" />, commentsPortalTarget)}
         </BlockNoteView>
       </ErrorBoundary>

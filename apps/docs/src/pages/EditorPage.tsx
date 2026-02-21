@@ -8,7 +8,7 @@ import {
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { MantineProvider, SegmentedControl, ScrollArea } from '@mantine/core';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -111,6 +111,25 @@ export const EditorPage = () => {
     if (perm) return ['owner', 'editor'].includes(perm.level);
     return docData.share_permission !== 'viewer';
   }, [docData, isGuest, user]);
+
+  const queryClient = useQueryClient();
+
+  const handleTitleChange = useCallback(
+    async (newTitle: string) => {
+      if (!id) return;
+      const queryKey = ['document', id, isGuest ? 'public' : 'auth'];
+      queryClient.setQueryData(queryKey, (old: Document | undefined) =>
+        old ? { ...old, title: newTitle } : old
+      );
+      document.title = newTitle;
+      try {
+        await apiClient.put(`/docs/${id}`, { title: newTitle });
+      } catch {
+        queryClient.setQueryData(queryKey, docData);
+      }
+    },
+    [id, isGuest, apiClient, queryClient, docData]
+  );
 
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -262,6 +281,8 @@ export const EditorPage = () => {
           title={docData.title}
           connectionStatus={connectionStatus}
           onBack={() => (isGuest ? undefined : navigate('/'))}
+          editable={canEdit}
+          onTitleChange={handleTitleChange}
           rightActions={
             <>
               {!isGuest && (
