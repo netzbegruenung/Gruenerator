@@ -57,7 +57,6 @@ import {
   PiArrowRight,
   PiBrain,
   PiTextAlignLeftFill,
-  PiGlobe,
   PiPaintBrush,
   PiArticle,
   PiSquaresFour,
@@ -134,7 +133,6 @@ export type NavigationIconName =
   | 'tools'
   | 'barrierefreiheit'
   | 'imagine'
-  | 'website'
   | 'texte'
   | 'eigene'
   | 'home'
@@ -244,7 +242,6 @@ export const ICONS: IconRegistry = {
     tools: PiWrench,
     barrierefreiheit: IoAccessibilityOutline,
     imagine: RiMagicLine,
-    website: PiGlobe,
     texte: PiArticle,
     eigene: PiWrench,
     home: PiHouse,
