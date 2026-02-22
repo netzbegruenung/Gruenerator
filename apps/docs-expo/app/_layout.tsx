@@ -17,6 +17,7 @@ import { initializeApiClient } from '../services/api';
 import { configureAuthStore, checkAuthStatus } from '../services/auth';
 import { setAdapterRouter } from '../services/expoDocsAdapter';
 
+console.log('[App] _layout.tsx loaded');
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -33,9 +34,16 @@ export default function RootLayout() {
   useEffect(() => {
     async function initialize() {
       try {
+        console.log('[App] Starting init...');
         initializeApiClient();
         configureAuthStore();
-        await checkAuthStatus();
+        const authed = await checkAuthStatus();
+        console.log(
+          '[App] checkAuthStatus result:',
+          authed,
+          'user:',
+          !!useAuthStore.getState().user
+        );
       } catch (error) {
         console.error('[App] Initialization error:', error);
       }
