@@ -111,6 +111,12 @@ router.get('/', async (req: Request, res: Response) => {
           cd.created_by = $1
           OR cd.permissions ? $1::text
           OR cd.is_public = true
+          OR cd.id IN (
+            SELECT gcs.content_id
+            FROM group_content_shares gcs
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+            WHERE gcs.content_type = 'collaborative_documents'
+          )
         )
        ORDER BY cd.updated_at DESC`,
       [userId, DOCS_SUBTYPES]
@@ -158,11 +164,24 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const document = result[0];
 
-    const hasAccess =
+    let hasAccess =
       document.created_by === userId ||
       document.is_public ||
       document.share_mode === 'authenticated' ||
       (document.permissions && document.permissions[userId]);
+
+    if (!hasAccess) {
+      const groupAccess = (await db.query(
+        `SELECT gcs.permissions FROM group_content_shares gcs
+         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
+        [userId, id]
+      )) as { permissions: { read: boolean; write: boolean } | null }[];
+
+      if (groupAccess.length > 0) {
+        hasAccess = true;
+      }
+    }
 
     if (!hasAccess) {
       return res.status(403).json({ error: 'Access denied' });
@@ -228,8 +247,20 @@ router.put('/:id', async (req: Request, res: Response) => {
     const document = checkResult[0];
     const userPermission = document.permissions?.[userId];
     const isOwner = document.created_by === userId;
-    const canEdit =
-      isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+    let canEdit = isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+
+    if (!canEdit) {
+      const groupAccess = (await db.query(
+        `SELECT gcs.permissions FROM group_content_shares gcs
+         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
+        [userId, id]
+      )) as { permissions: { read: boolean; write: boolean } | null }[];
+
+      if (groupAccess.length > 0 && groupAccess[0].permissions?.write === true) {
+        canEdit = true;
+      }
+    }
 
     if (!canEdit) {
       return res.status(403).json({ error: 'Insufficient permissions to edit document' });
@@ -344,13 +375,26 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
 
     const original = checkResult[0];
 
-    const hasAccess =
+    let hasAccessToDuplicate =
       original.created_by === userId ||
       original.is_public ||
       original.share_mode === 'authenticated' ||
       (original.permissions && original.permissions[userId]);
 
-    if (!hasAccess) {
+    if (!hasAccessToDuplicate) {
+      const groupAccess = (await db.query(
+        `SELECT gcs.permissions FROM group_content_shares gcs
+         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
+        [userId, id]
+      )) as { permissions: { read: boolean; write: boolean } | null }[];
+
+      if (groupAccess.length > 0) {
+        hasAccessToDuplicate = true;
+      }
+    }
+
+    if (!hasAccessToDuplicate) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
