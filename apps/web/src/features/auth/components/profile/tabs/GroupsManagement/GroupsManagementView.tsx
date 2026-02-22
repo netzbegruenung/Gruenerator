@@ -251,7 +251,7 @@ const GroupsManagementView = memo(
 
     return (
       <motion.div
-        className="profile-content profile-single-column"
+        className="flex flex-col gap-lg"
         initial={MOTION_CONFIG.initial}
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}

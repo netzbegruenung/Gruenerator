@@ -54,7 +54,6 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false, defaultEnabled: true },
   { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false },
   // { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true }, // Removed - outdated
-  { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
   {
     key: 'interactiveAntrag',
     label: 'Interaktiver Antrag',

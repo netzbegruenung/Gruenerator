@@ -12,7 +12,6 @@ const ROUTE_TITLES: Record<string, string> = {
   '/kampagnen': 'Kampagnen',
   '/accessibility': 'Barrierefreiheit',
   '/alttext': 'Alt-Text',
-  '/website': 'Website',
   '/image-studio': 'Image Studio',
   '/image-studio/edit': 'Bild bearbeiten',
   '/image-studio/templates': 'Sharepics',

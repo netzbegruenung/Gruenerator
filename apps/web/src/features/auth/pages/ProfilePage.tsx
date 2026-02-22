@@ -8,11 +8,7 @@ import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
 
 import '../../../assets/styles/features/auth/auth.css';
-import '../../../assets/styles/features/auth/profile.css';
-import '../../../assets/styles/features/auth/profile-layout.css';
-import '../../../assets/styles/features/auth/profile-cards.css';
 import '../../../assets/styles/features/auth/documents-tab.css';
-import '../styles/meine-texte-tab.css';
 import '../../../assets/styles/components/auth/avatar-selection.css';
 
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
@@ -93,8 +89,8 @@ const ProfilePage = () => {
 
   if (isLoggingOut) {
     return (
-      <div className="profile-container">
-        <div className="profile-loading-state">
+      <div className="mx-auto max-w-screen-xl px-md py-lg">
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-md">
           <h1>Abmelden...</h1>
           <Spinner size="large" />
         </div>
@@ -103,16 +99,24 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="profile-container">
+    <div className="mx-auto max-w-screen-xl px-md py-lg">
       {(successMessage || errorMessage) && (
-        <div className="profile-message-area">
-          {successMessage && <div className="auth-success-message">{successMessage}</div>}
-          {errorMessage && <div className="auth-error-message">{errorMessage}</div>}
+        <div className="mb-md">
+          {successMessage && (
+            <div className="rounded-md border border-green-200 bg-green-50 p-md text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
+              {successMessage}
+            </div>
+          )}
+          {errorMessage && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+              {errorMessage}
+            </div>
+          )}
         </div>
       )}
 
-      <div className="profile-tab-content">
-        <Suspense fallback={<div className="profile-tab-loading" />}>
+      <div>
+        <Suspense fallback={<div />}>
           {activeTab === 'profile' && (
             <ProfileInfoTab
               user={user || undefined}
