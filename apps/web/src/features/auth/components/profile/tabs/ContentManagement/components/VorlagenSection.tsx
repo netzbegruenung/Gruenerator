@@ -13,6 +13,8 @@ import DocumentOverview, {
   type DocumentItem,
 } from '../../../../../../../components/common/DocumentOverview';
 import EditTemplateModal from '../../../../../../../components/common/EditTemplateModal';
+import { Badge } from '../../../../../../../components/ui/badge';
+import { Button } from '../../../../../../../components/ui/button';
 import { useUserTemplates } from '../../../../../hooks/useProfileData';
 
 interface Template extends DocumentItem {
@@ -156,16 +158,14 @@ const VorlagenSection = memo(
     const renderTemplateMetadata = useCallback((item: DocumentItem) => {
       const template = item as Template;
       return (
-        <div style={{ display: 'flex', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
+        <div className="flex gap-xs flex-wrap">
           {template.template_type && (
-            <span className="document-type">
+            <Badge variant="secondary">
               {template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)}
-            </span>
+            </Badge>
           )}
           {template.is_private === false && (
-            <span className="document-type" style={{ background: 'var(--klee)' }}>
-              Öffentlich
-            </span>
+            <Badge className="bg-primary-500 text-white">Öffentlich</Badge>
           )}
         </div>
       );
@@ -195,7 +195,7 @@ const VorlagenSection = memo(
     const vorlagenTitle = useMemo(() => `Meine Vorlagen (${templates.length})`, [templates.length]);
 
     return (
-      <div className="vorlagen-section">
+      <div>
         <DocumentOverview
           items={templates}
           loading={isLoading}
@@ -207,22 +207,14 @@ const VorlagenSection = memo(
           title={vorlagenTitle}
           enableBulkSelect={true}
           headerActions={
-            <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
-              <button
-                type="button"
-                className="pabtn pabtn--primary pabtn--s"
-                onClick={handleOpenAddModal}
-              >
-                <HiPlus className="pabtn__icon" />
-                <span className="pabtn__label">Vorlage hinzufügen</span>
-              </button>
-              <button
-                type="button"
-                className="pabtn pabtn--secondary pabtn--s"
-                onClick={handleNavigateToGallery}
-              >
-                <span className="pabtn__label">Zur Galerie</span>
-              </button>
+            <div className="flex gap-xs">
+              <Button size="sm" onClick={handleOpenAddModal}>
+                <HiPlus />
+                Vorlage hinzufügen
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleNavigateToGallery}>
+                Zur Galerie
+              </Button>
             </div>
           }
         />

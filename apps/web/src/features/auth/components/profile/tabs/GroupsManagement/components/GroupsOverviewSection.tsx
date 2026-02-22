@@ -59,7 +59,7 @@ const GroupsOverviewSection = memo(
 
     return (
       <motion.div
-        className="group-overview-container"
+        className="flex flex-col gap-lg"
         initial={MOTION_CONFIG.initial}
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}
