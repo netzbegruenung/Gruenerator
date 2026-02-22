@@ -17,6 +17,7 @@ console.log('[Boot] Dependencies loaded');
 console.log('[Boot] Loading config...');
 import { clientConfigTool } from './clients/config.ts';
 import { config, validateConfig } from './config.ts';
+import { registerAgentPrompts, getPromptList } from './prompts/agent-prompts.ts';
 import {
   getCollectionResources,
   getCollectionResource,
@@ -25,7 +26,8 @@ import {
 import { getSystemPromptResource } from './resources/system-prompt.ts';
 import { examplesSearchTool } from './tools/examples-search.ts';
 import { filtersTool } from './tools/filters.ts';
-import { personSearchTool } from './tools/person-search.ts';
+// DISABLED: Person search removed — DIP API integration non-functional
+// import { personSearchTool } from './tools/person-search.ts';
 import { searchTool, cacheStatsTool } from './tools/search.ts';
 import { getCacheStats } from './utils/cache.ts';
 import { info, error, logSearch, getStats } from './utils/logger.ts';
@@ -227,32 +229,13 @@ function createMcpServer(baseUrl) {
     }
   });
 
-  // Person Search Tool
-  server.tool(personSearchTool.name, personSearchTool.inputSchema, async (params) => {
-    try {
-      const result = await personSearchTool.handler(params);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-        isError: !!result.error,
-      };
-    } catch (err) {
-      error('PersonSearch', `Person search failed: ${err.message}`);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ error: true, message: err.message, isPersonQuery: false }),
-          },
-        ],
-        isError: true,
-      };
-    }
-  });
+  // === MCP PROMPTS ===
+  registerAgentPrompts(server);
+
+  // DISABLED: Person search removed — DIP API integration non-functional
+  // server.tool(personSearchTool.name, personSearchTool.inputSchema, async (params) => {
+  //   ...
+  // });
 
   // Examples Search Tool
   server.tool(examplesSearchTool.name, examplesSearchTool.inputSchema, async (params) => {
@@ -368,11 +351,6 @@ app.get('/.well-known/mcp.json', (req, res) => {
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
-        name: 'gruenerator_person_search',
-        description: 'Sucht nach Grünen-Abgeordneten mit angereicherten Daten aus der DIP-API',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
         name: 'gruenerator_examples_search',
         description: 'Sucht nach Social-Media-Beispielen der Grünen (Instagram, Facebook)',
         annotations: { readOnlyHint: true, idempotentHint: true },
@@ -395,6 +373,11 @@ app.get('/.well-known/mcp.json', (req, res) => {
       id: key,
       name: col.displayName,
       description: col.description,
+    })),
+    prompts: getPromptList().map((p) => ({
+      name: p.name,
+      title: p.title,
+      description: p.description,
     })),
     supported_clients: ['claude', 'cursor', 'vscode', 'chatgpt'],
   });
@@ -465,12 +448,6 @@ app.get('/info', (req, res) => {
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
-        name: 'gruenerator_person_search',
-        description: 'Sucht nach Grünen-Abgeordneten mit angereicherten Daten aus der DIP-API',
-        features: ['Personenprofil', 'Drucksachen', 'Aktivitäten', 'Erwähnungen'],
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
         name: 'gruenerator_examples_search',
         description: 'Sucht nach Social-Media-Beispielen der Grünen',
         platforms: ['instagram', 'facebook'],
@@ -490,6 +467,11 @@ app.get('/info', (req, res) => {
         description: col.description,
       })),
     ],
+    prompts: getPromptList().map((p) => ({
+      name: p.name,
+      title: p.title,
+      description: p.description,
+    })),
     collections: Object.entries(config.collections).map(([key, col]) => ({
       id: key,
       name: col.displayName,
@@ -602,6 +584,11 @@ app.listen(PORT, () => {
   console.log('  gruenerator://collections');
   Object.keys(config.collections).forEach((key) => {
     console.log(`  gruenerator://collections/${key}`);
+  });
+  console.log('='.repeat(50));
+  console.log('Prompts:');
+  getPromptList().forEach((p) => {
+    console.log(`  ${p.name} — ${p.title}`);
   });
   console.log('='.repeat(50));
   info('Boot', 'Server ready for requests');

@@ -341,13 +341,31 @@ export async function hybridSearchCollection(
   // Apply quality gate
   combinedResults = applyQualityGateLocal(combinedResults, hasTextMatches);
 
+  // Normalize RRF scores to vector similarity scale for meaningful display.
+  // RRF produces scores ~0.01-0.04 (ranking-based), while vector scores are ~0.3-0.9
+  // (cosine similarity). Without normalization, RRF results display as "2-4%" relevance.
+  if (shouldUseRRF && combinedResults.length > 0 && mappedVectorResults.length > 0) {
+    const topVectorScore = mappedVectorResults[0].score;
+    const topRRFScore = combinedResults[0].score;
+    if (topRRFScore > 0 && topRRFScore < 0.15) {
+      const scaleFactor = topVectorScore / topRRFScore;
+      combinedResults = combinedResults.map((r) => ({
+        ...r,
+        score: Math.min(r.score * scaleFactor, 1.0),
+      }));
+      console.error(
+        `[HybridSearch] RRF score normalization: ${topRRFScore.toFixed(4)} → ${topVectorScore.toFixed(4)} (scale: ${scaleFactor.toFixed(1)}x)`
+      );
+    }
+  }
+
   // Apply quality-weighted scoring
   const finalResults = combinedResults.slice(0, limit).map((result) => {
     const qualityScore = Number(result.qualityScore ?? result.payload?.quality_score ?? 1.0);
     const qualityBoost = 1 + (qualityScore - 0.5) * 0.4;
 
     return {
-      score: result.score * qualityBoost,
+      score: Math.min(result.score * qualityBoost, 1.0),
       title: result.title || result.payload?.title || 'Unbekannt',
       text: result.text || result.payload?.chunk_text || '',
       url:
