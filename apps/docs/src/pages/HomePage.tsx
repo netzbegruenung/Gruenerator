@@ -20,7 +20,14 @@ export const HomePage = () => {
       <div className="home-page">
         <div className="home-page-container">
           <header className="home-page-header">
-            <h1 className="home-page-title">Grünerator Docs</h1>
+            <h1 className="home-page-title">
+              <img
+                src="/images/gruenerator-docs-icon.svg"
+                alt="Grünerator"
+                className="home-page-logo"
+              />
+              Docs
+            </h1>
 
             <div className="home-page-user-section">
               <span className="home-page-user-name">{user?.display_name || user?.email}</span>
