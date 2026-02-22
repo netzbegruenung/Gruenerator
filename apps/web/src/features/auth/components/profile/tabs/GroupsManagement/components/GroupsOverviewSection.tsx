@@ -1,8 +1,10 @@
 import { motion } from 'motion/react';
 import { memo } from 'react';
-import { HiPlus } from 'react-icons/hi';
+import { HiChatAlt2, HiDocumentText, HiLightBulb, HiPlus, HiUserGroup } from 'react-icons/hi';
 
 import HelpTooltip from '../../../../../../../components/common/HelpTooltip';
+import { Button } from '../../../../../../../components/ui/button';
+import { Card } from '../../../../../../../components/ui/card';
 
 interface Group {
   id: string;
@@ -21,7 +23,25 @@ interface GroupsOverviewSectionProps {
   tabIndex: TabIndexConfig;
 }
 
-// Static motion config moved outside component
+const FEATURES = [
+  {
+    icon: HiDocumentText,
+    label: 'Anweisungen teilen',
+    desc: 'Gemeinsame Vorgaben für Anträge und Social Media',
+  },
+  { icon: HiLightBulb, label: 'Wissen teilen', desc: 'Wissensbausteine für das gesamte Team' },
+  {
+    icon: HiChatAlt2,
+    label: 'Einheitlich kommunizieren',
+    desc: 'Konsistente Texte und Formulierungen',
+  },
+  {
+    icon: HiUserGroup,
+    label: 'Zusammenarbeiten',
+    desc: 'Kolleg*innen per Einladungslink hinzufügen',
+  },
+] as const;
+
 const MOTION_CONFIG = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
@@ -35,6 +55,8 @@ const GroupsOverviewSection = memo(
     onCreateNew,
     tabIndex,
   }: GroupsOverviewSectionProps): React.ReactElement => {
+    const groupCount = userGroups?.length ?? 0;
+
     return (
       <motion.div
         className="group-overview-container"
@@ -42,105 +64,60 @@ const GroupsOverviewSection = memo(
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}
       >
-        <div className="group-content-card">
-          <div className="group-info-panel">
-            <div className="group-header-section">
-              <div className="group-title-area">
-                <div className="header-with-help">
-                  <h2 className="profile-user-name large-profile-title">
-                    Gruppenfunktion im Grünerator
-                  </h2>
-                  <HelpTooltip>
-                    <p>
-                      Mit Gruppen kannst du Anweisungen und Wissen mit anderen teilen und gemeinsam
-                      nutzen.
-                    </p>
-                    <p>
-                      <strong>Tipp:</strong> Erstelle eine Gruppe für deinen Verband oder dein Team
-                      und lade andere über den Join-Link ein.
-                    </p>
-                  </HelpTooltip>
+        <div>
+          <div className="flex items-center gap-xs mb-xs">
+            <h2 className="text-2xl font-bold text-grey-800 dark:text-grey-100">
+              Zusammen sind wir stärker!
+            </h2>
+            <HelpTooltip>
+              <p>
+                Mit Gruppen kannst du Anweisungen und Wissen mit anderen teilen und gemeinsam
+                nutzen.
+              </p>
+              <p>
+                <strong>Tipp:</strong> Erstelle eine Gruppe für deinen Verband oder dein Team und
+                lade andere über den Join-Link ein.
+              </p>
+            </HelpTooltip>
+          </div>
+
+          <p className="text-base text-grey-600 dark:text-grey-400 mb-lg">
+            Arbeite gemeinsam mit deinem Team an Texten und Materialien.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md mb-lg">
+            {FEATURES.map(({ icon: Icon, label, desc }) => (
+              <Card key={label} className="flex items-start gap-md p-lg">
+                <div className="shrink-0 flex items-center justify-center size-12 rounded-lg bg-primary-500/10">
+                  <Icon className="text-2xl text-primary-500" />
                 </div>
-              </div>
-            </div>
-
-            <div className="group-overview-content">
-              <section className="group-overview-section">
-                <h3>Was sind Gruppen?</h3>
-                <p>
-                  Gruppen im Grünerator ermöglichen dir, gemeinsam mit anderen Mitgliedern an Texten
-                  und Materialien zu arbeiten. Als virtueller Arbeitsbereich kannst du spezifische
-                  Anweisungen und Wissen für deine Gruppe hinterlegen.
-                </p>
-              </section>
-
-              <section className="group-overview-section">
-                <h3>Was können Gruppen?</h3>
-                <ul>
-                  <li>
-                    <strong>Gruppenanweisungen teilen:</strong> Lege spezifische Anweisungen für
-                    Anträge und Social-Media-Texte fest, die allen Gruppenmitgliedern zur Verfügung
-                    stehen.
-                  </li>
-                  <li>
-                    <strong>Gemeinsames Wissen nutzen:</strong> Hinterlege bis zu drei
-                    Wissensbausteine mit spezifischem Wissen deiner Gruppe.
-                  </li>
-                  <li>
-                    <strong>Konsistente Kommunikation:</strong> Sorge für einheitliche Texte und
-                    Formulierungen innerhalb deiner Gruppe.
-                  </li>
-                  <li>
-                    <strong>Zusammenarbeit fördern:</strong> Lade andere über einen Einladungslink
-                    ein und arbeite gemeinsam an Inhalten.
-                  </li>
-                </ul>
-              </section>
-
-              <section className="group-overview-section">
-                <h3>Wie funktionieren Gruppen?</h3>
-                <p>
-                  Nachdem du eine Gruppe erstellt hast, wirst du automatisch zum Admin. Als Admin
-                  kannst du:
-                </p>
-                <ul>
-                  <li>Anweisungen für Anträge und Social Media festlegen und aktivieren</li>
-                  <li>Wissensbausteine erstellen und bearbeiten</li>
-                  <li>Andere Mitglieder über einen Einladungslink hinzufügen</li>
-                </ul>
-                <p>
-                  Gruppenmitglieder können diese gemeinsamen Ressourcen beim Erstellen von Texten
-                  nutzen, was zu einer einheitlichen und effizienten Kommunikation führt.
-                </p>
-              </section>
-
-              <div className="group-overview-cta">
-                {userGroups && userGroups.length > 0 ? (
-                  <p>
-                    Du bist bereits Mitglied in {userGroups.length} Gruppe
-                    {userGroups.length > 1 ? 'n' : ''}. Wähle eine Gruppe aus der Seitenleiste oder
-                    erstelle eine neue.
-                  </p>
-                ) : (
-                  <p>
-                    Du bist noch nicht Mitglied einer Gruppe. Erstelle jetzt deine erste Gruppe!
-                  </p>
-                )}
-
-                <div className="profile-actions profile-actions-centered">
-                  <button
-                    onClick={onCreateNew}
-                    className="btn-primary size-m"
-                    disabled={isCreatingGroup}
-                    tabIndex={tabIndex.createGroupButton}
-                    aria-label="Neue Gruppe erstellen"
-                  >
-                    <HiPlus className="icon" />{' '}
-                    {isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe erstellen'}
-                  </button>
+                <div className="flex flex-col gap-xs min-w-0">
+                  <span className="text-base font-semibold text-grey-800 dark:text-grey-200">
+                    {label}
+                  </span>
+                  <span className="text-sm text-grey-500 dark:text-grey-400 leading-normal">
+                    {desc}
+                  </span>
                 </div>
-              </div>
-            </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="flex flex-col items-center gap-sm">
+            <p className="text-sm text-grey-500">
+              {groupCount > 0
+                ? `Du bist in ${groupCount} Gruppe${groupCount > 1 ? 'n' : ''}. Wähle eine aus oder erstelle eine neue.`
+                : 'Erstelle jetzt deine erste Gruppe!'}
+            </p>
+            <Button
+              onClick={onCreateNew}
+              disabled={isCreatingGroup}
+              tabIndex={tabIndex.createGroupButton}
+              aria-label="Neue Gruppe erstellen"
+            >
+              <HiPlus />
+              {isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe erstellen'}
+            </Button>
           </div>
         </div>
       </motion.div>
