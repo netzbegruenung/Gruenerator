@@ -34,14 +34,14 @@ const GroupMembersList = ({
     return (
       <div className={className}>
         {!hideHeader && (
-          <div className="group-section-header">
-            <h4 className="group-section-title">
-              <HiUsers className="icon" />
+          <div className="flex items-center justify-between py-xs">
+            <h4 className="flex items-center gap-sm text-xs font-medium uppercase tracking-wide text-grey-500 m-0">
+              <HiUsers className="text-base text-primary-500" />
               Gruppenmitglieder
             </h4>
           </div>
         )}
-        <div className="loading-container">
+        <div className="flex flex-col items-center justify-center py-md gap-md">
           <Spinner size="small" />
           <span>Lade Mitglieder...</span>
         </div>
@@ -53,14 +53,14 @@ const GroupMembersList = ({
     return (
       <div className={className}>
         {!hideHeader && (
-          <div className="group-section-header">
-            <h4 className="group-section-title">
-              <HiUsers className="icon" />
+          <div className="flex items-center justify-between py-xs">
+            <h4 className="flex items-center gap-sm text-xs font-medium uppercase tracking-wide text-grey-500 m-0">
+              <HiUsers className="text-base text-primary-500" />
               Gruppenmitglieder
             </h4>
           </div>
         )}
-        <div className="error-container">
+        <div className="text-sm text-red-600">
           <p>Fehler beim Laden der Mitglieder: {errorMembers?.message || 'Unbekannter Fehler'}</p>
         </div>
       </div>
@@ -71,14 +71,14 @@ const GroupMembersList = ({
     return (
       <div className={className}>
         {!hideHeader && (
-          <div className="group-section-header">
-            <h4 className="group-section-title">
-              <HiUsers className="icon" />
+          <div className="flex items-center justify-between py-xs">
+            <h4 className="flex items-center gap-sm text-xs font-medium uppercase tracking-wide text-grey-500 m-0">
+              <HiUsers className="text-base text-primary-500" />
               Gruppenmitglieder
             </h4>
           </div>
         )}
-        <div className="members-empty-state">
+        <div className="text-xs text-grey-500 italic">
           <p>Noch keine Mitglieder in dieser Gruppe.</p>
         </div>
       </div>
@@ -90,9 +90,9 @@ const GroupMembersList = ({
   return (
     <div className={className}>
       {!hideHeader && (
-        <div className="group-section-header">
-          <h4 className="group-section-title">
-            <HiUsers className="icon" />
+        <div className="flex items-center justify-between py-xs">
+          <h4 className="flex items-center gap-sm text-xs font-medium uppercase tracking-wide text-grey-500 m-0">
+            <HiUsers className="text-base text-primary-500" />
             Gruppenmitglieder ({members.length})
           </h4>
         </div>
