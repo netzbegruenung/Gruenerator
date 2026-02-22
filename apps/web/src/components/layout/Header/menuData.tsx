@@ -10,7 +10,6 @@ export interface BetaFeatures {
   youBetaEnabled?: boolean;
   chatBetaEnabled?: boolean;
   igelModeEnabled?: boolean;
-  websiteBetaEnabled?: boolean;
   isAustrian?: boolean;
 }
 

@@ -33,7 +33,6 @@ export const DOCUMENT_TYPE_MAP: Record<string, string> = {
   barrierefreiheit: 'accessibility',
 
   // Other generators
-  'website-generator': 'text',
   texteditor: 'text',
   notebook: 'text',
   ask: 'text',

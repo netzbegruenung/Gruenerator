@@ -74,7 +74,6 @@ const BETA_VIEWS = {
   DATABASE: 'database',
   COLLAB: 'collab',
   GROUPS: 'groups',
-  WEBSITE: 'website',
   VORLAGEN: 'vorlagen',
   SCANNER: 'scanner',
   DOCS: 'docs',
@@ -142,18 +141,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkTo: '/profile/groups',
           linkText: 'Zu den Gruppen',
           icon: HiOutlineUsers,
-        };
-      case BETA_VIEWS.WEBSITE:
-        return {
-          title: 'Website Generator',
-          description: 'WordPress Landing Pages generieren',
-          checked: getBetaFeatureState('website'),
-          setter: (value: boolean) => updateUserBetaFeatures('website', value),
-          featureName: 'Website Generator',
-          checkboxLabel: 'Website Generator aktivieren',
-          linkTo: '/website',
-          linkText: 'Zum Website Generator',
-          icon: getIcon('navigation', 'website') as IconType,
         };
       case BETA_VIEWS.VORLAGEN:
         return {
