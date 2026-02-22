@@ -40,46 +40,45 @@ export function PlusMenu({ onInsertMention, onOpenFileBrowser, onUploadFile }: P
       trigger={<PlusIcon className="h-5 w-5 stroke-[1.5px]" />}
       direction="up"
       align="left"
-      width="min-w-80 w-fit"
+      width="w-80"
       showChevron={false}
       onOpenChange={handleOpenChange}
+      containerClassName="overflow-visible"
     >
-      <div className="flex">
+      <div className="relative">
         {/* Main menu — always visible */}
-        <div className="w-80 flex-shrink-0">
-          <DropdownItem
-            icon={<span className="text-base">🎯</span>}
-            label="Skills"
-            selected={expandedSubmenu === 'skills'}
-            onClick={() => toggleSubmenu('skills')}
-            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
-          />
-          <DropdownItem
-            icon={<span className="text-base">📚</span>}
-            label="Quellen"
-            selected={expandedSubmenu === 'quellen'}
-            onClick={() => toggleSubmenu('quellen')}
-            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
-          />
-          <DropdownItem
-            icon={<span className="text-base">⚡</span>}
-            label="Funktionen"
-            selected={expandedSubmenu === 'funktionen'}
-            onClick={() => toggleSubmenu('funktionen')}
-            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
-          />
-          <DropdownItem
-            icon={<span className="text-base">📎</span>}
-            label="Dateien"
-            selected={expandedSubmenu === 'dateien'}
-            onClick={() => toggleSubmenu('dateien')}
-            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
-          />
-        </div>
+        <DropdownItem
+          icon={<span className="text-base">🎯</span>}
+          label="Skills"
+          selected={expandedSubmenu === 'skills'}
+          onClick={() => toggleSubmenu('skills')}
+          trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
+        />
+        <DropdownItem
+          icon={<span className="text-base">📚</span>}
+          label="Quellen"
+          selected={expandedSubmenu === 'quellen'}
+          onClick={() => toggleSubmenu('quellen')}
+          trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
+        />
+        <DropdownItem
+          icon={<span className="text-base">⚡</span>}
+          label="Funktionen"
+          selected={expandedSubmenu === 'funktionen'}
+          onClick={() => toggleSubmenu('funktionen')}
+          trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
+        />
+        <DropdownItem
+          icon={<span className="text-base">📎</span>}
+          label="Dateien"
+          selected={expandedSubmenu === 'dateien'}
+          onClick={() => toggleSubmenu('dateien')}
+          trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
+        />
 
-        {/* Submenu panel — appears alongside main menu */}
+        {/* Submenu panel — flyout to the right, independent of main menu size */}
         {expandedSubmenu && (
-          <div className="w-72 flex-shrink-0 border-l border-border max-h-[24rem] overflow-y-auto">
+          <div className="absolute left-full bottom-0 ml-1 w-72 rounded-xl border border-border bg-background p-1 shadow-lg max-h-[24rem] overflow-y-auto">
             {expandedSubmenu === 'skills' &&
               allSkills.map((agent) => (
                 <DropdownItem

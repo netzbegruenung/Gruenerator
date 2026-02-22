@@ -206,7 +206,6 @@ const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaP
 const KampagnenGenerator = lazy(() => import('../features/texte/kampagnen/KampagnenGenerator'));
 const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
 const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
-const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator'));
 const TextEditorPage = lazy(() => import('../features/texteditor/TextEditorPage'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
 const MediaLibraryPage = lazy(() =>
@@ -304,7 +303,6 @@ const DocsEditorPage = lazy(() =>
 export const GrueneratorenBundle = {
   Texte: TexteGenerator,
   Kampagnen: KampagnenGenerator,
-  Website: WebsiteGenerator,
   ImageStudio: ImageStudioPage,
   ImageGallery: ImageGallery,
   GrueneJugend: lazy(() => import('../components/pages/Grüneratoren/GrueneJugendGenerator')),
@@ -357,7 +355,6 @@ const standardRoutes: RouteConfig[] = [
   { path: '/barrierefreiheit', component: BarrierefreiheitRedirect },
   { path: '/alttext', component: AltTextRedirect },
   { path: '/leichte-sprache', component: LeichteSpracheRedirect },
-  { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
   { path: '/tools', component: ToolsPage },
   { path: '/research', component: ResearchPage },

@@ -86,21 +86,17 @@ const ContentManagementView = memo(
 
     return (
       <motion.div
-        className="profile-content profile-full-width-layout"
+        className="flex flex-col gap-lg"
         initial={MOTION_CONFIG.initial}
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}
       >
-        <div className="profile-content-panel profile-form-section">
-          <div className="auth-form">
-            <DocumentsSection
-              isActive={isActive}
-              onSuccessMessage={onSuccessMessage}
-              onErrorMessage={onErrorMessage}
-              onShareToGroup={handleDocumentShareToGroup}
-            />
-          </div>
-        </div>
+        <DocumentsSection
+          isActive={isActive}
+          onSuccessMessage={onSuccessMessage}
+          onErrorMessage={onErrorMessage}
+          onShareToGroup={handleDocumentShareToGroup}
+        />
 
         {showShareModal && shareContent && (
           <ShareToGroupModal

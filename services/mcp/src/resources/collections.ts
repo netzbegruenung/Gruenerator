@@ -178,7 +178,6 @@ export function readServerInfoResource() {
               { name: 'gruenerator_search', readOnly: true },
               { name: 'gruenerator_get_filters', readOnly: true },
               { name: 'gruenerator_cache_stats', readOnly: true },
-              { name: 'gruenerator_person_search', readOnly: true },
               { name: 'gruenerator_examples_search', readOnly: true },
               { name: 'get_client_config', readOnly: true },
             ],

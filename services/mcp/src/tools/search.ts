@@ -8,7 +8,8 @@ import {
   hybridSearchCollection,
   textSearchCollection,
 } from '../qdrant/client.ts';
-import { getEnrichedPersonSearch } from '../services/enriched-person-search.ts';
+// DISABLED: Person search removed — DIP API integration non-functional
+// import { getEnrichedPersonSearch } from '../services/enriched-person-search.ts';
 import {
   getCachedEmbedding,
   cacheEmbedding,
@@ -143,25 +144,19 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
     const safeLimit = Math.min(Math.max(1, limit), 20);
 
     try {
-      // Try enriched person search for bundestagsfraktion collection
-      if (collection === 'bundestagsfraktion') {
-        try {
-          const enrichedService = getEnrichedPersonSearch();
-          const personResult = await enrichedService.search(query);
-
-          if (personResult.isPersonQuery) {
-            console.error(
-              `[Search] Enriched person search for: ${personResult.metadata.extractedName}`
-            );
-            return formatPersonSearchResult(personResult, collectionConfig);
-          }
-        } catch (personError) {
-          console.error(
-            '[Search] Person detection failed, falling back to regular search:',
-            personError.message
-          );
-        }
-      }
+      // DISABLED: Person search removed — DIP API integration non-functional
+      // if (collection === 'bundestagsfraktion') {
+      //   try {
+      //     const enrichedService = getEnrichedPersonSearch();
+      //     const personResult = await enrichedService.search(query);
+      //     if (personResult.isPersonQuery) {
+      //       console.error(`[Search] Enriched person search for: ${personResult.metadata.extractedName}`);
+      //       return formatPersonSearchResult(personResult, collectionConfig);
+      //     }
+      //   } catch (personError) {
+      //     console.error('[Search] Person detection failed, falling back to regular search:', personError.message);
+      //   }
+      // }
 
       // Check search cache first
       if (useCache) {
@@ -284,94 +279,8 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
   },
 };
 
-/**
- * Format enriched person search result for MCP response
- */
-function formatPersonSearchResult(personResult, collectionConfig) {
-  const { person, contentMentions, drucksachen, aktivitaeten, metadata } = personResult;
-
-  const results = [];
-
-  // Add person profile as first result
-  results.push({
-    rank: 1,
-    relevance: '100%',
-    source: `Profil: ${person.name}`,
-    type: 'person_profile',
-    excerpt: [
-      person.fraktion ? `Fraktion: ${person.fraktion}` : null,
-      person.wahlkreis ? `Wahlkreis: ${person.wahlkreis}` : null,
-      person.beruf ? `Beruf: ${person.beruf}` : null,
-      person.vita ? `\n${person.vita}` : null,
-    ]
-      .filter(Boolean)
-      .join('\n'),
-    searchMethod: 'person_detection',
-  });
-
-  // Add content mentions
-  for (const mention of (contentMentions || []).slice(0, 5)) {
-    results.push({
-      rank: results.length + 1,
-      relevance: `${Math.round(mention.similarity * 100)}%`,
-      source: mention.title,
-      url: mention.url,
-      type: 'content_mention',
-      excerpt: mention.snippet,
-      searchMethod: mention.searchMethod || 'hybrid',
-    });
-  }
-
-  // Add Drucksachen
-  for (const d of (drucksachen || []).slice(0, 5)) {
-    results.push({
-      rank: results.length + 1,
-      relevance: '95%',
-      source: `${d.drucksachetyp}: ${d.titel}`,
-      url: `https://dip.bundestag.de/drucksache/${d.dokumentnummer}`,
-      type: 'drucksache',
-      excerpt: `${d.dokumentnummer} vom ${d.datum}`,
-      searchMethod: 'dip_api',
-    });
-  }
-
-  // Add Aktivitäten
-  for (const a of (aktivitaeten || []).slice(0, 5)) {
-    results.push({
-      rank: results.length + 1,
-      relevance: '90%',
-      source: `${a.aktivitaetsart}: ${a.titel || 'Aktivität'}`,
-      type: 'aktivitaet',
-      excerpt: `${a.aktivitaetsart} vom ${a.datum}`,
-      searchMethod: 'dip_api',
-    });
-  }
-
-  return {
-    collection: collectionConfig.displayName,
-    description: collectionConfig.description,
-    query: metadata.query,
-    searchMode: 'person_enriched',
-    isPersonQuery: true,
-    person: {
-      name: person.name,
-      fraktion: person.fraktion,
-      wahlkreis: person.wahlkreis,
-    },
-    resultsCount: results.length,
-    results,
-    metadata: {
-      searchType: 'person_enriched',
-      detectionConfidence: metadata.detectionConfidence,
-      detectionSource: metadata.detectionSource,
-      contentMentionsCount: metadata.contentMentionsCount,
-      drucksachenCount: metadata.drucksachenCount,
-      aktivitaetenCount: metadata.aktivitaetenCount,
-      fetchTimeMs: metadata.fetchTimeMs,
-    },
-    cached: false,
-  };
-}
+// DISABLED: Person search removed — DIP API integration non-functional
+// function formatPersonSearchResult(personResult, collectionConfig) { ... }
 
 /**
  * Get cache statistics tool

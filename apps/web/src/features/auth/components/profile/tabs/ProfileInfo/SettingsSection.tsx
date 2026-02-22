@@ -12,9 +12,12 @@ import {
 import { Link } from 'react-router-dom';
 
 import FeatureToggle from '../../../../../../components/common/FeatureToggle';
+import { Badge } from '../../../../../../components/ui/badge';
+import { Card } from '../../../../../../components/ui/card';
 import { getIcon } from '../../../../../../config/icons';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
+import { cn } from '../../../../../../utils/cn';
 
 interface SettingsSectionProps {
   isActive: boolean;
@@ -52,12 +55,12 @@ const LocaleSelector: React.FC = () => {
   };
 
   return (
-    <div className="form-field-wrapper">
+    <div className="flex flex-col gap-xxs">
       <select
         id="locale"
         value={locale}
         onChange={handleLocaleChange}
-        className="form-select"
+        className="rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm"
         aria-label="Sprachvariant auswählen"
       >
         <option value="de-DE">Deutsch (Deutschland)</option>
@@ -71,7 +74,6 @@ const BETA_VIEWS = {
   DATABASE: 'database',
   COLLAB: 'collab',
   GROUPS: 'groups',
-  WEBSITE: 'website',
   VORLAGEN: 'vorlagen',
   SCANNER: 'scanner',
   DOCS: 'docs',
@@ -140,18 +142,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkText: 'Zu den Gruppen',
           icon: HiOutlineUsers,
         };
-      case BETA_VIEWS.WEBSITE:
-        return {
-          title: 'Website Generator',
-          description: 'WordPress Landing Pages generieren',
-          checked: getBetaFeatureState('website'),
-          setter: (value: boolean) => updateUserBetaFeatures('website', value),
-          featureName: 'Website Generator',
-          checkboxLabel: 'Website Generator aktivieren',
-          linkTo: '/website',
-          linkText: 'Zum Website Generator',
-          icon: getIcon('navigation', 'website') as IconType,
-        };
       case BETA_VIEWS.VORLAGEN:
         return {
           title: 'Vorlagen & Galerie',
@@ -204,15 +194,17 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
   };
 
   return (
-    <div className={`settings-section-container ${compact ? 'settings-section-compact' : ''}`}>
-      <div className="settings-section-title">Experimentelle Features</div>
-      <div className={`settings-features-grid ${compact ? 'settings-features-compact' : ''}`}>
+    <Card className={cn('flex flex-col', compact ? 'p-md' : 'p-lg')}>
+      <div className={cn('font-semibold mb-md', compact ? 'text-sm mb-sm' : 'text-base')}>
+        Experimentelle Features
+      </div>
+      <div className={cn('grid gap-sm', compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2')}>
         {getAvailableFeatures().map((feature) => {
           const config = getBetaFeatureConfig(feature.key);
           if (!config) return null;
 
           return (
-            <div key={feature.key} className="settings-feature-item">
+            <div key={feature.key} className="flex items-center gap-sm">
               <FeatureToggle
                 isActive={config.checked}
                 onToggle={(checked) => {
@@ -224,14 +216,14 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                 label={compact ? config.title : config.checkboxLabel}
                 icon={config.icon}
                 description={config.description}
-                className={`settings-feature-toggle ${compact ? 'settings-feature-toggle-compact' : ''}`}
+                className={cn('flex-1', compact && 'text-sm')}
               />
-              {feature.isAdminOnly && <span className="admin-badge">Admin</span>}
+              {feature.isAdminOnly && <Badge variant="secondary">Admin</Badge>}
             </div>
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 };
 

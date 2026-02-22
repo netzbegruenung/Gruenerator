@@ -19,6 +19,8 @@ import {
   ProfileIconButton,
   ProfileActionButton,
 } from '../../../../../../../components/profile/actions/ProfileActionButton';
+import { Button } from '../../../../../../../components/ui/button';
+import { Card } from '../../../../../../../components/ui/card';
 import apiClient from '../../../../../../../components/utils/apiClient';
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
 import { handleError } from '../../../../../../../components/utils/errorHandling';
@@ -526,7 +528,7 @@ const DocumentsSection = memo(
       <div role="tabpanel" id="documents-panel" aria-labelledby="documents-tab" tabIndex={-1}>
         {/* Conditional content based on mode */}
         {modeLoading ? (
-          <div className="loading-state" />
+          <div className="flex items-center justify-center py-xl" />
         ) : (
           <>
             {/* Wolke Sync Manager Section - Hidden for now */}
@@ -583,7 +585,7 @@ const DocumentsSection = memo(
               remoteResults={documentSearchResults as SearchResultWithIndex[]}
               onClearRemoteSearch={clearSearchResults}
               headerActions={
-                <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
+                <div className="flex gap-xs">
                   <ProfileIconButton
                     action="refresh"
                     onClick={handleCombinedFetch}
@@ -605,86 +607,81 @@ const DocumentsSection = memo(
 
             {/* Delete all button at the end for better UX */}
             {!showDeleteAllForm && combinedItems.length > 0 && (
-              <div
-                style={{
-                  padding: 'var(--spacing-medium)',
-                  borderTop: '1px solid var(--border-color)',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  backgroundColor: 'var(--background-secondary)',
-                  marginTop: 'var(--spacing-small)',
-                }}
-              >
-                <button
-                  type="button"
-                  className="delete-all-link"
+              <div className="flex justify-center p-md border-t border-grey-200 dark:border-grey-700 mt-sm">
+                <Button
+                  variant="ghost"
+                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm"
                   onClick={() => setShowDeleteAllForm(true)}
                   disabled={documentsLoading}
                   aria-label="Alle Inhalte löschen"
                 >
                   Alle Inhalte löschen
-                </button>
+                </Button>
               </div>
             )}
 
             {/* Delete all confirmation form */}
             {showDeleteAllForm && (
-              <form className="auth-form" onSubmit={handleDeleteAllSubmit}>
-                <div className="form-group">
-                  <div className="form-group-title">Alle Inhalte löschen</div>
-                  <p className="warning-text">
-                    <strong>Warnung:</strong> Diese Aktion löscht:
-                  </p>
-                  <ul className="warning-text">
-                    <li>{documents.length} Dokumente</li>
-                    <li>{texts.length} Grünerierte Texte</li>
-                    <li>
-                      {syncStatuses ? syncStatuses.filter((s) => s.auto_sync_enabled).length : 0}{' '}
-                      aktive Wolke-Synchronisationen
-                    </li>
-                  </ul>
-                  <p className="warning-text">
-                    Diese Aktion kann <strong>nicht rückgängig</strong> gemacht werden!
-                  </p>
+              <Card className="p-lg border-red-200 dark:border-red-800 mt-md">
+                <form onSubmit={handleDeleteAllSubmit}>
+                  <div className="flex flex-col gap-sm">
+                    <div className="text-base font-semibold text-red-700 dark:text-red-400">
+                      Alle Inhalte löschen
+                    </div>
+                    <p className="text-sm text-grey-600 dark:text-grey-400">
+                      <strong>Warnung:</strong> Diese Aktion löscht:
+                    </p>
+                    <ul className="text-sm text-grey-600 dark:text-grey-400 list-disc pl-md">
+                      <li>{documents.length} Dokumente</li>
+                      <li>{texts.length} Grünerierte Texte</li>
+                      <li>
+                        {syncStatuses ? syncStatuses.filter((s) => s.auto_sync_enabled).length : 0}{' '}
+                        aktive Wolke-Synchronisationen
+                      </li>
+                    </ul>
+                    <p className="text-sm text-grey-600 dark:text-grey-400">
+                      Diese Aktion kann <strong>nicht rückgängig</strong> gemacht werden!
+                    </p>
 
-                  {deleteAllError && <div className="auth-error-message">{deleteAllError}</div>}
+                    {deleteAllError && (
+                      <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+                        {deleteAllError}
+                      </div>
+                    )}
 
-                  <div className="form-field-wrapper">
-                    <label htmlFor="deleteConfirmText">
-                      Um fortzufahren, gib "alles löschen" ein:
-                    </label>
-                    <TextInput
-                      id="deleteConfirmText"
-                      type="text"
-                      value={deleteConfirmText}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        setDeleteConfirmText(e.target.value)
-                      }
-                      placeholder="alles löschen"
-                      aria-label="Bestätigung: alles löschen"
-                      disabled={isDeletingAll}
-                    />
+                    <div className="flex flex-col gap-xxs">
+                      <label htmlFor="deleteConfirmText">
+                        Um fortzufahren, gib &quot;alles löschen&quot; ein:
+                      </label>
+                      <TextInput
+                        id="deleteConfirmText"
+                        type="text"
+                        value={deleteConfirmText}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setDeleteConfirmText(e.target.value)
+                        }
+                        placeholder="alles löschen"
+                        aria-label="Bestätigung: alles löschen"
+                        disabled={isDeletingAll}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="profile-actions">
-                  <button
-                    type="submit"
-                    className="profile-action-button profile-danger-button"
-                    disabled={isDeletingAll}
-                  >
-                    {isDeletingAll ? <Spinner size="small" /> : 'Alles unwiderruflich löschen'}
-                  </button>
-                  <button
-                    type="button"
-                    className="profile-action-button"
-                    onClick={handleToggleDeleteAllForm}
-                    disabled={isDeletingAll}
-                  >
-                    Abbrechen
-                  </button>
-                </div>
-              </form>
+                  <div className="flex gap-sm justify-end mt-md">
+                    <Button variant="destructive" type="submit" disabled={isDeletingAll}>
+                      {isDeletingAll ? <Spinner size="small" /> : 'Alles unwiderruflich löschen'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={handleToggleDeleteAllForm}
+                      disabled={isDeletingAll}
+                    >
+                      Abbrechen
+                    </Button>
+                  </div>
+                </form>
+              </Card>
             )}
 
             {/* Upload form modal/overlay */}
@@ -703,7 +700,7 @@ const DocumentsSection = memo(
       </div>
     );
 
-    return <div className="documents-section">{renderDocumentsContent()}</div>;
+    return <div className="flex flex-col gap-md">{renderDocumentsContent()}</div>;
   }
 );
 
