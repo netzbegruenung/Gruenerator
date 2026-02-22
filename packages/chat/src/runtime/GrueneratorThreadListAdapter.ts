@@ -21,7 +21,8 @@ interface ApiThread {
 
 export function createGrueneratorThreadListAdapter(
   apiClient: ChatApiClient,
-  agentId: string
+  agentId: string,
+  callbacks?: { onDelete?: (remoteId: string) => void }
 ): RemoteThreadListAdapter {
   return {
     async list() {
@@ -67,6 +68,7 @@ export function createGrueneratorThreadListAdapter(
     },
 
     async delete(remoteId: string) {
+      callbacks?.onDelete?.(remoteId);
       await apiClient.delete(`/api/chat-service/threads?threadId=${remoteId}`);
     },
 
