@@ -169,7 +169,14 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
   const history = useMemo(
     () => ({
       async load() {
-        const { remoteId } = await aui.threadListItem().initialize();
+        let remoteId: string | undefined;
+        try {
+          const result = await aui.threadListItem().initialize();
+          remoteId = result.remoteId;
+        } catch (err) {
+          console.warn('[History] Thread entry not available (likely deleted):', err);
+          return { messages: [] };
+        }
 
         if (remoteId) {
           useAgentStore.getState().setCurrentThread(remoteId);
@@ -302,15 +309,15 @@ function ThreadTitleEffect() {
 
   useEffect(() => {
     if (messageCount >= 2 && currentThreadId && titleTriggeredRef.current !== currentThreadId) {
-      const state = aui.threadListItem().getState();
-      if (!state.title) {
-        titleTriggeredRef.current = currentThreadId;
-        console.log('[TitleGen] Triggering generateTitle via aui for', currentThreadId);
-        try {
+      try {
+        const state = aui.threadListItem().getState();
+        if (!state.title) {
+          titleTriggeredRef.current = currentThreadId;
+          console.log('[TitleGen] Triggering generateTitle via aui for', currentThreadId);
           aui.threadListItem().generateTitle();
-        } catch (err: unknown) {
-          console.warn('[TitleGen] aui.generateTitle() failed:', err);
         }
+      } catch (err: unknown) {
+        console.warn('[TitleGen] Thread entry not available (likely deleted):', err);
       }
     }
   }, [messageCount, currentThreadId, aui]);
@@ -361,7 +368,13 @@ export function GrueneratorChatProvider({
   }, [providerApiClient]);
 
   const threadListAdapter = useMemo(() => {
-    const base = createGrueneratorThreadListAdapter(providerApiClient, getDefaultAgent());
+    const base = createGrueneratorThreadListAdapter(providerApiClient, getDefaultAgent(), {
+      onDelete: (remoteId) => {
+        if (useAgentStore.getState().currentThreadId === remoteId) {
+          useAgentStore.getState().setCurrentThread(null);
+        }
+      },
+    });
     return {
       ...base,
       unstable_Provider: GrueneratorHistoryProvider,
