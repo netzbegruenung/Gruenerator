@@ -2,62 +2,6 @@
    Shared layout components used across multiple profile tabs
 ========================================================================== */
 
-/* Row navigation (horizontal tabs) */
-.profile-row-navigation {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-small);
-  margin-bottom: var(--spacing-large);
-}
-
-.profile-row-tab {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xsmall);
-  padding: var(--spacing-xsmall) var(--spacing-medium);
-  background: var(--background-color);
-  border: var(--border-subtle);
-  border-radius: 20px;
-  color: var(--font-color);
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.profile-row-tab.active {
-  background: var(--background-color-alt);
-  border-color: var(--interactive-accent-color);
-  color: var(--interactive-accent-color);
-  font-weight: 600;
-}
-
-.profile-row-tab:hover:not(.active) {
-  background: var(--background-color-alt);
-  border-color: var(--interactive-accent-color);
-}
-
-.group-tab-avatar-small {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--klee);
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.group-tab-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
-}
-
 /* Header section with title and actions */
 .profile-header-section {
   display: flex;

@@ -1,26 +1,14 @@
 import { memo, useCallback, useMemo } from 'react';
-import {
-  HiPencil,
-  HiCheck,
-  HiX,
-  HiOutlinePlus,
-  HiOutlineTrash,
-  HiChevronDown,
-} from 'react-icons/hi';
+import { HiPencil, HiCheck, HiX, HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import DeleteWarningTooltip from '../../../../../../../../components/common/DeleteWarningTooltip';
 import { ProfileActionButton } from '../../../../../../../../components/profile/actions/ProfileActionButton';
-import { Badge } from '../../../../../../../../components/ui/badge';
-import { Button } from '../../../../../../../../components/ui/button';
-import { Card } from '../../../../../../../../components/ui/card';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '../../../../../../../../components/ui/collapsible';
-import { Separator } from '../../../../../../../../components/ui/separator';
 import GroupMembersList from '../../../../../../../../features/groups/components/GroupMembersList';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface GroupInfo {
   id?: string;
@@ -241,186 +229,175 @@ const GroupInfoSection = memo(
     return (
       <>
         {/* Group Header */}
-        <div className="group-content-card">
-          <div className="group-info-panel">
-            <div className="group-header-section">
-              <div className="group-title-area">
-                {isEditingName ? (
-                  <div className="group-edit-form">
-                    <input
-                      type="text"
-                      value={editedGroupName}
-                      onChange={handleGroupNameChange}
-                      className="group-name-edit-input"
-                      placeholder="Gruppenname"
-                      maxLength={100}
-                      autoFocus
-                      tabIndex={tabIndex.groupNameEdit}
-                      aria-label="Gruppenname bearbeiten"
-                    />
-                    <textarea
-                      value={editedGroupDescription}
-                      onChange={handleGroupDescriptionChange}
-                      className="form-textarea"
-                      placeholder="Beschreibung der Gruppe (optional)..."
-                      maxLength={500}
+        <Card className="p-lg">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              {isEditingName ? (
+                <div className="flex flex-col gap-sm">
+                  <input
+                    type="text"
+                    value={editedGroupName}
+                    onChange={handleGroupNameChange}
+                    className="w-full rounded-md border-2 border-primary-500 bg-background px-sm py-xs text-2xl font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary-500/20 min-w-[200px] max-w-[400px]"
+                    placeholder="Gruppenname"
+                    maxLength={100}
+                    autoFocus
+                    tabIndex={tabIndex.groupNameEdit}
+                    aria-label="Gruppenname bearbeiten"
+                  />
+                  <textarea
+                    value={editedGroupDescription}
+                    onChange={handleGroupDescriptionChange}
+                    className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                    placeholder="Beschreibung der Gruppe (optional)..."
+                    maxLength={500}
+                    disabled={isUpdatingGroupName}
+                    style={{ minHeight: 'auto' }}
+                    onInput={handleTextareaAutoResize}
+                  />
+                  {editedGroupDescription.length >= 450 && (
+                    <div className="text-xs text-grey-400 mt-xxs">
+                      {editedGroupDescription.length}/500 Zeichen
+                    </div>
+                  )}
+                  <div className="flex gap-xs">
+                    <Button
+                      variant="default"
+                      size="icon-xs"
+                      onClick={handleSaveBoth}
+                      disabled={!editedGroupName.trim() || isUpdatingGroupName}
+                      title="Speichern"
+                    >
+                      <HiCheck />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon-xs"
+                      onClick={handleCancelBoth}
                       disabled={isUpdatingGroupName}
-                      style={{ minHeight: 'auto', resize: 'none', overflow: 'hidden' }}
-                      onInput={handleTextareaAutoResize}
-                    />
-                    {editedGroupDescription.length >= 450 && (
-                      <div className="character-count">
-                        {editedGroupDescription.length}/500 Zeichen
-                      </div>
-                    )}
-                    <div className="group-name-edit-actions">
-                      <button
-                        onClick={handleSaveBoth}
-                        className="group-name-edit-button save"
-                        disabled={!editedGroupName.trim() || isUpdatingGroupName}
-                        title="Speichern"
-                      >
-                        <HiCheck />
-                      </button>
-                      <button
-                        onClick={handleCancelBoth}
-                        className="group-name-edit-button cancel"
+                      title="Abbrechen"
+                    >
+                      <HiX />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-xs">
+                    <h2 className="text-2xl font-bold">{data?.groupInfo?.name}</h2>
+                    {data?.isAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={handleStartEditingBoth}
+                        title="Gruppe bearbeiten"
                         disabled={isUpdatingGroupName}
-                        title="Abbrechen"
+                        tabIndex={tabIndex.groupNameEdit}
+                        aria-label="Gruppe bearbeiten"
                       >
-                        <HiX />
-                      </button>
+                        <HiPencil />
+                      </Button>
+                    )}
+                    {data?.isAdmin && <Badge variant="default">Admin</Badge>}
+                  </div>
+                  {!data?.isAdmin && (
+                    <p className="text-sm text-grey-500 mt-xxs">Du bist Mitglied dieser Gruppe</p>
+                  )}
+                  <div className="mt-xs">
+                    <div className="flex items-start gap-xxs text-sm text-grey-500 leading-relaxed">
+                      {data?.groupInfo?.description ? (
+                        <span className="whitespace-pre-wrap">{data.groupInfo.description}</span>
+                      ) : (
+                        <span className="italic text-grey-400">
+                          {data?.isAdmin
+                            ? 'Keine Beschreibung vorhanden'
+                            : 'Keine Beschreibung vorhanden.'}
+                        </span>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="group-title-line">
-                      <h2 className="profile-user-name large-profile-title">
-                        {data?.groupInfo?.name}
-                      </h2>
-                      {data?.isAdmin && (
-                        <button
-                          onClick={handleStartEditingBoth}
-                          className="group-name-edit-icon"
-                          title="Gruppe bearbeiten"
-                          disabled={isUpdatingGroupName}
-                          tabIndex={tabIndex.groupNameEdit}
-                          aria-label="Gruppe bearbeiten"
-                        >
-                          <HiPencil />
-                        </button>
-                      )}
-                      {data?.isAdmin && <span className="admin-badge">Admin</span>}
-                    </div>
-                    {!data?.isAdmin && (
-                      <p className="group-membership-status">Du bist Mitglied dieser Gruppe</p>
-                    )}
-                    <div className="group-description-area">
-                      <div className="group-description-display">
-                        {data?.groupInfo?.description ? (
-                          <span style={{ whiteSpace: 'pre-wrap' }}>
-                            {data.groupInfo.description}
-                          </span>
-                        ) : (
-                          <span style={{ fontStyle: 'italic', color: 'var(--font-color-subtle)' }}>
-                            {data?.isAdmin
-                              ? 'Keine Beschreibung vorhanden'
-                              : 'Keine Beschreibung vorhanden.'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-              {data?.isAdmin && (
-                <div className="group-header-actions">
-                  {data?.joinToken && (
-                    <ProfileActionButton
-                      action="link"
-                      onClick={copyJoinLink}
-                      title={joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
-                      label={joinLinkCopied ? 'Kopiert!' : undefined}
-                      showLabel={joinLinkCopied}
-                      disabled={!data?.joinToken}
-                    />
-                  )}
-                  <DeleteWarningTooltip
-                    onConfirm={confirmDeleteGroup}
-                    disabled={isDeletingGroup || isUpdatingGroupName}
-                    title="Gruppe löschen"
-                    message="Die gesamte Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt."
-                    confirmText="Endgültig löschen"
-                    cancelText="Abbrechen"
-                  />
-                </div>
+                </>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Mitglieder + Anweisungen (left) | Geteilte Inhalte (right) */}
-        <Card>
-          <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr]">
-            {/* Left column: Mitglieder + Anweisungen */}
-            <div className="p-lg flex flex-col gap-sm">
-              <Collapsible defaultOpen>
-                <CollapsibleTrigger className="group flex w-full items-center justify-between py-xs">
-                  <span className="text-xs font-medium uppercase tracking-wide text-grey-500">
-                    Mitglieder
-                  </span>
-                  <HiChevronDown className="text-grey-400 transition-transform group-data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <GroupMembersList groupId={groupId} isActive={isActive} hideHeader />
-                </CollapsibleContent>
-              </Collapsible>
-
-              <Separator />
-
-              <Collapsible defaultOpen>
-                <CollapsibleTrigger className="group flex w-full items-center justify-between py-xs">
-                  <span className="text-xs font-medium uppercase tracking-wide text-grey-500">
-                    Anweisungen
-                  </span>
-                  <HiChevronDown className="text-grey-400 transition-transform group-data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <textarea
-                    id="groupCustomPrompt"
-                    value={customPrompt}
-                    onChange={handleCustomPromptChange}
-                    placeholder="Anweisungen für Text-Generierungen..."
-                    className="form-textarea mt-xs"
-                    rows={3}
-                    maxLength={2000}
-                    disabled={!data?.isAdmin}
+            {data?.isAdmin && (
+              <div className="flex items-center gap-sm shrink-0">
+                {data?.joinToken && (
+                  <ProfileActionButton
+                    action="link"
+                    onClick={copyJoinLink}
+                    title={joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                    label={joinLinkCopied ? 'Kopiert!' : undefined}
+                    showLabel={joinLinkCopied}
+                    disabled={!data?.joinToken}
                   />
-                  {customPrompt.length > 1500 && (
-                    <div className="form-character-count">{customPrompt.length}/2000 Zeichen</div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
+                )}
+                <DeleteWarningTooltip
+                  onConfirm={confirmDeleteGroup}
+                  disabled={isDeletingGroup || isUpdatingGroupName}
+                  title="Gruppe löschen"
+                  message="Die gesamte Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt."
+                  confirmText="Endgültig löschen"
+                  cancelText="Abbrechen"
+                />
+              </div>
+            )}
+          </div>
+        </Card>
 
-            {/* Vertical divider (desktop only) */}
-            <Separator orientation="vertical" className="hidden md:block" />
+        {/* Three-card grid: Mitglieder | Anweisungen | Geteilte Inhalte */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-sm">
+          <Card className="flex flex-col">
+            <CardHeader className="pb-xs">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-grey-500">
+                Mitglieder
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 flex-1">
+              <GroupMembersList groupId={groupId} isActive={isActive} hideHeader />
+            </CardContent>
+          </Card>
 
-            {/* Right column: Geteilte Inhalte */}
-            <div className="p-lg">
-              <div className="flex items-center justify-between mb-sm">
-                <span className="text-xs font-medium uppercase tracking-wide text-grey-500">
+          <Card className="flex flex-col">
+            <CardHeader className="pb-xs">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-grey-500">
+                Anweisungen
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 flex-1">
+              <textarea
+                id="groupCustomPrompt"
+                value={customPrompt}
+                onChange={handleCustomPromptChange}
+                placeholder="Anweisungen für Text-Generierungen..."
+                className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm resize-vertical focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                rows={4}
+                maxLength={2000}
+                disabled={!data?.isAdmin}
+              />
+              {customPrompt.length > 1500 && (
+                <div className="text-xs text-grey-400 mt-xxs">
+                  {customPrompt.length}/2000 Zeichen
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="flex flex-col md:col-span-2 lg:col-span-1">
+            <CardHeader className="pb-xs">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-medium uppercase tracking-wide text-grey-500">
                   Geteilte Inhalte
                   {contentItems.length > 0 && (
                     <span className="font-normal ml-xs">({contentItems.length})</span>
                   )}
-                </span>
+                </CardTitle>
                 <Button variant="ghost" size="xs" onClick={onAddContent}>
                   <HiOutlinePlus />
                   Hinzufügen
                 </Button>
               </div>
-
+            </CardHeader>
+            <CardContent className="pt-0 flex-1">
               {contentItems.length === 0 ? (
                 <p className="text-xs text-grey-500 italic">Noch keine Inhalte geteilt.</p>
               ) : (
@@ -454,9 +431,9 @@ const GroupInfoSection = memo(
                   ))}
                 </ul>
               )}
-            </div>
-          </div>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </>
     );
   }

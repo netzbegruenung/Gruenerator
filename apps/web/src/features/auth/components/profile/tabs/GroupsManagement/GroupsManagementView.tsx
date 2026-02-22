@@ -1,8 +1,6 @@
 import { motion } from 'motion/react';
-import { useEffect, useCallback, memo, useMemo } from 'react';
-import { useForm, FormProvider, type Control } from 'react-hook-form';
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 
-import { useFormFields } from '../../../../../../components/common/Form/hooks';
 import { useGroups, getGroupInitials } from '../../../../../../features/groups/hooks/useGroups';
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
 import { useRovingTabindex } from '../../../../../../hooks/useKeyboardNavigation';
@@ -14,9 +12,7 @@ import GroupDetailSection from './components/GroupDetailSection';
 import GroupsCreateSection from './components/GroupsCreateSection';
 import GroupsOverviewSection from './components/GroupsOverviewSection';
 
-import '../../../../../generators/styles/custom-generators-tab.css';
-import '../../../../../../assets/styles/features/auth/profile-layout.css';
-import '../../../../../../assets/styles/features/groups/groups.css';
+import { cn } from '@/utils/cn';
 
 // Static motion config moved outside component
 const MOTION_CONFIG = {
@@ -29,27 +25,6 @@ interface Group {
   id: string;
   name: string;
   isAdmin?: boolean;
-}
-
-interface CreateGroupFormData {
-  groupName: string;
-}
-
-interface FormFieldsReturn {
-  Input: React.ComponentType<{
-    name: string;
-    type: string;
-    label: string;
-    placeholder: string;
-    rules?: Record<string, unknown>;
-    disabled?: boolean;
-    control: Control<CreateGroupFormData>;
-    tabIndex?: number;
-  }>;
-  Textarea: React.ComponentType<unknown>;
-  AutoInput: React.ComponentType<unknown>;
-  Select: React.ComponentType<unknown>;
-  Checkbox: React.ComponentType<unknown>;
 }
 
 interface GroupsManagementViewProps {
@@ -66,6 +41,7 @@ const GroupsManagementView = memo(
   }: GroupsManagementViewProps): React.ReactElement => {
     const { user } = useOptimizedAuth();
     const tabIndex = useTabIndex('PROFILE_GROUPS');
+    const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
     const {
       selectedGroupId,
@@ -76,18 +52,6 @@ const GroupsManagementView = memo(
       setHasInitialAutoSelection,
     } = useGroupsStore();
 
-    const createGroupFormMethods = useForm<CreateGroupFormData>({
-      defaultValues: { groupName: '' },
-      mode: 'onSubmit',
-    });
-    const {
-      control: createGroupControl,
-      reset: resetCreateGroup,
-      handleSubmit: handleCreateGroupSubmit,
-    } = createGroupFormMethods;
-    const formFields = useFormFields() as FormFieldsReturn;
-    const Input = formFields.Input;
-
     const {
       userGroups,
       createGroup,
@@ -97,33 +61,26 @@ const GroupsManagementView = memo(
       isDeleteGroupSuccess,
     } = useGroups({ isActive });
 
-    const handleCreateGroupFormSubmit = useCallback(
-      (data: CreateGroupFormData) => {
+    const handleCreateGroup = useCallback(
+      (groupName: string) => {
         if (isCreatingGroup) return;
 
-        const groupName = data.groupName?.trim() || 'unbenannte Gruppe';
+        const name = groupName.trim() || 'unbenannte Gruppe';
 
         onSuccessMessage('');
         onErrorMessage('');
-        createGroup(groupName, {
+        createGroup(name, {
           onSuccess: (newGroup: Group) => {
+            setCreateDialogOpen(false);
             setSelectedGroup(newGroup.id);
-            resetCreateGroup();
-            onSuccessMessage(`Gruppe "${groupName}" erfolgreich erstellt!`);
+            onSuccessMessage(`Gruppe "${name}" erfolgreich erstellt!`);
           },
           onError: (error: Error | null) => {
             onErrorMessage(error?.message || 'Gruppe konnte nicht erstellt werden.');
           },
         });
       },
-      [
-        isCreatingGroup,
-        onSuccessMessage,
-        onErrorMessage,
-        createGroup,
-        setSelectedGroup,
-        resetCreateGroup,
-      ]
+      [isCreatingGroup, onSuccessMessage, onErrorMessage, createGroup, setSelectedGroup]
     );
 
     useEffect(() => {
@@ -176,22 +133,10 @@ const GroupsManagementView = memo(
     );
 
     const handleCreateNew = useCallback(() => {
-      setSelectedGroup(null);
-      setCurrentView('create');
-      resetCreateGroup();
+      setCreateDialogOpen(true);
       onSuccessMessage('');
       onErrorMessage('');
-    }, [setCurrentView, setSelectedGroup, resetCreateGroup, onSuccessMessage, onErrorMessage]);
-
-    const handleCancelCreate = useCallback(() => {
-      if (userGroups && userGroups.length > 0) {
-        setSelectedGroup(userGroups[0].id);
-      } else {
-        setCurrentView('overview');
-      }
-      onSuccessMessage('');
-      onErrorMessage('');
-    }, [userGroups, setSelectedGroup, setCurrentView, onSuccessMessage, onErrorMessage]);
+    }, [onSuccessMessage, onErrorMessage]);
 
     const handleTabClick = useCallback(
       (view: string) => {
@@ -231,15 +176,6 @@ const GroupsManagementView = memo(
       [tabIndex]
     );
 
-    const createTabIndex = useMemo(
-      () => ({
-        groupNameInput: tabIndex.get?.('groupNameInput') ?? 1,
-        createSubmitButton: tabIndex.get?.('createSubmitButton') ?? 2,
-        createCancelButton: tabIndex.get?.('createCancelButton') ?? 3,
-      }),
-      [tabIndex]
-    );
-
     const detailTabIndex = useMemo(
       () => ({
         groupDetailTabs: tabIndex.get?.('groupDetailTabs') ?? 1,
@@ -248,11 +184,17 @@ const GroupsManagementView = memo(
       [tabIndex]
     );
 
+    const tabBase =
+      'flex items-center gap-xs px-md py-xs rounded-full border text-sm font-medium transition-colors whitespace-nowrap cursor-pointer';
+    const tabInactive =
+      'bg-background border-grey-300 dark:border-grey-600 text-foreground hover:bg-background-alt hover:border-primary-500';
+    const tabActive = 'bg-background-alt border-primary-500 text-primary-500 font-semibold';
+
     const renderNavigationPanel = () => (
-      <nav className="profile-row-navigation" role="tablist" aria-label="Gruppen Navigation">
+      <nav className="flex flex-wrap gap-sm mb-lg" role="tablist" aria-label="Gruppen Navigation">
         <button
           {...getItemProps('overview')}
-          className={`profile-row-tab ${currentView === 'overview' ? 'active' : ''}`}
+          className={cn(tabBase, currentView === 'overview' ? tabActive : tabInactive)}
           onClick={() => handleTabClick('overview')}
           role="tab"
           aria-selected={currentView === 'overview'}
@@ -267,7 +209,7 @@ const GroupsManagementView = memo(
             <button
               key={group.id}
               {...getItemProps(`group-${group.id}`)}
-              className={`profile-row-tab ${selectedGroupId === group.id ? 'active' : ''}`}
+              className={cn(tabBase, selectedGroupId === group.id ? tabActive : tabInactive)}
               onClick={() => handleSelectGroup(group.id)}
               role="tab"
               aria-selected={selectedGroupId === group.id}
@@ -275,42 +217,16 @@ const GroupsManagementView = memo(
               id={`group-${group.id}-tab`}
               aria-label={`Gruppe ${group.name} ${group.isAdmin ? '(Admin)' : '(Mitglied)'}`}
             >
-              <span className="group-tab-avatar-small">{getGroupInitials(group.name)}</span>
-              <span className="group-tab-name">{group.name}</span>
+              <span className="flex items-center justify-center size-6 rounded-full bg-primary-500 text-white text-[0.7rem] font-semibold shrink-0">
+                {getGroupInitials(group.name)}
+              </span>
+              <span className="truncate max-w-[150px]">{group.name}</span>
             </button>
           ))}
       </nav>
     );
 
     const renderContentPanel = () => {
-      if (currentView === 'overview') {
-        return (
-          <GroupsOverviewSection
-            userGroups={userGroups}
-            isCreatingGroup={isCreatingGroup}
-            onCreateNew={handleCreateNew}
-            tabIndex={overviewTabIndex}
-          />
-        );
-      }
-
-      if (currentView === 'create') {
-        return (
-          <FormProvider {...createGroupFormMethods}>
-            <GroupsCreateSection
-              control={createGroupControl}
-              Input={Input}
-              isCreatingGroup={isCreatingGroup}
-              isCreateGroupError={isCreateGroupError}
-              createGroupError={createGroupError}
-              onSubmit={handleCreateGroupSubmit(handleCreateGroupFormSubmit)}
-              onCancel={handleCancelCreate}
-              tabIndex={createTabIndex}
-            />
-          </FormProvider>
-        );
-      }
-
       if (currentView === 'group' && selectedGroupId) {
         return (
           <GroupDetailSection
@@ -340,10 +256,17 @@ const GroupsManagementView = memo(
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}
       >
-        {renderNavigationPanel()}
-        <div className="profile-form-section">
-          <div className="auth-form">{renderContentPanel()}</div>
-        </div>
+        {userGroups && userGroups.length > 0 && renderNavigationPanel()}
+        {renderContentPanel()}
+
+        <GroupsCreateSection
+          isOpen={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onCreateGroup={handleCreateGroup}
+          isCreatingGroup={isCreatingGroup}
+          isCreateGroupError={isCreateGroupError}
+          createGroupError={createGroupError}
+        />
       </motion.div>
     );
   }
