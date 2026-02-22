@@ -1,10 +1,19 @@
 import { Menu, ActionIcon } from '@mantine/core';
 import { useEffect, useMemo, useState } from 'react';
-import { FiPlus, FiFile, FiGrid } from 'react-icons/fi';
+import {
+  FiPlus,
+  FiFile,
+  FiGrid,
+  FiMoreVertical,
+  FiEdit2,
+  FiShare2,
+  FiTrash2,
+} from 'react-icons/fi';
 
 import { useDocumentStore } from '../../stores/documentStore';
 import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 import { templates, type TemplateType, getTemplateContent } from '../../lib/templates';
+import { ShareModal } from '../permissions/ShareModal';
 import { TemplateCarousel } from './TemplateCarousel';
 import { TemplatePicker } from './TemplatePicker';
 import './DocumentList.css';
@@ -12,9 +21,17 @@ import './DocumentList.css';
 export const DocumentList = () => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const { documents, isLoading, error, fetchDocuments, createDocument, deleteDocument } =
-    useDocumentStore();
+  const {
+    documents,
+    isLoading,
+    error,
+    fetchDocuments,
+    createDocument,
+    deleteDocument,
+    updateDocument,
+  } = useDocumentStore();
   const [showGallery, setShowGallery] = useState(false);
+  const [shareDocumentId, setShareDocumentId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDocuments(apiClient);
@@ -39,6 +56,18 @@ export const DocumentList = () => {
         await deleteDocument(apiClient, id);
       } catch (error) {
         console.error('Failed to delete document:', error);
+      }
+    }
+  };
+
+  const handleRenameDocument = async (doc: { id: string; title: string }, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newTitle = window.prompt('Neuer Titel:', doc.title);
+    if (newTitle && newTitle.trim() && newTitle.trim() !== doc.title) {
+      try {
+        await updateDocument(apiClient, doc.id, { title: newTitle.trim() });
+      } catch (error) {
+        console.error('Failed to rename document:', error);
       }
     }
   };
@@ -99,13 +128,44 @@ export const DocumentList = () => {
                       <span className="document-card-emoji">{emoji}</span>
                       {doc.title}
                     </h3>
-                    <button
-                      onClick={(e) => handleDeleteDocument(doc.id, e)}
-                      className="document-card-delete"
-                      aria-label="Löschen"
-                    >
-                      ×
-                    </button>
+                    <Menu position="bottom-end" shadow="md" withinPortal>
+                      <Menu.Target>
+                        <ActionIcon
+                          variant="subtle"
+                          color="gray"
+                          size="sm"
+                          className="document-card-menu"
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                          aria-label="Dokumentoptionen"
+                        >
+                          <FiMoreVertical size={16} />
+                        </ActionIcon>
+                      </Menu.Target>
+                      <Menu.Dropdown onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                        <Menu.Item
+                          leftSection={<FiEdit2 size={14} />}
+                          onClick={(e: React.MouseEvent) => handleRenameDocument(doc, e)}
+                        >
+                          Umbenennen
+                        </Menu.Item>
+                        <Menu.Item
+                          leftSection={<FiShare2 size={14} />}
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            setShareDocumentId(doc.id);
+                          }}
+                        >
+                          Teilen
+                        </Menu.Item>
+                        <Menu.Item
+                          leftSection={<FiTrash2 size={14} />}
+                          color="red"
+                          onClick={(e: React.MouseEvent) => handleDeleteDocument(doc.id, e)}
+                        >
+                          Löschen
+                        </Menu.Item>
+                      </Menu.Dropdown>
+                    </Menu>
                   </div>
                   <div className="document-card-meta">
                     {new Date(doc.updated_at).toLocaleDateString('de-DE', {
@@ -153,6 +213,10 @@ export const DocumentList = () => {
 
       {showGallery && (
         <TemplatePicker onSelect={handleTemplateSelect} onClose={() => setShowGallery(false)} />
+      )}
+
+      {shareDocumentId && (
+        <ShareModal documentId={shareDocumentId} onClose={() => setShareDocumentId(null)} />
       )}
     </div>
   );

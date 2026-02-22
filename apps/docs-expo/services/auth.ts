@@ -112,6 +112,9 @@ export async function handleAuthCallback(
 
     if (response.data.success && response.data.access_token && response.data.user) {
       await secureStorage.setToken(response.data.access_token);
+      if (response.data.refresh_token) {
+        await secureStorage.setRefreshToken(response.data.refresh_token);
+      }
       await secureStorage.setUser(JSON.stringify(response.data.user));
 
       useAuthStore.getState().setAuthState({
@@ -127,26 +130,103 @@ export async function handleAuthCallback(
   }
 }
 
+/**
+ * Refresh the access token using the stored refresh token.
+ * Returns the new access token or null if refresh failed.
+ */
+async function refreshAccessToken(): Promise<string | null> {
+  try {
+    const refreshToken = await secureStorage.getRefreshToken();
+    console.log('[Auth] refreshAccessToken, has refresh token:', !!refreshToken);
+    if (!refreshToken) return null;
+
+    const response = await fetch(`${API_BASE_URL}/auth/mobile/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    console.log('[Auth] refresh response:', response.status);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (data.success && data.access_token) {
+      await secureStorage.setToken(data.access_token);
+      if (data.user) {
+        await secureStorage.setUser(JSON.stringify(data.user));
+        useAuthStore.getState().setAuthState({ user: data.user });
+      }
+      return data.access_token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get a valid access token, refreshing if the current one is expired.
+ */
+export async function getValidToken(): Promise<string | null> {
+  const token = await secureStorage.getToken();
+  console.log('[Auth] getValidToken, has stored token:', !!token);
+  if (!token) return null;
+
+  // Try a quick status check to see if token is still valid
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/mobile/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log('[Auth] status check:', response.status);
+    if (response.ok) return token;
+  } catch (err) {
+    console.log('[Auth] status check network error:', err);
+    return token;
+  }
+
+  // Token expired — try refresh
+  console.log('[Auth] token expired, attempting refresh');
+  return refreshAccessToken();
+}
+
 export async function checkAuthStatus(): Promise<boolean> {
   try {
     const token = await secureStorage.getToken();
+    const refreshToken = await secureStorage.getRefreshToken();
+    console.log('[Auth] checkAuthStatus: has token:', !!token, 'has refresh:', !!refreshToken);
     if (!token) {
       useAuthStore.getState().setLoading(false);
       return false;
     }
 
     const apiClient = getGlobalApiClient();
-    const response = await apiClient.get<AuthStatusResponse>(API_ENDPOINTS.AUTH_MOBILE_STATUS);
 
-    if (response.data.isAuthenticated && response.data.user) {
-      useAuthStore.getState().setAuthState({
-        user: response.data.user,
-      });
-      return true;
+    try {
+      const response = await apiClient.get<AuthStatusResponse>(API_ENDPOINTS.AUTH_MOBILE_STATUS);
+
+      if (response.data.isAuthenticated && response.data.user) {
+        useAuthStore.getState().setAuthState({
+          user: response.data.user,
+        });
+        return true;
+      }
+    } catch {
+      // Token might be expired — try refresh
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        const response = await apiClient.get<AuthStatusResponse>(API_ENDPOINTS.AUTH_MOBILE_STATUS);
+        if (response.data.isAuthenticated && response.data.user) {
+          useAuthStore.getState().setAuthState({
+            user: response.data.user,
+          });
+          return true;
+        }
+      }
     }
 
     await secureStorage.clearAll();
     useAuthStore.getState().clearAuth();
+    useAuthStore.getState().setLoading(false);
     return false;
   } catch (error: unknown) {
     useAuthStore.getState().setLoading(false);

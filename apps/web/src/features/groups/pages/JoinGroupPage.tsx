@@ -6,21 +6,19 @@ import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroups } from '../hooks/useGroups';
 
-// Groups Feature CSS - Loaded only when this feature is accessed
-import '../../../assets/styles/features/groups/groups.css';
-import '../../../assets/styles/features/groups/shared-content-selector.css';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const JoinGroupPage = () => {
   const { joinToken } = useParams();
   const navigate = useNavigate();
   const { user: supabaseUser, loading: isLoading, isAuthResolved } = useOptimizedAuth();
   const [groupName, setGroupName] = useState('');
-  const [status, setStatus] = useState('loading'); // loading, error, success, already_member
+  const [status, setStatus] = useState('loading');
 
   const { joinGroup, isJoiningGroup, isJoinGroupError, joinGroupError, isJoinGroupSuccess } =
     useGroups({ isActive: true });
 
-  // Verify token and fetch group info
   useEffect(() => {
     let isMounted = true;
 
@@ -28,7 +26,6 @@ const JoinGroupPage = () => {
       if (!joinToken || isLoading || !isAuthResolved || !supabaseUser) return;
 
       try {
-        // Use backend API to verify join token
         const response = await apiClient.get(`/auth/groups/verify-token/${joinToken}`);
         const data = response.data;
 
@@ -59,7 +56,6 @@ const JoinGroupPage = () => {
     };
   }, [joinToken, supabaseUser, isLoading, isAuthResolved]);
 
-  // Handle Join Button Click
   const handleJoin = () => {
     if (!joinToken || !supabaseUser) return;
 
@@ -69,7 +65,6 @@ const JoinGroupPage = () => {
           setStatus('already_member');
         } else {
           setStatus('success');
-          // Redirect after a short delay
           setTimeout(() => navigate('/profile'), 3000);
         }
       },
@@ -79,114 +74,137 @@ const JoinGroupPage = () => {
     });
   };
 
-  // If not logged in, show login prompt
   if (isAuthResolved && !isLoading && !supabaseUser) {
     return (
-      <div className="join-group-container">
-        <div className="join-group-card">
-          <h1>Gruppe beitreten</h1>
-          <p>Du musst angemeldet sein, um einer Gruppe beizutreten.</p>
-          <div className="join-group-actions">
-            <Link to="/login" className="button primary">
-              Zum Login
-            </Link>
-          </div>
-        </div>
+      <div className="flex min-h-[70vh] items-center justify-center p-md">
+        <Card className="max-w-[500px] w-full shadow-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Gruppe beitreten</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-lg text-grey-600 dark:text-grey-400">
+              Du musst angemeldet sein, um einer Gruppe beizutreten.
+            </p>
+            <div className="flex justify-end gap-sm">
+              <Button asChild>
+                <Link to="/login">Zum Login</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // Loading state
   if (isLoading || !isAuthResolved || status === 'loading') {
     return (
-      <div className="join-group-container">
-        <div className="join-group-card">
-          <div className="loading-container">
-            <Spinner size="medium" />
-            <p>Informationen werden geladen...</p>
-          </div>
-        </div>
+      <div className="flex min-h-[70vh] items-center justify-center p-md">
+        <Card className="max-w-[500px] w-full shadow-md">
+          <CardContent className="pt-lg">
+            <div className="flex flex-col items-center justify-center py-md gap-md">
+              <Spinner size="medium" />
+              <p className="text-grey-500">Informationen werden geladen...</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // Error state
   if (status === 'error' || isJoinGroupError) {
     return (
-      <div className="join-group-container">
-        <div className="join-group-card">
-          <h1>Fehler</h1>
-          <p>
-            {isJoinGroupError && joinGroupError
-              ? `Fehler beim Beitreten der Gruppe: ${joinGroupError.message}`
-              : 'Ungültiger oder abgelaufener Einladungslink.'}
-          </p>
-          <div className="join-group-actions">
-            <Link to="/profile" className="button secondary">
-              Zurück zum Profil
-            </Link>
-          </div>
-        </div>
+      <div className="flex min-h-[70vh] items-center justify-center p-md">
+        <Card className="max-w-[500px] w-full shadow-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Fehler</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-lg text-grey-600 dark:text-grey-400">
+              {isJoinGroupError && joinGroupError
+                ? `Fehler beim Beitreten der Gruppe: ${joinGroupError.message}`
+                : 'Ungültiger oder abgelaufener Einladungslink.'}
+            </p>
+            <div className="flex justify-end gap-sm">
+              <Button variant="outline" asChild>
+                <Link to="/profile">Zurück zum Profil</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // Already a member
   if (status === 'already_member') {
     return (
-      <div className="join-group-container">
-        <div className="join-group-card">
-          <h1>Bereits Mitglied</h1>
-          <p>Du bist bereits Mitglied der Gruppe "{groupName}".</p>
-          <div className="join-group-actions">
-            <Link to="/profile" className="button primary">
-              Zum Profil
-            </Link>
-          </div>
-        </div>
+      <div className="flex min-h-[70vh] items-center justify-center p-md">
+        <Card className="max-w-[500px] w-full shadow-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Bereits Mitglied</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-lg text-grey-600 dark:text-grey-400">
+              Du bist bereits Mitglied der Gruppe &quot;{groupName}&quot;.
+            </p>
+            <div className="flex justify-end gap-sm">
+              <Button asChild>
+                <Link to="/profile">Zum Profil</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // Success state
   if (status === 'success') {
     return (
-      <div className="join-group-container">
-        <div className="join-group-card">
-          <h1>Erfolgreich beigetreten</h1>
-          <p>Du bist der Gruppe "{groupName}" erfolgreich beigetreten.</p>
-          <p>Du wirst in wenigen Sekunden weitergeleitet...</p>
-          <div className="join-group-actions">
-            <Link to="/profile" className="button primary">
-              Zum Profil
-            </Link>
-          </div>
-        </div>
+      <div className="flex min-h-[70vh] items-center justify-center p-md">
+        <Card className="max-w-[500px] w-full shadow-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Erfolgreich beigetreten</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-sm text-grey-600 dark:text-grey-400">
+              Du bist der Gruppe &quot;{groupName}&quot; erfolgreich beigetreten.
+            </p>
+            <p className="mb-lg text-sm text-grey-500">
+              Du wirst in wenigen Sekunden weitergeleitet...
+            </p>
+            <div className="flex justify-end gap-sm">
+              <Button asChild>
+                <Link to="/profile">Zum Profil</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // Ready to join
   return (
-    <div className="join-group-container">
-      <div className="join-group-card">
-        <h1>Gruppe beitreten</h1>
-        <p>Du wurdest eingeladen, der Gruppe "{groupName}" beizutreten.</p>
-        <p>Als Mitglied kannst du auf gemeinsame Anweisungen und Wissen zugreifen.</p>
-        <div className="join-group-actions">
-          <button onClick={() => navigate('/profile')} className="button secondary" type="button">
-            Abbrechen
-          </button>
-          <button
-            onClick={handleJoin}
-            className="button primary"
-            disabled={isJoiningGroup}
-            type="button"
-          >
-            {isJoiningGroup ? <Spinner size="small" /> : 'Beitreten'}
-          </button>
-        </div>
-      </div>
+    <div className="flex min-h-[70vh] items-center justify-center p-md">
+      <Card className="max-w-[500px] w-full shadow-md">
+        <CardHeader>
+          <CardTitle className="text-2xl">Gruppe beitreten</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-sm text-grey-600 dark:text-grey-400">
+            Du wurdest eingeladen, der Gruppe &quot;{groupName}&quot; beizutreten.
+          </p>
+          <p className="mb-lg text-sm text-grey-500">
+            Als Mitglied kannst du auf gemeinsame Anweisungen und Wissen zugreifen.
+          </p>
+          <div className="flex justify-end gap-sm">
+            <Button variant="outline" onClick={() => navigate('/profile')} type="button">
+              Abbrechen
+            </Button>
+            <Button onClick={handleJoin} disabled={isJoiningGroup} type="button">
+              {isJoiningGroup ? <Spinner size="small" /> : 'Beitreten'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

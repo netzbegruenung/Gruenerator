@@ -1,8 +1,9 @@
 import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { Alert, Badge, Button, Group, Loader, Select, Stack, Text } from '@mantine/core';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
-import { apiClient } from '../../lib/apiClient';
+import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
+import { GroupShareSection } from './GroupShareSection';
 import './ShareModal.css';
 
 interface Collaborator {
@@ -44,6 +45,9 @@ const SHARE_MODE_OPTIONS: { value: ShareMode; label: string; description: string
 ];
 
 export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
+  const adapter = useDocsAdapter();
+  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
+
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     is_public: false,
@@ -58,8 +62,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const fetchCollaborators = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await apiClient.get(`/docs/${documentId}/permissions`);
-      setCollaborators(response.data);
+      const data = await apiClient.get<Collaborator[]>(`/docs/${documentId}/permissions`);
+      setCollaborators(data);
       setError(null);
     } catch (err) {
       console.error('Failed to fetch collaborators:', err);
@@ -67,12 +71,11 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     } finally {
       setIsLoading(false);
     }
-  }, [documentId]);
+  }, [documentId, apiClient]);
 
   const fetchShareSettings = useCallback(async () => {
     try {
-      const response = await apiClient.get(`/docs/${documentId}/share`);
-      const data = response.data;
+      const data = await apiClient.get<ShareSettings>(`/docs/${documentId}/share`);
       setShareSettings({
         is_public: data.is_public,
         share_permission: data.share_permission || 'editor',
@@ -81,7 +84,7 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     } catch (err) {
       console.error('Failed to fetch share settings:', err);
     }
-  }, [documentId]);
+  }, [documentId, apiClient]);
 
   useEffect(() => {
     void fetchCollaborators();
@@ -103,11 +106,11 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const changeShareMode = async (mode: ShareMode) => {
     try {
       setIsChangingMode(true);
-      const response = await apiClient.put(`/docs/${documentId}/share/mode`, { mode });
+      const data = await apiClient.put<ShareSettings>(`/docs/${documentId}/share/mode`, { mode });
       setShareSettings({
-        is_public: response.data.is_public,
-        share_permission: response.data.share_permission || 'editor',
-        share_mode: response.data.share_mode,
+        is_public: data.is_public,
+        share_permission: data.share_permission || 'editor',
+        share_mode: data.share_mode,
       });
     } catch (err) {
       console.error('Failed to change share mode:', err);
@@ -119,10 +122,12 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
 
   const updateSharePermission = async (permission: 'viewer' | 'editor') => {
     try {
-      const response = await apiClient.put(`/docs/${documentId}/share/permission`, { permission });
+      const data = await apiClient.put<ShareSettings>(`/docs/${documentId}/share/permission`, {
+        permission,
+      });
       setShareSettings((prev) => ({
         ...prev,
-        share_permission: response.data.share_permission,
+        share_permission: data.share_permission,
       }));
     } catch (err) {
       console.error('Failed to update share permission:', err);
@@ -235,6 +240,8 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
             {SHARE_MODE_OPTIONS.find((o) => o.value === shareSettings.share_mode)?.description}
           </Text>
         </div>
+
+        <GroupShareSection documentId={documentId} apiClient={apiClient} />
 
         <div className="collaborators-section">
           <Text size="md" fw={600} mb="sm">

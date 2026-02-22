@@ -21,6 +21,9 @@ export { ChatSidebar } from './components/chat/ChatSidebar';
 export { ChatMessageComponent } from './components/chat/ChatMessage';
 export { ChatComposer } from './components/chat/ChatComposer';
 
+// Components — Permissions
+export { ShareModal } from './components/permissions/ShareModal';
+
 // Components — Common
 export { ErrorBoundary } from './components/common/ErrorBoundary';
 

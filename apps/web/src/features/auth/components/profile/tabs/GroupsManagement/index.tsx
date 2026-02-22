@@ -6,7 +6,7 @@ import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 const GroupsManagementView = lazy(() => import('./GroupsManagementView'));
 
 const GroupsManagementLoadingFallback = (): React.ReactElement => (
-  <div className="profile-tab-loading" />
+  <div className="flex items-center justify-center py-xl" />
 );
 
 interface GroupsManagementTabContainerProps {

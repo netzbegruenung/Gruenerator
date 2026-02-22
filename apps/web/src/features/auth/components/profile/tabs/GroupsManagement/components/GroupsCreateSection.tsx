@@ -1,119 +1,98 @@
-import { motion } from 'motion/react';
-import { memo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
-import type { Control } from 'react-hook-form';
-
-interface TabIndexConfig {
-  groupNameInput?: number;
-  createSubmitButton?: number;
-  createCancelButton?: number;
-}
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface GroupsCreateSectionProps {
-  control: Control<{ groupName: string }>;
-  Input: React.ComponentType<{
-    name: string;
-    type: string;
-    label: string;
-    placeholder: string;
-    rules?: Record<string, unknown>;
-    disabled?: boolean;
-    control: Control<{ groupName: string }>;
-    tabIndex?: number;
-  }>;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreateGroup: (groupName: string) => void;
   isCreatingGroup: boolean;
   isCreateGroupError: boolean;
   createGroupError: Error | null;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  onCancel: () => void;
-  tabIndex: TabIndexConfig;
 }
 
-// Static motion config moved outside component
-const MOTION_CONFIG = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  transition: { duration: 0.3 },
-} as const;
+const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
+  isOpen,
+  onOpenChange,
+  onCreateGroup,
+  isCreatingGroup,
+  isCreateGroupError,
+  createGroupError,
+}) => {
+  const [groupName, setGroupName] = useState('');
 
-// Static validation rules moved outside component
-const GROUP_NAME_RULES = {
-  maxLength: { value: 100, message: 'Gruppenname darf maximal 100 Zeichen haben' },
-} as const;
+  useEffect(() => {
+    if (isOpen) setGroupName('');
+  }, [isOpen]);
 
-const GroupsCreateSection = memo(
-  ({
-    control,
-    Input,
-    isCreatingGroup,
-    isCreateGroupError,
-    createGroupError,
-    onSubmit,
-    onCancel,
-    tabIndex,
-  }: GroupsCreateSectionProps): React.ReactElement => {
-    return (
-      <motion.div
-        className="group-create-container"
-        initial={MOTION_CONFIG.initial}
-        animate={MOTION_CONFIG.animate}
-        transition={MOTION_CONFIG.transition}
-      >
-        <div className="group-content-card">
-          <div className="group-info-panel">
-            <div className="group-header-section">
-              <div className="group-title-area">
-                <h2 className="profile-user-name large-profile-title">Neue Gruppe erstellen</h2>
-              </div>
-            </div>
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      onCreateGroup(groupName);
+    },
+    [groupName, onCreateGroup]
+  );
 
-            {isCreateGroupError && (
-              <div className="auth-error-message error-margin">
-                {createGroupError?.message || 'Fehler beim Erstellen der Gruppe'}
-              </div>
-            )}
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!isCreatingGroup) onOpenChange(open);
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Neue Gruppe erstellen</DialogTitle>
+          <DialogDescription>
+            Erstelle eine Gruppe, um Anweisungen und Wissen mit anderen zu teilen.
+          </DialogDescription>
+        </DialogHeader>
 
-            <form onSubmit={onSubmit} className="auth-form">
-              <div className="form-group">
-                <div className="form-field-wrapper">
-                  <Input
-                    name="groupName"
-                    type="text"
-                    label="Gruppenname:"
-                    placeholder="Name der neuen Gruppe (optional - falls leer: 'unbenannte Gruppe')"
-                    rules={GROUP_NAME_RULES}
-                    disabled={isCreatingGroup}
-                    control={control}
-                    tabIndex={tabIndex.groupNameInput}
-                  />
-                </div>
-              </div>
-              <div className="profile-actions">
-                <button
-                  type="submit"
-                  className="btn-primary size-m"
-                  disabled={isCreatingGroup}
-                  tabIndex={tabIndex.createSubmitButton}
-                >
-                  Gruppe erstellen
-                </button>
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="btn-primary size-m"
-                  disabled={isCreatingGroup}
-                  tabIndex={tabIndex.createCancelButton}
-                >
-                  Abbrechen
-                </button>
-              </div>
-            </form>
+        {isCreateGroupError && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+            {createGroupError?.message || 'Fehler beim Erstellen der Gruppe'}
           </div>
-        </div>
-      </motion.div>
-    );
-  }
-);
+        )}
+
+        <form onSubmit={handleSubmit} id="create-group-form">
+          <label className="flex flex-col gap-xs">
+            <span className="text-sm font-medium">Gruppenname</span>
+            <input
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+              placeholder="Name der neuen Gruppe (optional)"
+              maxLength={100}
+              autoFocus
+              disabled={isCreatingGroup}
+            />
+            <span className="text-xs text-grey-400">
+              Falls leer, wird &quot;unbenannte Gruppe&quot; verwendet.
+            </span>
+          </label>
+        </form>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreatingGroup}>
+            Abbrechen
+          </Button>
+          <Button type="submit" form="create-group-form" disabled={isCreatingGroup}>
+            {isCreatingGroup ? 'Wird erstellt...' : 'Gruppe erstellen'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 GroupsCreateSection.displayName = 'GroupsCreateSection';
 

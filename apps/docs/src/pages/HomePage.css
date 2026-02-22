@@ -27,6 +27,14 @@
   font-weight: 600;
   color: var(--font-color);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.home-page-logo {
+  height: 2rem;
+  width: auto;
 }
 
 .home-page-user-section {
@@ -57,6 +65,10 @@
 
   .home-page-title {
     font-size: 1.5rem;
+  }
+
+  .home-page-logo {
+    height: 2.25rem;
   }
 
   .home-page-user-section {
