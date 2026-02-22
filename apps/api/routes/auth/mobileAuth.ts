@@ -17,6 +17,7 @@ import express, { type Response } from 'express';
 import { SignJWT, jwtVerify } from 'jose';
 
 import { createLogger } from '../../utils/logger.js';
+import { storeBridgeCode, consumeBridgeCode } from '../../utils/redis/BridgeCodeStore.js';
 
 import type { AuthRequest } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
@@ -708,19 +709,6 @@ router.get('/mobile/devices', async (req: AuthRequest, res: Response): Promise<v
   }
 });
 
-// In-memory store for single-use bridge codes (short TTL, auto-cleanup)
-const bridgeCodes = new Map<string, { userId: string; redirect: string; expiresAt: number }>();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [code, entry] of bridgeCodes) {
-    if (entry.expiresAt < now) bridgeCodes.delete(code);
-  }
-}, 60_000);
-
-const BRIDGE_CODE_TTL_MS = 30_000; // 30 seconds
-const MAX_BRIDGE_CODES = 1000;
-
 function sanitizeRedirect(redirect: string): string {
   if (!redirect.startsWith('/') || redirect.startsWith('//') || redirect.includes('\\')) {
     return '/';
@@ -768,18 +756,12 @@ router.post('/mobile/session-bridge', async (req: AuthRequest, res: Response): P
       return;
     }
 
-    if (bridgeCodes.size >= MAX_BRIDGE_CODES) {
-      res.status(503).json({ error: 'Too many pending bridge requests' });
-      return;
-    }
-
     const code = randomBytes(32).toString('base64url');
     const safeRedirect = sanitizeRedirect(redirect);
 
-    bridgeCodes.set(code, {
+    await storeBridgeCode(code, {
       userId: payload.sub as string,
       redirect: safeRedirect,
-      expiresAt: Date.now() + BRIDGE_CODE_TTL_MS,
     });
 
     log.info('[SessionBridge] Bridge code created', {
@@ -809,10 +791,9 @@ router.get('/mobile/session-bridge', async (req: AuthRequest, res: Response): Pr
       return;
     }
 
-    const entry = bridgeCodes.get(code);
-    bridgeCodes.delete(code); // single-use: always delete immediately
+    const entry = await consumeBridgeCode(code);
 
-    if (!entry || entry.expiresAt < Date.now()) {
+    if (!entry) {
       res.status(401).send('Invalid or expired code');
       return;
     }
