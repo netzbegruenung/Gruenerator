@@ -15,6 +15,7 @@ interface DropdownProps {
   direction?: 'up' | 'down';
   showChevron?: boolean;
   onOpenChange?: (open: boolean) => void;
+  containerClassName?: string;
 }
 
 export function Dropdown({
@@ -28,6 +29,7 @@ export function Dropdown({
   direction = 'down',
   showChevron = true,
   onOpenChange,
+  containerClassName,
 }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -77,7 +79,8 @@ export function Dropdown({
             'absolute z-50 overflow-hidden rounded-xl border border-border bg-background shadow-lg',
             width,
             align === 'left' ? 'left-0' : 'right-0',
-            direction === 'down' ? 'top-full mt-1' : 'bottom-full mb-1'
+            direction === 'down' ? 'top-full mt-1' : 'bottom-full mb-1',
+            containerClassName
           )}
         >
           <div
