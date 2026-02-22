@@ -138,6 +138,24 @@ export class AuthService {
         return true;
       }
 
+      const groupResult = await this.db(
+        `SELECT gcs.permissions FROM group_content_shares gcs
+         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
+        [userId, documentId]
+      );
+
+      if (groupResult.length > 0) {
+        const groupPerms = (
+          typeof groupResult[0].permissions === 'string'
+            ? JSON.parse(groupResult[0].permissions)
+            : groupResult[0].permissions
+        ) as { read?: boolean; write?: boolean } | null;
+        if (groupPerms?.write === true) {
+          return true;
+        }
+      }
+
       return false;
     } catch (error) {
       log.error(`[CanEdit] Error checking edit permission: ${error}`);
@@ -199,7 +217,28 @@ export class AuthService {
       `[Auth] isOwner: ${isOwner}, isPublic: ${isPublic}, shareMode: ${shareMode}, userPermission: ${JSON.stringify(userPermission)}`
     );
 
-    const hasAccess = isOwner || isPublic || shareMode === 'authenticated' || userPermission;
+    let hasAccess = isOwner || isPublic || shareMode === 'authenticated' || userPermission;
+    let groupCanEdit: boolean | undefined;
+
+    if (!hasAccess) {
+      const groupResult = await this.db(
+        `SELECT gcs.permissions FROM group_content_shares gcs
+         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
+        [userId, documentName]
+      );
+
+      if (groupResult.length > 0) {
+        hasAccess = true;
+        const groupPerms = (
+          typeof groupResult[0].permissions === 'string'
+            ? JSON.parse(groupResult[0].permissions)
+            : groupResult[0].permissions
+        ) as { read?: boolean; write?: boolean } | null;
+        groupCanEdit = groupPerms?.write === true;
+        log.info(`[Auth] Group access granted (canEdit: ${groupCanEdit})`);
+      }
+    }
 
     if (!hasAccess) {
       log.warn(`[Auth] FAILED: Access denied - no permission to view document`);
@@ -236,6 +275,8 @@ export class AuthService {
       readOnly = permissionLevel === 'viewer';
     } else if (shareMode === 'authenticated' || isPublic) {
       readOnly = sharePermission === 'viewer';
+    } else if (groupCanEdit !== undefined) {
+      readOnly = !groupCanEdit;
     } else {
       readOnly = true;
     }

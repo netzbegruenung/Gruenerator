@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@gruenerator/shared/stores';
-import { secureStorage } from '../../services/storage';
+import { getValidToken } from '../../services/auth';
 import { lightTheme, darkTheme, colors } from '../../theme';
 import { API_BASE_URL } from '../../config';
 import { WebView } from 'react-native-webview';
@@ -30,12 +31,14 @@ export default function DocumentScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const webViewRef = useRef<WebView>(null);
+  const insets = useSafeAreaInsets();
 
   const { user } = useAuthStore();
 
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bridgeUrl, setBridgeUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const loadToken = async () => {
@@ -45,7 +48,7 @@ export default function DocumentScreen() {
         return;
       }
 
-      const authToken = await secureStorage.getToken();
+      const authToken = await getValidToken();
       if (!authToken) {
         setError('Nicht angemeldet');
         setIsLoading(false);
@@ -57,6 +60,35 @@ export default function DocumentScreen() {
 
     loadToken();
   }, [id]);
+
+  useEffect(() => {
+    if (!token || !id) return;
+
+    const fetchBridgeCode = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/mobile/session-bridge`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ redirect: `/document/${id}` }),
+        });
+
+        if (!response.ok) {
+          setError(`Session-Bridge fehlgeschlagen (${response.status})`);
+          return;
+        }
+
+        const { code } = await response.json();
+        setBridgeUrl(`${API_BASE_URL}/auth/mobile/session-bridge?code=${encodeURIComponent(code)}`);
+      } catch {
+        setError('Verbindung fehlgeschlagen');
+      }
+    };
+
+    fetchBridgeCode();
+  }, [token, id]);
 
   if (isLoading) {
     return (
@@ -87,37 +119,6 @@ export default function DocumentScreen() {
     );
   }
 
-  const [bridgeUrl, setBridgeUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!token || !id) return;
-
-    const fetchBridgeCode = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/auth/mobile/session-bridge`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ redirect: `/document/${id}` }),
-        });
-
-        if (!response.ok) {
-          setError('Sitzung abgelaufen — bitte erneut anmelden');
-          return;
-        }
-
-        const { code } = await response.json();
-        setBridgeUrl(`${API_BASE_URL}/auth/mobile/session-bridge?code=${encodeURIComponent(code)}`);
-      } catch {
-        setError('Verbindung fehlgeschlagen');
-      }
-    };
-
-    fetchBridgeCode();
-  }, [token, id]);
-
   if (!bridgeUrl) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
@@ -130,7 +131,7 @@ export default function DocumentScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
@@ -151,11 +152,11 @@ export default function DocumentScreen() {
             <ActivityIndicator size="large" color={colors.primary[600]} />
           </View>
         )}
-        onError={(e) => console.log('[WebView] error:', e.nativeEvent)}
+        onError={(e) => {
+          setError(`WebView-Fehler: ${e.nativeEvent.description}`);
+        }}
         onHttpError={(e) => {
-          if (e.nativeEvent.statusCode === 401) {
-            setError('Sitzung abgelaufen — bitte erneut anmelden');
-          }
+          setError(`WebView HTTP ${e.nativeEvent.statusCode}`);
         }}
       />
     </View>

@@ -1,13 +1,23 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import { HiX, HiDocumentText, HiCollection } from 'react-icons/hi';
+import { HiDocumentText, HiCollection } from 'react-icons/hi';
 
 import { ICONS } from '../../../../../../../../config/icons';
 import { useDocumentsStore } from '../../../../../../../../stores/documentsStore';
 import { profileApiService } from '../../../../../../services/profileApiService';
 
 import type { IconType } from 'react-icons';
-import '../../../../../../../../assets/styles/features/groups/add-content-modal.css';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { cn } from '@/utils/cn';
 
 interface ContentItem {
   id: string | number;
@@ -220,37 +230,6 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     }
   }, [selectedItems, totalSelectedCount, onShareContent, groupId, onSuccess, onError]);
 
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, handleKeyDown]);
-
-  if (!isOpen) return null;
-
   const currentItems: ContentItem[] = content[activeTab] || [];
   const currentSelections: (string | number)[] = selectedItems[activeTab] || [];
   const allSelected =
@@ -259,113 +238,118 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
       currentSelections.some((sel) => String(sel) === String(item.id))
     );
 
-  const modalContent = (
-    <div className="add-content-modal-backdrop" onClick={handleBackdropClick}>
-      <div
-        className="add-content-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="add-content-modal-title"
-      >
-        <div className="add-content-modal-header">
-          <h2 id="add-content-modal-title">Inhalte zur Gruppe hinzufügen</h2>
-          <button className="add-content-modal-close" onClick={onClose} aria-label="Schließen">
-            <HiX />
-          </button>
-        </div>
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Inhalte zur Gruppe hinzufügen</DialogTitle>
+          <DialogDescription>
+            Wähle Inhalte aus, die du mit der Gruppe teilen möchtest.
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="add-content-modal-tabs">
+        {/* Tab Navigation */}
+        <div className="flex gap-xs overflow-x-auto pb-xs border-b border-grey-200 dark:border-grey-700">
           {CONTENT_TABS.map((tab) => {
             const Icon = tab.icon;
             const count = (selectedItems[tab.id] || []).length;
             return (
               <button
                 key={tab.id}
-                className={`add-content-modal-tab ${activeTab === tab.id ? 'active' : ''}`}
+                className={cn(
+                  'flex items-center gap-xs px-sm py-xs rounded-md text-sm font-medium transition-colors whitespace-nowrap shrink-0',
+                  activeTab === tab.id
+                    ? 'bg-primary-500/10 text-primary-500'
+                    : 'text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
+                )}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <Icon className="add-content-modal-tab-icon" />
-                <span>{tab.label}</span>
-                {count > 0 && <span className="add-content-modal-tab-badge">{count}</span>}
+                <Icon className="text-base" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                {count > 0 && (
+                  <Badge variant="default" className="text-[0.65rem] px-1 py-0">
+                    {count}
+                  </Badge>
+                )}
               </button>
             );
           })}
         </div>
 
-        <div className="add-content-modal-body">
+        {/* Content List */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
-            <div className="add-content-modal-loading">
-              <span>Lade Inhalte...</span>
+            <div className="flex items-center justify-center py-xl text-sm text-grey-500">
+              Lade Inhalte...
             </div>
           ) : currentItems.length === 0 ? (
-            <div className="add-content-modal-empty">
-              <p>Keine Inhalte verfügbar.</p>
+            <div className="flex items-center justify-center py-xl text-sm text-grey-500">
+              Keine Inhalte verfügbar.
             </div>
           ) : (
-            <>
-              <div className="add-content-modal-select-all">
-                <label className="add-content-modal-checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={() => handleSelectAll(activeTab)}
-                  />
-                  <span>Alle auswählen ({currentItems.length})</span>
-                </label>
-              </div>
-              <div className="add-content-modal-list">
-                {currentItems.map((item: ContentItem) => {
-                  const isSelected = currentSelections.some(
-                    (sel) => String(sel) === String(item.id)
-                  );
-                  const title = item.title || item.name || 'Ohne Titel';
-                  const description = item.description || item.filename || '';
+            <div className="flex flex-col">
+              {/* Select All */}
+              <label className="flex items-center gap-sm px-sm py-xs border-b border-grey-200 dark:border-grey-700 cursor-pointer hover:bg-grey-50 dark:hover:bg-grey-800/50">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => handleSelectAll(activeTab)}
+                  className="size-4 rounded accent-primary-500"
+                />
+                <span className="text-sm font-medium">Alle auswählen ({currentItems.length})</span>
+              </label>
 
-                  return (
-                    <label
-                      key={item.id}
-                      className={`add-content-modal-item ${isSelected ? 'selected' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleToggleItem(activeTab, item.id)}
-                      />
-                      <div className="add-content-modal-item-info">
-                        <span className="add-content-modal-item-title">{title}</span>
-                        {description && (
-                          <span className="add-content-modal-item-description">
-                            {description.length > 80
-                              ? `${description.substring(0, 80)}...`
-                              : description}
-                          </span>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </>
+              {/* Items */}
+              {currentItems.map((item: ContentItem) => {
+                const isSelected = currentSelections.some((sel) => String(sel) === String(item.id));
+                const title = item.title || item.name || 'Ohne Titel';
+                const description = item.description || item.filename || '';
+
+                return (
+                  <label
+                    key={item.id}
+                    className={cn(
+                      'flex items-center gap-sm px-sm py-xs cursor-pointer transition-colors border-b border-grey-100 dark:border-grey-800 last:border-b-0',
+                      isSelected ? 'bg-primary-500/5' : 'hover:bg-grey-50 dark:hover:bg-grey-800/50'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleItem(activeTab, item.id)}
+                      className="size-4 rounded accent-primary-500 shrink-0"
+                    />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium truncate">{title}</span>
+                      {description && (
+                        <span className="text-xs text-grey-500 truncate">
+                          {description.length > 80
+                            ? `${description.substring(0, 80)}...`
+                            : description}
+                        </span>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
           )}
         </div>
 
-        <div className="add-content-modal-footer">
-          <button className="pabtn pabtn--m pabtn--ghost" onClick={onClose} disabled={isSaving}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Abbrechen
-          </button>
-          <button
-            className="pabtn pabtn--m pabtn--primary"
+          </Button>
+          <Button
             onClick={handleShare}
             disabled={totalSelectedCount === 0 || isSaving || isSharing}
           >
             {isSaving ? 'Wird hinzugefügt...' : `${totalSelectedCount} hinzufügen`}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-
-  return createPortal(modalContent, document.body);
 };
 
 export default AddContentToGroupModal;

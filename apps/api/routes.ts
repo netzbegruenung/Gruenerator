@@ -158,6 +158,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
   const { default: contentTitleRouter } = await import('./routes/texte/contentTitleRoute.js');
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
+  const { default: emailRouter } = await import('./routes/email/emailController.js');
 
   // Auth routes - combined TypeScript router
   app.use('/api/auth', authRouter);
@@ -265,6 +266,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/subtitler/share', subtitlerShareRouter);
   app.use('/api/share', shareRouter);
   app.use('/api/mem0', requireAuth, mem0Router);
+  app.use('/api/email', requireAuth, emailRouter);
   app.use('/api/media', requireAuth, mediaRouter);
   app.use('/api/docs/public', publicDocRouter);
   app.use('/api/docs', requireAuth, docsRouter);

@@ -250,7 +250,7 @@ const GroupDetailSection = memo(
 
     if (isErrorDetails) {
       return (
-        <div className="auth-error-message">
+        <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
           Fehler beim Laden der Gruppendetails: {errorDetails?.message || 'Unbekannter Fehler'}
         </div>
       );
@@ -261,7 +261,7 @@ const GroupDetailSection = memo(
 
     return (
       <motion.div
-        className="group-detail-cards-layout"
+        className="flex flex-col gap-sm"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}

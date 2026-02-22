@@ -136,7 +136,7 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
     }
 
     const docResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+      'SELECT created_by, permissions, title FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
       [id, DOCS_SUBTYPES]
     )) as DocumentWithPermissions[];
 
@@ -153,10 +153,11 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       return res.status(403).json({ error: 'Only owners can manage permissions' });
     }
 
-    const userExists = (await db.query('SELECT id FROM profiles WHERE id = $1', [
-      user_id,
-    ])) as ProfileRow[];
-    if (userExists.length === 0) {
+    const recipientProfile = (await db.query(
+      'SELECT id, display_name, email FROM profiles WHERE id = $1',
+      [user_id]
+    )) as ProfileRow[];
+    if (recipientProfile.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -171,6 +172,28 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [JSON.stringify(permissions), id]
     );
+
+    // Fire-and-forget: send share notification email
+    const recipient = recipientProfile[0];
+    if (recipient.email) {
+      const senderProfile = (await db.query('SELECT display_name FROM profiles WHERE id = $1', [
+        userId,
+      ])) as ProfileRow[];
+      const senderName = senderProfile[0]?.display_name || 'Jemand';
+
+      import('../../services/email/index.js')
+        .then(({ sendDocumentShareEmail }) =>
+          sendDocumentShareEmail({
+            recipientEmail: recipient.email!,
+            recipientName: recipient.display_name || 'Kolleg*in',
+            senderName,
+            documentId: id,
+            documentTitle: (document.title as string) || 'Unbenanntes Dokument',
+            permissionLevel: permission_level,
+          })
+        )
+        .catch(() => {});
+    }
 
     return res.json({
       message: 'Permission granted successfully',

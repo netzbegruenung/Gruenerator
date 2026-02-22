@@ -24,6 +24,7 @@ const validContentTypes = [
   'notebook_collections',
   'user_documents',
   'database',
+  'collaborative_documents',
 ];
 
 // Map content type to actual table name
@@ -70,15 +71,21 @@ router.post(
 
       // Verify user owns the content
       const tableName = tableNameMap[contentType] || contentType;
+      const ownerColumn = contentType === 'collaborative_documents' ? 'created_by' : 'user_id';
 
       // Build ownership query based on content type
-      let ownershipSQL = `SELECT user_id FROM ${tableName} WHERE id = $1`;
+      let ownershipSQL = `SELECT ${ownerColumn} FROM ${tableName} WHERE id = $1`;
       const ownershipParams: any[] = [contentId];
 
       // For user_templates table (templates), also filter by type = 'template'
       if (tableName === 'user_templates') {
         ownershipSQL += ` AND type = $2`;
         ownershipParams.push('template');
+      }
+
+      // For collaborative_documents, also filter out deleted
+      if (contentType === 'collaborative_documents') {
+        ownershipSQL += ` AND is_deleted = false`;
       }
 
       const contentOwnership = await postgres.queryOne(ownershipSQL, ownershipParams, {
@@ -101,7 +108,7 @@ router.post(
         return;
       }
 
-      if (contentOwnership.user_id !== userId) {
+      if (contentOwnership[ownerColumn] !== userId) {
         res.status(403).json({
           success: false,
           message: 'Du bist nicht der Besitzer dieses Inhalts.',
@@ -296,6 +303,7 @@ router.get(
         notebook_collections: [],
         user_documents: [],
         database: [],
+        collaborative_documents: [],
       };
 
       sharedContent.forEach((share: any) => {
@@ -420,6 +428,22 @@ router.get(
         );
       }
 
+      // Collaborative Documents
+      if (contentByType.collaborative_documents.length > 0) {
+        const collabDocIds = contentByType.collaborative_documents.map((s: any) => s.content_id);
+        const collabDocsData =
+          (await postgres.query(
+            `SELECT id, title, document_subtype, created_by, created_at, updated_at FROM collaborative_documents WHERE id = ANY($1) AND is_deleted = false`,
+            [collabDocIds],
+            { table: 'collaborative_documents' }
+          )) || [];
+        contentResults.push({
+          type: 'collaborative_documents',
+          result: { data: collabDocsData },
+          shares: contentByType.collaborative_documents,
+        });
+      }
+
       // Process and format results
       const groupContent: Record<string, any[]> = {
         knowledge: groupKnowledge,
@@ -428,6 +452,7 @@ router.get(
         notebooks: [],
         texts: [],
         templates: [],
+        collaborative_documents: [],
       };
 
       contentResults.forEach(({ type, result, shares }) => {
@@ -461,6 +486,7 @@ router.get(
           notebook_collections: 'notebooks',
           user_documents: 'texts',
           database: 'templates',
+          collaborative_documents: 'collaborative_documents',
         };
 
         groupContent[keyMap[type]] = items;

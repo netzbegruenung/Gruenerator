@@ -15,6 +15,9 @@ export {
 // OIDC State Store exports (Redis fallback for privacy browsers)
 export { storeOIDCState, consumeOIDCState } from './OIDCStateStore.js';
 
+// Bridge Code Store exports (cross-worker session bridging for mobile WebViews)
+export { storeBridgeCode, consumeBridgeCode } from './BridgeCodeStore.js';
+
 // Rate Limiter exports
 export { default as RateLimiter, RateLimiter as RateLimiterClass } from './RateLimiter.js';
 
