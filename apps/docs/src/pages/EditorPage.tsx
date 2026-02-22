@@ -21,9 +21,7 @@ import type { BlockNoteEditor } from '@blocknote/core';
 import '@mantine/core/styles.css';
 import './EditorPage.css';
 
-const ShareModal = lazy(() =>
-  import('../components/permissions/ShareModal').then((m) => ({ default: m.ShareModal }))
-);
+const ShareModal = lazy(() => import('@gruenerator/docs').then((m) => ({ default: m.ShareModal })));
 const ChatSidebar = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
 );

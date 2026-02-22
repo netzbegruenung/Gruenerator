@@ -34,9 +34,13 @@
   --card-background: #ffffff;
   --card-border-radius-small: 8px;
 
+  /* Brand colors */
+  --primary-600: #316049;
+
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
 
   /* Spacing */
   --spacing-xxsmall: 4px;

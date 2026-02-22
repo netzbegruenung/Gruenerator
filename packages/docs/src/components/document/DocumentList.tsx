@@ -1,10 +1,19 @@
 import { Menu, ActionIcon } from '@mantine/core';
 import { useEffect, useMemo, useState } from 'react';
-import { FiPlus, FiFile, FiGrid, FiMoreVertical, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import {
+  FiPlus,
+  FiFile,
+  FiGrid,
+  FiMoreVertical,
+  FiEdit2,
+  FiShare2,
+  FiTrash2,
+} from 'react-icons/fi';
 
 import { useDocumentStore } from '../../stores/documentStore';
 import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 import { templates, type TemplateType, getTemplateContent } from '../../lib/templates';
+import { ShareModal } from '../permissions/ShareModal';
 import { TemplateCarousel } from './TemplateCarousel';
 import { TemplatePicker } from './TemplatePicker';
 import './DocumentList.css';
@@ -22,6 +31,7 @@ export const DocumentList = () => {
     updateDocument,
   } = useDocumentStore();
   const [showGallery, setShowGallery] = useState(false);
+  const [shareDocumentId, setShareDocumentId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDocuments(apiClient);
@@ -139,6 +149,15 @@ export const DocumentList = () => {
                           Umbenennen
                         </Menu.Item>
                         <Menu.Item
+                          leftSection={<FiShare2 size={14} />}
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            setShareDocumentId(doc.id);
+                          }}
+                        >
+                          Teilen
+                        </Menu.Item>
+                        <Menu.Item
                           leftSection={<FiTrash2 size={14} />}
                           color="red"
                           onClick={(e: React.MouseEvent) => handleDeleteDocument(doc.id, e)}
@@ -194,6 +213,10 @@ export const DocumentList = () => {
 
       {showGallery && (
         <TemplatePicker onSelect={handleTemplateSelect} onClose={() => setShowGallery(false)} />
+      )}
+
+      {shareDocumentId && (
+        <ShareModal documentId={shareDocumentId} onClose={() => setShareDocumentId(null)} />
       )}
     </div>
   );
