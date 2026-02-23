@@ -11,7 +11,8 @@
     "paths": {
       "@gruenerator/shared": ["../../packages/shared/src/index.ts"],
       "@gruenerator/shared/*": ["../../packages/shared/src/*"],
-      "@gruenerator/docs": ["../../packages/docs/src/index.ts"]
+      "@gruenerator/docs": ["../../packages/docs/src/index.ts"],
+      "@gruenerator/docs/templates": ["../../packages/docs/src/lib/templates.ts"]
     }
   },
   "include": [

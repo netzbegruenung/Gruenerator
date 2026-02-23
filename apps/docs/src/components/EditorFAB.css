@@ -1,0 +1,107 @@
+/* ─────────────────────────────────────────────
+   Editor FAB — Embedded mode sidebar toggle
+   ───────────────────────────────────────────── */
+
+.editor-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  z-index: 150;
+  transition: all 0.15s ease;
+}
+
+.editor-fab:hover {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.12),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.editor-fab:active {
+  transform: scale(0.95);
+}
+
+.editor-fab.active {
+  background: var(--secondary-100, #D5E1DC);
+  border-color: var(--secondary-400, #85A899);
+}
+
+.editor-fab svg {
+  width: 22px;
+  height: 22px;
+  color: var(--grey-700, #374151);
+}
+
+.editor-fab.active svg {
+  color: var(--secondary-700, #3d6b56);
+}
+
+/* Status dot overlay */
+.editor-fab__status {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+}
+
+.editor-fab__status.connected {
+  background: #10b981;
+}
+
+.editor-fab__status.syncing {
+  background: #f59e0b;
+  animation: editorFabPulse 1.5s ease-in-out infinite;
+}
+
+.editor-fab__status.disconnected {
+  background: #ef4444;
+}
+
+@keyframes editorFabPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Dark mode */
+[data-theme="dark"] .editor-fab {
+  background: rgba(30, 30, 30, 0.85);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .editor-fab:hover {
+  background: rgba(40, 40, 40, 0.95);
+}
+
+[data-theme="dark"] .editor-fab.active {
+  background: rgba(95, 133, 117, 0.25);
+  border-color: var(--secondary-600, #5F8575);
+}
+
+[data-theme="dark"] .editor-fab svg {
+  color: var(--grey-300, #d1d5db);
+}
+
+[data-theme="dark"] .editor-fab.active svg {
+  color: var(--secondary-400, #85A899);
+}
+
+[data-theme="dark"] .editor-fab__status {
+  border-color: rgba(30, 30, 30, 0.9);
+}

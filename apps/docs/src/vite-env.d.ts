@@ -13,6 +13,7 @@ interface ImportMeta {
 declare global {
   interface Window {
     __TAURI__?: Record<string, unknown>;
+    ReactNativeWebView?: { postMessage: (message: string) => void };
   }
 }
 
