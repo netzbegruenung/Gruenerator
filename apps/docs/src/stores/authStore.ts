@@ -5,6 +5,7 @@ interface User {
   email?: string;
   display_name?: string;
   avatar_url?: string;
+  avatar_robot_id?: number;
 }
 
 interface AuthStore {
