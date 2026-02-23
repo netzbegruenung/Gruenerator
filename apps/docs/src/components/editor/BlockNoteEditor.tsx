@@ -318,7 +318,7 @@ const BlockNoteEditorInner = ({
   }, []);
 
   if (!editor) {
-    return <div className="blocknote-loading">Lädt Editor...</div>;
+    return <div className="blocknote-loading" />;
   }
 
   return (
