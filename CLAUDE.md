@@ -154,6 +154,39 @@ cd apps/docs-expo && npx expo install <package-name>
 cd apps/mobile && npx expo install <package-name>
 ```
 
+### expo-file-system (v19+ / SDK 54)
+
+`expo-file-system` uses a **class-based API** (`File`, `Directory`, `Paths`). The legacy function-based API (`cacheDirectory`, `writeAsStringAsync`, `EncodingType`) is deprecated and throws at runtime — use `expo-file-system/legacy` only as a last resort.
+
+```tsx
+import { File, Directory, Paths } from 'expo-file-system';
+
+// Write bytes to cache
+const file = new File(Paths.cache, 'export.pdf');
+file.write(new Uint8Array(buffer));   // accepts string or Uint8Array
+file.write('Hello, world!');          // string defaults to UTF-8
+
+// Read
+const text = file.textSync();         // sync
+const text2 = await file.text();      // async
+const bytes = await file.bytes();     // Uint8Array
+const b64 = await file.base64();      // base64 string
+
+// File properties (no async needed)
+file.exists;   // boolean
+file.size;     // number (bytes)
+file.uri;      // file:// URI (read-only, changes on move/rename)
+file.type;     // MIME type string
+
+// Download
+const downloaded = await File.downloadFileAsync(url, new Directory(Paths.cache, 'downloads'));
+
+// Directories
+Paths.cache;     // Directory — system-clearable cache
+Paths.document;  // Directory — persistent storage
+Paths.bundle;    // Directory — bundled assets (read-only)
+```
+
 ### KeyboardStickyView in Nested Navigators
 
 When using `KeyboardStickyView` (from `react-native-keyboard-controller`) inside nested navigators (e.g., Bottom Tabs > Material Top Tabs), **always set offsets to zero** and handle bottom insets externally via `paddingBottom`:
@@ -291,7 +324,8 @@ ESLint (flat config), Prettier, Husky pre-commit hooks (lint-staged), Knip for u
 
 ### Docs Expo (Android APK)
 
-The `apps/docs-expo` Expo 54 app is built locally as a debug APK:
+The `apps/docs-expo` Expo 54 app is built locally as a debug APK.
+- **Android package**: `de.gruenerator.docs`
 
 ```bash
 # 1. Check project health
