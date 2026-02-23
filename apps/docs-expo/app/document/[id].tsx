@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +8,7 @@ import { getValidToken } from '../../services/auth';
 import { lightTheme, darkTheme, colors } from '../../theme';
 import { API_BASE_URL } from '../../config';
 import { WebView } from 'react-native-webview';
+import { StatusBar } from 'expo-status-bar';
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
@@ -31,8 +31,6 @@ export default function DocumentScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const webViewRef = useRef<WebView>(null);
-  const insets = useSafeAreaInsets();
-
   const { user } = useAuthStore();
 
   const [token, setToken] = useState<string | null>(null);
@@ -72,7 +70,7 @@ export default function DocumentScreen() {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ redirect: `/document/${id}` }),
+          body: JSON.stringify({ redirect: `/document/${id}?embedded=true` }),
         });
 
         if (!response.ok) {
@@ -91,14 +89,7 @@ export default function DocumentScreen() {
   }, [token, id]);
 
   if (isLoading) {
-    return (
-      <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-          Dokument wird geladen...
-        </Text>
-      </View>
-    );
+    return <View style={[styles.container, { backgroundColor: theme.background }]} />;
   }
 
   if (error || !token || !user) {
@@ -120,23 +111,12 @@ export default function DocumentScreen() {
   }
 
   if (!bridgeUrl) {
-    return (
-      <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-          Dokument wird geladen...
-        </Text>
-      </View>
-    );
+    return <View style={[styles.container, { backgroundColor: theme.background }]} />;
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar hidden />
       <WebView
         ref={webViewRef}
         source={{ uri: bridgeUrl }}
@@ -146,17 +126,21 @@ export default function DocumentScreen() {
         originWhitelist={['*']}
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
-        startInLoadingState={true}
-        renderLoading={() => (
-          <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
-          </View>
-        )}
         onError={(e) => {
           setError(`WebView-Fehler: ${e.nativeEvent.description}`);
         }}
         onHttpError={(e) => {
           setError(`WebView HTTP ${e.nativeEvent.statusCode}`);
+        }}
+        onMessage={(event) => {
+          try {
+            const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === 'NAVIGATE_BACK') {
+              router.back();
+            }
+          } catch {
+            // ignore non-JSON messages
+          }
         }}
       />
     </View>
@@ -167,24 +151,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  backIcon: {
-    padding: 8,
-  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
   },
   errorTitle: {
     fontSize: 18,

@@ -8,7 +8,7 @@ interface DocsState {
 
   fetchDocuments: () => Promise<void>;
   fetchDocument: (id: string) => Promise<Document | null>;
-  createDocument: (title: string) => Promise<Document | null>;
+  createDocument: (title: string, documentSubtype?: string) => Promise<Document | null>;
   updateDocument: (id: string, payload: UpdateDocumentPayload) => Promise<Document | null>;
   deleteDocument: (id: string) => Promise<boolean>;
   clearError: () => void;
@@ -55,10 +55,13 @@ export const useDocsStore = create<DocsState>((set, get) => ({
     }
   },
 
-  createDocument: async (title: string) => {
+  createDocument: async (title: string, documentSubtype?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const document = await docsService.createDocument({ title });
+      const document = await docsService.createDocument({
+        title,
+        document_subtype: documentSubtype,
+      });
       if (document) {
         set((state) => ({
           documents: [document, ...state.documents],
