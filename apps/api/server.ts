@@ -17,14 +17,15 @@ import compression from 'compression';
 import { RedisStore } from 'connect-redis';
 import cors from 'cors';
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
-
-import { initSentry, Sentry } from './lib/sentry.js';
-initSentry();
-
-import morgan from 'morgan';
-import helmet from 'helmet';
-import multer from 'multer';
 import session from 'express-session';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import multer from 'multer';
+
+import { createCorsOptions } from './config/cors.js';
+import passport from './config/passportSetup.js';
+import { getServerConfig } from './config/serverConfig.js';
+import { Sentry } from './lib/sentry.js';
 
 // Local imports
 import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserConfig.js';
@@ -35,14 +36,11 @@ import { startCleanupScheduler as startExportCleanup } from './services/subtitle
 import { tusServer } from './services/subtitler/tusService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 import { createLogger } from './utils/logger.js';
-import { createCorsOptions } from './config/cors.js';
-import { getServerConfig } from './config/serverConfig.js';
 import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
 import {
   createMasterShutdownHandler,
   createWorkerShutdownHandler,
 } from './utils/shutdown/index.js';
-import passport from './config/passportSetup.js';
 import AIWorkerPool from './workers/aiWorkerPool.js';
 
 const __filename = fileURLToPath(import.meta.url);
