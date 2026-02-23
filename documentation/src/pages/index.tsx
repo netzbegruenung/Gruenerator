@@ -63,6 +63,16 @@ const categories: CategoryCard[] = [
     ],
   },
   {
+    title: 'Integrationen',
+    icon: '🔌',
+    description: 'Nutze den Grünerator direkt in ChatGPT, Claude oder Mistral Le Chat.',
+    link: '/docs/integrationen/ki-chat-einrichten',
+    topPages: [
+      { title: 'KI-Chat einrichten', link: '/docs/integrationen/ki-chat-einrichten' },
+      { title: 'Was kann ich fragen?', link: '/docs/integrationen/mcp-was-kann-ich-fragen' },
+    ],
+  },
+  {
     title: 'LLM Basics',
     icon: '🧠',
     description: 'Verstehe, wie Large Language Models funktionieren und welche Risiken es gibt.',
