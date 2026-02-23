@@ -149,6 +149,11 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/docs/integrationen/ki-chat-einrichten',
+          label: 'Integrationen',
+          position: 'left',
+        },
+        {
           to: '/docs/llm-basics/wie-llms-funktionieren',
           label: 'LLM Basics',
           position: 'left',
@@ -203,18 +208,22 @@ const config: Config = {
               label: 'Privacy-Mode',
               to: '/docs/gruenerieren/privacy-mode',
             },
-          ],
-        },
-        {
-          title: 'LLM Basics',
-          items: [
             {
               label: 'Wie LLMs funktionieren',
               to: '/docs/llm-basics/wie-llms-funktionieren',
             },
+          ],
+        },
+        {
+          title: 'Integrationen',
+          items: [
             {
-              label: 'Risiken & Gefahren',
-              to: '/docs/llm-basics/risiken-und-gefahren-von-llms',
+              label: 'KI-Chat einrichten',
+              to: '/docs/integrationen/ki-chat-einrichten',
+            },
+            {
+              label: 'Was kann ich fragen?',
+              to: '/docs/integrationen/mcp-was-kann-ich-fragen',
             },
           ],
         },

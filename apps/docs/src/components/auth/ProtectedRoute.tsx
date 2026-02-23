@@ -52,20 +52,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }, [isLoading, isAuthenticated, documentId]);
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          fontSize: '1.2rem',
-          color: 'var(--font-color)',
-        }}
-      >
-        Lädt...
-      </div>
-    );
+    return <div style={{ height: '100vh' }} />;
   }
 
   if (isAuthenticated) {
@@ -74,20 +61,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (documentId) {
     if (publicCheckState === 'idle' || publicCheckState === 'checking') {
-      return (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-            fontSize: '1.2rem',
-            color: 'var(--font-color)',
-          }}
-        >
-          Lädt...
-        </div>
-      );
+      return <div style={{ height: '100vh' }} />;
     }
 
     if (publicCheckState === 'public') {
