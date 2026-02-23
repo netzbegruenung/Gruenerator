@@ -11,6 +11,11 @@
       "require": "./src/index.ts",
       "types": "./src/index.ts"
     },
+    "./templates": {
+      "import": "./src/lib/templates.ts",
+      "require": "./src/lib/templates.ts",
+      "types": "./src/lib/templates.ts"
+    },
     "./styles": "./src/styles/docs.css",
     "./editor-styles": "./src/components/editor/BlockNoteEditor.css"
   },

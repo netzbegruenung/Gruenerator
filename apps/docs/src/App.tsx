@@ -27,18 +27,7 @@ const queryClient = new QueryClient({
 });
 
 function PageLoader() {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-      }}
-    >
-      <p>Lädt...</p>
-    </div>
-  );
+  return <div style={{ minHeight: '100vh' }} />;
 }
 
 function App() {
