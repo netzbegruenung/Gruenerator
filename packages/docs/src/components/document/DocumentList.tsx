@@ -18,7 +18,11 @@ import { TemplateCarousel } from './TemplateCarousel';
 import { TemplatePicker } from './TemplatePicker';
 import './DocumentList.css';
 
-export const DocumentList = () => {
+interface DocumentListProps {
+  searchQuery?: string;
+}
+
+export const DocumentList = ({ searchQuery }: DocumentListProps) => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const {
@@ -32,6 +36,12 @@ export const DocumentList = () => {
   } = useDocumentStore();
   const [showGallery, setShowGallery] = useState(false);
   const [shareDocumentId, setShareDocumentId] = useState<string | null>(null);
+
+  const filteredDocuments = useMemo(() => {
+    if (!searchQuery?.trim()) return documents;
+    const query = searchQuery.trim().toLowerCase();
+    return documents.filter((doc) => doc.title.toLowerCase().includes(query));
+  }, [documents, searchQuery]);
 
   useEffect(() => {
     fetchDocuments(apiClient);
@@ -94,9 +104,11 @@ export const DocumentList = () => {
         <div className="document-list-empty">
           Noch keine Dokumente vorhanden. Erstelle dein erstes Dokument!
         </div>
+      ) : filteredDocuments.length === 0 ? (
+        <div className="document-list-empty">Keine Dokumente gefunden.</div>
       ) : (
         <div className="document-grid">
-          {documents.map((doc) => {
+          {filteredDocuments.map((doc) => {
             const template = templates.find((t) => t.id === doc.document_subtype);
             const emoji = template?.icon || '📄';
             const templateHtml = getTemplateContent(doc.document_subtype);

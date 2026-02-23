@@ -206,8 +206,34 @@ passport.deserializeUser(async (userData: any, done) => {
         if (userData._redirectTo) {
           userToReturn._redirectTo = userData._redirectTo;
         }
+        return done(null, userToReturn as unknown as Express.User);
       }
-      return done(null, userToReturn || userData);
+
+      // Profile row missing — attempt recovery via syncPendingProfile
+      if (userData.keycloak_id) {
+        log.warn(
+          `[deserializeUser] Profile missing for id=${userData.id}, attempting recovery via keycloak_id=${userData.keycloak_id}`
+        );
+        const fallback: FallbackUser = {
+          id: userData.id,
+          keycloak_id: userData.keycloak_id,
+          email: userData.email || null,
+          display_name: userData.display_name || userData.username || '',
+          username: userData.username || userData.keycloak_id,
+          locale: userData.locale === 'de-AT' ? 'de-AT' : 'de-DE',
+          _profileSyncPending: true,
+          _profileSyncError: null,
+          beta_features: userData.beta_features || {},
+        };
+        const synced = await syncPendingProfile(fallback);
+        return done(null, synced as unknown as Express.User);
+      }
+
+      // No keycloak_id available — cannot recover, force re-login
+      log.warn(
+        `[deserializeUser] Profile missing for id=${userData.id} and no keycloak_id — forcing re-login`
+      );
+      return done(null, false as any);
     }
 
     const user = await getUserById(userData);
