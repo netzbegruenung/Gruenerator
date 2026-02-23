@@ -1,6 +1,7 @@
 import { DocumentList } from '@gruenerator/docs';
-import { MantineProvider, Menu, ActionIcon } from '@mantine/core';
-import { FiMoreVertical, FiLogOut } from 'react-icons/fi';
+import { MantineProvider, Menu, ActionIcon, TextInput } from '@mantine/core';
+import { useState } from 'react';
+import { FiMoreVertical, FiLogOut, FiSearch, FiX } from 'react-icons/fi';
 
 import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -14,6 +15,7 @@ export const HomePage = () => {
   const { user } = useAuth();
   const { logout } = useAuthStore();
   const colorScheme = useColorScheme();
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <MantineProvider forceColorScheme={colorScheme}>
@@ -28,6 +30,29 @@ export const HomePage = () => {
               />
               Docs
             </h1>
+
+            <div className="home-page-search">
+              <TextInput
+                placeholder="Dokumente durchsuchen…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                leftSection={<FiSearch size={16} />}
+                rightSection={
+                  searchQuery ? (
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      size="sm"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Suche zurücksetzen"
+                    >
+                      <FiX size={14} />
+                    </ActionIcon>
+                  ) : null
+                }
+                classNames={{ input: 'home-page-search-input' }}
+              />
+            </div>
 
             <div className="home-page-user-section">
               <span className="home-page-user-name">{user?.display_name || user?.email}</span>
@@ -51,7 +76,7 @@ export const HomePage = () => {
           </header>
 
           <main>
-            <DocumentList />
+            <DocumentList searchQuery={searchQuery} />
           </main>
         </div>
       </div>
