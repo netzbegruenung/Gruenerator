@@ -1,10 +1,11 @@
 import { motion } from 'motion/react';
 import { memo } from 'react';
-import { HiChatAlt2, HiDocumentText, HiLightBulb, HiPlus, HiUserGroup } from 'react-icons/hi';
+import { HiPlus, HiShieldCheck, HiUserGroup } from 'react-icons/hi';
 
-import HelpTooltip from '../../../../../../../components/common/HelpTooltip';
-import { Button } from '../../../../../../../components/ui/button';
-import { Card } from '../../../../../../../components/ui/card';
+import { getGroupInitials } from '../../../../../../../features/groups/hooks/useGroups';
+
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 interface Group {
   id: string;
@@ -20,27 +21,9 @@ interface GroupsOverviewSectionProps {
   userGroups: Group[] | null | undefined;
   isCreatingGroup: boolean;
   onCreateNew: () => void;
+  onSelectGroup: (groupId: string) => void;
   tabIndex: TabIndexConfig;
 }
-
-const FEATURES = [
-  {
-    icon: HiDocumentText,
-    label: 'Anweisungen teilen',
-    desc: 'Gemeinsame Vorgaben für Anträge und Social Media',
-  },
-  { icon: HiLightBulb, label: 'Wissen teilen', desc: 'Wissensbausteine für das gesamte Team' },
-  {
-    icon: HiChatAlt2,
-    label: 'Einheitlich kommunizieren',
-    desc: 'Konsistente Texte und Formulierungen',
-  },
-  {
-    icon: HiUserGroup,
-    label: 'Zusammenarbeiten',
-    desc: 'Kolleg*innen per Einladungslink hinzufügen',
-  },
-] as const;
 
 const MOTION_CONFIG = {
   initial: { opacity: 0 },
@@ -53,72 +36,104 @@ const GroupsOverviewSection = memo(
     userGroups,
     isCreatingGroup,
     onCreateNew,
+    onSelectGroup,
     tabIndex,
   }: GroupsOverviewSectionProps): React.ReactElement => {
-    const groupCount = userGroups?.length ?? 0;
+    const hasGroups = userGroups && userGroups.length > 0;
 
-    return (
-      <motion.div
-        className="flex flex-col gap-lg"
-        initial={MOTION_CONFIG.initial}
-        animate={MOTION_CONFIG.animate}
-        transition={MOTION_CONFIG.transition}
-      >
-        <div>
-          <div className="flex items-center gap-xs mb-xs">
-            <h2 className="text-2xl font-bold text-grey-800 dark:text-grey-100">
-              Zusammen sind wir stärker!
-            </h2>
-            <HelpTooltip>
-              <p>
-                Mit Gruppen kannst du Anweisungen und Wissen mit anderen teilen und gemeinsam
-                nutzen.
+    if (!hasGroups) {
+      return (
+        <motion.div
+          className="flex flex-col items-center justify-center py-2xl"
+          initial={MOTION_CONFIG.initial}
+          animate={MOTION_CONFIG.animate}
+          transition={MOTION_CONFIG.transition}
+        >
+          <div className="flex flex-col items-center gap-lg max-w-[24rem] text-center">
+            <div className="flex items-center justify-center size-20 rounded-full bg-primary-500/10">
+              <HiUserGroup className="text-4xl text-primary-500" />
+            </div>
+            <div className="flex flex-col gap-xs">
+              <h2 className="text-xl font-bold text-foreground">Zusammen stärker</h2>
+              <p className="text-sm text-foreground leading-relaxed text-center">
+                Erstelle eine Gruppe, um Anweisungen und Wissen mit deinem Team zu teilen und
+                gemeinsam an Texten zu arbeiten.
               </p>
-              <p>
-                <strong>Tipp:</strong> Erstelle eine Gruppe für deinen Verband oder dein Team und
-                lade andere über den Join-Link ein.
-              </p>
-            </HelpTooltip>
-          </div>
-
-          <p className="text-base text-grey-600 dark:text-grey-400 mb-lg">
-            Arbeite gemeinsam mit deinem Team an Texten und Materialien.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md mb-lg">
-            {FEATURES.map(({ icon: Icon, label, desc }) => (
-              <Card key={label} className="flex items-start gap-md p-lg">
-                <div className="shrink-0 flex items-center justify-center size-12 rounded-lg bg-primary-500/10">
-                  <Icon className="text-2xl text-primary-500" />
-                </div>
-                <div className="flex flex-col gap-xs min-w-0">
-                  <span className="text-base font-semibold text-grey-800 dark:text-grey-200">
-                    {label}
-                  </span>
-                  <span className="text-sm text-grey-500 dark:text-grey-400 leading-normal">
-                    {desc}
-                  </span>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          <div className="flex flex-col items-center gap-sm">
-            <p className="text-sm text-grey-500">
-              {groupCount > 0
-                ? `Du bist in ${groupCount} Gruppe${groupCount > 1 ? 'n' : ''}. Wähle eine aus oder erstelle eine neue.`
-                : 'Erstelle jetzt deine erste Gruppe!'}
-            </p>
+            </div>
             <Button
               onClick={onCreateNew}
               disabled={isCreatingGroup}
               tabIndex={tabIndex.createGroupButton}
               aria-label="Neue Gruppe erstellen"
+              size="lg"
             >
               <HiPlus />
-              {isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe erstellen'}
+              {isCreatingGroup ? 'Wird erstellt...' : 'Erste Gruppe erstellen'}
             </Button>
           </div>
+        </motion.div>
+      );
+    }
+
+    return (
+      <motion.div
+        className="flex flex-col gap-md"
+        initial={MOTION_CONFIG.initial}
+        animate={MOTION_CONFIG.animate}
+        transition={MOTION_CONFIG.transition}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+          {/* Create new group card */}
+          <button
+            onClick={onCreateNew}
+            disabled={isCreatingGroup}
+            tabIndex={tabIndex.createGroupButton}
+            aria-label="Neue Gruppe erstellen"
+            className="cursor-pointer"
+          >
+            <Card className="flex flex-col items-center justify-center gap-sm p-xl border-2 border-dashed border-grey-300 dark:border-grey-600 hover:border-primary-500 dark:hover:border-primary-500 hover:bg-primary-500/5 transition-colors h-full min-h-[160px]">
+              <div className="flex items-center justify-center size-14 rounded-full bg-primary-500/10">
+                <HiPlus className="text-2xl text-primary-500" />
+              </div>
+              <span className="text-base font-semibold text-foreground">
+                {isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe'}
+              </span>
+              <span className="text-xs text-foreground">Team erstellen & einladen</span>
+            </Card>
+          </button>
+
+          {/* Group cards */}
+          {userGroups.map((group, index) => (
+            <motion.button
+              key={group.id}
+              onClick={() => onSelectGroup(group.id)}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: index * 0.05 }}
+              className="text-left cursor-pointer"
+            >
+              <Card className="flex items-start gap-md p-lg hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-md transition-all h-full min-h-[160px]">
+                <div className="flex items-center justify-center size-14 rounded-xl bg-primary-500 text-white text-xl font-bold shrink-0">
+                  {getGroupInitials(group.name)}
+                </div>
+                <div className="flex flex-col gap-xs min-w-0 flex-1">
+                  <span className="text-lg font-semibold text-foreground truncate">
+                    {group.name}
+                  </span>
+                  <span className="inline-flex items-center gap-xxs text-xs text-foreground">
+                    {group.isAdmin ? (
+                      <>
+                        <HiShieldCheck className="text-primary-500" />
+                        Admin
+                      </>
+                    ) : (
+                      'Mitglied'
+                    )}
+                  </span>
+                </div>
+              </Card>
+            </motion.button>
+          ))}
         </div>
       </motion.div>
     );

@@ -1,12 +1,15 @@
 import { motion } from 'motion/react';
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 
-import { useGroups, useGroupSharing } from '../../../../../../../features/groups/hooks/useGroups';
+import {
+  useGroups,
+  useGroupVorlagen,
+  useUpdateGroupSettings,
+} from '../../../../../../../features/groups/hooks/useGroups';
 import { useAutosave } from '../../../../../../../hooks/useAutosave';
 import { useInstructionsUiStore } from '../../../../../../../stores/auth/instructionsUiStore';
 import { useAnweisungenWissen } from '../../../../../hooks/useProfileData';
 
-import AddContentToGroupModal from './subcomponents/AddContentToGroupModal';
 import GroupInfoSection from './subcomponents/GroupInfoSection';
 
 interface GroupData {
@@ -46,7 +49,6 @@ const GroupDetailSection = memo(
     const [editedGroupDescription, setEditedGroupDescription] = useState('');
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
     const [customPrompt, setCustomPrompt] = useState('');
-    const [contentModalOpen, setContentModalOpen] = useState(false);
 
     const isInitialized = useRef(false);
 
@@ -75,15 +77,12 @@ const GroupDetailSection = memo(
       useGroups({ isActive });
 
     const {
-      groupContent,
-      isLoadingGroupContent,
-      isFetchingGroupContent,
-      unshareContent,
-      isUnsharing,
-      shareContent,
-      isSharing,
-      refetchGroupContent,
-    } = useGroupSharing(groupId, { isActive });
+      vorlagen,
+      tags: vorlagenTags,
+      isLoadingVorlagen,
+    } = useGroupVorlagen(groupId, { isActive });
+
+    const { updateSettings, isUpdatingSettings } = useUpdateGroupSettings(groupId);
 
     const { clearMessages: clearUiMessages } = useInstructionsUiStore();
 
@@ -244,6 +243,19 @@ const GroupDetailSection = memo(
       refetchGroupData,
     ]);
 
+    const handleUpdateTags = useCallback(
+      (newTags: string[]) => {
+        updateSettings(
+          { templateTags: newTags },
+          {
+            onError: (error: Error) =>
+              onErrorMessage(`Fehler beim Aktualisieren der Tags: ${error.message}`),
+          }
+        );
+      },
+      [updateSettings, onErrorMessage]
+    );
+
     if (isLoadingDetails || !data) {
       return null;
     }
@@ -255,9 +267,6 @@ const GroupDetailSection = memo(
         </div>
       );
     }
-
-    const handleOpenContentModal = () => setContentModalOpen(true);
-    const handleCloseContentModal = () => setContentModalOpen(false);
 
     return (
       <motion.div
@@ -291,32 +300,11 @@ const GroupDetailSection = memo(
           tabIndex={{ ...tabIndex, groupNameEdit: tabIndex.groupNameEdit ?? 0 }}
           customPrompt={customPrompt}
           setCustomPrompt={setCustomPrompt}
-          groupContent={groupContent}
-          isLoadingGroupContent={isLoadingGroupContent}
-          onUnshare={(contentType: string, contentId: string) =>
-            unshareContent(contentType, contentId)
-          }
-          isUnsharing={isUnsharing}
-          onAddContent={handleOpenContentModal}
-        />
-
-        <AddContentToGroupModal
-          isOpen={contentModalOpen}
-          onClose={handleCloseContentModal}
-          groupId={groupId}
-          onShareContent={async (contentType: string, itemId: string | number, options: any) => {
-            shareContent(contentType, String(itemId), options);
-          }}
-          isSharing={isSharing}
-          onSuccess={(count: number) => {
-            onSuccessMessage(`${count} Inhalt(e) erfolgreich zur Gruppe hinzugefügt.`);
-            void refetchGroupContent?.();
-            handleCloseContentModal();
-          }}
-          onError={(error: any) => {
-            onErrorMessage(`Fehler beim Hinzufügen: ${error?.message || String(error)}`);
-          }}
-          initialContentType="content"
+          vorlagen={vorlagen}
+          vorlagenTags={vorlagenTags}
+          isLoadingVorlagen={isLoadingVorlagen}
+          onUpdateTags={handleUpdateTags}
+          isUpdatingSettings={isUpdatingSettings}
         />
       </motion.div>
     );

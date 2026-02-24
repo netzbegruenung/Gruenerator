@@ -191,7 +191,11 @@ const GroupsManagementView = memo(
     const tabActive = 'bg-background-alt border-primary-500 text-primary-500 font-semibold';
 
     const renderNavigationPanel = () => (
-      <nav className="flex flex-wrap gap-sm mb-lg" role="tablist" aria-label="Gruppen Navigation">
+      <nav
+        className="flex flex-wrap justify-center gap-sm mb-lg"
+        role="tablist"
+        aria-label="Gruppen Navigation"
+      >
         <button
           {...getItemProps('overview')}
           className={cn(tabBase, currentView === 'overview' ? tabActive : tabInactive)}
@@ -244,6 +248,7 @@ const GroupsManagementView = memo(
           userGroups={userGroups}
           isCreatingGroup={isCreatingGroup}
           onCreateNew={handleCreateNew}
+          onSelectGroup={handleSelectGroup}
           tabIndex={overviewTabIndex}
         />
       );
@@ -251,7 +256,7 @@ const GroupsManagementView = memo(
 
     return (
       <motion.div
-        className="flex flex-col gap-lg"
+        className="flex flex-col gap-lg px-md"
         initial={MOTION_CONFIG.initial}
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}

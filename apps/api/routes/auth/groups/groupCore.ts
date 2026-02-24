@@ -103,7 +103,7 @@ router.get(
 
       // Get group details
       const groupsData = await postgres.query(
-        'SELECT id, name, description, created_at, created_by, join_token FROM groups WHERE id = ANY($1)',
+        'SELECT id, name, description, created_at, created_by, join_token, settings FROM groups WHERE id = ANY($1)',
         [groupIds],
         { table: 'groups' }
       );
@@ -479,7 +479,7 @@ router.get(
 
       // 2. Fetch group info
       const group = await postgres.queryOne(
-        'SELECT id, name, description, created_at, created_by, join_token FROM groups WHERE id = $1',
+        'SELECT id, name, description, created_at, created_by, join_token, settings FROM groups WHERE id = $1',
         [groupId],
         { table: 'groups' }
       );
@@ -539,7 +539,7 @@ router.put(
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { name, description } = req.body;
+      const { name, description, settings } = req.body;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
@@ -599,6 +599,42 @@ router.put(
       if (description !== undefined) {
         updateFields.push(`description = $${paramIndex++}`);
         updateValues.push(description?.trim() || null);
+      }
+      if (settings !== undefined) {
+        if (typeof settings !== 'object' || settings === null) {
+          res.status(400).json({
+            success: false,
+            message: 'Einstellungen müssen ein Objekt sein.',
+          });
+          return;
+        }
+        if (settings.templateTags !== undefined) {
+          if (!Array.isArray(settings.templateTags)) {
+            res.status(400).json({
+              success: false,
+              message: 'templateTags muss ein Array sein.',
+            });
+            return;
+          }
+          if (settings.templateTags.length > 20) {
+            res.status(400).json({
+              success: false,
+              message: 'Maximal 20 Tags erlaubt.',
+            });
+            return;
+          }
+          for (const tag of settings.templateTags) {
+            if (typeof tag !== 'string' || tag.length > 50) {
+              res.status(400).json({
+                success: false,
+                message: 'Jeder Tag muss ein String mit maximal 50 Zeichen sein.',
+              });
+              return;
+            }
+          }
+        }
+        updateFields.push(`settings = $${paramIndex++}`);
+        updateValues.push(JSON.stringify(settings));
       }
 
       if (updateFields.length === 0) {
