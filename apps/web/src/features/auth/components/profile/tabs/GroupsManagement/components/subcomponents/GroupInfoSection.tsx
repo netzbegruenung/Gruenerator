@@ -1,5 +1,5 @@
 import { memo, useCallback, useRef, useState } from 'react';
-import { HiPencil, HiCheck, HiX } from 'react-icons/hi';
+import { HiOutlineDocumentText, HiPencil, HiCheck, HiX } from 'react-icons/hi';
 
 import DeleteWarningTooltip from '../../../../../../../../components/common/DeleteWarningTooltip';
 import { ProfileActionButton } from '../../../../../../../../components/profile/actions/ProfileActionButton';
@@ -43,6 +43,14 @@ interface VorlagenItem {
   is_system?: boolean;
 }
 
+interface SharedDocument {
+  id: string;
+  title: string;
+  document_subtype?: string;
+  shared_at?: string;
+  shared_by_name?: string;
+}
+
 interface TabIndexConfig {
   groupNameEdit: number;
   groupDetailTabs?: number;
@@ -78,6 +86,8 @@ interface GroupInfoSectionProps {
   isLoadingVorlagen: boolean;
   onUpdateTags: (tags: string[]) => void;
   isUpdatingSettings: boolean;
+  sharedDocuments: SharedDocument[];
+  isLoadingSharedDocuments: boolean;
 }
 
 const GroupInfoSection = memo(
@@ -111,6 +121,8 @@ const GroupInfoSection = memo(
     isLoadingVorlagen,
     onUpdateTags,
     isUpdatingSettings,
+    sharedDocuments,
+    isLoadingSharedDocuments,
   }: GroupInfoSectionProps) => {
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive });
     const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
@@ -358,6 +370,45 @@ const GroupInfoSection = memo(
             onUpdateTags={onUpdateTags}
             isUpdating={isUpdatingSettings}
           />
+
+          {/* Geteilte Dokumente */}
+          {(sharedDocuments.length > 0 || isLoadingSharedDocuments) && (
+            <div className="mt-md">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-foreground mb-xs">
+                Geteilte Dokumente
+              </h3>
+              {isLoadingSharedDocuments ? (
+                <p className="text-xs text-foreground italic">Dokumente werden geladen...</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
+                  {sharedDocuments.map((doc) => (
+                    <a
+                      key={doc.id}
+                      href={`/docs/${doc.id}`}
+                      className="flex items-center gap-xs rounded-lg border border-grey-200 dark:border-grey-700 bg-background p-xs hover:border-primary-500 hover:shadow-sm transition-all"
+                    >
+                      <HiOutlineDocumentText className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {doc.title}
+                        </p>
+                        <p className="text-xs text-foreground truncate">
+                          {doc.shared_by_name && `Geteilt von ${doc.shared_by_name}`}
+                          {doc.shared_by_name && doc.shared_at && ' · '}
+                          {doc.shared_at &&
+                            new Date(doc.shared_at).toLocaleDateString('de-DE', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                        </p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </Card>
       </>
     );
