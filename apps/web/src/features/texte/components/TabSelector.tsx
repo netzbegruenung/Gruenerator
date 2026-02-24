@@ -1,7 +1,6 @@
 import { useMemo, useCallback, useRef, memo } from 'react';
 
 import Icon from '../../../components/common/Icon';
-import '../../../components/common/TabbedLayout/TabbedLayout.css';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +8,8 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu';
 import { type TabId, type UniversalSubType, TAB_CONFIGS } from '../types';
-import './TabSelector.css';
+
+import { cn } from '@/utils/cn';
 
 // Tabs that don't require authentication
 const PUBLIC_TABS: TabId[] = ['presse-social'];
@@ -141,16 +141,18 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
         if (onUniversalSubTypeChange) {
           onUniversalSubTypeChange(subType);
         }
-        onTabChange('universal');
       },
-      [onUniversalSubTypeChange, onTabChange]
+      [onUniversalSubTypeChange]
     );
 
     const isUniversalActive = activeTab === 'universal';
 
     return (
       <div
-        className={`tabbed-layout__tabs ${disabled ? 'tabbed-layout__tabs--disabled' : ''}`}
+        className={cn(
+          'flex flex-wrap justify-center gap-sm w-full max-[640px]:gap-xs',
+          disabled && 'opacity-60 pointer-events-none'
+        )}
         role="tablist"
         aria-label="Text-Generator auswählen"
         aria-orientation="horizontal"
@@ -169,7 +171,19 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
               id={`tab-${tab.id}`}
               aria-selected={isActive}
               aria-controls={`tabpanel-${tab.id}`}
-              className={`tabbed-layout__tab ${isActive ? 'tabbed-layout__tab--active' : ''}`}
+              className={cn(
+                'flex items-center gap-xs px-md py-sm',
+                'border border-grey-300 dark:border-foreground rounded-full',
+                'bg-transparent text-foreground text-[0.9rem] font-medium',
+                'cursor-pointer transition-all duration-150 whitespace-nowrap',
+                'hover:bg-background-alt',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-2',
+                'max-[640px]:px-sm max-[640px]:py-xs max-[640px]:text-[0.85rem]',
+                'max-[400px]:px-sm max-[400px]:py-xs',
+                isActive &&
+                  'bg-secondary-600 border-secondary-600 text-white hover:bg-secondary-600'
+              )}
               onClick={() => handleTabClick(tab.id)}
               disabled={disabled}
               tabIndex={isActive ? 0 : -1}
@@ -178,12 +192,25 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                 category={tab.icon.category as any}
                 name={tab.icon.name}
                 size={18}
-                className="texte-tab-icon"
+                className={cn(
+                  'shrink-0 text-grey-600',
+                  isActive && 'text-white brightness-0 invert'
+                )}
               />
-              <span className="tabbed-layout__tab-label">{tab.label}</span>
-              <span className="tabbed-layout__tab-label-short">{tab.shortLabel}</span>
+              <span className="max-[640px]:hidden">{tab.label}</span>
+              <span className="hidden max-[640px]:inline max-[400px]:text-[0.75rem]">
+                {tab.shortLabel}
+              </span>
               {!isAuthenticated && !PUBLIC_TABS.includes(tab.id) && (
-                <Icon category="actions" name="lock" size={12} className="texte-tab-lock-icon" />
+                <Icon
+                  category="actions"
+                  name="lock"
+                  size={12}
+                  className={cn(
+                    'shrink-0 opacity-60 text-grey-500',
+                    isActive && 'brightness-0 invert opacity-80'
+                  )}
+                />
               )}
             </button>
           );
@@ -201,7 +228,19 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                 id="tab-universal"
                 aria-selected={isUniversalActive}
                 aria-controls="tabpanel-universal"
-                className={`tabbed-layout__tab has-dropdown ${isUniversalActive ? 'tabbed-layout__tab--active' : ''}`}
+                className={cn(
+                  'flex items-center gap-xs px-md py-sm pr-sm',
+                  'border border-grey-300 dark:border-foreground rounded-full',
+                  'bg-transparent text-foreground text-[0.9rem] font-medium',
+                  'cursor-pointer transition-all duration-150 whitespace-nowrap',
+                  'hover:bg-background-alt',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                  'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-2',
+                  'max-[640px]:px-sm max-[640px]:py-xs max-[640px]:text-[0.85rem]',
+                  'max-[400px]:px-sm max-[400px]:py-xs',
+                  isUniversalActive &&
+                    'bg-secondary-600 border-secondary-600 text-white hover:bg-secondary-600'
+                )}
                 disabled={disabled}
                 tabIndex={isUniversalActive ? 0 : -1}
               >
@@ -209,20 +248,34 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                   category={TAB_ICONS['universal'].category as any}
                   name={TAB_ICONS['universal'].name}
                   size={18}
-                  className="texte-tab-icon"
+                  className={cn(
+                    'shrink-0 text-grey-600',
+                    isUniversalActive && 'text-white brightness-0 invert'
+                  )}
                 />
-                <span className="tabbed-layout__tab-label">{universalTabConfig.label}</span>
-                <span className="tabbed-layout__tab-label-short">
+                <span className="max-[640px]:hidden">{universalTabConfig.label}</span>
+                <span className="hidden max-[640px]:inline max-[400px]:text-[0.75rem]">
                   {universalTabConfig.shortLabel}
                 </span>
                 {!isAuthenticated && (
-                  <Icon category="actions" name="lock" size={12} className="texte-tab-lock-icon" />
+                  <Icon
+                    category="actions"
+                    name="lock"
+                    size={12}
+                    className={cn(
+                      'shrink-0 opacity-60 text-grey-500',
+                      isUniversalActive && 'brightness-0 invert opacity-80'
+                    )}
+                  />
                 )}
                 <Icon
                   category="ui"
                   name="caretDown"
                   size={14}
-                  className="texte-tab-dropdown-icon"
+                  className={cn(
+                    'ml-xxs transition-transform duration-200 text-grey-600',
+                    isUniversalActive && 'text-white brightness-0 invert'
+                  )}
                 />
               </button>
             </DropdownMenuTrigger>
@@ -230,10 +283,17 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
               {UNIVERSAL_OPTIONS.map((option) => (
                 <DropdownMenuItem
                   key={option.value}
-                  className={`texte-tab-dropdown-item${selectedUniversalSubType === option.value ? ' texte-tab-dropdown-item--active' : ''}`}
+                  className={cn(
+                    selectedUniversalSubType === option.value && 'bg-hover-alt font-semibold'
+                  )}
                   onSelect={() => handleUniversalOptionSelect(option.value)}
                 >
-                  <Icon category={option.icon.category as any} name={option.icon.name} size={16} />
+                  <Icon
+                    category={option.icon.category as any}
+                    name={option.icon.name}
+                    size={16}
+                    className="text-grey-600"
+                  />
                   <span>{option.label}</span>
                 </DropdownMenuItem>
               ))}
