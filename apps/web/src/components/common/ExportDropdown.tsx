@@ -3,7 +3,7 @@ import { type JSX, useState, useCallback, useEffect, type ReactNode } from 'reac
 import { CiMemoPad } from 'react-icons/ci';
 import { FaCloud } from 'react-icons/fa';
 import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
-import { HiRefresh, HiSave, HiCog, HiOutlineDocumentText } from 'react-icons/hi';
+import { HiRefresh, HiSave, HiOutlineDocumentText } from 'react-icons/hi';
 import {
   IoDownloadOutline,
   IoShareSocialSharp,

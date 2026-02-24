@@ -20,6 +20,7 @@ import multer from 'multer';
 
 import { type AuthenticatedRequest } from '../../middleware/types.js';
 import { createLogger } from '../../utils/logger.js';
+import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -138,7 +139,7 @@ router.post('/from-url', async (req: AuthenticatedRequest, res: Response): Promi
   try {
     const uploads = await Promise.all(
       urls.map(async (url: string) => {
-        const response = await fetch(url);
+        const response = await safeFetch(url);
         if (!response.ok) {
           throw new Error(`Failed to download from ${url}: ${response.status}`);
         }

@@ -173,8 +173,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
     initialContent,
   });
 
-  const { value, hasEditableContent, hasSharepicContent, hasAnyContent, handleLoadRecentText } =
-    content;
+  const { value, hasEditableContent, hasAnyContent, handleLoadRecentText } = content;
 
   // Responsive hook
   const responsiveState = useResponsive() as {

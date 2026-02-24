@@ -13,8 +13,9 @@ import { pipeline } from 'stream/promises';
 import { Router, type Response } from 'express';
 
 import { type AuthenticatedRequest } from '../../middleware/types.js';
-import { transcribeWithGladia, deleteTranscript } from '../../services/subtitler/gladiaService.js';
+import { transcribeWithGladia } from '../../services/subtitler/gladiaService.js';
 import { createLogger } from '../../utils/logger.js';
+import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
 const log = createLogger('video-transcribe');
 const router = Router();
@@ -36,7 +37,7 @@ async function downloadToTempFile(url: string): Promise<string> {
   const filename = `${crypto.randomUUID()}.${ext}`;
   const tempPath = `${TEMP_DIR}/${filename}`;
 
-  const response = await fetch(url);
+  const response = await safeFetch(url);
   if (!response.ok) {
     throw new Error(`Failed to download media: ${response.status} ${response.statusText}`);
   }
