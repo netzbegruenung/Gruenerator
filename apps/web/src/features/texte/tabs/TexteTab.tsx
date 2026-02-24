@@ -7,7 +7,6 @@ import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import TexteForm from '../texte/TexteForm';
 
 import type { ExamplePrompt } from '@/types/baseform';
-import './TexteTab.css';
 
 interface FormRef {
   getFormData: () => Record<string, unknown>;
@@ -123,7 +122,7 @@ const TexteTab: React.FC<TexteTabProps> = memo(() => {
   };
 
   return (
-    <div className="texte-tab">
+    <div className="w-full flex flex-col items-center">
       {form.generator && (
         <BaseForm
           {...restBaseFormProps}

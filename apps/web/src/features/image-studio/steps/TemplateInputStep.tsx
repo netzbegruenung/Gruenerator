@@ -143,7 +143,7 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="template-input-step__form form-card form-card--elevated">
+      <div className="template-input-step__form bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-lg shadow-card-elevated overflow-hidden transition-all">
         <h2 className="template-input-step__title">{typeConfig?.label || 'Sharepic erstellen'}</h2>
 
         <ConfigDrivenFields

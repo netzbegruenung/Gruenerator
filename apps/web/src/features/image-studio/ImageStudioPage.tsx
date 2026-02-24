@@ -29,7 +29,6 @@ import {
 
 import './image-studio-shared.css';
 import '../../assets/styles/components/form/form-inputs.css';
-import '../../assets/styles/components/baseform/form-layout.css';
 
 const ImageStudioPageContent: React.FC = () => {
   const { category: urlCategory, type: urlType } = useParams();
@@ -515,7 +514,7 @@ const ImageStudioPageContent: React.FC = () => {
     console.error('[ImageStudioPage] Clone error display:', cloneError);
     return (
       <div className="container" role="main" aria-label="Image Studio">
-        <div className="form-card form-card--elevated">
+        <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-lg shadow-card-elevated overflow-hidden transition-all">
           <h2>Fehler beim Laden der Vorlage</h2>
           <p>{cloneError}</p>
           <Button onClick={() => navigate('/image-studio')} text="Zurück" icon={<HiArrowLeft />} />
@@ -541,7 +540,7 @@ const ImageStudioPageContent: React.FC = () => {
     // Fallback for unsupported types
     return (
       <div className="container" role="main" aria-label="Image Studio">
-        <div className="form-card form-card--elevated">
+        <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-lg shadow-card-elevated overflow-hidden transition-all">
           <h2>{typeConfig?.label || 'Image Studio'}</h2>
           <p>Dieser Typ wird noch nicht unterstützt.</p>
           <Button onClick={handleBack} text="Zurück" icon={<HiArrowLeft />} />

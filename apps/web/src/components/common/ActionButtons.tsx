@@ -6,7 +6,6 @@ import {
   IoRefreshOutline,
   IoArrowUndoOutline,
   IoArrowRedoOutline,
-  IoCreateOutline,
 } from 'react-icons/io5';
 import '../../assets/styles/components/actions/action-buttons.css';
 
@@ -66,6 +65,8 @@ interface ActionButtonsProps {
   componentName?: string;
   onEditInDocs?: () => void;
   editInDocsLoading?: boolean;
+  onEditInDocsInline?: () => void;
+  editInDocsInlineLoading?: boolean;
   customExportOptions?: {
     id?: string;
     label?: string;
@@ -110,6 +111,8 @@ const ActionButtons = ({
   componentName = 'default',
   onEditInDocs,
   editInDocsLoading = false,
+  onEditInDocsInline,
+  editInDocsInlineLoading = false,
   customExportOptions = [],
   hideDefaultExportOptions = false,
 }: ActionButtonsProps): JSX.Element => {
@@ -297,6 +300,10 @@ const ActionButtons = ({
       saveToLibraryLoading,
       customExportOptions,
       hideDefaultOptions: hideDefaultExportOptions,
+      onEditInDocs,
+      editInDocsLoading,
+      onEditInDocsInline,
+      editInDocsInlineLoading,
     };
 
     const buttons = {
@@ -396,21 +403,6 @@ const ActionButtons = ({
           <IoRefreshOutline size={16} />
         </button>
       ),
-      edit: onEditInDocs && isAuthenticated && (
-        <button
-          key="edit"
-          onClick={onEditInDocs}
-          className="action-button"
-          aria-label="Im Editor bearbeiten"
-          disabled={editInDocsLoading}
-          {...(!isMobileView && {
-            'data-tooltip-id': 'action-tooltip',
-            'data-tooltip-content': 'Im Editor bearbeiten',
-          })}
-        >
-          <IoCreateOutline size={16} />
-        </button>
-      ),
       more: (showExport || showDownload || showExportDropdown) && isAuthenticated && (
         <ExportDropdown
           key="more"
@@ -424,8 +416,8 @@ const ActionButtons = ({
     return buttons[type as keyof typeof buttons];
   };
 
-  // Button order: copy, share, undo, redo, edit, more (3-dot menu)
-  const buttonOrder = ['copy', 'share', 'undo', 'redo', 'edit', 'more'];
+  // Button order: copy, share, undo, redo, more (3-dot menu)
+  const buttonOrder = ['copy', 'share', 'undo', 'redo', 'more'];
 
   return (
     <div className={className}>

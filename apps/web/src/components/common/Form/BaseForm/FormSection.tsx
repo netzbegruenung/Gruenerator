@@ -1,15 +1,14 @@
-import React, { forwardRef, useRef, useEffect, useCallback, type ReactNode } from 'react';
-import { HiUpload } from 'react-icons/hi';
+import React, { forwardRef, type ReactNode } from 'react';
+import { HiUpload, HiX } from 'react-icons/hi';
 import { useShallow } from 'zustand/react/shallow';
 
 import useDragDropFiles from '../../../../hooks/useDragDropFiles';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
-import { useFormStateSelector } from '../FormStateProvider';
+import HelpIconPopover from '../../HelpIconPopover';
 import useResponsive from '../hooks/useResponsive';
 import InputTip from '../Input/InputTip';
 
 import ExamplePrompts from './ExamplePrompts';
-import FormCard from './FormCard';
 import FormExtrasSection from './FormExtrasSection';
 import FormInputSection from './FormInputSection';
 
@@ -22,7 +21,8 @@ import type {
   HelpContent,
 } from '@/types/baseform';
 
-import '../../../../assets/styles/components/baseform/drag-drop.css';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { cn } from '@/utils/cn';
 
 interface FeatureIconsTabIndex {
   webSearch?: number;
@@ -92,6 +92,10 @@ interface FormSectionProps {
   isStreaming?: boolean;
   streamingMessage?: string;
   onAbort?: () => void;
+  loading?: boolean;
+  success?: boolean;
+  useFeatureIcons?: boolean;
+  attachedFiles?: unknown[];
 }
 
 const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
@@ -106,7 +110,6 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       showBackButton,
       nextButtonText,
       submitButtonProps = {},
-      // Feature toggle props removed - web search, privacy, and pro mode now use store
       interactiveModeToggle,
       useInteractiveModeToggle,
       onAttachmentClick,
@@ -143,7 +146,6 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       submitButtonTabIndex = 17,
       showProfileSelector = true,
       showImageUpload = false,
-      uploadedImage: propUploadedImage = null,
       onImageChange = null,
       onPrivacyInfoClick,
       onWebSearchInfoClick,
@@ -151,7 +153,6 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       isImageEditActive = false,
       enableKnowledgeSelector = false,
       customEditContent = null,
-      // Start mode props
       isStartMode = false,
       startPageDescription = null,
       examplePrompts = [],
@@ -164,207 +165,205 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       isStreaming = false,
       streamingMessage,
       onAbort,
+      loading = false,
+      success = false,
+      useFeatureIcons = false,
+      attachedFiles = [],
     },
     ref
   ) => {
-    // Store selectors
-    const loading = useFormStateSelector((state) => state.loading);
-    const success = useFormStateSelector((state) => state.success);
-    const formErrors = useFormStateSelector((state) => state.formErrors);
-    const useWebSearchFeatureToggle = useFormStateSelector(
-      (state) => state.webSearchConfig.enabled
-    );
-    const usePrivacyModeToggle = useFormStateSelector((state) => state.privacyModeConfig.enabled);
-    const useFeatureIcons = useFormStateSelector((state) => state.useFeatureIcons);
-    const attachedFiles = useFormStateSelector((state) => state.attachedFiles) ?? [];
-    const uploadedImage = useFormStateSelector((state) => state.uploadedImage);
-    const setStoreAttachedFiles = useFormStateSelector((state) => state.setAttachedFiles);
-
-    // Privacy mode for ContentSelector (with shallow comparison to prevent unnecessary rerenders)
     const usePrivacyMode = useGeneratorSelectionStore(useShallow((state) => state.usePrivacyMode));
 
-    const formContainerClasses = `form-container ${isFormVisible ? 'visible' : ''}`;
     const { isMobileView } = useResponsive();
 
-    // Ref to store latest attachedFiles value (prevents callback recreation)
-    const attachedFilesRef = useRef(attachedFiles);
-    useEffect(() => {
-      attachedFilesRef.current = attachedFiles;
-    }, [attachedFiles]);
-
-    // Wrapper for onAttachmentClick that updates store state (stable callback)
-    const handleAttachmentClick = useCallback(
-      (files: File[]) => {
-        // Update store state using ref to avoid dependency on attachedFiles
-        const newFiles = [...attachedFilesRef.current, ...files];
-        setStoreAttachedFiles?.(newFiles);
-
-        // Call parent callback if provided
-        if (onAttachmentClick) {
-          (onAttachmentClick as (files: File[]) => void)(files);
-        }
-      },
-      [setStoreAttachedFiles, onAttachmentClick]
-    );
-
-    // Wrapper for onRemoveFile that updates store state (stable callback)
-    const handleRemoveFile = useCallback(
-      (index: number) => {
-        // Update store state using ref to avoid dependency on attachedFiles
-        const newFiles = attachedFilesRef.current.filter((_, i) => i !== index);
-        setStoreAttachedFiles?.(newFiles);
-
-        // Call parent callback if provided
-        if (onRemoveFile) {
-          onRemoveFile(index);
-        }
-      },
-      [setStoreAttachedFiles, onRemoveFile]
-    );
-
-    // Drag-and-drop file handling
     const { getRootProps, isDragActive } = useDragDropFiles({
-      onFilesAccepted: handleAttachmentClick,
+      onFilesAccepted: onAttachmentClick as (files: File[]) => void,
       disabled: !onAttachmentClick,
     });
 
     return (
-      <div {...getRootProps()} className="form-section-wrapper">
+      <div {...getRootProps()} className="@container/form-section relative">
         {isDragActive && (
-          <div className="form-section__drag-overlay">
-            <HiUpload className="form-section__drag-overlay-icon" />
-            <span className="form-section__drag-overlay-text">Dateien hier ablegen</span>
-            <span className="form-section__drag-overlay-hint">PDF, JPG, PNG, WebP</span>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-[4px] border-2 border-dashed border-[var(--klee)] rounded-md flex flex-col items-center justify-center gap-sm z-[100] animate-in fade-in duration-150">
+            <HiUpload className="text-5xl text-[var(--klee)] animate-bounce-gentle" />
+            <span className="text-white text-[1.1rem] font-medium">Dateien hier ablegen</span>
+            <span className="text-disabled text-[0.85rem]">PDF, JPG, PNG, WebP</span>
           </div>
         )}
         <div
-          className={`form-section ${formContainerClasses} ${isStartMode ? 'form-section--start-mode' : ''}`}
+          className={cn(
+            'form-section flex flex-col min-h-[400px] bg-[var(--card-background)] text-foreground',
+            'max-md:min-h-[300px] max-md:mt-md',
+            isStartMode && 'form-section--start-mode min-h-0',
+            'xl:min-h-[450px] 3xl:min-h-[480px] 4xl:min-h-[520px] 5xl:min-h-[580px]',
+            isStartMode && 'xl:min-h-0 3xl:min-h-0 4xl:min-h-0 5xl:min-h-0'
+          )}
           ref={ref}
         >
-          {/* Title and description outside card in start mode */}
           {isStartMode && (title || startPageDescription) && (
-            <div className="form-section__start-header">
-              {title && <h2 className="form-section__start-title">{title}</h2>}
+            <div className="text-left mb-md">
+              {title && <h2 className="text-left text-[1.5rem] font-semibold mb-sm">{title}</h2>}
               {startPageDescription && (
-                <p className="form-section__start-description">{startPageDescription}</p>
+                <p className="text-base leading-[1.5] max-w-full">{startPageDescription}</p>
               )}
             </div>
           )}
 
-          <FormCard
-            className=""
-            variant="elevated"
-            size="large"
-            hover={false}
-            title={isStartMode ? null : (title ?? null)}
-            subtitle={isStartMode ? undefined : subtitle}
-            showHideButton={showHideButton}
-            onHide={onHide}
-            isStartMode={isStartMode}
-            helpContent={helpContent}
+          <Card
+            className={cn(
+              'overflow-hidden shadow-card-elevated transition-all duration-250 flex flex-col',
+              isStartMode && 'rounded-3xl shadow-md border-[var(--border-subtle)]',
+              !isStartMode && 'rounded-md',
+              isStartMode &&
+                'max-[480px]:rounded-t-2xl max-[480px]:rounded-b-none max-[480px]:border-b-0',
+              'forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace]'
+            )}
           >
-            <form
-              onSubmit={(e: React.FormEvent) => {
-                e.preventDefault();
-
-                // Check if the submission was triggered by Enter key from react-select
-                const activeElement = document.activeElement;
-
-                if (
-                  activeElement &&
-                  (activeElement.closest('.react-select') ||
-                    activeElement.closest('.react-select__input') ||
-                    activeElement.className?.includes('react-select'))
-                ) {
-                  return;
-                }
-
-                onSubmit?.();
-              }}
-              className="form-section__form"
+            {!isStartMode && title && (
+              <CardHeader className="flex-row justify-between items-center border-b border-grey-200 dark:border-grey-700 py-md px-xl max-md:px-md max-md:py-md">
+                <div>
+                  <CardTitle className="text-[1.4em]">{title}</CardTitle>
+                  {subtitle && (
+                    <p className="text-[0.65em] font-normal opacity-70 mt-xxs">{subtitle}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-xs">
+                  <HelpIconPopover helpContent={helpContent} />
+                  {showHideButton && onHide && (
+                    <button
+                      type="button"
+                      onClick={onHide}
+                      className="bg-transparent border-none text-foreground cursor-pointer p-xxs rounded-sm flex items-center justify-center text-[1.2em] opacity-60 transition-all hover:opacity-100 hover:bg-background-alt hover:scale-[1.01] focus:outline-2 focus:outline-accent focus:outline-offset-2"
+                      aria-label="Formular verstecken"
+                      title="Formular verstecken"
+                    >
+                      <HiX />
+                    </button>
+                  )}
+                </div>
+              </CardHeader>
+            )}
+            <CardContent
+              className={cn(
+                'flex-1 flex flex-col',
+                isStartMode ? 'p-md max-md:p-sm' : 'p-lg max-md:p-md max-md:pt-0 max-[480px]:p-sm'
+              )}
             >
-              {/* Mobile: firstExtrasChildren above everything (except in start mode or edit mode) */}
-              {isMobileView && firstExtrasChildren && !isStartMode && (
-                <div className="form-section__mobile-first-extras">{firstExtrasChildren}</div>
-              )}
+              <form
+                onSubmit={(e: React.FormEvent) => {
+                  e.preventDefault();
 
-              <div className="form-section__container">
-                {/* Input Section - hidden when hideInputSection is true and not in edit mode */}
-                {!hideInputSection && (
-                  <FormInputSection
-                    isMultiStep={isMultiStep}
-                    onBack={onBack}
-                    showBackButton={showBackButton}
-                    defaultValues={defaultValues}
-                    validationRules={validationRules}
-                    useModernForm={useModernForm}
-                    onFormChange={onFormChange}
-                    showSubmitButton={showSubmitButtonInInputSection && showSubmitButton}
-                    onSubmit={onSubmit}
-                    nextButtonText={nextButtonText}
-                    submitButtonProps={submitButtonProps}
-                    enablePlatformSelector={enablePlatformSelector}
-                    platformOptions={platformOptions}
-                    platformSelectorLabel={platformSelectorLabel}
-                    platformSelectorPlaceholder={platformSelectorPlaceholder}
-                    platformSelectorHelpText={platformSelectorHelpText}
-                    platformSelectorTabIndex={platformSelectorTabIndex}
-                    formControl={formControl}
-                    showImageUpload={showImageUpload}
-                    onImageChange={onImageChange}
-                    isStartMode={isStartMode}
-                    inputHeaderContent={inputHeaderContent}
-                  >
-                    {isImageEditActive ? customEditContent : children}
-                  </FormInputSection>
+                  const activeElement = document.activeElement;
+
+                  if (
+                    activeElement &&
+                    (activeElement.closest('.react-select') ||
+                      activeElement.closest('.react-select__input') ||
+                      activeElement.className?.includes('react-select'))
+                  ) {
+                    return;
+                  }
+
+                  onSubmit?.();
+                }}
+                className="flex flex-col h-full"
+              >
+                {isMobileView && firstExtrasChildren && !isStartMode && (
+                  <div className="hidden max-md:block mb-lg [&>*:not(:last-child)]:mb-md">
+                    {firstExtrasChildren}
+                  </div>
                 )}
 
-                {/* Extras Section - also hidden when hideInputSection is true */}
-                {!hideExtrasSection && !hideInputSection && (
-                  <FormExtrasSection
-                    interactiveModeToggle={interactiveModeToggle ?? null}
-                    useInteractiveModeToggle={useInteractiveModeToggle}
-                    onAttachmentClick={handleAttachmentClick}
-                    onRemoveFile={handleRemoveFile}
-                    formControl={formControl}
-                    formNotice={formNotice}
-                    onSubmit={onSubmit}
-                    isMultiStep={isMultiStep}
-                    nextButtonText={nextButtonText}
-                    submitButtonProps={submitButtonProps}
-                    showSubmitButton={showSubmitButton && !showSubmitButtonInInputSection}
-                    firstExtrasChildren={!isMobileView || isStartMode ? firstExtrasChildren : null}
-                    featureIconsTabIndex={featureIconsTabIndex}
-                    knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
-                    knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
-                    documentSelectorTabIndex={documentSelectorTabIndex}
-                    submitButtonTabIndex={submitButtonTabIndex}
-                    showProfileSelector={showProfileSelector}
-                    onPrivacyInfoClick={onPrivacyInfoClick}
-                    onWebSearchInfoClick={onWebSearchInfoClick}
-                    componentName={componentName}
-                    enableKnowledgeSelector={enableKnowledgeSelector}
-                    attachedFiles={attachedFiles}
-                    usePrivacyMode={usePrivacyMode}
-                    isStartMode={isStartMode}
-                    examplePrompts={isStartMode ? examplePrompts : []}
-                    onExamplePromptClick={onExamplePromptClick}
-                    selectedPlatforms={selectedPlatforms}
-                    isStreaming={isStreaming}
-                    streamingMessage={streamingMessage}
-                    onAbort={onAbort}
-                  >
-                    {extrasChildren}
-                  </FormExtrasSection>
-                )}
-              </div>
-              {bottomSectionChildren && (
-                <div className="form-section__bottom">{bottomSectionChildren}</div>
-              )}
-            </form>
-          </FormCard>
+                <div
+                  className={cn(
+                    'form-section__container flex gap-lg h-full',
+                    'max-md:flex-col max-md:gap-0',
+                    isStartMode && 'flex-col gap-xs',
+                    'xl:gap-[calc(var(--spacing-responsive-large)*1.2)]',
+                    '4xl:gap-[calc(var(--spacing-responsive-large)*1.4)]'
+                  )}
+                >
+                  {!hideInputSection && (
+                    <FormInputSection
+                      isMultiStep={isMultiStep}
+                      onBack={onBack}
+                      showBackButton={showBackButton}
+                      defaultValues={defaultValues}
+                      validationRules={validationRules}
+                      useModernForm={useModernForm}
+                      onFormChange={onFormChange}
+                      showSubmitButton={showSubmitButtonInInputSection && showSubmitButton}
+                      onSubmit={onSubmit}
+                      nextButtonText={nextButtonText}
+                      submitButtonProps={submitButtonProps}
+                      enablePlatformSelector={enablePlatformSelector}
+                      platformOptions={platformOptions}
+                      platformSelectorLabel={platformSelectorLabel}
+                      platformSelectorPlaceholder={platformSelectorPlaceholder}
+                      platformSelectorHelpText={platformSelectorHelpText}
+                      platformSelectorTabIndex={platformSelectorTabIndex}
+                      formControl={formControl}
+                      showImageUpload={showImageUpload}
+                      onImageChange={onImageChange}
+                      isStartMode={isStartMode}
+                      inputHeaderContent={inputHeaderContent}
+                    >
+                      {isImageEditActive ? customEditContent : children}
+                    </FormInputSection>
+                  )}
 
-          {/* Contextual tip - shown below form card */}
+                  {!hideExtrasSection && !hideInputSection && (
+                    <FormExtrasSection
+                      interactiveModeToggle={interactiveModeToggle ?? null}
+                      useInteractiveModeToggle={useInteractiveModeToggle}
+                      onAttachmentClick={onAttachmentClick as (files: File[]) => void}
+                      onRemoveFile={onRemoveFile}
+                      formControl={formControl}
+                      formNotice={formNotice}
+                      onSubmit={onSubmit}
+                      isMultiStep={isMultiStep}
+                      nextButtonText={nextButtonText}
+                      submitButtonProps={submitButtonProps}
+                      showSubmitButton={showSubmitButton && !showSubmitButtonInInputSection}
+                      firstExtrasChildren={
+                        !isMobileView || isStartMode ? firstExtrasChildren : null
+                      }
+                      featureIconsTabIndex={featureIconsTabIndex}
+                      knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
+                      knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
+                      documentSelectorTabIndex={documentSelectorTabIndex}
+                      submitButtonTabIndex={submitButtonTabIndex}
+                      showProfileSelector={showProfileSelector}
+                      onPrivacyInfoClick={onPrivacyInfoClick}
+                      onWebSearchInfoClick={onWebSearchInfoClick}
+                      componentName={componentName}
+                      enableKnowledgeSelector={enableKnowledgeSelector}
+                      attachedFiles={attachedFiles}
+                      usePrivacyMode={usePrivacyMode}
+                      isStartMode={isStartMode}
+                      examplePrompts={isStartMode ? examplePrompts : []}
+                      onExamplePromptClick={onExamplePromptClick}
+                      selectedPlatforms={selectedPlatforms}
+                      isStreaming={isStreaming}
+                      streamingMessage={streamingMessage}
+                      onAbort={onAbort}
+                      loading={loading}
+                      success={success}
+                      useFeatureIcons={useFeatureIcons}
+                    >
+                      {extrasChildren}
+                    </FormExtrasSection>
+                  )}
+                </div>
+                {bottomSectionChildren && (
+                  <div className="form-section__bottom border-t border-grey-200 dark:border-grey-700 pt-md pb-sm mt-sm [&_h3]:mt-0">
+                    {bottomSectionChildren}
+                  </div>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+
           {contextualTip && (
             <InputTip
               tip={{

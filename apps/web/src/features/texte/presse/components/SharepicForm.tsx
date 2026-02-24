@@ -104,7 +104,7 @@ const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
 
     return (
       <motion.div
-        className="sharepic-fields"
+        className="[&_.form-field]:mb-lg [&_.form-field:last-child]:mb-0 [&_h4]:m-0 [&_h4]:mb-md [&_h4]:p-0"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 8 }}

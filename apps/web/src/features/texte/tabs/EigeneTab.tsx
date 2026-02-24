@@ -4,7 +4,6 @@ import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner'
 import Icon from '../../../components/common/Icon';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/useProfileData';
-import './EigeneTab.css';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
 
@@ -28,10 +27,12 @@ const EigeneIcon = memo(() => <Icon category="navigation" name="eigene" size={48
 EigeneIcon.displayName = 'EigeneIcon';
 
 const LoginPrompt: React.FC<LoginPromptProps> = memo(({ onLogin }) => (
-  <div className="eigene-login-prompt">
+  <div className="flex flex-col items-center justify-center text-center p-2xl min-h-[300px] gap-md text-foreground max-w-[600px] mx-auto bg-[var(--card-background)] border border-[var(--card-border)] rounded-md shadow-sm max-md:border-none max-md:shadow-none max-md:rounded-none max-[480px]:p-lg forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace]">
     <EigeneIcon />
-    <h2>Eigene Grüneratoren</h2>
-    <p>Melde dich an, um deine eigenen Grüneratoren und Agenten zu erstellen.</p>
+    <h2 className="m-0 text-2xl font-semibold">Eigene Grüneratoren</h2>
+    <p className="m-0 text-grey-500 max-w-[400px] leading-relaxed">
+      Melde dich an, um deine eigenen Grüneratoren und Agenten zu erstellen.
+    </p>
     <button onClick={onLogin} className="btn-primary">
       Anmelden
     </button>
@@ -41,7 +42,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = memo(({ onLogin }) => (
 LoginPrompt.displayName = 'LoginPrompt';
 
 const LoadingSpinner = memo(() => (
-  <div className="eigene-loading">
+  <div className="flex justify-center items-center min-h-[400px] text-grey-500">
     <div className="loading-spinner" />
   </div>
 ));
@@ -93,7 +94,7 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
   }
 
   return (
-    <div className="eigene-container">
+    <div className="w-full text-center">
       <EarlyAccessBanner />
 
       <Suspense fallback={<LoadingSpinner />}>
