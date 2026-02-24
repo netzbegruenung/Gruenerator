@@ -487,6 +487,7 @@ export interface BaseFormProps {
   features?: FeaturesConfig;
   submitConfig?: SubmitConfig | null;
   useFeatureIcons?: boolean;
+  showAgentMode?: boolean;
 
   // UI configuration
   showImageUpload?: boolean;

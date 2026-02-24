@@ -6,6 +6,7 @@ import {
   HiPlusCircle,
   HiClipboardList,
   HiAnnotation,
+  HiBeaker,
   HiDocument,
   HiX,
   HiCheck,
@@ -350,6 +351,7 @@ interface FeatureIconsProps {
   onWebSearchInfoClick?: () => void;
   noBorder?: boolean;
   hideLoginPrompt?: boolean;
+  showAgentMode?: boolean;
 }
 
 const FeatureIcons = ({
@@ -367,6 +369,7 @@ const FeatureIcons = ({
   onWebSearchInfoClick,
   noBorder = false,
   hideLoginPrompt = false,
+  showAgentMode = false,
 }: FeatureIconsProps): JSX.Element | null => {
   console.debug('[FeatureIcons] render');
 
@@ -376,9 +379,11 @@ const FeatureIcons = ({
     usePrivacyMode,
     useProMode,
     useAutomaticSearch,
+    useAgentMode,
     toggleWebSearch,
     togglePrivacyMode,
     toggleProMode,
+    toggleAgentMode,
     selectedDocumentIds,
     selectedTextIds,
     availableDocuments,
@@ -391,9 +396,11 @@ const FeatureIcons = ({
       usePrivacyMode: state.usePrivacyMode,
       useProMode: state.useProMode,
       useAutomaticSearch: state.useAutomaticSearch,
+      useAgentMode: state.useAgentMode,
       toggleWebSearch: state.toggleWebSearch,
       togglePrivacyMode: state.togglePrivacyMode,
       toggleProMode: state.toggleProMode,
+      toggleAgentMode: state.toggleAgentMode,
       selectedDocumentIds: state.selectedDocumentIds,
       selectedTextIds: state.selectedTextIds,
       availableDocuments: state.availableDocuments,
@@ -599,6 +606,33 @@ const FeatureIcons = ({
               />
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Agent Mode Toggle */}
+          {showAgentMode && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'size-9 sm:size-10',
+                    useAgentMode &&
+                      'bg-primary-500 text-white hover:bg-primary-600 hover:text-white'
+                  )}
+                  onClick={toggleAgentMode}
+                  aria-label="Agent-Modus"
+                  type="button"
+                >
+                  <HiBeaker className="size-5 sm:size-6" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {useAgentMode
+                  ? 'Agent-Modus aktiv: Recherche + Strategie'
+                  : 'Agent-Modus: Recherchiert und erstellt Kommunikationsstrategie'}
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           {/* Content Popover */}
           <Popover

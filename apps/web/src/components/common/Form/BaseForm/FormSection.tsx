@@ -95,6 +95,7 @@ interface FormSectionProps {
   loading?: boolean;
   success?: boolean;
   useFeatureIcons?: boolean;
+  showAgentMode?: boolean;
   attachedFiles?: unknown[];
 }
 
@@ -168,6 +169,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       loading = false,
       success = false,
       useFeatureIcons = false,
+      showAgentMode = false,
       attachedFiles = [],
     },
     ref
@@ -350,6 +352,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
                       loading={loading}
                       success={success}
                       useFeatureIcons={useFeatureIcons}
+                      showAgentMode={showAgentMode}
                     >
                       {extrasChildren}
                     </FormExtrasSection>

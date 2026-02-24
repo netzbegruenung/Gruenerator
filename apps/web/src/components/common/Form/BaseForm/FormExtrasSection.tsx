@@ -29,6 +29,7 @@ interface ExtendedFormExtrasSectionProps extends FormExtrasSectionProps {
   loading?: boolean;
   success?: boolean;
   useFeatureIcons?: boolean;
+  showAgentMode?: boolean;
 }
 
 const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
@@ -69,6 +70,7 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
   loading,
   success,
   useFeatureIcons = false,
+  showAgentMode = false,
 }) => {
   const { isMobileView } = useResponsive();
 
@@ -134,6 +136,7 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
                   onWebSearchInfoClick={onWebSearchInfoClick}
                   noBorder={true}
                   hideLoginPrompt={true}
+                  showAgentMode={showAgentMode}
                 />
               )}
               {examplePrompts.length > 0 && (
@@ -196,6 +199,7 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
                   onPrivacyInfoClick={onPrivacyInfoClick}
                   onWebSearchInfoClick={onWebSearchInfoClick}
                   noBorder={false}
+                  showAgentMode={showAgentMode}
                 />
               </div>
             )}

@@ -299,7 +299,9 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
           uploadedImage: null,
         };
 
-        const result = await submitHandler.submitStandard(combinedFormData);
+        const result = setup.features.useAgentMode
+          ? await submitHandler.submitAgentMode(combinedFormData)
+          : await submitHandler.submitStandard(combinedFormData);
 
         if (result && (result.sharepic || result.social)) {
           const hasTextContent =
@@ -327,7 +329,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
         setStoreIsLoading(false);
       }
     },
-    [submitHandler, setStoreIsLoading, setGeneratedText, componentName]
+    [submitHandler, setup.features.useAgentMode, setStoreIsLoading, setGeneratedText, componentName]
   );
 
   const handleAttachmentClick = useCallback((files?: File[]) => {
@@ -493,6 +495,7 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
         helpContent={helpContent}
         componentName={componentName}
         useFeatureIcons={true}
+        showAgentMode={true}
         onAttachmentClick={handleAttachmentClick}
         onRemoveFile={handleRemoveFile}
         attachedFiles={attachedFiles}
