@@ -100,7 +100,18 @@ router.get('/', async (req: Request, res: Response) => {
       `SELECT
         cd.*,
         p.display_name as creator_name,
-        le.display_name as last_editor_name
+        le.display_name as last_editor_name,
+        CASE
+          WHEN cd.created_by = $1 THEN 'owner'
+          WHEN cd.permissions ? $1::text THEN 'direct'
+          WHEN cd.id IN (
+            SELECT gcs.content_id
+            FROM group_content_shares gcs
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+            WHERE gcs.content_type = 'collaborative_documents'
+          ) THEN 'group'
+          WHEN cd.is_public = true THEN 'public'
+        END AS access_type
        FROM collaborative_documents cd
        LEFT JOIN profiles p ON cd.created_by = p.id
        LEFT JOIN profiles le ON cd.last_edited_by = le.id
