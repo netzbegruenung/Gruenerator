@@ -16,7 +16,7 @@ export type AuthSource =
   | 'gruene-oesterreich-login';
 
 export const REDIRECT_URI = makeRedirectUri({
-  scheme: 'gruenerator',
+  scheme: 'gruenerator-docs',
   path: 'auth/callback',
 });
 

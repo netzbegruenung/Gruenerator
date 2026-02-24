@@ -12,8 +12,8 @@ import {
   Pressable,
   Platform,
   TextInput,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -276,6 +276,7 @@ export default function DocumentsScreen() {
               <Image
                 source={{ uri: getRobotAvatarUrl(avatarProps.robotId) }}
                 style={styles.avatarImage}
+                contentFit="cover"
               />
             ) : (
               <Text style={[styles.avatarText, { color: colors.primary[600] }]}>
