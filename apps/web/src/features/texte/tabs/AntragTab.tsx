@@ -231,6 +231,8 @@ const AntragTab: React.FC<AntragTabProps> = memo(() => {
       useMarkdown={false}
       nextButtonText="Grünerieren"
       firstExtrasChildren={renderFirstExtras()}
+      showAgentMode={true}
+      useFeatureIcons={true}
       platformOptions={
         (form.generator?.baseFormProps?.platformOptions ?? undefined) as unknown as
           | any[]
