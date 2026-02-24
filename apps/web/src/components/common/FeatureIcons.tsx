@@ -541,7 +541,7 @@ const FeatureIcons = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn('size-9 sm:size-10', useWebSearch && 'text-accent')}
+                className={cn('size-9 sm:size-10', useWebSearch && 'text-primary-500')}
                 onClick={toggleWebSearch}
                 aria-label="Websuche aktivieren"
                 tabIndex={tabIndex.webSearch}
@@ -569,7 +569,7 @@ const FeatureIcons = ({
                     size="icon"
                     className={cn(
                       'size-9 sm:size-10',
-                      (usePrivacyMode || useProMode) && 'text-accent'
+                      (usePrivacyMode || useProMode) && 'text-primary-500'
                     )}
                     aria-label={usePrivacyMode ? 'Gruenerator-GPT' : useProMode ? 'Pro' : 'Kreativ'}
                     tabIndex={tabIndex.balancedMode}
@@ -616,7 +616,7 @@ const FeatureIcons = ({
                     size="icon"
                     className={cn(
                       'size-9 sm:size-10',
-                      (totalContentCount > 0 || useAutomaticSearch) && 'text-accent'
+                      (totalContentCount > 0 || useAutomaticSearch) && 'text-primary-500'
                     )}
                     aria-label="Inhalt"
                     tabIndex={tabIndex.attachment}
@@ -670,7 +670,7 @@ const FeatureIcons = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn('size-9 sm:size-10', interactiveModeActive && 'text-accent')}
+                  className={cn('size-9 sm:size-10', interactiveModeActive && 'text-primary-500')}
                   onClick={onInteractiveModeClick}
                   aria-label="Interaktiver Modus"
                   tabIndex={tabIndex.interactiveMode}
@@ -710,7 +710,7 @@ const FeatureIcons = ({
           <span>Websuche aktiviert. </span>
           <button
             type="button"
-            className="text-accent underline underline-offset-2 hover:opacity-90"
+            className="text-primary-500 underline underline-offset-2 hover:opacity-90"
             onClick={onWebSearchInfoClick}
           >
             Was ist das?
@@ -722,7 +722,7 @@ const FeatureIcons = ({
           <span>Privacy-Mode aktiviert. </span>
           <button
             type="button"
-            className="text-accent underline underline-offset-2 hover:opacity-90"
+            className="text-primary-500 underline underline-offset-2 hover:opacity-90"
             onClick={onPrivacyInfoClick}
           >
             Was ist das?
