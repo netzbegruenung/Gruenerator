@@ -6,10 +6,12 @@ import { useLazyAuth } from '../../../../hooks/useAuth';
 import { useDeferredTitle, awaitDeferredTitle } from '../../../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
+import { getDocsUrl } from '../../../../utils/docsUrl';
+import useApiSubmit from '../../../hooks/useApiSubmit';
+import { extractHTMLContent as extractHTMLContentJs } from '../../../utils/contentExtractor';
 import ActionButtons from '../../ActionButtons';
 import AutoSaveIndicator from '../../AutoSaveIndicator';
 import EnrichmentSourcesDisplay from '../../EnrichmentSourcesDisplay';
-import { useFormStateSelector } from '../FormStateProvider';
 
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
@@ -20,6 +22,10 @@ import type {
   CustomExportOption,
   ContentMetadata,
 } from '@/types/baseform';
+
+import { cn } from '@/utils/cn';
+
+const extractHTMLContent = extractHTMLContentJs as unknown as (content: unknown) => Promise<string>;
 
 const DocsEditorModal = lazy(() => import('../../DocsEditorModal'));
 
@@ -121,11 +127,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       success: saveToLibrarySuccess,
     } = useSaveToLibrary();
 
-    // Store selectors for potential future use
-    const storeSaveLoading = useFormStateSelector((state) => state.saveLoading);
-
-    // Use store state with prop fallback
-    const saveLoading = storeSaveLoading || propSaveLoading;
+    const saveLoading = propSaveLoading;
 
     // Determine the content to display and use for actions
     // Priority: store content -> props fallback (no edit mode)
@@ -206,15 +208,17 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       }
     }, [currentExportableContent, title, componentName, saveToLibrary]);
 
-    // "Edit in Docs" — create a collaborative document and open full-screen modal
+    // "Edit in Docs" — inline modal (backup) and new-tab (default)
     const createDocument = useDocumentStore((state) => state.createDocument);
     const docsApiClient = useMemo(() => createDocsApiClient(webAppDocsAdapter), []);
-    const [editInDocsLoading, setEditInDocsLoading] = React.useState(false);
+    const [editInDocsInlineLoading, setEditInDocsInlineLoading] = React.useState(false);
     const [editorModal, setEditorModal] = React.useState<{
       documentId: string;
       initialContent: string;
       title: string;
     } | null>(null);
+    const { submitForm: submitDocsExport, loading: editInDocsNewTabLoading } =
+      useApiSubmit('docs/from-export');
 
     useDeferredTitle(
       componentName,
@@ -223,10 +227,11 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       isStreaming
     );
 
-    const handleEditInDocs = React.useCallback(async () => {
+    // Inline modal handler (backup — available in dropdown menu)
+    const handleEditInDocsInline = React.useCallback(async () => {
       if (!currentExportableContent) return;
 
-      setEditInDocsLoading(true);
+      setEditInDocsInlineLoading(true);
       try {
         await awaitDeferredTitle(componentName);
         const meta = useGeneratedTextStore
@@ -242,9 +247,38 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       } catch (error) {
         console.error('[DisplaySection] Failed to create document:', error);
       } finally {
-        setEditInDocsLoading(false);
+        setEditInDocsInlineLoading(false);
       }
     }, [currentExportableContent, componentName, title, createDocument, docsApiClient]);
+
+    // New-tab handler (default — opens full Docs app in new tab)
+    const handleEditInDocsNewTab = React.useCallback(async () => {
+      if (!currentExportableContent) return;
+
+      try {
+        const htmlContent = await extractHTMLContent(currentExportableContent);
+        if (!htmlContent || htmlContent.trim().length === 0) return;
+
+        await awaitDeferredTitle(componentName);
+        const meta = useGeneratedTextStore
+          .getState()
+          .getGeneratedTextMetadata(componentName) as ContentMetadata | null;
+        const docTitle = meta?.title || title || 'Generierter Text';
+
+        const response = await submitDocsExport({
+          content: htmlContent,
+          title: docTitle,
+          documentType: 'Dokument',
+        });
+
+        if (response && response.documentId) {
+          const docsBase = getDocsUrl();
+          window.open(`${docsBase}/document/${response.documentId}`, '_blank');
+        }
+      } catch (error) {
+        console.error('[DisplaySection] Failed to open document in new tab:', error);
+      }
+    }, [currentExportableContent, componentName, title, submitDocsExport]);
 
     const actionButtons = (
       <ActionButtons
@@ -269,8 +303,10 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         title={storeGeneratedTextMetadata?.title || title}
         componentName={componentName}
         onRequestEdit={onRequestEdit}
-        onEditInDocs={handleEditInDocs}
-        editInDocsLoading={editInDocsLoading}
+        onEditInDocs={handleEditInDocsNewTab}
+        editInDocsLoading={editInDocsNewTabLoading}
+        onEditInDocsInline={handleEditInDocsInline}
+        editInDocsInlineLoading={editInDocsInlineLoading}
         showReset={showResetButton}
         onReset={onReset}
         customExportOptions={customExportOptions}
@@ -282,7 +318,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       renderActions ? (
         renderActions(actionButtons)
       ) : (
-        <div className="display-header">
+        <div className="flex justify-end items-center min-h-[40px] transition-all 4xl:min-h-[48px]">
           {actionButtons}
           <AutoSaveIndicator componentName={componentName} />
         </div>
@@ -291,7 +327,11 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
 
     return (
       <div
-        className={`display-container ${isStartMode ? 'display-container--start-mode' : ''}`}
+        className={cn(
+          'display-container flex flex-col p-lg rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] relative',
+          'max-md:p-md max-md:shadow-none',
+          isStartMode && 'display-container--start-mode'
+        )}
         id="display-section-container"
         ref={ref}
       >
@@ -332,15 +372,14 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
             renderEmptyState()
           ) : null}
         </div>
-        {/* Render enrichment sources if available */}
         {hasRenderableContent && storeGeneratedTextMetadata?.enrichmentSummary && (
           <EnrichmentSourcesDisplay
             enrichmentSummary={storeGeneratedTextMetadata.enrichmentSummary}
           />
         )}
-        {/* Render additional display actions if provided */}
-        {displayActions && <div className="display-action-section">{displayActions}</div>}
-        {/* Full-screen docs editor modal */}
+        {displayActions && (
+          <div className="mt-lg pt-md flex flex-col items-start">{displayActions}</div>
+        )}
         {editorModal && (
           <Suspense fallback={null}>
             <DocsEditorModal

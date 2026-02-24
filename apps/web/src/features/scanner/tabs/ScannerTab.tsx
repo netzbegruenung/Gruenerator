@@ -17,7 +17,6 @@ import {
 } from 'react-icons/pi';
 
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-import { FormStateProvider } from '../../../components/common/Form/FormStateProvider';
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
 import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
@@ -473,22 +472,20 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
 
             <div className="scanner-results-layout">
               <div className="scanner-results-main">
-                <FormStateProvider>
-                  <DisplaySection
-                    title={
-                      selectedFiles.length === 1
-                        ? selectedFiles[0].name
-                        : `${selectedFiles.length} Dateien`
-                    }
-                    value={result.text}
-                    componentName={COMPONENT_NAME}
-                    useMarkdown={true}
-                    showUndoControls={true}
-                    showRedoControls={true}
-                    showResetButton={true}
-                    onReset={handleClearFile}
-                  />
-                </FormStateProvider>
+                <DisplaySection
+                  title={
+                    selectedFiles.length === 1
+                      ? selectedFiles[0].name
+                      : `${selectedFiles.length} Dateien`
+                  }
+                  value={result.text}
+                  componentName={COMPONENT_NAME}
+                  useMarkdown={true}
+                  showUndoControls={true}
+                  showRedoControls={true}
+                  showResetButton={true}
+                  onReset={handleClearFile}
+                />
               </div>
 
               <div className="scanner-transform-panel">

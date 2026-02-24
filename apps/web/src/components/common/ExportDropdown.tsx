@@ -1,9 +1,9 @@
 import { useAgentStore } from '@gruenerator/chat';
-import { type JSX, useState, useCallback, useEffect, type ReactNode, type MouseEvent } from 'react';
+import { type JSX, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { CiMemoPad } from 'react-icons/ci';
 import { FaCloud } from 'react-icons/fa';
-import { FaFileWord } from 'react-icons/fa6';
-import { HiRefresh, HiSave, HiCog } from 'react-icons/hi';
+import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
+import { HiRefresh, HiSave, HiCog, HiOutlineDocumentText } from 'react-icons/hi';
 import {
   IoDownloadOutline,
   IoShareSocialSharp,
@@ -16,6 +16,16 @@ import {
 } from 'react-icons/io5';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from '../../components/ui/dropdown-menu';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
@@ -30,7 +40,6 @@ import { copyFormattedContent } from '../utils/commonFunctions';
 import {
   extractPlainText as extractPlainTextJs,
   extractFormattedText as extractFormattedTextJs,
-  extractHTMLContent as extractHTMLContentJs,
 } from '../utils/contentExtractor';
 
 import type { ContentMetadata } from '@/types/baseform';
@@ -40,18 +49,7 @@ const extractPlainText = extractPlainTextJs as unknown as (content: unknown) => 
 const extractFormattedText = extractFormattedTextJs as unknown as (
   content: unknown
 ) => Promise<string>;
-const extractHTMLContent = extractHTMLContentJs as unknown as (content: unknown) => Promise<string>;
 import '../../assets/styles/components/actions/exportToDocument.css';
-
-function getDocsUrl(): string {
-  const envUrl = import.meta.env.VITE_DOCS_URL;
-  if (envUrl) return envUrl;
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return `${window.location.protocol}//localhost:3002`;
-  }
-  return `${window.location.protocol}//docs.${hostname}`;
-}
 
 interface ExportDropdownProps {
   content: string;
@@ -70,6 +68,10 @@ interface ExportDropdownProps {
   hideDefaultOptions?: boolean;
   showShareButton?: boolean;
   showMoreMenu?: boolean;
+  onEditInDocs?: () => void;
+  editInDocsLoading?: boolean;
+  onEditInDocsInline?: () => void;
+  editInDocsInlineLoading?: boolean;
 }
 
 const ExportDropdown = ({
@@ -82,14 +84,16 @@ const ExportDropdown = ({
   hideDefaultOptions = false,
   showShareButton = true,
   showMoreMenu = true,
+  onEditInDocs,
+  editInDocsLoading = false,
+  onEditInDocsInline,
+  editInDocsInlineLoading = false,
 }: ExportDropdownProps): JSX.Element | null => {
-  const [showDropdown, setShowDropdown] = useState<boolean>(false);
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
   const [selectedShareLinkId, setSelectedShareLinkId] = useState<string>('');
   const [loadingShareLinks, setLoadingShareLinks] = useState<boolean>(false);
   const [uploadingToWolke, setUploadingToWolke] = useState<boolean>(false);
   const [saveIcon, setSaveIcon] = useState<string>('save');
-  const [showWolkeSubDropdown, setShowWolkeSubDropdown] = useState<boolean>(false);
   const [exportIcon, setExportIcon] = useState<string>('share');
   const [textCopyIcon, setTextCopyIcon] = useState<ReactNode>(<IoCopyOutline size={20} />);
   const [showWolkeSetupModal, setShowWolkeSetupModal] = useState<boolean>(false);
@@ -104,11 +108,10 @@ const ExportDropdown = ({
   const navigate = useNavigate();
   const { getBetaFeatureState } = useBetaFeatures();
   const hasChatAccess = isAuthenticated && getBetaFeatureState('chat');
-  const { submitForm, loading: docsLoading } = useApiSubmit('docs/from-export');
   const { submitForm: submitEtherpad, loading: etherpadLoading } = useApiSubmit('etherpad/create');
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
 
-  const { isGenerating, generateDOCX } = useExportStore();
+  const { isGenerating, generateDOCX, generatePDF } = useExportStore();
 
   const isMobileView = window.innerWidth <= 768;
 
@@ -131,36 +134,6 @@ const ExportDropdown = ({
       setLoadingShareLinks(false);
     }
   }, [isAuthenticated, selectedShareLinkId]);
-
-  const handleDropdownClick = () => {
-    setShowDropdown(!showDropdown);
-    if (!showDropdown && isAuthenticated) {
-      loadShareLinks();
-    }
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: Event) => {
-      const target = (event as unknown as MouseEvent).target as HTMLElement;
-      if (showDropdown && !target.closest('.export-dropdown')) {
-        setShowDropdown(false);
-        setShowWolkeSubDropdown(false);
-      }
-      if (
-        showWolkeSubDropdown &&
-        !target.closest('.wolke-subdropdown') &&
-        !target.closest('.wolke-trigger')
-      ) {
-        setShowWolkeSubDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showDropdown, showWolkeSubDropdown]);
 
   // Check native share capability on mount
   useEffect(() => {
@@ -245,69 +218,17 @@ const ExportDropdown = ({
     return { text: null, componentName: primaryComponentName };
   };
 
-  const handleDocsExport = async () => {
-    setShowDropdown(false);
-
-    try {
-      // Check authentication first
-      if (!isAuthenticated) {
-        alert('Bitte melde dich an, um Dokumente zu erstellen.');
-        return;
-      }
-
-      // Validate content
-      if (!content) {
-        alert(
-          'Kein Text zum Exportieren verfügbar. Bitte generiere erst einen Text auf dieser Seite.'
-        );
-        return;
-      }
-
-      // Extract as HTML so BlockNote can parse it
-      const formattedContent = await extractHTMLContent(content);
-      if (!formattedContent || formattedContent.trim().length === 0) {
-        alert('Der extrahierte Text ist leer.');
-        return;
-      }
-
-      const freshTitle = await getFreshTitle();
-      const documentTitle =
-        freshTitle || `${getDocumentType()} - ${new Date().toLocaleDateString('de-DE')}`;
-
-      // Submit to backend
-      const response = await submitForm({
-        content: formattedContent,
-        title: documentTitle,
-        documentType: getDocumentType(),
-      });
-
-      // Navigate to document in Grünerator Docs app
-      if (response && response.documentId) {
-        const docsBase = getDocsUrl();
-        window.open(`${docsBase}/document/${response.documentId}`, '_blank');
-      } else {
-        throw new Error('Keine Dokument-ID in der Antwort erhalten.');
-      }
-    } catch (err) {
-      console.error('Fehler beim Erstellen des Dokuments:', err);
-      const errorMessage = err instanceof Error ? err.message : String(err);
-
-      let userMessage = 'Fehler beim Erstellen des Dokuments: ';
-      const axiosError = err as { response?: { status?: number } };
-      if (axiosError.response?.status === 401) {
-        userMessage = 'Bitte melde dich an, um Dokumente zu erstellen.';
-      } else if (axiosError.response?.status === 413) {
-        userMessage = 'Der Inhalt ist zu groß (max. 1MB).';
-      } else {
-        userMessage += errorMessage;
-      }
-
-      alert(userMessage);
-    }
+  const handleEditInDocsClick = () => {
+    onEditInDocs?.();
   };
 
+  /* Inline editor handler — disabled for now
+  const handleEditInDocsInlineClick = () => {
+    onEditInDocsInline?.();
+  };
+  */
+
   const handleEtherpadExport = async () => {
-    setShowDropdown(false);
     try {
       if (!content) {
         alert('Kein Text zum Exportieren verfügbar.');
@@ -354,7 +275,6 @@ const ExportDropdown = ({
   };
 
   const handleNativeShare = async () => {
-    setShowDropdown(false);
     try {
       const plainContent = await extractPlainText(content);
       if (!plainContent || plainContent.trim().length === 0) {
@@ -375,7 +295,6 @@ const ExportDropdown = ({
   };
 
   const handleDOCXDownload = useCallback(async () => {
-    setShowDropdown(false);
     try {
       const freshTitle = await getFreshTitle();
       const formattedContent = await extractFormattedText(content);
@@ -386,6 +305,18 @@ const ExportDropdown = ({
       alert('DOCX Download fehlgeschlagen: ' + errorMessage);
     }
   }, [generateDOCX, content, title]);
+
+  const handlePDFDownload = useCallback(async () => {
+    try {
+      const freshTitle = await getFreshTitle();
+      const formattedContent = await extractFormattedText(content);
+      await generatePDF(formattedContent, freshTitle);
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert('PDF Download fehlgeschlagen: ' + errorMessage);
+    }
+  }, [generatePDF, content, title]);
 
   const handleWolkeClick = async () => {
     if (!isAuthenticated) return;
@@ -399,8 +330,7 @@ const ExportDropdown = ({
     if (shareLinks.length === 1 && shareLinks[0]) {
       await handleWolkeUpload(shareLinks[0].id);
     } else if (shareLinks.length > 1) {
-      // Show sub-dropdown for multiple sharelinks
-      setShowWolkeSubDropdown(true);
+      // TODO: Show sub-menu for multiple sharelinks when Wolke is re-enabled
     } else {
       // Show setup modal for configuring first Wolke connection
       setShowWolkeSetupModal(true);
@@ -408,8 +338,6 @@ const ExportDropdown = ({
   };
 
   const handleWolkeUpload = async (shareLinkId: string) => {
-    setShowDropdown(false);
-    setShowWolkeSubDropdown(false);
     setUploadingToWolke(true);
 
     try {
@@ -463,7 +391,6 @@ const ExportDropdown = ({
   };
 
   const handleSaveToLibrary = () => {
-    setShowDropdown(false);
     if (onSaveToLibrary) {
       onSaveToLibrary();
       // Show checkmark after save attempt
@@ -475,7 +402,6 @@ const ExportDropdown = ({
   };
 
   const handleDiscussInChat = async () => {
-    setShowDropdown(false);
     try {
       const plainContent = await extractPlainText(content);
       if (!plainContent?.trim()) {
@@ -513,10 +439,15 @@ const ExportDropdown = ({
   }
 
   const isLoading =
-    isGenerating || docsLoading || etherpadLoading || uploadingToWolke || saveToLibraryLoading;
+    isGenerating ||
+    etherpadLoading ||
+    editInDocsLoading ||
+    editInDocsInlineLoading ||
+    uploadingToWolke ||
+    saveToLibraryLoading;
 
   return (
-    <div className="export-dropdown download-export">
+    <div className="export-dropdown">
       {/* Share button - Direct native share */}
       {showShareButton && canNativeShare && (
         <button
@@ -533,185 +464,119 @@ const ExportDropdown = ({
         </button>
       )}
 
-      {/* More options button (3-dot menu) */}
+      {/* More options menu (3-dot) */}
       {showMoreMenu && (
-        <button
-          className={className}
-          onClick={handleDropdownClick}
-          disabled={isLoading}
-          aria-label="Weitere Optionen"
-          {...(!isMobileView && {
-            'data-tooltip-id': 'action-tooltip',
-            'data-tooltip-content': 'Weitere Optionen',
-          })}
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (open && isAuthenticated) loadShareLinks();
+          }}
         >
-          {isLoading ? (
-            <HiRefresh className="spinning" size={16} />
-          ) : exportIcon === 'checkmark' ? (
-            <IoCheckmarkOutline size={16} />
-          ) : (
-            <IoEllipsisVertical size={16} />
-          )}
-        </button>
-      )}
-
-      {showDropdown && showMoreMenu && (
-        <div className="format-dropdown">
-          {/* Custom export options rendered first */}
-          {customExportOptions.map((option) => (
+          <DropdownMenuTrigger asChild>
             <button
-              key={option.id}
-              className="format-option"
-              onClick={(e: React.MouseEvent) => {
-                option.onClick(e);
-                setShowDropdown(false);
-              }}
-              disabled={option.disabled}
+              className={className}
+              disabled={isLoading}
+              aria-label="Weitere Optionen"
+              {...(!isMobileView && {
+                'data-tooltip-id': 'action-tooltip',
+                'data-tooltip-content': 'Weitere Optionen',
+              })}
             >
-              {option.icon}
-              <div className="format-option-content">
-                <div className="format-option-title">{option.label}</div>
-                {option.subtitle && <div className="format-option-subtitle">{option.subtitle}</div>}
-              </div>
+              {isLoading ? (
+                <HiRefresh className="spinning" size={16} />
+              ) : exportIcon === 'checkmark' ? (
+                <IoCheckmarkOutline size={16} />
+              ) : (
+                <IoEllipsisVertical size={16} />
+              )}
             </button>
-          ))}
-
-          {/* Divider if both custom and default options exist */}
-          {customExportOptions.length > 0 && !hideDefaultOptions && (
-            <div className="format-divider" />
-          )}
-
-          {/* Default options - conditionally rendered */}
-          {!hideDefaultOptions && (
-            <>
-              <button
-                className="format-option"
-                onClick={handleDOCXDownload}
-                disabled={isGenerating}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {/* Custom export options */}
+            {customExportOptions.map((option) => (
+              <DropdownMenuItem
+                key={option.id}
+                onSelect={() => option.onClick({} as React.MouseEvent)}
+                disabled={option.disabled}
               >
-                <FaFileWord size={16} />
-                <div className="format-option-content">
-                  <div className="format-option-title">
-                    {isGenerating ? 'Wird erstellt...' : 'Word-Datei herunterladen'}
-                  </div>
-                  <div className="format-option-subtitle">Für Word und LibreOffice</div>
+                {option.icon}
+                <div className="flex flex-col gap-0.5">
+                  <span>{option.label}</span>
+                  {option.subtitle && <span className="text-xs opacity-70">{option.subtitle}</span>}
                 </div>
-              </button>
+              </DropdownMenuItem>
+            ))}
 
-              {/* Grünerator Docs export temporarily disabled
-              <button
-                className="format-option"
-                onClick={handleDocsExport}
-                disabled={docsLoading || !isAuthenticated}
-              >
-                <CiMemoPad size={16} />
-                <div className="format-option-content">
-                  <div className="format-option-title">
-                    {docsLoading ? 'Erstelle Dokument...' : 'Grünerator Docs'}
-                  </div>
-                  <div className="format-option-subtitle">
-                    {!isAuthenticated ? 'Login erforderlich' : 'Kollaborativ bearbeiten und teilen'}
-                  </div>
-                </div>
-              </button>
-              */}
+            {customExportOptions.length > 0 && !hideDefaultOptions && <DropdownMenuSeparator />}
 
-              <button
-                className="format-option"
-                onClick={handleEtherpadExport}
-                disabled={etherpadLoading}
-              >
-                <CiMemoPad size={16} />
-                <div className="format-option-content">
-                  <div className="format-option-title">
-                    {etherpadLoading ? 'Exportiere...' : 'Textbegrünung Export'}
-                  </div>
-                  <div className="format-option-subtitle">
-                    Öffentlich verfügbar, als Link teilbar
-                  </div>
-                </div>
-              </button>
+            {!hideDefaultOptions && (
+              <>
+                {onEditInDocs && isAuthenticated && (
+                  <DropdownMenuItem onSelect={handleEditInDocsClick} disabled={editInDocsLoading}>
+                    <HiOutlineDocumentText />
+                    {editInDocsLoading ? 'Exportiere...' : 'In Docs exportieren'}
+                  </DropdownMenuItem>
+                )}
 
-              {isAuthenticated && onSaveToLibrary && (
-                <button
-                  className="format-option"
-                  onClick={handleSaveToLibrary}
-                  disabled={saveToLibraryLoading}
-                >
-                  {saveIcon === 'checkmark' ? (
-                    <IoCheckmarkOutline size={12} />
-                  ) : (
-                    <HiSave size={12} />
-                  )}
-                  <div className="format-option-content">
-                    <div className="format-option-title">
-                      {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
-                    </div>
-                    <div className="format-option-subtitle">Für später wiederverwenden</div>
-                  </div>
-                </button>
-              )}
+                <DropdownMenuItem onSelect={handleEtherpadExport} disabled={etherpadLoading}>
+                  <CiMemoPad />
+                  {etherpadLoading ? 'Exportiere...' : 'In Textbegrünung exportieren'}
+                </DropdownMenuItem>
 
-              {hasChatAccess && (
-                <button className="format-option" onClick={handleDiscussInChat}>
-                  <IoChatbubbleOutline size={16} />
-                  <div className="format-option-content">
-                    <div className="format-option-title">Im Chat besprechen</div>
-                    <div className="format-option-subtitle">KI-Feedback zum Text erhalten</div>
-                  </div>
-                </button>
-              )}
+                {hasChatAccess && (
+                  <DropdownMenuItem onSelect={handleDiscussInChat}>
+                    <IoChatbubbleOutline />
+                    Im Chat besprechen
+                  </DropdownMenuItem>
+                )}
 
-              {isAuthenticated && (
-                <button
-                  className="format-option wolke-trigger"
-                  onClick={handleWolkeClick}
-                  disabled={uploadingToWolke || loadingShareLinks}
-                >
-                  <FaCloud size={16} />
-                  <div className="format-option-content">
-                    <div className="format-option-title">
-                      {uploadingToWolke
-                        ? 'Uploade...'
-                        : loadingShareLinks
-                          ? 'Lade...'
-                          : 'Wolke Export'}
-                    </div>
-                    <div className="format-option-subtitle">In der Grünen Wolke speichern</div>
-                  </div>
-                  {uploadingToWolke && <HiRefresh className="spinning" size={14} />}
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger disabled={isGenerating}>
+                    <IoDownloadOutline />
+                    {isGenerating ? 'Wird erstellt...' : 'Datei downloaden'}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onSelect={handleDOCXDownload} disabled={isGenerating}>
+                      <FaFileWord />
+                      Word (.docx)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={handlePDFDownload} disabled={isGenerating}>
+                      <FaFilePdf />
+                      PDF (.pdf)
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
 
-      {/* Wolke Sub-Dropdown */}
-      {showWolkeSubDropdown && shareLinks.length > 1 && (
-        <div className="wolke-subdropdown">
-          <div className="wolke-subdropdown-header">
-            <span>Wolke-Verbindung wählen:</span>
-          </div>
-          {shareLinks.map((link) =>
-            link.id ? (
-              <button
-                key={link.id}
-                className="wolke-subdropdown-option"
-                onClick={() => handleWolkeUpload(link.id)}
-                disabled={uploadingToWolke}
-              >
-                <FaCloud size={14} />
-                <div className="wolke-subdropdown-content">
-                  <div className="wolke-subdropdown-title">{link.label || 'Unbenannte Wolke'}</div>
-                  <div className="wolke-subdropdown-subtitle">
-                    {link.share_link ? new URL(link.share_link).hostname : 'Keine URL'}
-                  </div>
-                </div>
-              </button>
-            ) : null
-          )}
-        </div>
+                {/* Inline editor temporarily disabled
+                {onEditInDocsInline && isAuthenticated && (
+                  <DropdownMenuItem onSelect={handleEditInDocsInlineClick} disabled={editInDocsInlineLoading}>
+                    <IoCreateOutline />
+                    {editInDocsInlineLoading ? 'Öffne Editor...' : 'Im Editor bearbeiten'}
+                  </DropdownMenuItem>
+                )}
+                */}
+
+                {/* Save to library temporarily disabled
+                {isAuthenticated && onSaveToLibrary && (
+                  <DropdownMenuItem onSelect={handleSaveToLibrary} disabled={saveToLibraryLoading}>
+                    {saveIcon === 'checkmark' ? <IoCheckmarkOutline size={12} /> : <HiSave size={12} />}
+                    {saveToLibraryLoading ? 'Speichere...' : 'Grünerator Bibliothek'}
+                  </DropdownMenuItem>
+                )}
+                */}
+
+                {/* Wolke export temporarily disabled
+                {isAuthenticated && (
+                  <DropdownMenuItem onSelect={handleWolkeClick} disabled={uploadingToWolke || loadingShareLinks}>
+                    <FaCloud />
+                    {uploadingToWolke ? 'Uploade...' : loadingShareLinks ? 'Lade...' : 'Wolke'}
+                    {uploadingToWolke && <HiRefresh className="spinning" size={14} />}
+                  </DropdownMenuItem>
+                )}
+                */}
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
 
       {/* Wolke Setup Modal */}

@@ -13,6 +13,8 @@ import {
 
 import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
 
+import { cn } from '@/utils/cn';
+
 interface Citation {
   index: string | number;
   url?: string;
@@ -145,9 +147,9 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     const hasTextContent = typeof contentToRender === 'string' && contentToRender.trim().length > 0;
 
     return (
-      <div className="generated-content-wrapper mixed-content">
+      <div className="flex-1 flex flex-col min-h-0 [overflow-anchor:none]">
         {hasTextContent && (
-          <div className="social-content-section">
+          <div>
             <div className="content-display markdown-content">
               <Markdown>{contentToRender as string}</Markdown>
             </div>
@@ -155,7 +157,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
         )}
 
         {sharepicItems.length > 0 && (
-          <div className="sharepic-content-section">
+          <div>
             {sharepicItems.length > 1 ? (
               <ImageDisplay
                 key="multiple-sharepics"
@@ -246,7 +248,12 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   // All text content now renders as Markdown
   if (typeof contentToRender === 'string') {
     return (
-      <div className={`generated-content-wrapper${isStoreStreaming ? ' is-streaming' : ''}`}>
+      <div
+        className={cn(
+          'flex-1 flex flex-col min-h-0 [overflow-anchor:none]',
+          isStoreStreaming && 'is-streaming'
+        )}
+      >
         <div className="content-display markdown-content">
           <Markdown>{contentToRender}</Markdown>
         </div>
@@ -335,7 +342,12 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       const customComponents = createCitationComponents(citations);
 
       return (
-        <div className={`generated-content-wrapper${isStoreStreaming ? ' is-streaming' : ''}`}>
+        <div
+          className={cn(
+            'flex-1 flex flex-col min-h-0 [overflow-anchor:none]',
+            isStoreStreaming && 'is-streaming'
+          )}
+        >
           <div className="content-display markdown-content">
             <Markdown components={customComponents as Record<string, unknown>}>
               {contentToRender as string}
@@ -345,7 +357,12 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       );
     } else {
       return (
-        <div className={`generated-content-wrapper${isStoreStreaming ? ' is-streaming' : ''}`}>
+        <div
+          className={cn(
+            'flex-1 flex flex-col min-h-0 [overflow-anchor:none]',
+            isStoreStreaming && 'is-streaming'
+          )}
+        >
           <div className="content-display markdown-content">
             <Markdown>{contentToRender as string}</Markdown>
           </div>
@@ -361,7 +378,12 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     }
 
     return (
-      <div className={`generated-content-wrapper${isStoreStreaming ? ' is-streaming' : ''}`}>
+      <div
+        className={cn(
+          'flex-1 flex flex-col min-h-0 [overflow-anchor:none]',
+          isStoreStreaming && 'is-streaming'
+        )}
+      >
         <div className="content-display">
           {typeof enhancedContent === 'string' ? (
             <div dangerouslySetInnerHTML={{ __html: enhancedContent }} />

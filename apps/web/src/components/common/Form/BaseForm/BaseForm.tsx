@@ -11,11 +11,6 @@ import type {
 } from '@/types/baseform';
 
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import FormStateProvider, {
-  useFormState,
-  useFormStateSelector,
-  useFormStateSelectors,
-} from '../FormStateProvider';
 
 import isEqual from 'fast-deep-equal';
 import { motion, AnimatePresence } from 'motion/react';
@@ -25,12 +20,12 @@ import React, {
   useState,
   useCallback,
   useMemo,
-  ReactNode,
+  type ReactNode,
   lazy,
   Suspense,
 } from 'react';
 
-// Import all form-related CSS
+// Import non-baseform CSS (these stay — they style shared UI primitives)
 import '../../../../assets/styles/components/ui/forms.css';
 import '../../../../assets/styles/components/ui/form-select-modern.css';
 import '../../../../assets/styles/components/ui/form-toggle-button.css';
@@ -46,55 +41,35 @@ import '../../../../assets/styles/components/ui/animatedcheckbox.css';
 import '../../../../assets/styles/components/ui/SegmentedControl.css';
 import '../../../../assets/styles/components/form/form-inputs.css';
 import '../../../../assets/styles/components/form/file-upload.css';
-import '../../../../assets/styles/components/baseform/base.css';
-import '../../../../assets/styles/components/baseform/form-layout.css';
-import '../../../../assets/styles/components/baseform/form-toggle-fab.css';
 import '../../../../assets/styles/components/help-tooltip.css';
-import '../../../../assets/styles/pages/baseform.css';
-import '../../../../assets/styles/components/baseform/start-page.css';
 
-// Importiere die Komponenten
-
-// Import hooks
-
-// Import utilities
-
-// Auto-save and Recent Texts
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useTextAutoSave } from '../../../../hooks/useTextAutoSave';
 import { getDocumentType } from '../../../../utils/documentTypeMapper';
 import RecentTextsSection from '../../RecentTexts/RecentTextsSection';
+import { BaseFormProvider } from '../BaseFormContext';
 import { useErrorHandling, useResponsive, useAutoScrollToContent } from '../hooks';
 import { useBaseFormAccessibility } from '../hooks/useBaseFormAccessibility';
 import { useContentManagement } from '../hooks/useContentManagement';
-import { useFeatureConfigs } from '../hooks/useFeatureConfigs';
-import { useFormConfiguration } from '../hooks/useFormConfiguration';
-import { useFormEventHandlers } from '../hooks/useFormEventHandlers';
-import { useFormStateSyncing } from '../hooks/useFormStateSyncing';
-import { useFormVisibility } from '../hooks/useFormVisibility';
-import { useStartMode } from '../hooks/useStartMode';
-import { getBaseContainerClasses } from '../utils/classNameUtils';
 import { getExportableContent } from '../utils/contentUtils';
 
 import DisplaySection from './DisplaySection';
 import FormSection from './FormSection';
 import { FormToggleButtonFAB } from './FormToggleButtonFAB';
 
-// Lazy load react-tooltip (only used on desktop, ~15KB)
+import { cn } from '@/utils/cn';
+
 const Tooltip = lazy(() => import('react-tooltip').then((mod) => ({ default: mod.Tooltip })));
 
-/**
- * Internal BaseForm component that uses the FormStateProvider context
- */
-const BaseFormInternal: React.FC<BaseFormProps> = ({
+const BaseForm: React.FC<BaseFormProps> = ({
   title,
   subtitle,
   children,
   onSubmit,
-  loading: propLoading,
-  success: propSuccess,
+  loading = false,
+  success = false,
   error: propError,
-  formErrors: propFormErrors = {},
+  formErrors = {},
   onGeneratePost,
   generatedPost,
   initialContent = '',
@@ -103,35 +78,18 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   showBackButton = false,
   nextButtonText,
   generatedContent,
-  hideDisplayContainer = false,
   customRenderer = null,
 
   helpContent,
   submitButtonProps = {},
-  disableAutoCollapse = false, // Deprecated: form no longer auto-collapses by default
   showNextButton = true,
-  // New consolidated prop (optional, backward compatible)
   submitConfig = null,
   headerContent,
-  // NEW: Consolidated features configuration
-  features = undefined,
-  // Feature toggle props - now with defaults that can be overridden
-  webSearchFeatureToggle = null,
-  useWebSearchFeatureToggle = false,
-  webSearchConfig = null,
-  privacyModeToggle = null,
-  usePrivacyModeToggle = false,
-  privacyModeConfig = null,
-  proModeToggle = null,
-  useProModeToggle = false,
-  proModeConfig = null,
-  interactiveModeToggle = null,
-  useInteractiveModeToggle = false,
-  interactiveModeConfig = null,
-  useFeatureIcons: propUseFeatureIcons = false,
+  features,
+  useFeatureIcons = false,
   onAttachmentClick,
   onRemoveFile,
-  attachedFiles: propAttachedFiles = [],
+  attachedFiles = [],
   displayActions = null,
   formNotice = null,
   enablePlatformSelector = false,
@@ -141,7 +99,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   platformSelectorHelpText = undefined,
   formControl = null,
   onSave,
-  saveLoading: propSaveLoading = false,
+  saveLoading = false,
   defaultValues = {},
   validationRules = {},
   useModernForm = true,
@@ -152,8 +110,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   firstExtrasChildren = null,
   extrasChildren = null,
   useMarkdown = null,
-  customEditContent = null, // Custom edit component for specialized editing (e.g., campaign sharepic editor)
-  // TabIndex configuration
+  customEditContent = null,
   featureIconsTabIndex = {
     webSearch: 11,
     privacyMode: 12,
@@ -166,26 +123,25 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   documentSelectorTabIndex = 15,
   submitButtonTabIndex = 17,
   showImageUpload = false,
-  uploadedImage: propUploadedImage = null,
+  uploadedImage = null,
   onImageChange = null,
   enableKnowledgeSelector = false,
   hideFormExtras = false,
   hideInputSection = false,
   showResetButton = false,
   onReset,
-  onImageEditModeChange = null, // Callback when image edit mode changes (true = active, false = inactive)
+  onImageEditModeChange = null,
   customExportOptions = [],
   hideDefaultExportOptions = false,
-  // Start page layout props
-  useStartPageLayout = false, // Default to false - only PresseSocialGenerator uses start page layout
-  startPageDescription = null, // 1-2 sentence description shown below title in start mode
-  examplePrompts = [], // Array of { icon, text } for clickable example prompts
-  onExamplePromptClick = null, // Callback when example prompt is clicked
-  contextualTip = null, // Tip shown below example prompts { icon, text }
-  selectedPlatforms = [], // Array of selected platform IDs for highlighting platform tags
-  inputHeaderContent = null, // Content rendered above the textarea inside the form card
+  useStartPageLayout = false,
+  startPageDescription = null,
+  examplePrompts = [],
+  onExamplePromptClick = null,
+  contextualTip = null,
+  selectedPlatforms = [],
+  inputHeaderContent = null,
   streamingProgress,
-  isStreaming: propIsStreaming = false,
+  isStreaming = false,
   abortStreaming,
 }) => {
   const baseFormRef = useRef<HTMLDivElement>(null);
@@ -195,83 +151,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     null
   );
 
-  // Batched store selectors using useShallow for optimal performance
-  // This reduces subscriptions from 24 to 3, preventing cascade re-renders
-  const {
-    storeLoading,
-    storeSuccess,
-    storeError,
-    storeFormErrors,
-    storeSaveLoading,
-    storeWebSearchConfig,
-    storePrivacyModeConfig,
-    storeProModeConfig,
-    storeUseFeatureIcons,
-    storeAttachedFiles,
-    storeUploadedImage,
-    storeIsFormVisible,
-  } = useFormStateSelectors((state) => ({
-    storeLoading: state.loading,
-    storeSuccess: state.success,
-    storeError: state.error,
-    storeFormErrors: state.formErrors,
-    storeSaveLoading: state.saveLoading,
-    storeWebSearchConfig: state.webSearchConfig,
-    storePrivacyModeConfig: state.privacyModeConfig,
-    storeProModeConfig: state.proModeConfig,
-    storeUseFeatureIcons: state.useFeatureIcons,
-    storeAttachedFiles: state.attachedFiles,
-    storeUploadedImage: state.uploadedImage,
-    storeIsFormVisible: state.isFormVisible,
-  }));
-
-  // Configuration selectors (batched with shallow comparison)
-  const {
-    storeTabIndexConfig,
-    storePlatformConfig,
-    storeSubmitConfig,
-    storeUIConfig,
-    storeHelpConfig,
-  } = useFormStateSelectors((state) => ({
-    storeTabIndexConfig: state.tabIndexConfig,
-    storePlatformConfig: state.platformConfig,
-    storeSubmitConfig: state.submitConfig,
-    storeUIConfig: state.uiConfig,
-    storeHelpConfig: state.helpConfig,
-  }));
-
-  // Store helper functions (these are stable references, single selector is fine)
-  const setIsStartMode = useFormStateSelector((state) => state.setIsStartMode);
-  const getFeatureState = useFormStateSelector((state) => state.getFeatureState);
-
-  // Store actions (batched - functions are stable references)
-  const {
-    setStoreLoading,
-    setStoreSuccess,
-    setStoreError,
-    setStoreFormErrors,
-    setStoreSaveLoading,
-    clearStoreError,
-    setStoreWebSearchEnabled,
-    setStorePrivacyModeEnabled,
-    setStoreUseFeatureIcons,
-    setStoreAttachedFiles,
-    setStoreUploadedImage,
-    toggleStoreFormVisibility,
-  } = useFormStateSelectors((state) => ({
-    setStoreLoading: state.setLoading,
-    setStoreSuccess: state.setSuccess,
-    setStoreError: state.setError,
-    setStoreFormErrors: state.setFormErrors,
-    setStoreSaveLoading: state.setSaveLoading,
-    clearStoreError: state.clearError,
-    setStoreWebSearchEnabled: state.setWebSearchEnabled,
-    setStorePrivacyModeEnabled: state.setPrivacyModeEnabled,
-    setStoreUseFeatureIcons: state.setUseFeatureIcons,
-    setStoreAttachedFiles: state.setAttachedFiles,
-    setStoreUploadedImage: state.setUploadedImage,
-    toggleStoreFormVisibility: state.toggleFormVisibility,
-  }));
+  // Form visibility (inlined from useFormVisibility)
+  const [isFormVisible, setIsFormVisible] = useState(true);
+  const toggleFormVisibility = useCallback(() => setIsFormVisible((prev) => !prev), []);
 
   const errorHandling = useErrorHandling() as {
     error: string;
@@ -283,80 +165,6 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   const error = errorHandling.error;
   const setError = errorHandling.setError;
 
-  // Use store state with prop fallbacks
-  const loading = storeLoading || propLoading;
-  const success = storeSuccess || propSuccess;
-  const formErrors = Object.keys(storeFormErrors).length > 0 ? storeFormErrors : propFormErrors;
-  const saveLoading = storeSaveLoading || propSaveLoading;
-  const useFeatureIcons = storeUseFeatureIcons || propUseFeatureIcons;
-  const attachedFiles = storeAttachedFiles.length > 0 ? storeAttachedFiles : propAttachedFiles;
-  const uploadedImage = storeUploadedImage || propUploadedImage;
-
-  // Configuration hooks
-  const configs = useFormConfiguration({
-    storeTabIndexConfig,
-    storePlatformConfig,
-    storeSubmitConfig,
-    storeUIConfig,
-    featureIconsTabIndex,
-    platformSelectorTabIndex,
-    knowledgeSelectorTabIndex,
-    knowledgeSourceSelectorTabIndex,
-    documentSelectorTabIndex,
-    submitButtonTabIndex,
-    enablePlatformSelector,
-    platformOptions,
-    platformSelectorLabel,
-    platformSelectorPlaceholder,
-    platformSelectorHelpText,
-    enableKnowledgeSelector,
-    showProfileSelector,
-    showImageUpload,
-    useMarkdown,
-    submitConfig,
-    showNextButton,
-    nextButtonText,
-    submitButtonProps,
-  });
-
-  const {
-    resolvedTabIndexes,
-    resolvedPlatformConfig,
-    resolvedUIConfig,
-    resolvedSubmitConfig,
-    effectiveSubmitButtonProps,
-  } = configs;
-
-  // Feature configuration hooks
-  const featureConfigs = useFeatureConfigs({
-    // NEW: Consolidated features prop (preferred)
-    features,
-
-    // DEPRECATED: Individual props (backward compatibility)
-    webSearchFeatureToggle,
-    useWebSearchFeatureToggle,
-    webSearchConfig,
-    storeWebSearchConfig,
-    privacyModeToggle,
-    usePrivacyModeToggle,
-    privacyModeConfig,
-    storePrivacyModeConfig,
-    proModeToggle,
-    useProModeToggle,
-    proModeConfig,
-    storeProModeConfig,
-    interactiveModeToggle,
-    useInteractiveModeToggle,
-    interactiveModeConfig,
-  });
-
-  const {
-    resolvedWebSearchConfig,
-    resolvedPrivacyModeConfig,
-    resolvedProModeConfig,
-    resolvedInteractiveModeConfig,
-  } = featureConfigs;
-
   // Content management hook
   const content = useContentManagement({
     componentName,
@@ -364,14 +172,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     initialContent,
   });
 
-  const {
-    value,
-    editableText,
-    hasEditableContent,
-    hasSharepicContent,
-    hasAnyContent,
-    handleLoadRecentText,
-  } = content;
+  const { value, hasEditableContent, hasSharepicContent, hasAnyContent, handleLoadRecentText } =
+    content;
 
   // Responsive hook
   const responsiveState = useResponsive() as {
@@ -385,7 +187,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   };
   const { isMobileView, getDisplayTitle } = responsiveState;
 
-  // Image edit mode state (for sharepic inline editing)
+  // Image edit mode state
   const [isImageEditActive, setIsImageEditActive] = useState(false);
   const handleToggleImageEdit = useCallback(() => {
     const newState = !isImageEditActive;
@@ -393,27 +195,44 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     if (onImageEditModeChange) onImageEditModeChange(newState);
   }, [isImageEditActive, onImageEditModeChange]);
 
-  // Start mode and form visibility hook
-  const fallbackFormVisibility = useFormVisibility(hasEditableContent, disableAutoCollapse) as {
-    isFormVisible: boolean;
-    toggleFormVisibility: () => void;
-  };
+  // Start mode (inlined from useStartMode)
+  const isStartMode = useStartPageLayout && !hasAnyContent && !(isStreaming || loading);
+  const isGenerating = isStreaming || loading;
 
-  const startModeState = useStartMode({
-    useStartPageLayout,
-    hasAnyContent,
-    isGenerating: propIsStreaming || loading,
-    storeIsFormVisible,
-    toggleStoreFormVisibility,
-    fallbackFormVisibility,
-    setIsStartMode: setIsStartMode!,
-  });
+  // Derived content state
+  const hasContent =
+    generatedContent &&
+    (typeof generatedContent === 'string'
+      ? generatedContent.length > 0
+      : ((generatedContent as { content?: string; sharepic?: unknown }).content?.length ?? 0) > 0 ||
+        !!(generatedContent as { sharepic?: unknown }).sharepic);
 
-  const { isStartMode, isFormVisible, toggleFormVisibility } = startModeState;
+  const noContentColumn = !hasContent && !isStartMode && !isGenerating;
 
-  const showSubmitButtonFinal = resolvedSubmitConfig.showButton;
+  // Submit config resolution (inlined from useFormConfiguration)
+  const resolvedSubmitConfig = useMemo(
+    () => ({
+      showButton: submitConfig?.showButton ?? showNextButton,
+      buttonText: submitConfig?.buttonText ?? nextButtonText,
+    }),
+    [submitConfig, showNextButton, nextButtonText]
+  );
 
-  // Auto-scroll to generated text on mobile with smart positioning
+  const effectiveSubmitButtonProps = useMemo(
+    () => (submitConfig?.buttonProps || submitButtonProps || {}) as Record<string, unknown>,
+    [submitConfig, submitButtonProps]
+  );
+
+  // Feature config resolution (inlined from useFeatureConfigs)
+  const resolvedInteractiveModeConfig = useMemo(
+    () => ({
+      enabled: features?.interactiveMode?.enabled ?? false,
+      toggle: features?.interactiveMode?.toggle,
+    }),
+    [features?.interactiveMode]
+  );
+
+  // Auto-scroll to generated text on mobile
   useAutoScrollToContent(displaySectionRef, hasEditableContent, {
     mobileOnly: true,
     mobileBreakpoint: 768,
@@ -422,8 +241,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     centerThreshold: 0.8,
   });
 
-  // Function to get exportable content
-  // Convert StoredContent to string for type safety
+  // Exportable content
   const valueAsString = typeof value === 'string' ? value : value ? JSON.stringify(value) : '';
   const getExportableContentCallback = useCallback(
     (content: unknown) => {
@@ -434,7 +252,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     [valueAsString]
   );
 
-  // Accessibility hook - provides error/success handlers
+  // Accessibility hook
   const { handleFormError, handleFormSuccess } = useBaseFormAccessibility({
     baseFormRef,
     generatedContent,
@@ -442,55 +260,89 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     accessibilityOptions,
   });
 
-  // Form state syncing hook - syncs props to store
-  useFormStateSyncing({
-    propLoading,
-    propSuccess: success,
-    propError: error,
-    propFormErrors: formErrors,
-    useWebSearchFeatureToggle,
-    usePrivacyModeToggle,
-    propUseFeatureIcons: useFeatureIcons,
-    propAttachedFiles: attachedFiles,
-    propUploadedImage: uploadedImage,
-    storeFormErrors,
-    storeWebSearchConfig,
-    storePrivacyModeConfig,
-    storeUseFeatureIcons,
-    storeAttachedFiles,
-    storeUploadedImage,
-    storeError,
-    setStoreLoading,
-    setStoreSuccess,
-    setStoreError,
-    setStoreFormErrors,
-    setStoreWebSearchEnabled,
-    setStorePrivacyModeEnabled,
-    setStoreUseFeatureIcons,
-    setStoreAttachedFiles,
-    setStoreUploadedImage,
-    handleFormError,
-    setError,
-  });
+  // Sync error from props (inlined from useFormStateSyncing, error-only portion)
+  const prevErrorRef = useRef(propError);
+  useEffect(() => {
+    const prev = prevErrorRef.current;
+    const next = propError;
+    prevErrorRef.current = next;
 
-  // Event handlers hook
-  const {
-    handleEnhancedSubmit,
-    handleExamplePromptClick,
-    handlePrivacyInfoClick,
-    handleWebSearchInfoClick,
-    handleErrorDismiss,
-  } = useFormEventHandlers({
-    onSubmit,
-    onExamplePromptClick,
-    getFeatureState: getFeatureState!,
-    handleFormError,
-    setInlineHelpContentOverride,
-    clearStoreError,
-    setError,
-  });
+    if (!next) return;
+    if (prev === next) return;
 
-  // Auto-save hook (controlled by user preference)
+    let errorMessage = 'Ein Fehler ist aufgetreten';
+    if (typeof next === 'string') {
+      errorMessage = next;
+    } else if (next instanceof Error) {
+      errorMessage = next.message || errorMessage;
+    } else if (next && typeof next === 'object' && 'message' in next) {
+      errorMessage = (next as { message?: string }).message || errorMessage;
+    }
+
+    if (typeof next === 'string' || next instanceof Error) {
+      setError(next);
+    } else {
+      setError(errorMessage);
+    }
+    handleFormError(errorMessage, 'form');
+  }, [propError, setError, handleFormError]);
+
+  // Event handlers (inlined from useFormEventHandlers)
+  const handleEnhancedSubmit = useCallback(
+    async (formData?: Record<string, unknown>) => {
+      try {
+        const enhancedFormData = {
+          ...formData,
+          useBedrock: features?.proMode?.toggle?.isActive || false,
+          useWebSearchTool:
+            features?.webSearch?.toggle?.isActive ||
+            (formData?.useWebSearchTool as boolean) ||
+            false,
+          usePrivacyMode:
+            features?.privacyMode?.toggle?.isActive ||
+            (formData?.usePrivacyMode as boolean) ||
+            false,
+        };
+
+        await onSubmit?.(enhancedFormData);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
+        handleFormError(errorMessage);
+      }
+    },
+    [onSubmit, features, handleFormError]
+  );
+
+  const handleExamplePromptClick = useCallback(
+    (prompt: ExamplePrompt) => {
+      onExamplePromptClick?.(prompt);
+    },
+    [onExamplePromptClick]
+  );
+
+  const handlePrivacyInfoClick = useCallback(() => {
+    setInlineHelpContentOverride({
+      content: 'Privacy-Mode: Alles wird in Deutschland verarbeitet - beste Datenschutz-Standards.',
+      tips: [
+        'Server: IONOS und netzbegruenung.de',
+        'PDFs: maximal 10 Seiten',
+        'Bilder werden ignoriert',
+      ],
+    });
+  }, []);
+
+  const handleWebSearchInfoClick = useCallback(() => {
+    setInlineHelpContentOverride({
+      content:
+        'Die Websuche durchsucht das Internet nach aktuellen und relevanten Informationen, um deine Eingaben zu ergänzen. Nützlich, wenn du wenig Vorwissen zum Thema hast oder aktuelle Daten benötigst.',
+    });
+  }, []);
+
+  const handleErrorDismiss = useCallback(() => {
+    setError(null);
+  }, [setError]);
+
+  // Auto-save hook
   const { getBetaFeatureState: getAutoSaveFeatureState } = useBetaFeatures();
   useTextAutoSave({
     componentName,
@@ -498,250 +350,202 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     debounceMs: 3000,
   });
 
-  // Berechne den Anzeigetitel (memoized for performance)
-  const displayTitle = React.useMemo(() => {
+  // Display title
+  const displayTitle = useMemo(() => {
     const computedTitle = getDisplayTitle('', false, generatedContent);
     return typeof computedTitle === 'string' ? computedTitle : '';
   }, [getDisplayTitle, generatedContent]);
 
-  // Berechne die Klassennamen für den Container (memoized for performance)
-  const baseContainerClasses = React.useMemo(
+  // Container classes — inlined from classNameUtils
+  const baseContainerClasses = useMemo(
     () =>
-      getBaseContainerClasses({
-        title: typeof title === 'string' ? title : undefined,
-        generatedContent,
-        isFormVisible,
-        isStartMode,
-        isGenerating: propIsStreaming || loading,
-      }),
-    [title, generatedContent, isFormVisible, isStartMode, propIsStreaming, loading]
+      cn(
+        'base-container flex w-full max-w-[1200px] mx-auto my-lg gap-md relative items-stretch transition-all duration-400',
+        'max-md:p-0 max-md:flex-col max-md:gap-5 max-md:max-w-full max-md:m-0',
+        'xl:max-w-[1400px] xl:gap-lg 3xl:max-w-[1600px] 4xl:max-w-[1800px] 5xl:max-w-[2000px]',
+        hasContent && 'has-generated-content max-md:p-[10px]',
+        isStartMode &&
+          'base-container--start-mode flex-col items-center justify-start pt-0 gap-lg max-w-full mx-auto max-md:p-sm max-md:pt-[2vh] max-md:gap-md',
+        noContentColumn &&
+          'no-content-column flex-col items-center gap-lg max-md:items-stretch max-md:gap-0'
+      ),
+    [hasContent, isStartMode, noContentColumn]
   );
 
   return (
-    <div className="base-form-wrapper">
-      {headerContent}
-      <motion.div
-        /* layout */
-        transition={{ duration: 0.25, ease: 'easeOut' }}
-        ref={baseFormRef}
-        className={baseContainerClasses}
-        role="main"
-        aria-label={typeof title === 'string' ? title : 'Formular'}
-        id="main-content"
-      >
-        <AnimatePresence initial={false}>
-          {!isFormVisible && hasAnyContent && (
-            <FormToggleButtonFAB onClick={toggleFormVisibility} />
-          )}
-        </AnimatePresence>
+    <BaseFormProvider value={{ isStartMode }}>
+      <div className="flex flex-col w-full">
+        {headerContent}
+        <motion.div
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          ref={baseFormRef}
+          className={baseContainerClasses}
+          role="main"
+          aria-label={typeof title === 'string' ? title : 'Formular'}
+          id="main-content"
+        >
+          <AnimatePresence initial={false}>
+            {!isFormVisible && hasAnyContent && (
+              <FormToggleButtonFAB onClick={toggleFormVisibility} />
+            )}
+          </AnimatePresence>
 
-        <AnimatePresence initial={false}>
-          {isFormVisible && (
-            <motion.div
-              key="form-section"
-              /* layout="position" */
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{
-                duration: 0.25,
-                ease: 'easeOut',
-              }}
-              className="form-section-motion-wrapper"
-            >
-              <FormSection
-                ref={formSectionRef}
-                title={title}
-                subtitle={subtitle}
-                onSubmit={useModernForm ? handleEnhancedSubmit : onSubmit}
-                isFormVisible={isFormVisible}
-                isMultiStep={isMultiStep}
-                onBack={onBack}
-                showBackButton={showBackButton}
-                nextButtonText={resolvedSubmitConfig.buttonText}
-                submitButtonProps={effectiveSubmitButtonProps}
-                interactiveModeToggle={
-                  resolvedInteractiveModeConfig.enabled
-                    ? resolvedInteractiveModeConfig.toggle
-                    : null
-                }
-                useInteractiveModeToggle={resolvedInteractiveModeConfig.enabled}
-                onAttachmentClick={onAttachmentClick}
-                onRemoveFile={onRemoveFile}
-                onPrivacyInfoClick={handlePrivacyInfoClick}
-                enablePlatformSelector={resolvedPlatformConfig.enabled}
-                platformOptions={resolvedPlatformConfig.options}
-                platformSelectorLabel={resolvedPlatformConfig.label}
-                platformSelectorPlaceholder={resolvedPlatformConfig.placeholder}
-                platformSelectorHelpText={resolvedPlatformConfig.helpText}
-                formControl={formControl}
-                showSubmitButton={showSubmitButtonFinal}
-                formNotice={formNotice}
-                defaultValues={defaultValues}
-                validationRules={validationRules}
-                useModernForm={useModernForm}
-                onFormChange={onFormChange}
-                bottomSectionChildren={bottomSectionChildren}
-                showHideButton={hasAnyContent}
-                onHide={toggleFormVisibility}
-                firstExtrasChildren={firstExtrasChildren}
-                extrasChildren={extrasChildren}
-                featureIconsTabIndex={resolvedTabIndexes.featureIcons}
-                platformSelectorTabIndex={resolvedTabIndexes.platformSelector}
-                knowledgeSelectorTabIndex={resolvedTabIndexes.knowledgeSelector}
-                knowledgeSourceSelectorTabIndex={resolvedTabIndexes.knowledgeSourceSelector}
-                documentSelectorTabIndex={resolvedTabIndexes.documentSelector}
-                submitButtonTabIndex={resolvedTabIndexes.submitButton}
-                showProfileSelector={resolvedUIConfig.showProfileSelector}
-                showImageUpload={resolvedUIConfig.showImageUpload}
-                onImageChange={onImageChange}
-                componentName={componentName}
-                onWebSearchInfoClick={handleWebSearchInfoClick}
-                isImageEditActive={isImageEditActive}
-                customEditContent={customEditContent}
-                enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
-                hideExtrasSection={hideFormExtras}
-                hideInputSection={hideInputSection}
-                isStartMode={isStartMode}
-                startPageDescription={startPageDescription}
-                examplePrompts={examplePrompts}
-                onExamplePromptClick={handleExamplePromptClick}
-                contextualTip={contextualTip}
-                selectedPlatforms={selectedPlatforms}
-                inputHeaderContent={inputHeaderContent}
-                helpContent={helpContent}
-                isStreaming={propIsStreaming}
-                streamingMessage={streamingProgress?.message}
-                onAbort={abortStreaming}
+          <AnimatePresence initial={false}>
+            {isFormVisible && (
+              <motion.div
+                key="form-section"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{
+                  duration: 0.25,
+                  ease: 'easeOut',
+                }}
+                className={cn(
+                  'form-section-motion-wrapper flex-[2] min-w-0',
+                  hasContent && 'flex-1',
+                  isStartMode &&
+                    'max-w-[800px] w-full flex-none xl:max-w-[900px] 2xl:max-w-[1000px] max-md:max-w-full',
+                  noContentColumn &&
+                    'flex-none w-full max-w-[800px] xl:max-w-[900px] 4xl:max-w-[1000px] max-md:max-w-none'
+                )}
               >
-                {children}
-              </FormSection>
+                <FormSection
+                  ref={formSectionRef}
+                  title={title}
+                  subtitle={subtitle}
+                  onSubmit={useModernForm ? handleEnhancedSubmit : onSubmit}
+                  isFormVisible={isFormVisible}
+                  isMultiStep={isMultiStep}
+                  onBack={onBack}
+                  showBackButton={showBackButton}
+                  nextButtonText={resolvedSubmitConfig.buttonText}
+                  submitButtonProps={effectiveSubmitButtonProps}
+                  interactiveModeToggle={
+                    resolvedInteractiveModeConfig.enabled
+                      ? resolvedInteractiveModeConfig.toggle
+                      : null
+                  }
+                  useInteractiveModeToggle={resolvedInteractiveModeConfig.enabled}
+                  onAttachmentClick={onAttachmentClick}
+                  onRemoveFile={onRemoveFile}
+                  onPrivacyInfoClick={handlePrivacyInfoClick}
+                  enablePlatformSelector={enablePlatformSelector}
+                  platformOptions={platformOptions}
+                  platformSelectorLabel={platformSelectorLabel}
+                  platformSelectorPlaceholder={platformSelectorPlaceholder}
+                  platformSelectorHelpText={platformSelectorHelpText}
+                  formControl={formControl}
+                  showSubmitButton={resolvedSubmitConfig.showButton}
+                  formNotice={formNotice}
+                  defaultValues={defaultValues}
+                  validationRules={validationRules}
+                  useModernForm={useModernForm}
+                  onFormChange={onFormChange}
+                  bottomSectionChildren={bottomSectionChildren}
+                  showHideButton={hasAnyContent}
+                  onHide={toggleFormVisibility}
+                  firstExtrasChildren={firstExtrasChildren}
+                  extrasChildren={extrasChildren}
+                  featureIconsTabIndex={featureIconsTabIndex}
+                  platformSelectorTabIndex={platformSelectorTabIndex}
+                  knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
+                  knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
+                  documentSelectorTabIndex={documentSelectorTabIndex}
+                  submitButtonTabIndex={submitButtonTabIndex}
+                  showProfileSelector={showProfileSelector}
+                  showImageUpload={showImageUpload}
+                  onImageChange={onImageChange}
+                  componentName={componentName}
+                  onWebSearchInfoClick={handleWebSearchInfoClick}
+                  isImageEditActive={isImageEditActive}
+                  customEditContent={customEditContent}
+                  enableKnowledgeSelector={enableKnowledgeSelector}
+                  hideExtrasSection={hideFormExtras}
+                  hideInputSection={hideInputSection}
+                  isStartMode={isStartMode}
+                  startPageDescription={startPageDescription}
+                  examplePrompts={examplePrompts}
+                  onExamplePromptClick={handleExamplePromptClick}
+                  contextualTip={contextualTip}
+                  selectedPlatforms={selectedPlatforms}
+                  inputHeaderContent={inputHeaderContent}
+                  helpContent={helpContent}
+                  isStreaming={isStreaming}
+                  streamingMessage={streamingProgress?.message}
+                  onAbort={abortStreaming}
+                  loading={loading}
+                  success={success}
+                  useFeatureIcons={useFeatureIcons}
+                  attachedFiles={attachedFiles}
+                >
+                  {children}
+                </FormSection>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!isStartMode && (hasAnyContent || !!(error || propError)) && (
+            <motion.div
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className={cn(
+                'display-section-motion-wrapper min-w-0 flex',
+                isFormVisible && 'flex-1 justify-start',
+                hasContent && isFormVisible && 'flex-1',
+                !isFormVisible && 'flex-1 justify-center items-start w-full max-w-none m-0',
+                noContentColumn &&
+                  'flex-none w-full max-w-[800px] xl:max-w-[900px] 4xl:max-w-[1000px] max-md:max-w-none'
+              )}
+            >
+              <DisplaySection
+                ref={displaySectionRef}
+                title={typeof displayTitle === 'string' ? displayTitle : ''}
+                error={error || propError}
+                value={valueAsString}
+                generatedContent={generatedContent}
+                useMarkdown={useMarkdown}
+                helpContent={inlineHelpContentOverride || helpContent}
+                generatedPost={generatedPost}
+                onGeneratePost={onGeneratePost}
+                getExportableContent={getExportableContentCallback}
+                displayActions={displayActions}
+                onSave={onSave}
+                saveLoading={saveLoading}
+                componentName={componentName}
+                onErrorDismiss={handleErrorDismiss}
+                onEditModeToggle={customEditContent ? handleToggleImageEdit : undefined}
+                customEditContent={customEditContent}
+                customRenderer={customRenderer}
+                customExportOptions={customExportOptions}
+                hideDefaultExportOptions={hideDefaultExportOptions}
+                isStartMode={isStartMode}
+                showResetButton={showResetButton}
+                onReset={onReset}
+              />
             </motion.div>
           )}
-        </AnimatePresence>
 
-        {!isStartMode && (hasAnyContent || !!(error || propError)) && (
-          <motion.div
-            /* layout */
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
-          >
-            <DisplaySection
-              ref={displaySectionRef}
-              title={typeof displayTitle === 'string' ? displayTitle : ''}
-              error={error || propError}
-              value={valueAsString}
-              generatedContent={generatedContent}
-              useMarkdown={resolvedUIConfig.useMarkdown}
-              helpContent={inlineHelpContentOverride || helpContent}
-              generatedPost={generatedPost}
-              onGeneratePost={onGeneratePost}
-              getExportableContent={getExportableContentCallback}
-              displayActions={displayActions}
-              onSave={onSave}
-              componentName={componentName}
-              onErrorDismiss={handleErrorDismiss}
-              onEditModeToggle={customEditContent ? handleToggleImageEdit : undefined}
-              customEditContent={customEditContent}
-              customRenderer={customRenderer}
-              customExportOptions={customExportOptions}
-              hideDefaultExportOptions={hideDefaultExportOptions}
-              isStartMode={isStartMode}
-              showResetButton={showResetButton}
-              onReset={onReset}
-            />
-          </motion.div>
+          {!isMobileView && (
+            <Suspense fallback={null}>
+              <Tooltip id="action-tooltip" place="bottom" />
+            </Suspense>
+          )}
+        </motion.div>
+
+        {useStartPageLayout && (
+          <RecentTextsSection
+            generatorType={getDocumentType(componentName)}
+            onTextLoad={handleLoadRecentText}
+          />
         )}
-
-        {!isMobileView && (
-          <Suspense fallback={null}>
-            <Tooltip id="action-tooltip" place="bottom" />
-          </Suspense>
-        )}
-      </motion.div>
-
-      {/* Recent texts section - only for TexteTab (useStartPageLayout), renders in any mode */}
-      {useStartPageLayout && (
-        <RecentTextsSection
-          generatorType={getDocumentType(componentName)}
-          onTextLoad={handleLoadRecentText}
-        />
-      )}
-    </div>
+      </div>
+    </BaseFormProvider>
   );
 };
 
-/**
- * Main BaseForm component that wraps BaseFormInternal with FormStateProvider
- * This provides form state isolation for multiple form instances
- */
-const BaseForm: React.FC<BaseFormProps> = (props) => {
-  const {
-    componentName = 'default',
-    // Extract initial state from props
-    loading: propLoading,
-    success: propSuccess,
-    error: propError,
-    formErrors: propFormErrors = {},
-    useWebSearchFeatureToggle = false,
-    usePrivacyModeToggle = false,
-    useInteractiveModeToggle = false,
-    useFeatureIcons: propUseFeatureIcons = false,
-    attachedFiles: propAttachedFiles = [],
-    uploadedImage: propUploadedImage = null,
-    ...restProps
-  } = props;
-
-  // Create initial state from props for the store
-  // Convert ErrorValue to string for FormStateStore compatibility
-  const errorString: string | null = propError
-    ? typeof propError === 'string'
-      ? propError
-      : (propError as Error)?.message || String(propError)
-    : null;
-
-  const initialFormState = React.useMemo(
-    () => ({
-      loading: propLoading || false,
-      success: propSuccess || false,
-      error: errorString,
-      formErrors: propFormErrors,
-      webSearchConfig: {
-        isActive: false,
-        isSearching: false,
-        statusMessage: '',
-        enabled: useWebSearchFeatureToggle,
-      },
-      privacyModeConfig: {
-        isActive: false,
-        enabled: usePrivacyModeToggle,
-      },
-      proModeConfig: {
-        isActive: false,
-        enabled: true,
-      },
-      interactiveModeConfig: {
-        isActive: false,
-        enabled: useInteractiveModeToggle,
-      },
-      useFeatureIcons: propUseFeatureIcons,
-      attachedFiles: propAttachedFiles,
-      uploadedImage: propUploadedImage,
-      isFormVisible: true,
-    }),
-    []
-  ); // Only use initial values on mount
-
-  return (
-    <FormStateProvider formId={componentName} initialState={initialFormState}>
-      <BaseFormInternal {...props} />
-    </FormStateProvider>
-  );
-};
-
-// Optimized areEqual function for React.memo
+// Simplified areEqual — with ~50 props and no store duplication,
+// shallow comparison works for most props, deep-equal only for generatedContent
 const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean => {
-  // Skip re-render if only callback functions changed (they're stable with useCallback)
   const callbackProps = [
     'onSubmit',
     'onGeneratedContentChange',
@@ -754,18 +558,13 @@ const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean =
     'onGeneratePost',
   ];
 
-  // Type-safe accessor for BaseFormProps
-  const getProp = (props: BaseFormProps, key: keyof BaseFormProps) => props[key];
-
-  // Check non-callback props for equality
   for (const [key, value] of Object.entries(nextProps)) {
-    if (callbackProps.includes(key)) continue; // Skip callback comparison
+    if (callbackProps.includes(key)) continue;
 
     const propKey = key as keyof BaseFormProps;
-    const prevValue = getProp(prevProps, propKey);
+    const prevValue = prevProps[propKey];
 
     if (key === 'children') {
-      // Special handling for children - compare type and key if available
       if (React.isValidElement(prevValue) && React.isValidElement(value)) {
         if (prevValue.type !== value.type || prevValue.key !== value.key) {
           return false;
@@ -774,13 +573,10 @@ const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean =
         return false;
       }
     } else if (key === 'generatedContent') {
-      // Deep comparison for generated content object using fast-deep-equal
-      // isEqual is O(n) but much faster than JSON.stringify for large objects
       if (!isEqual(prevValue, value)) {
         return false;
       }
     } else if (key === 'attachedFiles' || key === 'platformOptions') {
-      // Array comparison
       const prevArr = prevValue as unknown[] | undefined;
       const nextArr = value as unknown[] | undefined;
       if (Array.isArray(prevArr) && Array.isArray(nextArr)) {
@@ -797,7 +593,6 @@ const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean =
       typeof prevValue === 'object' &&
       prevValue !== null
     ) {
-      // Shallow object comparison for feature toggles, tab indices, etc.
       const prevObj = prevValue as Record<string, unknown>;
       const nextObj = value as Record<string, unknown>;
       const prevKeys = Object.keys(prevObj);

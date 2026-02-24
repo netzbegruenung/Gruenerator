@@ -458,8 +458,6 @@ export interface BaseFormProps {
   generatedContent?: GeneratedContent;
   onGeneratedContentChange?: ((content: string) => void) | null;
   initialContent?: string;
-  /** @deprecated Use `uiConfig.hideDisplayContainer` instead */
-  hideDisplayContainer?: boolean;
   customRenderer?:
     | ((props: {
         content: unknown;
@@ -469,7 +467,6 @@ export interface BaseFormProps {
         onEditModeToggle?: () => void;
       }) => ReactNode)
     | null;
-  /** @deprecated Use `uiConfig.useMarkdown` instead */
   useMarkdown?: boolean | null;
 
   // Help content
@@ -483,57 +480,15 @@ export interface BaseFormProps {
   saveLoading?: boolean;
 
   // Navigation
-  /** @deprecated Form no longer auto-collapses */
-  disableAutoCollapse?: boolean;
   showNextButton?: boolean;
   nextButtonText?: string;
 
-  // NEW: Consolidated configuration props (preferred over individual props)
-  /** Consolidated feature toggle configuration */
+  // Feature configuration
   features?: FeaturesConfig;
-  /** Consolidated tab index configuration */
-  tabIndexConfig?: TabIndexConfig;
-  /** Consolidated platform selector configuration */
-  platformConfig?: PlatformConfig;
-  /** Consolidated submit button configuration */
   submitConfig?: SubmitConfig | null;
-  /** Consolidated UI-related configuration */
-  uiConfig?: FormUIConfig;
-
-  // DEPRECATED: Legacy feature props (use features prop instead)
-  /** @deprecated Use `features.webSearch` instead */
-  webSearchFeatureToggle?: FeatureToggle | null;
-  /** @deprecated Use `features.webSearch.enabled` instead */
-  useWebSearchFeatureToggle?: boolean;
-  /** @deprecated Use `features.webSearch.config` instead */
-  webSearchConfig?: FeatureConfig['config'] | null;
-
-  /** @deprecated Use `features.privacyMode` instead */
-  privacyModeToggle?: FeatureToggle | null;
-  /** @deprecated Use `features.privacyMode.enabled` instead */
-  usePrivacyModeToggle?: boolean;
-  /** @deprecated Use `features.privacyMode.config` instead */
-  privacyModeConfig?: FeatureConfig['config'] | null;
-
-  /** @deprecated Use `features.proMode` instead */
-  proModeToggle?: FeatureToggle | null;
-  /** @deprecated Use `features.proMode.enabled` instead */
-  useProModeToggle?: boolean;
-  /** @deprecated Use `features.proMode.config` instead */
-  proModeConfig?: FeatureConfig['config'] | null;
-
-  /** @deprecated Use `features.interactiveMode` instead */
-  interactiveModeToggle?: FeatureToggle | null;
-  /** @deprecated Use `features.interactiveMode.enabled` instead */
-  useInteractiveModeToggle?: boolean;
-  /** @deprecated Use `features.interactiveMode.config` instead */
-  interactiveModeConfig?: FeatureConfig['config'] | null;
-
-  // Feature icons
   useFeatureIcons?: boolean;
 
-  // DEPRECATED: Legacy UI props (use uiConfig instead)
-  /** @deprecated Use `uiConfig.showImageUpload` instead */
+  // UI configuration
   showImageUpload?: boolean;
   uploadedImage?: unknown;
   onImageChange?: ((image: unknown) => void) | null;
@@ -541,29 +496,21 @@ export interface BaseFormProps {
 
   customEditContent?: ReactNode;
 
-  // DEPRECATED: Legacy platform props (use platformConfig instead)
-  /** @deprecated Use `platformConfig.enabled` instead */
+  // Platform selector
   enablePlatformSelector?: boolean;
-  /** @deprecated Use `platformConfig.options` instead */
   platformOptions?: PlatformOption[];
-  /** @deprecated Use `platformConfig.label` instead */
   platformSelectorLabel?: string;
-  /** @deprecated Use `platformConfig.placeholder` instead */
   platformSelectorPlaceholder?: string;
-  /** @deprecated Use `platformConfig.helpText` instead */
   platformSelectorHelpText?: string;
 
-  // DEPRECATED: Legacy knowledge/UI props (use uiConfig instead)
-  /** @deprecated Use `uiConfig.enableKnowledgeSelector` instead */
+  // Knowledge and profile
   enableKnowledgeSelector?: boolean;
-  /** @deprecated Use `uiConfig.showProfileSelector` instead */
   showProfileSelector?: boolean;
   documentSelectorTabIndex?: number;
   knowledgeSelectorTabIndex?: number;
   knowledgeSourceSelectorTabIndex?: number;
 
-  // Start page layout props
-  /** @deprecated Use `uiConfig.useStartPageLayout` instead */
+  // Start page layout
   useStartPageLayout?: boolean;
   startPageDescription?: string | null;
   examplePrompts?: ExamplePrompt[];
@@ -572,16 +519,13 @@ export interface BaseFormProps {
   /** Array of platform IDs that are currently selected - used to highlight selected platform tags */
   selectedPlatforms?: string[];
 
-  // DEPRECATED: Legacy tab index props (use tabIndexConfig instead)
-  /** @deprecated Use `tabIndexConfig.featureIcons` instead */
+  // Tab index configuration
   featureIconsTabIndex?: {
     webSearch?: number;
     privacyMode?: number;
     attachment?: number;
   };
-  /** @deprecated Use `tabIndexConfig.platformSelector` or `platformConfig.tabIndex` instead */
   platformSelectorTabIndex?: number;
-  /** @deprecated Use `tabIndexConfig.submitButton` instead */
   submitButtonTabIndex?: number;
 
   // Submit button configuration
@@ -632,14 +576,3 @@ export interface BaseFormProps {
   style?: CSSProperties;
   className?: string;
 }
-
-// =============================================================================
-// Re-export utility type for extracting features from legacy props
-// =============================================================================
-
-export type ExtractedFeatures = {
-  webSearch: FeatureConfig;
-  privacyMode: FeatureConfig;
-  proMode: FeatureConfig;
-  interactiveMode: FeatureConfig;
-};

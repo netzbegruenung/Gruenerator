@@ -1,6 +1,6 @@
 import React, { memo, useMemo, type ReactNode, type CSSProperties } from 'react';
 
-import './TabbedLayout.css';
+import { cn } from '@/utils/cn';
 
 export interface TabConfig<T extends string = string> {
   id: T;
@@ -67,24 +67,6 @@ function TabbedLayoutInner<T extends string = string>({
   renderTab,
   loadingFallback,
 }: TabbedLayoutProps<T>) {
-  const wrapperClassName = useMemo(
-    () =>
-      [
-        'tabbed-layout',
-        compact && 'tabbed-layout--compact',
-        fullWidth && 'tabbed-layout--full-width',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' '),
-    [compact, fullWidth, className]
-  );
-
-  const headerClassName = useMemo(
-    () => `tabbed-layout__header ${compact ? 'tabbed-layout__header--compact' : ''}`,
-    [compact]
-  );
-
   const handleTabClick = (tabId: T) => {
     if (!disabled && tabId !== activeTab) {
       onTabChange(tabId);
@@ -99,11 +81,30 @@ function TabbedLayoutInner<T extends string = string>({
   };
 
   return (
-    <div className={wrapperClassName}>
-      <header className={headerClassName}>
+    <div
+      className={cn(
+        'tabbed-layout w-full flex flex-col items-center overflow-x-hidden pt-2xl',
+        'max-md:px-md max-md:pt-lg',
+        'max-[400px]:px-sm max-[400px]:pt-md',
+        fullWidth && 'tabbed-layout--full-width',
+        className
+      )}
+    >
+      <header
+        className={cn(
+          'tabbed-layout__header w-full max-w-[800px] flex flex-col items-center gap-md px-md pb-lg box-border',
+          'xl:max-w-[1000px] 3xl:max-w-[1100px]',
+          'max-md:px-sm max-md:pb-md max-md:gap-sm',
+          'max-[400px]:px-xs max-[400px]:pb-sm',
+          compact && 'pb-sm gap-0 max-md:pb-xs max-[400px]:pb-xxs'
+        )}
+      >
         {header}
         <div
-          className={`tabbed-layout__tabs ${disabled ? 'tabbed-layout__tabs--disabled' : ''}`}
+          className={cn(
+            'flex flex-wrap justify-center gap-sm w-full max-[640px]:gap-xs',
+            disabled && 'opacity-60 pointer-events-none'
+          )}
           role="tablist"
           aria-label={ariaLabel}
         >
@@ -125,16 +126,36 @@ function TabbedLayoutInner<T extends string = string>({
                 role="tab"
                 aria-selected={isActive}
                 aria-controls={`tabpanel-${tab.id}`}
-                className={`tabbed-layout__tab ${isActive ? 'tabbed-layout__tab--active' : ''}`}
+                className={cn(
+                  'flex items-center gap-xs px-md py-sm',
+                  'border border-foreground rounded-full',
+                  'bg-transparent text-foreground text-[0.9rem] font-medium',
+                  'cursor-pointer transition-all duration-150 whitespace-nowrap',
+                  'hover:bg-background-alt',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                  'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-2',
+                  'max-[640px]:px-sm max-[640px]:py-xs max-[640px]:text-[0.85rem]',
+                  'max-[400px]:px-sm max-[400px]:py-xs',
+                  isActive &&
+                    'bg-secondary-600 border-secondary-600 text-white hover:bg-secondary-600'
+                )}
                 onClick={() => handleTabClick(tab.id)}
                 onKeyDown={(e) => handleKeyDown(e, tab.id)}
                 disabled={disabled || tab.disabled}
                 tabIndex={isActive ? 0 : -1}
               >
-                {tab.icon && <span className="tabbed-layout__tab-icon">{tab.icon}</span>}
-                <span className="tabbed-layout__tab-label">{tab.label}</span>
+                {tab.icon && (
+                  <span
+                    className={cn('flex items-center shrink-0', isActive && 'brightness-0 invert')}
+                  >
+                    {tab.icon}
+                  </span>
+                )}
+                <span className="max-[640px]:hidden">{tab.label}</span>
                 {tab.shortLabel && (
-                  <span className="tabbed-layout__tab-label-short">{tab.shortLabel}</span>
+                  <span className="hidden max-[640px]:inline max-[400px]:text-[0.75rem]">
+                    {tab.shortLabel}
+                  </span>
                 )}
               </button>
             );
@@ -142,14 +163,24 @@ function TabbedLayoutInner<T extends string = string>({
         </div>
       </header>
 
-      <div className="tabbed-layout__content">
+      <div
+        className={cn(
+          'w-full max-w-[800px] mx-auto grid grid-cols-1 grid-rows-1',
+          'xl:max-w-[1000px] 3xl:max-w-[1100px]',
+          'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-[-2px] focus-visible:rounded-lg',
+          fullWidth && 'max-w-full px-lg'
+        )}
+      >
         {tabs.map((tab) => (
           <div
             key={tab.id}
             id={`tabpanel-${tab.id}`}
             role="tabpanel"
             aria-labelledby={`tab-${tab.id}`}
-            className="tabbed-layout__panel"
+            className={cn(
+              'col-start-1 row-start-1 w-full min-w-0',
+              tab.id !== activeTab && 'hidden'
+            )}
             data-active={tab.id === activeTab}
           >
             {children[tab.id] ?? loadingFallback ?? <DefaultLoadingFallback />}
