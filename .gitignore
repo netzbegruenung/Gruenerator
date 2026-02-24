@@ -51,6 +51,10 @@ apps/api/*.traineddata
 # Migration files (temporary)
 apps/api/migration/
 
+# Swap files
+*.swp
+*.swo
+
 # Editor directories and files
 .idea
 .vscode
@@ -116,6 +120,9 @@ bfg-*.jar
 apps/mobile/android/
 apps/mobile/ios/
 apps/mobile/.expo/
+apps/docs-expo/android/
+apps/docs-expo/ios/
+apps/docs-expo/.expo/
 
 # Desktop build artifacts (Tauri)
 apps/desktop/src-tauri/target/

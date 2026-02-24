@@ -12,7 +12,6 @@ export default function AuthCallback() {
     async function processCallback() {
       if (code) {
         try {
-          // Ensure API client is initialized (may be called before root layout's useEffect)
           initializeApiClient();
           configureAuthStore();
 
