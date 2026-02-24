@@ -128,12 +128,12 @@ export const GroupShareSection = ({ documentId, apiClient }: GroupShareSectionPr
               value={selectedPermission}
               onChange={(val) => val && setSelectedPermission(val)}
               data={[
-                { value: 'viewer', label: 'Betrachter' },
-                { value: 'editor', label: 'Bearbeiter' },
+                { value: 'viewer', label: 'Betrachter*in' },
+                { value: 'editor', label: 'Bearbeiter*in' },
               ]}
               allowDeselect={false}
               comboboxProps={{ zIndex: 1100 }}
-              style={{ width: 130 }}
+              style={{ width: 150 }}
               size="sm"
             />
             <Button
@@ -167,12 +167,12 @@ export const GroupShareSection = ({ documentId, apiClient }: GroupShareSectionPr
                   value={share.permission_level}
                   onChange={(val) => val && handleUpdatePermission(share.group_id, val)}
                   data={[
-                    { value: 'viewer', label: 'Betrachter' },
-                    { value: 'editor', label: 'Bearbeiter' },
+                    { value: 'viewer', label: 'Betrachter*in' },
+                    { value: 'editor', label: 'Bearbeiter*in' },
                   ]}
                   allowDeselect={false}
                   comboboxProps={{ zIndex: 1100 }}
-                  style={{ width: 130 }}
+                  style={{ width: 150 }}
                 />
                 <Button
                   variant="default"

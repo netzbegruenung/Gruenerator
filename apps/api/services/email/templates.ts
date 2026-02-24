@@ -72,7 +72,7 @@ export function renderDocumentShareTemplate(params: DocumentShareTemplateParams)
     permissionLevel === 'editor'
       ? 'Bearbeiten'
       : permissionLevel === 'owner'
-        ? 'Eigent\u00fcmer'
+        ? 'Eigent\u00fcmer*in'
         : 'Lesen';
 
   const content = `

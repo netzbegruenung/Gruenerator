@@ -234,7 +234,7 @@ router.post(
       if (contentOwnership[ownerColumn] !== userId) {
         res.status(403).json({
           success: false,
-          message: 'Du bist nicht der Besitzer dieses Inhalts.',
+          message: 'Du bist nicht Besitzer*in dieses Inhalts.',
         });
         return;
       }

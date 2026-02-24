@@ -338,7 +338,7 @@ const AddTemplateModal = ({
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       setAuthorName(e.target.value)
                     }
-                    placeholder="Name des Erstellers"
+                    placeholder="Name der erstellenden Person"
                   />
                 </div>
                 <div className="template-modal-field">
@@ -389,7 +389,7 @@ const AddTemplateModal = ({
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setAuthorName(e.target.value)
                   }
-                  placeholder="Name des Erstellers"
+                  placeholder="Name der erstellenden Person"
                 />
               </div>
               <div className="template-modal-field">
