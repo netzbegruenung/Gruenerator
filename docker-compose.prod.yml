@@ -6,6 +6,7 @@
 #
 # Services:
 #   - web: Static frontend (nginx serving Vite build)
+#   - sites: Candidate website builder (nginx serving Vite build)
 #   - api: Backend API (Node.js, port 3001)
 #   - docs: Documentation/collaboration service (Node.js, port 3003)
 #   - mcp: MCP server for AI integrations (Node.js, port 3004)
@@ -36,6 +37,14 @@ services:
       - gruenerator
     labels:
       - 'com.gruenerator.service=web'
+
+  sites:
+    image: ghcr.io/netzbegruenung/gruenerator-sites:${TAG:-latest}
+    restart: unless-stopped
+    networks:
+      - gruenerator
+    labels:
+      - 'com.gruenerator.service=sites'
 
   api:
     image: ghcr.io/netzbegruenung/gruenerator-api:${TAG:-latest}
@@ -140,6 +149,8 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       web:
+        condition: service_started
+      sites:
         condition: service_started
       api:
         condition: service_healthy

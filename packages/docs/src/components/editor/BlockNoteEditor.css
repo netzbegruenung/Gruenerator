@@ -135,6 +135,40 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+@media (max-width: 767px) {
+  .bn-suggestion-menu {
+    max-width: calc(100vw - 32px);
+  }
+
+  .bn-mantine .bn-suggestion-menu-item {
+    height: auto;
+    min-height: 44px;
+  }
+
+  .bn-mt-suggestion-menu-item-title,
+  .bn-mt-suggestion-menu-item-subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Mobile formatting toolbar — fixed at viewport bottom by ExperimentalMobileFormattingToolbarController */
+@media (pointer: coarse) {
+  .bn-formatting-toolbar {
+    transition: transform 0.1s ease-out;
+    width: 100%;
+    justify-content: center;
+    border-radius: 0;
+    border-bottom: none;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  [data-theme="dark"] .bn-formatting-toolbar {
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
 /* Link toolbar */
 .bn-link-toolbar {
   border-radius: 6px;
@@ -496,5 +530,24 @@
 
 [data-theme="dark"] .bn-comment-reaction:hover {
   background: var(--grey-600, #4b5563);
+}
+
+/* ============================================
+   @Mention Badge Styles
+   ============================================ */
+
+.bn-mention {
+  background-color: var(--secondary-100, #D5E1DC);
+  color: var(--secondary-800, #31453C);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+}
+
+[data-theme="dark"] .bn-mention {
+  background-color: var(--secondary-800, #31453C);
+  color: var(--secondary-200, #B5CEC3);
 }
 
