@@ -15,7 +15,7 @@ export async function generateStrategicFraming(
 
   const request = enrichedState.request as PRAgentRequest;
 
-  const systemRole = `Du bist ein erfahrener strategischer Kommunikationsberater für Bündnis 90/Die Grünen.
+  const systemRole = `Du bist ein erfahrener strategischer Kommunikationsberater für {{partyName}}.
 
 Deine Aufgabe ist es, das strategische Framing für politische Kommunikation zu entwickeln - bevor die eigentlichen Texte geschrieben werden.
 

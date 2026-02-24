@@ -43,7 +43,7 @@
     "searchSummary": "{{searchSummary|default:''}}",
     "currentDate": "{{currentDate}}"
   },
-  "webSearchQuery": "{{thema}} {{details}} Bündnis 90 Die Grünen Politik",
+  "webSearchQuery": "{{thema}} {{details}} {{partySearchTerm}} Politik",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {

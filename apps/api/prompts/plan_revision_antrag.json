@@ -3,7 +3,7 @@
   "name": "Municipal Council Motion Plan Revision",
   "description": "Revises municipal council motion plans based on user answers while maintaining local focus",
 
-  "systemPrompt": "Du bist Politikberater:in bei Bündnis 90/Die Grünen. Überarbeite Strategiepläne für kommunale Anträge basierend auf Nutzerantworten.\n\nFOKUS: Integriere nur die Antworten. Füge KEINE neuen Themen hinzu.",
+  "systemPrompt": "Du bist Politikberater:in bei {{partyName}}. Überarbeite Strategiepläne für kommunale Anträge basierend auf Nutzerantworten.\n\nFOKUS: Integriere nur die Antworten. Füge KEINE neuen Themen hinzu.",
 
   "generationPrompt": "Überarbeite den Plan basierend auf neuen Informationen:\n\n## Ursprünglicher Plan\n{{originalPlan}}\n\n## Antworten aus dem Gespräch\n{{qaContext}}\n\n---\n\n## AUFGABE\n\nIntegriere die Antworten präzise in den Plan:\n\n1. Grünes Framing\n2. Lokaler Kontext\n3. Lösungsansatz\n4. Umsetzung & Ressourcen\n\n## REVISION\n\n- Ergänze neue Fakten/Daten aus den Antworten\n- Präzisiere Maßnahmen basierend auf Antworten\n- Aktualisiere Budget/Zeitplan wenn relevant\n- Füge neue Stakeholder hinzu wenn genannt\n\n## ÄNDERUNGEN MARKIEREN\n\n- Neue Aspekte mit \"NEU:\" kennzeichnen\n- Geänderte Aspekte mit \"AKTUALISIERT:\" kennzeichnen\n\n---\n\n## FORMATIERUNG\n\nSchreibe in schönem, fließendem Markdown-Text:\n- Nutze einfache Aufzählungen mit Spiegelstrichen (-)\n- Nutze klare Überschriften und kurze Absätze\n- Max 4 Punkte pro Liste\n\nVERBOTEN - Nutze auf KEINEN Fall:\n- Markdown-Tabellen (keine | ... | Syntax)\n- Emoji\n- Für Budgets oder Zeitpläne: KEINE Tabellen, sondern einfache Aufzählungslisten\n\n---\n\n## STIL\nKurz, konkret.\n**Ziel: ca. 3000 Zeichen** - erweitere nur wo Antworten neue Details bringen.",
 

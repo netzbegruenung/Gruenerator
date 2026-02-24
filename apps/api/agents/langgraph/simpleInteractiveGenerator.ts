@@ -203,7 +203,9 @@ async function performWebSearch(state: {
   console.log('[SimpleInteractiveAntrag] Performing web search...');
 
   try {
-    const searchQuery = `${state.inhalt} Bündnis 90 Die Grünen`;
+    const partySearchTerm =
+      state.locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90 Die Grünen';
+    const searchQuery = `${state.inhalt} ${partySearchTerm}`;
     const result = await searxngService.performWebSearch(searchQuery, {
       maxResults: 10,
       language: state.locale || 'de-DE',
@@ -437,7 +439,7 @@ async function generateFinalResult({
   const config = loadPromptConfig(`${generatorType}_experimental`) as GeneratorConfig;
 
   // Build system role
-  let systemRole = config.systemRole || 'Du bist ein Experte bei Bündnis 90/Die Grünen.';
+  let systemRole = config.systemRole || 'Du bist ein Experte bei {{partyName}}.';
   if (config.systemRoleExtensions) {
     const extension =
       config.systemRoleExtensions[requestType] || config.systemRoleExtensions.default;
