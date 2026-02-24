@@ -5,6 +5,11 @@
 
 import express from 'express';
 
+import {
+  extractLocaleFromRequest,
+  localizePlaceholders,
+} from '../../services/localization/index.js';
+
 import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
 import chatStreamRouter from './chatStreamController.js';
 import messagesRouter from './messagesController.js';
@@ -20,20 +25,21 @@ router.use('/messages', messagesRouter);
 router.use('/notebook/stream', notebookStreamRouter);
 router.use('/summarize', summarizeRouter);
 
-router.get('/agents', async (_req, res) => {
+router.get('/agents', async (req, res) => {
   try {
     const agents = await loadAgents();
     const defaultId = getDefaultAgentId();
+    const locale = extractLocaleFromRequest(req);
     const clientAgents = agents
       .filter((agent) => agent.identifier !== defaultId)
       .map((agent) => ({
         identifier: agent.identifier,
         title: agent.title,
-        description: agent.description,
+        description: localizePlaceholders(agent.description, locale),
         avatar: agent.avatar,
         backgroundColor: agent.backgroundColor,
         tags: agent.tags,
-        openingMessage: agent.openingMessage,
+        openingMessage: localizePlaceholders(agent.openingMessage, locale),
         openingQuestions: agent.openingQuestions,
         locale: agent.locale,
         author: agent.author,
@@ -51,14 +57,15 @@ router.get('/agents/:identifier', async (req, res) => {
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
     }
+    const locale = extractLocaleFromRequest(req);
     res.json({
       identifier: agent.identifier,
       title: agent.title,
-      description: agent.description,
+      description: localizePlaceholders(agent.description, locale),
       avatar: agent.avatar,
       backgroundColor: agent.backgroundColor,
       openingQuestions: agent.openingQuestions,
-      openingMessage: agent.openingMessage,
+      openingMessage: localizePlaceholders(agent.openingMessage, locale),
     });
   } catch (error) {
     console.error('Error loading agent:', error);

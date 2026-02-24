@@ -7,6 +7,8 @@
  * This separation keeps the graph transport-agnostic and testable.
  */
 
+import { localizePlaceholders } from '../../../../services/localization/index.js';
+import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { ChatGraphState, ThreadAttachment } from '../types.js';
@@ -390,7 +392,8 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     'Du bist ein hilfreicher Assistent, der Dokumente objektiv und neutral zusammenfasst. ' +
     'Deine Zusammenfassungen sind sachlich, unparteiisch und geben den Inhalt des Dokuments ' +
     'korrekt wieder — unabhängig vom politischen Kontext.';
-  const systemRole = intent === 'summary' ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
+  const rawSystemRole = intent === 'summary' ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
+  const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
 Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}

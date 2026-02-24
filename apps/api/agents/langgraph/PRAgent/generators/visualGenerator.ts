@@ -16,7 +16,7 @@ export async function generateVisualBriefing(
 
   const request = enrichedState.request as { usePrivacyMode?: boolean };
 
-  const systemRole = `Du bist ein Social Media Manager mit Fokus auf visuelle Kommunikation für die Grünen.
+  const systemRole = `Du bist ein Social Media Manager mit Fokus auf visuelle Kommunikation für {{partyName}}.
 
 Deine Aufgabe: Konkrete visuelle Empfehlungen und Timing-Strategie entwickeln.
 
