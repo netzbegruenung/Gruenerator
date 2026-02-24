@@ -34,7 +34,7 @@ RUN pnpm build
 FROM nginx:alpine
 
 # Install envsubst for runtime environment variable substitution
-RUN apk add --no-cache gettext
+RUN apk add --no-cache curl gettext
 
 # Copy built app to nginx
 COPY --from=builder /app/apps/sites/dist /usr/share/nginx/html
@@ -55,7 +55,7 @@ EXPOSE 3000
 
 # Health check for Coolify
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget -q --spider http://localhost:${PORT}/health || exit 1
+  CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Use custom entrypoint for env substitution at runtime
 ENTRYPOINT ["/docker-entrypoint.sh"]
