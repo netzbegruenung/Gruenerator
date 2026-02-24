@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { handleAuthCallback } from '../../services/auth';
-import { colors } from '../../theme';
+import { initializeApiClient } from '../../services/api';
+import { handleAuthCallback, configureAuthStore } from '../../services/auth';
 
 export default function AuthCallback() {
   const { code } = useLocalSearchParams<{ code: string }>();
@@ -12,6 +12,9 @@ export default function AuthCallback() {
     async function processCallback() {
       if (code) {
         try {
+          initializeApiClient();
+          configureAuthStore();
+
           const result = await handleAuthCallback(code);
           if (result.success) {
             router.replace('/');
@@ -28,24 +31,5 @@ export default function AuthCallback() {
     processCallback();
   }, [code, router]);
 
-  return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={colors.white} />
-      <Text style={styles.text}>Anmeldung wird abgeschlossen...</Text>
-    </View>
-  );
+  return <View style={{ flex: 1 }} />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.primary[900],
-  },
-  text: {
-    color: colors.white,
-    marginTop: 16,
-    fontSize: 16,
-  },
-});

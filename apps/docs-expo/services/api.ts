@@ -4,9 +4,40 @@ import {
   getGlobalApiClient,
   apiRequest,
 } from '@gruenerator/shared/api';
+import axios from 'axios';
+
 import { secureStorage } from './storage';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { API_BASE_URL } from '../config';
+
+let isRefreshing = false;
+
+async function tryRefreshToken(): Promise<boolean> {
+  if (isRefreshing) return false;
+  isRefreshing = true;
+  try {
+    const refreshToken = await secureStorage.getRefreshToken();
+    if (!refreshToken) return false;
+
+    const response = await axios.post(`${API_BASE_URL}/auth/mobile/refresh`, {
+      refresh_token: refreshToken,
+    });
+
+    if (response.data.success && response.data.access_token) {
+      await secureStorage.setToken(response.data.access_token);
+      if (response.data.user) {
+        await secureStorage.setUser(JSON.stringify(response.data.user));
+        useAuthStore.getState().setAuthState({ user: response.data.user });
+      }
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    isRefreshing = false;
+  }
+}
 
 export function initializeApiClient(): void {
   const client = createApiClient({
@@ -15,9 +46,13 @@ export function initializeApiClient(): void {
     getAuthToken: async () => {
       return secureStorage.getToken();
     },
-    onUnauthorized: () => {
-      console.log('[API] Received 401 - clearing auth state');
-      useAuthStore.getState().clearAuth();
+    onUnauthorized: async () => {
+      const refreshed = await tryRefreshToken();
+      if (!refreshed) {
+        console.log('[API] Token refresh failed - clearing auth state');
+        await secureStorage.clearAll();
+        useAuthStore.getState().clearAuth();
+      }
     },
     timeout: 120000,
   });
@@ -30,6 +65,7 @@ export { getGlobalApiClient, apiRequest };
 export const API_ENDPOINTS = {
   AUTH_LOGIN: '/auth/login',
   AUTH_MOBILE_CONSUME: '/auth/mobile/consume-login-code',
+  AUTH_MOBILE_REFRESH: '/auth/mobile/refresh',
   AUTH_MOBILE_STATUS: '/auth/mobile/status',
   AUTH_MOBILE_LOGOUT: '/auth/mobile/logout',
   AUTH_PROFILE: '/auth/profile',
