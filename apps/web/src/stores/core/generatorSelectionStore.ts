@@ -55,6 +55,7 @@ interface FeatureState {
   useAutomaticSearch: boolean;
   useBedrock: boolean;
   useNotebookEnrich: boolean;
+  useAgentMode: boolean;
 }
 
 // Selected IDs
@@ -83,6 +84,7 @@ interface GeneratorSelectionState {
   useUltraMode: boolean;
   useAutomaticSearch: boolean;
   useNotebookEnrich: boolean;
+  useAgentMode: boolean;
 }
 
 // Store actions interface
@@ -118,6 +120,8 @@ interface GeneratorSelectionActions {
   toggleAutomaticSearch: () => void;
   setNotebookEnrich: (enabled: boolean) => void;
   toggleNotebookEnrich: () => void;
+  setAgentMode: (enabled: boolean) => void;
+  toggleAgentMode: () => void;
   getFeatureState: () => FeatureState;
   resetFeatures: () => void;
   reset: () => void;
@@ -149,6 +153,7 @@ const initialState: GeneratorSelectionState = {
   useUltraMode: false,
   useAutomaticSearch: false,
   useNotebookEnrich: false,
+  useAgentMode: false,
 };
 
 /**
@@ -417,6 +422,16 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         state.useNotebookEnrich = !state.useNotebookEnrich;
       }),
 
+    setAgentMode: (enabled) =>
+      set((state) => {
+        state.useAgentMode = enabled;
+      }),
+
+    toggleAgentMode: () =>
+      set((state) => {
+        state.useAgentMode = !state.useAgentMode;
+      }),
+
     getFeatureState: () => {
       const state = get();
       return {
@@ -427,6 +442,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         useAutomaticSearch: state.useAutomaticSearch,
         useBedrock: state.useUltraMode,
         useNotebookEnrich: state.useNotebookEnrich,
+        useAgentMode: state.useAgentMode,
       };
     },
 
@@ -438,6 +454,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         state.useUltraMode = false;
         state.useAutomaticSearch = false;
         state.useNotebookEnrich = false;
+        state.useAgentMode = false;
       }),
 
     reset: () => {

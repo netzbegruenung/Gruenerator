@@ -87,6 +87,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
   headerContent,
   features,
   useFeatureIcons = false,
+  showAgentMode = false,
   onAttachmentClick,
   onRemoveFile,
   attachedFiles = [],
@@ -477,6 +478,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
                   loading={loading}
                   success={success}
                   useFeatureIcons={useFeatureIcons}
+                  showAgentMode={showAgentMode}
                   attachedFiles={attachedFiles}
                 >
                   {children}

@@ -35,6 +35,7 @@ export interface FeatureState {
   readonly useProMode: boolean;
   readonly useUltraMode: boolean;
   readonly useBedrock: boolean;
+  readonly useAgentMode: boolean;
 }
 
 /**
@@ -113,6 +114,7 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
     usePrivacyMode,
     useProMode,
     useUltraMode,
+    useAgentMode,
   } = useGeneratorSelectionStore(
     useShallow((state) => ({
       selectedDocumentIds: state.selectedDocumentIds,
@@ -121,6 +123,7 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
       usePrivacyMode: state.usePrivacyMode,
       useProMode: state.useProMode,
       useUltraMode: state.useUltraMode,
+      useAgentMode: state.useAgentMode,
     }))
   );
 
@@ -131,6 +134,7 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
     useProMode,
     useUltraMode,
     useBedrock: useUltraMode,
+    useAgentMode,
   };
 
   // Return all setup data with readonly types for safety
