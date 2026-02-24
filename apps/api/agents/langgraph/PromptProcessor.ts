@@ -243,9 +243,10 @@ export function validateRequest(requestBody: any, config: PromptConfig): string 
   const { validation } = config;
   if (!validation?.required) return null;
 
-  const { customPrompt, inhalt } = requestBody;
+  const { customPrompt, inhalt, attachments } = requestBody;
   if (customPrompt) return null; // Skip validation for custom prompts
   if (inhalt) return null; // Free-text content is sufficient (e.g. from smart detection)
+  if (attachments?.length > 0) return null; // Attachments (e.g. PDF) are processed via DocQnA
 
   for (const field of validation.required) {
     if (!requestBody[field]) {

@@ -29,6 +29,8 @@ Gegeben eine Suchanfrage, erstelle 2 alternative Formulierungen, die:
 - Verschiedene Aspekte oder Blickwinkel des Themas abdecken
 - Synonyme oder verwandte Begriffe verwenden
 - Die gleiche Sprache (Deutsch) verwenden
+- Nur existierende deutsche Wörter verwenden (keine erfundenen Komposita)
+- Wörter korrekt durch Leerzeichen trennen
 
 Antworte NUR mit JSON:
 { "alternatives": ["alternative 1", "alternative 2"] }`;
@@ -37,10 +39,7 @@ Antworte NUR mit JSON:
  * Expand a search query into multiple alternative formulations.
  * Uses the AI worker pool for a fast Mistral-small call.
  */
-export async function expandQuery(
-  query: string,
-  aiWorkerPool: any,
-): Promise<ExpandedQuery> {
+export async function expandQuery(query: string, aiWorkerPool: any): Promise<ExpandedQuery> {
   // Check cache first
   const cacheKey = query.toLowerCase().trim();
   const cached = expansionCache.get(cacheKey);
