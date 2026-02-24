@@ -63,9 +63,9 @@ describe('renderDocumentShareTemplate', () => {
     expect(text).toContain('Lesen');
   });
 
-  it('maps owner to Eigentümer', () => {
+  it('maps owner to Eigentümer*in', () => {
     const { text } = renderDocumentShareTemplate({ ...params, permissionLevel: 'owner' });
-    expect(text).toContain('Eigentümer');
+    expect(text).toContain('Eigentümer*in');
   });
 
   it('plain text contains document URL', () => {

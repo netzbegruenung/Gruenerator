@@ -852,7 +852,7 @@ router.put(
       if (existingShare.user_id !== userId) {
         return res.status(403).json({
           success: false,
-          error: 'Nur der Ersteller kann diesen Share bearbeiten',
+          error: 'Nur die erstellende Person kann diesen Share bearbeiten',
         });
       }
 
