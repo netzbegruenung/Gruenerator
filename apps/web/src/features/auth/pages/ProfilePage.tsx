@@ -89,7 +89,7 @@ const ProfilePage = () => {
 
   if (isLoggingOut) {
     return (
-      <div className="mx-auto max-w-screen-xl px-md py-lg">
+      <div className="w-full mx-auto max-w-screen-2xl px-md py-lg">
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-md">
           <h1>Abmelden...</h1>
           <Spinner size="large" />
@@ -99,7 +99,7 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="mx-auto max-w-screen-xl px-md py-lg">
+    <div className="w-full mx-auto max-w-screen-2xl px-md py-lg">
       {(successMessage || errorMessage) && (
         <div className="mb-md">
           {successMessage && (

@@ -1,8 +1,8 @@
 // Main component export
 export { default } from './BaseForm';
 
-// Provider and hooks
-export { FormStateProvider, useFormState, useFormStateSelector } from '../FormStateProvider';
+// Context for leaf components (FormAutoInput, FormTextarea)
+export { BaseFormProvider, useBaseFormContext } from '../BaseFormContext';
 
 // Named component exports for consumers who prefer explicit imports
 export { default as BaseForm } from './BaseForm';
@@ -10,7 +10,6 @@ export { default as FormSection } from './FormSection';
 export { default as DisplaySection } from './DisplaySection';
 export { default as FormInputSection } from './FormInputSection';
 export { default as FormExtrasSection } from './FormExtrasSection';
-export { default as FormCard } from './FormCard';
 export { default as ContentRenderer } from './ContentRenderer';
 export { default as ErrorDisplay } from './ErrorDisplay';
 export { default as ExamplePrompts } from './ExamplePrompts';

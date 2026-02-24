@@ -240,7 +240,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-[32rem] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Inhalte zur Gruppe hinzufügen</DialogTitle>
           <DialogDescription>
@@ -260,7 +260,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
                   'flex items-center gap-xs px-sm py-xs rounded-md text-sm font-medium transition-colors whitespace-nowrap shrink-0',
                   activeTab === tab.id
                     ? 'bg-primary-500/10 text-primary-500'
-                    : 'text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
+                    : 'text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
                 )}
                 onClick={() => setActiveTab(tab.id)}
               >
@@ -279,11 +279,11 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         {/* Content List */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-xl text-sm text-grey-500">
+            <div className="flex items-center justify-center py-xl text-sm text-foreground">
               Lade Inhalte...
             </div>
           ) : currentItems.length === 0 ? (
-            <div className="flex items-center justify-center py-xl text-sm text-grey-500">
+            <div className="flex items-center justify-center py-xl text-sm text-foreground">
               Keine Inhalte verfügbar.
             </div>
           ) : (
@@ -322,7 +322,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
                     <div className="flex flex-col min-w-0">
                       <span className="text-sm font-medium truncate">{title}</span>
                       {description && (
-                        <span className="text-xs text-grey-500 truncate">
+                        <span className="text-xs text-foreground truncate">
                           {description.length > 80
                             ? `${description.substring(0, 80)}...`
                             : description}

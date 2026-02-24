@@ -48,7 +48,7 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
         if (!isCreatingGroup) onOpenChange(open);
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[28rem]">
         <DialogHeader>
           <DialogTitle>Neue Gruppe erstellen</DialogTitle>
           <DialogDescription>
@@ -75,7 +75,7 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
               autoFocus
               disabled={isCreatingGroup}
             />
-            <span className="text-xs text-grey-400">
+            <span className="text-xs text-foreground">
               Falls leer, wird &quot;unbenannte Gruppe&quot; verwendet.
             </span>
           </label>

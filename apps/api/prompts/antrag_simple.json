@@ -32,7 +32,7 @@
     "gliederung": "{{gliederung|default:''}}",
     "currentDate": "{{currentDate}}"
   },
-  "webSearchQuery": "{{inhalt}} Bündnis 90 Die Grünen Politik",
+  "webSearchQuery": "{{inhalt}} {{partySearchTerm}} Politik",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {

@@ -1,5 +1,5 @@
 {
-  "systemRole": "Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Erstelle kraftvolle, prägnante Headlines für Sharepics.",
+  "systemRole": "Du bist ein erfahrener Headline-Texter für {{partyName}}. Erstelle kraftvolle, prägnante Headlines für Sharepics.",
   "requestTemplate": "Erstelle eine kraftvolle Headline in 3 Zeilen.\n\nThema: {{thema}}\nDetails: {{details}}\n\nDie Headline soll:\n- Exakt 3 Zeilen haben\n- Pro Zeile sehr kurz (1-2 Worte)\n- Sehr kraftvoll und direkt sein\n- Die grüne Botschaft klar vermitteln\n- Emotional aktivierend wirken\n- Einfache, starke Worte verwenden\n- Perfekt für große, fette Schrift geeignet sein\n\nAntworte in diesem Format:\n\nZEILE1: Erste Zeile (1-2 Worte)\nZEILE2: Zweite Zeile (1-2 Worte)\nZEILE3: Dritte Zeile (1-2 Worte)",
   "singleItemTemplate": "Erstelle eine kraftvolle Headline in 3 Zeilen.\n\nThema: {{thema}}\nDetails: {{details}}\n\nDie Headline soll:\n- Exakt 3 Zeilen haben\n- Pro Zeile sehr kurz (1-2 Worte)\n- Sehr kraftvoll und direkt sein\n- Die grüne Botschaft klar vermitteln\n- Emotional aktivierend wirken\n- Einfache, starke Worte verwenden\n- Perfekt für große, fette Schrift geeignet sein\n\nAntworte in diesem Format:\n\nZEILE1: Erste Zeile (1-2 Worte)\nZEILE2: Zweite Zeile (1-2 Worte)\nZEILE3: Dritte Zeile (1-2 Worte)",
   "options": {

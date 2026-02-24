@@ -1,7 +1,8 @@
 import { DocumentList } from '@gruenerator/docs';
+import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { MantineProvider, Menu, ActionIcon, TextInput } from '@mantine/core';
 import { useState } from 'react';
-import { FiMoreVertical, FiLogOut, FiSearch, FiX } from 'react-icons/fi';
+import { FiLogOut, FiSearch, FiX } from 'react-icons/fi';
 
 import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -10,6 +11,24 @@ import { useAuthStore } from '../stores/authStore';
 import '@gruenerator/docs/styles';
 import '@mantine/core/styles.css';
 import './HomePage.css';
+
+const UserAvatar = ({
+  user,
+}: {
+  user: { display_name?: string; email?: string; avatar_robot_id?: number } | null;
+}) => {
+  const avatar = getAvatarDisplayProps(user);
+  if (avatar.type === 'robot' && avatar.robotId) {
+    return (
+      <img
+        src={getRobotAvatarPath(avatar.robotId)}
+        alt={avatar.alt || ''}
+        className="home-page-avatar-img"
+      />
+    );
+  }
+  return <span className="home-page-avatar-initials">{avatar.initials}</span>;
+};
 
 export const HomePage = () => {
   const { user } = useAuth();
@@ -55,14 +74,14 @@ export const HomePage = () => {
             </div>
 
             <div className="home-page-user-section">
-              <span className="home-page-user-name">{user?.display_name || user?.email}</span>
               <Menu position="bottom-end" shadow="md" withArrow>
                 <Menu.Target>
-                  <ActionIcon variant="subtle" color="gray" size="lg" aria-label="Menü">
-                    <FiMoreVertical size={18} />
-                  </ActionIcon>
+                  <button className="home-page-avatar-btn" aria-label="Profil-Menü">
+                    <UserAvatar user={user} />
+                  </button>
                 </Menu.Target>
                 <Menu.Dropdown>
+                  <Menu.Label>{user?.display_name || user?.email}</Menu.Label>
                   <Menu.Item
                     leftSection={<FiLogOut size={14} />}
                     onClick={() => logout()}

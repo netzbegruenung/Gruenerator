@@ -1,6 +1,5 @@
 import React, { memo, useCallback, useMemo } from 'react';
 
-import FormCard from '../../../components/common/Form/BaseForm/FormCard';
 import PromptInput from '../../../components/common/PromptInput/PromptInput';
 
 import type { PromptExample } from '../../../components/common/PromptInput/PromptInput';
@@ -60,74 +59,66 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = memo(
 
     return (
       <div className="create-generator-wrapper">
-        <FormCard
-          title="Eigene Grüneratoren"
-          subtitle="Erstelle neue oder nutze bestehende"
-          size="large"
-          variant="elevated"
-          hover={false}
-        >
-          <div className="create-generator-content">
-            <PromptInput
-              value={aiDescription}
-              onChange={onDescriptionChange}
-              onSubmit={onGenerateWithAI}
-              placeholder="Beschreibe deinen neuen Grünerator..."
-              isLoading={isLoading}
-              error={error}
-              examples={EXAMPLE_PROMPTS}
-              minRows={2}
-              submitLabel="Grünerator erstellen"
-            />
+        <div className="create-generator-content">
+          <PromptInput
+            value={aiDescription}
+            onChange={onDescriptionChange}
+            onSubmit={onGenerateWithAI}
+            placeholder="Beschreibe deinen neuen Grünerator..."
+            isLoading={isLoading}
+            error={error}
+            examples={EXAMPLE_PROMPTS}
+            minRows={2}
+            submitLabel="Grünerator erstellen"
+          />
 
-            {hasGenerators && (
-              <div className="generator-list">
-                {generators.length > 0 && (
-                  <div className="generator-list-section">
-                    <h4>Meine Grüneratoren</h4>
-                    <div className="generator-list-items">
-                      {generators.map((gen) => (
-                        <button
-                          key={gen.id}
-                          className="generator-list-item"
-                          onClick={() => onSelectGenerator?.(gen)}
-                          type="button"
-                        >
+          {hasGenerators && (
+            <div className="generator-list">
+              {generators.length > 0 && (
+                <div className="generator-list-section">
+                  <h4>Meine Grüneratoren</h4>
+                  <div className="generator-list-items">
+                    {generators.map((gen) => (
+                      <button
+                        key={gen.id}
+                        className="generator-list-item"
+                        onClick={() => onSelectGenerator?.(gen)}
+                        type="button"
+                      >
+                        {gen.name || gen.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {savedGenerators.length > 0 && (
+                <div className="generator-list-section">
+                  <h4>Gespeichert</h4>
+                  <div className="generator-list-items">
+                    {savedGenerators.map((gen) => (
+                      <button
+                        key={gen.id}
+                        className="generator-list-item generator-list-item--saved"
+                        onClick={() => onSelectGenerator?.(gen)}
+                        type="button"
+                      >
+                        <span className="generator-list-item-name">
                           {gen.name || gen.title}
-                        </button>
-                      ))}
-                    </div>
+                          {gen.owner_first_name && (
+                            <span className="generator-list-item-owner">
+                              · {gen.owner_first_name}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    ))}
                   </div>
-                )}
-
-                {savedGenerators.length > 0 && (
-                  <div className="generator-list-section">
-                    <h4>Gespeichert</h4>
-                    <div className="generator-list-items">
-                      {savedGenerators.map((gen) => (
-                        <button
-                          key={gen.id}
-                          className="generator-list-item generator-list-item--saved"
-                          onClick={() => onSelectGenerator?.(gen)}
-                          type="button"
-                        >
-                          <span className="generator-list-item-name">
-                            {gen.name || gen.title}
-                            {gen.owner_first_name && (
-                              <span className="generator-list-item-owner">
-                                · {gen.owner_first_name}
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </FormCard>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

@@ -5,6 +5,10 @@ import {
   processProductionGeneration,
 } from '../../agents/langgraph/PRAgent/index.js';
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
+import {
+  processAgentModeStreaming,
+  processAgentModeRequest,
+} from '../../agents/langgraph/SocialAgentGraph/agentModeProcessor.js';
 import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
 import { prAgentWorkflow } from '../../services/WorkflowService/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
@@ -24,6 +28,26 @@ const routeHandler = async (req: Request, res: Response): Promise<void> => {
 };
 
 router.post('/', routeHandler);
+
+/**
+ * POST /api/social/agent
+ * Agent Mode: Research → Strategy → Generate → Format
+ */
+router.post('/agent', async (req: Request, res: Response): Promise<void> => {
+  try {
+    log.debug('[claude_social/agent] Agent mode request received');
+    if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
+      return processAgentModeStreaming(req, res);
+    }
+    await processAgentModeRequest(req, res);
+  } catch (error) {
+    log.error('[claude_social/agent] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Interner Serverfehler',
+    });
+  }
+});
 
 /**
  * POST /api/social/strategy

@@ -18,7 +18,7 @@ export async function generateRiskAnalysis(
 
   const request = enrichedState.request as { usePrivacyMode?: boolean };
 
-  const systemRole = `Du bist ein kritischer Analyst für politische Kommunikation der Grünen.
+  const systemRole = `Du bist ein kritischer Analyst für politische Kommunikation von {{partyName}}.
 
 Deine Aufgabe: Identifiziere potenzielle Angriffspunkte in der Kommunikation und bereite Counter-Speech vor.
 

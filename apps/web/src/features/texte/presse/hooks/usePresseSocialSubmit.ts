@@ -86,6 +86,12 @@ interface SubmitReturn {
   submitStandard: (formData: PresseSocialFormData) => Promise<GenerationResult | null>;
 
   /**
+   * Submit handler for Agent Mode
+   * Research → Strategy → Platform Generation
+   */
+  submitAgentMode: (formData: PresseSocialFormData) => Promise<GenerationResult | null>;
+
+  /**
    * Generate production content after PR approval
    */
   generateProduction: (
@@ -147,6 +153,7 @@ interface SubmitReturn {
  */
 export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
   const internalApi = useApiSubmit('/claude_social');
+  const agentApi = useApiSubmit('/claude_social/agent');
   const socialSubmitForm = config.externalSubmitForm || internalApi.submitForm;
   const socialLoading = config.externalSubmitForm ? false : internalApi.loading;
   const socialError = config.externalSubmitForm ? null : internalApi.error;
@@ -322,6 +329,57 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
   );
 
   /**
+   * Submit Agent Mode: Research → Strategy → Generate
+   */
+  const submitAgentMode = useCallback(
+    async (formData: PresseSocialFormData): Promise<GenerationResult | null> => {
+      try {
+        const platforms = formData.platforms.filter((p: string) => p !== 'sharepic');
+
+        if (platforms.length === 0) return null;
+
+        const submissionData = {
+          inhalt: formData.inhalt,
+          platforms,
+          zitatgeber: formData.zitatgeber || '',
+          ...config.features,
+          attachments: config.attachments,
+          selectedDocumentIds: Array.from(config.selectedDocumentIds),
+          selectedTextIds: Array.from(config.selectedTextIds),
+          searchQuery: buildSearchQuery(formData),
+          agentMode: true,
+        };
+
+        const result = await agentApi.submitForm(submissionData);
+
+        const response = result as
+          | { content?: string; metadata?: Record<string, unknown> }
+          | string;
+        const content =
+          typeof response === 'string'
+            ? response
+            : (response as { content?: string }).content || '';
+        const metadata =
+          typeof response === 'object' && response !== null
+            ? (response as { metadata?: Record<string, unknown> }).metadata || {}
+            : {};
+
+        return { social: { content, metadata } };
+      } catch (error) {
+        console.error('[usePresseSocialSubmit] Agent mode failed:', error);
+        return null;
+      }
+    },
+    [
+      agentApi,
+      config.features,
+      config.attachments,
+      config.selectedDocumentIds,
+      config.selectedTextIds,
+    ]
+  );
+
+  /**
    * Generate production content after PR approval
    * Phase 2: Generate platform-specific content
    */
@@ -341,8 +399,13 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
   return {
     submitPRWorkflow,
     submitStandard,
+    submitAgentMode,
     generateProduction,
-    loading: socialLoading || sharepicLoading || prWorkflow.state.status === 'generating_strategy',
+    loading:
+      socialLoading ||
+      agentApi.loading ||
+      sharepicLoading ||
+      prWorkflow.state.status === 'generating_strategy',
     error:
       (socialError as unknown as { message: string } | null) ||
       (prWorkflow.state.error ? { message: prWorkflow.state.error } : null),

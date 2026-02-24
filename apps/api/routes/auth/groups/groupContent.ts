@@ -3,6 +3,9 @@
  * Handles content sharing, permissions, and group content retrieval
  */
 
+import fs from 'fs';
+import path from 'path';
+
 import express, { type Router, type Response } from 'express';
 
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
@@ -16,6 +19,126 @@ const log = createLogger('groupContent');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
+
+// Load system templates for vorlagen matching
+let systemTemplates: any[] = [];
+try {
+  const apiRoot = process.cwd();
+  const systemTemplatesPath = path.resolve(apiRoot, 'config/templates/system-templates.json');
+  const data = fs.readFileSync(systemTemplatesPath, 'utf-8');
+  const parsed = JSON.parse(data);
+  systemTemplates = (parsed.templates || []).map((t: any) => ({
+    ...t,
+    thumbnail_url: t.preview_image ? `/auth/template-previews/${t.preview_image}` : t.thumbnail_url,
+  }));
+} catch {
+  log.warn('[Group Content] Could not load system templates for vorlagen matching');
+}
+
+// ============================================================================
+// Group Vorlagen (tag-based template matching)
+// ============================================================================
+
+router.get(
+  '/groups/:groupId/vorlagen',
+  ensureAuthenticated as any,
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user!.id;
+
+      if (!groupId) {
+        res.status(400).json({ success: false, message: 'Gruppen-ID ist erforderlich.' });
+        return;
+      }
+
+      const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
+
+      // Read group settings for templateTags
+      const group = await postgres.queryOne(
+        'SELECT settings FROM groups WHERE id = $1',
+        [groupId],
+        { table: 'groups' }
+      );
+
+      const settings =
+        typeof group?.settings === 'string' ? JSON.parse(group.settings) : group?.settings || {};
+      const templateTags: string[] = settings.templateTags || [];
+
+      if (templateTags.length === 0) {
+        res.json({ success: true, vorlagen: [], tags: [] });
+        return;
+      }
+
+      // Query published user templates where tags overlap with group tags
+      // Using ?| operator: "does the JSONB array contain any of these values?"
+      const dbTemplates = await postgres.query(
+        `SELECT id, title, description, template_type, thumbnail_url, external_url,
+                tags, categories, metadata, created_at
+         FROM user_templates
+         WHERE is_private = false
+           AND status = 'published'
+           AND type = 'template'
+           AND tags ?| $1::text[]
+         ORDER BY created_at DESC`,
+        [templateTags],
+        { table: 'user_templates' }
+      );
+
+      // Filter system templates that match any of the group tags
+      const lowerTags = templateTags.map((t: string) => t.toLowerCase());
+      const matchingSystemTemplates = systemTemplates
+        .filter((t) => {
+          const tTags = (t.tags || []).map((tag: string) => tag.toLowerCase());
+          const tCategories = (t.categories || []).map((c: string) => c.toLowerCase());
+          const tType = (t.template_type || '').toLowerCase();
+          return lowerTags.some(
+            (groupTag) =>
+              tTags.includes(groupTag) || tCategories.includes(groupTag) || tType === groupTag
+          );
+        })
+        .map((t) => ({
+          ...t,
+          is_system: true,
+        }));
+
+      // Combine and deduplicate by id
+      const seenIds = new Set<string>();
+      const allVorlagen: any[] = [];
+
+      for (const t of [...(dbTemplates || []), ...matchingSystemTemplates]) {
+        if (!seenIds.has(t.id)) {
+          seenIds.add(t.id);
+          allVorlagen.push({
+            id: t.id,
+            title: t.title,
+            description: t.description,
+            template_type: t.template_type,
+            thumbnail_url: t.thumbnail_url,
+            external_url: t.external_url,
+            tags: t.tags || [],
+            categories: t.categories || [],
+            is_system: !!t.is_system,
+            created_at: t.created_at,
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        vorlagen: allVorlagen,
+        tags: templateTags,
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[Group Vorlagen] Error:', err);
+      res.status(500).json({
+        success: false,
+        message: err.message || 'Fehler beim Laden der Vorlagen.',
+      });
+    }
+  }
+);
 
 // Valid content types for sharing
 const validContentTypes = [

@@ -151,3 +151,6 @@ services/comfyui/
 # Windows Zone.Identifier metadata files
 *:Zone.Identifier
 
+# Video editor (local-only, not tracked yet)
+apps/video/
+

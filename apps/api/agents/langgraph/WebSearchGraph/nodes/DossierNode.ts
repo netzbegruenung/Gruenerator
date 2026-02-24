@@ -4,6 +4,10 @@
  */
 
 import {
+  extractLocaleFromRequest,
+  localizePlaceholders,
+} from '../../../../services/localization/index.js';
+import {
   normalizeSearchResult,
   dedupeAndDiversify,
   buildReferencesMap,
@@ -81,8 +85,9 @@ export async function dossierNode(state: WebSearchState): Promise<Partial<WebSea
     const referencesMap = buildReferencesMap(deduplicatedSources);
     const refsSummary = summarizeReferencesForPrompt(referencesMap);
 
-    // Get system and user prompts
-    const systemPrompt = buildDossierSystemPrompt();
+    // Get system and user prompts (localized for user's locale)
+    const locale = extractLocaleFromRequest(state.req);
+    const systemPrompt = localizePlaceholders(buildDossierSystemPrompt(), locale);
     const filteredData = filterDataForAI(
       state.webResults,
       state.aggregatedResults,
@@ -136,11 +141,14 @@ ${refsSummary}`;
     }
 
     // Add methodology section (without citations)
-    const methodologySection = buildMethodologySection(
-      state.grundsatzResults,
-      state.subqueries,
-      state.aggregatedResults,
-      state.categorizedSources
+    const methodologySection = localizePlaceholders(
+      buildMethodologySection(
+        state.grundsatzResults,
+        state.subqueries,
+        state.aggregatedResults,
+        state.categorizedSources
+      ),
+      locale
     );
 
     const completeDossier = cleanDraft + methodologySection;

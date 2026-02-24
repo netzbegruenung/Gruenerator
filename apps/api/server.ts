@@ -51,9 +51,38 @@ const numCPUs = os.cpus().length;
 
 let aiWorkerPool: AIWorkerPool | null = null;
 
-if (cluster.isPrimary) {
-  // Master process - fork workers
-  const workerCount = parseInt(process.env.WORKER_COUNT || '2', 10);
+const isDev = process.env.NODE_ENV !== 'production';
+const workerCount = parseInt(process.env.WORKER_COUNT || '2', 10);
+const skipCluster = isDev || workerCount <= 0;
+
+if (skipCluster) {
+  // Dev mode or WORKER_COUNT=0: run directly without clustering (tsx can't fork workers)
+  log.info(`Running in single-process mode (pid: ${process.pid})`);
+
+  // Start Hocuspocus if enabled
+  if (process.env.HOCUSPOCUS_ENABLED === 'true') {
+    log.info('Starting Hocuspocus WebSocket server...');
+    const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
+    const hocuspocusProcess = spawn('npx', hocuspocusArgs, {
+      stdio: 'inherit',
+      env: process.env,
+      detached: false,
+    });
+    hocuspocusProcess.on('error', (error: Error) => {
+      log.error(`Hocuspocus server error: ${error.message}`);
+    });
+    process.on('exit', () => {
+      if (!hocuspocusProcess.killed) hocuspocusProcess.kill('SIGTERM');
+    });
+  }
+
+  // Start cleanup schedulers
+  startExportCleanup();
+  startUploadsCleanup();
+
+  await startWorker();
+} else if (cluster.isPrimary) {
+  // Production master process - fork workers
   log.info(`Master ${process.pid} starting ${workerCount} workers`);
 
   // Attach error handler to each worker when forked

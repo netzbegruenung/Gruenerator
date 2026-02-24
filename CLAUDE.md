@@ -219,6 +219,39 @@ The reason: `KeyboardStickyView` positions from the **window bottom** (absolute)
   - **Shadows**: `shadow-sm`, `shadow-md`, `shadow-lg`, `shadow-xl`
   - **Border radius**: `rounded-sm`, `rounded-md`, `rounded-lg`
 
+#### Tailwind v4 Gotchas
+
+**`max-w-*` uses spacing scale, not legacy named sizes.** In Tailwind v4, `max-w-md` maps to `var(--spacing-md)` (16px), NOT `28rem` (448px) like in v3. This project defines custom spacing tokens (`--spacing-sm: 12px`, `--spacing-md: 16px`, `--spacing-lg: 24px`, etc.), which override the v3 named sizes. **Always use explicit values for max-width:**
+```tsx
+// WRONG — resolves to 16px in this project
+<DialogContent className="sm:max-w-md">
+
+// CORRECT — explicit rem value
+<DialogContent className="sm:max-w-[28rem]">
+```
+
+Affected utilities: `max-w-sm` (12px), `max-w-md` (16px), `max-w-lg` (24px), `max-w-xl` (32px), `max-w-2xl` (48px). Unaffected: `max-w-3xl` through `max-w-7xl` (no spacing tokens defined), `max-w-screen-*`, `max-w-[arbitrary]`.
+
+**`fixed` does not set `inset: 0`.** In v3, `fixed` implicitly set `inset: 0`, so `w-full` on a fixed element meant viewport width. In v4, it doesn't — `w-full` computes from the element's containing block. For centered fixed dialogs, use:
+```tsx
+// WRONG (v3 pattern) — w-full computes to ~0px
+<div className="fixed top-[50%] left-[50%] w-full translate-x-[-50%] translate-y-[-50%]">
+
+// CORRECT (v4 pattern) — explicit inset + margin auto centering
+<div className="fixed inset-0 m-auto h-fit w-full max-w-[32rem]">
+```
+
+**`mx-auto` in flex column collapses width.** A child with `mx-auto` inside a `display: flex; flex-direction: column` parent collapses to content width (auto margins absorb free space on the cross axis). Add `w-full` to fill the parent:
+```tsx
+// WRONG — collapses to content width
+<main className="flex flex-col">
+  <div className="mx-auto max-w-screen-2xl px-md">
+
+// CORRECT — fills parent, max-width caps on wide screens
+<main className="flex flex-col">
+  <div className="w-full mx-auto max-w-screen-2xl px-md">
+```
+
 #### Legacy Code (Plain CSS)
 - Design tokens: `apps/web/src/assets/styles/common/variables.css`
 - Global styles: `apps/web/src/assets/styles/common/`
@@ -234,10 +267,50 @@ The reason: `KeyboardStickyView` positions from the **window bottom** (absolute)
 - Dark mode: `[data-theme="dark"]` attribute (works with both CSS and Tailwind)
 - CSS variables in `variables.css` remain the source of truth
 - Always test UI changes in both light and dark modes
+- **Use semantic color tokens instead of hardcoded grey pairs.** Prefer `text-foreground` over `text-grey-800 dark:text-grey-100`, and `text-foreground-heading` over manual dark overrides. This keeps dark mode automatic:
+  ```tsx
+  // WRONG — hardcoded light/dark pair
+  <h2 className="text-grey-800 dark:text-grey-100">
+
+  // CORRECT — semantic token, auto-adapts
+  <h2 className="text-foreground">
+  ```
+  Available semantic tokens: `text-foreground` (body), `text-foreground-heading` (headings), `bg-background`, `bg-background-alt`, `bg-background-pure`
 
 ### shadcn/ui Components
 
 **Prefer shadcn/ui** for new UI components whenever possible. Add components to the appropriate package (`packages/chat` for chat UI, `apps/web` for web-only UI). For chat features, **prefer Assistant UI (`@assistant-ui/react`)** primitives and components — use its built-in thread, composer, message, and runtime APIs before building custom alternatives.
+
+#### Adding Components via CLI
+
+Both `apps/web` and `packages/chat` have `components.json` configured for the shadcn CLI:
+
+```bash
+# Add a component to apps/web
+cd apps/web && npx shadcn@latest add <component-name>
+
+# Add a component to packages/chat
+cd packages/chat && npx shadcn@latest add <component-name>
+```
+
+**After running the CLI, always adapt the generated output:**
+1. **Fix import order** — ESLint requires external packages (e.g., `radix-ui`) before `react`. The CLI generates `react` first.
+2. **Replace standard shadcn tokens** with project theme tokens. The project does NOT define standard shadcn color tokens like `bg-popover`, `text-popover-foreground`. Use the project's custom tokens instead:
+   - `bg-popover` → `bg-background-pure`
+   - `text-popover-foreground` → (remove, inherits from parent)
+   - `bg-foreground text-background` → `bg-grey-900 text-white dark:bg-grey-700 dark:text-grey-200`
+   - `border` (bare) → `border border-grey-200 dark:border-grey-700`
+   - `shadow-md` → `shadow-lg` (matching existing dropdown-menu pattern)
+3. **Remove `"use client"`** — not needed in Vite (only relevant for Next.js RSC).
+4. Reference existing components (`dropdown-menu.tsx`, `dialog.tsx`) as the canonical style guide.
+
+#### `apps/web` Config (`apps/web/components.json`)
+- `aliases.utils` → `@/utils/cn` (not the default `@/lib/utils`)
+- `aliases.ui` → `@/components/ui`
+- `style` → `new-york`
+- Components land in `apps/web/src/components/ui/`
+
+#### `packages/chat` Caveat
 
 When adding shadcn/ui components to `packages/chat` (or any shared package), **always replace `@/` path aliases with relative imports** after generation. Vite resolves `@/` using the consuming app's alias, not the package's `tsconfig.json` paths, so `@/lib/utils` will fail at runtime.
 
@@ -291,6 +364,22 @@ router.delete('/:groupId/content/:contentId',
 import { getParam } from '../../utils/params.js';
 const id = getParam(req.params, 'id'); // safely extracts string from string | string[]
 ```
+
+### Locale-Aware Backend Code
+
+The platform serves both **German (`de-DE`)** and **Austrian (`de-AT`)** users. All backend code that generates content, searches documents, or constructs prompts **must be locale-aware**. Never hardcode party names or collection lists.
+
+#### Rules
+1. **Party name**: Use `{{partyName}}` placeholder in prompt strings — `assemblePromptGraphAsync` / `localizePlaceholders()` replaces it with the locale-specific name (`Bündnis 90/Die Grünen` for DE, `Die Grünen – Die Grüne Alternative` for AT). Also available: `{{partyNameShort}}`, `{{partyNameGenitive}}`.
+2. **Qdrant collections**: Filter by locale before searching. Austrian collections: `oesterreich_gruene_documents`, `gruene_at_documents`. German collections: `grundsatz_documents`, `bundestag_content`, `kommunalwiki_documents`, `gruene_de_documents`.
+3. **Web search queries**: Never append a hardcoded party name to search queries. Use locale-aware party name or omit it.
+4. **`enrichRequest()` requires `req` as 3rd argument** for locale extraction: `enrichRequest(body, options, req)`. Passing `req` inside the options object does NOT work — the function only reads locale from the 3rd parameter.
+5. **Direct `aiWorkerPool.processRequest` calls** bypass the localization pipeline entirely. Prefer routing through `assemblePromptGraphAsync` when possible, or call `localizePlaceholders(prompt, extractLocaleFromRequest(req))` manually.
+
+#### Locale utilities (`services/localization/index.ts`)
+- `extractLocaleFromRequest(req)` — reads locale from user profile → `x-user-locale` header → `Accept-Language` → defaults `de-DE`
+- `localizePlaceholders(text, locale)` — replaces `{{partyName}}`, `{{partyNameGenitive}}`, `{{partyNameShort}}`
+- `getDefaultCollectionsForLocale(locale)` — returns chat-facing collection names per locale
 
 ### Code Quality
 

@@ -22,7 +22,7 @@ WICHTIG:
 
 Struktur des Dossiers:
 1. **Executive Summary** - DIREKTE Beantwortung der Nutzerfrage basierend auf verfügbaren Erkenntnissen
-2. **Position von Bündnis 90/Die Grünen** - Konkrete Aussagen aus Grundsatzprogrammen zur Frage
+2. **Position von {{partyName}}** - Konkrete Aussagen aus Grundsatzprogrammen zur Frage
 3. **Faktenlage nach Themenbereichen** - Detaillierte Analyse der verfügbaren Informationen zur Beantwortung der Frage
 4. **Quellenbasierte Erkenntnisse** - Tiefere Analyse konkreter Daten und Aussagen die zur Antwort beitragen
 
@@ -73,7 +73,7 @@ export function buildMethodologySection(
 
 Diese Deep Research wurde mit folgender Methodik durchgeführt:
 
-1. **Grundsatz-Recherche**: Suche in offiziellen Grundsatzprogrammen von Bündnis 90/Die Grünen (${grundsatzResults?.results?.length || 0} Dokumente gefunden)
+1. **Grundsatz-Recherche**: Suche in offiziellen Grundsatzprogrammen von {{partyName}} (${grundsatzResults?.results?.length || 0} Dokumente gefunden)
 2. **Strategische Fragengenerierung**: ${researchQuestions?.length || 0} Forschungsfragen zu verschiedenen Aspekten des Themas
 3. **Optimierte Webrecherche**: SearXNG mit intelligenter Quellenauswahl und regionaler Filterung (${aggregatedResults?.length || 0} Quellen analysiert)
 4. **Query-Optimierung**: Automatische Anpassung für deutsche Suchbegriffe und <400 Zeichen Limit

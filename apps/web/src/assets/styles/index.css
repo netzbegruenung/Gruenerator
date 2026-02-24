@@ -39,6 +39,7 @@
 @import url('./components/form/file-upload.css') layer(legacy);
 @import url('./components/form/form-image-select.css') layer(legacy);
 
+@import url('./components/baseform/baseform-legacy.css') layer(legacy);
 @import url('./components/actions/advanced-editing.css') layer(legacy);
 @import url('./components/actions/linksave.css') layer(legacy);
 @import url('./components/actions/collection-actions.css') layer(legacy);
@@ -271,9 +272,17 @@
   --color-relevance-medium: #ca8a04;
   --color-relevance-low: #dc2626;
 
+  /* Custom Breakpoints (xl: 1280px is Tailwind default) */
+  --breakpoint-3xl: 1440px;
+  --breakpoint-4xl: 1920px;
+  --breakpoint-5xl: 2560px;
+
   /* Animations */
   --animate-slide-in: slide-in 0.3s ease-out;
   --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-streaming-pulse: streaming-pulse 1.5s ease-in-out infinite;
+  --animate-streaming-cursor: streaming-cursor-blink 0.8s step-end infinite;
+  --animate-bounce-gentle: bounce-gentle 0.5s ease infinite alternate;
 
   /* ── Standard shadcn semantic tokens (required by packages/chat UI primitives) ── */
   --color-primary-foreground: #ffffff;
@@ -353,4 +362,20 @@
   --color-destructive: #f87171;
   --color-input: #374151;
   --color-ring: #56a17e;
+}
+
+/* ── Keyframe animations for BaseForm components ── */
+@keyframes streaming-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes streaming-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes bounce-gentle {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
 }

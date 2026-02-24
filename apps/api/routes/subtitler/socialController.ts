@@ -5,6 +5,10 @@
 
 import express, { type Response, type Router } from 'express';
 
+import {
+  extractLocaleFromRequest,
+  localizePlaceholders,
+} from '../../services/localization/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -31,14 +35,13 @@ router.post('/generate-social', async (req: SocialRequest, res: Response): Promi
       return;
     }
 
-    const result = await aiWorkerPool.processRequest({
-      type: 'subtitler_social',
-      systemPrompt:
-        'Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
-      messages: [
-        {
-          role: 'user',
-          content: `Untertitel: ${subtitles}
+    const locale = extractLocaleFromRequest(req);
+    const systemPrompt = localizePlaceholders(
+      'Du bist Social Media Manager für {{partyName}}. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
+      locale
+    );
+    const userPrompt = localizePlaceholders(
+      `Untertitel: ${subtitles}
 
 Erstelle einen Instagram Reel Beitragstext, der:
 1. Mit einem starken Hook beginnt
@@ -47,7 +50,17 @@ Erstelle einen Instagram Reel Beitragstext, der:
 4. Mit einem Call-to-Action endet
 5. Emojis passend aber sparsam einsetzt
 6. Maximal 300 Zeichen lang ist
-7. Den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt`,
+7. Den Stil und die Werte von {{partyName}} widerspiegelt`,
+      locale
+    );
+
+    const result = await aiWorkerPool.processRequest({
+      type: 'subtitler_social',
+      systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: userPrompt,
         },
       ],
       options: { max_tokens: 1000, temperature: 0.7 },

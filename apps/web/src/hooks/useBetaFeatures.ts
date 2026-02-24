@@ -48,7 +48,7 @@ interface UseBetaFeaturesReturn {
 // Beta features configuration - single source of truth
 const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false, devOnly: true },
-  { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
+  { key: 'groups', label: 'Gruppen', isAdminOnly: false },
   { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false, defaultEnabled: true },

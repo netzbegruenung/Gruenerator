@@ -1,14 +1,17 @@
-import { memo, useCallback, useMemo } from 'react';
-import { HiPencil, HiCheck, HiX, HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi';
-import { useNavigate } from 'react-router-dom';
+import { memo, useCallback, useRef, useState } from 'react';
+import { HiOutlineDocumentText, HiPencil, HiCheck, HiX } from 'react-icons/hi';
 
 import DeleteWarningTooltip from '../../../../../../../../components/common/DeleteWarningTooltip';
 import { ProfileActionButton } from '../../../../../../../../components/profile/actions/ProfileActionButton';
 import GroupMembersList from '../../../../../../../../features/groups/components/GroupMembersList';
+import { useGroupMembers } from '../../../../../../../../features/groups/hooks/useGroups';
+
+import GroupVorlagenSection from './GroupVorlagenSection';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface GroupInfo {
   id?: string;
@@ -28,21 +31,24 @@ interface GroupData {
   [key: string]: unknown;
 }
 
-interface SharedContentItem {
+interface VorlagenItem {
   id: string;
-  title?: string;
-  name?: string;
-  slug?: string;
-  canva_url?: string;
+  title: string;
+  description?: string;
+  template_type?: string;
+  thumbnail_url?: string;
   external_url?: string;
-  content_data?: { originalUrl?: string };
+  tags?: string[];
+  categories?: string[];
+  is_system?: boolean;
 }
 
-interface GroupContent {
-  documents?: SharedContentItem[];
-  texts?: SharedContentItem[];
-  notebooks?: SharedContentItem[];
-  generators?: SharedContentItem[];
+interface SharedDocument {
+  id: string;
+  title: string;
+  document_subtype?: string;
+  shared_at?: string;
+  shared_by_name?: string;
 }
 
 interface TabIndexConfig {
@@ -75,11 +81,13 @@ interface GroupInfoSectionProps {
   tabIndex: TabIndexConfig;
   customPrompt: string;
   setCustomPrompt: (value: string) => void;
-  groupContent: GroupContent | null;
-  isLoadingGroupContent: boolean;
-  onUnshare: (contentType: string, contentId: string) => void;
-  isUnsharing: boolean;
-  onAddContent: () => void;
+  vorlagen: VorlagenItem[];
+  vorlagenTags: string[];
+  isLoadingVorlagen: boolean;
+  onUpdateTags: (tags: string[]) => void;
+  isUpdatingSettings: boolean;
+  sharedDocuments: SharedDocument[];
+  isLoadingSharedDocuments: boolean;
 }
 
 const GroupInfoSection = memo(
@@ -108,81 +116,28 @@ const GroupInfoSection = memo(
     tabIndex,
     customPrompt,
     setCustomPrompt,
-    groupContent,
-    isLoadingGroupContent,
-    onUnshare,
-    isUnsharing,
-    onAddContent,
+    vorlagen,
+    vorlagenTags,
+    isLoadingVorlagen,
+    onUpdateTags,
+    isUpdatingSettings,
+    sharedDocuments,
+    isLoadingSharedDocuments,
   }: GroupInfoSectionProps) => {
-    const navigate = useNavigate();
+    const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive });
+    const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
+    const popoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const contentItems = useMemo(() => {
-      if (!groupContent) return [];
-      const items: {
-        id: string;
-        title: string;
-        type: string;
-        contentType: string;
-        slug?: string;
-        canva_url?: string;
-        external_url?: string;
-        content_data?: { originalUrl?: string };
-      }[] = [];
-      groupContent.documents?.forEach((d) =>
-        items.push({
-          id: d.id,
-          title: d.title || d.name || 'Dokument',
-          type: 'Dokument',
-          contentType: 'documents',
-        })
-      );
-      groupContent.texts?.forEach((d) =>
-        items.push({
-          id: d.id,
-          title: d.title || d.name || 'Text',
-          type: 'Text',
-          contentType: 'user_documents',
-        })
-      );
-      groupContent.notebooks?.forEach((d) =>
-        items.push({
-          id: d.id,
-          title: d.title || d.name || 'Notebook',
-          type: 'Notebook',
-          contentType: 'notebook_collections',
-        })
-      );
-      groupContent.generators?.forEach((d) =>
-        items.push({
-          id: d.id,
-          title: d.title || d.name || 'Generator',
-          type: 'Generator',
-          contentType: 'custom_generators',
-          slug: d.slug,
-        })
-      );
-      return items;
-    }, [groupContent]);
+    const handleMembersMouseEnter = useCallback(() => {
+      if (popoverTimeoutRef.current) clearTimeout(popoverTimeoutRef.current);
+      setMembersPopoverOpen(true);
+    }, []);
 
-    const handleContentClick = useCallback(
-      (item: (typeof contentItems)[0]) => {
-        switch (item.contentType) {
-          case 'user_documents':
-            navigate(`/editor/collab/${item.id}`);
-            break;
-          case 'notebook_collections':
-            navigate(`/notebook/${item.id}`);
-            break;
-          case 'custom_generators':
-            navigate(`/generators/custom/${item.slug || item.id}`);
-            break;
-          case 'documents':
-            navigate(`/documents/${item.id}`);
-            break;
-        }
-      },
-      [navigate]
-    );
+    const handleMembersMouseLeave = useCallback(() => {
+      popoverTimeoutRef.current = setTimeout(() => setMembersPopoverOpen(false), 200);
+    }, []);
+
+    const memberCount = members?.length ?? 0;
 
     // Memoized handlers to prevent inline function recreation
     const handleSaveBoth = useCallback(() => {
@@ -229,7 +184,7 @@ const GroupInfoSection = memo(
     return (
       <>
         {/* Group Header */}
-        <Card className="p-lg">
+        <Card className="p-lg border-0 shadow-none">
           <div className="flex justify-between items-start">
             <div className="flex-1">
               {isEditingName ? (
@@ -256,7 +211,7 @@ const GroupInfoSection = memo(
                     onInput={handleTextareaAutoResize}
                   />
                   {editedGroupDescription.length >= 450 && (
-                    <div className="text-xs text-grey-400 mt-xxs">
+                    <div className="text-xs text-foreground mt-xxs">
                       {editedGroupDescription.length}/500 Zeichen
                     </div>
                   )}
@@ -301,14 +256,14 @@ const GroupInfoSection = memo(
                     {data?.isAdmin && <Badge variant="default">Admin</Badge>}
                   </div>
                   {!data?.isAdmin && (
-                    <p className="text-sm text-grey-500 mt-xxs">Du bist Mitglied dieser Gruppe</p>
+                    <p className="text-sm text-foreground mt-xxs">Du bist Mitglied dieser Gruppe</p>
                   )}
                   <div className="mt-xs">
-                    <div className="flex items-start gap-xxs text-sm text-grey-500 leading-relaxed">
+                    <div className="flex items-start gap-xxs text-sm text-foreground leading-relaxed">
                       {data?.groupInfo?.description ? (
                         <span className="whitespace-pre-wrap">{data.groupInfo.description}</span>
                       ) : (
-                        <span className="italic text-grey-400">
+                        <span className="italic text-foreground">
                           {data?.isAdmin
                             ? 'Keine Beschreibung vorhanden'
                             : 'Keine Beschreibung vorhanden.'}
@@ -319,121 +274,142 @@ const GroupInfoSection = memo(
                 </>
               )}
             </div>
-            {data?.isAdmin && (
-              <div className="flex items-center gap-sm shrink-0">
-                {data?.joinToken && (
-                  <ProfileActionButton
-                    action="link"
-                    onClick={copyJoinLink}
-                    title={joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
-                    label={joinLinkCopied ? 'Kopiert!' : undefined}
-                    showLabel={joinLinkCopied}
-                    disabled={!data?.joinToken}
+            <div className="flex items-center gap-sm shrink-0">
+              <Popover open={membersPopoverOpen} onOpenChange={setMembersPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="inline-flex items-center -space-x-1.5 cursor-pointer"
+                    onMouseEnter={handleMembersMouseEnter}
+                    onMouseLeave={handleMembersMouseLeave}
+                  >
+                    {isLoadingMembers ? (
+                      <span className="text-xs text-foreground">…</span>
+                    ) : (
+                      <>
+                        {members
+                          ?.slice(0, 5)
+                          .map((member: { user_id: string; avatar_robot_id?: number }) => (
+                            <img
+                              key={member.user_id}
+                              src={`/images/profileimages/${member.avatar_robot_id || 1}.svg`}
+                              alt=""
+                              className="size-7 rounded-full ring-2 ring-background"
+                            />
+                          ))}
+                        {memberCount > 5 && (
+                          <span className="flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
+                            +{memberCount - 5}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-80 p-sm"
+                  onMouseEnter={handleMembersMouseEnter}
+                  onMouseLeave={handleMembersMouseLeave}
+                >
+                  <GroupMembersList groupId={groupId} isActive={isActive} />
+                </PopoverContent>
+              </Popover>
+              {data?.isAdmin && (
+                <>
+                  {data?.joinToken && (
+                    <ProfileActionButton
+                      action="link"
+                      onClick={copyJoinLink}
+                      title={joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                      label={joinLinkCopied ? 'Kopiert!' : undefined}
+                      showLabel={joinLinkCopied}
+                      disabled={!data?.joinToken}
+                    />
+                  )}
+                  <DeleteWarningTooltip
+                    onConfirm={confirmDeleteGroup}
+                    disabled={isDeletingGroup || isUpdatingGroupName}
+                    title="Gruppe löschen"
+                    message="Die gesamte Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt."
+                    confirmText="Endgültig löschen"
+                    cancelText="Abbrechen"
                   />
-                )}
-                <DeleteWarningTooltip
-                  onConfirm={confirmDeleteGroup}
-                  disabled={isDeletingGroup || isUpdatingGroupName}
-                  title="Gruppe löschen"
-                  message="Die gesamte Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt."
-                  confirmText="Endgültig löschen"
-                  cancelText="Abbrechen"
-                />
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Anweisungen */}
+          <div className="mt-md">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-foreground mb-xs">
+              Anweisungen
+            </h3>
+            <textarea
+              id="groupCustomPrompt"
+              value={customPrompt}
+              onChange={handleCustomPromptChange}
+              placeholder="Anweisungen für Text-Generierungen..."
+              className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm resize-vertical focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+              rows={3}
+              maxLength={2000}
+              disabled={!data?.isAdmin}
+            />
+            {customPrompt.length > 1500 && (
+              <div className="text-xs text-foreground mt-xxs">
+                {customPrompt.length}/2000 Zeichen
               </div>
             )}
           </div>
-        </Card>
 
-        {/* Three-card grid: Mitglieder | Anweisungen | Geteilte Inhalte */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-sm">
-          <Card className="flex flex-col">
-            <CardHeader className="pb-xs">
-              <CardTitle className="text-xs font-medium uppercase tracking-wide text-grey-500">
-                Mitglieder
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 flex-1">
-              <GroupMembersList groupId={groupId} isActive={isActive} hideHeader />
-            </CardContent>
-          </Card>
+          {/* Vorlagen */}
+          <GroupVorlagenSection
+            vorlagen={vorlagen}
+            tags={vorlagenTags}
+            isLoading={isLoadingVorlagen}
+            isAdmin={!!data?.isAdmin}
+            onUpdateTags={onUpdateTags}
+            isUpdating={isUpdatingSettings}
+          />
 
-          <Card className="flex flex-col">
-            <CardHeader className="pb-xs">
-              <CardTitle className="text-xs font-medium uppercase tracking-wide text-grey-500">
-                Anweisungen
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 flex-1">
-              <textarea
-                id="groupCustomPrompt"
-                value={customPrompt}
-                onChange={handleCustomPromptChange}
-                placeholder="Anweisungen für Text-Generierungen..."
-                className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm resize-vertical focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                rows={4}
-                maxLength={2000}
-                disabled={!data?.isAdmin}
-              />
-              {customPrompt.length > 1500 && (
-                <div className="text-xs text-grey-400 mt-xxs">
-                  {customPrompt.length}/2000 Zeichen
+          {/* Geteilte Dokumente */}
+          {(sharedDocuments.length > 0 || isLoadingSharedDocuments) && (
+            <div className="mt-md">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-foreground mb-xs">
+                Geteilte Dokumente
+              </h3>
+              {isLoadingSharedDocuments ? (
+                <p className="text-xs text-foreground italic">Dokumente werden geladen...</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
+                  {sharedDocuments.map((doc) => (
+                    <a
+                      key={doc.id}
+                      href={`/docs/${doc.id}`}
+                      className="flex items-center gap-xs rounded-lg border border-grey-200 dark:border-grey-700 bg-background p-xs hover:border-primary-500 hover:shadow-sm transition-all"
+                    >
+                      <HiOutlineDocumentText className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {doc.title}
+                        </p>
+                        <p className="text-xs text-foreground truncate">
+                          {doc.shared_by_name && `Geteilt von ${doc.shared_by_name}`}
+                          {doc.shared_by_name && doc.shared_at && ' · '}
+                          {doc.shared_at &&
+                            new Date(doc.shared_at).toLocaleDateString('de-DE', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                        </p>
+                      </div>
+                    </a>
+                  ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          <Card className="flex flex-col md:col-span-2 lg:col-span-1">
-            <CardHeader className="pb-xs">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-medium uppercase tracking-wide text-grey-500">
-                  Geteilte Inhalte
-                  {contentItems.length > 0 && (
-                    <span className="font-normal ml-xs">({contentItems.length})</span>
-                  )}
-                </CardTitle>
-                <Button variant="ghost" size="xs" onClick={onAddContent}>
-                  <HiOutlinePlus />
-                  Hinzufügen
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 flex-1">
-              {contentItems.length === 0 ? (
-                <p className="text-xs text-grey-500 italic">Noch keine Inhalte geteilt.</p>
-              ) : (
-                <ul className="flex flex-col gap-xxs">
-                  {contentItems.map((item) => (
-                    <li
-                      key={`${item.contentType}-${item.id}`}
-                      className="group flex items-center gap-xs px-xs py-xxs rounded-sm border-l-2 border-transparent hover:border-primary-500 hover:bg-grey-100 dark:hover:bg-grey-800 cursor-pointer transition-colors"
-                      onClick={() => handleContentClick(item)}
-                    >
-                      <Badge variant="secondary" className="shrink-0 text-[0.65rem] px-1 py-0">
-                        {item.type}
-                      </Badge>
-                      <span className="text-sm truncate flex-1">{item.title}</span>
-                      {data?.isAdmin && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm(`"${item.title}" aus der Gruppe entfernen?`)) {
-                              onUnshare(item.contentType, item.id);
-                            }
-                          }}
-                          disabled={isUnsharing}
-                          className="opacity-0 group-hover:opacity-100 text-grey-400 hover:text-red-600 transition-all shrink-0"
-                          title="Entfernen"
-                        >
-                          <HiOutlineTrash className="text-sm" />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          )}
+        </Card>
       </>
     );
   }

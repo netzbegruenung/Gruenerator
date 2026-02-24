@@ -4,6 +4,7 @@ import {
   type ExpressRequest,
   type SharepicResult,
 } from '../../../services/chat/sharepicGenerationService.js';
+import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import { prAgentWorkflow } from '../../../services/WorkflowService/index.js';
 import { sendSuccessResponse } from '../../../utils/request/index.js';
 import { enrichRequest } from '../../../utils/requestEnrichment.js';
@@ -37,18 +38,34 @@ export async function processAutomatischPR(
   try {
     const request = requestData as PRAgentRequest;
 
-    const enrichedState = await enrichRequest(requestData, {
-      type: 'social',
-      enableUrls: true,
-      enableWebSearch: request.useWebSearchTool || false,
-      enableDocQnA: true,
-      webSearchQuery: `${request.inhalt} Bündnis 90/Die Grünen aktuell`,
-      systemRole: '',
-      selectedDocumentIds: request.selectedDocumentIds || [],
-      searchQuery: request.inhalt,
-      useAutomaticSearch: true,
-      req,
-    });
+    const locale = extractLocaleFromRequest(req);
+    const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90/Die Grünen';
+
+    const enrichedState = await enrichRequest(
+      requestData,
+      {
+        type: 'social',
+        enableUrls: true,
+        enableWebSearch: request.useWebSearchTool || false,
+        enableDocQnA: true,
+        webSearchQuery: `${request.inhalt} ${partySearchTerm} aktuell`,
+        systemRole: '',
+        selectedDocumentIds: request.selectedDocumentIds || [],
+        searchQuery: request.inhalt,
+        useAutomaticSearch: true,
+      },
+      req
+    );
+
+    const argumentCollections =
+      locale === 'de-AT'
+        ? ['oesterreich_gruene_documents', 'gruene_at_documents']
+        : [
+            'grundsatz_documents',
+            'bundestag_content',
+            'kommunalwiki_documents',
+            'gruene_de_documents',
+          ];
 
     const framingPromise = generateStrategicFraming(enrichedState, req);
 
@@ -157,18 +174,33 @@ export async function processStrategyGeneration(
     const workflowId = await prAgentWorkflow.create(req.user?.id || 'anonymous', requestData);
 
     // 2. Enrich request (documents, URLs, web search)
-    const enrichedState = await enrichRequest(requestData, {
-      type: 'social',
-      enableUrls: true,
-      enableWebSearch: requestData.useWebSearchTool || false,
-      enableDocQnA: true,
-      webSearchQuery: `${requestData.inhalt} Bündnis 90/Die Grünen aktuell`,
-      systemRole: '',
-      selectedDocumentIds: requestData.selectedDocumentIds || [],
-      searchQuery: requestData.inhalt,
-      useAutomaticSearch: true,
-      req,
-    });
+    const locale = extractLocaleFromRequest(req);
+    const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90/Die Grünen';
+    const argumentCollections =
+      locale === 'de-AT'
+        ? ['oesterreich_gruene_documents', 'gruene_at_documents']
+        : [
+            'grundsatz_documents',
+            'bundestag_content',
+            'kommunalwiki_documents',
+            'gruene_de_documents',
+          ];
+
+    const enrichedState = await enrichRequest(
+      requestData,
+      {
+        type: 'social',
+        enableUrls: true,
+        enableWebSearch: requestData.useWebSearchTool || false,
+        enableDocQnA: true,
+        webSearchQuery: `${requestData.inhalt} ${partySearchTerm} aktuell`,
+        systemRole: '',
+        selectedDocumentIds: requestData.selectedDocumentIds || [],
+        searchQuery: requestData.inhalt,
+        useAutomaticSearch: true,
+      },
+      req
+    );
 
     // 3. PARALLEL: Generate framing + search arguments
     const [framing, args] = await Promise.all([
@@ -176,6 +208,7 @@ export async function processStrategyGeneration(
       searchArgumentsFromNotebooks(requestData.inhalt, {
         limit: 10,
         threshold: 0.35,
+        collections: argumentCollections,
       }),
     ]);
 
@@ -265,17 +298,20 @@ export async function processProductionGeneration(
     const strategyData = workflow.strategy_data as { framing: string; argumentsList: any[] };
 
     // 2. Re-enrich with approved strategy in context
-    const enrichedState = await enrichRequest(inputData, {
-      type: 'social',
-      enableUrls: true,
-      enableWebSearch: false, // Already enriched in Phase 1
-      enableDocQnA: false,
-      systemRole: '',
-      selectedDocumentIds: [],
-      searchQuery: inputData.inhalt,
-      useAutomaticSearch: false,
-      req,
-    });
+    const enrichedState = await enrichRequest(
+      inputData,
+      {
+        type: 'social',
+        enableUrls: true,
+        enableWebSearch: false, // Already enriched in Phase 1
+        enableDocQnA: false,
+        systemRole: '',
+        selectedDocumentIds: [],
+        searchQuery: inputData.inhalt,
+        useAutomaticSearch: false,
+      },
+      req
+    );
 
     // 3. PARALLEL: Generate selected platforms
     const platformPromises = approvedPlatforms.map((platform) =>
