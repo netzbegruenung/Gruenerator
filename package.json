@@ -29,7 +29,9 @@
     "apps/*",
     "packages/*",
     "services/comfyui",
+    "services/hocuspocus",
     "services/mcp",
+    "services/remotion",
     "documentation"
   ],
   "dependencies": {
@@ -66,7 +68,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
     "ci": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "test": "turbo run test",
-    "dev": "concurrently -k -n api,apps -c blue,green \"pnpm dev:backend\" \"wait-on tcp:3001 && turbo run dev --filter=!@gruenerator/api\"",
+    "dev": "concurrently -k -n api,apps -c blue,green \"pnpm dev:backend\" \"wait-on tcp:3001 && turbo run dev --filter=!@gruenerator/api --concurrency=15\"",
     "dev:web": "turbo run dev --filter=@gruenerator/web",
     "dev:backend": "turbo run dev --filter=@gruenerator/api",
     "dev:mobile": "turbo run dev --filter=@gruenerator/mobile",
