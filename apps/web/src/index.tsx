@@ -6,7 +6,7 @@ import './assets/styles/index.css';
 import App from './App';
 import { registerServiceWorker } from './utils/registerServiceWorker';
 
-// Initialize Sentry error monitoring
+// Initialize error monitoring (GlitchTip via Sentry SDK)
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 if (sentryDsn) {
   Sentry.init({
@@ -23,7 +23,7 @@ if (sentryDsn) {
     ],
   });
 } else {
-  console.info('Sentry DSN not configured. Error tracking disabled.');
+  console.info('Error tracking DSN not configured. Error tracking disabled.');
 }
 
 const rootElement = document.getElementById('root');

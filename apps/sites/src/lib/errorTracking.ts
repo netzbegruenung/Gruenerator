@@ -7,7 +7,7 @@ export function initErrorTracking(): void {
 
   if (!dsn) {
     console.info(
-      'Sentry DSN not configured. Error tracking disabled. ' +
+      'Error tracking DSN not configured. Error tracking disabled. ' +
         'Set VITE_SENTRY_DSN environment variable to enable error tracking.'
     );
     return;

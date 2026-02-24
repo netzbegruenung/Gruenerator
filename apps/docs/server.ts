@@ -31,7 +31,7 @@ app.use(
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: ["'self'", 'ws:', 'wss:', 'http:', 'https:'],
+        connectSrc: ["'self'", 'ws:', 'wss:', 'http:', 'https:', 'https://app.glitchtip.com'],
         fontSrc: ["'self'"],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
