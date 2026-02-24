@@ -239,6 +239,37 @@ The reason: `KeyboardStickyView` positions from the **window bottom** (absolute)
 
 **Prefer shadcn/ui** for new UI components whenever possible. Add components to the appropriate package (`packages/chat` for chat UI, `apps/web` for web-only UI). For chat features, **prefer Assistant UI (`@assistant-ui/react`)** primitives and components — use its built-in thread, composer, message, and runtime APIs before building custom alternatives.
 
+#### Adding Components via CLI
+
+Both `apps/web` and `packages/chat` have `components.json` configured for the shadcn CLI:
+
+```bash
+# Add a component to apps/web
+cd apps/web && npx shadcn@latest add <component-name>
+
+# Add a component to packages/chat
+cd packages/chat && npx shadcn@latest add <component-name>
+```
+
+**After running the CLI, always adapt the generated output:**
+1. **Fix import order** — ESLint requires external packages (e.g., `radix-ui`) before `react`. The CLI generates `react` first.
+2. **Replace standard shadcn tokens** with project theme tokens. The project does NOT define standard shadcn color tokens like `bg-popover`, `text-popover-foreground`. Use the project's custom tokens instead:
+   - `bg-popover` → `bg-background-pure`
+   - `text-popover-foreground` → (remove, inherits from parent)
+   - `bg-foreground text-background` → `bg-grey-900 text-white dark:bg-grey-700 dark:text-grey-200`
+   - `border` (bare) → `border border-grey-200 dark:border-grey-700`
+   - `shadow-md` → `shadow-lg` (matching existing dropdown-menu pattern)
+3. **Remove `"use client"`** — not needed in Vite (only relevant for Next.js RSC).
+4. Reference existing components (`dropdown-menu.tsx`, `dialog.tsx`) as the canonical style guide.
+
+#### `apps/web` Config (`apps/web/components.json`)
+- `aliases.utils` → `@/utils/cn` (not the default `@/lib/utils`)
+- `aliases.ui` → `@/components/ui`
+- `style` → `new-york`
+- Components land in `apps/web/src/components/ui/`
+
+#### `packages/chat` Caveat
+
 When adding shadcn/ui components to `packages/chat` (or any shared package), **always replace `@/` path aliases with relative imports** after generation. Vite resolves `@/` using the consuming app's alias, not the package's `tsconfig.json` paths, so `@/lib/utils` will fail at runtime.
 
 ```tsx
