@@ -381,6 +381,17 @@ The platform serves both **German (`de-DE`)** and **Austrian (`de-AT`)** users. 
 - `localizePlaceholders(text, locale)` — replaces `{{partyName}}`, `{{partyNameGenitive}}`, `{{partyNameShort}}`
 - `getDefaultCollectionsForLocale(locale)` — returns chat-facing collection names per locale
 
+### Gender-Neutral Language (Gendern)
+
+All user-facing German text **must use gender-neutral language** with the **Genderstern (`*`)**. This is the standard form for Green Party communications.
+
+#### Rules
+1. **Role labels**: Use `*in` (singular) or `*innen` (plural) — e.g. `Eigentümer*in`, `Bearbeiter*in`, `Betrachter*in`, `Autor*in`
+2. **Articles + role**: When a gendered article (`der/die`) precedes the role, rephrase to avoid it — e.g. "Nur der Ersteller kann..." → "Nur die erstellende Person kann...", "Du bist nicht der Besitzer" → "Du bist nicht Besitzer*in"
+3. **Placeholders/labels**: Prefer neutral constructions — e.g. "Name des Erstellers" → "Name der erstellenden Person"
+4. **Exceptions**: Standard legal text (Impressum, Datenschutz) and compound nouns that aren't role-based (e.g. "Mitgliederversammlung") can remain unchanged
+5. **Email templates**: Permission labels in notification emails must also be gendered (`Eigentümer*in`, not `Eigentümer`)
+
 ### Code Quality
 
 ESLint (flat config), Prettier, Husky pre-commit hooks (lint-staged), Knip for unused code detection.

@@ -308,6 +308,7 @@ ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS share_permission TE
   CHECK (share_permission IN ('viewer', 'editor'));
 ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS share_mode TEXT DEFAULT 'private'
   CHECK (share_mode IN ('private', 'authenticated', 'public'));
+ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS last_edited_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS collaborative_documents_init (
     document_id UUID REFERENCES collaborative_documents(id) ON DELETE CASCADE,
