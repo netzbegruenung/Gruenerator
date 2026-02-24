@@ -81,6 +81,8 @@
     "dev:chat": "turbo run dev --filter=@gruenerator/chat",
     "build:chat": "turbo run build --filter=@gruenerator/chat",
     "dev:documentation": "turbo run dev --filter=@gruenerator/documentation",
-    "build:documentation": "turbo run build --filter=@gruenerator/documentation"
+    "build:documentation": "turbo run build --filter=@gruenerator/documentation",
+    "dev:video": "turbo run dev --filter=@gruenerator/video",
+    "build:video": "turbo run build --filter=@gruenerator/video"
   }
 }

@@ -159,6 +159,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: contentTitleRouter } = await import('./routes/texte/contentTitleRoute.js');
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
+  const { default: videoRouter } = await import('./routes/video/index.js');
 
   // Auth routes - combined TypeScript router
   app.use('/api/auth', authRouter);
@@ -312,6 +313,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     }
   });
 
+  app.use('/api/video', requireAuth, videoRouter);
   app.use('/api/nextcloud', nextcloudApiRouter);
   app.use('/api/sites', sitesRouter);
   app.use('/api/flux/green-edit', fluxImageEditingRoute);
