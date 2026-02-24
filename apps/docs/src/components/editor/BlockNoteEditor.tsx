@@ -15,6 +15,7 @@ import {
   useCreateBlockNote,
   FormattingToolbar,
   FormattingToolbarController,
+  ExperimentalMobileFormattingToolbarController,
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   getFormattingToolbarItems,
@@ -37,6 +38,7 @@ import { DefaultChatTransport } from 'ai';
 import type * as Y from 'yjs';
 
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { useIsTouchDevice } from '@/hooks/use-is-touch-device';
 import { useBlockNoteComments } from '@/hooks/useBlockNoteComments';
 import { useResolveUsers } from '@/hooks/useResolveUsers';
 import { isEditorEmpty } from '@/lib/blockNoteUtils';
@@ -139,6 +141,7 @@ const BlockNoteEditorInner = ({
   onEditorReady,
 }: BlockNoteEditorProps) => {
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
+  const isTouchDevice = useIsTouchDevice();
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
   const [syncTimedOut, setSyncTimedOut] = useState(false);
@@ -326,14 +329,25 @@ const BlockNoteEditorInner = ({
       <ErrorBoundary>
         <BlockNoteView editor={editor} theme="light" formattingToolbar={false} slashMenu={false}>
           <AIMenuController />
-          <FormattingToolbarController
-            formattingToolbar={() => (
-              <FormattingToolbar>
-                {getFormattingToolbarItems()}
-                <AIToolbarButton />
-              </FormattingToolbar>
-            )}
-          />
+          {isTouchDevice ? (
+            <ExperimentalMobileFormattingToolbarController
+              formattingToolbar={() => (
+                <FormattingToolbar>
+                  {getFormattingToolbarItems()}
+                  <AIToolbarButton />
+                </FormattingToolbar>
+              )}
+            />
+          ) : (
+            <FormattingToolbarController
+              formattingToolbar={() => (
+                <FormattingToolbar>
+                  {getFormattingToolbarItems()}
+                  <AIToolbarButton />
+                </FormattingToolbar>
+              )}
+            />
+          )}
           <SuggestionMenuController
             triggerCharacter="/"
             getItems={async (query) =>
