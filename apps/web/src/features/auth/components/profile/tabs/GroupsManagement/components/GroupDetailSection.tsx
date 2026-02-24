@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 
 import {
   useGroups,
+  useGroupSharing,
   useGroupVorlagen,
   useUpdateGroupSettings,
 } from '../../../../../../../features/groups/hooks/useGroups';
@@ -81,6 +82,9 @@ const GroupDetailSection = memo(
       tags: vorlagenTags,
       isLoadingVorlagen,
     } = useGroupVorlagen(groupId, { isActive });
+
+    const { groupContent, isLoadingGroupContent } = useGroupSharing(groupId, { isActive });
+    const sharedDocuments = groupContent?.collaborative_documents || [];
 
     const { updateSettings, isUpdatingSettings } = useUpdateGroupSettings(groupId);
 
@@ -305,6 +309,8 @@ const GroupDetailSection = memo(
           isLoadingVorlagen={isLoadingVorlagen}
           onUpdateTags={handleUpdateTags}
           isUpdatingSettings={isUpdatingSettings}
+          sharedDocuments={sharedDocuments}
+          isLoadingSharedDocuments={isLoadingGroupContent}
         />
       </motion.div>
     );
