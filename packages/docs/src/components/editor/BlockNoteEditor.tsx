@@ -42,9 +42,11 @@ import { getTemplateContent } from '../../lib/templates';
 import { isEditorEmpty } from '../../lib/blockNoteUtils';
 import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
+import { useMentionUsers } from '../../hooks/useMentionUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
 import { useIsTouchDevice } from '../../hooks/useIsTouchDevice';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { Mention } from './Mention';
 import './BlockNoteEditor.css';
 
 export interface BlockNoteEditorProps {
@@ -72,7 +74,10 @@ const EDITOR_DOM_ATTRIBUTES = {
 
 const schema = BlockNoteSchema.create({
   blockSpecs: defaultBlockSpecs,
-  inlineContentSpecs: defaultInlineContentSpecs,
+  inlineContentSpecs: {
+    ...defaultInlineContentSpecs,
+    mention: Mention,
+  },
   styleSpecs: defaultStyleSpecs,
 });
 
@@ -141,6 +146,7 @@ const BlockNoteEditorInner = ({
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
   const isTouchDevice = useIsTouchDevice();
+  const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
 
@@ -232,7 +238,7 @@ const BlockNoteEditorInner = ({
 
     const timeoutId = setTimeout(() => {
       if (onEditorReady) {
-        onEditorReady(editor);
+        onEditorReady(editor as unknown as BlockNoteEditorCore);
       }
     }, 0);
 
@@ -250,7 +256,7 @@ const BlockNoteEditorInner = ({
     }
 
     if (ydoc && fragment) {
-      if (!isEditorEmpty(editor)) {
+      if (!isEditorEmpty(editor as unknown as BlockNoteEditorCore)) {
         hasInitialized.current = true;
         return;
       }
@@ -318,6 +324,10 @@ const BlockNoteEditorInner = ({
                 query
               )
             }
+          />
+          <SuggestionMenuController
+            triggerCharacter="@"
+            getItems={async (query) => getMentionMenuItems(editor, query)}
           />
           {showComments && threadStore && <StableFloatingComposer />}
           {commentsPortalTarget &&
