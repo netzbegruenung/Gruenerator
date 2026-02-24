@@ -84,15 +84,13 @@ jobs:
 
       - name: Setup pnpm
         if: steps.check.outputs.should_run == 'true'
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         if: steps.check.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Setup Rust
