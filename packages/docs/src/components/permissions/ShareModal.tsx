@@ -176,11 +176,11 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const getPermissionLabel = (level: string) => {
     switch (level) {
       case 'owner':
-        return 'Eigentümer';
+        return 'Eigentümer*in';
       case 'editor':
-        return 'Bearbeiter';
+        return 'Bearbeiter*in';
       case 'viewer':
-        return 'Betrachter';
+        return 'Betrachter*in';
       default:
         return level;
     }
@@ -309,12 +309,12 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
                             )
                           }
                           data={[
-                            { value: 'editor', label: 'Bearbeiter' },
-                            { value: 'viewer', label: 'Betrachter' },
+                            { value: 'editor', label: 'Bearbeiter*in' },
+                            { value: 'viewer', label: 'Betrachter*in' },
                           ]}
                           allowDeselect={false}
                           comboboxProps={{ zIndex: 1100 }}
-                          style={{ width: 130 }}
+                          style={{ width: 150 }}
                         />
                         <Button
                           variant="default"

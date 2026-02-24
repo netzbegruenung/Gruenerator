@@ -10,12 +10,14 @@ import shareController from './shareController.js';
 
 const router = Router();
 
-router.use('/', documentController);
+// Specific-path routers must be mounted BEFORE documentController,
+// which has a catch-all /:id parameter route.
+router.use('/', groupShareController);
 router.use('/', permissionsController);
 router.use('/', shareController);
-router.use('/', groupShareController);
 router.use('/', exportController);
 router.use('/', exportToDocsController);
 router.use('/', aiController);
+router.use('/', documentController);
 
 export default router;
