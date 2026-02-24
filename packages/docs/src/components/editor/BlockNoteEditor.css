@@ -135,6 +135,40 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+@media (max-width: 767px) {
+  .bn-suggestion-menu {
+    max-width: calc(100vw - 32px);
+  }
+
+  .bn-mantine .bn-suggestion-menu-item {
+    height: auto;
+    min-height: 44px;
+  }
+
+  .bn-mt-suggestion-menu-item-title,
+  .bn-mt-suggestion-menu-item-subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Mobile formatting toolbar — fixed at viewport bottom by ExperimentalMobileFormattingToolbarController */
+@media (pointer: coarse) {
+  .bn-formatting-toolbar {
+    transition: transform 0.1s ease-out;
+    width: 100%;
+    justify-content: center;
+    border-radius: 0;
+    border-bottom: none;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  [data-theme="dark"] .bn-formatting-toolbar {
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
 /* Link toolbar */
 .bn-link-toolbar {
   border-radius: 6px;
