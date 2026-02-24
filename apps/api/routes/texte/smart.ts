@@ -13,6 +13,16 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('smart_texte');
 
+/**
+ * Maps route-specific required fields to the smart endpoint's `inhalt` input.
+ * Without this, templates like buergeranfragen render with empty {{frage}}.
+ */
+const ROUTE_FIELD_MAP: Record<string, string[]> = {
+  buergeranfragen: ['frage'],
+  rede: ['thema'],
+  leichte_sprache: ['originalText'],
+};
+
 const smartRouter: Router = express.Router();
 
 /**
@@ -52,15 +62,23 @@ smartRouter.post(
         method: detection.method,
       });
 
-      // Build request body for the target route
+      // Build request body — map inhalt to route-specific fields so templates render correctly
+      const mappedFields = ROUTE_FIELD_MAP[detection.route];
+      const fieldOverrides: Record<string, string> = {};
+      if (mappedFields) {
+        for (const field of mappedFields) {
+          fieldOverrides[field] = userPrompt;
+        }
+      }
+
       const targetBody = {
         ...restBody,
         inhalt: userPrompt,
         useWebSearchTool,
         usePrivacyMode,
         provider,
+        ...fieldOverrides,
         ...detection.params,
-        // Add detection metadata
         _detectedType: detection.detectedType,
         _detectionConfidence: detection.confidence,
         _detectionMethod: detection.method,
