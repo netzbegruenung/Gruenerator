@@ -5,4 +5,4 @@ export {
   type LoginProviderId,
 } from './loginProviders';
 
-export { LoginProviders, type LoginProvidersProps } from './LoginProviders';
+export { LoginProviders, type LoginProvidersProps } from './LoginProviderButtons';
