@@ -193,6 +193,15 @@
   opacity: 1;
 }
 
+.document-card-sharing {
+  font-size: 0.6875rem;
+  color: var(--primary-600, #316049);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .document-card-meta {
   font-size: 0.75rem;
   color: var(--font-color-secondary);
@@ -266,6 +275,10 @@
 
 [data-theme='dark'] .document-card-preview-empty {
   color: var(--grey-500);
+}
+
+[data-theme='dark'] .document-card-sharing {
+  color: var(--primary-400, #7aaf95);
 }
 
 [data-theme='dark'] .document-card-preview-miniature {

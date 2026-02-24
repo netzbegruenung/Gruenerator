@@ -1,0 +1,358 @@
+/*
+ * Legacy styles for BaseForm components.
+ *
+ * Retained rules fall into these categories:
+ *   1. Progressive input sizing (descendant selectors on .form-section)
+ *   2. High-contrast / forced-colors overrides
+ *   3. Edit-mode layout (.base-container.edit-mode-*)
+ *   4. Content display typography (.content-display)
+ *   5. Streaming cursor pseudo-element (.is-streaming)
+ *   6. Start-mode textarea & submit overrides
+ *   7. Form field label/help-text/validation styling
+ *   8. Edit-mode form card & enhanced container
+ *   9. Edit-mode tab-header hiding (from TabSelector.css)
+ */
+
+/* Progressive input sizing across large displays */
+@media (min-width: 1280px) {
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 44px;
+    padding: 14px 16px;
+    font-size: 1.05rem;
+  }
+  .form-section textarea {
+    min-height: 120px;
+    padding: 16px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 46px;
+    padding: 15px 18px;
+    font-size: 1.08rem;
+  }
+  .form-section textarea {
+    min-height: 130px;
+    padding: 18px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 48px;
+    padding: 16px 20px;
+    font-size: 1.1rem;
+  }
+  .form-section textarea {
+    min-height: 140px;
+    padding: 20px;
+  }
+  .form-section label {
+    font-size: 1.05rem;
+  }
+}
+
+@media (min-width: 2560px) {
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 52px;
+    padding: 18px 22px;
+    font-size: 1.15rem;
+  }
+  .form-section textarea {
+    min-height: 160px;
+    padding: 22px;
+  }
+  .form-section label {
+    font-size: 1.1rem;
+  }
+}
+
+/* High contrast mode */
+@media (forced-colors: active) {
+  .form-section {
+    background: Canvas;
+    color: CanvasText;
+  }
+}
+
+/* Edit Mode Layout — targets ancestor .base-container compound selectors */
+.base-container.edit-mode-active {
+  gap: 0;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--background-color-pure);
+  box-shadow: none;
+}
+
+.base-container.edit-mode-active .form-section-motion-wrapper {
+  flex: 1;
+  min-width: 320px;
+  background: var(--chat-background);
+  border-right: var(--border-subtle);
+}
+
+.base-container.edit-mode-active .display-section-motion-wrapper,
+.base-container.edit-mode-active .display-section-motion-wrapper.form-visible {
+  flex: 2;
+  background: var(--background-color-pure);
+  padding: var(--spacing-large);
+  position: relative;
+  z-index: 10;
+}
+
+.base-container.edit-mode-active .form-section {
+  position: relative;
+  z-index: 1;
+}
+
+.base-container.edit-mode-focus {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1500;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  background: var(--background-color-pure);
+}
+
+/* Form hidden display centering */
+.display-section-motion-wrapper.form-hidden .display-container {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* No-content column display sizing */
+.base-container.no-content-column .display-section-motion-wrapper .display-container {
+  max-width: 100%;
+}
+
+/* Content display typography */
+.content-display {
+  white-space: normal;
+  font-size: var(--display-font-size);
+  line-height: var(--display-line-height);
+}
+
+.content-display p {
+  margin: 0 0 var(--display-paragraph-spacing) 0;
+}
+
+.content-display p:last-child {
+  margin-bottom: 0;
+}
+
+.content-display h2,
+.content-display h3 {
+  margin: calc(var(--display-paragraph-spacing) * 1.5) 0 calc(var(--display-paragraph-spacing) * 0.5) 0;
+}
+
+.content-display h2:first-child,
+.content-display h3:first-child {
+  margin-top: 0;
+}
+
+/* Streaming cursor */
+.is-streaming .content-display::after {
+  content: '▊';
+  animation: streaming-cursor-blink 0.8s step-end infinite;
+  color: var(--primary-green, #46962b);
+  font-weight: bold;
+}
+
+/* Start mode textarea overrides */
+.form-section--start-mode textarea {
+  display: block;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  padding: var(--spacing-small) var(--spacing-medium);
+  overflow-y: hidden;
+  border: none;
+  background: transparent;
+  min-height: 150px !important;
+}
+
+.form-section--start-mode textarea:focus {
+  outline: none;
+}
+
+.form-section--start-mode .form-inputs__fields {
+  margin-bottom: 0;
+}
+
+.form-section--start-mode .form-section__inputs {
+  flex: none;
+}
+
+/* Start mode submit button (circular) */
+.form-section__extras--start-mode .form-extras__submit-button {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-section__extras--start-mode .form-extras__submit-button .btn-icon {
+  margin: 0;
+}
+
+.form-section__extras--start-mode .form-extras__submit-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Start mode extras example prompts styling */
+.form-section__extras--start-mode .form-extras__examples .example-prompts {
+  margin: 0;
+  gap: var(--spacing-xsmall);
+}
+
+.form-section__extras--start-mode .form-extras__examples .example-prompts__button {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+/* Form field label/help-text/validation */
+.form-section label {
+  display: block;
+  margin-bottom: var(--spacing-small);
+  color: var(--font-color);
+  font-weight: 500;
+}
+
+.form-section .help-text,
+.form-section .subtext,
+.form-section p {
+  color: var(--font-color);
+  font-size: 0.9em;
+  margin-top: var(--spacing-xsmall);
+  line-height: 1.4;
+}
+
+.form-section .inline-validation-message {
+  color: var(--error-red);
+  font-size: 0.85em;
+  margin-top: var(--spacing-xsmall);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .form-section--start-mode textarea {
+    font-size: 1rem;
+    padding: var(--spacing-small);
+    min-height: 100px !important;
+  }
+  .form-section__extras--start-mode .form-extras__row {
+    padding: 0 var(--spacing-xsmall);
+  }
+  .form-section__extras--start-mode .form-extras__examples {
+    display: none;
+  }
+}
+
+/* Edit mode form card */
+.form-card.form-card--editmode {
+  padding: 0 !important;
+  background: var(--chat-background);
+  border: var(--border-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+.form-card--editmode.form-card--large {
+  padding: 0 !important;
+}
+
+.form-card--editmode .form-card__content {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Edit mode enhanced container */
+.form-section__container.edit-mode-enhanced {
+  gap: 0;
+  height: 100%;
+  min-height: 600px;
+}
+
+.form-section__inputs.edit-mode-enhanced {
+  flex: 1;
+  background: var(--chat-background);
+  border-right: var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.form-section__extras.edit-mode-enhanced {
+  flex: 2;
+  background: var(--background-color-pure);
+  padding: var(--spacing-large);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.edit-mode-focus .form-section__container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1500;
+  background: var(--background-color-pure);
+  gap: 0;
+  max-width: none;
+}
+
+/* Start mode large display */
+@media (min-width: 1280px) {
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
+}
+
+/* Edit mode tab-header hiding (from TabSelector.css) */
+body:has(.base-container.edit-mode-active) .tabbed-layout__header {
+  display: none;
+}
+
+body:has(.base-container.edit-mode-active) .tabbed-layout {
+  padding: 0;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  body:has(.universal-edit-form.mobile-chat) .tabbed-layout__header {
+    display: none;
+  }
+
+  body:has(.universal-edit-form.mobile-chat) .tabbed-layout {
+    padding: 0;
+  }
+}

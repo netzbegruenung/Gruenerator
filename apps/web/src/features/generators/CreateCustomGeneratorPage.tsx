@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useForm } from 'react-hook-form';
 
 import FormSection from '../../components/common/Form/BaseForm/FormSection';
-import FormStateProvider from '../../components/common/Form/FormStateProvider';
+import { BaseFormProvider } from '../../components/common/Form/BaseFormContext';
 import FormInput from '../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../components/common/Form/Input/FormTextarea';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
@@ -15,7 +15,6 @@ import GeneratorCreationSuccessScreen from './components/GeneratorCreationSucces
 import GeneratorStartScreen from './components/GeneratorStartScreen';
 import { getCustomGeneratorHelpContent } from './constants/customGeneratorHelpContent';
 import { STEPS } from './constants/steps';
-
 
 import '../../assets/styles/components/custom-generator/create-custom-generator.css';
 import '../../assets/styles/components/custom-generator/field-editor-assistant.css';
@@ -611,14 +610,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
 
     // Otherwise, render the FormSection with the current step
     return (
-      <FormStateProvider
-        initialState={{
-          loading: isGeneratingWithAI,
-          formErrors: { general: error || '' },
-          isFormVisible: true,
-        }}
-        formId="create-custom-generator"
-      >
+      <BaseFormProvider value={{ isStartMode: false }}>
         <FormSection
           title={helpContent?.title || 'Neuen Custom Grünerator erstellen'}
           onSubmit={handleNext}
@@ -637,10 +629,11 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
           defaultValues={INITIAL_GENERATOR_FORM_DATA as unknown as Record<string, unknown>}
           hideExtrasSection={true}
           showSubmitButtonInInputSection={true}
+          loading={isGeneratingWithAI}
         >
           {renderCurrentStep()}
         </FormSection>
-      </FormStateProvider>
+      </BaseFormProvider>
     );
   }
 );

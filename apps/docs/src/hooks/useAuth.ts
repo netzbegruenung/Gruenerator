@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/authStore';
+import { useEffect } from 'react';
+
 import apiClient from '../lib/apiClient';
+import { useAuthStore } from '../stores/authStore';
 
 interface AuthStatusResponse {
   isAuthenticated: boolean;
@@ -10,6 +11,7 @@ interface AuthStatusResponse {
     email?: string;
     display_name?: string;
     avatar_url?: string;
+    avatar_robot_id?: number;
   };
 }
 

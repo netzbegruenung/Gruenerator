@@ -145,34 +145,39 @@ export async function processGraphRequestStreaming(
     const formatting = getFormattingInstructions(config);
     const taskInstructions = getTaskInstructions(config, requestData);
     const outputFormat = getOutputFormat(config, requestData);
+    requestData.partySearchTerm =
+      userLocale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90 Die Grünen';
     const webSearchQuery = buildWebSearchQuery(config, requestData);
 
     // Enrich request (web search, document retrieval, etc.)
-    const enrichedState = await enrichRequest(requestData, {
-      type: routeType,
-      enableUrls: config.features?.urlCrawl !== false,
-      enableWebSearch: !!webSearchQuery,
-      enableDocQnA: config.features?.docQnA !== false,
-      usePrivacyMode: usePrivacyMode || false,
-      useProMode: requestData.useProMode || false,
-      webSearchQuery,
-      systemRole,
-      constraints,
-      formatting,
-      taskInstructions: taskInstructions || null,
-      outputFormat: outputFormat || null,
-      instructions: extractedInstructions || null,
-      knowledgeContent: extractedKnowledgeContent || null,
-      selectedDocumentIds: selectedDocumentIds || [],
-      selectedTextIds: selectedTextIds || [],
-      searchQuery: searchQuery || null,
-      useAutomaticSearch: useAutomaticSearch || false,
-      examples: [],
-      provider,
-      aiWorkerPool: (req as any).app.locals.aiWorkerPool,
-      req,
-      enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
-    });
+    const enrichedState = await enrichRequest(
+      requestData,
+      {
+        type: routeType,
+        enableUrls: config.features?.urlCrawl !== false,
+        enableWebSearch: !!webSearchQuery,
+        enableDocQnA: config.features?.docQnA !== false,
+        usePrivacyMode: usePrivacyMode || false,
+        useProMode: requestData.useProMode || false,
+        webSearchQuery,
+        systemRole,
+        constraints,
+        formatting,
+        taskInstructions: taskInstructions || null,
+        outputFormat: outputFormat || null,
+        instructions: extractedInstructions || null,
+        knowledgeContent: extractedKnowledgeContent || null,
+        selectedDocumentIds: selectedDocumentIds || [],
+        selectedTextIds: selectedTextIds || [],
+        searchQuery: searchQuery || null,
+        useAutomaticSearch: useAutomaticSearch || false,
+        examples: [],
+        provider,
+        aiWorkerPool: (req as any).app.locals.aiWorkerPool,
+        enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
+      },
+      req
+    );
 
     enrichedState.requestFormatted = requestContent;
     if (config.tools) {

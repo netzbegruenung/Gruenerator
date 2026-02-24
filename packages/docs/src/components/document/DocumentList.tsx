@@ -179,6 +179,9 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
                       </Menu.Dropdown>
                     </Menu>
                   </div>
+                  {doc.access_type && doc.access_type !== 'owner' && (
+                    <div className="document-card-sharing">Mit dir geteilt</div>
+                  )}
                   <div className="document-card-meta">
                     {new Date(doc.updated_at).toLocaleDateString('de-DE', {
                       day: '2-digit',

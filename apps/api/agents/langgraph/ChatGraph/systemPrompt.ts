@@ -7,6 +7,9 @@
  * German language guidance.
  */
 
+import { localizePlaceholders } from '../../../services/localization/index.js';
+import { type Locale } from '../../../services/localization/types.js';
+
 import type { ThreadAttachment } from './types.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 
@@ -46,8 +49,10 @@ export function buildDeepAgentSystemPrompt(ctx: SystemPromptContext): string {
   const sections: string[] = [];
   const agentWhitelist = ctx.agentConfig.enabledTools;
 
-  // 1. Agent role (from agentConfig)
-  sections.push(ctx.agentConfig.systemRole);
+  // 1. Agent role (from agentConfig, localized for user's locale)
+  sections.push(
+    localizePlaceholders(ctx.agentConfig.systemRole, (ctx.userLocale as Locale) || 'de-DE')
+  );
 
   // 2. Current date for temporal awareness
   const today = new Date().toLocaleDateString('de-DE', {

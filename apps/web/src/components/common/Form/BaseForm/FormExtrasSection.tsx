@@ -1,11 +1,10 @@
-import React, { useCallback, memo, ReactNode } from 'react';
+import React, { useCallback, memo, type ReactNode } from 'react';
 import { FiSend } from 'react-icons/fi';
 
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import FeatureIcons from '../../FeatureIcons';
 import FeatureToggle from '../../FeatureToggle';
 import SubmitButton from '../../SubmitButton';
-import { useFormStateSelector } from '../FormStateProvider';
 import useResponsive from '../hooks/useResponsive';
 
 import ExamplePrompts from './ExamplePrompts';
@@ -17,7 +16,8 @@ import type {
   TabIndexConfig,
   ExamplePrompt,
 } from '@/types/baseform';
-import '../../../../assets/styles/components/ui/FormExtras.css';
+
+import { cn } from '@/utils/cn';
 
 interface FeatureIconsTabIndex {
   webSearch?: number;
@@ -25,7 +25,14 @@ interface FeatureIconsTabIndex {
   attachment?: number;
 }
 
-const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
+interface ExtendedFormExtrasSectionProps extends FormExtrasSectionProps {
+  loading?: boolean;
+  success?: boolean;
+  useFeatureIcons?: boolean;
+  showAgentMode?: boolean;
+}
+
+const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
   balancedModeToggle,
   interactiveModeToggle,
   useInteractiveModeToggle,
@@ -59,20 +66,13 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
   isStreaming = false,
   streamingMessage,
   onAbort,
+  // Props previously from store
+  loading,
+  success,
+  useFeatureIcons = false,
+  showAgentMode = false,
 }) => {
   const { isMobileView } = useResponsive();
-
-  const loading = useFormStateSelector((state) => state.loading) ?? undefined;
-  const success = useFormStateSelector((state) => state.success) ?? undefined;
-  const useInteractiveModeToggleStore = useFormStateSelector(
-    (state) => state.interactiveModeConfig?.enabled || false
-  );
-  const useFeatureIcons = useFormStateSelector((state) => state.useFeatureIcons);
-  const storeAttachedFiles = useFormStateSelector((state) => state.attachedFiles) as AttachedFile[];
-
-  const finalAttachedFiles = (
-    attachedFiles.length > 0 ? attachedFiles : storeAttachedFiles
-  ) as AttachedFile[];
 
   const currentGeneratedContent = useGeneratedTextStore(
     (state) => state.generatedTexts[componentName] || ''
@@ -105,83 +105,22 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
     : undefined;
 
   const handleInteractiveMode =
-    interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined;
+    interactiveModeToggle && useInteractiveModeToggle ? handleInteractiveModeClick : undefined;
+
+  const finalAttachedFiles = attachedFiles as AttachedFile[];
 
   return (
     <div
-      className={`form-section__extras ${isStartMode ? 'form-section__extras--start-mode' : ''}`}
+      className={cn(
+        'form-section__extras flex-1 min-w-0 rounded-sm self-start max-md:self-stretch',
+        isStartMode && 'form-section__extras--start-mode self-stretch flex-none w-full pt-sm mt-0'
+      )}
     >
-      <div className="form-extras__content">
+      <div className="form-extras__content flex flex-col gap-md">
         {isStartMode ? (
-          <>
-            <div className="form-extras__row">
-              <div className="form-extras__left">
-                {useFeatureIcons && (
-                  <FeatureIcons
-                    onBalancedModeClick={handleBalancedModeClick}
-                    onAttachmentClick={onAttachmentClick}
-                    onRemoveFile={() => onRemoveFile?.(0)}
-                    onInteractiveModeClick={handleInteractiveMode}
-                    interactiveModeActive={
-                      interactiveModeToggle ? interactiveModeToggle.isActive : false
-                    }
-                    attachedFiles={finalAttachedFiles}
-                    className="form-extras__feature-icons"
-                    tabIndex={featureIconsTabIndex}
-                    onPrivacyInfoClick={onPrivacyInfoClick}
-                    onWebSearchInfoClick={onWebSearchInfoClick}
-                    noBorder={true}
-                    hideLoginPrompt={true}
-                  />
-                )}
-                {examplePrompts.length > 0 && (
-                  <div className="form-extras__examples">
-                    <ExamplePrompts
-                      prompts={examplePrompts}
-                      onPromptClick={onExamplePromptClick}
-                      selectedPlatforms={selectedPlatforms}
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="form-extras__right">
-                {showSubmitButton && (
-                  <SubmitButton
-                    onClick={(e: React.MouseEvent) => {
-                      e.preventDefault();
-                      onSubmit?.();
-                    }}
-                    loading={loading}
-                    success={success}
-                    text={
-                      isMultiStep
-                        ? nextButtonText || 'Weiter'
-                        : (submitButtonProps as Record<string, string>)?.defaultText ||
-                          'Grünerieren'
-                    }
-                    icon={<FiSend />}
-                    iconOnly={true}
-                    className="form-extras__submit-button btn-icon btn-primary"
-                    ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
-                    type="submit"
-                    tabIndex={submitButtonTabIndex}
-                    isStreaming={isStreaming}
-                    streamingMessage={streamingMessage}
-                    onAbort={onAbort}
-                    {...submitButtonProps}
-                  />
-                )}
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            {firstExtrasChildren && (
-              <div className="form-extras__item form-extras__first">{firstExtrasChildren}</div>
-            )}
-
-            {useFeatureIcons && (
-              <div className="form-extras__item">
+          <div className="flex items-center justify-between w-full gap-sm px-xs">
+            <div className="flex items-center gap-sm flex-1 min-w-0">
+              {useFeatureIcons && (
                 <FeatureIcons
                   onBalancedModeClick={handleBalancedModeClick}
                   onAttachmentClick={onAttachmentClick}
@@ -191,36 +130,27 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                     interactiveModeToggle ? interactiveModeToggle.isActive : false
                   }
                   attachedFiles={finalAttachedFiles}
-                  className="form-extras__feature-icons"
+                  className="w-auto gap-0"
                   tabIndex={featureIconsTabIndex}
                   onPrivacyInfoClick={onPrivacyInfoClick}
                   onWebSearchInfoClick={onWebSearchInfoClick}
-                  noBorder={false}
+                  noBorder={true}
+                  hideLoginPrompt={true}
+                  showAgentMode={showAgentMode}
                 />
-              </div>
-            )}
-
-            {formNotice && (
-              <div className="form-extras__item form-extras__notice">{formNotice}</div>
-            )}
-
-            {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
-              <div className="form-extras__item">
-                <FeatureToggle
-                  isActive={interactiveModeToggle.isActive}
-                  onToggle={interactiveModeToggle.onToggle}
-                  label={interactiveModeToggle.label}
-                  icon={interactiveModeToggle.icon as React.ComponentType}
-                  description={interactiveModeToggle.description}
-                  className="form-feature-toggle"
-                />
-              </div>
-            )}
-
-            {children && <div className="form-extras__item form-extras__custom">{children}</div>}
-
-            {showSubmitButton && (
-              <div className="form-extras__item form-extras__submit">
+              )}
+              {examplePrompts.length > 0 && (
+                <div className="flex items-center max-md:hidden">
+                  <ExamplePrompts
+                    prompts={examplePrompts}
+                    onPromptClick={onExamplePromptClick}
+                    selectedPlatforms={selectedPlatforms}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-xs shrink-0">
+              {showSubmitButton && (
                 <SubmitButton
                   onClick={(e: React.MouseEvent) => {
                     e.preventDefault();
@@ -233,7 +163,79 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                       ? nextButtonText || 'Weiter'
                       : (submitButtonProps as Record<string, string>)?.defaultText || 'Grünerieren'
                   }
-                  className="form-extras__submit-button button-primary"
+                  icon={<FiSend />}
+                  iconOnly={true}
+                  className="size-11 min-w-11 rounded-full p-0 flex items-center justify-center btn-icon btn-primary"
+                  ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
+                  type="submit"
+                  tabIndex={submitButtonTabIndex}
+                  isStreaming={isStreaming}
+                  streamingMessage={streamingMessage}
+                  onAbort={onAbort}
+                  {...submitButtonProps}
+                />
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {firstExtrasChildren && (
+              <div className="[&>*:not(:last-child)]:mb-md">{firstExtrasChildren}</div>
+            )}
+
+            {useFeatureIcons && (
+              <div>
+                <FeatureIcons
+                  onBalancedModeClick={handleBalancedModeClick}
+                  onAttachmentClick={onAttachmentClick}
+                  onRemoveFile={() => onRemoveFile?.(0)}
+                  onInteractiveModeClick={handleInteractiveMode}
+                  interactiveModeActive={
+                    interactiveModeToggle ? interactiveModeToggle.isActive : false
+                  }
+                  attachedFiles={finalAttachedFiles}
+                  className="animate-in fade-in duration-200"
+                  tabIndex={featureIconsTabIndex}
+                  onPrivacyInfoClick={onPrivacyInfoClick}
+                  onWebSearchInfoClick={onWebSearchInfoClick}
+                  noBorder={false}
+                  showAgentMode={showAgentMode}
+                />
+              </div>
+            )}
+
+            {formNotice && <div className="rounded-sm">{formNotice}</div>}
+
+            {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
+              <div>
+                <FeatureToggle
+                  isActive={interactiveModeToggle.isActive}
+                  onToggle={interactiveModeToggle.onToggle}
+                  label={interactiveModeToggle.label}
+                  icon={interactiveModeToggle.icon as React.ComponentType}
+                  description={interactiveModeToggle.description}
+                  className="form-feature-toggle"
+                />
+              </div>
+            )}
+
+            {children && <div className="p-0">{children}</div>}
+
+            {showSubmitButton && (
+              <div className="p-0 mt-md">
+                <SubmitButton
+                  onClick={(e: React.MouseEvent) => {
+                    e.preventDefault();
+                    onSubmit?.();
+                  }}
+                  loading={loading}
+                  success={success}
+                  text={
+                    isMultiStep
+                      ? nextButtonText || 'Weiter'
+                      : (submitButtonProps as Record<string, string>)?.defaultText || 'Grünerieren'
+                  }
+                  className="w-full button-primary"
                   ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
                   type="submit"
                   tabIndex={submitButtonTabIndex}

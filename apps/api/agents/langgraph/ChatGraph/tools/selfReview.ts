@@ -11,6 +11,8 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
+import { localizePlaceholders } from '../../../../services/localization/index.js';
+import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import { formatCriteriaForPrompt, getReviewCriteria } from './reviewCriteria.js';
@@ -19,7 +21,7 @@ import type { ToolDependencies } from './registry.js';
 
 const log = createLogger('Tool:SelfReview');
 
-const REVIEW_SYSTEM_PROMPT = `Du bist ein strenger Qualitätsprüfer für politische Texte von Bündnis 90/Die Grünen.
+const REVIEW_SYSTEM_PROMPT = `Du bist ein strenger Qualitätsprüfer für politische Texte von {{partyName}}.
 Bewerte den folgenden Entwurf anhand der gegebenen Kriterien.
 
 Antworte AUSSCHLIESSLICH im folgenden JSON-Format:
@@ -69,11 +71,15 @@ export function createSelfReviewTool(deps: ToolDependencies): DynamicStructuredT
       ].join('\n');
 
       try {
+        const localizedPrompt = localizePlaceholders(
+          REVIEW_SYSTEM_PROMPT,
+          (deps.userLocale as Locale) || 'de-DE'
+        );
         const response = await deps.aiWorkerPool.processRequest(
           {
             type: 'self_review',
             provider: 'mistral',
-            systemPrompt: REVIEW_SYSTEM_PROMPT,
+            systemPrompt: localizedPrompt,
             messages: [{ role: 'user', content: userPrompt }],
             options: {
               model: 'mistral-small-latest',
@@ -82,7 +88,7 @@ export function createSelfReviewTool(deps: ToolDependencies): DynamicStructuredT
               response_format: { type: 'json_object' },
             },
           },
-          null,
+          null
         );
 
         const parsed = JSON.parse(response.content || '{}');
@@ -94,7 +100,9 @@ export function createSelfReviewTool(deps: ToolDependencies): DynamicStructuredT
         return JSON.stringify({
           score: 3,
           checks: [],
-          suggestions: ['Qualitätsprüfung konnte nicht durchgeführt werden. Bitte manuell überprüfen.'],
+          suggestions: [
+            'Qualitätsprüfung konnte nicht durchgeführt werden. Bitte manuell überprüfen.',
+          ],
         });
       }
     },

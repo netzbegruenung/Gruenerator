@@ -38,12 +38,16 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ error, onDismiss }) => {
   const errorMessage = getErrorMessage(error);
 
   return (
-    <div role="alert" aria-live="assertive" className="form-error-message">
-      <span className="error-message-text">{errorMessage}</span>
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="form-error-message text-error bg-error/10 border border-error rounded-sm py-sm px-md my-md font-medium flex items-center justify-between gap-sm transition-all dark:bg-[rgba(211,47,47,0.15)] dark:border-[rgba(211,47,47,0.6)]"
+    >
+      <span className="flex-1 leading-[1.4]">{errorMessage}</span>
       {onDismiss && (
         <button
           type="button"
-          className="error-dismiss-button"
+          className="bg-transparent border-none text-error cursor-pointer p-xxs rounded-sm flex items-center justify-center shrink-0 opacity-70 transition-all hover:opacity-100 hover:bg-error/10 hover:scale-105 active:scale-95 focus:outline-2 focus:outline-error focus:outline-offset-1 dark:hover:bg-[rgba(211,47,47,0.2)]"
           onClick={onDismiss}
           aria-label="Fehlermeldung schließen"
           title="Fehlermeldung schließen"

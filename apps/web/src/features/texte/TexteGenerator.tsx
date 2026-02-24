@@ -10,7 +10,8 @@ import { useProfileData } from '../../stores/profileStore';
 
 import TabSelector from './components/TabSelector';
 import { type TabId, type UniversalSubType } from './types';
-import './components/TabSelector.css';
+
+import { cn } from '@/utils/cn';
 
 // Tabs that are accessible without login
 const PUBLIC_TABS: TabId[] = ['presse-social'];
@@ -176,22 +177,6 @@ const TexteGenerator: React.FC = () => {
     [navigate]
   );
 
-  const wrapperClassName = useMemo(
-    () =>
-      ['tabbed-layout', hasGeneratedContent && 'tabbed-layout--full-width']
-        .filter(Boolean)
-        .join(' '),
-    [hasGeneratedContent]
-  );
-
-  const headerClassName = useMemo(
-    () =>
-      ['tabbed-layout__header', hasGeneratedContent && 'tabbed-layout__header--compact']
-        .filter(Boolean)
-        .join(' '),
-    [hasGeneratedContent]
-  );
-
   if (redirectTo) {
     return <Navigate to={redirectTo} replace />;
   }
@@ -220,10 +205,24 @@ const TexteGenerator: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <div className={wrapperClassName}>
-        <header className={headerClassName}>
+      <div
+        className={cn(
+          'tabbed-layout w-full flex flex-col items-center overflow-x-hidden pt-2xl',
+          'max-md:px-md max-md:pt-lg',
+          'max-[400px]:px-sm max-[400px]:pt-md'
+        )}
+      >
+        <header
+          className={cn(
+            'tabbed-layout__header w-full max-w-[800px] flex flex-col items-center gap-md px-md pb-lg box-border',
+            'xl:max-w-[1000px] 3xl:max-w-[1100px]',
+            'max-md:px-sm max-md:pb-md max-md:gap-sm',
+            'max-[400px]:px-xs max-[400px]:pb-sm',
+            hasGeneratedContent && 'pb-sm gap-0 max-md:pb-xs max-[400px]:pb-xxs'
+          )}
+        >
           {!hasGeneratedContent && (
-            <h1 className="texte-generator-title">
+            <h1 className="m-0 mb-lg text-[2.2rem] font-semibold text-foreground text-center max-md:text-[1.8rem] max-[400px]:text-[1.5rem]">
               Was möchtest du heute grünerieren{firstName ? `, ${firstName}` : ''}?
             </h1>
           )}
@@ -240,7 +239,12 @@ const TexteGenerator: React.FC = () => {
           role="tabpanel"
           aria-labelledby={`tab-${activeTab}`}
           tabIndex={0}
-          className="tabbed-layout__content"
+          className={cn(
+            'w-full max-w-[800px] mx-auto grid grid-cols-1 grid-rows-1',
+            'xl:max-w-[1000px] 3xl:max-w-[1100px]',
+            'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-[-2px] focus-visible:rounded-lg',
+            hasGeneratedContent && 'max-w-full px-lg'
+          )}
         >
           {showLoginRequired ? (
             <LoginRequired

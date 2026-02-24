@@ -38,6 +38,7 @@
 .editor-fab.active {
   background: var(--secondary-100, #D5E1DC);
   border-color: var(--secondary-400, #85A899);
+  z-index: 250;
 }
 
 .editor-fab svg {

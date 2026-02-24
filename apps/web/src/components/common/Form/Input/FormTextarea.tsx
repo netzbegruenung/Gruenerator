@@ -6,7 +6,7 @@ import useDebounce from '../../../../components/hooks/useDebounce';
 import { COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 import { detectUrls } from '../../../../utils/urlDetection';
-import { useFormStateSelector } from '../FormStateProvider';
+import { useBaseFormContext } from '../BaseFormContext';
 
 import FormFieldWrapper from './FormFieldWrapper';
 import TextareaWithAutocomplete from './TextareaWithAutocomplete';
@@ -76,8 +76,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   ...rest
 }) => {
   // All hooks must be called unconditionally at the top
-  const formState = useFormStateSelector((state) => state);
-  const storeIsStartMode = formState?.isStartMode ?? false;
+  const { isStartMode: storeIsStartMode } = useBaseFormContext();
   const minRows = storeIsStartMode ? 2 : minRowsProp;
 
   // Simple form store hooks - called unconditionally
@@ -86,7 +85,13 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   const simpleFormValue = (rawValue as string) ?? defaultValue;
 
   const textareaId = `form-textarea-${name}`;
-  const textareaClassName = `form-textarea ${className}`.trim();
+  const textareaClassName = [
+    'form-textarea',
+    className,
+    storeIsStartMode && 'bg-transparent border-none text-[1.1rem] leading-[1.6] focus:outline-none',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const [detectedUrls, setDetectedUrls] = useState<string[]>([]);
   const [fieldValue, setFieldValue] = useState('');

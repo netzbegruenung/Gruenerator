@@ -46,7 +46,9 @@ class AIWorkerPool {
       ? path.join(__dirname, 'aiWorker.js') // Already in dist/workers/
       : path.join(__dirname, '..', 'dist', 'workers', 'aiWorker.js'); // From workers/ to dist/workers/
 
-    const worker = new Worker(workerPath);
+    const worker = new Worker(workerPath, {
+      execArgv: [],
+    });
 
     worker.on('message', (message: WorkerMessage) => {
       this.handleWorkerMessage(index, message);

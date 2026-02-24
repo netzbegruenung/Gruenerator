@@ -18,6 +18,7 @@ export interface Document {
   share_permission?: 'viewer' | 'editor';
   permissions: Record<string, { level: string; granted_at: string }>;
   metadata?: Record<string, unknown>;
+  access_type?: 'owner' | 'direct' | 'group' | 'public';
 }
 
 interface DocumentStore {

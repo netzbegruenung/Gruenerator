@@ -1,6 +1,10 @@
 import { type Router, type Request, type Response } from 'express';
 
 import imagePickerService from '../../services/image/ImageSelectionService.js';
+import {
+  extractLocaleFromRequest,
+  localizePlaceholders,
+} from '../../services/localization/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -35,7 +39,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
     log.debug('[claude_website] Starting AI Worker request');
 
-    const systemPrompt = `Du bist ein Spezialist für politische Kommunikation und erstellst Landing-Page-Inhalte für Politiker*innen von Bündnis 90/Die Grünen.
+    const locale = extractLocaleFromRequest(req);
+    const systemPrompt = localizePlaceholders(
+      `Du bist ein Spezialist für politische Kommunikation und erstellst Landing-Page-Inhalte für Politiker*innen von {{partyName}}.
 
 Deine Aufgabe: Generiere eine vollständige Landing-Page-Struktur als JSON basierend auf der Beschreibung der Person.
 
@@ -98,7 +104,9 @@ Wichtige Hinweise:
 - Die Texte sollen motivierend und aktivierend sein
 - Verwende konkrete Beispiele aus der Beschreibung der Person
 - Der about.content sollte Absätze durch Leerzeilen trennen (kein HTML)
-- Stelle sicher, dass das JSON valide ist`;
+- Stelle sicher, dass das JSON valide ist`,
+      locale
+    );
 
     const userPrompt = `Erstelle eine professionelle Landing-Page für folgende Person:
 

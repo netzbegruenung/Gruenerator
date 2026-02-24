@@ -31,7 +31,7 @@ interface ShareModalProps {
 type ShareMode = 'private' | 'authenticated' | 'public';
 
 const SHARE_MODE_OPTIONS: { value: ShareMode; label: string; description: string }[] = [
-  { value: 'private', label: 'Privat', description: 'Nur eingeladene Personen haben Zugriff' },
+  // { value: 'private', label: 'Privat', description: 'Nur eingeladene Personen haben Zugriff' },
   {
     value: 'authenticated',
     label: 'Mit Anmeldung',
@@ -52,7 +52,7 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     is_public: false,
     share_permission: 'editor',
-    share_mode: 'private',
+    share_mode: 'authenticated',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +79,7 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
       setShareSettings({
         is_public: data.is_public,
         share_permission: data.share_permission || 'editor',
-        share_mode: data.share_mode || (data.is_public ? 'public' : 'private'),
+        share_mode: data.share_mode || (data.is_public ? 'public' : 'authenticated'),
       });
     } catch (err) {
       console.error('Failed to fetch share settings:', err);
@@ -213,7 +213,7 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
               value={shareSettings.share_mode}
               onChange={(val) => val && changeShareMode(val as ShareMode)}
               data={[
-                { value: 'private', label: 'Privat' },
+                // { value: 'private', label: 'Privat' },
                 { value: 'authenticated', label: 'Mit Anmeldung' },
                 { value: 'public', label: 'Öffentlich' },
               ]}

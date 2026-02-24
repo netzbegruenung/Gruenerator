@@ -7,6 +7,8 @@ import SubmitButton from '../../SubmitButton';
 
 import type { FormInputSectionProps, PlatformOption, FormControl } from '@/types/baseform';
 
+import { cn } from '@/utils/cn';
+
 const hasFormErrors = (formErrors: Record<string, string> = {}): boolean =>
   Object.keys(formErrors).length > 0;
 
@@ -93,15 +95,12 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(
     };
 
     return (
-      <div
-        className={`form-section__inputs ${isStartMode ? 'form-section__inputs--start-mode' : ''}`}
-        ref={ref}
-      >
-        <div className="form-inputs__content">
-          {inputHeaderContent && <div className="form-inputs__header">{inputHeaderContent}</div>}
-          <div className={`form-inputs__fields ${formContentClasses}`}>
+      <div className={cn('flex-[2] min-w-0 min-h-0', isStartMode && 'flex-none')} ref={ref}>
+        <div className="flex-1 flex flex-col min-h-0">
+          {inputHeaderContent && <div className="mb-sm">{inputHeaderContent}</div>}
+          <div className={cn('flex-1 mb-lg min-h-0', formContentClasses)}>
             {enablePlatformSelector && useModernForm && platformOptions.length > 0 && (
-              <div className="form-inputs__platform-selector">
+              <div>
                 <PlatformSelector
                   name="platforms"
                   control={(formControl as FormControl)?.control || modernForm.control}
@@ -116,7 +115,7 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(
             )}
 
             {showImageUpload && (
-              <div className="form-inputs__image-upload">
+              <div>
                 <FileUpload
                   handleChange={(file: File | null) => onImageChange?.(file)}
                   allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
@@ -131,9 +130,19 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(
           </div>
 
           {(isMultiStep && showBackButton) || showSubmitButton ? (
-            <div className={`form-inputs__buttons ${buttonContainerClasses}`}>
+            <div
+              className={cn(
+                'flex gap-md justify-end items-center pt-md border-t border-grey-200 dark:border-grey-700 mt-auto',
+                'max-md:flex-col max-md:gap-sm',
+                buttonContainerClasses
+              )}
+            >
               {isMultiStep && showBackButton && (
-                <button type="button" onClick={onBack} className="form-inputs__back-button">
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="bg-transparent border-2 border-[var(--interactive-accent-color)] text-[var(--interactive-accent-color)] px-lg py-sm rounded-sm text-[0.9em] cursor-pointer transition-all duration-250 hover:bg-[var(--interactive-accent-color)] hover:text-background-pure focus:outline-2 focus:outline-[var(--interactive-accent-color)] focus:outline-offset-2 max-md:w-full max-md:text-center"
+                >
                   Zurück
                 </button>
               )}

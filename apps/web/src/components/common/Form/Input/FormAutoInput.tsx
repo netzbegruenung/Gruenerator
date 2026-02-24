@@ -8,7 +8,7 @@ import {
 import TextareaAutosize from 'react-textarea-autosize';
 
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
-import { useFormStateSelector } from '../FormStateProvider';
+import { useBaseFormContext } from '../BaseFormContext';
 
 import FormFieldWrapper from './FormFieldWrapper';
 
@@ -122,8 +122,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
   ...rest
 }: FormAutoInputProps<T>) {
   // All hooks must be called unconditionally at the top
-  const formState = useFormStateSelector((state) => state);
-  const storeIsStartMode = formState?.isStartMode ?? false;
+  const { isStartMode: storeIsStartMode } = useBaseFormContext();
 
   // Simple form store hooks - called unconditionally
   const rawValue = useSimpleFormStore((state) => state.fields[String(name)]);

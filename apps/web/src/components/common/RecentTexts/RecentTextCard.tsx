@@ -45,7 +45,7 @@ const RecentTextCard: React.FC<RecentTextCardProps> = ({ text, onSelect, onDelet
 
   return (
     <article
-      className="form-card form-card--small recent-card"
+      className="form-card recent-card bg-[var(--card-background,var(--background-color-alt))] border border-[var(--card-border,var(--border-subtle))] rounded-md p-md shadow-sm transition-all duration-250 overflow-hidden forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace]"
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
       role="button"

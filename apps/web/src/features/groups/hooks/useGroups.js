@@ -775,6 +775,76 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
 };
 
 /**
+ * Hook for fetching group Vorlagen (tag-based template matching)
+ */
+export const useGroupVorlagen = (groupId, { isActive } = {}) => {
+  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
+
+  const vorlagenQueryKey = ['groupVorlagen', groupId];
+
+  const fetchVorlagenFn = async () => {
+    if (!user?.id || !groupId) {
+      throw new Error('User not authenticated or group ID missing');
+    }
+
+    const response = await apiClient.get(`/auth/groups/${groupId}/vorlagen`);
+    return response.data;
+  };
+
+  const query = useQuery({
+    queryKey: vorlagenQueryKey,
+    queryFn: fetchVorlagenFn,
+    enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading && isActive,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
+    retry: (failureCount) => failureCount < 2,
+  });
+
+  return {
+    vorlagen: query.data?.vorlagen || [],
+    tags: query.data?.tags || [],
+    isLoadingVorlagen: query.isPending,
+    isFetchingVorlagen: query.isFetching,
+    refetchVorlagen: query.refetch,
+  };
+};
+
+/**
+ * Hook for updating group settings (e.g. templateTags)
+ */
+export const useUpdateGroupSettings = (groupId) => {
+  const { user } = useOptimizedAuth();
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async (settings) => {
+      if (!user?.id || !groupId) {
+        throw new Error('User not authenticated or group ID missing');
+      }
+
+      const response = await apiClient.put(`/auth/groups/${groupId}/info`, { settings });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
+      queryClient.invalidateQueries({ queryKey: ['groupVorlagen', groupId] });
+    },
+  });
+
+  return {
+    updateSettings: (settings, options = {}) => {
+      mutation.mutate(settings, {
+        onSuccess: (result) => options.onSuccess?.(result),
+        onError: (error) => options.onError?.(error),
+      });
+    },
+    isUpdatingSettings: mutation.isPending,
+  };
+};
+
+/**
  * Helper function for group initials (moved from GroupsManagementTab)
  */
 export const getGroupInitials = (groupName) => {
