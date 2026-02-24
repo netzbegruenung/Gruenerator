@@ -532,3 +532,22 @@
   background: var(--grey-600, #4b5563);
 }
 
+/* ============================================
+   @Mention Badge Styles
+   ============================================ */
+
+.bn-mention {
+  background-color: var(--secondary-100, #D5E1DC);
+  color: var(--secondary-800, #31453C);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+}
+
+[data-theme="dark"] .bn-mention {
+  background-color: var(--secondary-800, #31453C);
+  color: var(--secondary-200, #B5CEC3);
+}
+
