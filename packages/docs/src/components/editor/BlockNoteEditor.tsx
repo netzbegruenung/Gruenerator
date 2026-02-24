@@ -11,6 +11,7 @@ import { CommentsExtension } from '@blocknote/core/comments';
 import { de } from '@blocknote/core/locales';
 import {
   useCreateBlockNote,
+  ExperimentalMobileFormattingToolbarController,
   FormattingToolbar,
   FormattingToolbarController,
   SuggestionMenuController,
@@ -42,6 +43,7 @@ import { isEditorEmpty } from '../../lib/blockNoteUtils';
 import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
+import { useIsTouchDevice } from '../../hooks/useIsTouchDevice';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import './BlockNoteEditor.css';
 
@@ -138,6 +140,7 @@ const BlockNoteEditorInner = ({
 }: BlockNoteEditorProps) => {
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
+  const isTouchDevice = useIsTouchDevice();
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
 
@@ -288,14 +291,25 @@ const BlockNoteEditorInner = ({
       <ErrorBoundary>
         <BlockNoteView editor={editor} theme="light" formattingToolbar={false} slashMenu={false}>
           <AIMenuController />
-          <FormattingToolbarController
-            formattingToolbar={() => (
-              <FormattingToolbar>
-                {getFormattingToolbarItems()}
-                <AIToolbarButton />
-              </FormattingToolbar>
-            )}
-          />
+          {isTouchDevice ? (
+            <ExperimentalMobileFormattingToolbarController
+              formattingToolbar={() => (
+                <FormattingToolbar>
+                  {getFormattingToolbarItems()}
+                  <AIToolbarButton />
+                </FormattingToolbar>
+              )}
+            />
+          ) : (
+            <FormattingToolbarController
+              formattingToolbar={() => (
+                <FormattingToolbar>
+                  {getFormattingToolbarItems()}
+                  <AIToolbarButton />
+                </FormattingToolbar>
+              )}
+            />
+          )}
           <SuggestionMenuController
             triggerCharacter="/"
             getItems={async (query) =>
@@ -306,7 +320,9 @@ const BlockNoteEditorInner = ({
             }
           />
           {showComments && threadStore && <StableFloatingComposer />}
-          {commentsPortalTarget && showComments && threadStore &&
+          {commentsPortalTarget &&
+            showComments &&
+            threadStore &&
             createPortal(<ThreadsSidebar filter="all" />, commentsPortalTarget)}
         </BlockNoteView>
       </ErrorBoundary>
