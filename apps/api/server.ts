@@ -529,7 +529,6 @@ async function startWorker(): Promise<void> {
   // Request timeout
   app.use((req: Request, res: Response, next: NextFunction) => {
     req.setTimeout(config.requestTimeout);
-    res.setTimeout(config.requestTimeout);
     next();
   });
 

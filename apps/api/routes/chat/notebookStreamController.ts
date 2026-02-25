@@ -54,6 +54,7 @@ interface NotebookStreamRequest {
  * Send SSE event helper
  */
 function sendSSE(res: express.Response, event: string, data: any): void {
+  if (res.writableEnded || res.destroyed) return;
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
@@ -69,6 +70,11 @@ router.post('/', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
+
+  const abortController = new AbortController();
+  req.on('close', () => {
+    abortController.abort();
+  });
 
   try {
     const { messages, collectionId, collectionIds, filters, provider, model } =
@@ -104,6 +110,8 @@ router.post('/', async (req, res) => {
     const question = lastUserMessage.content;
 
     // Get search context (vector search + context building)
+    sendSSE(res, 'search_start', { message: 'Suche in Dokumenten...' });
+
     let searchContext: SearchContext | null;
     try {
       searchContext = await notebookQAService.getSearchContext({
@@ -128,6 +136,13 @@ router.post('/', async (req, res) => {
       res.end();
       return;
     }
+
+    sendSSE(res, 'search_complete', {
+      message: searchContext
+        ? `${searchContext.sortedResults.length} relevante Stellen gefunden`
+        : '0 relevante Stellen gefunden',
+      resultCount: searchContext?.sortedResults.length ?? 0,
+    });
 
     // Handle no results case
     if (!searchContext) {
@@ -179,19 +194,28 @@ router.post('/', async (req, res) => {
       messages: aiMessages,
       maxOutputTokens: 2500,
       temperature: 0.2,
+      abortSignal: abortController.signal,
     });
+
+    sendSSE(res, 'response_start', { message: 'Generiere Antwort...' });
 
     // Process the text stream
     let fullText = '';
 
     try {
       for await (const chunk of result.textStream) {
+        if (abortController.signal.aborted) break;
         fullText += chunk;
         sendSSE(res, 'text_delta', { text: chunk });
       }
     } catch (streamError: any) {
+      if (abortController.signal.aborted) {
+        log.debug('Notebook stream aborted by client disconnect');
+        res.end();
+        return;
+      }
       log.error('Stream error:', streamError);
-      sendSSE(res, 'error', { error: 'Stream interrupted' });
+      sendSSE(res, 'error', { error: streamError.message || 'Stream interrupted' });
       res.end();
       return;
     }
