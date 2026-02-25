@@ -18,9 +18,6 @@ import useNotebookStore from '../stores/notebookStore';
 import { NotebookAssistantMessage } from './NotebookAssistantMessage';
 import { NotebookStartPage } from './NotebookStartPage';
 
-import '../../../assets/styles/features/notebook/notebook-chat.css';
-import '../../../components/common/Chat/ChatStartPage.css';
-
 interface NotebookCollection {
   id: string;
   name: string;
@@ -70,33 +67,6 @@ interface NotebookPageContentProps {
 interface NotebookPageProps {
   configId: string;
 }
-
-const SourceToggles = ({
-  collections,
-  selectedIds,
-  onToggle,
-}: {
-  collections: NotebookCollection[];
-  selectedIds: string[];
-  onToggle: (id: string) => void;
-}) => (
-  <div className="flex flex-wrap gap-2 px-4 py-2">
-    {collections.map((c) => (
-      <button
-        key={c.id}
-        type="button"
-        onClick={() => onToggle(c.id)}
-        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-          selectedIds.includes(c.id)
-            ? 'bg-primary text-white'
-            : 'bg-surface-secondary text-foreground-muted hover:bg-surface-tertiary'
-        }`}
-      >
-        {c.name}
-      </button>
-    ))}
-  </div>
-);
 
 const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
@@ -153,32 +123,55 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
     persistMessages: config.persistMessages,
   });
 
+  const providerCollections = useMemo(
+    () => selectedCollections.map((c) => ({ id: c.id, name: c.name, linkType: c.linkType })),
+    [selectedCollections]
+  );
+
+  const handleSelectAll = useCallback(
+    () => setSelectedIds(localeCollections.map((c) => c.id)),
+    [localeCollections]
+  );
+  const handleSelectNone = useCallback(() => setSelectedIds([]), []);
+
+  const sourceFilters = useMemo(() => {
+    if (!isMulti) return undefined;
+    return {
+      collections: localeCollections.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        documentCount: c.documentCount,
+      })),
+      selectedIds,
+      onToggle: handleSourceToggle,
+      onSelectAll: handleSelectAll,
+      onSelectNone: handleSelectNone,
+    };
+  }, [
+    isMulti,
+    localeCollections,
+    selectedIds,
+    handleSourceToggle,
+    handleSelectAll,
+    handleSelectNone,
+  ]);
+
   return (
     <ErrorBoundary>
-      <div className="notebook-beta-warning">
+      <div className="flex items-center justify-center gap-sm border-b border-border bg-background-alt px-md py-sm text-sm text-foreground">
         <span>Diese Funktion befindet sich in der Beta-Phase. Antworten können ungenau sein.</span>
       </div>
       <CitationModal />
       <NotebookChatProvider
-        collections={selectedCollections.map((c) => ({
-          id: c.id,
-          name: c.name,
-          linkType: c.linkType,
-        }))}
+        collections={providerCollections}
         locale={locale}
         filters={filters}
         extraParams={extraParams}
         initialMessages={initialMessages}
         onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
       >
-        <div className="qa-chat-container">
-          {isMulti && (
-            <SourceToggles
-              collections={localeCollections}
-              selectedIds={selectedIds}
-              onToggle={handleSourceToggle}
-            />
-          )}
+        <div className="flex min-h-[calc(100vh-60px)] flex-col">
           <ThreadPrimitive.Root className="flex h-full flex-col">
             <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
               <ThreadPrimitive.Empty>
@@ -196,7 +189,7 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
                 />
               </div>
             </ThreadPrimitive.Viewport>
-            <NotebookComposer placeholder={config.placeholder} />
+            <NotebookComposer placeholder={config.placeholder} sourceFilters={sourceFilters} />
           </ThreadPrimitive.Root>
         </div>
       </NotebookChatProvider>

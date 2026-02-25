@@ -21,10 +21,10 @@ export function parseFormattedParagraph(text: string): FormattedSegment[] {
   // Handle line breaks
   text = text.replace(/<br\s*\/?>/gi, '\n');
 
-  // Handle list items
-  text = text.replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n');
-  text = text.replace(/<ol[^>]*>(.*?)<\/ol>/gi, '$1');
-  text = text.replace(/<ul[^>]*>(.*?)<\/ul>/gi, '$1');
+  // Handle list items ([\s\S] for multiline content inside tags)
+  text = text.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '• $1\n');
+  text = text.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, '$1');
+  text = text.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, '$1');
 
   // Regular expressions for formatting
   const patterns = [
@@ -151,7 +151,7 @@ export function parseFormattedContent(input: string | null | undefined): Formatt
 
   // Parse paragraphs and headers separately
   const elements: ParsedElement[] = [];
-  const regex = /<(h[1-6]|p|div|section|article)[^>]*>(.*?)<\/\1>/gi;
+  const regex = /<(h[1-6]|p|div|section|article|ul|ol)[^>]*>([\s\S]*?)<\/\1>/gi;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(content)) !== null) {

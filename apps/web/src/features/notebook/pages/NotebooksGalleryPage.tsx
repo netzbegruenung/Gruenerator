@@ -6,14 +6,20 @@ import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner'
 import IndexCard from '../../../components/common/IndexCard';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { Button } from '../../../components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '../../../components/ui/dialog';
+import { Separator } from '../../../components/ui/separator';
 import { useAuthStore } from '../../../stores/authStore';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import NotebookEditor from '../components/NotebookEditor';
 import NotebookList from '../components/NotebookList';
 import { getAustrianNotebooks, getNotebooksByCategory } from '../config/notebooksConfig';
 import useNotebookStore from '../stores/notebookStore';
-import '../../../assets/styles/components/gallery-layout.css';
-import '../../../assets/styles/components/gallery-content-type.css';
 
 interface EditorSaveData {
   id?: string;
@@ -23,6 +29,8 @@ interface EditorSaveData {
   documents?: string[];
   wolkeShareLinks?: string[];
 }
+
+const gridClasses = 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2xl';
 
 const NotebooksGalleryPage = () => {
   const navigate = useNavigate();
@@ -54,7 +62,7 @@ const NotebooksGalleryPage = () => {
   const pollingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (import.meta.env.DEV) fetchQACollections();
+    fetchQACollections();
   }, [fetchQACollections]);
 
   const handleCreate = useCallback(() => {
@@ -141,7 +149,6 @@ const NotebooksGalleryPage = () => {
           wolkeShareLinks: saveData.wolkeShareLinks,
         });
 
-        // Start polling for newly created notebooks with uploaded documents
         if (result?.id && saveData.documents?.length) {
           startPolling(result.id, saveData.documents);
         }
@@ -157,21 +164,14 @@ const NotebooksGalleryPage = () => {
     setEditingCollection(null);
   }, []);
 
-  const handleOverlayClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) {
-        handleCancel();
-      }
-    },
-    [handleCancel]
-  );
-
   return (
     <ErrorBoundary>
-      <div className="gallery-layout">
-        <div className="gallery-header">
-          <h1>Notebooks</h1>
-          <p>
+      <div className="mx-auto mt-[60px] max-w-[1200px] px-lg flex flex-col max-md:mt-0 max-md:px-md max-md:pt-lg">
+        <div className="text-center">
+          <h1 className="text-[2.5rem] font-semibold mb-4 text-foreground-heading max-md:text-[1.75rem]">
+            Notebooks
+          </h1>
+          <p className="mx-auto mb-xl max-w-[800px] text-[1.1rem] leading-relaxed text-foreground">
             {isAustrian
               ? 'Durchsuche grüne Dokumente und Programme mit KI-gestützten Fragen. Stelle deine Fragen zu grüner Politik in Österreich.'
               : 'Durchsuche grüne Dokumente und Programme mit KI-gestützten Fragen. Wähle ein Notebook und stelle deine Fragen zu grüner Politik.'}
@@ -181,7 +181,7 @@ const NotebooksGalleryPage = () => {
         <EarlyAccessBanner feedbackUrl="https://tally.so/r/kdN6MZ" />
 
         {isAustrian ? (
-          <div className="gallery-grid">
+          <div className={gridClasses}>
             {austrianNotebooks.map((notebook) => (
               <IndexCard
                 key={notebook.id}
@@ -195,10 +195,10 @@ const NotebooksGalleryPage = () => {
           </div>
         ) : (
           <>
-            <div className="gallery-section-header">
-              <h2>Bundesebene</h2>
+            <div className="flex items-center justify-between mt-2xl mb-lg gap-md max-md:flex-col max-md:items-start max-md:gap-sm">
+              <h2 className="text-2xl font-semibold text-foreground-heading m-0">Bundesebene</h2>
             </div>
-            <div className="gallery-grid">
+            <div className={gridClasses}>
               {bundesebeneNotebooks.map((notebook) => (
                 <IndexCard
                   key={notebook.id}
@@ -212,10 +212,10 @@ const NotebooksGalleryPage = () => {
               ))}
             </div>
 
-            <div className="gallery-section-header">
-              <h2>Landesebene</h2>
+            <div className="flex items-center justify-between mt-2xl mb-lg gap-md max-md:flex-col max-md:items-start max-md:gap-sm">
+              <h2 className="text-2xl font-semibold text-foreground-heading m-0">Landesebene</h2>
             </div>
-            <div className="gallery-grid">
+            <div className={gridClasses}>
               {landesebeneNotebooks.map((notebook) => (
                 <IndexCard
                   key={notebook.id}
@@ -230,10 +230,10 @@ const NotebooksGalleryPage = () => {
 
             {weitereNotebooks.length > 0 && (
               <>
-                <div className="gallery-section-header">
-                  <h2>Weitere</h2>
+                <div className="flex items-center justify-between mt-2xl mb-lg gap-md max-md:flex-col max-md:items-start max-md:gap-sm">
+                  <h2 className="text-2xl font-semibold text-foreground-heading m-0">Weitere</h2>
                 </div>
-                <div className="gallery-grid">
+                <div className={gridClasses}>
                   {weitereNotebooks.map((notebook) => (
                     <IndexCard
                       key={notebook.id}
@@ -250,42 +250,42 @@ const NotebooksGalleryPage = () => {
           </>
         )}
 
-        {import.meta.env.DEV && (
-          <>
-            <hr className="gallery-section-divider" />
+        <Separator className="mt-2xl" />
 
-            <div className="gallery-section-header">
-              <h2>Meine Notebooks</h2>
-              <button className="btn-create" onClick={handleCreate}>
-                <HiPlus size={16} />
-                Notebook erstellen
-              </button>
-            </div>
+        <div className="flex items-center justify-between mt-2xl mb-lg gap-md max-md:flex-col max-md:items-start max-md:gap-sm">
+          <h2 className="text-2xl font-semibold text-foreground-heading m-0">Meine Notebooks</h2>
+          <Button size="sm" onClick={handleCreate}>
+            <HiPlus size={16} />
+            Notebook erstellen
+          </Button>
+        </div>
 
-            <NotebookList
-              qaCollections={qaCollections}
-              onView={handleView}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onShare={handleShare}
+        <NotebookList
+          qaCollections={qaCollections}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onShare={handleShare}
+          loading={collectionsLoading}
+          processingCollectionIds={processingCollectionIds}
+        />
+
+        <Dialog open={showEditor} onOpenChange={(open) => !open && handleCancel()}>
+          <DialogContent
+            className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
+            aria-describedby={undefined}
+          >
+            <DialogTitle className="sr-only">
+              {editingCollection ? 'Notebook bearbeiten' : 'Notebook erstellen'}
+            </DialogTitle>
+            <NotebookEditor
+              onSave={handleSave}
+              onCancel={handleCancel}
+              editingCollection={editingCollection}
               loading={collectionsLoading}
-              processingCollectionIds={processingCollectionIds}
             />
-
-            {showEditor && (
-              <div className="notebook-editor-modal-overlay" onClick={handleOverlayClick}>
-                <div className="notebook-editor-modal-content">
-                  <NotebookEditor
-                    onSave={handleSave}
-                    onCancel={handleCancel}
-                    editingCollection={editingCollection}
-                    loading={collectionsLoading}
-                  />
-                </div>
-              </div>
-            )}
-          </>
-        )}
+          </DialogContent>
+        </Dialog>
       </div>
     </ErrorBoundary>
   );

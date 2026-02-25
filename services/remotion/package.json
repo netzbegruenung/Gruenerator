@@ -18,6 +18,7 @@
     "@remotion/paths": "^4.0.315",
     "@remotion/shapes": "^4.0.315",
     "@remotion/transitions": "^4.0.315",
+    "dotenv": "^17.3.1",
     "ioredis": "^5.4.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

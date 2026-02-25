@@ -98,6 +98,10 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
 
           case 'generate': {
             if (output.generatedContent) {
+              log.debug(
+                `[agentMode] generate text_delta: ${output.generatedContent.length} chars, ` +
+                  `starts with fence: ${/^[\s]*```/.test(output.generatedContent)}`
+              );
               fullOutput += output.generatedContent;
               sse.sendRaw('text_delta', { text: output.generatedContent });
             }
@@ -114,10 +118,18 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
 
             if (output.formattedOutput) {
               const suffix = output.formattedOutput.substring(fullOutput.length);
+              log.debug(
+                `[agentMode] format suffix: ${suffix.length} chars, ` +
+                  `fullOutput so far: ${fullOutput.length} chars`
+              );
               if (suffix.trim()) {
                 fullOutput += suffix;
                 sse.sendRaw('text_delta', { text: suffix });
               }
+            }
+
+            if (output.backgroundDocument) {
+              sse.sendRaw('background_document', { content: output.backgroundDocument });
             }
             break;
           }
@@ -126,8 +138,16 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
     }
 
     if (!abortController.signal.aborted) {
+      const finalContent = fullOutput || finalState?.formattedOutput || '';
+      log.debug(
+        `[agentMode] Final output: ${finalContent.length} chars, ` +
+          `starts with fence: ${/^[\s]*```/.test(finalContent)}, ` +
+          `ends with fence: ${/```[\s]*$/.test(finalContent)}, ` +
+          `first 300 chars: ${finalContent.substring(0, 300).replace(/\n/g, '\\n')}`
+      );
       sse.sendRaw('done', {
-        content: fullOutput || finalState?.formattedOutput || '',
+        content: finalContent,
+        backgroundDocument: finalState?.backgroundDocument || null,
         metadata: {
           requestType: input.requestType,
           strategy: finalState?.strategy || null,
@@ -166,6 +186,7 @@ export async function processAntragAgentRequest(req: Request, res: Response): Pr
       res.json({
         success: true,
         content: result.content,
+        backgroundDocument: result.backgroundDocument || null,
         metadata: result.metadata,
       });
     } else {
@@ -173,6 +194,7 @@ export async function processAntragAgentRequest(req: Request, res: Response): Pr
         success: false,
         error: result.error || 'Generierung fehlgeschlagen',
         content: result.content,
+        backgroundDocument: result.backgroundDocument || null,
         metadata: result.metadata,
       });
     }

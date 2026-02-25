@@ -108,6 +108,7 @@ router.post('/', async (req, res) => {
     }
 
     const question = lastUserMessage.content;
+    const t0 = Date.now();
 
     // Get search context (vector search + context building)
     sendSSE(res, 'search_start', { message: 'Suche in Dokumenten...' });
@@ -132,10 +133,16 @@ router.post('/', async (req, res) => {
       });
     } catch (error: any) {
       log.error('Search context error:', error);
+      log.debug(`⏱ Search context failed: ${Date.now() - t0}ms`);
       sendSSE(res, 'error', { error: error.message || 'Failed to get search context' });
       res.end();
       return;
     }
+
+    const t1 = Date.now();
+    log.debug(
+      `⏱ Search context: ${t1 - t0}ms, ${searchContext?.sortedResults.length ?? 0} results`
+    );
 
     sendSSE(res, 'search_complete', {
       message: searchContext
@@ -188,11 +195,14 @@ router.post('/', async (req, res) => {
       },
     ];
 
+    const t2 = Date.now();
+    log.debug(`⏱ Model setup: ${t2 - t1}ms`);
+
     // Stream the response
     const result = streamText({
       model: aiModel,
       messages: aiMessages,
-      maxOutputTokens: 2500,
+      maxOutputTokens: 16000,
       temperature: 0.2,
       abortSignal: abortController.signal,
     });
@@ -201,24 +211,89 @@ router.post('/', async (req, res) => {
 
     // Process the text stream
     let fullText = '';
+    let firstChunkTime: number | undefined;
 
     try {
       for await (const chunk of result.textStream) {
         if (abortController.signal.aborted) break;
+        if (!firstChunkTime) {
+          firstChunkTime = Date.now();
+          log.debug(`⏱ First token latency: ${firstChunkTime - t2}ms`);
+        }
         fullText += chunk;
         sendSSE(res, 'text_delta', { text: chunk });
       }
     } catch (streamError: any) {
       if (abortController.signal.aborted) {
         log.debug('Notebook stream aborted by client disconnect');
+        log.debug(`⏱ Total (aborted): ${Date.now() - t0}ms, ${fullText.length} chars`);
         res.end();
         return;
       }
-      log.error('Stream error:', streamError);
-      sendSSE(res, 'error', { error: streamError.message || 'Stream interrupted' });
+      const t4err = Date.now();
+      log.warn('Stream error (accumulated %d chars): %s', fullText.length, streamError.message);
+      log.debug(
+        `⏱ Streaming (error): ${t4err - (firstChunkTime || t2)}ms, ${fullText.length} chars`
+      );
+
+      // Send partial completion if we have accumulated text
+      if (fullText.length > 0) {
+        try {
+          const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
+            fullText,
+            searchContext.referencesMap
+          );
+          const { cleanDraft, citations, sources } = validateAndInjectCitations(
+            renumberedDraft,
+            newReferencesMap
+          );
+          const allSources = searchContext.sortedResults
+            .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
+            .slice(0, 10);
+
+          let sourcesByCollection: Record<string, any> | undefined;
+          if (searchContext.isMulti && searchContext.effectiveCollectionIds) {
+            const collectionsConfig: Record<string, any> = {};
+            for (const id of searchContext.effectiveCollectionIds) {
+              const config = SYSTEM_COLLECTIONS[id];
+              if (config) collectionsConfig[id] = config;
+            }
+            sourcesByCollection = groupSourcesByCollection(
+              citations,
+              searchContext.sortedResults,
+              collectionsConfig
+            );
+          }
+
+          sendSSE(res, 'completion', {
+            answer: cleanDraft,
+            citations,
+            sources,
+            allSources,
+            ...(sourcesByCollection && { sourcesByCollection }),
+            metadata: {
+              isMulti: searchContext.isMulti,
+              collectionName: searchContext.collectionName,
+              effectiveCollectionIds: searchContext.effectiveCollectionIds,
+              totalResults: searchContext.sortedResults.length,
+              citationsCount: citations.length,
+              partial: true,
+            },
+          });
+        } catch (citationError: any) {
+          log.error('Failed to process partial citations:', citationError);
+          sendSSE(res, 'error', { error: streamError.message || 'Stream interrupted' });
+        }
+      } else {
+        sendSSE(res, 'error', { error: streamError.message || 'Stream interrupted' });
+      }
+      log.debug(`⏱ Total (error path): ${Date.now() - t0}ms`);
       res.end();
       return;
     }
+
+    const t4 = Date.now();
+    log.debug(`⏱ Streaming: ${t4 - (firstChunkTime || t2)}ms, ${fullText.length} chars`);
 
     // After streaming completes, process citations and send sources
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
@@ -250,6 +325,9 @@ router.post('/', async (req, res) => {
       );
     }
 
+    const t5 = Date.now();
+    log.debug(`⏱ Citation processing: ${t5 - t4}ms, ${citations.length} citations`);
+
     // Send the final processed data
     sendSSE(res, 'completion', {
       answer: cleanDraft,
@@ -266,7 +344,10 @@ router.post('/', async (req, res) => {
       },
     });
 
-    log.debug(`Notebook stream finished, text length: ${cleanDraft.length}`);
+    const t6 = Date.now();
+    log.debug(
+      `⏱ Total: ${t6 - t0}ms (search=${t1 - t0}, setup=${t2 - t1}, ttft=${(firstChunkTime || t2) - t2}, stream=${t4 - (firstChunkTime || t2)}, cite=${t5 - t4})`
+    );
     res.end();
   } catch (error: any) {
     log.error('Notebook stream error:', error);

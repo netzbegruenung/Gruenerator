@@ -1470,6 +1470,9 @@ importers:
       '@remotion/transitions':
         specifier: ^4.0.315
         version: 4.0.428(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
       ioredis:
         specifier: ^5.4.1
         version: 5.9.3

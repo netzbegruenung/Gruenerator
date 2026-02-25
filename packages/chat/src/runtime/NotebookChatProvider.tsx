@@ -76,6 +76,12 @@ function NotebookChatProviderInner({
     [getConfig, stableOnComplete]
   );
 
+  const prevAdapterRef = useRef(adapter);
+  if (prevAdapterRef.current !== adapter) {
+    console.debug('[Notebook] ⚠ Adapter RECREATED — will reinitialize runtime');
+    prevAdapterRef.current = adapter;
+  }
+
   const runtime = useLocalRuntime(adapter, { initialMessages });
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;

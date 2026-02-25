@@ -3,8 +3,19 @@
 import { ComposerPrimitive, useThread } from '@assistant-ui/react';
 import { ArrowUp, Square } from 'lucide-react';
 
+import { SourceFilterDropdown, type SourceFilterCollection } from './SourceFilterDropdown';
+
+export interface SourceFilterConfig {
+  collections: SourceFilterCollection[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  onSelectAll?: () => void;
+  onSelectNone?: () => void;
+}
+
 interface NotebookComposerProps {
   placeholder?: string;
+  sourceFilters?: SourceFilterConfig;
 }
 
 function SendButton() {
@@ -31,12 +42,24 @@ function CancelButton() {
 
 export function NotebookComposer({
   placeholder = 'Stellen Sie eine Frage...',
+  sourceFilters,
 }: NotebookComposerProps) {
   const thread = useThread();
 
   return (
     <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Root className="relative mx-auto flex w-full max-w-3xl items-center rounded-3xl border border-border bg-surface">
+        {sourceFilters && (
+          <div className="pl-2">
+            <SourceFilterDropdown
+              collections={sourceFilters.collections}
+              selectedIds={sourceFilters.selectedIds}
+              onToggle={sourceFilters.onToggle}
+              onSelectAll={sourceFilters.onSelectAll}
+              onSelectNone={sourceFilters.onSelectNone}
+            />
+          </div>
+        )}
         <ComposerPrimitive.Input
           autoFocus
           placeholder={placeholder}

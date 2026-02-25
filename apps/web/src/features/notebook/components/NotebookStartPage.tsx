@@ -1,6 +1,8 @@
 import { useComposerRuntime } from '@assistant-ui/react';
 import { motion } from 'motion/react';
 
+import { cn } from '@/utils/cn';
+
 interface ExampleQuestion {
   icon?: string;
   text?: string;
@@ -23,14 +25,14 @@ export function NotebookStartPage({ title, exampleQuestions = [] }: NotebookStar
 
   return (
     <motion.div
-      className="chat-start-page"
+      className="flex min-h-full flex-1 flex-col items-center justify-center p-lg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="chat-start-page-content">
+      <div className="flex w-full max-w-[680px] flex-col items-center gap-xl">
         <motion.h1
-          className="chat-start-page-title"
+          className="m-0 text-center text-[2rem] font-semibold leading-tight text-foreground-heading"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -40,7 +42,7 @@ export function NotebookStartPage({ title, exampleQuestions = [] }: NotebookStar
 
         {exampleQuestions.length > 0 && (
           <motion.div
-            className="chat-start-page-examples"
+            className="flex flex-wrap justify-center gap-sm"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.3 }}
@@ -49,7 +51,12 @@ export function NotebookStartPage({ title, exampleQuestions = [] }: NotebookStar
               <button
                 key={index}
                 type="button"
-                className="chat-start-page-example"
+                className={cn(
+                  'flex items-center gap-2 rounded-[18px] px-4 py-2 text-sm',
+                  'bg-background-alt text-foreground',
+                  'transition-all hover:-translate-y-0.5 hover:bg-hover-overlay',
+                  'active:translate-y-0'
+                )}
                 onClick={() => handleExampleClick(question.text)}
               >
                 <span>{question.icon}</span>

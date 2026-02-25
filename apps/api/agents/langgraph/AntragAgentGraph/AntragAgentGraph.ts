@@ -76,6 +76,9 @@ const AntragAgentAnnotation = Annotation.Root({
   formattedOutput: Annotation<string>({
     reducer: (x, y) => y ?? x,
   }),
+  backgroundDocument: Annotation<string>({
+    reducer: (x, y) => y ?? x,
+  }),
 
   // Timing
   startTime: Annotation<number>({
@@ -135,6 +138,7 @@ export function initializeAntragAgentState(input: AntragAgentInput): AntragAgent
     generatedContent: '',
 
     formattedOutput: '',
+    backgroundDocument: '',
 
     startTime: Date.now(),
     researchTimeMs: 0,
@@ -154,6 +158,7 @@ export async function runAntragAgentGraph(input: AntragAgentInput): Promise<Antr
       return {
         success: false,
         content: result.formattedOutput || '',
+        backgroundDocument: result.backgroundDocument || undefined,
         metadata: {
           strategy: result.strategy,
           requestType: result.requestType,
@@ -171,6 +176,7 @@ export async function runAntragAgentGraph(input: AntragAgentInput): Promise<Antr
     return {
       success: true,
       content: result.formattedOutput,
+      backgroundDocument: result.backgroundDocument || undefined,
       metadata: {
         strategy: result.strategy,
         requestType: result.requestType,

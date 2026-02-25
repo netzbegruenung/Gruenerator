@@ -51,6 +51,7 @@ export interface AntragAgentState {
 
   // Final output
   formattedOutput: string;
+  backgroundDocument: string;
 
   // Timing
   startTime: number;
@@ -63,6 +64,7 @@ export interface AntragAgentState {
 export interface AntragAgentOutput {
   success: boolean;
   content: string;
+  backgroundDocument?: string;
   metadata: {
     strategy: string | null;
     requestType: AntragRequestType;
@@ -80,6 +82,15 @@ export const REQUEST_TYPE_DISPLAY_NAMES: Record<AntragRequestType, string> = {
   antrag: 'Antrag',
   kleine_anfrage: 'Kleine Anfrage',
   grosse_anfrage: 'Große Anfrage',
+};
+
+export const COLLECTION_DISPLAY_NAMES: Record<string, string> = {
+  grundsatz_documents: 'Grundsatzprogramm',
+  bundestag_content: 'Bundestagsfraktion',
+  kommunalwiki_documents: 'KommunalWiki',
+  gruene_de_documents: 'gruene.de',
+  gruene_at_documents: 'gruene.at',
+  oesterreich_gruene_documents: 'Grüne Österreich',
 };
 
 export const LOCALE_CONTEXT: Record<

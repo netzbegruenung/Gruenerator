@@ -363,7 +363,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
         'base-container flex w-full max-w-[1200px] mx-auto my-lg gap-md relative items-stretch transition-all duration-400',
         'max-md:p-0 max-md:flex-col max-md:gap-5 max-md:max-w-full max-md:m-0',
         'xl:max-w-[1400px] xl:gap-lg 3xl:max-w-[1600px] 4xl:max-w-[1800px] 5xl:max-w-[2000px]',
-        hasContent && 'has-generated-content max-md:p-[10px]',
+        hasContent && 'has-generated-content max-md:p-0 max-md:gap-sm',
         isStartMode &&
           'base-container--start-mode flex-col items-center justify-start pt-0 gap-lg max-w-full mx-auto max-md:p-sm max-md:pt-[2vh] max-md:gap-md',
         noContentColumn &&
@@ -373,7 +373,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
   );
 
   return (
-    <BaseFormProvider value={{ isStartMode }}>
+    <BaseFormProvider value={{ isStartMode, hasContent: !!hasContent }}>
       <div className="flex flex-col w-full">
         {headerContent}
         <motion.div
@@ -492,7 +492,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
               className={cn(
                 'display-section-motion-wrapper min-w-0 flex',
                 isFormVisible && 'flex-1 justify-start',
-                hasContent && isFormVisible && 'flex-1',
+                hasContent && isFormVisible && 'flex-[2]',
                 !isFormVisible && 'flex-1 justify-center items-start w-full max-w-none m-0',
                 noContentColumn &&
                   'flex-none w-full max-w-[800px] xl:max-w-[900px] 4xl:max-w-[1000px] max-md:max-w-none'

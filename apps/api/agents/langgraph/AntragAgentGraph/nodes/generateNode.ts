@@ -80,7 +80,7 @@ export async function generateNode(state: AntragAgentState): Promise<Partial<Ant
 
 ${sectionInstructions}
 
-WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Kommentare. Nutze Markdown-Formatierung.`;
+WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Kommentare. Nutze Markdown-Formatierung direkt im Text (Überschriften mit #, Aufzählungen mit -). Verwende KEINE Code-Fences (\`\`\`) um den Text.`;
 
     const promptResult = await assemblePromptGraphAsync({
       ...enrichedWithStrategy,
@@ -103,10 +103,20 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
       state.req
     );
 
-    const generatedContent = aiResult.content || aiResult.data?.content || '';
+    let generatedContent = aiResult.content || aiResult.data?.content || '';
+
+    // LLMs (especially Magistral) often wrap markdown output in ```markdown fences.
+    // Strip them server-side before streaming — the frontend stripWrappingCodeFence
+    // only runs on the final accumulated text, too late for streamed chunks.
+    generatedContent = stripCodeFences(generatedContent);
 
     const generationTimeMs = Date.now() - startTime;
     log.debug(`[generateNode] ${requestTypeDisplay} generated in ${generationTimeMs}ms`);
+    log.debug(
+      `[generateNode] Content length: ${generatedContent.length}, ` +
+        `starts with code fence: ${/^[\s]*```/.test(generatedContent)}, ` +
+        `first 200 chars: ${generatedContent.substring(0, 200).replace(/\n/g, '\\n')}`
+    );
 
     return {
       generatedContent,
@@ -120,4 +130,23 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
       error: `Generierung fehlgeschlagen: ${(error as Error).message}`,
     };
   }
+}
+
+/**
+ * Strips wrapping code fences from LLM output. Handles both complete fences
+ * (```markdown...```) and unclosed fences (```markdown... without closing ```).
+ */
+function stripCodeFences(content: string): string {
+  if (!content) return content;
+  let text = content.trim();
+
+  // Strip opening fence: ```markdown\n or ```\n
+  const openFence = /^```[a-zA-Z]*\s*\n/;
+  if (openFence.test(text)) {
+    text = text.replace(openFence, '');
+    // Strip closing fence if present
+    text = text.replace(/\n```\s*$/, '');
+  }
+
+  return text.trim();
 }
