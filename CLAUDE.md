@@ -146,6 +146,8 @@ For local Playwright MCP testing without Keycloak, set these env vars and restar
 
 **Before creating a PR**, always run `git fetch origin master` (or the target branch) to ensure the local remote ref is up to date. This prevents PRs from being based on stale data.
 
+**Always use regular merge** (not squash merge) when merging PRs. `test-branch` is a long-lived branch that is reused across releases. Squash merges create new commit SHAs, so the original commits remain "unknown" to git — subsequent PRs from the same branch accumulate all old commits as if they were new. Regular merges preserve commit identity and keep the history clean.
+
 ### Expo Apps
 
 Always use `npx expo install` (not `pnpm add`) for Expo native dependencies to ensure SDK version alignment:
@@ -414,7 +416,7 @@ ESLint (flat config), Prettier, Husky pre-commit hooks (lint-staged), Knip for u
 ## Deployment
 
 ### Test Environment
-- **Test URL**: https://beta.gruenerator.de
+- **Test URL**: https://beta.gruenerator.eu
 - **Server**: gruenerator-test.netzbegruenung.verdigado.net
 - **Branch**: `test-branch`
 
