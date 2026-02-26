@@ -66,7 +66,9 @@ export const useGroups = ({ isActive } = {}) => {
 
     const requestKey = `groups_${user.id}`;
     return deduplicatedFetch(requestKey, async () => {
-      const response = await apiClient.get('/auth/groups');
+      const response = await apiClient.get('/auth/groups', {
+        skipAuthRedirect: true,
+      });
       const data = response.data;
       return data.groups || [];
     });
