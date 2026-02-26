@@ -78,7 +78,7 @@ server {
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
 
     # Cache static assets
-    location ~* \.(css|js|map|jpe?g|gif|png|svg|ico|woff|woff2)$ {
+    location ~* \.(css|js|map|jpe?g|gif|png|webp|svg|ico|woff|woff2)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
@@ -86,7 +86,7 @@ server {
 
     # SPA fallback - serve index.html for client-side routing
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri /index.html;
     }
 
     # Health check
