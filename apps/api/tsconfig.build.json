@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": false
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "uploads",
+    "test",
+    "tests",
+    "scripts",
+    "**/test-*.ts",
+    "**/*.vitest.ts",
+    "vitest.config.ts",
+    "eslint.config.js",
+    "services/comfyui",
+    "scrape-*.ts"
+  ]
+}
