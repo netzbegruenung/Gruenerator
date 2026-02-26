@@ -42,6 +42,7 @@ export function createGrueneratorThreadListAdapter(
 ): RemoteThreadListAdapter {
   return {
     async list() {
+      console.log('[ThreadListAdapter] list() called');
       try {
         const threads = await apiClient.get<ApiThread[]>('/api/chat-service/threads');
         const external = callbacks?.getExternalThreads?.() ?? [];
