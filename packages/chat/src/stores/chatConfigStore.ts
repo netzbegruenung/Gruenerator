@@ -82,10 +82,8 @@ function isPublicPath(pathname: string): boolean {
 function defaultOnUnauthorized(): void {
   if (typeof window === 'undefined') return;
   const p = window.location.pathname;
-  console.log('[chatConfigStore] defaultOnUnauthorized fired — pathname:', p);
   if (isPublicPath(p)) return;
   const currentPath = p + window.location.search;
-  console.log('[chatConfigStore] defaultOnUnauthorized redirecting — redirect:', currentPath);
   window.location.href = `/login?redirectTo=${encodeURIComponent(currentPath)}`;
 }
 
@@ -96,10 +94,6 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   docsBaseUrl: undefined,
 
   configure: (config?: ChatConfig) => {
-    console.log(
-      '[chatConfigStore] configure() called — has custom onUnauthorized:',
-      !!config?.onUnauthorized
-    );
     set({
       fetch: config?.fetch ?? defaultFetch,
       onUnauthorized: config?.onUnauthorized ?? defaultOnUnauthorized,

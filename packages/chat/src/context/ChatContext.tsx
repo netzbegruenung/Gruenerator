@@ -29,7 +29,6 @@ export function createChatApiClient(
     });
 
     if (response.status === 401) {
-      console.log('[ChatContext] 401 detected — endpoint:', endpoint, '— calling onUnauthorized');
       onUnauthorized();
       throw new Error('Unauthorized');
     }
