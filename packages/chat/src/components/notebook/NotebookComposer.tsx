@@ -1,7 +1,7 @@
 'use client';
 
 import { ComposerPrimitive, useThread } from '@assistant-ui/react';
-import { ArrowUp, Square } from 'lucide-react';
+import { ArrowUp, BookOpen, Square, Zap } from 'lucide-react';
 
 import { SourceFilterDropdown, type SourceFilterCollection } from './SourceFilterDropdown';
 
@@ -16,6 +16,8 @@ export interface SourceFilterConfig {
 interface NotebookComposerProps {
   placeholder?: string;
   sourceFilters?: SourceFilterConfig;
+  mode?: 'fast' | 'deep';
+  onModeChange?: (mode: 'fast' | 'deep') => void;
 }
 
 function SendButton() {
@@ -40,17 +42,48 @@ function CancelButton() {
   );
 }
 
+function ModeToggle({
+  mode,
+  onModeChange,
+}: {
+  mode: 'fast' | 'deep';
+  onModeChange: (mode: 'fast' | 'deep') => void;
+}) {
+  const isFast = mode === 'fast';
+  return (
+    <button
+      type="button"
+      onClick={() => onModeChange(isFast ? 'deep' : 'fast')}
+      className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-surface-hover"
+      title={isFast ? 'Schnelle Antwort' : 'Tiefenrecherche'}
+      aria-label={
+        isFast
+          ? 'Schnelle Antwort — klicken für Tiefenrecherche'
+          : 'Tiefenrecherche — klicken für schnelle Antwort'
+      }
+    >
+      {isFast ? (
+        <Zap className="h-4 w-4 text-primary" />
+      ) : (
+        <BookOpen className="h-4 w-4 text-foreground-muted" />
+      )}
+    </button>
+  );
+}
+
 export function NotebookComposer({
   placeholder = 'Stellen Sie eine Frage...',
   sourceFilters,
+  mode,
+  onModeChange,
 }: NotebookComposerProps) {
   const thread = useThread();
 
   return (
     <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Root className="relative mx-auto flex w-full max-w-3xl items-center rounded-3xl border border-border bg-surface">
-        {sourceFilters && (
-          <div className="pl-2">
+        <div className="flex items-center pl-2">
+          {sourceFilters && (
             <SourceFilterDropdown
               collections={sourceFilters.collections}
               selectedIds={sourceFilters.selectedIds}
@@ -58,8 +91,9 @@ export function NotebookComposer({
               onSelectAll={sourceFilters.onSelectAll}
               onSelectNone={sourceFilters.onSelectNone}
             />
-          </div>
-        )}
+          )}
+          {mode && onModeChange && <ModeToggle mode={mode} onModeChange={onModeChange} />}
+        </div>
         <ComposerPrimitive.Input
           autoFocus
           placeholder={placeholder}

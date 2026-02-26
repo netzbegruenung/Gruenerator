@@ -276,7 +276,6 @@ async function* parseSSEStream(
           if (results) receivedSearchResults = results;
           currentProgress = {
             ...currentProgress,
-            stage: 'generating',
             message,
             resultCount,
           };
@@ -311,7 +310,7 @@ async function* parseSSEStream(
 
         case 'summary_complete': {
           const { message } = data as { message: string };
-          currentProgress = { ...currentProgress, stage: 'generating', message };
+          currentProgress = { ...currentProgress, message };
           yield buildResult();
           break;
         }

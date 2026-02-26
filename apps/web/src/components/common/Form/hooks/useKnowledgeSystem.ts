@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
 import { useDocumentsStore } from '../../../../stores/documentsStore';
 
@@ -16,12 +17,14 @@ const useKnowledgeSystem = (
   disableKnowledgeSystem: boolean,
   defaultMode: unknown
 ): KnowledgeSelection => {
-  const { setUIConfig, setAvailableDocuments, setAvailableTexts } = useGeneratorSelectionStore();
+  const { setUIConfig, setAvailableDocuments, setAvailableTexts, setAutomaticSearch } =
+    useGeneratorSelectionStore();
   const {
     fetchCombinedContent,
     documents: documentsFromStore,
     texts: textsFromStore,
   } = useDocumentsStore();
+  const { getBetaFeatureState } = useBetaFeatures();
 
   const selectionStore = useGeneratorSelectionStore();
 
@@ -87,6 +90,16 @@ const useKnowledgeSystem = (
       );
     }
   }, [componentName, generatorType]);
+
+  // Initialize automatic search default from profile setting
+  useEffect(() => {
+    if (generatorType && !disableKnowledgeSystem) {
+      const profileAutoSearch = getBetaFeatureState('autoDocumentSearch');
+      if (profileAutoSearch) {
+        setAutomaticSearch(true);
+      }
+    }
+  }, [generatorType, disableKnowledgeSystem, getBetaFeatureState, setAutomaticSearch]);
 
   // Conditionally extract values based on knowledge system status
   const isDisabled = !generatorType || disableKnowledgeSystem;

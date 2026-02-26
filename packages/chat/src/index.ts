@@ -24,7 +24,13 @@ export {
   type GrueneratorAdapterConfig,
   type GrueneratorAdapterCallbacks,
 } from './runtime/GrueneratorModelAdapter';
-export { createGrueneratorThreadListAdapter } from './runtime/GrueneratorThreadListAdapter';
+export {
+  createGrueneratorThreadListAdapter,
+  type ExternalThreadEntry,
+} from './runtime/GrueneratorThreadListAdapter';
+
+// External Thread Context
+export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
 
 // Notebook Runtime
 export {

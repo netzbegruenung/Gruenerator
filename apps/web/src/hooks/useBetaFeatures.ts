@@ -66,6 +66,12 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
     isAdminOnly: false,
     defaultEnabled: true,
   },
+  {
+    key: 'autoDocumentSearch',
+    label: 'Automatische Dokumentensuche',
+    isAdminOnly: false,
+    defaultEnabled: false,
+  },
   { key: 'prompts', label: 'Eigene Prompts', isAdminOnly: false },
   { key: 'docs', label: 'Dokumente', isAdminOnly: false },
   { key: 'scanner', label: 'Scanner (OCR)', isAdminOnly: false },

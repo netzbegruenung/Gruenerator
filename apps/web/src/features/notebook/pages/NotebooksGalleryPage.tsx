@@ -83,7 +83,7 @@ const NotebooksGalleryPage = () => {
 
   const handleView = useCallback(
     (collectionId: string) => {
-      navigate(`/notebook/${collectionId}`);
+      navigate(`/notebook/${collectionId}`, { state: { freshConversation: true } });
     },
     [navigate]
   );
@@ -189,7 +189,7 @@ const NotebooksGalleryPage = () => {
                 description={notebook.description}
                 meta={notebook.meta}
                 tags={notebook.tags}
-                onClick={() => navigate(notebook.path)}
+                onClick={() => navigate(notebook.path, { state: { freshConversation: true } })}
               />
             ))}
           </div>
@@ -206,7 +206,7 @@ const NotebooksGalleryPage = () => {
                   description={notebook.description}
                   meta={notebook.meta}
                   tags={notebook.tags}
-                  onClick={() => navigate(notebook.path)}
+                  onClick={() => navigate(notebook.path, { state: { freshConversation: true } })}
                   variant={notebook.id === 'gruenerator-notebook' ? 'elevated' : 'default'}
                 />
               ))}
@@ -223,7 +223,7 @@ const NotebooksGalleryPage = () => {
                   description={notebook.description}
                   meta={notebook.meta}
                   tags={notebook.tags}
-                  onClick={() => navigate(notebook.path)}
+                  onClick={() => navigate(notebook.path, { state: { freshConversation: true } })}
                 />
               ))}
             </div>
@@ -241,7 +241,9 @@ const NotebooksGalleryPage = () => {
                       description={notebook.description}
                       meta={notebook.meta}
                       tags={notebook.tags}
-                      onClick={() => navigate(notebook.path)}
+                      onClick={() =>
+                        navigate(notebook.path, { state: { freshConversation: true } })
+                      }
                     />
                   ))}
                 </div>

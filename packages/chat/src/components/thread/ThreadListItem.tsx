@@ -1,11 +1,50 @@
 'use client';
 
-import { useState } from 'react';
-import { ThreadListItemPrimitive, ThreadListItemMorePrimitive } from '@assistant-ui/react';
-import { MessageSquare, MoreVertical, Pencil, Archive, Trash2 } from 'lucide-react';
+import {
+  ThreadListItemPrimitive,
+  ThreadListItemMorePrimitive,
+  useThreadListItem,
+} from '@assistant-ui/react';
+import { MessageSquare, MoreVertical, Pencil, Archive, Trash2, BookOpen } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useExternalThread } from '../../context/ExternalThreadContext';
+
+function ExternalThreadItem() {
+  const { title, externalId } = useThreadListItem();
+  const ctx = useExternalThread();
+  const isActive = ctx?.activePath != null && ctx.activePath === externalId;
+
+  return (
+    <div
+      className={cn(
+        'group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors',
+        'hover:bg-primary/5',
+        isActive && 'bg-primary/10 text-primary'
+      )}
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (externalId) ctx?.onClick(externalId);
+        }}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+      >
+        <BookOpen className="h-4 w-4 flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm">{title ?? 'Notebook'}</p>
+        </div>
+      </button>
+    </div>
+  );
+}
 
 export function GrueneratorThreadListItem() {
+  const { externalId } = useThreadListItem();
+
+  if (externalId) {
+    return <ExternalThreadItem />;
+  }
+
   return (
     <ThreadListItemPrimitive.Root
       className={cn(

@@ -7,7 +7,7 @@ import { type ChatProgress, type Citation as ChatCitation } from '../hooks/useCh
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 function normalizeCiteMarkers(text: string): string {
-  return text.replace(/⚡CITE(\d+)⚡/g, '[$1]');
+  return text.replace(/\[cite:(\d+)\]/g, '[$1]');
 }
 
 function mapToChatCitations(citations: Citation[]): ChatCitation[] {
@@ -33,6 +33,7 @@ export interface NotebookAdapterConfig {
   filters?: Record<string, unknown>;
   locale?: string;
   extraParams?: Record<string, unknown>;
+  mode?: 'fast' | 'deep';
 }
 
 export interface Citation {
@@ -148,6 +149,7 @@ export function createNotebookModelAdapter(
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
         locale: config.locale,
+        ...(config.mode && { mode: config.mode }),
         ...config.extraParams,
       };
 
@@ -213,7 +215,7 @@ export function createNotebookModelAdapter(
                 console.debug(
                   `[Notebook] ⏱ Search done: ${Math.round(performance.now() - c0)}ms, ${resultCount} results`
                 );
-                currentProgress = { stage: 'generating', message, resultCount };
+                currentProgress = { stage: 'searching', ...currentProgress, message, resultCount };
                 yield {
                   content: [{ type: 'text' as const, text: '' }],
                   metadata: { custom: { progress: currentProgress } },

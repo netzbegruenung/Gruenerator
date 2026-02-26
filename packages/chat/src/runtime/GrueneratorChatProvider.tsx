@@ -31,7 +31,11 @@ import {
   type GrueneratorAdapterConfig,
 } from './GrueneratorModelAdapter';
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
-import { createGrueneratorThreadListAdapter } from './GrueneratorThreadListAdapter';
+import {
+  createGrueneratorThreadListAdapter,
+  type ExternalThreadEntry,
+} from './GrueneratorThreadListAdapter';
+import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import type {
   GeneratedImage,
@@ -44,6 +48,9 @@ interface GrueneratorChatProviderProps {
   children: ReactNode;
   userId?: string;
   config?: ChatConfig;
+  getExternalThreads?: () => ExternalThreadEntry[];
+  onExternalThreadClick?: (externalId: string) => void;
+  activePath?: string;
 }
 
 interface PersistedToolCall {
@@ -329,6 +336,9 @@ export function GrueneratorChatProvider({
   children,
   userId,
   config,
+  getExternalThreads,
+  onExternalThreadClick,
+  activePath,
 }: GrueneratorChatProviderProps) {
   useEffect(() => {
     useChatConfigStore.getState().configure(config);
@@ -367,6 +377,11 @@ export function GrueneratorChatProvider({
     loadCustomAgents();
   }, [providerApiClient]);
 
+  const getExternalThreadsRef = useRef(getExternalThreads);
+  useEffect(() => {
+    getExternalThreadsRef.current = getExternalThreads;
+  });
+
   const threadListAdapter = useMemo(() => {
     const base = createGrueneratorThreadListAdapter(providerApiClient, getDefaultAgent(), {
       onDelete: (remoteId) => {
@@ -374,6 +389,7 @@ export function GrueneratorChatProvider({
           useAgentStore.getState().setCurrentThread(null);
         }
       },
+      getExternalThreads: () => getExternalThreadsRef.current?.() ?? [],
     });
     return {
       ...base,
@@ -412,10 +428,17 @@ export function GrueneratorChatProvider({
     ]),
   });
 
+  const externalCtx = useMemo(
+    () => (onExternalThreadClick ? { onClick: onExternalThreadClick, activePath } : null),
+    [onExternalThreadClick, activePath]
+  );
+
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
-      <ThreadTitleEffect />
-      {children}
+      <ExternalThreadProvider value={externalCtx}>
+        <ThreadTitleEffect />
+        {children}
+      </ExternalThreadProvider>
     </AssistantRuntimeProvider>
   );
 }

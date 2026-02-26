@@ -12,11 +12,16 @@
 import { streamText, type ModelMessage } from 'ai';
 
 import {
+  buildConcisePromptGrundsatz,
+  buildConcisePromptGeneral,
+} from '../../agents/langgraph/prompts.js';
+import {
   SYSTEM_COLLECTIONS,
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { notebookQAService } from '../../services/notebook/index.js';
+import { rerankNotebookResults } from '../../services/notebook/rerankNotebookResults.js';
 import {
   renumberCitationsInOrder,
   validateAndInjectCitations,
@@ -48,6 +53,7 @@ interface NotebookStreamRequest {
   filters?: Record<string, any>;
   provider?: string;
   model?: string;
+  mode?: 'fast' | 'deep';
 }
 
 /**
@@ -77,8 +83,9 @@ router.post('/', async (req, res) => {
   });
 
   try {
-    const { messages, collectionId, collectionIds, filters, provider, model } =
+    const { messages, collectionId, collectionIds, filters, provider, model, mode } =
       req.body as NotebookStreamRequest;
+    const isFast = mode === 'fast';
 
     const user = getUser(req);
     if (!user?.id) {
@@ -151,6 +158,32 @@ router.post('/', async (req, res) => {
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
 
+    // Fast mode: rerank results to reduce context size
+    if (isFast && searchContext) {
+      const reranked = await rerankNotebookResults({
+        results: searchContext.sortedResults,
+        referencesMap: searchContext.referencesMap,
+        question,
+        aiWorkerPool: (req as any).app.locals.aiWorkerPool,
+        limit: 10,
+      });
+      searchContext.sortedResults = reranked.results;
+      searchContext.referencesMap = reranked.referencesMap;
+      searchContext.contextSummary = reranked.contextSummary;
+
+      log.debug(
+        `⏱ Rerank: ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
+      );
+
+      // Override system prompt for fast mode
+      const isSystemCollection =
+        searchContext.effectiveCollectionIds?.some((id) => !!getSystemCollectionConfig(id)) ??
+        false;
+      searchContext.systemPrompt = isSystemCollection
+        ? buildConcisePromptGrundsatz(searchContext.collectionName || 'Grüne Dokumente').system
+        : buildConcisePromptGeneral(searchContext.collectionName || 'Ihre Dokumente').system;
+    }
+
     // Handle no results case
     if (!searchContext) {
       const noResultsMessage = collectionId
@@ -202,7 +235,7 @@ router.post('/', async (req, res) => {
     const result = streamText({
       model: aiModel,
       messages: aiMessages,
-      maxOutputTokens: 16000,
+      maxOutputTokens: isFast ? 3000 : 16000,
       temperature: 0.2,
       abortSignal: abortController.signal,
     });
@@ -346,7 +379,7 @@ router.post('/', async (req, res) => {
 
     const t6 = Date.now();
     log.debug(
-      `⏱ Total: ${t6 - t0}ms (search=${t1 - t0}, setup=${t2 - t1}, ttft=${(firstChunkTime || t2) - t2}, stream=${t4 - (firstChunkTime || t2)}, cite=${t5 - t4})`
+      `⏱ Total: ${t6 - t0}ms [${isFast ? 'fast' : 'deep'}] (search=${t1 - t0}, setup=${t2 - t1}, ttft=${(firstChunkTime || t2) - t2}, stream=${t4 - (firstChunkTime || t2)}, cite=${t5 - t4})`
     );
     res.end();
   } catch (error: any) {

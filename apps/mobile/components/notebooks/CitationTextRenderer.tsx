@@ -35,12 +35,12 @@ export function CitationTextRenderer({
 
   const cleanedText = useMemo(() => {
     if (!text) return '';
-    return text.replace(/⚡CITE(\d+)⚡/g, '**[$1]**');
+    return text.replace(/\[cite:(\d+)\]/g, '**[$1]**');
   }, [text]);
 
   const usedCitationIndices = useMemo(() => {
     const indices = new Set<string>();
-    const pattern = /⚡CITE(\d+)⚡/g;
+    const pattern = /\[cite:(\d+)\]/g;
     let match;
     while ((match = pattern.exec(text || '')) !== null) {
       indices.add(match[1]);

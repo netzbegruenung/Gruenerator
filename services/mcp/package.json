@@ -30,7 +30,7 @@
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "@qdrant/js-client-rest": "^1.16.2",
+    "@qdrant/js-client-rest": "^1.17.0",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",

@@ -1,6 +1,6 @@
 import { type ThreadMessageLike } from '@assistant-ui/react';
 import { type NotebookMessageMetadata } from '@gruenerator/chat';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect, useRef } from 'react';
 
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -16,6 +16,7 @@ interface UseNotebookChatBridgeOptions {
   collections: Collection[];
   persistMessages?: boolean;
   welcomeMessage?: string;
+  freshConversation?: boolean;
 }
 
 function convertToThreadMessages(messages: NotebookChatMessage[]): ThreadMessageLike[] {
@@ -60,6 +61,7 @@ export function useNotebookChatBridge({
   collections,
   persistMessages = true,
   welcomeMessage,
+  freshConversation,
 }: UseNotebookChatBridgeOptions) {
   const { user } = useOptimizedAuth();
   const { setGeneratedText, setGeneratedTextMetadata } = useGeneratedTextStore();
@@ -77,10 +79,20 @@ export function useNotebookChatBridge({
   const addMessage = useNotebookChatStore((state) => state.addMessage);
   const clearMessagesStore = useNotebookChatStore((state) => state.clearMessages);
 
+  const freshHandled = useRef(false);
+  useEffect(() => {
+    if (freshConversation && !freshHandled.current) {
+      freshHandled.current = true;
+      clearMessagesStore(collectionKey);
+      window.history.replaceState({}, '');
+    }
+  }, [freshConversation, collectionKey, clearMessagesStore]);
+
   // Read store imperatively — initialMessages is a seed value, not a live subscription.
   // This breaks the feedback loop: onComplete → addMessage → store update no longer
   // triggers initialMessages recalculation → no runtime reinitialization.
   const initialMessages = useMemo(() => {
+    if (freshConversation && !freshHandled.current) return [];
     if (!persistMessages) return [];
     const stored = useNotebookChatStore.getState().chats[collectionKey]?.messages || [];
     if (stored.length === 0 && welcomeMessage) {
@@ -94,7 +106,7 @@ export function useNotebookChatBridge({
       ]);
     }
     return convertToThreadMessages(stored);
-  }, [persistMessages, collectionKey, welcomeMessage]);
+  }, [persistMessages, collectionKey, welcomeMessage, freshConversation]);
 
   const onComplete = useCallback(
     (metadata: NotebookMessageMetadata) => {
@@ -102,6 +114,7 @@ export function useNotebookChatBridge({
 
       const t0 = performance.now();
       const userName = (user?.user_metadata?.firstName as string) || user?.email || 'Sie';
+      const answerText = metadata.answerText.replace(/\[cite:(\d+)\]/g, '[$1]');
 
       addMessage(collectionKey, {
         type: 'user',
@@ -112,7 +125,7 @@ export function useNotebookChatBridge({
       const resultId = metadata.resultId;
       addMessage(collectionKey, {
         type: 'assistant',
-        content: metadata.answerText,
+        content: answerText,
         resultData: {
           resultId,
           question: metadata.question,
@@ -128,7 +141,7 @@ export function useNotebookChatBridge({
       });
       console.debug('[Notebook] ⏱ onComplete store writes: %.1fms', performance.now() - t0);
 
-      setGeneratedText(resultId, metadata.answerText);
+      setGeneratedText(resultId, answerText);
       setGeneratedTextMetadata(resultId, {
         sources: metadata.sources,
         citations: metadata.citations,

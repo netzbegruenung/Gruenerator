@@ -79,7 +79,7 @@ export function useNotebookChat({ notebookId }: UseNotebookChatOptions): UseNote
 
           answer = response.answer;
 
-          // Use top-level citations (have index fields for inline ⚡CITE⚡ rendering)
+          // Use top-level citations (have index fields for inline [cite:N] rendering)
           citations = response.citations || [];
 
           // Flatten sources from all collections for the sources list

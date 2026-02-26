@@ -1,8 +1,11 @@
 import { GrueneratorChatProvider, ChatThreadList, TooltipProvider } from '@gruenerator/chat';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
+import useNotebookStore from '../features/notebook/stores/notebookStore';
+import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useOptimizedAuth } from '../hooks/useAuth';
 
 const PORTAL_SLOT_ID = 'chat-thread-portal-slot';
@@ -52,9 +55,43 @@ interface GlobalChatProviderProps {
 
 export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const { user } = useOptimizedAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const chats = useNotebookChatStore((s) => s.chats);
+  const qaCollections = useNotebookStore((s) => s.qaCollections);
+  const fetchQACollections = useNotebookStore((s) => s.fetchQACollections);
+
+  useEffect(() => {
+    if (qaCollections.length === 0) {
+      fetchQACollections();
+    }
+  }, [qaCollections.length, fetchQACollections]);
+
+  const getExternalThreads = useCallback(() => {
+    const userCols = qaCollections.map((c) => ({ id: c.id, name: c.name }));
+    const entries = resolveNotebookChatEntries(chats, userCols);
+    return entries.map((e) => ({
+      remoteId: `notebook:${e.collectionKey}`,
+      title: e.title,
+      externalId: e.path,
+      updatedAt: new Date(e.timestamp).toISOString(),
+    }));
+  }, [chats, qaCollections]);
+
+  const handleExternalClick = useCallback(
+    (path: string) => {
+      navigate(path);
+    },
+    [navigate]
+  );
 
   return (
-    <GrueneratorChatProvider userId={user?.id}>
+    <GrueneratorChatProvider
+      userId={user?.id}
+      getExternalThreads={getExternalThreads}
+      onExternalThreadClick={handleExternalClick}
+      activePath={location.pathname}
+    >
       <TooltipProvider>
         {children}
         <ChatThreadPortal />

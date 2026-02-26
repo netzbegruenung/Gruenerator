@@ -3,9 +3,11 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
+  WelcomeScreen,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import React, { useState, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -16,7 +18,6 @@ import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAssistantMessage } from './NotebookAssistantMessage';
-import { NotebookStartPage } from './NotebookStartPage';
 
 interface NotebookCollection {
   id: string;
@@ -72,6 +73,10 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
   const isMulti = config.collectionType === 'multi';
   const locale = useAuthStore((state) => state.locale);
   const { getFiltersForCollection } = useNotebookStore();
+  const [mode, setMode] = useState<'fast' | 'deep'>('fast');
+  const location = useLocation();
+  const freshConversation = (location.state as { freshConversation?: boolean } | null)
+    ?.freshConversation;
 
   const localeCollections = useMemo(() => {
     if (!isMulti) return config.collections;
@@ -121,6 +126,7 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
   const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
     persistMessages: config.persistMessages,
+    freshConversation,
   });
 
   const providerCollections = useMemo(
@@ -170,14 +176,17 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
         extraParams={extraParams}
         initialMessages={initialMessages}
         onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
+        mode={mode}
       >
-        <div className="flex min-h-[calc(100vh-60px)] flex-col">
-          <ThreadPrimitive.Root className="flex h-full flex-col">
+        <div className="notebook-page-root flex min-h-0 flex-col">
+          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
             <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
               <ThreadPrimitive.Empty>
-                <NotebookStartPage
+                <WelcomeScreen
                   title={config.startPageTitle}
-                  exampleQuestions={config.exampleQuestions}
+                  description={config.infoPanelDescription}
+                  questions={config.exampleQuestions?.map((q) => ({ text: q.text ?? '' }))}
+                  sources={config.sources}
                 />
               </ThreadPrimitive.Empty>
               <div className="mx-auto w-full max-w-3xl flex flex-col gap-4 py-4">
@@ -188,8 +197,15 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
                   }}
                 />
               </div>
+              <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
+                <NotebookComposer
+                  placeholder={config.placeholder}
+                  sourceFilters={sourceFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                />
+              </ThreadPrimitive.ViewportFooter>
             </ThreadPrimitive.Viewport>
-            <NotebookComposer placeholder={config.placeholder} sourceFilters={sourceFilters} />
           </ThreadPrimitive.Root>
         </div>
       </NotebookChatProvider>
