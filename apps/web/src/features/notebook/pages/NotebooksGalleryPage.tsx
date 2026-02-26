@@ -7,12 +7,7 @@ import IndexCard from '../../../components/common/IndexCard';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '../../../components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '../../../components/ui/dialog';
 import { Separator } from '../../../components/ui/separator';
 import { useAuthStore } from '../../../stores/authStore';
 import { useDocumentsStore } from '../../../stores/documentsStore';
