@@ -3,6 +3,15 @@
  * Handles redirect URLs for authentication flows consistently across the app
  */
 
+const PUBLIC_PATHS = ['/datenschutz', '/impressum', '/support', '/login', '/auth'];
+
+const PUBLIC_PREFIXES = ['/auth/', '/shared/', '/subtitler/shared/'];
+
+export const isPublicPage = (pathname: string = window.location.pathname): boolean =>
+  pathname === '/' ||
+  PUBLIC_PATHS.includes(pathname) ||
+  PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
 /**
  * Build login URL with proper redirectTo parameter
  * @param {string} redirectTo - URL to redirect to after login
