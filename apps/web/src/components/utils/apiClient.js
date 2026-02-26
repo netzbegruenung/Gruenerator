@@ -1,7 +1,7 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import axios from 'axios';
 
-import { buildLoginUrl } from '../../utils/authRedirect';
+import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
 import { isDesktopApp } from '../../utils/platform';
 
@@ -16,7 +16,7 @@ const sharedApiClient = createApiClient({
   authMode: isDesktopApp() ? 'bearer' : 'cookie',
   getAuthToken: isDesktopApp() ? async () => getDesktopToken() : undefined,
   onUnauthorized: () => {
-    if (window.location.pathname !== '/login') {
+    if (!isPublicPage() && window.location.pathname !== '/login') {
       const currentPath = window.location.pathname + window.location.search;
       window.location.href = buildLoginUrl(currentPath);
     }
@@ -77,8 +77,7 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response && error.response.status === 401) {
-      // Redirect to frontend login page with proper redirectTo parameter
-      if (window.location.pathname !== '/login') {
+      if (!isPublicPage() && window.location.pathname !== '/login') {
         const currentPath = window.location.pathname + window.location.search;
         const loginUrl = buildLoginUrl(currentPath);
         console.log('[apiClient] 401 detected, redirecting to login with redirect:', currentPath);
