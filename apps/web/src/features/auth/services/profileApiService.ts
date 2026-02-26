@@ -239,7 +239,9 @@ interface ApiErrorWithResponse extends Error {
 export const profileApiService = {
   // === PROFILE DATA ===
   async getProfile(): Promise<Profile> {
-    const response = await apiClient.get('/auth/profile');
+    const response = await apiClient.get('/auth/profile', {
+      skipAuthRedirect: true,
+    });
     const data = response.data;
     const profile = data.user || data.profile || null;
 
@@ -585,7 +587,9 @@ export const profileApiService = {
 
   // === CUSTOM GENERATORS ===
   async getCustomGenerators(): Promise<CustomGenerator[]> {
-    const response = await apiClient.get('/auth/custom_generator');
+    const response = await apiClient.get('/auth/custom_generator', {
+      skipAuthRedirect: true,
+    });
     return response.data?.generators || [];
   },
 
