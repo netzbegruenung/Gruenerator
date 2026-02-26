@@ -346,19 +346,15 @@ export function GrueneratorChatProvider({
   const prevConfigRef = useRef<ChatConfig | undefined>(undefined);
   if (config !== prevConfigRef.current) {
     prevConfigRef.current = config;
-    console.log('[GrueneratorChatProvider] Synchronous configure() during render');
     useChatConfigStore.getState().configure(config);
   }
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
-  const providerApiClient = useMemo(() => {
-    console.log(
-      '[GrueneratorChatProvider] Creating providerApiClient — custom onUnauthorized:',
-      onUnauthorized !== undefined
-    );
-    return createChatApiClient(fetchFn, onUnauthorized);
-  }, [fetchFn, onUnauthorized]);
+  const providerApiClient = useMemo(
+    () => createChatApiClient(fetchFn, onUnauthorized),
+    [fetchFn, onUnauthorized]
+  );
 
   // Load user's custom prompts for @mention support
   useEffect(() => {
