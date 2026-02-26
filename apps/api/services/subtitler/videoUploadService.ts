@@ -57,7 +57,7 @@ async function getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
 
       const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
-      const rotation = videoStream.tags?.rotate || '0';
+      const rotation = videoStream.rotation || videoStream.tags?.rotate || '0';
       const isVertical = rotation === '90' || rotation === '270';
 
       const width = isVertical ? videoStream.height || 0 : videoStream.width || 0;

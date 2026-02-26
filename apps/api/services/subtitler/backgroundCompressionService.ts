@@ -324,10 +324,6 @@ async function compressVideoInBackground(
           );
         }
 
-        if (metadata.rotation && metadata.rotation !== '0') {
-          outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
-        }
-
         const scaleFilter = targetResolution
           ? `scale=${targetResolution.width}:${targetResolution.height}:force_original_aspect_ratio=decrease:force_divisible_by=2`
           : null;
