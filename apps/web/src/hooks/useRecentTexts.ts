@@ -92,7 +92,7 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
           page: 1,
         },
         skipAuthRedirect: true,
-      } as any);
+      });
 
       const fetchedTexts = response.data.data || [];
 
