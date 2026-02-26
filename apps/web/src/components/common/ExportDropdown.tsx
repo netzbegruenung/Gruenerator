@@ -108,6 +108,7 @@ const ExportDropdown = ({
   const navigate = useNavigate();
   const { getBetaFeatureState } = useBetaFeatures();
   const hasChatAccess = isAuthenticated && getBetaFeatureState('chat');
+  const hasDocsAccess = isAuthenticated && getBetaFeatureState('docs');
   const { submitForm: submitEtherpad, loading: etherpadLoading } = useApiSubmit('etherpad/create');
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
 
@@ -510,7 +511,7 @@ const ExportDropdown = ({
 
             {!hideDefaultOptions && (
               <>
-                {onEditInDocs && isAuthenticated && (
+                {onEditInDocs && hasDocsAccess && (
                   <DropdownMenuItem onSelect={handleEditInDocsClick} disabled={editInDocsLoading}>
                     <HiOutlineDocumentText />
                     {editInDocsLoading ? 'Exportiere...' : 'In Docs exportieren'}
