@@ -72,7 +72,9 @@ export const useBetaFeaturesStore = create<BetaFeaturesStore>()(
         }
 
         try {
-          const response = await apiClient.get('/auth/profile/beta-features');
+          const response = await apiClient.get('/auth/profile/beta-features', {
+            skipAuthRedirect: true,
+          });
           const result = response.data;
           const features = normalizeBetaFeatures(result?.betaFeatures || {});
           set({
@@ -95,10 +97,16 @@ export const useBetaFeaturesStore = create<BetaFeaturesStore>()(
         set({ betaFeatures: optimistic, isUpdating: true, error: null });
 
         try {
-          const response = await apiClient.patch('/auth/profile/beta-features', {
-            feature: featureKey,
-            enabled: !!enabled,
-          });
+          const response = await apiClient.patch(
+            '/auth/profile/beta-features',
+            {
+              feature: featureKey,
+              enabled: !!enabled,
+            },
+            {
+              skipAuthRedirect: true,
+            }
+          );
           const result = response.data;
 
           if (!result?.success) {

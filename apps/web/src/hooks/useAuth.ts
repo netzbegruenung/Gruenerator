@@ -4,13 +4,6 @@ import { useEffect, useState } from 'react';
 import apiClient from '../components/utils/apiClient';
 import { useAuthStore, type AuthStore } from '../stores/authStore';
 
-import type { AxiosRequestConfig } from 'axios';
-
-// Extend axios config to allow skipAuthRedirect
-interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
-  skipAuthRedirect?: boolean;
-}
-
 interface AuthOptions {
   skipAuth?: boolean;
   lazy?: boolean;
@@ -150,7 +143,7 @@ const detectPartialLogoutState = async () => {
     if (frontendLoggedOut) {
       const response = await apiClient.get('/auth/status', {
         skipAuthRedirect: true,
-      } as ExtendedAxiosRequestConfig);
+      });
 
       const statusData = response.data as Record<string, unknown>;
       const backendAuthenticated = statusData.isAuthenticated;
@@ -404,7 +397,7 @@ export const useAuth = (options: AuthOptions = {}) => {
       }
       const response = await apiClient.get('/auth/status', {
         skipAuthRedirect: true,
-      } as ExtendedAxiosRequestConfig);
+      });
       return response.data as AuthData;
     },
     enabled: isServerAvailable && !skipAuth && (!hasRecentlyLoggedOut || isOnLoginPage), // Allow auth on login page
@@ -470,7 +463,7 @@ export const useAuth = (options: AuthOptions = {}) => {
                 try {
                   const response = await apiClient.get('/auth/groups', {
                     skipAuthRedirect: true,
-                  } as ExtendedAxiosRequestConfig);
+                  });
                   return response.data.groups || [];
                 } catch (error: unknown) {
                   console.warn('[useAuth] Groups prefetch failed:', error);

@@ -2,9 +2,6 @@ import express, { type Request, type Response, type Router } from 'express';
 
 import { PRIMARY_URL } from '../../config/domains.js';
 
-// Use AUTH_BASE_URL for local dev (http://localhost:3001), PRIMARY_URL for production
-const API_BASE_URL = process.env.AUTH_BASE_URL || PRIMARY_URL;
-
 // GitHub configuration for release downloads
 const GITHUB_REPO = 'netzbegruenung/Gruenerator';
 const getGitHubReleaseTag = (version: string) => `desktop-v${version}`;
@@ -85,9 +82,9 @@ const PLATFORM_FILES: Record<string, (v: string) => string> = {
   'windows-x86_64': (v) => `Grunerator_${v}_x64-setup.exe`,
 };
 
-// Helper to generate file download URL
+// Helper to generate file download URL (relative path — browser resolves against current origin)
 const getFileDownloadUrl = (filename: string) =>
-  `${API_BASE_URL}/api/releases/download/file/${encodeURIComponent(filename)}`;
+  `/api/releases/download/file/${encodeURIComponent(filename)}`;
 
 // Release configuration - update this when publishing new releases
 const CURRENT_RELEASE: ReleaseInfo = {
