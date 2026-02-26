@@ -344,10 +344,6 @@ async function processVideoWithSubtitles(
       log.debug(`[FFmpeg] Using CPU: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
     }
 
-    if (metadata.rotation && metadata.rotation !== '0') {
-      outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
-    }
-
     command.outputOptions(outputOptions);
 
     if (useHwAccel) {

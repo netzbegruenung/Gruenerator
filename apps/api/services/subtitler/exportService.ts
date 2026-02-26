@@ -82,7 +82,7 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
         width: videoStream?.width || 1920,
         height: videoStream?.height || 1080,
         duration: parseFloat(metadata.format.duration || '0') || 0,
-        rotation: videoStream?.tags?.rotate || '0',
+        rotation: videoStream?.rotation || videoStream?.tags?.rotate || '0',
         originalFormat: {
           codec: videoStream?.codec_name,
           audioCodec: audioStream?.codec_name,
