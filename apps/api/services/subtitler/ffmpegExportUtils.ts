@@ -182,10 +182,6 @@ function buildFFmpegOutputOptions(params: FFmpegOutputParams): FFmpegOutputResul
     }
   }
 
-  if (metadata.rotation && metadata.rotation !== '0') {
-    outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
-  }
-
   return { outputOptions, videoCodec, inputOptions, qualitySettings };
 }
 
