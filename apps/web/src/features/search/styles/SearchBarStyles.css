@@ -104,6 +104,15 @@
   transform: none !important;
 }
 
+/* Abort button during streaming */
+.search-bar-container .search-form .search-input-wrapper .search-abort-button {
+  color: var(--error-color, #e53e3e);
+}
+
+.search-bar-container .search-form .search-input-wrapper .search-abort-button:hover {
+  color: var(--error-color-hover, #c53030);
+}
+
 /* Deep research toggle button - brain icon for activating deep research mode */
 .search-bar-container .search-form .search-input-wrapper .deep-research-toggle {
   display: flex;
