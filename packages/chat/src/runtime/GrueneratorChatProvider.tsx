@@ -340,16 +340,25 @@ export function GrueneratorChatProvider({
   onExternalThreadClick,
   activePath,
 }: GrueneratorChatProviderProps) {
-  useEffect(() => {
+  // Sync config store during render (before any hooks read from it).
+  // useEffect runs AFTER render, which creates a race: providerApiClient
+  // would capture the default onUnauthorized before configure() updates it.
+  const prevConfigRef = useRef<ChatConfig | undefined>(undefined);
+  if (config !== prevConfigRef.current) {
+    prevConfigRef.current = config;
+    console.log('[GrueneratorChatProvider] Synchronous configure() during render');
     useChatConfigStore.getState().configure(config);
-  }, [config]);
+  }
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
-  const providerApiClient = useMemo(
-    () => createChatApiClient(fetchFn, onUnauthorized),
-    [fetchFn, onUnauthorized]
-  );
+  const providerApiClient = useMemo(() => {
+    console.log(
+      '[GrueneratorChatProvider] Creating providerApiClient — custom onUnauthorized:',
+      onUnauthorized !== undefined
+    );
+    return createChatApiClient(fetchFn, onUnauthorized);
+  }, [fetchFn, onUnauthorized]);
 
   // Load user's custom prompts for @mention support
   useEffect(() => {

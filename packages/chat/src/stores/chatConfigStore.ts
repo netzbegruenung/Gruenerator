@@ -68,10 +68,24 @@ function defaultFetch(url: string, options?: RequestInit): Promise<Response> {
   return fetch(url, { ...options, credentials: 'include' });
 }
 
+const PUBLIC_PATHS = ['/datenschutz', '/impressum', '/support', '/login', '/auth'];
+const PUBLIC_PREFIXES = ['/auth/', '/shared/', '/subtitler/shared/'];
+
+function isPublicPath(pathname: string): boolean {
+  return (
+    pathname === '/' ||
+    PUBLIC_PATHS.includes(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  );
+}
+
 function defaultOnUnauthorized(): void {
   if (typeof window === 'undefined') return;
-  if (window.location.pathname === '/login') return;
-  const currentPath = window.location.pathname + window.location.search;
+  const p = window.location.pathname;
+  console.log('[chatConfigStore] defaultOnUnauthorized fired — pathname:', p);
+  if (isPublicPath(p)) return;
+  const currentPath = p + window.location.search;
+  console.log('[chatConfigStore] defaultOnUnauthorized redirecting — redirect:', currentPath);
   window.location.href = `/login?redirectTo=${encodeURIComponent(currentPath)}`;
 }
 
@@ -82,6 +96,10 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   docsBaseUrl: undefined,
 
   configure: (config?: ChatConfig) => {
+    console.log(
+      '[chatConfigStore] configure() called — has custom onUnauthorized:',
+      !!config?.onUnauthorized
+    );
     set({
       fetch: config?.fetch ?? defaultFetch,
       onUnauthorized: config?.onUnauthorized ?? defaultOnUnauthorized,

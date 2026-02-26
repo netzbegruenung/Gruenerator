@@ -89,8 +89,13 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const chatConfig = useMemo(
     () => ({
       onUnauthorized: () => {
+        console.log(
+          '[GlobalChatProvider] custom onUnauthorized fired — pathname:',
+          window.location.pathname
+        );
         if (!isPublicPage() && window.location.pathname !== '/login') {
           const currentPath = window.location.pathname + window.location.search;
+          console.log('[GlobalChatProvider] Redirecting to login with redirect:', currentPath);
           window.location.href = buildLoginUrl(currentPath);
         }
       },
