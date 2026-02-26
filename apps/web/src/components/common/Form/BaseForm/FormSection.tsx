@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import useDragDropFiles from '../../../../hooks/useDragDropFiles';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
 import HelpIconPopover from '../../HelpIconPopover';
+import { useBaseFormContext } from '../BaseFormContext';
 import useResponsive from '../hooks/useResponsive';
 import InputTip from '../Input/InputTip';
 
@@ -177,6 +178,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
     const usePrivacyMode = useGeneratorSelectionStore(useShallow((state) => state.usePrivacyMode));
 
     const { isMobileView } = useResponsive();
+    const { hasContent } = useBaseFormContext();
 
     const { getRootProps, isDragActive } = useDragDropFiles({
       onFilesAccepted: onAttachmentClick as (files: File[]) => void,
@@ -196,6 +198,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
           className={cn(
             'form-section flex flex-col min-h-[400px] bg-[var(--card-background)] text-foreground',
             'max-md:min-h-[300px] max-md:mt-md',
+            hasContent && 'max-md:mt-xs',
             isStartMode && 'form-section--start-mode min-h-0',
             'xl:min-h-[450px] 3xl:min-h-[480px] 4xl:min-h-[520px] 5xl:min-h-[580px]',
             isStartMode && 'xl:min-h-0 3xl:min-h-0 4xl:min-h-0 5xl:min-h-0'
@@ -222,7 +225,12 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
             )}
           >
             {!isStartMode && title && (
-              <CardHeader className="flex-row justify-between items-center border-b border-grey-200 dark:border-grey-700 py-md px-xl max-md:px-md max-md:py-md">
+              <CardHeader
+                className={cn(
+                  'flex-row justify-between items-center border-b border-grey-200 dark:border-grey-700 py-md px-xl max-md:px-md max-md:py-md',
+                  hasContent && 'pt-lg'
+                )}
+              >
                 <div>
                   <CardTitle className="text-[1.4em]">{title}</CardTitle>
                   {subtitle && (
@@ -248,7 +256,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
             <CardContent
               className={cn(
                 'flex-1 flex flex-col',
-                isStartMode ? 'p-md max-md:p-sm' : 'p-lg max-md:p-md max-md:pt-0 max-[480px]:p-sm'
+                isStartMode ? 'p-md max-md:p-sm' : 'p-lg max-md:p-md max-[480px]:p-sm'
               )}
             >
               <form
@@ -281,6 +289,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
                     'form-section__container flex gap-lg h-full',
                     'max-md:flex-col max-md:gap-0',
                     isStartMode && 'flex-col gap-xs',
+                    hasContent && !isStartMode && 'flex-col',
                     'xl:gap-[calc(var(--spacing-responsive-large)*1.2)]',
                     '4xl:gap-[calc(var(--spacing-responsive-large)*1.4)]'
                   )}

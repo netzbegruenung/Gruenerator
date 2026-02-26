@@ -3,7 +3,28 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
+import { type ChatProgress, type Citation as ChatCitation } from '../hooks/useChatGraphStream';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+
+function normalizeCiteMarkers(text: string): string {
+  return text.replace(/\[cite:(\d+)\]/g, '[$1]');
+}
+
+function mapToChatCitations(citations: Citation[]): ChatCitation[] {
+  return citations.map((c) => ({
+    id: parseInt(c.index, 10),
+    title: c.document_title ?? '',
+    url: c.source_url ?? '',
+    snippet: c.cited_text ?? '',
+    citedText: c.cited_text,
+    source: c.collection_name ?? '',
+    collectionName: c.collection_name,
+    documentId: c.document_id,
+    chunkIndex: c.chunk_index,
+    similarityScore: c.similarity_score,
+    collectionId: c.collection_id,
+  }));
+}
 
 export interface NotebookAdapterConfig {
   collectionId?: string;
@@ -12,6 +33,7 @@ export interface NotebookAdapterConfig {
   filters?: Record<string, unknown>;
   locale?: string;
   extraParams?: Record<string, unknown>;
+  mode?: 'fast' | 'deep';
 }
 
 export interface Citation {
@@ -46,6 +68,7 @@ export interface LinkConfig {
 
 export interface NotebookMessageMetadata {
   citations: Citation[];
+  chatCitations: ChatCitation[];
   sources: Source[];
   additionalSources: unknown[];
   linkConfig: LinkConfig;
@@ -53,6 +76,7 @@ export interface NotebookMessageMetadata {
   resultId: string;
   answerText: string;
   sourcesByCollection?: Record<string, unknown>;
+  progress?: ChatProgress;
   [key: string]: unknown;
 }
 
@@ -125,10 +149,13 @@ export function createNotebookModelAdapter(
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
         locale: config.locale,
+        ...(config.mode && { mode: config.mode }),
         ...config.extraParams,
       };
 
       const { fetch: configFetch } = useChatConfigStore.getState();
+      const c0 = performance.now();
+      console.debug('[Notebook] ⏱ Request sent');
       const response = await configFetch('/api/chat-service/notebook/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,39 +178,129 @@ export function createNotebookModelAdapter(
       const currentEvent = { type: '' };
       let accumulatedText = '';
       let completionData: StreamCompletionData | null = null;
+      let currentProgress: ChatProgress | undefined;
+      let firstDeltaReceived = false;
+      let lastYieldTime = 0;
+      const YIELD_INTERVAL = 50; // ms — yields at most 20 times/sec
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          const { event, data } = parseSSELine(line, currentEvent);
-          if (!event || !data) continue;
+          for (const line of lines) {
+            const { event, data } = parseSSELine(line, currentEvent);
+            if (!event || !data) continue;
 
-          switch (event) {
-            case 'text_delta': {
-              accumulatedText += (data as { text: string }).text;
-              yield {
-                content: [{ type: 'text' as const, text: accumulatedText }],
-              };
-              break;
-            }
+            switch (event) {
+              case 'search_start': {
+                const { message } = data as { message: string };
+                console.debug(
+                  `[Notebook] ⏱ Search started: ${Math.round(performance.now() - c0)}ms (network + auth)`
+                );
+                currentProgress = { stage: 'searching', message };
+                yield {
+                  content: [{ type: 'text' as const, text: '' }],
+                  metadata: { custom: { progress: currentProgress } },
+                };
+                break;
+              }
 
-            case 'completion': {
-              completionData = data as StreamCompletionData;
-              break;
-            }
+              case 'search_complete': {
+                const { message, resultCount } = data as { message: string; resultCount: number };
+                console.debug(
+                  `[Notebook] ⏱ Search done: ${Math.round(performance.now() - c0)}ms, ${resultCount} results`
+                );
+                currentProgress = { stage: 'searching', ...currentProgress, message, resultCount };
+                yield {
+                  content: [{ type: 'text' as const, text: '' }],
+                  metadata: { custom: { progress: currentProgress } },
+                };
+                break;
+              }
 
-            case 'error': {
-              const { error } = data as { error: string };
-              throw new Error(error);
+              case 'response_start': {
+                const { message } = data as { message: string };
+                console.debug(`[Notebook] ⏱ Model ready: ${Math.round(performance.now() - c0)}ms`);
+                currentProgress = { stage: 'generating', message };
+                yield {
+                  content: [{ type: 'text' as const, text: '' }],
+                  metadata: { custom: { progress: currentProgress } },
+                };
+                break;
+              }
+
+              case 'text_delta': {
+                accumulatedText += (data as { text: string }).text;
+                currentProgress = { stage: 'generating', message: '' };
+
+                if (!firstDeltaReceived) {
+                  firstDeltaReceived = true;
+                  console.debug(
+                    `[Notebook] ⏱ First token: ${Math.round(performance.now() - c0)}ms`
+                  );
+                  lastYieldTime = performance.now();
+                  yield {
+                    content: [
+                      { type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) },
+                    ],
+                    metadata: { custom: { progress: currentProgress } },
+                  };
+                  break;
+                }
+
+                const now = performance.now();
+                if (now - lastYieldTime >= YIELD_INTERVAL) {
+                  lastYieldTime = now;
+                  yield {
+                    content: [
+                      { type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) },
+                    ],
+                    metadata: { custom: { progress: currentProgress } },
+                  };
+                }
+                break;
+              }
+
+              case 'completion': {
+                completionData = data as StreamCompletionData;
+                console.debug(
+                  `[Notebook] ⏱ Stream done: ${Math.round(performance.now() - c0)}ms, ${(completionData.answer || '').length} chars, ${(completionData.citations || []).length} citations`
+                );
+                break;
+              }
+
+              case 'error': {
+                const { error } = data as { error: string };
+                throw new Error(error);
+              }
             }
           }
+
+          // Flush any buffered text between read chunks
+          if (accumulatedText && performance.now() - lastYieldTime >= YIELD_INTERVAL) {
+            lastYieldTime = performance.now();
+            yield {
+              content: [{ type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) }],
+              metadata: { custom: { progress: currentProgress } },
+            };
+          }
         }
+      } catch (readError: unknown) {
+        const msg = readError instanceof Error ? readError.message : String(readError);
+        if (abortSignal?.aborted) {
+          return;
+        }
+        console.warn(
+          '[Notebook] Stream read error after %d chars: %s',
+          accumulatedText.length,
+          msg
+        );
+        // Fall through to completionData/accumulatedText handling below
       }
 
       if (completionData) {
@@ -209,23 +326,35 @@ export function createNotebookModelAdapter(
           };
         }
 
+        const chatCitations = mapToChatCitations(citations);
+        console.debug(
+          '[Notebook] Completion: %d citations, %d chatCitations, answer length: %d',
+          citations.length,
+          chatCitations.length,
+          completionData.answer.length
+        );
         const metadata: NotebookMessageMetadata = {
           citations,
+          chatCitations,
           sources,
           additionalSources,
           linkConfig,
           question,
           resultId,
           answerText: completionData.answer,
+          progress: { stage: 'complete', message: '' },
           ...(sourcesByCollection && { sourcesByCollection }),
         };
 
         yield {
-          content: [{ type: 'text' as const, text: completionData.answer }],
+          content: [{ type: 'text' as const, text: normalizeCiteMarkers(completionData.answer) }],
           metadata: { custom: metadata },
         };
 
+        const tCb0 = performance.now();
         callbacks.onComplete?.(metadata);
+        console.debug('[Notebook] ⏱ onComplete callback: %.1fms', performance.now() - tCb0);
+        console.debug(`[Notebook] ⏱ Total: ${Math.round(performance.now() - c0)}ms`);
       } else if (accumulatedText) {
         yield {
           content: [{ type: 'text' as const, text: accumulatedText }],

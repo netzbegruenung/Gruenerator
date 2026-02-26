@@ -3,9 +3,11 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
+  WelcomeScreen,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import React, { useState, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -16,10 +18,6 @@ import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAssistantMessage } from './NotebookAssistantMessage';
-import { NotebookStartPage } from './NotebookStartPage';
-
-import '../../../assets/styles/features/notebook/notebook-chat.css';
-import '../../../components/common/Chat/ChatStartPage.css';
 
 interface NotebookCollection {
   id: string;
@@ -71,37 +69,14 @@ interface NotebookPageProps {
   configId: string;
 }
 
-const SourceToggles = ({
-  collections,
-  selectedIds,
-  onToggle,
-}: {
-  collections: NotebookCollection[];
-  selectedIds: string[];
-  onToggle: (id: string) => void;
-}) => (
-  <div className="flex flex-wrap gap-2 px-4 py-2">
-    {collections.map((c) => (
-      <button
-        key={c.id}
-        type="button"
-        onClick={() => onToggle(c.id)}
-        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-          selectedIds.includes(c.id)
-            ? 'bg-primary text-white'
-            : 'bg-surface-secondary text-foreground-muted hover:bg-surface-tertiary'
-        }`}
-      >
-        {c.name}
-      </button>
-    ))}
-  </div>
-);
-
 const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const locale = useAuthStore((state) => state.locale);
   const { getFiltersForCollection } = useNotebookStore();
+  const [mode, setMode] = useState<'fast' | 'deep'>('fast');
+  const location = useLocation();
+  const freshConversation = (location.state as { freshConversation?: boolean } | null)
+    ?.freshConversation;
 
   const localeCollections = useMemo(() => {
     if (!isMulti) return config.collections;
@@ -151,40 +126,67 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
   const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
     persistMessages: config.persistMessages,
+    freshConversation,
   });
+
+  const providerCollections = useMemo(
+    () => selectedCollections.map((c) => ({ id: c.id, name: c.name, linkType: c.linkType })),
+    [selectedCollections]
+  );
+
+  const handleSelectAll = useCallback(
+    () => setSelectedIds(localeCollections.map((c) => c.id)),
+    [localeCollections]
+  );
+  const handleSelectNone = useCallback(() => setSelectedIds([]), []);
+
+  const sourceFilters = useMemo(() => {
+    if (!isMulti) return undefined;
+    return {
+      collections: localeCollections.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        documentCount: c.documentCount,
+      })),
+      selectedIds,
+      onToggle: handleSourceToggle,
+      onSelectAll: handleSelectAll,
+      onSelectNone: handleSelectNone,
+    };
+  }, [
+    isMulti,
+    localeCollections,
+    selectedIds,
+    handleSourceToggle,
+    handleSelectAll,
+    handleSelectNone,
+  ]);
 
   return (
     <ErrorBoundary>
-      <div className="notebook-beta-warning">
+      <div className="flex items-center justify-center gap-sm border-b border-border bg-background-alt px-md py-sm text-sm text-foreground">
         <span>Diese Funktion befindet sich in der Beta-Phase. Antworten können ungenau sein.</span>
       </div>
       <CitationModal />
       <NotebookChatProvider
-        collections={selectedCollections.map((c) => ({
-          id: c.id,
-          name: c.name,
-          linkType: c.linkType,
-        }))}
+        collections={providerCollections}
         locale={locale}
         filters={filters}
         extraParams={extraParams}
         initialMessages={initialMessages}
         onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
+        mode={mode}
       >
-        <div className="qa-chat-container">
-          {isMulti && (
-            <SourceToggles
-              collections={localeCollections}
-              selectedIds={selectedIds}
-              onToggle={handleSourceToggle}
-            />
-          )}
-          <ThreadPrimitive.Root className="flex h-full flex-col">
+        <div className="notebook-page-root flex min-h-0 flex-col">
+          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
             <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
               <ThreadPrimitive.Empty>
-                <NotebookStartPage
+                <WelcomeScreen
                   title={config.startPageTitle}
-                  exampleQuestions={config.exampleQuestions}
+                  description={config.infoPanelDescription}
+                  questions={config.exampleQuestions?.map((q) => ({ text: q.text ?? '' }))}
+                  sources={config.sources}
                 />
               </ThreadPrimitive.Empty>
               <div className="mx-auto w-full max-w-3xl flex flex-col gap-4 py-4">
@@ -195,8 +197,15 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
                   }}
                 />
               </div>
+              <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
+                <NotebookComposer
+                  placeholder={config.placeholder}
+                  sourceFilters={sourceFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                />
+              </ThreadPrimitive.ViewportFooter>
             </ThreadPrimitive.Viewport>
-            <NotebookComposer placeholder={config.placeholder} />
           </ThreadPrimitive.Root>
         </div>
       </NotebookChatProvider>

@@ -243,7 +243,7 @@ const TexteGenerator: React.FC = () => {
             'w-full max-w-[800px] mx-auto grid grid-cols-1 grid-rows-1',
             'xl:max-w-[1000px] 3xl:max-w-[1100px]',
             'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-[-2px] focus-visible:rounded-lg',
-            hasGeneratedContent && 'max-w-full px-lg'
+            hasGeneratedContent && 'max-w-full xl:max-w-full 3xl:max-w-full px-lg max-md:px-0'
           )}
         >
           {showLoginRequired ? (

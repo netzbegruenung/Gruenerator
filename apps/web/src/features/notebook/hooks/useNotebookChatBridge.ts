@@ -1,7 +1,6 @@
 import { type ThreadMessageLike } from '@assistant-ui/react';
 import { type NotebookMessageMetadata } from '@gruenerator/chat';
-import { useMemo, useCallback } from 'react';
-import { useShallow } from 'zustand/react/shallow';
+import { useMemo, useCallback, useEffect, useRef } from 'react';
 
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -17,6 +16,7 @@ interface UseNotebookChatBridgeOptions {
   collections: Collection[];
   persistMessages?: boolean;
   welcomeMessage?: string;
+  freshConversation?: boolean;
 }
 
 function convertToThreadMessages(messages: NotebookChatMessage[]): ThreadMessageLike[] {
@@ -32,6 +32,7 @@ function convertToThreadMessages(messages: NotebookChatMessage[]): ThreadMessage
     const custom: Record<string, unknown> = {};
     if (msg.resultData) {
       custom.citations = msg.resultData.citations || [];
+      custom.chatCitations = msg.resultData.chatCitations || [];
       custom.sources = msg.resultData.sources || [];
       custom.additionalSources = msg.resultData.additionalSources || [];
       custom.linkConfig = msg.resultData.linkConfig;
@@ -40,6 +41,11 @@ function convertToThreadMessages(messages: NotebookChatMessage[]): ThreadMessage
       if (msg.resultData.sourcesByCollection) {
         custom.sourcesByCollection = msg.resultData.sourcesByCollection;
       }
+      console.debug(
+        '[Notebook] Restoring message: citations=%d, chatCitations=%d',
+        (custom.citations as unknown[])?.length ?? 0,
+        (custom.chatCitations as unknown[])?.length ?? 0
+      );
     }
 
     return {
@@ -55,6 +61,7 @@ export function useNotebookChatBridge({
   collections,
   persistMessages = true,
   welcomeMessage,
+  freshConversation,
 }: UseNotebookChatBridgeOptions) {
   const { user } = useOptimizedAuth();
   const { setGeneratedText, setGeneratedTextMetadata } = useGeneratedTextStore();
@@ -69,13 +76,25 @@ export function useNotebookChatBridge({
       : collections[0]?.id || 'unknown';
   }, [collections, isMulti]);
 
-  const chats = useNotebookChatStore(useShallow((state) => state.chats));
   const addMessage = useNotebookChatStore((state) => state.addMessage);
   const clearMessagesStore = useNotebookChatStore((state) => state.clearMessages);
 
+  const freshHandled = useRef(false);
+  useEffect(() => {
+    if (freshConversation && !freshHandled.current) {
+      freshHandled.current = true;
+      clearMessagesStore(collectionKey);
+      window.history.replaceState({}, '');
+    }
+  }, [freshConversation, collectionKey, clearMessagesStore]);
+
+  // Read store imperatively — initialMessages is a seed value, not a live subscription.
+  // This breaks the feedback loop: onComplete → addMessage → store update no longer
+  // triggers initialMessages recalculation → no runtime reinitialization.
   const initialMessages = useMemo(() => {
+    if (freshConversation && !freshHandled.current) return [];
     if (!persistMessages) return [];
-    const stored = chats[collectionKey]?.messages || [];
+    const stored = useNotebookChatStore.getState().chats[collectionKey]?.messages || [];
     if (stored.length === 0 && welcomeMessage) {
       return convertToThreadMessages([
         {
@@ -87,13 +106,15 @@ export function useNotebookChatBridge({
       ]);
     }
     return convertToThreadMessages(stored);
-  }, [persistMessages, chats, collectionKey, welcomeMessage]);
+  }, [persistMessages, collectionKey, welcomeMessage, freshConversation]);
 
   const onComplete = useCallback(
     (metadata: NotebookMessageMetadata) => {
       if (!persistMessages) return;
 
+      const t0 = performance.now();
       const userName = (user?.user_metadata?.firstName as string) || user?.email || 'Sie';
+      const answerText = metadata.answerText.replace(/\[cite:(\d+)\]/g, '[$1]');
 
       addMessage(collectionKey, {
         type: 'user',
@@ -104,11 +125,12 @@ export function useNotebookChatBridge({
       const resultId = metadata.resultId;
       addMessage(collectionKey, {
         type: 'assistant',
-        content: metadata.answerText,
+        content: answerText,
         resultData: {
           resultId,
           question: metadata.question,
           citations: metadata.citations,
+          chatCitations: metadata.chatCitations as unknown as Array<Record<string, unknown>>,
           sources: metadata.sources,
           additionalSources: metadata.additionalSources as Array<Record<string, unknown>>,
           linkConfig: metadata.linkConfig,
@@ -117,8 +139,9 @@ export function useNotebookChatBridge({
           }),
         },
       });
+      console.debug('[Notebook] ⏱ onComplete store writes: %.1fms', performance.now() - t0);
 
-      setGeneratedText(resultId, metadata.answerText);
+      setGeneratedText(resultId, answerText);
       setGeneratedTextMetadata(resultId, {
         sources: metadata.sources,
         citations: metadata.citations,

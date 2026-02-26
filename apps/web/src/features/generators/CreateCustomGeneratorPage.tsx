@@ -610,7 +610,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
 
     // Otherwise, render the FormSection with the current step
     return (
-      <BaseFormProvider value={{ isStartMode: false }}>
+      <BaseFormProvider value={{ isStartMode: false, hasContent: false }}>
         <FormSection
           title={helpContent?.title || 'Neuen Custom Grünerator erstellen'}
           onSubmit={handleNext}

@@ -4,7 +4,6 @@ import { useRecentTexts, type SavedText } from '../../../hooks/useRecentTexts';
 import LoadTextConfirmModal from '../Modals/LoadTextConfirmModal';
 
 import RecentTextCard from './RecentTextCard';
-import '../../../assets/styles/components/common/recent-texts.css';
 
 export interface RecentTextsSectionProps {
   generatorType: string;
@@ -48,21 +47,30 @@ const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({ generatorType, 
   }
 
   return (
-    <section className="recent-texts" aria-labelledby="recent-texts-heading">
-      <h3 id="recent-texts-heading" className="recent-texts__heading">
+    <section
+      className="mt-xl w-full max-w-[800px] mx-auto xl:max-w-[900px] 3xl:max-w-[1000px] max-md:px-sm"
+      aria-labelledby="recent-texts-heading"
+    >
+      <h3
+        id="recent-texts-heading"
+        className="text-xs font-medium text-grey-500 uppercase tracking-wide m-0 mb-sm text-center"
+      >
         Zuletzt erstellt
       </h3>
 
       {isLoading && (
-        <div className="recent-texts__grid">
-          <div className="recent-card recent-card--skeleton" />
-          <div className="recent-card recent-card--skeleton" />
-          <div className="recent-card recent-card--skeleton" />
+        <div className="flex gap-sm max-md:flex-col">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="flex-1 min-w-0 h-[52px] bg-grey-100 dark:bg-grey-800 rounded-md animate-pulse"
+            />
+          ))}
         </div>
       )}
 
       {!isLoading && !error && texts.length > 0 && (
-        <div className="recent-texts__grid">
+        <div className="flex gap-sm max-md:flex-col">
           {texts.map((text) => (
             <RecentTextCard
               key={text.id}
@@ -74,7 +82,7 @@ const RecentTextsSection: React.FC<RecentTextsSectionProps> = ({ generatorType, 
         </div>
       )}
 
-      {error && <p className="recent-texts__error">Fehler beim Laden</p>}
+      {error && <p className="text-xs text-red-500 text-center">Fehler beim Laden</p>}
 
       <LoadTextConfirmModal
         isOpen={isModalOpen}

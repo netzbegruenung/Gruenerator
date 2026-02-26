@@ -41,7 +41,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.gruenerator.eu https://auth.services.moritz-waechter.de https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.mistral.ai; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob:; frame-ancestors 'none'",
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.gruenerator.eu https://auth.services.moritz-waechter.de https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.mistral.ai https://app.glitchtip.com; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob:; frame-ancestors 'none'; report-uri https://app.glitchtip.com/api/19466/security/?glitchtip_key=3bfeac13e8e14018a06d8f7f770f46ca",
       "freezePrototype": false,
       "assetProtocol": {
         "enable": true,

@@ -112,6 +112,11 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
             const template = templates.find((t) => t.id === doc.document_subtype);
             const emoji = template?.icon || '📄';
             const templateHtml = getTemplateContent(doc.document_subtype);
+            const previewHtml = doc.content?.trim()
+              ? /^<[a-z]/i.test(doc.content.trim())
+                ? doc.content
+                : `<p>${doc.content}</p>`
+              : templateHtml;
 
             return (
               <div
@@ -119,13 +124,11 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
                 className="document-card"
                 onClick={() => adapter.navigateToDocument(doc.id)}
               >
-                {templateHtml ? (
+                {previewHtml ? (
                   <div className="document-card-preview document-card-preview-miniature">
                     <div
                       className="document-card-preview-page"
-                      dangerouslySetInnerHTML={{
-                        __html: doc.content ? `<p>${doc.content}</p>` : templateHtml,
-                      }}
+                      dangerouslySetInnerHTML={{ __html: previewHtml }}
                     />
                   </div>
                 ) : (

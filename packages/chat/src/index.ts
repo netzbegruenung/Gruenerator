@@ -24,7 +24,13 @@ export {
   type GrueneratorAdapterConfig,
   type GrueneratorAdapterCallbacks,
 } from './runtime/GrueneratorModelAdapter';
-export { createGrueneratorThreadListAdapter } from './runtime/GrueneratorThreadListAdapter';
+export {
+  createGrueneratorThreadListAdapter,
+  type ExternalThreadEntry,
+} from './runtime/GrueneratorThreadListAdapter';
+
+// External Thread Context
+export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
 
 // Notebook Runtime
 export {
@@ -37,7 +43,7 @@ export {
   type NotebookMessageMetadata,
   type NotebookAdapterCallbacks,
 } from './runtime/NotebookModelAdapter';
-export { NotebookComposer } from './components/notebook/NotebookComposer';
+export { NotebookComposer, type SourceFilterConfig } from './components/notebook/NotebookComposer';
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
@@ -56,7 +62,11 @@ export {
 
 // Message Part Components
 export { ProgressIndicator } from './components/message-parts/ProgressIndicator';
-export { SearchResultsSection } from './components/message-parts/SearchResultsSection';
+export { TypingIndicator } from './components/message-parts/TypingIndicator';
+export {
+  SearchResultsSection,
+  type AdditionalSource,
+} from './components/message-parts/SearchResultsSection';
 export { SourceCard } from './components/message-parts/SourceCard';
 export { CitationBadge } from './components/message-parts/CitationPopover';
 export { GeneratedImageDisplay } from './components/message-parts/GeneratedImageDisplay';

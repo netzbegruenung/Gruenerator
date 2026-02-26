@@ -45,6 +45,7 @@ export interface NotebookChatMessage {
     resultId?: string;
     question?: string;
     citations?: Citation[];
+    chatCitations?: Array<Record<string, unknown>>;
     sources?: Source[];
     additionalSources?: Array<Record<string, unknown>>;
     linkConfig?: LinkConfig;
@@ -178,10 +179,13 @@ export const useNotebookChatStore = create<NotebookChatState>((set, get) => ({
   },
 }));
 
+let persistTimeout: ReturnType<typeof setTimeout> | null = null;
+
 useNotebookChatStore.subscribe((state) => {
   const hasMessages = Object.values(state.chats).some((chat) => chat?.messages?.length > 0);
   if (hasMessages) {
-    persistNotebookChatState(state.chats);
+    if (persistTimeout) clearTimeout(persistTimeout);
+    persistTimeout = setTimeout(() => persistNotebookChatState(state.chats), 500);
   }
 });
 

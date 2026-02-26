@@ -3,16 +3,30 @@
 import { useState, useMemo, memo } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, FileText, Globe } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import type { Citation } from '../../hooks/useChatGraphStream';
+import { type Citation } from '../../hooks/useChatGraphStream';
 import {
   COLLECTION_STYLES,
   getCollectionKey,
   getCollectionStyle,
-  getRelevanceColor,
 } from '../../lib/collectionStyles';
+
+export interface AdditionalSource {
+  document_id?: string;
+  document_title?: string;
+  title?: string;
+  source_url?: string | null;
+  url?: string | null;
+  snippet?: string;
+  chunk_text?: string;
+  similarity?: number;
+  similarity_score?: number;
+  collection_id?: string;
+  collection_name?: string;
+}
 
 interface SearchResultsSectionProps {
   citations: Citation[];
+  additionalSources?: AdditionalSource[];
 }
 
 interface DocumentGroup {
@@ -23,7 +37,23 @@ interface DocumentGroup {
   citations: Citation[];
 }
 
+interface AdditionalSourceGroup {
+  id: string;
+  title: string;
+  url: string | null;
+  maxScore: number;
+  snippet: string;
+  count: number;
+}
+
 const INITIAL_VISIBLE = 4;
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  const truncated = text.slice(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return (lastSpace > maxLength * 0.7 ? truncated.slice(0, lastSpace) : truncated) + '\u2026';
+}
 
 function groupByDocument(citations: Citation[]): {
   documentGroups: DocumentGroup[];
@@ -60,8 +90,34 @@ function groupByDocument(citations: Citation[]): {
   return { documentGroups, ungrouped };
 }
 
+function groupAdditionalSources(sources: AdditionalSource[]): AdditionalSourceGroup[] {
+  const groupMap = new Map<string, AdditionalSourceGroup>();
+
+  for (const s of sources) {
+    const id = s.document_id || s.document_title || s.title || '';
+    const title = s.document_title || s.title || 'Unbekannte Quelle';
+    const score = s.similarity_score ?? s.similarity ?? 0;
+    const snippet = s.chunk_text || s.snippet || '';
+    const url = s.source_url ?? s.url ?? null;
+
+    const existing = groupMap.get(id);
+    if (existing) {
+      existing.count++;
+      if (score > existing.maxScore) {
+        existing.maxScore = score;
+        if (snippet) existing.snippet = snippet;
+      }
+    } else {
+      groupMap.set(id, { id, title, url, maxScore: score, snippet, count: 1 });
+    }
+  }
+
+  return Array.from(groupMap.values()).sort((a, b) => b.maxScore - a.maxScore);
+}
+
 export const SearchResultsSection = memo(function SearchResultsSection({
   citations,
+  additionalSources,
 }: SearchResultsSectionProps) {
   const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -143,6 +199,11 @@ export const SearchResultsSection = memo(function SearchResultsSection({
           {showAll ? 'Weniger anzeigen' : `Alle ${citations.length} Quellen anzeigen`}
         </button>
       )}
+
+      {/* Additional uncited sources */}
+      {additionalSources && additionalSources.length > 0 && (
+        <AdditionalSourcesSection sources={additionalSources} />
+      )}
     </div>
   );
 });
@@ -169,11 +230,6 @@ const DocumentGroupedView = memo(function DocumentGroupedView({
         const citationsToShow = group.citations.slice(0, maxVisible - rendered);
         rendered += citationsToShow.length;
 
-        const style = group.collectionId
-          ? getCollectionStyle(`gruenerator:${group.collectionId}`)
-          : getCollectionStyle(group.citations[0]?.source || '');
-        const scorePercent = Math.round(group.maxScore * 100);
-
         return (
           <div key={group.documentId} className="space-y-1">
             {/* Document header */}
@@ -182,14 +238,6 @@ const DocumentGroupedView = memo(function DocumentGroupedView({
               <span className="text-xs font-medium text-foreground leading-tight line-clamp-1">
                 {group.title}
               </span>
-              {scorePercent > 0 && (
-                <span
-                  className="text-[10px] font-medium px-1.5 py-px rounded-full flex-shrink-0"
-                  style={{ backgroundColor: style.bg, color: style.color }}
-                >
-                  {scorePercent}%
-                </span>
-              )}
               {group.citations.length > 1 && (
                 <span className="text-[10px] text-foreground-muted flex-shrink-0">
                   {group.citations.length} Abschnitte
@@ -250,45 +298,39 @@ const CitationCard = memo(function CitationCard({
   compact?: boolean;
 }) {
   const style = getCollectionStyle(citation.source);
-  const hasExpandableContent =
-    citation.citedText && citation.citedText.length > (citation.snippet?.length || 0);
+  const citedText = citation.citedText || '';
+  const maxPreviewLen = compact ? 120 : 200;
+  const needsTruncation = citedText.length > maxPreviewLen;
+  const hasExpandableContent = citedText.length > 0 && needsTruncation;
 
-  const displayScore = citation.similarityScore ?? citation.relevance;
+  const titleContent = (
+    <span className="text-sm font-medium text-foreground leading-tight line-clamp-1">
+      {compact ? citation.snippet?.slice(0, 60) || citation.title : citation.title}
+    </span>
+  );
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden transition-colors hover:border-primary/30">
-      <button
-        onClick={hasExpandableContent ? onToggle : undefined}
-        className={cn(
-          'w-full text-left px-3 py-2 flex items-start gap-2',
-          hasExpandableContent && 'cursor-pointer'
-        )}
-      >
+      <div className="w-full text-left px-3 py-2 flex items-start gap-2">
         {/* Citation number badge */}
-        <span
-          className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold mt-0.5"
-          style={{ backgroundColor: style.bg, color: style.color }}
-        >
+        <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold mt-0.5 bg-secondary-600 dark:bg-primary-400 text-white">
           {citation.id}
         </span>
 
         <div className="min-w-0 flex-1">
-          {/* Title + relevance score */}
+          {/* Title */}
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-foreground leading-tight line-clamp-1">
-              {compact ? citation.snippet?.slice(0, 60) || citation.title : citation.title}
-            </span>
-            {displayScore != null && (
-              <span
-                className="flex-shrink-0 text-[10px] font-medium px-1 py-px rounded"
-                style={{
-                  color: getRelevanceColor(displayScore),
-                  backgroundColor: 'transparent',
-                }}
-                title={`Relevanz: ${Math.round(displayScore * 100)}%`}
+            {citation.url ? (
+              <a
+                href={citation.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-foreground leading-tight line-clamp-1 hover:underline hover:text-primary transition-colors"
               >
-                {Math.round(displayScore * 100)}%
-              </span>
+                {compact ? citation.snippet?.slice(0, 60) || citation.title : citation.title}
+              </a>
+            ) : (
+              titleContent
             )}
           </div>
 
@@ -317,45 +359,104 @@ const CitationCard = memo(function CitationCard({
             )}
           </div>
 
-          {/* Snippet preview */}
-          {!compact && (
-            <p className="text-xs text-foreground-muted mt-1 line-clamp-2 leading-relaxed">
-              {citation.snippet}
-            </p>
+          {/* Quoted cited text (prominent) */}
+          {citedText ? (
+            <div className="mt-1.5 border-l-2 border-primary/40 pl-2.5">
+              <p className="text-xs text-foreground/80 leading-relaxed italic">
+                &ldquo;{isExpanded ? citedText : truncateText(citedText, maxPreviewLen)}&rdquo;
+              </p>
+              {hasExpandableContent && (
+                <button
+                  onClick={onToggle}
+                  className="mt-1 text-[11px] font-medium text-primary/70 hover:text-primary transition-colors"
+                >
+                  {isExpanded ? 'Weniger anzeigen' : 'Vollständigen Text anzeigen'}
+                </button>
+              )}
+            </div>
+          ) : (
+            !compact &&
+            citation.snippet && (
+              <p className="text-xs text-foreground-muted mt-1 line-clamp-2 leading-relaxed">
+                {citation.snippet}
+              </p>
+            )
           )}
         </div>
 
-        {/* Expand chevron + external link */}
-        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-          {citation.url && (
+        {/* External link icon */}
+        {citation.url && (
+          <div className="flex items-center flex-shrink-0 mt-0.5">
             <a
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
               className="p-1 text-foreground-muted hover:text-primary transition-colors"
-              onClick={(e) => e.stopPropagation()}
               aria-label="Quelle öffnen"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
-          )}
-          {hasExpandableContent && (
-            <ChevronRight
-              className={cn(
-                'h-3.5 w-3.5 text-foreground-muted transition-transform',
-                isExpanded && 'rotate-90'
-              )}
-            />
-          )}
-        </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+const AdditionalSourcesSection = memo(function AdditionalSourcesSection({
+  sources,
+}: {
+  sources: AdditionalSource[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const grouped = useMemo(() => groupAdditionalSources(sources), [sources]);
+
+  if (grouped.length === 0) return null;
+
+  return (
+    <div className="mt-3 pt-2 border-t border-border/50">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 text-xs font-medium text-foreground-muted hover:text-foreground transition-colors"
+      >
+        <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-90')} />
+        Weitere Quellen ({grouped.length})
       </button>
 
-      {/* Expanded full text */}
-      {isExpanded && citation.citedText && (
-        <div className="px-3 pb-3 pt-0 border-t border-border/50">
-          <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap mt-2">
-            {citation.citedText}
-          </p>
+      {isOpen && (
+        <div className="mt-2 space-y-1.5">
+          {grouped.map((group) => (
+            <div key={group.id} className="rounded-md border border-border/50 bg-card/50 px-3 py-2">
+              <div className="flex items-center gap-1.5">
+                <FileText className="h-3 w-3 text-foreground-muted flex-shrink-0" />
+                {group.url ? (
+                  <a
+                    href={group.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-foreground leading-tight line-clamp-1 hover:underline hover:text-primary transition-colors"
+                  >
+                    {group.title}
+                  </a>
+                ) : (
+                  <span className="text-xs font-medium text-foreground leading-tight line-clamp-1">
+                    {group.title}
+                  </span>
+                )}
+                {group.count > 1 && (
+                  <span className="text-[10px] text-foreground-muted flex-shrink-0">
+                    {group.count} Abschnitte
+                  </span>
+                )}
+              </div>
+              {group.snippet && (
+                <p className="text-[11px] text-foreground-muted mt-1 line-clamp-2 leading-relaxed">
+                  {truncateText(group.snippet, 150)}
+                </p>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

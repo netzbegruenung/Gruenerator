@@ -7,6 +7,40 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('TexteIntentService');
 
+const GERMAN_LETTER = '[a-zA-ZäöüÄÖÜß]';
+
+/**
+ * Word-boundary-aware keyword matching for German text.
+ * Standard \b treats umlauts as word boundaries, so we use negative lookaround
+ * with a custom German letter class to prevent substring matches in compound words.
+ */
+export function keywordMatches(text: string, keyword: string): boolean {
+  if (keyword.includes(' ') || keyword.includes('*')) {
+    return text.includes(keyword);
+  }
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<!${GERMAN_LETTER})${escaped}(?!${GERMAN_LETTER})`, 'i').test(text);
+}
+
+/**
+ * Compute graduated confidence based on keyword match quality.
+ */
+function computeKeywordConfidence(keyword: string, matchCount: number): number {
+  const isMultiWord = keyword.includes(' ') || keyword.includes('*');
+  let base: number;
+  if (isMultiWord) {
+    base = 0.9;
+  } else if (keyword.length > 10) {
+    base = 0.85;
+  } else if (keyword.length >= 7) {
+    base = 0.75;
+  } else {
+    base = 0.65;
+  }
+  const bonus = Math.min((matchCount - 1) * 0.05, 0.1);
+  return Math.min(base + bonus, 0.95);
+}
+
 /**
  * Text type mappings with routing information
  */
@@ -96,7 +130,7 @@ export const TEXT_TYPE_MAPPINGS: Record<
   },
   brief: {
     route: 'universal',
-    keywords: ['brief', 'schreiben', 'formell'],
+    keywords: ['brief', 'formeller brief', 'briefvorlage'],
     description: 'Formelle Briefe',
     params: { textForm: 'brief' },
   },
@@ -110,7 +144,7 @@ export const TEXT_TYPE_MAPPINGS: Record<
   },
   leichte_sprache: {
     route: 'leichte_sprache',
-    keywords: ['leichte sprache', 'einfach', 'vereinfachen', 'verständlich'],
+    keywords: ['leichte sprache', 'vereinfachen', 'verständlich'],
     description: 'In Leichte Sprache übersetzen',
     params: {},
   },
@@ -118,13 +152,13 @@ export const TEXT_TYPE_MAPPINGS: Record<
   // Programs and documents
   wahlprogramm: {
     route: 'wahlprogramm',
-    keywords: ['wahlprogramm', 'programm', 'wahlkampf'],
+    keywords: ['wahlprogramm', 'wahlkampf'],
     description: 'Wahlprogramm-Texte',
     params: {},
   },
   buergeranfragen: {
     route: 'buergeranfragen',
-    keywords: ['bürgeranfrage', 'bürgerinnenanfrage', 'bürger'],
+    keywords: ['bürgeranfrage', 'bürgerinnenanfrage', 'bürger*innenanfrage', 'bürger anfrage'],
     description: 'Antworten auf Bürgeranfragen',
     params: {},
   },
@@ -132,7 +166,14 @@ export const TEXT_TYPE_MAPPINGS: Record<
   // Universal fallback
   universal: {
     route: 'universal',
-    keywords: ['text', 'schreiben', 'erstellen'],
+    keywords: [
+      'text erstellen',
+      'text schreiben',
+      'erstelle einen text',
+      'schreib mir',
+      'newsletter',
+      'rundschreiben',
+    ],
     description: 'Allgemeine Texte',
     params: { textForm: 'universal' },
   },
@@ -150,50 +191,81 @@ export interface TextTypeDetectionResult {
 }
 
 /**
- * Detect text type using keywords
+ * Detect text type using word-boundary-aware keyword matching with graduated confidence.
  */
 export function detectTypeByKeywords(message: string): TextTypeDetectionResult | null {
   const normalized = message.toLowerCase().trim();
 
-  const matches: Array<{
-    type: string;
-    mapping: (typeof TEXT_TYPE_MAPPINGS)[string];
-    keywordLength: number;
-  }> = [];
+  const matchesByType = new Map<
+    string,
+    {
+      mapping: (typeof TEXT_TYPE_MAPPINGS)[string];
+      bestKeyword: string;
+      matchCount: number;
+      score: number;
+    }
+  >();
 
   for (const [typeName, mapping] of Object.entries(TEXT_TYPE_MAPPINGS)) {
+    let bestKeyword = '';
+    let matchCount = 0;
+
     for (const keyword of mapping.keywords) {
-      if (normalized.includes(keyword)) {
-        matches.push({
-          type: typeName,
-          mapping,
-          keywordLength: keyword.length,
-        });
+      if (keywordMatches(normalized, keyword)) {
+        matchCount++;
+        if (keyword.length > bestKeyword.length) {
+          bestKeyword = keyword;
+        }
       }
+    }
+
+    if (matchCount > 0) {
+      const isMultiWord = bestKeyword.includes(' ') || bestKeyword.includes('*');
+      const isExactTypeMatch = normalized.includes(typeName.replace(/_/g, ' '));
+      let score = bestKeyword.length * 2;
+      if (isMultiWord) score += 20;
+      if (matchCount > 1) score += matchCount * 5;
+      if (isExactTypeMatch) score += 15;
+
+      matchesByType.set(typeName, {
+        mapping,
+        bestKeyword,
+        matchCount,
+        score,
+      });
     }
   }
 
-  if (matches.length === 0) return null;
+  if (matchesByType.size === 0) return null;
 
-  // Sort by keyword length (longer = more specific)
-  matches.sort((a, b) => b.keywordLength - a.keywordLength);
-  const best = matches[0];
+  // Pick the type with the highest composite score
+  let bestType = '';
+  let bestEntry: (typeof matchesByType extends Map<string, infer V> ? V : never) | null = null;
+  for (const [typeName, entry] of matchesByType) {
+    if (!bestEntry || entry.score > bestEntry.score) {
+      bestType = typeName;
+      bestEntry = entry;
+    }
+  }
+
+  const confidence = computeKeywordConfidence(bestEntry!.bestKeyword, bestEntry!.matchCount);
 
   return {
-    detectedType: best.type,
-    route: best.mapping.route,
-    confidence: 0.85,
-    params: best.mapping.params || {},
+    detectedType: bestType,
+    route: bestEntry!.mapping.route,
+    confidence,
+    params: bestEntry!.mapping.params || {},
     method: 'keyword',
   };
 }
 
 /**
- * AI-powered text type detection
+ * AI-powered text type detection, optionally with a keyword hint for disambiguation.
  */
 export async function detectTypeWithAI(
   message: string,
-  aiWorkerPool: any
+  aiWorkerPool: any,
+  hint?: { type: string; description: string }
 ): Promise<TextTypeDetectionResult | null> {
   if (!aiWorkerPool) {
     log.warn('[TexteIntentService] No AI worker pool available');
@@ -204,10 +276,14 @@ export async function detectTypeWithAI(
     .map(([name, mapping]) => `- ${name}: ${mapping.description}`)
     .join('\n');
 
+  const hintSection = hint
+    ? `\nHINWEIS: Eine Keyword-Analyse deutet auf "${hint.type}" (${hint.description}) hin. Bestätige oder korrigiere dies.\n`
+    : '';
+
   const classificationPrompt = `Analysiere diese Textanfrage und bestimme den passenden Texttyp:
 
 "${message}"
-
+${hintSection}
 Verfügbare Texttypen:
 ${typeDescriptions}
 
@@ -225,7 +301,10 @@ Antworte NUR mit JSON:
 {"textType": "...", "confidence": 0.9}`;
 
   try {
-    log.debug('[TexteIntentService] Calling AI for text type detection');
+    log.debug(
+      '[TexteIntentService] Calling AI for text type detection',
+      hint ? `(hint: ${hint.type})` : ''
+    );
 
     const result = await aiWorkerPool.processRequest({
       type: 'texte_intent_classification',
@@ -241,7 +320,6 @@ Antworte NUR mit JSON:
       throw new Error(`AI classification failed: ${result.error}`);
     }
 
-    // Parse response
     const jsonMatch = result.content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       log.warn('[TexteIntentService] Could not parse AI response:', result.content);
@@ -269,7 +347,11 @@ Antworte NUR mit JSON:
 }
 
 /**
- * Main detection function - tries AI first, falls back to keywords
+ * Main detection: keyword match → graduated confidence → optional AI confirmation → fallback.
+ *
+ * High-confidence keyword (>=0.80): return immediately (e.g. "pressemitteilung")
+ * Medium-confidence keyword (0.60–0.79): pass as hint to AI for confirmation
+ * Low-confidence or no match: pure AI detection
  */
 export async function detectTextType(
   message: string,
@@ -277,23 +359,50 @@ export async function detectTextType(
 ): Promise<TextTypeDetectionResult> {
   log.debug('[TexteIntentService] Detecting text type for:', message.substring(0, 100));
 
-  // Step 1: Try fast keyword detection first (instant, no network)
   const keywordResult = detectTypeByKeywords(message);
-  if (keywordResult) {
-    log.debug('[TexteIntentService] Using keyword detection:', keywordResult.detectedType);
+
+  if (keywordResult && keywordResult.confidence >= 0.8) {
+    log.debug(
+      '[TexteIntentService] High-confidence keyword match:',
+      keywordResult.detectedType,
+      keywordResult.confidence
+    );
     return keywordResult;
   }
 
-  // Step 2: AI detection only when keywords don't match
   if (aiWorkerPool) {
-    const aiResult = await detectTypeWithAI(message, aiWorkerPool);
+    const hint =
+      keywordResult && keywordResult.confidence >= 0.6
+        ? {
+            type: keywordResult.detectedType,
+            description: TEXT_TYPE_MAPPINGS[keywordResult.detectedType]?.description || '',
+          }
+        : undefined;
+
+    if (hint) {
+      log.debug(
+        '[TexteIntentService] Medium-confidence keyword, sending hint to AI:',
+        hint.type,
+        keywordResult!.confidence
+      );
+    }
+
+    const aiResult = await detectTypeWithAI(message, aiWorkerPool, hint);
     if (aiResult && aiResult.confidence >= 0.7) {
       log.debug('[TexteIntentService] Using AI detection:', aiResult.detectedType);
       return aiResult;
     }
   }
 
-  // Step 3: Default fallback
+  // If AI is unavailable but we have a medium-confidence keyword, use it as best-effort
+  if (keywordResult && keywordResult.confidence >= 0.6) {
+    log.debug(
+      '[TexteIntentService] AI unavailable, using medium-confidence keyword:',
+      keywordResult.detectedType
+    );
+    return keywordResult;
+  }
+
   log.debug('[TexteIntentService] Using universal fallback');
   return {
     detectedType: 'universal',

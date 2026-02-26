@@ -161,7 +161,7 @@ export function validateAndInjectCitations(
 
   for (const id of usedIds) {
     const re = new RegExp(`\\[${id}\\]`, 'g');
-    content = content.replace(re, `⚡CITE${id}⚡`);
+    content = content.replace(re, `[cite:${id}]`);
   }
 
   const citations: Citation[] = [...usedIds].map((id) => {

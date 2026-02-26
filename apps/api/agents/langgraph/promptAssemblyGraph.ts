@@ -248,7 +248,9 @@ function buildMainUserContent({
   // 8. BACKGROUND KNOWLEDGE (optional context)
   if (Array.isArray(knowledge) && knowledge.length > 0) {
     const localizedKnowledge = knowledge.map((k) => localizePlaceholders(k, locale));
-    parts.push(`<knowledge>\n${localizedKnowledge.join('\n\n')}\n</knowledge>`);
+    parts.push(
+      `<knowledge>\nDieses Hintergrundwissen ist ergänzend. Die Nutzeranfrage im <request>-Block ist maßgeblich – folge deren Thema, Ton und Anweisungen. Nutze das Wissen nur, soweit es zur Anfrage passt.\n\n${localizedKnowledge.join('\n\n')}\n</knowledge>`
+    );
   }
 
   // 9. OUTPUT FORMAT (how to structure response) - LAST
@@ -598,7 +600,7 @@ async function assemblePromptGraphAsync(
   const baseKnowledge = Array.isArray(enrichedState.knowledge) ? [...enrichedState.knowledge] : [];
   if (knowledgeCapsule) {
     console.log('📋 [PromptAssemblyAsync] Adding knowledge capsule to content');
-    baseKnowledge.unshift(`DOKUMENT-FAKTEN (kompakt):\n${knowledgeCapsule}`);
+    baseKnowledge.push(`DOKUMENT-FAKTEN (kompakt):\n${knowledgeCapsule}`);
   }
 
   // Only include examples for Facebook and Instagram platforms

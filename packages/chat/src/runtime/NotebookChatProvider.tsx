@@ -28,6 +28,7 @@ export interface NotebookChatProviderProps {
   extraParams?: Record<string, unknown>;
   initialMessages?: readonly ThreadMessageLike[];
   onComplete?: (metadata: NotebookMessageMetadata) => void;
+  mode?: 'fast' | 'deep';
 }
 
 /**
@@ -48,6 +49,7 @@ function NotebookChatProviderInner({
   extraParams,
   initialMessages,
   onComplete,
+  mode,
 }: NotebookChatProviderProps) {
   const isMulti = collections.length > 1;
 
@@ -60,8 +62,9 @@ function NotebookChatProviderInner({
       filters,
       locale,
       extraParams,
+      mode,
     }),
-    [collections, isMulti, filters, locale, extraParams]
+    [collections, isMulti, filters, locale, extraParams, mode]
   );
 
   const onCompleteRef = useRef(onComplete);
@@ -75,6 +78,12 @@ function NotebookChatProviderInner({
     () => createNotebookModelAdapter(getConfig, { onComplete: stableOnComplete }),
     [getConfig, stableOnComplete]
   );
+
+  const prevAdapterRef = useRef(adapter);
+  if (prevAdapterRef.current !== adapter) {
+    console.debug('[Notebook] ⚠ Adapter RECREATED — will reinitialize runtime');
+    prevAdapterRef.current = adapter;
+  }
 
   const runtime = useLocalRuntime(adapter, { initialMessages });
 

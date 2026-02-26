@@ -303,6 +303,8 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       if (currentState.activeComponentName !== componentName) {
         set((state) => {
           state.activeComponentName = componentName;
+          state.selectedDocumentIds = [];
+          state.selectedTextIds = [];
 
           if (defaultMode && componentName && !state.defaultModes[componentName]) {
             state.defaultModes[componentName] = defaultMode;

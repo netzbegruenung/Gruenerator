@@ -52,7 +52,7 @@ export async function processAutomatischPR(
         systemRole: '',
         selectedDocumentIds: request.selectedDocumentIds || [],
         searchQuery: request.inhalt,
-        useAutomaticSearch: true,
+        useAutomaticSearch: req.user?.beta_features?.autoDocumentSearch ?? true,
       },
       req
     );
@@ -197,7 +197,7 @@ export async function processStrategyGeneration(
         systemRole: '',
         selectedDocumentIds: requestData.selectedDocumentIds || [],
         searchQuery: requestData.inhalt,
-        useAutomaticSearch: true,
+        useAutomaticSearch: req.user?.beta_features?.autoDocumentSearch ?? true,
       },
       req
     );

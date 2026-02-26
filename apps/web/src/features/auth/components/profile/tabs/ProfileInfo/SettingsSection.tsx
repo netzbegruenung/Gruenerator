@@ -79,6 +79,7 @@ const BETA_VIEWS = {
   DOCS: 'docs',
   CHAT: 'chat',
   AUTO_SAVE_GENERATED: 'autoSaveGenerated',
+  AUTO_DOCUMENT_SEARCH: 'autoDocumentSearch',
 };
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({
@@ -187,6 +188,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           featureName: 'Auto-Speichern generierter Texte',
           checkboxLabel: 'Automatisches Speichern generierter Texte in der Bibliothek aktivieren',
           icon: HiSave,
+        };
+      case BETA_VIEWS.AUTO_DOCUMENT_SEARCH:
+        return {
+          title: 'Automatische Dokumentensuche',
+          description:
+            'KI durchsucht deine Bibliothek automatisch nach relevantem Hintergrundwissen',
+          checked: getBetaFeatureState('autoDocumentSearch'),
+          setter: (value: boolean) => updateUserBetaFeatures('autoDocumentSearch', value),
+          featureName: 'Automatische Dokumentensuche',
+          checkboxLabel:
+            'Automatische Suche in deiner Dokumenten-Bibliothek bei der Textgenerierung aktivieren',
+          icon: HiOutlineDocumentSearch,
         };
       default:
         return null;
