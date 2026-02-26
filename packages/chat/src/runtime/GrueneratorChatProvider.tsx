@@ -353,6 +353,7 @@ export function GrueneratorChatProvider({
 
   // Load user's custom prompts for @mention support
   useEffect(() => {
+    if (!userId) return;
     const loadCustomAgents = async () => {
       try {
         const [ownPrompts, savedPrompts] = await Promise.all([
@@ -375,7 +376,7 @@ export function GrueneratorChatProvider({
       }
     };
     loadCustomAgents();
-  }, [providerApiClient]);
+  }, [providerApiClient, userId]);
 
   const getExternalThreadsRef = useRef(getExternalThreads);
   useEffect(() => {

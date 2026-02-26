@@ -1,5 +1,5 @@
 import { GrueneratorChatProvider, ChatThreadList, TooltipProvider } from '@gruenerator/chat';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -7,6 +7,7 @@ import { useNotebookChatStore } from '../features/notebook/stores/notebookChatSt
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useOptimizedAuth } from '../hooks/useAuth';
+import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 
 const PORTAL_SLOT_ID = 'chat-thread-portal-slot';
 
@@ -85,9 +86,22 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     [navigate]
   );
 
+  const chatConfig = useMemo(
+    () => ({
+      onUnauthorized: () => {
+        if (!isPublicPage() && window.location.pathname !== '/login') {
+          const currentPath = window.location.pathname + window.location.search;
+          window.location.href = buildLoginUrl(currentPath);
+        }
+      },
+    }),
+    []
+  );
+
   return (
     <GrueneratorChatProvider
       userId={user?.id}
+      config={chatConfig}
       getExternalThreads={getExternalThreads}
       onExternalThreadClick={handleExternalClick}
       activePath={location.pathname}
