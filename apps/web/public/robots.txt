@@ -22,6 +22,8 @@ User-agent: *
 Disallow: /
 Host: https://beta.gruenerator.de
 Host: http://beta.gruenerator.de
+Host: https://beta.gruenerator.eu
+Host: http://beta.gruenerator.eu
 
 # Sicherstellen, dass keine anderen Subdomains indexiert werden
 User-agent: *
