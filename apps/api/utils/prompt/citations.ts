@@ -196,7 +196,7 @@ export function processAIResponseWithCitations(
   let processedAnswer = answer;
   citations.forEach((citation) => {
     const citationPattern = new RegExp(`\\[${citation.index}\\]`, 'g');
-    const marker = `⚡CITE${citation.index}⚡`;
+    const marker = `[cite:${citation.index}]`;
     processedAnswer = processedAnswer.replace(citationPattern, marker);
     console.log(`[${logPrefix}] Replaced [${citation.index}] with ${marker}`);
   });

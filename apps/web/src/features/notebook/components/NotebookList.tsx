@@ -1,15 +1,21 @@
 import { motion } from 'motion/react';
 import React, { useState } from 'react';
-import { HiOutlineTrash, HiPencil, HiShare, HiEye } from 'react-icons/hi';
+import { HiDotsVertical, HiOutlineTrash, HiPencil, HiShare, HiEye } from 'react-icons/hi';
 
 import IndexCard from '../../../components/common/IndexCard';
-import KebabMenu from '../../../components/common/KebabMenu';
+import { Button } from '../../../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
 import { NotebookIcon } from '../../../config/icons';
 
-import type { KebabMenuItem } from '../../../components/common/KebabMenu';
 import type { NotebookListProps } from '../../../types/notebook';
-import '../../../assets/styles/components/gallery-layout.css';
-import '../styles/notebook-creator.css';
+
+const gridClasses = 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2xl';
 
 const NotebookList: React.FC<NotebookListProps> = ({
   qaCollections = [],
@@ -35,19 +41,19 @@ const NotebookList: React.FC<NotebookListProps> = ({
 
   if (loading) {
     return (
-      <div className="qa-list-loading">
-        <div className="loading-spinner" />
-        <p>Notebooks werden geladen...</p>
+      <div className="flex flex-col items-center py-xl">
+        <div className="size-6 animate-spin rounded-full border-3 border-grey-200 border-t-primary-500" />
+        <p className="mt-md text-foreground">Notebooks werden geladen...</p>
       </div>
     );
   }
 
   if (qaCollections.length === 0) {
     return (
-      <div className="knowledge-empty-state centered">
-        <NotebookIcon size={48} className="empty-state-icon" />
-        <p>Sie haben noch keine Notebooks erstellt.</p>
-        <p className="empty-state-description">
+      <div className="flex flex-col items-center text-center py-xl">
+        <NotebookIcon size={48} className="text-grey-400 dark:text-grey-500 mb-md" />
+        <p className="text-foreground">Sie haben noch keine Notebooks erstellt.</p>
+        <p className="text-sm text-grey-500 dark:text-grey-400 mt-xs">
           Klicken Sie auf "Notebook erstellen", um ein neues Notebook basierend auf Ihren Dokumenten
           zu erstellen.
         </p>
@@ -55,20 +61,8 @@ const NotebookList: React.FC<NotebookListProps> = ({
     );
   }
 
-  const buildMenuItems = (collection: { id: string; name: string }): KebabMenuItem[] => [
-    { label: 'Öffnen', icon: <HiEye />, onClick: () => onView(collection.id) },
-    { label: 'Bearbeiten', icon: <HiPencil />, onClick: () => onEdit(collection.id) },
-    { label: 'Teilen', icon: <HiShare />, onClick: () => onShare(collection.id) },
-    {
-      label: deletingId === collection.id ? 'Wird gelöscht…' : 'Löschen',
-      icon: <HiOutlineTrash />,
-      onClick: () => handleDelete(collection.id, collection.name),
-      danger: true,
-    },
-  ];
-
   return (
-    <div className="gallery-grid">
+    <div className={gridClasses}>
       {qaCollections.map((collection) => {
         const tags: string[] = [];
         if (collection.is_public) tags.push('Öffentlich');
@@ -95,7 +89,42 @@ const NotebookList: React.FC<NotebookListProps> = ({
               meta={meta}
               tags={tags}
               onClick={() => onView(collection.id)}
-              headerActions={<KebabMenu items={buildMenuItems(collection)} />}
+              headerActions={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Aktionen"
+                    >
+                      <HiDotsVertical />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onView(collection.id)}>
+                      <HiEye />
+                      Öffnen
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onEdit(collection.id)}>
+                      <HiPencil />
+                      Bearbeiten
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onShare(collection.id)}>
+                      <HiShare />
+                      Teilen
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => handleDelete(collection.id, collection.name)}
+                    >
+                      <HiOutlineTrash />
+                      {deletingId === collection.id ? 'Wird gelöscht…' : 'Löschen'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
             />
           </motion.div>
         );

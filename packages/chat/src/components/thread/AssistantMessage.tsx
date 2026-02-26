@@ -98,6 +98,13 @@ export function AssistantMessage() {
             return null;
           })()}
 
+        {isStreaming && hasToolCall && !textContent && custom?.progress?.stage === 'generating' && (
+          <ProgressIndicator
+            progress={custom.progress}
+            agentColor={selectedAgent?.backgroundColor || '#316049'}
+          />
+        )}
+
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
         <CitationProvider citations={citations}>

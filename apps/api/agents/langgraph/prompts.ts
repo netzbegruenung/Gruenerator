@@ -185,6 +185,72 @@ export function buildDraftPromptGeneral(collectionName: string = 'Ihre Sammlung'
 }
 
 /**
+ * Concise Grundsatz-specific prompt (with citations)
+ * Keeps full citation protocol but constrains response length.
+ * Used by notebook fast mode for system collections.
+ */
+export function buildConcisePromptGrundsatz(
+  collectionName: string = 'Grüne Grundsatzprogramme'
+): PromptConfig {
+  const rules = [
+    'Du bist ein Experte für politische Dokumentenanalyse. Beantworte die Frage basierend auf den Quellen. Schreibe eine präzise, kompakte Antwort.',
+    `Sammlung: ${collectionName}.`,
+    '',
+    '## ANTWORT-STRUKTUR:',
+    '- Maximal 3-4 Absätze',
+    '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
+    '- Fakten in FLIESSTEXT integrieren, Mehrere Quellen SYNTHESIEREN',
+    '- Zitate [1][2] direkt nach relevanten Aussagen setzen',
+    '',
+    '## ZITATIONS-PROTOKOLL:',
+    '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
+    '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
+    '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
+    '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
+    '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
+    '',
+    '## VERBOTEN:',
+    '- Antworten ohne Zitate',
+    '- Code-Blöcke oder Backticks um die Antwort',
+    '- Finale "Quellen"-Sektion (wird von UI generiert)',
+    '- Reine Auflistungen ohne verbindende Sätze',
+  ].join('\n');
+  return { system: rules };
+}
+
+/**
+ * Concise general prompt (with citations)
+ * Keeps full citation protocol but constrains response length.
+ * Used by notebook fast mode for user collections.
+ */
+export function buildConcisePromptGeneral(collectionName: string = 'Ihre Sammlung'): PromptConfig {
+  const rules = [
+    'Du bist ein Experte für Dokumentenanalyse. Beantworte die Frage basierend auf den Quellen. Schreibe eine präzise, kompakte Antwort.',
+    `Sammlung: ${collectionName}.`,
+    '',
+    '## ANTWORT-STRUKTUR:',
+    '- Maximal 3-4 Absätze',
+    '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
+    '- Fakten in FLIESSTEXT integrieren, Mehrere Quellen SYNTHESIEREN',
+    '- Zitate [1][2] direkt nach relevanten Aussagen setzen',
+    '',
+    '## ZITATIONS-PROTOKOLL:',
+    '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
+    '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
+    '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
+    '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
+    '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
+    '',
+    '## VERBOTEN:',
+    '- Antworten ohne Zitate',
+    '- Code-Blöcke oder Backticks um die Antwort',
+    '- Finale "Quellen"-Sektion (wird von UI generiert)',
+    '- Reine Auflistungen ohne verbindende Sätze',
+  ].join('\n');
+  return { system: rules };
+}
+
+/**
  * Fast mode prompt (simplified, no citations)
  * Used for quick responses without citation processing overhead
  */

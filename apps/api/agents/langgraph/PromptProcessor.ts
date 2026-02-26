@@ -722,7 +722,8 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
         selectedDocumentIds: selectedDocumentIds || [],
         selectedTextIds: selectedTextIds || [],
         searchQuery: searchQuery || null,
-        useAutomaticSearch: useAutomaticSearch || false,
+        useAutomaticSearch:
+          useAutomaticSearch || req.user?.beta_features?.autoDocumentSearch || false,
         examples: [], // TODO: Implement examples from config
         provider,
         aiWorkerPool: req.app.locals.aiWorkerPool,

@@ -45,7 +45,7 @@ const RecentTextCard: React.FC<RecentTextCardProps> = ({ text, onSelect, onDelet
 
   return (
     <article
-      className="form-card recent-card bg-[var(--card-background,var(--background-color-alt))] border border-[var(--card-border,var(--border-subtle))] rounded-md p-md shadow-sm transition-all duration-250 overflow-hidden forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace]"
+      className="group relative flex-1 min-w-0 max-md:flex-none cursor-pointer bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-md shadow-sm transition-all duration-250 overflow-hidden hover:border-primary-400"
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
       role="button"
@@ -54,7 +54,7 @@ const RecentTextCard: React.FC<RecentTextCardProps> = ({ text, onSelect, onDelet
     >
       {onDelete && (
         <button
-          className="recent-card__delete"
+          className="absolute top-xs right-xs size-5 flex items-center justify-center rounded-full bg-transparent border-none text-grey-400 opacity-0 max-md:opacity-60 group-hover:opacity-100 cursor-pointer transition-opacity duration-150 hover:text-red-500"
           onClick={handleDelete}
           disabled={isDeleting}
           aria-label="Löschen"
@@ -63,8 +63,10 @@ const RecentTextCard: React.FC<RecentTextCardProps> = ({ text, onSelect, onDelet
         </button>
       )}
 
-      <h4 className="recent-card__title">{text.title}</h4>
-      {preview && <p className="recent-card__preview">{preview}</p>}
+      <h4 className="text-[0.8125rem] font-semibold text-foreground-heading m-0 mb-[2px] pr-md truncate">
+        {text.title}
+      </h4>
+      {preview && <p className="text-xs text-grey-500 m-0 truncate">{preview}</p>}
     </article>
   );
 };

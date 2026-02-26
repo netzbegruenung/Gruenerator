@@ -1,6 +1,8 @@
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import { type Country, localizePlaceholders } from '../utils/localization.ts';
+
 import { AGENTS, SOCIAL_MEDIA_VARIANTS, type McpAgentDefinition } from './agent-data.ts';
 
 const TOOL_NAME_MAP: Record<string, string> = {
@@ -29,32 +31,46 @@ interface PromptMessage {
   content: { type: 'text'; text: string };
 }
 
+function localizeAgent(agent: McpAgentDefinition, country: Country): McpAgentDefinition {
+  return {
+    ...agent,
+    systemRole: localizePlaceholders(agent.systemRole, country),
+    openingMessage: localizePlaceholders(agent.openingMessage, country),
+    fewShotExamples: agent.fewShotExamples?.map((ex) => ({
+      ...ex,
+      output: localizePlaceholders(ex.output, country),
+    })),
+  };
+}
+
 function buildPromptMessages(
   agent: McpAgentDefinition,
   message: string,
+  country: Country,
   platformPrefix?: string
 ): PromptMessage[] {
+  const localizedAgent = localizeAgent(agent, country);
   const messages: PromptMessage[] = [];
 
   // 1. System context as first user message (MCP only supports user/assistant)
-  const toolHints = getMcpToolHints(agent.enabledTools);
+  const toolHints = getMcpToolHints(localizedAgent.enabledTools);
   messages.push({
     role: 'user',
     content: {
       type: 'text',
-      text: `# Systemprompt: ${agent.title}\n\n${agent.systemRole}${toolHints}\n\n---\n*Bitte antworte ab jetzt im Charakter dieses Assistenten.*`,
+      text: `# Systemprompt: ${localizedAgent.title}\n\n${localizedAgent.systemRole}${toolHints}\n\n---\n*Bitte antworte ab jetzt im Charakter dieses Assistenten.*`,
     },
   });
 
   // 2. Assistant opening message
   messages.push({
     role: 'assistant',
-    content: { type: 'text', text: agent.openingMessage },
+    content: { type: 'text', text: localizedAgent.openingMessage },
   });
 
   // 3. Few-shot example pairs
-  if (agent.fewShotExamples) {
-    for (const example of agent.fewShotExamples) {
+  if (localizedAgent.fewShotExamples) {
+    for (const example of localizedAgent.fewShotExamples) {
       messages.push({
         role: 'user',
         content: { type: 'text', text: example.input },
@@ -109,6 +125,7 @@ export function registerAgentPrompts(server: McpServer): void {
             message: z
               .string()
               .describe('Deine Anfrage an den Assistenten (Thema, Inhalt, Anweisungen)'),
+            country: z.enum(['DE', 'AT']).describe('Land: DE = Deutschland, AT = Österreich'),
             platform: z
               .enum(platformValues)
               .optional()
@@ -117,19 +134,24 @@ export function registerAgentPrompts(server: McpServer): void {
               ),
           },
         },
-        ({ message, platform }) => {
+        ({ message, country, platform }) => {
           const variant = platform
             ? SOCIAL_MEDIA_VARIANTS.find((v) => v.platform === platform)
             : undefined;
 
           return {
             description: variant ? `${agent.title} — ${variant.title}` : agent.description,
-            messages: buildPromptMessages(agent, message, variant?.contextPrefix),
+            messages: buildPromptMessages(
+              agent,
+              message,
+              country as Country,
+              variant?.contextPrefix
+            ),
           };
         }
       );
     } else {
-      // Standard agent: message-only argument
+      // Standard agent: message + country arguments
       server.registerPrompt(
         promptName,
         {
@@ -139,11 +161,12 @@ export function registerAgentPrompts(server: McpServer): void {
             message: z
               .string()
               .describe('Deine Anfrage an den Assistenten (Thema, Inhalt, Anweisungen)'),
+            country: z.enum(['DE', 'AT']).describe('Land: DE = Deutschland, AT = Österreich'),
           },
         },
-        ({ message }) => ({
+        ({ message, country }) => ({
           description: agent.description,
-          messages: buildPromptMessages(agent, message),
+          messages: buildPromptMessages(agent, message, country as Country),
         })
       );
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Search, FileText, Image } from 'lucide-react';
+import { Loader2, Search, Image } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { ChatProgress } from '../../hooks/useChatGraphStream';
 
@@ -26,7 +26,7 @@ export function ProgressIndicator({ progress, agentColor }: ProgressIndicatorPro
       case 'generating_image':
         return <Image className="h-4 w-4" />;
       case 'generating':
-        return <FileText className="h-4 w-4" />;
+        return <Loader2 className="h-4 w-4 animate-spin" />;
       case 'error':
         return null;
       default:
@@ -49,7 +49,9 @@ export function ProgressIndicator({ progress, agentColor }: ProgressIndicatorPro
           {getIcon()}
         </div>
       )}
-      <span>{progress.message}</span>
+      <span className={progress.stage === 'generating' ? 'animate-pulse' : undefined}>
+        {progress.message}
+      </span>
     </div>
   );
 }

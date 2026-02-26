@@ -90,7 +90,7 @@ router.post(
           const textRuns: any[] = [];
 
           for (const segment of paragraph.segments) {
-            if (hasCitations && segment.text.includes('⚡CITE')) {
+            if (hasCitations && segment.text.includes('[cite:')) {
               const citationSegments = parseCitationMarkers(segment.text);
 
               for (const citeSeg of citationSegments) {

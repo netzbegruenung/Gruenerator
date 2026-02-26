@@ -29,16 +29,17 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
 
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
     const base64 = await fileToBase64(attachment.file);
-    const isImage = isImageMimeType(attachment.contentType);
+    const mimeType = attachment.contentType ?? 'application/octet-stream';
+    const isImage = isImageMimeType(mimeType);
 
     return {
       id: attachment.id,
       type: attachment.type,
       name: attachment.name,
-      contentType: attachment.contentType,
+      contentType: mimeType,
       content: isImage
-        ? [{ type: 'image' as const, image: `data:${attachment.contentType};base64,${base64}` }]
-        : [{ type: 'file' as const, data: base64, mimeType: attachment.contentType }],
+        ? [{ type: 'image' as const, image: `data:${mimeType};base64,${base64}` }]
+        : [{ type: 'file' as const, data: base64, mimeType }],
       status: { type: 'complete' },
     };
   }

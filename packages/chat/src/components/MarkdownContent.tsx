@@ -15,17 +15,17 @@ interface MarkdownContentProps {
 
 const CITATION_REGEX = /\[(\d+)\]/g;
 
-function processTextWithCitations(text: string, citations: Citation[]): ReactNode[] {
-  if (!citations.length) return [text];
+function processTextWithCitations(text: string, citationMap: Map<number, Citation>): ReactNode[] {
+  if (citationMap.size === 0) return [text];
 
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  const regex = new RegExp(CITATION_REGEX.source, 'g');
-  while ((match = regex.exec(text)) !== null) {
+  CITATION_REGEX.lastIndex = 0;
+  while ((match = CITATION_REGEX.exec(text)) !== null) {
     const citationId = parseInt(match[1], 10);
-    const citation = citations.find((c) => c.id === citationId);
+    const citation = citationMap.get(citationId);
 
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
@@ -36,7 +36,6 @@ function processTextWithCitations(text: string, citations: Citation[]): ReactNod
         <CitationBadge key={`cite-${match.index}`} citationId={citationId} citation={citation} />
       );
     }
-    // Hallucinated citations (no matching source): skip the [N] text entirely
     lastIndex = match.index + match[0].length;
   }
 
@@ -47,12 +46,12 @@ function processTextWithCitations(text: string, citations: Citation[]): ReactNod
   return parts.length > 0 ? parts : [text];
 }
 
-function processChildren(children: ReactNode, citations: Citation[]): ReactNode {
-  if (!citations.length) return children;
+function processChildren(children: ReactNode, citationMap: Map<number, Citation>): ReactNode {
+  if (citationMap.size === 0) return children;
 
   return Children.map(children, (child) => {
     if (typeof child === 'string') {
-      const parts = processTextWithCitations(child, citations);
+      const parts = processTextWithCitations(child, citationMap);
       if (parts.length === 1 && parts[0] === child) return child;
       return <Fragment>{parts}</Fragment>;
     }
@@ -63,7 +62,7 @@ function processChildren(children: ReactNode, citations: Citation[]): ReactNode 
           ...child,
           props: {
             ...props,
-            children: processChildren(props.children as ReactNode, citations),
+            children: processChildren(props.children as ReactNode, citationMap),
           },
         };
       }
@@ -74,6 +73,8 @@ function processChildren(children: ReactNode, citations: Citation[]): ReactNode 
 
 export const MarkdownContent = memo(function MarkdownContent({ content }: MarkdownContentProps) {
   const citations = useCitations();
+
+  const citationMap = useMemo(() => new Map(citations.map((c) => [c.id, c])), [citations]);
 
   const mdComponents = useMemo(
     () => ({
@@ -114,7 +115,7 @@ export const MarkdownContent = memo(function MarkdownContent({ content }: Markdo
         <ol className="my-2 list-decimal space-y-1 pl-4">{children}</ol>
       ),
       li: ({ children }: { children?: ReactNode }) => (
-        <li className="leading-relaxed">{processChildren(children, citations)}</li>
+        <li className="leading-relaxed">{processChildren(children, citationMap)}</li>
       ),
       h1: ({ children }: { children?: ReactNode }) => (
         <h1 className="mb-4 mt-6 text-xl font-bold">{children}</h1>
@@ -126,7 +127,7 @@ export const MarkdownContent = memo(function MarkdownContent({ content }: Markdo
         <h3 className="mb-2 mt-4 text-base font-bold">{children}</h3>
       ),
       p: ({ children }: { children?: ReactNode }) => (
-        <p className="mb-2 leading-relaxed">{processChildren(children, citations)}</p>
+        <p className="mb-2 leading-relaxed">{processChildren(children, citationMap)}</p>
       ),
       blockquote: ({ children }: { children?: ReactNode }) => (
         <blockquote className="my-2 border-l-4 border-primary pl-4 italic">{children}</blockquote>
@@ -140,17 +141,17 @@ export const MarkdownContent = memo(function MarkdownContent({ content }: Markdo
         <th className="border border-border px-3 py-2 text-left font-semibold">{children}</th>
       ),
       td: ({ children }: { children?: ReactNode }) => (
-        <td className="border border-border px-3 py-2">
-          {processChildren(children, citations)}
-        </td>
+        <td className="border border-border px-3 py-2">{processChildren(children, citationMap)}</td>
       ),
     }),
-    [citations]
+    [citationMap]
   );
+
+  const escapedContent = useMemo(() => content.replace(/\[(\d+)\]/g, '\\[$1\\]'), [content]);
 
   return (
     <ReactMarkdown remarkPlugins={remarkPlugins} components={mdComponents}>
-      {content.replace(/\[(\d+)\]/g, '\\[$1\\]')}
+      {escapedContent}
     </ReactMarkdown>
   );
 });

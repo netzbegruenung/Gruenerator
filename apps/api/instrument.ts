@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 
-// Load env vars so SENTRY_DSN is available
+// Load env vars so SENTRY_DSN is available (GlitchTip — Sentry-compatible)
 import 'dotenv/config';
 
 const dsn = process.env.SENTRY_DSN;

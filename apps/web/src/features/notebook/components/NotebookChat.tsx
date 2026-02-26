@@ -3,10 +3,11 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
+  WelcomeScreen,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -16,7 +17,6 @@ import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAssistantMessage } from './NotebookAssistantMessage';
-import { NotebookStartPage } from './NotebookStartPage';
 
 import '../../../assets/styles/features/notebook/notebook-chat.css';
 import '../../../components/common/Chat/ChatStartPage.css';
@@ -24,6 +24,9 @@ import '../../../components/common/Chat/ChatStartPage.css';
 const NotebookChat = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useOptimizedAuth();
+  const location = useLocation();
+  const freshConversation = (location.state as { freshConversation?: boolean } | null)
+    ?.freshConversation;
   const {
     getQACollection,
     fetchQACollections,
@@ -56,6 +59,7 @@ const NotebookChat = () => {
       ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.`
       : undefined,
     persistMessages: true,
+    freshConversation,
   });
 
   if (loading)
@@ -95,11 +99,14 @@ const NotebookChat = () => {
         initialMessages={initialMessages}
         onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
       >
-        <div className="qa-chat-container">
-          <ThreadPrimitive.Root className="flex h-full flex-col">
+        <div className="notebook-page-root qa-chat-container flex min-h-0 flex-col">
+          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
             <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
               <ThreadPrimitive.Empty>
-                <NotebookStartPage title={`Fragen zu "${collection.name || 'Notebook'}"`} />
+                <WelcomeScreen
+                  title={`Fragen zu "${collection.name || 'Notebook'}"`}
+                  description={`Durchsuche die Dokumente in "${collection.name}" mit KI-gestützten Fragen.`}
+                />
               </ThreadPrimitive.Empty>
               <div className="mx-auto w-full max-w-3xl flex flex-col gap-4 py-4">
                 <ThreadPrimitive.Messages
@@ -109,8 +116,10 @@ const NotebookChat = () => {
                   }}
                 />
               </div>
+              <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
+                <NotebookComposer placeholder="Stellen Sie eine Frage zu den Dokumenten..." />
+              </ThreadPrimitive.ViewportFooter>
             </ThreadPrimitive.Viewport>
-            <NotebookComposer placeholder="Stellen Sie eine Frage zu den Dokumenten..." />
           </ThreadPrimitive.Root>
         </div>
       </NotebookChatProvider>

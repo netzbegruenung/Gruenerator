@@ -6,14 +6,14 @@
 import type { CitationSegment, Citation } from './types.js';
 
 /**
- * Parse citation markers (⚡CITE1⚡, ⚡CITE2⚡, etc.) from text
+ * Parse citation markers ([cite:1], [cite:2], etc.) from text
  */
 export function parseCitationMarkers(text: string | null | undefined): CitationSegment[] {
   if (!text || typeof text !== 'string') {
     return [{ text: text || '', isCitation: false }];
   }
 
-  const citationPattern = /⚡CITE(\d+)⚡/g;
+  const citationPattern = /\[cite:(\d+)\]/g;
   const segments: CitationSegment[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;

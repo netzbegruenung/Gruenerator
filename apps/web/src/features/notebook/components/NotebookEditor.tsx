@@ -11,12 +11,9 @@ import { useForm } from 'react-hook-form';
 import { HiCheckCircle, HiArrowLeft, HiUpload, HiX } from 'react-icons/hi';
 
 import { useFormFields } from '../../../components/common/Form/hooks';
+import { Button } from '../../../components/ui/button';
 import { useDocumentsStore } from '../../../stores/documentsStore';
-
-import '../styles/notebook-creator.css';
-import '../../../assets/styles/features/notebook/notebook-chat.css';
-import '../../../assets/styles/features/notebook/notebook-collections.css';
-import '../../../assets/styles/components/ui/button.css';
+import { cn } from '../../../utils/cn';
 
 interface NotebookCollection {
   id?: string;
@@ -183,15 +180,15 @@ const NotebookEditor = ({
 
   return (
     <motion.div
-      className="notebook-creator-container"
+      className="p-lg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="notebook-creator-card">
-        {/* Header: title — dots — close */}
-        <div className="notebook-editor-header">
-          <span className="notebook-editor-title">
+      <div>
+        {/* Header: title - dots - close */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-sm pb-md">
+          <span className="text-base font-semibold text-foreground whitespace-nowrap">
             {editingCollection
               ? 'Notebook bearbeiten'
               : step === 1
@@ -200,21 +197,32 @@ const NotebookEditor = ({
           </span>
 
           {!editingCollection && (
-            <div className="notebook-step-dots">
-              <div className={`step-dot ${step === 1 ? 'active' : 'done'}`} />
-              <div className={`step-dot ${step === 2 ? 'active' : ''}`} />
+            <div className="flex items-center justify-center gap-2">
+              <div
+                className={cn(
+                  'size-2 rounded-full transition-all duration-250',
+                  step === 1 ? 'bg-primary-500 scale-125' : 'bg-primary-500 opacity-45'
+                )}
+              />
+              <div
+                className={cn(
+                  'size-2 rounded-full transition-all duration-250',
+                  step === 2 ? 'bg-primary-500 scale-125' : 'bg-grey-300'
+                )}
+              />
             </div>
           )}
 
-          <button
-            type="button"
-            className="notebook-close-btn"
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="justify-self-end rounded-full"
             onClick={handleCancel}
             disabled={isUploading || loading}
             aria-label="Schließen"
           >
             <HiX size={18} />
-          </button>
+          </Button>
         </div>
 
         <AnimatePresence mode="wait">
@@ -226,10 +234,16 @@ const NotebookEditor = ({
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
-              <div className="notebook-creator-content">
-                <div className="form-section">
+              <div className="space-y-sm">
+                <div>
                   <div
-                    className={`notebook-dropzone ${isDragOver ? 'drag-over' : ''} ${isUploading ? 'uploading' : ''}`}
+                    className={cn(
+                      'flex items-center justify-center min-h-[160px] border-2 border-dashed rounded-lg bg-background-alt cursor-pointer transition-colors duration-200',
+                      isDragOver
+                        ? 'border-primary-500 bg-green-50 dark:bg-secondary-900'
+                        : 'border-grey-300 dark:border-grey-600 hover:border-primary-500 hover:bg-background',
+                      isUploading && 'cursor-default opacity-85'
+                    )}
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
@@ -244,20 +258,24 @@ const NotebookEditor = ({
                     />
 
                     {isUploading ? (
-                      <div className="dropzone-uploading">
-                        <div className="upload-spinner" />
+                      <div className="flex flex-col items-center gap-sm text-grey-500 text-sm">
+                        <div className="size-6 animate-spin rounded-full border-3 border-grey-200 border-t-primary-500" />
                         <span>Wird hochgeladen…</span>
                       </div>
                     ) : (
-                      <div className="dropzone-content">
-                        <HiUpload size={28} className="dropzone-icon" />
-                        <p className="dropzone-text">Datei hier ablegen oder klicken</p>
-                        <p className="dropzone-hint">PDF, DOCX, TXT, MD, ODT, RTF (max. 50 MB)</p>
+                      <div className="flex flex-col items-center gap-xs p-lg text-center">
+                        <HiUpload size={28} className="text-grey-400" />
+                        <p className="m-0 text-[0.9rem] font-medium text-foreground">
+                          Datei hier ablegen oder klicken
+                        </p>
+                        <p className="m-0 text-xs text-grey-500">
+                          PDF, DOCX, TXT, MD, ODT, RTF (max. 50 MB)
+                        </p>
                       </div>
                     )}
                   </div>
 
-                  {uploadError && <p className="notebook-upload-error">{uploadError}</p>}
+                  {uploadError && <p className="mt-sm text-sm text-red-600">{uploadError}</p>}
                 </div>
               </div>
             </motion.div>
@@ -269,45 +287,46 @@ const NotebookEditor = ({
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.2 }}
             >
-              <form onSubmit={handleSubmit(onSubmit)} className="notebook-creator-form">
-                <div className="notebook-creator-content">
-                  {/* Show uploaded file info */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-sm">
+                <div className="space-y-sm">
                   {uploadedDocument && !editingCollection && (
-                    <div className="form-section">
-                      <label className="form-label">Dokument</label>
-                      <div className="uploaded-document-success">
-                        <div className="uploaded-document-info">
-                          <HiCheckCircle size={20} className="upload-success-icon" />
-                          <span className="uploaded-document-title">
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Dokument</label>
+                      <div className="mt-xs flex items-center justify-between p-md bg-background-alt border border-green-300 rounded-lg">
+                        <div className="flex items-center gap-sm min-w-0">
+                          <HiCheckCircle size={20} className="text-green-600 shrink-0" />
+                          <span className="font-medium text-foreground truncate">
                             {uploadedDocument.filename || uploadedDocument.title}
                           </span>
                         </div>
-                        <button
+                        <Button
                           type="button"
-                          className="btn-secondary btn-sm"
+                          variant="outline"
+                          size="sm"
                           onClick={handleRemoveDocument}
                           disabled={loading}
                         >
                           Ändern
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
 
-                  {/* Editing mode: show document info */}
                   {editingCollection && uploadedDocument && (
-                    <div className="form-section">
-                      <label className="form-label">Dokument</label>
-                      <div className="uploaded-document-success">
-                        <div className="uploaded-document-info">
-                          <HiCheckCircle size={20} className="upload-success-icon" />
-                          <span className="uploaded-document-title">{uploadedDocument.title}</span>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Dokument</label>
+                      <div className="mt-xs flex items-center justify-between p-md bg-background-alt border border-green-300 rounded-lg">
+                        <div className="flex items-center gap-sm min-w-0">
+                          <HiCheckCircle size={20} className="text-green-600 shrink-0" />
+                          <span className="font-medium text-foreground truncate">
+                            {uploadedDocument.title}
+                          </span>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="form-section">
+                  <div>
                     <Input
                       name="name"
                       control={control}
@@ -320,7 +339,7 @@ const NotebookEditor = ({
                     />
                   </div>
 
-                  <div className="form-section">
+                  <div>
                     <Textarea
                       name="description"
                       control={control}
@@ -338,33 +357,25 @@ const NotebookEditor = ({
                   </div>
                 </div>
 
-                <div className="form-actions button-container">
+                <div className="flex justify-end gap-md pt-lg border-t border-grey-200 dark:border-grey-700">
                   {!editingCollection && (
-                    <div className="button-wrapper">
-                      <button
-                        type="button"
-                        className="btn-secondary btn-back"
-                        onClick={handleRemoveDocument}
-                        disabled={loading}
-                      >
-                        <HiArrowLeft size={14} />
-                        Zurück
-                      </button>
-                    </div>
-                  )}
-                  <div className="button-wrapper">
-                    <button
-                      type="submit"
-                      className={`button submit-button ${loading ? 'submit-button--loading' : ''}`}
-                      disabled={loading || !uploadedDocument}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleRemoveDocument}
+                      disabled={loading}
                     >
-                      {loading
-                        ? 'Wird gespeichert...'
-                        : editingCollection
-                          ? 'Aktualisieren'
-                          : 'Erstellen'}
-                    </button>
-                  </div>
+                      <HiArrowLeft size={14} />
+                      Zurück
+                    </Button>
+                  )}
+                  <Button type="submit" disabled={loading || !uploadedDocument}>
+                    {loading
+                      ? 'Wird gespeichert...'
+                      : editingCollection
+                        ? 'Aktualisieren'
+                        : 'Erstellen'}
+                  </Button>
                 </div>
               </form>
             </motion.div>

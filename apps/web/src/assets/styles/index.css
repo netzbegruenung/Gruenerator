@@ -32,7 +32,6 @@
 @import url('./components/ui/LogLevelSelector.css') layer(legacy);
 @import url('./components/help-tooltip.css') layer(legacy);
 @import url('./components/common/auto-save-indicator.css') layer(legacy);
-@import url('./components/common/recent-texts.css') layer(legacy);
 @import url('./components/ui/form-select-modern.css') layer(legacy);
 @import url('./components/ui/forms.css') layer(legacy);
 @import url('./components/form/form-inputs.css') layer(legacy);

@@ -156,9 +156,11 @@ const useStreamingSubmit = (endpoint: string, componentName: string): UseStreami
           setIsStreaming(false);
           setSuccess(true);
           setLoading(false);
-          return parsed.metadata
+          const jsonBgDoc = (jsonResponse?.backgroundDocument as string) || '';
+          const jsonResult = parsed.metadata
             ? { ...parsed.metadata, content: parsed.content }
             : { content: parsed.content, metadata: {} };
+          return jsonBgDoc ? { ...jsonResult, backgroundDocument: jsonBgDoc } : jsonResult;
         }
 
         // --- SSE streaming ---
@@ -167,6 +169,7 @@ const useStreamingSubmit = (endpoint: string, componentName: string): UseStreami
         const currentEvent = { type: '' };
         let buffer = '';
         let fullContent = '';
+        let backgroundDocument = '';
         let donePayload: Record<string, unknown> | null = null;
 
         while (true) {
@@ -201,6 +204,10 @@ const useStreamingSubmit = (endpoint: string, componentName: string): UseStreami
                 break;
               }
 
+              case 'background_document':
+                backgroundDocument = (payload.content as string) || '';
+                break;
+
               case 'done':
                 donePayload = payload;
                 break;
@@ -225,11 +232,13 @@ const useStreamingSubmit = (endpoint: string, componentName: string): UseStreami
         const content = (donePayload?.content as string) || fullContent;
         const metadata = donePayload?.metadata || {};
         const enrichmentSummary = donePayload?.enrichmentSummary || {};
+        const bgDoc = backgroundDocument || (donePayload?.backgroundDocument as string) || '';
 
         return {
           content,
           metadata,
           enrichmentSummary,
+          ...(bgDoc ? { backgroundDocument: bgDoc } : {}),
         };
       } catch (err: unknown) {
         // Clean up flush timer
@@ -271,9 +280,14 @@ const useStreamingSubmit = (endpoint: string, componentName: string): UseStreami
 
           setSuccess(true);
           setLoading(false);
-          return parsed.metadata
+          const fallbackBgDoc =
+            ((response as Record<string, unknown>)?.backgroundDocument as string) || '';
+          const fallbackResult = parsed.metadata
             ? { ...parsed.metadata, content: parsed.content }
             : { content: parsed.content, metadata: {} };
+          return fallbackBgDoc
+            ? { ...fallbackResult, backgroundDocument: fallbackBgDoc }
+            : fallbackResult;
         } catch (fallbackErr: unknown) {
           const fallbackError =
             fallbackErr instanceof Error ? fallbackErr : new Error('Unknown error');

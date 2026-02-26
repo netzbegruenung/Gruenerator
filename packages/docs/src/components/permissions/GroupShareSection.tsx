@@ -19,9 +19,14 @@ interface GroupShare {
 interface GroupShareSectionProps {
   documentId: string;
   apiClient: DocsApiClient;
+  onGroupsLoaded?: (hasGroups: boolean) => void;
 }
 
-export const GroupShareSection = ({ documentId, apiClient }: GroupShareSectionProps) => {
+export const GroupShareSection = ({
+  documentId,
+  apiClient,
+  onGroupsLoaded,
+}: GroupShareSectionProps) => {
   const [userGroups, setUserGroups] = useState<GroupInfo[]>([]);
   const [groupShares, setGroupShares] = useState<GroupShare[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -39,12 +44,13 @@ export const GroupShareSection = ({ documentId, apiClient }: GroupShareSectionPr
       setUserGroups(groups);
       setGroupShares(shares);
       setError(null);
+      onGroupsLoaded?.(groups.length > 0);
     } catch (err) {
       console.error('Failed to fetch group sharing data:', err);
     } finally {
       setHasLoaded(true);
     }
-  }, [documentId, apiClient]);
+  }, [documentId, apiClient, onGroupsLoaded]);
 
   useEffect(() => {
     void fetchData();

@@ -23,8 +23,7 @@ const CitationTextRenderer = ({
     return <span className={className}>{text}</span>;
   }
 
-  // Pattern to match citation markers: ⚡CITE1⚡, ⚡CITE2⚡, etc.
-  const citationMarkerPattern = /⚡CITE(\d+)⚡/g;
+  const citationMarkerPattern = /\[cite:(\d+)\]/g;
 
   const parts: Array<{
     type: 'text' | 'citation';

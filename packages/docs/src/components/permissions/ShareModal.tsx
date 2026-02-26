@@ -31,7 +31,11 @@ interface ShareModalProps {
 type ShareMode = 'private' | 'authenticated' | 'public';
 
 const SHARE_MODE_OPTIONS: { value: ShareMode; label: string; description: string }[] = [
-  // { value: 'private', label: 'Privat', description: 'Nur eingeladene Personen haben Zugriff' },
+  {
+    value: 'private',
+    label: 'Privat',
+    description: 'Nur eingeladene Personen und Gruppen haben Zugriff',
+  },
   {
     value: 'authenticated',
     label: 'Mit Anmeldung',
@@ -58,6 +62,7 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isChangingMode, setIsChangingMode] = useState(false);
+  const [hasGroups, setHasGroups] = useState(false);
 
   const fetchCollaborators = useCallback(async () => {
     try {
@@ -209,11 +214,11 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
         <div className="share-link-section">
           <div className="share-link-row">
             <Select
-              label="Zugriff über Link"
+              label="Zugriffsmodus"
               value={shareSettings.share_mode}
               onChange={(val) => val && changeShareMode(val as ShareMode)}
               data={[
-                // { value: 'private', label: 'Privat' },
+                ...(hasGroups ? [{ value: 'private', label: 'Privat' }] : []),
                 { value: 'authenticated', label: 'Mit Anmeldung' },
                 { value: 'public', label: 'Öffentlich' },
               ]}
@@ -241,7 +246,11 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
           </Text>
         </div>
 
-        <GroupShareSection documentId={documentId} apiClient={apiClient} />
+        <GroupShareSection
+          documentId={documentId}
+          apiClient={apiClient}
+          onGroupsLoaded={setHasGroups}
+        />
 
         <div className="collaborators-section">
           <Text size="md" fw={600} mb="sm">

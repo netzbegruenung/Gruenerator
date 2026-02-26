@@ -7,9 +7,11 @@ import SmartInput from '../../../components/common/Form/SmartInput';
 import Icon from '../../../components/common/Icon';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
+import { useBackgroundDocumentExport } from '../../../hooks/useBackgroundDocumentExport';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useUserDefaults } from '../../../hooks/useUserDefaults';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
 type AntragTabProps = Record<string, never>;
 
@@ -51,6 +53,9 @@ const AntragTab: React.FC<AntragTabProps> = memo(() => {
   const componentName = 'antrag-generator';
 
   useUserDefaults('antrag');
+
+  const setGeneratedTextMetadata = useGeneratedTextStore((state) => state.setGeneratedTextMetadata);
+  const bgExportOptions = useBackgroundDocumentExport(componentName);
 
   const [selectedRequestType, setSelectedRequestType] = useState<
     | typeof REQUEST_TYPES.ANTRAG
@@ -113,11 +118,18 @@ const AntragTab: React.FC<AntragTabProps> = memo(() => {
         );
 
         if (response) {
+          const responseObj =
+            typeof response === 'object' ? (response as Record<string, unknown>) : null;
           const content =
-            typeof response === 'string' ? response : (response as { content?: string }).content;
+            typeof response === 'string' ? response : (responseObj?.content as string | undefined);
 
           if (content && form.generator) {
             form.generator.handleGeneratedContentChange(content);
+          }
+
+          const backgroundDocument = responseObj?.backgroundDocument as string | undefined;
+          if (backgroundDocument) {
+            setGeneratedTextMetadata(componentName, { backgroundDocument });
           }
         }
       } catch (submitError) {
@@ -129,7 +141,7 @@ const AntragTab: React.FC<AntragTabProps> = memo(() => {
         }
       }
     },
-    [form, selectedRequestType, builder]
+    [form, selectedRequestType, builder, setGeneratedTextMetadata, componentName]
   );
 
   const success = form.generator?.success ?? false;
@@ -228,9 +240,12 @@ const AntragTab: React.FC<AntragTabProps> = memo(() => {
         });
         return submitHandler();
       }}
-      useMarkdown={false}
+      useMarkdown={true}
       nextButtonText="Grünerieren"
       firstExtrasChildren={renderFirstExtras()}
+      showAgentMode={true}
+      useFeatureIcons={true}
+      customExportOptions={bgExportOptions}
       platformOptions={
         (form.generator?.baseFormProps?.platformOptions ?? undefined) as unknown as
           | any[]

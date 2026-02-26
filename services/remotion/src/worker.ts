@@ -6,6 +6,8 @@
  * in Redis so the API can poll it.
  */
 
+import 'dotenv/config';
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

@@ -7,5 +7,6 @@ export {
   detectTextType,
   detectTypeByKeywords,
   detectTypeWithAI,
+  keywordMatches,
   type TextTypeDetectionResult,
 } from './TexteIntentService.js';

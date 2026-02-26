@@ -128,12 +128,21 @@ function createMcpServer(baseUrl) {
   server.tool(
     searchTool.name,
     searchTool.inputSchema,
-    async ({ query, collection, searchMode = 'hybrid', limit = 5, filters, useCache = true }) => {
+    async ({
+      query,
+      country,
+      collection,
+      searchMode = 'hybrid',
+      limit = 5,
+      filters,
+      useCache = true,
+    }) => {
       const startTime = Date.now();
 
       try {
         const result = await searchTool.handler({
           query,
+          country,
           collection,
           searchMode,
           limit,
@@ -145,7 +154,7 @@ function createMcpServer(baseUrl) {
         // Log the search
         logSearch(
           query,
-          collection,
+          collection || `country:${country}`,
           searchMode,
           result.resultsCount || 0,
           responseTime,

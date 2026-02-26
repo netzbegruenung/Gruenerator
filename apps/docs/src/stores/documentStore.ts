@@ -38,7 +38,7 @@ interface DocumentStore {
   clearError: () => void;
 }
 
-export const useDocumentStore = create<DocumentStore>((set, get) => ({
+export const useDocumentStore = create<DocumentStore>((set, _get) => ({
   documents: [],
   isLoading: false,
   error: null,

@@ -477,8 +477,8 @@ class RequestEnricher {
 
       enrichmentTasks.push(
         this.performAutomaticVectorSearch(searchQuery, options.req, {
-          limit: 3,
-          threshold: 0.6,
+          limit: 2,
+          threshold: 0.65,
           usePrivacyMode: usePrivacyMode,
         })
           .then((result) => ({
@@ -594,8 +594,7 @@ class RequestEnricher {
         }
       } else if (result.type === 'notebook_enrich') {
         if (result.preAnswer) {
-          // Inject fast pre-answer as first knowledge entry (before other context)
-          state.knowledge.unshift(
+          state.knowledge.push(
             `<vorarbeit>\nSCHNELLER VORENTWURF:\n${result.preAnswer}\n</vorarbeit>`
           );
           notebookEnrichMetadata = {

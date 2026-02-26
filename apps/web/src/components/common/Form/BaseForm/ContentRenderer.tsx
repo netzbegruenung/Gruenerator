@@ -263,17 +263,17 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
 
   const createCitationComponents = (citations: Citation[]) => {
     const processCitationText = (text: unknown): ReactNode => {
-      if (typeof text !== 'string' || !text.includes('⚡CITE')) {
+      if (typeof text !== 'string' || !text.includes('[cite:')) {
         return text as ReactNode;
       }
 
-      const markerPattern = /(⚡CITE\d+⚡)/g;
+      const markerPattern = /(\[cite:\d+\])/g;
       const parts = text.split(markerPattern);
       const elements: ReactNode[] = [];
 
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
-        const match = part.match(/⚡CITE(\d+)⚡/);
+        const match = part.match(/\[cite:(\d+)\]/);
 
         if (match) {
           const citationIndex = match[1];
@@ -300,7 +300,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       text: ({ children }: { children: ReactNode }) => processCitationText(children),
       p: ({ children }: { children: ReactNode }) => {
         const hasMarkers = React.Children.toArray(children).some(
-          (child) => typeof child === 'string' && child.includes('⚡CITE')
+          (child) => typeof child === 'string' && child.includes('[cite:')
         );
 
         if (hasMarkers) {
@@ -317,7 +317,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       },
       li: ({ children }: { children: ReactNode }) => {
         const hasMarkers = React.Children.toArray(children).some(
-          (child) => typeof child === 'string' && child.includes('⚡CITE')
+          (child) => typeof child === 'string' && child.includes('[cite:')
         );
 
         if (hasMarkers) {
@@ -336,7 +336,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   };
 
   if (shouldUseMarkdown) {
-    const hasCitationMarkers = /⚡CITE\d+⚡/.test(contentToRender as string);
+    const hasCitationMarkers = /\[cite:\d+\]/.test(contentToRender as string);
 
     if (hasCitationMarkers && citations.length > 0) {
       const customComponents = createCitationComponents(citations);

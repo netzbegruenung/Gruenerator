@@ -24,6 +24,14 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
             'gruene_de_documents',
           ];
 
+    // Build web search query following the standard pipeline pattern
+    const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90 Die Grünen';
+    const shouldWebSearch = !state.features.usePrivacyMode && state.features.useWebSearchTool;
+    const webSearchQuery = shouldWebSearch ? `${state.inhalt} ${partySearchTerm} Politik` : null;
+    const aiWorkerPool = state.req?.app?.locals?.aiWorkerPool;
+
+    log.debug(`[researchNode] Web search: ${shouldWebSearch ? 'yes' : 'no'}`);
+
     const [enrichedState, argumentResults] = await Promise.all([
       enrichRequest(
         {
@@ -41,7 +49,9 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
         {
           type: 'social',
           enableUrls: !state.features.usePrivacyMode,
-          enableWebSearch: !state.features.usePrivacyMode,
+          enableWebSearch: shouldWebSearch,
+          webSearchQuery,
+          aiWorkerPool,
           usePrivacyMode: state.features.usePrivacyMode,
           selectedDocumentIds: state.selectedDocumentIds,
           selectedTextIds: state.selectedTextIds,
@@ -57,13 +67,12 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
       argumentsSummary = await summarizeArguments(state.inhalt, argumentResults);
     }
 
-    const researchParts: string[] = [];
-    if (enrichedState.knowledge.length > 0) {
-      researchParts.push(enrichedState.knowledge.join('\n\n'));
-    }
-    if (argumentsSummary) {
-      researchParts.push(`Recherchierte Argumente:\n${argumentsSummary}`);
-    }
+    // researchContext = only the party-document summary.
+    // enrichedState.knowledge already carries web search results, URLs, docs, texts.
+    // Downstream nodes spread both separately — no duplication.
+    const researchContext = argumentsSummary
+      ? `Recherchierte Argumente:\n${argumentsSummary}`
+      : null;
 
     const researchTimeMs = Date.now() - startTime;
     log.debug(
@@ -76,7 +85,7 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
       enrichedState,
       arguments: argumentResults,
       argumentsSummary,
-      researchContext: researchParts.join('\n\n---\n\n') || null,
+      researchContext,
       researchTimeMs,
     };
   } catch (error) {
