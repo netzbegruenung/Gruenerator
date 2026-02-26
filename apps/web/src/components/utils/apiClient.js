@@ -16,10 +16,8 @@ const sharedApiClient = createApiClient({
   authMode: isDesktopApp() ? 'bearer' : 'cookie',
   getAuthToken: isDesktopApp() ? async () => getDesktopToken() : undefined,
   onUnauthorized: () => {
-    console.log('[apiClient:shared] onUnauthorized fired — pathname:', window.location.pathname);
     if (!isPublicPage() && window.location.pathname !== '/login') {
       const currentPath = window.location.pathname + window.location.search;
-      console.log('[apiClient:shared] Redirecting to login with redirect:', currentPath);
       window.location.href = buildLoginUrl(currentPath);
     }
   },
@@ -79,16 +77,9 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response && error.response.status === 401) {
-      console.log(
-        '[apiClient:legacy] 401 interceptor — pathname:',
-        window.location.pathname,
-        'url:',
-        error.config?.url
-      );
       if (!isPublicPage() && window.location.pathname !== '/login') {
         const currentPath = window.location.pathname + window.location.search;
         const loginUrl = buildLoginUrl(currentPath);
-        console.log('[apiClient:legacy] Redirecting to login with redirect:', currentPath);
         window.location.href = loginUrl;
       }
     }
