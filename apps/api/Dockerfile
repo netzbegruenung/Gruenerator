@@ -42,9 +42,9 @@ RUN pnpm exec tsc --project tsconfig.json
 WORKDIR /app/services/hocuspocus
 RUN pnpm exec tsc --project tsconfig.build.json
 
-# Compile API
+# Compile API (needs extra heap for large codebase)
 WORKDIR /app/apps/api
-RUN pnpm exec tsc --project tsconfig.json
+RUN NODE_OPTIONS="--max-old-space-size=8192" pnpm exec tsc --project tsconfig.json
 
 # Copy non-TS assets into dist/ (tsc only emits .js/.js.map files)
 # These are referenced via __dirname-relative paths at runtime
