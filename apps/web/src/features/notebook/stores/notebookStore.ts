@@ -117,7 +117,9 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.get('/auth/notebook-collections');
+      const response = await apiClient.get('/auth/notebook-collections', {
+        skipAuthRedirect: true,
+      });
       const data = response.data;
 
       if (!data.success) {
@@ -203,7 +205,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.document_ids = collectionData.documents || [];
       }
 
-      const response = await apiClient.put(`/auth/notebook-collections/${collectionId}`, requestData);
+      const response = await apiClient.put(
+        `/auth/notebook-collections/${collectionId}`,
+        requestData
+      );
 
       const data = response.data;
 
