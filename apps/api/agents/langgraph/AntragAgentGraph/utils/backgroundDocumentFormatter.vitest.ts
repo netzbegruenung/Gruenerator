@@ -187,7 +187,6 @@ describe('assembleBackgroundDocument', () => {
       })
     );
 
-    const matches = result.match(/\*\*Same Doc\*\*/g);
     // Once in arguments section (grouped), once in sources — not duplicated in sources
     const sourceSection = result.split('# Verwendete Quellen')[1] || '';
     const sourceMatches = sourceSection.match(/\*\*Same Doc\*\*/g);
