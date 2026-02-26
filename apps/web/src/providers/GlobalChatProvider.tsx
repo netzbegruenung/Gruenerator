@@ -1,5 +1,5 @@
 import { GrueneratorChatProvider, ChatThreadList, TooltipProvider } from '@gruenerator/chat';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
