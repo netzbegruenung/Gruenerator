@@ -147,8 +147,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-web:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-web:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
           build-args: |
             VITE_API_BASE_URL=/api
             VITE_APP_ENV=production
@@ -195,8 +195,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-api:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-api:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
   build-sites:
     needs: detect-changes
@@ -239,8 +239,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-sites:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-sites:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
           build-args: |
             VITE_API_BASE_URL=/api
             VITE_APP_ENV=production
@@ -287,8 +287,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-docs:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-docs:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
   build-hocuspocus:
     needs: detect-changes
@@ -331,8 +331,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-hocuspocus:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-hocuspocus:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
   build-mcp:
     needs: detect-changes
@@ -375,8 +375,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-mcp:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-mcp:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
   build-doku:
     needs: detect-changes
@@ -419,8 +419,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-doku:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-doku:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
   summary:
     needs: [build-web, build-api, build-sites, build-docs, build-hocuspocus, build-mcp, build-doku]
