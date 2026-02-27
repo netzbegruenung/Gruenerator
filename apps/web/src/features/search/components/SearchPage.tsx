@@ -137,6 +137,10 @@ const SearchPage = () => {
     sourceRecommendations = [],
     citations = [],
     citationSources = [],
+    streamingText,
+    isStreaming,
+    progress,
+    abort,
   } = useSearch();
 
   const hasCitations = citations.length > 0;
@@ -221,19 +225,35 @@ const SearchPage = () => {
           }
           onDeepResearchToggle={toggleDeepResearch}
           isDeepResearchActive={searchMode === 'deep'}
+          isStreaming={isStreaming}
+          onAbort={abort}
         />
 
-        {loading && searchMode === 'deep' && (
+        {isStreaming && progress.message && (
           <div className="deep-search-progress">
-            <p>🔍 Führe umfassende Recherche durch...</p>
-            <p>📋 Generiere Forschungsfragen und sammle Quellen...</p>
+            <p>{progress.message}</p>
+          </div>
+        )}
+
+        {isStreaming && streamingText && (
+          <div className="analysis-container">
+            <div className="analysis-content">
+              <h2>{searchMode === 'deep' ? 'Forschungsdossier' : 'AI-Zusammenfassung'}</h2>
+              <ContentRenderer
+                value={streamingText}
+                useMarkdown={true}
+                componentName={
+                  searchMode === 'deep' ? 'deep-research-dossier' : 'web-search-summary'
+                }
+              />
+            </div>
           </div>
         )}
 
         {error && <div className="search-error">{error}</div>}
 
         {/* Web Search Results */}
-        {webResults && searchMode === 'web' && (
+        {!isStreaming && webResults && searchMode === 'web' && (
           <div className="web-search-container">
             {webResults.summary && (
               <div className="analysis-container">
@@ -314,7 +334,7 @@ const SearchPage = () => {
         )}
 
         {/* Deep Research Results */}
-        {dossier && searchMode === 'deep' && (
+        {!isStreaming && dossier && searchMode === 'deep' && (
           <>
             <div className="dossier-container">
               <div className="analysis-actions">

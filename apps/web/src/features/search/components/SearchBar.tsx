@@ -1,5 +1,5 @@
 import { type JSX, useState, useRef, useEffect, ChangeEvent, type ReactNode } from 'react';
-import { FaSearch } from 'react-icons/fa';
+import { FaSearch, FaStop } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 
 import Icon from '../../../components/common/Icon';
@@ -31,6 +31,8 @@ interface SearchBarProps {
   hideExamples?: boolean;
   hideDisclaimer?: boolean;
   settingsContent?: ReactNode;
+  isStreaming?: boolean;
+  onAbort?: () => void;
 }
 
 const SearchBar = ({
@@ -45,6 +47,8 @@ const SearchBar = ({
   hideExamples = false,
   hideDisclaimer = false,
   settingsContent = null,
+  isStreaming = false,
+  onAbort,
 }: SearchBarProps): JSX.Element => {
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -120,18 +124,30 @@ const SearchBar = ({
                 <Icon category="ui" name="brain" />
               </button>
             )}
-            <button
-              type="submit"
-              className="search-icon-button"
-              disabled={loading || !value?.trim()}
-              aria-label="Suchen"
-            >
-              {loading ? (
-                <div className="button-spinner" />
-              ) : (
-                <FaSearch className="search-icon" />
-              )}
-            </button>
+            {isStreaming ? (
+              <button
+                type="button"
+                className="search-icon-button search-abort-button"
+                onClick={onAbort}
+                aria-label="Suche abbrechen"
+                title="Suche abbrechen"
+              >
+                <FaStop className="search-icon" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="search-icon-button"
+                disabled={loading || !value?.trim()}
+                aria-label="Suchen"
+              >
+                {loading ? (
+                  <div className="button-spinner" />
+                ) : (
+                  <FaSearch className="search-icon" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 

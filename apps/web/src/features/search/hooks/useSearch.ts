@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
+import useStreamingSubmit from '../../../hooks/useStreamingSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
 interface Source {
@@ -86,23 +87,6 @@ interface AnalysisApiResponse {
   claudeSourceTitles: string[];
 }
 
-interface DeepSearchApiResponse {
-  status: string;
-  dossier?: string;
-  categorizedSources?: Record<string, Source[]>;
-  researchQuestions?: string[];
-  sources?: Source[];
-  citations?: Citation[];
-  citationSources?: Source[];
-}
-
-interface WebSearchApiResponse {
-  success: boolean;
-  error?: string;
-  citations?: Citation[];
-  sources?: Source[];
-}
-
 const useSearch = () => {
   const [results, setResults] = useState<Source[]>([]);
   const [usedSources, setUsedSources] = useState<Source[]>([]);
@@ -125,11 +109,28 @@ const useSearch = () => {
   // Get store function to save citations for ContentRenderer
   const setGeneratedTextMetadata = useGeneratedTextStore((state) => state.setGeneratedTextMetadata);
 
+  // Standard search mode (legacy) — kept as non-streaming
   const { submitForm: submitSearch, loading: searchLoading } = useApiSubmit('search');
   const { submitForm: submitAnalysis, loading: analysisLoading } = useApiSubmit('analyze');
-  const { submitForm: submitDeepSearch, loading: deepSearchLoading } =
-    useApiSubmit('search/deep-research');
-  const { submitForm: submitWebSearch, loading: webSearchLoading } = useApiSubmit('web-search');
+
+  // Streaming instances for web search and deep research
+  const {
+    submitForm: submitWebSearch,
+    loading: webSearchLoading,
+    streamingText: webStreamingText,
+    isStreaming: webIsStreaming,
+    progress: webProgress,
+    abort: webAbort,
+  } = useStreamingSubmit('/search', 'web-search-summary');
+
+  const {
+    submitForm: submitDeepSearch,
+    loading: deepSearchLoading,
+    streamingText: deepStreamingText,
+    isStreaming: deepIsStreaming,
+    progress: deepProgress,
+    abort: deepAbort,
+  } = useStreamingSubmit('/search/deep-research', 'deep-research-dossier');
 
   const clearAllResults = () => {
     setError(null);
@@ -200,32 +201,32 @@ const useSearch = () => {
       clearAllResults();
 
       try {
-        console.log('[useSearch] Starting deep search for:', query);
+        const result = await submitDeepSearch({ query });
 
-        const deepSearchData = (await submitDeepSearch({
-          query,
-        })) as unknown as DeepSearchApiResponse;
+        const meta = (result.metadata || {}) as Record<string, unknown>;
 
-        if (deepSearchData.status === 'success') {
-          console.log('[useSearch] Deep search successful:', deepSearchData);
+        // Set dossier from the streamed content
+        const dossierContent = (result.content as string) || '';
+        if (dossierContent) {
+          setDossier(dossierContent);
+        }
 
-          setDossier(deepSearchData.dossier ?? null);
-          setCategorizedSources(deepSearchData.categorizedSources || {});
-          setResearchQuestions(deepSearchData.researchQuestions || []);
-          setResults(deepSearchData.sources || []);
+        setCategorizedSources((meta.categorizedSources as Record<string, Source[]>) || {});
+        setResearchQuestions((meta.researchQuestions as string[]) || []);
+        setResults((meta.sources as Source[]) || []);
 
-          if (deepSearchData.citations) {
-            setCitations(deepSearchData.citations);
-            setGeneratedTextMetadata('deep-research-dossier', {
-              citations: deepSearchData.citations,
-              citationSources: deepSearchData.citationSources || [],
-            });
-          }
-          if (deepSearchData.citationSources) {
-            setCitationSources(deepSearchData.citationSources);
-          }
-        } else {
-          throw new Error('Ungültiges Antwortformat vom Server');
+        const metaCitations = meta.citations as Citation[] | undefined;
+        const metaCitationSources = meta.citationSources as Source[] | undefined;
+
+        if (metaCitations && metaCitations.length > 0) {
+          setCitations(metaCitations);
+          setGeneratedTextMetadata('deep-research-dossier', {
+            citations: metaCitations,
+            citationSources: metaCitationSources || [],
+          });
+        }
+        if (metaCitationSources) {
+          setCitationSources(metaCitationSources);
         }
       } catch (err) {
         console.error('[useSearch] Deep search error:', err);
@@ -241,32 +242,36 @@ const useSearch = () => {
       clearAllResults();
 
       try {
-        console.log('[useSearch] Starting web search for:', query);
-
-        const webSearchData = (await submitWebSearch({
+        const result = await submitWebSearch({
           query,
           searchType: 'general',
           includeSummary: true,
           maxResults: 10,
           language: 'de-DE',
-        })) as unknown as WebSearchApiResponse & WebResults;
+        });
 
-        if (webSearchData.success) {
-          console.log('[useSearch] Web search successful:', webSearchData);
-          setWebResults(webSearchData);
+        const meta = (result.metadata || {}) as Record<string, unknown>;
+        const summaryText = (result.content as string) || '';
 
-          if (webSearchData.citations) {
-            setCitations(webSearchData.citations);
-            setGeneratedTextMetadata('web-search-summary', {
-              citations: webSearchData.citations,
-              citationSources: webSearchData.sources || [],
-            });
-          }
-          if (webSearchData.sources) {
-            setCitationSources(webSearchData.sources);
-          }
-        } else {
-          throw new Error(webSearchData.error || 'Web search failed');
+        // Populate webResults from the done event metadata
+        setWebResults({
+          summary: summaryText ? { text: summaryText } : undefined,
+          results: (meta.results as WebResults['results']) || [],
+          resultCount: (meta.resultCount as number) || 0,
+        });
+
+        const metaCitations = meta.citations as Citation[] | undefined;
+        const metaSources = meta.sources as Source[] | undefined;
+
+        if (metaCitations && metaCitations.length > 0) {
+          setCitations(metaCitations);
+          setGeneratedTextMetadata('web-search-summary', {
+            citations: metaCitations,
+            citationSources: metaSources || [],
+          });
+        }
+        if (metaSources) {
+          setCitationSources(metaSources);
         }
       } catch (err) {
         console.error('[useSearch] Web search error:', err);
@@ -276,6 +281,12 @@ const useSearch = () => {
     },
     [submitWebSearch, setGeneratedTextMetadata]
   );
+
+  // Combine streaming state from both streaming hooks
+  const streamingText = webStreamingText || deepStreamingText;
+  const isStreaming = webIsStreaming || deepIsStreaming;
+  const progress = webIsStreaming ? webProgress : deepProgress;
+  const abort = webIsStreaming ? webAbort : deepAbort;
 
   return {
     results,
@@ -296,6 +307,11 @@ const useSearch = () => {
     // Citation support
     citations,
     citationSources,
+    // Streaming support
+    streamingText,
+    isStreaming,
+    progress,
+    abort,
   };
 };
 
