@@ -165,9 +165,7 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
 
       const correlationId = `auth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // Debug: Log session info at initiation
-      console.log(`[KeycloakOIDC:${correlationId}] Session ID at init: ${req.sessionID}`);
-      console.log(`[KeycloakOIDC:${correlationId}] Cookie header at init: ${!!req.headers.cookie}`);
+      console.log(`[KeycloakOIDC:${correlationId}] Auth init (session=${req.sessionID})`);
 
       const state = randomState();
 
@@ -179,10 +177,6 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         correlationId,
         timestamp: Date.now(),
       };
-      console.log(
-        `[KeycloakOIDC:${correlationId}] Stored originDomain in OIDC session: ${storedOriginDomain}`
-      );
-
       const originDomain = req.session.originDomain;
       const isSecure =
         process.env.NODE_ENV === 'production' ||
@@ -282,21 +276,8 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
     const elapsed = () => Date.now() - startMs;
 
     try {
-      // Debug: Log incoming request details
-      const cookieHeader = req.headers.cookie;
-      const sessionId = req.sessionID;
-      console.log(`[KeycloakOIDC:callback] handleCallback START`);
-      console.log(`[KeycloakOIDC:callback] Cookie header present: ${!!cookieHeader}`);
-      console.log(`[KeycloakOIDC:callback] Session ID: ${sessionId}`);
-      console.log(`[KeycloakOIDC:callback] Session exists: ${!!req.session}`);
-      console.log(
-        `[KeycloakOIDC:callback] Session keys: ${req.session ? Object.keys(req.session).join(', ') : 'none'}`
-      );
-      if (cookieHeader) {
-        // Check if our session cookie is in the header
-        const hasOurCookie = cookieHeader.includes('gruenerator.sid');
-        console.log(`[KeycloakOIDC:callback] gruenerator.sid cookie present: ${hasOurCookie}`);
-      }
+      const hasCookie = !!req.headers.cookie?.includes('gruenerator.sid');
+      console.log(`[KeycloakOIDC:callback] START (session=${req.sessionID}, cookie=${hasCookie})`);
 
       let sessionData = req.session['oidc:keycloak'];
 
@@ -323,9 +304,7 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
       }
 
       const correlationId = sessionData?.correlationId || 'unknown';
-      console.log(
-        `[KeycloakOIDC:${correlationId}] handleCallback session validated (+${elapsed()}ms)`
-      );
+      const sessionValidatedMs = elapsed();
 
       if (!sessionData) {
         console.error(
@@ -375,9 +354,7 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
           `/auth/error?message=token_exchange_failed&retry=true&correlationId=${correlationId}`
         );
       }
-      console.log(
-        `[KeycloakOIDC:${correlationId}] handleCallback token exchange done (+${elapsed()}ms)`
-      );
+      const tokenExchangeMs = elapsed();
 
       let expectedSubject: string | undefined;
       if (tokenSet.id_token) {
@@ -410,9 +387,7 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
           `/auth/error?message=userinfo_fetch_failed&retry=true&correlationId=${correlationId}`
         );
       }
-      console.log(
-        `[KeycloakOIDC:${correlationId}] handleCallback userinfo fetched (+${elapsed()}ms)`
-      );
+      const userinfoMs = elapsed();
 
       const profile: PassportProfile = {
         id: userinfo.sub!,
@@ -427,9 +402,6 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         req.session.redirectTo = sessionData.redirectTo;
       }
 
-      console.log(
-        `[KeycloakOIDC:${correlationId}] handleCallback calling verify (+${elapsed()}ms)`
-      );
       this.verify(req, tokenSet, userinfo, profile, (err, user, info) => {
         if (err) {
           console.error(
@@ -446,7 +418,7 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         delete req.session['oidc:keycloak'];
 
         console.log(
-          `[KeycloakOIDC:${correlationId}] handleCallback calling this.success (+${elapsed()}ms)`
+          `[KeycloakOIDC:${correlationId}] Callback complete: session +${sessionValidatedMs}ms, token +${tokenExchangeMs}ms, userinfo +${userinfoMs}ms, total +${elapsed()}ms`
         );
         return this.success(user, info);
       });
@@ -542,13 +514,10 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
       async (req, tokenSet, userinfo, profile, done) => {
         const verifyStartMs = Date.now();
         const correlationId = req.session['oidc:keycloak']?.correlationId || 'unknown';
-        console.log(`[KeycloakOIDC:${correlationId}] verify callback START`);
         try {
           const { handleUserProfile } = await import('./passportSetup.js');
           const user = await handleUserProfile(profile, req);
-          console.log(
-            `[KeycloakOIDC:${correlationId}] verify callback handleUserProfile done (+${Date.now() - verifyStartMs}ms)`
-          );
+          const profileMs = Date.now() - verifyStartMs;
 
           const sessionData = req.session['oidc:keycloak'];
           if (sessionData?.redirectTo) {
@@ -556,13 +525,11 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
           }
           if (sessionData?.originDomain) {
             user._originDomain = sessionData.originDomain;
-            console.log(
-              `[KeycloakOIDC:${correlationId}] Attached _originDomain to user: ${sessionData.originDomain}`
-            );
           }
 
+          const origin = sessionData?.originDomain || 'unknown';
           console.log(
-            `[KeycloakOIDC:${correlationId}] verify callback done (+${Date.now() - verifyStartMs}ms)`
+            `[KeycloakOIDC:${correlationId}] Verify complete: profile +${profileMs}ms, origin=${origin}, total +${Date.now() - verifyStartMs}ms`
           );
           return done(null, user);
         } catch (error) {
