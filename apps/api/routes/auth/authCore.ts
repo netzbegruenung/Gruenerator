@@ -225,6 +225,10 @@ router.get(
     failureMessage: true,
   }),
   async (req: AuthSessionRequest, res: Response, next: NextFunction): Promise<void> => {
+    const cbStartMs = Date.now();
+    const cbElapsed = () => Date.now() - cbStartMs;
+    log.info(`[AuthCallback] handler START`);
+
     try {
       const intendedRedirect = req.user?._redirectTo || req.session.redirectTo;
 
@@ -257,10 +261,24 @@ router.get(
             .setAudience('gruenerator-app-login-code')
             .sign(secret);
 
+          log.info(`[AuthCallback] calling session.save for mobile deep link (+${cbElapsed()}ms)`);
+          const mobileTimeout = setTimeout(() => {
+            log.error(
+              `[AuthCallback] session.save TIMEOUT after 10s (mobile deep link, +${cbElapsed()}ms) — redirecting anyway`
+            );
+            const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
+            res.redirect(redirectWithCode);
+          }, 10_000);
+
           req.session.save((err) => {
+            clearTimeout(mobileTimeout);
             if (err) {
-              log.error('[AuthCallback] Error saving session (mobile deep link):', err);
+              log.error(
+                `[AuthCallback] Error saving session (mobile deep link, +${cbElapsed()}ms):`,
+                err
+              );
             }
+            log.info(`[AuthCallback] session.save complete (mobile deep link, +${cbElapsed()}ms)`);
             const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
             res.redirect(redirectWithCode);
           });
@@ -311,10 +329,24 @@ router.get(
 
       delete req.session.originDomain;
 
+      log.info(
+        `[AuthCallback] calling session.save (+${cbElapsed()}ms), redirecting to ${absoluteRedirect}`
+      );
+      const webTimeout = setTimeout(() => {
+        log.error(
+          `[AuthCallback] session.save TIMEOUT after 10s (+${cbElapsed()}ms) — redirecting anyway to ${absoluteRedirect}`
+        );
+        res.redirect(absoluteRedirect);
+      }, 10_000);
+
       req.session.save((err) => {
+        clearTimeout(webTimeout);
         if (err) {
-          log.error('[AuthCallback] Error saving session:', err);
+          log.error(`[AuthCallback] Error saving session (+${cbElapsed()}ms):`, err);
         }
+        log.info(
+          `[AuthCallback] session.save complete (+${cbElapsed()}ms), redirecting to ${absoluteRedirect}`
+        );
         res.redirect(absoluteRedirect);
       });
     } catch (error) {
