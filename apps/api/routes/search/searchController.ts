@@ -245,6 +245,12 @@ router.post(
         });
       }
 
+      // Streaming mode: delegate to SSE streaming controller
+      if (req.query.stream === 'true') {
+        const { streamNormalSearch } = await import('./searchStreamController.js');
+        return streamNormalSearch(req, res as any);
+      }
+
       const trimmedQuery = query.trim();
 
       if (trimmedQuery.length < 2) {
@@ -385,6 +391,12 @@ router.post(
           },
           details: 'Suchbegriff ist erforderlich',
         });
+      }
+
+      // Streaming mode: delegate to SSE streaming controller
+      if (req.query.stream === 'true') {
+        const { streamDeepSearch } = await import('./searchStreamController.js');
+        return streamDeepSearch(req, res as any);
       }
 
       const userId = getUserId(req);

@@ -16,6 +16,18 @@ import type { Strategy } from 'passport';
 /** Maximum age of OIDC session data before it's considered stale (15 minutes). */
 const OIDC_SESSION_MAX_AGE_MS = 900_000;
 
+/** Window in which rapid login clicks reuse existing OIDC state instead of overwriting. */
+const OIDC_DEDUP_WINDOW_MS = 30_000;
+
+/** HTTP status codes considered transient for token exchange retry. */
+const TRANSIENT_STATUS_CODES = [502, 503, 504];
+
+/** Max total token exchange attempts (1 retry). */
+const TOKEN_EXCHANGE_MAX_ATTEMPTS = 2;
+
+/** Delay between token exchange retry attempts (ms). */
+const TOKEN_EXCHANGE_RETRY_DELAY_MS = 2_000;
+
 // openid-client v6 types (extracted from return types)
 type Config = Awaited<ReturnType<typeof discovery>>;
 type TokenSet = Awaited<ReturnType<typeof authorizationCodeGrant>>;
@@ -141,6 +153,16 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
 
   async initiateAuthorization(req: Request, options: any): Promise<void> {
     try {
+      // Dedup guard: if a recent OIDC flow is already in progress, reuse its state
+      const existingOidc = req.session['oidc:keycloak'];
+      if (existingOidc?.timestamp && Date.now() - existingOidc.timestamp < OIDC_DEDUP_WINDOW_MS) {
+        console.log(
+          `[KeycloakOIDC:${existingOidc.correlationId}] Reusing existing auth flow (${Math.round((Date.now() - existingOidc.timestamp) / 1000)}s old)`
+        );
+        const authUrl = this.buildAuthUrl(req, existingOidc.state, options);
+        return this.redirect(authUrl);
+      }
+
       const correlationId = `auth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // Debug: Log session info at initiation
@@ -256,10 +278,14 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
   }
 
   async handleCallback(req: Request, _options: any): Promise<void> {
+    const startMs = Date.now();
+    const elapsed = () => Date.now() - startMs;
+
     try {
       // Debug: Log incoming request details
       const cookieHeader = req.headers.cookie;
       const sessionId = req.sessionID;
+      console.log(`[KeycloakOIDC:callback] handleCallback START`);
       console.log(`[KeycloakOIDC:callback] Cookie header present: ${!!cookieHeader}`);
       console.log(`[KeycloakOIDC:callback] Session ID: ${sessionId}`);
       console.log(`[KeycloakOIDC:callback] Session exists: ${!!req.session}`);
@@ -297,6 +323,9 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
       }
 
       const correlationId = sessionData?.correlationId || 'unknown';
+      console.log(
+        `[KeycloakOIDC:${correlationId}] handleCallback session validated (+${elapsed()}ms)`
+      );
 
       if (!sessionData) {
         console.error(
@@ -336,15 +365,19 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
 
       let tokenSet: TokenSet;
       try {
-        tokenSet = await authorizationCodeGrant(this.config!, currentUrl, {
-          expectedState: sessionData.state,
-        });
+        tokenSet = await this.tokenExchangeWithRetry(currentUrl, sessionData.state, correlationId);
       } catch (tokenError) {
-        console.error(`[KeycloakOIDC:${correlationId}] Token exchange failed:`, tokenError);
+        console.error(
+          `[KeycloakOIDC:${correlationId}] Token exchange failed (+${elapsed()}ms):`,
+          tokenError
+        );
         return this.redirect(
           `/auth/error?message=token_exchange_failed&retry=true&correlationId=${correlationId}`
         );
       }
+      console.log(
+        `[KeycloakOIDC:${correlationId}] handleCallback token exchange done (+${elapsed()}ms)`
+      );
 
       let expectedSubject: string | undefined;
       if (tokenSet.id_token) {
@@ -369,11 +402,17 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
           expectedSubject || skipSubjectCheck
         );
       } catch (userinfoError) {
-        console.error(`[KeycloakOIDC:${correlationId}] Failed to fetch user info:`, userinfoError);
+        console.error(
+          `[KeycloakOIDC:${correlationId}] Failed to fetch user info (+${elapsed()}ms):`,
+          userinfoError
+        );
         return this.redirect(
           `/auth/error?message=userinfo_fetch_failed&retry=true&correlationId=${correlationId}`
         );
       }
+      console.log(
+        `[KeycloakOIDC:${correlationId}] handleCallback userinfo fetched (+${elapsed()}ms)`
+      );
 
       const profile: PassportProfile = {
         id: userinfo.sub!,
@@ -388,22 +427,104 @@ class KeycloakOIDCStrategy extends (class {} as any as typeof Strategy) {
         req.session.redirectTo = sessionData.redirectTo;
       }
 
+      console.log(
+        `[KeycloakOIDC:${correlationId}] handleCallback calling verify (+${elapsed()}ms)`
+      );
       this.verify(req, tokenSet, userinfo, profile, (err, user, info) => {
         if (err) {
+          console.error(
+            `[KeycloakOIDC:${correlationId}] verify callback error (+${elapsed()}ms):`,
+            err
+          );
           return this.error(err);
         }
         if (!user) {
+          console.warn(`[KeycloakOIDC:${correlationId}] verify callback no user (+${elapsed()}ms)`);
           return this.fail(info);
         }
 
         delete req.session['oidc:keycloak'];
 
+        console.log(
+          `[KeycloakOIDC:${correlationId}] handleCallback calling this.success (+${elapsed()}ms)`
+        );
         return this.success(user, info);
       });
     } catch (error) {
       console.error('[KeycloakOIDC] Callback handling error:', error);
       return this.error(error);
     }
+  }
+
+  /**
+   * Build the Keycloak authorization URL for a given state and options.
+   */
+  private buildAuthUrl(req: Request, state: string, options: any): string {
+    const originDomain = req.session.originDomain;
+    const isSecure =
+      process.env.NODE_ENV === 'production' ||
+      req.secure ||
+      req.headers['x-forwarded-proto'] === 'https';
+
+    let redirectUri: string;
+    if (originDomain && isAllowedDomain(originDomain)) {
+      redirectUri = buildDomainUrl(originDomain, '/api/auth/callback', isSecure);
+    } else {
+      redirectUri = URLS.callback;
+    }
+
+    const authParams: any = {
+      scope: 'openid profile email offline_access',
+      state,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+    };
+
+    if (options.kc_idp_hint) {
+      authParams.kc_idp_hint = options.kc_idp_hint;
+    }
+    if (options.prompt) {
+      authParams.prompt = options.prompt;
+    }
+
+    return buildAuthorizationUrl(this.config!, authParams).href;
+  }
+
+  /**
+   * Check if an openid-client error is a transient gateway error (502/503/504).
+   */
+  private isTransientTokenError(error: unknown): boolean {
+    const err = error as { code?: string; cause?: { status?: number } };
+    if (err.code === 'OAUTH_RESPONSE_IS_NOT_CONFORM' && err.cause?.status) {
+      return TRANSIENT_STATUS_CODES.includes(err.cause.status);
+    }
+    return false;
+  }
+
+  /**
+   * Attempt authorizationCodeGrant with a single retry on transient errors.
+   */
+  private async tokenExchangeWithRetry(
+    currentUrl: URL,
+    expectedState: string,
+    correlationId: string
+  ): Promise<TokenSet> {
+    for (let attempt = 1; attempt <= TOKEN_EXCHANGE_MAX_ATTEMPTS; attempt++) {
+      try {
+        return await authorizationCodeGrant(this.config!, currentUrl, { expectedState });
+      } catch (error) {
+        if (attempt < TOKEN_EXCHANGE_MAX_ATTEMPTS && this.isTransientTokenError(error)) {
+          const cause = (error as { cause?: { status?: number } }).cause;
+          console.warn(
+            `[KeycloakOIDC:${correlationId}] Token exchange attempt ${attempt} failed with ${cause?.status}, retrying in ${TOKEN_EXCHANGE_RETRY_DELAY_MS}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, TOKEN_EXCHANGE_RETRY_DELAY_MS));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error('Token exchange exhausted all attempts');
   }
 }
 
@@ -419,9 +540,15 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
         sessionKey: 'oidc:keycloak',
       },
       async (req, tokenSet, userinfo, profile, done) => {
+        const verifyStartMs = Date.now();
+        const correlationId = req.session['oidc:keycloak']?.correlationId || 'unknown';
+        console.log(`[KeycloakOIDC:${correlationId}] verify callback START`);
         try {
           const { handleUserProfile } = await import('./passportSetup.js');
           const user = await handleUserProfile(profile, req);
+          console.log(
+            `[KeycloakOIDC:${correlationId}] verify callback handleUserProfile done (+${Date.now() - verifyStartMs}ms)`
+          );
 
           const sessionData = req.session['oidc:keycloak'];
           if (sessionData?.redirectTo) {
@@ -430,13 +557,19 @@ export async function initializeKeycloakOIDCStrategy(): Promise<KeycloakOIDCStra
           if (sessionData?.originDomain) {
             user._originDomain = sessionData.originDomain;
             console.log(
-              `[KeycloakOIDC] Attached _originDomain to user: ${sessionData.originDomain}`
+              `[KeycloakOIDC:${correlationId}] Attached _originDomain to user: ${sessionData.originDomain}`
             );
           }
 
+          console.log(
+            `[KeycloakOIDC:${correlationId}] verify callback done (+${Date.now() - verifyStartMs}ms)`
+          );
           return done(null, user);
         } catch (error) {
-          console.error('[KeycloakOIDC] Error in verify callback:', error);
+          console.error(
+            `[KeycloakOIDC:${correlationId}] Error in verify callback (+${Date.now() - verifyStartMs}ms):`,
+            error
+          );
           return done(error as Error, null);
         }
       }
