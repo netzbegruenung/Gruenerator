@@ -163,21 +163,20 @@ async function syncPendingProfile(fallbackUser: FallbackUser): Promise<UserWithS
 
 // Serialize user for session
 passport.serializeUser((user: Express.User, done) => {
-  const userId = (user as any)?.id || 'unknown';
-  console.log(`[Passport] serializeUser: id=${userId}`);
+  log.info(`[serialize] id=${(user as any).id || 'unknown'}`);
   done(null, user);
 });
 
 // Deserialize user from session
+// Normal path: debug-level single line (hidden at default info level)
+// Slow (>100ms), error, recovery: warn/error level (always visible)
 passport.deserializeUser(async (userData: any, done) => {
   const deserStartMs = Date.now();
-  const userId = typeof userData === 'object' ? userData.id || 'no-id' : userData;
-  console.log(`[Passport] deserializeUser START id=${userId}`);
   try {
     // Fallback users have no DB row yet — try to create the profile now
     if (typeof userData === 'object' && userData._profileSyncPending === true) {
       const synced = await syncPendingProfile(userData);
-      console.log(`[Passport] deserializeUser done (syncPending, +${Date.now() - deserStartMs}ms)`);
+      log.info(`[deserializeUser] syncPending resolved (+${Date.now() - deserStartMs}ms)`);
       return done(null, synced as unknown as Express.User);
     }
 
@@ -212,7 +211,12 @@ passport.deserializeUser(async (userData: any, done) => {
         if (userData._redirectTo) {
           userToReturn._redirectTo = userData._redirectTo;
         }
-        console.log(`[Passport] deserializeUser done (+${Date.now() - deserStartMs}ms)`);
+        const elapsed = Date.now() - deserStartMs;
+        if (elapsed > 100) {
+          log.warn(`[deserializeUser] Slow session lookup for id=${userData.id} (+${elapsed}ms)`);
+        } else {
+          log.debug(`[deserialize] id=${userData.id} +${elapsed}ms`);
+        }
         return done(null, userToReturn as unknown as Express.User);
       }
 
@@ -233,22 +237,21 @@ passport.deserializeUser(async (userData: any, done) => {
           beta_features: userData.beta_features || {},
         };
         const synced = await syncPendingProfile(fallback);
-        console.log(`[Passport] deserializeUser done (recovery, +${Date.now() - deserStartMs}ms)`);
+        log.info(`[deserializeUser] Recovery completed (+${Date.now() - deserStartMs}ms)`);
         return done(null, synced as unknown as Express.User);
       }
 
       // No keycloak_id available — cannot recover, force re-login
       log.warn(
-        `[deserializeUser] Profile missing for id=${userData.id} and no keycloak_id — forcing re-login (+${Date.now() - deserStartMs}ms)`
+        `[deserializeUser] Profile missing for id=${userData.id} and no keycloak_id — forcing re-login`
       );
       return done(null, false as any);
     }
 
     const user = await getUserById(userData);
-    console.log(`[Passport] deserializeUser done (byId, +${Date.now() - deserStartMs}ms)`);
     done(null, user as unknown as Express.User | null);
   } catch (error) {
-    console.error(`[Passport] Error deserializing user (+${Date.now() - deserStartMs}ms):`, error);
+    log.error(`[deserializeUser] Error (+${Date.now() - deserStartMs}ms):`, error);
     done(error as Error, null);
   }
 });
@@ -263,8 +266,6 @@ export async function handleUserProfile(
   const email = profile.emails?.[0]?.value;
   const name = profile.displayName || '';
   const username = profile.username || (profile._json as any)?.preferred_username || keycloakId;
-
-  console.log(`[handleUserProfile] START keycloakId=${keycloakId}`);
 
   if (!keycloakId) {
     throw new Error('No Keycloak ID (sub) found in profile');
@@ -281,7 +282,7 @@ export async function handleUserProfile(
   }
 
   log.info(
-    `[handleUserProfile] authSource=${authSource}, isAustrianIdp=${isAustrianIdp}, locale=${locale}`
+    `[handleUserProfile] keycloakId=${keycloakId} authSource=${authSource} locale=${locale}`
   );
 
   try {
@@ -306,8 +307,8 @@ export async function handleUserProfile(
             },
             authSource
           );
-          console.log(
-            `[handleUserProfile] done (update-conflict, +${Date.now() - profileStartMs}ms)`
+          log.info(
+            `[handleUserProfile] Updated user (email conflict) +${Date.now() - profileStartMs}ms`
           );
           return result;
         }
@@ -328,7 +329,9 @@ export async function handleUserProfile(
         },
         authSource
       );
-      console.log(`[handleUserProfile] done (update, +${Date.now() - profileStartMs}ms)`);
+      log.info(
+        `[handleUserProfile] Updated user ${existingUser.id} +${Date.now() - profileStartMs}ms`
+      );
       return updated;
     }
 
@@ -349,7 +352,9 @@ export async function handleUserProfile(
           },
           authSource
         );
-        console.log(`[handleUserProfile] done (link, +${Date.now() - profileStartMs}ms)`);
+        log.info(
+          `[handleUserProfile] Linked keycloak ${keycloakId} to user ${userByEmail.id} +${Date.now() - profileStartMs}ms`
+        );
         return linked;
       }
     }
@@ -363,7 +368,9 @@ export async function handleUserProfile(
       last_login: new Date().toISOString(),
       auth_source: authSource,
     });
-    console.log(`[handleUserProfile] done (create, +${Date.now() - profileStartMs}ms)`);
+    log.info(
+      `[handleUserProfile] Created new user for keycloak ${keycloakId} +${Date.now() - profileStartMs}ms`
+    );
     return created;
   } catch (error) {
     const correlationId = randomUUID().slice(0, 8);
