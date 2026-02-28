@@ -9,7 +9,7 @@ import path from 'path';
 
 import { createLogger } from '../../utils/logger.js';
 
-import { ffmpeg, type FFprobeMetadata } from './ffmpegWrapper.js';
+import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('videoUpload');
@@ -57,8 +57,9 @@ async function getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
 
       const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
-      const rotation = videoStream.rotation || videoStream.tags?.rotate || '0';
-      const isVertical = rotation === '90' || rotation === '270';
+      const rotationDegrees = normalizeRotation(videoStream);
+      const rotation = String(rotationDegrees);
+      const isVertical = rotationDegrees === 90 || rotationDegrees === 270;
 
       const width = isVertical ? videoStream.height || 0 : videoStream.width || 0;
       const height = isVertical ? videoStream.width || 0 : videoStream.height || 0;
