@@ -6,7 +6,6 @@ import { MarkdownContent } from '../../../utils/markdown';
 import type { CandidateData } from '../../../types/candidate';
 
 import '../../../styles/components/editable-preview.css';
-import '../../../styles/components/interactive-preview.css';
 import '../../../styles/components/about.css';
 import '../../../styles/components/themes.css';
 import '../../../styles/components/actions.css';
@@ -48,7 +47,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         className="editable-section editable-section-anchor"
         onClick={handlePreviewClick}
       >
-        <div className="preview-hero">
+        <div className="py-[var(--spacing-xxl-r)] px-[var(--spacing-md-r)] text-center bg-gradient-to-br from-primary-50 to-primary-100">
           {candidateData.hero.imageUrl && (
             <div
               data-section="hero"
@@ -59,21 +58,21 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
               <img
                 src={candidateData.hero.imageUrl}
                 alt={candidateData.hero.name}
-                className="preview-hero-portrait"
+                className="w-[150px] h-[150px] rounded-full object-cover border-4 border-white shadow-lg"
               />
             </div>
           )}
           <h1
             data-section="hero"
             data-field="name"
-            className={`${getElementClass('hero', 'name')} preview-hero-name`}
+            className={`${getElementClass('hero', 'name')} text-[length:var(--font-size-2xl)] font-bold mb-sm text-grey-900`}
           >
             {candidateData.hero.name || 'Dein Name'}
           </h1>
           <p
             data-section="hero"
             data-field="tagline"
-            className={`${getElementClass('hero', 'tagline')} preview-hero-tagline`}
+            className={`${getElementClass('hero', 'tagline')} text-[length:var(--font-size-lg)] text-grey-600`}
           >
             {candidateData.hero.tagline || 'Dein Slogan'}
           </p>
@@ -148,7 +147,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         className="editable-section editable-section-anchor themes-section"
         onClick={handlePreviewClick}
       >
-        <h2 className="preview-section-title">{candidateData.themes.title || 'Meine Themen'}</h2>
+        <h2 className="text-[length:var(--font-size-2xl)] mb-xl text-center text-grey-900">
+          {candidateData.themes.title || 'Meine Themen'}
+        </h2>
         <div className="themes-grid">
           {candidateData.themes.themes.length > 0 ? (
             candidateData.themes.themes.map((theme, index) => (
@@ -184,7 +185,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
               </div>
             ))
           ) : (
-            <div className="preview-empty-state">Noch keine Themen hinzugefügt</div>
+            <div className="text-center p-xl text-grey-500">Noch keine Themen hinzugefügt</div>
           )}
         </div>
       </section>
@@ -213,11 +214,13 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                   backgroundPosition: 'center',
                 }}
               >
-                <span className="preview-action-text">{action.text || `Aktion ${index + 1}`}</span>
+                <span className="text-[length:var(--font-size-lg)] font-semibold [text-shadow:0_1px_3px_rgba(0,0,0,0.3)]">
+                  {action.text || `Aktion ${index + 1}`}
+                </span>
               </div>
             ))
           ) : (
-            <div className="preview-empty-state preview-empty-state--full-width">
+            <div className="text-center p-xl text-grey-500 col-span-full">
               Noch keine Aktionen hinzugefügt
             </div>
           )}
@@ -229,33 +232,33 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         <section
           data-section-id="socialFeed"
           ref={(el) => registerSection('socialFeed', el)}
-          className="editable-section editable-section-anchor social-feed-section-preview"
+          className="editable-section editable-section-anchor py-[var(--spacing-xl-r)] px-[var(--container-padding)] bg-white"
           onClick={handlePreviewClick}
         >
-          <div className="social-feed-preview-content">
+          <div className="max-w-[var(--container-max-width)] mx-auto">
             <h2
               data-section="socialFeed"
               data-field="title"
-              className={`${getElementClass('socialFeed', 'title')} preview-section-title`}
+              className={`${getElementClass('socialFeed', 'title')} text-[length:var(--font-size-2xl)] mb-xl text-center text-grey-900`}
             >
               {candidateData.socialFeed.title || 'Instagram'}
             </h2>
-            <div className="social-feed-preview-placeholder">
+            <div className="flex flex-col items-center justify-center min-h-[120px] bg-grey-50 rounded-md border-2 border-dashed border-grey-300">
               {candidateData.socialFeed.showFeed ? (
                 candidateData.socialFeed.instagramUsername ? (
-                  <div className="social-feed-preview-info">
-                    <span className="social-feed-preview-icon">📸</span>
+                  <div className="flex flex-col items-center gap-sm text-primary-600 text-center p-lg [&_p]:m-0 [&_p]:text-[length:var(--font-size-sm)]">
+                    <span className="text-[32px]">📸</span>
                     <p>@{candidateData.socialFeed.instagramUsername}</p>
                   </div>
                 ) : (
-                  <div className="social-feed-preview-empty">
-                    <span className="social-feed-preview-icon">📷</span>
+                  <div className="flex flex-col items-center gap-sm text-grey-600 text-center p-lg [&_p]:m-0 [&_p]:text-[length:var(--font-size-sm)]">
+                    <span className="text-[32px]">📷</span>
                     <p>Instagram-Username hinzufügen</p>
                   </div>
                 )
               ) : (
-                <div className="social-feed-preview-disabled">
-                  <span className="social-feed-preview-icon">📷</span>
+                <div className="flex flex-col items-center gap-sm text-grey-600 text-center p-lg opacity-60 [&_p]:m-0 [&_p]:text-[length:var(--font-size-sm)]">
+                  <span className="text-[32px]">📷</span>
                   <p>Instagram-Feed deaktiviert</p>
                 </div>
               )}
@@ -288,11 +291,11 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
             >
               {candidateData.contact.title || 'Kontakt'}
             </h2>
-            <div className="contact-info-wrapper">
+            <div className="max-w-[400px] mx-auto">
               <p
                 data-section="contact"
                 data-field="email"
-                className={`${getElementClass('contact', 'email')} contact-email`}
+                className={`${getElementClass('contact', 'email')} text-base mb-sm`}
               >
                 {candidateData.contact.email || 'kontakt@beispiel.de'}
               </p>
@@ -300,7 +303,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                 <p
                   data-section="contact"
                   data-field="phone"
-                  className={`${getElementClass('contact', 'phone')} contact-phone`}
+                  className={`${getElementClass('contact', 'phone')} text-base opacity-90 mb-xs`}
                 >
                   {candidateData.contact.phone}
                 </p>
@@ -309,7 +312,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                 <p
                   data-section="contact"
                   data-field="address"
-                  className={`${getElementClass('contact', 'address')} contact-address`}
+                  className={`${getElementClass('contact', 'address')} text-sm opacity-80 whitespace-pre-line`}
                 >
                   {candidateData.contact.address}
                 </p>
