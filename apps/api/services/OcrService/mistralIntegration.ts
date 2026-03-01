@@ -1,15 +1,34 @@
 /**
  * Mistral OCR API integration
- * Uses the dedicated Mistral Document AI OCR processor (mistral-ocr-latest)
+ * Uses Mistral Document AI OCR 3 processor (mistral-ocr-latest / mistral-ocr-2512)
  */
 
 import { promises as fs } from 'fs';
 import path from 'path';
 
 import type { ExtractionResult } from './types.js';
+import type { Mistral } from '@mistralai/mistralai';
+import type {
+  DocumentURLChunk,
+  ImageURLChunk,
+  OCRRequest,
+} from '@mistralai/mistralai/models/components/index.js';
+
+const IMAGE_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.tiff',
+  '.bmp',
+  '.heic',
+  '.heif',
+]);
 
 /**
- * Extract text from document using Mistral OCR API
+ * Extract text from document using Mistral OCR 3 API
  */
 export async function extractTextWithMistralOCR(
   filePath: string,
@@ -18,70 +37,40 @@ export async function extractTextWithMistralOCR(
   const startTime = Date.now();
 
   try {
-    console.log(`[OcrService] Starting Mistral OCR extraction for: ${filePath}`);
+    console.log(`[OcrService] Starting Mistral OCR 3 extraction for: ${filePath}`);
 
-    // Dynamic import of Mistral client
     const mod = await import('../../workers/mistralClient.js');
-    const mistralClient = mod.default || mod;
+    const mistralClient: Mistral = mod.default || mod;
 
-    // Read file and encode as base64
     const fileBuffer = await fs.readFile(filePath);
     const base64Data = fileBuffer.toString('base64');
     const fileExtension = path.extname(filePath).toLowerCase();
     const mediaType = getMediaTypeFn(fileExtension);
 
     console.log(
-      `[OcrService] Processing with Mistral OCR (${(fileBuffer.length / 1024).toFixed(1)}KB, ${mediaType})`
+      `[OcrService] Processing with Mistral OCR 3 (${(fileBuffer.length / 1024).toFixed(1)}KB, ${mediaType})`
     );
 
-    // Determine document type based on file extension
-    const isPdf = fileExtension === '.pdf';
-    const isImage = [
-      '.png',
-      '.jpg',
-      '.jpeg',
-      '.gif',
-      '.webp',
-      '.avif',
-      '.tiff',
-      '.bmp',
-      '.heic',
-      '.heif',
-    ].includes(fileExtension);
-    const isDocument = ['.docx', '.pptx', '.txt', '.epub', '.rtf', '.odt'].includes(fileExtension);
+    const dataUri = `data:${mediaType};base64,${base64Data}`;
 
-    let document: { type: string; documentUrl?: string; imageUrl?: string };
+    const document: OCRRequest['document'] = IMAGE_EXTENSIONS.has(fileExtension)
+      ? ({ type: 'image_url', imageUrl: dataUri } satisfies ImageURLChunk)
+      : ({ type: 'document_url', documentUrl: dataUri } satisfies DocumentURLChunk);
 
-    if (isImage) {
-      // Use image_url for images
-      document = {
-        type: 'image_url',
-        imageUrl: `data:${mediaType};base64,${base64Data}`,
-      };
-    } else {
-      // Use document_url for PDFs and other documents
-      document = {
-        type: 'document_url',
-        documentUrl: `data:${mediaType};base64,${base64Data}`,
-      };
-    }
-
-    // Call Mistral OCR API
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ocrResponse = await (mistralClient as any).ocr.process({
+    const ocrResponse = await mistralClient.ocr.process({
       model: 'mistral-ocr-latest',
       document,
       includeImageBase64: false,
+      tableFormat: 'html',
     });
 
-    // Extract text from all pages
-    if (!ocrResponse?.pages || ocrResponse.pages.length === 0) {
+    if (!ocrResponse.pages || ocrResponse.pages.length === 0) {
       throw new Error('No pages returned from Mistral OCR');
     }
 
     const allText = ocrResponse.pages
-      .map((page: { markdown?: string; index: number }) => page.markdown || '')
-      .filter((text: string) => text.trim())
+      .map((page) => page.markdown)
+      .filter((text) => text.trim())
       .join('\n\n---\n\n');
 
     if (!allText.trim()) {
@@ -90,7 +79,7 @@ export async function extractTextWithMistralOCR(
 
     const processingTimeMs = Date.now() - startTime;
     console.log(
-      `[OcrService] Mistral OCR completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
+      `[OcrService] Mistral OCR 3 completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
     );
 
     return {
@@ -100,7 +89,7 @@ export async function extractTextWithMistralOCR(
       confidence: 0.95,
       stats: {
         pages: ocrResponse.pages.length,
-        successfulPages: ocrResponse.usage_info?.pages_processed,
+        successfulPages: ocrResponse.usageInfo.pagesProcessed,
         method: ocrResponse.model || 'mistral-ocr-latest',
       },
     };
