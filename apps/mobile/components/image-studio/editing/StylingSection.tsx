@@ -4,8 +4,10 @@
  */
 
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { FontSizeControl, ColorSchemeSelector } from '../../image-modification';
+
 import { spacing, lightTheme, darkTheme } from '../../../theme';
+import { FontSizeControl, ColorSchemeSelector } from '../../image-modification';
+
 import type { EditSheetConfig } from '../../../config/editSheetConfig';
 
 interface StylingSectionProps {

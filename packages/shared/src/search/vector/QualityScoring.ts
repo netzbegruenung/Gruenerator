@@ -3,8 +3,9 @@
  * Filters low-quality chunks and boosts high-quality results
  */
 
-import type { VectorSearchResult, QualityConfig } from './types.js';
 import { DEFAULT_QUALITY_CONFIG } from './constants.js';
+
+import type { VectorSearchResult, QualityConfig } from './types.js';
 
 /**
  * Filter results by quality score

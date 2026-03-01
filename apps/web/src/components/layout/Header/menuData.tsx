@@ -86,7 +86,7 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
   items.chat = {
     id: 'chat',
     path: '/chat',
-    title: 'Chat',
+    title: 'Neuer Chat',
     description: 'KI-Chat',
     icon: getIcon('navigation', 'messenger'),
     badge: 'beta',

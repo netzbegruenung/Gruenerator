@@ -3,6 +3,9 @@
  * Orchestrates all image modification controls with debounced preview regeneration
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { MODIFICATION_LABELS, getTypeConfig } from '@gruenerator/shared/image-studio';
+import { Image } from 'expo-image';
 import { useEffect, useRef } from 'react';
 import {
   View,
@@ -13,13 +16,9 @@ import {
   ActivityIndicator,
   useColorScheme,
 } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
-import type {
-  ImageStudioTemplateType,
-  DreizeilenModificationParams,
-} from '@gruenerator/shared/image-studio';
-import { MODIFICATION_LABELS, getTypeConfig } from '@gruenerator/shared/image-studio';
+
+import { useDebouncedCallback } from '../../hooks/useDebounced';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 import { Button } from '../common';
 import {
   FontSizeControl,
@@ -29,8 +28,11 @@ import {
   SonnenblumenControl,
   CreditInput,
 } from '../image-modification';
-import { useDebouncedCallback } from '../../hooks/useDebounced';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+
+import type {
+  ImageStudioTemplateType,
+  DreizeilenModificationParams,
+} from '@gruenerator/shared/image-studio';
 
 interface ModificationStepProps {
   type: ImageStudioTemplateType;

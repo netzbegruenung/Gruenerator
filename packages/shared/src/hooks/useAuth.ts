@@ -1,4 +1,5 @@
 import { useAuthStore } from '../stores/authStore.js';
+
 import type { User } from '../types/auth.js';
 
 /**

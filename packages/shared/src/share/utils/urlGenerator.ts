@@ -2,8 +2,9 @@
  * Share URL generation utilities
  */
 
-import type { SharePlatform } from '../types.js';
 import { PLATFORM_CONFIGS } from '../constants.js';
+
+import type { SharePlatform } from '../types.js';
 
 /**
  * Generate a share URL for a given share token

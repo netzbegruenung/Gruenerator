@@ -3,8 +3,8 @@
  * Category definitions for the subtitle editor toolbar
  */
 
-import type { Ionicons } from '@expo/vector-icons';
 import type { CategoryConfig } from '../components/common/editor-toolbar';
+import type { Ionicons } from '@expo/vector-icons';
 
 export type SubtitleEditCategory = 'style' | 'position' | 'text';
 

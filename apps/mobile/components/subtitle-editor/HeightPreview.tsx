@@ -4,7 +4,9 @@
  */
 
 import { View, StyleSheet } from 'react-native';
+
 import { colors, borderRadius } from '../../theme';
+
 import type { SubtitleHeightPreference } from '@gruenerator/shared/subtitle-editor';
 
 interface HeightPreviewProps {

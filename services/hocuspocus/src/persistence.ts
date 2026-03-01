@@ -65,6 +65,34 @@ function blockNoteXmlToHtml(xml: string): string {
   return html;
 }
 
+const DEFAULT_TITLES = new Set([
+  'Neues Dokument',
+  'Neuer Antrag',
+  'Neue Pressemitteilung',
+  'Neues Protokoll',
+  'Neue Notiz',
+  'Neuer Redaktionsplan',
+  'Untitled Document',
+]);
+
+/**
+ * Extract a title from the first heading or paragraph in HTML output.
+ * Returns null if no usable text is found.
+ */
+function extractAutoTitle(html: string): string | null {
+  const headingMatch = html.match(/<h[123][^>]*>(.*?)<\/h[123]>/);
+  if (headingMatch) {
+    const text = headingMatch[1].replace(/<[^>]+>/g, '').trim();
+    if (text) return text.slice(0, 200);
+  }
+  const pMatch = html.match(/<p[^>]*>(.*?)<\/p>/);
+  if (pMatch) {
+    const text = pMatch[1].replace(/<[^>]+>/g, '').trim();
+    if (text) return text.slice(0, 100);
+  }
+  return null;
+}
+
 /**
  * PostgreSQL Persistence Adapter for Y.js Documents
  *
@@ -263,6 +291,20 @@ export class PostgresPersistence {
           preview,
         ]);
         log.debug(`[Preview] Updated preview for ${documentId} (${preview.length} chars)`);
+
+        const autoTitle = extractAutoTitle(preview);
+        if (autoTitle) {
+          const result = await this.db(
+            `UPDATE collaborative_documents
+             SET title = $2, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1 AND title = ANY($3::text[])
+             RETURNING id`,
+            [documentId, autoTitle, [...DEFAULT_TITLES]]
+          );
+          if (result.length > 0) {
+            log.info(`[AutoTitle] Renamed document ${documentId} to "${autoTitle}"`);
+          }
+        }
       }
     } catch (error) {
       log.debug(`[Preview] Failed to update content preview for ${documentId}: ${error}`);

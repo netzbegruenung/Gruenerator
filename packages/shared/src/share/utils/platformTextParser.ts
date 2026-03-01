@@ -3,8 +3,9 @@
  * Extract platform-specific text sections from markdown content
  */
 
-import type { SharePlatform, PlatformSections } from '../types.js';
 import { PLATFORM_MAPPINGS } from '../constants.js';
+
+import type { SharePlatform, PlatformSections } from '../types.js';
 
 /**
  * Normalize a platform name to its canonical ID

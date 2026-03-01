@@ -7,7 +7,10 @@
  */
 
 import { useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
-import { TextFieldsSection } from './editing';
+
+import { getEditSheetConfig, type EditCategory } from '../../config/editSheetConfig';
+import { useImageStudioStore } from '../../stores/imageStudioStore';
+import { EditorModal, type EditorModalRef } from '../common/editor-toolbar';
 import {
   FontSizeControl,
   ColorSchemeSelector,
@@ -16,9 +19,9 @@ import {
   SonnenblumenControl,
   CreditInput,
 } from '../image-modification';
-import { EditorModal, type EditorModalRef } from '../common/editor-toolbar';
-import { getEditSheetConfig, type EditCategory } from '../../config/editSheetConfig';
-import { useImageStudioStore } from '../../stores/imageStudioStore';
+
+import { TextFieldsSection } from './editing';
+
 import type { FormFieldValue } from '@gruenerator/shared/image-studio';
 
 export interface EditCategoryModalRef {

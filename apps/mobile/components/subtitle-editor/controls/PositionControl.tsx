@@ -4,11 +4,13 @@
  * Uses per-property selectors for performance optimization
  */
 
+import { SUBTITLE_HEIGHT_OPTIONS } from '@gruenerator/shared/subtitle-editor';
 import { useMemo } from 'react';
+
+import { useSubtitleEditorStore } from '../../../stores/subtitleEditorStore';
 import { OptionGrid, type OptionItem } from '../../common/editor-toolbar';
 import { HeightPreview } from '../HeightPreview';
-import { useSubtitleEditorStore } from '../../../stores/subtitleEditorStore';
-import { SUBTITLE_HEIGHT_OPTIONS } from '@gruenerator/shared/subtitle-editor';
+
 import type { SubtitleHeightPreference } from '@gruenerator/shared/subtitle-editor';
 
 interface PositionControlProps {

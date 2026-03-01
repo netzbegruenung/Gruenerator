@@ -4,6 +4,7 @@
  * Used by image-studio and subtitle-editor for consistent modal behavior
  */
 
+import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import {
   useMemo,
   useRef,
@@ -13,10 +14,11 @@ import {
   type ReactNode,
 } from 'react';
 import { StyleSheet, useColorScheme, Keyboard } from 'react-native';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
-import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { spacing, lightTheme, darkTheme } from '../../../theme';
+
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 
 export interface EditorModalRef {
   open: () => void;

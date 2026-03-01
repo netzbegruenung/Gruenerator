@@ -1,7 +1,8 @@
-import { View, Pressable, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { View, Pressable, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
+
 import { useGeneratorSelectionStore, useContentStore } from '../../stores';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 
 export function AttachedContentList() {
   const colorScheme = useColorScheme();

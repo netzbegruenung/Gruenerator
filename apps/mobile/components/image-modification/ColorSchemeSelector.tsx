@@ -3,15 +3,16 @@
  * Uses Zustand selector for performance, delegates to generic ColorOptionGrid
  */
 
-import { useCallback, useMemo } from 'react';
-import { ColorOptionGrid } from '../ui/controls';
-import { useImageStudioStore } from '../../stores/imageStudioStore';
 import {
   COLOR_SCHEME_PRESETS,
   MODIFICATION_LABELS,
   areColorSchemesEqual,
   type DreizeilenColorScheme,
 } from '@gruenerator/shared/image-studio';
+import { useCallback, useMemo } from 'react';
+
+import { useImageStudioStore } from '../../stores/imageStudioStore';
+import { ColorOptionGrid } from '../ui/controls';
 
 interface ColorSchemeSelectorProps {
   disabled?: boolean;

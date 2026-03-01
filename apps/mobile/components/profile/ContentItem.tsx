@@ -1,6 +1,8 @@
-import { StyleSheet, Text, View, Pressable, useColorScheme, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View, Pressable, useColorScheme, Alert } from 'react-native';
+
 import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
+
 import type { CombinedContentItem } from '../../services/content';
 
 interface ContentItemProps {

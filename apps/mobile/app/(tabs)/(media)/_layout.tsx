@@ -1,8 +1,9 @@
-import { useColorScheme } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { lightTheme, darkTheme, colors } from '../../../theme';
 
 const { Navigator } = createMaterialTopTabNavigator();

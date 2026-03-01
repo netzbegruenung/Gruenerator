@@ -4,8 +4,9 @@
  */
 
 import { CategoryBar } from '../common/editor-toolbar';
-import type { CategoryConfig as SharedCategoryConfig } from '../common/editor-toolbar';
+
 import type { EditCategory, CategoryConfig } from '../../config/editSheetConfig';
+import type { CategoryConfig as SharedCategoryConfig } from '../common/editor-toolbar';
 
 interface EditCategoryBarProps {
   categories: CategoryConfig[];

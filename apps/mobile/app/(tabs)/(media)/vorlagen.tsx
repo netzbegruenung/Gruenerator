@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -13,8 +14,7 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../theme';
+
 import {
   fetchVorlagen,
   fetchVorlagenCategories,
@@ -24,6 +24,7 @@ import {
   type Template,
   type TemplateCategory,
 } from '../../../services/vorlagen';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const NUM_COLUMNS = 2;

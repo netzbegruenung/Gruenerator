@@ -4,6 +4,9 @@
  */
 
 import { create } from 'zustand';
+
+import { shareApi } from '../api/shareApi.js';
+
 import type {
   Share,
   ShareStoreState,
@@ -14,7 +17,6 @@ import type {
   ShareMediaType,
   SaveAsTemplateResponse,
 } from '../types.js';
-import { shareApi } from '../api/shareApi.js';
 
 const initialState: ShareStoreState = {
   shares: [],

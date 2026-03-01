@@ -1,3 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useGeneratedTextStore, extractEditableText } from '@gruenerator/shared/generators';
+import { BlurView } from 'expo-blur';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,19 +20,11 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import { useState, useCallback } from 'react';
 import Markdown from 'react-native-markdown-display';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { useGeneratedTextStore, extractEditableText } from '@gruenerator/shared/generators';
-import { colors, typography, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+
 import { secureStorage } from '../../services/storage';
+import { colors, typography, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';

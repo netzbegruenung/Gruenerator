@@ -3,10 +3,11 @@
  * Platform-specific sharing functionality using Expo APIs
  */
 
-import * as Sharing from 'expo-sharing';
-import * as Clipboard from 'expo-clipboard';
-import { Share as RNShare, Linking, Platform } from 'react-native';
 import { getPlatformShareUrl, type SharePlatform } from '@gruenerator/shared';
+import * as Clipboard from 'expo-clipboard';
+import * as Sharing from 'expo-sharing';
+import { Share as RNShare, Linking, Platform } from 'react-native';
+
 import { getErrorMessage } from '../utils/errors';
 
 /**

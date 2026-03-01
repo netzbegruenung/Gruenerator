@@ -3,6 +3,8 @@
  * Validation functions for modification parameters
  */
 
+import { MODIFICATION_CONTROLS_CONFIG } from './modification-constants.js';
+
 import type {
   BalkenOffset,
   Offset2D,
@@ -13,7 +15,6 @@ import type {
   ZitatModificationParams,
   VeranstaltungModificationParams,
 } from './modification-types.js';
-import { MODIFICATION_CONTROLS_CONFIG } from './modification-constants.js';
 
 // ============================================================================
 // VALIDATION RESULT TYPE
