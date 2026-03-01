@@ -14,7 +14,7 @@
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
     "@mdxeditor/editor": "^3.52.4",
-    "@sentry/react": "^9.47.1",
+    "@sentry/react": "^10.40.0",
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.6",
     "class-variance-authority": "^0.7.1",
