@@ -2,7 +2,6 @@ import { SectionEditorContainer } from './SectionEditorContainer';
 import { SectionNavigation } from './SectionNavigation';
 
 import type { CandidateData } from '../../types/candidate';
-import '../../styles/components/section-editor.css';
 
 interface EditorSidebarProps {
   candidateData: CandidateData;
@@ -19,7 +18,7 @@ export function EditorSidebar({
 }: EditorSidebarProps) {
   return (
     <>
-      <SectionNavigation />
+      <SectionNavigation className="lg:hidden" />
       <SectionEditorContainer
         candidateData={candidateData}
         onUpdate={onUpdate}

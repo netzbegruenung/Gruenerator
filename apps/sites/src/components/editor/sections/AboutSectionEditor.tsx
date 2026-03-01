@@ -6,6 +6,8 @@ import { MarkdownEditor } from '../common/MarkdownEditor';
 
 import type { AboutSection } from '../../../types/candidate';
 
+import { cn } from '@/utils/cn';
+
 interface AboutSectionEditorProps {
   data: AboutSection;
   onChange: (data: AboutSection) => void;
@@ -37,19 +39,23 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
 
   const contentLength = getTextLength(data.content || '');
   const getCharCountClass = () => {
-    if (contentLength > MAX_CONTENT_LENGTH) return 'editor-char-count--error';
-    if (contentLength > MAX_CONTENT_LENGTH * 0.9) return 'editor-char-count--warning';
+    if (contentLength > MAX_CONTENT_LENGTH) return 'text-red-600';
+    if (contentLength > MAX_CONTENT_LENGTH * 0.9) return 'text-yellow-600';
     return '';
   };
 
   return (
-    <div className="about-section-editor">
-      <h3 className="section-editor-title">Über mich</h3>
+    <div>
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+        Über mich
+      </h3>
 
       <div
-        className={`editor-form-group ${isFieldHighlighted('title') ? 'editor-field-highlighted' : ''}`}
+        className={cn('mb-md', isFieldHighlighted('title') && 'animate-[field-highlight_1s_ease]')}
       >
-        <label htmlFor="about-title">Titel</label>
+        <label htmlFor="about-title" className="block text-sm font-medium text-grey-700 mb-1.5">
+          Titel
+        </label>
         <input
           ref={titleRef}
           id="about-title"
@@ -59,13 +65,17 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
           onFocus={() => handleFieldFocus('about', 'title')}
           onBlur={handleFieldBlur}
           placeholder="Wer ich bin"
+          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 
       <div
-        className={`editor-form-group ${isFieldHighlighted('content') ? 'editor-field-highlighted' : ''}`}
+        className={cn(
+          'mb-md',
+          isFieldHighlighted('content') && 'animate-[field-highlight_1s_ease]'
+        )}
       >
-        <label>Inhalt</label>
+        <label className="block text-sm font-medium text-grey-700 mb-1.5">Inhalt</label>
         <MarkdownEditor
           value={data.content}
           onChange={(markdown) => updateField('content', markdown)}
@@ -74,7 +84,7 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
           placeholder="Erzähle etwas über dich, deinen Werdegang und deine Motivation..."
           minHeight="200px"
         />
-        <div className={`editor-char-count ${getCharCountClass()}`}>
+        <div className={cn('text-xs text-grey-500 text-right mt-1', getCharCountClass())}>
           {contentLength} / {MAX_CONTENT_LENGTH} Zeichen
         </div>
       </div>

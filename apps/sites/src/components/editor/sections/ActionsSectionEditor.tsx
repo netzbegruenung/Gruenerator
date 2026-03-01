@@ -6,6 +6,8 @@ import { ImageUpload } from '../common/ImageUpload';
 
 import type { ActionsSection, ActionTile } from '../../../types/candidate';
 
+import { cn } from '@/utils/cn';
+
 interface ActionsSectionEditorProps {
   data: ActionsSection;
   onChange: (data: ActionsSection) => void;
@@ -80,26 +82,32 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
   };
 
   return (
-    <div className="actions-section-editor">
-      <h3 className="section-editor-title">Aktionen</h3>
+    <div>
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+        Aktionen
+      </h3>
 
-      <p className="editor-form-hint" style={{ marginBottom: '16px' }}>
+      <p className="text-xs text-grey-500 mt-1 mb-md">
         Call-to-Action Kacheln, die Besucher zum Handeln auffordern.
       </p>
 
-      <div className="editor-array-items">
+      <div className="flex flex-col gap-md">
         {data.actions.map((action, index) => (
           <div
             key={index}
-            className={`editor-array-item ${isItemHighlighted(index) ? 'editor-array-item--highlighted' : ''}`}
+            className={cn(
+              'bg-white border border-grey-200 rounded-lg p-md relative',
+              isItemHighlighted(index) &&
+                'border-primary-400 shadow-[0_0_0_2px_rgba(76,175,80,0.2)]'
+            )}
           >
-            <div className="editor-array-item-header">
-              <span className="editor-array-item-number">Aktion {index + 1}</span>
-              <div className="editor-array-item-actions">
+            <div className="flex items-center justify-between mb-sm">
+              <span className="text-sm font-semibold text-primary-600">Aktion {index + 1}</span>
+              <div className="flex gap-1">
                 {data.actions.length > 1 && (
                   <button
                     type="button"
-                    className="editor-icon-button editor-icon-button--delete"
+                    className="flex items-center justify-center w-8 h-8 border-none bg-transparent rounded-md cursor-pointer text-grey-500 transition-colors hover:bg-red-50 hover:text-red-600"
                     onClick={() => removeAction(index)}
                     aria-label="Aktion entfernen"
                   >
@@ -110,9 +118,17 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
             </div>
 
             <div
-              className={`editor-form-group ${isFieldHighlighted(index, 'text') ? 'editor-field-highlighted' : ''}`}
+              className={cn(
+                'mb-md',
+                isFieldHighlighted(index, 'text') && 'animate-[field-highlight_1s_ease]'
+              )}
             >
-              <label htmlFor={`action-${index}-text`}>Button-Text</label>
+              <label
+                htmlFor={`action-${index}-text`}
+                className="block text-sm font-medium text-grey-700 mb-1.5"
+              >
+                Button-Text
+              </label>
               <input
                 ref={(el) => setTextRef(index, el)}
                 id={`action-${index}-text`}
@@ -123,13 +139,22 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
                 onBlur={handleFieldBlur}
                 placeholder="z.B. Unterstütze uns!"
                 maxLength={MAX_TEXT_LENGTH}
+                className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
               />
             </div>
 
             <div
-              className={`editor-form-group ${isFieldHighlighted(index, 'link') ? 'editor-field-highlighted' : ''}`}
+              className={cn(
+                'mb-md',
+                isFieldHighlighted(index, 'link') && 'animate-[field-highlight_1s_ease]'
+              )}
             >
-              <label htmlFor={`action-${index}-link`}>Link</label>
+              <label
+                htmlFor={`action-${index}-link`}
+                className="block text-sm font-medium text-grey-700 mb-1.5"
+              >
+                Link
+              </label>
               <input
                 ref={(el) => setLinkRef(index, el)}
                 id={`action-${index}-link`}
@@ -139,21 +164,18 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
                 onFocus={() => handleFieldFocus('actions', 'link', index)}
                 onBlur={handleFieldBlur}
                 placeholder="https://... oder #section"
+                className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
               />
-              <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+              <div className="flex gap-1.5 mt-2 flex-wrap">
                 {LINK_SUGGESTIONS.map(({ label, link }) => (
                   <button
                     key={link}
                     type="button"
                     onClick={() => updateAction(index, 'link', link)}
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '12px',
-                      border: '1px solid var(--grey-300)',
-                      borderRadius: '4px',
-                      background: action.link === link ? 'var(--primary-50)' : 'white',
-                      cursor: 'pointer',
-                    }}
+                    className={cn(
+                      'py-1 px-2.5 text-xs border border-grey-300 rounded cursor-pointer',
+                      action.link === link ? 'bg-primary-50' : 'bg-white'
+                    )}
                   >
                     {label}
                   </button>
@@ -161,8 +183,10 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
               </div>
             </div>
 
-            <div className="editor-form-group">
-              <label>Hintergrundbild</label>
+            <div className="mb-md">
+              <label className="block text-sm font-medium text-grey-700 mb-1.5">
+                Hintergrundbild
+              </label>
               <ImageUpload
                 value={action.imageUrl}
                 onChange={(url) => updateAction(index, 'imageUrl', url)}
@@ -175,7 +199,11 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
       </div>
 
       {data.actions.length < MAX_ACTIONS && (
-        <button type="button" className="editor-add-button" onClick={addAction}>
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-grey-300 bg-transparent rounded-lg cursor-pointer text-sm font-medium text-grey-600 transition-colors hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50"
+          onClick={addAction}
+        >
           + Aktion hinzufügen
         </button>
       )}
