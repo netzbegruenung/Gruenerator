@@ -3,6 +3,12 @@
  * Transform between UI state and API request formats
  */
 
+import {
+  VERANSTALTUNG_BASE_FONT_SIZES,
+  GROUPED_FONT_SIZE_FIELDS,
+  BRAND_COLORS,
+} from './modification-constants.js';
+
 import type {
   DreizeilenModificationParams,
   ZitatModificationParams,
@@ -12,11 +18,6 @@ import type {
   BarColor,
 } from './modification-types.js';
 import type { CanvasGenerationRequest, VeranstaltungFontSizes, ColorScheme } from './types.js';
-import {
-  VERANSTALTUNG_BASE_FONT_SIZES,
-  GROUPED_FONT_SIZE_FIELDS,
-  BRAND_COLORS,
-} from './modification-constants.js';
 
 // ============================================================================
 // COLOR UTILITIES

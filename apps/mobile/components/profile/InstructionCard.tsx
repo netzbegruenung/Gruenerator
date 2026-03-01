@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
@@ -8,7 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+
 import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
 
 interface InstructionCardProps {

@@ -1,7 +1,9 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
 import { extractMainDomain } from '@gruenerator/shared/search';
+import { View, Text, Pressable, StyleSheet, useColorScheme, Linking } from 'react-native';
+
+import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+
 import type { SearchResult } from '@gruenerator/shared/search';
 
 interface SourceCardProps {

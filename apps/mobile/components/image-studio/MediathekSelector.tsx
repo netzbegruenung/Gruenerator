@@ -3,6 +3,8 @@
  * Modal for selecting images from user's saved media library
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { useShareStore, type Share } from '@gruenerator/shared/share';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -16,10 +18,9 @@ import {
   useColorScheme,
   Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useShareStore, type Share } from '@gruenerator/shared/share';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+
 import { fetchMediathekImage } from '../../services/imageStudio';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const NUM_COLUMNS = 3;

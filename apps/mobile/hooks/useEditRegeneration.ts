@@ -3,10 +3,13 @@
  * Provides debounced canvas regeneration for template editing
  */
 
-import { useCallback, useRef } from 'react';
-import { useDebouncedCallback } from './useDebounced';
 import { useImageStudio } from '@gruenerator/shared/image-studio';
+import { useCallback, useRef } from 'react';
+
 import { useImageStudioStore } from '../stores/imageStudioStore';
+
+import { useDebouncedCallback } from './useDebounced';
+
 import type {
   ImageStudioTemplateType,
   DreizeilenModificationParams,

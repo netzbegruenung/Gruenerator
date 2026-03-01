@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView, useColorScheme } from 'react-native';
-import { TextInput, Button } from './common';
+
 import { spacing, lightTheme, darkTheme } from '../theme';
+
+import { TextInput, Button } from './common';
 
 interface UniversalGeneratorFormProps {
   onSubmit: (data: { textForm: string; inhalt: string }) => void;

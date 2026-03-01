@@ -3,6 +3,7 @@
  * Generic tappable pill button for editor toolbars
  */
 
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -10,7 +11,7 @@ import Animated, {
   useSharedValue,
   interpolateColor,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+
 import { colors, spacing, borderRadius } from '../../../theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);

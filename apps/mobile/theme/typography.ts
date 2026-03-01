@@ -1,4 +1,4 @@
-import { Platform, TextStyle } from 'react-native';
+import { Platform, type TextStyle } from 'react-native';
 
 /**
  * Typography system for React Native

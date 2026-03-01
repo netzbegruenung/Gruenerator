@@ -1,9 +1,11 @@
+import { useActionSheet } from '@expo/react-native-action-sheet';
+import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback } from 'react';
 import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useActionSheet } from '@expo/react-native-action-sheet';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+
 import { useGeneratorSelectionStore, type AIMode } from '../../stores';
+import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+
 import { ContentPicker } from './ContentPicker';
 
 const AI_MODES: {

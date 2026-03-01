@@ -3,14 +3,17 @@
  * Video player with subtitle overlay
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { useEvent } from 'expo';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useMemo, useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import { VideoView, useVideoPlayer } from 'expo-video';
-import { useEvent } from 'expo';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../../theme';
-import { SubtitleOverlay } from './SubtitleOverlay';
+
 import { secureStorage } from '../../services/storage';
+import { colors, spacing, borderRadius } from '../../theme';
+
+import { SubtitleOverlay } from './SubtitleOverlay';
+
 import type {
   SubtitleSegment,
   SubtitleStylePreference,

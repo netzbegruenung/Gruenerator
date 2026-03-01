@@ -3,19 +3,20 @@
  * Mobile Zustand store for subtitle editing state management
  */
 
+import {
+  parseSubtitlesText,
+  cloneSegments,
+  segmentsEqual,
+  DEFAULT_SUBTITLE_PARAMS,
+} from '@gruenerator/shared/subtitle-editor';
 import { create } from 'zustand';
+
 import type {
   SubtitleSegment,
   SubtitleStylePreference,
   SubtitleHeightPreference,
   SubtitleEditorState,
   SubtitleEditorActions,
-} from '@gruenerator/shared/subtitle-editor';
-import {
-  parseSubtitlesText,
-  cloneSegments,
-  segmentsEqual,
-  DEFAULT_SUBTITLE_PARAMS,
 } from '@gruenerator/shared/subtitle-editor';
 
 type SubtitleEditorStore = SubtitleEditorState &

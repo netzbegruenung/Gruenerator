@@ -3,11 +3,13 @@
  * Multi-select chips for green-edit infrastructure options
  */
 
-import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { GreenEditInfrastructure } from '@gruenerator/shared/image-studio';
 import { INFRASTRUCTURE_OPTIONS } from '@gruenerator/shared/image-studio';
+import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+
+import type { GreenEditInfrastructure } from '@gruenerator/shared/image-studio';
 
 interface InfrastructureSelectorProps {
   selected: GreenEditInfrastructure[];

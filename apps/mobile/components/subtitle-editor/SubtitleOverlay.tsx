@@ -3,15 +3,16 @@
  * Displays the active subtitle text over the video
  */
 
+import { useAuthStore } from '@gruenerator/shared/stores';
+import { getStyleConfig, HEIGHT_BOTTOM_PERCENT } from '@gruenerator/shared/subtitle-editor';
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+
 import type {
   SubtitleSegment,
   SubtitleStylePreference,
   SubtitleHeightPreference,
 } from '@gruenerator/shared/subtitle-editor';
-import { getStyleConfig, HEIGHT_BOTTOM_PERCENT } from '@gruenerator/shared/subtitle-editor';
-import { useAuthStore } from '@gruenerator/shared/stores';
 
 interface SubtitleOverlayProps {
   segments: SubtitleSegment[];

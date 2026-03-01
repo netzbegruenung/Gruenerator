@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import { File, Paths } from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { useState, useCallback } from 'react';
 import {
   View,
@@ -10,13 +13,12 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as MediaLibrary from 'expo-media-library';
-import { File, Paths } from 'expo-file-system';
+
 import { shareFile } from '../../services/share';
-import { Button } from '../common';
-import type { SharepicResult as SharepicResultType } from '@gruenerator/shared/sharepic';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { Button } from '../common';
+
+import type { SharepicResult as SharepicResultType } from '@gruenerator/shared/sharepic';
 
 interface SharepicResultProps {
   sharepics: SharepicResultType[];

@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';
-import { useState, useCallback } from 'react';
-import * as ExpoImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import * as ExpoImagePicker from 'expo-image-picker';
+import { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';
+
 import { colors, spacing, borderRadius, typography } from '../../theme';
 
 interface ImagePickerProps {

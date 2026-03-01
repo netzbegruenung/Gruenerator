@@ -3,6 +3,9 @@
  * Displays saved sharepics with edit and share actions
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { useShareStore, type Share } from '@gruenerator/shared/share';
+import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -17,9 +20,8 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useShareStore, type Share } from '@gruenerator/shared/share';
+
+import { shareImage } from '../../../../services/imageStudio';
 import {
   colors,
   spacing,
@@ -28,7 +30,6 @@ import {
   darkTheme,
   typography,
 } from '../../../../theme';
-import { shareImage } from '../../../../services/imageStudio';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const NUM_COLUMNS = 2;

@@ -4,13 +4,14 @@
  */
 
 import { useState, useCallback, type ReactNode } from 'react';
-import { View, StyleSheet, LayoutChangeEvent, useColorScheme } from 'react-native';
+import { View, StyleSheet, type LayoutChangeEvent, useColorScheme } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+
 import { spacing, lightTheme, darkTheme } from '../../../theme';
 
 export interface ExpandablePanelProps {
