@@ -1,0 +1,101 @@
+# Gruen-O-Mat — Coolify Docker Compose Deployment
+# https://coolify.io/docs/knowledge-base/docker/compose-file
+#
+# Standalone deployment of the public Green Party Q&A chatbot.
+# Includes: frontend (nginx), API backend, Redis (rate limiting).
+#
+# External dependencies (configure in Coolify UI):
+#   - PostgreSQL: Required for API startup (schema sync)
+#   - Qdrant: Vector database for document search
+#   - Mistral AI API key: LLM generation + reranking
+#
+# Usage:
+#   Coolify: Point to this file, configure env vars in the UI
+#   Manual:  TAG=latest docker compose up -d
+
+services:
+  # ─── Frontend: nginx serving Vite build + API reverse proxy ───
+  gruen-o-mat:
+    build:
+      context: ../..
+      dockerfile: apps/gruen-o-mat/Dockerfile
+    ports:
+      - '80:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # ─── API Backend: handles /api/gruen-o-mat/* routes ───
+  # Uses the pre-built API image from GHCR.
+  # To build from source instead, replace `image:` with:
+  #   build:
+  #     context: ../..
+  #     dockerfile: apps/api/Dockerfile
+  api:
+    image: ghcr.io/netzbegruenung/gruenerator-api:${TAG:-latest}
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      # Minimal footprint — single worker, few AI threads
+      - WORKER_COUNT=1
+      - AI_WORKER_COUNT=2
+      - HOCUSPOCUS_ENABLED=false
+
+      # Redis (internal, provided by this compose stack)
+      - REDIS_URL=redis://redis:6379
+
+      # ── Configure these in the Coolify UI ──
+
+      # PostgreSQL (required for API startup)
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+      # Qdrant vector database (required for document search)
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+
+      # Mistral AI (required for reranking + generation)
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+
+      # Optional: Sentry error tracking
+      - SENTRY_DSN=${SENTRY_DSN:-}
+
+      # Optional: Logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ─── Redis: rate limiting + session cache ───
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly no --maxmemory 64mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Coolify labels
+labels:
+  coolify.managed: 'true'
+  coolify.name: 'gruen-o-mat'
+  coolify.http.port: '80'

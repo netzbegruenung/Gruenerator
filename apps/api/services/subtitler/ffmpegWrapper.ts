@@ -37,8 +37,9 @@ interface FFprobeStream {
   profile?: string;
   level?: number;
   bit_rate?: string;
-  rotation?: string;
+  rotation?: string | number;
   tags?: { rotate?: string };
+  side_data_list?: Array<{ side_data_type?: string; displaymatrix?: string; rotation?: number }>;
 }
 
 interface FFprobeFormat {
@@ -270,5 +271,16 @@ const ffmpeg: FFmpegFactory = Object.assign((input?: string) => new FFmpegComman
   setFfprobePath: () => {},
 });
 
-export { FFmpegCommand, ffprobe, ffmpeg };
+function normalizeRotation(stream: FFprobeStream): number {
+  const raw =
+    stream.rotation ??
+    stream.tags?.rotate ??
+    stream.side_data_list?.find((s) => s.rotation !== undefined)?.rotation ??
+    0;
+  const degrees = typeof raw === 'string' ? parseInt(raw, 10) : raw;
+  if (isNaN(degrees)) return 0;
+  return ((degrees % 360) + 360) % 360;
+}
+
+export { FFmpegCommand, ffprobe, ffmpeg, normalizeRotation };
 export type { FFmpegProgress, FFprobeMetadata, FFprobeStream, FFprobeFormat };

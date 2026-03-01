@@ -8,7 +8,6 @@ import {
   BoldItalicUnderlineToggles,
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
-import '../../../styles/components/markdown-editor.css';
 
 interface MarkdownEditorProps {
   value: string;
@@ -27,7 +26,11 @@ export function MarkdownEditor({
   placeholder,
 }: MarkdownEditorProps) {
   return (
-    <div className="markdown-editor" onFocus={onFocus} onBlur={onBlur}>
+    <div
+      className="border border-grey-300 rounded-md bg-white overflow-hidden transition-colors focus-within:border-primary-500 focus-within:ring-[3px] focus-within:ring-primary-500/15"
+      onFocus={onFocus}
+      onBlur={onBlur}
+    >
       <MDXEditor
         markdown={value}
         onChange={onChange}

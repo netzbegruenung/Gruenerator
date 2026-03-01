@@ -8,7 +8,6 @@ import type { IconType } from 'react-icons';
 export interface BetaFeatures {
   databaseBetaEnabled?: boolean;
   youBetaEnabled?: boolean;
-  chatBetaEnabled?: boolean;
   igelModeEnabled?: boolean;
   isAustrian?: boolean;
 }
@@ -84,16 +83,14 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     },
   };
 
-  if (betaFeatures.chatBetaEnabled) {
-    items.chat = {
-      id: 'chat',
-      path: '/chat',
-      title: 'Chat',
-      description: 'KI-Chat',
-      icon: getIcon('navigation', 'messenger'),
-      badge: 'beta',
-    };
-  }
+  items.chat = {
+    id: 'chat',
+    path: '/chat',
+    title: 'Chat',
+    description: 'KI-Chat',
+    icon: getIcon('navigation', 'messenger'),
+    badge: 'beta',
+  };
 
   return items;
 };

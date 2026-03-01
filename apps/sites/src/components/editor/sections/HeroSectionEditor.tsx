@@ -6,6 +6,8 @@ import { ImageUpload } from '../common/ImageUpload';
 
 import type { HeroSection, SocialLinks } from '../../../types/candidate';
 
+import { cn } from '@/utils/cn';
+
 interface HeroSectionEditorProps {
   data: HeroSection;
   onChange: (data: HeroSection) => void;
@@ -73,11 +75,13 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
   const availableToAdd = ALL_PLATFORMS.filter((p) => !visiblePlatforms.includes(p.key));
 
   return (
-    <div className="hero-section-editor">
-      <h3 className="section-editor-title">Profil</h3>
+    <div>
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+        Profil
+      </h3>
 
-      <div className="hero-profile-row">
-        <div className="hero-profile-image">
+      <div className="flex gap-6 items-stretch mb-5 max-[600px]:flex-col max-[600px]:items-center">
+        <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex max-[600px]:w-[100px]">
           <ImageUpload
             value={data.imageUrl}
             onChange={(url) => updateField('imageUrl', url)}
@@ -86,11 +90,16 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
           />
         </div>
 
-        <div className="hero-profile-info">
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
           <div
-            className={`editor-form-group ${isFieldHighlighted('name') ? 'editor-field-highlighted' : ''}`}
+            className={cn(
+              'mb-0',
+              isFieldHighlighted('name') && 'animate-[field-highlight_1s_ease]'
+            )}
           >
-            <label htmlFor="hero-name">Name</label>
+            <label htmlFor="hero-name" className="block text-sm font-medium text-grey-700 mb-1.5">
+              Name
+            </label>
             <input
               ref={nameRef}
               id="hero-name"
@@ -100,13 +109,22 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
               onFocus={() => handleFieldFocus('hero', 'name')}
               onBlur={handleFieldBlur}
               placeholder="Max Mustermann"
+              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
           </div>
 
           <div
-            className={`editor-form-group ${isFieldHighlighted('tagline') ? 'editor-field-highlighted' : ''}`}
+            className={cn(
+              'mb-0',
+              isFieldHighlighted('tagline') && 'animate-[field-highlight_1s_ease]'
+            )}
           >
-            <label htmlFor="hero-tagline">Tagline / Slogan</label>
+            <label
+              htmlFor="hero-tagline"
+              className="block text-sm font-medium text-grey-700 mb-1.5"
+            >
+              Tagline / Slogan
+            </label>
             <textarea
               ref={taglineRef}
               id="hero-tagline"
@@ -116,50 +134,32 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
               onBlur={handleFieldBlur}
               placeholder="Kandidat*in für..."
               rows={2}
+              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
             />
           </div>
         </div>
       </div>
 
-      <div className="editor-section-divider" />
+      <div className="h-px bg-grey-200 my-md" />
 
-      <div className="editor-social-links-section">
-        <h4
-          style={{
-            fontSize: '14px',
-            fontWeight: 600,
-            marginBottom: '12px',
-            color: 'var(--grey-700)',
-          }}
-        >
-          Social Media
-        </h4>
-        <div className="editor-social-links">
+      <div>
+        <h4 className="text-sm font-semibold mb-3 text-grey-700">Social Media</h4>
+        <div className="flex flex-col gap-2.5">
           {ALL_PLATFORMS.filter((p) => visiblePlatforms.includes(p.key)).map(
             ({ key, label, placeholder }) => (
-              <div
-                key={key}
-                className="editor-form-group editor-social-field"
-                style={{ marginBottom: '10px' }}
-              >
-                <div
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                >
-                  <label htmlFor={`social-${key}`} style={{ fontSize: '12px' }}>
+              <div key={key} className="mb-2.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor={`social-${key}`}
+                    className="block text-xs font-medium text-grey-700 mb-1.5"
+                  >
                     {label}
                   </label>
                   {!DEFAULT_PLATFORMS.includes(key as (typeof DEFAULT_PLATFORMS)[number]) && (
                     <button
                       type="button"
                       onClick={() => removePlatform(key)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--grey-400)',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        padding: '0 4px',
-                      }}
+                      className="bg-transparent border-none text-grey-400 cursor-pointer text-base px-1"
                       title="Entfernen"
                     >
                       ×
@@ -172,6 +172,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
                   value={data.socialLinks?.[key as keyof SocialLinks] || ''}
                   onChange={(e) => updateSocialLink(key, e.target.value)}
                   placeholder={placeholder}
+                  className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
                 />
               </div>
             )
@@ -179,7 +180,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
         </div>
 
         {availableToAdd.length > 0 && (
-          <div style={{ marginTop: '8px' }}>
+          <div className="mt-2">
             <select
               onChange={(e) => {
                 if (e.target.value) {
@@ -187,15 +188,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
                   e.target.value = '';
                 }
               }}
-              style={{
-                padding: '6px 10px',
-                fontSize: '13px',
-                border: '1px dashed var(--grey-300)',
-                borderRadius: '4px',
-                background: 'var(--grey-50)',
-                color: 'var(--grey-600)',
-                cursor: 'pointer',
-              }}
+              className="py-1.5 px-2.5 text-[13px] border border-dashed border-grey-300 rounded bg-grey-50 text-grey-600 cursor-pointer"
               defaultValue=""
             >
               <option value="" disabled>

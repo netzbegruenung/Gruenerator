@@ -147,9 +147,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
   const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js'); // @experimental — DeepAgent, not production-ready
+  const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: publicSiteRouter } =
     await import('./routes/sites/index.js');
+  const { default: flyerController } = await import('./routes/sites/flyerController.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
@@ -184,6 +186,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/chat-service', chatServiceRouter);
   app.use('/api/chat-graph', chatGraphRouter);
   app.use('/api/chat-deep', chatDeepRouter); // @experimental — DeepAgent route, not production-ready
+  app.use('/api/gruen-o-mat', gruenOMatRouter);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
@@ -315,6 +318,7 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   app.use('/api/video', requireAuth, videoRouter);
   app.use('/api/nextcloud', nextcloudApiRouter);
+  app.use('/api/sites/generate-from-flyer', flyerController);
   app.use('/api/sites', sitesRouter);
   app.use('/api/flux/green-edit', fluxImageEditingRoute);
   app.use('/api/imagine/create', imagineCreateRoute);

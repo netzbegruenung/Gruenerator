@@ -19,7 +19,6 @@ export default tseslint.config(
             'eslint.config.mjs',
             'apps/web/eslint.config.js',
             'apps/docs/eslint.config.js',
-            'apps/mobile/eslint.config.js',
             'apps/desktop/eslint.config.mjs',
             'packages/eslint-config/base.js',
             'packages/eslint-config/react.js',
@@ -89,6 +88,7 @@ export default tseslint.config(
       '**/.next/**',
       '**/coverage/**',
       '**/*.vitest.ts',
+      '**/metro.config.js',
     ],
   }
 );

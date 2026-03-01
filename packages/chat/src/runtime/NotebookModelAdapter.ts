@@ -34,6 +34,7 @@ export interface NotebookAdapterConfig {
   locale?: string;
   extraParams?: Record<string, unknown>;
   mode?: 'fast' | 'deep';
+  endpoint?: string;
 }
 
 export interface Citation {
@@ -154,9 +155,10 @@ export function createNotebookModelAdapter(
       };
 
       const { fetch: configFetch } = useChatConfigStore.getState();
+      const endpoint = config.endpoint || '/api/chat-service/notebook/stream';
       const c0 = performance.now();
-      console.debug('[Notebook] ⏱ Request sent');
-      const response = await configFetch('/api/chat-service/notebook/stream', {
+      console.debug('[Notebook] ⏱ Request sent to %s', endpoint);
+      const response = await configFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -164,7 +166,17 @@ export function createNotebookModelAdapter(
       });
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as { error?: string };
+        const errorData = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+        };
+        if (response.status === 429) {
+          throw new Error(
+            errorData.message ||
+              errorData.error ||
+              'Tageslimit erreicht. Bitte morgen erneut versuchen.'
+          );
+        }
         throw new Error(errorData.error || `HTTP error ${response.status}`);
       }
 

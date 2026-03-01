@@ -79,13 +79,17 @@ export function SectionEditorContainer({
   };
 
   return (
-    <div className="section-editor-panel" key={activeSection}>
+    <div className="p-md animate-[slide-in_0.2s_ease]" key={activeSection}>
       {renderEditor()}
 
-      <button className="editor-save-button" onClick={onSave} disabled={isSaving}>
+      <button
+        className="flex items-center justify-center gap-2 w-full py-3.5 border-none bg-primary-600 text-white rounded-lg cursor-pointer text-base font-semibold transition-colors mt-lg hover:bg-primary-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+        onClick={onSave}
+        disabled={isSaving}
+      >
         {isSaving ? (
           <>
-            <span className="editor-loading-spinner" style={{ width: 18, height: 18 }} />
+            <span className="w-[18px] h-[18px] border-2 border-grey-200 border-t-white rounded-full animate-[spin_0.8s_linear_infinite]" />
             Wird gespeichert...
           </>
         ) : (
