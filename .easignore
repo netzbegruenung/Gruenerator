@@ -15,9 +15,17 @@ apps/docs-desktop/
 apps/docs-expo/
 apps/desktop/
 apps/sites/
+apps/gruen-o-mat/
 
 # Root-level services not needed for mobile build (leading / = root only)
 /services/
+
+# Documentation (154 MB, not needed for mobile)
+/documentation/
+
+# Playwright, docs, tooling
+/.playwright-mcp/
+/docs/
 
 # Dev/build artifacts
 **/.expo/
@@ -31,12 +39,20 @@ apps/sites/
 *.avi
 *.swp
 
+# Large root files
+*.jar
+*.md
+!README.md
+
 # Git
 .git/
 
-# IDE
+# IDE / tooling
 .idea/
 .vscode/
+.claude/
+.husky/
+.github/
 
 # Secrets
 **/google-service-account.json
