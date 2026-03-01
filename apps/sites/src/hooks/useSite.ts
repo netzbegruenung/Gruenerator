@@ -136,6 +136,20 @@ export function useSite() {
     },
   });
 
+  const flyerMutation = useMutation({
+    mutationFn: async (data: { file: File; email?: string }): Promise<GeneratedSiteData> => {
+      const formData = new FormData();
+      formData.append('flyer', data.file);
+      if (data.email) formData.append('email', data.email);
+
+      const response = await apiClient.post('/sites/generate-from-flyer', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+      });
+      return transformAiResponse(response.data.json);
+    },
+  });
+
   return {
     site,
     isLoading,
@@ -145,9 +159,11 @@ export function useSite() {
     updateSite: updateMutation.mutateAsync,
     togglePublish: publishMutation.mutateAsync,
     generateSite: generateMutation.mutateAsync,
+    generateFromFlyer: flyerMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isPublishing: publishMutation.isPending,
     isGenerating: generateMutation.isPending,
+    isGeneratingFromFlyer: flyerMutation.isPending,
   };
 }
