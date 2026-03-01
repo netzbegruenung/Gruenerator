@@ -1,0 +1,30 @@
+# Gruen-O-Mat — Coolify Frontend-Only Deployment
+# https://coolify.io/docs/knowledge-base/docker/compose-file
+#
+# Deploys only the frontend (nginx), proxying /api/ requests
+# to the existing production API at gruenerator.eu.
+# No separate API, Redis, or PostgreSQL containers needed.
+#
+# Usage:
+#   Coolify: Point to this file, set API_BASE_URL in the UI
+#   Manual:  API_BASE_URL=https://gruenerator.eu docker compose -f docker-compose.coolify.yml up -d
+
+services:
+  gruen-o-mat:
+    image: ghcr.io/netzbegruenung/gruenerator-gruen-o-mat:${TAG:-latest}
+    ports:
+      - '80:80'
+    environment:
+      - API_BASE_URL=${API_BASE_URL:-https://gruenerator.eu}
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+labels:
+  coolify.managed: 'true'
+  coolify.name: 'gruen-o-mat'
+  coolify.http.port: '80'
