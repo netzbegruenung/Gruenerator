@@ -127,11 +127,11 @@ importers:
         specifier: ^10.40.0
         version: 10.40.0
       '@tus/file-store':
-        specifier: ^1.5.1
-        version: 1.5.1
+        specifier: ^2.0.0
+        version: 2.0.0
       '@tus/server':
-        specifier: ^1.10.2
-        version: 1.10.2
+        specifier: ^2.3.0
+        version: 2.3.0
       '@types/archiver':
         specifier: ^7.0.0
         version: 7.0.0
@@ -195,6 +195,9 @@ importers:
       jsonrepair:
         specifier: ^3.13.2
         version: 3.13.2
+      kugelaudio:
+        specifier: ^0.2.3
+        version: 0.2.3
       langchain:
         specifier: ^1.2.28
         version: 1.2.28(@langchain/core@1.1.29(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.5.1(@opentelemetry/api@1.9.0))(openai@4.104.0(encoding@0.1.13)(ws@8.19.0)(zod@3.25.76)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.5.1(@opentelemetry/api@1.9.0))(openai@4.104.0(encoding@0.1.13)(ws@8.19.0)(zod@3.25.76))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(zod-to-json-schema@3.25.1(zod@3.25.76))
@@ -7524,17 +7527,17 @@ packages:
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
     engines: {node: '>=10.13.0'}
 
-  '@tus/file-store@1.5.1':
-    resolution: {integrity: sha512-bEaZ9zPCezpJW0Cr7rfles+gylXZ+0rSGfQvoTHXoTAbwyy4iIytC25njf1PdWkh3JQU0dKIhZuspnAvVOMntA==}
-    engines: {node: '>=16'}
+  '@tus/file-store@2.0.0':
+    resolution: {integrity: sha512-LTh9L/RoWoo2TbBGPZOuhuyEIIqweoTekT77ZkIVkpYkLK8zTt++PRdY+VyJsLDbFMO9RzvKSBRmj1H8SPdDew==}
+    engines: {node: '>=20.19.0'}
 
-  '@tus/server@1.10.2':
-    resolution: {integrity: sha512-ig5MM886fDTSJ8l37kc/cWSEjl0eaaSv2JtksPSfzrwqx2UXdXwpCwBTLoonJIpMVCdY8nBLNRSCzVRG88KSVA==}
-    engines: {node: '>=16'}
+  '@tus/server@2.3.0':
+    resolution: {integrity: sha512-7sj4Q3EPvMjS5z9JaNOZ8gvT6HZvDeg/RjEP0ebbfpAo1V095ivkzpKqV/mDIK/ioBwOKj+bOhTtNuueTjVCfw==}
+    engines: {node: '>=20.19.0'}
 
-  '@tus/utils@0.5.1':
-    resolution: {integrity: sha512-2crDHBKX0hKZfQXgTF5QIQSccg5fzn8L+oxpVRWAuBbeAdAkBIm4zVXV/LfyuQ1FO5zXW7iV/BI9zNWG5merHQ==}
-    engines: {node: '>=16'}
+  '@tus/utils@0.6.0':
+    resolution: {integrity: sha512-GpMpAQfVdC4UDhpsZrRPjGpdXg+JW5MquqMqtObUVsORwLBV6XI67iTT5be+z98THdqb6dl3bTLIElIdgPeo2g==}
+    engines: {node: '>=20.19.0'}
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -12194,6 +12197,10 @@ packages:
   konva@10.2.0:
     resolution: {integrity: sha512-JBoz0Xjbf49UPxCZegZ4WseqOzJ+C4AUDOtJ9eBve5RS5Fcq/u8TdBD5fDl/uPFInpC3a9uycm0sRyZpF4hheg==}
 
+  kugelaudio@0.2.3:
+    resolution: {integrity: sha512-LA1PHYYMD3y79wWOcMshT+yMx+wrWpTaMZB+XilxJ/n+F5XH/kkEG55W7NZiORV7xQXsX+05ptyUbr4wXlRlxg==}
+    engines: {node: '>=18.0.0'}
+
   kuler@2.0.0:
     resolution: {integrity: sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A==}
 
@@ -16057,6 +16064,11 @@ packages:
   srcset@4.0.0:
     resolution: {integrity: sha512-wvLeHgcVHKO8Sc/H/5lkGreJQVeYMm9rlmt8PuR1xE31rIuXhuzznUUqAt8MqLhB3MqJdFzlNAfpcWnxiFUcPw==}
     engines: {node: '>=12'}
+
+  srvx@0.8.16:
+    resolution: {integrity: sha512-hmcGW4CgroeSmzgF1Ihwgl+Ths0JqAJ7HwjP2X7e3JzY7u4IydLMcdnlqGQiQGUswz+PO9oh/KtCpOISIvs9QQ==}
+    engines: {node: '>=20.16.0'}
+    hasBin: true
 
   ssri@8.0.1:
     resolution: {integrity: sha512-97qShzy1AiyxvPNIkLWoGua7xoQzzPjQ0HAH4B0rWKo7SZ6USuPcrUiAFrws0UH8RrbWmgq3LMTObhPIHbbBeQ==}
@@ -25936,27 +25948,29 @@ snapshots:
 
   '@trysound/sax@0.2.0': {}
 
-  '@tus/file-store@1.5.1':
+  '@tus/file-store@2.0.0':
     dependencies:
-      '@tus/utils': 0.5.1
+      '@tus/utils': 0.6.0
       debug: 4.4.3
     optionalDependencies:
       '@redis/client': 1.6.1
     transitivePeerDependencies:
       - supports-color
 
-  '@tus/server@1.10.2':
+  '@tus/server@2.3.0':
     dependencies:
-      '@tus/utils': 0.5.1
+      '@tus/utils': 0.6.0
       debug: 4.4.3
       lodash.throttle: 4.1.1
+      set-cookie-parser: 2.7.2
+      srvx: 0.8.16
     optionalDependencies:
       '@redis/client': 1.6.1
       ioredis: 5.10.0
     transitivePeerDependencies:
       - supports-color
 
-  '@tus/utils@0.5.1': {}
+  '@tus/utils@0.6.0': {}
 
   '@tybys/wasm-util@0.10.1':
     dependencies:
@@ -31720,6 +31734,14 @@ snapshots:
 
   konva@10.2.0: {}
 
+  kugelaudio@0.2.3:
+    dependencies:
+      tsx: 4.21.0
+      ws: 8.19.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   kuler@2.0.0: {}
 
   lan-network@0.2.0: {}
@@ -36603,6 +36625,8 @@ snapshots:
       - supports-color
 
   srcset@4.0.0: {}
+
+  srvx@0.8.16: {}
 
   ssri@8.0.1:
     dependencies:
