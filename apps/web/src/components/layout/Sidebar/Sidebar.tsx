@@ -37,7 +37,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const { getBetaFeatureState } = useBetaFeatures();
 
   const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
-  const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
   const igelModeEnabled = useMemo(() => getBetaFeatureState('igel_modus'), [getBetaFeatureState]);
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
@@ -51,16 +50,15 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     () =>
       getMenuItems({
         databaseBetaEnabled,
-        chatBetaEnabled,
         igelModeEnabled,
         isAustrian,
       }),
-    [databaseBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian]
+    [databaseBetaEnabled, igelModeEnabled, isAustrian]
   );
 
   const directMenuItems = useMemo(
-    () => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, isAustrian }),
-    [databaseBetaEnabled, chatBetaEnabled, isAustrian]
+    () => getDirectMenuItems({ databaseBetaEnabled, isAustrian }),
+    [databaseBetaEnabled, isAustrian]
   );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   const additionalItems = useMemo<MenuItemType[]>(
@@ -252,7 +250,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           ))}
       </nav>
 
-      {chatBetaEnabled && <div id="chat-thread-portal-slot" className="sidebar-chat-threads" />}
+      <div id="chat-thread-portal-slot" className="sidebar-chat-threads" />
 
       {/* Footer - pushed to bottom */}
       <div className="sidebar-footer">
