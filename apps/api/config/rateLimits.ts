@@ -6,6 +6,7 @@
  * - image: AI image generation (Flux)
  * - text: AI text generation (Claude)
  * - pdf_export: PDF document export
+ * - gruen_o_mat: Public Gruen-O-Mat chat (IP-based)
  *
  * User Tiers:
  * - anonymous: Unauthenticated users (session/IP-based)
@@ -39,6 +40,7 @@ export interface RateLimitConfig {
     image: ResourceConfig;
     text: ResourceConfig;
     pdf_export: ResourceConfig;
+    gruen_o_mat: ResourceConfig;
   };
   anonymousIdentifierStrategy: ('sessionID' | 'ip')[];
   enableAnalytics: boolean;
@@ -71,10 +73,12 @@ const rateLimitConfig: RateLimitConfig = {
       premium: { limit: 100, window: 'daily' }, // Premium: 100 exports per day
     },
 
-    // Easy to add more resource types:
-    // audio: { ... },
-    // video: { ... },
-    // translation: { ... }
+    // Gruen-O-Mat public chat (IP-based, no auth required)
+    gruen_o_mat: {
+      anonymous: { limit: 20, window: 'daily' },
+      authenticated: { limit: 50, window: 'daily' },
+      premium: { limit: Infinity, window: 'daily' },
+    },
   },
 
   // Identifier strategy for anonymous users (tried in order)
