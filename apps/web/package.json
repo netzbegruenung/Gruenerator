@@ -27,7 +27,7 @@
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-store": "^2.4.2",
     "ai": "^6.0.100",
-    "axios": "^1.13.5",
+    "axios": "^1.13.6",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "dompurify": "^3.3.1",

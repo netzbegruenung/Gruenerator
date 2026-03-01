@@ -16,7 +16,7 @@
     "@mdxeditor/editor": "^3.52.4",
     "@sentry/react": "^9.47.1",
     "@tanstack/react-query": "^5.90.21",
-    "axios": "^1.13.5",
+    "axios": "^1.13.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "19.1.0",
