@@ -97,8 +97,8 @@ importers:
         specifier: ^0.71.2
         version: 0.71.2(zod@3.25.76)
       '@blocknote/xl-ai':
-        specifier: ^0.46.2
-        version: 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@3.25.76)
+        specifier: ^0.47.0
+        version: 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@3.25.76)
       '@gruenerator/hocuspocus':
         specifier: workspace:*
         version: link:../../services/hocuspocus
@@ -144,9 +144,6 @@ importers:
       axios:
         specifier: ^1.13.5
         version: 1.13.5
-      body-parser:
-        specifier: ^1.20.4
-        version: 1.20.4
       cheerio:
         specifier: ^1.2.0
         version: 1.2.0
@@ -271,9 +268,6 @@ importers:
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@types/body-parser':
-        specifier: ^1.19.6
-        version: 1.19.6
       '@types/compression':
         specifier: ^1.8.1
         version: 1.8.1
@@ -360,26 +354,26 @@ importers:
   apps/docs:
     dependencies:
       '@blocknote/core':
-        specifier: ^0.46.2
-        version: 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+        specifier: ^0.47.0
+        version: 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
       '@blocknote/mantine':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@blocknote/react':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@blocknote/xl-ai':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@4.3.5)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@4.3.5)
       '@blocknote/xl-docx-exporter':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@blocknote/xl-odt-exporter':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@blocknote/xl-pdf-exporter':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@floating-ui/react':
         specifier: ^0.27.18
         version: 0.27.18(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -944,18 +938,9 @@ importers:
 
   apps/web:
     dependencies:
-      '@ai-sdk/react':
-        specifier: ^2.0.138
-        version: 2.0.138(react@19.1.0)(zod@4.3.5)
       '@assistant-ui/react':
         specifier: ^0.12.12
         version: 0.12.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))
-      '@blocknote/core':
-        specifier: ^0.46.2
-        version: 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
-      '@blocknote/xl-docx-exporter':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@gruenerator/chat':
         specifier: workspace:*
         version: link:../../packages/chat
@@ -1125,9 +1110,6 @@ importers:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(immer@10.2.0)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))
     devDependencies:
-      '@babel/core':
-        specifier: ^7.29.0
-        version: 7.29.0
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1158,9 +1140,6 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.7.0
         version: 4.7.0(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(sass-embedded@1.97.3)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
-      babel-jest:
-        specifier: ^29.7.0
-        version: 29.7.0(@babel/core@7.29.0)
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1287,20 +1266,20 @@ importers:
   packages/docs:
     dependencies:
       '@blocknote/core':
-        specifier: ^0.46.2
-        version: 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+        specifier: ^0.47.0
+        version: 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
       '@blocknote/mantine':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@blocknote/react':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@blocknote/xl-ai':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@4.3.5)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@4.3.5)
       '@blocknote/xl-docx-exporter':
-        specifier: ^0.46.2
-        version: 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.47.0
+        version: 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@floating-ui/react':
         specifier: ^0.27.18
         version: 0.27.18(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -1588,12 +1567,6 @@ packages:
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
 
-  '@ai-sdk/gateway@2.0.42':
-    resolution: {integrity: sha512-cIG9UkWP9p8IpBDNu7lrG4x6y9g7U2grQzzK6VEr4sgyLfoGgyiKSypzJIir1HCBXnXy7wjP2z1/0+HkeXpmcw==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.24.1
-
   '@ai-sdk/gateway@3.0.50':
     resolution: {integrity: sha512-Jdd1a8VgbD7l7r+COj0h5SuaYRfPvOJ/AO6l0OrmTPEcI2MUQPr3C4JttfpNkcheEN+gOdy0CtZWuG17bW2fjw==}
     engines: {node: '>=18'}
@@ -1618,35 +1591,15 @@ packages:
     peerDependencies:
       zod: ^3.24.1
 
-  '@ai-sdk/provider-utils@3.0.21':
-    resolution: {integrity: sha512-veuMwTLxsgh31Jjn0SnBABnM1f7ebHhRWcV2ZuY3hP3iJDCZ8VXBaYqcHXoOQDqUXTCas08sKQcHyWK+zl882Q==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.24.1
-
   '@ai-sdk/provider-utils@4.0.15':
     resolution: {integrity: sha512-8XiKWbemmCbvNN0CLR9u3PQiet4gtEVIrX4zzLxnCj06AwsEDJwJVBbKrEI4t6qE8XRSIvU2irka0dcpziKW6w==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.24.1
 
-  '@ai-sdk/provider@2.0.1':
-    resolution: {integrity: sha512-KCUwswvsC5VsW2PWFqF8eJgSCu5Ysj7m1TxiHTVA6g7k360bk0RNQENT8KTMAYEs+8fWPD3Uu4dEmzGHc+jGng==}
-    engines: {node: '>=18'}
-
   '@ai-sdk/provider@3.0.8':
     resolution: {integrity: sha512-oGMAgGoQdBXbZqNG0Ze56CHjDZ1IDYOwGYxYjO5KLSlz5HiNQ9udIXsPZ61VWaHGZ5XW/jyjmr6t2xz2jGVwbQ==}
     engines: {node: '>=18'}
-
-  '@ai-sdk/react@2.0.138':
-    resolution: {integrity: sha512-2KL14Yw8exiDAq7sDETQ8Y7tfPw1JtyFj8N6dbGnVDiMkj1uyC1G8JLRtiniIxEaMCUuUvwQJjWF7XiYRv/HwA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      react: 19.1.0
-      zod: ^3.24.1
-    peerDependenciesMeta:
-      zod:
-        optional: true
 
   '@ai-sdk/react@3.0.93':
     resolution: {integrity: sha512-FY1HmeAfCpiAGLhIZh2QR8QFzHFZfhjMmkA9D5KC/O3eGqPeY7CwBABLkzRH+5Gkf+MfxXnEm4VF0MpmvDMjpg==}
@@ -2616,16 +2569,16 @@ packages:
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
 
-  '@blocknote/core@0.46.2':
-    resolution: {integrity: sha512-p+QFwrTQfQC08f7JoFg9uuwbAUkGhRakCXhHhY63Wd8ARS0ktHfc9eUnJderXQTEtWfHjACjZOyt2FifX6Lalw==}
+  '@blocknote/core@0.47.0':
+    resolution: {integrity: sha512-i8QwAA8z/T97ZKPQy/8GTUicy3xBZy7xcR0fH/qA2xQq0xIaE7AZT92nS1sDvohxUsTJVNQBZ/zkpGKGj4Eq8g==}
     peerDependencies:
       '@hocuspocus/provider': ^3.4.3
     peerDependenciesMeta:
       '@hocuspocus/provider':
         optional: true
 
-  '@blocknote/mantine@0.46.2':
-    resolution: {integrity: sha512-2/A82VIby8NNuQbJrXZURnGsksVMWiGWtUOfhvaawCTiB2thYDOV1XONFF1G4xZ2UreodOKLUTwhLm3u25lGrw==}
+  '@blocknote/mantine@0.47.0':
+    resolution: {integrity: sha512-qRntaUUNzueAa3bm0xRqpDq5HH4+JKI6TGZtsYQB/ENIiiIDGL2ow/GSqAViTo1PmQeCtDyQOPoag2p3bSR7kQ==}
     peerDependencies:
       '@mantine/core': ^8.3.11
       '@mantine/hooks': ^8.3.11
@@ -2633,38 +2586,38 @@ packages:
       react: 19.1.0
       react-dom: 19.1.0
 
-  '@blocknote/react@0.46.2':
-    resolution: {integrity: sha512-2cl7MkOSa6Wxun5LFTT0BCeYq3Qw9DCw6VZ9qdtflrnsefds0cDx/SHMVEQygYwF5MhlDmSbIt61hkQ4j2QWSw==}
+  '@blocknote/react@0.47.0':
+    resolution: {integrity: sha512-RgLCrccVCVySlnxSKoJfu1nHcJeahpgZQeQrLnVBqLMXicy4nB5vy5QYh5qQGFl7vaRGN3RVduDAZfOp96TF1g==}
     peerDependencies:
       react: 19.1.0
       react-dom: 19.1.0
 
-  '@blocknote/xl-ai@0.46.2':
-    resolution: {integrity: sha512-IeJmxHciGcXA3HLA+oNzctguBJX6e0t4sUW57eA3+u0h+TImLYlzYcghZOWkceNz6TCm+8Wwm+7vvMyYaSQDyw==}
+  '@blocknote/xl-ai@0.47.0':
+    resolution: {integrity: sha512-czx1DyO5bMy2nBCQxesbMQyEZhFpqA6pRUyhnhUENHKievlUZgymRAH3DyO3Yl3STdZkwAiWQDkhVIQiecRNwA==}
     peerDependencies:
       react: 19.1.0
       react-dom: 19.1.0
 
-  '@blocknote/xl-docx-exporter@0.46.2':
-    resolution: {integrity: sha512-WaSDqIWeJYjMK6J8vRcH1UooiW354CvfGIx3zD8q02dQG8gUVsy57IRycqgngo7lX+0/5IG7ZGQoZAm+a9IyTA==}
+  '@blocknote/xl-docx-exporter@0.47.0':
+    resolution: {integrity: sha512-qYldOglAi37ggiNaOA1avTG59AewvB0fGfHpVsQlrIYl4iVkm7CaqIco2OQg0OSMDd//M3i8SsOzgX5eRriXsg==}
     peerDependencies:
       react: 19.1.0
       react-dom: 19.1.0
 
-  '@blocknote/xl-multi-column@0.46.2':
-    resolution: {integrity: sha512-J1NYQXINff6qI4HfEvZ937DbXtXdH6OvlQ5AD5KoQ4ApLfzc9cCk2+FVgjKPmpQ1yhqbuwyTBK0MekjPIkqHSg==}
+  '@blocknote/xl-multi-column@0.47.0':
+    resolution: {integrity: sha512-UkVx3y5M/y9S2p3jijylh+aXJIrh6babBkQvGMd95El/qwjZs5pJKUg/wApOtyrhaP0genWdWLNka6ag0cD9aA==}
     peerDependencies:
       react: 19.1.0
       react-dom: 19.1.0
 
-  '@blocknote/xl-odt-exporter@0.46.2':
-    resolution: {integrity: sha512-1GXiLfRcBpk1WzexsbVhIRcU9gDQ2SkVkb6cttk57aqsFPPXlKSCTBTOFxqUwp/Td9bfvMgnHJHNhmYCNIj8SA==}
+  '@blocknote/xl-odt-exporter@0.47.0':
+    resolution: {integrity: sha512-rfZkG3ajgc1v2Wtb0iqnqlEQJ7oQwauaq7WR+f9BJRwocYS4jzX0sa7iMDuuKfvehbgG09HXM7FkcNZKbj+yoQ==}
     peerDependencies:
       react: 19.1.0
       react-dom: 19.1.0
 
-  '@blocknote/xl-pdf-exporter@0.46.2':
-    resolution: {integrity: sha512-dqqbHmmgrclwHXhg7s6uxf+dBmghgLU//X6NdAfveaWCza6oSJD1utJBXK8lWhXUs7BUadgzPl1KjLo+4tLSsg==}
+  '@blocknote/xl-pdf-exporter@0.47.0':
+    resolution: {integrity: sha512-HXtZSx5Xe6ZEhd78G+fYyvTOOl3XdLuFkzf+0StgbOx8PcU8Ts579Ysh3rVnftVI4EJhjytYyUeHuFS/iJFdmw==}
     peerDependencies:
       react: 19.1.0
       react-dom: 19.1.0
@@ -8254,12 +8207,6 @@ packages:
   aggregate-error@5.0.0:
     resolution: {integrity: sha512-gOsf2YwSlleG6IjRYG2A7k0HmBMEo6qVNk9Bp/EaLgAJT5ngH6PXbqa4ItvnEwCm/velL5jAnQgsHsWnjhGmvw==}
     engines: {node: '>=18'}
-
-  ai@5.0.136:
-    resolution: {integrity: sha512-Aiar6eW8WXrVx0icbTdW+1L1aFDbg/sGz02fIsqNVecedVANUMT8Nh2HUXSSlbZNgCisbZLp0m9yKeW6YRGuEQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.24.1
 
   ai@6.0.100:
     resolution: {integrity: sha512-BIxhG7M7wvcWCF+IEnZi7WpkRLOM3jR2vJ0mMuohl2UB2i1R/ZUa1cHFel1xI8nWvyUpOoQXKqsM0BAH50EYSQ==}
@@ -17592,13 +17539,6 @@ snapshots:
 
   '@actions/io@3.0.2': {}
 
-  '@ai-sdk/gateway@2.0.42(zod@4.3.5)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.1
-      '@ai-sdk/provider-utils': 3.0.21(zod@4.3.5)
-      '@vercel/oidc': 3.1.0
-      zod: 4.3.5
-
   '@ai-sdk/gateway@3.0.50(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
@@ -17639,13 +17579,6 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.15(zod@3.25.76)
       zod: 3.25.76
 
-  '@ai-sdk/provider-utils@3.0.21(zod@4.3.5)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.1
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.0.6
-      zod: 4.3.5
-
   '@ai-sdk/provider-utils@4.0.15(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
@@ -17660,23 +17593,9 @@ snapshots:
       eventsource-parser: 3.0.6
       zod: 4.3.5
 
-  '@ai-sdk/provider@2.0.1':
-    dependencies:
-      json-schema: 0.4.0
-
   '@ai-sdk/provider@3.0.8':
     dependencies:
       json-schema: 0.4.0
-
-  '@ai-sdk/react@2.0.138(react@19.1.0)(zod@4.3.5)':
-    dependencies:
-      '@ai-sdk/provider-utils': 3.0.21(zod@4.3.5)
-      ai: 5.0.136(zod@4.3.5)
-      react: 19.1.0
-      swr: 2.4.0(react@19.1.0)
-      throttleit: 2.1.0
-    optionalDependencies:
-      zod: 4.3.5
 
   '@ai-sdk/react@3.0.93(react@19.1.0)(zod@3.25.76)':
     dependencies:
@@ -18931,7 +18850,7 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@blocknote/core@0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)':
+  '@blocknote/core@0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)':
     dependencies:
       '@emoji-mart/data': 1.2.1
       '@handlewithcare/prosemirror-inputrules': 0.1.4(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.6)
@@ -18983,10 +18902,10 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/mantine@0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@blocknote/mantine@0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@blocknote/core': 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
-      '@blocknote/react': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/core': 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+      '@blocknote/react': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@mantine/core': 8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@mantine/hooks': 8.3.15(react@19.1.0)
       '@mantine/utils': 6.0.22(react@19.1.0)
@@ -19005,9 +18924,9 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/react@0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@blocknote/react@0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@blocknote/core': 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+      '@blocknote/core': 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
       '@emoji-mart/data': 1.2.1
       '@floating-ui/react': 0.27.18(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@floating-ui/utils': 0.2.10
@@ -19035,13 +18954,13 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/xl-ai@0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@4.3.5)':
+  '@blocknote/xl-ai@0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@4.3.5)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.15(zod@4.3.5)
       '@ai-sdk/react': 3.0.93(react@19.1.0)(zod@4.3.5)
-      '@blocknote/core': 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
-      '@blocknote/mantine': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@blocknote/react': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/core': 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+      '@blocknote/mantine': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/react': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@floating-ui/react': 0.26.28(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@handlewithcare/prosemirror-suggest-changes': 0.1.8(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-transform@1.11.0)(prosemirror-view@1.41.6)
       '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
@@ -19080,13 +18999,13 @@ snapshots:
       - yjs
       - zod
 
-  '@blocknote/xl-ai@0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@3.25.76)':
+  '@blocknote/xl-ai@0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@tiptap/pm@3.20.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.15(zod@3.25.76)
       '@ai-sdk/react': 3.0.93(react@19.1.0)(zod@3.25.76)
-      '@blocknote/core': 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
-      '@blocknote/mantine': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@blocknote/react': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/core': 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+      '@blocknote/mantine': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.1.0))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mantine/hooks@8.3.15(react@19.1.0))(@mantine/utils@6.0.22(react@19.1.0))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/react': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@floating-ui/react': 0.26.28(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@handlewithcare/prosemirror-suggest-changes': 0.1.8(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-transform@1.11.0)(prosemirror-view@1.41.6)
       '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
@@ -19125,10 +19044,10 @@ snapshots:
       - yjs
       - zod
 
-  '@blocknote/xl-docx-exporter@0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@blocknote/xl-docx-exporter@0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@blocknote/core': 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
-      '@blocknote/xl-multi-column': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/core': 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+      '@blocknote/xl-multi-column': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       buffer: 6.0.3
       docx: 9.6.0
       image-meta: 0.2.2
@@ -19147,10 +19066,10 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/xl-multi-column@0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@blocknote/xl-multi-column@0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@blocknote/core': 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
-      '@blocknote/react': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/core': 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+      '@blocknote/react': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
       prosemirror-model: 1.25.4
       prosemirror-state: 1.4.4
@@ -19173,10 +19092,10 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/xl-odt-exporter@0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@blocknote/xl-odt-exporter@0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@blocknote/core': 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
-      '@blocknote/xl-multi-column': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/core': 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+      '@blocknote/xl-multi-column': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@zip.js/zip.js': 2.8.21
       buffer: 6.0.3
       image-meta: 0.2.2
@@ -19195,11 +19114,11 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/xl-pdf-exporter@0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@blocknote/xl-pdf-exporter@0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@blocknote/core': 0.46.2(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
-      '@blocknote/react': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@blocknote/xl-multi-column': 0.46.2(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/core': 0.47.0(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)
+      '@blocknote/react': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/xl-multi-column': 0.47.0(@floating-ui/dom@1.7.5)(@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(@tiptap/pm@3.20.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@react-pdf/renderer': 4.3.2(react@19.1.0)
       buffer: 6.0.3
       docx: 9.6.0
@@ -21557,7 +21476,7 @@ snapshots:
 
   '@expo/dom-webview@55.0.3(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)':
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react: 19.1.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
 
@@ -21612,7 +21531,7 @@ snapshots:
     dependencies:
       '@expo/dom-webview': 55.0.3(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)
       anser: 1.4.10
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react: 19.1.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
       stacktrace-parser: 0.1.11
@@ -21639,7 +21558,7 @@ snapshots:
       postcss: 8.4.49
       resolve-from: 5.0.0
     optionalDependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -21779,7 +21698,7 @@ snapshots:
       '@expo/json-file': 10.0.12
       '@react-native/normalize-colors': 0.83.2
       debug: 4.4.3
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       resolve-from: 5.0.0
       semver: 7.7.4
       xml2js: 0.6.0
@@ -26756,14 +26675,6 @@ snapshots:
       clean-stack: 5.3.0
       indent-string: 5.0.0
 
-  ai@5.0.136(zod@4.3.5):
-    dependencies:
-      '@ai-sdk/gateway': 2.0.42(zod@4.3.5)
-      '@ai-sdk/provider': 2.0.1
-      '@ai-sdk/provider-utils': 3.0.21(zod@4.3.5)
-      '@opentelemetry/api': 1.9.0
-      zod: 4.3.5
-
   ai@6.0.100(zod@3.25.76):
     dependencies:
       '@ai-sdk/gateway': 3.0.55(zod@3.25.76)
@@ -27242,7 +27153,7 @@ snapshots:
       resolve-from: 5.0.0
     optionalDependencies:
       '@babel/runtime': 7.28.6
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
@@ -29202,12 +29113,12 @@ snapshots:
 
   expo-application@55.0.8(expo@55.0.4):
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
 
   expo-asset@55.0.8(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3):
     dependencies:
       '@expo/image-utils': 0.8.12
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       expo-constants: 55.0.7(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(typescript@5.9.3)
       react: 19.1.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
@@ -29253,7 +29164,7 @@ snapshots:
     dependencies:
       '@expo/config': 55.0.8(typescript@5.9.3)
       '@expo/env': 2.1.1
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
     transitivePeerDependencies:
       - supports-color
@@ -29261,7 +29172,7 @@ snapshots:
 
   expo-crypto@55.0.8(expo@55.0.4):
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
 
   expo-dev-client@55.0.10(expo@55.0.4)(typescript@5.9.3):
     dependencies:
@@ -29300,19 +29211,19 @@ snapshots:
 
   expo-file-system@55.0.10(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)):
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
 
   expo-font@55.0.4(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0):
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       fontfaceobserver: 2.3.0
       react: 19.1.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
 
   expo-glass-effect@55.0.7(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0):
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react: 19.1.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
 
@@ -29347,7 +29258,7 @@ snapshots:
 
   expo-keep-awake@55.0.4(expo@55.0.4)(react@19.1.0):
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react: 19.1.0
 
   expo-linear-gradient@55.0.8(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0):
@@ -29524,7 +29435,7 @@ snapshots:
 
   expo-secure-store@55.0.8(expo@55.0.4):
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
 
   expo-server@55.0.6: {}
 
@@ -29533,7 +29444,7 @@ snapshots:
       '@expo/config-plugins': 55.0.6
       '@expo/config-types': 55.0.5
       '@expo/plist': 0.5.2
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react: 19.1.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
     transitivePeerDependencies:
@@ -29548,7 +29459,7 @@ snapshots:
   expo-splash-screen@55.0.10(expo@55.0.4)(typescript@5.9.3):
     dependencies:
       '@expo/prebuild-config': 55.0.8(expo@55.0.4)(typescript@5.9.3)
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -29562,7 +29473,7 @@ snapshots:
   expo-symbols@55.0.4(expo-font@55.0.4)(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0):
     dependencies:
       '@expo-google-fonts/material-symbols': 0.4.24
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       expo-font: 55.0.4(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)
       react: 19.1.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
@@ -29580,7 +29491,7 @@ snapshots:
 
   expo-web-browser@55.0.9(expo@55.0.4)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)):
     dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0)
 
   expo@55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.1.0(react@19.1.0))(react-native-webview@13.16.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)(typescript@5.9.3):
