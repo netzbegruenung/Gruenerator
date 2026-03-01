@@ -35,8 +35,8 @@
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-opener": "^2.5.3",
     "@tauri-apps/plugin-shell": "^2.3.5",
-    "ai": "^6.0.100",
-    "axios": "^1.13.5",
+    "ai": "^6.0.105",
+    "axios": "^1.13.6",
     "compression": "^1.8.1",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -58,16 +58,16 @@
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",
     "@types/lodash.throttle": "^4.1.9",
-    "@types/node": "^24.10.13",
+    "@types/node": "^24.11.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
-    "eslint": "^9.39.2",
+    "eslint": "^9.39.3",
     "sass-embedded": "^1.97.3",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vite-plugin-compression2": "^2.4.0"
+    "vite-plugin-compression2": "^2.5.0"
   }
 }

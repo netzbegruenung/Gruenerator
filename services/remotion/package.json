@@ -9,25 +9,25 @@
     "dev": "tsx watch src/worker.ts"
   },
   "dependencies": {
-    "@designcombo/animations": "^5.4.2",
-    "@designcombo/transitions": "^5.4.2",
-    "@designcombo/types": "^5.4.2",
-    "@remotion/bundler": "^4.0.429",
-    "@remotion/media-utils": "^4.0.429",
-    "@remotion/paths": "^4.0.429",
-    "@remotion/renderer": "^4.0.429",
-    "@remotion/shapes": "^4.0.429",
-    "@remotion/transitions": "^4.0.429",
+    "@designcombo/animations": "^5.5.8",
+    "@designcombo/transitions": "^5.5.8",
+    "@designcombo/types": "^5.5.8",
+    "@remotion/bundler": "^4.0.431",
+    "@remotion/media-utils": "^4.0.431",
+    "@remotion/paths": "^4.0.431",
+    "@remotion/renderer": "^4.0.431",
+    "@remotion/shapes": "^4.0.431",
+    "@remotion/transitions": "^4.0.431",
     "dotenv": "^17.3.1",
-    "ioredis": "^5.4.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "remotion": "^4.0.429"
+    "ioredis": "^5.10.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "^4.0.431"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.7.0"
+    "@types/node": "^22.19.13",
+    "@types/react": "^19.2.14",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

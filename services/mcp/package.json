@@ -40,8 +40,8 @@
     "@gruenerator/eslint-config": "workspace:*",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^22.19.11",
-    "eslint": "^9.39.2",
+    "@types/node": "^22.19.13",
+    "eslint": "^9.39.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },

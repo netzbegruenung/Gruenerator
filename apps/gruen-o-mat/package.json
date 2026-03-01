@@ -12,7 +12,7 @@
     "lint:fix": "eslint --fix src/"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.12.12",
+    "@assistant-ui/react": "^0.12.14",
     "@gruenerator/chat": "workspace:*",
     "react": "19.1.0",
     "react-dom": "19.1.0",
