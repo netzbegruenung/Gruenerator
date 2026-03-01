@@ -54,6 +54,12 @@
   border: 1px solid rgba(211, 47, 47, 0.2);
 }
 
+.auto-save-indicator--session_expired {
+  color: var(--error-red);
+  background: var(--background-red-light);
+  border: 1px solid rgba(211, 47, 47, 0.2);
+}
+
 /* Retry button */
 .auto-save-indicator__retry {
   margin-left: 0.5rem;

@@ -14,7 +14,7 @@ import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import { ffmpegPool } from './ffmpegPool.js';
-import { ffmpeg, ffprobe } from './ffmpegWrapper.js';
+import { ffmpeg, ffprobe, normalizeRotation } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
 import {
   buildMultiClipFilterComplex,
@@ -89,12 +89,17 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
   const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
   const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
 
+  const rotationDegrees = videoStream ? normalizeRotation(videoStream) : 0;
+  const isVertical = rotationDegrees === 90 || rotationDegrees === 270;
+  const rawW = videoStream?.width || 1920;
+  const rawH = videoStream?.height || 1080;
+
   return {
-    width: videoStream?.width || 1920,
-    height: videoStream?.height || 1080,
+    width: isVertical ? rawH : rawW,
+    height: isVertical ? rawW : rawH,
     duration: parseFloat(metadata.format.duration || '0') || 0,
     fps: parseFrameRate(videoStream?.r_frame_rate || '30/1'),
-    rotation: videoStream?.rotation || '0',
+    rotation: String(rotationDegrees),
     originalFormat: {
       codec: videoStream?.codec_name,
       audioCodec: audioStream?.codec_name,

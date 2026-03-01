@@ -25,7 +25,7 @@ interface GeneratedTextStoreState {
   maxHistorySize: number;
 
   // Auto-save status tracking
-  autoSaveStatus: Record<string, 'idle' | 'saving' | 'saved' | 'error'>;
+  autoSaveStatus: Record<string, 'idle' | 'saving' | 'saved' | 'error' | 'session_expired'>;
   lastAutoSaveTime: Record<string, number | null>;
 
   // Getters
@@ -49,9 +49,14 @@ interface GeneratedTextStoreState {
   setQuillInstance: (componentName: string, instance: unknown) => void;
 
   // Auto-save status setters
-  setAutoSaveStatus: (componentName: string, status: 'idle' | 'saving' | 'saved' | 'error') => void;
+  setAutoSaveStatus: (
+    componentName: string,
+    status: 'idle' | 'saving' | 'saved' | 'error' | 'session_expired'
+  ) => void;
   setLastAutoSaveTime: (componentName: string, time: number) => void;
-  getAutoSaveStatus: (componentName: string) => 'idle' | 'saving' | 'saved' | 'error';
+  getAutoSaveStatus: (
+    componentName: string
+  ) => 'idle' | 'saving' | 'saved' | 'error' | 'session_expired';
   getLastAutoSaveTime: (componentName: string) => number | null;
 
   // Actions

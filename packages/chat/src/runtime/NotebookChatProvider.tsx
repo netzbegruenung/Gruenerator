@@ -29,6 +29,7 @@ export interface NotebookChatProviderProps {
   initialMessages?: readonly ThreadMessageLike[];
   onComplete?: (metadata: NotebookMessageMetadata) => void;
   mode?: 'fast' | 'deep';
+  endpoint?: string;
 }
 
 /**
@@ -50,6 +51,7 @@ function NotebookChatProviderInner({
   initialMessages,
   onComplete,
   mode,
+  endpoint,
 }: NotebookChatProviderProps) {
   const isMulti = collections.length > 1;
 
@@ -63,8 +65,9 @@ function NotebookChatProviderInner({
       locale,
       extraParams,
       mode,
+      endpoint,
     }),
-    [collections, isMulti, filters, locale, extraParams, mode]
+    [collections, isMulti, filters, locale, extraParams, mode, endpoint]
   );
 
   const onCompleteRef = useRef(onComplete);

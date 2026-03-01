@@ -107,7 +107,7 @@ const ExportDropdown = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { getBetaFeatureState } = useBetaFeatures();
-  const hasChatAccess = isAuthenticated && getBetaFeatureState('chat');
+  const hasChatAccess = isAuthenticated;
   const hasDocsAccess = isAuthenticated && getBetaFeatureState('docs');
   const { submitForm: submitEtherpad, loading: etherpadLoading } = useApiSubmit('etherpad/create');
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);

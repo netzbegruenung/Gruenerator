@@ -28,9 +28,6 @@ config.resolver.nodeModulesPaths = [
 // Critical for pnpm: follow symlinks
 config.resolver.unstable_enableSymlinks = true;
 
-// Enable package exports - THIS IS KEY for @gruenerator/shared/api etc
-config.resolver.unstable_enablePackageExports = true;
-
 // Specify export conditions for React Native
 config.resolver.unstable_conditionNames = ['require', 'import', 'react-native'];
 

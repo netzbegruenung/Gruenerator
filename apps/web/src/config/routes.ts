@@ -216,19 +216,7 @@ const MediaLibraryPage = lazy(() =>
 const NotebookChat = lazy(() => import('../features/notebook/components/NotebookChat'));
 
 // Chat page (uses @gruenerator/chat shared package)
-const WrappedChatPage = lazy(() =>
-  Promise.all([
-    import('../features/chat/ChatPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([chatModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(chatModule.default, props),
-        featureKey: 'chat',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const ChatPage = lazy(() => import('../features/chat/ChatPage'));
 
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
@@ -327,7 +315,7 @@ export const GrueneratorenBundle = {
   Reel: Reel,
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
-  Chat: WrappedChatPage,
+  Chat: ChatPage,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,

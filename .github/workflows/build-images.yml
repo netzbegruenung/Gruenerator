@@ -55,6 +55,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      build_gruen_o_mat:
+        description: 'Build gruen-o-mat image only'
+        required: false
+        default: 'false'
+        type: boolean
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/gruenerator
@@ -70,6 +75,7 @@ jobs:
       hocuspocus: ${{ steps.filter.outputs.hocuspocus }}
       mcp: ${{ steps.filter.outputs.mcp }}
       doku: ${{ steps.filter.outputs.doku }}
+      gruen-o-mat: ${{ steps.filter.outputs.gruen-o-mat }}
       shared: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v4
@@ -104,6 +110,9 @@ jobs:
             mcp:
               - 'services/mcp/**'
               - 'packages/shared/**'
+            gruen-o-mat:
+              - 'apps/gruen-o-mat/**'
+              - 'packages/chat/**'
             doku:
               - 'documentation/**'
   build-web:
@@ -378,6 +387,50 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-mcp:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-mcp:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
+  build-gruen-o-mat:
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.gruen-o-mat == 'true' ||
+      github.event.inputs.force_all == 'true' ||
+      github.event.inputs.build_gruen_o_mat == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-gruen-o-mat
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/gruen-o-mat/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-gruen-o-mat:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-gruen-o-mat:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+
   build-doku:
     needs: detect-changes
     if: >
@@ -423,7 +476,17 @@ jobs:
           cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-doku:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
   summary:
-    needs: [build-web, build-api, build-sites, build-docs, build-hocuspocus, build-mcp, build-doku]
+    needs:
+      [
+        build-web,
+        build-api,
+        build-sites,
+        build-docs,
+        build-hocuspocus,
+        build-mcp,
+        build-gruen-o-mat,
+        build-doku,
+      ]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -440,4 +503,5 @@ jobs:
           echo "| docs | ${{ needs.build-docs.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| hocuspocus | ${{ needs.build-hocuspocus.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| mcp | ${{ needs.build-mcp.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| gruen-o-mat | ${{ needs.build-gruen-o-mat.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| doku | ${{ needs.build-doku.result }} |" >> $GITHUB_STEP_SUMMARY
