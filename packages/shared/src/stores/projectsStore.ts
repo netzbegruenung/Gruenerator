@@ -1,4 +1,7 @@
-import { create, StateCreator } from 'zustand';
+import { create, type StateCreator } from 'zustand';
+
+import * as projectsApi from '../projects/api.js';
+
 import type {
   Project,
   ProjectsState,
@@ -6,7 +9,6 @@ import type {
   SaveProjectData,
   UpdateProjectData,
 } from '../projects/types.js';
-import * as projectsApi from '../projects/api.js';
 
 const DEFAULT_PROJECTS_STATE: ProjectsState = {
   projects: [],

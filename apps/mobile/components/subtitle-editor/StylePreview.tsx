@@ -3,8 +3,9 @@
  * Visual preview of subtitle style for option grid
  */
 
-import { View, Text, StyleSheet } from 'react-native';
 import { SUBTITLE_STYLE_CONFIGS } from '@gruenerator/shared/subtitle-editor';
+import { View, Text, StyleSheet } from 'react-native';
+
 import type { SubtitleStylePreference } from '@gruenerator/shared/subtitle-editor';
 
 interface StylePreviewProps {

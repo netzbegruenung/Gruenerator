@@ -3,8 +3,10 @@
  * Individual segment in the timeline with inline editing
  */
 
+import { formatTime } from '@gruenerator/shared/subtitle-editor';
 import { useRef, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable, useColorScheme } from 'react-native';
+
 import {
   colors,
   spacing,
@@ -15,7 +17,7 @@ import {
   verticalScale,
   scale,
 } from '../../theme';
-import { formatTime } from '@gruenerator/shared/subtitle-editor';
+
 import type { SubtitleSegment } from '@gruenerator/shared/subtitle-editor';
 
 interface SubtitleSegmentItemProps {

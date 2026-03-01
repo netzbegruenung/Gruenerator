@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text, Platform } from 'react-native';
-import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+
 import { secureStorage } from '../../services/storage';
 import { colors } from '../../theme';
 

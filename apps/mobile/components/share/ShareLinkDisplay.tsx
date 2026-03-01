@@ -3,9 +3,10 @@
  * Displays QR code and shareable link with copy/share actions
  */
 
-import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+
 import { colors, spacing, borderRadius, typography } from '../../theme';
 
 interface ShareLinkDisplayProps {

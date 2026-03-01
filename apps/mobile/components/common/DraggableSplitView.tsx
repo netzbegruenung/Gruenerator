@@ -13,6 +13,7 @@ import Animated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
+
 import { colors, spacing } from '../../theme';
 
 interface DraggableSplitViewProps {

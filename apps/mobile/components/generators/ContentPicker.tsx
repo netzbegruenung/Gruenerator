@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useCallback, useState } from 'react';
 import {
   View,
@@ -10,10 +11,11 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
-import { useGeneratorSelectionStore, useContentStore, type AttachedFile } from '../../stores';
 
+import { useGeneratorSelectionStore, useContentStore, type AttachedFile } from '../../stores';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+
+/* eslint-disable @typescript-eslint/consistent-type-imports, @typescript-eslint/no-require-imports */
 let DocumentPicker: typeof import('expo-document-picker') | null = null;
 let FileSystem: typeof import('expo-file-system') | null = null;
 
@@ -23,6 +25,7 @@ try {
 } catch (e) {
   console.warn('[ContentPicker] expo-document-picker not available:', e);
 }
+/* eslint-enable @typescript-eslint/consistent-type-imports, @typescript-eslint/no-require-imports */
 
 interface ContentPickerProps {
   visible: boolean;

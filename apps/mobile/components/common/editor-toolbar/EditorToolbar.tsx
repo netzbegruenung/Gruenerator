@@ -3,13 +3,15 @@
  * Unified toolbar with expandable panels for editor tools
  */
 
+import { type Ionicons } from '@expo/vector-icons';
 import { useState, useCallback, type ReactNode } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+
 import { spacing, lightTheme, darkTheme } from '../../../theme';
-import { ToolPill, type ToolType } from './ToolPill';
+
 import { ExpandablePanel } from './ExpandablePanel';
+import { ToolPill, type ToolType } from './ToolPill';
 
 export interface ToolConfig {
   id: ToolType;

@@ -3,10 +3,11 @@
  * Uses Zustand selector for performance, delegates to generic LabeledTextInput
  */
 
-import { useCallback } from 'react';
-import { LabeledTextInput } from '../ui/controls';
-import { useImageStudioStore } from '../../stores/imageStudioStore';
 import { MODIFICATION_LABELS } from '@gruenerator/shared/image-studio';
+import { useCallback } from 'react';
+
+import { useImageStudioStore } from '../../stores/imageStudioStore';
+import { LabeledTextInput } from '../ui/controls';
 
 interface CreditInputProps {
   disabled?: boolean;

@@ -3,14 +3,15 @@
  * Uses Zustand selectors for performance, delegates to generic CrossPad
  */
 
-import { useCallback } from 'react';
-import { CrossPad, type Offset2D } from '../ui/controls';
-import { useImageStudioStore } from '../../stores/imageStudioStore';
 import {
   BALKEN_GRUPPE_STEP,
   SUNFLOWER_STEP,
   MODIFICATION_LABELS,
 } from '@gruenerator/shared/image-studio';
+import { useCallback } from 'react';
+
+import { useImageStudioStore } from '../../stores/imageStudioStore';
+import { CrossPad, type Offset2D } from '../ui/controls';
 
 interface BalkenGruppeControlProps {
   disabled?: boolean;

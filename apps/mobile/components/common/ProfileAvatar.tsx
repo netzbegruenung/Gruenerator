@@ -1,11 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Image } from 'expo-image';
 import {
   getAvatarDisplayProps,
   getRobotAvatarUrl,
   validateRobotId,
 } from '@gruenerator/shared/avatar';
+import { Image } from 'expo-image';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
 import { colors } from '../../theme';
 
 interface ProfileAvatarProps {

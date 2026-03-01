@@ -3,6 +3,7 @@
  * Image upload with camera/gallery options
  */
 
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   View,
@@ -16,14 +17,15 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../common';
+
 import {
   pickImageFromGallery,
   takePhoto,
   type ImagePickerResult,
 } from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { Button } from '../common';
+
 import { MediathekSelector } from './MediathekSelector';
 
 interface ImageUploadStepProps {

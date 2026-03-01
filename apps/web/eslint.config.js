@@ -20,6 +20,6 @@ export default [
     },
   },
   {
-    ignores: ['build/**', 'dist/**', 'public/**'],
+    ignores: ['build/**', 'dist/**', 'public/**', 'scripts/**'],
   },
 ];

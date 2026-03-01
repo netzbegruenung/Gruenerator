@@ -6,8 +6,14 @@
  */
 declare module 'react-native-gifted-chat' {
   import type { ComponentType, ReactNode } from 'react';
-  import type { ViewStyle, TextStyle, ImageStyle, StyleProp, TextInputProps } from 'react-native';
-  import type { FlatListProps } from 'react-native';
+  import type {
+    ViewStyle,
+    TextStyle,
+    ImageStyle,
+    StyleProp,
+    TextInputProps,
+    FlatListProps,
+  } from 'react-native';
 
   // =============================================================================
   // Core Types

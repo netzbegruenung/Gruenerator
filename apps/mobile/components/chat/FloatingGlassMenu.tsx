@@ -1,7 +1,8 @@
-import { useColorScheme, Platform, StyleProp, ViewStyle } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useColorScheme, Platform, type StyleProp, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { spacing, borderRadius } from '../../theme';
 
 interface FloatingGlassMenuProps {

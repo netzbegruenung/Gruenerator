@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import * as MediaLibrary from 'expo-media-library';
-import { reelApi } from '../services/reel';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import * as MediaLibrary from 'expo-media-library';
+import { useState, useCallback, useRef, useEffect } from 'react';
+
+import { reelApi } from '../services/reel';
 import { getErrorMessage } from '../utils/errors';
 
 export type ReelStatus =

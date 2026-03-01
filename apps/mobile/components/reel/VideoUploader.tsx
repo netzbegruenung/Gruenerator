@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -5,13 +8,11 @@ import {
   Image,
   Pressable,
   ActivityIndicator,
-  ViewStyle,
-  TextStyle,
-  ImageStyle,
+  type ViewStyle,
+  type TextStyle,
+  type ImageStyle,
 } from 'react-native';
-import { useState, useCallback } from 'react';
-import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
+
 import { colors, spacing, borderRadius, typography } from '../../theme';
 import { Button } from '../common/Button';
 

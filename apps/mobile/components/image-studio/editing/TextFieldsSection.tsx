@@ -4,7 +4,9 @@
  */
 
 import { View, Text, TextInput, StyleSheet, useColorScheme } from 'react-native';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+
 import type { EditFieldConfig } from '../../../config/editSheetConfig';
 import type { ImageStudioFormData, FormFieldValue } from '@gruenerator/shared/image-studio';
 

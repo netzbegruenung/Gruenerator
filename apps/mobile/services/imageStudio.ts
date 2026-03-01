@@ -3,13 +3,16 @@
  * Mobile service for image-studio file handling
  */
 
-import * as MediaLibrary from 'expo-media-library';
-import * as ImagePicker from 'expo-image-picker';
-import { File, Paths } from 'expo-file-system';
-import { Alert, Platform } from 'react-native';
-import { shareFile } from './share';
-import { getErrorMessage } from '../utils/errors';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { File, Paths } from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
+import { Alert, Platform } from 'react-native';
+
+import { getErrorMessage } from '../utils/errors';
+
+import { shareFile } from './share';
+
 import type { Share } from '@gruenerator/shared/share';
 
 /**

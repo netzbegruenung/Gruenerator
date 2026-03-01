@@ -3,8 +3,9 @@
  * Detects query type, language, and auto-applies filters
  */
 
-import type { QueryIntent, DocumentScope, QdrantFilter } from './types.js';
 import { INTENT_CONTENT_PREFERENCES } from './constants.js';
+
+import type { QueryIntent, DocumentScope, QdrantFilter } from './types.js';
 
 /**
  * German intent patterns

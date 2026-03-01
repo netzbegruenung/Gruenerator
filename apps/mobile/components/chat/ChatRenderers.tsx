@@ -1,16 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet } from 'react-native';
 import {
   Bubble,
   InputToolbar,
   Composer,
   Send,
-  BubbleProps,
-  InputToolbarProps,
-  ComposerProps,
-  SendProps,
+  type BubbleProps,
+  type InputToolbarProps,
+  type ComposerProps,
+  type SendProps,
 } from 'react-native-gifted-chat';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+
+import { colors, spacing, borderRadius, type lightTheme, type darkTheme } from '../../theme';
 
 type Theme = typeof lightTheme | typeof darkTheme;
 

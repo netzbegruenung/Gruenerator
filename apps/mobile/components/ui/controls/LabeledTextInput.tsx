@@ -11,6 +11,7 @@ import {
   useColorScheme,
   type KeyboardTypeOptions,
 } from 'react-native';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../theme';
 
 interface LabeledTextInputProps {

@@ -3,15 +3,16 @@
  * Uses Zustand selector for performance, delegates to generic SliderWithPresets
  */
 
-import { useCallback } from 'react';
-import { SliderWithPresets } from '../ui/controls';
-import { useImageStudioStore } from '../../stores/imageStudioStore';
 import {
   FONT_SIZE_OPTIONS,
   ZITAT_FONT_SIZE_OPTIONS,
   MODIFICATION_CONTROLS_CONFIG,
   MODIFICATION_LABELS,
 } from '@gruenerator/shared/image-studio';
+import { useCallback } from 'react';
+
+import { useImageStudioStore } from '../../stores/imageStudioStore';
+import { SliderWithPresets } from '../ui/controls';
 
 interface FontSizeControlProps {
   disabled?: boolean;

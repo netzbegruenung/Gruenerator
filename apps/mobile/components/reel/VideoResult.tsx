@@ -1,12 +1,13 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useEvent } from 'expo';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEvent } from 'expo';
-import { Ionicons } from '@expo/vector-icons';
+
+import { secureStorage } from '../../services/storage';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 import { Button } from '../common/Button';
 import { ShareModal } from '../share';
-import { secureStorage } from '../../services/storage';
 
 interface VideoResultProps {
   videoUri: string;

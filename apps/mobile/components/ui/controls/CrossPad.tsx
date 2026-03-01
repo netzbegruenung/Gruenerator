@@ -3,8 +3,9 @@
  * Reusable component for adjusting X/Y offset values
  */
 
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
 export type Offset2D = [number, number];

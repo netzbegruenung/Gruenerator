@@ -1,4 +1,4 @@
-import { create, StateCreator } from 'zustand';
+import { create, type StateCreator } from 'zustand';
 
 export interface ChatMessage {
   type: 'user' | 'assistant' | 'error';
@@ -107,18 +107,12 @@ const createGeneratedTextSlice: StateCreator<GeneratedTextStore> = (set, get) =>
       const currentHistory = state.history[componentName] || [];
       const currentIndex = state.historyIndex[componentName] ?? -1;
 
-      let newHistory: string[];
-      let newIndex: number;
+      const newHistory: string[] =
+        currentIndex === -1 || currentIndex === currentHistory.length - 1
+          ? [...currentHistory, text].slice(-state.maxHistorySize)
+          : [...currentHistory.slice(0, currentIndex + 1), text].slice(-state.maxHistorySize);
 
-      if (currentIndex === -1 || currentIndex === currentHistory.length - 1) {
-        newHistory = [...currentHistory, text].slice(-state.maxHistorySize);
-      } else {
-        newHistory = [...currentHistory.slice(0, currentIndex + 1), text].slice(
-          -state.maxHistorySize
-        );
-      }
-
-      newIndex = newHistory.length - 1;
+      const newIndex = newHistory.length - 1;
 
       const newState: Partial<GeneratedTextState> = {
         generatedTexts: {
@@ -231,18 +225,14 @@ const createGeneratedTextSlice: StateCreator<GeneratedTextStore> = (set, get) =>
         return state;
       }
 
-      let newHistory: string[];
-      let newIndex: number;
+      const newHistory: string[] =
+        currentIndex === -1 || currentIndex === currentHistory.length - 1
+          ? [...currentHistory, currentContent].slice(-state.maxHistorySize)
+          : [...currentHistory.slice(0, currentIndex + 1), currentContent].slice(
+              -state.maxHistorySize
+            );
 
-      if (currentIndex === -1 || currentIndex === currentHistory.length - 1) {
-        newHistory = [...currentHistory, currentContent].slice(-state.maxHistorySize);
-      } else {
-        newHistory = [...currentHistory.slice(0, currentIndex + 1), currentContent].slice(
-          -state.maxHistorySize
-        );
-      }
-
-      newIndex = newHistory.length - 1;
+      const newIndex = newHistory.length - 1;
 
       return {
         ...state,

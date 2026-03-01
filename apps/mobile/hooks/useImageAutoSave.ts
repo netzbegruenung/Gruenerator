@@ -3,8 +3,9 @@
  * Auto-saves generated images to the gallery with metadata for later editing
  */
 
-import { useEffect, useCallback } from 'react';
 import { useShareStore } from '@gruenerator/shared/share';
+import { useEffect, useCallback } from 'react';
+
 import { useImageStudioStore } from '../stores/imageStudioStore';
 
 interface AutoSaveResult {

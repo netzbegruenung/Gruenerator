@@ -1,11 +1,12 @@
-import { View, Text, StyleSheet, useColorScheme, Pressable, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, useColorScheme, Pressable, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { ProfileAvatar } from '../../components/common';
+import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
 import { route, type AppRoute } from '../../types/routes';
 
 interface QuickFeature {

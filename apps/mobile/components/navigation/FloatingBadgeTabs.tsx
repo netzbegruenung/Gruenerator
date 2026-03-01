@@ -5,8 +5,16 @@
  */
 
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, useColorScheme, ViewStyle } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  useColorScheme,
+  type ViewStyle,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { colors, lightTheme, darkTheme } from '../../theme';
 
 export interface TabDefinition {

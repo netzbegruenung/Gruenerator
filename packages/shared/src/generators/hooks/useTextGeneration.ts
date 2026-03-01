@@ -4,9 +4,11 @@
  */
 
 import { useState, useCallback } from 'react';
+
 import { getGlobalApiClient } from '../../api/client.js';
-import { parseGeneratorResponse } from '../utils/responseParser.js';
 import { parseGeneratorError } from '../utils/errorMessages.js';
+import { parseGeneratorResponse } from '../utils/responseParser.js';
+
 import type { GeneratorResult, GeneratorError, BaseGeneratorRequest } from '../types.js';
 
 export interface UseTextGenerationOptions {

@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
+
 import { lightTheme, darkTheme, colors } from '../../theme';
 
 export default function ModalsLayout() {
