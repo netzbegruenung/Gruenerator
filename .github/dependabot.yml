@@ -25,19 +25,16 @@ updates:
       - 'dependencies'
       - 'root'
     groups:
-      # Group all semantic-release and commitlint tooling
       release-tooling:
         patterns:
           - '@semantic-release/*'
           - '@commitlint/*'
           - 'semantic-release'
           - 'husky'
-      # Group TypeScript and type definitions
       typescript:
         patterns:
           - 'typescript'
           - '@types/*'
-      # Minor and patch updates for everything else
       minor-patch:
         update-types:
           - 'minor'
@@ -49,7 +46,6 @@ updates:
           - 'husky'
           - 'typescript'
           - '@types/*'
-    # Ignore major React updates - managed via pnpm.overrides
     ignore:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
@@ -57,10 +53,10 @@ updates:
         update-types: ['version-update:semver-major']
 
   # =============================================================================
-  # FRONTEND - React web application
+  # FRONTEND - React web application (apps/web)
   # =============================================================================
   - package-ecosystem: 'npm'
-    directory: '/gruenerator_frontend'
+    directory: '/apps/web'
     schedule:
       interval: 'weekly'
       day: 'tuesday'
@@ -71,52 +67,39 @@ updates:
       - 'dependencies'
       - 'frontend'
     groups:
-      # React ecosystem - group together for compatibility
       react-ecosystem:
         patterns:
           - 'react'
           - 'react-dom'
           - 'react-router*'
           - '@types/react*'
-      # Radix UI components
       radix-ui:
         patterns:
           - '@radix-ui/*'
-      # Remotion video tooling
+          - 'radix-ui'
       remotion:
         patterns:
           - 'remotion'
           - '@remotion/*'
-      # TanStack Query
       tanstack:
         patterns:
           - '@tanstack/*'
-      # Animation libraries
-      animation:
+      tauri:
         patterns:
-          - 'motion'
-      # i18n libraries
-      i18n:
-        patterns:
-          - 'i18next*'
-          - 'react-i18next'
-      # Build tooling
+          - '@tauri-apps/*'
       build-tools:
         dependency-type: 'development'
         patterns:
           - 'vite*'
           - '@vitejs/*'
           - 'eslint*'
-          - '@babel/*'
-          - 'babel-*'
           - 'terser'
-      # Testing libraries
+          - 'tailwindcss'
+          - '@tailwindcss/*'
       testing:
         dependency-type: 'development'
         patterns:
           - '@testing-library/*'
-          - 'jest*'
-      # All other minor/patch updates
       production-minor-patch:
         dependency-type: 'production'
         update-types:
@@ -127,13 +110,11 @@ updates:
           - 'react-dom'
           - 'react-router*'
           - '@radix-ui/*'
+          - 'radix-ui'
           - 'remotion'
           - '@remotion/*'
           - '@tanstack/*'
-          - 'motion'
-          - 'i18next*'
-          - 'react-i18next'
-    # Careful with React major versions - synced across monorepo
+          - '@tauri-apps/*'
     ignore:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
@@ -141,10 +122,10 @@ updates:
         update-types: ['version-update:semver-major']
 
   # =============================================================================
-  # BACKEND - Node.js Express API server
+  # BACKEND - Node.js Express API server (apps/api)
   # =============================================================================
   - package-ecosystem: 'npm'
-    directory: '/gruenerator_backend'
+    directory: '/apps/api'
     schedule:
       interval: 'weekly'
       day: 'wednesday'
@@ -155,79 +136,69 @@ updates:
       - 'dependencies'
       - 'backend'
     groups:
-      # AI/ML SDKs - group for coordinated updates
       ai-sdks:
         patterns:
+          - '@ai-sdk/*'
           - '@anthropic-ai/*'
           - '@mistralai/*'
           - 'openai'
-          - '@aws-sdk/*'
-      # LangChain ecosystem
+          - 'ai'
       langchain:
         patterns:
           - 'langchain'
           - '@langchain/*'
-      # Remotion rendering
-      remotion:
-        patterns:
-          - '@remotion/*'
-      # Express and middleware
       express-middleware:
         patterns:
           - 'express'
           - 'express-*'
-          - 'body-parser'
           - 'cors'
           - 'helmet'
           - 'morgan'
           - 'compression'
           - 'multer'
-      # Authentication
       auth:
         patterns:
           - 'passport*'
           - 'openid-client'
           - 'jose'
-      # Database clients
       database:
         patterns:
           - 'pg'
           - 'redis'
+          - 'ioredis'
           - '@qdrant/*'
-      # PDF and document processing
       document-processing:
         patterns:
           - 'pdf-lib'
           - 'pdfjs-dist'
-          - 'mammoth'
           - 'docx'
           - 'cheerio'
           - 'turndown'
-      # Testing and dev tools
+      sentry:
+        patterns:
+          - '@sentry/*'
+      tus:
+        patterns:
+          - '@tus/*'
       dev-tools:
         dependency-type: 'development'
         patterns:
-          - 'jest*'
-          - '@babel/*'
-          - 'babel-*'
-          - 'nodemon'
-          - 'concurrently'
-      # Minor/patch for remaining production deps
+          - 'vitest*'
+          - 'tsx'
       production-minor-patch:
         dependency-type: 'production'
         update-types:
           - 'minor'
           - 'patch'
         exclude-patterns:
+          - '@ai-sdk/*'
           - '@anthropic-ai/*'
           - '@mistralai/*'
           - 'openai'
-          - '@aws-sdk/*'
+          - 'ai'
           - 'langchain'
           - '@langchain/*'
-          - '@remotion/*'
           - 'express*'
-          - 'body-parser'
           - 'cors'
           - 'helmet'
           - 'morgan'
@@ -238,19 +209,96 @@ updates:
           - 'jose'
           - 'pg'
           - 'redis'
+          - 'ioredis'
           - '@qdrant/*'
           - 'pdf-lib'
           - 'pdfjs-dist'
-          - 'mammoth'
           - 'docx'
           - 'cheerio'
           - 'turndown'
+          - '@sentry/*'
+          - '@tus/*'
 
   # =============================================================================
-  # MOBILE - Expo React Native app
+  # DOCS - Collaborative document editor (apps/docs)
   # =============================================================================
   - package-ecosystem: 'npm'
-    directory: '/packages/mobile'
+    directory: '/apps/docs'
+    schedule:
+      interval: 'weekly'
+      day: 'tuesday'
+      time: '06:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'docs'
+    groups:
+      blocknote:
+        patterns:
+          - '@blocknote/*'
+      mantine:
+        patterns:
+          - '@mantine/*'
+      all-minor-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@blocknote/*'
+          - '@mantine/*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # SITES - Site builder/management interface (apps/sites)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/apps/sites'
+    schedule:
+      interval: 'weekly'
+      day: 'tuesday'
+      time: '07:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'sites'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # GRUEN-O-MAT (apps/gruen-o-mat)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/apps/gruen-o-mat'
+    schedule:
+      interval: 'weekly'
+      day: 'tuesday'
+      time: '08:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'gruen-o-mat'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # MOBILE - Expo React Native app (apps/mobile)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/apps/mobile'
     schedule:
       interval: 'weekly'
       day: 'thursday'
@@ -261,16 +309,13 @@ updates:
       - 'dependencies'
       - 'mobile'
     groups:
-      # Expo SDK - CRITICAL: must update together
       expo:
         patterns:
           - 'expo'
           - 'expo-*'
-      # React Navigation
       react-navigation:
         patterns:
           - '@react-navigation/*'
-      # React Native core and gesture handling
       react-native-core:
         patterns:
           - 'react-native'
@@ -278,7 +323,6 @@ updates:
           - 'react-native-reanimated'
           - 'react-native-screens'
           - 'react-native-safe-area-context'
-      # React Native UI libraries
       react-native-ui:
         patterns:
           - 'react-native-*'
@@ -289,7 +333,6 @@ updates:
           - 'react-native-reanimated'
           - 'react-native-screens'
           - 'react-native-safe-area-context'
-    # Expo SDK major versions require careful migration
     ignore:
       - dependency-name: 'expo'
         update-types: ['version-update:semver-major']
@@ -299,10 +342,44 @@ updates:
         update-types: ['version-update:semver-major']
 
   # =============================================================================
-  # SHARED - Shared TypeScript package
+  # DOCS EXPO - Mobile docs app (apps/docs-expo)
   # =============================================================================
   - package-ecosystem: 'npm'
-    directory: '/packages/shared'
+    directory: '/apps/docs-expo'
+    schedule:
+      interval: 'weekly'
+      day: 'thursday'
+      time: '06:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'docs-expo'
+    groups:
+      expo:
+        patterns:
+          - 'expo'
+          - 'expo-*'
+      all-minor-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - 'expo'
+          - 'expo-*'
+    ignore:
+      - dependency-name: 'expo'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # VIDEO - Remotion video app (apps/video)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/apps/video'
     schedule:
       interval: 'weekly'
       day: 'friday'
@@ -311,9 +388,27 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - 'dependencies'
+      - 'video'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # SHARED PACKAGE (packages/shared)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/shared'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '06:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
       - 'shared'
     groups:
-      # Group all updates - small package
       all-dependencies:
         patterns:
           - '*'
@@ -322,14 +417,179 @@ updates:
         update-types: ['version-update:semver-major']
 
   # =============================================================================
-  # DESKTOP - Tauri desktop app (npm)
+  # CHAT PACKAGE (packages/chat)
   # =============================================================================
   - package-ecosystem: 'npm'
-    directory: '/packages/desktop'
+    directory: '/packages/chat'
     schedule:
       interval: 'weekly'
       day: 'friday'
+      time: '07:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'chat'
+    groups:
+      assistant-ui:
+        patterns:
+          - '@assistant-ui/*'
+      all-minor-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@assistant-ui/*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # DOCS PACKAGE (packages/docs)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/docs'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '08:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'docs-package'
+    groups:
+      blocknote:
+        patterns:
+          - '@blocknote/*'
+      all-minor-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@blocknote/*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # ESLINT CONFIG (packages/eslint-config)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/eslint-config'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '09:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'eslint-config'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # MCP SERVER (services/mcp)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/services/mcp'
+    schedule:
+      interval: 'weekly'
+      day: 'wednesday'
       time: '06:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'mcp'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # HOCUSPOCUS SERVER (services/hocuspocus)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/services/hocuspocus'
+    schedule:
+      interval: 'weekly'
+      day: 'wednesday'
+      time: '07:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'hocuspocus'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # REMOTION SERVICE (services/remotion)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/services/remotion'
+    schedule:
+      interval: 'weekly'
+      day: 'wednesday'
+      time: '08:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'remotion'
+    groups:
+      remotion:
+        patterns:
+          - 'remotion'
+          - '@remotion/*'
+      all-minor-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - 'remotion'
+          - '@remotion/*'
+
+  # =============================================================================
+  # DOCUMENTATION - Docusaurus site (documentation/)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/documentation'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '10:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'documentation'
+    groups:
+      docusaurus:
+        patterns:
+          - '@docusaurus/*'
+      all-minor-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@docusaurus/*'
+
+  # =============================================================================
+  # DESKTOP - Tauri desktop app npm deps (apps/desktop)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/apps/desktop'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '11:00'
       timezone: 'Europe/Berlin'
     open-pull-requests-limit: 5
     labels:
@@ -344,11 +604,11 @@ updates:
   # DESKTOP - Tauri Rust dependencies (Cargo)
   # =============================================================================
   - package-ecosystem: 'cargo'
-    directory: '/packages/desktop/src-tauri'
+    directory: '/apps/desktop/src-tauri'
     schedule:
       interval: 'weekly'
       day: 'friday'
-      time: '07:00'
+      time: '12:00'
       timezone: 'Europe/Berlin'
     open-pull-requests-limit: 5
     labels:
@@ -362,7 +622,6 @@ updates:
       serde:
         patterns:
           - 'serde*'
-      # All other minor/patch
       minor-patch:
         update-types:
           - 'minor'
@@ -370,6 +629,51 @@ updates:
         exclude-patterns:
           - 'tauri*'
           - 'serde*'
+
+  # =============================================================================
+  # DOCS DESKTOP - Tauri docs desktop app (apps/docs-desktop)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/apps/docs-desktop'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '13:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'docs-desktop'
+    groups:
+      tauri:
+        patterns:
+          - '@tauri-apps/*'
+
+  # =============================================================================
+  # DOCS DESKTOP - Tauri Rust dependencies (Cargo)
+  # =============================================================================
+  - package-ecosystem: 'cargo'
+    directory: '/apps/docs-desktop/src-tauri'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '14:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'docs-desktop'
+      - 'rust'
+    groups:
+      tauri-rust:
+        patterns:
+          - 'tauri*'
+      minor-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - 'tauri*'
 
   # =============================================================================
   # GITHUB ACTIONS - CI/CD workflows (DAILY for security)
@@ -386,7 +690,6 @@ updates:
       - 'ci'
       - 'github-actions'
     groups:
-      # Group all actions together
       actions:
         patterns:
           - '*'
