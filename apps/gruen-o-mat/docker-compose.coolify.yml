@@ -12,8 +12,6 @@
 services:
   gruen-o-mat:
     image: ghcr.io/netzbegruenung/gruenerator-gruen-o-mat:${TAG:-latest}
-    ports:
-      - '80:80'
     environment:
       - API_BASE_URL=${API_BASE_URL:-https://gruenerator.eu}
     restart: unless-stopped
