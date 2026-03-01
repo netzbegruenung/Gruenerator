@@ -40,13 +40,32 @@ export function createGrueneratorThreadListAdapter(
     getExternalThreads?: () => ExternalThreadEntry[];
   }
 ): RemoteThreadListAdapter {
+  let cachedThreads: ApiThread[] = [];
+
   return {
     async list() {
       try {
         const threads = await apiClient.get<ApiThread[]>('/api/chat-service/threads');
+        cachedThreads = threads;
+
+        // Auto-cleanup: delete stale empty threads (keep newest one)
+        const emptyThreads = threads.filter(
+          (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
+        );
+        if (emptyThreads.length > 1) {
+          const [_keep, ...stale] = emptyThreads.sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+          for (const t of stale) {
+            apiClient.delete(`/api/chat-service/threads?threadId=${t.id}`).catch(() => {});
+          }
+          const staleIds = new Set(stale.map((t) => t.id));
+          cachedThreads = threads.filter((t) => !staleIds.has(t.id));
+        }
+
         const external = callbacks?.getExternalThreads?.() ?? [];
 
-        const apiEntries = threads.map((t) => ({
+        const apiEntries = cachedThreads.map((t) => ({
           remoteId: t.id,
           status: (t.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
           title: t.title ?? undefined,
@@ -74,6 +93,12 @@ export function createGrueneratorThreadListAdapter(
     },
 
     async initialize(_localId: string) {
+      const emptyThread = cachedThreads.find(
+        (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
+      );
+      if (emptyThread) {
+        return { remoteId: emptyThread.id, externalId: undefined };
+      }
       const result = await apiClient.post<{ id: string }>('/api/chat-service/threads', {
         agentId,
       });
