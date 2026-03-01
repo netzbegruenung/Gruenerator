@@ -16,3 +16,6 @@ export {
   calculateNameSimilarity,
   findBestMatch,
 } from './stringDistance.js';
+
+// Tailwind CSS class merging utility
+export { cn } from './cn.js';
