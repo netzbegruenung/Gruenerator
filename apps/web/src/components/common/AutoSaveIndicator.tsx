@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { HiCheckCircle, HiExclamationCircle } from 'react-icons/hi';
 import { ImSpinner2 } from 'react-icons/im';
 
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
+import { buildLoginUrl } from '../../utils/authRedirect';
 import { formatAutoSaveTime } from '../../utils/dateFormatter';
 import '../../assets/styles/components/common/auto-save-indicator.css';
 
@@ -23,6 +24,11 @@ const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
 }) => {
   const status = useGeneratedTextStore((state) => state.getAutoSaveStatus(componentName));
   const lastSaved = useGeneratedTextStore((state) => state.getLastAutoSaveTime(componentName));
+
+  const handleLogin = useCallback(() => {
+    const currentPath = window.location.pathname + window.location.search;
+    window.location.href = buildLoginUrl(currentPath);
+  }, []);
 
   // Don't render anything in idle state
   if (status === 'idle') {
@@ -69,6 +75,24 @@ const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
                 Erneut versuchen
               </button>
             )}
+          </>
+        );
+
+      case 'session_expired':
+        return (
+          <>
+            <HiExclamationCircle
+              className="auto-save-indicator__icon auto-save-indicator__icon--error"
+              aria-hidden="true"
+            />
+            <span className="auto-save-indicator__text">Sitzung abgelaufen</span>
+            <button
+              className="auto-save-indicator__retry"
+              onClick={handleLogin}
+              aria-label="Anmelden"
+            >
+              Anmelden
+            </button>
           </>
         );
 

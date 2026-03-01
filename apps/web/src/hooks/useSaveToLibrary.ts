@@ -10,6 +10,7 @@ export const useSaveToLibrary = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
 
   /**
    * Save content to user's library
@@ -28,15 +29,20 @@ export const useSaveToLibrary = () => {
     setIsLoading(true);
     setError(null);
     setSuccess(false);
+    setIsSessionExpired(false);
 
     try {
       console.log('[useSaveToLibrary] Saving content to library...');
 
-      const response = await apiClient.post('/auth/save-to-library', {
-        content: content.trim(),
-        title: title || 'Unbenannter Text',
-        type: type,
-      });
+      const response = await apiClient.post(
+        '/auth/save-to-library',
+        {
+          content: content.trim(),
+          title: title || 'Unbenannter Text',
+          type: type,
+        },
+        { skipAuthRedirect: true }
+      );
 
       console.log('[useSaveToLibrary] Content successfully saved to library');
       setSuccess(true);
@@ -50,10 +56,18 @@ export const useSaveToLibrary = () => {
     } catch (error: unknown) {
       console.error('[useSaveToLibrary] Error saving to library:', error);
 
-      // Extract user-friendly error message
-      let errorMessage = 'Fehler beim Speichern in der Bibliothek.';
+      const axiosError = error as {
+        response?: { status?: number; data?: { message?: string } };
+        message?: string;
+      };
 
-      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      if (axiosError.response?.status === 401) {
+        setIsSessionExpired(true);
+        setError('Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.');
+        throw error;
+      }
+
+      let errorMessage = 'Fehler beim Speichern in der Bibliothek.';
       if (axiosError.response?.data?.message) {
         errorMessage = axiosError.response.data.message;
       } else if (axiosError.message) {
@@ -86,6 +100,7 @@ export const useSaveToLibrary = () => {
     isLoading,
     error,
     success,
+    isSessionExpired,
     clearError,
     clearSuccess,
   };

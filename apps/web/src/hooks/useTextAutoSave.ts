@@ -21,7 +21,7 @@ export interface UseTextAutoSaveOptions {
  * Hook return type
  */
 export interface UseTextAutoSaveReturn {
-  status: 'idle' | 'saving' | 'saved' | 'error';
+  status: 'idle' | 'saving' | 'saved' | 'error' | 'session_expired';
   lastSaved: number | null;
   error: string | null;
   triggerManualSave: () => Promise<void>;
@@ -98,7 +98,9 @@ export function useTextAutoSave(options: UseTextAutoSaveOptions): UseTextAutoSav
         console.error('[useTextAutoSave] Save failed:', error);
 
         if (isMountedRef.current) {
-          setAutoSaveStatus(componentName, 'error');
+          const axiosErr = error as { response?: { status?: number } };
+          const isExpired = axiosErr.response?.status === 401;
+          setAutoSaveStatus(componentName, isExpired ? 'session_expired' : 'error');
 
           if (onSaveError && error instanceof Error) {
             onSaveError(error);
