@@ -40,7 +40,7 @@
     "documentation"
   ],
   "dependencies": {
-    "@supabase/supabase-js": "^2.97.0",
+    "@supabase/supabase-js": "^2.98.0",
     "dotenv": "^16.6.1"
   },
   "devDependencies": {
@@ -49,7 +49,7 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.6",
-    "@types/node": "^24.10.13",
+    "@types/node": "^24.11.0",
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "husky": "^9.1.7",
@@ -57,7 +57,7 @@
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.1",
     "semantic-release": "^25.0.3",
-    "turbo": "^2.8.11",
+    "turbo": "^2.8.12",
     "typescript": "^5.9.3",
     "wait-on": "^9.0.4"
   },
