@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Platform } from 'react-native';
 
 import { colors } from '../../theme';
@@ -13,50 +13,70 @@ export function NativeTabLayout() {
       <NativeTabs.Trigger name="index" hidden />
       <NativeTabs.Trigger name="start">
         {Platform.select({
-          ios: <Icon sf={{ default: 'house', selected: 'house.fill' }} />,
-          android: <Icon src={<VectorIcon family={Ionicons} name="home" />} />,
+          ios: <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />,
+          android: (
+            <NativeTabs.Trigger.Icon
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="home" />}
+            />
+          ),
         })}
-        <Label>Start</Label>
+        <NativeTabs.Trigger.Label>Start</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(texte)">
         {Platform.select({
-          ios: <Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} />,
-          android: <Icon src={<VectorIcon family={Ionicons} name="document-text" />} />,
+          ios: <NativeTabs.Trigger.Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} />,
+          android: (
+            <NativeTabs.Trigger.Icon
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="document-text" />}
+            />
+          ),
         })}
-        <Label>Texte</Label>
+        <NativeTabs.Trigger.Label>Texte</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(media)">
         {Platform.select({
-          ios: <Icon sf={{ default: 'video', selected: 'video.fill' }} />,
-          android: <Icon src={<VectorIcon family={Ionicons} name="videocam" />} />,
+          ios: <NativeTabs.Trigger.Icon sf={{ default: 'video', selected: 'video.fill' }} />,
+          android: (
+            <NativeTabs.Trigger.Icon
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="videocam" />}
+            />
+          ),
         })}
-        <Label>Medien</Label>
+        <NativeTabs.Trigger.Label>Medien</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(tools)">
         {Platform.select({
           ios: (
-            <Icon
+            <NativeTabs.Trigger.Icon
               sf={{ default: 'wrench.and.screwdriver', selected: 'wrench.and.screwdriver.fill' }}
             />
           ),
-          android: <Icon src={<VectorIcon family={Ionicons} name="construct" />} />,
+          android: (
+            <NativeTabs.Trigger.Icon
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="construct" />}
+            />
+          ),
         })}
-        <Label>Tools</Label>
+        <NativeTabs.Trigger.Label>Tools</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(notebooks)" hidden />
       <NativeTabs.Trigger name="(chat)">
         {Platform.select({
           ios: (
-            <Icon
+            <NativeTabs.Trigger.Icon
               sf={{
                 default: 'bubble.left.and.text.bubble.right',
                 selected: 'bubble.left.and.text.bubble.right.fill',
               }}
             />
           ),
-          android: <Icon src={<VectorIcon family={Ionicons} name="chatbubble-ellipses" />} />,
+          android: (
+            <NativeTabs.Trigger.Icon
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="chatbubble-ellipses" />}
+            />
+          ),
         })}
-        <Label>Chat</Label>
+        <NativeTabs.Trigger.Label>Chat</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>
