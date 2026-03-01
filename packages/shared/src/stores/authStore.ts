@@ -1,6 +1,8 @@
-import { create, StateCreator } from 'zustand';
-import type { AuthState, AuthActions, AuthStore, User } from '../types/auth.js';
+import { create, type StateCreator } from 'zustand';
+
 import { DEFAULT_AUTH_STATE } from '../types/auth.js';
+
+import type { AuthState, AuthActions, AuthStore, User } from '../types/auth.js';
 
 /**
  * Configuration for profile API operations

@@ -3,6 +3,8 @@
  * Form validation functions for text generators.
  */
 
+import { VALIDATION_MESSAGES } from '../constants.js';
+
 import type {
   PresseSocialRequest,
   AntragRequest,
@@ -12,7 +14,6 @@ import type {
   TextImproverRequest,
   ValidationResult,
 } from '../types.js';
-import { VALIDATION_MESSAGES } from '../constants.js';
 
 /**
  * Validates a PresseSocial generator request.

@@ -4,16 +4,17 @@
  * Note: This control has a unique UI (3 rows of steppers) so it doesn't delegate to a generic component
  */
 
-import { useCallback } from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { OffsetStepper } from '../ui/controls';
-import { useImageStudioStore } from '../../stores/imageStudioStore';
-import { spacing, lightTheme, darkTheme } from '../../theme';
 import {
   MODIFICATION_CONTROLS_CONFIG,
   MODIFICATION_LABELS,
   type BalkenOffset,
 } from '@gruenerator/shared/image-studio';
+import { useCallback } from 'react';
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+
+import { useImageStudioStore } from '../../stores/imageStudioStore';
+import { spacing, lightTheme, darkTheme } from '../../theme';
+import { OffsetStepper } from '../ui/controls';
 
 const LINE_LABELS = [
   MODIFICATION_LABELS.LINE_1,

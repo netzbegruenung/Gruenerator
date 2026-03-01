@@ -4,6 +4,7 @@
  */
 
 import { getGlobalApiClient } from '../api/client.js';
+
 import type { Project, ProjectsApiResponse, SaveProjectData, UpdateProjectData } from './types.js';
 
 const PROJECTS_ENDPOINT = '/subtitler/projects';

@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+
 import { PROCESSING_STAGES } from '../../hooks/useReelProcessing';
+import { colors, spacing, borderRadius, typography } from '../../theme';
 
 interface ProcessingProgressProps {
   currentStage: 1 | 2 | 3 | 4;

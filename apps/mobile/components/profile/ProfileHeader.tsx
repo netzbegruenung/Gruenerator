@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+
 import { lightTheme, darkTheme, spacing } from '../../theme';
 import { ProfileAvatar } from '../common';
 

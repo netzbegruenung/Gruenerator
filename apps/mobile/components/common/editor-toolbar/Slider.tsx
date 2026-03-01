@@ -3,8 +3,9 @@
  * Generic slider with optional value display
  */
 
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import RNSlider from '@react-native-community/slider';
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
 export interface SliderProps {

@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+
 import type {
   MediaItem,
   MediaType,

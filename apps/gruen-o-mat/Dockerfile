@@ -41,67 +41,17 @@ LABEL org.opencontainers.image.title="Gruen-O-Mat"
 LABEL org.opencontainers.image.description="Public Green Party Q&A Bot Frontend"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
 
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl gettext
 
 # Remove default nginx config
 RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 
-# Custom nginx config: SPA routing + API reverse proxy
-COPY <<'EOF' /etc/nginx/conf.d/default.conf
-server {
-    listen 80;
-    server_name _;
-    root /usr/share/nginx/html;
-    index index.html;
+# Copy nginx config template (envsubst substitutes ${API_BASE_URL} at startup)
+COPY apps/gruen-o-mat/nginx.conf.template /etc/nginx/templates/default.conf.template
 
-    # Docker DNS resolver (re-resolve container IPs after restarts)
-    resolver 127.0.0.11 valid=10s ipv6=off;
-
-    # Gzip compression
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
-
-    # Cache static assets (Vite hashed filenames)
-    location ~* \.(css|js|map|jpe?g|gif|png|webp|svg|ico|woff|woff2)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-        try_files $uri =404;
-    }
-
-    # Reverse proxy API requests to the backend service
-    # SSE streaming requires buffering off + long timeouts
-    location /api/ {
-        set $upstream_api http://api:3001;
-        proxy_pass $upstream_api;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
-        proxy_set_header X-Forwarded-Host $host;
-
-        # SSE streaming support
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 300s;
-        proxy_connect_timeout 75s;
-    }
-
-    # SPA fallback — serve index.html for client-side routing
-    location / {
-        try_files $uri /index.html;
-    }
-
-    # Health check
-    location /health {
-        access_log off;
-        return 200 "healthy\n";
-        add_header Content-Type text/plain;
-    }
-}
-EOF
+# Copy entrypoint script
+COPY apps/gruen-o-mat/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Copy built frontend from builder
 COPY --from=builder /app/apps/gruen-o-mat/dist /usr/share/nginx/html
@@ -109,9 +59,13 @@ COPY --from=builder /app/apps/gruen-o-mat/dist /usr/share/nginx/html
 # Verify build output
 RUN ls -la /usr/share/nginx/html/
 
+# Default API target — backward-compatible with the 3-service docker-compose.yml
+ENV API_BASE_URL=http://api:3001
+
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost/health || exit 1
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

@@ -1,8 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, useColorScheme, Share, Pressable } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
-import { Button } from './common';
+import { View, Text, StyleSheet, ScrollView, useColorScheme, Share, Pressable } from 'react-native';
+
 import { colors, typography, spacing, borderRadius, lightTheme, darkTheme } from '../theme';
+
+import { Button } from './common';
 
 interface GeneratedTextDisplayProps {
   text: string;

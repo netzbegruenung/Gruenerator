@@ -1,6 +1,7 @@
+import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+
 import { initializeApiClient } from '../../services/api';
 import { handleAuthCallback, configureAuthStore } from '../../services/auth';
 import { colors } from '../../theme';

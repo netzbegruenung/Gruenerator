@@ -3,9 +3,10 @@ import {
   Text,
   TextInput as RNTextInput,
   StyleSheet,
-  TextInputProps,
+  type TextInputProps,
   useColorScheme,
 } from 'react-native';
+
 import { colors, typography, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 
 interface Props extends TextInputProps {

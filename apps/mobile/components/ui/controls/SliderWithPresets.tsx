@@ -3,11 +3,13 @@
  * Reusable component for numeric value selection with presets
  */
 
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Slider } from '../../common/editor-toolbar';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { Slider } from '../../common/editor-toolbar';
+
 import { PresetButtonRow, type PresetOption } from './PresetButtonRow';
 
 interface SliderWithPresetsProps {

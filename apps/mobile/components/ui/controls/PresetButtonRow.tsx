@@ -4,6 +4,7 @@
  */
 
 import { View, Text, Pressable, StyleSheet, useColorScheme, type ViewStyle } from 'react-native';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
 export interface PresetOption<T> {

@@ -3,11 +3,14 @@
  * Scrollable list of subtitle segments
  */
 
+import { SUBTITLE_EDITOR_LABELS } from '@gruenerator/shared/subtitle-editor';
 import { forwardRef, useCallback } from 'react';
 import { FlatList, View, Text, StyleSheet, useColorScheme } from 'react-native';
+
 import { colors, spacing, lightTheme, darkTheme, verticalScale } from '../../theme';
+
 import { SubtitleSegmentItem } from './SubtitleSegmentItem';
-import { SUBTITLE_EDITOR_LABELS } from '@gruenerator/shared/subtitle-editor';
+
 import type { SubtitleSegment } from '@gruenerator/shared/subtitle-editor';
 
 interface SubtitleTimelineProps {

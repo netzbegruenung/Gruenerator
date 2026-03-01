@@ -1,13 +1,15 @@
-import { Modal, View, Text, StyleSheet, ScrollView, useColorScheme, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SharepicTypeSelector } from './SharepicTypeSelector';
-import { TextInput, Button, ImagePicker } from '../common';
 import {
   type SharepicType,
   sharepicTypeRequiresAuthor,
   sharepicTypeSupportsImage,
 } from '@gruenerator/shared/sharepic';
+import { Modal, View, Text, StyleSheet, ScrollView, useColorScheme, Pressable } from 'react-native';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { TextInput, Button, ImagePicker } from '../common';
+
+import { SharepicTypeSelector } from './SharepicTypeSelector';
 
 interface SharepicConfigModalProps {
   visible: boolean;

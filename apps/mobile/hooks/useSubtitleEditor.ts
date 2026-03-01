@@ -3,10 +3,6 @@
  * Handles video player integration and subtitle editing logic
  */
 
-import { useCallback, useRef, useEffect } from 'react';
-import { VideoPlayer } from 'expo-video';
-import { FlatList, Alert } from 'react-native';
-import { useSubtitleEditorStore, selectActiveSegmentId } from '../stores/subtitleEditorStore';
 import { updateProject, saveProject, useProjectsStore } from '@gruenerator/shared';
 import {
   formatSubtitlesToText,
@@ -14,6 +10,12 @@ import {
   getPreviousSegment,
   SUBTITLE_EDITOR_LABELS,
 } from '@gruenerator/shared/subtitle-editor';
+import { type VideoPlayer } from 'expo-video';
+import { useCallback, useRef, useEffect } from 'react';
+import { type FlatList, Alert } from 'react-native';
+
+import { useSubtitleEditorStore, selectActiveSegmentId } from '../stores/subtitleEditorStore';
+
 import type { SubtitleSegment } from '@gruenerator/shared/subtitle-editor';
 
 const AUTO_SAVE_DELAY_MS = 30000; // 30 seconds

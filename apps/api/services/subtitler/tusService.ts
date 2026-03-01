@@ -176,7 +176,7 @@ async function scheduleImmediateCleanup(
   }, 5000);
 }
 
-tusServer.on('POST_CREATE', (req, res, upload) => {
+tusServer.on('POST_CREATE', (req, upload) => {
   activeUploads.add(upload.id);
 });
 

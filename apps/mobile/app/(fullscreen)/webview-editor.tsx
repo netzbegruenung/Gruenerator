@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
-import { View, StyleSheet, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useCallback } from 'react';
+import { View, StyleSheet, useColorScheme } from 'react-native';
+
 import { WebViewEditor } from '../../components/image-studio/WebViewEditor';
 import { useImageStudioStore } from '../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../theme';

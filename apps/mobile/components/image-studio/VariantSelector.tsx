@@ -3,11 +3,13 @@
  * Style variant chips for pure-create KI generation
  */
 
-import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { KiStyleVariant } from '@gruenerator/shared/image-studio';
 import { STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
+import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
+
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+
+import type { KiStyleVariant } from '@gruenerator/shared/image-studio';
 
 interface VariantSelectorProps {
   selected: KiStyleVariant;

@@ -6,10 +6,11 @@
  * Note: Controls passed as children handle their own state via Zustand selectors
  */
 
+import { Ionicons } from '@expo/vector-icons';
 import { type ReactNode } from 'react';
 import { View, Pressable, StyleSheet, useColorScheme, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { spacing, lightTheme, darkTheme, moderateScale, verticalScale } from '../../../theme';
 
 export interface InlineBarProps {

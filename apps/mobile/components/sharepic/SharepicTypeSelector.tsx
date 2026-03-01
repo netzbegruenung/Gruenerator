@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { ChipGroup } from '../common';
 import { SHAREPIC_TYPES, type SharepicType } from '@gruenerator/shared/sharepic';
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+
 import { spacing, lightTheme, darkTheme, typography } from '../../theme';
+import { ChipGroup } from '../common';
 
 interface SharepicTypeSelectorProps {
   selected: SharepicType;
