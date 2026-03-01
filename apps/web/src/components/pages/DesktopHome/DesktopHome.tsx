@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
-import { useBetaFeaturesStore } from '../../../stores/betaFeaturesStore';
 import { getDirectMenuItems, type MenuItemType } from '../../layout/Header/menuData';
 
 import type { ComponentType } from 'react';
@@ -29,15 +28,12 @@ const DesktopHome = () => {
   const displayName = useAuthStore((state) => state.user?.display_name);
   const firstName = displayName?.split(' ')[0];
   const navigate = useNavigate();
-  const betaFeatures = useBetaFeaturesStore((state) => state.betaFeatures);
 
   const menuItems = useMemo(() => {
-    const items = getDirectMenuItems({
-      chatBetaEnabled: betaFeatures.chat,
-    });
+    const items = getDirectMenuItems({});
 
     return Object.values(items).filter((item) => item.id !== 'home' && item.path);
-  }, [betaFeatures.chat]);
+  }, []);
 
   return (
     <div className="desktop-home">

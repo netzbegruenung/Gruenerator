@@ -6,7 +6,6 @@ import {
   HiOutlineDatabase,
   HiOutlineUsers,
   HiSave,
-  HiOutlineChat,
   HiOutlineDocumentSearch,
 } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
@@ -77,7 +76,6 @@ const BETA_VIEWS = {
   VORLAGEN: 'vorlagen',
   SCANNER: 'scanner',
   DOCS: 'docs',
-  CHAT: 'chat',
   AUTO_SAVE_GENERATED: 'autoSaveGenerated',
   AUTO_DOCUMENT_SEARCH: 'autoDocumentSearch',
 };
@@ -118,18 +116,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           featureName: 'Kollaborative Bearbeitung',
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers,
-        };
-      case BETA_VIEWS.CHAT:
-        return {
-          title: 'Grünerator Chat',
-          description: 'KI-Chat für Fragen und Antworten',
-          checked: getBetaFeatureState('chat'),
-          setter: (value: boolean) => updateUserBetaFeatures('chat', value),
-          featureName: 'Grünerator Chat',
-          checkboxLabel: 'Grünerator Chat aktivieren',
-          linkTo: '/chat',
-          linkText: 'Zum Chat',
-          icon: HiOutlineChat,
         };
       case BETA_VIEWS.GROUPS:
         return {
