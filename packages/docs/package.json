@@ -23,11 +23,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@blocknote/core": "^0.46.2",
-    "@blocknote/mantine": "^0.46.2",
-    "@blocknote/react": "^0.46.2",
-    "@blocknote/xl-ai": "^0.46.2",
-    "@blocknote/xl-docx-exporter": "^0.46.2",
+    "@blocknote/core": "^0.47.0",
+    "@blocknote/mantine": "^0.47.0",
+    "@blocknote/react": "^0.47.0",
+    "@blocknote/xl-ai": "^0.47.0",
+    "@blocknote/xl-docx-exporter": "^0.47.0",
     "@floating-ui/react": "^0.27.18",
     "@hocuspocus/provider": "^3.4.4",
     "ai": "^6.0.100",
