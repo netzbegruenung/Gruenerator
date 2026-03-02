@@ -26,6 +26,8 @@ export const ALLOWED_DOMAINS: string[] = [
   'sites.beta.gruenerator.eu',
   'gruenerator.at',
   'www.gruenerator.at',
+  'gruen-o-mat.eu',
+  'www.gruen-o-mat.eu',
   'gruenerator.eu',
   'www.gruenerator.eu',
   'gruenerator-test.de',

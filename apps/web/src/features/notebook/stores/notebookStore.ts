@@ -47,6 +47,7 @@ interface NotebookState {
     selectionMode?: 'documents' | 'wolke';
     documents?: string[];
     wolkeShareLinks?: string[];
+    labels?: string[];
   }) => Promise<NotebookCollection>;
   updateQACollection: (
     collectionId: string,
@@ -57,6 +58,7 @@ interface NotebookState {
       selectionMode?: 'documents' | 'wolke';
       documents?: string[];
       wolkeShareLinks?: string[];
+      labels?: string[];
     }
   ) => Promise<void>;
   deleteQACollection: (collectionId: string) => Promise<void>;
@@ -145,6 +147,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         selection_mode: string;
         document_ids?: string[];
         wolke_share_link_ids?: string[];
+        labels?: string[];
       } = {
         name: collectionData.name,
         description: collectionData.description,
@@ -157,6 +160,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.wolke_share_link_ids = collectionData.wolkeShareLinks || [];
       } else {
         requestData.document_ids = collectionData.documents || [];
+      }
+
+      if (collectionData.labels) {
+        requestData.labels = collectionData.labels;
       }
 
       const response = await apiClient.post('/auth/notebook-collections', requestData);
@@ -191,6 +198,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         selection_mode: string;
         document_ids?: string[];
         wolke_share_link_ids?: string[];
+        labels?: string[];
       } = {
         name: collectionData.name,
         description: collectionData.description,
@@ -203,6 +211,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.wolke_share_link_ids = collectionData.wolkeShareLinks || [];
       } else {
         requestData.document_ids = collectionData.documents || [];
+      }
+
+      if (collectionData.labels) {
+        requestData.labels = collectionData.labels;
       }
 
       const response = await apiClient.put(

@@ -14,6 +14,8 @@ services:
     image: ghcr.io/netzbegruenung/gruenerator-gruen-o-mat:${TAG:-latest}
     environment:
       - API_BASE_URL=${API_BASE_URL:-https://gruenerator.eu}
+      - AUTH_USERNAME=${AUTH_USERNAME:-}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost/health']

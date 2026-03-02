@@ -61,6 +61,7 @@ import {
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
 import { recentValuesRouter } from './routes/user/index.js';
+import ttsRouter from './routes/voice/ttsController.js';
 import voiceRouter from './routes/voice/voiceController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
@@ -276,6 +277,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/docs', requireAuth, docsRouter);
   app.use('/api/users', requireAuth, usersRouter);
   app.use('/api/voice', voiceRouter);
+  app.use('/api/voice/tts', requireAuth, ttsRouter);
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchRouter);
   app.use('/api/image-picker', imagePickerRoute);
