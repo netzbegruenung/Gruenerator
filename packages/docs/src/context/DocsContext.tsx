@@ -45,6 +45,16 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
   async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${adapter.getApiBaseUrl()}${endpoint}`;
 
+    const isRename = options.method === 'PUT' && endpoint.startsWith('/docs/');
+    if (isRename) {
+      console.log(
+        '[docs-rename] apiClient request: %s %s, body=%s',
+        options.method,
+        url,
+        options.body
+      );
+    }
+
     const response = await adapter.fetch(url, {
       ...options,
       headers: {
@@ -54,6 +64,7 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
     });
 
     if (response.status === 401) {
+      if (isRename) console.error('[docs-rename] apiClient: 401 Unauthorized for %s', url);
       adapter.onUnauthorized();
       throw new Error('Unauthorized');
     }
@@ -65,6 +76,14 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
       } catch {
         errorData = { message: response.statusText };
       }
+      if (isRename) {
+        console.error(
+          '[docs-rename] apiClient: HTTP %d for %s, error=%o',
+          response.status,
+          url,
+          errorData
+        );
+      }
       throw new Error(errorData.message || errorData.error || 'Request failed');
     }
 
@@ -73,6 +92,13 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
       return await response.json();
     }
 
+    if (isRename) {
+      console.warn(
+        '[docs-rename] apiClient: non-JSON response for %s, content-type=%s',
+        url,
+        contentType
+      );
+    }
     return response as unknown as T;
   }
 

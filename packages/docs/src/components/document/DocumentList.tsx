@@ -73,12 +73,25 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
   const handleRenameDocument = async (doc: { id: string; title: string }, e: React.MouseEvent) => {
     e.stopPropagation();
     const newTitle = window.prompt('Neuer Titel:', doc.title);
+    console.log(
+      '[docs-rename] DocumentList prompt result: docId=%s, oldTitle="%s", newTitle=%o',
+      doc.id,
+      doc.title,
+      newTitle
+    );
     if (newTitle && newTitle.trim() && newTitle.trim() !== doc.title) {
       try {
         await updateDocument(apiClient, doc.id, { title: newTitle.trim() });
+        console.log('[docs-rename] DocumentList rename success: docId=%s', doc.id);
       } catch (error) {
-        console.error('Failed to rename document:', error);
+        console.error(
+          '[docs-rename] DocumentList rename failed: docId=%s, error=%o',
+          doc.id,
+          error
+        );
       }
+    } else {
+      console.log('[docs-rename] DocumentList rename skipped: cancelled or unchanged');
     }
   };
 
