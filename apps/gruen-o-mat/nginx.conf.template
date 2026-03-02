@@ -20,6 +20,7 @@ server {
     # Reverse proxy API requests to the backend
     # SSE streaming requires buffering off + long timeouts
     location /api/ {
+        # __AUTH_PLACEHOLDER__
         proxy_pass ${API_BASE_URL}/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -37,10 +38,11 @@ server {
 
     # SPA fallback — serve index.html for client-side routing
     location / {
+        # __AUTH_PLACEHOLDER__
         try_files $uri /index.html;
     }
 
-    # Health check
+    # Health check (no auth — needed for Docker/Coolify health probes)
     location /health {
         access_log off;
         return 200 "healthy\n";

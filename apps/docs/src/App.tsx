@@ -11,6 +11,9 @@ const EditorPage = lazy(() =>
 );
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))
+);
 
 // Initialize API client (side-effect: sets up shared API client)
 import './lib/apiClient';
@@ -53,6 +56,16 @@ function App() {
                   <ProtectedRoute>
                     <ErrorBoundary showHomeLink>
                       <EditorPage />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary showHomeLink>
+                      <SettingsPage />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }
