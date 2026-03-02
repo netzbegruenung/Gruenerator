@@ -222,6 +222,19 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
     defaultFilter: { field: 'landesverband', value: 'BY' },
   },
+  'berlin-system': {
+    id: 'berlin-system',
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Berlin',
+    description: 'Pressemitteilungen und Beschlüsse der Grünen Berlin',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+    ],
+    defaultFilter: { field: 'landesverband', value: 'BE' },
+  },
 };
 
 // =============================================================================

@@ -63,6 +63,16 @@ const PRODUCTION_NOTEBOOKS = [
     category: 'landesebene',
   },
   {
+    id: 'berlin-notebook',
+    path: '/gruene-berlin',
+    title: 'Frag Grüne Berlin',
+    description: 'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Berlin.',
+    meta: 'Archiv',
+    tags: ['Berlin', 'Beschlüsse', 'Presse'],
+    order: 7,
+    category: 'landesebene',
+  },
+  {
     id: 'oesterreich-notebook',
     path: '/gruene-oesterreich',
     title: 'Frag Die Grünen Österreich',

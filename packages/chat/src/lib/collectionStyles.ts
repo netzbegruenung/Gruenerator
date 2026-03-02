@@ -54,6 +54,11 @@ export const COLLECTION_STYLES: Record<string, { color: string; bg: string; labe
     bg: 'var(--color-collection-landesverband-bg)',
     label: 'Bayern',
   },
+  berlin: {
+    color: 'var(--color-collection-landesverband)',
+    bg: 'var(--color-collection-landesverband-bg)',
+    label: 'Berlin',
+  },
   oesterreich: {
     color: 'var(--color-collection-oesterreich)',
     bg: 'var(--color-collection-oesterreich-bg)',

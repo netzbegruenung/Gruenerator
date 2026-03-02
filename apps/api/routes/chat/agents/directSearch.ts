@@ -88,6 +88,10 @@ const COLLECTION_MAP: Record<string, { qdrantCollection: string; systemId: strin
     qdrantCollection: 'landesverbaende_documents',
     systemId: 'bayern-system',
   },
+  berlin: {
+    qdrantCollection: 'landesverbaende_documents',
+    systemId: 'berlin-system',
+  },
 };
 
 export interface DirectSearchResult {

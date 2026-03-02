@@ -3,12 +3,18 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { colors, spacing, borderRadius } from '../../theme';
 
-import type { Thread } from '../../services/chatThreads';
-import type { lightTheme, darkTheme } from '../../theme/colors';
+import type { Theme } from '../../theme/colors';
+
+interface ThreadItem {
+  id: string;
+  title: string | null;
+  updatedAt: string;
+  lastMessage?: { content: string; role: string; created_at: string } | null;
+}
 
 interface Props {
-  thread: Thread;
-  theme: typeof lightTheme | typeof darkTheme;
+  thread: ThreadItem;
+  theme: Theme;
   onPress: () => void;
   onDelete: () => void;
 }

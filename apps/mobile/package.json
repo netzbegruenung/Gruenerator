@@ -25,12 +25,14 @@
     "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
   },
   "dependencies": {
+    "@assistant-ui/react-native": "^0.1.1",
     "@expo-google-fonts/raleway": "^0.4.2",
     "@expo/dom-webview": "^55.0.3",
     "@expo/metro-runtime": "~55.0.6",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/vector-icons": "^15.1.1",
     "@gorhom/bottom-sheet": "^5.2.8",
+    "@gruenerator/chat": "workspace:*",
     "@gruenerator/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/slider": "5.1.2",

@@ -6,6 +6,7 @@
 
 import { Router } from 'express';
 
+import { isSystemCollectionId } from '../../config/systemCollectionsConfig.js';
 import { rateLimitMiddleware, rateLimitInfo } from '../../middleware/rateLimitMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 import { handleNotebookStream, sendSSE } from '../chat/notebookStreamCore.js';
@@ -17,7 +18,7 @@ import type { ModelMessage } from 'ai';
 const log = createLogger('GruenOMat');
 const router = Router();
 
-const ALLOWED_COLLECTION = 'gruene-de-system';
+const DEFAULT_COLLECTION = 'gruene-de-system';
 
 const GRUEN_O_MAT_PROMPT = [
   '🌻 Du antwortest als Bündnis 90/Die Grünen. Sprich in der Wir-Form — du erklärst die Positionen deiner Partei direkt an Wähler*innen.',
@@ -54,13 +55,18 @@ const GRUEN_O_MAT_PROMPT = [
 
 interface GruenOMatStreamRequest {
   messages: ModelMessage[];
+  collectionId?: string;
 }
 
 router.post(
   '/stream',
   rateLimitMiddleware('gruen_o_mat', { autoIncrement: true }),
   async (req, res) => {
-    const { messages } = req.body as GruenOMatStreamRequest;
+    const { messages, collectionId: requestedCollection } = req.body as GruenOMatStreamRequest;
+    const collectionId =
+      requestedCollection && isSystemCollectionId(requestedCollection)
+        ? requestedCollection
+        : DEFAULT_COLLECTION;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       res.status(400).json({ error: 'messages array is required' });
@@ -105,7 +111,7 @@ router.post(
       req,
       res,
       messages,
-      collectionId: ALLOWED_COLLECTION,
+      collectionId,
       mode: 'fast',
       userId: undefined,
       allowUserCollections: false,

@@ -49,7 +49,7 @@ export function ModelSelector() {
           />
         );
       })}
-      {import.meta.env.DEV && (
+      {process.env.NODE_ENV !== 'production' && (
         <>
           <div className="border-t border-border my-1" />
           <DropdownItem
