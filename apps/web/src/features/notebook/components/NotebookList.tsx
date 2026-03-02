@@ -64,7 +64,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   return (
     <div className={gridClasses}>
       {qaCollections.map((collection) => {
-        const tags: string[] = [];
+        const tags: string[] = [...(collection.labels || [])];
         if (collection.is_public) tags.push('Öffentlich');
         if (processingCollectionIds.has(collection.id)) tags.push('Wird verarbeitet…');
 
