@@ -172,30 +172,60 @@ export class KommunalwikiScraper extends BaseScraper {
   private cleanWikiContent(wikiText: string): string {
     if (!wikiText) return '';
 
-    return wikiText
-      .replace(/\[\[Kategorie:[^\]]+\]\]/gi, '')
-      .replace(/\[\[Datei:[^\]]+\]\]/gi, '')
-      .replace(/\[\[Bild:[^\]]+\]\]/gi, '')
-      .replace(/\[\[[^\]|]+\|([^\]]+)\]\]/g, '$1')
-      .replace(/\[\[([^\]]+)\]\]/g, '$1')
-      .replace(/\[https?:[^\s\]]+\s+([^\]]+)\]/g, '$1')
-      .replace(/\[https?:[^\s\]]+\]/g, '')
-      .replace(/\{\{[^}]+\}\}/g, '')
-      .replace(/<ref[^>]*>.*?<\/ref>/gs, '')
-      .replace(/<ref[^>]*\/>/g, '')
-      .replace(/={2,6}\s*(.+?)\s*={2,6}/gm, (m, h) => `\n## ${h}\n`)
-      .replace(/'{5}([^']+)'{5}/g, '$1')
-      .replace(/'{3}([^']+)'{3}/g, '$1')
-      .replace(/'{2}([^']+)'{2}/g, '$1')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/^\*+\s*/gm, '• ')
-      .replace(/^#+\s*/gm, '')
-      .trim();
+    // Phase 1: Block-level removal (before inline cleanup)
+    let text = wikiText;
+
+    // Remove magic words (__NOTOC__, __TOC__, __FORCETOC__, etc.)
+    text = text.replace(/__[A-Z]+__/g, '');
+
+    // Remove table blocks entirely ({| ... |})
+    text = text.replace(/\{\|[\s\S]*?\|\}/g, '');
+
+    // Remove nested templates iteratively (innermost first)
+    let prev = '';
+    while (text !== prev) {
+      prev = text;
+      text = text.replace(/\{\{[^{}]*\}\}/g, '');
+    }
+
+    // Phase 2: Inline cleanup
+    return (
+      text
+        // Wiki links & media
+        .replace(/\[\[Kategorie:[^\]]+\]\]/gi, '')
+        .replace(/\[\[Datei:[^\]]+\]\]/gi, '')
+        .replace(/\[\[Bild:[^\]]+\]\]/gi, '')
+        .replace(/\[\[[^\]|]*\|([^\]]+)\]\]/g, '$1')
+        .replace(/\[\[([^\]]+)\]\]/g, '$1')
+        // External links
+        .replace(/\[https?:[^\s\]]+\s+([^\]]+)\]/g, '$1')
+        .replace(/\[https?:[^\s\]]+\]/g, '')
+        // References
+        .replace(/<ref[^>]*>.*?<\/ref>/gs, '')
+        .replace(/<ref[^>]*\/>/g, '')
+        // Headings → markdown
+        .replace(/={2,6}\s*(.+?)\s*={2,6}/gm, (_, h) => `\n## ${h}\n`)
+        // Bold/italic
+        .replace(/'{5}([^']+)'{5}/g, '$1')
+        .replace(/'{3}([^']+)'{3}/g, '$1')
+        .replace(/'{2}([^']+)'{2}/g, '$1')
+        // HTML tags (catch-all)
+        .replace(/<[^>]+>/g, '')
+        // HTML entities
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        // Lists: indented bullets, definition lists, then standard
+        .replace(/^[:;]+\*/gm, '• ')
+        .replace(/^;([^:\n]+):(.+)$/gm, '$1: $2')
+        .replace(/^[:;]+/gm, '')
+        .replace(/^\*+\s*/gm, '• ')
+        .replace(/^#+\s*/gm, '')
+        // Whitespace normalization
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+    );
   }
 
   /**
