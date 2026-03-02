@@ -14,12 +14,30 @@ import GroupsOverviewSection from './components/GroupsOverviewSection';
 
 import { cn } from '@/utils/cn';
 
-// Static motion config moved outside component
+// Static config moved outside component to avoid re-creation on render
 const MOTION_CONFIG = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
   transition: { duration: 0.3 },
 } as const;
+
+const LAYOUT_WRAPPER_CLASS = cn(
+  'w-full flex flex-col items-center overflow-x-hidden pt-2xl',
+  'max-md:px-md max-md:pt-lg',
+  'max-[400px]:px-sm max-[400px]:pt-md'
+);
+
+const HEADER_CLASS = cn(
+  'w-full max-w-[800px] flex flex-col items-center gap-md px-md pb-lg box-border',
+  'xl:max-w-[1000px] 3xl:max-w-[1100px]',
+  'max-md:px-sm max-md:pb-md max-md:gap-sm',
+  'max-[400px]:px-xs max-[400px]:pb-sm'
+);
+
+const CONTENT_WRAPPER_CLASS = cn(
+  'w-full max-w-[800px] mx-auto',
+  'xl:max-w-[1000px] 3xl:max-w-[1100px]'
+);
 
 interface Group {
   id: string;
@@ -192,7 +210,7 @@ const GroupsManagementView = memo(
 
     const renderNavigationPanel = () => (
       <nav
-        className="flex flex-wrap justify-center gap-sm mb-lg"
+        className="flex flex-wrap justify-center gap-sm"
         role="tablist"
         aria-label="Gruppen Navigation"
       >
@@ -256,22 +274,29 @@ const GroupsManagementView = memo(
 
     return (
       <motion.div
-        className="flex flex-col gap-lg px-md"
+        className={LAYOUT_WRAPPER_CLASS}
         initial={MOTION_CONFIG.initial}
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}
       >
-        {userGroups && userGroups.length > 0 && renderNavigationPanel()}
-        {renderContentPanel()}
+        <header className={HEADER_CLASS}>
+          <h1 className="m-0 mb-lg text-[2.2rem] font-semibold text-foreground text-center max-md:text-[1.8rem] max-[400px]:text-[1.5rem]">
+            Gruppen
+          </h1>
+          {userGroups && userGroups.length > 0 && renderNavigationPanel()}
+        </header>
+        <div className={CONTENT_WRAPPER_CLASS}>
+          {renderContentPanel()}
 
-        <GroupsCreateSection
-          isOpen={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          onCreateGroup={handleCreateGroup}
-          isCreatingGroup={isCreatingGroup}
-          isCreateGroupError={isCreateGroupError}
-          createGroupError={createGroupError}
-        />
+          <GroupsCreateSection
+            isOpen={createDialogOpen}
+            onOpenChange={setCreateDialogOpen}
+            onCreateGroup={handleCreateGroup}
+            isCreatingGroup={isCreatingGroup}
+            isCreateGroupError={isCreateGroupError}
+            createGroupError={createGroupError}
+          />
+        </div>
       </motion.div>
     );
   }
