@@ -6,6 +6,7 @@
  */
 
 import type { CollectionConfig, CollectionConfigMap, CollectionKey } from './types.js';
+import type { QdrantFilter } from '../filters/types.js';
 
 /**
  * All available Qdrant collections for Green Party content
@@ -19,6 +20,8 @@ export const COLLECTIONS: CollectionConfigMap = {
       primary_category: { label: 'Programm', type: 'keyword' },
     },
     defaultSearchMode: 'hybrid',
+    country: 'AT',
+    includeInDefaultSearch: true,
   },
 
   deutschland: {
@@ -29,6 +32,8 @@ export const COLLECTIONS: CollectionConfigMap = {
       primary_category: { label: 'Programm', type: 'keyword' },
     },
     defaultSearchMode: 'hybrid',
+    country: 'DE',
+    includeInDefaultSearch: true,
   },
 
   bundestagsfraktion: {
@@ -41,6 +46,8 @@ export const COLLECTIONS: CollectionConfigMap = {
     },
     defaultSearchMode: 'hybrid',
     supportsPersonDetection: true,
+    country: 'DE',
+    includeInDefaultSearch: true,
   },
 
   'gruene-de': {
@@ -52,6 +59,8 @@ export const COLLECTIONS: CollectionConfigMap = {
       country: { label: 'Land', type: 'keyword' },
     },
     defaultSearchMode: 'hybrid',
+    country: 'DE',
+    includeInDefaultSearch: true,
   },
 
   'gruene-at': {
@@ -63,6 +72,8 @@ export const COLLECTIONS: CollectionConfigMap = {
       country: { label: 'Land', type: 'keyword' },
     },
     defaultSearchMode: 'hybrid',
+    country: 'AT',
+    includeInDefaultSearch: true,
   },
 
   kommunalwiki: {
@@ -75,6 +86,7 @@ export const COLLECTIONS: CollectionConfigMap = {
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
     },
     defaultSearchMode: 'hybrid',
+    includeInDefaultSearch: true,
   },
 
   'boell-stiftung': {
@@ -88,6 +100,7 @@ export const COLLECTIONS: CollectionConfigMap = {
       region: { label: 'Region', type: 'keyword' },
     },
     defaultSearchMode: 'hybrid',
+    includeInDefaultSearch: true,
   },
 
   examples: {
@@ -100,6 +113,75 @@ export const COLLECTIONS: CollectionConfigMap = {
       content_type: { label: 'Inhaltstyp', type: 'keyword' },
     },
     defaultSearchMode: 'hybrid',
+    includeInDefaultSearch: false,
+  },
+
+  hamburg: {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Hamburg',
+    description: 'Beschlüsse und Pressemitteilungen der Grünen Hamburg',
+    filterableFields: {
+      content_type: { label: 'Typ', type: 'keyword' },
+      primary_category: { label: 'Kategorie', type: 'keyword' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: 'HH' },
+    country: 'DE',
+    includeInDefaultSearch: false,
+  },
+
+  'schleswig-holstein': {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Schleswig-Holstein',
+    description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
+    filterableFields: {
+      primary_category: { label: 'Programm', type: 'keyword' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: 'SH' },
+    country: 'DE',
+    includeInDefaultSearch: false,
+  },
+
+  thueringen: {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Thüringen',
+    description: 'Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen',
+    filterableFields: {
+      content_type: { label: 'Typ', type: 'keyword' },
+      primary_category: { label: 'Kategorie', type: 'keyword' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: ['TH', 'TH-F'] },
+    country: 'DE',
+    includeInDefaultSearch: false,
+  },
+
+  bayern: {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Bayern',
+    description: 'Regierungsprogramm der Grünen Bayern zur Landtagswahl',
+    filterableFields: {
+      primary_category: { label: 'Programm', type: 'keyword' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: 'BY' },
+    country: 'DE',
+    includeInDefaultSearch: false,
+  },
+
+  berlin: {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Berlin',
+    description: 'Pressemitteilungen und Beschlüsse der Grünen Berlin',
+    filterableFields: {
+      content_type: { label: 'Typ', type: 'keyword' },
+      primary_category: { label: 'Kategorie', type: 'keyword' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: 'BE' },
+    country: 'DE',
+    includeInDefaultSearch: false,
   },
 };
 
@@ -152,4 +234,40 @@ export function getFilterableFields(key: string): string[] {
  */
 export function getCollectionsWithField(fieldName: string): CollectionKey[] {
   return COLLECTION_KEYS.filter((key) => fieldName in COLLECTIONS[key].filterableFields);
+}
+
+/**
+ * Get default search collection keys for a country.
+ * Returns collections that have `includeInDefaultSearch: true` and either
+ * match the given country or are country-agnostic (no country set).
+ *
+ * @param country - 'DE' or 'AT'
+ * @returns Array of collection keys for default country-wide search
+ */
+export function getDefaultSearchCollections(country: 'DE' | 'AT'): CollectionKey[] {
+  return COLLECTION_KEYS.filter((key) => {
+    const col = COLLECTIONS[key];
+    if (!col.includeInDefaultSearch) return false;
+    if (!col.country) return true;
+    return col.country === country;
+  });
+}
+
+/**
+ * Build a Qdrant filter from a collection's `defaultFilter` config.
+ * Used for shared Qdrant collections (e.g., landesverbaende_documents)
+ * where multiple logical collections map to one physical collection.
+ *
+ * @param key - Collection key (e.g., 'hamburg')
+ * @returns QdrantFilter with a must condition, or null if no defaultFilter
+ */
+export function buildCollectionDefaultFilter(key: string): QdrantFilter | null {
+  const col = COLLECTIONS[key];
+  if (!col?.defaultFilter) return null;
+
+  const { field, value } = col.defaultFilter;
+  if (Array.isArray(value)) {
+    return { must: [{ key: field, match: { any: value } }] };
+  }
+  return { must: [{ key: field, match: { value } }] };
 }

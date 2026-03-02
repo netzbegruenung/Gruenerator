@@ -3,26 +3,26 @@ import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 
 import { colors, spacing, borderRadius } from '../../theme';
 
-import type { Citation } from '../../services/chatStream';
-import type { lightTheme, darkTheme } from '../../theme/colors';
+import type { Theme } from '../../theme/colors';
+import type { Citation } from '@gruenerator/chat';
 
 interface Props {
   citations: Citation[];
-  theme: typeof lightTheme | typeof darkTheme;
+  theme: Theme;
 }
 
-export function CitationsList({ citations, theme }: Props) {
+export function CitationsFooter({ citations, theme }: Props) {
   if (!citations || citations.length === 0) return null;
 
   return (
     <View style={[styles.container, { borderTopColor: theme.border }]}>
       <Text style={[styles.label, { color: theme.textSecondary }]}>Quellen</Text>
-      {citations.slice(0, 5).map((citation) => (
+      {citations.slice(0, 5).map((citation, idx) => (
         <Pressable
-          key={citation.id}
+          key={citation.id ?? idx}
           style={({ pressed }) => [
             styles.item,
-            { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: theme.background, opacity: pressed ? 0.7 : 1 },
           ]}
           onPress={() => {
             if (citation.url) Linking.openURL(citation.url);
@@ -31,14 +31,9 @@ export function CitationsList({ citations, theme }: Props) {
           <View style={styles.itemContent}>
             <Ionicons name="link-outline" size={14} color={theme.textSecondary} />
             <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-              {citation.title || citation.domain || citation.url}
+              {citation.title || citation.url}
             </Text>
           </View>
-          {citation.domain && (
-            <Text style={[styles.domain, { color: theme.textSecondary }]} numberOfLines={1}>
-              {citation.domain}
-            </Text>
-          )}
         </Pressable>
       ))}
     </View>
@@ -47,34 +42,31 @@ export function CitationsList({ citations, theme }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    borderTopWidth: 1,
+    marginTop: spacing.small,
+    paddingTop: spacing.small,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    marginBottom: spacing.small,
+    marginBottom: spacing.xxsmall,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   item: {
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.xsmall,
-    borderRadius: borderRadius.medium,
-    marginBottom: spacing.xxsmall,
+    paddingHorizontal: spacing.xsmall,
+    paddingVertical: spacing.xxsmall,
+    borderRadius: borderRadius.small,
+    marginBottom: 2,
   },
   itemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xsmall,
+    gap: spacing.xxsmall,
   },
   title: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-  },
-  domain: {
-    fontSize: 11,
-    marginLeft: spacing.medium + spacing.xsmall,
-    marginTop: 2,
   },
 });

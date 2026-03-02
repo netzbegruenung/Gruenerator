@@ -22,7 +22,10 @@ export class LinkExtractor {
 
   /**
    * Extract article links from content path with pagination
-   * Automatically discovers and follows pagination
+   * Supports two pagination modes:
+   *   1. URL construction (default): builds URLs from paginationPattern + paginationOffset
+   *   2. Link-following (paginationLinkSelector): extracts "next page" URLs from HTML
+   *      Required for CMS with signed pagination URLs (e.g., Typo3 cHash)
    */
   async extractArticleLinks(
     source: any,
@@ -32,12 +35,17 @@ export class LinkExtractor {
     const links = new Set<string>();
     let currentPage = 1;
     const maxPages = contentPath.maxPages || 10;
+    let nextPageUrl: string | null = null;
 
     while (currentPage <= maxPages) {
       let pageUrl: string;
       if (currentPage === 1) {
         pageUrl = source.baseUrl + contentPath.path;
+      } else if (nextPageUrl && contentPath.paginationLinkSelector) {
+        // Link-following pagination: use URL discovered from previous page
+        pageUrl = nextPageUrl;
       } else {
+        // URL construction pagination
         const offset = contentPath.paginationOffset ?? 0;
         const paginationPath = contentPath.paginationPattern.replace(
           '{page}',
@@ -76,11 +84,42 @@ export class LinkExtractor {
           }
         });
 
+        // Link-following pagination: find "next page" URL from pagination HTML
+        nextPageUrl = null;
+        if (contentPath.paginationLinkSelector) {
+          $(contentPath.paginationLinkSelector).each((_, el) => {
+            if (nextPageUrl) return; // already found
+            const text = $(el).text().trim();
+            // Match common "next" indicators: > › » "Next" "Weiter"
+            if (
+              text === '>' ||
+              text === '›' ||
+              text === '»' ||
+              text === '→' ||
+              text.toLowerCase() === 'next' ||
+              text.toLowerCase() === 'weiter'
+            ) {
+              const href = $(el).attr('href');
+              if (href) {
+                const normalized = this.normalizeUrl(href, source.baseUrl);
+                if (normalized) {
+                  nextPageUrl = normalized;
+                }
+              }
+            }
+          });
+        }
+
         const newLinksFound = links.size - beforeCount;
         log(`Page ${currentPage}: found ${newLinksFound} new links (total: ${links.size})`);
 
         // Stop if no new links found on this page
         if (newLinksFound === 0 && currentPage > 1) {
+          break;
+        }
+
+        // For link-following: stop if no next page link found
+        if (contentPath.paginationLinkSelector && !nextPageUrl) {
           break;
         }
 

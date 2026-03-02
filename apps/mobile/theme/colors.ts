@@ -148,4 +148,4 @@ export const darkTheme = {
   cardBorder: colors.grey[700],
 } as const;
 
-export type Theme = typeof lightTheme;
+export type Theme = { readonly [K in keyof typeof lightTheme]: string };

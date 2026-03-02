@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,21 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThreadListItem } from '../../../components/chat';
-import { useDeepChatStore } from '../../../stores/deepChatStore';
+import { configureMobileChat, getMobileChatApiClient } from '../../../services/chatConfig';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+
+interface Thread {
+  id: string;
+  userId: string;
+  agentId: string;
+  title: string | null;
+  status?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage?: { content: string; role: string; created_at: string } | null;
+}
 
 const SUGGESTIONS = [
   'Was steht im Grundsatzprogramm zum Klimaschutz?',
@@ -27,51 +37,71 @@ export default function ThreadListScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
-  const { threads, isLoadingThreads, loadThreads, startNewChat, deleteThread, switchThread } =
-    useDeepChatStore();
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const configuredRef = useRef(false);
+
+  if (!configuredRef.current) {
+    configureMobileChat();
+    configuredRef.current = true;
+  }
+
+  const loadThreads = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const apiClient = getMobileChatApiClient();
+      const result = await apiClient.get<Thread[]>('/api/chat-service/threads');
+      setThreads(result);
+    } catch (error) {
+      console.warn('[ThreadList] Failed to load threads:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadThreads();
   }, [loadThreads]);
 
   const handleNewChat = useCallback(() => {
-    startNewChat();
     router.push('/(focused)/chat-conversation?threadId=new' as any);
-  }, [startNewChat, router]);
+  }, [router]);
 
   const handleThreadPress = useCallback(
     (threadId: string) => {
-      switchThread(threadId);
       router.push(`/(focused)/chat-conversation?threadId=${threadId}` as any);
     },
-    [switchThread, router]
+    [router]
   );
 
-  const handleDeleteThread = useCallback(
-    (threadId: string, title: string | null) => {
-      Alert.alert('Unterhaltung löschen', `"${title || 'Neue Unterhaltung'}" wirklich löschen?`, [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Löschen',
-          style: 'destructive',
-          onPress: () => deleteThread(threadId),
+  const handleDeleteThread = useCallback((threadId: string, title: string | null) => {
+    Alert.alert('Unterhaltung löschen', `"${title || 'Neue Unterhaltung'}" wirklich löschen?`, [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Löschen',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const apiClient = getMobileChatApiClient();
+            await apiClient.delete(`/api/chat-service/threads?threadId=${threadId}`);
+            setThreads((prev) => prev.filter((t) => t.id !== threadId));
+          } catch (error) {
+            console.warn('[ThreadList] Failed to delete thread:', error);
+          }
         },
-      ]);
-    },
-    [deleteThread]
-  );
+      },
+    ]);
+  }, []);
 
   const handleSuggestion = useCallback(
     (text: string) => {
-      startNewChat();
       router.push({
         pathname: '/(focused)/chat-conversation' as any,
         params: { threadId: 'new', initialMessage: text },
       });
     },
-    [startNewChat, router]
+    [router]
   );
 
   const renderEmptyState = () => (
@@ -116,10 +146,10 @@ export default function ThreadListScreen() {
             onDelete={() => handleDeleteThread(item.id, item.title)}
           />
         )}
-        ListEmptyComponent={!isLoadingThreads ? renderEmptyState : null}
+        ListEmptyComponent={!isLoading ? renderEmptyState : null}
         refreshControl={
           <RefreshControl
-            refreshing={isLoadingThreads}
+            refreshing={isLoading}
             onRefresh={loadThreads}
             tintColor={colors.primary[600]}
           />

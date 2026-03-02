@@ -1,6 +1,7 @@
+import { buildCollectionDefaultFilter } from '@gruenerator/shared/search/collections';
 import { z } from 'zod';
 
-import { config } from '../config.ts';
+import { config, COLLECTION_KEYS } from '../config.ts';
 import { getFieldValueCounts } from '../qdrant/client.ts';
 
 /**
@@ -27,6 +28,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
 - **boell-stiftung**: content_type, primary_category, subcategories, region
 - **bundestagsfraktion**, **gruene-de**, **gruene-at**: primary_category, country
 - **examples**: platform (instagram/facebook), country (DE/AT)
+- **Landesverbände** (hamburg, schleswig-holstein, thueringen, bayern, berlin): content_type, primary_category
 
 ## Beispiel-Workflow
 
@@ -37,16 +39,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
 
   inputSchema: {
     collection: z
-      .enum([
-        'oesterreich',
-        'deutschland',
-        'bundestagsfraktion',
-        'gruene-de',
-        'gruene-at',
-        'kommunalwiki',
-        'boell-stiftung',
-        'examples',
-      ])
+      .enum(COLLECTION_KEYS as [string, ...string[]])
       .describe('Sammlung für die Filterwerte - muss vor gefilterter Suche aufgerufen werden'),
   },
 
@@ -70,10 +63,11 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
 
     try {
       const filters = {};
+      const baseFilter = buildCollectionDefaultFilter(collection);
 
       for (const [field, fieldConfig] of Object.entries(col.filterableFields)) {
         console.error(`[Filters] Fetching value counts for ${collection}.${field}`);
-        const valuesWithCounts = await getFieldValueCounts(col.name, field, 50);
+        const valuesWithCounts = await getFieldValueCounts(col.name, field, 50, baseFilter);
 
         filters[field] = {
           label: fieldConfig.label,

@@ -69,6 +69,18 @@ Der \`country\`-Parameter ist **PFLICHT** bei jeder Suche. Er bestimmt, welche S
 | kommunalwiki | KommunalWiki | Fachwissen Kommunalpolitik | "Wie macht man X in der Kommune?" |
 | boell-stiftung | Heinrich-Böll-Stiftung | Analysen, Dossiers, Atlanten | "Analyse zu X", "Hintergründe zu X" |
 
+### Landesverbände (nur mit explizitem \`collection\`-Parameter)
+
+| ID | Name | Inhalt |
+|----|------|--------|
+| hamburg | Grüne Hamburg | Beschlüsse, Pressemitteilungen |
+| schleswig-holstein | Grüne Schleswig-Holstein | Wahlprogramm |
+| thueringen | Grüne Thüringen | Beschlüsse, Wahlprogramme, Presse |
+| bayern | Grüne Bayern | Regierungsprogramm |
+| berlin | Grüne Berlin | Pressemitteilungen, Beschlüsse |
+
+> **Hinweis Landesverbände:** hamburg, schleswig-holstein, thueringen, bayern, berlin werden NICHT bei der Landessuche mitdurchsucht. Sie müssen explizit mit \`collection\` angegeben werden.
+
 ---
 
 ## DIE VIER GOLDENEN REGELN
@@ -192,6 +204,11 @@ gruenerator_search({
 **Nutzer:** "Was ist die Position der Grünen zum Klimaschutz?"
 // Kontext: Nutzer aus Österreich
 gruenerator_search({ query: "Klimaschutz", country: "AT" })
+
+### Beispiel 9: Landesverband
+**Nutzer:** "Was sagen die Grünen Hamburg zum Thema Verkehr?"
+gruenerator_search({ query: "Verkehr", country: "DE", collection: "hamburg" })
+// Hinweis: Ohne collection: "hamburg" wird Hamburg NICHT mitdurchsucht!
 
 ---
 

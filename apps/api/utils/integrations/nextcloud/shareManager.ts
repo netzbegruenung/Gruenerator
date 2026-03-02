@@ -90,7 +90,7 @@ export class NextcloudShareManager {
         { id: userId }
       );
 
-      if (!result) {
+      if (!result.data || result.data.length === 0) {
         throw new Error('Failed to save share link - profile not found');
       }
 

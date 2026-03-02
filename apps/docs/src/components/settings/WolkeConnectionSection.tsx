@@ -4,7 +4,12 @@ import { type AxiosError } from 'axios';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { FiAlertCircle, FiCheckCircle, FiCloud, FiPlus } from 'react-icons/fi';
 
-import { addShareLink, fetchShareLinks, validateShareLink } from '../../lib/wolkeApi';
+import {
+  type ShareLink,
+  addShareLink,
+  fetchShareLinks,
+  validateShareLink,
+} from '../../lib/wolkeApi';
 
 import { WolkeConnectionCard } from './WolkeConnectionCard';
 
@@ -43,7 +48,10 @@ export function WolkeConnectionSection() {
   const addMutation = useMutation({
     mutationFn: ({ url, lbl }: { url: string; lbl?: string }) => addShareLink(url, lbl),
     onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: ['wolke-share-links'] });
+      queryClient.setQueryData<ShareLink[]>(['wolke-share-links'], (old) => [
+        data.shareLink,
+        ...(old || []),
+      ]);
       setLinkUrl('');
       setLabel('');
       setLinkError('');
