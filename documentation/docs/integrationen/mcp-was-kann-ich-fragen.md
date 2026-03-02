@@ -28,7 +28,7 @@ Die Kernfunktion des MCP-Servers ist die **semantische Suche** über grüne Part
 
 ### Welche Sammlungen gibt es?
 
-Der Server durchsucht **7 verschiedene Dokumentensammlungen**:
+Der Server durchsucht verschiedene Dokumentensammlungen — darunter **7 bundesweite Sammlungen** und **5 Landesverbände**:
 
 | Sammlung                     | Was ist drin?                                                         | Beispielfrage                            |
 | ---------------------------- | --------------------------------------------------------------------- | ---------------------------------------- |
@@ -39,6 +39,18 @@ Der Server durchsucht **7 verschiedene Dokumentensammlungen**:
 | **gruene.at**                | Aktuelle Positionen und Themen der Grünen Österreich                  | _„Was sagen die Grünen AT zu X?"_        |
 | **KommunalWiki**             | Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)               | _„Wie macht man X in der Kommune?"_      |
 | **Heinrich-Böll-Stiftung**   | Analysen, Dossiers und Atlanten                                       | _„Analyse zu X"_, _„Hintergründe zu X"_  |
+
+### Landesverbände
+
+Zusätzlich kannst du gezielt in **Dokumenten einzelner Landesverbände** suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen.
+
+| Sammlung                     | Was ist drin?                        | Beispielfrage                                       |
+| ---------------------------- | ------------------------------------ | --------------------------------------------------- |
+| **Grüne Hamburg**            | Beschlüsse und Pressemitteilungen    | _„Was sagen die Grünen Hamburg zum Thema Verkehr?"_ |
+| **Grüne Schleswig-Holstein** | Wahlprogramm zur Landtagswahl        | _„Wahlprogramm der Grünen SH zu Bildung"_           |
+| **Grüne Thüringen**          | Beschlüsse, Wahlprogramme und Presse | _„Grüne Thüringen Position zu Energie?"_            |
+| **Grüne Bayern**             | Regierungsprogramm zur Landtagswahl  | _„Was steht im Bayern-Programm zur Wirtschaft?"_    |
+| **Grüne Berlin**             | Pressemitteilungen und Beschlüsse    | _„Grüne Berlin Beschlüsse zum Thema Wohnen"_        |
 
 :::tip Mehrere Sammlungen vergleichen
 Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: _„Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität."_ Die KI sucht dann automatisch in beiden Sammlungen.
@@ -74,6 +86,7 @@ Du kannst die Suchergebnisse nach Kategorien einschränken. Sag der KI einfach, 
 | **KommunalWiki**                             | + Inhaltstyp (z.B. Praxishilfe, Artikel), Unterkategorien          |
 | **Böll-Stiftung**                            | + Inhaltstyp, Unterkategorien, Region (z.B. Europa, Asien, Nahost) |
 | **Bundestagsfraktion, gruene.de, gruene.at** | + Land (DE/AT)                                                     |
+| **Landesverbände**                           | + Inhaltstyp (Typ), Themenbereich (Kategorie)                      |
 
 :::info Filter-Werte nicht raten
 Die KI fragt automatisch die verfügbaren Filterwerte ab, bevor sie filtert. Du musst dir also keine exakten Werte merken — beschreib einfach, was du suchst.
