@@ -188,6 +188,11 @@ const BayernNotebookPage = lazy(() =>
     default: m.createNotebookPage('bayern'),
   }))
 );
+const BerlinNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('berlin'),
+  }))
+);
 const KommunalwikiNotebookPage = lazy(() =>
   import('../features/notebook/components/NotebookPage').then((m) => ({
     default: m.createNotebookPage('kommunalwiki'),
@@ -305,6 +310,7 @@ export const GrueneratorenBundle = {
   SchleswigHolsteinNotebook: SchleswigHolsteinNotebookPage,
   ThueringenNotebook: ThueringenNotebookPage,
   BayernNotebook: BayernNotebookPage,
+  BerlinNotebook: BerlinNotebookPage,
   KommunalwikiNotebook: KommunalwikiNotebookPage,
   BoellStiftungNotebook: BoellStiftungNotebookPage,
   NotebooksGallery: NotebooksGalleryPage,
@@ -383,6 +389,7 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   { path: '/gruene-bayern', component: GrueneratorenBundle.BayernNotebook, withForm: true },
+  { path: '/gruene-berlin', component: GrueneratorenBundle.BerlinNotebook, withForm: true },
   { path: '/kommunalwiki', component: GrueneratorenBundle.KommunalwikiNotebook, withForm: true },
   { path: '/boell-stiftung', component: GrueneratorenBundle.BoellStiftungNotebook, withForm: true },
   { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },
