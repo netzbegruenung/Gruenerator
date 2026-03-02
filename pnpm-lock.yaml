@@ -650,12 +650,18 @@ importers:
       '@gruenerator/chat':
         specifier: workspace:*
         version: link:../../packages/chat
+      lucide-react:
+        specifier: ^0.525.0
+        version: 0.525.0(react@19.2.4)
       react:
         specifier: 19.2.4
         version: 19.2.4
       react-dom:
         specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
+      react-router-dom:
+        specifier: ^7.13.1
+        version: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       zustand:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(immer@10.2.0)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
@@ -690,6 +696,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@assistant-ui/react-native':
+        specifier: ^0.1.1
+        version: 0.1.1(@types/react@19.2.14)(immer@10.2.0)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))(zod@3.25.76)
       '@expo-google-fonts/raleway':
         specifier: ^0.4.2
         version: 0.4.2
@@ -708,6 +717,9 @@ importers:
       '@gorhom/bottom-sheet':
         specifier: ^5.2.8
         version: 5.2.8(@types/react@19.2.14)(react-native-gesture-handler@2.30.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native-reanimated@4.2.1(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+      '@gruenerator/chat':
+        specifier: workspace:*
+        version: link:../../packages/chat
       '@gruenerator/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -1756,6 +1768,16 @@ packages:
       zod:
         optional: true
       zustand:
+        optional: true
+
+  '@assistant-ui/react-native@0.1.1':
+    resolution: {integrity: sha512-0ESdj8FLBgKYmeGVonwCiPL8KSZ5lih3xJ86Br+bMH3t8taRn4114+RWiH3aBvE+N+NiGQb/G8MeyVRach7K7Q==}
+    peerDependencies:
+      '@types/react': ^19.2.14
+      react: 19.2.4
+      react-native: '*'
+    peerDependenciesMeta:
+      '@types/react':
         optional: true
 
   '@assistant-ui/react@0.12.14':
@@ -12610,6 +12632,11 @@ packages:
     peerDependencies:
       react: 19.2.4
 
+  lucide-react@0.525.0:
+    resolution: {integrity: sha512-Tm1txJ2OkymCGkvwoHt33Y2JpN5xucVq1slHcgE6Lk0WjDfjgKWor5CdVER8U6DvcfMwh4M8XxmpTiyzfmfDYQ==}
+    peerDependencies:
+      react: 19.2.4
+
   lunr-languages@1.14.0:
     resolution: {integrity: sha512-hWUAb2KqM3L7J5bcrngszzISY4BxrXn/Xhbb9TTCJYEGqlR1nG67/M14sp09+PTIRklobrn57IAxcdcO/ZFyNA==}
 
@@ -17884,6 +17911,22 @@ snapshots:
       zod: 3.25.76
       zustand: 5.0.11(@types/react@19.2.14)(immer@10.2.0)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
 
+  '@assistant-ui/react-native@0.1.1(@types/react@19.2.14)(immer@10.2.0)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))(zod@3.25.76)':
+    dependencies:
+      '@assistant-ui/core': 0.1.2(@assistant-ui/store@0.2.1(@assistant-ui/tap@0.5.1(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4))(@assistant-ui/tap@0.5.1(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4)(zod@3.25.76)(zustand@5.0.11(@types/react@19.2.14)(immer@10.2.0)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))
+      '@assistant-ui/store': 0.2.1(@assistant-ui/tap@0.5.1(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4)
+      '@assistant-ui/tap': 0.5.1(@types/react@19.2.14)(react@19.2.4)
+      assistant-stream: 0.3.4
+      react: 19.2.4
+      react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
+      zustand: 5.0.11(@types/react@19.2.14)(immer@10.2.0)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+    optionalDependencies:
+      '@types/react': 19.2.14
+    transitivePeerDependencies:
+      - immer
+      - use-sync-external-store
+      - zod
+
   '@assistant-ui/react@0.12.14(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))':
     dependencies:
       '@assistant-ui/core': 0.1.2(@assistant-ui/store@0.2.1(@assistant-ui/tap@0.5.1(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4))(@assistant-ui/tap@0.5.1(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4)(zod@3.25.76)(zustand@5.0.11(@types/react@19.2.14)(immer@10.2.0)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))
@@ -21404,7 +21447,7 @@ snapshots:
       ws: 8.19.0
       zod: 3.25.76
     optionalDependencies:
-      expo-router: 55.0.3(6b239a54a7a9b78988c844cb2a075238)
+      expo-router: 55.0.3(bd7816cf3ebed80a4dc00f6d1fa14d95)
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4)
     transitivePeerDependencies:
       - '@expo/dom-webview'
@@ -21719,7 +21762,7 @@ snapshots:
       react: 19.2.4
     optionalDependencies:
       '@expo/metro-runtime': 55.0.6(@expo/dom-webview@55.0.3)(expo@55.0.4)(react-dom@19.2.4(react@19.2.4))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
-      expo-router: 55.0.3(6b239a54a7a9b78988c844cb2a075238)
+      expo-router: 55.0.3(bd7816cf3ebed80a4dc00f6d1fa14d95)
       react-dom: 19.2.4(react@19.2.4)
     transitivePeerDependencies:
       - supports-color
@@ -31862,6 +31905,10 @@ snapshots:
     optional: true
 
   lucide-react@0.475.0(react@19.2.4):
+    dependencies:
+      react: 19.2.4
+
+  lucide-react@0.525.0(react@19.2.4):
     dependencies:
       react: 19.2.4
 
