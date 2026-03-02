@@ -242,7 +242,14 @@ router.put('/:id', async (req: Request, res: Response) => {
     const { title, folder_id, content } = req.body;
     const userId = req.user?.id;
 
+    console.log('[docs-rename] PUT /api/docs/%s — userId=%s, body=%o', id, userId, {
+      title,
+      folder_id,
+      content: content !== undefined ? `(${String(content).length} chars)` : undefined,
+    });
+
     if (!userId) {
+      console.warn('[docs-rename] PUT /api/docs/%s — 401: no userId', id);
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
@@ -252,6 +259,11 @@ router.put('/:id', async (req: Request, res: Response) => {
     )) as CollaborativeDocument[];
 
     if (checkResult.length === 0) {
+      console.warn(
+        '[docs-rename] PUT /api/docs/%s — 404: document not found (userId=%s)',
+        id,
+        userId
+      );
       return res.status(404).json({ error: 'Document not found' });
     }
 
@@ -259,6 +271,11 @@ router.put('/:id', async (req: Request, res: Response) => {
     const userPermission = document.permissions?.[userId];
     const isOwner = document.created_by === userId;
     let canEdit = isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+    let accessMethod = isOwner
+      ? 'owner'
+      : userPermission
+        ? `direct:${userPermission.level}`
+        : 'none';
 
     if (!canEdit) {
       const groupAccess = (await db.query(
@@ -270,10 +287,19 @@ router.put('/:id', async (req: Request, res: Response) => {
 
       if (groupAccess.length > 0 && groupAccess[0].permissions?.write === true) {
         canEdit = true;
+        accessMethod = 'group:write';
       }
     }
 
     if (!canEdit) {
+      console.warn(
+        '[docs-rename] PUT /api/docs/%s — 403: userId=%s, accessMethod=%s, createdBy=%s, permissions=%o',
+        id,
+        userId,
+        accessMethod,
+        document.created_by,
+        document.permissions
+      );
       return res.status(403).json({ error: 'Insufficient permissions to edit document' });
     }
 
@@ -310,6 +336,12 @@ router.put('/:id', async (req: Request, res: Response) => {
       values
     )) as CollaborativeDocument[];
 
+    console.log(
+      '[docs-rename] PUT /api/docs/%s — success: title="%s", accessMethod=%s',
+      id,
+      result[0]?.title,
+      accessMethod
+    );
     return res.json(result[0]);
   } catch (error: any) {
     console.error('[Docs] Error updating document:', error);

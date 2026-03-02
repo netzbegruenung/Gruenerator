@@ -158,6 +158,11 @@ const config: Config = {
           label: 'LLM Basics',
           position: 'left',
         },
+        {
+          to: '/docs/category/newsletter-archiv',
+          label: 'Newsletter',
+          position: 'left',
+        },
       ],
     },
     footer: {
@@ -224,6 +229,19 @@ const config: Config = {
             {
               label: 'Was kann ich fragen?',
               to: '/docs/integrationen/mcp-was-kann-ich-fragen',
+            },
+          ],
+        },
+        {
+          title: 'Newsletter',
+          items: [
+            {
+              label: 'Newsletter-Archiv',
+              to: '/docs/category/newsletter-archiv',
+            },
+            {
+              label: 'Newsletter abonnieren',
+              href: 'https://fax.gruenerator.de',
             },
           ],
         },
