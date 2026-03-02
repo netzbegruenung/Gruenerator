@@ -2,7 +2,8 @@ import { DocumentList } from '@gruenerator/docs';
 import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { MantineProvider, Menu, ActionIcon, TextInput } from '@mantine/core';
 import { useState } from 'react';
-import { FiLogOut, FiSearch, FiX } from 'react-icons/fi';
+import { FiLogOut, FiSearch, FiSettings, FiX } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -34,6 +35,7 @@ export const HomePage = () => {
   const { user } = useAuth();
   const { logout } = useAuthStore();
   const colorScheme = useColorScheme();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
@@ -82,6 +84,13 @@ export const HomePage = () => {
                 </Menu.Target>
                 <Menu.Dropdown>
                   <Menu.Label>{user?.display_name || user?.email}</Menu.Label>
+                  <Menu.Item
+                    leftSection={<FiSettings size={14} />}
+                    onClick={() => navigate('/settings')}
+                  >
+                    Einstellungen
+                  </Menu.Item>
+                  <Menu.Divider />
                   <Menu.Item
                     leftSection={<FiLogOut size={14} />}
                     onClick={() => logout()}

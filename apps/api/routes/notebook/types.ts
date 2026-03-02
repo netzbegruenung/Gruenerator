@@ -22,6 +22,7 @@ export interface CreateCollectionBody {
   wolke_share_link_ids?: string[];
   auto_sync?: boolean;
   remove_missing_on_sync?: boolean;
+  labels?: string[];
 }
 
 /**
@@ -36,6 +37,7 @@ export interface UpdateCollectionBody {
   wolke_share_link_ids?: string[];
   auto_sync?: boolean;
   remove_missing_on_sync?: boolean;
+  labels?: string[];
 }
 
 /**
@@ -222,6 +224,7 @@ export interface NotebookCollectionFromQdrant {
   remove_missing_on_sync?: boolean;
   created_at: string;
   updated_at: string;
+  settings?: Record<string, unknown>;
   notebook_collection_documents?: Array<{ document_id: string }>;
 }
 

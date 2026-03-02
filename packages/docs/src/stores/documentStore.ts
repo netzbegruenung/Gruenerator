@@ -19,6 +19,7 @@ export interface Document {
   permissions: Record<string, { level: string; granted_at: string }>;
   metadata?: Record<string, unknown>;
   access_type?: 'owner' | 'direct' | 'group' | 'public';
+  creator_name?: string;
 }
 
 interface DocumentStore {

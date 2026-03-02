@@ -36,7 +36,7 @@ const PRODUCTION_NOTEBOOKS = [
     title: 'Frag Grüne Hamburg',
     description: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
     meta: 'Archiv',
-    tags: ['Hamburg', 'Beschlüsse', 'Presse'],
+    tags: ['Test', 'Hamburg', 'Beschlüsse', 'Presse'],
     order: 4,
     category: 'landesebene',
   },
@@ -47,7 +47,7 @@ const PRODUCTION_NOTEBOOKS = [
     description:
       'Durchsuchbar ist das Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl.',
     meta: '1 Programm',
-    tags: ['Schleswig-Holstein', 'Wahlprogramm'],
+    tags: ['Test', 'Schleswig-Holstein', 'Wahlprogramm'],
     order: 5,
     category: 'landesebene',
   },
@@ -58,7 +58,7 @@ const PRODUCTION_NOTEBOOKS = [
     description:
       'Durchsuchbar sind Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen.',
     meta: 'Archiv',
-    tags: ['Thüringen', 'Beschlüsse', 'Wahlprogramme', 'Presse'],
+    tags: ['Offiziell', 'Thüringen', 'Beschlüsse', 'Wahlprogramme', 'Presse'],
     order: 6,
     category: 'landesebene',
   },
@@ -73,6 +73,17 @@ const PRODUCTION_NOTEBOOKS = [
     order: 3,
     category: 'oesterreich',
   },
+  {
+    id: 'kommunalwiki-notebook',
+    path: '/kommunalwiki',
+    title: 'Frag KommunalWiki',
+    description:
+      'Fachwissen zur Kommunalpolitik – durchsuchbar über das KommunalWiki der Heinrich-Böll-Stiftung.',
+    meta: 'Wiki',
+    tags: ['Kommunalpolitik', 'Böll-Stiftung'],
+    order: 6,
+    category: 'weitere',
+  },
 ];
 
 const DEV_ONLY_NOTEBOOKS = [
@@ -85,17 +96,6 @@ const DEV_ONLY_NOTEBOOKS = [
     tags: ['Bayern', 'Regierungsprogramm'],
     order: 6,
     category: 'landesebene',
-  },
-  {
-    id: 'kommunalwiki-notebook',
-    path: '/kommunalwiki',
-    title: 'Frag KommunalWiki',
-    description:
-      'Fachwissen zur Kommunalpolitik – durchsuchbar über das KommunalWiki der Heinrich-Böll-Stiftung.',
-    meta: 'Wiki',
-    tags: ['Kommunalpolitik', 'Böll-Stiftung'],
-    order: 6,
-    category: 'weitere',
   },
   {
     id: 'boell-stiftung-notebook',

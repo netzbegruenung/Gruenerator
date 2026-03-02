@@ -41,7 +41,7 @@ LABEL org.opencontainers.image.title="Gruen-O-Mat"
 LABEL org.opencontainers.image.description="Public Green Party Q&A Bot Frontend"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
 
-RUN apk add --no-cache curl gettext
+RUN apk add --no-cache curl gettext apache2-utils
 
 # Remove default nginx config
 RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf

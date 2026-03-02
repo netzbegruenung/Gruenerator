@@ -6,11 +6,13 @@ import {
   useRef,
   type ComponentType,
   type DragEvent,
+  type KeyboardEvent,
 } from 'react';
 import { useForm } from 'react-hook-form';
-import { HiCheckCircle, HiArrowLeft, HiUpload, HiX } from 'react-icons/hi';
+import { HiCheckCircle, HiArrowLeft, HiUpload, HiX, HiPlus } from 'react-icons/hi';
 
 import { useFormFields } from '../../../components/common/Form/hooks';
+import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
@@ -20,6 +22,7 @@ interface NotebookCollection {
   name: string;
   description?: string;
   documents?: { id: string; title?: string }[];
+  labels?: string[];
 }
 
 interface NotebookEditorFormData {
@@ -75,6 +78,8 @@ const NotebookEditor = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [labels, setLabels] = useState<string[]>([]);
+  const [newLabel, setNewLabel] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { Input, Textarea } = useFormFields() as unknown as FormFieldComponents;
@@ -93,6 +98,7 @@ const NotebookEditor = ({
         name: editingCollection.name || '',
         description: editingCollection.description || '',
       });
+      setLabels(editingCollection.labels || []);
       if (editingCollection.documents?.length) {
         const doc = editingCollection.documents[0];
         setUploadedDocument({ id: doc.id, title: doc.title || 'Dokument' });
@@ -100,6 +106,7 @@ const NotebookEditor = ({
       }
     } else {
       reset({ name: '', description: '' });
+      setLabels([]);
       setUploadedDocument(null);
       setStep(1);
     }
@@ -156,7 +163,32 @@ const NotebookEditor = ({
     setUploadedDocument(null);
     setStep(1);
     reset({ name: '', description: '' });
+    setLabels([]);
   }, [reset]);
+
+  const handleAddLabel = useCallback(() => {
+    const trimmed = newLabel.trim();
+    if (!trimmed || labels.includes(trimmed) || labels.length >= 10) {
+      setNewLabel('');
+      return;
+    }
+    setLabels((prev) => [...prev, trimmed]);
+    setNewLabel('');
+  }, [newLabel, labels]);
+
+  const handleRemoveLabel = useCallback((labelToRemove: string) => {
+    setLabels((prev) => prev.filter((l) => l !== labelToRemove));
+  }, []);
+
+  const handleLabelKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAddLabel();
+      }
+    },
+    [handleAddLabel]
+  );
 
   const onSubmit = async (data: NotebookEditorFormData): Promise<void> => {
     if (!uploadedDocument) return;
@@ -166,6 +198,7 @@ const NotebookEditor = ({
       selectionMode: 'documents',
       documents: [uploadedDocument.id],
       id: editingCollection?.id,
+      labels,
     };
 
     await onSave(qaData);
@@ -174,6 +207,8 @@ const NotebookEditor = ({
   const handleCancel = (): void => {
     reset();
     setUploadedDocument(null);
+    setLabels([]);
+    setNewLabel('');
     setStep(1);
     if (onCancel) onCancel();
   };
@@ -354,6 +389,52 @@ const NotebookEditor = ({
                         },
                       }}
                     />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Labels (optional)</label>
+                    <div className="mt-xs flex items-center gap-xs">
+                      <input
+                        type="text"
+                        value={newLabel}
+                        onChange={(e) => setNewLabel(e.target.value)}
+                        onKeyDown={handleLabelKeyDown}
+                        placeholder="Label hinzufügen…"
+                        maxLength={30}
+                        disabled={loading || labels.length >= 10}
+                        className="flex-1 rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddLabel}
+                        disabled={loading || !newLabel.trim() || labels.length >= 10}
+                      >
+                        <HiPlus size={14} />
+                      </Button>
+                    </div>
+                    {labels.length > 0 && (
+                      <div className="mt-xs flex flex-wrap gap-xs">
+                        {labels.map((label) => (
+                          <Badge
+                            key={label}
+                            variant="secondary"
+                            className="bg-secondary-600 text-white border-transparent gap-1"
+                          >
+                            {label}
+                            <button
+                              type="button"
+                              className="ml-0.5 inline-flex items-center hover:text-grey-200"
+                              onClick={() => handleRemoveLabel(label)}
+                              aria-label={`Label "${label}" entfernen`}
+                            >
+                              <HiX size={12} />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 

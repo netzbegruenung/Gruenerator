@@ -176,8 +176,11 @@ const Datenschutz = () => {
       </p>
 
       <p>
-        Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen und der Suchfunktion
-        spezialisierte technische Dienstleister, die als unsere Auftragsverarbeiter agieren.
+        Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen, der Suchfunktion und der
+        Fehlerüberwachung spezialisierte technische Dienstleister, die als unsere
+        Auftragsverarbeiter agieren. Für die Anwendungsüberwachung nutzen wir{' '}
+        <strong>GlitchTip</strong> (Burke Software and Consulting LLC, USA) mit EU-Serverstandort in
+        Frankfurt, Deutschland.
       </p>
 
       <h3>Auftragsverarbeitung durch technische Dienstleister</h3>
@@ -284,6 +287,28 @@ const Datenschutz = () => {
         <li>Zweck: Suchfunktion (Metasuchmaschine für Web-Informationen)</li>
         <li>Server: Eigene Server (Deutschland)</li>
         <li>Besonderheit: Keine Weitergabe an externe Suchanbieter, vollständige Datenkontrolle</li>
+      </ul>
+
+      <p>
+        <strong>7. GlitchTip</strong> (Burke Software and Consulting LLC, New York, USA)
+      </p>
+      <ul>
+        <li>Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)</li>
+        <li>Server: EU (DigitalOcean Frankfurt, Deutschland)</li>
+        <li>Verarbeitete Daten: Fehlerberichte, Stack-Traces, Browserinformationen, IP-Adressen</li>
+        <li>Speicherdauer: Automatische Löschung nach 90 Tagen</li>
+        <li>Sicherheit: TLS 1.2+, Verschlüsselung im Ruhezustand, A+ Mozilla Observatory Rating</li>
+        <li>
+          Besonderheit: Open-Source-Alternative zu Sentry, Daten werden nicht zum KI-Training
+          verwendet, EU-Datenresidenz trotz US-Firmensitz
+        </li>
+        <li>Rechtsgrundlage Drittlandtransfer: EU-US Data Privacy Framework (Art. 45 DSGVO)</li>
+        <li>
+          Details: <a href="https://glitchtip.com/legal/privacy/">Datenschutzerklärung</a> und{' '}
+          <a href="https://glitchtip.com/documentation/hosted-architecture/">
+            Architektur &amp; Sicherheit
+          </a>
+        </li>
       </ul>
 
       <h3 id="webanalyse">Webanalyse mit Umami</h3>
@@ -428,6 +453,10 @@ const Datenschutz = () => {
           <tr>
             <td>KI-Anfragen (Mistral/Claude)</td>
             <td>Max. 30 Tage (Missbrauchserkennung)</td>
+          </tr>
+          <tr>
+            <td>Fehlerberichte (GlitchTip)</td>
+            <td>90 Tage (automatische Löschung)</td>
           </tr>
           <tr>
             <td>Video-Transkription (Gladia)</td>
