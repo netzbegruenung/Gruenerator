@@ -38,8 +38,12 @@ export const EditorTopBar = ({
     setIsEditing(false);
     const trimmed = editValue.trim();
     const newTitle = trimmed || 'Unbenannt';
-    if (newTitle !== (title || 'Unbenannt')) {
+    const currentTitle = title || 'Unbenannt';
+    if (newTitle !== currentTitle) {
+      console.log('[docs-rename] EditorTopBar commitEdit: "%s" → "%s"', currentTitle, newTitle);
       onTitleChange?.(newTitle);
+    } else {
+      console.log('[docs-rename] EditorTopBar commitEdit: no change (both "%s")', currentTitle);
     }
   }, [editValue, title, onTitleChange]);
 

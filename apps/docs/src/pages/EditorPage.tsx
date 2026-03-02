@@ -117,15 +117,30 @@ export const EditorPage = () => {
 
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
-      if (!id) return;
+      if (!id) {
+        console.warn('[docs-rename] handleTitleChange: no document id, aborting');
+        return;
+      }
+      console.log(
+        '[docs-rename] handleTitleChange: docId=%s, newTitle="%s", isGuest=%s',
+        id,
+        newTitle,
+        isGuest
+      );
       const queryKey = ['document', id, isGuest ? 'public' : 'auth'];
       queryClient.setQueryData(queryKey, (old: Document | undefined) =>
         old ? { ...old, title: newTitle } : old
       );
       document.title = newTitle;
       try {
-        await apiClient.put(`/docs/${id}`, { title: newTitle });
-      } catch {
+        const result = await apiClient.put(`/docs/${id}`, { title: newTitle });
+        console.log(
+          '[docs-rename] handleTitleChange: API success, docId=%s, response=%o',
+          id,
+          result
+        );
+      } catch (error) {
+        console.error('[docs-rename] handleTitleChange: API failed, docId=%s, error=%o', id, error);
         queryClient.setQueryData(queryKey, docData);
       }
     },

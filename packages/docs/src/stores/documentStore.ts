@@ -89,15 +89,21 @@ export const useDocumentStore = create<DocumentStore>((set) => ({
   },
 
   updateDocument: async (apiClient, id, updates) => {
+    console.log('[docs-rename] store.updateDocument: docId=%s, updates=%o', id, updates);
     set({ error: null });
     try {
       const updatedDocument = await apiClient.put<Document>(`/docs/${id}`, updates);
+      console.log(
+        '[docs-rename] store.updateDocument: success, docId=%s, returnedTitle="%s"',
+        id,
+        updatedDocument?.title
+      );
 
       set((state) => ({
         documents: state.documents.map((doc) => (doc.id === id ? updatedDocument : doc)),
       }));
     } catch (error) {
-      console.error('Failed to update document:', error);
+      console.error('[docs-rename] store.updateDocument: failed, docId=%s, error=%o', id, error);
       set({ error: 'Fehler beim Aktualisieren des Dokuments' });
       throw error;
     }
