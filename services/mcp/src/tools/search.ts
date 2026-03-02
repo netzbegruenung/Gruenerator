@@ -1,4 +1,9 @@
-import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
+import {
+  COLLECTIONS,
+  getDefaultSearchCollections,
+  buildCollectionDefaultFilter,
+} from '@gruenerator/shared/search/collections';
+import { buildQdrantFilter, mergeFilters } from '@gruenerator/shared/search/filters';
 import { z } from 'zod';
 
 import { config, COLLECTION_KEYS } from '../config.ts';
@@ -16,11 +21,6 @@ import {
   getCacheStats,
 } from '../utils/cache.ts';
 import { type Country } from '../utils/localization.ts';
-
-const COUNTRY_COLLECTIONS: Record<Country, string[]> = {
-  DE: ['deutschland', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki', 'boell-stiftung'],
-  AT: ['oesterreich', 'gruene-at', 'kommunalwiki', 'boell-stiftung'],
-};
 
 interface SearchResult {
   score: number;
@@ -51,7 +51,9 @@ async function searchSingleCollection({
   const collectionConfig = config.collections[collectionKey];
   if (!collectionConfig) return { results: [], collectionKey, metadata: {} };
 
-  const qdrantFilter = buildQdrantFilter(filters) as Record<string, unknown> | null;
+  const userFilter = buildQdrantFilter(filters);
+  const defaultFilter = buildCollectionDefaultFilter(collectionKey);
+  const qdrantFilter = mergeFilters(defaultFilter, userFilter) as Record<string, unknown> | null;
   let results: SearchResult[];
   let metadata: Record<string, unknown> = {};
 
@@ -78,16 +80,28 @@ async function searchSingleCollection({
   return { results: results || [], collectionKey, metadata };
 }
 
-export const searchTool = {
-  name: 'gruenerator_search',
-  description: `Durchsucht Grüne Parteiprogramme und Inhalte mit semantischer und textbasierter Suche.
+function buildSearchDescription(): string {
+  const deCollections = getDefaultSearchCollections('DE').join(', ');
+  const atCollections = getDefaultSearchCollections('AT').join(', ');
+
+  const defaultRows = Object.entries(COLLECTIONS)
+    .filter(([, col]) => !col.defaultFilter)
+    .map(([key, col]) => `| ${key} | ${col.displayName} | ${col.description} |`)
+    .join('\n');
+
+  const lvRows = Object.entries(COLLECTIONS)
+    .filter(([, col]) => col.defaultFilter && col.includeInDefaultSearch === false)
+    .map(([key, col]) => `| ${key} | ${col.displayName} | ${col.description} |`)
+    .join('\n');
+
+  return `Durchsucht Grüne Parteiprogramme und Inhalte mit semantischer und textbasierter Suche.
 
 ## PFLICHTPARAMETER: country
 
 Jede Suche benötigt ein Land (DE oder AT). Das Land bestimmt, welche Sammlungen durchsucht werden.
 
-- **DE** (Deutschland): deutschland, bundestagsfraktion, gruene-de, kommunalwiki, boell-stiftung
-- **AT** (Österreich): oesterreich, gruene-at, kommunalwiki, boell-stiftung
+- **DE** (Deutschland): ${deCollections}
+- **AT** (Österreich): ${atCollections}
 
 ## SAMMLUNGSAUSWAHL
 
@@ -98,14 +112,15 @@ Mit \`collection\`-Parameter wird nur diese eine Sammlung durchsucht.
 
 | ID | Name | Inhalt |
 |----|------|--------|
-| oesterreich | Die Grünen Österreich | EU-Wahl, Grundsatz, Nationalrat Programme |
-| deutschland | Bündnis 90/Die Grünen | Grundsatzprogramm 2020, EU-Wahl 2024, Regierung 2025 |
-| bundestagsfraktion | Grüne Bundestagsfraktion | Positionen, Fachtexte von gruene-bundestag.de |
-| gruene-de | Grüne Deutschland | Inhalte von gruene.de |
-| gruene-at | Grüne Österreich | Inhalte von gruene.at |
-| kommunalwiki | KommunalWiki | Kommunalpolitik-Fachwissen (Böll-Stiftung) |
-| boell-stiftung | Heinrich-Böll-Stiftung | Analysen, Dossiers, Atlanten |
-| examples | Social Media Beispiele | Instagram/Facebook Posts als Inspiration |
+${defaultRows}
+
+## Landesverbände (nur mit explizitem \`collection\`-Parameter)
+
+Diese Sammlungen werden NICHT bei der Landessuche mitdurchsucht. Sie müssen explizit angegeben werden.
+
+| ID | Name | Inhalt |
+|----|------|--------|
+${lvRows}
 
 ## Filter
 
@@ -118,6 +133,7 @@ WICHTIG: Rufe ZUERST gruenerator_get_filters auf, um gültige Filterwerte zu erf
 | boell-stiftung | region (z.B. europa, asien, nahost) |
 | bundestagsfraktion, gruene-de, gruene-at | country (DE oder AT) |
 | examples | platform (instagram, facebook), country (DE oder AT) |
+| Landesverbände | content_type (Typ), primary_category (Kategorie) |
 
 ## Beispiele
 
@@ -127,8 +143,16 @@ Suche in allen deutschen Sammlungen:
 Suche in einer bestimmten Sammlung:
 { "query": "Klimaschutz", "country": "DE", "collection": "kommunalwiki" }
 
+Suche in einem Landesverband:
+{ "query": "Klimaschutz", "country": "DE", "collection": "hamburg" }
+
 Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
-{ "query": "Klimaschutz", "country": "DE", "collection": "kommunalwiki", "filters": { "content_type": "praxishilfe" } }`,
+{ "query": "Klimaschutz", "country": "DE", "collection": "kommunalwiki", "filters": { "content_type": "praxishilfe" } }`;
+}
+
+export const searchTool = {
+  name: 'gruenerator_search',
+  description: buildSearchDescription(),
 
   inputSchema: {
     query: z.string().describe('Suchbegriff oder Frage auf Deutsch'),
@@ -370,8 +394,8 @@ async function searchMultipleCollections({
   filters: Record<string, string> | null;
   useCache: boolean;
 }) {
-  const collections = COUNTRY_COLLECTIONS[country];
-  if (!collections) {
+  const collections = getDefaultSearchCollections(country);
+  if (!collections || collections.length === 0) {
     return {
       error: true,
       message: `Unbekanntes Land: ${country}. Verfügbar: DE, AT`,

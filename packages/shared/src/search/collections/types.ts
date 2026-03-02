@@ -37,6 +37,12 @@ export interface CollectionConfig {
   defaultSearchMode?: 'hybrid' | 'vector' | 'text';
   /** Whether this collection supports person detection */
   supportsPersonDetection?: boolean;
+  /** Auto-applied filter (e.g., for shared Qdrant collections like landesverbaende_documents) */
+  defaultFilter?: { field: string; value: string | string[] };
+  /** Country this collection belongs to (undefined = country-agnostic, included in both) */
+  country?: 'DE' | 'AT';
+  /** Whether to include in country-wide default searches (false = requires explicit collection param) */
+  includeInDefaultSearch?: boolean;
 }
 
 /**
@@ -55,4 +61,9 @@ export type CollectionKey =
   | 'gruene-at'
   | 'kommunalwiki'
   | 'boell-stiftung'
-  | 'examples';
+  | 'examples'
+  | 'hamburg'
+  | 'schleswig-holstein'
+  | 'thueringen'
+  | 'bayern'
+  | 'berlin';

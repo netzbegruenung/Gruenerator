@@ -51,7 +51,7 @@ export async function getCollectionResources() {
  * Get a specific collection resource by URI
  */
 export async function getCollectionResource(uri) {
-  const match = uri.match(/^gruenerator:\/\/collections\/(\w+)$/);
+  const match = uri.match(/^gruenerator:\/\/collections\/([\w-]+)$/);
   if (!match) {
     return null;
   }

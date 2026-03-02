@@ -22,4 +22,6 @@ export {
   isValidCollectionKey,
   getFilterableFields,
   getCollectionsWithField,
+  getDefaultSearchCollections,
+  buildCollectionDefaultFilter,
 } from './config.js';
