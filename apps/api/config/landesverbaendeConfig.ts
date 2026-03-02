@@ -25,6 +25,7 @@ export interface ContentPath {
   maxPages?: number;
   isPdfArchive?: boolean;
   paginationOffset?: number; // Offset for page number in pagination (default: 0). Use -1 for Drupal 0-indexed pagination.
+  paginationLinkSelector?: string; // Optional: CSS selector for pagination links. When set, follows "next" links from HTML instead of constructing URLs (needed for Typo3 cHash).
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
 }
@@ -264,6 +265,84 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         author: ['.author', '.byline'],
       },
       excludePatterns: ['/tag/', '/author/', '/wp-content/', '#', 'javascript:'],
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // BERLIN
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      id: 'berlin-lv-presse',
+      name: 'Grüne Berlin Presse',
+      shortName: 'BE',
+      type: 'landesverband',
+      baseUrl: 'https://gruene.berlin',
+      cms: 'typo3',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/nachrichten',
+          listSelector: 'h2 a[href], h3 a[href]',
+          paginationPattern: '?tx_xblog_pi1[pointer]={page}',
+          paginationOffset: -1,
+          paginationLinkSelector: '.pagination a',
+          maxPages: 62,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
+        content: ['.tx_xblog_pi1', '.bodytext', 'article', 'main .content'],
+        categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
+        author: ['.author', '.byline'],
+      },
+      excludePatterns: [
+        '/fileadmin/',
+        '/typo3/',
+        'tx_xblog_pi1[catKey]',
+        '#',
+        'javascript:',
+        '.pdf',
+        '.jpg',
+        '.png',
+      ],
+    },
+    {
+      id: 'berlin-lv-beschluesse',
+      name: 'Grüne Berlin Beschlüsse',
+      shortName: 'BE',
+      type: 'landesverband',
+      baseUrl: 'https://gruene.berlin',
+      cms: 'typo3',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'beschluss',
+          path: '/beschluesse',
+          listSelector: 'h2 a[href], h3 a[href]',
+          paginationPattern: '?tx_xblog_pi1[pointer]={page}',
+          paginationOffset: -1,
+          paginationLinkSelector: '.pagination a',
+          maxPages: 27,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
+        content: ['.tx_xblog_pi1', '.bodytext', 'article', 'main .content'],
+        categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
+        author: ['.author', '.byline'],
+      },
+      excludePatterns: [
+        '/fileadmin/',
+        '/typo3/',
+        'tx_xblog_pi1[catKey]',
+        '#',
+        'javascript:',
+        '.pdf',
+        '.jpg',
+        '.png',
+      ],
     },
 
     // ═══════════════════════════════════════════════════════════════════

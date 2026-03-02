@@ -11,6 +11,7 @@ export const NOTEBOOK_COLLECTION_MAP: Record<string, string[]> = {
   'thueringen-notebook': ['thueringen'],
   'oesterreich-notebook': ['oesterreich'],
   'bayern-notebook': ['bayern'],
+  'berlin-notebook': ['berlin'],
   'kommunalwiki-notebook': ['kommunalwiki'],
   'boell-stiftung-notebook': ['boell-stiftung'],
 };
