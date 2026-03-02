@@ -37,6 +37,7 @@ export interface NotebookCollection {
   documents?: Document[];
   wolke_share_links?: WolkeShareLink[];
   selection_mode?: 'documents' | 'wolke' | 'mixed';
+  labels?: string[];
 }
 
 /**
@@ -62,6 +63,7 @@ export interface NotebookCollectionInput {
   selectionMode?: 'documents' | 'wolke' | 'mixed';
   documents?: string[];
   wolkeShareLinks?: string[];
+  labels?: string[];
 }
 
 /**

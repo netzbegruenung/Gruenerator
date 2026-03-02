@@ -138,6 +138,9 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
           }
         }
 
+        const settings = (collection.settings as Record<string, unknown>) || {};
+        const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
+
         return {
           ...collection,
           documents,
@@ -148,6 +151,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
           documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
           auto_sync: !!collection.auto_sync,
           remove_missing_on_sync: !!collection.remove_missing_on_sync,
+          labels,
         };
       })
     );
@@ -180,6 +184,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       wolke_share_link_ids = [],
       auto_sync = false,
       remove_missing_on_sync = false,
+      labels,
     } = req.body as CreateCollectionBody;
 
     if (!name || !name.trim()) {
@@ -242,6 +247,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       wolke_share_link_ids: selection_mode === 'wolke' ? wolke_share_link_ids : null,
       auto_sync: selection_mode === 'wolke' ? !!auto_sync : false,
       remove_missing_on_sync: selection_mode === 'wolke' ? !!remove_missing_on_sync : false,
+      settings: {
+        ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
+      },
     };
 
     const result = await notebookHelper.storeNotebookCollection(collectionData);
@@ -317,6 +325,7 @@ router.put(
         wolke_share_link_ids = [],
         auto_sync,
         remove_missing_on_sync,
+        labels,
       } = req.body as UpdateCollectionBody;
 
       if (!name || !name.trim()) {
@@ -383,6 +392,14 @@ router.put(
         document_count: allDocumentIds.length,
         wolke_share_link_ids: selection_mode === 'wolke' ? wolke_share_link_ids : null,
       };
+
+      if (Array.isArray(labels)) {
+        const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
+        updateData.settings = {
+          ...existingSettings,
+          labels: labels.map((l) => l.trim()).filter(Boolean),
+        };
+      }
 
       if (selection_mode === 'wolke') {
         if (typeof auto_sync === 'boolean') updateData.auto_sync = auto_sync;

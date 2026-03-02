@@ -23,6 +23,7 @@ interface EditorSaveData {
   selectionMode?: 'documents' | 'wolke';
   documents?: string[];
   wolkeShareLinks?: string[];
+  labels?: string[];
 }
 
 const gridClasses = 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2xl';
@@ -134,6 +135,7 @@ const NotebooksGalleryPage = () => {
           selectionMode: saveData.selectionMode,
           documents: saveData.documents,
           wolkeShareLinks: saveData.wolkeShareLinks,
+          labels: saveData.labels,
         });
       } else {
         const result = await createQACollection({
@@ -142,6 +144,7 @@ const NotebooksGalleryPage = () => {
           selectionMode: saveData.selectionMode,
           documents: saveData.documents,
           wolkeShareLinks: saveData.wolkeShareLinks,
+          labels: saveData.labels,
         });
 
         if (result?.id && saveData.documents?.length) {

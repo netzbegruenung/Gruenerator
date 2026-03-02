@@ -183,7 +183,9 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
                     </Menu>
                   </div>
                   {doc.access_type && doc.access_type !== 'owner' && (
-                    <div className="document-card-sharing">Mit dir geteilt</div>
+                    <div className="document-card-sharing">
+                      {doc.creator_name ? `Von ${doc.creator_name}` : 'Mit dir geteilt'}
+                    </div>
                   )}
                   <div className="document-card-meta">
                     {new Date(doc.updated_at).toLocaleDateString('de-DE', {
