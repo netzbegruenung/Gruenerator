@@ -22,6 +22,7 @@ export const EditorTopBar = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(title || '');
   const inputRef = useRef<HTMLInputElement>(null);
+  const committedRef = useRef(false);
 
   useEffect(() => {
     setEditValue(title || '');
@@ -35,6 +36,8 @@ export const EditorTopBar = ({
   }, [isEditing]);
 
   const commitEdit = useCallback(() => {
+    if (committedRef.current) return;
+    committedRef.current = true;
     setIsEditing(false);
     const trimmed = editValue.trim();
     const newTitle = trimmed || 'Unbenannt';
@@ -103,7 +106,14 @@ export const EditorTopBar = ({
             ) : (
               <h1
                 className={`editor-topbar__title${canEditTitle ? ' editor-topbar__title--editable' : ''}`}
-                onClick={canEditTitle ? () => setIsEditing(true) : undefined}
+                onClick={
+                  canEditTitle
+                    ? () => {
+                        committedRef.current = false;
+                        setIsEditing(true);
+                      }
+                    : undefined
+                }
                 title={canEditTitle ? 'Klicken zum Umbenennen' : undefined}
               >
                 {title || 'Unbenannt'}
