@@ -1,18 +1,59 @@
+import { useThreadIsRunning, useAssistantRuntime } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, useColorScheme, Pressable } from 'react-native';
-import { GiftedChat, type IMessage } from 'react-native-gifted-chat';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, useColorScheme, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  createChatRenderers,
-  CURRENT_USER,
-  ThinkingStepIndicator,
-  CitationsList,
-} from '../../components/chat';
-import { useDeepChatStore, toGiftedMessages } from '../../stores/deepChatStore';
+import { AssistantThread } from '../../components/chat';
+import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+
+function ChatHeader() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const isRunning = useThreadIsRunning();
+
+  return (
+    <View
+      style={[
+        styles.header,
+        {
+          paddingTop: insets.top,
+          backgroundColor: theme.background,
+          borderBottomColor: theme.border,
+        },
+      ]}
+    >
+      <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
+        <Ionicons name="chevron-back" size={28} color={colors.primary[600]} />
+      </Pressable>
+      <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+        Chat
+      </Text>
+      <View style={styles.headerButton}>
+        {isRunning && <ActivityIndicator size="small" color={colors.primary[600]} />}
+      </View>
+    </View>
+  );
+}
+
+function InitialMessageSender({ message }: { message: string }) {
+  const runtime = useAssistantRuntime();
+
+  useEffect(() => {
+    if (message) {
+      runtime.thread.composer.setText(message);
+      runtime.thread.composer.send();
+    }
+    // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
 
 export default function ChatConversationScreen() {
   const { threadId, initialMessage } = useLocalSearchParams<{
@@ -21,107 +62,16 @@ export default function ChatConversationScreen() {
   }>();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-
-  const {
-    messages,
-    isStreaming,
-    isLoadingMessages,
-    streamingText,
-    thinkingSteps,
-    error,
-    activeThreadId,
-    sendMessage,
-    cancelStream,
-    switchThread,
-    startNewChat,
-  } = useDeepChatStore();
 
   const isNewChat = threadId === 'new';
 
-  useEffect(() => {
-    if (!isNewChat && threadId && threadId !== activeThreadId) {
-      switchThread(threadId);
-    }
-  }, [threadId, isNewChat, activeThreadId, switchThread]);
-
-  useEffect(() => {
-    if (isNewChat && initialMessage) {
-      sendMessage(initialMessage);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const chatRenderers = useMemo(() => createChatRenderers(theme), [theme]);
-
-  const giftedMessages = useMemo(
-    () => toGiftedMessages(messages, streamingText, isStreaming),
-    [messages, streamingText, isStreaming]
-  );
-
-  const handleSend = useCallback(
-    (newMessages: IMessage[] = []) => {
-      if (!newMessages.length) return;
-      const text = newMessages[0].text.trim();
-      if (!text) return;
-      sendMessage(text);
-    },
-    [sendMessage]
-  );
-
-  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
-  const citations = lastAssistant?.citations;
-
-  const headerTitle = isNewChat ? 'Neue Unterhaltung' : 'Chat';
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: insets.top,
-            backgroundColor: theme.background,
-            borderBottomColor: theme.border,
-          },
-        ]}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
-          <Ionicons name="chevron-back" size={28} color={colors.primary[600]} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-          {headerTitle}
-        </Text>
-        <View style={styles.headerButton}>
-          {isStreaming ? (
-            <Pressable onPress={cancelStream} hitSlop={12}>
-              <Ionicons name="stop-circle" size={24} color={colors.error[500]} />
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-
-      {thinkingSteps.length > 0 && isStreaming && (
-        <ThinkingStepIndicator steps={thinkingSteps} theme={theme} />
-      )}
-
-      <GiftedChat
-        messages={giftedMessages}
-        onSend={(msgs: IMessage[]) => handleSend(msgs)}
-        user={CURRENT_USER}
-        isTyping={isStreaming && !streamingText}
-        alwaysShowSend
-        placeholder="Nachricht eingeben..."
-        {...chatRenderers}
-        minInputToolbarHeight={60}
-        bottomOffset={0}
-        renderLoading={() => null}
-      />
-
-      {!isStreaming && citations && citations.length > 0 && (
-        <CitationsList citations={citations} theme={theme} />
-      )}
+      <MobileChatProvider threadId={isNewChat ? null : threadId}>
+        <ChatHeader />
+        <AssistantThread theme={theme} />
+        {isNewChat && initialMessage && <InitialMessageSender message={initialMessage} />}
+      </MobileChatProvider>
     </View>
   );
 }
