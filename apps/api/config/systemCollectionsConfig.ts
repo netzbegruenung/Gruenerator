@@ -15,7 +15,7 @@ import type { QdrantFilter } from '../database/services/QdrantService/types.js';
 export interface FilterableField {
   field: string;
   label: string;
-  type: 'keyword';
+  type: 'keyword' | 'date_range';
 }
 
 export interface DefaultFilter {
@@ -50,6 +50,8 @@ export interface SubcategoryFilters {
   subcategories?: string | string[];
   country?: string | string[];
   region?: string | string[];
+  landesverband?: string | string[];
+  gremium?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -102,6 +104,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       { field: 'primary_category', label: 'Bereich', type: 'keyword' },
       { field: 'country', label: 'Land', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
   'oesterreich-gruene-system': {
@@ -123,6 +126,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       { field: 'primary_category', label: 'Bereich', type: 'keyword' },
       { field: 'country', label: 'Land', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
   'kommunalwiki-system': {
@@ -136,6 +140,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'content_type', label: 'Artikeltyp', type: 'keyword' },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
   'gruene-at-system': {
@@ -148,6 +153,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       { field: 'primary_category', label: 'Bereich', type: 'keyword' },
       { field: 'country', label: 'Land', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
   'boell-stiftung-system': {
@@ -162,6 +168,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'primary_category', label: 'Thema', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'region', label: 'Region', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
   'satzungen-system': {
@@ -186,6 +193,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       { field: 'content_type', label: 'Typ', type: 'keyword' },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'HH' },
   },
@@ -196,7 +205,12 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
     minQuality: 0.3,
     recallLimit: 60,
-    filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
+    filterableFields: [
+      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'primary_category', label: 'Programm', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
     defaultFilter: { field: 'landesverband', value: 'SH' },
   },
   'thueringen-system': {
@@ -209,6 +223,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       { field: 'content_type', label: 'Typ', type: 'keyword' },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['TH', 'TH-F'] },
   },
@@ -219,7 +235,12 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     description: 'Regierungsprogramm der Grünen Bayern zur Landtagswahl',
     minQuality: 0.3,
     recallLimit: 60,
-    filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
+    filterableFields: [
+      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'primary_category', label: 'Programm', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
     defaultFilter: { field: 'landesverband', value: 'BY' },
   },
   'berlin-system': {
@@ -232,8 +253,25 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       { field: 'content_type', label: 'Typ', type: 'keyword' },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: 'BE' },
+  },
+  'mecklenburg-vorpommern-system': {
+    id: 'mecklenburg-vorpommern-system',
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Mecklenburg-Vorpommern',
+    description: 'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: 'MV' },
   },
 };
 
@@ -355,6 +393,8 @@ export function buildSubcategoryFilter(
     'subcategories',
     'country',
     'region',
+    'landesverband',
+    'gremium',
   ];
 
   for (const key of filterKeys) {

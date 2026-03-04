@@ -92,6 +92,10 @@ const COLLECTION_MAP: Record<string, { qdrantCollection: string; systemId: strin
     qdrantCollection: 'landesverbaende_documents',
     systemId: 'berlin-system',
   },
+  'mecklenburg-vorpommern': {
+    qdrantCollection: 'landesverbaende_documents',
+    systemId: 'mecklenburg-vorpommern-system',
+  },
 };
 
 export interface DirectSearchResult {
