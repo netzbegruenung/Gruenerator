@@ -1,9 +1,13 @@
 #!/bin/sh
 set -e
 
+# Default EMBED_ALLOWED_ORIGINS to empty if unset
+: "${EMBED_ALLOWED_ORIGINS:=}"
+export EMBED_ALLOWED_ORIGINS
+
 # Substitute environment variables in nginx config.
-# Restricted to ${API_BASE_URL} so nginx variables ($host, $uri, etc.) are untouched.
-envsubst '${API_BASE_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+# Restricted to known variables so nginx variables ($host, $uri, etc.) are untouched.
+envsubst '${API_BASE_URL} ${EMBED_ALLOWED_ORIGINS}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # Optional basic auth (set AUTH_USERNAME + AUTH_PASSWORD to enable)
 if [ -n "$AUTH_USERNAME" ] && [ -n "$AUTH_PASSWORD" ]; then
@@ -16,6 +20,11 @@ else
 fi
 
 echo "Starting nginx — API proxy target: ${API_BASE_URL}"
+if [ -n "$EMBED_ALLOWED_ORIGINS" ]; then
+  echo "Embed allowed origins: ${EMBED_ALLOWED_ORIGINS}"
+else
+  echo "Embed framing: restricted to 'self' only (EMBED_ALLOWED_ORIGINS not set)"
+fi
 
 # Execute the main command (nginx)
 exec "$@"
