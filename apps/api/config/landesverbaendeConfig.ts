@@ -129,6 +129,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       type: 'landesverband',
       baseUrl: 'https://gruene-mv.de',
       cms: 'wordpress',
+      maxAgeYears: 5,
       contentPaths: [
         {
           type: 'presse',
@@ -178,6 +179,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       type: 'fraktion',
       baseUrl: 'https://gruene-fraktion-mv.de',
       cms: 'wordpress',
+      maxAgeYears: 5,
       contentPaths: [
         {
           type: 'presse',

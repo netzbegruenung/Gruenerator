@@ -6,6 +6,24 @@
 
 import type { DateExtractionResult } from '../types.js';
 
+const GERMAN_MONTHS: Record<string, number> = {
+  januar: 1,
+  februar: 2,
+  märz: 3,
+  april: 4,
+  mai: 5,
+  juni: 6,
+  juli: 7,
+  august: 8,
+  september: 9,
+  oktober: 10,
+  november: 11,
+  dezember: 12,
+};
+
+const GERMAN_MONTH_PATTERN =
+  /(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/i;
+
 /**
  * Date extraction utilities
  * Static methods for parsing dates from various sources
@@ -30,6 +48,7 @@ export class DateExtractor {
       /(\d{1,2})\.(\d{1,2})\.(\d{4})/, // German format: 15.05.2023
       /(\d{1,2})_(\d{1,2})_(\d{4})/, // Underscore: 15_05_2023
       /(\d{4})_(\d{1,2})_(\d{1,2})/, // Underscore ISO: 2023_05_15
+      GERMAN_MONTH_PATTERN, // German text month: 24. Mai 2025
       /\b(20[0-2]\d)\b/, // Year only: 2023
       /\b(199\d)\b/, // Year only: 1990s
     ];
@@ -44,8 +63,13 @@ export class DateExtractor {
           let year: number | undefined, month: number | undefined, day: number | undefined;
 
           if (match.length === 4) {
-            // Full date with day/month/year
-            if (match[1].length === 4) {
+            // Check for German text month (e.g. "24. Mai 2025")
+            const germanMonth = GERMAN_MONTHS[match[2].toLowerCase()];
+            if (germanMonth) {
+              year = parseInt(match[3]);
+              month = germanMonth;
+              day = parseInt(match[1]) || 1;
+            } else if (match[1].length === 4) {
               // Format: YYYY-MM-DD or YYYY_MM_DD
               year = parseInt(match[1]);
               month = parseInt(match[2]) || 1;
