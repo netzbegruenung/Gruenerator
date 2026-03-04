@@ -113,9 +113,9 @@ async function* parseSSEStream(
   outcome: StreamOutcome
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error('No response body');
-  }
+
+  // React Native's fetch doesn't support ReadableStream — read full text as fallback
+  const fullText = !reader ? await response.text() : null;
 
   const decoder = new TextDecoder();
   let buffer = '';
@@ -179,10 +179,23 @@ async function* parseSSEStream(
     };
   }
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  // Feed chunks: stream from reader, or single chunk from full text fallback
+  const chunks: AsyncIterable<Uint8Array> = reader
+    ? {
+        [Symbol.asyncIterator]: () => ({
+          next: async () => {
+            const { done, value } = await reader.read();
+            return done
+              ? { done: true as const, value: undefined }
+              : { done: false as const, value };
+          },
+        }),
+      }
+    : (async function* () {
+        yield new TextEncoder().encode(fullText!);
+      })();
 
+  for await (const value of chunks) {
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop() || '';

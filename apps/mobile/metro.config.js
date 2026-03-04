@@ -6,6 +6,9 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
+// Ensure projectRoot is absolute (getDefaultConfig may return '.' which breaks in monorepos)
+config.projectRoot = projectRoot;
+
 // Watch specific folders in the monorepo (not root to avoid resolution issues)
 config.watchFolders = [
   path.resolve(monorepoRoot, 'packages'),
@@ -29,7 +32,7 @@ config.resolver.nodeModulesPaths = [
 config.resolver.unstable_enableSymlinks = true;
 
 // Specify export conditions for React Native
-config.resolver.unstable_conditionNames = ['require', 'import', 'react-native'];
+config.resolver.unstable_conditionNames = ['require', 'react-native'];
 
 // Custom resolver for various edge cases
 config.resolver.resolveRequest = (context, moduleName, platform) => {
@@ -41,16 +44,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       'node_modules/markdown-it/node_modules/entities/lib/maps/entities.json'
     );
     return { type: 'sourceFile', filePath: entitiesPath };
-  }
-
-  // Disable package exports for @babel/runtime to fix interop issues
-  // The slider package uses babel runtime helpers that break with package exports
-  if (moduleName.startsWith('@babel/runtime/')) {
-    // Add .js extension if not present
-    const helperPath = moduleName.endsWith('.js')
-      ? path.resolve(monorepoRoot, 'node_modules', moduleName)
-      : path.resolve(monorepoRoot, 'node_modules', moduleName + '.js');
-    return { type: 'sourceFile', filePath: helperPath };
   }
 
   // Resolve .js imports to .ts files (for ESM-style imports in shared package)

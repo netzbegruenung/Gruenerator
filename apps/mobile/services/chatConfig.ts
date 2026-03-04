@@ -3,7 +3,7 @@ import { useChatConfigStore, createChatApiClient, type ChatApiClient } from '@gr
 import { refreshAccessToken } from './auth';
 import { secureStorage } from './storage';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu';
 
 let cachedApiClient: ChatApiClient | null = null;
 

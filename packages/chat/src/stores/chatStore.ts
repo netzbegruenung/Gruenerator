@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { ChatApiClient } from '../context/ChatContext';
 
 export interface CompactionState {
@@ -240,6 +240,19 @@ export const useAgentStore = create<AgentState>()(
     }),
     {
       name: 'gruenerator-chat-store',
+      storage: createJSONStorage(() => {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          return window.localStorage;
+        }
+        // No-op storage for environments without localStorage (React Native)
+        // Mobile apps should configure their own persistence
+        const mem = new Map<string, string>();
+        return {
+          getItem: (key: string) => mem.get(key) ?? null,
+          setItem: (key: string, value: string) => mem.set(key, value),
+          removeItem: (key: string) => mem.delete(key),
+        };
+      }),
       version: 2,
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
