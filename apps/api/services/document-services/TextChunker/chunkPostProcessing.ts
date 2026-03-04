@@ -54,12 +54,47 @@ export function sentenceRepack(
   const markers = findPageMarkers(text);
   const results: any[] = [];
 
+  // Helper: split oversized text into targetChars-sized sub-chunks at word boundaries
+  const splitOversizedText = (
+    longText: string,
+    startOffset: number
+  ): Array<{ text: string; start: number; end: number }> => {
+    const subChunks: Array<{ text: string; start: number; end: number }> = [];
+    const words = longText.split(/\s+/);
+    let buf = '';
+    let bufStart = startOffset;
+
+    for (const word of words) {
+      if (buf.length + 1 + word.length > targetChars && buf) {
+        subChunks.push({ text: buf, start: bufStart, end: bufStart + buf.length });
+        bufStart += buf.length + 1;
+        buf = word;
+      } else {
+        buf = buf ? `${buf} ${word}` : word;
+      }
+    }
+    if (buf) {
+      subChunks.push({ text: buf, start: bufStart, end: bufStart + buf.length });
+    }
+    return subChunks;
+  };
+
   let currentSentences: SentenceSegment[] = [];
   let currentLength = 0;
 
   for (let i = 0; i < sentences.length; i++) {
     const sentence = sentences[i];
     const sentenceText = sentence.s;
+
+    // Handle oversized single sentences: split at word boundaries
+    if (sentenceText.length > targetChars && currentSentences.length === 0) {
+      const subChunks = splitOversizedText(sentenceText, sentence.start);
+      for (const sub of subChunks) {
+        const pn = resolvePageNumberForOffset(markers, pageNum, sub.start);
+        results.push({ text: sub.text, start: sub.start, end: sub.end, page_number: pn });
+      }
+      continue;
+    }
 
     // Check if adding this sentence would exceed target
     const tentativeLength =
@@ -94,7 +129,7 @@ export function sentenceRepack(
     }
   }
 
-  // Handle final chunk
+  // Handle final chunk (may also be oversized if last sentence is huge)
   if (currentSentences.length > 0) {
     const chunkText = currentSentences
       .map((s) => s.s)
@@ -102,8 +137,17 @@ export function sentenceRepack(
       .trim();
     const chunkStart = currentSentences[0].start;
     const chunkEnd = currentSentences[currentSentences.length - 1].end;
-    const pn = resolvePageNumberForOffset(markers, pageNum, chunkStart);
-    results.push({ text: chunkText, start: chunkStart, end: chunkEnd, page_number: pn });
+
+    if (chunkText.length > targetChars * 2) {
+      const subChunks = splitOversizedText(chunkText, chunkStart);
+      for (const sub of subChunks) {
+        const pn = resolvePageNumberForOffset(markers, pageNum, sub.start);
+        results.push({ text: sub.text, start: sub.start, end: sub.end, page_number: pn });
+      }
+    } else {
+      const pn = resolvePageNumberForOffset(markers, pageNum, chunkStart);
+      results.push({ text: chunkText, start: chunkStart, end: chunkEnd, page_number: pn });
+    }
   }
 
   // Map to chunk objects
