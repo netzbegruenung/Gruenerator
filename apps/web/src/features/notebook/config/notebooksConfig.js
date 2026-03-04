@@ -73,6 +73,17 @@ const PRODUCTION_NOTEBOOKS = [
     category: 'landesebene',
   },
   {
+    id: 'mecklenburg-vorpommern-notebook',
+    path: '/gruene-mecklenburg-vorpommern',
+    title: 'Frag Grüne Mecklenburg-Vorpommern',
+    description:
+      'Durchsuchbar sind Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern.',
+    meta: 'Archiv',
+    tags: ['Mecklenburg-Vorpommern', 'Beschlüsse', 'Presse'],
+    order: 8,
+    category: 'landesebene',
+  },
+  {
     id: 'oesterreich-notebook',
     path: '/gruene-oesterreich',
     title: 'Frag Die Grünen Österreich',
