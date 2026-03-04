@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Environment**: This project is developed on **WSL2** (Windows Subsystem for Linux). ADB, Gradle, and other Android tools use Windows executables via `/mnt/c/`. See platform-specific notes throughout.
+
 ## Project Overview
 
 Grünerator is an AI-powered content creation platform for the German Green Party (Die Grünen). It's a pnpm monorepo with web, mobile, and desktop clients sharing a common backend. All infrastructure is EU-hosted for data sovereignty.
@@ -109,6 +111,52 @@ The MCP server is configured as a remote MCP server in this project. Tools are d
 ```
 ToolSearch: "select:mcp__claude_ai_Gr_nerator__gruenerator_search"
 → then call mcp__claude_ai_Gr_nerator__gruenerator_search with query + collection
+```
+
+### Adding a New Landesverband Notebook
+
+All Landesverbände share a single Qdrant collection (`landesverbaende_documents`) and are distinguished by `defaultFilter` on the `landesverband` metadata field. Adding a new one requires touching **9 files** (8 modified + 1 new).
+
+#### Naming Conventions
+
+| Concept | Pattern | Example (MV) |
+|---------|---------|--------------|
+| System collection ID | `{name}-system` | `mecklenburg-vorpommern-system` |
+| Notebook ID | `{name}-notebook` | `mecklenburg-vorpommern-notebook` |
+| Collection key | `{name}` | `mecklenburg-vorpommern` |
+| Page config key | `camelCase` | `mecklenburgVorpommern` |
+| URL path | `/gruene-{name}` | `/gruene-mecklenburg-vorpommern` |
+| Scraper source IDs | `{name}-lv`, `{name}-fraktion` | `mecklenburg-vorpommern-lv` |
+
+#### Files to Modify
+
+1. **`apps/api/config/systemCollectionsConfig.ts`** — Add `{name}-system` entry to `SYSTEM_COLLECTIONS` with `qdrantCollection: 'landesverbaende_documents'` and `defaultFilter` matching the scraper `shortName` values (e.g., `['MV', 'MV-F']`).
+
+2. **`apps/api/routes/chat/agents/directSearch.ts`** — Add `{name}` entry to `COLLECTION_MAP` pointing to `landesverbaende_documents` and the system ID.
+
+3. **`apps/api/config/notebookCollectionMap.ts`** — Add `{name}-notebook: ['{name}']` to `NOTEBOOK_COLLECTION_MAP`.
+
+4. **`apps/web/src/features/notebook/config/notebooksConfig.js`** — Add gallery card to `PRODUCTION_NOTEBOOKS` with `category: 'landesebene'`.
+
+5. **`apps/web/src/features/notebook/config/notebookPagesConfig.js`** — (a) Add standalone page config with `camelCase` key. (b) Add to the `gruenerator` multi-source `collections` array.
+
+6. **`apps/web/src/config/routes.ts`** — (a) Add lazy component via `createNotebookPage('camelCaseKey')`. (b) Add to `GrueneratorenBundle`. (c) Add route entry `{ path: '/gruene-{name}', ... }`.
+
+7. **`packages/chat/src/lib/mentionables.ts`** — Add to `notebookMentionables` array with a short `mention` alias (e.g., `'mv'`).
+
+8. **`apps/api/scrape-{name}.ts`** (NEW) — Runner script based on `scrape-berlin.ts` template. Sources should match the IDs from `landesverbaendeConfig.ts`.
+
+#### Prerequisite: Scraper Config
+
+Before adding the notebook, ensure the scraper config exists in `apps/api/config/landesverbaendeConfig.ts`. The `shortName` field (e.g., `'MV'`, `'MV-F'`) becomes the `defaultFilter` value in the system collection.
+
+#### Verification
+
+```bash
+pnpm typecheck          # No type errors
+pnpm lint               # No lint violations
+pnpm build:web          # Frontend builds
+# Then manually: visit /gruene-{name}, check /notebook gallery, type @alias in chat
 ```
 
 ### Authentication
@@ -523,9 +571,10 @@ cp apps/docs-expo/android/app/build/outputs/apk/debug/app-debug.apk /mnt/c/Users
 ADB=/mnt/c/Users/morit/AppData/Local/Android/Sdk/platform-tools/adb.exe
 $ADB install -r 'C:\Users\morit\Downloads\gruenerator-docs-debug.apk'
 
-# 6. Set up Metro dev server for on-device debugging
-$ADB reverse tcp:8081 tcp:8081
-cd apps/docs-expo && npx expo start --port 8081 --localhost
+# 6. Set up Metro dev server for on-device debugging (always use port 8082, mirror to 8081)
+$ADB reverse tcp:8082 tcp:8082
+$ADB reverse tcp:8081 tcp:8082
+cd apps/docs-expo && npx expo start --port 8082 --localhost
 ```
 
 **Notes:**
@@ -541,7 +590,8 @@ cd apps/docs-expo && npx expo start --port 8081 --localhost
 - **Yjs/lib0 dependency**: `isomorphic-webcrypto` is required for the Yjs collaboration layer used by BlockNoteEditor DOM components. If missing, the DOM bundle fails silently and documents show blank pages.
 - **Fast debug builds**: Pass `-PreactNativeArchitectures=arm64-v8a` to `./gradlew assembleDebug` to build only for the target device arch. The default builds all 4 archs (armeabi-v7a, arm64-v8a, x86, x86_64) which is ~4x slower.
 - **Avoid unnecessary `prebuild --clean`**: Only needed when native dependencies change. Incremental `./gradlew assembleDebug` reuses Gradle caches and is much faster.
-- **Metro port conflicts in WSL**: Port 8081 is often occupied. Use 8082 and mirror both: `adb reverse tcp:8082 tcp:8082 && adb reverse tcp:8081 tcp:8082` (device app defaults to 8081).
+- **Always use port 8082 for Metro in WSL**: Port 8081 is permanently occupied by ADB reverse tunnels. Always start Metro on 8082 and mirror both ports: `adb reverse tcp:8082 tcp:8082 && adb reverse tcp:8081 tcp:8082` (device app defaults to 8081, this redirects it to 8082).
+- **Expo dev client doesn't auto-connect**: After installing a fresh debug APK, the Expo dev client shows its launcher instead of loading the app. Deep-link it to Metro: `$ADB shell am start -a android.intent.action.VIEW -d "exp+gruenerator://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081" de.gruenerator.app`
 - **DOM component debugging**: `console.log` inside `'use dom'` components goes to the WebView console (Chrome DevTools → Remote Devices), NOT Metro terminal. Render debug state on-screen instead.
 - **Hot reload works for JS/TS changes**: When Metro is running, editing TypeScript/JSX files triggers hot reload on the device — no need to rebuild the APK. Only rebuild (`./gradlew assembleDebug`) when native dependencies change. A full APK rebuild for pure JS changes wastes time.
 - **Metro cache stale after `--clear` restart**: When restarting Metro with `--clear`, the first bundle takes longer but is fresh. A `Bundled Xms (1 module)` line after changes usually means the cache is stale — restart Metro if this happens.
