@@ -7,11 +7,12 @@ import { agentsList } from '../../lib/agents';
 import { ChatIcon } from '../icons';
 import { MarkdownContent } from '../MarkdownContent';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
+import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { MessageActions } from '../message-parts/MessageActions';
 import { SearchResultsSection } from '../message-parts/SearchResultsSection';
-import { CitationProvider } from '../../context/CitationContext';
+import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import type { GrueneratorMessageMetadata } from '../../runtime/GrueneratorModelAdapter';
 
 function AssistantMessageTextPart({
@@ -40,6 +41,7 @@ export function AssistantMessage() {
     [selectedAgentId]
   );
   const custom = message.metadata?.custom as GrueneratorMessageMetadata | undefined;
+  const fetchFullText = useFetchFullText();
 
   const textContent = message.content
     .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
@@ -83,12 +85,17 @@ export function AssistantMessage() {
               stage === 'searching' || stage === 'generating' || stage === 'generating_image';
 
             if (hasConcreteProgress) {
-              return (
-                <ProgressIndicator
-                  progress={custom!.progress!}
-                  agentColor={selectedAgent?.backgroundColor || '#316049'}
-                />
-              );
+              const agentColor = selectedAgent?.backgroundColor || '#316049';
+              if (custom!.progress!.steps) {
+                return (
+                  <ProgressTracker
+                    steps={custom!.progress!.steps}
+                    agentColor={agentColor}
+                    totalTimeMs={custom?.streamMetadata?.totalTimeMs}
+                  />
+                );
+              }
+              return <ProgressIndicator progress={custom!.progress!} agentColor={agentColor} />;
             }
 
             if (!textContent) {
@@ -98,16 +105,26 @@ export function AssistantMessage() {
             return null;
           })()}
 
-        {isStreaming && hasToolCall && !textContent && custom?.progress?.stage === 'generating' && (
-          <ProgressIndicator
-            progress={custom.progress}
-            agentColor={selectedAgent?.backgroundColor || '#316049'}
-          />
-        )}
+        {isStreaming &&
+          hasToolCall &&
+          !textContent &&
+          custom?.progress?.stage === 'generating' &&
+          (custom?.progress?.steps ? (
+            <ProgressTracker
+              steps={custom.progress.steps}
+              agentColor={selectedAgent?.backgroundColor || '#316049'}
+              totalTimeMs={custom?.streamMetadata?.totalTimeMs}
+            />
+          ) : (
+            <ProgressIndicator
+              progress={custom.progress}
+              agentColor={selectedAgent?.backgroundColor || '#316049'}
+            />
+          ))}
 
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
-        <CitationProvider citations={citations}>
+        <CitationProvider citations={citations} fetchFullText={fetchFullText}>
           <MessagePrimitive.Parts components={partComponents} />
           {!isStreaming && citations.length > 0 && <SearchResultsSection citations={citations} />}
         </CitationProvider>
