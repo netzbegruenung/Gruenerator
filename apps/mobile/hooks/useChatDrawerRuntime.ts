@@ -15,7 +15,7 @@ import {
 import { useMemo, useRef } from 'react';
 
 import { convertToThreadMessageLike, type LoadedMessage } from '../providers/MobileChatProvider';
-import { configureMobileChat, getMobileChatApiClient } from '../services/chatConfig';
+import { configureMobileChat } from '../services/chatConfig';
 
 import { useMobileChatRuntime } from './useMobileChatRuntime';
 

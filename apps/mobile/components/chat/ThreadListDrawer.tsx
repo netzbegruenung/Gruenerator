@@ -4,7 +4,6 @@ import {
   ThreadListNew,
   ThreadListItemRoot,
   ThreadListItemTitle,
-  ThreadListItemDelete,
   ThreadListItemByIndexProvider,
   useAui,
 } from '@assistant-ui/react-native';
