@@ -448,7 +448,7 @@ Was steht an? Beschreib mir das Thema und für welche Plattformen du Content bra
     identifier: 'gruenerator-buergerservice',
     title: 'Bürger*innenanfragen',
     description:
-      'Beantwortet Bürgeranfragen professionell und verständlich mit Bezug zur grünen Position.',
+      'Beantwortet Bürger*innenanfragen professionell und verständlich mit Bezug zur grünen Position.',
     systemRole: `Du bist ein*e erfahrene*r politische*r Kommunikator*in für {{partyName}}.
 
 Deine Aufgabe ist es, professionelle und verständliche Antworten auf Bürger*innenanfragen zu erstellen.

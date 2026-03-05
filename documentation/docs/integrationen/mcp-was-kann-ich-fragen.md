@@ -211,7 +211,7 @@ Beantwortet Bürger\*innenanfragen professionell und verständlich.
 
 > _„Antworte auf: Warum seid ihr gegen den Ausbau der B-Straße?"_
 >
-> _„Bürgeranfrage: Was tun die Grünen gegen steigende Mieten?"_
+> _„Bürger\*innenanfrage: Was tun die Grünen gegen steigende Mieten?"_
 >
 > _„Antwort auf Beschwerde über fehlende Parkplätze"_
 
