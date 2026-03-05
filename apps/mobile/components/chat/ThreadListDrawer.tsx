@@ -8,6 +8,7 @@ import {
   useAui,
 } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAgentStore, type Mentionable } from '@gruenerator/chat';
 import { type ReactElement, memo, useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -105,6 +106,28 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({
     [aui, navigation]
   );
 
+  const handleSelectAgent = useCallback(
+    (agentId: string) => {
+      setSheetVisible(false);
+      useAgentStore.getState().setSelectedAgent(agentId);
+      aui.threads().switchToNewThread();
+      navigation.closeDrawer();
+    },
+    [aui, navigation]
+  );
+
+  const handleInsertMention = useCallback(
+    (mentionable: Mentionable) => {
+      setSheetVisible(false);
+      const trigger = mentionable.category === 'skill' ? '/' : '@';
+      const text = `${trigger}${mentionable.mention} `;
+      aui.composer().setText(text);
+      aui.threads().switchToNewThread();
+      navigation.closeDrawer();
+    },
+    [aui, navigation]
+  );
+
   const renderItem = useCallback(
     ({ index }: { threadId: string; index: number }): ReactElement => (
       <ThreadItem index={index} theme={theme} onSelect={closeDrawer} />
@@ -148,6 +171,8 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({
         onClose={() => setSheetVisible(false)}
         onNewChat={handleNewChat}
         onSelectNotebook={handleSelectNotebook}
+        onSelectAgent={handleSelectAgent}
+        onInsertMention={handleInsertMention}
       />
     </ThreadListRoot>
   );

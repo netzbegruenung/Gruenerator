@@ -2,16 +2,18 @@ import {
   ThreadRoot,
   ThreadMessages,
   ThreadEmpty,
+  useAui,
   type ThreadMessage,
 } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing, lightTheme, darkTheme } from '../../theme';
 
 import { AssistantComposer } from './AssistantComposer';
+import { DocumentBrowserSheet } from './DocumentBrowserSheet';
 import { MessageBubble } from './MessageBubble';
 
 import type { Theme } from '../../theme/colors';
@@ -38,10 +40,25 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp 
   const colorScheme = useColorScheme();
   const theme: Theme = themeProp ?? (colorScheme === 'dark' ? darkTheme : lightTheme);
   const insets = useSafeAreaInsets();
+  const aui = useAui();
+  const [docBrowserVisible, setDocBrowserVisible] = useState(false);
 
   const renderMessage = useCallback(
     ({ message }: { message: ThreadMessage }) => <MessageBubble theme={theme} message={message} />,
     [theme]
+  );
+
+  const handleOpenDocBrowser = useCallback(() => setDocBrowserVisible(true), []);
+
+  const handleDocumentSelect = useCallback(
+    (slug: string) => {
+      const mentionText = `@datei:${slug} `;
+      const currentText = aui.composer().getState().text;
+      const separator = currentText.length > 0 && !currentText.endsWith(' ') ? ' ' : '';
+      aui.composer().setText(`${currentText}${separator}${mentionText}`);
+      setDocBrowserVisible(false);
+    },
+    [aui]
   );
 
   return (
@@ -55,7 +72,17 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp 
         contentContainerStyle={messagesContentStyle}
         keyboardDismissMode="interactive"
       />
-      <AssistantComposer theme={theme} bottomInset={insets.bottom} />
+      <AssistantComposer
+        theme={theme}
+        bottomInset={insets.bottom}
+        onOpenDocBrowser={handleOpenDocBrowser}
+      />
+      <DocumentBrowserSheet
+        visible={docBrowserVisible}
+        theme={theme}
+        onSelect={handleDocumentSelect}
+        onDismiss={() => setDocBrowserVisible(false)}
+      />
     </ThreadRoot>
   );
 });
