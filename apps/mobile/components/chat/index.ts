@@ -7,3 +7,7 @@ export { AssistantComposer } from './AssistantComposer';
 export { MessageBubble } from './MessageBubble';
 export { ToolCallProgress } from './ToolCallProgress';
 export { CitationsFooter } from './CitationsFooter';
+export { NewChatSheet } from './NewChatSheet';
+export { ThreadListDrawer } from './ThreadListDrawer';
+export { ChatDrawerHeader } from './ChatDrawerHeader';
+export { ThreadSync } from './ThreadSync';

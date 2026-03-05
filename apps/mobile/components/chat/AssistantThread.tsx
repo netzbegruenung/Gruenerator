@@ -5,7 +5,7 @@ import {
   type ThreadMessage,
 } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,7 +20,7 @@ interface Props {
   theme?: Theme;
 }
 
-function EmptyState({ theme }: { theme: Theme }) {
+const EmptyState = memo(function EmptyState({ theme }: { theme: Theme }) {
   return (
     <View style={styles.emptyContainer}>
       <Ionicons name="chatbubble-ellipses-outline" size={48} color={theme.textSecondary} />
@@ -30,9 +30,11 @@ function EmptyState({ theme }: { theme: Theme }) {
       </Text>
     </View>
   );
-}
+});
 
-export function AssistantThread({ theme: themeProp }: Props) {
+const messagesContentStyle = { paddingTop: spacing.small };
+
+export const AssistantThread = memo(function AssistantThread({ theme: themeProp }: Props) {
   const colorScheme = useColorScheme();
   const theme: Theme = themeProp ?? (colorScheme === 'dark' ? darkTheme : lightTheme);
   const insets = useSafeAreaInsets();
@@ -50,15 +52,13 @@ export function AssistantThread({ theme: themeProp }: Props) {
       <ThreadMessages
         renderMessage={renderMessage}
         inverted
-        contentContainerStyle={{ paddingTop: spacing.small }}
+        contentContainerStyle={messagesContentStyle}
         keyboardDismissMode="interactive"
       />
-      <View style={{ paddingBottom: insets.bottom }}>
-        <AssistantComposer theme={theme} />
-      </View>
+      <AssistantComposer theme={theme} bottomInset={insets.bottom} />
     </ThreadRoot>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
