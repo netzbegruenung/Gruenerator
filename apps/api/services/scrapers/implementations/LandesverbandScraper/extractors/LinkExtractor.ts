@@ -225,7 +225,7 @@ export class LinkExtractor {
     // Look for preceding h3/h4 headings (sibling to the container or its ancestors)
     let headingText = '';
     let current = container;
-    for (let depth = 0; depth < 4 && !headingText; depth++) {
+    for (let depth = 0; depth < 4; depth++) {
       const heading = current.prevAll('h3, h4, h2').first();
       if (heading.length) {
         headingText = heading.text().trim();
