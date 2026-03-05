@@ -117,6 +117,19 @@ export {
 
 export { useDocumentChatStore } from './stores/documentChatStore';
 
+// Mention detection & insertion (shared logic for web + mobile)
+export {
+  detectMention,
+  getFilteredFunctions,
+  getFilteredSkills,
+  getFilteredForMode,
+  type MentionDetectionResult,
+} from './lib/mentionDetection';
+export { computeMentionInsertion, type MentionInsertionResult } from './lib/mentionInsertion';
+
+// File mention data hook
+export { useFileMentionData } from './hooks/useFileMentionData';
+
 // Lib
 export { cn } from './lib/utils';
 export {
@@ -144,6 +157,7 @@ export {
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  toolMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
