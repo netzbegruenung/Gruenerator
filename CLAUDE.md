@@ -282,20 +282,32 @@ Paths.document;  // Directory — persistent storage
 Paths.bundle;    // Directory — bundled assets (read-only)
 ```
 
-### KeyboardStickyView in Nested Navigators
+### Keyboard Handling in Tab Navigators
 
-When using `KeyboardStickyView` (from `react-native-keyboard-controller`) inside nested navigators (e.g., Bottom Tabs > Material Top Tabs), **always set offsets to zero** and handle bottom insets externally via `paddingBottom`:
+**Never use `KeyboardStickyView`** inside a Bottom Tab navigator. It positions from the **window bottom** (absolute), but the tab content area doesn't reach the window bottom — the tab bar sits below it. When the keyboard opens and Android hides the tab bar, `KeyboardStickyView`'s translation overshoots by the tab bar height, creating a gap between the input and the keyboard.
+
+**Use `KeyboardAvoidingView`** from `react-native-keyboard-controller` instead. It works within the flex layout by adding padding, not by absolute-positioning from the window bottom. Wrap the screen content (not just the input):
 
 ```tsx
-// CORRECT — handle insets externally
-<KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
-  <View style={{ paddingBottom: insets.bottom + 16 }}>
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
-// WRONG — causes double-counting with nested navigators
-<KeyboardStickyView offset={{ closed: Math.max(insets.bottom, 24), opened: 0 }}>
+// WRONG — KeyboardStickyView creates gap equal to tab bar height
+<KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+  <ComposerRoot>...</ComposerRoot>
+</KeyboardStickyView>
+
+// CORRECT — KeyboardAvoidingView wraps the screen content
+<KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+  <ThreadRoot style={{ flex: 1 }}>
+    <ThreadMessages ... />
+    <ComposerRoot style={{ paddingBottom: insets.bottom }}>
+      ...
+    </ComposerRoot>
+  </ThreadRoot>
+</KeyboardAvoidingView>
 ```
 
-The reason: `KeyboardStickyView` positions from the **window bottom** (absolute). Nested tab navigators each add their own safe area handling, so using `insets.bottom` as an offset causes compounding — the input bar ends up behind the Android gesture bar.
+The `paddingBottom: insets.bottom` on the composer handles safe area when the keyboard is closed. When the keyboard opens, `KeyboardAvoidingView` adds padding that pushes the composer above the keyboard.
 
 ### Assistant UI ComposerInput (React Native)
 
