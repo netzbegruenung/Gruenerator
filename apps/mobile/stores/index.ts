@@ -1,5 +1,4 @@
 export { useChatStore } from './chatStore';
-export { useNotebookChatStore } from './notebookChatStore';
 export { useContentStore } from './contentStore';
 export { useInstructionsStore, INSTRUCTION_TYPES } from './instructionsStore';
 export {
