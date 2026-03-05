@@ -1,11 +1,17 @@
 import express, { type Request, type Response, type Router } from 'express';
 
 import {
+  type SubcategoryFilters,
   SYSTEM_COLLECTIONS,
   getAllSystemCollectionIds,
   getSearchParams,
+  getSystemCollectionConfig,
+  getCollectionFilterableFields,
+  getCollectionDefaultFilter,
   applyDefaultFilter,
+  buildSubcategoryFilter,
 } from '../../config/systemCollectionsConfig.js';
+import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -34,20 +40,210 @@ function truncateSnippet(text: string, limit: number = SNIPPET_MAX_CHARS): strin
   return truncated + ' …';
 }
 
+// =============================================================================
+// Types
+// =============================================================================
+
 interface TaggedDocumentResult extends DocumentResult {
   collection_id: string;
   collection_name: string;
+  published_at?: string | null;
 }
+
+type SearchMode = 'hybrid' | 'vector' | 'text';
+type SortOption = 'relevance' | 'date_desc' | 'date_asc';
 
 interface ResearchSearchBody {
   query: string;
   collectionIds?: string[];
   limit?: number;
+  filters?: SubcategoryFilters;
+  mode?: SearchMode;
+  sortBy?: SortOption;
 }
+
+// =============================================================================
+// Filter Cache (5-minute TTL)
+// =============================================================================
+
+const FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
+const filterCache = new Map<string, { data: unknown; timestamp: number }>();
+
+function getCachedFilters(key: string): unknown | null {
+  const entry = filterCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > FILTER_CACHE_TTL_MS) {
+    filterCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCachedFilters(key: string, data: unknown): void {
+  filterCache.set(key, { data, timestamp: Date.now() });
+}
+
+// =============================================================================
+// GET /research/collections
+// =============================================================================
+
+router.get('/collections', (_req: Request, res: Response): void => {
+  const collections = Object.values(SYSTEM_COLLECTIONS).map((config) => ({
+    id: config.id,
+    name: config.name,
+    description: config.description,
+    filterableFields: config.filterableFields.map((f) => f.field),
+  }));
+
+  res.json(collections);
+});
+
+// =============================================================================
+// GET /research/filters?collectionIds=grundsatz-system,kommunalwiki-system
+// =============================================================================
+
+router.get('/filters', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const collectionIdsParam = req.query.collectionIds;
+    const requestedIds =
+      typeof collectionIdsParam === 'string' && collectionIdsParam.length > 0
+        ? collectionIdsParam.split(',').filter((id) => id in SYSTEM_COLLECTIONS)
+        : getAllSystemCollectionIds();
+
+    if (requestedIds.length === 0) {
+      res.status(400).json({ error: 'No valid collection IDs provided.' });
+      return;
+    }
+
+    const cacheKey = [...requestedIds].sort().join(',');
+    const cached = getCachedFilters(cacheKey);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
+    const qdrant = getQdrantInstance();
+    await qdrant.init();
+
+    const mergedFilters: Record<
+      string,
+      {
+        label: string;
+        type: 'keyword' | 'date_range';
+        values?: Array<{ value: string; count: number }>;
+        min?: string;
+        max?: string;
+      }
+    > = {};
+
+    for (const collectionId of requestedIds) {
+      const systemConfig = getSystemCollectionConfig(collectionId);
+      if (!systemConfig) continue;
+
+      const filterableFields = getCollectionFilterableFields(collectionId);
+
+      const defaultFilter = getCollectionDefaultFilter(collectionId);
+      const baseFilter = defaultFilter
+        ? {
+            must: [
+              {
+                key: defaultFilter.field,
+                match: Array.isArray(defaultFilter.value)
+                  ? { any: defaultFilter.value }
+                  : { value: defaultFilter.value },
+              },
+            ],
+          }
+        : null;
+
+      for (const field of filterableFields) {
+        try {
+          if (field.type === 'date_range') {
+            const { min, max } = await qdrant.getDateRange(
+              systemConfig.qdrantCollection,
+              field.field,
+              baseFilter
+            );
+
+            if (mergedFilters[field.field]) {
+              const existing = mergedFilters[field.field];
+              if (min && (!existing.min || min < existing.min)) existing.min = min;
+              if (max && (!existing.max || max > existing.max)) existing.max = max;
+            } else if (min || max) {
+              mergedFilters[field.field] = {
+                label: field.label,
+                type: 'date_range',
+                min: min ?? undefined,
+                max: max ?? undefined,
+              };
+            }
+          } else {
+            const valuesWithCounts = await qdrant.getFieldValueCounts(
+              systemConfig.qdrantCollection,
+              field.field,
+              50,
+              baseFilter
+            );
+
+            if (mergedFilters[field.field]) {
+              const existing = mergedFilters[field.field];
+              const countMap = new Map<string, number>();
+              for (const v of existing.values || []) {
+                countMap.set(v.value, v.count);
+              }
+              for (const v of valuesWithCounts) {
+                countMap.set(v.value, (countMap.get(v.value) || 0) + v.count);
+              }
+              existing.values = Array.from(countMap.entries())
+                .map(([value, count]) => ({ value, count }))
+                .sort((a, b) => b.count - a.count);
+            } else {
+              mergedFilters[field.field] = {
+                label: field.label,
+                type: 'keyword',
+                values: valuesWithCounts,
+              };
+            }
+          }
+        } catch (fieldError) {
+          const err = fieldError as Error;
+          log.warn(
+            `Failed to get filter values for ${field.field} in ${collectionId}: ${err.message}`
+          );
+          if (!mergedFilters[field.field]) {
+            mergedFilters[field.field] = {
+              label: field.label,
+              type: field.type as 'keyword' | 'date_range',
+              values: field.type === 'keyword' ? [] : undefined,
+            };
+          }
+        }
+      }
+    }
+
+    const response = { filters: mergedFilters };
+    setCachedFilters(cacheKey, response);
+    res.json(response);
+  } catch (error: any) {
+    log.error(`Research filters failed: ${error.message}`);
+    res.status(500).json({ error: 'Failed to get filters.' });
+  }
+});
+
+// =============================================================================
+// POST /research/search
+// =============================================================================
 
 router.post('/search', async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
-  const { query, collectionIds, limit = 30 } = req.body as ResearchSearchBody;
+  const {
+    query,
+    collectionIds,
+    limit = 30,
+    filters,
+    mode = 'hybrid',
+    sortBy = 'relevance',
+  } = req.body as ResearchSearchBody;
 
   if (!query || typeof query !== 'string' || query.trim().length < 2) {
     res.status(400).json({ error: 'Query must be at least 2 characters.' });
@@ -66,6 +262,20 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  // Resolve search weights from mode
+  let vectorWeight = 0.7;
+  let textWeight = 0.3;
+  if (mode === 'vector') {
+    vectorWeight = 1.0;
+    textWeight = 0.0;
+  } else if (mode === 'text') {
+    vectorWeight = 0.0;
+    textWeight = 1.0;
+  }
+
+  // Build user filter from subcategory filters
+  const userFilter = buildSubcategoryFilter(filters);
+
   try {
     const documentSearchService = getQdrantDocumentService();
 
@@ -75,7 +285,9 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
         if (!config) return [];
 
         const searchParams = getSearchParams(collectionId);
-        const additionalFilter = applyDefaultFilter(collectionId, undefined);
+
+        // Merge: defaultFilter (landesverband scoping) + userFilter (selected facets)
+        const additionalFilter = applyDefaultFilter(collectionId, userFilter);
 
         try {
           const resp = await documentSearchService.search({
@@ -83,9 +295,9 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
             userId: undefined,
             options: {
               limit: searchParams.limit,
-              mode: searchParams.mode,
-              vectorWeight: searchParams.vectorWeight,
-              textWeight: searchParams.textWeight,
+              mode: mode === 'text' ? 'text' : 'hybrid',
+              vectorWeight,
+              textWeight,
               threshold: searchParams.threshold,
               searchCollection: config.qdrantCollection,
               recallLimit: searchParams.recallLimit,
@@ -98,6 +310,8 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
             ...doc,
             collection_id: collectionId,
             collection_name: config.name,
+            published_at:
+              ((doc as unknown as Record<string, unknown>).published_at as string) ?? null,
           }));
         } catch (error: any) {
           log.error(`Search error for ${collectionId}: ${error.message}`);
@@ -118,10 +332,28 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const deduped = Array.from(dedupMap.values())
-      .filter((r) => r.similarity_score >= 0.35)
-      .sort((a, b) => b.similarity_score - a.similarity_score)
-      .slice(0, effectiveLimit);
+    let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.35);
+
+    // Sort
+    if (sortBy === 'date_desc') {
+      deduped.sort((a, b) => {
+        const dateA = a.published_at || '';
+        const dateB = b.published_at || '';
+        if (dateB !== dateA) return dateB.localeCompare(dateA);
+        return b.similarity_score - a.similarity_score;
+      });
+    } else if (sortBy === 'date_asc') {
+      deduped.sort((a, b) => {
+        const dateA = a.published_at || '';
+        const dateB = b.published_at || '';
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        return b.similarity_score - a.similarity_score;
+      });
+    } else {
+      deduped.sort((a, b) => b.similarity_score - a.similarity_score);
+    }
+
+    deduped = deduped.slice(0, effectiveLimit);
 
     // Truncate text fields for the response
     const truncated = deduped.map((r) => ({

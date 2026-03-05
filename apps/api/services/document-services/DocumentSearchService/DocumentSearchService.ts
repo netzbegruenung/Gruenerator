@@ -49,6 +49,7 @@ import type {
   FindSimilarChunksParams,
   FindHybridChunksParams,
 } from './types.js';
+import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type { QdrantService } from '../../../database/services/QdrantService.js';
 import type {
   SearchParams,
@@ -496,6 +497,92 @@ export class DocumentSearchService extends BaseSearchService {
       throw new Error('Qdrant not available');
     }
     return await docRetrieval.getDocumentFirstChunks(this.qdrantOps, userId, documentIds);
+  }
+
+  /**
+   * Get full text for a system collection document by source_url.
+   *
+   * Strategy:
+   * 1. Look for `full_text` payload on chunk_index=0
+   * 2. Fallback: concatenate all chunks for that URL
+   */
+  async getSystemDocumentFullTextByUrl(
+    qdrantCollection: string,
+    sourceUrl: string,
+    defaultFilter?: QdrantFilter
+  ): Promise<DocumentFullTextResult & { title?: string }> {
+    await this.ensureInitialized();
+    if (!this.qdrantOps) {
+      return { success: false, fullText: '', chunkCount: 0, error: 'Qdrant not available' };
+    }
+
+    try {
+      // Step 1: Try to get full_text from chunk_index=0
+      const chunk0Filter: QdrantFilter = {
+        must: [
+          { key: 'source_url', match: { value: sourceUrl } },
+          { key: 'chunk_index', match: { value: 0 } },
+          ...(defaultFilter?.must || []),
+        ],
+      };
+
+      const chunk0Results = await this.qdrantOps.scrollDocuments(qdrantCollection, chunk0Filter, {
+        limit: 1,
+        withPayload: true,
+        withVector: false,
+      });
+
+      if (chunk0Results && chunk0Results.length > 0) {
+        const payload = chunk0Results[0].payload;
+        const fullText = payload.full_text;
+        if (typeof fullText === 'string' && fullText.length > 0) {
+          return {
+            success: true,
+            fullText,
+            chunkCount: 1,
+            title: typeof payload.title === 'string' ? payload.title : undefined,
+          };
+        }
+      }
+
+      // Step 2: Fallback — scroll all chunks for this URL and concatenate
+      const allChunksFilter: QdrantFilter = {
+        must: [{ key: 'source_url', match: { value: sourceUrl } }, ...(defaultFilter?.must || [])],
+      };
+
+      const allChunks = await this.qdrantOps.scrollDocuments(qdrantCollection, allChunksFilter, {
+        limit: 500,
+        withPayload: true,
+        withVector: false,
+      });
+
+      if (!allChunks || allChunks.length === 0) {
+        return { success: false, fullText: '', chunkCount: 0, error: 'Document not found' };
+      }
+
+      const title =
+        typeof allChunks[0].payload.title === 'string' ? allChunks[0].payload.title : undefined;
+
+      const sorted = allChunks
+        .sort((a, b) => {
+          const idxA = typeof a.payload.chunk_index === 'number' ? a.payload.chunk_index : 0;
+          const idxB = typeof b.payload.chunk_index === 'number' ? b.payload.chunk_index : 0;
+          return idxA - idxB;
+        })
+        .map((c) => (typeof c.payload.chunk_text === 'string' ? c.payload.chunk_text : ''))
+        .filter((t) => t.trim().length > 0);
+
+      return {
+        success: true,
+        fullText: sorted.join('\n\n'),
+        chunkCount: sorted.length,
+        title,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[DocumentSearchService] getSystemDocumentFullTextByUrl error: ${message}`);
+      return { success: false, fullText: '', chunkCount: 0, error: message };
+    }
   }
 
   /**

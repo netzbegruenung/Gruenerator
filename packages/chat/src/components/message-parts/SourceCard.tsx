@@ -1,15 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { SourceMessagePartProps } from '@assistant-ui/react';
-import { ExternalLink, ChevronRight } from 'lucide-react';
+import { ExternalLink, ChevronRight, FileText, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { useCitations } from '../../context/CitationContext';
-import { getCollectionStyle, getRelevanceColor } from '../../lib/collectionStyles';
+import { useCitationContext } from '../../context/CitationContext';
+import { getCollectionStyle } from '../../lib/collectionStyles';
+
+const MAX_FULL_TEXT_DISPLAY = 50_000;
 
 export function SourceCard(props: SourceMessagePartProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const citations = useCitations();
+  const [fullText, setFullText] = useState<string | null>(null);
+  const [isLoadingFullText, setIsLoadingFullText] = useState(false);
+  const [fullTextError, setFullTextError] = useState<string | null>(null);
+  const { citations, fetchFullText } = useCitationContext();
 
   const citationId = parseInt(props.id.replace('source-', ''), 10);
   const citation = citations.find((c) => c.id === citationId);
@@ -25,8 +30,42 @@ export function SourceCard(props: SourceMessagePartProps) {
   const hasExpandableContent =
     citation?.citedText && citation.citedText.length > (citation.snippet?.length || 0);
 
+  const canLoadFullText =
+    isExpanded && fetchFullText && citation?.url && citation?.collectionId && !fullText;
+
+  const handleLoadFullText = useCallback(async () => {
+    if (!fetchFullText || !citation?.url || !citation?.collectionId) return;
+    setIsLoadingFullText(true);
+    setFullTextError(null);
+    try {
+      const text = await fetchFullText(citation.url, citation.collectionId);
+      if (text) {
+        setFullText(
+          text.length > MAX_FULL_TEXT_DISPLAY
+            ? text.slice(0, MAX_FULL_TEXT_DISPLAY) + '\n\n[...]'
+            : text
+        );
+      } else {
+        setFullTextError('Volltext nicht verfügbar');
+      }
+    } catch {
+      setFullTextError('Fehler beim Laden des Volltexts');
+    } finally {
+      setIsLoadingFullText(false);
+    }
+  }, [fetchFullText, citation?.url, citation?.collectionId]);
+
+  // Build metadata: domain · collection
+  const metaParts: string[] = [];
+  if (citation?.domain) metaParts.push(citation.domain);
+  if (citation?.collectionName) metaParts.push(style.label || citation.collectionName);
+  const metaLine = metaParts.join(' · ');
+
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden transition-colors hover:border-primary/30">
+    <div
+      id={`source-card-${citationId}`}
+      className="rounded-md border border-border/50 bg-card overflow-hidden transition-colors hover:border-border"
+    >
       <button
         onClick={hasExpandableContent ? () => setIsExpanded(!isExpanded) : undefined}
         className={cn(
@@ -34,45 +73,19 @@ export function SourceCard(props: SourceMessagePartProps) {
           hasExpandableContent && 'cursor-pointer'
         )}
       >
-        <span
-          className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold mt-0.5"
-          style={{ backgroundColor: style.bg, color: style.color }}
-        >
-          {citationId || '#'}
+        {/* Plain citation number */}
+        <span className="flex-shrink-0 text-xs font-semibold text-foreground-muted mt-0.5">
+          [{citationId || '#'}]
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-foreground leading-tight line-clamp-1">
-              {title}
-            </span>
-            {citation?.relevance != null && (
-              <span
-                className="flex-shrink-0 w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: getRelevanceColor(citation.relevance) }}
-                title={`Relevanz: ${Math.round(citation.relevance * 100)}%`}
-              />
-            )}
-          </div>
+          <span className="text-sm font-medium text-foreground leading-tight line-clamp-1">
+            {title}
+          </span>
 
-          <div className="flex items-center gap-1.5 mt-0.5">
-            {citation?.collectionName && (
-              <span
-                className="text-[10px] font-medium px-1 py-px rounded"
-                style={{ backgroundColor: style.bg, color: style.color }}
-              >
-                {citation.collectionName}
-              </span>
-            )}
-            {citation?.contentType && (
-              <span className="text-[10px] text-foreground-muted italic">
-                {citation.contentType}
-              </span>
-            )}
-            {citation?.domain && (
-              <span className="text-[10px] text-foreground-muted">{citation.domain}</span>
-            )}
-          </div>
+          {metaLine && (
+            <span className="text-xs text-foreground-muted mt-0.5 block">{metaLine}</span>
+          )}
 
           {citation?.snippet && (
             <p className="text-xs text-foreground-muted mt-1 line-clamp-2 leading-relaxed">
@@ -107,9 +120,39 @@ export function SourceCard(props: SourceMessagePartProps) {
 
       {isExpanded && citation?.citedText && (
         <div className="px-3 pb-3 pt-0 border-t border-border/50">
-          <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap mt-2">
-            {citation.citedText}
-          </p>
+          {fullText ? (
+            <div className="max-h-[400px] overflow-y-auto mt-2">
+              <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">
+                {fullText}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap mt-2">
+              {citation.citedText}
+            </p>
+          )}
+
+          {canLoadFullText && (
+            <button
+              onClick={handleLoadFullText}
+              disabled={isLoadingFullText}
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+            >
+              {isLoadingFullText ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Wird geladen...
+                </>
+              ) : (
+                <>
+                  <FileText className="h-3 w-3" />
+                  Volltext laden
+                </>
+              )}
+            </button>
+          )}
+
+          {fullTextError && <p className="mt-1 text-xs text-red-500">{fullTextError}</p>}
         </div>
       )}
     </div>

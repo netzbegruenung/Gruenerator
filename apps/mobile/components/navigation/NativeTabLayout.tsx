@@ -59,7 +59,6 @@ export function NativeTabLayout() {
         })}
         <NativeTabs.Trigger.Label>Tools</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(notebooks)" hidden />
       <NativeTabs.Trigger name="(chat)">
         {Platform.select({
           ios: (

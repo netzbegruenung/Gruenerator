@@ -17,13 +17,19 @@ export class MistralEmbeddingClient {
     this.model = model;
   }
 
+  // Mistral API rejects individual texts exceeding 8192 tokens
+  private static readonly MAX_TOKENS_PER_TEXT = 8192;
+  private static readonly MAX_CHARS_PER_TEXT = 8192 * 4; // ~4 chars per token
+
   async generateEmbedding(text: string): Promise<number[]> {
     if (!text || typeof text !== 'string') throw new Error('Text required');
+
+    const safeText = this.truncateIfNeeded(text);
 
     return await this.retryWithBackoff(async () => {
       const resp = await mistralClient.embeddings.create({
         model: this.model,
-        inputs: [text],
+        inputs: [safeText],
       });
       const vec = resp?.data?.[0]?.embedding;
       if (!Array.isArray(vec)) throw new Error('No embedding returned');
@@ -95,13 +101,15 @@ export class MistralEmbeddingClient {
   }
 
   private async processSingleBatch(texts: string[]): Promise<number[][]> {
+    const safeTexts = texts.map((t) => this.truncateIfNeeded(t));
+
     return await this.retryWithBackoff(async () => {
       const resp = await mistralClient.embeddings.create({
         model: this.model,
-        inputs: texts,
+        inputs: safeTexts,
       });
       const arr = resp?.data;
-      if (!Array.isArray(arr) || arr.length !== texts.length)
+      if (!Array.isArray(arr) || arr.length !== safeTexts.length)
         throw new Error('Embedding batch size mismatch');
       return arr.map((d) => d.embedding as number[]);
     }, 'processSingleBatch');
@@ -114,6 +122,20 @@ export class MistralEmbeddingClient {
 
   estimateTotalTokens(texts: string[]): number {
     return texts.reduce((total, text) => total + this.estimateTokens(text), 0);
+  }
+
+  private truncateIfNeeded(text: string): string {
+    if (text.length <= MistralEmbeddingClient.MAX_CHARS_PER_TEXT) return text;
+
+    // Truncate at a word boundary
+    const truncated = text.slice(0, MistralEmbeddingClient.MAX_CHARS_PER_TEXT);
+    const lastSpace = truncated.lastIndexOf(' ');
+    const safeText = lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated;
+
+    console.warn(
+      `[MistralEmbeddingClient] Truncated text from ${text.length} to ${safeText.length} chars (exceeds ${MistralEmbeddingClient.MAX_TOKENS_PER_TEXT} token limit)`
+    );
+    return safeText;
   }
 
   private createOptimalBatches(

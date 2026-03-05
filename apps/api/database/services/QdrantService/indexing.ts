@@ -50,6 +50,7 @@ export interface WebContentMetadata {
   section?: string;
   published_at?: string;
   content_hash?: string;
+  full_text?: string;
 }
 
 export type ContentExampleMetadata = ContentExampleMeta;
@@ -191,6 +192,7 @@ export async function indexBundestagContent(
         content_hash: metadata.content_hash || null,
         country: 'DE',
         indexed_at: new Date().toISOString(),
+        ...(index === 0 && metadata.full_text ? { full_text: metadata.full_text } : {}),
       },
     }));
 
@@ -237,6 +239,7 @@ export async function indexGrueneDeContent(
         content_hash: metadata.content_hash || null,
         country: 'DE',
         indexed_at: new Date().toISOString(),
+        ...(index === 0 && metadata.full_text ? { full_text: metadata.full_text } : {}),
       },
     }));
 
@@ -283,6 +286,7 @@ export async function indexGrueneAtContent(
         content_hash: metadata.content_hash || null,
         country: 'AT',
         indexed_at: new Date().toISOString(),
+        ...(index === 0 && metadata.full_text ? { full_text: metadata.full_text } : {}),
       },
     }));
 

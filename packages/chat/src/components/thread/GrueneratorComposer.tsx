@@ -5,8 +5,11 @@ import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
 import { ArrowUp, Square, X } from 'lucide-react';
 import { ToolToggles } from '../ToolToggles';
 import { ComposerAttachments } from '../assistant-ui/attachment';
-import { MentionPopover, filterMentionables } from './MentionPopover';
-import { SkillPopover, getFilteredSkills } from './SkillPopover';
+import { MentionPopover } from './MentionPopover';
+import { SkillPopover } from './SkillPopover';
+import { detectMention } from '../../lib/mentionDetection';
+import { getFilteredForMode } from '../../lib/mentionDetection';
+import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { FileMentionPopover } from './FileMentionPopover';
 import { PlusMenu } from './PlusMenu';
 import { getCaretCoords } from '../../lib/caretPosition';
@@ -78,24 +81,20 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
       }
 
       const currentText = composerRuntime.getState().text;
-      const trigger = mentionable.category === 'skill' ? '/' : '@';
-
-      // If coming from PlusMenu (mentionStart === -1), insert at end of text
-      const insertAt = mention.mentionStart >= 0 ? mention.mentionStart : currentText.length;
-      const before = currentText.slice(0, insertAt);
-      const after = mention.mentionStart >= 0 ? currentText.slice(textarea.selectionStart) : '';
-      const prefix =
-        before.length > 0 && !before.endsWith(' ') && mention.mentionStart < 0 ? ' ' : '';
-      const ctxSuffix = mentionable.contextPrefix ? `${mentionable.contextPrefix} ` : '';
-      const newText = `${before}${prefix}${trigger}${mentionable.mention} ${ctxSuffix}${after}`;
+      const caretPosition =
+        mention.mentionStart >= 0 ? textarea.selectionStart : currentText.length;
+      const { newText, cursorPosition } = computeMentionInsertion(
+        currentText,
+        mentionable,
+        mention.mentionStart,
+        caretPosition
+      );
 
       composerRuntime.setText(newText);
       dismissPopover();
 
       requestAnimationFrame(() => {
-        const cursorPos =
-          before.length + prefix.length + mentionable.mention.length + 2 + ctxSuffix.length; // +2 for trigger and space
-        textarea.setSelectionRange(cursorPos, cursorPos);
+        textarea.setSelectionRange(cursorPosition, cursorPosition);
         textarea.focus();
       });
     },
@@ -138,50 +137,17 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
       const textarea = e.target;
       const text = textarea.value;
       const caret = textarea.selectionStart;
-      const textBeforeCaret = text.slice(0, caret);
 
-      // Look backward from caret for a trigger character (@ or /)
-      const atIndex = textBeforeCaret.lastIndexOf('@');
-      const slashIndex = textBeforeCaret.lastIndexOf('/');
-
-      // Pick the closest trigger to the caret
-      const candidates: { index: number; trigger: '@' | '/'; mode: 'functions' | 'skills' }[] = [];
-
-      if (atIndex >= 0) {
-        const charBefore = atIndex > 0 ? text[atIndex - 1] : ' ';
-        const queryStr = textBeforeCaret.slice(atIndex + 1);
-        const hasSpace = queryStr.includes(' ');
-        if ((charBefore === ' ' || charBefore === '\n' || atIndex === 0) && !hasSpace) {
-          candidates.push({ index: atIndex, trigger: '@', mode: 'functions' });
-        }
-      }
-
-      if (slashIndex >= 0) {
-        const charBefore = slashIndex > 0 ? text[slashIndex - 1] : ' ';
-        const queryStr = textBeforeCaret.slice(slashIndex + 1);
-        const hasSpace = queryStr.includes(' ');
-        if ((charBefore === ' ' || charBefore === '\n' || slashIndex === 0) && !hasSpace) {
-          // Skip if this looks like a URL (has :// before the /)
-          const textBeforeSlash = text.slice(0, slashIndex);
-          const isUrl = textBeforeSlash.endsWith(':') || textBeforeSlash.endsWith(':/');
-          if (!isUrl) {
-            candidates.push({ index: slashIndex, trigger: '/', mode: 'skills' });
-          }
-        }
-      }
-
-      if (candidates.length > 0) {
-        // Use the candidate closest to the caret (highest index)
-        const best = candidates.reduce((a, b) => (a.index > b.index ? a : b));
-        const queryStr = textBeforeCaret.slice(best.index + 1);
-        const coords = getCaretCoords(textarea, best.index);
+      const detected = detectMention(text, caret);
+      if (detected) {
+        const coords = getCaretCoords(textarea, detected.mentionStart);
         setMention({
           visible: true,
-          mode: best.mode,
-          query: queryStr,
+          mode: detected.mode,
+          query: detected.query,
           selectedIndex: 0,
           anchorRect: coords,
-          mentionStart: best.index,
+          mentionStart: detected.mentionStart,
         });
         return;
       }
@@ -204,10 +170,7 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
         return;
       }
 
-      const filtered =
-        mention.mode === 'skills'
-          ? getFilteredSkills(mention.query)
-          : filterMentionables(mention.query);
+      const filtered = getFilteredForMode(mention.mode, mention.query);
       if (filtered.length === 0) return;
 
       switch (e.key) {

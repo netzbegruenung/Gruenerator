@@ -1,6 +1,17 @@
 import { apiRequest } from './api';
 
-import type { NotebookSource } from '../stores/notebookChatStore';
+export interface NotebookSource {
+  title: string;
+  url?: string;
+  documentId?: string;
+  snippet?: string;
+  collectionName?: string;
+  index?: number | string;
+  cited_text?: string;
+  similarity_score?: number;
+  chunk_index?: number;
+  collection_id?: string;
+}
 
 interface ApiCitation {
   index?: string | number;

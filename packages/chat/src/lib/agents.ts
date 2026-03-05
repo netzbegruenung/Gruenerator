@@ -45,7 +45,7 @@ export const agentsList: AgentListItem[] = [
   {
     identifier: 'gruenerator-buergerservice',
     title: 'Bürger*innenanfragen',
-    description: 'Bürgeranfragen beantworten',
+    description: 'Bürger*innenanfragen beantworten',
     avatar: '💬',
     backgroundColor: '#316049',
     mention: 'bürgerservice',
