@@ -12,6 +12,7 @@
 import { generateText } from 'ai';
 
 // import { getEnrichedPersonSearchService } from '../../../services/bundestag/index.js'; // DISABLED: Person search not production ready
+import { COLLECTION_MAP } from '../../../config/collectionMap.js';
 import {
   getSearchParams,
   buildSubcategoryFilter,
@@ -35,68 +36,7 @@ import type { QdrantFilter } from '../../../database/services/QdrantService/type
 
 const log = createLogger('DirectSearch');
 
-/**
- * Maps chat collection names to Qdrant collection names.
- * The chat uses simplified names while the backend uses full collection identifiers.
- */
-const COLLECTION_MAP: Record<string, { qdrantCollection: string; systemId: string }> = {
-  deutschland: {
-    qdrantCollection: 'grundsatz_documents',
-    systemId: 'grundsatz-system',
-  },
-  bundestagsfraktion: {
-    qdrantCollection: 'bundestag_content',
-    systemId: 'bundestagsfraktion-system',
-  },
-  kommunalwiki: {
-    qdrantCollection: 'kommunalwiki_documents',
-    systemId: 'kommunalwiki-system',
-  },
-  'gruene-de': {
-    qdrantCollection: 'gruene_de_documents',
-    systemId: 'gruene-de-system',
-  },
-  'gruene-at': {
-    qdrantCollection: 'gruene_at_documents',
-    systemId: 'gruene-at-system',
-  },
-  oesterreich: {
-    qdrantCollection: 'oesterreich_gruene_documents',
-    systemId: 'oesterreich-gruene-system',
-  },
-  examples: {
-    qdrantCollection: 'social_media_examples',
-    systemId: 'examples-system',
-  },
-  'boell-stiftung': {
-    qdrantCollection: 'boell_stiftung_documents',
-    systemId: 'boell-stiftung-system',
-  },
-  hamburg: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'hamburg-system',
-  },
-  'schleswig-holstein': {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'schleswig-holstein-system',
-  },
-  thueringen: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'thueringen-system',
-  },
-  bayern: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'bayern-system',
-  },
-  berlin: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'berlin-system',
-  },
-  'mecklenburg-vorpommern': {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'mecklenburg-vorpommern-system',
-  },
-};
+// COLLECTION_MAP imported from shared config (apps/api/config/collectionMap.ts)
 
 export interface DirectSearchResult {
   collection: string;
