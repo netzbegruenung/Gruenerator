@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { formatFileSize } from '@gruenerator/chat';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useGeneratedTextStore } from '@gruenerator/shared/stores';
-import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
@@ -18,19 +18,10 @@ import {
 } from 'react-native';
 
 import { ContentDisplay } from '../../../components/content';
+import { pickDocumentForScanner, uploadDocumentToScanner } from '../../../services/documentPicker';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
 const COMPONENT_NAME = 'scanner-mobile';
-
-const ALLOWED_DOC_TYPES = [
-  'application/pdf',
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-];
 
 const TRANSFORM_PRESETS = [
   { id: 'ergebnisprotokoll', label: 'Ergebnisprotokoll', icon: 'document-text' as const },
@@ -101,50 +92,23 @@ export default function ScannerScreen() {
     setPhase('extracting');
     setError(null);
 
-    try {
-      const apiClient = getGlobalApiClient();
-      const formData = new FormData();
-
-      formData.append('file', {
-        uri,
-        name,
-        type: mimeType,
-      } as unknown as Blob);
-
-      const response = await apiClient.post('/scanner/extract', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 120000,
-      });
-
-      if (response.data.success) {
-        setExtractedText(response.data.text);
-        setPageCount(response.data.pageCount || 0);
-        setFileInfo({
-          name: response.data.fileInfo?.originalname || name,
-          size: response.data.fileInfo?.size || 0,
-          mimeType: response.data.fileInfo?.mimetype || mimeType,
-        });
-        setPhase('extracted');
-      } else {
-        throw new Error('Textextraktion fehlgeschlagen');
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Fehler bei der Textextraktion';
-      setError(message);
+    const result = await uploadDocumentToScanner({ uri, name, mimeType, size: 0 });
+    if (result) {
+      setExtractedText(result.text);
+      setPageCount(result.pageCount);
+      setFileInfo(result.fileInfo);
+      setPhase('extracted');
+    } else {
+      setError('Textextraktion fehlgeschlagen');
       setPhase('pick');
     }
   }, []);
 
   const handlePickDocument = useCallback(async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ALLOWED_DOC_TYPES,
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        await uploadAndExtract(asset.uri, asset.name, asset.mimeType || 'application/octet-stream');
+      const doc = await pickDocumentForScanner();
+      if (doc) {
+        await uploadAndExtract(doc.uri, doc.name, doc.mimeType);
       }
     } catch (err) {
       console.error('[Scanner] DocumentPicker error:', err);
@@ -419,13 +383,6 @@ export default function ScannerScreen() {
       )}
     </ScrollView>
   );
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i] || 'MB'}`;
 }
 
 const styles = StyleSheet.create({

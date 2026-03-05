@@ -52,3 +52,12 @@ export {
   type TemplateCategory,
   type TemplateImage,
 } from './vorlagen';
+export {
+  pickDocument,
+  pickDocumentForScanner,
+  validatePickedDocument,
+  uploadDocumentToChat,
+  uploadDocumentToScanner,
+  type PickedDocument,
+  type UploadedDocument,
+} from './documentPicker';

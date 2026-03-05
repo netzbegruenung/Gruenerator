@@ -2,6 +2,7 @@ import {
   MessageRoot,
   MessageContent,
   MessageIf,
+  MessageAttachments,
   type ThreadMessage,
 } from '@assistant-ui/react-native';
 import { memo, useMemo } from 'react';
@@ -10,6 +11,7 @@ import Markdown from 'react-native-markdown-display';
 
 import { colors, spacing, borderRadius } from '../../theme';
 
+import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
 import { ToolCallProgress } from './ToolCallProgress';
 
@@ -19,6 +21,7 @@ import type { GrueneratorMessageMetadata } from '@gruenerator/chat';
 interface Props {
   theme: Theme;
   message: ThreadMessage;
+  fetchFullText?: (url: string, collectionId: string) => Promise<string | null>;
 }
 
 function UserMessage({ theme }: { theme: Theme }) {
@@ -26,6 +29,7 @@ function UserMessage({ theme }: { theme: Theme }) {
     <MessageIf user>
       <MessageRoot style={[styles.messageRow, styles.userRow]}>
         <View style={[styles.bubble, styles.userBubble]}>
+          <MessageAttachments components={{ Attachment: MessageAttachmentUI }} />
           <MessageContent
             renderText={({ part }) => <Text style={styles.userText}>{part.text}</Text>}
           />
@@ -35,7 +39,7 @@ function UserMessage({ theme }: { theme: Theme }) {
   );
 }
 
-function AssistantMessage({ theme, message }: Props) {
+function AssistantMessage({ theme, message, fetchFullText }: Props) {
   const metadata = ((message.metadata as Record<string, unknown>)?.custom ??
     {}) as GrueneratorMessageMetadata;
   const citations = metadata.citations;
@@ -52,7 +56,7 @@ function AssistantMessage({ theme, message }: Props) {
             renderSource={() => <></>}
           />
           {citations && citations.length > 0 && (
-            <CitationsFooter citations={citations} theme={theme} />
+            <CitationsFooter citations={citations} theme={theme} fetchFullText={fetchFullText} />
           )}
         </View>
       </MessageRoot>
@@ -60,11 +64,11 @@ function AssistantMessage({ theme, message }: Props) {
   );
 }
 
-export const MessageBubble = memo(function MessageBubble({ theme, message }: Props) {
+export const MessageBubble = memo(function MessageBubble({ theme, message, fetchFullText }: Props) {
   return (
     <>
       <UserMessage theme={theme} />
-      <AssistantMessage theme={theme} message={message} />
+      <AssistantMessage theme={theme} message={message} fetchFullText={fetchFullText} />
     </>
   );
 });
