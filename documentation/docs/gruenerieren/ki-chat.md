@@ -37,7 +37,7 @@ Assistenten sind spezialisierte KI-Persönlichkeiten, die auf bestimmte Textarte
 | `/aktion`        | 💡 Aktionsideen          | Kreative Aktionsideen entwickeln            |
 | `/rede`          | 🎙️ Rede                  | Politische Reden schreiben                  |
 | `/wahlprogramm`  | 📋 Wahlprogramm          | Programmkapitel erstellen                   |
-| `/bürgerservice` | 💬 Bürger\*innenanfragen | Bürgeranfragen beantworten                  |
+| `/bürgerservice` | 💬 Bürger\*innenanfragen | Bürger\*innenanfragen beantworten           |
 | `/jugend`        | ✊ Grüne Jugend          | Aktivistischer Content                      |
 
 :::tip Assistenten kombinieren

@@ -1,4 +1,8 @@
-import { useLocalRuntime, type LocalRuntimeOptions } from '@assistant-ui/react-native';
+import {
+  useLocalRuntime,
+  type LocalRuntimeOptions,
+  type ThreadHistoryAdapter,
+} from '@assistant-ui/react-native';
 import {
   createGrueneratorModelAdapter,
   useAgentStore,
@@ -10,7 +14,11 @@ import {
 import { useCallback, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/shallow';
 
-export function useMobileChatRuntime() {
+interface MobileChatRuntimeOptions {
+  adapters?: { history?: ThreadHistoryAdapter };
+}
+
+export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
   const { selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId } =
     useAgentStore(
       useShallow((s) => ({
@@ -75,8 +83,11 @@ export function useMobileChatRuntime() {
   );
 
   const runtimeOptions: LocalRuntimeOptions = useMemo(
-    () => ({ unstable_humanToolNames: ['ask_human'] }),
-    []
+    () => ({
+      unstable_humanToolNames: ['ask_human'],
+      adapters: opts?.adapters,
+    }),
+    [opts?.adapters]
   );
 
   return useLocalRuntime(modelAdapter, runtimeOptions);

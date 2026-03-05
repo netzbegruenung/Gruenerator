@@ -168,13 +168,28 @@ export class OCRService {
     );
 
     try {
-      // Validate document limits first
-      await this.validateDocumentLimits(filePath, fileExtension);
+      // Validate document limits (non-fatal for PDFs with invalid structure — Mistral OCR can still handle them)
+      try {
+        await this.validateDocumentLimits(filePath, fileExtension);
+      } catch (validationError) {
+        if (fileExtension === '.pdf') {
+          console.warn(
+            `[OCRService] PDF validation failed, proceeding with OCR anyway:`,
+            (validationError as Error).message
+          );
+        } else {
+          throw validationError;
+        }
+      }
 
       // Optional parseability check for PDFs only (for telemetry)
       let parseCheck: ParseabilityCheck | null = null;
       if (fileExtension === '.pdf') {
-        parseCheck = await this.canExtractTextDirectly(filePath);
+        try {
+          parseCheck = await this.canExtractTextDirectly(filePath);
+        } catch {
+          // Non-fatal: some PDFs have invalid structure but OCR can still process them
+        }
       }
 
       let result: ExtractionResult;

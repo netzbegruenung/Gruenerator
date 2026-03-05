@@ -3,7 +3,7 @@ import type {
   PendingAttachment,
   CompleteAttachment,
   Attachment,
-} from '@assistant-ui/react';
+} from '@assistant-ui/core';
 import {
   validateFile,
   isImageMimeType,

@@ -10,11 +10,36 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
 
+    # Security headers (default: deny framing)
+    add_header X-Frame-Options "DENY" always;
+    add_header Content-Security-Policy "frame-ancestors 'none'" always;
+
     # Cache static assets (Vite hashed filenames)
-    location ~* \.(css|js|map|jpe?g|gif|png|webp|svg|ico|woff|woff2)$ {
+    location ~* \.(css|map|jpe?g|gif|png|webp|svg|ico|woff|woff2)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
+    }
+
+    # Hashed JS assets (Vite generates fingerprinted names in assets/)
+    location ~* ^/assets/.*\.js$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Embed widget script — cross-origin access, short cache, no framing restriction
+    location = /embed.js {
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Cache-Control "public, max-age=3600" always;
+        try_files $uri =404;
+    }
+
+    # Embed routes — allow framing from whitelisted origins
+    location /embed/ {
+        add_header Content-Security-Policy "frame-ancestors 'self' ${EMBED_ALLOWED_ORIGINS}" always;
+        # Intentionally no X-Frame-Options — CSP frame-ancestors takes precedence
+        try_files $uri /index.html;
     }
 
     # Reverse proxy API requests to the backend

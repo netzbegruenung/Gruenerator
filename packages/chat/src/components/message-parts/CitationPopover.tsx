@@ -53,9 +53,21 @@ export const CitationBadge = memo(function CitationBadge({
             <div className="space-y-2">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground leading-tight line-clamp-2">
-                    {citation.title}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    {citation.domain && (
+                      <img
+                        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(citation.domain)}&sz=16`}
+                        alt=""
+                        width={16}
+                        height={16}
+                        className="flex-shrink-0"
+                        loading="lazy"
+                      />
+                    )}
+                    <p className="text-sm font-medium text-foreground leading-tight line-clamp-2">
+                      {citation.title}
+                    </p>
+                  </div>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     {citation.collectionName && (
                       <span
@@ -89,17 +101,39 @@ export const CitationBadge = memo(function CitationBadge({
                 {citation.citedText || citation.snippet}
               </p>
 
-              {citation.url && (
-                <a
-                  href={citation.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                >
-                  Quelle öffnen
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
+              <div className="flex items-center gap-3">
+                {citation.url && (
+                  <a
+                    href={citation.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    Quelle öffnen
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+                {citation.collectionId && citation.citedText && (
+                  <button
+                    className="text-xs font-medium text-primary hover:underline"
+                    onClick={() => {
+                      setIsOpen(false);
+                      // Expand collapsed sources section first
+                      document.dispatchEvent(new Event('citation-expand-sources'));
+                      // Wait for DOM update, then scroll to the source card
+                      requestAnimationFrame(() => {
+                        const sourceCard = document.getElementById(`source-card-${citationId}`);
+                        if (sourceCard) {
+                          sourceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          sourceCard.querySelector('button')?.click();
+                        }
+                      });
+                    }}
+                  >
+                    Mehr anzeigen
+                  </button>
+                )}
+              </div>
             </div>
             <PopoverPrimitive.Arrow className="fill-card" />
           </PopoverPrimitive.Content>

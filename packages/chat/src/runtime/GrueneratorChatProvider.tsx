@@ -37,6 +37,7 @@ import {
 } from './GrueneratorThreadListAdapter';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
+import { chatSuggestions } from '../lib/suggestions';
 import type {
   GeneratedImage,
   Citation,
@@ -410,28 +411,7 @@ export function GrueneratorChatProvider({
 
   const aui = useAui({
     tools: Tools({ toolkit: grueneratorToolkit }),
-    suggestions: Suggestions([
-      {
-        title: 'Pressemitteilung',
-        label: 'schreiben lassen',
-        prompt: '@presse Schreibe eine Pressemitteilung zum Thema ',
-      },
-      {
-        title: 'Rede verfassen',
-        label: 'für eine Veranstaltung',
-        prompt: '@rede Schreibe eine Rede zum Thema ',
-      },
-      {
-        title: 'Antrag formulieren',
-        label: 'für eine Ratssitzung',
-        prompt: '@antrag Formuliere einen Antrag zum Thema ',
-      },
-      {
-        title: 'Allgemeine Frage',
-        label: 'zum grünen Programm',
-        prompt: 'Was ist die Position der Grünen zu ',
-      },
-    ]),
+    suggestions: Suggestions(chatSuggestions),
   });
 
   const externalCtx = useMemo(

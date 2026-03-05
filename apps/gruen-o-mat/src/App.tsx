@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import { ChatPage } from './pages/ChatPage';
+import { EmbedChatPage } from './pages/EmbedChatPage';
 import { StartPage } from './pages/StartPage';
 
 export function App() {
@@ -18,6 +19,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<StartPage />} />
         <Route path="/chat/:collectionId" element={<ChatPage />} />
+        <Route path="/embed/:collectionId" element={<EmbedChatPage />} />
         <Route path="*" element={<StartPage />} />
       </Routes>
     </BrowserRouter>

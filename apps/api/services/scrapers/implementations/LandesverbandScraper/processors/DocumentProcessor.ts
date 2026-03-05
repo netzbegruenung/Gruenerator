@@ -138,6 +138,7 @@ export class DocumentProcessor {
         published_at: publishedAt || null,
         indexed_at: new Date().toISOString(),
         source: 'landesverbaende_gruene',
+        ...(index === 0 ? { full_text: text } : {}),
       },
     }));
 

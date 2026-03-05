@@ -12,11 +12,6 @@ interface SkillPopoverProps {
   anchorRect: { x: number; y: number } | null;
 }
 
-function getFilteredSkills(query: string): Mentionable[] {
-  const { agents, customAgents } = filterMentionables(query);
-  return [...agents, ...customAgents];
-}
-
 export function SkillPopover({
   query,
   visible,
@@ -126,4 +121,4 @@ function SkillItem({
   );
 }
 
-export { getFilteredSkills };
+export { getFilteredSkills } from '../../lib/mentionDetection';

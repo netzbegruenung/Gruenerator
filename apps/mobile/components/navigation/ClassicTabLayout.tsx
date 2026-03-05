@@ -66,7 +66,6 @@ export function ClassicTabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="construct" size={size} color={color} />,
         }}
       />
-      <Tabs.Screen name="(notebooks)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
         name="(chat)"
         options={{

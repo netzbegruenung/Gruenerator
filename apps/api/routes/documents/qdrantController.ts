@@ -2,6 +2,7 @@
  * Qdrant Controller - Qdrant-specific operations
  *
  * Handles:
+ * - GET /system-full-text - Get system document full text by URL
  * - GET /:documentId/full-text - Get document full text from Qdrant
  * - POST /bulk/full-text - Bulk full-text retrieval
  * - GET /list - List documents from Qdrant
@@ -10,6 +11,8 @@
 
 import express, { type Router, type Response } from 'express';
 
+import { COLLECTION_MAP } from '../../config/collectionMap.js';
+import { applyDefaultFilter } from '../../config/systemCollectionsConfig.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -22,6 +25,84 @@ const router: Router = express.Router();
 // Initialize services
 const documentSearchService = new DocumentSearchService();
 const postgresDocumentService = getPostgresDocumentService();
+
+/**
+ * GET /system-full-text - Get full text for a system collection document by URL.
+ *
+ * Query params:
+ *   - url: The source_url from the citation
+ *   - collection: Chat collection name (e.g. 'deutschland', 'bundestagsfraktion')
+ *
+ * No PostgreSQL ownership check — system documents are public party content.
+ * Requires auth (logged-in user).
+ */
+router.get('/system-full-text', async (req: DocumentRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { url, collection } = req.query as { url?: string; collection?: string };
+
+    if (!url || !collection) {
+      res.status(400).json({
+        success: false,
+        message: 'Both "url" and "collection" query parameters are required',
+      });
+      return;
+    }
+
+    const mapping = COLLECTION_MAP[collection];
+    if (!mapping) {
+      res.status(400).json({
+        success: false,
+        message: `Unknown collection: ${collection}`,
+      });
+      return;
+    }
+
+    log.debug(
+      `[GET /system-full-text] url="${url}" collection="${collection}" → ${mapping.qdrantCollection}`
+    );
+
+    const defaultFilter = applyDefaultFilter(mapping.systemId);
+
+    const result = await documentSearchService.getSystemDocumentFullTextByUrl(
+      mapping.qdrantCollection,
+      url,
+      defaultFilter
+    );
+
+    if (!result.success) {
+      res.status(404).json({
+        success: false,
+        message: result.error || 'Document not found',
+      });
+      return;
+    }
+
+    log.debug(
+      `[GET /system-full-text] Retrieved ${result.fullText.length} chars (${result.chunkCount} chunks)`
+    );
+
+    res.json({
+      success: true,
+      data: {
+        fullText: result.fullText,
+        title: result.title,
+        url,
+      },
+    });
+  } catch (error) {
+    log.error('[GET /system-full-text] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: (error as Error).message || 'Failed to retrieve system document text',
+    });
+  }
+});
 
 /**
  * GET /:documentId/full-text - Get document full text from Qdrant chunks

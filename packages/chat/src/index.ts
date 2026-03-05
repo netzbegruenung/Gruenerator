@@ -62,6 +62,7 @@ export {
 
 // Message Part Components
 export { ProgressIndicator } from './components/message-parts/ProgressIndicator';
+export { ProgressTracker } from './components/tool-ui/progress-tracker/ProgressTracker';
 export { TypingIndicator } from './components/message-parts/TypingIndicator';
 export {
   SearchResultsSection,
@@ -69,11 +70,19 @@ export {
 } from './components/message-parts/SearchResultsSection';
 export { SourceCard } from './components/message-parts/SourceCard';
 export { CitationBadge } from './components/message-parts/CitationPopover';
+export { Citation as CitationCard } from './components/tool-ui/citation/ProjectCitation';
 export { GeneratedImageDisplay } from './components/message-parts/GeneratedImageDisplay';
 export { MessageActions } from './components/message-parts/MessageActions';
 
 // Citation Context
-export { CitationProvider, useCitations } from './context/CitationContext';
+export {
+  CitationProvider,
+  useCitations,
+  useCitationContext,
+  useFetchFullText,
+  type CitationContextValue,
+  type FetchFullTextFn,
+} from './context/CitationContext';
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';
@@ -88,9 +97,32 @@ export { ThemeProvider, useTheme } from './components/ThemeProvider';
 export { Dropdown, DropdownItem, ToggleSwitch } from './components/ui/Dropdown';
 export { TooltipProvider } from './components/ui/tooltip';
 
+// Tool UI Schemas
+export { safeParseSerializableCitation } from './components/tool-ui/citation/schema';
+export { safeParseProgressTracker } from './components/tool-ui/progress-tracker/schema';
+
+// Tool UI Citation (official @tool-ui/citation registry)
+export {
+  Citation as ToolUICitation,
+  type CitationProps as ToolUICitationProps,
+  CitationList,
+  type CitationListProps,
+  type SerializableCitation,
+  type CitationType,
+  type CitationVariant,
+} from './components/tool-ui/citation';
+
+// Tool UI Link Preview (official @tool-ui/link-preview registry)
+export {
+  LinkPreview,
+  type LinkPreviewProps,
+  type SerializableLinkPreview,
+} from './components/tool-ui/link-preview';
+
 // Types (from useChatGraphStream — kept for backward compatibility)
 export {
   type ProgressStage,
+  type ProgressStep,
   type SearchIntent,
   type GeneratedImage,
   type ChatProgress,
@@ -117,8 +149,22 @@ export {
 
 export { useDocumentChatStore } from './stores/documentChatStore';
 
+// Mention detection & insertion (shared logic for web + mobile)
+export {
+  detectMention,
+  getFilteredFunctions,
+  getFilteredSkills,
+  getFilteredForMode,
+  type MentionDetectionResult,
+} from './lib/mentionDetection';
+export { computeMentionInsertion, type MentionInsertionResult } from './lib/mentionInsertion';
+
+// File mention data hook
+export { useFileMentionData } from './hooks/useFileMentionData';
+
 // Lib
 export { cn } from './lib/utils';
+export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
   getDefaultAgent,
@@ -144,6 +190,7 @@ export {
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  toolMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,

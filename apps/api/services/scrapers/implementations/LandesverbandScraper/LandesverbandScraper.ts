@@ -37,6 +37,7 @@ import type {
   LandesverbandFullResult,
   ContentPathResult,
   LandesverbandSearchOptions,
+  ProcessResult,
 } from './types.js';
 import type { ScraperResult } from '../../types.js';
 
@@ -197,10 +198,12 @@ export class LandesverbandScraper extends BaseScraper {
             await fs.writeFile(tempPath, pdfBuffer);
             this.log(`Processing PDF with OcrService: ${filename}`);
 
-            const result = await ocrService.extractTextWithMistralOCR(tempPath);
+            const result = await ocrService.extractTextFromDocument(tempPath);
             text = result.text || '';
 
-            this.log(`OcrService extracted ${text.length} chars from ${filename}`);
+            this.log(
+              `OcrService extracted ${text.length} chars from ${filename} (${result.extractionMethod || 'unknown'})`
+            );
           } finally {
             // Clean up temp file
             try {
@@ -486,6 +489,68 @@ export class LandesverbandScraper extends BaseScraper {
       cms: s.cms,
       contentTypes: s.contentPaths.map((cp: any) => cp.type),
     }));
+  }
+
+  /**
+   * Ingest a single PDF by URL with explicit metadata.
+   * For manual ingestion of PDFs that automated scraping can't date-extract.
+   */
+  async ingestPdf(
+    sourceId: string,
+    pdfUrl: string,
+    title: string,
+    publishedAt: string,
+    options: { forceUpdate?: boolean; collection?: string } = {}
+  ): Promise<ProcessResult> {
+    const source = getSourceById(sourceId);
+    if (!source) throw new Error(`Source ${sourceId} not found`);
+
+    const targetCollection =
+      options.collection || source.qdrantCollection || this.config.collectionName;
+
+    // Check if already stored
+    if (!options.forceUpdate) {
+      const existing = await scrollDocuments(
+        this.qdrantClient,
+        targetCollection,
+        { must: [{ key: 'source_url', match: { value: pdfUrl } }] },
+        { limit: 1, withPayload: false, withVector: false }
+      );
+      if (existing.length > 0) {
+        return { stored: false, reason: 'already_exists' };
+      }
+    }
+
+    // Download
+    const response = await this.#fetchUrl(pdfUrl);
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    // OCR
+    const filename = pdfUrl.split('/').pop() || 'document.pdf';
+    const tempPath = path.join(os.tmpdir(), `lv_manual_${Date.now()}_${filename}`);
+    let text = '';
+
+    try {
+      await fs.writeFile(tempPath, buffer);
+      const ocrResult = await ocrService.extractTextFromDocument(tempPath);
+      text = ocrResult.text || '';
+    } finally {
+      try {
+        await fs.unlink(tempPath);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Store
+    return this.documentProcessor.processAndStoreDocument(
+      source,
+      'beschluss',
+      pdfUrl,
+      { title, text, publishedAt, categories: [] },
+      targetCollection,
+      source.maxAgeYears
+    );
   }
 
   // ────────────────────────────────────────────────────────────

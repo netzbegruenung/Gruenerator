@@ -88,7 +88,12 @@ export default function NotebooksScreen() {
             key={notebook.id}
             notebook={notebook}
             onPress={() =>
-              router.push(routeWithParams('/(focused)/notebook-chat', { notebookId: notebook.id }))
+              router.push(
+                routeWithParams('/(focused)/chat-conversation', {
+                  threadId: 'new',
+                  notebookId: notebook.id + '-notebook',
+                })
+              )
             }
           />
         ))}

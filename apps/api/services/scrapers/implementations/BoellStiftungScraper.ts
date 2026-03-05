@@ -634,6 +634,7 @@ export class BoellStiftungScraper extends BaseScraper {
         published_at: content.publishedAt,
         source: 'boell_stiftung',
         indexed_at: new Date().toISOString(),
+        ...(index === 0 ? { full_text: content.text } : {}),
       },
     }));
 

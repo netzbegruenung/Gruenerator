@@ -7,6 +7,8 @@
 import * as cheerio from 'cheerio';
 
 import type { PdfLink } from '../types.js';
+import type { CheerioAPI } from 'cheerio';
+import type { AnyNode } from 'domhandler';
 
 /**
  * Link extraction with pagination support
@@ -177,6 +179,7 @@ export class LinkExtractor {
   /**
    * Extract PDF links from archive page
    * Returns links with title and context for date extraction
+   * Deduplicates by URL (pages may list the same PDF in multiple sections)
    */
   async extractPdfLinks(source: any, contentPath: any): Promise<PdfLink[]> {
     const pageUrl = source.baseUrl + contentPath.path;
@@ -185,20 +188,55 @@ export class LinkExtractor {
     const $ = cheerio.load(html);
 
     const pdfLinks: PdfLink[] = [];
+    const seen = new Set<string>();
+
     $(contentPath.listSelector).each((_, el) => {
       const href = $(el).attr('href');
       if (href && (href.includes('.pdf') || href.includes('/download/'))) {
         const normalizedUrl = this.normalizeUrl(href, source.baseUrl);
         if (normalizedUrl) {
+          if (seen.has(normalizedUrl)) return;
+          seen.add(normalizedUrl);
+
           pdfLinks.push({
             url: normalizedUrl,
             title: $(el).text().trim() || $(el).attr('title') || 'Dokument',
-            context: $(el).parent().text().trim().substring(0, 200), // Surrounding text for date extraction
+            context: this.extractContextWithHeadings($, el),
           });
         }
       }
     });
 
     return pdfLinks;
+  }
+
+  /**
+   * Extract context text including nearest preceding heading
+   * PDF archive pages often have dates in <h3>/<h4> headings above groups of links.
+   * Walks up to the nearest container, then looks for preceding headings.
+   */
+  private extractContextWithHeadings($: CheerioAPI, el: AnyNode): string {
+    const parentText = $(el).parent().text().trim().substring(0, 200);
+
+    // Walk up to the nearest structural container
+    const container = $(el).closest('div, section, article, li');
+    if (!container.length) return parentText;
+
+    // Look for preceding h3/h4 headings (sibling to the container or its ancestors)
+    let headingText = '';
+    let current = container;
+    for (let depth = 0; depth < 4; depth++) {
+      const heading = current.prevAll('h3, h4, h2').first();
+      if (heading.length) {
+        headingText = heading.text().trim();
+        break;
+      }
+      const parent = current.parent();
+      if (!parent.length || parent.is('body, html')) break;
+      current = parent;
+    }
+
+    if (!headingText) return parentText;
+    return `${headingText} | ${parentText}`.substring(0, 300);
   }
 }

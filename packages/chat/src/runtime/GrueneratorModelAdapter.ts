@@ -12,6 +12,7 @@ import type {
   Citation,
   SearchResult,
   StreamMetadata,
+  ProgressStep,
 } from '../hooks/useChatGraphStream';
 import type { ToolKey } from '../stores/chatStore';
 import { parseAllMentions } from '../lib/mentionParser';
@@ -113,9 +114,9 @@ async function* parseSSEStream(
   outcome: StreamOutcome
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error('No response body');
-  }
+
+  // React Native's fetch doesn't support ReadableStream — read full text as fallback
+  const fullText = !reader ? await response.text() : null;
 
   const decoder = new TextDecoder();
   let buffer = '';
@@ -125,6 +126,55 @@ async function* parseSSEStream(
     stage: 'classifying',
     message: 'Analysiere Anfrage...',
   };
+  const progressSteps: ProgressStep[] = [
+    { stage: 'classifying', label: 'Klassifizierung', status: 'in-progress' },
+  ];
+
+  const STAGE_LABELS: Record<string, string> = {
+    classifying: 'Klassifizierung',
+    searching: 'Suche',
+    summarizing: 'Zusammenfassung',
+    generating_image: 'Bildgenerierung',
+    generating: 'Generierung',
+  };
+
+  function transitionStep(newStage: ProgressStage, labelOverride?: string) {
+    // Mark current in-progress step as completed
+    for (const step of progressSteps) {
+      if (step.status === 'in-progress') {
+        step.status = 'completed';
+        step.completedAt = Date.now();
+      }
+    }
+    // Add new step if it has a label and isn't 'complete'/'error'/'idle'
+    const label = labelOverride || STAGE_LABELS[newStage];
+    if (label && newStage !== 'complete' && newStage !== 'error' && newStage !== 'idle') {
+      // Don't duplicate if the same stage already exists
+      if (!progressSteps.some((s) => s.stage === newStage)) {
+        progressSteps.push({ stage: newStage, label, status: 'in-progress' });
+      } else {
+        // Re-activate existing step
+        const existing = progressSteps.find((s) => s.stage === newStage);
+        if (existing) existing.status = 'in-progress';
+      }
+    }
+    if (newStage === 'complete') {
+      for (const step of progressSteps) {
+        if (step.status !== 'failed') {
+          step.status = 'completed';
+          step.completedAt ??= Date.now();
+        }
+      }
+    }
+    if (newStage === 'error') {
+      for (const step of progressSteps) {
+        if (step.status === 'in-progress') {
+          step.status = 'failed';
+        }
+      }
+    }
+  }
+
   let receivedSearchResults: SearchResult[] = [];
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
@@ -161,7 +211,7 @@ async function* parseSSEStream(
     content.push({ type: 'text' as const, text: accumulatedText });
 
     const custom: GrueneratorMessageMetadata = {
-      progress: currentProgress,
+      progress: { ...currentProgress, steps: [...progressSteps] },
     };
     if (receivedSearchResults.length > 0) custom.searchResults = receivedSearchResults;
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
@@ -179,10 +229,23 @@ async function* parseSSEStream(
     };
   }
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  // Feed chunks: stream from reader, or single chunk from full text fallback
+  const chunks: AsyncIterable<Uint8Array> = reader
+    ? {
+        [Symbol.asyncIterator]: () => ({
+          next: async () => {
+            const { done, value } = await reader.read();
+            return done
+              ? { done: true as const, value: undefined }
+              : { done: false as const, value };
+          },
+        }),
+      }
+    : (async function* () {
+        yield new TextEncoder().encode(fullText!);
+      })();
 
+  for await (const value of chunks) {
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop() || '';
@@ -211,6 +274,7 @@ async function* parseSSEStream(
           if (intent === 'direct') stage = 'generating';
           else if (intent === 'image') stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
+          transitionStep(stage);
           currentProgress = { stage, message, intent, reasoning };
 
           const toolName = INTENT_TO_TOOL[intent];
@@ -262,6 +326,7 @@ async function* parseSSEStream(
 
         case 'search_start': {
           const { message } = data as { message: string };
+          transitionStep('searching');
           currentProgress = { ...currentProgress, stage: 'searching', message };
           yield buildResult();
           break;
@@ -274,8 +339,17 @@ async function* parseSSEStream(
             results?: SearchResult[];
           };
           if (results) receivedSearchResults = results;
+          // Update searching step label with result count
+          const searchStep = progressSteps.find((s) => s.stage === 'searching');
+          if (searchStep) {
+            searchStep.label = `${resultCount} Ergebnisse`;
+            searchStep.status = 'completed';
+            searchStep.completedAt = Date.now();
+          }
+          transitionStep('generating', 'Generiere Antwort');
           currentProgress = {
             ...currentProgress,
+            stage: 'generating',
             message,
             resultCount,
           };
@@ -303,6 +377,7 @@ async function* parseSSEStream(
 
         case 'summary_start': {
           const { message } = data as { message: string };
+          transitionStep('summarizing');
           currentProgress = { ...currentProgress, stage: 'summarizing', message };
           yield buildResult();
           break;
@@ -310,13 +385,15 @@ async function* parseSSEStream(
 
         case 'summary_complete': {
           const { message } = data as { message: string };
-          currentProgress = { ...currentProgress, message };
+          transitionStep('generating', 'Generiere Antwort');
+          currentProgress = { ...currentProgress, stage: 'generating', message };
           yield buildResult();
           break;
         }
 
         case 'image_start': {
           const { message } = data as { message: string };
+          transitionStep('generating_image');
           currentProgress = { ...currentProgress, stage: 'generating_image', message };
           yield buildResult();
           break;
@@ -333,6 +410,7 @@ async function* parseSSEStream(
             error?: string;
           };
           if (image) receivedImage = image;
+          transitionStep(imageError ? 'error' : 'generating');
           currentProgress = {
             ...currentProgress,
             stage: imageError ? 'error' : 'generating',
@@ -344,6 +422,7 @@ async function* parseSSEStream(
 
         case 'response_start': {
           const { message } = data as { message: string };
+          transitionStep('generating', 'Generiere Antwort');
           currentProgress = { ...currentProgress, stage: 'generating', message };
           yield buildResult();
           break;
@@ -418,6 +497,7 @@ async function* parseSSEStream(
           if (img) receivedImage = img;
           if (metadata) receivedMetadata = metadata;
           if (interrupted) interruptPending = true;
+          transitionStep('complete');
           currentProgress = { stage: 'complete', message: '' };
           break;
         }
@@ -430,6 +510,7 @@ async function* parseSSEStream(
 
         case 'error': {
           const { error } = data as { error: string };
+          transitionStep('error');
           throw new Error(error);
         }
       }
