@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
+import { getFilteredSkills } from '../../lib/mentionDetection';
 
 interface SkillPopoverProps {
   query: string;
@@ -10,11 +11,6 @@ interface SkillPopoverProps {
   onDismiss: () => void;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
-}
-
-function getFilteredSkills(query: string): Mentionable[] {
-  const { agents, customAgents } = filterMentionables(query);
-  return [...agents, ...customAgents];
 }
 
 export function SkillPopover({
@@ -126,4 +122,4 @@ function SkillItem({
   );
 }
 
-export { getFilteredSkills };
+export { getFilteredSkills } from '../../lib/mentionDetection';

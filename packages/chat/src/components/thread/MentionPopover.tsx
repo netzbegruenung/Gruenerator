@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
+import { getFilteredFunctions } from '../../lib/mentionDetection';
 
 interface MentionPopoverProps {
   query: string;
@@ -10,11 +11,6 @@ interface MentionPopoverProps {
   onDismiss: () => void;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
-}
-
-function getFilteredItems(query: string): Mentionable[] {
-  const { notebooks, tools, documents } = filterMentionables(query);
-  return [...tools, ...documents, ...notebooks];
 }
 
 export function MentionPopover({
@@ -147,4 +143,4 @@ function MentionItem({
   );
 }
 
-export { getFilteredItems as filterMentionables };
+export { getFilteredFunctions as filterMentionables };
