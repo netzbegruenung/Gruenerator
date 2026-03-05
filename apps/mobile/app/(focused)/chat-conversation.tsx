@@ -1,44 +1,12 @@
-import { useThreadIsRunning, useAssistantRuntime } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAssistantRuntime } from '@assistant-ui/react-native';
+import { useAgentStore } from '@gruenerator/chat';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, useColorScheme, Pressable, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { AssistantThread } from '../../components/chat';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
-
-function ChatHeader() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const isRunning = useThreadIsRunning();
-
-  return (
-    <View
-      style={[
-        styles.header,
-        {
-          paddingTop: insets.top,
-          backgroundColor: theme.background,
-          borderBottomColor: theme.border,
-        },
-      ]}
-    >
-      <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
-        <Ionicons name="chevron-back" size={28} color={colors.primary[600]} />
-      </Pressable>
-      <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-        Chat
-      </Text>
-      <View style={styles.headerButton}>
-        {isRunning && <ActivityIndicator size="small" color={colors.primary[600]} />}
-      </View>
-    </View>
-  );
-}
+import { lightTheme, darkTheme } from '../../theme';
 
 function InitialMessageSender({ message }: { message: string }) {
   const runtime = useAssistantRuntime();
@@ -56,19 +24,28 @@ function InitialMessageSender({ message }: { message: string }) {
 }
 
 export default function ChatConversationScreen() {
-  const { threadId, initialMessage } = useLocalSearchParams<{
+  const { threadId, initialMessage, notebookId } = useLocalSearchParams<{
     threadId: string;
     initialMessage?: string;
+    notebookId?: string;
   }>();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+
+  useEffect(() => {
+    if (notebookId) {
+      useAgentStore.getState().setSelectedNotebook(notebookId);
+    }
+    return () => {
+      useAgentStore.getState().setSelectedNotebook('gruenerator-notebook');
+    };
+  }, [notebookId]);
 
   const isNewChat = threadId === 'new';
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
-        <ChatHeader />
         <AssistantThread theme={theme} />
         {isNewChat && initialMessage && <InitialMessageSender message={initialMessage} />}
       </MobileChatProvider>
@@ -79,24 +56,5 @@ export default function ChatConversationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xsmall,
-    paddingBottom: spacing.small,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'center',
   },
 });

@@ -4,6 +4,7 @@ import {
   MessageIf,
   type ThreadMessage,
 } from '@assistant-ui/react-native';
+import { memo, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
@@ -39,7 +40,7 @@ function AssistantMessage({ theme, message }: Props) {
     {}) as GrueneratorMessageMetadata;
   const citations = metadata.citations;
 
-  const markdownStyles = getMarkdownStyles(theme);
+  const markdownStyles = useMemo(() => getMarkdownStyles(theme), [theme]);
 
   return (
     <MessageIf assistant>
@@ -59,14 +60,14 @@ function AssistantMessage({ theme, message }: Props) {
   );
 }
 
-export function MessageBubble({ theme, message }: Props) {
+export const MessageBubble = memo(function MessageBubble({ theme, message }: Props) {
   return (
     <>
       <UserMessage theme={theme} />
       <AssistantMessage theme={theme} message={message} />
     </>
   );
-}
+});
 
 function getMarkdownStyles(theme: Theme) {
   return {

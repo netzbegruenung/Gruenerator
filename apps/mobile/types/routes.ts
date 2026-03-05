@@ -24,12 +24,6 @@ export type AppRoute =
   | '/(tabs)/(tools)/suche'
   | '/(tabs)/(tools)/texteditor'
   | '/(tabs)/(tools)/barrierefreiheit'
-  // Notebooks routes
-  | '/(tabs)/(notebooks)'
-  | '/(tabs)/(notebooks)/gruenerator'
-  | '/(tabs)/(notebooks)/gruene'
-  | '/(tabs)/(notebooks)/bundestagsfraktion'
-  | '/(tabs)/(notebooks)/oesterreich'
   // Modal routes
   | '/(modals)/gruenerator-chat'
   | '/(modals)/edit-chat'
@@ -38,7 +32,6 @@ export type AppRoute =
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
-  | '/(focused)/notebook-chat'
   | '/(focused)/image-studio-create/image'
   | '/(focused)/image-studio-create/ki-input'
   | '/(focused)/image-studio-create/result'
@@ -60,9 +53,7 @@ export interface ModalRouteParams {
   '/(focused)/chat-conversation': {
     threadId: string;
     initialMessage?: string;
-  };
-  '/(focused)/notebook-chat': {
-    notebookId: string;
+    notebookId?: string;
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;
