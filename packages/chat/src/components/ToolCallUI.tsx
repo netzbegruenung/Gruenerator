@@ -1,5 +1,3 @@
-'use client';
-
 import {
   Search,
   User,
@@ -13,7 +11,9 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useState, memo, useMemo, Fragment } from 'react';
-import { getCollectionStyle } from '../lib/collectionStyles';
+import { CitationList } from './tool-ui/citation';
+import type { SerializableCitation } from './tool-ui/citation/schema';
+import { LinkPreview } from './tool-ui/link-preview';
 
 interface ToolCallUIProps {
   toolName: string;
@@ -134,7 +134,7 @@ export const ToolCallUI = memo(function ToolCallUI({
 
       {isExpanded && state === 'result' && result != null && (
         <div className="mt-2 ml-2 border-l-2 border-primary/20 pl-3">
-          <ToolResultRenderer toolName={toolName} result={result} />
+          <ToolResultRenderer toolName={toolName} args={args} result={result} />
         </div>
       )}
     </div>
@@ -191,11 +191,35 @@ function extractDomain(url: string | null): string | null {
   }
 }
 
+function toRegistryCitationProps(
+  item: unknown,
+  index: number,
+  typeHint: 'document' | 'webpage' = 'webpage'
+): SerializableCitation {
+  const url = getString(item, 'url') || '';
+  const domain = getString(item, 'domain') || extractDomain(url) || undefined;
+  return {
+    id: `tc-citation-${index}`,
+    href: url,
+    title: getString(item, 'title') || getString(item, 'source') || 'Quelle',
+    snippet:
+      getString(item, 'snippet') ||
+      getString(item, 'content') ||
+      getString(item, 'excerpt') ||
+      undefined,
+    domain,
+    favicon: domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : undefined,
+    type: typeHint,
+  };
+}
+
 const ToolResultRenderer = memo(function ToolResultRenderer({
   toolName,
+  args,
   result,
 }: {
   toolName: string;
+  args: Record<string, unknown>;
   result: unknown;
 }) {
   if (!result) {
@@ -228,6 +252,8 @@ const ToolResultRenderer = memo(function ToolResultRenderer({
       );
     case 'web_search':
       return <CompactWebResults result={result} />;
+    case 'scrape_url':
+      return <ScrapeUrlResult args={args} result={result} />;
     case 'research':
       return <ResearchResultUI result={result} />;
     default:
@@ -246,46 +272,11 @@ const CompactSearchResults = memo(function CompactSearchResults({
 }) {
   if (!results.length) return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
 
-  return (
-    <div className="space-y-1.5">
-      {results.slice(0, 5).map((item, i) => {
-        const source = getString(item, 'source') || getString(item, 'title');
-        const excerpt = getString(item, 'excerpt') || getString(item, 'content');
-        const url = getString(item, 'url');
-        const relevance = getString(item, 'relevance');
-        const style = source ? getCollectionStyle(source) : undefined;
+  const citations = results
+    .slice(0, 5)
+    .map((item, i) => toRegistryCitationProps(item, i, 'document'));
 
-        return (
-          <div key={i} className="text-xs">
-            <div className="flex items-center gap-1.5">
-              <span
-                className="text-[10px] font-medium px-1 py-px rounded"
-                style={style ? { backgroundColor: style.bg, color: style.color } : undefined}
-              >
-                {style?.label || source || 'Quelle'}
-              </span>
-              {relevance && (
-                <span className="text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary">
-                  {relevance}
-                </span>
-              )}
-            </div>
-            {excerpt && <p className="text-foreground-muted line-clamp-2 mt-0.5">{excerpt}</p>}
-            {url && (
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-0.5 mt-0.5"
-              >
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+  return <CitationList id="search-results" citations={citations} variant="default" />;
 });
 
 const CompactPersonResult = memo(function CompactPersonResult({ result }: { result: unknown }) {
@@ -347,35 +338,34 @@ const CompactWebResults = memo(function CompactWebResults({ result }: { result: 
 
   if (!items.length) return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
 
-  return (
-    <div className="space-y-1.5">
-      {items.slice(0, 5).map((item, i) => {
-        const title = getString(item, 'title') || getString(item, 'source');
-        const url = getString(item, 'url');
-        const snippet = getString(item, 'snippet') || getString(item, 'content');
-        const domain = getString(item, 'domain') || extractDomain(url);
+  const citations = items.slice(0, 5).map((item, i) => toRegistryCitationProps(item, i, 'webpage'));
 
-        return (
-          <div key={i} className="text-xs">
-            {url ? (
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary hover:underline inline-flex items-center gap-1"
-              >
-                {title || domain || url}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            ) : (
-              <p className="font-medium">{title || 'Unbekannt'}</p>
-            )}
-            {snippet && <p className="text-foreground-muted line-clamp-1 mt-0.5">{snippet}</p>}
-            {domain && <span className="text-[10px] text-foreground-muted">{domain}</span>}
-          </div>
-        );
-      })}
-    </div>
+  return <CitationList id="web-results" citations={citations} variant="default" />;
+});
+
+const ScrapeUrlResult = memo(function ScrapeUrlResult({
+  args,
+  result,
+}: {
+  args: Record<string, unknown>;
+  result: unknown;
+}) {
+  const url = getString(args, 'url') || '';
+  const content = typeof result === 'string' ? result : getString(result, 'content') || '';
+  const domain = extractDomain(url);
+  const snippet = content.length > 200 ? content.slice(0, 200) + '…' : content;
+
+  if (!url) return <p className="text-xs text-foreground-muted">Keine URL</p>;
+
+  return (
+    <LinkPreview
+      id="scrape-url-preview"
+      href={url}
+      title={domain || url}
+      description={snippet || undefined}
+      domain={domain || undefined}
+      favicon={domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : undefined}
+    />
   );
 });
 
@@ -476,37 +466,12 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
           </button>
 
           {showAllSources && (
-            <div className="mt-2 space-y-1.5">
-              {citations.map((citation) => (
-                <div key={citation.id} className="flex items-start gap-2 text-xs">
-                  <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center text-[10px] font-medium bg-surface text-foreground-muted rounded">
-                    {citation.id}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    {citation.url ? (
-                      <a
-                        href={citation.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-primary hover:underline inline-flex items-center gap-1"
-                      >
-                        {citation.title || citation.domain}
-                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                      </a>
-                    ) : (
-                      <span className="font-medium">{citation.title}</span>
-                    )}
-                    {citation.snippet && (
-                      <p className="text-foreground-muted line-clamp-1 mt-0.5">
-                        {citation.snippet}
-                      </p>
-                    )}
-                    {citation.domain && (
-                      <span className="text-[10px] text-foreground-muted">{citation.domain}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="mt-2">
+              <CitationList
+                id="research-sources"
+                citations={citations.map((c) => toRegistryCitationProps(c, c.id, 'document'))}
+                variant="default"
+              />
             </div>
           )}
         </div>
