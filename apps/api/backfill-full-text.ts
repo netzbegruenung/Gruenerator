@@ -217,9 +217,11 @@ async function backfillCollection(
     }
 
     // Use next_page_offset for pagination
-    offset = result.next_page_offset ?? null;
-    if (offset === null || offset === undefined) {
+    const nextOffset = result.next_page_offset ?? null;
+    if (nextOffset === null || typeof nextOffset === 'object') {
       hasMore = false;
+    } else {
+      offset = nextOffset;
     }
   }
 
