@@ -11,9 +11,6 @@
  * Run: npx tsx apps/api/backfill-full-text.ts [--collection <name>] [--dry-run]
  */
 
-import * as http from 'http';
-import * as https from 'https';
-
 import { QdrantClient } from '@qdrant/js-client-rest';
 import * as dotenv from 'dotenv';
 
@@ -131,7 +128,6 @@ async function backfillCollection(
     const points = result.points || [];
 
     if (points.length === 0) {
-      hasMore = false;
       break;
     }
 

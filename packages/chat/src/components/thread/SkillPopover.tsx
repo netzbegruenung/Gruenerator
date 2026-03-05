@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
-import { getFilteredSkills } from '../../lib/mentionDetection';
 
 interface SkillPopoverProps {
   query: string;
