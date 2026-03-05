@@ -349,6 +349,7 @@ export class KommunalwikiScraper extends BaseScraper {
         source_url: `${this.baseUrl}/index.php/${encodeURIComponent(article.title.replace(/ /g, '_'))}`,
         published_at: timestamp,
         indexed_at: new Date().toISOString(),
+        ...(index === 0 ? { full_text: cleanedContent } : {}),
       },
     }));
 
