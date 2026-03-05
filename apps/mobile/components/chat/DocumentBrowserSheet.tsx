@@ -12,6 +12,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
+import {
+  pickDocument,
+  validatePickedDocument,
+  uploadDocumentToChat,
+} from '../../services/documentPicker';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
@@ -46,6 +51,7 @@ export function DocumentBrowserSheet({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<DocumentSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -54,7 +60,8 @@ export function DocumentBrowserSheet({
       setSearchQuery('');
       setSearchResults([]);
     }
-  }, [visible, fetchAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchAll ref changes on every state update, causing infinite loops
+  }, [visible]);
 
   const handleSearch = useCallback(
     async (query: string) => {
@@ -90,6 +97,25 @@ export function DocumentBrowserSheet({
     },
     [onSelect]
   );
+
+  const handleUpload = useCallback(async () => {
+    try {
+      const doc = await pickDocument();
+      if (!doc) return;
+      if (!validatePickedDocument(doc)) return;
+
+      setUploading(true);
+      const uploaded = await uploadDocumentToChat(doc);
+      if (uploaded) {
+        await fetchAll();
+        handleDocSelect({ id: uploaded.id, title: uploaded.title, sourceType: 'document' });
+      }
+    } catch (err) {
+      console.error('[DocumentBrowser] Upload error:', err);
+    } finally {
+      setUploading(false);
+    }
+  }, [fetchAll, handleDocSelect]);
 
   if (!visible) return null;
 
@@ -142,9 +168,14 @@ export function DocumentBrowserSheet({
           </View>
         )}
 
-        {isLoading ? (
+        {isLoading || uploading ? (
           <View style={styles.loading}>
             <ActivityIndicator size="large" color={colors.primary[600]} />
+            {uploading && (
+              <Text style={[styles.loadingLabel, { color: theme.textSecondary }]}>
+                Wird hochgeladen…
+              </Text>
+            )}
           </View>
         ) : level.type === 'root' ? (
           <RootLevel
@@ -154,6 +185,7 @@ export function DocumentBrowserSheet({
             theme={theme}
             onSelectCollection={(c) => setLevel({ type: 'collection', id: c.id, name: c.name })}
             onSelectDoc={handleDocSelect}
+            onUpload={handleUpload}
           />
         ) : searchQuery.length >= 2 ? (
           <FlatList
@@ -199,6 +231,7 @@ function RootLevel({
   theme,
   onSelectCollection,
   onSelectDoc,
+  onUpload,
 }: {
   collections: NotebookCollectionItem[];
   documents: { id: string; title: string; sourceType?: string }[];
@@ -206,7 +239,32 @@ function RootLevel({
   theme: Theme;
   onSelectCollection: (c: NotebookCollectionItem) => void;
   onSelectDoc: (doc: { id: string; title: string; sourceType?: string }) => void;
+  onUpload: () => void;
 }) {
+  const isEmpty = collections.length === 0 && documents.length === 0 && texts.length === 0;
+
+  if (isEmpty) {
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="document-text-outline" size={48} color={theme.textSecondary} />
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Dokumente vorhanden</Text>
+        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+          Lade ein Dokument hoch, um es im Chat zu referenzieren
+        </Text>
+        <Pressable
+          onPress={onUpload}
+          style={({ pressed }) => [
+            styles.uploadButton,
+            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+          ]}
+        >
+          <Ionicons name="cloud-upload-outline" size={20} color={colors.white} />
+          <Text style={styles.uploadButtonText}>Datei hochladen</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <FlatList
       data={[]}
@@ -214,6 +272,22 @@ function RootLevel({
       renderItem={null}
       ListHeaderComponent={
         <>
+          <Pressable
+            onPress={onUpload}
+            style={({ pressed }) => [
+              styles.uploadRow,
+              {
+                backgroundColor: pressed ? theme.surface : 'transparent',
+                borderBottomColor: theme.border,
+              },
+            ]}
+          >
+            <Ionicons name="cloud-upload-outline" size={20} color={colors.primary[600]} />
+            <Text style={[styles.uploadRowText, { color: colors.primary[600] }]}>
+              Datei hochladen
+            </Text>
+          </Pressable>
+
           {collections.length > 0 && (
             <>
               <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
@@ -424,5 +498,51 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: spacing.xlarge,
     fontSize: 14,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xlarge,
+    paddingHorizontal: spacing.medium,
+    gap: spacing.small,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: spacing.small,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xsmall,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    borderRadius: borderRadius.medium,
+    marginTop: spacing.small,
+  },
+  uploadButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  uploadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.xsmall,
+    gap: spacing.small,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  uploadRowText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  loadingLabel: {
+    fontSize: 14,
+    marginTop: spacing.small,
   },
 });

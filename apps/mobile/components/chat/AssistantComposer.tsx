@@ -2,17 +2,32 @@ import {
   ComposerRoot,
   ComposerSend,
   ComposerCancel,
+  ComposerAttachments,
   useThreadIsRunning,
   useAui,
 } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { detectMention, computeMentionInsertion, type Mentionable } from '@gruenerator/chat';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { View, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { useCallback, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  Modal,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 
+import {
+  pickDocument,
+  validatePickedDocument,
+  pickedDocumentToAttachment,
+} from '../../services/documentPicker';
 import { colors, spacing, borderRadius } from '../../theme';
 
+import { ComposerAttachmentUI } from './AttachmentUI';
 import { MentionSuggestions } from './MentionSuggestions';
 
 import type { Theme } from '../../theme/colors';
@@ -29,17 +44,23 @@ interface Props {
   theme: Theme;
   bottomInset?: number;
   onOpenDocBrowser?: () => void;
+  inputRef?: React.RefObject<TextInput | null>;
 }
 
-const stickyOffset = { closed: 0, opened: 0 };
-
-export function AssistantComposer({ theme, bottomInset = 0, onOpenDocBrowser }: Props) {
+export function AssistantComposer({
+  theme,
+  bottomInset = 0,
+  onOpenDocBrowser,
+  inputRef: externalInputRef,
+}: Props) {
   const isRunning = useThreadIsRunning();
   const aui = useAui();
-  const inputRef = useRef<TextInput>(null);
+  const internalInputRef = useRef<TextInput>(null);
+  const inputRef = externalInputRef ?? internalInputRef;
   const textRef = useRef('');
   const selectionRef = useRef(0);
   const [mention, setMention] = useState<MentionState | null>(null);
+  const [plusMenuVisible, setPlusMenuVisible] = useState(false);
 
   const onChangeText = useCallback(
     (value: string) => {
@@ -89,103 +110,206 @@ export function AssistantComposer({ theme, bottomInset = 0, onOpenDocBrowser }: 
     [aui, mention]
   );
 
-  const bottomPadding = useMemo(() => ({ paddingBottom: bottomInset }), [bottomInset]);
+  const handlePickFile = useCallback(async () => {
+    console.log('[Attachment] Step 1: picking document...');
+    const doc = await pickDocument();
+    if (!doc) {
+      console.log('[Attachment] Cancelled');
+      return;
+    }
+    console.log('[Attachment] Step 2: picked', doc.name, doc.mimeType, doc.size);
+    if (!validatePickedDocument(doc)) {
+      console.log('[Attachment] Validation failed');
+      return;
+    }
+
+    try {
+      console.log('[Attachment] Step 3: converting to CreateAttachment...');
+      const attachment = await pickedDocumentToAttachment(doc);
+      console.log('[Attachment] Step 4: converted', {
+        name: attachment.name,
+        type: attachment.type,
+        contentLength: attachment.content?.length,
+      });
+
+      console.log('[Attachment] Step 5: calling addAttachment...');
+      await aui.composer().addAttachment(attachment);
+      console.log('[Attachment] Step 6: done.');
+    } catch (err) {
+      console.error('[Attachment] ERROR:', err);
+      const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
+      Alert.alert('Anhang fehlgeschlagen', msg);
+    }
+  }, [aui]);
+
+  const handlePlusMenuAction = useCallback(
+    (action: 'file' | 'doc') => {
+      setPlusMenuVisible(false);
+      if (action === 'file') handlePickFile();
+      else onOpenDocBrowser?.();
+    },
+    [handlePickFile, onOpenDocBrowser]
+  );
 
   return (
-    <KeyboardStickyView offset={stickyOffset}>
-      <ComposerRoot
-        style={[styles.root, { backgroundColor: theme.background, borderTopColor: theme.border }]}
+    <ComposerRoot
+      style={[styles.root, { backgroundColor: theme.background, paddingBottom: bottomInset }]}
+    >
+      {mention?.visible && (
+        <MentionSuggestions
+          mode={mention.mode}
+          query={mention.query}
+          visible={mention.visible}
+          theme={theme}
+          onSelect={handleMentionSelect}
+          onDismiss={() => setMention(null)}
+        />
+      )}
+      <View style={styles.attachmentsRow}>
+        <ComposerAttachments components={{ Attachment: ComposerAttachmentUI }} />
+      </View>
+      <View
+        style={[styles.inputRow, { backgroundColor: theme.surface }, styles.inputRowWithActions]}
       >
-        {mention?.visible && (
-          <MentionSuggestions
-            mode={mention.mode}
-            query={mention.query}
-            visible={mention.visible}
-            theme={theme}
-            onSelect={handleMentionSelect}
-            onDismiss={() => setMention(null)}
-          />
+        <Pressable onPress={() => setPlusMenuVisible(true)} style={styles.actionButton} hitSlop={8}>
+          <Ionicons name="add-circle-outline" size={22} color={theme.textSecondary} />
+        </Pressable>
+        <TextInput
+          ref={inputRef}
+          style={[styles.input, { color: theme.text }]}
+          placeholder="Nachricht eingeben..."
+          placeholderTextColor={theme.textSecondary}
+          multiline
+          onChangeText={onChangeText}
+          onSelectionChange={onSelectionChange}
+        />
+        {isRunning ? (
+          <ComposerCancel style={styles.cancelButton}>
+            <ActivityIndicator size="small" color={colors.error[500]} />
+          </ComposerCancel>
+        ) : (
+          <ComposerSend
+            style={styles.sendButton}
+            onPressIn={() => {
+              inputRef.current?.clear();
+              textRef.current = '';
+              setMention(null);
+            }}
+          >
+            <Ionicons name="send" size={16} color={colors.white} />
+          </ComposerSend>
         )}
-        <View style={[styles.inputRow, { backgroundColor: theme.surface }]}>
-          {onOpenDocBrowser && (
-            <Pressable onPress={onOpenDocBrowser} style={styles.attachButton} hitSlop={8}>
-              <Ionicons name="document-attach-outline" size={20} color={theme.textSecondary} />
+      </View>
+      <Modal
+        visible={plusMenuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPlusMenuVisible(false)}
+      >
+        <Pressable style={styles.sheetOverlay} onPress={() => setPlusMenuVisible(false)}>
+          <View style={[styles.sheetContainer, { backgroundColor: theme.surface }]}>
+            <Pressable style={styles.sheetOption} onPress={() => handlePlusMenuAction('file')}>
+              <Ionicons name="document-outline" size={22} color={theme.text} />
+              <Text style={[styles.sheetOptionText, { color: theme.text }]}>Datei anhängen</Text>
             </Pressable>
-          )}
-          <TextInput
-            ref={inputRef}
-            style={[styles.input, { color: theme.text }]}
-            placeholder="Nachricht — @bundestag, /presse..."
-            placeholderTextColor={theme.textSecondary}
-            multiline
-            onChangeText={onChangeText}
-            onSelectionChange={onSelectionChange}
-          />
-          {isRunning ? (
-            <ComposerCancel style={styles.cancelButton}>
-              <ActivityIndicator size="small" color={colors.error[500]} />
-            </ComposerCancel>
-          ) : (
-            <ComposerSend
-              style={styles.sendButton}
-              onPressIn={() => {
-                inputRef.current?.clear();
-                textRef.current = '';
-                setMention(null);
-              }}
+            {onOpenDocBrowser && (
+              <Pressable style={styles.sheetOption} onPress={() => handlePlusMenuAction('doc')}>
+                <Ionicons name="search-outline" size={22} color={theme.text} />
+                <Text style={[styles.sheetOptionText, { color: theme.text }]}>Dokument suchen</Text>
+              </Pressable>
+            )}
+            <Pressable
+              style={[styles.sheetOption, styles.sheetCancel]}
+              onPress={() => setPlusMenuVisible(false)}
             >
-              <Ionicons name="send" size={18} color={colors.white} />
-            </ComposerSend>
-          )}
-        </View>
-      </ComposerRoot>
-      <View style={bottomPadding} />
-    </KeyboardStickyView>
+              <Text style={[styles.sheetOptionText, { color: theme.textSecondary }]}>
+                Abbrechen
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+    </ComposerRoot>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.xsmall,
+  },
+  attachmentsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.xsmall,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    borderRadius: borderRadius.large,
+    borderRadius: borderRadius.pill,
     paddingLeft: spacing.medium,
     paddingRight: spacing.xsmall,
-    paddingVertical: spacing.xsmall,
-    minHeight: 44,
+    paddingVertical: 6,
+    minHeight: 42,
   },
-  attachButton: {
+  inputRowWithActions: {
+    paddingLeft: spacing.xsmall,
+  },
+  actionButton: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 32,
-    height: 36,
+    width: 28,
+    height: 34,
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     maxHeight: 120,
-    paddingVertical: spacing.xsmall,
+    paddingVertical: 5,
   },
   sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: spacing.xsmall,
   },
   cancelButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: spacing.xsmall,
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheetContainer: {
+    borderTopLeftRadius: borderRadius.large,
+    borderTopRightRadius: borderRadius.large,
+    paddingTop: spacing.small,
+    paddingBottom: spacing.xlarge,
+    paddingHorizontal: spacing.medium,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: spacing.small,
+    gap: spacing.small,
+  },
+  sheetCancel: {
+    justifyContent: 'center',
+    marginTop: spacing.xsmall,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(128,128,128,0.3)',
+  },
+  sheetOptionText: {
+    fontSize: 16,
   },
 });
