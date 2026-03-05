@@ -38,12 +38,20 @@ export interface GeneratedImage {
   generationTimeMs: number;
 }
 
+export interface ProgressStep {
+  stage: ProgressStage;
+  label: string;
+  status: 'pending' | 'in-progress' | 'completed' | 'failed';
+  completedAt?: number;
+}
+
 export interface ChatProgress {
   stage: ProgressStage;
   message: string;
   intent?: SearchIntent;
   resultCount?: number;
   reasoning?: string;
+  steps?: ProgressStep[];
 }
 
 export interface Citation {
