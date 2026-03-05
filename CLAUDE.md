@@ -297,6 +297,30 @@ When using `KeyboardStickyView` (from `react-native-keyboard-controller`) inside
 
 The reason: `KeyboardStickyView` positions from the **window bottom** (absolute). Nested tab navigators each add their own safe area handling, so using `insets.bottom` as an offset causes compounding — the input bar ends up behind the Android gesture bar.
 
+### Assistant UI ComposerInput (React Native)
+
+**Never use `ComposerInput` from `@assistant-ui/react-native` directly.** It renders a fully controlled `<TextInput value={text} />` that reads every keystroke back from the store. On Android, the async JS→native round-trip causes the cursor to jump back one character when typing fast, making input feel laggy.
+
+Instead, use an **uncontrolled `TextInput`** that writes to the store but never reads `value` back:
+
+```tsx
+import { useAui } from '@assistant-ui/react-native';
+
+// WRONG — controlled, cursor jumps on fast typing
+<ComposerInput multiline />
+
+// CORRECT — uncontrolled, syncs to store without reading back
+const aui = useAui();
+const inputRef = useRef<TextInput>(null);
+<TextInput
+  ref={inputRef}
+  multiline
+  onChangeText={(v) => aui.composer().setText(v)}
+/>
+// Clear natively on send:
+inputRef.current?.clear();
+```
+
 ### Styling
 
 **Tailwind CSS v4** for new code. Existing CSS continues to work unchanged.
