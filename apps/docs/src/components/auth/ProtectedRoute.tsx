@@ -28,6 +28,8 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     if (isAuthenticated) return;
     if (!documentId) return;
 
+    // Intentional: set loading state before async fetch
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPublicCheckState('checking');
 
     fetch(`${API_BASE}/docs/public/${documentId}`)
