@@ -12,6 +12,7 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { ChatGraphState, SearchIntent, SearchSource, ClassificationResult } from '../types.js';
+import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph:Classifier');
 
@@ -35,6 +36,14 @@ Verwende den ORIGINALEN Wortlaut des Benutzers für searchQuery und optimizedSea
 - Korrigiere KEINE Eigennamen, Ortsnamen, Personennamen oder unbekannte Begriffe
 - Die Suchmaschine versteht Tippfehler besser als du — korrigiere NUR offensichtliche deutsche Verben für die Intent-Erkennung
 - typoAnalysis ist NUR zur Protokollierung und darf searchQuery NICHT beeinflussen
+
+GESPRÄCHSKONTEXT:
+Wenn ein GESPRÄCHSVERLAUF mitgeliefert wird, nutze ihn um die aktuelle Nachricht im Kontext zu verstehen.
+- Beziehe das Gesprächsthema in searchQuery und optimizedSearchQuery ein
+- Beispiel: Gespräch über "Newsletter-Konzept für Kreisverband" + aktuelle Nachricht "suche nach best practise beispielen"
+  → optimizedSearchQuery: "Newsletter best practices Kreisverband Grüne"
+- Wenn die aktuelle Nachricht bereits spezifisch genug ist, ignoriere den Kontext
+- Verändere NICHT den intent basierend auf dem Kontext — nur die Suchquery
 
 SCHRITT 2 - INHALTSTYP ANALYSIEREN:
 Manche Inhalte brauchen AUTOMATISCH Recherche:
@@ -198,6 +207,47 @@ function extractSearchTopic(query: string): string {
   }
 
   return query;
+}
+
+/**
+ * Extract text content from a message, handling both string and AI SDK v6 parts format.
+ */
+function extractMessageText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((p) => p && typeof p === 'object' && p.type === 'text')
+      .map((p) => (p as { text: string }).text)
+      .join('');
+  }
+  return String(content || '');
+}
+
+const CLASSIFIER_CONTEXT_MESSAGES = 5;
+const CLASSIFIER_CONTEXT_MAX_CHARS = 500;
+
+/**
+ * Format prior conversation messages as context for the classifier LLM.
+ * Returns null for single-message conversations (no context needed).
+ * Caps to last 5 messages at 500 chars each to keep classifier prompt lean.
+ */
+function formatConversationHistory(messages: ModelMessage[]): string | null {
+  if (messages.length <= 1) return null;
+
+  const priorMessages = messages.slice(0, -1).slice(-CLASSIFIER_CONTEXT_MESSAGES);
+
+  const formatted = priorMessages
+    .map((m) => {
+      const role = m.role === 'user' ? 'Nutzer' : 'Assistent';
+      let text = extractMessageText(m.content);
+      if (text.length > CLASSIFIER_CONTEXT_MAX_CHARS) {
+        text = text.slice(0, CLASSIFIER_CONTEXT_MAX_CHARS) + '…';
+      }
+      return `${role}: ${text}`;
+    })
+    .join('\n\n');
+
+  return `GESPRÄCHSVERLAUF:\n${formatted}`;
 }
 
 /**
@@ -806,18 +856,10 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
     // Extract user message content (handles both string and AI SDK v6 parts format)
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
-    const rawContent = lastUserMessage?.content;
-    let userContent: string;
-    if (typeof rawContent === 'string') {
-      userContent = rawContent;
-    } else if (Array.isArray(rawContent)) {
-      userContent = rawContent
-        .filter((p) => p && typeof p === 'object' && p.type === 'text')
-        .map((p) => (p as { text: string }).text)
-        .join('');
-    } else {
-      userContent = String(rawContent || '');
-    }
+    const userContent = extractMessageText(lastUserMessage?.content);
+
+    // Format prior conversation as context for the classifier LLM
+    const conversationContext = formatConversationHistory(messages);
 
     // Analyze temporality and complexity (used by all paths)
     const temporal = analyzeTemporality(userContent);
@@ -861,7 +903,14 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
             type: 'chat_intent_classification',
             provider: 'mistral',
             systemPrompt: CLASSIFIER_PROMPT,
-            messages: [{ role: 'user', content: `Analysiere: "${userContent}"` }],
+            messages: [
+              {
+                role: 'user',
+                content: conversationContext
+                  ? `${conversationContext}\n\nAktuelle Nachricht: "${userContent}"`
+                  : `Analysiere: "${userContent}"`,
+              },
+            ],
             options: {
               model: 'mistral-small-latest',
               max_tokens: 250,
@@ -938,7 +987,14 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
             type: 'chat_intent_classification',
             provider: 'mistral',
             systemPrompt: CLASSIFIER_PROMPT,
-            messages: [{ role: 'user', content: `Analysiere: "${userContent}"` }],
+            messages: [
+              {
+                role: 'user',
+                content: conversationContext
+                  ? `${conversationContext}\n\nAktuelle Nachricht: "${userContent}"`
+                  : `Analysiere: "${userContent}"`,
+              },
+            ],
             options: {
               model: 'mistral-small-latest',
               max_tokens: 250,
@@ -995,7 +1051,14 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
             type: 'chat_intent_classification',
             provider: 'mistral',
             systemPrompt: CLASSIFIER_PROMPT,
-            messages: [{ role: 'user', content: `Analysiere: "${userContent}"` }],
+            messages: [
+              {
+                role: 'user',
+                content: conversationContext
+                  ? `${conversationContext}\n\nAktuelle Nachricht: "${userContent}"`
+                  : `Analysiere: "${userContent}"`,
+              },
+            ],
             options: {
               model: 'mistral-small-latest',
               max_tokens: 250,
@@ -1067,13 +1130,22 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     // Penalize confidence for multi-topic search queries → forces LLM decomposition
     const isSearchIntent = !['direct', 'image'].includes(heuristic.intent);
     const needsDecomposition = isSearchIntent && looksMultiTopic(userContent);
-    const effectiveConfidence = needsDecomposition
-      ? heuristic.confidence - 0.3
-      : heuristic.confidence;
+
+    // Penalize confidence for vague follow-ups in multi-turn conversations →
+    // forces LLM path which now has conversation context for query enrichment
+    const isVagueFollowup = conversationContext && userContent.split(/\s+/).length <= 8;
+
+    const effectiveConfidence =
+      heuristic.confidence - (needsDecomposition ? 0.3 : 0) - (isVagueFollowup ? 0.25 : 0);
 
     if (needsDecomposition) {
       log.info(
         `[Classifier] Multi-topic detected, forcing LLM (${heuristic.confidence.toFixed(2)} → ${effectiveConfidence.toFixed(2)})`
+      );
+    }
+    if (isVagueFollowup) {
+      log.info(
+        `[Classifier] Vague follow-up in conversation, forcing LLM (${heuristic.confidence.toFixed(2)} → ${effectiveConfidence.toFixed(2)})`
       );
     }
 
@@ -1124,7 +1196,14 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         type: 'chat_intent_classification',
         provider: 'mistral',
         systemPrompt: CLASSIFIER_PROMPT,
-        messages: [{ role: 'user', content: `Analysiere: "${userContent}"` }],
+        messages: [
+          {
+            role: 'user',
+            content: conversationContext
+              ? `${conversationContext}\n\nAktuelle Nachricht: "${userContent}"`
+              : `Analysiere: "${userContent}"`,
+          },
+        ],
         options: {
           model: 'mistral-small-latest',
           max_tokens: 250,
@@ -1198,6 +1277,7 @@ export {
   heuristicExtractFilters,
   parseClassifierResponse,
   looksMultiTopic,
+  formatConversationHistory,
   LANDESVERBAND_ALIASES,
   INTENT_KEYWORDS,
 };
