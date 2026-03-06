@@ -1,6 +1,6 @@
 import { useConsentStore } from '../stores/consentStore';
 
-import type { EmbedPlatform } from '../types/consent';
+import type { EmbedPlatform } from '@gruenerator/sites-design';
 
 export function useEmbedConsent(platform: EmbedPlatform) {
   const { consents, grantConsent, revokeConsent } = useConsentStore();

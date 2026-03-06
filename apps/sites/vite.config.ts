@@ -14,6 +14,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      '@gruenerator/sites-design': path.resolve(__dirname, '../../packages/sites-design/src'),
     },
   },
   build: {
