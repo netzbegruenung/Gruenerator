@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../lib/apiClient';
 
-interface AiGeneratedContent {
+export interface AiGeneratedContent {
   hero: { heading: string; text: string };
   about: { title: string; content: string };
   hero_image: { title: string; subtitle: string; imageUrl?: string };
@@ -130,14 +130,18 @@ export function useSite() {
     mutationFn: async (data: {
       description: string;
       email?: string;
-    }): Promise<GeneratedSiteData> => {
+    }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
       const response = await apiClient.post('/claude_website', data);
-      return transformAiResponse(response.data.json);
+      const raw: AiGeneratedContent = response.data.json;
+      return { transformed: transformAiResponse(raw), raw };
     },
   });
 
   const flyerMutation = useMutation({
-    mutationFn: async (data: { file: File; email?: string }): Promise<GeneratedSiteData> => {
+    mutationFn: async (data: {
+      file: File;
+      email?: string;
+    }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
       const formData = new FormData();
       formData.append('flyer', data.file);
       if (data.email) formData.append('email', data.email);
@@ -146,7 +150,8 @@ export function useSite() {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
       });
-      return transformAiResponse(response.data.json);
+      const raw: AiGeneratedContent = response.data.json;
+      return { transformed: transformAiResponse(raw), raw };
     },
   });
 

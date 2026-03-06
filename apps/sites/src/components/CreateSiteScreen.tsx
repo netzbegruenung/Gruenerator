@@ -1,12 +1,23 @@
 import { Button } from '@gruenerator/sites-design';
 import { useCallback, useRef, useState } from 'react';
-import { FiArrowLeft, FiArrowRight, FiFile, FiLogOut, FiUpload, FiX } from 'react-icons/fi';
+import {
+  FiArrowLeft,
+  FiArrowRight,
+  FiFile,
+  FiGlobe,
+  FiLayout,
+  FiLogOut,
+  FiUpload,
+  FiX,
+} from 'react-icons/fi';
 
 import { cn } from '../utils/cn';
 
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+
+export type SiteTarget = 'sites' | 'wordpress';
 
 interface CreateSiteScreenProps {
   subdomain: string;
@@ -22,6 +33,8 @@ interface CreateSiteScreenProps {
   isGeneratingFromFlyer?: boolean;
   onLogout: () => void;
   userEmail?: string;
+  target: SiteTarget;
+  onTargetChange: (target: SiteTarget) => void;
 }
 
 export function CreateSiteScreen({
@@ -38,6 +51,8 @@ export function CreateSiteScreen({
   isGeneratingFromFlyer,
   onLogout,
   userEmail,
+  target,
+  onTargetChange,
 }: CreateSiteScreenProps) {
   const [step, setStep] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -90,6 +105,21 @@ export function CreateSiteScreen({
   const canProceed = subdomain.trim().length >= 3;
   const canGenerate = selectedFile ? !!onFlyerUpload : !!description.trim();
 
+  // WordPress flow: step 0 = target, step 1 = description (skip subdomain)
+  // Sites flow: step 0 = target, step 1 = subdomain, step 2 = description
+  const totalSteps = target === 'wordpress' ? 2 : 3;
+  const descriptionStep = target === 'wordpress' ? 1 : 2;
+  const subdomainStep = 1; // only used when target === 'sites'
+
+  const goToDescription = () => setStep(descriptionStep);
+  const goBack = () => {
+    if (step === descriptionStep) {
+      setStep(target === 'wordpress' ? 0 : subdomainStep);
+    } else {
+      setStep(step - 1);
+    }
+  };
+
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-neutral-600 px-md py-xl lg:px-xl overflow-hidden">
       {/* Decorative background blobs */}
@@ -134,28 +164,142 @@ export function CreateSiteScreen({
 
       {/* Step indicator */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2.5 z-10">
-        <div
-          className={cn(
-            'h-1.5 rounded-full transition-all duration-300',
-            step === 0
-              ? 'w-10 bg-primary-600'
-              : 'w-3 bg-primary-200 cursor-pointer hover:bg-primary-300'
-          )}
-          onClick={() => !isProcessing && setStep(0)}
-          role="button"
-          aria-label="Schritt 1"
-        />
-        <div
-          className={cn(
-            'h-1.5 rounded-full transition-all duration-300',
-            step === 1 ? 'w-10 bg-primary-600' : 'w-3 bg-primary-200'
-          )}
-          aria-label="Schritt 2"
-        />
+        {Array.from({ length: totalSteps }, (_, i) => (
+          <div
+            key={i}
+            className={cn(
+              'h-1.5 rounded-full transition-all duration-300',
+              step === i ? 'w-10 bg-primary-600' : 'w-3 bg-primary-200',
+              i < step && !isProcessing && 'cursor-pointer hover:bg-primary-300'
+            )}
+            onClick={() => i < step && !isProcessing && setStep(i)}
+            role={i < step ? 'button' : undefined}
+            aria-label={`Schritt ${i + 1}`}
+          />
+        ))}
       </div>
 
-      {/* Step 1: Domain — full-width centered content, no card */}
+      {/* Step 0: Target selection */}
       {step === 0 && (
+        <div
+          key="step-target"
+          className="relative z-10 w-full max-w-[640px] lg:max-w-[720px] mx-auto text-center animate-[step-enter_0.4s_ease-out]"
+        >
+          {/* Leaf icon */}
+          <svg
+            className="mx-auto mb-6 w-14 h-14 lg:w-16 lg:h-16 text-primary-500"
+            viewBox="0 0 40 40"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M20 4C20 4 8 12 8 24C8 30 13 36 20 36C27 36 32 30 32 24C32 12 20 4 20 4Z"
+              fill="currentColor"
+              opacity="0.15"
+            />
+            <path
+              d="M20 4C20 4 8 12 8 24C8 30 13 36 20 36C27 36 32 30 32 24C32 12 20 4 20 4Z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+            <path d="M20 36V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path
+              d="M20 22C16 20 13 22 12 24"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+            <path
+              d="M20 18C24 16 27 18 28 20"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+
+          <h1 className="font-[GrueneTypeNeue] text-[length:var(--font-size-3xl)] lg:text-[length:var(--font-size-4xl)] text-primary-800 mb-4">
+            Was m&ouml;chtest du erstellen?
+          </h1>
+          <p className="text-[length:var(--font-size-lg)] text-grey-500 leading-relaxed mb-12 max-w-[500px] mx-auto">
+            W&auml;hle, wie du deine Inhalte nutzen m&ouml;chtest.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-[560px] mx-auto">
+            <button
+              onClick={() => onTargetChange('sites')}
+              className={cn(
+                'flex flex-col items-center gap-3 rounded-xl border-2 p-6 bg-white transition-all cursor-pointer text-left',
+                target === 'sites'
+                  ? 'border-primary-500 shadow-[0_0_0_4px_rgba(49,96,73,0.08)]'
+                  : 'border-grey-200 hover:border-primary-300'
+              )}
+            >
+              <FiGlobe
+                className={cn('size-8', target === 'sites' ? 'text-primary-600' : 'text-grey-400')}
+              />
+              <div className="text-center">
+                <p
+                  className={cn(
+                    'font-semibold text-base mb-1',
+                    target === 'sites' ? 'text-primary-800' : 'text-grey-800'
+                  )}
+                >
+                  Gr&uuml;ne Seite erstellen
+                </p>
+                <p className="text-sm text-grey-500 leading-relaxed">
+                  Komplette Website auf grsites.de mit eigenem Design
+                </p>
+              </div>
+            </button>
+            <button
+              onClick={() => onTargetChange('wordpress')}
+              className={cn(
+                'flex flex-col items-center gap-3 rounded-xl border-2 p-6 bg-white transition-all cursor-pointer text-left',
+                target === 'wordpress'
+                  ? 'border-primary-500 shadow-[0_0_0_4px_rgba(49,96,73,0.08)]'
+                  : 'border-grey-200 hover:border-primary-300'
+              )}
+            >
+              <FiLayout
+                className={cn(
+                  'size-8',
+                  target === 'wordpress' ? 'text-primary-600' : 'text-grey-400'
+                )}
+              />
+              <div className="text-center">
+                <p
+                  className={cn(
+                    'font-semibold text-base mb-1',
+                    target === 'wordpress' ? 'text-primary-800' : 'text-grey-800'
+                  )}
+                >
+                  WordPress Texte generieren
+                </p>
+                <p className="text-sm text-grey-500 leading-relaxed">
+                  JSON f&uuml;r das Gr&uuml;nerator WordPress-Plugin
+                </p>
+              </div>
+            </button>
+          </div>
+
+          <div className="mt-12">
+            <Button
+              size="lg"
+              onClick={() => setStep(target === 'wordpress' ? descriptionStep : subdomainStep)}
+              className="h-12 px-12 bg-gradient-to-br from-primary-600 to-primary-700 text-base lg:text-lg font-semibold rounded-lg hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(49,96,73,0.3)] transition-all"
+            >
+              Weiter
+              <FiArrowRight className="size-5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 1 (Sites only): Domain — full-width centered content, no card */}
+      {step === subdomainStep && target === 'sites' && (
         <div
           key="step-0"
           className="relative z-10 w-full max-w-[640px] lg:max-w-[720px] mx-auto text-center animate-[step-enter_0.4s_ease-out]"
@@ -216,7 +360,7 @@ export function CreateSiteScreen({
                 type="text"
                 value={subdomain}
                 onChange={(e) => onSubdomainChange(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && canProceed && setStep(1)}
+                onKeyDown={(e) => e.key === 'Enter' && canProceed && goToDescription()}
                 placeholder="dein-name"
                 disabled={isProcessing}
                 autoFocus
@@ -234,7 +378,7 @@ export function CreateSiteScreen({
           <div className="mt-12">
             <Button
               size="lg"
-              onClick={() => setStep(1)}
+              onClick={goToDescription}
               disabled={!canProceed}
               className="h-12 px-12 bg-gradient-to-br from-primary-600 to-primary-700 text-base lg:text-lg font-semibold rounded-lg hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(49,96,73,0.3)] transition-all"
             >
@@ -245,8 +389,8 @@ export function CreateSiteScreen({
         </div>
       )}
 
-      {/* Step 2: Details + Generate — card layout for visual grouping */}
-      {step === 1 && (
+      {/* Description step: Details + Generate — card layout for visual grouping */}
+      {step === descriptionStep && (
         <div
           key="step-1"
           className="relative z-10 w-full max-w-[800px] lg:max-w-[920px] xl:max-w-[1000px] mx-auto bg-white rounded-2xl shadow-lg animate-[step-enter_0.4s_ease-out]"
@@ -255,17 +399,24 @@ export function CreateSiteScreen({
             {/* Back + Domain badge */}
             <div className="flex items-center justify-between mb-8 lg:mb-10">
               <button
-                onClick={() => setStep(0)}
+                onClick={goBack}
                 disabled={isProcessing}
                 className="inline-flex items-center gap-1.5 text-sm text-grey-500 hover:text-primary-600 transition-colors bg-transparent border-none cursor-pointer p-0"
               >
                 <FiArrowLeft className="size-4" />
                 Zurück
               </button>
-              <div className="inline-flex items-center gap-2 bg-primary-50 text-primary-700 px-4 py-2 rounded-full text-sm font-medium">
-                <span className="w-2 h-2 rounded-full bg-primary-500" />
-                {subdomain}.grsites.de
-              </div>
+              {target === 'sites' ? (
+                <div className="inline-flex items-center gap-2 bg-primary-50 text-primary-700 px-4 py-2 rounded-full text-sm font-medium">
+                  <span className="w-2 h-2 rounded-full bg-primary-500" />
+                  {subdomain}.grsites.de
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 bg-primary-50 text-primary-700 px-4 py-2 rounded-full text-sm font-medium">
+                  <FiLayout className="size-4" />
+                  WordPress
+                </div>
+              )}
             </div>
 
             <div className="mb-8 lg:mb-10">
@@ -430,7 +581,13 @@ export function CreateSiteScreen({
                   </>
                 ) : (
                   <>
-                    {selectedFile ? 'Seite aus Flyer generieren' : 'Seite generieren'}
+                    {target === 'wordpress'
+                      ? selectedFile
+                        ? 'Texte aus Flyer generieren'
+                        : 'Texte generieren'
+                      : selectedFile
+                        ? 'Seite aus Flyer generieren'
+                        : 'Seite generieren'}
                     <FiArrowRight className="size-5" />
                   </>
                 )}

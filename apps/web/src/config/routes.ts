@@ -222,8 +222,12 @@ const MediaLibraryPage = lazy(() =>
   import('../features/media-library/MediaLibraryPage').then((m) => ({ default: m.default }))
 );
 
-// Notebook Chat Komponente importieren
-const NotebookChat = lazy(() => import('../features/notebook/components/NotebookChat'));
+// Notebook Chat (dynamic collection by ID)
+const NotebookChat = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.DynamicNotebook,
+  }))
+);
 
 // Chat page (uses @gruenerator/chat shared package)
 const ChatPage = lazy(() => import('../features/chat/ChatPage'));
