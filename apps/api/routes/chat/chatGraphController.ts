@@ -57,6 +57,7 @@ import {
   createThread,
   createMessage,
   touchThread,
+  threadExists,
 } from './services/threadPersistenceService.js';
 
 import type { ProcessedAttachmentMeta } from './services/attachmentProcessingService.js';
@@ -186,6 +187,12 @@ router.post('/stream', async (req, res) => {
     }
 
     if (actualThreadId && lastUserMessage) {
+      // Validate thread exists before inserting (prevents FK violation on deleted threads)
+      if (!isNewThread && !(await threadExists(actualThreadId))) {
+        sse.send('error', { error: 'Thread not found' });
+        res.end();
+        return;
+      }
       const userText = extractTextContent(lastUserMessage.content);
       await createMessage(actualThreadId, 'user', userText);
     }
