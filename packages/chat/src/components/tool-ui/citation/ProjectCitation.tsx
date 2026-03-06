@@ -1,21 +1,13 @@
 'use client';
 
-import { memo, useState } from 'react';
-import { ExternalLink, ChevronDown } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { memo } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { getCollectionStyle } from '../../../lib/collectionStyles';
 import type { CitationProps } from './projectSchema';
 
 function getFaviconUrl(domain: string | undefined): string | null {
   if (!domain) return null;
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=16`;
-}
-
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  const truncated = text.slice(0, maxLength);
-  const lastSpace = truncated.lastIndexOf(' ');
-  return (lastSpace > maxLength * 0.7 ? truncated.slice(0, lastSpace) : truncated) + '\u2026';
 }
 
 interface CitationComponentProps extends CitationProps {
@@ -35,31 +27,16 @@ export const Citation = memo(function Citation({
 
 const CardCitation = memo(function CardCitation({
   citation,
-  compact,
 }: {
   citation: CitationProps;
   compact?: boolean;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const style = getCollectionStyle(citation.source);
-  const faviconUrl = getFaviconUrl(citation.domain);
-  const citedText = citation.citedText || '';
-  const maxPreviewLen = compact ? 120 : 200;
-  const needsTruncation = citedText.length > maxPreviewLen;
-  const hasExpandableContent = citedText.length > 0 && needsTruncation;
-
-  const metaParts: string[] = [];
-  if (citation.domain) metaParts.push(citation.domain);
-  if (citation.collectionName) metaParts.push(style.label || citation.collectionName);
-  const metaLine = metaParts.join(' \u00b7 ');
-
-  const displayTitle = compact ? citation.snippet?.slice(0, 60) || citation.title : citation.title;
+  const displayText = citation.citedText || citation.snippet || '';
 
   return (
     <div
       id={`source-card-${citation.id}`}
       className="rounded-md border border-border/50 bg-card overflow-hidden transition-colors hover:border-border"
-      style={{ borderLeftWidth: 3, borderLeftColor: style.color }}
     >
       <div className="w-full text-left px-3 py-2 flex items-start gap-2">
         <span className="flex-shrink-0 text-xs font-semibold text-foreground-muted mt-0.5">
@@ -67,61 +44,8 @@ const CardCitation = memo(function CardCitation({
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            {faviconUrl && (
-              <img
-                src={faviconUrl}
-                alt=""
-                width={16}
-                height={16}
-                className="flex-shrink-0"
-                loading="lazy"
-              />
-            )}
-            {citation.url ? (
-              <a
-                href={citation.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-medium text-foreground leading-tight line-clamp-1 hover:underline hover:text-primary transition-colors"
-              >
-                {displayTitle}
-              </a>
-            ) : (
-              <span className="text-sm font-medium text-foreground leading-tight line-clamp-1">
-                {displayTitle}
-              </span>
-            )}
-          </div>
-
-          {metaLine && (
-            <span className="text-xs text-foreground-muted mt-0.5 block">{metaLine}</span>
-          )}
-
-          {citedText ? (
-            <div className="mt-1">
-              <p className="text-xs text-foreground-muted leading-relaxed line-clamp-2">
-                {isExpanded ? citedText : truncateText(citedText, maxPreviewLen)}
-              </p>
-              {hasExpandableContent && (
-                <button
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="mt-0.5 flex items-center gap-0.5 text-xs font-medium text-primary/70 hover:text-primary transition-colors"
-                >
-                  <ChevronDown
-                    className={cn('h-3 w-3 transition-transform', isExpanded && 'rotate-180')}
-                  />
-                  {isExpanded ? 'Weniger' : 'Mehr anzeigen'}
-                </button>
-              )}
-            </div>
-          ) : (
-            !compact &&
-            citation.snippet && (
-              <p className="text-xs text-foreground-muted mt-1 line-clamp-2 leading-relaxed">
-                {citation.snippet}
-              </p>
-            )
+          {displayText && (
+            <p className="text-xs text-foreground-muted leading-relaxed">{displayText}</p>
           )}
         </div>
 
