@@ -293,7 +293,6 @@ export class LandesverbandScraper extends BaseScraper {
       // Filter: only keep links whose path starts with the content path being scraped.
       // Prevents cross-contamination (e.g., /beschluesse/ links picked up from /nachrichten sidebar).
       if (contentPath.path && contentPath.path !== '/') {
-        const expectedPrefix = source.baseUrl + contentPath.path.replace(/\/$/, '');
         const before = articleLinks.length;
         articleLinks = articleLinks.filter((url) => {
           try {
