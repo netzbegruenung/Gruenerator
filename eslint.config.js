@@ -69,6 +69,7 @@ export default [
       '**/.expo/**',
       '**/coverage/**',
       'packages/shared/src/tiptap-editor/**',
+      '**/public/**',
       '**/metro.config.js',
       'pnpm-lock.yaml',
     ],

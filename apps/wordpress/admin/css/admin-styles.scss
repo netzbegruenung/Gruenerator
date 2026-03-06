@@ -1,0 +1,27 @@
+@import '../../src/styles/theme-bridge';
+
+// Nur noch generelle Admin-Styles hier, keine Setup-Wizard spezifischen Styles
+.gruenerator-image-preview {
+    margin-top: 10px;
+    max-width: 200px;
+    border: 1px solid #ddd;
+    padding: 5px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+
+    img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    &:empty {
+        display: none;
+    }
+}
+
+.gruenerator-image-upload,
+.gruenerator-image-remove {
+    margin-right: 10px;
+}

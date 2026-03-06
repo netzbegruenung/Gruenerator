@@ -20,6 +20,8 @@ if (sentryDsn) {
       'NetworkError',
       'Failed to fetch',
       /Loading chunk [\d]+ failed/,
+      'Importing a module script failed',
+      'Failed to fetch dynamically imported module',
     ],
   });
 } else {
