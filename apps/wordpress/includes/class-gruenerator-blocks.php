@@ -11,20 +11,14 @@ require_once GRUENERATOR_PATH . 'includes/class-gruenerator-default-content.php'
  * Registriert alle notwendigen Scripts und Styles für die Blöcke.
  */
 function gruenerator_register_block_assets() {
-    error_log('gruenerator_register_block_assets called');
     $dir = plugin_dir_path(__FILE__);
 
     // Pfad zur index.js Datei ermitteln
     $script_url = plugins_url('build/index.js', dirname(__FILE__));
-    error_log('Script URL: ' . $script_url);
 
     // Prüfen, ob die Asset-Datei existiert
     $asset_file = plugin_dir_path(__DIR__) . 'build/assets.php';
-    error_log('Grünerator: Versuche, die Datei zu finden: ' . $asset_file);
-    error_log('Grünerator: Aktuelles Verzeichnis: ' . __DIR__);
-    error_log('Grünerator: Plugin-Basisverzeichnis: ' . plugin_dir_path(__DIR__));
     if (!file_exists($asset_file)) {
-        error_log('Grünerator: Die Datei build/assets.php existiert nicht. Bitte führen Sie `npm run build` aus.');
         return;
     }
 
@@ -32,7 +26,6 @@ function gruenerator_register_block_assets() {
     $asset = include($asset_file);
 
     if (!isset($asset['index.js'])) {
-        error_log('Grünerator: Der Schlüssel "index.js" fehlt in build/assets.php.');
         return;
     }
 
@@ -55,8 +48,6 @@ function gruenerator_register_block_assets() {
             array(),
             filemtime($frontend_css_file)
         );
-    } else {
-        error_log('Grünerator: Die Datei build/index.css existiert nicht.');
     }
 
     if (file_exists($editor_css_file)) {
@@ -66,8 +57,6 @@ function gruenerator_register_block_assets() {
             array(),
             filemtime($editor_css_file)
         );
-    } else {
-        error_log('Grünerator: Die Datei build/editor-styles.css existiert nicht.');
     }
 }
 add_action('init', 'gruenerator_register_block_assets', 10);
@@ -76,7 +65,6 @@ add_action('init', 'gruenerator_register_block_assets', 10);
  * Enqueues die registrierten Scripts und Styles für den Editor.
  */
 function gruenerator_enqueue_block_editor_assets() {
-    error_log('Enqueuing editor assets');
     wp_enqueue_script('gruenerator-blocks');
     wp_enqueue_style('gruenerator-blocks-editor');
 }
@@ -86,7 +74,6 @@ add_action('enqueue_block_editor_assets', 'gruenerator_enqueue_block_editor_asse
  * Enqueues die Frontend Styles.
  */
 function gruenerator_enqueue_block_frontend_assets() {
-    error_log('Enqueuing frontend assets');
     if (!is_admin()) {
         wp_enqueue_style('gruenerator-blocks-frontend');
     }
@@ -258,7 +245,6 @@ function gruenerator_register_all_blocks() {
                 )
             )
         );
-        error_log("Registering block $block: " . ($result ? 'success' : 'failure'));
     }
 }
 add_action('init', 'gruenerator_register_all_blocks', 10);
@@ -270,8 +256,6 @@ add_action('init', 'gruenerator_register_all_blocks', 10);
 // Hero Block
 function gruenerator_render_hero_block($attributes, $content) {
     try {
-        error_log('Rendering hero block: ' . print_r($attributes, true));
-
         $default_content = Gruenerator_Default_Content::get_hero_content();
         $hero_image_url = !empty($attributes['heroImageUrl']) ? $attributes['heroImageUrl'] : $default_content['image'] ?? '';
         $hero_heading = !empty($attributes['heroHeading']) ? $attributes['heroHeading'] : $default_content['heading'] ?? '';
@@ -298,15 +282,8 @@ function gruenerator_render_hero_block($attributes, $content) {
             </div>
         </div>
         <?php
-        $output = ob_get_clean();
-        if (empty($output)) {
-            error_log('Hero block: Leere Ausgabe');
-            return '';
-        }
-        error_log('Hero block output: ' . substr($output, 0, 100) . '...');
-        return $output;
+        return ob_get_clean();
     } catch (Exception $e) {
-        error_log('Fehler beim Rendern des Hero-Blocks: ' . $e->getMessage());
         return '';
     }
 }
@@ -314,8 +291,6 @@ function gruenerator_render_hero_block($attributes, $content) {
 // About Block
 function gruenerator_render_about_block($attributes, $content) {
     try {
-        error_log('Rendering about block: ' . print_r($attributes, true));
-
         $default_content = Gruenerator_Default_Content::get_about_content();
         $title = !empty($attributes['title']) ? $attributes['title'] : $default_content['title'];
         $content = !empty($attributes['content']) ? $attributes['content'] : $default_content['content'];
@@ -343,15 +318,8 @@ function gruenerator_render_about_block($attributes, $content) {
             </div>
         </div>
         <?php
-        $output = ob_get_clean();
-        if (empty($output)) {
-            error_log('About block: Leere Ausgabe');
-            return '';
-        }
-        error_log('About block output: ' . substr($output, 0, 100) . '...');
-        return $output;
+        return ob_get_clean();
     } catch (Exception $e) {
-        error_log('Fehler beim Rendern des About-Blocks: ' . $e->getMessage());
         return '';
     }
 }
@@ -359,8 +327,6 @@ function gruenerator_render_about_block($attributes, $content) {
 // Hero Image Block
 function gruenerator_render_hero_image_block($attributes, $content) {
     try {
-        error_log('Rendering hero image block: ' . print_r($attributes, true));
-
         $default_content = Gruenerator_Default_Content::get_hero_image_content();
         $background_image_url = !empty($attributes['backgroundImageUrl']) ? $attributes['backgroundImageUrl'] : $default_content['image'] ?? '';
         $title = !empty($attributes['title']) ? $attributes['title'] : $default_content['title'] ?? '';
@@ -378,15 +344,8 @@ function gruenerator_render_hero_image_block($attributes, $content) {
             </div>
         </div>
         <?php
-        $output = ob_get_clean();
-        if (empty($output)) {
-            error_log('Hero image block: Leere Ausgabe');
-            return '';
-        }
-        error_log('Hero image block output: ' . substr($output, 0, 100) . '...');
-        return $output;
+        return ob_get_clean();
     } catch (Exception $e) {
-        error_log('Fehler beim Rendern des Hero-Image-Blocks: ' . $e->getMessage());
         return '';
     }
 }
@@ -394,8 +353,6 @@ function gruenerator_render_hero_image_block($attributes, $content) {
 // Meine Themen Block
 function gruenerator_render_meine_themen_block($attributes, $content) {
     try {
-        error_log('Rendering meine themen block: ' . print_r($attributes, true));
-
         $title = !empty($attributes['title']) ? $attributes['title'] : 'Meine Themen';
         $default_themes = Gruenerator_Default_Content::get_themes();
         $themes = !empty($attributes['themes']) && is_array($attributes['themes']) ? $attributes['themes'] : $default_themes;
@@ -417,15 +374,8 @@ function gruenerator_render_meine_themen_block($attributes, $content) {
             </div>
         </div>
         <?php
-        $output = ob_get_clean();
-        if (empty($output)) {
-            error_log('Meine Themen block: Leere Ausgabe');
-            return '';
-        }
-        error_log('Meine Themen block output: ' . substr($output, 0, 100) . '...');
-        return $output;
+        return ob_get_clean();
     } catch (Exception $e) {
-        error_log('Fehler beim Rendern des Meine-Themen-Blocks: ' . $e->getMessage());
         return '';
     }
 }
@@ -499,7 +449,6 @@ function gruenerator_render_contact_form_block($attributes, $content) {
         <?php
         return ob_get_clean();
     } catch (Exception $e) {
-        error_log('Fehler beim Rendern des Contact-Form-Blocks: ' . $e->getMessage());
         return '';
     }
 }

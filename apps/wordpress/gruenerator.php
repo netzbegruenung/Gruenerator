@@ -47,20 +47,6 @@ require_once GRUENERATOR_PATH . 'admin/gruenerator-settings.php';
 // Erforderliche Dateien einbinden
 require_once GRUENERATOR_PATH . 'includes/class-gruenerator-default-content.php';
 require_once GRUENERATOR_PATH . 'includes/class-gruenerator-content-source.php';
-require_once GRUENERATOR_PATH . 'includes/class-gruenerator-customizer.php';
-require_once GRUENERATOR_PATH . 'includes/class-gruenerator-settings.php';
-require_once GRUENERATOR_PATH . 'includes/class-gruenerator-meta-fields.php';
-
-/**
- * Enqueue Frontend Styles und Inline CSS
- */
-function gruenerator_enqueue_custom_css() {
-    $custom_css = get_option('gruenerator_custom_css', '');
-    if (!empty($custom_css)) {
-        wp_add_inline_style('gruenerator-blocks-frontend', $custom_css);
-    }
-}
-add_action('wp_enqueue_scripts', 'gruenerator_enqueue_custom_css');
 
 // Hier können weitere Funktionen und Hooks hinzugefügt werden...
 
@@ -108,38 +94,6 @@ function gruenerator_add_admin_menu() {
     );
 }
 add_action('admin_menu', 'gruenerator_add_admin_menu');
-
-function gruenerator_create_page_callback() {
-    ?>
-    <div class="wrap">
-        <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-        <p><?php _e('Klicke auf den Button unten, um eine neue Seite mit dem Grünerator Landing Page Pattern zu erstellen.', 'gruenerator'); ?></p>
-        <form method="post" action="">
-            <?php wp_nonce_field('gruenerator_create_page', 'gruenerator_nonce'); ?>
-            <input type="submit" name="gruenerator_create_page" class="button button-primary" value="<?php _e('Neue Seite erstellen', 'gruenerator'); ?>">
-        </form>
-    </div>
-    <?php
-
-    if (isset($_POST['gruenerator_create_page']) && check_admin_referer('gruenerator_create_page', 'gruenerator_nonce')) {
-        $page_title = 'Grünerator Landing Page';
-        $page_content = '<!-- wp:pattern {"slug":"gruenerator/landing-page"} /-->';
-
-        $page_id = wp_insert_post(array(
-            'post_title'    => $page_title,
-            'post_content'  => $page_content,
-            'post_status'   => 'publish',
-            'post_type'     => 'page',
-        ));
-
-        if ($page_id) {
-            $page_url = get_permalink($page_id);
-            echo '<div class="notice notice-success"><p>' . sprintf(__('Seite erfolgreich erstellt. <a href="%s" target="_blank">Seite anzeigen</a>', 'gruenerator'), esc_url($page_url)) . '</p></div>';
-        } else {
-            echo '<div class="notice notice-error"><p>' . __('Fehler beim Erstellen der Seite.', 'gruenerator') . '</p></div>';
-        }
-    }
-}
 
 function gruenerator_main_page() {
     ?>

@@ -4,10 +4,8 @@ if (!defined('ABSPATH')) {
 }
 
 // Erforderliche Dateien einbinden
-require_once GRUENERATOR_PATH . 'includes/landing-page-generator.php';
 require_once GRUENERATOR_PATH . 'includes/setup-wizard-steps.php';
 require_once GRUENERATOR_PATH . 'includes/setup-wizard-processor.php';
-require_once GRUENERATOR_PATH . 'includes/auto-setup.php';
 
 function gruenerator_is_setup_complete() {
     return get_option('gruenerator_setup_completed', false);
@@ -209,22 +207,18 @@ function gruenerator_process_setup() {
     }
 
     $next_step = $current_step + 1;
-    if ($next_step > 10) {
-        gruenerator_setup_complete();
-        gruenerator_log("Setup abgeschlossen. Weiterleitung zur finalen Seite.", 'info');
-        wp_safe_redirect(add_query_arg('step', 11, admin_url('admin.php?page=gruenerator-setup-wizard')));
-        exit;
-    } else {
-        gruenerator_log("Weiterleitung zum nächsten Schritt: " . $next_step, 'info');
-        wp_safe_redirect(add_query_arg('step', $next_step, admin_url('admin.php?page=gruenerator-setup-wizard')));
-        exit;
-    }
+    gruenerator_log("Weiterleitung zum nächsten Schritt: " . $next_step, 'info');
+    wp_safe_redirect(add_query_arg('step', $next_step, admin_url('admin.php?page=gruenerator-setup-wizard')));
+    exit;
 }
 
 add_action('admin_post_gruenerator_process_setup', 'gruenerator_process_setup');
 
 function gruenerator_reset_setup() {
     if (isset($_GET['reset_setup']) && $_GET['reset_setup'] == '1' && current_user_can('manage_options')) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'gruenerator_reset_setup')) {
+            wp_die('Sicherheitsüberprüfung fehlgeschlagen');
+        }
         gruenerator_log("Setup wird zurückgesetzt", 'info');
         delete_option('gruenerator_setup_completed');
         wp_safe_redirect(menu_page_url('gruenerator-setup-wizard', false));
@@ -233,99 +227,12 @@ function gruenerator_reset_setup() {
 }
 add_action('admin_init', 'gruenerator_reset_setup');
 
-function gruenerator_setup_complete() {
-    gruenerator_log("Setup abgeschlossen. Generiere Landing Page.", 'info');
-    $page_content = gruenerator_generate_landing_page_content();
-    $page_title = 'Grünerator Landing Page';
-
-    $query = new WP_Query(
-        array(
-            'post_type' => 'page',
-            'post_status' => 'any',
-            'title' => $page_title,
-            'posts_per_page' => 1,
-        )
-    );
-
-    if ($query->have_posts()) {
-        $query->the_post();
-        $page_id = get_the_ID();
-        $updated_post = array(
-            'ID' => $page_id,
-            'post_content' => $page_content,
-        );
-        wp_update_post($updated_post);
-        gruenerator_log("Bestehende Landing Page mit ID: " . $page_id . " aktualisiert", 'info');
-    } else {
-        $page_id = wp_insert_post(array(
-            'post_title'    => $page_title,
-            'post_content'  => $page_content,
-            'post_status'   => 'publish',
-            'post_type'     => 'page',
-        ));
-        gruenerator_log("Neue Landing Page mit ID: " . $page_id . " erstellt", 'info');
-    }
-
-    if ($page_id && !is_wp_error($page_id)) {
-        update_option('gruenerator_landing_page_id', $page_id);
-        update_option('gruenerator_setup_completed', true);
-        gruenerator_log("Setup als abgeschlossen markiert", 'info');
-    } else {
-        gruenerator_log("Fehler beim Erstellen/Aktualisieren der Landing Page: " . print_r($page_id, true), 'error');
-    }
-
-    wp_reset_postdata();
-}
-
 function gruenerator_enqueue_setup_wizard_styles($hook) {
     if ('admin_page_gruenerator-setup-wizard' !== $hook) {
         return;
     }
     
     wp_enqueue_media();
-    wp_enqueue_style('gruenerator-setup-wizard-styles', GRUENERATOR_URL . 'admin/css/setup-wizard-styles.css', array(), '1.0.0');
-    wp_enqueue_script('gruenerator-setup-wizard-script', GRUENERATOR_URL . 'admin/js/setup-wizard-script.js', array('jquery'), '1.0.0', true);
 }
 add_action('admin_enqueue_scripts', 'gruenerator_enqueue_setup_wizard_styles');
 
-function gruenerator_display_reset_and_delete_options() {
-    ?>
-    <div class="wrap">
-        <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-        <div class="gruenerator-setup-complete">
-            <p>Das Setup wurde bereits abgeschlossen. Möchtest du es erneut durchführen?</p>
-            <div class="gruenerator-actions">
-                <a href="<?php echo esc_url(add_query_arg('reset_setup', '1')); ?>" class="button button-primary">Setup zurücksetzen</a>
-                <a href="<?php echo admin_url('admin.php?page=gruenerator-generator'); ?>" class="button">Zurück zum Dashboard</a>
-            </div>
-        </div>
-    </div>
-
-    <style>
-    .gruenerator-setup-complete {
-        background: var(--gruenerator-weiss, #ffffff);
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        margin-top: 1.5rem;
-    }
-
-    .gruenerator-actions {
-        margin-top: 1.5rem;
-        display: flex;
-        gap: 1rem;
-    }
-
-    .gruenerator-actions .button-primary {
-        background-color: var(--gruenerator-tanne, #005538);
-        border-color: var(--gruenerator-tanne, #005538);
-    }
-
-    .gruenerator-actions .button-primary:hover,
-    .gruenerator-actions .button-primary:focus {
-        background-color: var(--gruenerator-dunkelgruen-alt, #004d40);
-        border-color: var(--gruenerator-dunkelgruen-alt, #004d40);
-    }
-    </style>
-    <?php
-}

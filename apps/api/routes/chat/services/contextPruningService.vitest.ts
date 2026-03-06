@@ -3,18 +3,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { applyCompaction } from './contextPruningService.js';
 
 // ─── Mock compactionService ────────────────────────────────────────────────
-// We mock the entire compactionService to isolate the guard/cooldown logic
-// in contextPruningService without hitting the database or LLM.
 
 const mockGetMessageCount = vi.fn<() => Promise<number>>();
-const mockGetCompactionState =
-  vi.fn<
-    () => Promise<{
-      summary: string | null;
-      compactedUpToMessageId: string | null;
-      compactionUpdatedAt: Date | null;
-    }>
-  >();
+const mockGetCompactionState = vi.fn<
+  () => Promise<{
+    summary: string | null;
+    compactedUpToMessageId: string | null;
+    compactionUpdatedAt: Date | null;
+  }>
+>();
 const mockNeedsCompaction = vi.fn<() => boolean>();
 const mockGenerateCompactionSummary = vi.fn<() => Promise<void>>();
 const mockGetThreadMessages = vi.fn<() => Promise<any[]>>();
@@ -45,10 +42,15 @@ vi.mock('../../../utils/logger.js', () => ({
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function setupDefaultMocks(
-  opts: { messageCount?: number; needsCompaction?: boolean; summary?: string | null } = {}
-) {
-  mockGetMessageCount.mockResolvedValue(opts.messageCount ?? 100);
+// Module-level state (compactionInProgress, lastCompactionTime) persists across tests.
+// Use unique thread IDs to avoid cross-test interference.
+let nextId = 0;
+function tid() {
+  return `thread-${++nextId}`;
+}
+
+function setupMocks(opts: { needsCompaction?: boolean; summary?: string | null } = {}) {
+  mockGetMessageCount.mockResolvedValue(100);
   mockGetCompactionState.mockResolvedValue({
     summary: opts.summary ?? null,
     compactedUpToMessageId: null,
@@ -72,117 +74,120 @@ describe('applyCompaction – concurrency guard & cooldown', () => {
   });
 
   it('triggers compaction when threshold met and no guard active', async () => {
-    setupDefaultMocks({ needsCompaction: true });
+    setupMocks({ needsCompaction: true });
+    const id = tid();
 
-    await applyCompaction('thread-1', [], 'system msg');
+    await applyCompaction(id, [], 'system msg');
 
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(1);
   });
 
   it('does NOT trigger compaction when needsCompaction returns false', async () => {
-    setupDefaultMocks({ needsCompaction: false });
+    setupMocks({ needsCompaction: false });
+    const id = tid();
 
-    await applyCompaction('thread-1', [], 'system msg');
+    await applyCompaction(id, [], 'system msg');
 
     expect(mockGenerateCompactionSummary).not.toHaveBeenCalled();
   });
 
   it('does NOT trigger concurrent compaction for same thread', async () => {
-    // Make generateCompactionSummary hang until we resolve it
+    const id = tid();
+
+    // Make compaction hang until we resolve it
     let resolveCompaction!: () => void;
-    const compactionPromise = new Promise<void>((resolve) => {
-      resolveCompaction = resolve;
+    const hangingPromise = new Promise<void>((r) => {
+      resolveCompaction = r;
     });
-    mockGenerateCompactionSummary.mockReturnValue(compactionPromise);
-    setupDefaultMocks({ needsCompaction: true });
-    // Re-set the mock after setupDefaultMocks since it overrides
-    mockGenerateCompactionSummary.mockReturnValue(compactionPromise);
 
-    // First call — starts compaction
-    const call1 = applyCompaction('thread-1', [], 'system msg');
-    await call1;
+    setupMocks({ needsCompaction: true });
+    mockGenerateCompactionSummary.mockReturnValue(hangingPromise);
 
-    // Second call — should be blocked by in-progress guard
-    const call2 = applyCompaction('thread-1', [], 'system msg');
-    await call2;
+    // First call — starts compaction (hangs)
+    await applyCompaction(id, [], 'system msg');
 
-    // Only one compaction should have been triggered
+    // Second call — compaction still in-progress, guard blocks
+    await applyCompaction(id, [], 'system msg');
+
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(1);
 
-    // Resolve to clean up
     resolveCompaction();
-    // Allow microtasks to flush
     await vi.advanceTimersByTimeAsync(0);
   });
 
   it('allows compaction for different threads concurrently', async () => {
-    let resolve1!: () => void;
-    let resolve2!: () => void;
-    const promise1 = new Promise<void>((r) => {
-      resolve1 = r;
+    const idA = tid();
+    const idB = tid();
+
+    let resolveA!: () => void;
+    let resolveB!: () => void;
+    const promiseA = new Promise<void>((r) => {
+      resolveA = r;
     });
-    const promise2 = new Promise<void>((r) => {
-      resolve2 = r;
+    const promiseB = new Promise<void>((r) => {
+      resolveB = r;
     });
 
-    setupDefaultMocks({ needsCompaction: true });
+    setupMocks({ needsCompaction: true });
 
     let callCount = 0;
     mockGenerateCompactionSummary.mockImplementation(() => {
       callCount++;
-      return callCount === 1 ? promise1 : promise2;
+      return callCount === 1 ? promiseA : promiseB;
     });
 
-    await applyCompaction('thread-A', [], 'system msg');
-    await applyCompaction('thread-B', [], 'system msg');
+    await applyCompaction(idA, [], 'system msg');
+    await applyCompaction(idB, [], 'system msg');
 
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(2);
 
-    resolve1();
-    resolve2();
+    resolveA();
+    resolveB();
     await vi.advanceTimersByTimeAsync(0);
   });
 
   it('enforces cooldown after successful compaction', async () => {
-    setupDefaultMocks({ needsCompaction: true });
+    setupMocks({ needsCompaction: true });
+    const id = tid();
 
     // First call — triggers compaction
-    await applyCompaction('thread-1', [], 'system msg');
-    // Flush the .then() that sets lastCompactionTime
+    await applyCompaction(id, [], 'system msg');
+    // Flush .then() that sets lastCompactionTime
     await vi.advanceTimersByTimeAsync(0);
 
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(1);
 
-    // Second call immediately after — cooldown should block
-    await applyCompaction('thread-1', [], 'system msg');
-
+    // Second call immediately — cooldown blocks
+    await applyCompaction(id, [], 'system msg');
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(1);
 
     // Advance past cooldown (60s)
     await vi.advanceTimersByTimeAsync(60_001);
 
     // Third call — cooldown expired, should trigger again
-    await applyCompaction('thread-1', [], 'system msg');
+    await applyCompaction(id, [], 'system msg');
     await vi.advanceTimersByTimeAsync(0);
 
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(2);
   });
 
   it('returns original systemMessage when no summary exists', async () => {
-    setupDefaultMocks({ needsCompaction: false, summary: null });
+    setupMocks({ needsCompaction: false, summary: null });
+    const id = tid();
 
-    const result = await applyCompaction('thread-1', [], 'my system prompt');
+    const result = await applyCompaction(id, [], 'my system prompt');
 
     expect(result).toBe('my system prompt');
   });
 
   it('returns compacted systemMessage when summary exists', async () => {
-    setupDefaultMocks({ needsCompaction: false, summary: 'Previous conversation summary...' });
+    setupMocks({ needsCompaction: false, summary: 'Previous conversation summary...' });
     mockPrepareMessagesWithCompaction.mockReturnValue({
       systemMessage: 'augmented system prompt with summary',
     });
+    const id = tid();
 
-    const result = await applyCompaction('thread-1', [], 'my system prompt');
+    const result = await applyCompaction(id, [], 'my system prompt');
 
     expect(result).toBe('augmented system prompt with summary');
     expect(mockPrepareMessagesWithCompaction).toHaveBeenCalled();
@@ -190,26 +195,28 @@ describe('applyCompaction – concurrency guard & cooldown', () => {
 
   it('handles compaction error gracefully and returns original systemMessage', async () => {
     mockGetMessageCount.mockRejectedValue(new Error('DB connection failed'));
+    const id = tid();
 
-    const result = await applyCompaction('thread-1', [], 'my system prompt');
+    const result = await applyCompaction(id, [], 'my system prompt');
 
     expect(result).toBe('my system prompt');
   });
 
   it('cleans up in-progress guard even when compaction fails', async () => {
-    setupDefaultMocks({ needsCompaction: true });
-    mockGenerateCompactionSummary.mockRejectedValue(new Error('LLM timeout'));
+    const id = tid();
+
+    setupMocks({ needsCompaction: true });
+    mockGenerateCompactionSummary.mockRejectedValueOnce(new Error('LLM timeout'));
 
     // First call — triggers compaction which fails
-    await applyCompaction('thread-1', [], 'system msg');
+    await applyCompaction(id, [], 'system msg');
     await vi.advanceTimersByTimeAsync(0); // flush .finally()
 
-    // Advance past cooldown — failed compaction should NOT set lastCompactionTime
-    await vi.advanceTimersByTimeAsync(60_001);
+    expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(1);
 
-    // Second call — guard should be cleared, allowing retry
-    mockGenerateCompactionSummary.mockResolvedValue(undefined);
-    await applyCompaction('thread-1', [], 'system msg');
+    // Failed compaction does NOT set lastCompactionTime — retry should work immediately
+    mockGenerateCompactionSummary.mockResolvedValueOnce(undefined);
+    await applyCompaction(id, [], 'system msg');
 
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(2);
   });

@@ -72,6 +72,7 @@ export default [
       '**/public/**',
       '**/metro.config.js',
       'pnpm-lock.yaml',
+      'apps/wordpress/**',
     ],
   },
 ];
