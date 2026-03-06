@@ -39,17 +39,19 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
           // New Service Worker available, notify user
           console.log('[SW] New version available! Refresh to update.');
 
-          // Optionally show a notification to the user
+          // Show a notification to the user — reload happens via controllerchange
           if (window.confirm('Eine neue Version ist verfügbar. Möchtest du aktualisieren?')) {
             newWorker.postMessage({ type: 'SKIP_WAITING' });
-            window.location.reload();
           }
         }
       });
     });
 
     // Handle controller change (new Service Worker activated)
+    let isReloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (isReloading) return;
+      isReloading = true;
       console.log('[SW] Controller changed, reloading...');
       window.location.reload();
     });
