@@ -186,7 +186,6 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
                   title={config.startPageTitle}
                   description={config.infoPanelDescription}
                   questions={config.exampleQuestions?.map((q) => ({ text: q.text ?? '' }))}
-                  sources={config.sources}
                 />
               </ThreadPrimitive.Empty>
               <div className="mx-auto w-full max-w-3xl flex flex-col gap-4 py-4">

@@ -13,6 +13,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/**'],
+    ignores: ['dist/**', 'public/**'],
   },
 ];

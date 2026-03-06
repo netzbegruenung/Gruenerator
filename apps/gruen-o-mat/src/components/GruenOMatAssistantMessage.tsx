@@ -10,7 +10,7 @@ import {
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import { Leaf } from 'lucide-react';
-import { memo, useMemo, useState, useEffect, startTransition } from 'react';
+import { memo, useMemo } from 'react';
 
 function mapRawCitationsToChat(raw: unknown[]): ChatCitation[] {
   return raw
@@ -51,14 +51,7 @@ function GruenOMatAssistantMessageInner() {
     return [];
   }, [hasCitations, meta]);
 
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  useEffect(() => {
-    if (!isRunning && mappedCitations.length > 0) {
-      startTransition(() => setShowSearchResults(true));
-    } else {
-      setShowSearchResults(false);
-    }
-  }, [isRunning, mappedCitations.length]);
+  const showSearchResults = !isRunning && mappedCitations.length > 0;
 
   return (
     <div className="group flex w-full items-start gap-3 py-4 animate-message-appear">

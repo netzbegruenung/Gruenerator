@@ -23,6 +23,8 @@ export const useComposedRef = <T extends HTMLElement>(
   return useCallback(
     (instance: T | null) => {
       if (libRef && 'current' in libRef) {
+        // Intentional: composing refs requires mutating the library ref
+        // eslint-disable-next-line react-hooks/immutability
         (libRef as { current: T | null }).current = instance;
       }
 

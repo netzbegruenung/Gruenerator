@@ -121,7 +121,7 @@ export const EditorPage = () => {
         console.warn('[docs-rename] handleTitleChange: no document id, aborting');
         return;
       }
-      console.log(
+      console.warn(
         '[docs-rename] handleTitleChange: docId=%s, newTitle="%s", isGuest=%s',
         id,
         newTitle,
@@ -134,7 +134,7 @@ export const EditorPage = () => {
       document.title = newTitle;
       try {
         const result = await apiClient.put(`/docs/${id}`, { title: newTitle });
-        console.log(
+        console.warn(
           '[docs-rename] handleTitleChange: API success, docId=%s, response=%o',
           id,
           result

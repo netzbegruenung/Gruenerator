@@ -80,12 +80,12 @@ export const useDocumentStore = create<DocumentStore>((set, _get) => ({
   },
 
   updateDocument: async (id, updates) => {
-    console.log('[docs-rename] appStore.updateDocument: docId=%s, updates=%o', id, updates);
+    console.warn('[docs-rename] appStore.updateDocument: docId=%s, updates=%o', id, updates);
     set({ error: null });
     try {
       const response = await apiClient.put(`/docs/${id}`, updates);
       const updatedDocument = response.data;
-      console.log(
+      console.warn(
         '[docs-rename] appStore.updateDocument: success, docId=%s, returnedTitle="%s"',
         id,
         updatedDocument?.title
