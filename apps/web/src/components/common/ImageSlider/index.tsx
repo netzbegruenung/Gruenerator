@@ -5,7 +5,6 @@ import '../../../assets/styles/components/ui/image-slider.css';
 // Lazy load react-image-gallery and its styles
 const loadImageGallery = async () => {
   const [galleryModule, _styleSheet] = await Promise.all([
-    // @ts-expect-error - react-image-gallery types are missing
     import('react-image-gallery'),
     import('react-image-gallery/styles/css/image-gallery.css'),
   ]);
@@ -34,9 +33,8 @@ const ImageSlider = ({
   className = '',
   showControls = true,
 }: ImageSliderProps): JSX.Element => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [ImageGallery, setImageGallery] = useState<React.ComponentType<
-    Record<string, unknown>
+  const [ImageGallery, setImageGallery] = useState<Awaited<
+    ReturnType<typeof loadImageGallery>
   > | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<Error | unknown | null>(null);
@@ -65,17 +63,15 @@ const ImageSlider = ({
   }, [handleLoadGallery]);
 
   const galleryImages = images.map((img) => ({
-    original: img.url || img.src,
+    original: img.url || img.src || '',
     originalAlt: img.alt,
   }));
 
-  const handleClick = (event: React.MouseEvent<HTMLDivElement>): void => {
-    // Nur wenn direkt auf das Bild geklickt wurde (nicht auf die Navigationspfeile)
-    if ((event.target as HTMLElement).classList.contains('image-gallery-image')) {
-      setIsFullscreen(true);
-    }
-    if (onImageClick) {
-      onImageClick(event as React.MouseEvent<HTMLImageElement>);
+  const handleClick = (
+    event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>
+  ): void => {
+    if (onImageClick && 'button' in event.nativeEvent) {
+      onImageClick(event as React.MouseEvent);
     }
   };
 
@@ -147,12 +143,10 @@ const ImageSlider = ({
           showNav={showControls && galleryImages.length > 1}
           onClick={handleClick}
           onImageLoad={onLoad}
-          onImageError={onError}
+          onImageError={onError ? () => onError(new Error('Image failed to load')) : undefined}
           lazyLoad={true}
           slideDuration={300}
           additionalClass="template-gallery-slider"
-          isFullscreen={isFullscreen}
-          onScreenChange={setIsFullscreen}
           useBrowserFullscreen={false}
         />
       )}

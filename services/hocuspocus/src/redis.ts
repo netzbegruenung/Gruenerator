@@ -15,7 +15,7 @@ export function createRedisClient(): ReturnType<typeof createClient> & RedisLike
   const client = createClient({
     url: redisUrl,
     socket: {
-      keepAlive: 5000,
+      keepAlive: true,
       connectTimeout: 10000,
       reconnectStrategy: (retries: number) => {
         if (retries <= 10 || retries % 10 === 0) {

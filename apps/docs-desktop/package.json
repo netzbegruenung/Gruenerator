@@ -12,7 +12,7 @@
     "test:ci": "node preflight-check.mjs"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.10.0"
+    "@tauri-apps/cli": "^2.10.1"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
