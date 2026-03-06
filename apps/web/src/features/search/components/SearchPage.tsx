@@ -15,7 +15,6 @@ import SearchBar from './SearchBar';
 // Search Feature CSS - Loaded only when this feature is accessed
 import '../styles/SearchPage.css';
 import '../styles/SearchResults.css';
-import '../styles/SearchBarStyles.css';
 
 const exampleQuestions = [
   {

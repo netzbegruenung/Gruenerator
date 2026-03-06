@@ -4,7 +4,6 @@ import { Markdown } from '../../../components/common/Markdown';
 import SearchBar from '../../search/components/SearchBar';
 import { useOparlSearch } from '../hooks/useOparlSearch';
 
-import '../../search/styles/SearchBarStyles.css';
 import '../styles/oparl.css';
 import '../../../assets/styles/common/markdown-styles.css';
 import type { OparlPaper } from '../types';
