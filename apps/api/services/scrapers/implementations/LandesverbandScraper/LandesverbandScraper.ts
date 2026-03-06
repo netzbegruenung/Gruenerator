@@ -124,7 +124,7 @@ export class LandesverbandScraper extends BaseScraper {
     contentPath: any,
     options: LandesverbandScrapeOptions = {}
   ): Promise<ContentPathResult> {
-    const { forceUpdate = false, maxDocuments = null } = options;
+    const { forceUpdate = false, maxDocuments = null, dryRun = false } = options;
     const targetCollection = source.qdrantCollection || this.config.collectionName;
     const result: ContentPathResult = {
       contentType: contentPath.type,
@@ -166,6 +166,30 @@ export class LandesverbandScraper extends BaseScraper {
       }
 
       const toProcess = maxDocuments ? recentPdfs.slice(0, maxDocuments) : recentPdfs;
+
+      // Dry run: check Qdrant for existing PDFs, report counts, skip processing
+      if (dryRun) {
+        let newCount = 0;
+        let existingCount = 0;
+        for (const pdf of toProcess) {
+          const points = await scrollDocuments(
+            this.qdrantClient,
+            targetCollection,
+            { must: [{ key: 'source_url', match: { value: pdf.url } }] },
+            { limit: 1, withPayload: false, withVector: false }
+          );
+          if (points.length > 0) {
+            existingCount++;
+          } else {
+            newCount++;
+          }
+        }
+        result.stored = newCount;
+        result.skipped += existingCount;
+        this.log(`[DRY RUN] ${newCount} new PDFs, ${existingCount} already stored`);
+        return result;
+      }
+
       this.log(`Processing ${toProcess.length} recent PDFs`);
 
       for (let i = 0; i < toProcess.length; i++) {
@@ -265,9 +289,53 @@ export class LandesverbandScraper extends BaseScraper {
           this.log.bind(this)
         );
       }
+
+      // Filter: only keep links whose path starts with the content path being scraped.
+      // Prevents cross-contamination (e.g., /beschluesse/ links picked up from /nachrichten sidebar).
+      if (contentPath.path && contentPath.path !== '/') {
+        const before = articleLinks.length;
+        articleLinks = articleLinks.filter((url) => {
+          try {
+            const urlPath = new URL(url).pathname;
+            const contentPathNorm = contentPath.path.replace(/\/$/, '');
+            return urlPath.startsWith(contentPathNorm);
+          } catch {
+            return true; // Keep if URL parsing fails
+          }
+        });
+        if (articleLinks.length < before) {
+          this.log(
+            `Filtered ${before - articleLinks.length} off-path links (kept ${articleLinks.length})`
+          );
+        }
+      }
+
       this.log(`Found ${articleLinks.length} article links`);
 
       const toProcess = maxDocuments ? articleLinks.slice(0, maxDocuments) : articleLinks;
+
+      // Dry run: check Qdrant for existing articles, report counts, skip processing
+      if (dryRun) {
+        let newCount = 0;
+        let existingCount = 0;
+        for (const url of toProcess) {
+          const points = await scrollDocuments(
+            this.qdrantClient,
+            targetCollection,
+            { must: [{ key: 'source_url', match: { value: url } }] },
+            { limit: 1, withPayload: false, withVector: false }
+          );
+          if (points.length > 0) {
+            existingCount++;
+          } else {
+            newCount++;
+          }
+        }
+        result.stored = newCount;
+        result.skipped = existingCount;
+        this.log(`[DRY RUN] ${newCount} new articles, ${existingCount} already stored`);
+        return result;
+      }
 
       for (let i = 0; i < toProcess.length; i++) {
         const url = toProcess[i];

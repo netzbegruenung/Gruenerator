@@ -75,6 +75,12 @@ app.use(
     maxAge: '1y',
     etag: true,
     lastModified: true,
+    setHeaders(res, filePath) {
+      // index.html must not be cached — it references hashed chunks that change on each deploy
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    },
   })
 );
 

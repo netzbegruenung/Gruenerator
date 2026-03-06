@@ -90,7 +90,7 @@ function gruenerator_process_content_source() {
 
 function gruenerator_process_css_settings() {
     $use_css = isset($_POST['gruenerator_use_css']) ? 1 : 0;
-    update_option('gruenerator_use_css', $use_css);
+    update_option('gruenerator_custom_css_active', (bool) $use_css);
     gruenerator_log("CSS-Einstellungen aktualisiert: " . $use_css, 'info');
 }
 
@@ -101,6 +101,36 @@ function gruenerator_process_social_networks() {
         update_option('gruenerator_social_' . $network, $value);
         gruenerator_log($network . " URL aktualisiert: " . $value, 'info');
     }
+
+    // Sync to pipe-separated format used by Social Media settings page
+    $icon_map = array(
+        'facebook'  => array('icon' => 'fab fa-facebook-f', 'name' => 'Facebook'),
+        'twitter'   => array('icon' => 'fab fa-twitter',    'name' => 'Twitter'),
+        'instagram' => array('icon' => 'fab fa-instagram',  'name' => 'Instagram'),
+    );
+
+    // Preserve existing profiles not covered by wizard (e.g. LinkedIn, YouTube)
+    $existing = get_option('gruenerator_social_media_profiles', '');
+    $existing_entries = array();
+    $wizard_icons = array_column($icon_map, 'icon');
+    foreach (explode("\n", $existing) as $line) {
+        $parts = explode(';', $line);
+        if (count($parts) >= 3 && !in_array($parts[0], $wizard_icons, true)) {
+            $existing_entries[] = $line;
+        }
+    }
+
+    // Build entries from wizard data
+    $wizard_entries = array();
+    foreach ($social_networks as $network) {
+        $value = get_option('gruenerator_social_' . $network, '');
+        if (!empty($value)) {
+            $wizard_entries[] = $icon_map[$network]['icon'] . ';' . $icon_map[$network]['name'] . ';' . $value;
+        }
+    }
+
+    $all_entries = array_merge($wizard_entries, $existing_entries);
+    update_option('gruenerator_social_media_profiles', implode("\n", $all_entries));
 }
 
 function gruenerator_process_hero_section() {
@@ -128,12 +158,12 @@ function gruenerator_process_about_me() {
 
 function gruenerator_process_hero_image_block() {
     $hero_image_block_image = isset($_POST['gruenerator_hero_image_block_image']) ? intval($_POST['gruenerator_hero_image_block_image']) : 0;
-    $hero_image_block_title = isset($_POST['gruenerator_hero_image_block_title']) ? sanitize_text_field($_POST['gruenerator_hero_image_block_title']) : '';
-    $hero_image_block_text = isset($_POST['gruenerator_hero_image_block_text']) ? wp_kses_post($_POST['gruenerator_hero_image_block_text']) : '';
+    $hero_image_block_title = isset($_POST['gruenerator_hero_image_title']) ? sanitize_text_field($_POST['gruenerator_hero_image_title']) : '';
+    $hero_image_subtitle = isset($_POST['gruenerator_hero_image_subtitle']) ? wp_kses_post($_POST['gruenerator_hero_image_subtitle']) : '';
 
     update_option('gruenerator_hero_image_block_image', $hero_image_block_image);
     update_option('gruenerator_hero_image_block_title', $hero_image_block_title);
-    update_option('gruenerator_hero_image_block_text', $hero_image_block_text);
+    update_option('gruenerator_hero_image_subtitle', $hero_image_subtitle);
 
     gruenerator_log("Hero Image Block aktualisiert", 'info');
 }

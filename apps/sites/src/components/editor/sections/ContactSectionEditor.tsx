@@ -4,7 +4,7 @@ import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 
-import type { ContactSection } from '../../../types/candidate';
+import type { ContactSectionType as ContactSection } from '@gruenerator/sites-design';
 
 import { cn } from '@/utils/cn';
 

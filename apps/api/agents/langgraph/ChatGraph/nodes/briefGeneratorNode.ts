@@ -65,7 +65,7 @@ export async function briefGeneratorNode(state: ChatGraphState): Promise<Partial
     const conversationSummary = recentMessages
       .map((m) => {
         const role = m.role === 'user' ? 'Nutzer' : 'Assistent';
-        const text = extractMessageText(m.content).slice(0, 300);
+        const text = extractMessageText(m.content).slice(0, 800);
         return `${role}: ${text}`;
       })
       .join('\n\n');
