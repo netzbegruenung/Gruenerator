@@ -18,7 +18,7 @@ interface ResearchFilterPanelProps {
   disabled?: boolean;
 }
 
-function DateRangeField({
+export function DateRangeField({
   field,
   config,
   value,
@@ -68,7 +68,7 @@ function DateRangeField({
   );
 }
 
-function KeywordField({
+export function KeywordField({
   field,
   config,
   selectedValues,
