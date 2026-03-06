@@ -613,9 +613,8 @@ const FeatureIcons = ({
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    'size-9 sm:size-10',
-                    useAgentMode &&
-                      'bg-primary-500 text-white hover:bg-primary-600 hover:text-white'
+                    'size-9 sm:size-10 hover:bg-transparent',
+                    useAgentMode && 'text-primary-500'
                   )}
                   onClick={toggleAgentMode}
                   aria-label="Agent-Modus"
