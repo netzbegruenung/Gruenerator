@@ -371,8 +371,6 @@ const FeatureIcons = ({
   hideLoginPrompt = false,
   showAgentMode = false,
 }: FeatureIconsProps): JSX.Element | null => {
-  console.debug('[FeatureIcons] render');
-
   // Single batched selector — prevents N re-renders when store hydrates
   const {
     useWebSearch,
@@ -780,4 +778,4 @@ const FeatureIcons = ({
   );
 };
 
-export default FeatureIcons;
+export default React.memo(FeatureIcons);

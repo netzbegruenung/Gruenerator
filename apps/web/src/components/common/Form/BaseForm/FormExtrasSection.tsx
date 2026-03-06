@@ -84,6 +84,14 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
     }
   }, [interactiveModeToggle]);
 
+  const handleBalancedModeClick = useCallback(() => {
+    balancedModeToggle?.onToggle?.(!balancedModeToggle.isActive);
+  }, [balancedModeToggle]);
+
+  const handleRemoveFile = useCallback(() => {
+    onRemoveFile?.(0);
+  }, [onRemoveFile]);
+
   if (hide) {
     return null;
   }
@@ -99,10 +107,6 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
   if (!hasExtras) {
     return null;
   }
-
-  const handleBalancedModeClick = balancedModeToggle
-    ? () => balancedModeToggle.onToggle?.(!balancedModeToggle.isActive)
-    : undefined;
 
   const handleInteractiveMode =
     interactiveModeToggle && useInteractiveModeToggle ? handleInteractiveModeClick : undefined;
@@ -122,9 +126,9 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
             <div className="flex items-center gap-sm flex-1 min-w-0">
               {useFeatureIcons && (
                 <FeatureIcons
-                  onBalancedModeClick={handleBalancedModeClick}
+                  onBalancedModeClick={balancedModeToggle ? handleBalancedModeClick : undefined}
                   onAttachmentClick={onAttachmentClick}
-                  onRemoveFile={() => onRemoveFile?.(0)}
+                  onRemoveFile={handleRemoveFile}
                   onInteractiveModeClick={handleInteractiveMode}
                   interactiveModeActive={
                     interactiveModeToggle ? interactiveModeToggle.isActive : false
@@ -186,9 +190,9 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
             {useFeatureIcons && (
               <div>
                 <FeatureIcons
-                  onBalancedModeClick={handleBalancedModeClick}
+                  onBalancedModeClick={balancedModeToggle ? handleBalancedModeClick : undefined}
                   onAttachmentClick={onAttachmentClick}
-                  onRemoveFile={() => onRemoveFile?.(0)}
+                  onRemoveFile={handleRemoveFile}
                   onInteractiveModeClick={handleInteractiveMode}
                   interactiveModeActive={
                     interactiveModeToggle ? interactiveModeToggle.isActive : false

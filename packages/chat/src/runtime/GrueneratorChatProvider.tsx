@@ -198,6 +198,8 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
             return ExportedMessageRepository.fromArray(converted);
           } catch (error) {
             console.error('Error loading messages:', error);
+            // Thread likely deleted — clear stale threadId to prevent FK violations on send
+            useAgentStore.getState().setCurrentThread(null);
           }
         }
 
