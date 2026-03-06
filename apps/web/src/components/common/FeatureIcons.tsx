@@ -502,7 +502,7 @@ const FeatureIcons = ({
         <div
           className={cn(
             'relative flex w-full flex-col gap-xs',
-            !noBorder && 'mb-xs rounded-sm border border-foreground p-sm',
+            !noBorder && 'mb-xs rounded-sm border border-grey-200 dark:border-grey-700 p-sm',
             className
           )}
         >
@@ -534,7 +534,7 @@ const FeatureIcons = ({
     <div
       className={cn(
         'relative flex w-full flex-col gap-xs',
-        !noBorder && 'mb-xs rounded-sm border border-foreground p-sm',
+        !noBorder && 'mb-xs rounded-sm border border-grey-200 dark:border-grey-700 p-sm',
         className
       )}
     >
