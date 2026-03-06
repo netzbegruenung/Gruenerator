@@ -25,7 +25,10 @@ export function useScrollSync({ containerRef, enabled = true }: UseScrollSyncOpt
   const registerSection = useCallback((section: SectionType, element: HTMLElement | null) => {
     if (element) {
       sectionRefs.current.set(section, element);
+      observerRef.current?.observe(element);
     } else {
+      const prev = sectionRefs.current.get(section);
+      if (prev) observerRef.current?.unobserve(prev);
       sectionRefs.current.delete(section);
     }
   }, []);
@@ -103,14 +106,6 @@ export function useScrollSync({ containerRef, enabled = true }: UseScrollSyncOpt
   }, [enabled, containerRef, isScrollLocked, scrollSource, activeSection, setActiveSection]);
 
   useEffect(() => {
-    if (!observerRef.current) return;
-
-    sectionRefs.current.forEach((element) => {
-      observerRef.current?.observe(element);
-    });
-  }, [sectionRefs.current.size]);
-
-  useEffect(() => {
     if (pendingScrollTo && sectionRefs.current.has(pendingScrollTo)) {
       scrollToSection(pendingScrollTo, 'sidebar');
       clearPendingScroll();
@@ -120,6 +115,6 @@ export function useScrollSync({ containerRef, enabled = true }: UseScrollSyncOpt
   return {
     registerSection,
     scrollToSection,
-    sectionRefs: sectionRefs.current,
+    sectionRefs,
   };
 }
