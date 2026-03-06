@@ -4,21 +4,37 @@ import { FiLogOut, FiExternalLink, FiEye } from 'react-icons/fi';
 
 import { CandidatePage } from '../CandidatePage';
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
-import { CreateSiteScreen } from '../components/CreateSiteScreen';
+import { CreateSiteScreen, type SiteTarget } from '../components/CreateSiteScreen';
 import {
   EditorLayout,
   EditorSidebar,
   InteractivePreview,
   SectionNavigation,
 } from '../components/editor';
+import { WordPressJsonResult } from '../components/WordPressJsonResult';
 import { useAuth } from '../hooks/useAuth';
 import { useLoadingProgress } from '../hooks/useLoadingProgress';
-import { useSite, type GeneratedSiteData } from '../hooks/useSite';
+import { useSite, type GeneratedSiteData, type AiGeneratedContent } from '../hooks/useSite';
 import { useToast } from '../hooks/useToast';
 import { cn } from '../utils/cn';
 import { handleApiError } from '../utils/errorHandler';
 import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
+
+function toWordPressJson(ai: AiGeneratedContent): string {
+  return JSON.stringify(
+    {
+      hero: { heading: ai.hero.heading, text: ai.hero.text },
+      about: { title: ai.about.title, content: ai.about.content },
+      hero_image: { title: ai.hero_image.title, subtitle: ai.hero_image.subtitle },
+      themes: ai.themes.map((t) => ({ title: t.title, content: t.content })),
+      actions: ai.actions.map((a) => ({ text: a.text, link: a.link || 'https://example.com' })),
+      contact: { title: ai.contact.title, email: ai.contact.email },
+    },
+    null,
+    2
+  );
+}
 
 export function EditPage() {
   const { user, logout } = useAuth();
@@ -46,6 +62,8 @@ export function EditPage() {
   const [subdomain, setSubdomain] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [description, setDescription] = useState('');
+  const [target, setTarget] = useState<SiteTarget>('sites');
+  const [wordpressJson, setWordpressJson] = useState<string | null>(null);
 
   // Pre-fill subdomain from user's display name
   useEffect(() => {
@@ -115,10 +133,12 @@ export function EditPage() {
   }, [site]);
 
   const handleGenerate = async () => {
-    const subdomainError = validators.subdomain(subdomain);
-    if (subdomainError) {
-      toast.error('Subdomain ungültig', subdomainError);
-      return;
+    if (target === 'sites') {
+      const subdomainError = validators.subdomain(subdomain);
+      if (subdomainError) {
+        toast.error('Subdomain ungültig', subdomainError);
+        return;
+      }
     }
 
     const descriptionError = validators.description(description);
@@ -134,12 +154,21 @@ export function EditPage() {
     }
 
     try {
-      const generated = await generateSite({
+      const result = await generateSite({
         description,
         email: contactEmail || undefined,
       });
-      setPreviewData(generated);
-      toast.success('Seite generiert', 'Deine Seite wurde erfolgreich generiert');
+      if (target === 'wordpress') {
+        setWordpressJson(toWordPressJson(result.raw));
+      } else {
+        setPreviewData(result.transformed);
+      }
+      toast.success(
+        target === 'wordpress' ? 'Texte generiert' : 'Seite generiert',
+        target === 'wordpress'
+          ? 'Deine WordPress-Texte wurden generiert'
+          : 'Deine Seite wurde erfolgreich generiert'
+      );
     } catch (err) {
       console.error('Generate failed:', err);
       handleApiError(err, toast);
@@ -147,19 +176,30 @@ export function EditPage() {
   };
 
   const handleFlyerUpload = async (file: File) => {
-    const subdomainError = validators.subdomain(subdomain);
-    if (subdomainError) {
-      toast.error('Subdomain ungültig', subdomainError);
-      return;
+    if (target === 'sites') {
+      const subdomainError = validators.subdomain(subdomain);
+      if (subdomainError) {
+        toast.error('Subdomain ungültig', subdomainError);
+        return;
+      }
     }
 
     try {
-      const generated = await generateFromFlyer({
+      const result = await generateFromFlyer({
         file,
         email: contactEmail || undefined,
       });
-      setPreviewData(generated);
-      toast.success('Seite generiert', 'Deine Seite wurde aus dem Flyer generiert');
+      if (target === 'wordpress') {
+        setWordpressJson(toWordPressJson(result.raw));
+      } else {
+        setPreviewData(result.transformed);
+      }
+      toast.success(
+        target === 'wordpress' ? 'Texte generiert' : 'Seite generiert',
+        target === 'wordpress'
+          ? 'Deine WordPress-Texte wurden aus dem Flyer generiert'
+          : 'Deine Seite wurde aus dem Flyer generiert'
+      );
     } catch (err) {
       console.error('Flyer generation failed:', err);
       handleApiError(err, toast);
@@ -259,7 +299,7 @@ export function EditPage() {
     if (!confirmed) return;
 
     try {
-      const generated = await generateSite({
+      const result = await generateSite({
         description: regenerateDescription,
         email: site.contact_email || undefined,
       });
@@ -267,11 +307,11 @@ export function EditPage() {
       await updateSite({
         id: site.id,
         data: {
-          site_title: generated.site_title,
-          tagline: generated.tagline,
-          bio: generated.bio,
-          contact_email: generated.contact_email || site.contact_email,
-          sections: generated.sections,
+          site_title: result.transformed.site_title,
+          tagline: result.transformed.tagline,
+          bio: result.transformed.bio,
+          contact_email: result.transformed.contact_email || site.contact_email,
+          sections: result.transformed.sections,
         },
       });
 
@@ -462,6 +502,32 @@ export function EditPage() {
     );
   }
 
+  // WordPress JSON result screen
+  if (wordpressJson !== null && target === 'wordpress') {
+    return (
+      <>
+        <WordPressJsonResult
+          json={wordpressJson}
+          onBack={() => setWordpressJson(null)}
+          onRegenerate={handleGenerate}
+          isRegenerating={isAnyGenerating}
+        />
+        <LoadingOverlay
+          isLoading={isAnyGenerating}
+          message="KI generiert deine Texte..."
+          progress={generationProgress}
+          submessage={
+            generationProgress < 30
+              ? 'Analysiere deine Beschreibung...'
+              : generationProgress < 60
+                ? 'Erstelle Inhalte...'
+                : 'Fast fertig...'
+          }
+        />
+      </>
+    );
+  }
+
   // No site, no preview — show the beautiful start screen
   if (!previewCandidateData) {
     return (
@@ -480,6 +546,8 @@ export function EditPage() {
           isGeneratingFromFlyer={isGeneratingFromFlyer}
           onLogout={logout}
           userEmail={user?.email}
+          target={target}
+          onTargetChange={setTarget}
         />
         <LoadingOverlay
           isLoading={isAnyGenerating}

@@ -6,12 +6,13 @@ import {
   WelcomeScreen,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
-import React, { useState, useCallback, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 
 import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useAuthStore } from '../../../stores/authStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
@@ -222,5 +223,72 @@ export const createNotebookPage = (configId: string) => {
   const Page = () => <NotebookPageContent config={config} />;
   return withAuthRequired(Page, { title: config.authTitle });
 };
+
+const DynamicNotebookPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const { user } = useOptimizedAuth();
+  const {
+    getQACollection,
+    fetchQACollections,
+    qaCollections,
+    loading: storeLoading,
+  } = useNotebookStore();
+  const [collection, setCollection] = useState<NotebookCollection | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCollection = async () => {
+      if (!id) return;
+      setLoading(true);
+      let found = getQACollection(id);
+      if (!found) {
+        await fetchQACollections();
+        found = getQACollection(id);
+      }
+      setCollection(found || null);
+      setLoading(false);
+    };
+    if (id && user) void loadCollection();
+  }, [id, getQACollection, fetchQACollections, user, qaCollections]);
+
+  if (loading)
+    return (
+      <div className="flex flex-1 items-center justify-center p-md text-foreground-muted">
+        <p>Notebook wird geladen...</p>
+      </div>
+    );
+
+  if (!collection) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-sm p-md text-foreground-muted">
+        <p>Notebook nicht gefunden oder keine Berechtigung.</p>
+        <p className="text-xs">
+          Collection ID: {id} · User ID: {user?.id} · Store Loading: {storeLoading ? 'Yes' : 'No'} ·
+          Collections: {qaCollections?.length || 0}
+        </p>
+      </div>
+    );
+  }
+
+  const config: NotebookConfig = {
+    id: collection.id,
+    title: collection.name || 'Notebook',
+    authTitle: 'Q&A Notebook',
+    collectionType: 'single',
+    collections: [{ id: collection.id, name: collection.name, linkType: collection.linkType }],
+    startPageTitle: `Fragen zu "${collection.name || 'Notebook'}"`,
+    placeholder: 'Stellen Sie eine Frage zu den Dokumenten...',
+    infoPanelDescription: `Durchsuche die Dokumente in "${collection.name}" mit KI-gestützten Fragen.`,
+    headerIcon: () => null,
+    exampleQuestions: [],
+    persistMessages: true,
+  };
+
+  return <NotebookPageContent config={config} />;
+};
+
+export const DynamicNotebook = withAuthRequired(DynamicNotebookPage, {
+  title: 'Q&A Notebook',
+});
 
 export default NotebookPage;
