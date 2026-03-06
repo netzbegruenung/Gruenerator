@@ -171,10 +171,7 @@ describe('imageEditNode', () => {
     // (direct import triggers transitive langchain resolution issues in vitest)
     const fs = await import('fs');
     const barrelContent = fs.readFileSync(
-      new URL('./nodes/index.ts', import.meta.url).pathname.replace(
-        '/nodes/index.ts',
-        '/nodes/index.ts'
-      ),
+      new URL('./nodes/index.ts', import.meta.url).pathname,
       'utf-8'
     );
     expect(barrelContent).toContain("export { imageEditNode } from './imageEditNode.js'");
