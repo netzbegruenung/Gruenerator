@@ -1,5 +1,5 @@
 import { MessageCircle } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface RateLimitStatus {
   remaining: number | null;
@@ -7,42 +7,50 @@ interface RateLimitStatus {
   used: number;
 }
 
+async function fetchRateLimitStatus(): Promise<RateLimitStatus | null> {
+  try {
+    const res = await fetch('/api/gruen-o-mat/status');
+    if (res.ok) return (await res.json()) as RateLimitStatus;
+  } catch {
+    // silently ignore — badge just won't show
+  }
+  return null;
+}
+
 export function RateLimitBadge() {
   const [status, setStatus] = useState<RateLimitStatus | null>(null);
-
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await fetch('/api/gruen-o-mat/status');
-      if (res.ok) {
-        setStatus(await res.json());
-      }
-    } catch {
-      // silently ignore — badge just won't show
-    }
-  }, []);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    fetchStatus();
+    mountedRef.current = true;
 
-    // Re-fetch after each message (listen for SSE connections closing)
-    const interval = setInterval(fetchStatus, 30_000);
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
+    const refresh = () => {
+      void fetchRateLimitStatus().then((result) => {
+        if (mountedRef.current) setStatus(result);
+      });
+    };
 
-  // Also re-fetch when the user sends a message (DOM mutation on thread)
-  useEffect(() => {
+    refresh();
+
+    // Re-fetch every 30s
+    const interval = setInterval(refresh, 30_000);
+
+    // Also re-fetch when the user sends a message (DOM mutation on thread)
     const observer = new MutationObserver(() => {
       // Small delay so the backend has time to increment
-      setTimeout(fetchStatus, 2000);
+      setTimeout(refresh, 2000);
     });
-
     const viewport = document.querySelector('[data-thread-viewport]');
     if (viewport) {
       observer.observe(viewport, { childList: true, subtree: true });
     }
 
-    return () => observer.disconnect();
-  }, [fetchStatus]);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(interval);
+      observer.disconnect();
+    };
+  }, []);
 
   if (!status || status.remaining === null || status.limit === null) return null;
 
