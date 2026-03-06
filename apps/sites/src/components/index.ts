@@ -1,7 +1,10 @@
-export { HeroSection } from './HeroSection';
-export { AboutSection } from './AboutSection';
-export { HeroImageSection } from './HeroImageSection';
-export { ThemesSection } from './ThemesSection';
-export { ActionsSection } from './ActionsSection';
+export {
+  HeroSection,
+  AboutSection,
+  HeroImageSection,
+  ThemesSection,
+  ActionsSection,
+  ContactSection,
+} from '@gruenerator/sites-design';
+
 export { SocialFeedSection } from './SocialFeedSection';
-export { ContactSection } from './ContactSection';

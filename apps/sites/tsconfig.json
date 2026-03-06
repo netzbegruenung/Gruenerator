@@ -8,7 +8,9 @@
     "paths": {
       "@/*": ["src/*"],
       "@gruenerator/shared": ["../../packages/shared/src"],
-      "@gruenerator/shared/*": ["../../packages/shared/src/*"]
+      "@gruenerator/shared/*": ["../../packages/shared/src/*"],
+      "@gruenerator/sites-design": ["../../packages/sites-design/src"],
+      "@gruenerator/sites-design/*": ["../../packages/sites-design/src/*"]
     },
     "types": ["vite/client"],
     "noUncheckedIndexedAccess": false,

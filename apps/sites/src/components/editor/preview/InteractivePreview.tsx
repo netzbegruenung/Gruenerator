@@ -1,16 +1,10 @@
+import { MarkdownContent, type CandidateData } from '@gruenerator/sites-design';
+
 import { useScrollSync } from '../../../hooks/useScrollSync';
 import { useClickToEdit } from '../../../hooks/useSectionFocus';
 import { useEditorStore, type SectionType } from '../../../stores/editorStore';
-import { MarkdownContent } from '../../../utils/markdown';
-
-import type { CandidateData } from '../../../types/candidate';
 
 import '../../../styles/components/editable-preview.css';
-import '../../../styles/components/about.css';
-import '../../../styles/components/themes.css';
-import '../../../styles/components/actions.css';
-import '../../../styles/components/contact.css';
-import '../../../styles/components/hero-image.css';
 
 interface InteractivePreviewProps {
   candidateData: CandidateData;
@@ -83,21 +77,21 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
       <section
         data-section-id="about"
         ref={(el) => registerSection('about', el)}
-        className="editable-section editable-section-anchor about-section"
+        className="editable-section editable-section-anchor relative bg-white"
         onClick={handlePreviewClick}
       >
-        <div className="about-block-content">
+        <div className="max-w-[var(--container-max-width)] mx-auto flex flex-col items-start gap-[var(--spacing-lg-r)] p-[var(--spacing-xl-r)_var(--spacing-md-r)]">
           <h2
             data-section="about"
             data-field="title"
-            className={`${getElementClass('about', 'title')} about-block-title`}
+            className={`${getElementClass('about', 'title')} text-[var(--primary-600)] text-[length:var(--font-size-2xl)] font-bold leading-tight m-0`}
           >
             {candidateData.about.title || 'Wer ich bin'}
           </h2>
           <div
             data-section="about"
             data-field="content"
-            className={`${getElementClass('about', 'content')} about-block-text`}
+            className={`${getElementClass('about', 'content')} flex-1 [&_p]:text-[var(--grey-800)] [&_p]:text-[length:var(--font-size-base)] [&_p]:leading-relaxed [&_p]:mb-[var(--spacing-md)] [&_p:last-child]:mb-0`}
           >
             <MarkdownContent
               content={candidateData.about.content || 'Deine Biografie wird hier erscheinen...'}
@@ -110,20 +104,22 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
       <section
         data-section-id="heroImage"
         ref={(el) => registerSection('heroImage', el)}
-        className="editable-section editable-section-anchor hero-image-section"
+        className="editable-section editable-section-anchor relative min-h-[40vh] bg-cover bg-center bg-scroll flex items-center justify-center"
         onClick={handlePreviewClick}
         style={{
           background: candidateData.heroImage.imageUrl
             ? `url(${candidateData.heroImage.imageUrl})`
             : 'var(--primary-700)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
         }}
       >
-        <div className="hero-image-overlay">
-          <div className="hero-image-content">
+        <div className="absolute inset-0 bg-black/65 flex items-center justify-center">
+          <div className="text-center p-[var(--spacing-lg-r)] max-w-[800px]">
             <h2
               data-section="heroImage"
               data-field="title"
-              className={`${getElementClass('heroImage', 'title')} hero-image-title`}
+              className={`${getElementClass('heroImage', 'title')} text-[length:var(--font-size-xl)] font-bold text-white mb-[var(--spacing-md)] [text-shadow:0_2px_4px_rgba(0,0,0,0.3)]`}
             >
               {candidateData.heroImage.title || 'Deine Hauptbotschaft'}
             </h2>
@@ -131,7 +127,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
               <p
                 data-section="heroImage"
                 data-field="subtitle"
-                className={`${getElementClass('heroImage', 'subtitle')} hero-image-subtitle`}
+                className={`${getElementClass('heroImage', 'subtitle')} text-[length:var(--font-size-lg)] text-[var(--neutral-600)]`}
               >
                 {candidateData.heroImage.subtitle}
               </p>
@@ -144,49 +140,58 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
       <section
         data-section-id="themes"
         ref={(el) => registerSection('themes', el)}
-        className="editable-section editable-section-anchor themes-section"
+        className="editable-section editable-section-anchor bg-[var(--primary-50)] py-[var(--spacing-xxl-r)] overflow-hidden"
         onClick={handlePreviewClick}
       >
-        <h2 className="text-[length:var(--font-size-2xl)] mb-xl text-center text-grey-900">
-          {candidateData.themes.title || 'Meine Themen'}
-        </h2>
-        <div className="themes-grid">
-          {candidateData.themes.themes.length > 0 ? (
-            candidateData.themes.themes.map((theme, index) => (
-              <div key={index} className="theme-card">
-                {theme.imageUrl && (
-                  <div
-                    data-section="themes"
-                    data-field="imageUrl"
-                    data-index={index}
-                    className={`${getElementClass('themes', 'imageUrl', index)} editable-element--image theme-image-wrapper`}
-                  >
-                    <img src={theme.imageUrl} alt={theme.title} className="theme-image" />
-                  </div>
-                )}
-                <div className="theme-content">
-                  <h3
-                    data-section="themes"
-                    data-field="title"
-                    data-index={index}
-                    className={`${getElementClass('themes', 'title', index)} theme-title`}
-                  >
-                    {theme.title || `Thema ${index + 1}`}
-                  </h3>
-                  <div
-                    data-section="themes"
-                    data-field="content"
-                    data-index={index}
-                    className={`${getElementClass('themes', 'content', index)} theme-description`}
-                  >
-                    <MarkdownContent content={theme.content || 'Beschreibung...'} />
+        <div className="max-w-[var(--container-max-width)] mx-auto px-[var(--spacing-md-r)]">
+          <h2 className="text-[length:var(--font-size-2xl)] mb-xl text-center text-grey-900">
+            {candidateData.themes.title || 'Meine Themen'}
+          </h2>
+          <div className="flex gap-[var(--spacing-md-r)] overflow-x-auto scrollbar-none pb-[var(--spacing-lg-r)]">
+            {candidateData.themes.themes.length > 0 ? (
+              candidateData.themes.themes.map((theme, index) => (
+                <div
+                  key={index}
+                  className="flex-[0_0_85%] min-w-[280px] bg-white rounded-[var(--radius-md)] overflow-hidden shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
+                >
+                  {theme.imageUrl && (
+                    <div
+                      data-section="themes"
+                      data-field="imageUrl"
+                      data-index={index}
+                      className={`${getElementClass('themes', 'imageUrl', index)} editable-element--image aspect-[16/10] overflow-hidden`}
+                    >
+                      <img
+                        src={theme.imageUrl}
+                        alt={theme.title}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                    </div>
+                  )}
+                  <div className="p-[var(--spacing-lg-r)]">
+                    <h3
+                      data-section="themes"
+                      data-field="title"
+                      data-index={index}
+                      className={`${getElementClass('themes', 'title', index)} text-[length:var(--font-size-lg)] font-semibold text-[var(--primary-600)] mb-[var(--spacing-sm)]`}
+                    >
+                      {theme.title || `Thema ${index + 1}`}
+                    </h3>
+                    <div
+                      data-section="themes"
+                      data-field="content"
+                      data-index={index}
+                      className={`${getElementClass('themes', 'content', index)} text-[var(--grey-600)] text-[length:var(--font-size-base)] leading-relaxed`}
+                    >
+                      <MarkdownContent content={theme.content || 'Beschreibung...'} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center p-xl text-grey-500">Noch keine Themen hinzugefügt</div>
-          )}
+              ))
+            ) : (
+              <div className="text-center p-xl text-grey-500">Noch keine Themen hinzugefügt</div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -194,10 +199,10 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
       <section
         data-section-id="actions"
         ref={(el) => registerSection('actions', el)}
-        className="editable-section editable-section-anchor actions-section"
+        className="editable-section editable-section-anchor bg-white py-[var(--spacing-xxl-r)] px-[var(--spacing-md-r)]"
         onClick={handlePreviewClick}
       >
-        <div className="image-grid">
+        <div className="grid grid-cols-1 gap-[var(--spacing-lg-r)] max-w-[var(--container-max-width)] mx-auto justify-items-center">
           {candidateData.actions.actions.length > 0 ? (
             candidateData.actions.actions.map((action, index) => (
               <div
@@ -205,7 +210,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                 data-section="actions"
                 data-field="text"
                 data-index={index}
-                className={`${getElementClass('actions', 'text', index)} grid-item`}
+                className={`${getElementClass('actions', 'text', index)} relative overflow-hidden cursor-pointer aspect-[3/4] min-h-[200px] w-full max-w-[350px] bg-[var(--primary-600)] flex items-center justify-center text-white`}
                 style={{
                   background: action.imageUrl
                     ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${action.imageUrl})`
@@ -271,7 +276,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
       <section
         data-section-id="contact"
         ref={(el) => registerSection('contact', el)}
-        className="editable-section editable-section-anchor contact-section"
+        className="editable-section editable-section-anchor relative bg-cover bg-center py-[var(--spacing-xxl-r)]"
         onClick={handlePreviewClick}
         style={{
           backgroundImage: candidateData.contact.backgroundImageUrl
@@ -282,12 +287,13 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
             : undefined,
         }}
       >
-        <div className="contact-overlay">
-          <div className="contact-container">
+        <div className="absolute inset-0 bg-black/40 z-[1]" />
+        <div className="relative z-[2]">
+          <div className="max-w-[var(--container-max-width)] mx-auto p-[var(--spacing-lg-r)_var(--spacing-md-r)]">
             <h2
               data-section="contact"
               data-field="title"
-              className={`${getElementClass('contact', 'title')} contact-title`}
+              className={`${getElementClass('contact', 'title')} text-[length:var(--font-size-2xl)] font-bold text-white mb-[var(--spacing-lg-r)]`}
             >
               {candidateData.contact.title || 'Kontakt'}
             </h2>
@@ -295,7 +301,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
               <p
                 data-section="contact"
                 data-field="email"
-                className={`${getElementClass('contact', 'email')} text-base mb-sm`}
+                className={`${getElementClass('contact', 'email')} text-base text-white mb-sm`}
               >
                 {candidateData.contact.email || 'kontakt@beispiel.de'}
               </p>
@@ -303,7 +309,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                 <p
                   data-section="contact"
                   data-field="phone"
-                  className={`${getElementClass('contact', 'phone')} text-base opacity-90 mb-xs`}
+                  className={`${getElementClass('contact', 'phone')} text-base text-white opacity-90 mb-xs`}
                 >
                   {candidateData.contact.phone}
                 </p>
@@ -312,7 +318,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                 <p
                   data-section="contact"
                   data-field="address"
-                  className={`${getElementClass('contact', 'address')} text-sm opacity-80 whitespace-pre-line`}
+                  className={`${getElementClass('contact', 'address')} text-sm text-white opacity-80 whitespace-pre-line`}
                 >
                   {candidateData.contact.address}
                 </p>

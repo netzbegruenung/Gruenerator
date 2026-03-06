@@ -1,6 +1,6 @@
 import { CandidatePage } from '../CandidatePage';
 
-import type { CandidateData } from '../types/candidate';
+import type { CandidateData } from '@gruenerator/sites-design';
 
 const demoCandidate: CandidateData = {
   id: 'demo',

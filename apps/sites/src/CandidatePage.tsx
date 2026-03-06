@@ -1,4 +1,4 @@
-import type { CandidateData } from '@/types/candidate';
+import type { CandidateData } from '@gruenerator/sites-design';
 
 import {
   HeroSection,

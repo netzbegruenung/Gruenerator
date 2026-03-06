@@ -1,7 +1,7 @@
 import { SectionEditorContainer } from './SectionEditorContainer';
 import { SectionNavigation } from './SectionNavigation';
 
-import type { CandidateData } from '../../types/candidate';
+import type { CandidateData } from '@gruenerator/sites-design';
 
 interface EditorSidebarProps {
   candidateData: CandidateData;

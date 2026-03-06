@@ -5,7 +5,7 @@ import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 import { MarkdownEditor } from '../common/MarkdownEditor';
 
-import type { ThemesSection, ThemeCard } from '../../../types/candidate';
+import type { ThemesSectionType as ThemesSection, ThemeCard } from '@gruenerator/sites-design';
 
 import { cn } from '@/utils/cn';
 

@@ -1,9 +1,9 @@
+import { Button } from '@gruenerator/sites-design';
 import { useCallback, useRef, useState } from 'react';
 import { FiArrowLeft, FiArrowRight, FiFile, FiLogOut, FiUpload, FiX } from 'react-icons/fi';
 
 import { cn } from '../utils/cn';
 
-import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';

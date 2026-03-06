@@ -1,3 +1,4 @@
+import { type CandidateData } from '@gruenerator/sites-design';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiLogOut, FiExternalLink, FiEye } from 'react-icons/fi';
 
@@ -14,7 +15,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useLoadingProgress } from '../hooks/useLoadingProgress';
 import { useSite, type GeneratedSiteData } from '../hooks/useSite';
 import { useToast } from '../hooks/useToast';
-import { type CandidateData } from '../types/candidate';
 import { cn } from '../utils/cn';
 import { handleApiError } from '../utils/errorHandler';
 import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';

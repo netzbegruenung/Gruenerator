@@ -4,7 +4,7 @@ import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 
-import type { ActionsSection, ActionTile } from '../../../types/candidate';
+import type { ActionsSectionType as ActionsSection, ActionTile } from '@gruenerator/sites-design';
 
 import { cn } from '@/utils/cn';
 
