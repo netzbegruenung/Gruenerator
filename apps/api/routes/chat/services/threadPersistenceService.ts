@@ -52,6 +52,17 @@ export async function createMessage(
 }
 
 /**
+ * Check if a thread exists.
+ */
+export async function threadExists(threadId: string): Promise<boolean> {
+  const postgres = getPostgresInstance();
+  const result = (await postgres.query(`SELECT 1 FROM chat_threads WHERE id = $1`, [
+    threadId,
+  ])) as unknown[];
+  return result.length > 0;
+}
+
+/**
  * Update thread timestamp.
  */
 export async function touchThread(threadId: string): Promise<void> {
