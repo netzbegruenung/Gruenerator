@@ -19,7 +19,6 @@ import useNotebookStore from '../stores/notebookStore';
 import { NotebookAssistantMessage } from './NotebookAssistantMessage';
 
 import '../../../assets/styles/features/notebook/notebook-chat.css';
-import '../../../components/common/Chat/ChatStartPage.css';
 
 const NotebookChat = () => {
   const { id } = useParams<{ id: string }>();
