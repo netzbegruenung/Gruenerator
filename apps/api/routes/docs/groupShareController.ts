@@ -73,6 +73,12 @@ router.get('/:id/groups', async (req: Request, res: Response) => {
     }
 
     if (doc[0].created_by !== userId) {
+      console.error(
+        '[Docs] Group share 403: created_by=%s, userId=%s, docId=%s',
+        doc[0].created_by,
+        userId,
+        id
+      );
       return res.status(403).json({ error: 'Only document owner can manage group sharing' });
     }
 

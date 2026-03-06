@@ -75,6 +75,13 @@ router.get('/:id/permissions', async (req: Request<{ id: string }>, res: Respons
       document.created_by === userId || (document.permissions && document.permissions[userId]);
 
     if (!hasAccess) {
+      console.error(
+        '[Docs] Permissions 403: created_by=%s, userId=%s, docId=%s, permKeys=%o',
+        document.created_by,
+        userId,
+        id,
+        Object.keys(document.permissions || {})
+      );
       return res.status(403).json({ error: 'Access denied' });
     }
 
