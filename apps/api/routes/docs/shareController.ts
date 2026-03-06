@@ -39,6 +39,13 @@ async function getOwnedDocument(
   }
 
   if (!isOwner(result[0], userId)) {
+    console.error(
+      '[Docs] Share 403: created_by=%s, userId=%s, docId=%s, permKeys=%o',
+      result[0].created_by,
+      userId,
+      id,
+      Object.keys(result[0].permissions || {})
+    );
     res.status(403).json({ error: 'Only owners can manage sharing settings' });
     return null;
   }
