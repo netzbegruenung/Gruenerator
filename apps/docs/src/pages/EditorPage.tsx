@@ -87,6 +87,7 @@ export const EditorPage = () => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const user = useAuthStore((state) => state.user);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
   const isGuest = !user;
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
@@ -101,7 +102,7 @@ export const EditorPage = () => {
       }
       return apiClient.get<Document>(`/docs/${id}`);
     },
-    enabled: !!id,
+    enabled: !!id && !isAuthLoading,
   });
 
   const canEdit = useMemo(() => {
