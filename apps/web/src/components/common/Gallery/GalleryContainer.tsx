@@ -9,10 +9,8 @@ import { DEFAULT_GALLERY_TYPE, GALLERY_CONTENT_TYPES, ORDERED_CONTENT_TYPE_IDS }
 import GalleryControls from './GalleryControls';
 import { useGalleryController } from './useGalleryController';
 
-
 import '../../../assets/styles/components/gallery-layout.css';
 import '../../../assets/styles/components/gallery-content-type.css';
-import '../../../assets/styles/components/SearchBar.css';
 
 interface CategoryItem {
   id: string;
@@ -82,24 +80,27 @@ const GalleryContainer = ({
     setContentType(nextType);
   }, []);
 
-  const renderList = useCallback((list: GalleryItem[], rendererId: string): React.ReactNode[] | null => {
-    if (!Array.isArray(list) || list.length === 0) return null;
-    const adapter = cardAdapters[rendererId as keyof typeof cardAdapters] || cardAdapters.default;
-    const adapterOptions =
-      rendererId === 'vorlagen'
-        ? { onTagClick: handleTagClick, onOpenPreview: handleOpenPreview }
-        : rendererId === 'agents'
-          ? { onOpenPreview: handleOpenPreview }
-          : {};
+  const renderList = useCallback(
+    (list: GalleryItem[], rendererId: string): React.ReactNode[] | null => {
+      if (!Array.isArray(list) || list.length === 0) return null;
+      const adapter = cardAdapters[rendererId as keyof typeof cardAdapters] || cardAdapters.default;
+      const adapterOptions =
+        rendererId === 'vorlagen'
+          ? { onTagClick: handleTagClick, onOpenPreview: handleOpenPreview }
+          : rendererId === 'agents'
+            ? { onOpenPreview: handleOpenPreview }
+            : {};
 
-    return list.map((item) => {
-      const result = adapter(item, adapterOptions);
-      if (!result || !result.key || !result.props.title) return null;
-      const { key, props } = result;
-      const { title, ...restProps } = props;
-      return <IndexCard key={key} title={String(title)} {...restProps} />;
-    });
-  }, [handleTagClick, handleOpenPreview]);
+      return list.map((item) => {
+        const result = adapter(item, adapterOptions);
+        if (!result || !result.key || !result.props.title) return null;
+        const { key, props } = result;
+        const { title, ...restProps } = props;
+        return <IndexCard key={key} title={String(title)} {...restProps} />;
+      });
+    },
+    [handleTagClick, handleOpenPreview]
+  );
 
   const renderedContent = useMemo(() => {
     if (loading && (!items || items.length === 0)) {

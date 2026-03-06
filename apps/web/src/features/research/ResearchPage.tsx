@@ -8,31 +8,15 @@ import SearchBar from '../search/components/SearchBar';
 import '../../assets/styles/components/gallery-layout.css';
 
 import ActiveFilterChips from './components/ActiveFilterChips';
-import ResearchFilterPanel from './components/ResearchFilterPanel';
+import ResearchSettingsPanel from './components/ResearchSettingsPanel';
 import { useResearch, type ResearchResult } from './useResearch';
-import { useResearchFilters, type SearchMode, type SortOption } from './useResearchFilters';
-
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useResearchFilters, type SortOption } from './useResearchFilters';
 
 const EXAMPLE_QUESTIONS = [
   { icon: '🌍', text: 'Klimaschutz Maßnahmen' },
   { icon: '🚲', text: 'Verkehrswende in Kommunen' },
   { icon: '📚', text: 'Bildungspolitik Positionen' },
 ];
-
-const MODE_LABELS: Record<SearchMode, string> = {
-  hybrid: 'Hybrid',
-  vector: 'Semantisch',
-  text: 'Volltext',
-};
 
 const SORT_LABELS: Record<SortOption, string> = {
   relevance: 'Relevanz',
@@ -164,87 +148,37 @@ function ResearchPage() {
           </p>
         </div>
 
-        <SearchBar
-          onSearch={handleSearch}
-          loading={isLoading}
-          value={query}
-          onChange={setQuery}
-          placeholder="Suchbegriff eingeben (z.B. Klimaschutz, Mobilität, Bildung)..."
-          exampleQuestions={EXAMPLE_QUESTIONS}
-          hideExamples={hasSearched}
-          hideDisclaimer
-        />
-
-        <div className="mb-xs mt-md flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-grey-500 dark:text-grey-400">Kollektionen</span>
-
-          <ResearchFilterPanel
-            filterFields={filterFields}
-            activeFilters={activeFilters}
-            activeFilterCount={activeFilterCount}
-            filtersLoading={filtersLoading}
-            onToggleFilter={toggleFilter}
-            onSetDateFilter={setDateFilter}
-            onClearAll={clearAllFilters}
-            disabled={isLoading}
+        <div className="relative">
+          <SearchBar
+            onSearch={handleSearch}
+            loading={isLoading}
+            value={query}
+            onChange={setQuery}
+            placeholder="Suchbegriff eingeben (z.B. Klimaschutz, Mobilität, Bildung)..."
+            exampleQuestions={EXAMPLE_QUESTIONS}
+            hideExamples={hasSearched}
+            hideDisclaimer
+            settingsContent={
+              <ResearchSettingsPanel
+                collections={collections}
+                collectionsLoading={collectionsLoading}
+                selectedCollectionIds={selectedCollectionIds}
+                onSelectedCollectionIdsChange={setSelectedCollectionIds}
+                searchMode={searchMode}
+                onSearchModeChange={setSearchMode}
+                sortBy={sortBy}
+                onSortByChange={setSortBy}
+                filterFields={filterFields}
+                activeFilters={activeFilters}
+                activeFilterCount={activeFilterCount}
+                filtersLoading={filtersLoading}
+                onToggleFilter={toggleFilter}
+                onSetDateFilter={setDateFilter}
+                onClearAll={clearAllFilters}
+                disabled={isLoading}
+              />
+            }
           />
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                {MODE_LABELS[searchMode]}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuRadioGroup
-                value={searchMode}
-                onValueChange={(v) => setSearchMode(v as SearchMode)}
-              >
-                <DropdownMenuRadioItem value="hybrid">Hybrid</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="vector">Semantisch</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="text">Volltext</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                {SORT_LABELS[sortBy]}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuRadioGroup
-                value={sortBy}
-                onValueChange={(v) => setSortBy(v as SortOption)}
-              >
-                <DropdownMenuRadioItem value="relevance">Relevanz</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="date_desc">Neueste zuerst</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="date_asc">Älteste zuerst</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div className="mb-lg">
-          {collectionsLoading ? (
-            <p className="text-xs text-grey-400">Kollektionen werden geladen…</p>
-          ) : (
-            <ToggleGroup
-              type="multiple"
-              value={selectedCollectionIds}
-              onValueChange={setSelectedCollectionIds}
-              variant="outline"
-              size="sm"
-              className="flex-wrap"
-            >
-              {collections.map((col) => (
-                <ToggleGroupItem key={col.id} value={col.id}>
-                  {col.name}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          )}
         </div>
 
         {activeFilterCount > 0 && (

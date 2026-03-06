@@ -106,6 +106,8 @@ export function useElementRect({
 
   useEffect(() => {
     if (!enabled || !isClientSide()) {
+      // Reset rect when tracking is disabled — legitimate state sync
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRect(initialRect);
       return;
     }
