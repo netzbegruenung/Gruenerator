@@ -24,6 +24,11 @@ import { toTokenCounterMessage, CONTEXT_CONFIG } from './messageHelpers.js';
 
 const log = createLogger('ContextPruning');
 
+// In-memory guards to prevent re-triggering compaction on every message after threshold
+const compactionInProgress = new Set<string>();
+const lastCompactionTime = new Map<string, number>();
+const COMPACTION_COOLDOWN_MS = 60_000; // 1 minute
+
 export interface PruningResult {
   prunedMessages: any[];
   systemMessage: string;
@@ -67,14 +72,23 @@ export async function applyCompaction(
     const messageCount = await getMessageCount(threadId);
     const compactionState = await getCompactionState(threadId);
 
-    if (needsCompaction(messageCount, compactionState.summary)) {
+    const now = Date.now();
+    const cooldownActive = now - (lastCompactionTime.get(threadId) ?? 0) < COMPACTION_COOLDOWN_MS;
+
+    if (
+      needsCompaction(messageCount, compactionState.summary) &&
+      !compactionInProgress.has(threadId) &&
+      !cooldownActive
+    ) {
+      compactionInProgress.add(threadId);
       log.info(
-        `[Context] Thread ${threadId} has ${messageCount} messages, triggering background compaction`
+        `[Context] Thread ${threadId}: ${messageCount} messages, triggering background compaction`
       );
       const threadMessages = await getThreadMessages(threadId);
-      generateCompactionSummary(threadId, threadMessages).catch((err) =>
-        log.error('[Compaction] Background compaction failed:', err)
-      );
+      generateCompactionSummary(threadId, threadMessages)
+        .then(() => lastCompactionTime.set(threadId, Date.now()))
+        .catch((err) => log.error('[Compaction] Background compaction failed:', err))
+        .finally(() => compactionInProgress.delete(threadId));
     }
 
     if (compactionState.summary) {

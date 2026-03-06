@@ -154,7 +154,7 @@ function gruenerator_css_settings() {
             <tr>
                 <th scope="row"><label for="gruenerator_use_css">Standard-Design verwenden</label></th>
                 <td>
-                    <input type="checkbox" id="gruenerator_use_css" name="gruenerator_use_css" value="1" <?php checked(get_option('gruenerator_use_css', 1)); ?>>
+                    <input type="checkbox" id="gruenerator_use_css" name="gruenerator_use_css" value="1" <?php checked(get_option('gruenerator_custom_css_active', false)); ?>>
                     <p class="description">Aktiviere diese Option, um das optimierte Grüne Design zu verwenden. Deaktiviere sie nur, wenn du ein komplett eigenes Design einsetzen möchtest.</p>
                 </td>
             </tr>
@@ -298,9 +298,6 @@ function gruenerator_about_me() {
 /**
  * Hero Image Block Einstellungen des Setup-Wizards
  */
-/**
- * Hero Image Block Einstellungen des Setup-Wizards
- */
 function gruenerator_hero_image_block() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
@@ -347,9 +344,6 @@ function gruenerator_hero_image_block() {
 }
 
 
-/**
- * Meine Themen Einstellungen des Setup-Wizards
- */
 /**
  * Meine Themen Einstellungen des Setup-Wizards
  */
@@ -424,10 +418,6 @@ function gruenerator_my_themes() {
 /**
  * Bildergalerie Einstellungen des Setup-Wizards
  */
-
-/**
- * Bildergalerie Einstellungen des Setup-Wizards
- */
 function gruenerator_image_grid() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
@@ -492,9 +482,6 @@ function gruenerator_image_grid() {
 }
 
 
-/**
- * Kontaktformular Einstellungen des Setup-Wizards
- */
 /**
  * Kontaktformular Einstellungen des Setup-Wizards
  */
@@ -613,5 +600,3 @@ function gruenerator_setup_complete_page() {
     </div>
     <?php
 }
-
-add_action('admin_post_gruenerator_process_setup', 'gruenerator_process_setup');

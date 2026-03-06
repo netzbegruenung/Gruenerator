@@ -17,9 +17,11 @@ export class MistralEmbeddingClient {
     this.model = model;
   }
 
-  // Mistral API rejects individual texts exceeding 8192 tokens
+  // Mistral API rejects individual texts exceeding 8192 tokens.
+  // Use conservative 2.5 chars/token — OCR text and dense content tokenizes at ~2.8
+  // chars/token (observed: 32760 chars = 11365 tokens = 2.88 ratio).
   private static readonly MAX_TOKENS_PER_TEXT = 8192;
-  private static readonly MAX_CHARS_PER_TEXT = 8192 * 4; // ~4 chars per token
+  private static readonly MAX_CHARS_PER_TEXT = Math.floor(8192 * 2.5); // 20480 chars
 
   async generateEmbedding(text: string): Promise<number[]> {
     if (!text || typeof text !== 'string') throw new Error('Text required');
@@ -82,12 +84,34 @@ export class MistralEmbeddingClient {
               allEmbeddings.push(embedding);
             } catch (individualError) {
               const indErr = individualError as Error;
-              console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
-              throw new Error(`Failed to generate embedding for text: ${indErr.message}`);
+              // If a single text exceeds token limit even after truncation, skip it
+              // with a zero vector rather than aborting the entire document
+              if (
+                indErr.message.includes('exceeding max') ||
+                indErr.message.includes('too many tokens')
+              ) {
+                console.warn(
+                  `[MistralEmbeddingClient] Skipping oversized text (${text.length} chars) — using zero vector`
+                );
+                // Generate a zero vector with the correct dimension (1024 for mistral-embed)
+                allEmbeddings.push(new Array(1024).fill(0));
+              } else {
+                console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
+                throw new Error(`Failed to generate embedding for text: ${indErr.message}`);
+              }
             }
           }
         } else {
-          throw error;
+          // Single-text batch failed — check if it's an oversized text error
+          const errMsg = (error as Error).message || '';
+          if (errMsg.includes('exceeding max') || errMsg.includes('too many tokens')) {
+            console.warn(
+              `[MistralEmbeddingClient] Skipping oversized text (${batch[0].length} chars) — using zero vector`
+            );
+            allEmbeddings.push(new Array(1024).fill(0));
+          } else {
+            throw error;
+          }
         }
       }
 
@@ -116,8 +140,9 @@ export class MistralEmbeddingClient {
   }
 
   estimateTokens(text: string): number {
-    // Rough estimation: ~4 characters per token for most languages
-    return Math.ceil((text || '').length / 4);
+    // Conservative estimation: ~2.5 characters per token
+    // OCR/dense content tokenizes at 2.5-3 chars/token, natural text at ~4
+    return Math.ceil((text || '').length / 2.5);
   }
 
   estimateTotalTokens(texts: string[]): number {
@@ -233,10 +258,11 @@ export class MistralEmbeddingClient {
       return true;
     }
 
-    // Don't retry on specific batch size errors - these need different handling
+    // Don't retry on token/batch limit errors - these need different handling
     if (
       errorMessage.includes('Batch size too large') ||
-      errorMessage.includes('Too many tokens overall')
+      errorMessage.includes('Too many tokens overall') ||
+      errorMessage.includes('exceeding max')
     ) {
       return false;
     }

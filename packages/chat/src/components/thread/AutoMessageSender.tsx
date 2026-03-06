@@ -9,41 +9,37 @@ export function AutoMessageSender() {
   const composerRuntime = useComposerRuntime();
   const pendingMessage = useAgentStore((s) => s.pendingMessage);
   const setPendingMessage = useAgentStore((s) => s.setPendingMessage);
-  const currentThreadId = useAgentStore((s) => s.currentThreadId);
-  const phaseRef = useRef<'idle' | 'switching'>('idle');
-  const prevThreadIdRef = useRef<string | null>(null);
+  const switchedRef = useRef(false);
 
   // Phase 1: Switch to new thread when pending message appears
   useEffect(() => {
-    if (pendingMessage && phaseRef.current === 'idle') {
-      prevThreadIdRef.current = currentThreadId;
-      phaseRef.current = 'switching';
+    if (pendingMessage && !switchedRef.current) {
+      switchedRef.current = true;
       assistantRuntime.switchToNewThread();
     }
-  }, [pendingMessage, assistantRuntime, currentThreadId]);
-
-  // Phase 2: Send message when new thread is ready (currentThreadId changed)
-  useEffect(() => {
-    if (
-      phaseRef.current !== 'switching' ||
-      !pendingMessage ||
-      currentThreadId === prevThreadIdRef.current
-    ) {
-      return;
+    if (!pendingMessage) {
+      switchedRef.current = false;
     }
+  }, [pendingMessage, assistantRuntime]);
+
+  // Phase 2: Send message after thread is ready
+  // composerRuntime may change during thread switch — timer resets each time
+  useEffect(() => {
+    if (!pendingMessage || !switchedRef.current) return;
 
     const timer = setTimeout(() => {
       try {
         composerRuntime.setText(pendingMessage);
         composerRuntime.send();
-        setPendingMessage(null);
       } catch (err) {
         console.warn('[AutoMessageSender] Failed to send:', err);
       }
-      phaseRef.current = 'idle';
-    }, 300);
+      setPendingMessage(null);
+      switchedRef.current = false;
+    }, 500);
+
     return () => clearTimeout(timer);
-  }, [currentThreadId, pendingMessage, composerRuntime, setPendingMessage]);
+  }, [pendingMessage, composerRuntime, setPendingMessage]);
 
   return null;
 }

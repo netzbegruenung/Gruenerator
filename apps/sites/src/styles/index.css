@@ -1,21 +1,14 @@
 @layer base, legacy, components, utilities;
 
-/* Legacy CSS — candidate page rendering + editable preview (keep as-is) */
-@import url('./variables.css') layer(legacy);
-@import url('./base.css') layer(legacy);
-@import url('./layout.css') layer(legacy);
-@import url('./components/hero.css') layer(legacy);
-@import url('./components/about.css') layer(legacy);
-@import url('./components/hero-image.css') layer(legacy);
-@import url('./components/themes.css') layer(legacy);
-@import url('./components/actions.css') layer(legacy);
-@import url('./components/contact.css') layer(legacy);
-@import url('./components/footer.css') layer(legacy);
-@import url('./components/social-feed.css') layer(legacy);
+/* Shared design tokens + base reset */
+@import url('../../../../packages/sites-design/src/styles/theme.css') layer(legacy);
+
+/* Editor-specific (stays local) */
 @import url('./components/editable-preview.css') layer(legacy);
 
 @import "tailwindcss";
 @source "../../src/**/*.{js,ts,jsx,tsx}";
+@source "../../../packages/sites-design/src/**/*.{ts,tsx}";
 
 @theme {
   /* Colors — Primary (Phthalo Green) */

@@ -4,7 +4,7 @@ import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { MarkdownEditor } from '../common/MarkdownEditor';
 
-import type { AboutSection } from '../../../types/candidate';
+import type { AboutSectionType as AboutSection } from '@gruenerator/sites-design';
 
 import { cn } from '@/utils/cn';
 

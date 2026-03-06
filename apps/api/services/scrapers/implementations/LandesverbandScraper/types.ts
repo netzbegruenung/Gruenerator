@@ -115,6 +115,8 @@ export interface LandesverbandScrapeOptions {
   contentType?: string | null;
   /** Maximum documents per content path */
   maxDocuments?: number | null;
+  /** Dry run: extract links and check Qdrant, but don't download/process */
+  dryRun?: boolean;
 }
 
 /**

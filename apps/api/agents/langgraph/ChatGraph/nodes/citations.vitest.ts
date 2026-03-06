@@ -77,10 +77,10 @@ describe('buildCitations', () => {
     expect(citations[0].citedText).toHaveLength(300);
   });
 
-  it('sets citedText to first 500 chars for very long content', () => {
-    const content = makeLongContent(800);
+  it('sets citedText to first 1500 chars for very long content', () => {
+    const content = makeLongContent(2000);
     const citations = buildCitations([makeResult({ content })]);
-    expect(citations[0].citedText).toHaveLength(500);
+    expect(citations[0].citedText).toHaveLength(1500);
   });
 
   it('does not set citedText for short content', () => {
