@@ -37,18 +37,14 @@ const ALL_INTENTS: SearchIntent[] = [
   'examples',
   'image',
   'image_edit',
+  'summary',
   'direct',
 ];
 
 /**
  * All ImageStyle values that must be supported.
  */
-const ALL_IMAGE_STYLES: ImageStyle[] = [
-  'illustration',
-  'realistic',
-  'pixel',
-  'green-edit',
-];
+const ALL_IMAGE_STYLES: ImageStyle[] = ['illustration', 'realistic', 'pixel', 'green-edit'];
 
 // ============================================================================
 // 1. Type-Level Consistency
@@ -175,7 +171,10 @@ describe('imageEditNode', () => {
     // (direct import triggers transitive langchain resolution issues in vitest)
     const fs = await import('fs');
     const barrelContent = fs.readFileSync(
-      new URL('./nodes/index.ts', import.meta.url).pathname.replace('/nodes/index.ts', '/nodes/index.ts'),
+      new URL('./nodes/index.ts', import.meta.url).pathname.replace(
+        '/nodes/index.ts',
+        '/nodes/index.ts'
+      ),
       'utf-8'
     );
     expect(barrelContent).toContain("export { imageEditNode } from './imageEditNode.js'");
@@ -183,10 +182,7 @@ describe('imageEditNode', () => {
 
   it('is re-exported from ChatGraph barrel', async () => {
     const fs = await import('fs');
-    const indexContent = fs.readFileSync(
-      new URL('./index.ts', import.meta.url).pathname,
-      'utf-8'
-    );
+    const indexContent = fs.readFileSync(new URL('./index.ts', import.meta.url).pathname, 'utf-8');
     expect(indexContent).toContain('imageEditNode');
   });
 });
@@ -197,7 +193,7 @@ describe('imageEditNode', () => {
 
 describe('image-related intents', () => {
   it('image and image_edit are distinct intents', () => {
-    const imageIntents = ALL_INTENTS.filter(i => i.startsWith('image'));
+    const imageIntents = ALL_INTENTS.filter((i) => i.startsWith('image'));
     expect(imageIntents).toContain('image');
     expect(imageIntents).toContain('image_edit');
     expect(imageIntents.length).toBe(2);
@@ -259,6 +255,7 @@ describe('every SearchIntent has a handler path', () => {
     search: 'handled via search branch (intent !== direct)',
     web: 'handled via search branch (intent !== direct)',
     examples: 'handled via search branch (intent !== direct)',
+    summary: 'handled via summary branch in controller',
   };
 
   for (const intent of ALL_INTENTS) {
