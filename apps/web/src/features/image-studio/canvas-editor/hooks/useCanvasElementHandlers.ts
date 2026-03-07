@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { resolveValue } from '../utils/canvasValueResolver';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
+import type { FrameInstance } from '../utils/frameUtils';
 import type { ShapeInstance } from '../utils/shapes';
 
 /**
@@ -74,6 +75,8 @@ export interface OptionalCanvasActions {
     id: string,
     attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; text?: string }>
   ) => void;
+  updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
+  setFrameImage?: (id: string, file: File, objectUrl: string) => void;
 }
 
 export interface UseCanvasElementHandlersOptions<
@@ -154,6 +157,8 @@ export interface UseCanvasElementHandlersResult {
     scale: number,
     rotation: number
   ) => void;
+  handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
+  handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
 }
 
 /**
@@ -480,6 +485,24 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handleFrameChange = useCallback(
+    (id: string, newAttrs: Partial<FrameInstance>) => {
+      if (actions.updateFrame) {
+        actions.updateFrame(id, newAttrs);
+      }
+    },
+    [actions]
+  );
+
+  const handleFrameImageUpload = useCallback(
+    (id: string, file: File, objectUrl: string) => {
+      if (actions.setFrameImage) {
+        actions.setFrameImage(id, file, objectUrl);
+      }
+    },
+    [actions]
+  );
+
   return {
     handleElementSelect,
     handleTextChange,
@@ -506,5 +529,7 @@ export function useCanvasElementHandlers<
     handleAssetTransformEnd,
     handleIllustrationDragEnd,
     handleIllustrationTransformEnd,
+    handleFrameChange,
+    handleFrameImageUpload,
   };
 }

@@ -23,6 +23,7 @@ import {
   createPillBadgeActions,
   createBalkenActions,
   createCircleBadgeActions,
+  createFrameActions,
 } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
@@ -32,6 +33,7 @@ import type { StockImageAttribution } from '../../services/imageSourceService';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
+import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
@@ -78,6 +80,8 @@ export interface VeranstaltungFullState {
   pillBadgeInstances: PillBadgeInstance[];
   // Balken instances
   balkenInstances: BalkenInstance[];
+  // Frame instances
+  frameInstances: FrameInstance[];
   // Attribution
   imageAttribution?: StockImageAttribution | null;
 
@@ -139,6 +143,11 @@ export interface VeranstaltungFullActions {
   addBalken: (mode: BalkenMode) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
+  // Frame actions
+  addFrame: (clipType: FrameClipType) => void;
+  updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
+  removeFrame: (id: string) => void;
+  setFrameImage: (id: string, file: File, objectUrl: string) => void;
 }
 
 // ============================================================================
@@ -470,6 +479,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       circleBadgeInstances: [createInitialDateCircleBadge(weekday, date, time)],
       pillBadgeInstances: [],
       balkenInstances: [],
+      frameInstances: [],
       imageAttribution: null,
     };
   },
@@ -535,6 +545,14 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       debouncedSaveToHistory
     );
 
+    const frameActions = createFrameActions(
+      getState,
+      setState,
+      saveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
+    );
+
     return {
       // === Spread common actions ===
       ...assetActions,
@@ -544,6 +562,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       ...circleBadgeActions,
       ...pillBadgeActions,
       ...balkenActions,
+      ...frameActions,
 
       // === Text Actions ===
       setEventTitle: (val: string) => {

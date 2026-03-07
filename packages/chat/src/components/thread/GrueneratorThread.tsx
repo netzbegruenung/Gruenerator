@@ -1,12 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import {
-  ThreadPrimitive,
-  SelectionToolbarPrimitive,
-  useThread,
-  useAssistantRuntime,
-} from '@assistant-ui/react';
+import { ThreadPrimitive, SelectionToolbarPrimitive, useThread, useAui } from '@assistant-ui/react';
 import { QuoteIcon } from 'lucide-react';
 import { useAgentStore } from '../../stores/chatStore';
 import { ModelSelector } from '../ModelSelector';
@@ -17,15 +12,15 @@ import { GrueneratorComposer } from './GrueneratorComposer';
 import { AutoMessageSender } from './AutoMessageSender';
 
 function NewThreadWatcher() {
-  const assistantRuntime = useAssistantRuntime();
+  const aui = useAui();
   const pendingNewThread = useAgentStore((s) => s.pendingNewThread);
 
   useEffect(() => {
     if (pendingNewThread) {
       useAgentStore.getState().setPendingNewThread(false);
-      assistantRuntime.switchToNewThread();
+      aui.threads().switchToNewThread();
     }
-  }, [pendingNewThread, assistantRuntime]);
+  }, [pendingNewThread, aui]);
 
   return null;
 }

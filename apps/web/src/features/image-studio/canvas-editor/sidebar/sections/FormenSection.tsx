@@ -6,6 +6,7 @@ import {
   PiArrowRightBold,
   PiTagFill,
   PiCircleFill,
+  PiFrameCornersFill,
 } from 'react-icons/pi';
 
 import { BalkenIcon } from '../../icons';
@@ -13,6 +14,7 @@ import { type ShapeType } from '../../utils/shapes';
 import './FormenSection.css';
 
 import type { BalkenMode } from '../../primitives/BalkenGroup';
+import type { FrameClipType } from '../../utils/frameUtils';
 
 export interface FormenSectionProps {
   onAddShape: (type: ShapeType) => void;
@@ -20,6 +22,7 @@ export interface FormenSectionProps {
   onAddPillBadge?: (preset?: string) => void;
   onAddCircleBadge?: (preset?: string) => void;
   onAddBalken?: (mode: BalkenMode) => void;
+  onAddFrame?: (clipType: FrameClipType) => void;
 }
 
 interface ShapeDefinition {
@@ -56,6 +59,7 @@ export function FormenSection({
   onAddPillBadge,
   onAddCircleBadge,
   onAddBalken,
+  onAddFrame,
 }: FormenSectionProps) {
   const visibleShapes = isExpanded ? SHAPES : SHAPES.slice(0, 4);
 
@@ -72,6 +76,38 @@ export function FormenSection({
             <div className="sidebar-selectable-card__preview">{shape.renderPreview()}</div>
           </button>
         ))}
+
+        {onAddFrame && (
+          <>
+            <button
+              key="frame-circle"
+              className="sidebar-selectable-card"
+              onClick={() => onAddFrame('circle')}
+              title="Kreisrahmen hinzufuegen"
+            >
+              <div className="sidebar-selectable-card__preview">
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    border: '2px dashed #005538',
+                  }}
+                />
+              </div>
+            </button>
+            <button
+              key="frame-rounded-rect"
+              className="sidebar-selectable-card"
+              onClick={() => onAddFrame('rounded-rect')}
+              title="Rechteckrahmen hinzufuegen"
+            >
+              <div className="sidebar-selectable-card__preview">
+                <PiFrameCornersFill size={24} />
+              </div>
+            </button>
+          </>
+        )}
 
         {onAddPillBadge && (
           <button

@@ -1,17 +1,21 @@
-import { DocsProvider, ErrorBoundary } from '@gruenerator/docs';
+import { DocsProvider, ErrorBoundary, lazyWithRetry } from '@gruenerator/docs';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { webDocsAdapter } from './lib/docsAdapter';
 
-const EditorPage = lazy(() =>
+const EditorPage = lazyWithRetry(() =>
   import('./pages/EditorPage').then((m) => ({ default: m.EditorPage }))
 );
-const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
-const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
-const SettingsPage = lazy(() =>
+const HomePage = lazyWithRetry(() =>
+  import('./pages/HomePage').then((m) => ({ default: m.HomePage }))
+);
+const LoginPage = lazyWithRetry(() =>
+  import('./pages/LoginPage').then((m) => ({ default: m.LoginPage }))
+);
+const SettingsPage = lazyWithRetry(() =>
   import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
 

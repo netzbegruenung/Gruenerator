@@ -5,6 +5,7 @@ import { resolveValue } from '../utils/canvasValueResolver';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { BalkenInstance } from '../primitives';
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { ShapeInstance } from '../utils/shapes';
 
@@ -16,7 +17,16 @@ import type { ShapeInstance } from '../utils/shapes';
  */
 
 export interface FloatingModuleState {
-  type: 'text' | 'image' | 'shape' | 'icon' | 'illustration' | 'asset' | 'background' | 'balken';
+  type:
+    | 'text'
+    | 'image'
+    | 'shape'
+    | 'icon'
+    | 'illustration'
+    | 'asset'
+    | 'background'
+    | 'balken'
+    | 'frame';
   data: {
     id: string;
     fontSize?: number;
@@ -265,6 +275,16 @@ export function useFloatingModuleState<
       return {
         type: 'illustration' as const,
         data: { ...illustration, id: selectedElement },
+      };
+    }
+
+    // Check if Frame
+    const frameInstances = getStateArray<FrameInstance>(state, 'frameInstances');
+    const frame = frameInstances.find((f) => f.id === selectedElement);
+    if (frame) {
+      return {
+        type: 'frame' as const,
+        data: { ...frame, id: selectedElement },
       };
     }
 

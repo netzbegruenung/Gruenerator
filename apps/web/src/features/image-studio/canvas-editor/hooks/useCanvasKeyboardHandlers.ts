@@ -24,6 +24,7 @@ export interface CanvasActions {
   removeIllustration?: (id: string) => void;
   removeAsset?: (id: string) => void;
   removePillBadge?: (id: string) => void;
+  removeFrame?: (id: string) => void;
 }
 
 export interface UseCanvasKeyboardHandlersOptions<TState> {
@@ -125,6 +126,17 @@ export function useCanvasKeyboardHandlers<TState>(
             };
             const existing = getStateArray<unknown>(prevState, 'pillBadgeInstances');
             (newState as Record<string, unknown>).pillBadgeInstances = [...existing, newPill];
+          } else if (type === 'frame' && typeof data === 'object' && data !== null) {
+            const frameData = data as { x: number; y: number; imageSrc?: string | null };
+            const newFrame = {
+              ...frameData,
+              id: newId,
+              x: frameData.x + offset,
+              y: frameData.y + offset,
+              imageSrc: null, // Don't share object URL references
+            };
+            const existing = getStateArray<unknown>(prevState, 'frameInstances');
+            (newState as Record<string, unknown>).frameInstances = [...existing, newFrame];
           }
 
           return newState as TState;
@@ -186,6 +198,16 @@ export function useCanvasKeyboardHandlers<TState>(
         });
         if (pillBadge) {
           CanvasClipboard.copy('pill-badge', pillBadge);
+          return;
+        }
+
+        const frames = getStateArray<unknown>(state, 'frameInstances');
+        const frame = frames.find((f: unknown) => {
+          const frameObj = f as { id?: string };
+          return frameObj.id === selectedElement;
+        });
+        if (frame) {
+          CanvasClipboard.copy('frame', frame);
           return;
         }
 
@@ -277,6 +299,21 @@ export function useCanvasKeyboardHandlers<TState>(
         ) {
           if (actions.removePillBadge) {
             actions.removePillBadge(selectedElement);
+            setSelectedElement(null);
+            return;
+          }
+        }
+
+        // Remove Frame
+        const frameInstances = getStateArray<unknown>(state, 'frameInstances');
+        if (
+          frameInstances.find((f: unknown) => {
+            const frameObj = f as { id?: string };
+            return frameObj.id === selectedElement;
+          })
+        ) {
+          if (actions.removeFrame) {
+            actions.removeFrame(selectedElement);
             setSelectedElement(null);
             return;
           }
