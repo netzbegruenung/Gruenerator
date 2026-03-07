@@ -20,7 +20,7 @@ interface AuthStatusResponse {
  * Automatically updates auth store when status changes
  */
 export const useAuth = () => {
-  const { user, isAuthenticated, setAuthState, clearAuth } = useAuthStore();
+  const { setAuthState, clearAuth } = useAuthStore();
 
   const {
     data: authData,
@@ -38,7 +38,7 @@ export const useAuth = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Update auth store when data changes
+  // Sync auth store for consumers that read from the store directly
   useEffect(() => {
     if (authData?.isAuthenticated && authData.user) {
       setAuthState({
@@ -49,6 +49,11 @@ export const useAuth = () => {
       clearAuth();
     }
   }, [authData, setAuthState, clearAuth]);
+
+  // Derive auth state directly from query data to avoid the render gap
+  // where isLoading=false but the useEffect hasn't synced the store yet
+  const isAuthenticated = authData?.isAuthenticated ?? false;
+  const user = authData?.user ?? null;
 
   return {
     user,
