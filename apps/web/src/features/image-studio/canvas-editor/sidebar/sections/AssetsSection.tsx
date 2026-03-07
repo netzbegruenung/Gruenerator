@@ -33,6 +33,7 @@ import { IconsSection } from './IconsSection';
 import { IllustrationenSection } from './IllustrationenSection';
 
 import type { BalkenInstance, BalkenMode } from '../../primitives';
+import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type {
   IllustrationInstance,
   IllustrationDef,
@@ -332,6 +333,12 @@ export interface ExtendedAssetsSectionProps {
   onUpdateIllustration?: (id: string, partial: Partial<IllustrationInstance>) => void;
   onRemoveIllustration?: (id: string) => void;
   onDuplicateIllustration?: (id: string) => void;
+
+  // Frame props
+  frameInstances?: FrameInstance[];
+  onAddFrame?: (clipType: FrameClipType) => void;
+  onUpdateFrame?: (id: string, partial: Partial<FrameInstance>) => void;
+  onRemoveFrame?: (id: string) => void;
 }
 
 export function AssetsSection({
@@ -371,6 +378,7 @@ export function AssetsSection({
   onUpdateIllustration,
   onRemoveIllustration,
   onDuplicateIllustration,
+  onAddFrame,
 }: ExtendedAssetsSectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -650,6 +658,7 @@ export function AssetsSection({
             onAddPillBadge={onAddPillBadge}
             onAddCircleBadge={onAddCircleBadge}
             onAddBalken={onAddBalken}
+            onAddFrame={onAddFrame}
           />
         </>
       ),
