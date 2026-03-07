@@ -84,4 +84,5 @@ export const SHARE_STATUS_LABELS = {
   processing: 'Wird verarbeitet...',
   ready: 'Bereit',
   failed: 'Fehlgeschlagen',
+  draft: 'Entwurf',
 } as const;

@@ -1,4 +1,4 @@
-import { useShareStore } from '@gruenerator/shared/share';
+import { useShareStore, shareApi } from '@gruenerator/shared/share';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -115,6 +115,17 @@ function DownloadShareSubsection({
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
 
+  const publishDraftIfNeeded = useCallback(async () => {
+    const token = shareToken || useAutoSaveStore.getState().autoSavedShareToken;
+    if (token) {
+      try {
+        await shareApi.publishShare(token);
+      } catch (err) {
+        console.warn('[DownloadShareSubsection] Failed to publish draft:', err);
+      }
+    }
+  }, [shareToken]);
+
   const handleSingleDownload = async () => {
     dlDropdown.setOpen(false);
     setDownloadState('capturing');
@@ -122,6 +133,7 @@ function DownloadShareSubsection({
       onCaptureCanvas();
       await new Promise((resolve) => setTimeout(resolve, 150));
       onDownload();
+      void publishDraftIfNeeded();
       setDownloadState('success');
       setTimeout(() => setDownloadState('idle'), 1500);
     } catch (error) {
@@ -172,6 +184,7 @@ function DownloadShareSubsection({
           title: 'Grünerator Share',
         });
       }
+      void publishDraftIfNeeded();
       setShareSuccess(true);
       setTimeout(() => setShareSuccess(false), 2000);
     } catch (err) {
@@ -181,7 +194,7 @@ function DownloadShareSubsection({
     } finally {
       setIsSharing(false);
     }
-  }, [exportedImage, canvasText, onCaptureCanvas, shareDropdown]);
+  }, [exportedImage, canvasText, onCaptureCanvas, shareDropdown, publishDraftIfNeeded]);
 
   const handleShareAllPages = useCallback(async () => {
     shareDropdown.setOpen(false);
