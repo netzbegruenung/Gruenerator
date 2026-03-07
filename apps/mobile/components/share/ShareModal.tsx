@@ -60,6 +60,7 @@ export function ShareModal({
     clearError,
   } = useShareStore();
 
+  /* eslint-disable react-hooks/set-state-in-effect -- batch state sync is intentional */
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
@@ -83,6 +84,7 @@ export function ShareModal({
       setLocalError(storeError);
     }
   }, [isCreating, currentShare, storeError]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleCreateShare = async () => {
     if (!uploadId) {

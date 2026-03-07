@@ -10,11 +10,13 @@ import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { MantineProvider, SegmentedControl, ScrollArea } from '@mantine/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
+import { FiCloud, FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { EditorFAB } from '../components/EditorFAB';
+import { WolkeSaveModal } from '../components/WolkeSaveModal';
 import { useColorScheme } from '../hooks/useColorScheme';
+import { uploadToWolke } from '../lib/wolkeApi';
 import { useAuthStore } from '../stores/authStore';
 
 import type { BlockNoteEditor } from '@blocknote/core';
@@ -87,6 +89,7 @@ export const EditorPage = () => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const user = useAuthStore((state) => state.user);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
   const isGuest = !user;
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
@@ -101,7 +104,7 @@ export const EditorPage = () => {
       }
       return apiClient.get<Document>(`/docs/${id}`);
     },
-    enabled: !!id,
+    enabled: !!id && !isAuthLoading,
   });
 
   const canEdit = useMemo(() => {
@@ -148,6 +151,7 @@ export const EditorPage = () => {
   );
 
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showWolkeModal, setShowWolkeModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'comments'>('chat');
@@ -245,6 +249,29 @@ export const EditorPage = () => {
     }
   }, [docData, editor]);
 
+  const handleSaveToWolke = useCallback(
+    async (shareLinkId: string, folderPath?: string) => {
+      if (!docData || !editor) throw new Error('Editor not ready');
+
+      const { DOCXExporter, docxDefaultSchemaMappings } =
+        await import('@blocknote/xl-docx-exporter');
+      const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
+      const blob = await exporter.toBlob(editor.document);
+
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64Content = btoa(binary);
+
+      const filename = `${docData.title || 'Dokument'}.docx`;
+      await uploadToWolke(shareLinkId, base64Content, filename, folderPath);
+    },
+    [docData, editor]
+  );
+
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
@@ -336,6 +363,15 @@ export const EditorPage = () => {
                       )}
                     </div>
 
+                    <button
+                      className="glass-btn"
+                      onClick={() => setShowWolkeModal(true)}
+                      aria-label="In Wolke speichern"
+                      title="In Wolke speichern"
+                    >
+                      <FiCloud />
+                    </button>
+
                     {canEdit && (
                       <button
                         className="glass-btn"
@@ -418,6 +454,14 @@ export const EditorPage = () => {
           <Suspense fallback={null}>
             <ShareModal documentId={id!} onClose={() => setShowShareModal(false)} />
           </Suspense>
+        )}
+
+        {!isGuest && (
+          <WolkeSaveModal
+            opened={showWolkeModal}
+            onClose={() => setShowWolkeModal(false)}
+            onSave={handleSaveToWolke}
+          />
         )}
       </div>
     </MantineProvider>

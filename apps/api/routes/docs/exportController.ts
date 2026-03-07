@@ -1,5 +1,6 @@
 import { gunzipSync } from 'zlib';
 
+import { blockNoteXmlToHtml } from '@gruenerator/hocuspocus';
 import { Router, type Request, type Response } from 'express';
 import * as Y from 'yjs';
 
@@ -175,9 +176,7 @@ router.get('/:id/export/html', async (req: Request, res: Response) => {
       // Get the prosemirror XML fragment
       const xmlFragment = ydoc.getXmlFragment('document-store');
 
-      // For now, return a simple HTML structure
-      // In production, you'd convert the Y.js XML to proper HTML
-      content = xmlFragment.toString();
+      content = blockNoteXmlToHtml(xmlFragment.toString());
     }
 
     const html = `<!DOCTYPE html>
@@ -293,7 +292,7 @@ router.get('/:id/export/markdown', async (req: Request, res: Response) => {
 
       // Get the prosemirror XML fragment
       const xmlFragment = ydoc.getXmlFragment('document-store');
-      const htmlContent = xmlFragment.toString();
+      const htmlContent = blockNoteXmlToHtml(xmlFragment.toString());
 
       // Convert to Markdown
       content = htmlToMarkdown(htmlContent);
@@ -362,7 +361,7 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
 
       // Get the prosemirror XML fragment
       const xmlFragment = ydoc.getXmlFragment('document-store');
-      const htmlContent = xmlFragment.toString();
+      const htmlContent = blockNoteXmlToHtml(xmlFragment.toString());
 
       // Strip all HTML tags (loop to handle nested/malformed tags)
       content = htmlContent;

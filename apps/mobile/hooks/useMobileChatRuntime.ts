@@ -11,7 +11,7 @@ import {
   type GrueneratorAdapterConfig,
   type StreamMetadata,
 } from '@gruenerator/chat';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/shallow';
 
 interface MobileChatRuntimeOptions {
@@ -58,9 +58,11 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
   );
 
   const needsCompactionRef = useRef(needsCompaction);
-  needsCompactionRef.current = needsCompaction;
   const compactionSummaryRef = useRef(compactionState.summary);
-  compactionSummaryRef.current = compactionState.summary;
+  useEffect(() => {
+    needsCompactionRef.current = needsCompaction;
+    compactionSummaryRef.current = compactionState.summary;
+  }, [needsCompaction, compactionState.summary]);
 
   const onComplete = useCallback(
     (_metadata: StreamMetadata) => {
@@ -77,10 +79,13 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     [incrementMessageCount, triggerCompaction, runtimeApiClient]
   );
 
+  const callbacks = useMemo(() => ({ onThreadCreated, onComplete }), [onThreadCreated, onComplete]);
+  /* eslint-disable react-hooks/refs -- callbacks are only invoked asynchronously, not during render */
   const modelAdapter = useMemo(
-    () => createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete }),
-    [getConfig, onThreadCreated, onComplete]
+    () => createGrueneratorModelAdapter(getConfig, callbacks),
+    [getConfig, callbacks]
   );
+  /* eslint-enable react-hooks/refs */
 
   const runtimeOptions: LocalRuntimeOptions = useMemo(
     () => ({

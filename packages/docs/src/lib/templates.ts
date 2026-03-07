@@ -4,7 +4,9 @@ export type TemplateType =
   | 'pressemitteilung'
   | 'protokoll'
   | 'notizen'
-  | 'redaktionsplan';
+  | 'redaktionsplan'
+  | 'checkliste'
+  | 'einladung';
 
 export interface DocumentTemplate {
   id: TemplateType;
@@ -185,6 +187,96 @@ export const templates: DocumentTemplate[] = [
   <li>Erklärvideo: Wie funktioniert ein Bürgerbegehren?</li>
   <li>Mitmach-Aktion: Lieblingsorte in der Natur rund um Musterstadt</li>
 </ul>
+`,
+  },
+  {
+    id: 'checkliste',
+    name: 'Checkliste',
+    description: 'Aufgaben mit Häkchen abhaken',
+    icon: '☑️',
+    defaultTitle: 'Neue Checkliste',
+    content: `
+<h1>Checkliste — Vorbereitung Aktionstag</h1>
+
+<h2>Organisation</h2>
+<ul>
+  <li><input type="checkbox">Standort und Genehmigung klären</li>
+  <li><input type="checkbox">Helfer*innen einteilen und Schichtplan erstellen</li>
+  <li><input type="checkbox">Auf- und Abbauzeiten mit der Gemeinde abstimmen</li>
+</ul>
+
+<h2>Material</h2>
+<ul>
+  <li><input type="checkbox">Pavillon / Zelt reservieren</li>
+  <li><input type="checkbox">Flyer und Infomaterial drucken lassen</li>
+  <li><input type="checkbox">Banner und Roll-Ups einpacken</li>
+  <li><input type="checkbox">Tische, Stühle und Klemmbrett organisieren</li>
+</ul>
+
+<h2>Kommunikation</h2>
+<ul>
+  <li><input type="checkbox">Social-Media-Posts vorbereiten und einplanen</li>
+  <li><input type="checkbox">Pressemitteilung verschicken</li>
+  <li><input type="checkbox">Einladung an Mitglieder per E-Mail senden</li>
+</ul>
+
+<h2>Am Tag selbst</h2>
+<ul>
+  <li><input type="checkbox">Aufbau vor Ort</li>
+  <li><input type="checkbox">Fotos und Videos für Social Media machen</li>
+  <li><input type="checkbox">Unterschriftenlisten und Kontaktformulare bereitlegen</li>
+  <li><input type="checkbox">Abbau und Material zurückbringen</li>
+</ul>
+
+<h2>Nachbereitung</h2>
+<ul>
+  <li><input type="checkbox">Fotos sichten und Social-Media-Rückblick posten</li>
+  <li><input type="checkbox">Gesammelte Kontakte in Verteiler übernehmen</li>
+  <li><input type="checkbox">Kurzes Feedback-Gespräch im Team</li>
+</ul>
+`,
+  },
+  {
+    id: 'einladung',
+    name: 'Einladung',
+    description: 'Einladung zu Sitzungen und Versammlungen',
+    icon: '✉️',
+    defaultTitle: 'Neue Einladung',
+    content: `
+<h1>Einladung zur Sitzung des Ortsvorstandes Bad Musterdorf</h1>
+
+<p>Liebe Vorstandsmitglieder,</p>
+
+<p>hiermit lade ich euch herzlich zur nächsten Sitzung des Ortsvorstandes ein:</p>
+
+<p><strong>Datum:</strong> Donnerstag, 19. Juni 2026, 19:00 Uhr<br>
+<strong>Ort:</strong> Grünes Büro, Hauptstr. 12, 12345 Bad Musterdorf<br>
+<strong>Videokonferenz:</strong> Link folgt per E-Mail</p>
+
+<hr>
+
+<h2>Tagesordnung</h2>
+<ol>
+  <li>Begrüßung und Feststellung der Beschlussfähigkeit</li>
+  <li>Genehmigung der Tagesordnung</li>
+  <li>Genehmigung des Protokolls der letzten Sitzung</li>
+  <li>Bericht der Sprecher*innen</li>
+  <li>Bericht aus der Fraktion</li>
+  <li>Vorbereitung der Mitgliederversammlung am 10. Juli</li>
+  <li>Planung Infostand Wochenmarkt</li>
+  <li>Finanzbericht und Haushaltslage</li>
+  <li>Verschiedenes</li>
+</ol>
+
+<hr>
+
+<p>Anträge zur Tagesordnung bitte bis spätestens <strong>17. Juni 2026</strong> an vorstand@gruene-bad-musterdorf.example senden.</p>
+
+<p>Bitte gebt kurz Bescheid, ob ihr teilnehmen könnt.</p>
+
+<p>Grüne Grüße<br>
+Maxi Mustermensch<br>
+<em>Sprecher*in OV Bad Musterdorf</em></p>
 `,
   },
 ];
