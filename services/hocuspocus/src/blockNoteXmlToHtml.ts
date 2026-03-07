@@ -19,8 +19,11 @@ export function blockNoteXmlToHtml(xml: string): string {
   let html = xml;
 
   // Strip wrapper elements (may have attributes like id, blockColor)
-  html = html.replace(/<\/?blockGroup[^>]*>/g, '');
-  html = html.replace(/<\/?blockContainer[^>]*>/g, '');
+  // Split open/close to avoid ReDoS from `\/?` + `[^>]*` ambiguity (CodeQL)
+  html = html.replace(/<blockGroup[^>]*>/g, '');
+  html = html.replace(/<\/blockGroup>/g, '');
+  html = html.replace(/<blockContainer[^>]*>/g, '');
+  html = html.replace(/<\/blockContainer>/g, '');
 
   // Convert block elements
   html = html.replace(

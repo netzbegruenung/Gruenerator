@@ -64,6 +64,7 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
   };
 
   // Reset type-specific fields when switching
+  /* eslint-disable react-hooks/set-state-in-effect -- batch reset on type change is intentional */
   useEffect(() => {
     setInhalt('');
     setTextForm('');
@@ -76,6 +77,7 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
     setAntwort('');
     setOriginalText('');
   }, [textType]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const currentType = UNIVERSAL_TEXT_TYPES.find((t) => t.id === textType)!;
   const title = GENERATOR_TITLES.UNIVERSAL[textType] || 'Was möchtest du heute grünerieren?';

@@ -156,6 +156,7 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
     (time: number) => {
       if (player) {
         lastSeekRef.current = time;
+        // eslint-disable-next-line react-hooks/immutability -- expo-video player API is mutation-based
         player.currentTime = time;
         setCurrentTime(time);
       }

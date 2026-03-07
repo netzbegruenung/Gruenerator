@@ -140,10 +140,10 @@ function ThreadSetup({ threadId }: { threadId?: string | null }) {
 export function MobileChatProvider({
   children,
   threadId,
-  initialMessages,
+  initialMessages: _initialMessages,
 }: MobileChatProviderProps) {
-  const configuredRef = useRef(false);
-  if (!configuredRef.current) {
+  const configuredRef = useRef<boolean>(null);
+  if (configuredRef.current == null) {
     configureMobileChat();
     configuredRef.current = true;
   }

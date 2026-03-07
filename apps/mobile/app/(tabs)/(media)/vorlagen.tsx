@@ -90,8 +90,14 @@ export default function VorlagenScreen() {
   );
 
   useEffect(() => {
-    setIsLoading(true);
-    loadData(selectedCategory).finally(() => setIsLoading(false));
+    let cancelled = false;
+    setIsLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- loading state must be set synchronously before async call
+    loadData(selectedCategory).finally(() => {
+      if (!cancelled) setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loadData, selectedCategory]);
 
   const handleRefresh = useCallback(async () => {
