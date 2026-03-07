@@ -24,6 +24,7 @@ interface UploadBody {
   shareLinkId: string;
   content: string;
   filename: string;
+  folderPath?: string;
 }
 
 interface UpdateShareLinkBody {
@@ -269,6 +270,56 @@ router.post('/test-connection', async (req: Request, res: Response): Promise<voi
 });
 
 /**
+ * Browse folders in a Nextcloud share
+ * GET /api/nextcloud/share-links/:id/browse?path=
+ */
+router.get(
+  '/share-links/:id/browse',
+  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const shareLinkId = req.params.id;
+      const folderPath = (req.query.path as string) || '';
+
+      log.debug('[NextcloudApi] Browsing folder', { userId, shareLinkId, folderPath });
+
+      if (!shareLinkId) {
+        res.status(400).json({ error: 'Share link ID is required' });
+        return;
+      }
+
+      const shareLink = await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
+
+      if (!shareLink || !shareLink.is_active) {
+        res.status(404).json({ error: 'Share link not found or inactive' });
+        return;
+      }
+
+      const client = new NextcloudApiClient(shareLink.share_link);
+      const items = await client.listFolder(folderPath || undefined);
+
+      res.json({
+        success: true,
+        path: folderPath,
+        items,
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[NextcloudApi] Error browsing folder', { error: err.message });
+      res.status(500).json({
+        error: 'Failed to browse folder',
+        message: err.message,
+      });
+    }
+  }
+);
+
+/**
  * Upload file to a Nextcloud share
  * POST /api/nextcloud/upload
  */
@@ -280,9 +331,14 @@ router.post('/upload', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { shareLinkId, content, filename } = req.body as UploadBody;
+    const { shareLinkId, content, filename, folderPath } = req.body as UploadBody;
 
-    log.debug('[NextcloudApi] Uploading file to Nextcloud', { userId, filename, shareLinkId });
+    log.debug('[NextcloudApi] Uploading file to Nextcloud', {
+      userId,
+      filename,
+      shareLinkId,
+      folderPath,
+    });
 
     if (!shareLinkId) {
       res.status(400).json({ error: 'Share link ID is required' });
@@ -307,7 +363,7 @@ router.post('/upload', async (req: Request, res: Response): Promise<void> => {
     }
 
     const client = new NextcloudApiClient(shareLink.share_link);
-    const uploadResult = await client.uploadFile(content, filename);
+    const uploadResult = await client.uploadFile(content, filename, folderPath);
 
     res.json(uploadResult);
   } catch (error) {

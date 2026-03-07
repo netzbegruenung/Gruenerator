@@ -3,6 +3,7 @@ import { gzip, gunzip } from 'zlib';
 
 import * as Y from 'yjs';
 
+import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
 import { createLogger } from './logger.js';
 
 import type { DbQueryFn } from './types.js';
@@ -10,60 +11,6 @@ import type { DbQueryFn } from './types.js';
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
 const log = createLogger('PostgresPersistence');
-
-/**
- * Convert BlockNote's Y.js XML fragment to simple HTML for card previews.
- *
- * BlockNote uses ProseMirror custom element names:
- *   <blockGroup><blockContainer><heading level="1">text</heading></blockContainer>
- *   <blockContainer><paragraph>text</paragraph></blockContainer></blockGroup>
- *
- * This converts them to standard HTML tags that the preview CSS already styles.
- */
-function blockNoteXmlToHtml(xml: string): string {
-  let html = xml;
-
-  // Strip wrapper elements (may have attributes like id, blockColor)
-  html = html.replace(/<\/?blockGroup[^>]*>/g, '');
-  html = html.replace(/<\/?blockContainer[^>]*>/g, '');
-
-  // Convert block elements
-  html = html.replace(
-    /<heading\s+level="(\d)"[^>]*>([\s\S]*?)<\/heading>/g,
-    (_, level, content) => `<h${level}>${content}</h${level}>`
-  );
-  html = html.replace(/<paragraph[^>]*>([\s\S]*?)<\/paragraph>/g, '<p>$1</p>');
-  html = html.replace(
-    /<bulletListItem[^>]*>([\s\S]*?)<\/bulletListItem>/g,
-    '<li data-list="ul">$1</li>'
-  );
-  html = html.replace(
-    /<numberedListItem[^>]*>([\s\S]*?)<\/numberedListItem>/g,
-    '<li data-list="ol">$1</li>'
-  );
-
-  // Convert inline marks
-  html = html.replace(/<bold[^>]*>([\s\S]*?)<\/bold>/g, '<strong>$1</strong>');
-  html = html.replace(/<italic[^>]*>([\s\S]*?)<\/italic>/g, '<em>$1</em>');
-  html = html.replace(/<underline[^>]*>([\s\S]*?)<\/underline>/g, '<u>$1</u>');
-  html = html.replace(/<strike[^>]*>([\s\S]*?)<\/strike>/g, '<s>$1</s>');
-
-  // Group consecutive bullet list items into <ul>
-  html = html.replace(
-    /(<li data-list="ul">[\s\S]*?<\/li>\s*)+/g,
-    (match) => `<ul>${match.replace(/ data-list="ul"/g, '')}</ul>`
-  );
-  // Group consecutive numbered list items into <ol>
-  html = html.replace(
-    /(<li data-list="ol">[\s\S]*?<\/li>\s*)+/g,
-    (match) => `<ol>${match.replace(/ data-list="ol"/g, '')}</ol>`
-  );
-
-  // Clean up whitespace
-  html = html.replace(/\s+/g, ' ').trim();
-
-  return html;
-}
 
 const DEFAULT_TITLES = new Set([
   'Neues Dokument',
@@ -274,6 +221,7 @@ export class PostgresPersistence {
     try {
       const fragment = ydoc.getXmlFragment('document-store');
       const xml = fragment.toString();
+      log.debug(`[Preview] Raw XML (first 200): ${xml.slice(0, 200)}`);
 
       // Try HTML conversion first, fall back to plain text
       let preview = blockNoteXmlToHtml(xml).slice(0, 2000);
@@ -344,6 +292,23 @@ export class PostgresPersistence {
     } catch (error) {
       log.debug(`[Backfill] Failed to extract preview for ${documentId}: ${error}`);
       return null;
+    }
+  }
+
+  async backfillAllPreviews(): Promise<void> {
+    try {
+      const docs = await this.db(`SELECT id FROM collaborative_documents WHERE is_deleted = false`);
+      log.info(`[Backfill] Starting preview backfill for ${docs.length} documents`);
+
+      let updated = 0;
+      for (const doc of docs) {
+        const result = await this.extractContentPreview(doc.id as string);
+        if (result) updated++;
+      }
+
+      log.info(`[Backfill] Completed: ${updated}/${docs.length} previews regenerated`);
+    } catch (error) {
+      log.error(`[Backfill] Failed to backfill previews: ${error}`);
     }
   }
 
