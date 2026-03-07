@@ -62,11 +62,13 @@ export function ToolPill({
 
   const handlePressIn = () => {
     if (!disabled) {
+      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared value API
       scale.value = withSpring(0.96, { damping: 15 });
     }
   };
 
   const handlePressOut = () => {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared value API
     scale.value = withSpring(1, { damping: 15 });
   };
 
