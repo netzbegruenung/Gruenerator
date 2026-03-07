@@ -130,6 +130,11 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
     async onListen() {
       log.info(`Hocuspocus server listening on ${host}:${port}`);
       log.info('WebSocket endpoint: ws://' + host + ':' + port);
+
+      // One-time backfill: regenerate previews with fixed heading conversion
+      persistence.backfillAllPreviews().catch((err) => {
+        log.error(`[Backfill] Error during startup backfill: ${err}`);
+      });
     },
 
     async onStateless(_data) {},

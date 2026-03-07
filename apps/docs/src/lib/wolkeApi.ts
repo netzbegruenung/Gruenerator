@@ -69,3 +69,41 @@ export async function testConnection(shareLink: string): Promise<ConnectionTestR
   });
   return data;
 }
+
+export interface WolkeFolderItem {
+  name: string;
+  href: string;
+  isDirectory: boolean;
+  size: number | null;
+  lastModified: string | null;
+}
+
+export async function browseFolder(shareLinkId: string, path?: string): Promise<WolkeFolderItem[]> {
+  const params = path ? `?path=${encodeURIComponent(path)}` : '';
+  const { data } = await apiClient.get<{ success: boolean; items: WolkeFolderItem[] }>(
+    `/nextcloud/share-links/${shareLinkId}/browse${params}`
+  );
+  return data.items;
+}
+
+export interface UploadResult {
+  success: boolean;
+  message: string;
+  filename?: string;
+  url?: string;
+}
+
+export async function uploadToWolke(
+  shareLinkId: string,
+  content: string,
+  filename: string,
+  folderPath?: string
+): Promise<UploadResult> {
+  const { data } = await apiClient.post<UploadResult>('/nextcloud/upload', {
+    shareLinkId,
+    content,
+    filename,
+    ...(folderPath ? { folderPath } : {}),
+  });
+  return data;
+}
