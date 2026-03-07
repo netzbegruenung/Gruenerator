@@ -4,12 +4,13 @@ import {
   BlockNoteEditor as BlockNoteEditorComponent,
   useDocsAdapter,
   createDocsApiClient,
+  lazyWithRetry,
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { MantineProvider, SegmentedControl, ScrollArea } from '@mantine/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiCloud, FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -24,8 +25,10 @@ import type { BlockNoteEditor } from '@blocknote/core';
 import '@mantine/core/styles.css';
 import './EditorPage.css';
 
-const ShareModal = lazy(() => import('@gruenerator/docs').then((m) => ({ default: m.ShareModal })));
-const ChatSidebar = lazy(() =>
+const ShareModal = lazyWithRetry(() =>
+  import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
+);
+const ChatSidebar = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
 );
 

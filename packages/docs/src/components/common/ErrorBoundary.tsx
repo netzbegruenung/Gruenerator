@@ -1,6 +1,8 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 
+import { isChunkLoadError } from '../../utils/chunkErrors';
+
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
@@ -11,24 +13,43 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  isChunkError: boolean;
   componentStack: string | null;
 }
 
+const CHUNK_RELOAD_KEY = 'docs-chunk-reload-attempted';
+
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  override state: ErrorBoundaryState = { hasError: false, error: null, componentStack: null };
+  override state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+    isChunkError: false,
+    componentStack: null,
+  };
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    return { hasError: true, error };
+    return { hasError: true, error, isChunkError: isChunkLoadError(error) };
   }
 
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Uncaught error:', error.message);
     this.setState({ componentStack: errorInfo.componentStack || null });
+
+    if (isChunkLoadError(error)) {
+      const hasReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY);
+      if (!hasReloaded) {
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
+        window.location.reload();
+        return;
+      }
+      sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+    }
+
     this.props.onError?.(error, errorInfo);
   }
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, isChunkError: false });
   };
 
   override render() {
@@ -53,7 +74,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           gap: '1rem',
         }}
       >
-        <p style={{ fontSize: '1.1rem', margin: 0 }}>Ein unerwarteter Fehler ist aufgetreten.</p>
+        {this.state.isChunkError ? (
+          <>
+            <p style={{ fontSize: '1.1rem', margin: 0, fontWeight: 600 }}>Neue Version verfügbar</p>
+            <p style={{ fontSize: '0.9rem', margin: 0, color: '#6b7280' }}>
+              Die Anwendung wurde aktualisiert. Bitte lade die Seite neu, um die neueste Version zu
+              verwenden.
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: '1.1rem', margin: 0 }}>Ein unerwarteter Fehler ist aufgetreten.</p>
+        )}
         {process.env.NODE_ENV === 'development' && this.state.error && (
           <pre
             style={{

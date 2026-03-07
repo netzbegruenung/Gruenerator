@@ -63,5 +63,9 @@ export {
 } from './lib/blockNoteUtils';
 export { defaultDocumentContent } from './lib/defaultContent';
 
+// Utils
+export { lazyWithRetry } from './utils/lazyWithRetry';
+export { isChunkLoadError } from './utils/chunkErrors';
+
 // Icons
 export { DocsIcon } from './components/icons/DocsIcon';
