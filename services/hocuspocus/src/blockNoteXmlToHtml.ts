@@ -13,38 +13,38 @@ const log = createLogger('XmlToHtml');
  *
  * Note: Y.js XmlElement.toString() outputs attributes in alphabetical order,
  * so `level` may not be the first attribute on <heading> elements. The regex
- * uses [^>]* before `level` to handle any preceding attributes.
+ * uses [^<>]* before `level` to handle any preceding attributes.
  */
 export function blockNoteXmlToHtml(xml: string): string {
   let html = xml;
 
   // Strip wrapper elements (may have attributes like id, blockColor)
-  // Split open/close to avoid ReDoS from `\/?` + `[^>]*` ambiguity (CodeQL)
-  html = html.replace(/<blockGroup[^>]*>/g, '');
+  // Split open/close to avoid ReDoS from `\/?` + `[^<>]*` ambiguity (CodeQL)
+  html = html.replace(/<blockGroup[^<>]*>/g, '');
   html = html.replace(/<\/blockGroup>/g, '');
-  html = html.replace(/<blockContainer[^>]*>/g, '');
+  html = html.replace(/<blockContainer[^<>]*>/g, '');
   html = html.replace(/<\/blockContainer>/g, '');
 
   // Convert block elements
   html = html.replace(
-    /<heading\s[^>]*level="(\d)"[^>]*>([\s\S]*?)<\/heading>/g,
+    /<heading\s[^<>]*level="(\d)"[^<>]*>([\s\S]*?)<\/heading>/g,
     (_, level, content) => `<h${level}>${content}</h${level}>`
   );
-  html = html.replace(/<paragraph[^>]*>([\s\S]*?)<\/paragraph>/g, '<p>$1</p>');
+  html = html.replace(/<paragraph[^<>]*>([\s\S]*?)<\/paragraph>/g, '<p>$1</p>');
   html = html.replace(
-    /<bulletListItem[^>]*>([\s\S]*?)<\/bulletListItem>/g,
+    /<bulletListItem[^<>]*>([\s\S]*?)<\/bulletListItem>/g,
     '<li data-list="ul">$1</li>'
   );
   html = html.replace(
-    /<numberedListItem[^>]*>([\s\S]*?)<\/numberedListItem>/g,
+    /<numberedListItem[^<>]*>([\s\S]*?)<\/numberedListItem>/g,
     '<li data-list="ol">$1</li>'
   );
 
   // Convert inline marks
-  html = html.replace(/<bold[^>]*>([\s\S]*?)<\/bold>/g, '<strong>$1</strong>');
-  html = html.replace(/<italic[^>]*>([\s\S]*?)<\/italic>/g, '<em>$1</em>');
-  html = html.replace(/<underline[^>]*>([\s\S]*?)<\/underline>/g, '<u>$1</u>');
-  html = html.replace(/<strike[^>]*>([\s\S]*?)<\/strike>/g, '<s>$1</s>');
+  html = html.replace(/<bold[^<>]*>([\s\S]*?)<\/bold>/g, '<strong>$1</strong>');
+  html = html.replace(/<italic[^<>]*>([\s\S]*?)<\/italic>/g, '<em>$1</em>');
+  html = html.replace(/<underline[^<>]*>([\s\S]*?)<\/underline>/g, '<u>$1</u>');
+  html = html.replace(/<strike[^<>]*>([\s\S]*?)<\/strike>/g, '<s>$1</s>');
 
   // Group consecutive bullet list items into <ul>
   html = html.replace(
@@ -61,7 +61,7 @@ export function blockNoteXmlToHtml(xml: string): string {
   html = html.replace(/\s+/g, ' ').trim();
 
   // Diagnostic logging
-  const headingCount = (html.match(/<h[123][^>]*>/g) || []).length;
+  const headingCount = (html.match(/<h[123][^<>]*>/g) || []).length;
   const unconverted = (html.match(/<heading[\s>]/g) || []).length;
   if (headingCount > 0) {
     log.debug(`[XmlToHtml] Converted ${headingCount} heading(s)`);
