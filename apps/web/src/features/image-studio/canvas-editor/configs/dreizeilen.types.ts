@@ -11,6 +11,7 @@ import type { StockImageAttribution } from '../sidebar/types';
 import type { BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
@@ -89,6 +90,9 @@ export interface DreizeilenFullState {
 
   // === Circle Badge Instances ===
   circleBadgeInstances: CircleBadgeInstance[];
+
+  // === Frame Instances ===
+  frameInstances: FrameInstance[];
 
   // === Layer Ordering ===
   layerOrder: string[];
@@ -188,6 +192,12 @@ export interface DreizeilenFullActions {
   addText: () => void;
   updateAdditionalText: (textId: string, partial: Partial<AdditionalText>) => void;
   removeAdditionalText: (textId: string) => void;
+
+  // === Frame Actions ===
+  addFrame: (clipType: FrameClipType) => void;
+  updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
+  removeFrame: (id: string) => void;
+  setFrameImage: (id: string, file: File, objectUrl: string) => void;
 
   // === Layer Actions ===
   moveLayerUp: (itemId: string) => void;
