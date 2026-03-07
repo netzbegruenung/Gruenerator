@@ -11,7 +11,8 @@ export type ClipboardItemType =
   | 'illustration'
   | 'additional-text'
   | 'asset'
-  | 'pill-badge';
+  | 'pill-badge'
+  | 'frame';
 
 export interface ClipboardItem {
   type: ClipboardItemType;

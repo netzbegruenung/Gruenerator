@@ -14,6 +14,7 @@ export interface CanvasItem {
     | 'balken'
     | 'icon'
     | 'shape'
+    | 'frame'
     | 'additional-text'
     | 'illustration'
     | 'asset'
@@ -29,6 +30,7 @@ interface StateWithFeatures {
   additionalTexts?: Array<Record<string, unknown>>;
   illustrationInstances?: Array<Record<string, unknown>>;
   assetInstances?: Array<Record<string, unknown>>;
+  frameInstances?: Array<Record<string, unknown>>;
   circleBadgeInstances?: Array<Record<string, unknown>>;
   pillBadgeInstances?: Array<Record<string, unknown>>;
 }
@@ -70,6 +72,11 @@ export function buildCanvasItems<
   // 4. Shapes
   if (state.shapeInstances) {
     state.shapeInstances.forEach((s) => items.push({ id: String(s.id), type: 'shape', data: s }));
+  }
+
+  // 4.5. Frames
+  if (state.frameInstances) {
+    state.frameInstances.forEach((f) => items.push({ id: String(f.id), type: 'frame', data: f }));
   }
 
   // 5. Additional Texts
