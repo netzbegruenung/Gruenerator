@@ -44,6 +44,7 @@ Wenn ein GESPRÄCHSVERLAUF mitgeliefert wird, nutze ihn um die aktuelle Nachrich
   → optimizedSearchQuery: "Newsletter best practices Kreisverband Grüne"
 - Wenn die aktuelle Nachricht bereits spezifisch genug ist, ignoriere den Kontext
 - Verändere NICHT den intent basierend auf dem Kontext — nur die Suchquery
+- Wenn ein GESPRÄCHSVERLAUF vorhanden ist, setze needsClarification IMMER auf false — der nachfolgende Schritt hat Zugriff auf den vollständigen Verlauf (siehe Schritt 8)
 
 SCHRITT 2 - INHALTSTYP ANALYSIEREN:
 Manche Inhalte brauchen AUTOMATISCH Recherche:
@@ -115,17 +116,25 @@ Wenn die Anfrage SPEZIFISCHE Filterkriterien enthält, extrahiere sie:
 Setze NUR Felder die KLAR aus der Anfrage hervorgehen. Bei Unsicherheit: null.
 
 SCHRITT 8 - KLÄRUNGSBEDARF ERKENNEN:
-Wenn die Anfrage MEHRDEUTIG ist und du dir nicht sicher bist welches Thema gemeint ist:
-- Setze "needsClarification": true
-- Formuliere eine kurze Klärungsfrage in "clarificationQuestion"
-- Biete 2-4 konkrete Antwortoptionen in "clarificationOptions" an
+Standardmäßig: needsClarification: false, clarificationQuestion: null, clarificationOptions: null
 
-Beispiele:
+Setze needsClarification: false wenn:
+- Die Anfrage ein klares Thema enthält ("Grüne Position zum Klimaschutz")
+- Ein GESPRÄCHSVERLAUF vorhanden ist — auch wenn die aktuelle Nachricht allein mehrdeutig wäre ("erstelle einen Post", "mach daraus einen tweet", "kürze das"). Der nachfolgende Verarbeitungsschritt hat Zugriff auf den VOLLSTÄNDIGEN Gesprächsverlauf und kann das Thema daraus ableiten, auch wenn du es im gekürzten Verlauf hier nicht siehst.
+
+AUSNAHME — needsClarification: true NUR wenn ALLE diese Bedingungen zutreffen:
+1. KEIN Gesprächsverlauf vorhanden (erste Nachricht)
+2. Die Anfrage enthält KEIN erkennbares Thema
+3. Ohne Thema kann keine sinnvolle Antwort erstellt werden
+
+Beispiel für die Ausnahme (erste Nachricht, kein Kontext):
 - "Was ist die Position?" → needsClarification: true, clarificationQuestion: "Zu welchem Thema möchtest du die Position der Grünen erfahren?", clarificationOptions: ["Klimapolitik", "Verkehrspolitik", "Sozialpolitik", "Energiepolitik"]
 - "Erstelle einen Post" → needsClarification: true, clarificationQuestion: "Über welches Thema soll der Post sein?", clarificationOptions: ["Klimaschutz", "Soziale Gerechtigkeit", "Verkehrswende"]
-- "Grüne Position zum Klimaschutz" → needsClarification: false (eindeutig)
 
-Bei EINDEUTIGEN Anfragen: needsClarification: false, clarificationQuestion: null, clarificationOptions: null
+KEIN Klärungsbedarf (Gesprächsverlauf vorhanden):
+- Verlauf über Klimapolitik + "jetzt darauf basierend einen tweet" → needsClarification: false
+- Verlauf über Pressemitteilung + "mach das kürzer als post" → needsClarification: false
+- Verlauf über Energiewende + "erstelle einen Post dazu" → needsClarification: false
 
 Antworte NUR mit JSON:
 {
