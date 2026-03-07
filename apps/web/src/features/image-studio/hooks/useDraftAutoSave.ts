@@ -8,17 +8,15 @@ import { useAutoSaveStore } from './useAutoSaveStore';
 import { useImageHelpers } from './useImageHelpers';
 import { useStepFlow } from './useStepFlow';
 
+const MAX_RETRY_COUNT = 3;
+
 export const useDraftAutoSave = (): void => {
   const { type, generatedImageSrc, galleryEditMode } = useImageStudioStore();
 
-  const {
-    autoSaveStatus,
-    autoSavedShareToken,
-    lastAutoSavedImageSrc,
-    setAutoSaveStatus,
-    setAutoSavedShareToken,
-    setLastAutoSavedImageSrc,
-  } = useAutoSaveStore();
+  // Only subscribe to action setters (stable references) — not state values
+  const setAutoSaveStatus = useAutoSaveStore((s) => s.setAutoSaveStatus);
+  const setAutoSavedShareToken = useAutoSaveStore((s) => s.setAutoSavedShareToken);
+  const setLastAutoSavedImageSrc = useAutoSaveStore((s) => s.setLastAutoSavedImageSrc);
 
   const { createImageShare, updateImageShare } = useShareStore();
   const { getOriginalImageBase64, buildShareMetadata } = useImageHelpers();
@@ -27,15 +25,14 @@ export const useDraftAutoSave = (): void => {
   const typeConfig = getTypeConfig(type || '');
   const fieldConfig = getTemplateFieldConfig(type || '');
 
+  const retryCountRef = useRef(0);
+
   // Use refs to store latest values for the debounced function
   const latestRefs = useRef({
     type,
     typeConfig,
     fieldConfig,
     galleryEditMode,
-    autoSaveStatus,
-    autoSavedShareToken,
-    lastAutoSavedImageSrc,
     generatedImageSrc,
     getOriginalImageBase64,
     buildShareMetadata,
@@ -47,16 +44,13 @@ export const useDraftAutoSave = (): void => {
     getFieldValue,
   });
 
-  // Update refs on render
+  // Update refs via effect (React hooks lint forbids ref updates during render)
   useEffect(() => {
     latestRefs.current = {
       type,
       typeConfig,
       fieldConfig,
       galleryEditMode,
-      autoSaveStatus,
-      autoSavedShareToken,
-      lastAutoSavedImageSrc,
       generatedImageSrc,
       getOriginalImageBase64,
       buildShareMetadata,
@@ -67,35 +61,17 @@ export const useDraftAutoSave = (): void => {
       setLastAutoSavedImageSrc,
       getFieldValue,
     };
-  }, [
-    type,
-    typeConfig,
-    fieldConfig,
-    galleryEditMode,
-    autoSaveStatus,
-    autoSavedShareToken,
-    lastAutoSavedImageSrc,
-    generatedImageSrc,
-    getOriginalImageBase64,
-    buildShareMetadata,
-    createImageShare,
-    updateImageShare,
-    setAutoSaveStatus,
-    setAutoSavedShareToken,
-    setLastAutoSavedImageSrc,
-    getFieldValue,
-  ]);
+  });
 
   const performSave = useCallback(async () => {
     const refs = latestRefs.current;
+    // Read current store state directly to avoid stale closures
+    const storeState = useAutoSaveStore.getState();
 
     // Safety checks
-    if (refs.galleryEditMode) return; // Don't auto-save if editing existing gallery item (handle separately?)
-    if (refs.autoSaveStatus === 'saving') return;
-    if (!refs.generatedImageSrc && !refs.autoSavedShareToken) return; // Need an image to start
-
-    // If we have no changes and already saved?
-    // We check purely by triggering this function (debounced).
+    if (refs.galleryEditMode) return;
+    if (storeState.autoSaveStatus === 'saving') return;
+    if (!refs.generatedImageSrc && !storeState.autoSavedShareToken) return;
 
     console.log('[useDraftAutoSave] Starting save...');
     refs.setAutoSaveStatus('saving');
@@ -104,18 +80,17 @@ export const useDraftAutoSave = (): void => {
       const originalImage = await refs.getOriginalImageBase64();
       const metadata = refs.buildShareMetadata();
       const title = refs.typeConfig?.label || 'Draft';
-      const imageSrc = refs.generatedImageSrc || refs.lastAutoSavedImageSrc || '';
+      const imageSrc = refs.generatedImageSrc || storeState.lastAutoSavedImageSrc || '';
 
       if (!imageSrc) {
-        // Can't save without image?
         refs.setAutoSaveStatus('idle');
         return;
       }
 
-      if (refs.autoSavedShareToken) {
+      if (storeState.autoSavedShareToken) {
         // UPDATE existing
         await refs.updateImageShare({
-          shareToken: refs.autoSavedShareToken,
+          shareToken: storeState.autoSavedShareToken,
           title,
           metadata: metadata ?? undefined,
           imageBase64: imageSrc,
@@ -129,7 +104,7 @@ export const useDraftAutoSave = (): void => {
           imageType: refs.typeConfig?.legacyType || refs.type || '',
           metadata: metadata,
           originalImage: originalImage ?? undefined,
-          // status: 'draft' // If supported
+          status: 'draft',
         });
         if (share?.shareToken) {
           console.log('[useDraftAutoSave] Create successful:', share.shareToken);
@@ -139,20 +114,25 @@ export const useDraftAutoSave = (): void => {
 
       refs.setLastAutoSavedImageSrc(imageSrc);
       refs.setAutoSaveStatus('saved');
+      retryCountRef.current = 0;
 
-      // Revert to idle after delay?
+      // Revert to idle after delay
       setTimeout(() => refs.setAutoSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('[useDraftAutoSave] Save failed:', error);
+      retryCountRef.current += 1;
       refs.setAutoSaveStatus('error');
+
+      if (retryCountRef.current >= MAX_RETRY_COUNT) {
+        console.warn('[useDraftAutoSave] Max retries reached, stopping auto-save attempts');
+      }
     }
   }, []);
 
-  // Create debounced save using timeout ref pattern (similar to useDebouncedCallback)
+  // Create debounced save using timeout ref pattern
   const debouncedSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const performSaveRef = useRef(performSave);
 
-  // Keep performSave ref up to date
   useEffect(() => {
     performSaveRef.current = performSave;
   }, [performSave]);
@@ -177,16 +157,18 @@ export const useDraftAutoSave = (): void => {
     };
   }, []);
 
-  // Trigger save when generatedImageSrc changes (immediate or debounced?)
-  // If user clicked "Save", we want immediate feedback.
+  // Trigger save when generatedImageSrc changes
   useEffect(() => {
-    if (generatedImageSrc && generatedImageSrc !== lastAutoSavedImageSrc) {
-      void performSave(); // Immediate save for image changes
+    const storeState = useAutoSaveStore.getState();
+    if (
+      generatedImageSrc &&
+      generatedImageSrc !== storeState.lastAutoSavedImageSrc &&
+      retryCountRef.current < MAX_RETRY_COUNT
+    ) {
+      void performSave();
     }
-  }, [generatedImageSrc, lastAutoSavedImageSrc, performSave]);
+  }, [generatedImageSrc, performSave]);
 
-  // Trigger debounced save when form values change
-  // For now, debouncedSave is available for future use when form state subscription is added
-  // To support "Early Draft" (metadata only), we'll need access to form state
-  void debouncedSave; // Mark as intentionally available for future use
+  // Mark debouncedSave as intentionally available for future use
+  void debouncedSave;
 };

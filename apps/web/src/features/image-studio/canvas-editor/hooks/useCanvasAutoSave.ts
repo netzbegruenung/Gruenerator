@@ -230,6 +230,7 @@ export const useCanvasAutoSave = (
           imageType: refs.canvasType,
           metadata,
           originalImage: originalImageBase64,
+          status: 'draft',
         });
       }
 

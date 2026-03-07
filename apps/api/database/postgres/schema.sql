@@ -633,7 +633,7 @@ CREATE TABLE IF NOT EXISTS shared_media (
     project_id UUID REFERENCES subtitler_projects(id) ON DELETE SET NULL,
     image_type TEXT,
     image_metadata JSONB DEFAULT '{}',
-    status VARCHAR(20) DEFAULT 'ready' CHECK (status IN ('processing', 'ready', 'failed')),
+    status VARCHAR(20) DEFAULT 'ready' CHECK (status IN ('processing', 'ready', 'failed', 'draft')),
     download_count INTEGER DEFAULT 0,
     view_count INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

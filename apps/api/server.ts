@@ -553,6 +553,13 @@ async function startWorker(): Promise<void> {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = 500;
 
+    log.error(`[GlobalErrorHandler] ${err.name}: ${err.message}`, {
+      path: req.path,
+      method: req.method,
+      statusCode,
+      errorCode: (err as NodeJS.ErrnoException).code,
+    });
+
     if (
       err.name === 'AuthenticationError' ||
       (err.message && err.message.includes('authentication'))

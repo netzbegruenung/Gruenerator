@@ -53,6 +53,7 @@ export {
   getUserShares,
   getShareInfo,
   deleteShare,
+  publishShare,
   shareApi,
   getUserDevices,
   pushToPhone,

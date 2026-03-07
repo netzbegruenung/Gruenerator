@@ -78,14 +78,23 @@ app.use(
     setHeaders(res, filePath) {
       // index.html must not be cached — it references hashed chunks that change on each deploy
       if (filePath.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       }
     },
   })
 );
 
+// Missing assets should 404, not fall through to SPA (prevents serving index.html as JS)
+app.use('/assets', (_req, res) => {
+  res.status(404).end();
+});
+app.use('/fonts', (_req, res) => {
+  res.status(404).end();
+});
+
 // SPA fallback - send all non-matched requests to index.html
 app.use((_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(DIST_PATH, 'index.html'));
 });
 

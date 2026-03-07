@@ -36,7 +36,7 @@ export interface SharedMediaRow {
   project_id: string | null;
   image_type: string | null;
   image_metadata: Record<string, unknown> | null;
-  status: 'processing' | 'ready' | 'failed';
+  status: 'processing' | 'ready' | 'failed' | 'draft';
   download_count: number;
   view_count: number;
   is_library_item: boolean;
@@ -90,6 +90,7 @@ export interface CreateImageShareParams {
   imageType?: string;
   metadata?: Record<string, unknown>;
   originalImage?: string | null;
+  status?: 'ready' | 'draft';
 }
 
 /**

@@ -6,7 +6,6 @@
 import { apiRequest } from '../../api/client.js';
 
 import type {
-  Share,
   ShareResponse,
   ShareListResponse,
   DeleteShareResponse,
@@ -15,6 +14,7 @@ import type {
   CreateImageShareParams,
   UpdateImageShareParams,
   ShareMediaType,
+  ShareStatus,
 } from '../types.js';
 
 /**
@@ -31,6 +31,7 @@ export const SHARE_ENDPOINTS = {
   SHARE_DOWNLOAD: (token: string) => `/share/${token}/download`,
   UPDATE_IMAGE: (token: string) => `/share/${token}/image`,
   DELETE_SHARE: (token: string) => `/share/${token}`,
+  PUBLISH: (token: string) => `/share/${token}/publish`,
   SAVE_AS_TEMPLATE: (token: string) => `/share/${token}/save-as-template`,
   PUSH_TO_PHONE: '/share/push-to-phone',
   DEVICES: '/share/devices',
@@ -74,13 +75,25 @@ export async function updateImageShare(params: UpdateImageShareParams): Promise<
 }
 
 /**
- * Get user's shares (optionally filtered by media type)
+ * Get user's shares (optionally filtered by media type and status)
  */
-export async function getUserShares(mediaType?: ShareMediaType): Promise<ShareListResponse> {
-  const url = mediaType
-    ? `${SHARE_ENDPOINTS.USER_SHARES}?type=${mediaType}`
-    : SHARE_ENDPOINTS.USER_SHARES;
+export async function getUserShares(
+  mediaType?: ShareMediaType,
+  status?: ShareStatus
+): Promise<ShareListResponse> {
+  const params = new URLSearchParams();
+  if (mediaType) params.set('type', mediaType);
+  if (status) params.set('status', status);
+  const query = params.toString();
+  const url = query ? `${SHARE_ENDPOINTS.USER_SHARES}?${query}` : SHARE_ENDPOINTS.USER_SHARES;
   return apiRequest<ShareListResponse>('get', url);
+}
+
+/**
+ * Publish a draft share (promote draft → ready)
+ */
+export async function publishShare(shareToken: string): Promise<ShareResponse> {
+  return apiRequest<ShareResponse>('put', SHARE_ENDPOINTS.PUBLISH(shareToken));
 }
 
 /**
@@ -159,6 +172,7 @@ export const shareApi = {
   getUserShares,
   getShareInfo,
   deleteShare,
+  publishShare,
   saveAsTemplate,
   getUserDevices,
   pushToPhone,

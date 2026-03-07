@@ -234,17 +234,17 @@ export class PostgresPersistence {
       }
 
       if (preview) {
-        await this.db('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
-          documentId,
-          preview,
-        ]);
+        await this.db(
+          'UPDATE collaborative_documents SET content = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+          [documentId, preview]
+        );
         log.debug(`[Preview] Updated preview for ${documentId} (${preview.length} chars)`);
 
         const autoTitle = extractAutoTitle(preview);
         if (autoTitle) {
           const result = await this.db(
             `UPDATE collaborative_documents
-             SET title = $2, updated_at = CURRENT_TIMESTAMP
+             SET title = $2
              WHERE id = $1 AND title = ANY($3::text[])
              RETURNING id`,
             [documentId, autoTitle, [...DEFAULT_TITLES]]

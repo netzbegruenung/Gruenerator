@@ -54,6 +54,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   override render() {
     if (!this.state.hasError) {
+      // Clear reload flag on successful render — ready for next deployment
+      sessionStorage.removeItem(CHUNK_RELOAD_KEY);
       return this.props.children;
     }
 
