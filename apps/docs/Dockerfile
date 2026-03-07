@@ -27,6 +27,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 COPY packages/shared ./packages/shared
 COPY packages/docs ./packages/docs
 COPY apps/web/src/assets/styles ./apps/web/src/assets/styles
+COPY apps/web/src/assets/fonts ./apps/web/src/assets/fonts
 COPY apps/docs ./apps/docs
 
 # Build the Vite app

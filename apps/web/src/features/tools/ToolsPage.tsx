@@ -30,7 +30,7 @@ const tools: ToolEntry[] = [
   },
   {
     id: 'research',
-    title: 'Research',
+    title: 'Recherche',
     description: 'Manuelle Suche über alle gescrapten Dokumente und Programme.',
     path: '/research',
     tags: ['Dokumente', 'Qdrant'],

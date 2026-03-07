@@ -101,6 +101,7 @@ jobs:
             sites:
               - 'apps/sites/**'
               - 'packages/shared/**'
+              - 'packages/sites-design/**'
             docs:
               - 'apps/docs/**'
               - 'packages/shared/**'
