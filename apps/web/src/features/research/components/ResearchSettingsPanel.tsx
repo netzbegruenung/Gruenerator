@@ -137,7 +137,7 @@ export default function ResearchSettingsPanel({
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[22rem] max-h-[32rem] overflow-y-auto p-3"
+        className="w-[22rem] sm:w-[30rem] max-h-[32rem] sm:max-h-[36rem] overflow-y-auto p-3"
       >
         <div className="space-y-3">
           <div className="flex items-center justify-between">
