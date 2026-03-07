@@ -17,6 +17,7 @@ import type { SectionContext } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../primitives/CircleBadge';
 import type { ExtendedAssetsSectionProps } from '../sidebar/sections/AssetsSection';
+import type { FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
@@ -44,6 +45,10 @@ interface FeatureStateWithPillBadge {
 
 interface FeatureStateWithCircleBadge {
   circleBadgeInstances?: CircleBadgeInstance[];
+}
+
+interface FeatureStateWithFrames {
+  frameInstances?: FrameInstance[];
 }
 
 interface FeatureActionsBase {
@@ -190,6 +195,22 @@ export function injectFeatureProps<S extends object, A extends object>(
 
     if ('removeCircleBadge' in actions) {
       injected.onRemoveCircleBadge = actions.removeCircleBadge as (id: string) => void;
+    }
+  }
+
+  // === FRAME FEATURE ===
+  // Convention: state.frameInstances + actions.addFrame/updateFrame/removeFrame
+  if ('frameInstances' in state && 'addFrame' in actions) {
+    const stateWithFrames = state as FeatureStateWithFrames;
+    injected.frameInstances = stateWithFrames.frameInstances;
+    injected.onAddFrame = actions.addFrame as (clipType: string) => void;
+
+    if ('updateFrame' in actions) {
+      injected.onUpdateFrame = actions.updateFrame as (id: string, partial: unknown) => void;
+    }
+
+    if ('removeFrame' in actions) {
+      injected.onRemoveFrame = actions.removeFrame as (id: string) => void;
     }
   }
 

@@ -32,6 +32,7 @@ import {
   createPillBadgeActions,
   createCircleBadgeActions,
   createBalkenActions,
+  createFrameActions,
 } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
@@ -423,6 +424,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     // Pill Badge & Circle Badge Instances
     pillBadgeInstances: (props.pillBadgeInstances as PillBadgeInstance[] | undefined) ?? [],
     circleBadgeInstances: (props.circleBadgeInstances as CircleBadgeInstance[] | undefined) ?? [],
+    frameInstances: [],
 
     // Layer Ordering
     layerOrder: (props.layerOrder as string[] | undefined) ?? [],
@@ -504,6 +506,14 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       debouncedSaveToHistory
     );
 
+    const frameActions = createFrameActions(
+      getState,
+      setState,
+      saveToHistory,
+      DREIZEILEN_CONFIG.canvas.width,
+      DREIZEILEN_CONFIG.canvas.height
+    );
+
     return {
       // === Spread common actions ===
       ...assetActions,
@@ -513,6 +523,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ...pillBadgeActions,
       ...circleBadgeActions,
       ...genericBalkenActions,
+      ...frameActions,
 
       // === Text Actions ===
       setLine1: (text: string) => {

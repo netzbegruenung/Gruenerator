@@ -29,6 +29,7 @@ import type { StockImageAttribution } from '../../../services/imageSourceService
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
@@ -71,6 +72,7 @@ export interface ImageTwoTextState {
   pillBadgeInstances: PillBadgeInstance[];
   circleBadgeInstances: CircleBadgeInstance[];
   balkenInstances: BalkenInstance[];
+  frameInstances: FrameInstance[];
 }
 
 // ============================================================================
@@ -115,6 +117,10 @@ export interface ImageTwoTextActions {
   addBalken: (mode: BalkenMode) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
+  addFrame: (clipType: FrameClipType) => void;
+  updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
+  removeFrame: (id: string) => void;
+  setFrameImage: (id: string, file: File, objectUrl: string) => void;
   handleSelectAlternative: (alt: AlternativeItem) => void;
 }
 
@@ -349,6 +355,7 @@ export function createImageTwoTextCanvas(
       pillBadgeInstances: [],
       circleBadgeInstances: [],
       balkenInstances: [],
+      frameInstances: [],
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {

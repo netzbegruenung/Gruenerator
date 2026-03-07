@@ -30,6 +30,7 @@ import type { BackgroundColorOption } from '../../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
@@ -66,6 +67,7 @@ export interface ColorTwoTextState {
   pillBadgeInstances: PillBadgeInstance[];
   circleBadgeInstances: CircleBadgeInstance[];
   balkenInstances: BalkenInstance[];
+  frameInstances: FrameInstance[];
 }
 
 // ============================================================================
@@ -107,6 +109,10 @@ export interface ColorTwoTextActions {
   addBalken: (mode: BalkenMode) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
+  addFrame: (clipType: FrameClipType) => void;
+  updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
+  removeFrame: (id: string) => void;
+  setFrameImage: (id: string, file: File, objectUrl: string) => void;
   handleSelectAlternative: (alt: string) => void;
 }
 
@@ -323,6 +329,7 @@ export function createColorTwoTextCanvas(
       pillBadgeInstances: [],
       circleBadgeInstances: [],
       balkenInstances: [],
+      frameInstances: [],
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
