@@ -10,7 +10,7 @@ export type SharePlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin' | 
 export type ShareMediaType = 'video' | 'image';
 
 // Share status
-export type ShareStatus = 'processing' | 'ready' | 'failed';
+export type ShareStatus = 'processing' | 'ready' | 'failed' | 'draft';
 
 /**
  * Share record from backend
@@ -58,6 +58,7 @@ export interface CreateImageShareParams {
   imageType?: string;
   metadata?: Record<string, unknown>;
   originalImage?: string;
+  status?: ShareStatus;
 }
 
 /**
@@ -108,7 +109,8 @@ export interface ShareStoreActions {
   ) => Promise<Share>;
   createImageShare: (params: CreateImageShareParams) => Promise<Share>;
   updateImageShare: (params: UpdateImageShareParams) => Promise<Share>;
-  fetchUserShares: (mediaType?: ShareMediaType) => Promise<Share[]>;
+  publishShare: (shareToken: string) => Promise<Share>;
+  fetchUserShares: (mediaType?: ShareMediaType, status?: ShareStatus) => Promise<Share[]>;
   fetchImageShares: () => Promise<Share[]>;
   fetchVideoShares: () => Promise<Share[]>;
   deleteShare: (shareToken: string) => Promise<boolean>;
