@@ -15,6 +15,7 @@ import type {
   CreateImageShareParams,
   UpdateImageShareParams,
   ShareMediaType,
+  ShareStatus,
   SaveAsTemplateResponse,
 } from '../types.js';
 
@@ -156,13 +157,42 @@ export const useShareStore = create<ShareStoreState & ShareStoreActions>((set, g
   },
 
   /**
-   * Fetch user's shares (optionally filtered by media type)
+   * Publish a draft share (promote draft → ready)
    */
-  fetchUserShares: async (mediaType?: ShareMediaType): Promise<Share[]> => {
+  publishShare: async (shareToken: string): Promise<Share> => {
+    try {
+      const response = await shareApi.publishShare(shareToken);
+
+      if (response.success && response.share) {
+        const updatedShare = response.share;
+        set((state) => ({
+          shares: state.shares.map((s) =>
+            s.shareToken === shareToken ? { ...s, ...updatedShare, status: 'ready' } : s
+          ),
+          currentShare:
+            state.currentShare?.shareToken === shareToken
+              ? { ...state.currentShare, ...updatedShare, status: 'ready' }
+              : state.currentShare,
+        }));
+        return updatedShare;
+      } else {
+        throw new Error(response.error || 'Failed to publish share');
+      }
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error, 'Failed to publish share');
+      set({ error: errorMessage });
+      throw new Error(errorMessage);
+    }
+  },
+
+  /**
+   * Fetch user's shares (optionally filtered by media type and status)
+   */
+  fetchUserShares: async (mediaType?: ShareMediaType, status?: ShareStatus): Promise<Share[]> => {
     set({ isLoading: true, error: null });
 
     try {
-      const response = await shareApi.getUserShares(mediaType);
+      const response = await shareApi.getUserShares(mediaType, status);
 
       if (response.success) {
         set({

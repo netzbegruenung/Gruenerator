@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 import express, { type Request, type Response, type Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import sharp from 'sharp';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
@@ -18,6 +19,14 @@ import type { SharedMediaRow, ShareResult } from '../../types/media.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('share');
+
+// Rate limiters for share mutation routes
+const shareWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ============================================================================
 // Types
@@ -57,7 +66,11 @@ interface SharedMediaService {
     userId: string,
     params: CreatePendingVideoShareParams
   ): Promise<ShareResult>;
-  getUserShares(userId: string, type: string | null): Promise<SharedMediaRow[]>;
+  getUserShares(
+    userId: string,
+    type: string | null,
+    status?: string | null
+  ): Promise<SharedMediaRow[]>;
   getUserShareCount(userId: string): Promise<number>;
   getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
   recordView(shareToken: string): Promise<void>;
@@ -103,6 +116,7 @@ interface CreateImageShareParams {
   imageType: string | null;
   metadata: Record<string, unknown>;
   originalImage: string | null;
+  status?: 'ready' | 'draft';
 }
 
 interface CreateVideoShareParams {
@@ -134,6 +148,7 @@ interface ImageShareRequest extends AuthenticatedRequest {
     imageType?: string;
     metadata?: Record<string, unknown>;
     originalImage?: string;
+    status?: 'ready' | 'draft';
   };
 }
 
@@ -299,53 +314,111 @@ async function triggerBackgroundRender(
 
 const router: Router = express.Router();
 
+// Override global body parser limit for share routes (canvas images can exceed 10MB)
+router.use(express.json({ limit: '50mb' }));
+
 // ============================================================================
 // IMAGE SHARE ROUTES
 // ============================================================================
 
-router.post('/image', requireAuth, async (req: ImageShareRequest, res: Response<ShareResponse>) => {
-  try {
-    const userId = req.user!.id;
-    const { imageData, title, imageType, metadata, originalImage } = req.body;
+router.post(
+  '/image',
+  shareWriteLimiter,
+  requireAuth,
+  async (req: ImageShareRequest, res: Response<ShareResponse>) => {
+    try {
+      const userId = req.user!.id;
+      const { imageData, title, imageType, metadata, originalImage, status } = req.body;
 
-    if (!imageData) {
-      return res.status(400).json({
+      if (!imageData) {
+        return res.status(400).json({
+          success: false,
+          error: 'Bilddaten werden benötigt',
+        });
+      }
+
+      const service = await getSharedMediaService();
+      const share = await service.createImageShare(userId, {
+        imageBase64: imageData,
+        title: title || 'Geteiltes Bild',
+        imageType: imageType || null,
+        metadata: metadata || {},
+        originalImage: originalImage || null,
+        status: status === 'draft' ? 'draft' : 'ready',
+      });
+
+      log.info(
+        `Image share created: ${share.shareToken} by user ${userId}${originalImage ? ' (with original)' : ''}`
+      );
+
+      return res.json({
+        success: true,
+        share: {
+          shareToken: share.shareToken,
+          shareUrl: share.shareUrl,
+          createdAt: share.createdAt,
+          mediaType: 'image',
+          hasOriginalImage: share.hasOriginalImage || false,
+        },
+      });
+    } catch (error) {
+      log.error('Failed to create image share:', error);
+      return res.status(500).json({
         success: false,
-        error: 'Bilddaten werden benötigt',
+        error: 'Bild konnte nicht geteilt werden',
       });
     }
-
-    const service = await getSharedMediaService();
-    const share = await service.createImageShare(userId, {
-      imageBase64: imageData,
-      title: title || 'Geteiltes Bild',
-      imageType: imageType || null,
-      metadata: metadata || {},
-      originalImage: originalImage || null,
-    });
-
-    log.info(
-      `Image share created: ${share.shareToken} by user ${userId}${originalImage ? ' (with original)' : ''}`
-    );
-
-    return res.json({
-      success: true,
-      share: {
-        shareToken: share.shareToken,
-        shareUrl: share.shareUrl,
-        createdAt: share.createdAt,
-        mediaType: 'image',
-        hasOriginalImage: share.hasOriginalImage || false,
-      },
-    });
-  } catch (error) {
-    log.error('Failed to create image share:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Bild konnte nicht geteilt werden',
-    });
   }
-});
+);
+
+// Promote a draft to ready (publish)
+router.put(
+  '/:shareToken/publish',
+  shareWriteLimiter,
+  requireAuth,
+  async (req: Request<ShareTokenParams>, res: Response<ShareResponse>) => {
+    try {
+      const userId = (req as AuthenticatedRequest).user!.id;
+      const { shareToken } = req.params;
+
+      const service = await getSharedMediaService();
+      const share = await service.getShareByToken(shareToken as string);
+
+      if (!share) {
+        return res.status(404).json({ success: false, error: 'Share nicht gefunden' });
+      }
+
+      if (share.user_id !== userId) {
+        return res.status(403).json({ success: false, error: 'Nicht berechtigt' });
+      }
+
+      const pg = (await import('../../database/services/PostgresService.js')).getPostgresInstance();
+      await pg.query('UPDATE shared_media SET status = $1 WHERE share_token = $2', [
+        'ready',
+        shareToken,
+      ]);
+
+      log.info(`Share ${shareToken} published by user ${userId}`);
+
+      return res.json({
+        success: true,
+        share: {
+          shareToken: share.share_token,
+          shareUrl: `/share/${shareToken}`,
+          createdAt: share.created_at,
+          mediaType: share.media_type as 'image' | 'video',
+          status: 'ready',
+        },
+      });
+    } catch (error) {
+      log.error('Failed to publish share:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Share konnte nicht veröffentlicht werden',
+      });
+    }
+  }
+);
 
 // ============================================================================
 // VIDEO SHARE ROUTES
@@ -580,9 +653,10 @@ router.get(
     try {
       const userId = req.user!.id;
       const type = req.query.type as string | undefined;
+      const status = req.query.status as string | undefined;
 
       const service = await getSharedMediaService();
-      const shares = await service.getUserShares(userId, type || null);
+      const shares = await service.getUserShares(userId, type || null, status || null);
       const count = await service.getUserShareCount(userId);
 
       res.json({

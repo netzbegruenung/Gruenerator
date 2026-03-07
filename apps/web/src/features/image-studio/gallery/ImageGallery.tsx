@@ -176,6 +176,14 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
           </div>
         )}
         {image.imageType && <span className="image-gallery-type-badge">{image.imageType}</span>}
+        {image.status === 'draft' && (
+          <span
+            className="image-gallery-type-badge"
+            style={{ background: 'var(--grey-500)', color: 'white' }}
+          >
+            Entwurf
+          </span>
+        )}
         {isTemplate && (
           <span className="image-gallery-template-badge">
             <FaSave /> Vorlage

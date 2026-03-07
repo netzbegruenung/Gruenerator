@@ -227,7 +227,14 @@ class SharedMediaService {
     await this.ensureInitialized();
     await this.enforceUserLimit(userId);
 
-    const { imageBase64, title, imageType, metadata = {}, originalImage = null } = params;
+    const {
+      imageBase64,
+      title,
+      imageType,
+      metadata = {},
+      originalImage = null,
+      status = 'ready',
+    } = params;
     const shareToken = this.generateShareToken();
     const shareDir = getSafeShareDir(shareToken);
 
@@ -300,7 +307,7 @@ class SharedMediaService {
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
                  file_size, mime_type, image_type, image_metadata, status)
-                VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9, $10, 'ready')
+                VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 RETURNING id, share_token, created_at
             `;
 
@@ -319,6 +326,7 @@ class SharedMediaService {
         mimeType,
         imageType || null,
         JSON.stringify(enrichedMetadata),
+        status,
       ]);
 
       console.log(
@@ -480,7 +488,8 @@ class SharedMediaService {
 
   async getUserShares(
     userId: string,
-    mediaType: 'image' | 'video' | null = null
+    mediaType: 'image' | 'video' | null = null,
+    status: string | null = null
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();
 
@@ -492,10 +501,18 @@ class SharedMediaService {
                 WHERE user_id = $1
             `;
       const params: unknown[] = [userId];
+      let paramIndex = 2;
 
       if (mediaType) {
-        query += ` AND media_type = $2`;
+        query += ` AND media_type = $${paramIndex}`;
         params.push(mediaType);
+        paramIndex++;
+      }
+
+      if (status) {
+        query += ` AND status = $${paramIndex}`;
+        params.push(status);
+        paramIndex++;
       }
 
       query += ` ORDER BY created_at DESC LIMIT 100`;
@@ -905,6 +922,7 @@ class SharedMediaService {
       }
 
       const shareDir = getSafeShareDir(shareToken);
+      await fs.mkdir(shareDir, { recursive: true });
 
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const imageBuffer = Buffer.from(base64Data, 'base64');
