@@ -32,6 +32,8 @@ pnpm --filter @gruenerator/api test:integration  # Run integration tests
 pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 ```
 
+> **WSL RAM constraint**: `pnpm typecheck` is expensive. Only run typechecks on **newly created files** (`npx tsc --noEmit <file>`) or **before pushing**. Do not run full-project typechecks during routine edits.
+
 ## Architecture
 
 ### Monorepo Layout

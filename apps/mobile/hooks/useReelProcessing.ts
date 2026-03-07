@@ -213,7 +213,7 @@ export function useReelProcessing() {
         handleError('upload_failed', getErrorMessage(error));
       }
     },
-    [handleError, reset, startPolling, updateState, user?.id]
+    [handleError, reset, startPolling, updateState, user]
   );
 
   const cancelProcessing = useCallback(() => {

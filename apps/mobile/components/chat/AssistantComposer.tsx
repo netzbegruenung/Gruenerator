@@ -90,6 +90,7 @@ export function AssistantComposer({
     []
   );
 
+  /* eslint-disable react-hooks/preserve-manual-memoization -- inputRef is stable (ref identity) */
   const handleMentionSelect = useCallback(
     (mentionable: Mentionable) => {
       if (!mention) return;
@@ -109,6 +110,7 @@ export function AssistantComposer({
     },
     [aui, mention]
   );
+  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const handlePickFile = useCallback(async () => {
     console.log('[Attachment] Step 1: picking document...');

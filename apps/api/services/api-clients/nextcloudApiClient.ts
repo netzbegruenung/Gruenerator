@@ -28,6 +28,7 @@ export interface NextcloudFile {
   size: number | null;
   lastModified: Date | null;
   etag: string | null;
+  isDirectory?: boolean;
 }
 
 export interface ShareInfo {
@@ -197,16 +198,32 @@ class NextcloudApiClient {
   /**
    * Upload a file to the Nextcloud share
    */
-  async uploadFile(content: string | Buffer, filename: string): Promise<UploadFileResult> {
+  async uploadFile(
+    content: string | Buffer,
+    filename: string,
+    folderPath?: string
+  ): Promise<UploadFileResult> {
     try {
       console.log('[NextcloudApiClient] Uploading file to Nextcloud', {
         filename,
+        folderPath,
         contentLength: content.length,
       });
 
       // Ensure filename is safe
       const safeFilename = this.sanitizeFilename(filename);
-      const uploadUrl = `${this.webdavUrl}/${encodeURIComponent(safeFilename)}`;
+
+      // Build upload URL with optional folder path
+      let uploadUrl = this.webdavUrl;
+      if (folderPath) {
+        const encodedPath = folderPath
+          .split('/')
+          .filter(Boolean)
+          .map((segment) => encodeURIComponent(segment))
+          .join('/');
+        uploadUrl = `${this.webdavUrl}/${encodedPath}`;
+      }
+      uploadUrl = `${uploadUrl}/${encodeURIComponent(safeFilename)}`;
 
       // Detect and handle base64-encoded content
       let uploadContent: string | Buffer = content;
@@ -300,6 +317,57 @@ class NextcloudApiClient {
   }
 
   /**
+   * List files and folders at a given path within the share
+   */
+  async listFolder(folderPath?: string): Promise<NextcloudFile[]> {
+    try {
+      let propfindUrl = this.webdavUrl;
+      if (folderPath) {
+        const encodedPath = folderPath
+          .split('/')
+          .filter(Boolean)
+          .map((segment) => encodeURIComponent(segment))
+          .join('/');
+        propfindUrl = `${this.webdavUrl}/${encodedPath}`;
+      }
+
+      console.log('[NextcloudApiClient] Listing folder', { folderPath, propfindUrl });
+
+      const response = await this.axiosInstance.request<string>({
+        method: 'PROPFIND',
+        url: propfindUrl,
+        headers: {
+          Depth: '1',
+          'Content-Type': 'application/xml',
+        },
+        data: `<?xml version="1.0" encoding="utf-8" ?>
+               <propfind xmlns="DAV:">
+                   <prop>
+                       <resourcetype/>
+                       <getcontentlength/>
+                       <getlastmodified/>
+                       <displayname/>
+                       <getetag/>
+                   </prop>
+               </propfind>`,
+      });
+
+      if (response.status === 207) {
+        return this.parseWebDAVResponse(response.data);
+      }
+
+      return [];
+    } catch (error) {
+      const err = error as Error;
+      console.error('[NextcloudApiClient] Failed to list folder', {
+        folderPath,
+        error: err.message,
+      });
+      throw new Error(err.message || 'Failed to list folder');
+    }
+  }
+
+  /**
    * Get information about the share
    */
   async getShareInfo(): Promise<ShareInfo> {
@@ -385,6 +453,7 @@ class NextcloudApiClient {
             /<d:getlastmodified[^>]*>(.*?)<\/d:getlastmodified>/
           );
           const etagMatch = responseXml.match(/<d:getetag[^>]*>(.*?)<\/d:getetag>/);
+          const isDirectory = /<d:collection\s*\/?>/.test(responseXml);
 
           if (hrefMatch && hrefMatch[1]) {
             const href = hrefMatch[1].trim();
@@ -400,12 +469,20 @@ class NextcloudApiClient {
               etag = etagMatch[1].trim().replace(/^["']|["']$/g, '');
             }
 
+            // For directories, extract name from href (trailing slash)
+            let name = displayNameMatch ? displayNameMatch[1].trim() : '';
+            if (!name) {
+              const segments = href.replace(/\/$/, '').split('/');
+              name = decodeURIComponent(segments.pop() || '');
+            }
+
             files.push({
               href: href,
-              name: displayNameMatch ? displayNameMatch[1].trim() : href.split('/').pop() || '',
+              name,
               size: contentLengthMatch ? parseInt(contentLengthMatch[1]) : null,
               lastModified: lastModifiedMatch ? new Date(lastModifiedMatch[1]) : null,
               etag: etag,
+              isDirectory,
             });
           }
         });
