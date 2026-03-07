@@ -442,7 +442,7 @@ const standardRoutes: RouteConfig[] = [
   // Image Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  { path: '/image-studio', component: ImageStudioKiRedirect },
+  { path: '/image-studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
   { path: '/image-studio/ki', component: ImageStudioKiRedirect },
   { path: '/image-studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },
