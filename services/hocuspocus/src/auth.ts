@@ -256,8 +256,7 @@ export class AuthService {
 
       this.db(
         `UPDATE collaborative_documents
-         SET permissions = COALESCE(permissions, '{}')::jsonb || $1::jsonb,
-             updated_at = CURRENT_TIMESTAMP
+         SET permissions = COALESCE(permissions, '{}')::jsonb || $1::jsonb
          WHERE id = $2
            AND NOT (COALESCE(permissions, '{}')::jsonb ? $3)`,
         [permissionEntry, documentName, userId]
