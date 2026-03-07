@@ -142,7 +142,7 @@ function ResearchPage() {
     <ErrorBoundary>
       <div className="gallery-layout">
         <div className="gallery-header">
-          <h1>Research</h1>
+          <h1>Recherche</h1>
           <p>
             Durchsuche alle gescrapten Dokumente und Programme direkt in den Qdrant-Kollektionen.
           </p>
@@ -241,4 +241,4 @@ function ResearchPage() {
   );
 }
 
-export default withAuthRequired(ResearchPage, { title: 'Research' });
+export default withAuthRequired(ResearchPage, { title: 'Recherche' });

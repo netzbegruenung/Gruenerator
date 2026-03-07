@@ -17,6 +17,7 @@ COPY tsconfig.base.json ./
 
 # Copy only package.json files needed by pnpm filter (better layer caching)
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/sites-design/package.json ./packages/sites-design/
 COPY apps/sites/package.json ./apps/sites/
 
 # Install only sites + transitive workspace deps
@@ -25,6 +26,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source (changes here don't bust the install cache)
 COPY packages/shared ./packages/shared
+COPY packages/sites-design ./packages/sites-design
 COPY apps/sites ./apps/sites
 
 # Build environment variables (can be overridden at build time)
