@@ -320,17 +320,17 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (content !== undefined) {
       updates.push(`content = $${paramIndex++}`);
       values.push(content);
+      updates.push(`last_edited_by = $${paramIndex++}`);
+      values.push(userId);
+      updates.push(`last_edited_at = CURRENT_TIMESTAMP`);
+      updates.push(`updated_at = CURRENT_TIMESTAMP`);
     }
-
-    updates.push(`last_edited_by = $${paramIndex++}`);
-    values.push(userId);
-    updates.push(`last_edited_at = CURRENT_TIMESTAMP`);
 
     values.push(id);
 
     const result = (await db.query(
       `UPDATE collaborative_documents
-       SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+       SET ${updates.join(', ')}
        WHERE id = $${paramIndex}
        RETURNING *`,
       values
