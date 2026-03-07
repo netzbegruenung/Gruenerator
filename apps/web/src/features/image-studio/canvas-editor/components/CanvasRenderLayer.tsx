@@ -4,6 +4,7 @@ import { CanvasText } from '../primitives';
 import { AssetPrimitive } from '../primitives/AssetPrimitive';
 import { BalkenGroup } from '../primitives/BalkenGroup';
 import { CircleBadge } from '../primitives/CircleBadge';
+import { FramePrimitive } from '../primitives/FramePrimitive';
 import { IconPrimitive } from '../primitives/IconPrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
 import { PillBadge } from '../primitives/PillBadge';
@@ -16,6 +17,7 @@ import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../con
 import type { BalkenInstance, CircleBadgeInstance } from '../primitives';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { CanvasItem } from '../utils/canvasLayerManager';
+import type { FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
@@ -143,6 +145,8 @@ interface CanvasRenderLayerProps<
       scale: number,
       rotation: number
     ) => void;
+    handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
+    handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
   };
   getSnapTargets: (id: string) => SnapTarget[];
   handleSnapChange: (h: boolean, v: boolean) => void;
@@ -293,6 +297,22 @@ function CanvasRenderLayerInner<
               isSelected={selectedElement === shape.id}
               onSelect={handlers.handleElementSelect}
               onChange={(attrs) => handlers.handleShapeChange(shape.id, attrs)}
+              draggable={true}
+            />
+          );
+        }
+
+        // Render Frame
+        if (item.type === 'frame') {
+          const frame = item.data as unknown as FrameInstance;
+          return (
+            <FramePrimitive
+              key={frame.id}
+              frame={frame}
+              isSelected={selectedElement === frame.id}
+              onSelect={handlers.handleElementSelect}
+              onChange={(attrs) => handlers.handleFrameChange(frame.id, attrs)}
+              onImageUpload={handlers.handleFrameImageUpload}
               draggable={true}
             />
           );

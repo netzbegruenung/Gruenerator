@@ -125,13 +125,17 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const handleChatClick = useCallback(() => {
     useAgentStore.getState().setPendingNewThread(true);
+    if (location.pathname.startsWith('/chat')) {
+      // Already on chat — just trigger new thread, keep sidebar open
+      return;
+    }
     if (onNavigate) {
       onNavigate('/chat', 'Chat');
     } else {
       navigate('/chat');
     }
     close();
-  }, [navigate, close, onNavigate]);
+  }, [navigate, close, onNavigate, location.pathname]);
 
   const toggleDarkMode = useCallback(() => {
     const newTheme = darkMode ? 'light' : 'dark';

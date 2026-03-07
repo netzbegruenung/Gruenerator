@@ -10,6 +10,7 @@ import { v4 as uuid } from 'uuid';
 import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance } from '../../utils/canvasAssets';
 import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import { createFrameInstance } from '../../utils/frameUtils';
 import { createIllustration } from '../../utils/illustrations/registry';
 import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
 import { BRAND_COLORS, createShape } from '../../utils/shapes';
@@ -18,6 +19,7 @@ import type { IconState, BaseCanvasState } from './baseTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
@@ -468,6 +470,61 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
 }
 
 // ============================================================================
+// FRAME ACTIONS
+// ============================================================================
+
+export function createFrameActions<TState extends { frameInstances: FrameInstance[] }>(
+  getState: () => TState,
+  setState: StateSetter<TState>,
+  saveToHistory: HistorySaver<TState>,
+  canvasWidth: number,
+  canvasHeight: number
+) {
+  return {
+    addFrame: (clipType: FrameClipType) => {
+      const newFrame = createFrameInstance(clipType, canvasWidth / 2, canvasHeight / 2);
+      setState((prev) => ({
+        ...prev,
+        frameInstances: [...prev.frameInstances, newFrame],
+      }));
+      saveToHistory(getState());
+    },
+    updateFrame: (id: string, partial: Partial<FrameInstance>) => {
+      setState((prev) => ({
+        ...prev,
+        frameInstances: prev.frameInstances.map((f) => (f.id === id ? { ...f, ...partial } : f)),
+      }));
+    },
+    removeFrame: (id: string) => {
+      const frame = getState().frameInstances.find((f) => f.id === id);
+      if (frame?.imageSrc) {
+        URL.revokeObjectURL(frame.imageSrc);
+      }
+      setState((prev) => ({
+        ...prev,
+        frameInstances: prev.frameInstances.filter((f) => f.id !== id),
+      }));
+      saveToHistory(getState());
+    },
+    setFrameImage: (id: string, _file: File, objectUrl: string) => {
+      const oldFrame = getState().frameInstances.find((f) => f.id === id);
+      if (oldFrame?.imageSrc) {
+        URL.revokeObjectURL(oldFrame.imageSrc);
+      }
+      setState((prev) => ({
+        ...prev,
+        frameInstances: prev.frameInstances.map((f) =>
+          f.id === id
+            ? { ...f, imageSrc: objectUrl, imageOffsetX: 0, imageOffsetY: 0, imageScale: 1 }
+            : f
+        ),
+      }));
+      saveToHistory(getState());
+    },
+  };
+}
+
+// ============================================================================
 // COMBINED BASE ACTIONS
 // ============================================================================
 
@@ -510,5 +567,6 @@ export function createBaseActions<TState extends BaseCanvasState>(
     ...createPillBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createBalkenActions(getState, setState, saveToHistory, debouncedSaveToHistory),
+    ...createFrameActions(getState, setState, saveToHistory, canvasWidth, canvasHeight),
   };
 }

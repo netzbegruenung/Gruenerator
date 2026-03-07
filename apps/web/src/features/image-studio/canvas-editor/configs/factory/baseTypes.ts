@@ -9,6 +9,7 @@ import type { StockImageAttribution } from '../../../services/imageSourceService
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
@@ -37,6 +38,7 @@ export interface BaseCanvasState {
   pillBadgeInstances: PillBadgeInstance[];
   circleBadgeInstances: CircleBadgeInstance[];
   balkenInstances: BalkenInstance[];
+  frameInstances: FrameInstance[];
   [key: string]: unknown;
 }
 
@@ -127,6 +129,12 @@ export interface BaseCanvasActions {
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
 
+  // Frame management
+  addFrame: (clipType: FrameClipType) => void;
+  updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
+  removeFrame: (id: string) => void;
+  setFrameImage: (id: string, file: File, objectUrl: string) => void;
+
   // Alternatives
   handleSelectAlternative: (alt: AlternativeItem) => void;
 }
@@ -164,6 +172,7 @@ export interface CanvasFeatures {
   balken?: boolean;
   pillBadge?: boolean;
   circleBadge?: boolean;
+  frames?: boolean;
 }
 
 /** Canvas dimension configuration */
