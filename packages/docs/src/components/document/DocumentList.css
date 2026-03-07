@@ -193,19 +193,21 @@
   opacity: 1;
 }
 
-.document-card-sharing {
-  font-size: 0.6875rem;
-  color: var(--primary-600, #316049);
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .document-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
   font-size: 0.75rem;
   color: var(--font-color-secondary);
   margin-top: 2px;
+}
+
+.document-card-sharing {
+  font-size: 0.6875rem;
+  color: var(--primary-600, #316049);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Tablet: 2-column grid */
