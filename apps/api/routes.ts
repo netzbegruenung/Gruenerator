@@ -3,6 +3,8 @@
  * Central routing setup for all API endpoints
  */
 
+import rateLimit from 'express-rate-limit';
+
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
@@ -69,6 +71,27 @@ import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
 
 import type { Application, Request, Response, NextFunction } from 'express';
+
+/**
+ * IP-based rate limiters for abuse prevention.
+ * These are intentionally softer since most routes also have frontend-side throttling.
+ * Complements the existing Redis-based per-user rate limiter (used for business quotas).
+ */
+const aiGenerationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 60, // ~4 per minute average
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many AI generation requests, please try again later.' },
+});
+
+const standardMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
 
 const log = createLogger('Routes');
 
@@ -176,97 +199,135 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/scanner', scannerRouter);
   app.use('/api/protokoll', protokollRouter);
 
-  app.use('/api/claude_social', claudeSocialRoute);
-  app.use('/api/claude_alttext', claudeAlttextRoute);
-  app.use('/api/claude_website', claudeWebsiteRoute);
-  app.use('/api/leichte_sprache', leichteSpracheRoute);
-  app.use('/api/claude_rede', redeRouter);
-  app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
-  app.use('/api/claude_text_improver', claudeTextImproverRoute);
-  app.use('/api/chat', grueneratorChatRoute);
-  app.use('/api/chat-service', chatServiceRouter);
-  app.use('/api/chat-graph', chatGraphRouter);
-  app.use('/api/chat-deep', chatDeepRouter); // @experimental — DeepAgent route, not production-ready
+  app.use('/api/claude_social', aiGenerationLimiter, claudeSocialRoute);
+  app.use('/api/claude_alttext', aiGenerationLimiter, claudeAlttextRoute);
+  app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
+  app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
+  app.use('/api/claude_rede', aiGenerationLimiter, redeRouter);
+  app.use('/api/claude_buergeranfragen', aiGenerationLimiter, buergeranfragenRouter);
+  app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
+  app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
+  app.use('/api/chat-service', aiGenerationLimiter, chatServiceRouter);
+  app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
+  app.use('/api/chat-deep', aiGenerationLimiter, chatDeepRouter); // @experimental — DeepAgent route, not production-ready
   app.use('/api/gruen-o-mat', gruenOMatRouter);
-  app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
-  app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
-  app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
-  app.use('/api/info_canvas', infoSharepicCanvasRoute);
-  app.use('/api/imagine_label_canvas', imagineLabelCanvasRoute);
-  app.use('/api/campaign_canvas', campaignCanvasRoute);
-  app.use('/api/veranstaltung_canvas', veranstaltungCanvasRoute);
-  app.use('/api/profilbild_canvas', profilbildCanvasRoute);
-  app.use('/api/simple_canvas', simpleCanvasRoute);
-  app.use('/api/slider_canvas', sliderCanvasRoute);
-  app.use('/api/campaign_generate', campaignGenerateRoute);
-  app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
-  app.use('/api/sharepic/edit-session', editSessionRouter);
-  app.use('/api/sharepic', promptRoute);
+  app.use('/api/dreizeilen_canvas', standardMutationLimiter, sharepicDreizeilenCanvasRoute);
+  app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);
+  app.use('/api/zitat_pure_canvas', standardMutationLimiter, zitatPureSharepicCanvasRoute);
+  app.use('/api/info_canvas', standardMutationLimiter, infoSharepicCanvasRoute);
+  app.use('/api/imagine_label_canvas', standardMutationLimiter, imagineLabelCanvasRoute);
+  app.use('/api/campaign_canvas', standardMutationLimiter, campaignCanvasRoute);
+  app.use('/api/veranstaltung_canvas', standardMutationLimiter, veranstaltungCanvasRoute);
+  app.use('/api/profilbild_canvas', standardMutationLimiter, profilbildCanvasRoute);
+  app.use('/api/simple_canvas', standardMutationLimiter, simpleCanvasRoute);
+  app.use('/api/slider_canvas', standardMutationLimiter, sliderCanvasRoute);
+  app.use('/api/campaign_generate', aiGenerationLimiter, campaignGenerateRoute);
+  app.use('/api/dreizeilen_claude', aiGenerationLimiter, sharepicClaudeRoute);
+  app.use('/api/sharepic/edit-session', standardMutationLimiter, editSessionRouter);
+  app.use('/api/sharepic', aiGenerationLimiter, promptRoute);
 
-  app.post('/api/zitat_claude', async (req: Request, res: Response): Promise<void> => {
-    await handleClaudeRequest(req as any, res, 'zitat');
-  });
-  app.post('/api/headline_claude', async (req: Request, res: Response): Promise<void> => {
-    await handleClaudeRequest(req as any, res, 'headline');
-  });
-  app.post('/api/info_claude', async (req: Request, res: Response): Promise<void> => {
-    await handleClaudeRequest(req as any, res, 'info');
-  });
-  app.post('/api/veranstaltung_claude', async (req: Request, res: Response): Promise<void> => {
-    await handleClaudeRequest(req as any, res, 'veranstaltung');
-  });
-  app.post('/api/zitat_pure_claude', async (req: Request, res: Response): Promise<void> => {
-    await handleClaudeRequest(req as any, res, 'zitat_pure');
-  });
-  app.post('/api/simple_claude', async (req: Request, res: Response): Promise<void> => {
-    await handleClaudeRequest(req as any, res, 'simple');
-  });
-  app.post('/api/slider_claude', async (req: Request, res: Response): Promise<void> => {
-    if (req.body.smartCount) {
-      await handleSliderSmartRequest(req as any, res);
-    } else {
-      await handleClaudeRequest(req as any, res, 'slider');
+  app.post(
+    '/api/zitat_claude',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      await handleClaudeRequest(req as any, res, 'zitat');
     }
-  });
-  app.post('/api/default_claude', async (req: Request, res: Response): Promise<void> => {
-    await handleClaudeRequest(req as any, res, 'default');
-  });
-
-  app.post('/api/generate-sharepic', async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { type, ...requestBody } = req.body;
-      if (!type) {
-        res.status(400).json({ success: false, error: 'Sharepic type is required' });
-        return;
+  );
+  app.post(
+    '/api/headline_claude',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      await handleClaudeRequest(req as any, res, 'headline');
+    }
+  );
+  app.post(
+    '/api/info_claude',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      await handleClaudeRequest(req as any, res, 'info');
+    }
+  );
+  app.post(
+    '/api/veranstaltung_claude',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      await handleClaudeRequest(req as any, res, 'veranstaltung');
+    }
+  );
+  app.post(
+    '/api/zitat_pure_claude',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      await handleClaudeRequest(req as any, res, 'zitat_pure');
+    }
+  );
+  app.post(
+    '/api/simple_claude',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      await handleClaudeRequest(req as any, res, 'simple');
+    }
+  );
+  app.post(
+    '/api/slider_claude',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      if (req.body.smartCount) {
+        await handleSliderSmartRequest(req as any, res);
+      } else {
+        await handleClaudeRequest(req as any, res, 'slider');
       }
-      const result = await generateSharepicForChat(req as any, type, requestBody);
-      res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      console.error('[UnifiedSharepic] Error:', err);
-      res.status(500).json({ success: false, error: err.message || 'Failed to generate sharepic' });
     }
-  });
+  );
+  app.post(
+    '/api/default_claude',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      await handleClaudeRequest(req as any, res, 'default');
+    }
+  );
 
-  app.use('/api/ai-image-modification', aiImageModificationRouter);
-  app.use('/api/imageupload', imageUploadRouter);
-  app.use('/api/processText', processTextRouter);
-  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute);
-  app.use('/api/etherpad', etherpadRoute);
-  app.use('/api/claude_wahlprogramm', wahlprogrammRouter);
-  app.use('/api/claude_universal', universalRouter);
-  app.use('/api/texte/smart', smartTexteRouter);
-  app.use('/api/generate-content-title', contentTitleRouter);
-  app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
-  app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
+  app.post(
+    '/api/generate-sharepic',
+    aiGenerationLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      try {
+        const { type, ...requestBody } = req.body;
+        if (!type) {
+          res.status(400).json({ success: false, error: 'Sharepic type is required' });
+          return;
+        }
+        const result = await generateSharepicForChat(req as any, type, requestBody);
+        res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error('[UnifiedSharepic] Error:', err);
+        res
+          .status(500)
+          .json({ success: false, error: err.message || 'Failed to generate sharepic' });
+      }
+    }
+  );
+
+  app.use('/api/ai-image-modification', aiGenerationLimiter, aiImageModificationRouter);
+  app.use('/api/imageupload', standardMutationLimiter, imageUploadRouter);
+  app.use('/api/processText', aiGenerationLimiter, processTextRouter);
+  app.use('/api/claude_text_adjustment', aiGenerationLimiter, claudeTextAdjustmentRoute);
+  app.use('/api/etherpad', standardMutationLimiter, etherpadRoute);
+  app.use('/api/claude_wahlprogramm', aiGenerationLimiter, wahlprogrammRouter);
+  app.use('/api/claude_universal', aiGenerationLimiter, universalRouter);
+  app.use('/api/texte/smart', aiGenerationLimiter, smartTexteRouter);
+  app.use('/api/generate-content-title', aiGenerationLimiter, contentTitleRouter);
+  app.use('/api/claude_gruene_jugend', aiGenerationLimiter, claudeGrueneJugendRoute);
+  app.use('/api/claude_gruenerator_ask', aiGenerationLimiter, claudeGrueneratorAskRoute);
   app.use('/api/custom_generator', customGeneratorRoute);
   app.use('/api/auth/custom_generator', customGeneratorRoute);
   app.use('/api/generate_generator_config', generatorConfiguratorRoute);
   app.use('/api/custom_prompt', customPromptRoute);
   app.use('/api/auth/custom_prompt', customPromptRoute);
-  app.use('/api/claude/generate-short-subtitles', claudeSubtitlesRoute);
-  app.use('/api/subtitler', subtitlerRouter);
-  app.use('/api/subtitler', subtitlerSocialRouter);
+  app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
+  app.use('/api/subtitler', standardMutationLimiter, subtitlerRouter);
+  app.use('/api/subtitler', standardMutationLimiter, subtitlerSocialRouter);
   app.use('/api/subtitler/projects', subtitlerProjectRouter);
   app.use('/api/subtitler/share', subtitlerShareRouter);
   app.use('/api/share', shareRouter);
@@ -284,7 +345,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/unsplash', unsplashRouter);
   app.use('/api/web-search', webSearchRouter);
   app.use('/api/research', requireAuth, researchRouter);
-  app.use('/api/image-generation', imageGenerationRouter);
+  app.use('/api/image-generation', aiGenerationLimiter, imageGenerationRouter);
   app.use('/api/rate-limit', rateLimitRouter);
 
   // Debug: log all requests to /api/releases/*
@@ -320,11 +381,11 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   app.use('/api/video', requireAuth, videoRouter);
   app.use('/api/nextcloud', nextcloudApiRouter);
-  app.use('/api/sites/generate-from-flyer', flyerController);
-  app.use('/api/sites', sitesRouter);
-  app.use('/api/flux/green-edit', fluxImageEditingRoute);
-  app.use('/api/imagine/create', imagineCreateRoute);
-  app.use('/api/imagine/pure', imaginePureRoute);
+  app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
+  app.use('/api/sites', standardMutationLimiter, sitesRouter);
+  app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
+  app.use('/api/imagine/create', aiGenerationLimiter, imagineCreateRoute);
+  app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
 
   // Web redirect to frontend imagine (KI image studio)
   app.get('/web', (req: Request, res: Response) => {
