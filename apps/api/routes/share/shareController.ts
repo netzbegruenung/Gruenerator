@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 import express, { type Request, type Response, type Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import sharp from 'sharp';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
@@ -18,6 +19,14 @@ import type { SharedMediaRow, ShareResult } from '../../types/media.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('share');
+
+// Rate limiters for share mutation routes
+const shareWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ============================================================================
 // Types
@@ -312,54 +321,60 @@ router.use(express.json({ limit: '50mb' }));
 // IMAGE SHARE ROUTES
 // ============================================================================
 
-router.post('/image', requireAuth, async (req: ImageShareRequest, res: Response<ShareResponse>) => {
-  try {
-    const userId = req.user!.id;
-    const { imageData, title, imageType, metadata, originalImage, status } = req.body;
+router.post(
+  '/image',
+  shareWriteLimiter,
+  requireAuth,
+  async (req: ImageShareRequest, res: Response<ShareResponse>) => {
+    try {
+      const userId = req.user!.id;
+      const { imageData, title, imageType, metadata, originalImage, status } = req.body;
 
-    if (!imageData) {
-      return res.status(400).json({
+      if (!imageData) {
+        return res.status(400).json({
+          success: false,
+          error: 'Bilddaten werden benötigt',
+        });
+      }
+
+      const service = await getSharedMediaService();
+      const share = await service.createImageShare(userId, {
+        imageBase64: imageData,
+        title: title || 'Geteiltes Bild',
+        imageType: imageType || null,
+        metadata: metadata || {},
+        originalImage: originalImage || null,
+        status: status === 'draft' ? 'draft' : 'ready',
+      });
+
+      log.info(
+        `Image share created: ${share.shareToken} by user ${userId}${originalImage ? ' (with original)' : ''}`
+      );
+
+      return res.json({
+        success: true,
+        share: {
+          shareToken: share.shareToken,
+          shareUrl: share.shareUrl,
+          createdAt: share.createdAt,
+          mediaType: 'image',
+          hasOriginalImage: share.hasOriginalImage || false,
+        },
+      });
+    } catch (error) {
+      log.error('Failed to create image share:', error);
+      return res.status(500).json({
         success: false,
-        error: 'Bilddaten werden benötigt',
+        error: 'Bild konnte nicht geteilt werden',
       });
     }
-
-    const service = await getSharedMediaService();
-    const share = await service.createImageShare(userId, {
-      imageBase64: imageData,
-      title: title || 'Geteiltes Bild',
-      imageType: imageType || null,
-      metadata: metadata || {},
-      originalImage: originalImage || null,
-      status: status === 'draft' ? 'draft' : 'ready',
-    });
-
-    log.info(
-      `Image share created: ${share.shareToken} by user ${userId}${originalImage ? ' (with original)' : ''}`
-    );
-
-    return res.json({
-      success: true,
-      share: {
-        shareToken: share.shareToken,
-        shareUrl: share.shareUrl,
-        createdAt: share.createdAt,
-        mediaType: 'image',
-        hasOriginalImage: share.hasOriginalImage || false,
-      },
-    });
-  } catch (error) {
-    log.error('Failed to create image share:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Bild konnte nicht geteilt werden',
-    });
   }
-});
+);
 
 // Promote a draft to ready (publish)
 router.put(
   '/:shareToken/publish',
+  shareWriteLimiter,
   requireAuth,
   async (req: Request<ShareTokenParams>, res: Response<ShareResponse>) => {
     try {
