@@ -1,8 +1,9 @@
-@import '../../styles/theme-bridge';
+@use 'sass:map';
+@use '../../styles/theme-bridge' as tb;
 
 .wp-block-gruenerator-about-block {
     position: relative;
-    
+
     &::before {
         content: '';
         position: absolute;
@@ -12,24 +13,24 @@
         bottom: 0;
         margin-left: -50vw;
         margin-right: -50vw;
-        background-color: custom-color('sand');
+        background-color: tb.custom-color('sand');
         z-index: -1;
     }
 
     .about-block-content {
-        @include sunflower-container;
-        
+        @include tb.sunflower-container;
+
         & {
             display: flex;
-            align-items: center; // Ändert sich von flex-start zu center
+            align-items: center;
             gap: 2rem;
             padding: 3rem 2rem;
         }
 
-        @media (max-width: map-get($container-max-widths, 'md')) {
+        @media (max-width: map.get(tb.$container-max-widths, 'md')) {
             & {
                 flex-direction: column;
-                align-items: flex-start; // Zurück zu flex-start für mobile Ansicht
+                align-items: flex-start;
                 padding: 2rem 1.5rem;
             }
         }
@@ -37,17 +38,17 @@
 
     .about-block-title {
         flex: 0 0 30%;
-        color: $primary;
-        font-size: $font-size-base * 2.5;
+        color: tb.$primary;
+        font-size: tb.$font-size-base * 2.5;
         font-weight: bold;
         line-height: 1.2;
         margin: 0;
-        align-self: center; // Zusätzliche Zentrierung
+        align-self: center;
 
-        @media (max-width: map-get($container-max-widths, 'md')) {
-            font-size: $font-size-base * 2;
+        @media (max-width: map.get(tb.$container-max-widths, 'md')) {
+            font-size: tb.$font-size-base * 2;
             margin-bottom: 1rem;
-            align-self: flex-start; // Zurück zu flex-start für mobile Ansicht
+            align-self: flex-start;
         }
     }
 
@@ -55,8 +56,8 @@
         flex: 1;
 
         p {
-            color: $body-color;
-            font-size: $font-size-base;
+            color: tb.$body-color;
+            font-size: tb.$font-size-base;
             line-height: 1.6;
             margin-bottom: 1rem;
 
@@ -67,11 +68,11 @@
 
         strong {
             font-weight: 600;
-            color: $black-500;
+            color: tb.$black-500;
         }
 
-        @media (max-width: map-get($container-max-widths, 'md')) {
-            font-size: $small-font-size;
+        @media (max-width: map.get(tb.$container-max-widths, 'md')) {
+            font-size: tb.$small-font-size;
         }
     }
 }

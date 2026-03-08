@@ -1,9 +1,6 @@
 /* index.scss */
-@import 'styles/theme-bridge';
-@import 'styles/landing-page';
-@import 'styles/setup-wizard';
-@import '../admin/css/admin-styles.scss';
-@import 'styles/admin-dashboard';
-@import 'styles/settings';
-
-
+@use 'styles/landing-page';
+@use 'styles/setup-wizard';
+@use '../admin/css/admin-styles';
+@use 'styles/admin-dashboard';
+@use 'styles/settings';

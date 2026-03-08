@@ -1,6 +1,11 @@
+@use '../theme-bridge' as tb;
+@use '../base/typography' as typo;
+@use './buttons' as btn;
+@use './cards' as cards;
+
 // Completion Page Komponente
 .gruenerator-setup-complete {
-    background: custom-color('weiss');
+    background: tb.custom-color('weiss');
     border-radius: 8px;
     padding: 3rem 2rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -15,13 +20,13 @@
             font-size: 4em;
             width: auto;
             height: auto;
-            color: custom-color('klee');
+            color: tb.custom-color('klee');
             margin-bottom: 1rem;
             animation: successPop 0.5s ease-out;
         }
 
         h2 {
-            @extend %heading-large;
+            @include typo.heading-large;
         }
     }
 
@@ -33,11 +38,11 @@
 
         .button {
             &.button-primary {
-                @extend %button-primary;
+                @include btn.button-primary;
             }
 
             &.button-secondary {
-                @extend %button-secondary;
+                @include btn.button-secondary;
             }
         }
     }
@@ -51,18 +56,18 @@
         border: 1px solid rgba(0, 137, 57, 0.1);
 
         h3 {
-            @extend %card-title;
+            @include cards.card-title;
         }
 
         ul {
-            @extend %card-list;
+            @include cards.card-list;
         }
     }
 }
 
 // Setup Completed Notice
 .gruenerator-setup-completed-notice {
-    background: custom-color('weiss');
+    background: tb.custom-color('weiss');
     border-radius: 8px;
     padding: 3rem 2rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -71,12 +76,12 @@
     text-align: center;
 
     h1 {
-        @extend %heading-large;
+        @include typo.heading-large;
         margin-bottom: 2rem;
     }
 
     p {
-        @extend %text-base;
+        @include typo.text-base;
         max-width: 600px;
         margin: 0 auto 2rem;
     }
@@ -88,11 +93,11 @@
 
         .button {
             &.button-primary {
-                @extend %button-primary;
+                @include btn.button-primary;
             }
 
             &.button-secondary {
-                @extend %button-secondary;
+                @include btn.button-secondary;
             }
         }
     }
@@ -101,7 +106,7 @@
         font-size: 4em;
         width: auto;
         height: auto;
-        color: custom-color('klee');
+        color: tb.custom-color('klee');
         margin-bottom: 1.5rem;
         animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }
@@ -170,4 +175,4 @@
             font-size: 3em;
         }
     }
-} 
+}
