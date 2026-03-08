@@ -442,7 +442,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/chat', component: GrueneratorenBundle.Chat },
   // Text Editor - redirect to unified
   { path: '/texteditor', component: TextEditorRedirect },
-  // Apps Download Page
+  // Apps & Connect Page
   { path: '/apps', component: AppsPage },
   // Media Library Route
   { path: '/media-library', component: MediaLibraryPage },
