@@ -4,8 +4,8 @@ import Spinner from '../../../../../components/common/Spinner';
 
 import { AlternativesRenderer } from './AlternativesCore';
 
-import type { DreizeilenAlternative } from '../../configs/dreizeilen.types';
 import type { TwoTextAlternative } from '../../configs/alternativesSection';
+import type { DreizeilenAlternative } from '../../configs/dreizeilen.types';
 
 type Alternative = string | DreizeilenAlternative | TwoTextAlternative;
 
@@ -30,12 +30,6 @@ export interface AlternativesSectionProps {
 
 export function AlternativesSection(props: AlternativesSectionProps) {
   const { alternatives } = props;
-  console.log('[DEBUG AlternativesSection] Props:', props);
-  console.log('[DEBUG AlternativesSection] Alternatives:', alternatives);
-  console.log('[DEBUG AlternativesSection] Alternatives type check:', alternatives?.length > 0 ? typeof alternatives[0] : 'empty');
-  if (alternatives?.length > 0 && typeof alternatives[0] === 'object') {
-    console.log('[DEBUG AlternativesSection] First alternative keys:', Object.keys(alternatives[0]));
-  }
 
   if (!alternatives || alternatives.length === 0) {
     return (
@@ -55,10 +49,9 @@ export function AlternativesSection(props: AlternativesSectionProps) {
   const firstAlt = alternatives[0];
   const isObject = typeof firstAlt === 'object' && firstAlt !== null;
 
-  const isDreizeilen = isObject && ('line1' in firstAlt || 'line2' in firstAlt || 'line3' in firstAlt);
+  const isDreizeilen =
+    isObject && ('line1' in firstAlt || 'line2' in firstAlt || 'line3' in firstAlt);
   const isTwoText = isObject && ('headline' in firstAlt || 'subtext' in firstAlt);
-
-  console.log('[DEBUG AlternativesSection] Type detection:', { isDreizeilen, isTwoText, isObject });
 
   // Dreizeilen alternatives (line1/line2/line3)
   if (isDreizeilen) {
@@ -127,7 +120,9 @@ export function AlternativesSection(props: AlternativesSectionProps) {
     <AlternativesRenderer
       alternatives={alternatives as string[]}
       isActive={(alt) => alt === currentQuote}
-      getDisplayText={(alt) => (typeof alt === 'string' && alt.length > 50 ? alt.slice(0, 50) + '...' : String(alt))}
+      getDisplayText={(alt) =>
+        typeof alt === 'string' && alt.length > 50 ? alt.slice(0, 50) + '...' : String(alt)
+      }
       onSelect={(alt) => onAlternativeSelect?.(alt)}
       layout="pills"
       collapsible={true}

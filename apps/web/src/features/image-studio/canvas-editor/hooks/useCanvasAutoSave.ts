@@ -170,28 +170,10 @@ export const useCanvasAutoSave = (
     // Read current store state directly to avoid stale closures
     const storeState = useAutoSaveStore.getState();
 
-    if (!imageSrc) {
-      console.log('[AutoSave] Skipped: No image source');
-      return;
-    }
-    if (refs.enabled === false) {
-      console.log('[AutoSave] Skipped: Disabled');
-      return;
-    }
-    if (storeState.autoSaveStatus === 'saving') {
-      console.log('[AutoSave] Skipped: Already saving');
-      return;
-    }
-    if (storeState.lastAutoSavedImageSrc === imageSrc) {
-      console.log('[AutoSave] Skipped: Same image already saved');
-      return;
-    }
-
-    console.log('[AutoSave] Starting save...', {
-      canvasType: refs.canvasType,
-      hasExistingToken: !!storeState.autoSavedShareToken,
-      imageLength: imageSrc.length,
-    });
+    if (!imageSrc) return;
+    if (refs.enabled === false) return;
+    if (storeState.autoSaveStatus === 'saving') return;
+    if (storeState.lastAutoSavedImageSrc === imageSrc) return;
 
     refs.setAutoSaveStatus('saving');
 
@@ -214,7 +196,6 @@ export const useCanvasAutoSave = (
 
       // If we already have a shareToken, update the existing entry instead of creating new
       if (storeState.autoSavedShareToken) {
-        console.log('[AutoSave] Updating existing share:', storeState.autoSavedShareToken);
         share = await refs.updateImageShare({
           shareToken: storeState.autoSavedShareToken,
           imageBase64: imageSrc,
@@ -223,7 +204,6 @@ export const useCanvasAutoSave = (
           originalImage: originalImageBase64,
         });
       } else {
-        console.log('[AutoSave] Creating new share entry');
         share = await refs.createImageShare({
           imageData: imageSrc,
           title,
@@ -235,12 +215,9 @@ export const useCanvasAutoSave = (
       }
 
       if (share?.shareToken) {
-        console.log('[AutoSave] Success! Token:', share.shareToken);
         refs.setAutoSavedShareToken(share.shareToken);
         refs.setLastAutoSavedImageSrc(imageSrc);
         refs.setAutoSaveStatus('saved');
-      } else {
-        console.log('[AutoSave] No shareToken in response');
       }
     } catch (error) {
       console.error('[AutoSave] Error:', error);

@@ -40,21 +40,23 @@ export const useTemplateResultAutoSave = (): void => {
     setLastAutoSavedImageSrc,
   });
 
-  // Update refs on each render
-  latestRefs.current = {
-    type,
-    typeConfig,
-    fieldConfig,
-    galleryEditMode,
-    autoSaveStatus,
-    lastAutoSavedImageSrc,
-    getOriginalImageBase64,
-    buildShareMetadata,
-    createImageShare,
-    setAutoSaveStatus,
-    setAutoSavedShareToken,
-    setLastAutoSavedImageSrc,
-  };
+  // Update refs in an effect to avoid modifying refs during render
+  useEffect(() => {
+    latestRefs.current = {
+      type,
+      typeConfig,
+      fieldConfig,
+      galleryEditMode,
+      autoSaveStatus,
+      lastAutoSavedImageSrc,
+      getOriginalImageBase64,
+      buildShareMetadata,
+      createImageShare,
+      setAutoSaveStatus,
+      setAutoSavedShareToken,
+      setLastAutoSavedImageSrc,
+    };
+  });
 
   // Stable auto-save function that reads from refs
   const performAutoSave = useCallback(async (imageSrc: string) => {
@@ -66,7 +68,6 @@ export const useTemplateResultAutoSave = (): void => {
     if (refs.autoSaveStatus === 'saving') return;
     if (refs.lastAutoSavedImageSrc === imageSrc) return;
 
-    console.log('[useTemplateResultAutoSave] Starting auto-save for:', refs.type);
     refs.setAutoSaveStatus('saving');
 
     try {
@@ -83,7 +84,6 @@ export const useTemplateResultAutoSave = (): void => {
       });
 
       if (share?.shareToken) {
-        console.log('[useTemplateResultAutoSave] Auto-save successful:', share.shareToken);
         refs.setAutoSavedShareToken(share.shareToken);
         refs.setLastAutoSavedImageSrc(imageSrc);
         refs.setAutoSaveStatus('saved');

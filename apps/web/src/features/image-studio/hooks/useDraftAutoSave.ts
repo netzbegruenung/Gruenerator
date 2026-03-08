@@ -73,7 +73,6 @@ export const useDraftAutoSave = (): void => {
     if (storeState.autoSaveStatus === 'saving') return;
     if (!refs.generatedImageSrc && !storeState.autoSavedShareToken) return;
 
-    console.log('[useDraftAutoSave] Starting save...');
     refs.setAutoSaveStatus('saving');
 
     try {
@@ -95,7 +94,6 @@ export const useDraftAutoSave = (): void => {
           metadata: metadata ?? undefined,
           imageBase64: imageSrc,
         });
-        console.log('[useDraftAutoSave] Update successful');
       } else {
         // CREATE new
         const share = await refs.createImageShare({
@@ -107,7 +105,6 @@ export const useDraftAutoSave = (): void => {
           status: 'draft',
         });
         if (share?.shareToken) {
-          console.log('[useDraftAutoSave] Create successful:', share.shareToken);
           refs.setAutoSavedShareToken(share.shareToken);
         }
       }
