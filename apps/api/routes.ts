@@ -76,22 +76,29 @@ import type { Application, Request, Response, NextFunction } from 'express';
  * IP-based rate limiters for abuse prevention.
  * These are intentionally softer since most routes also have frontend-side throttling.
  * Complements the existing Redis-based per-user rate limiter (used for business quotas).
+ * Disabled entirely when DISABLE_RATE_LIMITS=true (dev convenience).
  */
-const aiGenerationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 60, // ~4 per minute average
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many AI generation requests, please try again later.' },
-});
+const isRateLimitDisabled = process.env.DISABLE_RATE_LIMITS === 'true';
 
-const standardMutationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
-});
+const aiGenerationLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 60, // ~4 per minute average
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many AI generation requests, please try again later.' },
+    });
+
+const standardMutationLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 200,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later.' },
+    });
 
 const log = createLogger('Routes');
 
