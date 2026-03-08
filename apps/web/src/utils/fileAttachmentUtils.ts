@@ -43,7 +43,7 @@ const ALLOWED_FILE_TYPES: Record<AllowedMimeType, string> = {
   'image/webp': 'WebP Image',
 };
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file (conservative for 32MB total Claude limit)
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB per file (Claude API supports PDFs up to 32MB)
 const MAX_TOTAL_SIZE = 30 * 1024 * 1024; // 30MB total (leaving buffer for request overhead)
 
 /**
@@ -65,8 +65,8 @@ export const validateFile = (file: File): boolean => {
 
   // Check file size
   if (file.size > MAX_FILE_SIZE) {
-    const sizeMB = Math.round(file.size / (1024 * 1024));
-    const maxSizeMB = Math.round(MAX_FILE_SIZE / (1024 * 1024));
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(1);
     throw new Error(`Datei zu groß: ${file.name} (${sizeMB}MB). Maximum: ${maxSizeMB}MB`);
   }
 

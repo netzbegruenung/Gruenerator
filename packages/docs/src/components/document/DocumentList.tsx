@@ -195,17 +195,19 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
                       </Menu.Dropdown>
                     </Menu>
                   </div>
-                  {doc.access_type && doc.access_type !== 'owner' && (
-                    <div className="document-card-sharing">
-                      {doc.creator_name ? `Von ${doc.creator_name}` : 'Mit dir geteilt'}
-                    </div>
-                  )}
                   <div className="document-card-meta">
-                    {new Date(doc.updated_at).toLocaleDateString('de-DE', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    })}
+                    <span>
+                      {new Date(doc.updated_at).toLocaleDateString('de-DE', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}
+                    </span>
+                    {doc.access_type && doc.access_type !== 'owner' && (
+                      <span className="document-card-sharing">
+                        {doc.creator_name ? `Von ${doc.creator_name}` : 'Geteilt'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

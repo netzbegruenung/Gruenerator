@@ -3,7 +3,13 @@
  * Collection keys match the keys in directSearch.ts COLLECTION_MAP.
  */
 export const NOTEBOOK_COLLECTION_MAP: Record<string, string[]> = {
-  'gruenerator-notebook': ['deutschland', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki'],
+  'gruenerator-notebook': [
+    'deutschland',
+    'bundestagsfraktion',
+    'gruene-de',
+    'kommunalwiki',
+    'gruenblog',
+  ],
   'gruene-notebook': ['deutschland'],
   'bundestagsfraktion-notebook': ['bundestagsfraktion'],
   'hamburg-notebook': ['hamburg'],
@@ -15,6 +21,7 @@ export const NOTEBOOK_COLLECTION_MAP: Record<string, string[]> = {
   'mecklenburg-vorpommern-notebook': ['mecklenburg-vorpommern'],
   'kommunalwiki-notebook': ['kommunalwiki'],
   'boell-stiftung-notebook': ['boell-stiftung'],
+  'gruenblog-notebook': ['gruenblog'],
 };
 
 export function resolveNotebookCollections(notebookIds: string[]): string[] {

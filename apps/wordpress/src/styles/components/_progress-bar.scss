@@ -1,3 +1,5 @@
+@use '../theme-bridge' as tb;
+
 // Progress Bar Komponente
 .gruenerator-progress-bar {
     display: flex;
@@ -5,7 +7,7 @@
     margin: 2.5rem 0;
     position: relative;
     padding: 0 1rem;
-    
+
     &::before {
         content: '';
         position: absolute;
@@ -13,9 +15,9 @@
         left: 50px;
         right: 50px;
         height: 3px;
-        background: linear-gradient(to right, 
-            custom-color('klee') 0%,
-            custom-color('klee') var(--progress, 0%),
+        background: linear-gradient(to right,
+            tb.custom-color('klee') 0%,
+            tb.custom-color('klee') var(--progress, 0%),
             rgba(0, 0, 0, 0.08) var(--progress, 0%),
             rgba(0, 0, 0, 0.08) 100%
         );
@@ -34,13 +36,13 @@
     .step-number {
         width: 32px;
         height: 32px;
-        background: custom-color('weiss');
+        background: tb.custom-color('weiss');
         border: 3px solid rgba(0, 0, 0, 0.08);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: $darkgray;
+        color: tb.$darkgray;
         font-weight: 600;
         font-size: 0.9em;
         margin-bottom: 0.75rem;
@@ -49,7 +51,7 @@
     }
 
     .step-name {
-        color: $darkgray;
+        color: tb.$darkgray;
         font-size: 0.9em;
         font-weight: 500;
         opacity: 0.7;
@@ -61,15 +63,15 @@
 
     &.active {
         .step-number {
-            background: custom-color('klee');
-            border-color: custom-color('klee');
-            color: custom-color('weiss');
+            background: tb.custom-color('klee');
+            border-color: tb.custom-color('klee');
+            color: tb.custom-color('weiss');
             box-shadow: 0 3px 6px rgba(0, 137, 57, 0.2);
             transform: scale(1.1);
         }
 
         .step-name {
-            color: custom-color('tanne');
+            color: tb.custom-color('tanne');
             opacity: 1;
             transform: translateY(2px);
         }
@@ -77,9 +79,9 @@
 
     &.completed {
         .step-number {
-            background: custom-color('klee');
-            border-color: custom-color('klee');
-            color: custom-color('weiss');
+            background: tb.custom-color('klee');
+            border-color: tb.custom-color('klee');
+            color: tb.custom-color('weiss');
 
             &::after {
                 content: "✓";
@@ -90,7 +92,7 @@
         }
 
         .step-name {
-            color: custom-color('tanne');
+            color: tb.custom-color('tanne');
             opacity: 1;
         }
 
@@ -148,4 +150,4 @@
             transform: scale(1.05);
         }
     }
-} 
+}

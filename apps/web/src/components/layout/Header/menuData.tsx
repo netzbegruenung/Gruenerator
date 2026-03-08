@@ -105,8 +105,8 @@ export const getFooterLinks = (): MenuItemType[] => [
   {
     id: 'apps',
     path: '/apps',
-    title: 'Apps',
-    description: 'Desktop-App herunterladen',
+    title: 'Apps & Connect',
+    description: 'Desktop-App & KI-Chat-Integration',
   },
   {
     id: 'support',

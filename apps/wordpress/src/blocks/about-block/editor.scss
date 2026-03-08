@@ -1,25 +1,26 @@
-@import '../../styles/theme-bridge';
+@use 'sass:map';
+@use '../../styles/theme-bridge' as tb;
 
 .wp-block-gruenerator-about-block {
     padding: 1rem;
-    
+
     .about-block-content {
-        @include sunflower-container;
-        
+        @include tb.sunflower-container;
+
         & {
             display: flex;
             align-items: center;
             gap: 2rem;
             padding: 3rem 2rem;
             min-height: 200px;
-            background-color: rgba(custom-color('sand'), 0.3);
+            background-color: rgba(tb.custom-color('sand'), 0.3);
         }
     }
 
     .about-block-title {
         flex: 0 0 30%;
-        color: $primary;
-        font-size: $font-size-base * 2.5;
+        color: tb.$primary;
+        font-size: tb.$font-size-base * 2.5;
         font-weight: bold;
         line-height: 1.2;
         margin: 0;
@@ -27,7 +28,7 @@
 
         &:focus {
             outline: none;
-            box-shadow: 0 0 0 2px $primary;
+            box-shadow: 0 0 0 2px tb.$primary;
         }
     }
 
@@ -35,8 +36,8 @@
         flex: 1;
 
         p {
-            color: $body-color;
-            font-size: $font-size-base;
+            color: tb.$body-color;
+            font-size: tb.$font-size-base;
             line-height: 1.6;
             margin-bottom: 1rem;
 
@@ -46,17 +47,17 @@
 
             &:focus {
                 outline: none;
-                box-shadow: 0 0 0 2px $primary;
+                box-shadow: 0 0 0 2px tb.$primary;
             }
         }
 
         strong {
             font-weight: 600;
-            color: $black-500;
+            color: tb.$black-500;
         }
     }
 
-    @media (max-width: map-get($container-max-widths, 'md')) {
+    @media (max-width: map.get(tb.$container-max-widths, 'md')) {
         .about-block-content {
             flex-direction: column;
             align-items: flex-start;
@@ -64,13 +65,13 @@
         }
 
         .about-block-title {
-            font-size: $font-size-base * 2;
+            font-size: tb.$font-size-base * 2;
             margin-bottom: 1rem;
             align-self: flex-start;
         }
 
         .about-block-text {
-            font-size: $small-font-size;
+            font-size: tb.$small-font-size;
         }
     }
 }

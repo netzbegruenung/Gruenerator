@@ -1,8 +1,9 @@
-@import '../../styles/theme-bridge';
+@use 'sass:map';
+@use '../../styles/theme-bridge' as tb;
 
 .wp-block-gruenerator-hero-image-block {
     // Editor-spezifische Stile
-    
+
     .hero-image-block {
         position: relative;
         background-size: cover;
@@ -35,13 +36,13 @@
         z-index: 1; // Stellt sicher, dass der Inhalt über dem Overlay liegt
 
         h2 {
-            font-size: $font-size-base * 3;
+            font-size: tb.$font-size-base * 3;
             font-weight: bold;
             margin-bottom: 1rem;
         }
 
         p {
-            font-size: $font-size-base * 1.2;
+            font-size: tb.$font-size-base * 1.2;
             line-height: 1.5;
         }
 
@@ -53,7 +54,7 @@
 
             &:focus {
                 outline: none;
-                box-shadow: 0 0 0 2px $primary;
+                box-shadow: 0 0 0 2px tb.$primary;
             }
         }
     }
@@ -63,7 +64,7 @@
     }
 
     // Responsive Anpassungen für den Editor
-    @media (max-width: map-get($container-max-widths, 'md')) {
+    @media (max-width: map.get(tb.$container-max-widths, 'md')) {
         .hero-image-block {
             height: 50vh;
             min-height: 300px;
@@ -71,11 +72,11 @@
 
         .hero-content {
             h2 {
-                font-size: $font-size-base * 2;
+                font-size: tb.$font-size-base * 2;
             }
 
             p {
-                font-size: $font-size-base;
+                font-size: tb.$font-size-base;
             }
         }
     }
@@ -89,7 +90,7 @@
 
     .block-editor-media-placeholder {
         background-color: rgba(0, 0, 0, 0.1);
-        border: 2px dashed $primary;
+        border: 2px dashed tb.$primary;
         padding: 2rem;
         text-align: center;
     }

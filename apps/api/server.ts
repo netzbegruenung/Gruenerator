@@ -611,5 +611,10 @@ async function startWorker(): Promise<void> {
   // Start server
   server.listen(config.port, config.host, () => {
     log.info(`Worker ${process.pid} listening on http://${config.host}:${config.port}`);
+
+    // Warm the research filter cache in the background (non-blocking)
+    import('./routes/research/researchController.js')
+      .then(({ warmFilterCache }) => warmFilterCache())
+      .catch(() => {});
   });
 }

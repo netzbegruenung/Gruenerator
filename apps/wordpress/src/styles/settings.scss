@@ -1,4 +1,4 @@
-@import './index';
+// Settings page uses only CSS custom properties, no Sass dependencies needed
 
 .gruenerator-settings-section {
     background: var(--gruenerator-weiss, #ffffff);
@@ -150,4 +150,4 @@
             }
         }
     }
-} 
+}

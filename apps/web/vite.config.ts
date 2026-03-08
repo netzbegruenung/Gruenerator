@@ -101,7 +101,7 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     // Use compatible targets for native WebViews (Chrome=Edge WebView2, Safari=WKWebView)
-    target: isNativeBuild ? ['chrome105', 'safari15'] : 'es2022',
+    target: isNativeBuild ? ['chrome105', 'safari15'] : ['es2022', 'safari15'],
     sourcemap: 'hidden',
     cssCodeSplit: true,
     assetsInlineLimit: 0,

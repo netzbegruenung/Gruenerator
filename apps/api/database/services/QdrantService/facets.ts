@@ -122,69 +122,19 @@ export async function getFieldValueCounts(
   baseFilter: QdrantFilter | null = null
 ): Promise<FieldValueCount[]> {
   try {
-    const valueCounts = new Map<string, number>();
-    let offset: string | number | null = null;
-    let iterations = 0;
-    const maxIterations = 100;
-
-    while (iterations < maxIterations) {
-      const scrollOptions: {
-        limit: number;
-        offset?: string | number;
-        with_payload: string[];
-        with_vector: boolean;
-        filter?: QdrantFilter;
-      } = {
-        limit: 100,
-        with_payload: [fieldName],
-        with_vector: false,
-      };
-
-      if (offset !== null) {
-        scrollOptions.offset = offset;
-      }
-
-      if (baseFilter) {
-        scrollOptions.filter = baseFilter;
-      }
-
-      const scrollResult = await client.scroll(collectionName, scrollOptions);
-
-      if (!scrollResult.points || scrollResult.points.length === 0) {
-        break;
-      }
-
-      for (const point of scrollResult.points) {
-        const payload = point.payload as Record<string, unknown> | null;
-        const value = payload?.[fieldName];
-        if (value !== undefined && value !== null && value !== '') {
-          if (Array.isArray(value)) {
-            for (const v of value) {
-              if (v) {
-                const strValue = String(v);
-                valueCounts.set(strValue, (valueCounts.get(strValue) || 0) + 1);
-              }
-            }
-          } else {
-            const strValue = String(value);
-            valueCounts.set(strValue, (valueCounts.get(strValue) || 0) + 1);
-          }
-        }
-      }
-
-      const nextOffset = scrollResult.next_page_offset;
-      offset = typeof nextOffset === 'string' || typeof nextOffset === 'number' ? nextOffset : null;
-      if (!offset) break;
-      iterations++;
-    }
-
-    return Array.from(valueCounts.entries())
-      .map(([value, count]) => ({ value, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, maxValues);
+    const result = await client.facet(collectionName, {
+      key: fieldName,
+      limit: maxValues,
+      filter: baseFilter ?? undefined,
+      exact: false,
+    });
+    return result.hits.map((hit) => ({
+      value: String(hit.value),
+      count: hit.count,
+    }));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("doesn't exist")) {
+    if (message.includes("doesn't exist") || message.includes('not found')) {
       return [];
     }
     log.error(`Failed to get field value counts for ${fieldName} in ${collectionName}: ${message}`);
@@ -206,59 +156,37 @@ export async function getDateRange(
   baseFilter: QdrantFilter | null = null
 ): Promise<DateRange> {
   try {
-    let minDate: string | null = null;
-    let maxDate: string | null = null;
-    let offset: string | number | null = null;
-    let iterations = 0;
-    const maxIterations = 50;
+    const scrollOptions = {
+      limit: 1,
+      with_payload: [fieldName] as string[],
+      with_vector: false,
+      filter: baseFilter ?? undefined,
+    };
 
-    while (iterations < maxIterations) {
-      const scrollOptions: {
-        limit: number;
-        offset?: string | number;
-        with_payload: string[];
-        with_vector: boolean;
-        filter?: QdrantFilter;
-      } = {
-        limit: 100,
-        with_payload: [fieldName],
-        with_vector: false,
-      };
+    // Fetch min and max in parallel using order_by
+    const [minResult, maxResult] = await Promise.all([
+      client.scroll(collectionName, {
+        ...scrollOptions,
+        order_by: { key: fieldName, direction: 'asc' as const },
+      }),
+      client.scroll(collectionName, {
+        ...scrollOptions,
+        order_by: { key: fieldName, direction: 'desc' as const },
+      }),
+    ]);
 
-      if (offset !== null) {
-        scrollOptions.offset = offset;
-      }
+    const extractDate = (result: typeof minResult): string | null => {
+      const point = result.points?.[0];
+      if (!point) return null;
+      const payload = point.payload as Record<string, unknown> | null;
+      const value = payload?.[fieldName];
+      return value ? String(value) : null;
+    };
 
-      if (baseFilter) {
-        scrollOptions.filter = baseFilter;
-      }
-
-      const scrollResult = await client.scroll(collectionName, scrollOptions);
-
-      if (!scrollResult.points || scrollResult.points.length === 0) {
-        break;
-      }
-
-      for (const point of scrollResult.points) {
-        const payload = point.payload as Record<string, unknown> | null;
-        const value = payload?.[fieldName];
-        if (value) {
-          const dateStr = String(value);
-          if (!minDate || dateStr < minDate) minDate = dateStr;
-          if (!maxDate || dateStr > maxDate) maxDate = dateStr;
-        }
-      }
-
-      const nextOffset = scrollResult.next_page_offset;
-      offset = typeof nextOffset === 'string' || typeof nextOffset === 'number' ? nextOffset : null;
-      if (!offset) break;
-      iterations++;
-    }
-
-    return { min: minDate, max: maxDate };
+    return { min: extractDate(minResult), max: extractDate(maxResult) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("doesn't exist")) {
+    if (message.includes("doesn't exist") || message.includes('not found')) {
       return { min: null, max: null };
     }
     log.error(`Failed to get date range for ${fieldName} in ${collectionName}: ${message}`);

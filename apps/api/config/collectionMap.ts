@@ -44,6 +44,10 @@ export const COLLECTION_MAP: Record<string, CollectionMapping> = {
     qdrantCollection: 'boell_stiftung_documents',
     systemId: 'boell-stiftung-system',
   },
+  gruenblog: {
+    qdrantCollection: 'gruenblog_documents',
+    systemId: 'gruenblog-system',
+  },
   hamburg: {
     qdrantCollection: 'landesverbaende_documents',
     systemId: 'hamburg-system',

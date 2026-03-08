@@ -156,6 +156,18 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
   },
+  'gruenblog-system': {
+    id: 'gruenblog-system',
+    qdrantCollection: 'gruenblog_documents',
+    name: 'Grünblog',
+    description: 'Onlinemagazin der Grünen – Artikel zu Wissen, Meinen, Machen',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
   'boell-stiftung-system': {
     id: 'boell-stiftung-system',
     qdrantCollection: 'boell_stiftung_documents',

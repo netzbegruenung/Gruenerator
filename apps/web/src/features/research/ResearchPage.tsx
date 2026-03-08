@@ -87,6 +87,7 @@ function ResearchPage() {
     setSelectedCollectionIds,
     filterFields,
     filtersLoading,
+    setFiltersEnabled,
     activeFilters,
     activeFilterCount,
     toggleFilter,
@@ -106,7 +107,7 @@ function ResearchPage() {
       if (!searchQuery || searchQuery.trim().length < 2) return;
       lastQueryRef.current = searchQuery;
       setHasSearched(true);
-      search({
+      void search({
         query: searchQuery,
         collectionIds: selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
         filters: buildApiFilters(),
@@ -143,9 +144,7 @@ function ResearchPage() {
       <div className="gallery-layout">
         <div className="gallery-header">
           <h1>Recherche</h1>
-          <p>
-            Durchsuche alle gescrapten Dokumente und Programme direkt in den Qdrant-Kollektionen.
-          </p>
+          <p>(Fast) alle grünen Dokumente und Programme an einem Ort durchsuchbar.</p>
         </div>
 
         <div className="relative">
@@ -175,6 +174,7 @@ function ResearchPage() {
                 onToggleFilter={toggleFilter}
                 onSetDateFilter={setDateFilter}
                 onClearAll={clearAllFilters}
+                onFiltersOpen={() => setFiltersEnabled(true)}
                 disabled={isLoading}
               />
             }
