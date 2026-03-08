@@ -42,6 +42,7 @@ const log = createLogger('grueneratorChat');
 // Helper to safely get user properties
 const getUser = (req: any): UserProfile | undefined => req.user as UserProfile | undefined;
 const router = createAuthenticatedRouter();
+router.use(express.json({ limit: '50mb' }));
 
 // Configuration
 const CONFIG = {
