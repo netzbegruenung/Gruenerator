@@ -137,7 +137,7 @@ export async function loadGalleryEditData(
     editShareToken: shareToken,
     editTitle: title,
     isEditSession: true,
-    hasOriginalImage: true,
+    hasOriginalImage: !!originalImageUrl,
     category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
     type: mappedType,
     // Use CANVAS_EDIT step for canvas-enabled templates so they open in the canvas editor
@@ -193,6 +193,11 @@ export async function loadGalleryEditData(
     } catch (error) {
       console.warn('[loadGalleryEditData] Failed to fetch original image:', error);
     }
+  }
+
+  // If type is 'zitat' and no image was loaded, fall back to 'zitat-pure'
+  if (formData.type === IMAGE_STUDIO_TYPES.ZITAT && !formData.uploadedImage) {
+    formData.type = IMAGE_STUDIO_TYPES.ZITAT_PURE;
   }
 
   console.log('[loadGalleryEditData] Final formData:', {
