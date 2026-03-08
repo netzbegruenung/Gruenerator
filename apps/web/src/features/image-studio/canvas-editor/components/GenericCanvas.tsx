@@ -202,10 +202,51 @@ function GenericCanvasWithRef<
     [state, actions]
   );
 
+  // Allowlist of state fields that calculateLayout reads across all canvas configs.
+  // New fields must be added here if a new config's calculateLayout reads them.
+  const layoutKey = useMemo(() => {
+    const s = state as Record<string, unknown>;
+    return JSON.stringify([
+      // Text content
+      s.line1,
+      s.line2,
+      s.line3,
+      s.headline,
+      s.subtext,
+      s.subtext2,
+      s.header,
+      s.body,
+      s.quote,
+      s.eventTitle,
+      s.beschreibung,
+      s.label,
+      // Font sizes
+      s.fontSize,
+      s.customPrimaryFontSize,
+      s.customSecondaryFontSize,
+      s.customEventTitleFontSize,
+      s.customBeschreibungFontSize,
+      s.customLabelFontSize,
+      s.customHeadlineFontSize,
+      s.customSubtextFontSize,
+      s.customSubtext2FontSize,
+      // Colors & styling
+      s.colorSchemeId,
+      s.colorScheme,
+      s.backgroundColor,
+      // Layout positioning
+      s.balkenOffset,
+      s.barOffsets,
+      s.balkenWidthScale,
+      // Variants
+      s.slideVariant,
+    ]);
+  }, [state]);
+
   const layout = useMemo<LayoutResult>(() => {
-    // Recalculates when font becomes available, ensuring text measurements use the correct font
     return config.calculateLayout(state);
-  }, [config, state, isFontAvailable]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutKey is a stable string derived from layout-relevant state fields
+  }, [config, layoutKey, isFontAvailable]);
 
   const {
     selectedElement,
@@ -246,7 +287,8 @@ function GenericCanvasWithRef<
     // Skip if already saved for this history index
     if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
-    // Small delay to ensure canvas is fully rendered after state change
+    // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
+    // 1500ms ensures we only capture after the user stops editing.
     const timer = setTimeout(() => {
       const dataUrl = stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 });
       if (dataUrl) {
@@ -254,7 +296,7 @@ function GenericCanvasWithRef<
         exportedImageRef.current = dataUrl;
         lastAutoSaveHistoryIndexRef.current = historyIndex;
       }
-    }, 200);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [historyIndex, isExporting]);

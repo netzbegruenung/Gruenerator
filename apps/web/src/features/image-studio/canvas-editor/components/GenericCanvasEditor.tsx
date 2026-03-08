@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, Suspense } from 'react';
 
 import Spinner from '../../../../components/common/Spinner';
 import { CanvasEditorLayout } from '../layouts';
@@ -63,6 +63,8 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const prevTabRef = useRef<SidebarTabId | null>(null);
+
   const handleTabClick = useCallback((tabId: SidebarTabId) => {
     setActiveTab((current) => (current === tabId ? null : tabId));
   }, []);
@@ -72,14 +74,29 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
   }, []);
 
   // Compute visible tabs if logic is provided, otherwise use all tabs
-  // Compute visible tabs if logic is provided, otherwise use all tabs
   const visibleTabs = useMemo(() => {
     if (config.getVisibleTabs) {
-      const visibleIds = config.getVisibleTabs(state);
+      const visibleIds = config.getVisibleTabs(state, { selectedElement: selectedElement ?? null });
       return config.tabs.filter((tab) => visibleIds.includes(tab.id));
     }
     return config.tabs;
-  }, [config, state]);
+  }, [config, state, selectedElement]);
+
+  // Auto-switch to 'settings' tab when a balken is selected, restore previous tab on deselect
+  useEffect(() => {
+    const hasSettingsTab = visibleTabs.some((t) => t.id === 'settings');
+    if (hasSettingsTab && selectedElement?.includes('balken')) {
+      setActiveTab((current) => {
+        if (current !== 'settings') {
+          prevTabRef.current = current;
+        }
+        return 'settings';
+      });
+    } else if (!hasSettingsTab && activeTab === 'settings') {
+      setActiveTab(prevTabRef.current ?? visibleTabs[0]?.id ?? null);
+      prevTabRef.current = null;
+    }
+  }, [selectedElement, visibleTabs]);
 
   // Compute disabled tabs
   const disabledTabs = useMemo(() => {
