@@ -8,13 +8,13 @@
     "temperature": 0.8,
     "top_p": 1.0,
     "provider": "mistral",
-    "model": "magistral-medium-latest"
+    "model": "mistral-large-2512"
   },
   "alternativesOptions": {
     "max_tokens": 800,
     "temperature": 0.85,
     "top_p": 1.0,
     "provider": "mistral",
-    "model": "magistral-medium-latest"
+    "model": "mistral-large-2512"
   }
 }
