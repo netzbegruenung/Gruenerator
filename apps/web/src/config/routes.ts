@@ -208,6 +208,11 @@ const BoellStiftungNotebookPage = lazy(() =>
     default: m.createNotebookPage('boellStiftung'),
   }))
 );
+const GruenblogNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('gruenblog'),
+  }))
+);
 const NotebooksGalleryPage = lazy(() => import('../features/notebook/pages/NotebooksGalleryPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
@@ -323,6 +328,7 @@ export const GrueneratorenBundle = {
   MecklenburgVorpommernNotebook: MecklenburgVorpommernNotebookPage,
   KommunalwikiNotebook: KommunalwikiNotebookPage,
   BoellStiftungNotebook: BoellStiftungNotebookPage,
+  GruenblogNotebook: GruenblogNotebookPage,
   NotebooksGallery: NotebooksGalleryPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
@@ -407,6 +413,7 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/kommunalwiki', component: GrueneratorenBundle.KommunalwikiNotebook, withForm: true },
   { path: '/boell-stiftung', component: GrueneratorenBundle.BoellStiftungNotebook, withForm: true },
+  { path: '/gruenblog', component: GrueneratorenBundle.GruenblogNotebook, withForm: true },
   { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },

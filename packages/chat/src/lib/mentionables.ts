@@ -198,6 +198,17 @@ export const notebookMentionables: Mentionable[] = [
     backgroundColor: '#316049',
     mention: 'böll',
   },
+  {
+    type: 'notebook',
+    category: 'function',
+    trigger: '@',
+    identifier: 'gruenblog-notebook',
+    title: 'Grünblog',
+    description: 'Onlinemagazin der Grünen',
+    avatar: '📰',
+    backgroundColor: '#316049',
+    mention: 'gruenblog',
+  },
 ];
 
 export const toolMentionables: Mentionable[] = [
