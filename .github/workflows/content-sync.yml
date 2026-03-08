@@ -18,6 +18,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 concurrency:
   group: content-sync
   cancel-in-progress: false
