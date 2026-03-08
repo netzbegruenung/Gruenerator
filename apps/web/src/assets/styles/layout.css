@@ -75,6 +75,7 @@ main {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
+  padding-top: var(--header-height);
 }
 
 .content-wrapper:has(.chat-page-root, .notebook-page-root) {

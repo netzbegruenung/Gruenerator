@@ -43,68 +43,50 @@
   -webkit-app-region: no-drag;
 }
 
-.desktop-titlebar-profile .profile-button-container {
-  margin: 0;
-}
-
-.desktop-titlebar-profile .profile-button,
-.desktop-titlebar-profile .profile-label-button {
-  border: none;
-  background: none;
+/* Profile trigger button in titlebar - smaller, borderless */
+.desktop-titlebar-profile [data-slot="dropdown-menu-trigger"],
+.desktop-titlebar-profile > button,
+.desktop-titlebar-profile > a {
+  border: none !important;
+  background: none !important;
   box-shadow: none;
   outline: none;
-  width: 32px;
-  height: 32px;
+  width: 32px !important;
+  height: 32px !important;
   padding: 0;
 }
 
-.desktop-titlebar-profile .profile-button:hover,
-.desktop-titlebar-profile .profile-label-button:hover {
-  background: none;
-  border: none;
+.desktop-titlebar-profile [data-slot="dropdown-menu-trigger"]:hover,
+.desktop-titlebar-profile > button:hover,
+.desktop-titlebar-profile > a:hover {
+  background: none !important;
+  border: none !important;
   box-shadow: none;
   outline: none;
   transform: none;
 }
 
-.desktop-titlebar-profile .profile-header-avatar-robot,
-.desktop-titlebar-profile .profile-header-robot-image {
-  width: 32px;
-  height: 32px;
-  border: none;
-  box-shadow: none;
-  outline: none;
-}
-
-.desktop-titlebar-profile .login-button {
-  padding: 0;
+/* Login link in titlebar */
+.desktop-titlebar-profile a {
   height: var(--titlebar-height);
   display: flex;
   align-items: center;
-  background: none;
-  border: none;
-  box-shadow: none;
-  outline: none;
 }
 
-.desktop-titlebar-profile .login-button:hover {
-  background: none;
-}
-
-.desktop-titlebar-profile .profile-icon {
+.desktop-titlebar-profile a svg {
   font-size: 1.5rem;
   color: var(--grey-500);
 }
 
-.desktop-titlebar-profile .login-button:hover .profile-icon {
+.desktop-titlebar-profile a:hover svg {
   color: var(--primary-600);
 }
 
-[data-theme="dark"] .desktop-titlebar-profile .profile-icon {
+[data-theme="dark"] .desktop-titlebar-profile a svg {
   color: var(--grey-400);
 }
 
-[data-theme="dark"] .desktop-titlebar-profile .login-button:hover .profile-icon {
+[data-theme="dark"] .desktop-titlebar-profile a:hover svg {
   color: var(--primary-400);
 }
 

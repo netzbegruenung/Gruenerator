@@ -1,9 +1,5 @@
 /* Sidebar Toggle Button - Logo transforms to hamburger on hover */
 .sidebar-toggle {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 1002;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -47,22 +43,11 @@
   display: none;
 }
 
-/* When app sidebar is hidden (Image Studio), adjust positioning */
-.sidebar-hidden .sidebar-toggle {
-  left: 12px;
-  top: 12px;
-}
-
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .sidebar-toggle {
-    position: absolute;
-    left: 6px;
-    top: 6px;
     width: 38px;
     height: 38px;
-    background: var(--background-color);
-    border-radius: var(--card-border-radius-small);
   }
 
   .sidebar-toggle__line {
@@ -73,8 +58,6 @@
 /* Large screens */
 @media (min-width: 1920px) {
   .sidebar-toggle {
-    left: 6px;
-    top: 6px;
     width: 44px;
     height: 44px;
   }

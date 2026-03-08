@@ -3,7 +3,6 @@ import { Suspense, lazy, Component, type ReactNode } from 'react';
 import { isDesktopApp } from '../../../utils/platform';
 import { minimizeWindow, toggleMaximizeWindow, closeWindow } from '../../../utils/tauriWindow';
 import ProfileButton from '../Header/ProfileButton';
-import '../../../assets/styles/components/layout/profile-dropdown.css';
 import './desktop-titlebar.css';
 
 const TabBar = lazy(() => import('../DesktopTabs/TabBar').catch(() => ({ default: () => null })));
@@ -86,7 +85,11 @@ const DesktopTitlebar = () => {
             <rect width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
           </svg>
         </button>
-        <button className="titlebar-button close" onClick={() => void closeWindow()} aria-label="Schließen">
+        <button
+          className="titlebar-button close"
+          onClick={() => void closeWindow()}
+          aria-label="Schließen"
+        >
           <svg width="10" height="10" viewBox="0 0 10 10">
             <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.2" />
             <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.2" />

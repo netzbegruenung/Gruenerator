@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { FaUsers, FaChevronDown, FaChevronUp, FaFolder } from 'react-icons/fa';
-import { Link, useLocation } from 'react-router-dom';
+import { FaChevronDown, FaChevronUp, FaFolder, FaUsers } from 'react-icons/fa';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 import type { IconType } from 'react-icons';
+
+import {
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface MenuItem {
   key: string;
@@ -46,6 +53,7 @@ const ProfileMenu = ({
   groups = [],
 }: ProfileMenuProps): React.ReactElement => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { shouldShowTab } = useBetaFeatures();
   const [expandedSubmenu, setExpandedSubmenu] = useState<string | null>(null);
 
@@ -69,6 +77,52 @@ const ProfileMenu = ({
     }
   };
 
+  if (variant === 'dropdown') {
+    return (
+      <div className={className}>
+        {filteredItems.map((item) => {
+          const hasGroups = item.key === 'gruppen' && item.hasSubmenu && groups.length > 0;
+
+          if (hasGroups) {
+            return (
+              <DropdownMenuSub key={item.key}>
+                <DropdownMenuSubTrigger className="gap-2">
+                  <item.icon className="text-base opacity-80" />
+                  {item.label}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onSelect={() => void navigate(item.path)}>
+                    Übersicht
+                  </DropdownMenuItem>
+                  {groups.map((group) => (
+                    <DropdownMenuItem
+                      key={group.id}
+                      onSelect={() => void navigate(`/profile/gruppen?group=${group.id}`)}
+                    >
+                      {group.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            );
+          }
+
+          return (
+            <DropdownMenuItem
+              key={item.key}
+              className="gap-2 cursor-pointer"
+              onSelect={() => void navigate(item.path)}
+            >
+              <item.icon className="text-base opacity-80" />
+              {item.label}
+            </DropdownMenuItem>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Sidebar variant — plain links (unchanged)
   const toggleSubmenu = (key: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -76,10 +130,9 @@ const ProfileMenu = ({
   };
 
   return (
-    <div className={`profile-menu profile-menu--${variant} ${className}`}>
+    <div className={`profile-menu profile-menu--sidebar ${className}`}>
       {filteredItems.map((item) => {
-        const hasGroups =
-          item.key === 'gruppen' && item.hasSubmenu && variant === 'dropdown' && groups.length > 0;
+        const hasGroups = item.key === 'gruppen' && item.hasSubmenu && groups.length > 0;
         const isExpanded = expandedSubmenu === item.key;
 
         if (hasGroups) {
@@ -124,7 +177,7 @@ const ProfileMenu = ({
             className={`profile-menu-item ${isActive(item.path) ? 'profile-menu-item--active' : ''}`}
             onClick={handleClick}
           >
-            {variant === 'dropdown' && item.icon && <item.icon className="profile-menu-icon" />}
+            {item.icon && <item.icon className="profile-menu-icon" />}
             {item.label}
           </Link>
         );
