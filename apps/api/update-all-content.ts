@@ -20,6 +20,7 @@
  * Run: npx tsx apps/api/update-all-content.ts
  */
 
+import { sendContentSyncEmail } from './services/email/emailService.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
@@ -239,8 +240,29 @@ async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<Source
   }
 }
 
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
+
+interface SyncSummary {
+  timestamp: string;
+  dryRun: boolean;
+  force: boolean;
+  sources: SourceGroupResult[];
+  totals: {
+    sources: number;
+    succeeded: number;
+    failed: number;
+    stored: number;
+    updated: number;
+    skipped: number;
+    errors: number;
+  };
+  totalDuration: number;
+}
+
 async function main() {
   const args = parseArgs();
+  const syncStart = Date.now();
 
   // Resolve which groups to run
   let groups = SOURCE_GROUPS;
@@ -316,6 +338,57 @@ async function main() {
       console.log(`  ${r.id}: ${r.error}`);
     }
     console.log('');
+  }
+
+  // Write structured summary JSON for CI consumption
+  const summary: SyncSummary = {
+    timestamp: new Date().toISOString(),
+    dryRun: args.dryRun,
+    force: args.force,
+    sources: results,
+    totals: {
+      sources: results.length,
+      succeeded: succeeded.length,
+      failed: failed.length,
+      stored: totals.stored,
+      updated: totals.updated,
+      skipped: totals.skipped,
+      errors: totals.errors,
+    },
+    totalDuration: Math.round((Date.now() - syncStart) / 1000),
+  };
+
+  const summaryPath =
+    process.env.SYNC_SUMMARY_PATH || path.join(process.cwd(), 'sync-summary.json');
+  writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+  console.log(`Summary written to ${summaryPath}`);
+
+  // Send email notification via existing Brevo SMTP (never crash on email failure)
+  const emailTo = process.env.CONTENT_SYNC_EMAIL;
+  if (emailTo) {
+    try {
+      const runId = process.env.GITHUB_RUN_ID;
+      const repo = process.env.GITHUB_REPOSITORY;
+      const server = process.env.GITHUB_SERVER_URL || 'https://github.com';
+      const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
+
+      const sent = await sendContentSyncEmail(emailTo, {
+        timestamp: summary.timestamp,
+        totalDuration: summary.totalDuration,
+        sources: summary.sources,
+        totals: summary.totals,
+        runUrl,
+        dryRun: args.dryRun,
+      });
+      console.log(
+        sent ? `Email sent to ${emailTo}` : 'Email sending skipped (SMTP not configured)'
+      );
+    } catch (err) {
+      console.error(
+        'Email notification failed (non-fatal):',
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   process.exit(totals.errors > 0 || failed.length > 0 ? 1 : 0);

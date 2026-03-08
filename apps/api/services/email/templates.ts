@@ -114,6 +114,158 @@ ${PRIMARY_URL}`;
   return { html: baseLayout(content), text };
 }
 
+export interface ContentSyncSourceResult {
+  name: string;
+  status: 'success' | 'failed';
+  stored: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+  duration: number;
+  error?: string;
+}
+
+export interface ContentSyncTemplateParams {
+  timestamp: string;
+  totalDuration: number;
+  sources: ContentSyncSourceResult[];
+  totals: {
+    sources: number;
+    succeeded: number;
+    failed: number;
+    stored: number;
+    updated: number;
+    skipped: number;
+    errors: number;
+  };
+  runUrl?: string;
+  dryRun: boolean;
+}
+
+export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
+  html: string;
+  text: string;
+} {
+  const { sources, totals, totalDuration, runUrl, dryRun } = params;
+
+  const hasFailures = totals.failed > 0 || totals.errors > 0;
+  const statusIcon = hasFailures ? '⚠️' : '✅';
+  const title = dryRun ? 'Content Sync — Dry Run' : 'Content Sync Report';
+
+  const dateStr = new Date(params.timestamp).toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Berlin',
+  });
+
+  const sourceRows = sources
+    .map((s) => {
+      const icon = s.status === 'success' ? '✅' : '❌';
+      const bgColor = s.status === 'failed' ? '#fff5f5' : 'transparent';
+      return `<tr style="background-color:${bgColor};">
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;">${icon} ${escapeHtml(s.name)}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;font-weight:${s.stored > 0 ? '700' : '400'};">${s.stored}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${s.updated}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${s.skipped}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;${s.errors > 0 ? 'color:#c00;font-weight:700;' : ''}">${s.errors}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${s.duration}s</td>
+      </tr>${s.error ? `<tr style="background-color:#fff5f5;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#c00;font-size:13px;">Fehler: ${escapeHtml(s.error)}</td></tr>` : ''}`;
+    })
+    .join('\n');
+
+  const content = `
+    <h1 style="margin:0 0 8px 0;font-size:20px;color:#333333;">${statusIcon} ${title}</h1>
+    <p style="margin:0 0 24px 0;font-size:14px;color:#888888;">${dateStr} &middot; Dauer: ${totalDuration}s</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;font-size:14px;">
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Quellen</td>
+        <td style="padding:6px 0;color:#333333;font-weight:600;text-align:right;">${totals.sources} (${totals.succeeded} ok, ${totals.failed} fehlgeschlagen)</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Neue Dokumente</td>
+        <td style="padding:6px 0;color:${PRIMARY_COLOR};font-weight:700;text-align:right;font-size:16px;">+${totals.stored}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Aktualisiert</td>
+        <td style="padding:6px 0;color:#333333;text-align:right;">${totals.updated}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">&Uuml;bersprungen</td>
+        <td style="padding:6px 0;color:#333333;text-align:right;">${totals.skipped}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Fehler</td>
+        <td style="padding:6px 0;color:${totals.errors > 0 ? '#c00' : '#333333'};font-weight:${totals.errors > 0 ? '700' : '400'};text-align:right;">${totals.errors}</td>
+      </tr>
+    </table>
+
+    <h2 style="margin:0 0 12px 0;font-size:16px;color:#333333;">Details pro Quelle</h2>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;">
+      <tr style="background-color:#f8f8f8;">
+        <th style="padding:8px 12px;border:1px solid #e5e5e5;text-align:left;">Quelle</th>
+        <th style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">Neu</th>
+        <th style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">Update</th>
+        <th style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">&Uuml;berspr.</th>
+        <th style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">Fehler</th>
+        <th style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">Dauer</th>
+      </tr>
+      ${sourceRows}
+      <tr style="background-color:#f0f0f0;font-weight:600;">
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;">Gesamt</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${totals.stored}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${totals.updated}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${totals.skipped}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${totals.errors}</td>
+        <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${totalDuration}s</td>
+      </tr>
+    </table>
+
+    ${
+      runUrl
+        ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+      <tr>
+        <td style="background-color:${PRIMARY_COLOR};border-radius:6px;">
+          <a href="${escapeHtml(runUrl)}" style="display:inline-block;padding:10px 24px;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">
+            Workflow-Log ansehen
+          </a>
+        </td>
+      </tr>
+    </table>`
+        : ''
+    }`;
+
+  // Plain text version
+  const sourceLines = sources
+    .map((s) => {
+      const icon = s.status === 'success' ? '✓' : '✗';
+      const line = `  ${icon} ${s.name}: +${s.stored} neu, ${s.updated} aktualisiert, ${s.skipped} übersprungen, ${s.errors} Fehler (${s.duration}s)`;
+      return s.error ? `${line}\n    Fehler: ${s.error}` : line;
+    })
+    .join('\n');
+
+  const text = `${statusIcon} ${title}
+${dateStr} · Dauer: ${totalDuration}s
+
+Quellen: ${totals.sources} (${totals.succeeded} ok, ${totals.failed} fehlgeschlagen)
+Neue Dokumente: +${totals.stored}
+Aktualisiert: ${totals.updated}
+Übersprungen: ${totals.skipped}
+Fehler: ${totals.errors}
+
+Details:
+${sourceLines}
+${runUrl ? `\nWorkflow-Log: ${runUrl}` : ''}
+--
+${BRAND.name} — KI-Werkzeuge für Grüne
+${PRIMARY_URL}`;
+
+  return { html: baseLayout(content), text };
+}
+
 export interface ContentDeliveryTemplateParams {
   recipientName?: string;
   contentTitle: string;

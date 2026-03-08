@@ -47,6 +47,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run content sync
+        id: sync
+        continue-on-error: true
         run: |
           ARGS=""
           if [ -n "${{ inputs.source }}" ]; then ARGS="$ARGS --source ${{ inputs.source }}"; fi
@@ -58,3 +60,100 @@ jobs:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
+          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
+          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
+          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
+          CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
+          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+
+      - name: Generate job summary
+        if: always()
+        run: |
+          SUMMARY_FILE="${{ github.workspace }}/sync-summary.json"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ ! -f "$SUMMARY_FILE" ]; then
+            echo "## ❌ Content Sync — No Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The sync script did not produce a summary file. Check the [workflow logs]($RUN_URL)." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          # Parse JSON summary
+          TIMESTAMP=$(jq -r '.timestamp' "$SUMMARY_FILE")
+          DRY_RUN=$(jq -r '.dryRun' "$SUMMARY_FILE")
+          FORCE=$(jq -r '.force' "$SUMMARY_FILE")
+          TOTAL_SOURCES=$(jq -r '.totals.sources' "$SUMMARY_FILE")
+          SUCCEEDED=$(jq -r '.totals.succeeded' "$SUMMARY_FILE")
+          FAILED=$(jq -r '.totals.failed' "$SUMMARY_FILE")
+          STORED=$(jq -r '.totals.stored' "$SUMMARY_FILE")
+          UPDATED=$(jq -r '.totals.updated' "$SUMMARY_FILE")
+          SKIPPED=$(jq -r '.totals.skipped' "$SUMMARY_FILE")
+          ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
+          DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
+
+          # Determine status
+          if [ "$FAILED" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+            STATUS_ICON="⚠️"
+          else
+            STATUS_ICON="✅"
+          fi
+
+          if [ "$DRY_RUN" = "true" ]; then
+            TITLE="$STATUS_ICON Content Sync — Dry Run"
+          else
+            TITLE="$STATUS_ICON Content Sync Report"
+          fi
+
+          # Build summary
+          {
+            echo "## $TITLE"
+            echo ""
+            echo "**Date:** $(date -d "$TIMESTAMP" '+%d.%m.%Y %H:%M UTC' 2>/dev/null || echo "$TIMESTAMP")"
+            echo "**Duration:** ${DURATION}s"
+            echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
+            if [ "$FORCE" = "true" ]; then echo "**Mode:** Force re-index"; fi
+            echo ""
+            echo "### Totals"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|------:|"
+            echo "| Sources | $TOTAL_SOURCES ($SUCCEEDED ok, $FAILED failed) |"
+            echo "| New documents | $STORED |"
+            echo "| Updated | $UPDATED |"
+            echo "| Skipped (unchanged) | $SKIPPED |"
+            echo "| Errors | $ERRORS |"
+            echo ""
+            echo "### Per Source"
+            echo ""
+            echo "| Source | Status | New | Updated | Skipped | Errors | Duration |"
+            echo "|--------|--------|----:|--------:|--------:|-------:|---------:|"
+
+            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
+
+            echo ""
+
+            # Show failed sources with error messages
+            FAILED_SOURCES=$(jq -r '.sources[] | select(.status == "failed") | "- **\(.name):** \(.error)"' "$SUMMARY_FILE")
+            if [ -n "$FAILED_SOURCES" ]; then
+              echo "### ❌ Failed Sources"
+              echo ""
+              echo "$FAILED_SOURCES"
+              echo ""
+            fi
+
+            # Show sources with new content
+            NEW_CONTENT=$(jq -r '.sources[] | select(.stored > 0) | "- **\(.name):** +\(.stored) new documents"' "$SUMMARY_FILE")
+            if [ -n "$NEW_CONTENT" ]; then
+              echo "### 📥 New Content"
+              echo ""
+              echo "$NEW_CONTENT"
+              echo ""
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if sync had errors
+        if: steps.sync.outcome == 'failure'
+        run: exit 1
