@@ -8,7 +8,6 @@ import { isDesktopApp } from '../../../utils/platform';
 import ProfileButton from '../../layout/Header/ProfileButton';
 import { Sidebar } from '../../layout/Sidebar';
 import SidebarToggle from '../../layout/SidebarToggle';
-import '../../../assets/styles/components/layout/header.css';
 
 const Footer = lazy(() => import('../../layout/Footer/Footer'));
 
@@ -93,10 +92,14 @@ const PageLayout = ({
   return (
     <GlobalChatProvider>
       <div className={layoutClasses}>
-        <SidebarToggle />
-        <div className="header-actions">
-          <ProfileButton />
-        </div>
+        <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
+          <div className="pointer-events-auto">
+            <SidebarToggle />
+          </div>
+          <div className="pointer-events-auto">
+            <ProfileButton />
+          </div>
+        </header>
         <Sidebar />
         <div className="app-content">
           <main className="content-wrapper">{children}</main>

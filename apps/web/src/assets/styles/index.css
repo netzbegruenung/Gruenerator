@@ -21,8 +21,6 @@
 @import url('./layout.css') layer(legacy);
 
 @import url('./components/layout/footer.css') layer(legacy);
-@import url('./components/layout/header.css') layer(legacy);
-@import url('./components/layout/profile-dropdown.css') layer(legacy);
 @import url('./components/layout/sidebar.css') layer(legacy);
 
 @import url('./components/ui/button.css') layer(legacy);

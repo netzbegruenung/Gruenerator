@@ -120,7 +120,7 @@
     --container-max-width: 1200px;
 
     /* Layout Dimensions */
-    --header-height: 80px;
+    --header-height: 48px;
     --titlebar-height: 48px;
     --sidebar-collapsed-width: 56px;
     --sidebar-expanded-width: 240px;
