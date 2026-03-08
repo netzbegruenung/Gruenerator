@@ -105,6 +105,16 @@ const PRODUCTION_NOTEBOOKS = [
     order: 6,
     category: 'weitere',
   },
+  {
+    id: 'gruenblog-notebook',
+    path: '/gruenblog',
+    title: 'Frag Grünblog',
+    description: 'Durchsuchbar sind die Artikel des Grünblogs – dem Onlinemagazin der Grünen.',
+    meta: 'Magazin',
+    tags: ['Grünblog', 'Magazin', 'Wissen', 'Meinen', 'Machen'],
+    order: 7,
+    category: 'weitere',
+  },
 ];
 
 const DEV_ONLY_NOTEBOOKS = [

@@ -329,6 +329,20 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
+  gruenblog_documents: {
+    name: 'gruenblog_documents',
+    optimizer: 'small',
+    hnsw: 'standard',
+    indexes: [
+      { field: 'source_url', type: 'keyword' },
+      { field: 'primary_category', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'subcategories', type: 'keyword' },
+      { field: 'published_at', type: 'keyword' },
+      { field: 'indexed_at', type: 'keyword' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
   satzungen_documents: {
     name: 'satzungen_documents',
     optimizer: 'medium',
