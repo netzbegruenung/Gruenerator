@@ -48,7 +48,7 @@ const ALLOWED_FILE_TYPES: Record<AllowedMimeType, string> = {
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
 const MAX_FILES = 10;
 
@@ -63,12 +63,14 @@ export function validateFile(file: File): void {
 
   if (!ALLOWED_FILE_TYPES[file.type as AllowedMimeType]) {
     const allowedTypes = Object.values(ALLOWED_FILE_TYPES).join(', ');
-    throw new Error(`Dateityp nicht unterstützt: ${file.type || 'unbekannt'}. Erlaubt: ${allowedTypes}`);
+    throw new Error(
+      `Dateityp nicht unterstützt: ${file.type || 'unbekannt'}. Erlaubt: ${allowedTypes}`
+    );
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    const sizeMB = Math.round(file.size / (1024 * 1024));
-    const maxSizeMB = Math.round(MAX_FILE_SIZE / (1024 * 1024));
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(1);
     throw new Error(`Datei zu groß: ${file.name} (${sizeMB}MB). Maximum: ${maxSizeMB}MB`);
   }
 }
