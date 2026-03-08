@@ -2,74 +2,67 @@
 sidebar_position: 3
 ---
 
-# Anweisungen & Wissen
+# Anweisungen & Erinnerungen
 
-Der Grünerator bietet dir die Möglichkeit, persönliche Anweisungen und Wissen zu hinterlegen. Diese Funktionen helfen dabei, deine Texte noch präziser und an deine Bedürfnisse angepasst zu generieren.
+Der Gruenerator bietet dir die Moeglichkeit, persoenliche Anweisungen zu hinterlegen und Erinnerungen zu verwalten. So werden deine Texte praeziser und an deine Beduerfnisse angepasst.
 
-## Anweisungen
+## Persoenliche Anweisungen
 
-Anweisungen werden automatisch dem Prompt hinzugefügt, wenn dein Profil ausgewählt ist. Sie geben dem Grünerator direkte Ansagen, wie deine Texte erstellt werden sollen.
+Im Profil findest du ein Textfeld fuer deine persoenlichen Anweisungen. Diese werden automatisch bei **allen Text-Generierungen** beruecksichtigt — egal ob Chat, Pressemitteilung oder Social-Media-Post.
 
-![Anweisungen Interface](/assets/images/anweisungen-tutorial/anweisungen-overview.png)
+### Was gehoert in die Anweisungen?
 
-### Persönliche Anweisungen
+Alles, was der Gruenerator immer ueber dich und deinen Schreibstil wissen soll:
 
-In diesem Feld kannst du spezielle Vorgaben definieren, die bei jeder Textgenerierung berücksichtigt werden. Hier sind einige Beispiele:
+- **Schreibstil**: "Verwende immer eine sachliche, aber freundliche Sprache und vermeide Fachbegriffe."
+- **Persoenliche Infos**: "Ich bin Kreisvorsitzende in Rhein-Sieg und spreche fuer die Gruene Fraktion."
+- **Formatierung**: "Fuege am Ende jeder Pressemitteilung einen Hinweis auf unsere naechste Veranstaltung hinzu."
+- **Besondere Regeln**: "In jedem Antrag muss wegen einer Sonderaktion zwingend ein kurzes Gedicht vorkommen."
 
-- **"In jedem Antrag muss wegen einer Sonderaktion zwingend ein kurzes Gedicht vorkommen."**
-- **"Verwende immer eine sachliche, aber freundliche Sprache und vermeide Fachbegriffe."**
-- **"Füge am Ende jeder Pressemitteilung einen Hinweis auf unsere nächste Veranstaltung hinzu."**
+### Hinweise
 
-### Standard-Gliederung
+- Das Feld hat ein Limit von **2.000 Zeichen** — ein Zaehler zeigt dir, wie viel Platz noch ist.
+- Aenderungen werden ueber den **Speichern-Button** gesichert, der erscheint, sobald du etwas aenderst.
+- Weniger ist oft mehr: zu viele Anweisungen koennen widerspruechlich sein.
+- Formuliere klar und spezifisch, damit der Gruenerator deine Vorgaben zuverlaessig umsetzen kann.
 
-Hier legst du wiederkehrende Informationen fest, die der Grünerator automatisch verwenden soll:
+## Erinnerungen
 
-- Deine Fraktion (z.B. "Grüne Fraktion Rhein-Sieg")
-- Ortsverband oder andere organisatorische Details
-- Standard-Kontaktinformationen
+Unterhalb des Profils findest du den Bereich **Erinnerungen**. Hier merkt sich der Gruenerator Informationen fuer zukuenftige Gespraeche.
 
-## Wissen
+### Wie entstehen Erinnerungen?
 
-Wissen ist eine flexible Sammlung von Informationen, die du jederzeit nach Bedarf in deine Texte einfügen kannst. Im Gegensatz zu Anweisungen werden Wissenseinträge nur verwendet, wenn du sie explizit auswählst.
+- **Automatisch**: Der Gruenerator extrahiert relevante Informationen aus euren Gespraechen.
+- **Manuell**: Du kannst jederzeit eigene Erinnerungen hinzufuegen, z.B. "Ich bin Kreisverbandsvorstand in Berlin-Mitte".
 
-![Wissen Interface](/assets/images/anweisungen-tutorial/wissen-overview.png)
+### Themen-Kategorien
 
-### Wissen hinzufügen
+Jede Erinnerung kann optional einem Thema zugeordnet werden:
 
-Klicke auf "+ Wissen hinzufügen", um neue Informationen zu speichern. Jeder Wissensbaustein hat:
+| Kategorie      | Verwendung                                         |
+| -------------- | -------------------------------------------------- |
+| **Praeferenz** | Deine Vorlieben fuer Stil, Tonalitaet oder Format  |
+| **Fakt**       | Zahlen, Daten, Fakten die du haeufig brauchst      |
+| **Kontext**    | Hintergrundinformationen zu dir oder deinem Umfeld |
+| **Anweisung**  | Wiederkehrende Regeln oder Vorgaben                |
 
-- **Einen Titel** zur besseren Organisation
-- **Den Inhalt** mit allen relevanten Informationen
-- **Zeichenzähler** zur Übersicht über die Länge
+### Erinnerungen verwalten
 
-### Beispiele für Wissen
-
-Das Wissen kann vielfältige Informationen enthalten:
-
-- **Ortsinformationen**: "Alfter ist eine Gemeinde im Rhein-Sieg-Kreis im Süden Nordrhein-Westfalens..."
-- **Parteiprogramm-Auszüge**: Wichtige Positionen und Beschlüsse deiner Partei
-- **Kontaktdaten**: Ansprechpartner für bestimmte Themen
-- **Fakten und Zahlen**: Statistiken, die du häufig benötigst
-- **Veranstaltungsinformationen**: Details zu wiederkehrenden Events
+- **Hinzufuegen**: Schreibe den Text (max. 1.000 Zeichen), waehle optional ein Thema und klicke auf "Hinzufuegen".
+- **Loeschen**: Fahre mit der Maus ueber eine Erinnerung und klicke auf das Papierkorb-Symbol. Bestatige mit "Ja".
+- **Alle loeschen**: Ueber "Alle Erinnerungen loeschen" am Ende der Liste kannst du alle auf einmal entfernen.
 
 ## Praktische Tipps
 
-:::tip Automatische Speicherung
-Änderungen werden automatisch gespeichert. Du musst nicht manuell speichern, sondern kannst direkt mit der Textgenerierung fortfahren.
+:::tip Zusammenspiel
+Nutze **Anweisungen** fuer dauerhafte Regeln (Schreibstil, Formatierung) und **Erinnerungen** fuer konkrete Fakten und Kontextinformationen (Wahlkreis-Daten, Ansprechpartner\*innen, Termine).
 :::
 
-### Organisation deines Wissens
+### Optimale Nutzung
 
-- Verwende aussagekräftige Titel für deine Wissensbausteine
-- Halte die Einträge präzise und aktuell
-- Erstelle separate Einträge für verschiedene Themen
-- Überprüfe regelmäßig die Aktualität deiner Informationen
-
-### Optimale Nutzung der Anweisungen
-
-- Formuliere Anweisungen klar und spezifisch
+- Pruefe regelmaessig deine Erinnerungen auf Aktualitaet
+- Nutze die Themen-Kategorien, um Erinnerungen zu organisieren
 - Teste verschiedene Anweisungen, um die besten Ergebnisse zu erzielen
-- Passe die Standard-Gliederung an deine Organisation an
-- Weniger ist oft mehr - zu viele Anweisungen können widersprüchlich sein
+- Loesche veraltete Erinnerungen, damit der Gruenerator nicht mit widersprüchlichen Infos arbeitet
 
-Mit Anweisungen und Wissen machst du den Grünerator zu deinem persönlichen Schreibassistenten, der deine Arbeitsweise und dein Umfeld kennt.
+Mit Anweisungen und Erinnerungen wird der Gruenerator zu deinem persoenlichen Schreibassistenten, der deine Arbeitsweise und dein Umfeld kennt.
