@@ -22,6 +22,7 @@ if (sentryDsn) {
       /Loading chunk [\d]+ failed/,
       'Importing a module script failed',
       'Failed to fetch dynamically imported module',
+      'error loading dynamically imported module',
     ],
   });
 } else {
