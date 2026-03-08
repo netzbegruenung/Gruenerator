@@ -5,8 +5,10 @@ import { createLogger } from '../../utils/logger.js';
 
 import {
   renderContentDeliveryTemplate,
+  renderContentSyncTemplate,
   renderDocumentShareTemplate,
   type ContentDeliveryTemplateParams,
+  type ContentSyncTemplateParams,
   type DocumentShareTemplateParams,
 } from './templates.js';
 
@@ -146,6 +148,22 @@ export async function sendContentDeliveryEmail(
     text,
     attachments: params.attachment ? [params.attachment] : undefined,
   });
+}
+
+export async function sendContentSyncEmail(
+  to: string,
+  params: ContentSyncTemplateParams
+): Promise<boolean> {
+  if (!isConfigured()) return false;
+
+  const { html, text } = renderContentSyncTemplate(params);
+  const hasFailures = params.totals.failed > 0 || params.totals.errors > 0;
+  const icon = hasFailures ? '⚠️' : '✅';
+  const subject = hasFailures
+    ? `${icon} Content Sync: ${params.totals.failed}/${params.totals.sources} Quellen fehlgeschlagen`
+    : `${icon} Content Sync: +${params.totals.stored} neu, ${params.totals.updated} aktualisiert`;
+
+  return sendEmail({ to, subject, html, text });
 }
 
 export async function verifyEmailConnection(): Promise<boolean> {
