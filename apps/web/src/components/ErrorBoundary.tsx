@@ -51,6 +51,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   static isChunkLoadError(error: Error | null): boolean {
     return (
       error?.message?.includes('Failed to fetch dynamically imported module') ||
+      error?.message?.includes('error loading dynamically imported module') ||
       error?.message?.includes('Importing a module script failed') ||
       error?.message?.includes('Unable to preload CSS') ||
       error?.message?.includes('Loading chunk') ||
