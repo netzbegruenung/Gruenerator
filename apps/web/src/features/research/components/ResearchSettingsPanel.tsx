@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { HiCheck, HiChevronDown, HiCog6Tooth } from 'react-icons/hi2';
+import { HiCheck, HiCog6Tooth } from 'react-icons/hi2';
 
 import {
   type ActiveFilters,
@@ -115,12 +114,6 @@ export default function ResearchSettingsPanel({
 
   const filterEntries = Object.entries(filterFields);
 
-  const advancedCount =
-    (selectedCollectionIds.length > 0 ? selectedCollectionIds.length : 0) +
-    (searchMode !== 'hybrid' ? 1 : 0) +
-    (sortBy !== 'relevance' ? 1 : 0);
-  const [advancedOpen, setAdvancedOpen] = useState(advancedCount > 0);
-
   return (
     <Popover
       onOpenChange={(open) => {
@@ -153,8 +146,9 @@ export default function ResearchSettingsPanel({
         className="w-[22rem] sm:w-[30rem] max-h-[var(--radix-popover-content-available-height,32rem)] overflow-y-auto p-3"
       >
         <div className="space-y-3">
+          {/* Header */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Sucheinstellungen</span>
+            <span className="text-sm font-medium text-foreground">Sucheinstellungen</span>
             {totalActiveCount > 0 && (
               <button
                 type="button"
@@ -166,141 +160,112 @@ export default function ResearchSettingsPanel({
             )}
           </div>
 
-          {/* Filters */}
-          {(filterEntries.length > 0 || filtersLoading) && (
-            <>
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                  Filter{activeFilterCount > 0 && ` (${activeFilterCount} aktiv)`}
-                </span>
-              </div>
-
-              {filtersLoading && (
-                <div className="space-y-2 py-1">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div className="h-3 w-20 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
-                      <div className="h-3 w-3 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
-                    </div>
-                  ))}
+          {/* Date range filter (always visible, non-collapsible) */}
+          {filtersLoading && (
+            <div className="space-y-2 py-1">
+              {[1, 2].map((i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="h-3 w-20 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
+                  <div className="h-3 w-3 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
                 </div>
-              )}
-
-              {filterEntries.map(([field, config]) => {
-                if (config.type === 'date_range') {
-                  const dateValue = activeFilters[field];
-                  const parsed = dateValue && !Array.isArray(dateValue) ? dateValue : undefined;
-                  return (
-                    <DateRangeField
-                      key={field}
-                      field={field}
-                      config={config}
-                      value={parsed}
-                      onSetDateFilter={onSetDateFilter}
-                    />
-                  );
-                }
-
-                const keywordValue = activeFilters[field];
-                const selected = Array.isArray(keywordValue) ? keywordValue : [];
-                return (
-                  <KeywordField
-                    key={field}
-                    field={field}
-                    config={config}
-                    selectedValues={selected}
-                    onToggleFilter={onToggleFilter}
-                  />
-                );
-              })}
-            </>
+              ))}
+            </div>
           )}
 
-          {/* Advanced Settings (Collections, Search Mode, Sort) */}
-          <div className="border-t border-grey-200 dark:border-grey-700" />
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((o) => !o)}
-              className="flex w-full items-center justify-between"
-            >
-              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                Erweiterte Einstellungen
-                {advancedCount > 0 && (
-                  <Badge className="h-4 min-w-4 justify-center rounded-full px-1 text-[10px]">
-                    {advancedCount}
-                  </Badge>
-                )}
-              </span>
-              <HiChevronDown
-                className={cn(
-                  'size-3.5 text-grey-400 transition-transform',
-                  advancedOpen && 'rotate-180'
-                )}
-              />
-            </button>
+          {filterEntries.map(([field, config]) => {
+            if (config.type === 'date_range') {
+              const dateValue = activeFilters[field];
+              const parsed = dateValue && !Array.isArray(dateValue) ? dateValue : undefined;
+              return (
+                <DateRangeField
+                  key={field}
+                  field={field}
+                  config={config}
+                  value={parsed}
+                  onSetDateFilter={onSetDateFilter}
+                  collapsible={false}
+                />
+              );
+            }
+            return null;
+          })}
 
-            {advancedOpen && (
-              <div className="space-y-3">
-                {/* Collections */}
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                    Kollektionen
-                  </span>
-                  {collectionsLoading ? (
-                    <p className="text-xs text-grey-400">Werden geladen…</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {collections.map((col) => (
-                        <PillButton
-                          key={col.id}
-                          active={selectedCollectionIds.includes(col.id)}
-                          onClick={() => toggleCollection(col.id)}
-                        >
-                          {col.name}
-                        </PillButton>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Search Mode */}
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                    Suchmodus
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {MODE_OPTIONS.map((opt) => (
-                      <PillButton
-                        key={opt.value}
-                        active={searchMode === opt.value}
-                        onClick={() => onSearchModeChange(opt.value)}
-                      >
-                        {opt.label}
-                      </PillButton>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Sort */}
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                    Sortierung
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {SORT_OPTIONS.map((opt) => (
-                      <PillButton
-                        key={opt.value}
-                        active={sortBy === opt.value}
-                        onClick={() => onSortByChange(opt.value)}
-                      >
-                        {opt.label}
-                      </PillButton>
-                    ))}
-                  </div>
-                </div>
+          {/* Collections */}
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+              Kollektionen
+            </span>
+            {collectionsLoading ? (
+              <p className="text-xs text-grey-400">Werden geladen…</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {collections.map((col) => (
+                  <PillButton
+                    key={col.id}
+                    active={selectedCollectionIds.includes(col.id)}
+                    onClick={() => toggleCollection(col.id)}
+                  >
+                    {col.name}
+                  </PillButton>
+                ))}
               </div>
             )}
+          </div>
+
+          {/* Keyword filters (content_type etc., non-collapsible) */}
+          {filterEntries.map(([field, config]) => {
+            if (config.type === 'keyword') {
+              const keywordValue = activeFilters[field];
+              const selected = Array.isArray(keywordValue) ? keywordValue : [];
+              return (
+                <KeywordField
+                  key={field}
+                  field={field}
+                  config={config}
+                  selectedValues={selected}
+                  onToggleFilter={onToggleFilter}
+                  collapsible={false}
+                />
+              );
+            }
+            return null;
+          })}
+
+          {/* Search Mode + Sort — side by side */}
+          <div className="flex gap-4">
+            <div className="flex-1 space-y-1.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+                Suchmodus
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {MODE_OPTIONS.map((opt) => (
+                  <PillButton
+                    key={opt.value}
+                    active={searchMode === opt.value}
+                    onClick={() => onSearchModeChange(opt.value)}
+                  >
+                    {opt.label}
+                  </PillButton>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-1.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+                Sortierung
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {SORT_OPTIONS.map((opt) => (
+                  <PillButton
+                    key={opt.value}
+                    active={sortBy === opt.value}
+                    onClick={() => onSortByChange(opt.value)}
+                  >
+                    {opt.label}
+                  </PillButton>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </PopoverContent>

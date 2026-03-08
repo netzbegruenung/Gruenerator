@@ -27,6 +27,8 @@ interface FiltersResponse {
   filters: Record<string, FilterFieldConfig>;
 }
 
+const ALLOWED_FILTER_FIELDS = new Set(['published_at', 'content_type']);
+
 export function useResearchFilters() {
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
@@ -64,6 +66,16 @@ export function useResearchFilters() {
     placeholderData: keepPreviousData,
     enabled: filtersEnabled,
   });
+
+  const allowedFilterFields = useMemo(() => {
+    const result: Record<string, FilterFieldConfig> = {};
+    for (const [key, value] of Object.entries(filterFields)) {
+      if (ALLOWED_FILTER_FIELDS.has(key)) {
+        result[key] = value;
+      }
+    }
+    return result;
+  }, [filterFields]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -148,7 +160,7 @@ export function useResearchFilters() {
     collectionsLoading,
     selectedCollectionIds,
     setSelectedCollectionIds,
-    filterFields,
+    filterFields: allowedFilterFields,
     filtersLoading: filtersLoading || filtersFetching,
     filtersEnabled,
     setFiltersEnabled,
