@@ -24,6 +24,7 @@ if (sentryDsn) {
       'Importing a module script failed',
       'Failed to fetch dynamically imported module',
       'error loading dynamically imported module',
+      "Can't find variable: EmptyRanges", // Safari ES2022 class field TDZ bug (fixed by safari15 build target)
     ],
   });
 } else {
