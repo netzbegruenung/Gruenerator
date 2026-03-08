@@ -15,6 +15,7 @@
  */
 
 import { convertToModelMessages } from 'ai';
+import express from 'express';
 
 import {
   initializeChatState,
@@ -71,6 +72,7 @@ import type { UIMessage } from 'ai';
 
 const log = createLogger('ChatGraphController');
 const router = createAuthenticatedRouter();
+router.use(express.json({ limit: '50mb' }));
 
 /**
  * POST /api/chat-graph/stream

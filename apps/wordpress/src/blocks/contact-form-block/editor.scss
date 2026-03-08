@@ -1,4 +1,4 @@
-@import '../../styles/theme-bridge';
+@use '../../styles/theme-bridge' as tb;
 
 .wp-block-gruenerator-contact-form-block {
     // Editor-spezifische Stile
@@ -7,7 +7,7 @@
         background-size: cover;
         background-position: center;
         position: relative;
-        
+
         &::before {
             content: '';
             position: absolute;
@@ -44,7 +44,7 @@
 
         .contact-links-title {
             color: white;
-            font-size: $font-size-base * 1.5;
+            font-size: tb.$font-size-base * 1.5;
             margin-bottom: 1.5rem;
             text-align: left;
         }
@@ -58,29 +58,29 @@
 
     .contact-form-title {
         color: white;
-        font-size: $font-size-base * 2.5;
+        font-size: tb.$font-size-base * 2.5;
         margin-bottom: 2rem;
         text-align: center;
         width: 100%;
 
         &.rich-text {
-            background-color: rgba($primary, 0.1);
+            background-color: rgba(tb.$primary, 0.1);
             padding: 0.5rem;
             border-radius: 4px;
 
             &:focus {
                 outline: none;
-                box-shadow: 0 0 0 2px $primary;
+                box-shadow: 0 0 0 2px tb.$primary;
             }
         }
     }
 
     .block-editor-media-placeholder {
         background-color: rgba(0, 0, 0, 0.1);
-        border: 2px dashed $primary;
+        border: 2px dashed tb.$primary;
         padding: 2rem;
         text-align: center;
-        color: $primary;
+        color: tb.$primary;
     }
 
     .social-icons {
@@ -94,15 +94,15 @@
 
         .components-text-control__input {
             background-color: rgba(255, 255, 255, 0.9);
-            border-color: $primary;
+            border-color: tb.$primary;
             width: 100%;
             padding: 0.75rem;
             border-radius: 4px;
 
             &:focus {
                 outline: none;
-                border-color: custom-color('tanne');
-                box-shadow: 0 0 0 2px rgba(custom-color('tanne'), 0.1);
+                border-color: tb.custom-color('tanne');
+                box-shadow: 0 0 0 2px rgba(tb.custom-color('tanne'), 0.1);
             }
         }
     }
@@ -129,7 +129,7 @@
         }
 
         .contact-form-title {
-            font-size: $font-size-base * 2;
+            font-size: tb.$font-size-base * 2;
         }
 
         .social-icons {

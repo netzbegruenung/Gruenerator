@@ -1,17 +1,17 @@
-# Privacy Mode
+# Gruenerator-GPT
 
-Der Privacy Mode bietet maximalen Datenschutz für sensible Inhalte beim Grünerieren.
+Gruenerator-GPT bietet maximalen Datenschutz für sensible Inhalte beim Grünerieren.
 
-## Was passiert im Privacy Mode?
+## Was passiert im Gruenerator-GPT-Modus?
 
-Wenn du den Privacy Mode aktivierst, werden deine Anfragen an deutsche Server der [netzbegrünung](https://netzbegruenung.de/) und [IONOS](https://cloud.ionos.de/managed/ai-model-hub) weitergeleitet. Diese verwenden ein selbst gehostetes **Llama 3.3 70B** Modell.
+Wenn du Gruenerator-GPT auswählst, werden deine Anfragen an deutsche Server der [netzbegrünung](https://netzbegruenung.de/) und [IONOS](https://cloud.ionos.de/managed/ai-model-hub) weitergeleitet. Diese verwenden das selbst gehostete **GPT-OSS 120B** Modell.
 
 ## Vorteile
 
-- **100% deutsche Server** - Deine Daten verlassen Deutschland nicht
-- **Open Source** - Vollständig transparente und quelloffene Technologie
-- **Keine Drittanbieter** - Direkte Verarbeitung ohne externe KI-Dienste
-- **Ideal für sensible Daten** - Perfekt geeignet für vertrauliche Inhalte
+- **100% deutsche Server** — Deine Daten verlassen Deutschland nicht
+- **Open Source** — Vollständig transparente und quelloffene Technologie
+- **Keine Drittanbieter** — Direkte Verarbeitung ohne externe KI-Dienste
+- **Ideal für sensible Daten** — Perfekt geeignet für vertrauliche Inhalte
 
 ## Einschränkungen
 
@@ -20,4 +20,4 @@ Wenn du den Privacy Mode aktivierst, werden deine Anfragen an deutsche Server de
 
 ## Wann verwenden?
 
-Nutze den Privacy Mode, wenn du mit sensiblen oder vertraulichen Informationen arbeitest, die besonderen Schutz benötigen.
+Nutze Gruenerator-GPT, wenn du mit sensiblen oder vertraulichen Informationen arbeitest, die besonderen Schutz benötigen.

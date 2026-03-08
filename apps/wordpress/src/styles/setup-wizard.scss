@@ -1,13 +1,14 @@
-@import './index';
-
-// Komponenten importieren
-@import './components/progress-bar';
-@import './components/welcome-page';
-@import './components/completion-page';
+@use './theme-bridge' as tb;
+@use './base/typography' as typo;
+@use './components/buttons' as btn;
+@use './components/forms' as forms;
+@use './components/progress-bar';
+@use './components/welcome-page';
+@use './components/completion-page';
 
 // Hauptcontainer
 .gruenerator-setup-wizard {
-    background: custom-color('weiss');
+    background: tb.custom-color('weiss');
     border-radius: 8px;
     padding: 2rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -22,13 +23,13 @@
     }
 
     h1 {
-        @extend %heading-large;
+        @include typo.heading-large;
         text-align: center;
     }
 
     // Start-Button Styling
     .button-primary {
-        @extend %button-primary;
+        @include btn.button-primary;
         min-width: 150px;
         display: inline-block;
         margin: 1rem 0;
@@ -37,18 +38,18 @@
 
 // Step Content
 .gruenerator-step-content {
-    background: custom-color('weiss');
+    background: tb.custom-color('weiss');
     border-radius: 8px;
     padding: 2rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     margin: 1.5rem 0;
 
     h2 {
-        @extend %heading-section;
+        @include typo.heading-section;
     }
 
     p {
-        @extend %text-base;
+        @include typo.text-base;
         max-width: 800px;
     }
 
@@ -59,7 +60,7 @@
 
         th {
             font-weight: 600;
-            color: custom-color('tanne');
+            color: tb.custom-color('tanne');
             padding: 1rem 1.5rem 1rem 0;
             width: 200px;
             vertical-align: top;
@@ -82,21 +83,21 @@
                 border-radius: 6px;
                 font-size: 0.95em;
                 transition: all 0.2s ease;
-                
+
                 &:focus {
-                    border-color: custom-color('klee');
+                    border-color: tb.custom-color('klee');
                     box-shadow: 0 0 0 2px rgba(0, 137, 57, 0.1);
                     outline: none;
                 }
             }
 
             .checkbox-wrapper {
-                @extend %checkbox-base;
+                @include forms.checkbox-base;
             }
 
             .description {
                 font-size: 0.9em;
-                color: $gray-500;
+                color: tb.$gray-500;
                 margin-top: 0.5rem;
                 display: block;
                 line-height: 1.5;
@@ -111,17 +112,17 @@
     justify-content: space-between;
     margin-top: 2rem;
     padding: 1.5rem;
-    background: custom-color('weiss');
+    background: tb.custom-color('weiss');
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 
     .button {
         &.button-primary {
-            @extend %button-primary;
+            @include btn.button-primary;
         }
 
         &.button-secondary {
-            @extend %button-secondary;
+            @include btn.button-secondary;
         }
     }
 }
@@ -167,4 +168,4 @@
             margin: 0;
         }
     }
-} 
+}

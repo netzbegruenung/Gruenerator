@@ -2,17 +2,15 @@
 sidebar_position: 3
 ---
 
-# Pro-Modus
+# Reasoning-Modus
 
-Der Pro-Modus bietet dir Zugriff auf Claude Sonnet von Anthropic – eines der leistungsstärksten KI-Modelle und besonders gut darin, Inatruktionen auch bei längeren Kontexten zu folgen. Verwende den Pro-Modus bei komplexeren Texten, etwa längeren Anträgen oder Pressemitteilungen mit viel Inhalt.
+Der Reasoning-Modus bietet dir Zugriff auf Magistral von Mistral AI — ein Reasoning-Modell, das bei komplexen Aufgaben besonders gründlich nachdenkt. Verwende den Reasoning-Modus bei anspruchsvolleren Texten, etwa längeren Anträgen oder Pressemitteilungen mit viel Inhalt.
 
 ## Datenschutz
 
-Der Pro-Modus erfüllt höchste Datenschutzstandards:
+Der Reasoning-Modus erfüllt höchste Datenschutzstandards:
 
-- **EU-Server**: Alle Daten werden ausschließlich auf EU-Servern verarbeitet
-- **Keine Langzeitspeicherung**: [Prompts und Antworten werden nicht dauerhaft gespeichert](https://docs.aws.amazon.com/bedrock/latest/userguide/data-protection.html)
+- **EU-Server**: Alle Daten werden ausschließlich auf EU-Servern verarbeitet (Mistral AI, Frankreich)
 - **Kein KI-Training**: Deine Eingaben werden nicht zum Training der KI verwendet
-- **AWS als Auftragsverarbeiter**: Die Verarbeitung erfolgt gemäß AWS Data Processing Addendum
 
-Sharepics und Barrierefreiheit verwenden den Pro-Modus standardmäßig.
+Sharepics und Barrierefreiheit verwenden den Reasoning-Modus standardmäßig.

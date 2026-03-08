@@ -1,5 +1,7 @@
+@use '../theme-bridge' as tb;
+
 // Checkbox Styling
-%checkbox-base {
+@mixin checkbox-base {
     position: relative;
     display: flex;
     align-items: center;
@@ -12,7 +14,7 @@
         -webkit-appearance: none;
         width: 20px;
         height: 20px;
-        border: 2px solid custom-color('grau-500');
+        border: 2px solid tb.custom-color('grau-500');
         border-radius: 4px;
         margin: 0;
         cursor: pointer;
@@ -20,8 +22,8 @@
         transition: all 0.2s ease;
 
         &:checked {
-            background-color: custom-color('klee');
-            border-color: custom-color('klee');
+            background-color: tb.custom-color('klee');
+            border-color: tb.custom-color('klee');
 
             &::after {
                 content: "✓";
@@ -29,19 +31,19 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                color: custom-color('weiss');
+                color: tb.custom-color('weiss');
                 font-size: 14px;
                 line-height: 1;
             }
         }
 
         &:hover {
-            border-color: custom-color('klee');
+            border-color: tb.custom-color('klee');
         }
 
         &:focus {
             outline: none;
-            border-color: custom-color('klee');
+            border-color: tb.custom-color('klee');
             box-shadow: 0 0 0 2px rgba(0, 137, 57, 0.2);
         }
     }
@@ -49,7 +51,7 @@
     label {
         cursor: pointer;
         font-size: 0.95em;
-        color: $darkgray;
+        color: tb.$darkgray;
         user-select: none;
     }
-} 
+}

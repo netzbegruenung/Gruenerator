@@ -134,34 +134,36 @@ const config: Config = {
       },
       items: [
         {
-          to: '/docs/Grundlagen/Kennzeichnungs-Guide',
-          label: 'Grundlagen',
+          to: '/docs/ueber-den-gruenerator/intro',
+          label: 'Über den Grünerator',
           position: 'left',
         },
         {
-          to: '/docs/Profil/gruene-wolke-tutorial',
-          label: 'Profil',
+          type: 'dropdown',
+          label: 'Wissen',
           position: 'left',
+          items: [
+            { to: '/docs/category/grundlagen', label: 'Grundlagen' },
+            {
+              to: '/docs/category/wie-funktionieren-large-language-models-wie-chatgpt',
+              label: 'LLM Basics',
+            },
+          ],
         },
         {
-          to: '/docs/gruenerieren/pro-modus',
-          label: 'Grünerieren',
+          type: 'dropdown',
+          label: 'Anleitung',
           position: 'left',
-        },
-        {
-          to: '/docs/integrationen/ki-chat-einrichten',
-          label: 'Integrationen',
-          position: 'left',
-        },
-        {
-          to: '/docs/llm-basics/wie-llms-funktionieren',
-          label: 'LLM Basics',
-          position: 'left',
+          items: [
+            { to: '/docs/category/grünerieren', label: 'Grünerieren' },
+            { to: '/docs/category/profil', label: 'Profil' },
+            { to: '/docs/category/integrationen', label: 'Integrationen' },
+          ],
         },
         {
           to: '/docs/category/newsletter-archiv',
           label: 'Newsletter',
-          position: 'left',
+          position: 'right',
         },
       ],
     },
@@ -186,7 +188,7 @@ const config: Config = {
           ],
         },
         {
-          title: 'Grundlagen',
+          title: 'Wissen',
           items: [
             {
               label: 'Kennzeichnungs-Guide',
@@ -196,15 +198,15 @@ const config: Config = {
               label: 'Welches KI-Tool wofür?',
               to: '/docs/Grundlagen/welches-ki-tool-wofuer',
             },
+            {
+              label: 'Wie LLMs funktionieren',
+              to: '/docs/llm-basics/wie-llms-funktionieren',
+            },
           ],
         },
         {
-          title: 'Profil & Grünerieren',
+          title: 'Anleitung',
           items: [
-            {
-              label: 'Grüne Wolke Tutorial',
-              to: '/docs/Profil/gruene-wolke-tutorial',
-            },
             {
               label: 'Pro-Modus',
               to: '/docs/gruenerieren/pro-modus',
@@ -214,14 +216,9 @@ const config: Config = {
               to: '/docs/gruenerieren/privacy-mode',
             },
             {
-              label: 'Wie LLMs funktionieren',
-              to: '/docs/llm-basics/wie-llms-funktionieren',
+              label: 'Grüne Wolke Tutorial',
+              to: '/docs/Profil/gruene-wolke-tutorial',
             },
-          ],
-        },
-        {
-          title: 'Integrationen',
-          items: [
             {
               label: 'KI-Chat einrichten',
               to: '/docs/integrationen/ki-chat-einrichten',

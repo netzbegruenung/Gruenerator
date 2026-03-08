@@ -1,4 +1,4 @@
-@import '../../styles/theme-bridge';
+@use '../../styles/theme-bridge' as tb;
 
 .wp-block-gruenerator-meine-themen-block {
     position: relative;
@@ -13,7 +13,7 @@
         bottom: 0;
         margin-left: -50vw;
         margin-right: -50vw;
-        background-color: custom-color('sand');
+        background-color: tb.custom-color('sand');
         z-index: -1;
     }
 
@@ -34,8 +34,8 @@
     }
 
     .meine-themen-title {
-        color: $primary;
-        font-size: $font-size-base * 2.5;
+        color: tb.$primary;
+        font-size: tb.$font-size-base * 2.5;
         font-weight: bold;
         text-align: center;
         margin-bottom: 2rem;
@@ -64,16 +64,16 @@
     }
 
     .theme-title {
-        color: $primary;
-        font-size: $font-size-base * 1.5;
+        color: tb.$primary;
+        font-size: tb.$font-size-base * 1.5;
         font-weight: bold;
         margin: 1rem 1rem 0.5rem; // Fügen Sie Innenabstände hinzu
         font-family: 'GrueneType', sans-serif;
     }
 
     .theme-content {
-        color: $body-color;
-        font-size: $font-size-base;
+        color: tb.$body-color;
+        font-size: tb.$font-size-base;
         line-height: 1.6;
         padding: 0 1rem 1rem; // Fügen Sie Innenabstände hinzu
     }

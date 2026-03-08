@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FaWindows, FaApple, FaLinux } from 'react-icons/fa';
-import { HiDownload, HiRefresh } from 'react-icons/hi';
+import { HiDownload, HiRefresh, HiClipboardCopy, HiCheck, HiExternalLink } from 'react-icons/hi';
 
 import Spinner from '../../components/common/Spinner';
+import { getDocsUrl } from '../../utils/docsUrl';
 
 import { cn } from '@/utils/cn';
 
@@ -19,6 +20,18 @@ declare global {
 }
 
 const RELEASES_API_URL = `${import.meta.env.VITE_API_BASE_URL || '/api'}/releases/latest`;
+const MCP_URL = 'https://mcp.gruenerator.eu/mcp';
+
+const CONNECT_PLATFORMS = [
+  {
+    name: 'ChatGPT',
+    path: 'Settings \u2192 Connectors (Developer Mode)',
+    note: 'Plus, Pro oder Team Plan',
+  },
+  { name: 'Claude', path: 'Settings \u2192 Integrations', note: null },
+  { name: 'Mistral Le Chat', path: 'Settings \u2192 Connectors \u2192 Custom MCP', note: null },
+  { name: 'OpenWebUI', path: 'Settings \u2192 Tools \u2192 MCP Servers', note: 'ab Version 0.6' },
+];
 
 type Platform = 'windows' | 'macos' | 'linux';
 
@@ -104,17 +117,17 @@ const getDownloadLabel = (filename: string, platform: Platform): string => {
   const lower = filename.toLowerCase();
 
   if (platform === 'windows') {
-    if (lower.includes('.exe')) return 'Download für Windows';
-    if (lower.includes('.msi')) return 'Download für Windows';
+    if (lower.includes('.exe')) return 'Download f\u00fcr Windows';
+    if (lower.includes('.msi')) return 'Download f\u00fcr Windows';
   }
   if (platform === 'macos') {
     const arch = getAssetArchitecture(filename);
-    if (arch === 'arm64') return 'Download für Apple Silicon';
-    return 'Download für Intel';
+    if (arch === 'arm64') return 'Download f\u00fcr Apple Silicon';
+    return 'Download f\u00fcr Intel';
   }
   if (platform === 'linux') {
-    if (lower.includes('.appimage')) return 'Download für Linux';
-    if (lower.includes('.deb')) return 'Download für Linux';
+    if (lower.includes('.appimage')) return 'Download f\u00fcr Linux';
+    if (lower.includes('.deb')) return 'Download f\u00fcr Linux';
   }
   return 'Download';
 };
@@ -194,6 +207,86 @@ function selectPrimaryAsset(
   return assets[0];
 }
 
+const ConnectSection = () => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(MCP_URL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback: select text for manual copy
+    }
+  };
+
+  return (
+    <section className="flex w-full max-w-[40rem] flex-col items-center gap-6">
+      <h2 className="text-xl font-bold text-foreground-heading">Mit KI-Chat verbinden</h2>
+      <p className="text-center text-sm text-grey-600 dark:text-grey-400">
+        Du kannst den Gr\u00fcnerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI
+        verwenden. Dein KI-Assistent kann dann gr\u00fcne Parteiprogramme durchsuchen und dir beim
+        Erstellen politischer Texte helfen.
+      </p>
+
+      {/* MCP URL with copy button */}
+      <div className="flex w-full items-center gap-2 rounded-lg border border-grey-200 bg-background-alt px-4 py-3 dark:border-grey-700">
+        <code className="min-w-0 flex-1 truncate text-sm text-foreground">{MCP_URL}</code>
+        <button
+          onClick={handleCopy}
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+            copied
+              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+              : 'bg-grey-100 text-grey-600 hover:bg-grey-200 dark:bg-grey-800 dark:text-grey-300 dark:hover:bg-grey-700'
+          )}
+        >
+          {copied ? (
+            <>
+              <HiCheck className="text-sm" />
+              Kopiert
+            </>
+          ) : (
+            <>
+              <HiClipboardCopy className="text-sm" />
+              Kopieren
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Platform cards */}
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+        {CONNECT_PLATFORMS.map((platform) => (
+          <div
+            key={platform.name}
+            className="rounded-lg border border-grey-200 bg-background-alt p-4 dark:border-grey-700"
+          >
+            <p className="text-sm font-semibold text-foreground-heading">{platform.name}</p>
+            <p className="mt-1 text-xs text-grey-500 dark:text-grey-400">{platform.path}</p>
+            {platform.note && (
+              <p className="mt-1 text-xs text-grey-400 italic dark:text-grey-500">
+                {platform.note}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Link to full docs */}
+      <a
+        href={`${getDocsUrl()}/docs/integrationen/ki-chat-einrichten`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-sm text-link underline underline-offset-2 hover:opacity-80"
+      >
+        Ausf\u00fchrliche Einrichtungsanleitung
+        <HiExternalLink className="text-sm" />
+      </a>
+    </section>
+  );
+};
+
 const AppsPage = () => {
   const [release, setRelease] = useState<GitHubRelease | null>(null);
   const [loading, setLoading] = useState(true);
@@ -243,100 +336,117 @@ const AppsPage = () => {
     [selectedAssets, primaryAsset]
   );
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Spinner size="medium" />
-      </div>
-    );
-  }
+  const renderDesktopContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <Spinner size="medium" />
+        </div>
+      );
+    }
 
-  if (error) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
-        <h1 className="text-2xl font-bold text-foreground-heading">Download Grünerator</h1>
-        <p className="text-error">{error}</p>
-        <button
-          onClick={fetchRelease}
-          className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-5 py-2 text-sm text-white transition-opacity hover:opacity-90"
-        >
-          <HiRefresh />
-          Erneut versuchen
-        </button>
-      </div>
-    );
-  }
+    if (error) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-4">
+          <p className="text-error text-sm">{error}</p>
+          <button
+            onClick={fetchRelease}
+            className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-5 py-2 text-sm text-white transition-opacity hover:opacity-90"
+          >
+            <HiRefresh />
+            Erneut versuchen
+          </button>
+        </div>
+      );
+    }
 
-  if (!release) {
+    if (!release) {
+      return <p className="py-4 text-sm text-grey-500">Keine Releases verf\u00fcgbar.</p>;
+    }
+
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
-        <h1 className="text-2xl font-bold text-foreground-heading">Download Grünerator</h1>
-        <p className="text-grey-500">Keine Releases verfügbar.</p>
-      </div>
+      <>
+        {/* Platform tabs */}
+        <div className="mb-6 flex gap-2">
+          {PLATFORM_TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSelectedPlatform(key)}
+              className={cn(
+                'flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors',
+                selectedPlatform === key
+                  ? 'border-primary-600 bg-primary-600 text-white'
+                  : 'border-grey-200 bg-background text-foreground hover:border-grey-400'
+              )}
+            >
+              <Icon className="text-lg" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Primary download */}
+        {primaryAsset ? (
+          <div className="flex flex-col items-center gap-3">
+            <a
+              href={primaryAsset.browser_download_url}
+              download
+              className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90"
+            >
+              <HiDownload />
+              {getDownloadLabel(primaryAsset.name, selectedPlatform)}
+            </a>
+
+            {/* Secondary downloads */}
+            {secondaryAssets.length > 0 && (
+              <p className="text-xs text-grey-500">
+                Auch verf\u00fcgbar als{' '}
+                {secondaryAssets.map((asset, i) => (
+                  <span key={asset.id || asset.name}>
+                    {i > 0 && ', '}
+                    <a
+                      href={asset.browser_download_url}
+                      download
+                      className="text-link underline underline-offset-2 hover:opacity-80"
+                    >
+                      {getSecondaryLabel(asset.name)}
+                    </a>
+                    <span className="text-grey-400"> ({formatSize(asset.size)})</span>
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-grey-500">
+            Keine Downloads f\u00fcr diese Plattform verf\u00fcgbar.
+          </p>
+        )}
+      </>
     );
-  }
+  };
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center px-4 py-12">
-      {/* Hero heading */}
-      <h1 className="mb-6 text-center text-2xl font-bold text-foreground-heading">
-        Download Grünerator
+      {/* Page heading */}
+      <h1 className="mb-2 text-center text-2xl font-bold text-foreground-heading">
+        Apps & Connect
       </h1>
+      <p className="mb-10 text-center text-sm text-grey-500">
+        Desktop-App herunterladen oder den Gr\u00fcnerator mit deinem KI-Chat verbinden.
+      </p>
 
-      {/* Platform tabs */}
-      <div className="mb-8 flex gap-2">
-        {PLATFORM_TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setSelectedPlatform(key)}
-            className={cn(
-              'flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors',
-              selectedPlatform === key
-                ? 'border-primary-600 bg-primary-600 text-white'
-                : 'border-grey-200 bg-background text-foreground hover:border-grey-400'
-            )}
-          >
-            <Icon className="text-lg" />
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Desktop App Section */}
+      <section className="flex w-full flex-col items-center">
+        <h2 className="mb-6 text-lg font-bold text-foreground-heading">Desktop-App</h2>
+        {renderDesktopContent()}
+      </section>
 
-      {/* Primary download */}
-      {primaryAsset ? (
-        <div className="flex flex-col items-center gap-3">
-          <a
-            href={primaryAsset.browser_download_url}
-            download
-            className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90"
-          >
-            <HiDownload />
-            {getDownloadLabel(primaryAsset.name, selectedPlatform)}
-          </a>
+      {/* Divider */}
+      <hr className="my-12 w-full max-w-[40rem] border-grey-200 dark:border-grey-700" />
 
-          {/* Secondary downloads */}
-          {secondaryAssets.length > 0 && (
-            <p className="text-xs text-grey-500">
-              Auch verfügbar als{' '}
-              {secondaryAssets.map((asset, i) => (
-                <span key={asset.id || asset.name}>
-                  {i > 0 && ', '}
-                  <a
-                    href={asset.browser_download_url}
-                    download
-                    className="text-link underline underline-offset-2 hover:opacity-80"
-                  >
-                    {getSecondaryLabel(asset.name)}
-                  </a>
-                  <span className="text-grey-400"> ({formatSize(asset.size)})</span>
-                </span>
-              ))}
-            </p>
-          )}
-        </div>
-      ) : (
-        <p className="text-sm text-grey-500">Keine Downloads für diese Plattform verfügbar.</p>
-      )}
+      {/* Connect Section */}
+      <ConnectSection />
     </div>
   );
 };

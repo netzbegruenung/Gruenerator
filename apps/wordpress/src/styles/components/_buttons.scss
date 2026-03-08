@@ -1,5 +1,7 @@
+@use '../theme-bridge' as tb;
+
 // Gemeinsame Button-Styles
-%button-base {
+@mixin button-base {
     padding: 0.75rem 1.5rem;
     height: auto;
     line-height: 1.4;
@@ -12,33 +14,33 @@
     margin-top: 1rem;
 }
 
-%button-primary {
-    @extend %button-base;
-    background: custom-color('tanne');
+@mixin button-primary {
+    @include button-base;
+    background: tb.custom-color('tanne');
     border: none;
-    color: custom-color('weiss');
+    color: tb.custom-color('weiss');
     box-shadow: 0 2px 8px rgba(0, 84, 55, 0.15);
 
     &:hover,
     &:focus {
         transform: translateY(-1px);
-        background: custom-color('klee');
+        background: tb.custom-color('klee');
         box-shadow: 0 3px 12px rgba(0, 84, 55, 0.2);
-        color: custom-color('weiss') !important;
+        color: tb.custom-color('weiss') !important;
     }
 }
 
-%button-secondary {
-    @extend %button-base;
-    background: custom-color('weiss');
-    border: 2px solid $darkgray;
-    color: $darkgray !important;
+@mixin button-secondary {
+    @include button-base;
+    background: tb.custom-color('weiss');
+    border: 2px solid tb.$darkgray;
+    color: tb.$darkgray !important;
 
     &:hover,
     &:focus {
-        background: custom-color('weiss');
-        border-color: custom-color('tanne');
-        color: custom-color('tanne') !important;
+        background: tb.custom-color('weiss');
+        border-color: tb.custom-color('tanne');
+        color: tb.custom-color('tanne') !important;
         transform: translateY(-1px);
     }
-} 
+}

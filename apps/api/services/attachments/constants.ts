@@ -19,9 +19,9 @@ export const ALLOWED_MIME_TYPES = [
 export const ALLOWED_ATTACHMENT_TYPES = [...ALLOWED_MIME_TYPES, 'crawled_url'] as const;
 
 /**
- * Maximum size for a single file attachment (5MB)
+ * Maximum size for a single file attachment (25MB)
  */
-export const MAX_FILE_SIZE = 5 * 1024 * 1024;
+export const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 /**
  * Maximum total size for all attachments (30MB)

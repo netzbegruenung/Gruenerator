@@ -354,7 +354,9 @@ const ImageGallery = () => {
           shareToken: image.shareToken,
           content: { ...metadata.content, sharepicType },
           styling: metadata.styling || {},
-          originalImageUrl: `${baseURL}/share/${image.shareToken}/original`,
+          originalImageUrl: metadata.hasOriginalImage
+            ? `${baseURL}/share/${image.shareToken}/original`
+            : undefined,
           title: image.title,
         },
       });

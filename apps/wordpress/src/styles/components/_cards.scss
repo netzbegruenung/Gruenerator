@@ -1,6 +1,8 @@
+@use '../theme-bridge' as tb;
+
 // Gemeinsame Card-Styles
-%card-base {
-    background: custom-color('white');
+@mixin card-base {
+    background: tb.custom-color('white');
     border-radius: 8px;
     padding: 2rem;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -12,8 +14,8 @@
     }
 }
 
-%card-title {
-    color: custom-color('tanne');
+@mixin card-title {
+    color: tb.custom-color('tanne');
     font-size: 1.4em;
     margin: 0 0 1.25rem;
     padding-bottom: 0.75rem;
@@ -21,20 +23,20 @@
     font-weight: 600;
 }
 
-%card-text {
-    color: $darkgray;
+@mixin card-text {
+    color: tb.$darkgray;
     font-size: 1.1em;
     line-height: 1.6;
     margin-bottom: 1.5rem;
 }
 
-%card-list {
+@mixin card-list {
     list-style: none;
     margin: 1.25rem 0 1.75rem;
     padding: 0;
 
     li {
-        color: $darkgray;
+        color: tb.$darkgray;
         padding: 0.5rem 0 0.5rem 1.75rem;
         position: relative;
         line-height: 1.5;
@@ -42,10 +44,10 @@
 
         &:before {
             content: "✓";
-            color: custom-color('klee');
+            color: tb.custom-color('klee');
             position: absolute;
             left: 0;
             font-weight: bold;
         }
     }
-} 
+}
