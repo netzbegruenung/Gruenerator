@@ -33,7 +33,7 @@ export function GrueneratorThread() {
     <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col bg-background">
       <AutoMessageSender />
       <NewThreadWatcher />
-      <div className="floating-controls-wrapper">
+      <div className="floating-controls-wrapper hidden md:flex">
         <div className="floating-controls-left">
           <ModelSelector />
         </div>
