@@ -25,32 +25,42 @@ export function DateRangeField({
   value,
   onSetDateFilter,
   defaultOpen = false,
+  collapsible = true,
 }: {
   field: string;
   config: FilterFieldConfig;
   value: { date_from?: string; date_to?: string } | undefined;
   onSetDateFilter: (field: string, dateFrom?: string, dateTo?: string) => void;
   defaultOpen?: boolean;
+  collapsible?: boolean;
 }) {
   const hasActive = !!(value?.date_from || value?.date_to);
   const [open, setOpen] = useState(defaultOpen || hasActive);
+  const showContent = !collapsible || open;
 
   return (
     <div className="space-y-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between"
-      >
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-full items-center justify-between"
+        >
+          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+            {config.label}
+            {hasActive && <span className="inline-flex size-1.5 rounded-full bg-primary-500" />}
+          </span>
+          <HiChevronDown
+            className={cn('size-3.5 text-grey-400 transition-transform', open && 'rotate-180')}
+          />
+        </button>
+      ) : (
         <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
           {config.label}
           {hasActive && <span className="inline-flex size-1.5 rounded-full bg-primary-500" />}
         </span>
-        <HiChevronDown
-          className={cn('size-3.5 text-grey-400 transition-transform', open && 'rotate-180')}
-        />
-      </button>
-      {open && (
+      )}
+      {showContent && (
         <div className="flex items-center gap-2">
           <input
             type="date"
@@ -58,7 +68,7 @@ export function DateRangeField({
             min={config.min}
             max={value?.date_to || config.max}
             onChange={(e) => onSetDateFilter(field, e.target.value || undefined, value?.date_to)}
-            className="h-8 flex-1 rounded-md border border-grey-300 bg-background px-2 text-xs dark:border-grey-600"
+            className="h-8 flex-1 rounded-md border border-grey-300 bg-background px-2 text-xs text-foreground [color-scheme:light] dark:border-grey-600 dark:[color-scheme:dark]"
           />
           <span className="text-xs text-grey-400">–</span>
           <input
@@ -67,7 +77,7 @@ export function DateRangeField({
             min={value?.date_from || config.min}
             max={config.max}
             onChange={(e) => onSetDateFilter(field, value?.date_from, e.target.value || undefined)}
-            className="h-8 flex-1 rounded-md border border-grey-300 bg-background px-2 text-xs dark:border-grey-600"
+            className="h-8 flex-1 rounded-md border border-grey-300 bg-background px-2 text-xs text-foreground [color-scheme:light] dark:border-grey-600 dark:[color-scheme:dark]"
           />
           {hasActive && (
             <button
@@ -90,25 +100,42 @@ export function KeywordField({
   selectedValues,
   onToggleFilter,
   defaultOpen = false,
+  collapsible = true,
 }: {
   field: string;
   config: FilterFieldConfig;
   selectedValues: string[];
   onToggleFilter: (field: string, value: string) => void;
   defaultOpen?: boolean;
+  collapsible?: boolean;
 }) {
   const hasActive = selectedValues.length > 0;
   const [open, setOpen] = useState(defaultOpen || hasActive);
+  const showContent = !collapsible || open;
 
   if (!config.values?.length) return null;
 
   return (
     <div className="space-y-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between"
-      >
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-full items-center justify-between"
+        >
+          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+            {config.label}
+            {hasActive && (
+              <Badge className="h-4 min-w-4 justify-center rounded-full px-1 text-[10px]">
+                {selectedValues.length}
+              </Badge>
+            )}
+          </span>
+          <HiChevronDown
+            className={cn('size-3.5 text-grey-400 transition-transform', open && 'rotate-180')}
+          />
+        </button>
+      ) : (
         <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
           {config.label}
           {hasActive && (
@@ -117,11 +144,8 @@ export function KeywordField({
             </Badge>
           )}
         </span>
-        <HiChevronDown
-          className={cn('size-3.5 text-grey-400 transition-transform', open && 'rotate-180')}
-        />
-      </button>
-      {open && (
+      )}
+      {showContent && (
         <div className="flex flex-wrap gap-1.5">
           {config.values.map((v) => {
             const active = selectedValues.includes(v.value);
