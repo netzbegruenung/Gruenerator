@@ -16,11 +16,11 @@ Der Grünerator wurde anhand grüner Sprache antrainiert. Wenn er einen Beitrag 
 
 Der Grünerator verwendet eine stark vereinfachte Benutzeroberfläche, die fast jede:r auf Anhieb versteht. Er wurde so designt, dass er von allen Ehrenamtlichen aller Altersklassen verwendet werden kann. Die UI orientiert sich stark an Seiten, die die Nutzer:innen kennen und lieben.
 
-Er nutzt modernste KI-Modelle – im Standard-Modus das europäische Mistral AI und im [Pro-Modus](../gruenerieren/pro-modus) Claude Sonnet von Anthropic, das als eines der besten Sprachmodelle für kreatives Schreiben gilt und Ergebnisse liefert, die in der Regel die von ChatGPT überbieten.
+Er nutzt modernste KI-Modelle – im Standard-Modus das europäische Mistral AI und im [Reasoning-Modus](../gruenerieren/pro-modus) Magistral von Mistral, ein Reasoning-Modell, das bei komplexen Aufgaben besonders gründlich nachdenkt. Mit [Gruenerator-GPT](../gruenerieren/privacy-mode) steht außerdem ein vollständig selbst gehostetes Modell auf deutschen Servern zur Verfügung.
 
 ### Datenschutz per Design
 
-Anders als andere Seiten trackt der Grünerator nicht und kann völlig anonym verwendet werden. Er verwendet **ausschließlich EU-Server** zur Verarbeitung der KI-Eingaben und bietet mit dem [Privacy-Mode](../gruenerieren/privacy-mode) die Möglichkeit, deutsche Server zu verwenden. Der Grünerator setzt dabei bewusst auf [europäische Technologieanbieter](./gruenerator-pro-eu) wie Mistral AI (Frankreich) und Black Forest Labs (Deutschland), um die digitale Souveränität Europas zu stärken.
+Anders als andere Seiten trackt der Grünerator nicht und kann völlig anonym verwendet werden. Er verwendet **ausschließlich EU-Server** zur Verarbeitung der KI-Eingaben und bietet mit [Gruenerator-GPT](../gruenerieren/privacy-mode) die Möglichkeit, deutsche Server zu verwenden. Der Grünerator setzt dabei bewusst auf [europäische Technologieanbieter](./gruenerator-pro-eu) wie Mistral AI (Frankreich) und Black Forest Labs (Deutschland), um die digitale Souveränität Europas zu stärken.
 
 ### Plus für Barrierefreiheit
 
