@@ -19,6 +19,7 @@ if (sentryDsn) {
       'ResizeObserver loop completed with undelivered notifications',
       'NetworkError',
       'Failed to fetch',
+      'Load failed', // Safari equivalent of "Failed to fetch"
       /Loading chunk [\d]+ failed/,
       'Importing a module script failed',
       'Failed to fetch dynamically imported module',
