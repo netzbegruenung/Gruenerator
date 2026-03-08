@@ -1,0 +1,96 @@
+name: Weekly Desktop Release
+
+on:
+  schedule:
+    # Every Sunday at 22:00 UTC
+    - cron: '0 22 * * 0'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force build even without changes'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find latest desktop tag
+        id: latest_tag
+        run: |
+          TAG=$(git tag -l 'desktop-v*' --sort=-v:refname | head -n1)
+          echo "tag=${TAG:-none}" >> $GITHUB_OUTPUT
+          echo "Latest desktop tag: ${TAG:-none}"
+
+      - name: Check for relevant changes
+        id: changes
+        run: |
+          TAG="${{ steps.latest_tag.outputs.tag }}"
+          FORCE="${{ github.event.inputs.force }}"
+
+          if [[ "$FORCE" == "true" ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Forced build requested"
+            exit 0
+          fi
+
+          if [[ "$TAG" == "none" ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "No previous tag found, building"
+            exit 0
+          fi
+
+          # Check if web, packages, or desktop source changed
+          CHANGED=$(git diff --name-only "$TAG"..HEAD -- \
+            apps/web/ \
+            apps/desktop/ \
+            packages/shared/ \
+            packages/chat/ \
+            packages/docs/ \
+          )
+
+          if [[ -n "$CHANGED" ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes found since $TAG:"
+            echo "$CHANGED" | head -20
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No relevant changes since $TAG"
+          fi
+
+      - name: Bump version and create tag
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          TAG="${{ steps.latest_tag.outputs.tag }}"
+
+          if [[ "$TAG" == "none" ]]; then
+            NEW_VERSION="1.1.1"
+          else
+            # Extract version, bump patch
+            VERSION="${TAG#desktop-v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            PATCH=$((PATCH + 1))
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+
+          NEW_TAG="desktop-v${NEW_VERSION}"
+          echo "Creating tag: $NEW_TAG"
+
+          # Update version in tauri.conf.json and package.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"${NEW_VERSION}\"/" apps/desktop/src-tauri/tauri.conf.json
+          sed -i "0,/\"version\": \".*\"/s/\"version\": \".*\"/\"version\": \"${NEW_VERSION}\"/" apps/desktop/package.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/desktop/src-tauri/tauri.conf.json apps/desktop/package.json
+          git commit -m "chore(desktop): bump version to ${NEW_VERSION}"
+          git tag "$NEW_TAG"
+          git push origin master "$NEW_TAG"
