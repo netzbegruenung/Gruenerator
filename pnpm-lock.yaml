@@ -984,6 +984,9 @@ importers:
       '@gruenerator/docs':
         specifier: workspace:*
         version: link:../../packages/docs
+      '@gruenerator/voice':
+        specifier: workspace:*
+        version: link:../../packages/voice
       '@hocuspocus/provider':
         specifier: ^3.4.3
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)
@@ -1218,7 +1221,7 @@ importers:
     dependencies:
       '@wordpress/block-editor':
         specifier: ^15.14.0
-        version: 15.14.0(@emotion/is-prop-valid@1.4.0)(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(stylelint@16.26.1(typescript@5.9.3))
+        version: 15.14.0(@emotion/is-prop-valid@1.4.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(stylelint@16.26.1(typescript@5.9.3))
       '@wordpress/blocks':
         specifier: ^15.14.0
         version: 15.14.0(react@19.2.4)
@@ -1498,6 +1501,19 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/voice:
+    dependencies:
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      zustand:
+        specifier: ^5.0.11
+        version: 5.0.11(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+    devDependencies:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -30943,7 +30959,7 @@ snapshots:
 
   '@wordpress/blob@4.41.0': {}
 
-  '@wordpress/block-editor@15.14.0(@emotion/is-prop-valid@1.4.0)(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(stylelint@16.26.1(typescript@5.9.3))':
+  '@wordpress/block-editor@15.14.0(@emotion/is-prop-valid@1.4.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(stylelint@16.26.1(typescript@5.9.3))':
     dependencies:
       '@react-spring/web': 9.7.5(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@wordpress/a11y': 4.41.0
@@ -30952,7 +30968,7 @@ snapshots:
       '@wordpress/blob': 4.41.0
       '@wordpress/block-serialization-default-parser': 5.41.0
       '@wordpress/blocks': 15.14.0(react@19.2.4)
-      '@wordpress/commands': 1.41.0(@emotion/is-prop-valid@1.4.0)(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@wordpress/commands': 1.41.0(@emotion/is-prop-valid@1.4.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@wordpress/components': 32.3.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@wordpress/compose': 7.41.0(react@19.2.4)
       '@wordpress/data': 10.41.0(react@19.2.4)
@@ -31040,7 +31056,7 @@ snapshots:
 
   '@wordpress/browserslist-config@6.41.0': {}
 
-  '@wordpress/commands@1.41.0(@emotion/is-prop-valid@1.4.0)(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@wordpress/commands@1.41.0(@emotion/is-prop-valid@1.4.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@wordpress/base-styles': 6.17.0
       '@wordpress/components': 32.3.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

@@ -25,6 +25,7 @@ export interface CanvasActions {
   removeAsset?: (id: string) => void;
   removePillBadge?: (id: string) => void;
   removeFrame?: (id: string) => void;
+  setFrameImage?: (id: string, file: File, objectUrl: string) => void;
 }
 
 export interface UseCanvasKeyboardHandlersOptions<TState> {
@@ -216,6 +217,28 @@ export function useCanvasKeyboardHandlers<TState>(
 
       // Ignore if typing in input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // ENTER — open file picker for selected frame
+      if (e.key === 'Enter' && actions.setFrameImage) {
+        const frameInstances = getStateArray<{ id: string }>(state, 'frameInstances');
+        const frame = frameInstances.find((f) => f.id === selectedElement);
+        if (frame) {
+          e.preventDefault();
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.addEventListener('change', () => {
+            const file = input.files?.[0];
+            if (file) {
+              const objectUrl = URL.createObjectURL(file);
+              actions.setFrameImage!(selectedElement, file, objectUrl);
+            }
+            input.remove();
+          });
+          input.click();
+          return;
+        }
+      }
 
       // DELETE / BACKSPACE
       if (e.key === 'Delete' || e.key === 'Backspace') {

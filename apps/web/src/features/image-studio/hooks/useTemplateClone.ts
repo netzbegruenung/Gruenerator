@@ -18,31 +18,19 @@ export function useTemplateClone(): TemplateCloneResult {
   const cloneTemplate = useCallback(
     async (shareToken: string) => {
       if (cloneInProgressRef.current === shareToken) {
-        console.log('[useTemplateClone] Clone already in progress for token:', shareToken);
         return;
       }
       cloneInProgressRef.current = shareToken;
 
       setIsCloning(true);
       setError(null);
-      console.log('[useTemplateClone] Starting clone for token:', shareToken);
 
       try {
-        console.log('[useTemplateClone] Fetching template details...');
         const templateResponse = await apiClient.get(`/share/templates/${shareToken}`);
-        console.log('[useTemplateClone] Template response status:', templateResponse.status);
         const { template } = templateResponse.data;
-        console.log('[useTemplateClone] Template data:', {
-          id: template.id,
-          image_type: template.image_type,
-          hasMetadata: !!template.image_metadata,
-        });
 
-        console.log('[useTemplateClone] Cloning template...');
         const cloneResponse = await apiClient.post(`/share/templates/${shareToken}/clone`);
-        console.log('[useTemplateClone] Clone response status:', cloneResponse.status);
         const { share } = cloneResponse.data;
-        console.log('[useTemplateClone] Clone successful, new shareToken:', share.shareToken);
 
         const routeMap: Record<string, string> = {
           dreizeilen: '/image-studio/templates/dreizeilen',
@@ -60,12 +48,6 @@ export function useTemplateClone(): TemplateCloneResult {
         const route = routeMap[template.image_type] || '/image-studio/templates';
         const normalizedType = template.image_type?.toLowerCase().replace('_', '-');
 
-        console.log(
-          '[useTemplateClone] Navigating to:',
-          route,
-          'with sharepicType:',
-          normalizedType
-        );
         navigate(route, {
           replace: true,
           state: {

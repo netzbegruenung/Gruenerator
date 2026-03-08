@@ -16,9 +16,6 @@ export interface SubsectionTabBarProps {
   defaultSubsection?: string;
 }
 
-// Track mount ID for debugging
-let mountCounter = 0;
-
 /**
  * SubsectionTabBar - A modular component for sections with multiple subsections.
  * On mobile, renders a fixed secondary bar ABOVE the main tab bar using a portal.
@@ -26,30 +23,15 @@ let mountCounter = 0;
  * On desktop, shows all subsections stacked.
  */
 export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionTabBarProps) {
-  const [mountId] = useState(() => {
-    const id = ++mountCounter;
-    console.log(`[SubsectionTabBar] MOUNT #${id}`);
-    return id;
-  });
-
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && window.innerWidth < 900
   );
 
   // On mobile, start with nothing selected. On desktop, select first/default.
   const [activeSubsection, setActiveSubsection] = useState<string | null>(() => {
-    const initial = isMobile ? null : defaultSubsection || subsections[0]?.id || null;
-    console.log(`[SubsectionTabBar #${mountCounter}] Initial activeSubsection:`, initial);
-    return initial;
+    return isMobile ? null : defaultSubsection || subsections[0]?.id || null;
   });
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
-
-  // Log unmount
-  useEffect(() => {
-    return () => {
-      console.log(`[SubsectionTabBar] UNMOUNT #${mountId}`);
-    };
-  }, [mountId]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -59,9 +41,11 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Create/find portal container for the fixed bar
+  // Create/find portal container for the fixed bar.
+  // setState is intentional here — portal setup requires a re-render after DOM mutation.
   useEffect(() => {
     if (!isMobile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPortalContainer(null);
       return;
     }
@@ -72,10 +56,10 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
       container.id = 'subsection-bar-portal';
       document.body.appendChild(container);
     }
+
     setPortalContainer(container);
 
     return () => {
-      // Cleanup portal on unmount
       const existing = document.getElementById('subsection-bar-portal');
       if (existing && existing.childNodes.length === 0) {
         existing.remove();

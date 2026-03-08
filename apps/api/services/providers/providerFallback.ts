@@ -49,7 +49,7 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
 export function getSharepicFallbackModel(provider: ProviderName): ModelName {
   switch (provider) {
     case 'mistral':
-      return 'magistral-medium-latest';
+      return 'mistral-large-2512';
     case 'ionos':
       return 'openai/gpt-oss-120b';
     case 'litellm':

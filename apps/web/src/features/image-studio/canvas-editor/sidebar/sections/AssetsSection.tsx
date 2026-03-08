@@ -1,7 +1,13 @@
 import { useState, useMemo, useDeferredValue, useEffect } from 'react';
 import { FaCheck, FaPuzzlePiece, FaShapes, FaSearch } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
-import { PiMagnifyingGlass, PiSmileyWink, PiTagFill, PiTextT } from 'react-icons/pi';
+import {
+  PiFrameCornersFill,
+  PiMagnifyingGlass,
+  PiSmileyWink,
+  PiTagFill,
+  PiTextT,
+} from 'react-icons/pi';
 import {
   Planet,
   Cat,
@@ -20,6 +26,7 @@ import {
 import useDebounce from '../../../../../components/hooks/useDebounce';
 import { ALL_ASSETS, type UniversalAsset, type AssetInstance } from '../../utils/canvasAssets';
 import { ALL_ICONS, type IconDef } from '../../utils/canvasIcons';
+import { FRAME_PRESETS } from '../../utils/frameUtils';
 import { getIllustrationPath, ALL_ILLUSTRATIONS } from '../../utils/illustrations/registry';
 import { prefetchBackground } from '../../utils/illustrations/svgCache';
 import { getEnglishSearchTerms } from '../../utils/searchTranslations';
@@ -31,6 +38,7 @@ import { BalkenSection } from './BalkenSection';
 import { FormenSection } from './FormenSection';
 import { IconsSection } from './IconsSection';
 import { IllustrationenSection } from './IllustrationenSection';
+import { RahmenSection } from './RahmenSection';
 
 import type { BalkenInstance, BalkenMode } from '../../primitives';
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
@@ -45,7 +53,7 @@ import type {
 import './AssetsSection.css';
 
 // Unified search result item type
-type SearchResultType = 'element' | 'shape' | 'icon' | 'illustration';
+type SearchResultType = 'element' | 'shape' | 'icon' | 'illustration' | 'frame';
 
 interface SearchResult {
   type: SearchResultType;
@@ -59,6 +67,8 @@ interface SearchResult {
   iconDef?: IconDef;
   // For illustrations
   illustrationDef?: IllustrationDef;
+  // For frames
+  frameClipType?: FrameClipType;
 }
 
 const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.FunctionComponent<KawaiiProps>> = {
@@ -121,6 +131,7 @@ interface SearchResultsGridProps {
   onAddAsset?: (assetId: string) => void;
   onAddShape?: (type: ShapeType) => void;
   onAddIllustration?: (id: string) => void;
+  onAddFrame?: (clipType: FrameClipType) => void;
   selectedIcons?: string[];
   onIconToggle?: (iconId: string, selected: boolean) => void;
   maxIconSelections?: number;
@@ -131,6 +142,7 @@ function SearchResultsGrid({
   onAddAsset,
   onAddShape,
   onAddIllustration,
+  onAddFrame,
   selectedIcons = [],
   onIconToggle,
   maxIconSelections = 3,
@@ -246,6 +258,33 @@ function SearchResultsGrid({
           }
         }
 
+        if (result.type === 'frame' && result.frameClipType && onAddFrame) {
+          return (
+            <button
+              key={`frame-${result.id}`}
+              className="sidebar-selectable-card"
+              onClick={() => onAddFrame(result.frameClipType!)}
+              type="button"
+              title={result.name}
+            >
+              <div className="sidebar-selectable-card__preview">
+                {result.frameClipType === 'circle' ? (
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      border: '2px dashed #005538',
+                    }}
+                  />
+                ) : (
+                  <PiFrameCornersFill size={24} />
+                )}
+              </div>
+            </button>
+          );
+        }
+
         return null;
       })}
     </div>
@@ -336,9 +375,11 @@ export interface ExtendedAssetsSectionProps {
 
   // Frame props
   frameInstances?: FrameInstance[];
+  selectedFrameId?: string | null;
   onAddFrame?: (clipType: FrameClipType) => void;
   onUpdateFrame?: (id: string, partial: Partial<FrameInstance>) => void;
   onRemoveFrame?: (id: string) => void;
+  onSetFrameImage?: (id: string, file: File, objectUrl: string) => void;
 }
 
 export function AssetsSection({
@@ -378,7 +419,11 @@ export function AssetsSection({
   onUpdateIllustration,
   onRemoveIllustration,
   onDuplicateIllustration,
+  frameInstances,
+  selectedFrameId,
   onAddFrame,
+  onRemoveFrame,
+  onSetFrameImage,
 }: ExtendedAssetsSectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -395,6 +440,7 @@ export function AssetsSection({
     onAddPillBadge !== undefined || onAddCircleBadge !== undefined || onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
   const hasIllustrationsFeature = onAddIllustration !== undefined;
+  const hasFramesFeature = onAddFrame !== undefined;
 
   // Background prefetch all SVG illustrations during idle time
   useEffect(() => {
@@ -513,8 +559,24 @@ export function AssetsSection({
       });
     }
 
+    // Search frames
+    if (hasFramesFeature) {
+      FRAME_PRESETS.forEach((preset) => {
+        const matchesName = preset.name.toLowerCase().includes(query);
+        const matchesTags = preset.tags.some((tag) => tag.toLowerCase().includes(query));
+        if (matchesName || matchesTags) {
+          results.push({
+            type: 'frame',
+            id: preset.id,
+            name: preset.name,
+            frameClipType: preset.id,
+          });
+        }
+      });
+    }
+
     return results;
-  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature]);
+  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature, hasFramesFeature]);
 
   // Determine search state for stable rendering
   const hasQuery = searchQuery.trim().length > 0;
@@ -574,6 +636,7 @@ export function AssetsSection({
               onAddAsset={onAddAsset}
               onAddShape={onAddShape}
               onAddIllustration={onAddIllustration}
+              onAddFrame={onAddFrame}
               selectedIcons={selectedIcons}
               onIconToggle={onIconToggle}
               maxIconSelections={maxIconSelections}
@@ -652,13 +715,29 @@ export function AssetsSection({
               </button>
             )}
           </h4>
-          <FormenSection
-            onAddShape={onAddShape!}
-            isExpanded={formenExpanded}
-            onAddPillBadge={onAddPillBadge}
-            onAddCircleBadge={onAddCircleBadge}
-            onAddBalken={onAddBalken}
-            onAddFrame={onAddFrame}
+          <FormenSection onAddShape={onAddShape!} isExpanded={formenExpanded} />
+        </>
+      ),
+    });
+  }
+
+  if (hasFramesFeature) {
+    const selectedFrame = frameInstances?.find((f) => f.id === selectedFrameId) || null;
+    subsections.push({
+      id: 'rahmen',
+      icon: PiFrameCornersFill,
+      label: 'Rahmen',
+      content: (
+        <>
+          <h4 className="assets-section-header">
+            <PiFrameCornersFill size={14} />
+            <span>Rahmen</span>
+          </h4>
+          <RahmenSection
+            onAddFrame={onAddFrame!}
+            selectedFrame={selectedFrame}
+            onSetFrameImage={onSetFrameImage}
+            onRemoveFrame={onRemoveFrame}
           />
         </>
       ),

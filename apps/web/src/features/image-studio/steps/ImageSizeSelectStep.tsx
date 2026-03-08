@@ -97,20 +97,13 @@ const ImageSizeSelectStep: React.FC<ImageSizeSelectStepProps> = ({
 }) => {
   const { selectedImageSize, updateFormData } = useImageStudioStore();
 
-  console.log('[ImageSizeSelectStep] Rendering with selectedImageSize:', selectedImageSize);
-
   const handleSizeSelect = (size: (typeof IMAGE_SIZES)[0]) => {
-    console.log('[ImageSizeSelectStep] Size selected:', size);
     updateFormData({ selectedImageSize: size });
   };
 
   const handleNext = () => {
-    console.log('[ImageSizeSelectStep] Next clicked, selectedImageSize:', selectedImageSize);
     if (selectedImageSize) {
-      console.log('[ImageSizeSelectStep] Proceeding to next step');
       onNext();
-    } else {
-      console.log('[ImageSizeSelectStep] No size selected, cannot proceed');
     }
   };
 
