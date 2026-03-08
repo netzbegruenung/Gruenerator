@@ -224,8 +224,8 @@ const ConnectSection = () => {
     <section className="flex w-full max-w-[40rem] flex-col items-center gap-6">
       <h2 className="text-xl font-bold text-foreground-heading">Mit KI-Chat verbinden</h2>
       <p className="text-center text-sm text-grey-600 dark:text-grey-400">
-        Du kannst den Gr\u00fcnerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI
-        verwenden. Dein KI-Assistent kann dann gr\u00fcne Parteiprogramme durchsuchen und dir beim
+        Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI
+        verwenden. Dein KI-Assistent kann dann grüne Parteiprogramme durchsuchen und dir beim
         Erstellen politischer Texte helfen.
       </p>
 
@@ -280,7 +280,7 @@ const ConnectSection = () => {
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 text-sm text-link underline underline-offset-2 hover:opacity-80"
       >
-        Ausf\u00fchrliche Einrichtungsanleitung
+        Ausführliche Einrichtungsanleitung
         <HiExternalLink className="text-sm" />
       </a>
     </section>
@@ -361,7 +361,7 @@ const AppsPage = () => {
     }
 
     if (!release) {
-      return <p className="py-4 text-sm text-grey-500">Keine Releases verf\u00fcgbar.</p>;
+      return <p className="py-4 text-sm text-grey-500">Keine Releases verfügbar.</p>;
     }
 
     return (
@@ -400,7 +400,7 @@ const AppsPage = () => {
             {/* Secondary downloads */}
             {secondaryAssets.length > 0 && (
               <p className="text-xs text-grey-500">
-                Auch verf\u00fcgbar als{' '}
+                Auch verfügbar als{' '}
                 {secondaryAssets.map((asset, i) => (
                   <span key={asset.id || asset.name}>
                     {i > 0 && ', '}
@@ -418,9 +418,7 @@ const AppsPage = () => {
             )}
           </div>
         ) : (
-          <p className="text-sm text-grey-500">
-            Keine Downloads f\u00fcr diese Plattform verf\u00fcgbar.
-          </p>
+          <p className="text-sm text-grey-500">Keine Downloads für diese Plattform verfügbar.</p>
         )}
       </>
     );
@@ -433,7 +431,7 @@ const AppsPage = () => {
         Apps & Connect
       </h1>
       <p className="mb-10 text-center text-sm text-grey-500">
-        Desktop-App herunterladen oder den Gr\u00fcnerator mit deinem KI-Chat verbinden.
+        Desktop-App herunterladen oder den Grünerator mit deinem KI-Chat verbinden.
       </p>
 
       {/* Desktop App Section */}
