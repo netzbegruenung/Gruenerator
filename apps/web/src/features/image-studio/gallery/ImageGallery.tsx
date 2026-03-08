@@ -320,11 +320,6 @@ const ImageGallery = () => {
     (image: GalleryImage) => {
       const metadata = image.imageMetadata || {};
       const sharepicType = metadata.sharepicType;
-      console.log('[ImageGallery] handleEdit called with:', {
-        shareToken: image.shareToken,
-        metadata,
-        sharepicType,
-      });
 
       if (!sharepicType) {
         console.warn('Cannot edit: no sharepicType in metadata');

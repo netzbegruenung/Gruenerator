@@ -489,7 +489,6 @@ const ImageStudioPageContent: React.FC = () => {
 
   // Show loading state while cloning template
   if (isCloning) {
-    console.log('[ImageStudioPage] Showing cloning spinner');
     return (
       <div
         className="container"

@@ -1,9 +1,14 @@
 'use client';
 
-import { Search, Globe, Image, Wrench, BookOpen } from 'lucide-react';
-import { useAgentStore, type ToolKey } from '../stores/chatStore';
+import { Search, Globe, Image, Wrench, BookOpen, Sparkles, Server, Check } from 'lucide-react';
+import { useAgentStore, MODEL_OPTIONS, type ToolKey, type ModelOption } from '../stores/chatStore';
 import { Dropdown, DropdownItem, ToggleSwitch } from './ui/Dropdown';
 import { cn } from '../lib/utils';
+
+const MODEL_ICONS: Record<ModelOption['icon'], typeof Sparkles> = {
+  sparkles: Sparkles,
+  server: Server,
+};
 
 interface ToolConfig {
   key: ToolKey;
@@ -52,6 +57,8 @@ const TOOL_CONFIGS: ToolConfig[] = [
 export function ToolToggles() {
   const enabledTools = useAgentStore((s) => s.enabledTools);
   const toggleTool = useAgentStore((s) => s.toggleTool);
+  const selectedModel = useAgentStore((s) => s.selectedModel);
+  const setSelectedModel = useAgentStore((s) => s.setSelectedModel);
   const enabledCount = Object.values(enabledTools).filter(Boolean).length;
 
   return (
@@ -92,6 +99,27 @@ export function ToolToggles() {
           />
         );
       })}
+      <div className="md:hidden">
+        <div className="border-t border-border my-1" />
+        {MODEL_OPTIONS.map((model) => {
+          const ModelIcon = MODEL_ICONS[model.icon];
+          return (
+            <DropdownItem
+              key={model.id}
+              icon={<ModelIcon className="h-4 w-4 text-foreground-muted" />}
+              label={model.name}
+              description={model.description}
+              selected={selectedModel === model.id}
+              onClick={() => setSelectedModel(model.id)}
+              trailing={
+                selectedModel === model.id ? (
+                  <Check className="h-4 w-4 text-secondary-600" />
+                ) : undefined
+              }
+            />
+          );
+        })}
+      </div>
     </Dropdown>
   );
 }

@@ -280,6 +280,8 @@
   --animate-streaming-pulse: streaming-pulse 1.5s ease-in-out infinite;
   --animate-streaming-cursor: streaming-cursor-blink 0.8s step-end infinite;
   --animate-bounce-gentle: bounce-gentle 0.5s ease infinite alternate;
+  --animate-spin-slow: spin-slow 2s linear infinite;
+  --animate-breathe: breathe 1.5s ease-in-out infinite;
 
   /* ── Standard shadcn semantic tokens (required by packages/chat UI primitives) ── */
   --color-primary-foreground: #ffffff;
@@ -375,4 +377,14 @@
 @keyframes bounce-gentle {
   from { transform: translateY(0); }
   to { transform: translateY(-8px); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }

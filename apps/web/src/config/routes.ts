@@ -237,6 +237,9 @@ const NotebookChat = lazy(() =>
 // Chat page (uses @gruenerator/chat shared package)
 const ChatPage = lazy(() => import('../features/chat/ChatPage'));
 
+// Voice agent (immersive voice conversation)
+const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage'));
+
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
 const StructuredExamplePage = lazy(() =>
@@ -440,6 +443,7 @@ const standardRoutes: RouteConfig[] = [
   // Q&A Chat Routen
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
   { path: '/chat', component: GrueneratorenBundle.Chat },
+  { path: '/voice', component: VoiceAgentPage, showHeaderFooter: false },
   // Text Editor - redirect to unified
   { path: '/texteditor', component: TextEditorRedirect },
   // Apps & Connect Page

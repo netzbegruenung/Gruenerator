@@ -87,13 +87,7 @@ export default defineConfig(({ command }) => ({
       '@mdxeditor/editor',
       '@assistant-ui/react',
     ],
-    exclude: [
-      'motion',
-      'lodash',
-      'browser-image-compression',
-      '@imgly/background-removal',
-      'onnxruntime-web',
-    ],
+    exclude: ['motion', 'lodash', 'browser-image-compression', '@imgly/background-removal'],
     esbuildOptions: {
       target: 'es2022',
       treeShaking: true,

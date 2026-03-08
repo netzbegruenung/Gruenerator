@@ -1,28 +1,12 @@
 import React from 'react';
-import {
-  PiStarFill,
-  PiHeartFill,
-  PiCloudFill,
-  PiArrowRightBold,
-  PiTagFill,
-  PiCircleFill,
-  PiFrameCornersFill,
-} from 'react-icons/pi';
+import { PiStarFill, PiHeartFill, PiCloudFill, PiArrowRightBold } from 'react-icons/pi';
 
-import { BalkenIcon } from '../../icons';
 import { type ShapeType } from '../../utils/shapes';
 import './FormenSection.css';
-
-import type { BalkenMode } from '../../primitives/BalkenGroup';
-import type { FrameClipType } from '../../utils/frameUtils';
 
 export interface FormenSectionProps {
   onAddShape: (type: ShapeType) => void;
   isExpanded?: boolean;
-  onAddPillBadge?: (preset?: string) => void;
-  onAddCircleBadge?: (preset?: string) => void;
-  onAddBalken?: (mode: BalkenMode) => void;
-  onAddFrame?: (clipType: FrameClipType) => void;
 }
 
 interface ShapeDefinition {
@@ -53,14 +37,7 @@ const SHAPES: ShapeDefinition[] = [
   { id: 'cloud', title: 'Wolke hinzufügen', renderPreview: () => <PiCloudFill size={24} /> },
 ];
 
-export function FormenSection({
-  onAddShape,
-  isExpanded = false,
-  onAddPillBadge,
-  onAddCircleBadge,
-  onAddBalken,
-  onAddFrame,
-}: FormenSectionProps) {
+export function FormenSection({ onAddShape, isExpanded = false }: FormenSectionProps) {
   const visibleShapes = isExpanded ? SHAPES : SHAPES.slice(0, 4);
 
   return (
@@ -76,93 +53,6 @@ export function FormenSection({
             <div className="sidebar-selectable-card__preview">{shape.renderPreview()}</div>
           </button>
         ))}
-
-        {onAddFrame && (
-          <>
-            <button
-              key="frame-circle"
-              className="sidebar-selectable-card"
-              onClick={() => onAddFrame('circle')}
-              title="Kreisrahmen hinzufuegen"
-            >
-              <div className="sidebar-selectable-card__preview">
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    border: '2px dashed #005538',
-                  }}
-                />
-              </div>
-            </button>
-            <button
-              key="frame-rounded-rect"
-              className="sidebar-selectable-card"
-              onClick={() => onAddFrame('rounded-rect')}
-              title="Rechteckrahmen hinzufuegen"
-            >
-              <div className="sidebar-selectable-card__preview">
-                <PiFrameCornersFill size={24} />
-              </div>
-            </button>
-          </>
-        )}
-
-        {onAddPillBadge && (
-          <button
-            key="pill-badge"
-            className="sidebar-selectable-card"
-            onClick={() => onAddPillBadge()}
-            title="Pillen-Badge hinzufügen"
-          >
-            <div className="sidebar-selectable-card__preview">
-              <PiTagFill size={24} />
-            </div>
-          </button>
-        )}
-
-        {onAddCircleBadge && (
-          <button
-            key="circle-badge"
-            className="sidebar-selectable-card"
-            onClick={() => onAddCircleBadge()}
-            title="Störer hinzufügen"
-          >
-            <div className="sidebar-selectable-card__preview">
-              <PiCircleFill size={24} />
-            </div>
-          </button>
-        )}
-
-        {onAddBalken && (
-          <>
-            <button
-              key="balken-single"
-              className="sidebar-selectable-card"
-              onClick={() => onAddBalken('single')}
-              title="Einzelner Balken hinzufügen"
-            >
-              <div className="sidebar-selectable-card__preview">
-                <BalkenIcon size={24} />
-              </div>
-            </button>
-            <button
-              key="balken-triple"
-              className="sidebar-selectable-card"
-              onClick={() => onAddBalken('triple')}
-              title="Dreifach-Balken hinzufügen"
-            >
-              <div className="sidebar-selectable-card__preview">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <BalkenIcon size={14} />
-                  <BalkenIcon size={14} />
-                  <BalkenIcon size={14} />
-                </div>
-              </div>
-            </button>
-          </>
-        )}
       </div>
     </div>
   );

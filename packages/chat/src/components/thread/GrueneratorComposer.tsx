@@ -270,7 +270,7 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
           <ComposerPrimitive.Input
             ref={textareaRef}
             autoFocus
-            placeholder="Nachricht schreiben — /presse, @websearch, @bundestag..."
+            placeholder="Nachricht schreiben"
             className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 pl-2 text-foreground outline-none placeholder:text-foreground-muted"
             onChange={handleChange}
             onKeyDown={handleKeyDown}

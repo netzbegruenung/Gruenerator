@@ -1,15 +1,25 @@
 import { createLogger } from '../../utils/logger.js';
-import { safeFetch } from '../../utils/validation/urlSecurity.js';
 import mistralClient from '../../workers/mistralClient.js';
 
 const log = createLogger('mistralVoice');
 
 type TimestampGranularity = 'segment';
 
+/**
+ * Voxtral model variants:
+ * - voxtral-mini-transcribe-latest: Optimized for pure transcription (fastest, cheapest)
+ * - voxtral-mini-latest: Mini (3B) — transcription + understanding + function calling
+ * - voxtral-small-latest: Small (24B) — highest quality understanding + translation
+ */
+const VOXTRAL_TRANSCRIBE_MODEL = 'voxtral-mini-transcribe-latest';
+const VOXTRAL_CHAT_MODEL = 'voxtral-small-latest';
+
 interface TranscriptionOptions {
   language?: string;
   timestamp_granularities?: TimestampGranularity[];
   removeTimestamps?: boolean;
+  diarize?: boolean;
+  contextBias?: string[];
 }
 
 interface TranscriptionSegment {
@@ -40,22 +50,25 @@ class MistralVoiceService {
     options: TranscriptionOptions = {}
   ): Promise<TranscriptionResult> {
     try {
-      const { language, timestamp_granularities } = options;
+      const { language, timestamp_granularities, diarize, contextBias } = options;
 
       log.debug('[Mistral Voice] Starting transcription with options:', {
         language,
         timestamp_granularities,
+        diarize,
         filename,
       });
 
       const transcriptionResponse = await mistralClient.audio.transcriptions.complete({
-        model: 'voxtral-mini-latest',
+        model: VOXTRAL_TRANSCRIBE_MODEL,
         file: {
           fileName: filename,
           content: audioBuffer,
         },
         language: language || undefined,
         timestampGranularities: timestamp_granularities || undefined,
+        diarize: diarize || undefined,
+        contextBias: contextBias || undefined,
       });
 
       log.debug('[Mistral Voice] Transcription response received:', transcriptionResponse);
@@ -77,30 +90,18 @@ class MistralVoiceService {
     options: TranscriptionOptions = {}
   ): Promise<TranscriptionResult> {
     try {
-      const { language, timestamp_granularities } = options;
+      const { language, timestamp_granularities, diarize, contextBias } = options;
 
       log.debug('[Mistral Voice] Starting URL transcription for:', audioUrl);
 
-      const response = await safeFetch(audioUrl);
-      if (!response.ok) {
-        throw new Error(
-          `Failed to download audio from URL: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const audioBuffer = Buffer.from(await response.arrayBuffer());
-      const filename = audioUrl.split('/').pop() || 'audio_from_url.mp3';
-
-      log.debug('[Mistral Voice] Downloaded audio file, size:', audioBuffer.length, 'bytes');
-
+      // Use Voxtral's native fileUrl support — avoids downloading the file ourselves
       const transcriptionResponse = await mistralClient.audio.transcriptions.complete({
-        model: 'voxtral-mini-latest',
-        file: {
-          fileName: filename,
-          content: audioBuffer,
-        },
+        model: VOXTRAL_TRANSCRIBE_MODEL,
+        fileUrl: audioUrl,
         language: language || undefined,
         timestampGranularities: timestamp_granularities || undefined,
+        diarize: diarize || undefined,
+        contextBias: contextBias || undefined,
       });
 
       log.debug('[Mistral Voice] URL transcription response received:', transcriptionResponse);
@@ -127,7 +128,7 @@ class MistralVoiceService {
       const audioBase64 = audioBuffer.toString('base64');
 
       const chatResponse = await mistralClient.chat.complete({
-        model: 'voxtral-mini-latest',
+        model: VOXTRAL_CHAT_MODEL,
         messages: [
           {
             role: 'user',

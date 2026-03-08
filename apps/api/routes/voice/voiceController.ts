@@ -33,11 +33,14 @@ interface TranscribeRequest extends Request {
     language?: string;
     removeTimestamps?: boolean;
     timestamps?: boolean;
+    diarize?: boolean;
+    contextBias?: string[];
   };
   query: {
     language?: string;
     removeTimestamps?: string;
     timestamps?: string;
+    diarize?: string;
   };
 }
 
@@ -47,6 +50,8 @@ interface TranscribeUrlRequest extends Request {
     language?: string;
     removeTimestamps?: boolean;
     timestamps?: boolean;
+    diarize?: boolean;
+    contextBias?: string[];
   };
 }
 
@@ -95,6 +100,8 @@ interface TranscriptionOptions {
   language?: string;
   removeTimestamps?: boolean;
   timestamp_granularities?: TimestampGranularity[];
+  diarize?: boolean;
+  contextBias?: string[];
 }
 
 // ============================================================================
@@ -149,6 +156,8 @@ router.post(
       removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
       timestamp_granularities:
         req.query.timestamps === 'true' || req.body.timestamps === true ? ['segment'] : undefined,
+      diarize: req.query.diarize === 'true' || req.body.diarize === true,
+      contextBias: req.body.contextBias,
     };
 
     try {
@@ -185,7 +194,14 @@ router.post(
 router.post(
   '/transcribe-url',
   async (req: TranscribeUrlRequest, res: Response<TranscribeUrlResponse>) => {
-    const { url, language = 'de', removeTimestamps = false, timestamps = false } = req.body;
+    const {
+      url,
+      language = 'de',
+      removeTimestamps = false,
+      timestamps = false,
+      diarize = false,
+      contextBias,
+    } = req.body;
 
     if (!url) {
       return res.status(400).json({
@@ -198,6 +214,8 @@ router.post(
       language,
       removeTimestamps,
       timestamp_granularities: timestamps ? ['segment'] : undefined,
+      diarize,
+      contextBias,
     };
 
     try {
@@ -283,7 +301,7 @@ router.get('/formats', (_req: Request, res: Response<FormatsResponse>) => {
       success: true,
       supportedFormats: formats,
       maxFileSize: '50MB',
-      maxDuration: '~15 minutes for transcription, ~20 minutes for chat',
+      maxDuration: '~30 minutes for transcription, ~40 minutes for understanding',
       provider: 'Mistral Voxtral',
     });
   } catch (error) {

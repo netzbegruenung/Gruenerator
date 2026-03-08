@@ -1,0 +1,6 @@
+{
+  "core": null,
+  "plugins": ["."],
+  "themes": ["https://github.com/codeispoetry/sunflower/archive/refs/heads/master.zip"],
+  "port": 8888
+}

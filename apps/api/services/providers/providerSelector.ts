@@ -140,7 +140,7 @@ export function selectProviderAndModel({
     provider = 'mistral';
     model = options.model || 'mistral-small-latest';
   }
-  // Sharepic types - use Mistral with Magistral for high quality
+  // Sharepic types - use Mistral Large for short creative text
   else if (
     type === 'sharepic_dreizeilen' ||
     type === 'sharepic_zitat' ||
@@ -150,7 +150,7 @@ export function selectProviderAndModel({
     type === 'sharepic_veranstaltung'
   ) {
     provider = 'mistral';
-    model = options.model || 'magistral-medium-latest';
+    model = options.model || 'mistral-large-2512';
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)

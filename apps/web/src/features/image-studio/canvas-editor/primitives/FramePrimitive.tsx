@@ -182,7 +182,7 @@ function FramePrimitiveInner({
               {/* Empty placeholder background */}
               <Rect x={0} y={0} width={w} height={h} fill="#f0f0f0" listening={false} />
               <Text
-                text="Doppelklick\num Bild\nhinzuzufuegen"
+                text="Bild\nhinzufuegen"
                 x={0}
                 y={h / 2 - 30}
                 width={w}

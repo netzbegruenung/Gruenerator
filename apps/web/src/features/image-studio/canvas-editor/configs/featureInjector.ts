@@ -199,10 +199,11 @@ export function injectFeatureProps<S extends object, A extends object>(
   }
 
   // === FRAME FEATURE ===
-  // Convention: state.frameInstances + actions.addFrame/updateFrame/removeFrame
+  // Convention: state.frameInstances + actions.addFrame/updateFrame/removeFrame/setFrameImage
   if ('frameInstances' in state && 'addFrame' in actions) {
     const stateWithFrames = state as FeatureStateWithFrames;
     injected.frameInstances = stateWithFrames.frameInstances;
+    injected.selectedFrameId = context?.selectedElement || null;
     injected.onAddFrame = actions.addFrame as (clipType: string) => void;
 
     if ('updateFrame' in actions) {
@@ -211,6 +212,14 @@ export function injectFeatureProps<S extends object, A extends object>(
 
     if ('removeFrame' in actions) {
       injected.onRemoveFrame = actions.removeFrame as (id: string) => void;
+    }
+
+    if ('setFrameImage' in actions) {
+      injected.onSetFrameImage = actions.setFrameImage as (
+        id: string,
+        file: File,
+        objectUrl: string
+      ) => void;
     }
   }
 

@@ -179,50 +179,6 @@ export async function getPerformanceReport() {
 }
 
 /**
- * Log performance report to console
- */
-export async function logPerformanceReport(): Promise<void> {
-  const report = await getPerformanceReport();
-
-  console.group('🎨 Illustration Prefetch Performance Report');
-
-  console.group('📊 Cache Performance');
-  console.log(`Hit Rate: ${report.cachePerformance.hitRate}%`);
-  console.log(`Hits: ${report.cachePerformance.hits}`);
-  console.log(`Misses: ${report.cachePerformance.misses}`);
-  console.log(`Total Requests: ${report.cachePerformance.totalRequests}`);
-  console.groupEnd();
-
-  console.group('⚡ Render Performance');
-  console.log(`Average: ${report.renderPerformance.averageMs}ms`);
-  console.log(`Median: ${report.renderPerformance.medianMs}ms`);
-  console.log(`P95: ${report.renderPerformance.p95Ms}ms`);
-  console.log(`Samples: ${report.renderPerformance.samples}`);
-  console.groupEnd();
-
-  console.group('💾 In-Memory Cache');
-  console.log(`Entries: ${report.inMemoryCache.entries}`);
-  console.log(`Memory: ${report.inMemoryCache.memoryMB}MB`);
-  console.log(`Utilization: ${report.inMemoryCache.utilizationPercent}%`);
-  console.log(`Queue Length: ${report.inMemoryCache.queueLength}`);
-  console.groupEnd();
-
-  console.group('🔄 Service Worker');
-  console.log(`Active: ${report.serviceWorker.active ? 'Yes' : 'No'}`);
-  console.log(`Cache Size: ${report.serviceWorker.cacheSize} entries`);
-  console.log(`Cache Name: ${report.serviceWorker.cacheName}`);
-  console.groupEnd();
-
-  console.group('🌐 Network Savings');
-  console.log(`Requests: ${report.network.requests}`);
-  console.log(`Saved Requests: ${report.network.estimatedSavedRequests}`);
-  console.log(`Estimated Bandwidth Saved: ${report.network.estimatedBandwidthSavedKB}KB`);
-  console.groupEnd();
-
-  console.groupEnd();
-}
-
-/**
  * Reset all metrics (useful for testing)
  */
 export function resetMetrics(): void {
@@ -232,46 +188,4 @@ export function resetMetrics(): void {
   metrics.renderTimes = [];
   metrics.networkRequests = 0;
   clickTimestamps.clear();
-}
-
-// =============================================================================
-// AUTO-LOGGING (Optional)
-// =============================================================================
-
-// Log performance report every 5 minutes in development
-if (import.meta.env.DEV) {
-  const AUTO_LOG_INTERVAL = 5 * 60 * 1000; // 5 minutes
-
-  setInterval(() => {
-    if (metrics.totalRequests > 0) {
-      logPerformanceReport();
-    }
-  }, AUTO_LOG_INTERVAL);
-}
-
-// Expose analytics functions to window for debugging
-interface IllustrationAnalyticsWindow extends Window {
-  illustrationAnalytics?: {
-    getPerformanceReport: typeof getPerformanceReport;
-    logPerformanceReport: typeof logPerformanceReport;
-    resetMetrics: typeof resetMetrics;
-    getCacheHitRate: typeof getCacheHitRate;
-    getAverageRenderTime: typeof getAverageRenderTime;
-    getMedianRenderTime: typeof getMedianRenderTime;
-    getP95RenderTime: typeof getP95RenderTime;
-  };
-}
-
-if (import.meta.env.DEV) {
-  (window as unknown as IllustrationAnalyticsWindow).illustrationAnalytics = {
-    getPerformanceReport,
-    logPerformanceReport,
-    resetMetrics,
-    getCacheHitRate,
-    getAverageRenderTime,
-    getMedianRenderTime,
-    getP95RenderTime,
-  };
-
-  console.log('💡 Illustration analytics available via window.illustrationAnalytics');
 }
