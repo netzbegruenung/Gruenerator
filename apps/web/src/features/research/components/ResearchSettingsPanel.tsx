@@ -42,6 +42,7 @@ interface ResearchSettingsPanelProps {
   onToggleFilter: (field: string, value: string) => void;
   onSetDateFilter: (field: string, dateFrom?: string, dateTo?: string) => void;
   onClearAll: () => void;
+  onFiltersOpen?: () => void;
   disabled?: boolean;
 }
 
@@ -87,6 +88,7 @@ export default function ResearchSettingsPanel({
   onToggleFilter,
   onSetDateFilter,
   onClearAll,
+  onFiltersOpen,
   disabled,
 }: ResearchSettingsPanelProps) {
   const totalActiveCount =
@@ -113,7 +115,11 @@ export default function ResearchSettingsPanel({
   const filterEntries = Object.entries(filterFields);
 
   return (
-    <Popover>
+    <Popover
+      onOpenChange={(open) => {
+        if (open) onFiltersOpen?.();
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -222,7 +228,14 @@ export default function ResearchSettingsPanel({
               </div>
 
               {filtersLoading && (
-                <p className="py-1 text-center text-xs text-grey-400">Filter werden geladen…</p>
+                <div className="space-y-2 py-1">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="h-3 w-20 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
+                      <div className="h-3 w-3 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
+                    </div>
+                  ))}
+                </div>
               )}
 
               {filterEntries.map(([field, config]) => {

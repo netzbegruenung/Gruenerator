@@ -66,7 +66,7 @@ interface ResearchSearchBody {
 // Filter Cache (5-minute TTL)
 // =============================================================================
 
-const FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
+const FILTER_CACHE_TTL_MS = 30 * 60 * 1000;
 const filterCache = new Map<string, { data: unknown; timestamp: number }>();
 
 function getCachedFilters(key: string): unknown | null {
@@ -125,23 +125,20 @@ router.get('/filters', async (req: Request, res: Response): Promise<void> => {
     const qdrant = getQdrantInstance();
     await qdrant.init();
 
-    const mergedFilters: Record<
-      string,
-      {
-        label: string;
-        type: 'keyword' | 'date_range';
-        values?: Array<{ value: string; count: number }>;
-        min?: string;
-        max?: string;
-      }
-    > = {};
+    type FilterEntry = {
+      label: string;
+      type: 'keyword' | 'date_range';
+      values?: Array<{ value: string; count: number }>;
+      min?: string;
+      max?: string;
+    };
 
-    for (const collectionId of requestedIds) {
+    // Build all field-fetch promises across all collections in parallel
+    const fieldPromises = requestedIds.flatMap((collectionId) => {
       const systemConfig = getSystemCollectionConfig(collectionId);
-      if (!systemConfig) continue;
+      if (!systemConfig) return [];
 
       const filterableFields = getCollectionFilterableFields(collectionId);
-
       const defaultFilter = getCollectionDefaultFilter(collectionId);
       const baseFilter = defaultFilter
         ? {
@@ -156,7 +153,7 @@ router.get('/filters', async (req: Request, res: Response): Promise<void> => {
           }
         : null;
 
-      for (const field of filterableFields) {
+      return filterableFields.map(async (field) => {
         try {
           if (field.type === 'date_range') {
             const { min, max } = await qdrant.getDateRange(
@@ -164,59 +161,81 @@ router.get('/filters', async (req: Request, res: Response): Promise<void> => {
               field.field,
               baseFilter
             );
-
-            if (mergedFilters[field.field]) {
-              const existing = mergedFilters[field.field];
-              if (min && (!existing.min || min < existing.min)) existing.min = min;
-              if (max && (!existing.max || max > existing.max)) existing.max = max;
-            } else if (min || max) {
-              mergedFilters[field.field] = {
-                label: field.label,
-                type: 'date_range',
-                min: min ?? undefined,
-                max: max ?? undefined,
-              };
-            }
+            return {
+              field: field.field,
+              label: field.label,
+              type: field.type as 'keyword' | 'date_range',
+              min,
+              max,
+            };
           } else {
-            const valuesWithCounts = await qdrant.getFieldValueCounts(
+            const values = await qdrant.getFieldValueCounts(
               systemConfig.qdrantCollection,
               field.field,
               50,
               baseFilter
             );
-
-            if (mergedFilters[field.field]) {
-              const existing = mergedFilters[field.field];
-              const countMap = new Map<string, number>();
-              for (const v of existing.values || []) {
-                countMap.set(v.value, v.count);
-              }
-              for (const v of valuesWithCounts) {
-                countMap.set(v.value, (countMap.get(v.value) || 0) + v.count);
-              }
-              existing.values = Array.from(countMap.entries())
-                .map(([value, count]) => ({ value, count }))
-                .sort((a, b) => b.count - a.count);
-            } else {
-              mergedFilters[field.field] = {
-                label: field.label,
-                type: 'keyword',
-                values: valuesWithCounts,
-              };
-            }
+            return {
+              field: field.field,
+              label: field.label,
+              type: field.type as 'keyword' | 'date_range',
+              values,
+            };
           }
         } catch (fieldError) {
           const err = fieldError as Error;
           log.warn(
             `Failed to get filter values for ${field.field} in ${collectionId}: ${err.message}`
           );
-          if (!mergedFilters[field.field]) {
-            mergedFilters[field.field] = {
-              label: field.label,
-              type: field.type as 'keyword' | 'date_range',
-              values: field.type === 'keyword' ? [] : undefined,
-            };
+          return {
+            field: field.field,
+            label: field.label,
+            type: field.type as 'keyword' | 'date_range',
+            error: true,
+          };
+        }
+      });
+    });
+
+    const results = await Promise.all(fieldPromises);
+
+    // Merge results by field name
+    const mergedFilters: Record<string, FilterEntry> = {};
+
+    for (const result of results) {
+      if (result.type === 'date_range') {
+        if (mergedFilters[result.field]) {
+          const existing = mergedFilters[result.field];
+          if (result.min && (!existing.min || result.min < existing.min)) existing.min = result.min;
+          if (result.max && (!existing.max || result.max > existing.max)) existing.max = result.max;
+        } else if (result.min || result.max) {
+          mergedFilters[result.field] = {
+            label: result.label,
+            type: 'date_range',
+            min: result.min ?? undefined,
+            max: result.max ?? undefined,
+          };
+        }
+      } else {
+        const values = 'values' in result ? (result.values ?? []) : [];
+        if (mergedFilters[result.field]) {
+          const existing = mergedFilters[result.field];
+          const countMap = new Map<string, number>();
+          for (const v of existing.values || []) {
+            countMap.set(v.value, v.count);
           }
+          for (const v of values) {
+            countMap.set(v.value, (countMap.get(v.value) || 0) + v.count);
+          }
+          existing.values = Array.from(countMap.entries())
+            .map(([value, count]) => ({ value, count }))
+            .sort((a, b) => b.count - a.count);
+        } else {
+          mergedFilters[result.field] = {
+            label: result.label,
+            type: 'keyword',
+            values,
+          };
         }
       }
     }
@@ -381,5 +400,128 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ error: 'Search failed. Please try again.' });
   }
 });
+
+/**
+ * Pre-populate the filter cache for "all collections" (the most common request).
+ * Call after Qdrant is initialized during server startup.
+ */
+export async function warmFilterCache(): Promise<void> {
+  try {
+    const allIds = getAllSystemCollectionIds();
+    const cacheKey = [...allIds].sort().join(',');
+
+    // Skip if already cached
+    if (getCachedFilters(cacheKey)) return;
+
+    const qdrant = getQdrantInstance();
+    await qdrant.init();
+
+    type FilterEntry = {
+      label: string;
+      type: 'keyword' | 'date_range';
+      values?: Array<{ value: string; count: number }>;
+      min?: string;
+      max?: string;
+    };
+
+    const fieldPromises = allIds.flatMap((collectionId) => {
+      const systemConfig = getSystemCollectionConfig(collectionId);
+      if (!systemConfig) return [];
+
+      const filterableFields = getCollectionFilterableFields(collectionId);
+      const defaultFilter = getCollectionDefaultFilter(collectionId);
+      const baseFilter = defaultFilter
+        ? {
+            must: [
+              {
+                key: defaultFilter.field,
+                match: Array.isArray(defaultFilter.value)
+                  ? { any: defaultFilter.value }
+                  : { value: defaultFilter.value },
+              },
+            ],
+          }
+        : null;
+
+      return filterableFields.map(async (field) => {
+        try {
+          if (field.type === 'date_range') {
+            const { min, max } = await qdrant.getDateRange(
+              systemConfig.qdrantCollection,
+              field.field,
+              baseFilter
+            );
+            return {
+              field: field.field,
+              label: field.label,
+              type: field.type as 'keyword' | 'date_range',
+              min,
+              max,
+            };
+          } else {
+            const values = await qdrant.getFieldValueCounts(
+              systemConfig.qdrantCollection,
+              field.field,
+              50,
+              baseFilter
+            );
+            return {
+              field: field.field,
+              label: field.label,
+              type: field.type as 'keyword' | 'date_range',
+              values,
+            };
+          }
+        } catch {
+          return {
+            field: field.field,
+            label: field.label,
+            type: field.type as 'keyword' | 'date_range',
+            error: true,
+          };
+        }
+      });
+    });
+
+    const results = await Promise.all(fieldPromises);
+    const mergedFilters: Record<string, FilterEntry> = {};
+
+    for (const result of results) {
+      if (result.type === 'date_range') {
+        if (mergedFilters[result.field]) {
+          const existing = mergedFilters[result.field];
+          if (result.min && (!existing.min || result.min < existing.min)) existing.min = result.min;
+          if (result.max && (!existing.max || result.max > existing.max)) existing.max = result.max;
+        } else if (result.min || result.max) {
+          mergedFilters[result.field] = {
+            label: result.label,
+            type: 'date_range',
+            min: result.min ?? undefined,
+            max: result.max ?? undefined,
+          };
+        }
+      } else {
+        const values = 'values' in result ? (result.values ?? []) : [];
+        if (mergedFilters[result.field]) {
+          const existing = mergedFilters[result.field];
+          const countMap = new Map<string, number>();
+          for (const v of existing.values || []) countMap.set(v.value, v.count);
+          for (const v of values) countMap.set(v.value, (countMap.get(v.value) || 0) + v.count);
+          existing.values = Array.from(countMap.entries())
+            .map(([value, count]) => ({ value, count }))
+            .sort((a, b) => b.count - a.count);
+        } else {
+          mergedFilters[result.field] = { label: result.label, type: 'keyword', values };
+        }
+      }
+    }
+
+    setCachedFilters(cacheKey, { filters: mergedFilters });
+    log.info(`Filter cache warmed for ${allIds.length} collections`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.warn(`Filter cache warming failed (non-fatal): ${message}`);
+  }
+}
 
 export default router;
