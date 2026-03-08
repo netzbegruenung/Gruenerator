@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
 
 import apiClient from '../../components/utils/apiClient';
 
@@ -27,73 +28,42 @@ interface FiltersResponse {
 }
 
 export function useResearchFilters() {
-  const [collections, setCollections] = useState<CollectionInfo[]>([]);
-  const [collectionsLoading, setCollectionsLoading] = useState(true);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
-
-  const [filterFields, setFilterFields] = useState<Record<string, FilterFieldConfig>>({});
-  const [filtersLoading, setFiltersLoading] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
-
   const [searchMode, setSearchMode] = useState<SearchMode>('hybrid');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
 
-  const filtersRequestRef = useRef(0);
+  // Whether the filter popover is open — filters are only fetched when true
+  const [filtersEnabled, setFiltersEnabled] = useState(false);
 
-  // Fetch collections on mount
-  useEffect(() => {
-    let cancelled = false;
-    apiClient
-      .get<CollectionInfo[]>('/research/collections')
-      .then((res) => {
-        if (!cancelled) setCollections(res.data);
-      })
-      .catch(() => {
-        // Collections endpoint failed — leave empty, page still works
-      })
-      .finally(() => {
-        if (!cancelled) setCollectionsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: collections = [], isLoading: collectionsLoading } = useQuery({
+    queryKey: ['research', 'collections'],
+    queryFn: () => apiClient.get<CollectionInfo[]>('/research/collections').then((r) => r.data),
+    staleTime: 30 * 60 * 1000,
+  });
 
-  // Fetch filter facets when selected collections change
-  useEffect(() => {
-    const requestId = ++filtersRequestRef.current;
-    setFiltersLoading(true);
+  const collectionsCacheKey = selectedCollectionIds.length
+    ? [...selectedCollectionIds].sort().join(',')
+    : 'all';
 
-    const params = selectedCollectionIds.length
-      ? `?collectionIds=${selectedCollectionIds.join(',')}`
-      : '';
-
-    apiClient
-      .get<FiltersResponse>(`/research/filters${params}`)
-      .then((res) => {
-        if (requestId !== filtersRequestRef.current) return;
-        setFilterFields(res.data.filters);
-
-        // Prune active filters whose field no longer exists
-        setActiveFilters((prev) => {
-          const pruned: ActiveFilters = {};
-          for (const [field, value] of Object.entries(prev)) {
-            if (res.data.filters[field]) {
-              pruned[field] = value;
-            }
-          }
-          return pruned;
-        });
-      })
-      .catch(() => {
-        if (requestId !== filtersRequestRef.current) return;
-        setFilterFields({});
-      })
-      .finally(() => {
-        if (requestId !== filtersRequestRef.current) return;
-        setFiltersLoading(false);
-      });
-  }, [selectedCollectionIds]);
+  const {
+    data: filterFields = {},
+    isLoading: filtersLoading,
+    isFetching: filtersFetching,
+  } = useQuery({
+    queryKey: ['research', 'filters', collectionsCacheKey],
+    queryFn: () => {
+      const params = selectedCollectionIds.length
+        ? `?collectionIds=${selectedCollectionIds.join(',')}`
+        : '';
+      return apiClient
+        .get<FiltersResponse>(`/research/filters${params}`)
+        .then((r) => r.data.filters);
+    },
+    staleTime: 10 * 60 * 1000,
+    placeholderData: keepPreviousData,
+    enabled: filtersEnabled,
+  });
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -179,7 +149,9 @@ export function useResearchFilters() {
     selectedCollectionIds,
     setSelectedCollectionIds,
     filterFields,
-    filtersLoading,
+    filtersLoading: filtersLoading || filtersFetching,
+    filtersEnabled,
+    setFiltersEnabled,
     activeFilters,
     activeFilterCount,
     toggleFilter,
