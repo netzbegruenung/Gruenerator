@@ -1,9 +1,9 @@
-@import './theme-bridge';
+@use './theme-bridge' as tb;
 
 // Globale Styles für die Landing Page
 .gruenerator-landing-page {
     padding: 0rem;
-    @include sunflower-container;
+    @include tb.sunflower-container;
 }
 
 .styled-layout {
@@ -21,7 +21,7 @@
     }
 
     &.gruenerator-landing-page {
-        @include sunflower-container;
+        @include tb.sunflower-container;
     }
 }
 

@@ -1,28 +1,30 @@
+@use '../theme-bridge' as tb;
+
 // Gemeinsame Typografie-Styles
-%heading-large {
-    color: custom-color('tanne');
+@mixin heading-large {
+    color: tb.custom-color('tanne');
     font-size: 2em;
     margin-bottom: 1.5rem;
     font-weight: 600;
 }
 
-%heading-section {
-    color: custom-color('tanne');
+@mixin heading-section {
+    color: tb.custom-color('tanne');
     font-size: 2em;
     margin-bottom: 1.5rem;
     padding-bottom: 0.75rem;
-    border-bottom: 2px solid custom-color('klee');
+    border-bottom: 2px solid tb.custom-color('klee');
     font-weight: 600;
 }
 
-%text-base {
-    color: $darkgray;
+@mixin text-base {
+    color: tb.$darkgray;
     font-size: 1.1em;
     line-height: 1.6;
     margin-bottom: 1.5rem;
 }
 
-%text-description {
+@mixin text-description {
     font-size: 0.95em;
     font-style: italic;
     color: #d63638;
@@ -31,4 +33,4 @@
     border-radius: 6px;
     margin: 1rem 0;
     border-left: 3px solid #d63638;
-} 
+}

@@ -1,4 +1,7 @@
-@import './index';
+@use './theme-bridge' as tb;
+@use './base/typography' as typo;
+@use './components/buttons' as btn;
+@use './components/cards' as cards;
 
 .gruenerator-dashboard {
     max-width: 1200px;
@@ -7,12 +10,12 @@
     background-color: #ffffff;
 
     .gruenerator-header {
-        @extend %card-base;
+        @include cards.card-base;
         text-align: center;
         margin-bottom: 2.5rem;
 
         h1 {
-            @extend %heading-large;
+            @include typo.heading-large;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -24,11 +27,11 @@
             font-size: 2.5em;
             width: auto;
             height: auto;
-            color: custom-color('klee');
+            color: tb.custom-color('klee');
         }
 
         .about-description {
-            @extend %text-base;
+            @include typo.text-base;
             margin-top: 1rem;
         }
     }
@@ -40,7 +43,7 @@
     }
 
     .gruenerator-card {
-        @extend %card-base;
+        @include cards.card-base;
         display: flex;
         flex-direction: column;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -60,23 +63,23 @@
                 font-size: 1.75em;
                 width: auto;
                 height: auto;
-                color: custom-color('klee');
+                color: tb.custom-color('klee');
             }
 
             h2 {
-                @extend %card-title;
+                @include cards.card-title;
                 margin: 0;
             }
         }
 
         p {
-            @extend %text-base;
+            @include typo.text-base;
             flex-grow: 1;
             margin-bottom: 1.5rem;
         }
 
         .button.button-primary {
-            @extend %button-primary;
+            @include btn.button-primary;
             width: 100%;
             margin-top: auto;
         }
@@ -109,7 +112,7 @@
 
             &:hover,
             &:focus {
-                color: custom-color('klee');
+                color: tb.custom-color('klee');
             }
         }
     }
@@ -128,7 +131,7 @@
 
         .gruenerator-header {
             padding: 1.5rem 1rem;
-            
+
             h1 {
                 font-size: 2em;
                 flex-direction: column;
@@ -151,4 +154,4 @@
             padding: 1rem 0;
         }
     }
-} 
+}

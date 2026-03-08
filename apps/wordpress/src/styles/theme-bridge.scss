@@ -1,4 +1,6 @@
 //theme-bridge.scss
+@use 'sass:map';
+@use 'sass:color';
 
 // Sunflower Theme Variablen
 $custom-colors: (
@@ -16,14 +18,14 @@ $custom-colors: (
     weiss: #fff
 );
 
-$primary: map-get($custom-colors, "tanne");
-$secondary: map-get($custom-colors, "klee");
-$white: map-get($custom-colors, "weiss");
-$black: map-get($custom-colors, "schwarz");
-$black-500: map-get($custom-colors, "schwarz-500");
+$primary: map.get($custom-colors, "tanne");
+$secondary: map.get($custom-colors, "klee");
+$white: map.get($custom-colors, "weiss");
+$black: map.get($custom-colors, "schwarz");
+$black-500: map.get($custom-colors, "schwarz-500");
 $white-90: rgba(255, 255, 255, 0.9);
 $dark: #ddd;
-$gray-500: map-get($custom-colors, "grau-500");
+$gray-500: map.get($custom-colors, "grau-500");
 $darkgray: #333;
 $lightgray: #aeb2ad;
 $very-light-gray: #d6d9d6;
@@ -54,18 +56,18 @@ $link-hover-decoration: underline;
 
 // Funktion zum einfachen Zugriff auf benutzerdefinierte Farben
 @function custom-color($color-name) {
-    @return map-get($custom-colors, $color-name);
+    @return map.get($custom-colors, $color-name);
 }
 
-// Mixins für häufig verwendete Stile
+// Mixins fuer haeufig verwendete Stile
 @mixin sunflower-button {
     background-color: $primary;
     color: $white;
     border-radius: $border-radius;
     text-decoration: $link-decoration;
-    
+
     &:hover {
-        background-color: darken($primary, 10%);
+        background-color: color.adjust($primary, $lightness: -10%);
         text-decoration: $link-hover-decoration;
     }
 }
@@ -78,7 +80,7 @@ $link-hover-decoration: underline;
     }
 }
 
-// Exportiere Variablen für JavaScript-Verwendung
+// Exportiere Variablen fuer JavaScript-Verwendung
 :export {
     primary: $primary;
     secondary: $secondary;

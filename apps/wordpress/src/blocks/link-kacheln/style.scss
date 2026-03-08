@@ -1,12 +1,12 @@
-@import '../../styles/theme-bridge';
+@use '../../styles/theme-bridge' as tb;
 
 .wp-block-gruenerator-link-tile-block {
     margin-top: 2rem;
     margin-bottom: 2rem;
 
     .link-tile-section-title {
-        color: custom-color('tanne');
-        font-size: $font-size-base * 1.5;
+        color: tb.custom-color('tanne');
+        font-size: tb.$font-size-base * 1.5;
         margin-bottom: 1.5rem;
         text-align: left;
     }

@@ -1,10 +1,10 @@
-@import '../../styles/theme-bridge';
+@use '../../styles/theme-bridge' as tb;
 
 .wp-block-gruenerator-link-tile-block {
     // Editor-spezifische Stile
-    border: 1px dashed $primary;
+    border: 1px dashed tb.$primary;
     padding: 1rem;
-    
+
     .link-tile {
         position: relative;
         background-size: cover;
@@ -56,7 +56,7 @@
 
             &:focus {
                 outline: none;
-                box-shadow: 0 0 0 2px $primary;
+                box-shadow: 0 0 0 2px tb.$primary;
             }
         }
     }
@@ -89,10 +89,10 @@
 .wp-block-gruenerator-link-tile-block {
     .block-editor-media-placeholder {
         background-color: rgba(0, 0, 0, 0.1);
-        border: 2px dashed $primary;
+        border: 2px dashed tb.$primary;
         padding: 2rem;
         text-align: center;
-        color: $primary;
+        color: tb.$primary;
     }
 
     .components-panel__body {

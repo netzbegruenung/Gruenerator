@@ -1,17 +1,21 @@
+@use '../theme-bridge' as tb;
+@use '../base/typography' as typo;
+@use './cards' as cards;
+
 // Welcome Page Komponente
 .gruenerator-welcome-page {
-    background: custom-color('weiss');
+    background: tb.custom-color('weiss');
     border-radius: 8px;
     padding: 3rem 2rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     text-align: center;
 
     h2 {
-        @extend %heading-large;
+        @include typo.heading-large;
     }
 
     p {
-        @extend %text-base;
+        @include typo.text-base;
         max-width: 800px;
         margin: 0 auto 2rem;
     }
@@ -30,7 +34,7 @@
             border: 1px solid transparent;
 
             &:hover {
-                background: custom-color('weiss');
+                background: tb.custom-color('weiss');
                 border-color: rgba(0, 137, 57, 0.1);
             }
 
@@ -38,16 +42,16 @@
                 font-size: 3em;
                 width: auto;
                 height: auto;
-                color: custom-color('klee');
+                color: tb.custom-color('klee');
                 margin-bottom: 1rem;
             }
 
             h3 {
-                @extend %card-title;
+                @include cards.card-title;
             }
 
             p {
-                @extend %text-base;
+                @include typo.text-base;
                 margin-bottom: 0;
             }
         }
@@ -67,4 +71,4 @@
             grid-template-columns: 1fr !important;
         }
     }
-} 
+}
