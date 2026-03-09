@@ -1,9 +1,81 @@
 import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Group, Image as KonvaImage, Shape, Transformer, Text, Rect } from 'react-konva';
 
-import type { FrameInstance } from '../utils/frameUtils';
+import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type Konva from 'konva';
 import type { SceneContext } from 'konva/lib/Context';
+
+function drawFramePath(
+  ctx: CanvasRenderingContext2D | SceneContext,
+  clipType: FrameClipType,
+  w: number,
+  h: number,
+  cornerRadius: number
+) {
+  switch (clipType) {
+    case 'circle': {
+      const radius = Math.min(w, h) / 2;
+      ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2);
+      break;
+    }
+    case 'rounded-rect': {
+      const r = cornerRadius;
+      ctx.moveTo(r, 0);
+      ctx.arcTo(w, 0, w, h, r);
+      ctx.arcTo(w, h, 0, h, r);
+      ctx.arcTo(0, h, 0, 0, r);
+      ctx.arcTo(0, 0, w, 0, r);
+      ctx.closePath();
+      break;
+    }
+    case 'square': {
+      ctx.rect(0, 0, w, h);
+      break;
+    }
+    case 'oval': {
+      ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+      break;
+    }
+    case 'hexagon': {
+      const cx = w / 2;
+      const cy = h / 2;
+      const r = Math.min(w, h) / 2;
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2;
+        const px = cx + r * Math.cos(angle);
+        const py = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'diamond': {
+      ctx.moveTo(w / 2, 0);
+      ctx.lineTo(w, h / 2);
+      ctx.lineTo(w / 2, h);
+      ctx.lineTo(0, h / 2);
+      ctx.closePath();
+      break;
+    }
+    case 'drop': {
+      const cx = w / 2;
+      ctx.moveTo(cx, 0);
+      ctx.bezierCurveTo(cx + w * 0.4, h * 0.25, w, h * 0.45, w, h * 0.6);
+      ctx.arc(cx, h * 0.6, w / 2, 0, Math.PI);
+      ctx.bezierCurveTo(0, h * 0.45, cx - w * 0.4, h * 0.25, cx, 0);
+      ctx.closePath();
+      break;
+    }
+    case 'leaf': {
+      ctx.moveTo(0, h);
+      ctx.bezierCurveTo(0, h * 0.3, w * 0.3, 0, w, 0);
+      ctx.bezierCurveTo(w, h * 0.7, w * 0.7, h, 0, h);
+      ctx.closePath();
+      break;
+    }
+  }
+}
 
 export interface FramePrimitiveProps {
   frame: FrameInstance;
@@ -83,18 +155,7 @@ function FramePrimitiveInner({
   // Clip function based on frame type
   const clipFunc = useCallback(
     (ctx: SceneContext) => {
-      if (frame.clipType === 'circle') {
-        const radius = Math.min(w, h) / 2;
-        ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2);
-      } else {
-        const r = frame.cornerRadius;
-        ctx.moveTo(r, 0);
-        ctx.arcTo(w, 0, w, h, r);
-        ctx.arcTo(w, h, 0, h, r);
-        ctx.arcTo(0, h, 0, 0, r);
-        ctx.arcTo(0, 0, w, 0, r);
-        ctx.closePath();
-      }
+      drawFramePath(ctx, frame.clipType, w, h, frame.cornerRadius);
     },
     [frame.clipType, frame.cornerRadius, w, h]
   );
@@ -160,18 +221,7 @@ function FramePrimitiveInner({
           <Shape
             sceneFunc={(ctx, shape) => {
               ctx.beginPath();
-              if (frame.clipType === 'circle') {
-                const radius = Math.min(w, h) / 2;
-                ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2);
-              } else {
-                const r = frame.cornerRadius;
-                ctx.moveTo(r, 0);
-                ctx.arcTo(w, 0, w, h, r);
-                ctx.arcTo(w, h, 0, h, r);
-                ctx.arcTo(0, h, 0, 0, r);
-                ctx.arcTo(0, 0, w, 0, r);
-                ctx.closePath();
-              }
+              drawFramePath(ctx, frame.clipType, w, h, frame.cornerRadius);
               ctx.fillStrokeShape(shape);
             }}
             stroke={frame.borderColor}
@@ -185,18 +235,7 @@ function FramePrimitiveInner({
           <Shape
             sceneFunc={(ctx, shape) => {
               ctx.beginPath();
-              if (frame.clipType === 'circle') {
-                const radius = Math.min(w, h) / 2;
-                ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2);
-              } else {
-                const r = frame.cornerRadius;
-                ctx.moveTo(r, 0);
-                ctx.arcTo(w, 0, w, h, r);
-                ctx.arcTo(w, h, 0, h, r);
-                ctx.arcTo(0, h, 0, 0, r);
-                ctx.arcTo(0, 0, w, 0, r);
-                ctx.closePath();
-              }
+              drawFramePath(ctx, frame.clipType, w, h, frame.cornerRadius);
               ctx.fillStrokeShape(shape);
             }}
             stroke="#999999"

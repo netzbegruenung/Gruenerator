@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { PiFrameCornersFill, PiTrashFill } from 'react-icons/pi';
+import { PiTrashFill } from 'react-icons/pi';
 
-import { FRAME_PRESETS } from '../../utils/frameUtils';
+import { FRAME_ICON_MAP, FRAME_PRESETS } from '../../utils/frameUtils';
 import { SIDEBAR_SECTION, CARD_GRID, SELECTABLE_CARD } from '../primitives';
 
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
@@ -65,18 +65,10 @@ export function RahmenSection({
             type="button"
           >
             <div className="relative size-11 flex items-center justify-center shrink-0">
-              {preset.id === 'circle' ? (
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    border: '2px dashed #005538',
-                  }}
-                />
-              ) : (
-                <PiFrameCornersFill size={24} />
-              )}
+              {(() => {
+                const Icon = FRAME_ICON_MAP[preset.id];
+                return <Icon size={24} />;
+              })()}
             </div>
           </button>
         ))}

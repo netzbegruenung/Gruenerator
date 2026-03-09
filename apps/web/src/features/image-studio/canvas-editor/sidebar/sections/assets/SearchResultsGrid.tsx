@@ -1,6 +1,7 @@
 import { FaCheck } from 'react-icons/fa';
-import { PiFrameCornersFill, PiMagnifyingGlass } from 'react-icons/pi';
+import { PiMagnifyingGlass } from 'react-icons/pi';
 
+import { FRAME_ICON_MAP } from '../../../utils/frameUtils';
 import { getIllustrationPath } from '../../../utils/illustrations/registry';
 import { CARD_GRID, SELECTABLE_CARD } from '../../primitives';
 
@@ -189,18 +190,10 @@ export function SearchResultsGrid({
               title={result.name}
             >
               <div className="flex items-center justify-center w-full h-full relative">
-                {result.frameClipType === 'circle' ? (
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
-                      border: '2px dashed #005538',
-                    }}
-                  />
-                ) : (
-                  <PiFrameCornersFill size={24} />
-                )}
+                {(() => {
+                  const Icon = FRAME_ICON_MAP[result.frameClipType!];
+                  return <Icon size={24} />;
+                })()}
               </div>
             </button>
           );
