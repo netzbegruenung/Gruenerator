@@ -10,7 +10,6 @@
 
     "baseUrl": ".",
     "paths": {
-      "react-native-gifted-chat": ["./types/react-native-gifted-chat.d.ts"],
       "@gruenerator/shared": ["../../packages/shared/src/index.ts"],
       "@gruenerator/shared/*": ["../../packages/shared/src/*"]
     }

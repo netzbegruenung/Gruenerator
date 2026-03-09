@@ -76,9 +76,16 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
     await handleCopy();
   }, [handleCopy]);
 
-  const handleEdit = useCallback(() => {
-    router.push(routeWithParams('/(modals)/edit-chat', { componentName }));
-  }, [router, componentName]);
+  const handleDiscussInChat = useCallback(() => {
+    setMenuVisible(false);
+    const reviewMessage = `Bitte überprüfe den folgenden Text und gib mir konstruktives Feedback:\n\n---\n${text}\n---`;
+    router.push(
+      routeWithParams('/(focused)/chat-conversation', {
+        threadId: 'new',
+        initialMessage: reviewMessage,
+      })
+    );
+  }, [router, text]);
 
   const handleUndo = useCallback(() => {
     undo(componentName);
@@ -268,19 +275,16 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
               ]}
             >
               <Pressable
-                onPress={() => {
-                  setMenuVisible(false);
-                  handleEdit();
-                }}
+                onPress={handleDiscussInChat}
                 style={({ pressed }) => [
                   styles.menuItem,
                   styles.menuItemPrimary,
                   { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
                 ]}
               >
-                <Ionicons name="chatbubble-outline" size={18} color={colors.white} />
+                <Ionicons name="chatbubbles-outline" size={18} color={colors.white} />
                 <Text style={[styles.menuItemText, { color: colors.white, fontWeight: '500' }]}>
-                  Bearbeiten
+                  Im Chat besprechen
                 </Text>
               </Pressable>
               <Pressable
