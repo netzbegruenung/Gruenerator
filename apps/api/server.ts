@@ -19,6 +19,7 @@ import cors from 'cors';
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
+import { isHttpError } from 'http-errors';
 import morgan from 'morgan';
 import multer from 'multer';
 
@@ -551,7 +552,7 @@ async function startWorker(): Promise<void> {
 
     const isDev = process.env.NODE_ENV === 'development';
     let errorMessage = 'Bitte versuchen Sie es später erneut';
-    let statusCode = 500;
+    let statusCode = isHttpError(err) ? err.status : 500;
 
     log.error(`[GlobalErrorHandler] ${err.name}: ${err.message}`, {
       path: req.path,
