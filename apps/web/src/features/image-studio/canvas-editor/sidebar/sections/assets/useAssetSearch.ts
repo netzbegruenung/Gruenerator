@@ -3,9 +3,9 @@ import { useState, useMemo, useDeferredValue } from 'react';
 import useDebounce from '../../../../../../components/hooks/useDebounce';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
 import { ALL_ICONS, type IconDef } from '../../../utils/canvasIcons';
+import { filterIcons, filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { FRAME_PRESETS } from '../../../utils/frameUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/registry';
-import { getEnglishSearchTerms } from '../../../utils/searchTranslations';
 import { ALL_SHAPES, type ShapeDef } from '../../../utils/shapes';
 
 import type { FrameClipType } from '../../../utils/frameUtils';
@@ -58,9 +58,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
 
     if (hasAssetsFeature) {
       ALL_ASSETS.forEach((asset) => {
-        const matchesLabel = asset.label.toLowerCase().includes(query);
-        const matchesTags = asset.tags.some((tag) => tag.toLowerCase().includes(query));
-        if (matchesLabel || matchesTags) {
+        if (matchesQuery(query, asset.label, asset.tags)) {
           results.push({ type: 'element', id: asset.id, name: asset.label, asset });
         }
       });
@@ -68,55 +66,28 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
 
     if (hasShapesFeature) {
       ALL_SHAPES.forEach((shape) => {
-        const matchesName = shape.name.toLowerCase().includes(query);
-        const matchesTags = shape.tags.some((tag) => tag.toLowerCase().includes(query));
-        if (matchesName || matchesTags) {
+        if (matchesQuery(query, shape.name, shape.tags)) {
           results.push({ type: 'shape', id: shape.id, name: shape.name, shapeDef: shape });
         }
       });
     }
 
     if (hasIconsFeature) {
-      const englishTerms = getEnglishSearchTerms(query);
-      let iconCount = 0;
-      for (const icon of ALL_ICONS) {
-        if (iconCount >= 20) break;
-        const iconNameLower = icon.name.toLowerCase();
-        const matchesName = iconNameLower.includes(query);
-        const matchesLibrary = icon.library.toLowerCase().includes(query);
-        const matchesTranslation = englishTerms.some((term) => iconNameLower.includes(term));
-        if (matchesName || matchesLibrary || matchesTranslation) {
-          results.push({ type: 'icon', id: icon.id, name: icon.name, iconDef: icon });
-          iconCount++;
-        }
+      const matchingIcons = filterIcons(ALL_ICONS, query);
+      for (const icon of matchingIcons.slice(0, 20)) {
+        results.push({ type: 'icon', id: icon.id, name: icon.name, iconDef: icon });
       }
     }
 
     if (ALL_ILLUSTRATIONS.length > 0) {
-      const englishTermsForIllustrations = getEnglishSearchTerms(query);
-      const matchingIllustrations = ALL_ILLUSTRATIONS.filter((ill) => {
-        const nameLower = ill.name.toLowerCase();
-        const matchesName = nameLower.includes(query);
-        const matchesTags = ill.tags.some((tag) => tag.toLowerCase().includes(query));
-        const matchesCategory =
-          ill.source !== 'kawaii' &&
-          (ill as unknown as { category?: string }).category?.toLowerCase().includes(query);
-        const matchesTranslation = englishTermsForIllustrations.some(
-          (term) =>
-            nameLower.includes(term) || ill.tags.some((tag) => tag.toLowerCase().includes(term))
-        );
-        return matchesName || matchesTags || matchesCategory || matchesTranslation;
-      });
-      matchingIllustrations.forEach((ill) => {
+      for (const ill of filterIllustrations(ALL_ILLUSTRATIONS, query)) {
         results.push({ type: 'illustration', id: ill.id, name: ill.name, illustrationDef: ill });
-      });
+      }
     }
 
     if (hasFramesFeature) {
       FRAME_PRESETS.forEach((preset) => {
-        const matchesName = preset.name.toLowerCase().includes(query);
-        const matchesTags = preset.tags.some((tag) => tag.toLowerCase().includes(query));
-        if (matchesName || matchesTags) {
+        if (matchesQuery(query, preset.name, preset.tags)) {
           results.push({
             type: 'frame',
             id: preset.id,

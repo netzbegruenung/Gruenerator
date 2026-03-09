@@ -1,6 +1,7 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { PiFrameCornersFill, PiTrashFill } from 'react-icons/pi';
 
+import { FRAME_PRESETS } from '../../utils/frameUtils';
 import { SIDEBAR_SECTION, CARD_GRID, SELECTABLE_CARD } from '../primitives';
 
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
@@ -12,6 +13,7 @@ export interface RahmenSectionProps {
   selectedFrame: FrameInstance | null;
   onSetFrameImage?: (id: string, file: File, objectUrl: string) => void;
   onRemoveFrame?: (id: string) => void;
+  searchQuery?: string;
 }
 
 export function RahmenSection({
@@ -19,8 +21,17 @@ export function RahmenSection({
   selectedFrame,
   onSetFrameImage,
   onRemoveFrame,
+  searchQuery = '',
 }: RahmenSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const visiblePresets = useMemo(() => {
+    if (!searchQuery.trim()) return FRAME_PRESETS;
+    const q = searchQuery.toLowerCase();
+    return FRAME_PRESETS.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.tags.some((tag) => tag.toLowerCase().includes(q))
+    );
+  }, [searchQuery]);
 
   const handleImageClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -45,33 +56,30 @@ export function RahmenSection({
   return (
     <div className={SIDEBAR_SECTION}>
       <div className={CARD_GRID}>
-        <button
-          className={SELECTABLE_CARD}
-          onClick={() => onAddFrame('circle')}
-          title="Kreisrahmen hinzufuegen"
-          type="button"
-        >
-          <div className="relative size-11 flex items-center justify-center shrink-0">
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                border: '2px dashed #005538',
-              }}
-            />
-          </div>
-        </button>
-        <button
-          className={SELECTABLE_CARD}
-          onClick={() => onAddFrame('rounded-rect')}
-          title="Rechteckrahmen hinzufuegen"
-          type="button"
-        >
-          <div className="relative size-11 flex items-center justify-center shrink-0">
-            <PiFrameCornersFill size={24} />
-          </div>
-        </button>
+        {visiblePresets.map((preset) => (
+          <button
+            key={preset.id}
+            className={SELECTABLE_CARD}
+            onClick={() => onAddFrame(preset.id)}
+            title={`${preset.name} hinzufuegen`}
+            type="button"
+          >
+            <div className="relative size-11 flex items-center justify-center shrink-0">
+              {preset.id === 'circle' ? (
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    border: '2px dashed #005538',
+                  }}
+                />
+              ) : (
+                <PiFrameCornersFill size={24} />
+              )}
+            </div>
+          </button>
+        ))}
       </div>
 
       {selectedFrame && (

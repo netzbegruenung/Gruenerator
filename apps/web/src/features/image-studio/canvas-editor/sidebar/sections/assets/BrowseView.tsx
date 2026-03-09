@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
+import useDebounce from '../../../../../../components/hooks/useDebounce';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
+import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/registry';
 import { CARD_GRID, SELECTABLE_CARD, SIDEBAR_SECTION, SECTION_LABEL } from '../../primitives';
 import { BadgeSection } from '../BadgeSection';
@@ -68,7 +70,7 @@ function AssetGrid({
             <img
               src={asset.src}
               alt={asset.label}
-              className="w-[60%] h-[60%] max-w-8 max-h-8 object-contain"
+              className="w-[70%] h-[70%] max-w-12 max-h-12 object-contain"
             />
           </div>
         </button>
@@ -86,6 +88,19 @@ interface BrowseViewProps extends ExtendedAssetsSectionProps {
 export function BrowseView(props: BrowseViewProps) {
   const { search, ...sectionProps } = props;
   const [activeView, setActiveView] = useState<AssetView>('browse');
+  const [drillDownQuery, setDrillDownQuery] = useState('');
+  const debouncedDrillDownQuery = useDeferredValue(useDebounce(drillDownQuery, 200));
+
+  useEffect(() => {
+    setDrillDownQuery('');
+  }, [activeView]);
+
+  // Auto-navigate to Rahmen drill-down when a frame is selected on canvas
+  useEffect(() => {
+    if (sectionProps.selectedFrameId) {
+      setActiveView('rahmen');
+    }
+  }, [sectionProps.selectedFrameId]);
 
   const hasTextFeature =
     sectionProps.onAddHeader !== undefined || sectionProps.onAddText !== undefined;
@@ -99,6 +114,11 @@ export function BrowseView(props: BrowseViewProps) {
   const hasShapesFeature = sectionProps.onAddShape !== undefined;
   const hasIllustrationsFeature = sectionProps.onAddIllustration !== undefined;
   const hasFramesFeature = sectionProps.onAddFrame !== undefined;
+
+  const filteredIllustrations = useMemo(
+    () => filterIllustrations(ALL_ILLUSTRATIONS, debouncedDrillDownQuery),
+    [debouncedDrillDownQuery]
+  );
 
   const availableCategories = useMemo(() => {
     const featureMap: Record<string, boolean> = {
@@ -210,13 +230,22 @@ export function BrowseView(props: BrowseViewProps) {
     const categoryLabel = CATEGORY_CARDS.find((c) => c.id === activeView)?.label ?? '';
 
     return (
-      <div className="flex flex-col gap-2 w-full min-w-0">
+      <div className="flex flex-col gap-2 w-full min-w-[260px]">
         <DrillDownHeader label={categoryLabel} onBack={() => setActiveView('browse')} />
+
+        {activeView !== 'extras' && (
+          <SearchInput
+            value={drillDownQuery}
+            onChange={setDrillDownQuery}
+            placeholder={`${categoryLabel} durchsuchen...`}
+          />
+        )}
 
         {activeView === 'grafiken' && hasAssetsFeature && (
           <GrafiksSectionContent
             onAddAsset={sectionProps.onAddAsset!}
             recommendedAssetIds={sectionProps.recommendedAssetIds}
+            searchQuery={debouncedDrillDownQuery}
           />
         )}
 
@@ -229,7 +258,11 @@ export function BrowseView(props: BrowseViewProps) {
         )}
 
         {activeView === 'formen' && hasShapesFeature && (
-          <FormenSection onAddShape={sectionProps.onAddShape!} isExpanded />
+          <FormenSection
+            onAddShape={sectionProps.onAddShape!}
+            isExpanded
+            searchQuery={debouncedDrillDownQuery}
+          />
         )}
 
         {activeView === 'rahmen' && hasFramesFeature && (
@@ -241,6 +274,7 @@ export function BrowseView(props: BrowseViewProps) {
             }
             onSetFrameImage={sectionProps.onSetFrameImage}
             onRemoveFrame={sectionProps.onRemoveFrame}
+            searchQuery={debouncedDrillDownQuery}
           />
         )}
 
@@ -256,7 +290,7 @@ export function BrowseView(props: BrowseViewProps) {
             onRemoveIllustration={sectionProps.onRemoveIllustration ?? (() => {})}
             onDuplicateIllustration={sectionProps.onDuplicateIllustration}
             isExpanded
-            illustrations={ALL_ILLUSTRATIONS}
+            illustrations={filteredIllustrations}
           />
         )}
 
@@ -266,6 +300,7 @@ export function BrowseView(props: BrowseViewProps) {
             onIconToggle={sectionProps.onIconToggle}
             maxSelections={sectionProps.maxIconSelections}
             isExpanded
+            searchQuery={debouncedDrillDownQuery}
           />
         )}
       </div>
@@ -278,15 +313,19 @@ export function BrowseView(props: BrowseViewProps) {
 function GrafiksSectionContent({
   onAddAsset,
   recommendedAssetIds = [],
+  searchQuery = '',
 }: {
   onAddAsset: (assetId: string) => void;
   recommendedAssetIds?: string[];
+  searchQuery?: string;
 }) {
   const sortedAssets = useMemo(() => {
     const recommended = ALL_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
     const others = ALL_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
-    return [...recommended, ...others];
-  }, [recommendedAssetIds]);
+    const all = [...recommended, ...others];
+    if (!searchQuery.trim()) return all;
+    return all.filter((a) => matchesQuery(searchQuery, a.label, a.tags));
+  }, [recommendedAssetIds, searchQuery]);
 
   return (
     <div className={cn(SIDEBAR_SECTION, 'w-full')}>
