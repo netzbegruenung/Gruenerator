@@ -1,6 +1,8 @@
 import React from 'react';
 import { FaPlus, FaMinus } from 'react-icons/fa';
-import '../FloatingTapBar.css';
+
+const fontBtn =
+  'size-6 max-canvas-mobile:size-5 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:enabled:bg-hover-alt hover:enabled:text-primary-600 active:enabled:bg-grey-100 active:enabled:dark:bg-grey-800 disabled:opacity-30 disabled:cursor-not-allowed';
 
 interface FloatingFontSizeControlProps {
   fontSize: number;
@@ -11,7 +13,6 @@ export function FloatingFontSizeControl({
   fontSize,
   onFontSizeChange,
 }: FloatingFontSizeControlProps) {
-  // Hold press handlers could be added for better UX, but simple click for now
   const handleIncrease = (e: React.MouseEvent) => {
     e.stopPropagation();
     onFontSizeChange(fontSize + 2);
@@ -23,22 +24,19 @@ export function FloatingFontSizeControl({
   };
 
   return (
-    <div className="floating-font-size-control">
+    <div className="flex items-center gap-1 bg-grey-100 dark:bg-grey-800 rounded-full py-0.5 px-1 max-canvas-mobile:gap-0.5 max-canvas-mobile:py-0.5 max-canvas-mobile:px-[3px]">
       <button
-        className="floating-icon-btn floating-font-btn"
+        className={fontBtn}
         onClick={handleDecrease}
         title="Schrift verkleinern"
         type="button"
       >
         <FaMinus size={10} />
       </button>
-      <span className="floating-font-val">{Math.round(fontSize)}</span>
-      <button
-        className="floating-icon-btn floating-font-btn"
-        onClick={handleIncrease}
-        title="Schrift vergrößern"
-        type="button"
-      >
+      <span className="text-[13px] max-canvas-mobile:text-xs font-semibold text-foreground min-w-6 max-canvas-mobile:min-w-5 text-center tabular-nums">
+        {Math.round(fontSize)}
+      </span>
+      <button className={fontBtn} onClick={handleIncrease} title="Schrift vergrößern" type="button">
         <FaPlus size={10} />
       </button>
     </div>

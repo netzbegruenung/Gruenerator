@@ -1,9 +1,17 @@
 import { FaTrash, FaCopy } from 'react-icons/fa';
 
 import { COLOR_SCHEMES } from '../../utils/dreizeilenLayout';
+import {
+  ACTION_BTN,
+  ACTION_BTN_DANGER,
+  SECTION_HEADER,
+  SECTION_TITLE,
+  SIDEBAR_SECTION,
+} from '../primitives';
 
 import type { BalkenInstance, BalkenMode } from '../../primitives';
-import './BalkenSection.css';
+
+import { cn } from '@/utils/cn';
 import '../../../../../assets/styles/components/form/form-inputs.css';
 
 export interface BalkenSectionProps {
@@ -22,30 +30,30 @@ export function BalkenSection({
   onDuplicateBalken,
 }: BalkenSectionProps) {
   return (
-    <div className="sidebar-section sidebar-section--balken">
+    <div className={cn(SIDEBAR_SECTION, 'gap-[1rem]')}>
       {/* Add buttons */}
-      <div className="balken-preview-buttons">
+      <div className="flex gap-[0.75rem]">
         <button
           type="button"
-          className="balken-preview-btn"
+          className="flex flex-1 flex-col items-center gap-[0.5rem] rounded-lg border border-transparent bg-transparent p-[0.75rem] text-sm text-[var(--font-color)] transition-[background,border-color] duration-150 ease-in-out hover:border-[var(--border-default,rgba(0,0,0,0.12))] hover:bg-[var(--hover-color-alt,#f0f0f0)] relative cursor-pointer"
           onClick={() => onAddBalken('single')}
           title="Neuen einzelnen Balken hinzufügen"
         >
-          <div className="balken-preview-icon balken-preview-icon--single">
-            <div className="balken-bar-preview" />
+          <div className="flex flex-col gap-[3px] w-[48px] h-[32px] justify-center items-start">
+            <div className="h-[6px] bg-primary-600 rounded-[1px] -skew-x-[15deg] w-[40px]" />
           </div>
           <span>1 Balken +</span>
         </button>
         <button
           type="button"
-          className="balken-preview-btn"
+          className="flex flex-1 flex-col items-center gap-[0.5rem] rounded-lg border border-transparent bg-transparent p-[0.75rem] text-sm text-[var(--font-color)] transition-[background,border-color] duration-150 ease-in-out hover:border-[var(--border-default,rgba(0,0,0,0.12))] hover:bg-[var(--hover-color-alt,#f0f0f0)] relative cursor-pointer"
           onClick={() => onAddBalken('triple')}
           title="Neue 3er-Balkengruppe hinzufügen"
         >
-          <div className="balken-preview-icon balken-preview-icon--triple">
-            <div className="balken-bar-preview" />
-            <div className="balken-bar-preview" />
-            <div className="balken-bar-preview" />
+          <div className="flex flex-col gap-[3px] w-[48px] h-[32px] justify-center items-start">
+            <div className="h-[6px] bg-primary-600 rounded-[1px] -skew-x-[15deg] w-[40px]" />
+            <div className="h-[6px] bg-primary-600 rounded-[1px] -skew-x-[15deg] w-[32px]" />
+            <div className="h-[6px] bg-primary-600 rounded-[1px] -skew-x-[15deg] w-[24px]" />
           </div>
           <span>3 Balken +</span>
         </button>
@@ -53,12 +61,12 @@ export function BalkenSection({
 
       {/* Settings shown only when a balken is selected */}
       {selectedBalken && (
-        <div className="balken-settings">
-          <div className="sidebar-section-header">
-            <span className="sidebar-section-title">Ausgewählter Balken</span>
+        <div className="flex flex-col gap-[0.75rem]">
+          <div className={cn(SECTION_HEADER, 'max-md:hidden')}>
+            <span className={SECTION_TITLE}>Ausgewählter Balken</span>
             {onDuplicateBalken && (
               <button
-                className="sidebar-action-btn"
+                className={ACTION_BTN}
                 onClick={() => onDuplicateBalken(selectedBalken.id)}
                 title="Balken duplizieren"
               >
@@ -66,7 +74,7 @@ export function BalkenSection({
               </button>
             )}
             <button
-              className="sidebar-action-btn sidebar-action-btn--danger"
+              className={ACTION_BTN_DANGER}
               onClick={() => onRemoveBalken(selectedBalken.id)}
               title="Balken entfernen"
             >
@@ -75,20 +83,23 @@ export function BalkenSection({
           </div>
 
           {/* Color scheme row */}
-          <div className="balken-color-row">
+          <div className="flex gap-[0.5rem] flex-wrap">
             {COLOR_SCHEMES.map((scheme) => (
               <button
                 key={scheme.id}
                 type="button"
-                className={`balken-color-btn ${selectedBalken.colorSchemeId === scheme.id ? 'balken-color-btn--active' : ''}`}
+                className={cn(
+                  'w-[32px] h-[32px] p-[4px] bg-background-pure border-2 border-transparent rounded-md cursor-pointer transition-all duration-150 ease-in-out hover:border-primary-300',
+                  selectedBalken.colorSchemeId === scheme.id && 'border-primary-500'
+                )}
                 onClick={() => onUpdateBalken(selectedBalken.id, { colorSchemeId: scheme.id })}
                 title={scheme.label}
               >
-                <div className="balken-color-preview">
+                <div className="flex flex-col gap-[2px] h-full justify-center">
                   {scheme.colors.slice(0, 3).map((color, i) => (
                     <div
                       key={i}
-                      className="balken-color-swatch"
+                      className="h-[5px] rounded-[1px] -skew-x-[15deg]"
                       style={{ backgroundColor: color.background }}
                     />
                   ))}
@@ -98,8 +109,10 @@ export function BalkenSection({
           </div>
 
           {/* Width slider */}
-          <div className="balken-width-row">
-            <span className="balken-width-label">Breite</span>
+          <div className="flex items-center gap-[0.5rem]">
+            <span className="text-[0.8125rem] text-grey-600 min-w-[40px] max-md:hidden">
+              Breite
+            </span>
             <input
               type="range"
               min={0.5}
@@ -109,9 +122,9 @@ export function BalkenSection({
               onChange={(e) =>
                 onUpdateBalken(selectedBalken.id, { widthScale: parseFloat(e.target.value) })
               }
-              className="balken-width-slider"
+              className="flex-1 h-[4px] appearance-none bg-grey-200 dark:bg-grey-700 rounded-[2px] cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:bg-primary-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:bg-primary-600 [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer"
             />
-            <span className="balken-width-value">
+            <span className="text-[0.8125rem] text-grey-600 min-w-[36px] text-right">
               {Math.round(selectedBalken.widthScale * 100)}%
             </span>
           </div>

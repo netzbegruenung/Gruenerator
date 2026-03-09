@@ -1,7 +1,11 @@
 import { useCallback, useRef } from 'react';
 import { PiFrameCornersFill, PiTrashFill } from 'react-icons/pi';
 
+import { SIDEBAR_SECTION, CARD_GRID, SELECTABLE_CARD } from '../primitives';
+
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
+
+import { cn } from '@/utils/cn';
 
 export interface RahmenSectionProps {
   onAddFrame: (clipType: FrameClipType) => void;
@@ -39,15 +43,15 @@ export function RahmenSection({
   const hasImage = selectedFrame?.imageSrc != null;
 
   return (
-    <div className="sidebar-section sidebar-section--formen">
-      <div className="sidebar-card-grid">
+    <div className={SIDEBAR_SECTION}>
+      <div className={CARD_GRID}>
         <button
-          className="sidebar-selectable-card"
+          className={SELECTABLE_CARD}
           onClick={() => onAddFrame('circle')}
           title="Kreisrahmen hinzufuegen"
           type="button"
         >
-          <div className="sidebar-selectable-card__preview">
+          <div className="relative size-11 flex items-center justify-center shrink-0">
             <div
               style={{
                 width: 28,
@@ -59,32 +63,31 @@ export function RahmenSection({
           </div>
         </button>
         <button
-          className="sidebar-selectable-card"
+          className={SELECTABLE_CARD}
           onClick={() => onAddFrame('rounded-rect')}
           title="Rechteckrahmen hinzufuegen"
           type="button"
         >
-          <div className="sidebar-selectable-card__preview">
+          <div className="relative size-11 flex items-center justify-center shrink-0">
             <PiFrameCornersFill size={24} />
           </div>
         </button>
       </div>
 
       {selectedFrame && (
-        <div className="sidebar-section" style={{ marginTop: 12 }}>
+        <div className={cn(SIDEBAR_SECTION, 'mt-3')}>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            style={{ display: 'none' }}
+            className="hidden"
             onChange={handleFileChange}
           />
           {onSetFrameImage && (
             <button
               type="button"
-              className="sidebar-action-btn"
+              className="w-full mb-2 flex items-center justify-center gap-xs py-xs px-sm bg-[var(--card-background)] border border-[var(--card-border)] rounded-[var(--card-border-radius-small)] text-foreground-muted text-[length:var(--font-size-small)] cursor-pointer transition-[background-color,border-color,color] duration-150 hover:bg-background-alt hover:border-primary-600 hover:text-primary-600"
               onClick={handleImageClick}
-              style={{ width: '100%', marginBottom: 8 }}
             >
               {hasImage ? 'Bild aendern' : 'Bild hinzufuegen'}
             </button>
@@ -92,12 +95,11 @@ export function RahmenSection({
           {onRemoveFrame && (
             <button
               type="button"
-              className="sidebar-action-btn sidebar-action-btn--danger"
+              className="w-full flex items-center justify-center gap-xs py-xs px-sm bg-[var(--card-background)] border border-[var(--card-border)] rounded-[var(--card-border-radius-small)] text-red-600 text-[length:var(--font-size-small)] cursor-pointer transition-[background-color,border-color,color] duration-150 hover:bg-red-50 hover:border-red-400"
               onClick={() => onRemoveFrame(selectedFrame.id)}
-              style={{ width: '100%' }}
             >
               <PiTrashFill size={14} />
-              <span style={{ marginLeft: 4 }}>Rahmen entfernen</span>
+              <span className="ml-1">Rahmen entfernen</span>
             </button>
           )}
         </div>
