@@ -5,7 +5,7 @@
  * additional texts with inline controls for editing and deletion.
  */
 
-import { FaPlus, FaTrash } from 'react-icons/fa';
+import { FaTrash } from 'react-icons/fa';
 import { PiTextAa, PiTextHBold } from 'react-icons/pi';
 
 import { SidebarHint } from '../components/SidebarHint';

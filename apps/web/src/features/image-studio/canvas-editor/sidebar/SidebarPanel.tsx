@@ -59,9 +59,7 @@ export function SidebarPanel({ isOpen, children, onClose }: ExtendedSidebarPanel
               'canvas-mobile:top-0 canvas-mobile:left-[var(--image-studio-tab-bar-width,64px)] canvas-mobile:bottom-0 canvas-mobile:right-auto canvas-mobile:w-auto canvas-mobile:min-w-[120px] canvas-mobile:max-w-[320px] canvas-mobile:rounded-br-xl canvas-mobile:shadow-[8px_0_24px_rgba(0,0,0,0.1)] canvas-mobile:pt-[60px]',
               /* Mobile: bottom sheet */
               'max-canvas-mobile:top-auto max-canvas-mobile:right-0 max-canvas-mobile:bottom-[var(--mobile-tab-bar-height,60px)] max-canvas-mobile:left-0 max-canvas-mobile:w-full max-canvas-mobile:max-w-full max-canvas-mobile:min-w-0 max-canvas-mobile:max-h-[calc(70vh-var(--mobile-tab-bar-height,60px))] max-canvas-mobile:pt-0 max-canvas-mobile:rounded-t-2xl max-canvas-mobile:shadow-[0_-4px_24px_rgba(0,0,0,0.12)] max-canvas-mobile:z-[99]',
-              !isOpen &&
-                'max-canvas-mobile:translate-y-[calc(100%+var(--mobile-tab-bar-height,60px))]',
-              isOpen && 'max-canvas-mobile:translate-y-0'
+              'max-canvas-mobile:translate-y-0'
             )}
             initial={isDesktop ? { scaleX: 0, opacity: 0.8 } : { y: '100%' }}
             animate={isDesktop ? { scaleX: 1, opacity: 1 } : { y: 0 }}

@@ -9,9 +9,9 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
-import { PiPaintBrushFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { AssetsSection, BackgroundSection, ImageBackgroundSection } from '../sidebar';
+import { AssetsSection, BackgroundSection } from '../sidebar';
 import { FreeformTextSection } from '../sidebar/sections/FreeformTextSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 

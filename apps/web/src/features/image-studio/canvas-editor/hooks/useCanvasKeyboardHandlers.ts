@@ -70,7 +70,6 @@ export function useCanvasKeyboardHandlers<TState>(
       // DUPLICATE (Ctrl+D) — copy + paste in one step
       if (isCtrlOrCmd && e.key === 'd' && selectedElement) {
         e.preventDefault();
-        const currentState = stateRef.current;
         const offset = 20;
         const newId = `dup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 

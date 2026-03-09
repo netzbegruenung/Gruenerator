@@ -81,26 +81,15 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
   const {
     onAddHeader,
     onAddText,
-    recommendedAssetIds = [],
     onAddAsset,
     onAddPillBadge,
     onAddCircleBadge,
     selectedIcons,
     onIconToggle,
-    maxIconSelections = 3,
     onAddBalken,
     onAddShape,
     onAddIllustration,
-    onUpdateIllustration,
-    onRemoveIllustration,
-    onDuplicateIllustration,
-    illustrationInstances,
-    selectedIllustrationId,
-    frameInstances,
-    selectedFrameId,
     onAddFrame,
-    onRemoveFrame,
-    onSetFrameImage,
   } = props;
 
   const [isMobile, setIsMobile] = useState(
