@@ -12,11 +12,18 @@ import {
 } from '../../../services/imageSourceService';
 import { SidebarHint } from '../components/SidebarHint';
 import { SidebarSlider } from '../components/SidebarSlider';
+import {
+  CARD_CHECK_SMALL,
+  CARD_PREVIEW,
+  SELECTABLE_CARD,
+  SELECTABLE_CARD_ACTIVE,
+  SIDEBAR_SECTION,
+} from '../primitives';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
 import type { BackgroundSectionProps, StockImageAttribution } from '../types';
 
-import './BackgroundSection.css';
+import { cn } from '@/utils/cn';
 
 // ============================================================================
 // ColorSubsection - Solid colors and gradient overlay
@@ -40,25 +47,30 @@ function ColorSubsection({
   const showGradient = gradientOpacity !== undefined && onGradientOpacityChange !== undefined;
 
   return (
-    <div className="sidebar-section sidebar-section--background">
-      <div className="sidebar-card-grid">
+    <div className={cn(SIDEBAR_SECTION, 'w-full')}>
+      <div className="flex flex-row flex-wrap justify-start gap-[8px]">
         {colors.map((option) => {
           const isActive = currentColor === option.color;
           return (
             <button
               key={option.id}
-              className={`sidebar-selectable-card ${isActive ? 'sidebar-selectable-card--active' : ''}`}
+              className={cn(
+                SELECTABLE_CARD,
+                '!w-[48px] !h-[48px] !p-0 !rounded-full overflow-hidden',
+                isActive && SELECTABLE_CARD_ACTIVE,
+                isActive && '!border-primary-600 !shadow-[0_0_0_2px_var(--primary-100)]'
+              )}
               onClick={() => onColorChange(option.color)}
               type="button"
               title={option.label}
             >
-              <div className="sidebar-selectable-card__preview">
+              <div className={cn(CARD_PREVIEW, '!w-full !h-full')}>
                 <span
-                  className="background-color-swatch"
+                  className="w-full h-full rounded-full border-[var(--border-subtle)] block"
                   style={{ backgroundColor: option.color }}
                 />
                 {isActive && (
-                  <span className="sidebar-selectable-card__check sidebar-selectable-card__check--small">
+                  <span className={CARD_CHECK_SMALL}>
                     <FaCheck size={8} />
                   </span>
                 )}
@@ -170,7 +182,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
   }, [onImageChange]);
 
   return (
-    <div className="sidebar-section sidebar-section--image-search">
+    <div className={SIDEBAR_SECTION}>
       {/* Search Input */}
       <div
         className="image-search-bar"
@@ -181,11 +193,11 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
           marginBottom: 'var(--spacing-medium)',
           padding: 'var(--spacing-small)',
           backgroundColor: 'var(--background-color)',
-          border: '1px solid var(--border-color)',
+          border: '1px solid var(--grey-200)',
           borderRadius: 'var(--border-radius-medium)',
         }}
       >
-        <HiMagnifyingGlass size={20} style={{ color: 'var(--font-color-muted)' }} />
+        <HiMagnifyingGlass size={20} style={{ color: 'var(--color-foreground-muted)' }} />
         <input
           type="text"
           placeholder="Bilder durchsuchen... (z.B. Natur, Umwelt)"
@@ -214,7 +226,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
             }}
             aria-label="Clear search"
           >
-            <HiXMark size={20} style={{ color: 'var(--font-color-muted)' }} />
+            <HiXMark size={20} style={{ color: 'var(--color-foreground-muted)' }} />
           </button>
         )}
       </div>
@@ -274,7 +286,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
           style={{
             padding: 'var(--spacing-large)',
             textAlign: 'center',
-            color: 'var(--font-color-muted)',
+            color: 'var(--color-foreground-muted)',
           }}
         >
           <p>Suche läuft...</p>
@@ -283,15 +295,8 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
 
       {/* Error State */}
       {searchError && (
-        <div
-          style={{
-            padding: 'var(--spacing-medium)',
-            backgroundColor: 'var(--error-background)',
-            borderRadius: 'var(--border-radius-medium)',
-            marginBottom: 'var(--spacing-medium)',
-          }}
-        >
-          <p style={{ color: 'var(--error-color)', fontSize: '0.875rem' }}>{searchError}</p>
+        <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg mb-3">
+          <p className="text-red-600 dark:text-red-400 text-sm m-0">{searchError}</p>
           <button
             type="button"
             onClick={() => searchUnsplash(debouncedQuery)}
@@ -333,7 +338,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
                     position: 'relative',
                     border: isSelected
                       ? '2px solid var(--primary-600)'
-                      : '1px solid var(--border-color)',
+                      : '1px solid var(--grey-200)',
                     borderRadius: 'var(--border-radius-medium)',
                     overflow: 'hidden',
                     cursor: 'pointer',
@@ -435,7 +440,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
           <HiPhoto
             size={48}
             style={{
-              color: 'var(--font-color-muted)',
+              color: 'var(--color-foreground-muted)',
               marginBottom: 'var(--spacing-medium)',
             }}
           />
@@ -461,7 +466,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
             textAlign: 'center',
           }}
         >
-          <p style={{ color: 'var(--font-color-muted)' }}>
+          <p style={{ color: 'var(--color-foreground-muted)' }}>
             Keine Ergebnisse für "{searchQuery}" gefunden.
           </p>
         </div>

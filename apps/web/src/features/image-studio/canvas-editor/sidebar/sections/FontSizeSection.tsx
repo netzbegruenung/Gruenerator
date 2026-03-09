@@ -1,7 +1,6 @@
 import { FaMinus, FaPlus } from 'react-icons/fa';
 
 import type { FontSizeSectionProps } from '../types';
-import './FontSizeSection.css';
 
 interface FontSizeStepperProps {
   value: number;
@@ -27,10 +26,10 @@ function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSizeStepp
   };
 
   return (
-    <div className="font-size-stepper">
+    <div className="flex items-center gap-0 border-border rounded-lg overflow-hidden bg-background">
       <button
         type="button"
-        className="font-size-stepper__btn"
+        className="flex items-center justify-center w-[36px] h-[36px] border-none bg-transparent text-foreground cursor-pointer transition-[background-color,color] duration-150 ease-in-out hover:not-disabled:bg-background-alt hover:not-disabled:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed"
         onClick={handleDecrement}
         disabled={value <= min}
         aria-label="Schriftgröße verringern"
@@ -39,7 +38,11 @@ function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSizeStepp
       </button>
       <input
         type="number"
-        className="font-size-stepper__input"
+        className="w-[48px] h-[36px] border-none border-l-[var(--border-subtle)] border-r-[var(--border-subtle)] bg-background-alt text-foreground text-sm font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:bg-background"
+        style={{
+          borderLeft: '1px solid var(--color-border)',
+          borderRight: '1px solid var(--color-border)',
+        }}
         value={Math.round(value)}
         onChange={handleInputChange}
         min={min}
@@ -47,7 +50,7 @@ function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSizeStepp
       />
       <button
         type="button"
-        className="font-size-stepper__btn"
+        className="flex items-center justify-center w-[36px] h-[36px] border-none bg-transparent text-foreground cursor-pointer transition-[background-color,color] duration-150 ease-in-out hover:not-disabled:bg-background-alt hover:not-disabled:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed"
         onClick={handleIncrement}
         disabled={value >= max}
         aria-label="Schriftgröße erhöhen"
@@ -65,7 +68,7 @@ export function FontSizeSection({
   onNameFontSizeChange,
 }: FontSizeSectionProps) {
   return (
-    <div className="sidebar-section sidebar-section--fontsize">
+    <div className="sidebar-section flex flex-col gap-sm w-fit max-canvas-mobile:w-full max-canvas-mobile:items-center">
       {quoteFontSize !== undefined && onQuoteFontSizeChange && (
         <FontSizeStepper value={quoteFontSize} onChange={onQuoteFontSizeChange} />
       )}

@@ -11,10 +11,12 @@ import {
 } from '../../../services/imageSourceService';
 import { SidebarHint } from '../components/SidebarHint';
 import { SidebarSlider } from '../components/SidebarSlider';
+import { SIDEBAR_SECTION } from '../primitives';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
 import type { StockImage, StockImageAttribution } from '../../../services/imageSourceService';
-import './ImageBackgroundSection.css';
+
+import { cn } from '@/utils/cn';
 
 export interface ImageBackgroundSectionProps {
   currentImageSrc?: string;
@@ -69,16 +71,25 @@ function ImagePreviewContent({
   }, [onImageChange]);
 
   return (
-    <div className="sidebar-section sidebar-section--image-background">
-      <div className="image-background-row">
+    <div
+      className={cn(
+        SIDEBAR_SECTION,
+        'gap-4 p-4 px-3 max-canvas-mobile:p-3 max-canvas-mobile:px-2 max-canvas-mobile:gap-3'
+      )}
+    >
+      <div className="flex flex-row gap-3 items-center w-full max-canvas-mobile:gap-2">
         {/* Current Image Preview */}
-        <div className="image-background-current">
+        <div className="flex-[2] flex justify-center">
           {currentImageSrc ? (
-            <div className="image-background-preview">
-              <img src={currentImageSrc} alt="Aktueller Hintergrund" />
+            <div className="group relative w-full max-w-[140px] max-h-[140px] aspect-square rounded-lg overflow-hidden bg-background-alt border border-border flex items-center justify-center max-canvas-mobile:max-w-[100px] max-canvas-mobile:max-h-[100px]">
+              <img
+                src={currentImageSrc}
+                alt="Aktueller Hintergrund"
+                className="w-full h-full object-cover"
+              />
               <button
                 type="button"
-                className="image-background-remove"
+                className="absolute top-1.5 right-1.5 bg-black/70 border-none rounded p-1 flex items-center justify-center text-white cursor-pointer opacity-0 transition-opacity duration-200 group-hover:opacity-100 max-canvas-mobile:opacity-100"
                 onClick={handleRemoveImage}
                 aria-label="Bild entfernen"
               >
@@ -86,15 +97,15 @@ function ImagePreviewContent({
               </button>
             </div>
           ) : (
-            <div className="image-background-placeholder">
+            <div className="w-full max-w-[140px] max-h-[140px] aspect-square rounded-lg overflow-hidden bg-background-alt border border-border flex flex-col items-center justify-center gap-2 text-foreground-muted max-canvas-mobile:max-w-[100px] max-canvas-mobile:max-h-[100px]">
               <HiPhoto size={24} />
-              <span>Kein Bild</span>
+              <span className="text-[length:var(--font-size-xxs)]">Kein Bild</span>
             </div>
           )}
         </div>
 
         {/* Upload Button */}
-        <div className="image-background-actions">
+        <div className="flex-1 flex flex-col gap-3 items-center justify-center">
           <input
             ref={fileInputRef}
             type="file"
@@ -105,7 +116,7 @@ function ImagePreviewContent({
 
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-secondary flex items-center gap-1.5 whitespace-nowrap"
             onClick={handleUploadClick}
             title="Bild hochladen"
           >
@@ -166,18 +177,24 @@ function UnsplashSearchSection({
   );
 
   return (
-    <div className="unsplash-search-section">
+    <div className="flex flex-col gap-3">
       {/* Search Input */}
-      <div className="unsplash-search-bar">
-        <HiMagnifyingGlass size={18} />
+      <div className="flex items-center gap-2 py-2 px-3 bg-background border border-[var(--font-color)] rounded-lg max-canvas-mobile:py-1.5 max-canvas-mobile:px-2.5">
+        <HiMagnifyingGlass size={18} className="text-foreground-muted shrink-0" />
         <input
           type="text"
           placeholder="Suchen... (z.B. Natur, Politik)"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1 border-none outline-none bg-transparent text-foreground text-sm max-canvas-mobile:text-[14px]"
         />
         {searchQuery && (
-          <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search">
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear search"
+            className="bg-none border-none cursor-pointer p-0 flex items-center text-foreground-muted hover:text-foreground"
+          >
             <HiXMark size={18} />
           </button>
         )}
@@ -185,16 +202,20 @@ function UnsplashSearchSection({
 
       {/* Loading State */}
       {isLoadingSearch && searchResults.length === 0 && (
-        <div className="unsplash-loading">
+        <div className="p-4 text-center text-foreground-muted text-sm">
           <p>Suche läuft...</p>
         </div>
       )}
 
       {/* Error State */}
       {searchError && (
-        <div className="unsplash-error">
+        <div className="p-4 text-center text-foreground-muted text-sm">
           <p>{searchError}</p>
-          <button type="button" onClick={() => searchUnsplash(debouncedQuery)}>
+          <button
+            type="button"
+            onClick={() => searchUnsplash(debouncedQuery)}
+            className="mt-2 py-2 px-4 bg-primary-600 text-white border-none rounded-md cursor-pointer text-sm"
+          >
             Erneut versuchen
           </button>
         </div>
@@ -203,7 +224,7 @@ function UnsplashSearchSection({
       {/* Results Grid */}
       {searchResults.length > 0 && (
         <>
-          <div className="unsplash-grid">
+          <div className="grid grid-cols-1 gap-2">
             {searchResults.map((image) => {
               const isSelected = currentImageSrc === image.url;
               return (
@@ -211,13 +232,22 @@ function UnsplashSearchSection({
                   key={image.filename}
                   onClick={() => handleImageClick(image)}
                   type="button"
-                  className={`unsplash-image-card ${isSelected ? 'selected' : ''}`}
+                  className={cn(
+                    'relative border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden cursor-pointer p-0 bg-none aspect-[4/3] max-canvas-mobile:aspect-[3/2]',
+                    'hover:border-primary-600',
+                    isSelected && 'border-2 border-primary-600'
+                  )}
                 >
-                  <img src={image.url} alt={image.alt_text || 'Unsplash Bild'} loading="lazy" />
+                  <img
+                    src={image.url}
+                    alt={image.alt_text || 'Unsplash Bild'}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
 
                   {/* Attribution Overlay */}
                   {image.attribution && (
-                    <div className="unsplash-attribution-overlay">
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-1">
                       <UnsplashAttribution
                         photographer={image.attribution.photographer}
                         profileUrl={image.attribution.profileUrl}
@@ -229,7 +259,7 @@ function UnsplashSearchSection({
 
                   {/* Selected Checkmark */}
                   {isSelected && (
-                    <div className="unsplash-selected-check">
+                    <div className="absolute top-2 right-2 bg-primary-600 rounded-full w-6 h-6 flex items-center justify-center">
                       <FaCheck size={12} color="white" />
                     </div>
                   )}
@@ -244,7 +274,7 @@ function UnsplashSearchSection({
               type="button"
               onClick={loadMoreResults}
               disabled={isLoadingSearch}
-              className="unsplash-load-more"
+              className="w-full py-2.5 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoadingSearch
                 ? 'Lädt...'
@@ -256,7 +286,7 @@ function UnsplashSearchSection({
 
       {/* No Results */}
       {debouncedQuery && searchResults.length === 0 && !isLoadingSearch && !searchError && (
-        <div className="unsplash-empty">
+        <div className="p-4 text-center text-foreground-muted text-sm">
           <p>Keine Ergebnisse für "{debouncedQuery}"</p>
         </div>
       )}
@@ -277,7 +307,7 @@ function AdjustmentsContent({
   'scale' | 'onScaleChange' | 'gradientOpacity' | 'onGradientOpacityChange'
 >) {
   return (
-    <div className="sidebar-section sidebar-section--image-adjustments">
+    <div className={cn(SIDEBAR_SECTION, 'gap-4 px-3 pb-4')}>
       {gradientOpacity !== undefined && onGradientOpacityChange !== undefined && (
         <SidebarSlider
           label="Overlay"
@@ -321,7 +351,9 @@ function UnsplashContent({
   );
 
   return (
-    <div className="sidebar-section sidebar-section--unsplash">
+    <div
+      className={cn(SIDEBAR_SECTION, 'gap-3 p-4 px-3 max-canvas-mobile:p-3 max-canvas-mobile:px-2')}
+    >
       <UnsplashSearchSection
         currentImageSrc={currentImageSrc}
         onImageSelect={handleUnsplashSelect}

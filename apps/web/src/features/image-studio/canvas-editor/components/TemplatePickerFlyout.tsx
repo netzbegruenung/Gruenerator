@@ -1,8 +1,5 @@
 /**
  * TemplatePickerFlyout - Flyout for selecting a template when adding a new page
- *
- * Displays a grid of template options with previews.
- * Includes option to duplicate current page.
  */
 
 import React, { useCallback, useState, useRef, useEffect, memo } from 'react';
@@ -12,7 +9,7 @@ import { getAllTemplates, type TemplateInfo } from '../utils/templateRegistry';
 
 import type { CanvasConfigId } from '../configs/types';
 
-import './TemplatePickerFlyout.css';
+import { cn } from '@/utils/cn';
 
 interface TemplatePickerFlyoutProps {
   onSelectTemplate: (configId: CanvasConfigId) => void;
@@ -30,10 +27,9 @@ interface TemplateCardProps {
   isCurrent: boolean;
 }
 
-/**
- * Memoized template card - prevents re-renders when other cards change.
- * Uses onSelect(templateId) pattern instead of onClick closure for stable reference.
- */
+const templateCardBase =
+  'flex flex-col items-center p-2 bg-background-alt border-2 border-transparent rounded-lg cursor-pointer transition-[border-color,transform,box-shadow] duration-150 hover:border-primary-600 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(70,150,43,0.15)]';
+
 const TemplateCard = memo(function TemplateCard({
   template,
   onSelect,
@@ -45,16 +41,27 @@ const TemplateCard = memo(function TemplateCard({
 
   return (
     <button
-      className={`template-card ${isCurrent ? 'template-card--current' : ''}`}
+      className={cn(templateCardBase, isCurrent && 'border-primary-600 bg-primary-50')}
       onClick={handleClick}
       type="button"
     >
-      <div className="template-card__preview">
-        <img src={template.previewImage} alt={template.label} loading="lazy" />
+      <div className="w-full aspect-square rounded overflow-hidden mb-1.5">
+        <img
+          src={template.previewImage}
+          alt={template.label}
+          loading="lazy"
+          className="w-full h-full object-cover"
+        />
       </div>
-      <div className="template-card__info">
-        <span className="template-card__label">{template.label}</span>
-        {isCurrent && <span className="template-card__badge">Aktuell</span>}
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="text-[11px] font-medium text-foreground text-center leading-tight">
+          {template.label}
+        </span>
+        {isCurrent && (
+          <span className="text-[9px] font-medium text-primary-600 bg-primary-50 px-1.5 py-px rounded">
+            Aktuell
+          </span>
+        )}
       </div>
     </button>
   );
@@ -76,7 +83,6 @@ export function TemplatePickerFlyout({
   });
   const templates = getAllTemplates();
 
-  // Calculate position relative to anchor
   useEffect(() => {
     if (isOpen && anchorRef?.current && flyoutRef.current) {
       const anchorRect = anchorRef.current.getBoundingClientRect();
@@ -84,14 +90,12 @@ export function TemplatePickerFlyout({
       const padding = 16;
       const gap = 12;
 
-      // Center horizontally relative to anchor, clamped to viewport
       let left = anchorRect.left + anchorRect.width / 2 - flyoutRect.width / 2;
       if (left < padding) left = padding;
       if (left + flyoutRect.width > window.innerWidth - padding) {
         left = window.innerWidth - flyoutRect.width - padding;
       }
 
-      // Pick direction with more available space
       const spaceAbove = anchorRect.top - gap - padding;
       const spaceBelow = window.innerHeight - anchorRect.bottom - gap - padding;
 
@@ -99,17 +103,13 @@ export function TemplatePickerFlyout({
       let maxHeight: number | undefined;
 
       if (spaceAbove >= flyoutRect.height) {
-        // Fits fully above
         top = anchorRect.top - flyoutRect.height - gap;
       } else if (spaceBelow >= flyoutRect.height) {
-        // Fits fully below
         top = anchorRect.bottom + gap;
       } else if (spaceAbove >= spaceBelow) {
-        // More room above — pin to top edge, constrain height
         top = padding;
         maxHeight = spaceAbove;
       } else {
-        // More room below — position below anchor, constrain height
         top = anchorRect.bottom + gap;
         maxHeight = spaceBelow;
       }
@@ -118,7 +118,6 @@ export function TemplatePickerFlyout({
     }
   }, [isOpen, anchorRef]);
 
-  // Close on click outside
   useEffect(() => {
     if (!isOpen) return;
 
@@ -178,7 +177,7 @@ export function TemplatePickerFlyout({
   return (
     <div
       ref={flyoutRef}
-      className="template-picker-flyout"
+      className="bg-background-pure border border-border rounded-xl shadow-lg p-4 z-[1000] min-w-[320px] max-w-[400px] max-h-[calc(100vh-32px)] overflow-y-auto animate-[flyout-enter_0.15s_ease-out] max-[480px]:!fixed max-[480px]:!bottom-0 max-[480px]:!left-0 max-[480px]:!top-auto max-[480px]:!right-0 max-[480px]:min-w-full max-[480px]:max-w-full max-[480px]:rounded-t-2xl max-[480px]:rounded-b-none max-[480px]:max-h-[70vh]"
       style={{
         position: 'fixed',
         top: position.top,
@@ -189,10 +188,10 @@ export function TemplatePickerFlyout({
         }),
       }}
     >
-      <div className="template-picker-flyout__header">
-        <h3>Seite hinzufügen</h3>
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="m-0 text-base font-semibold text-foreground-heading">Seite hinzufügen</h3>
         <button
-          className="template-picker-flyout__close"
+          className="flex items-center justify-center size-7 p-0 bg-transparent border-none rounded-md cursor-pointer text-foreground-muted transition-[background-color,color] duration-150 hover:bg-hover-alt hover:text-foreground"
           onClick={onClose}
           type="button"
           aria-label="Schließen"
@@ -201,7 +200,7 @@ export function TemplatePickerFlyout({
         </button>
       </div>
 
-      <div className="template-picker-flyout__grid">
+      <div className="grid grid-cols-3 gap-2 mb-3 max-[480px]:gap-2.5">
         {templates.map((template) => (
           <TemplateCard
             key={template.id}
@@ -213,37 +212,47 @@ export function TemplatePickerFlyout({
 
         {onAddSliderVariant && (
           <>
-            <button className="template-card" onClick={handleAddCover} type="button">
-              <div className="template-card__preview template-card__icon-preview">
+            <button className={templateCardBase} onClick={handleAddCover} type="button">
+              <div className="w-full aspect-square rounded overflow-hidden mb-1.5 flex items-center justify-center bg-background-alt [&>svg]:size-7 [&>svg]:text-foreground-muted">
                 <HiTemplate />
               </div>
-              <div className="template-card__info">
-                <span className="template-card__label">Slider Start</span>
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-[11px] font-medium text-foreground text-center leading-tight">
+                  Slider Start
+                </span>
               </div>
             </button>
-            <button className="template-card" onClick={handleAddContent} type="button">
-              <div className="template-card__preview template-card__icon-preview">
+            <button className={templateCardBase} onClick={handleAddContent} type="button">
+              <div className="w-full aspect-square rounded overflow-hidden mb-1.5 flex items-center justify-center bg-background-alt [&>svg]:size-7 [&>svg]:text-foreground-muted">
                 <HiBookOpen />
               </div>
-              <div className="template-card__info">
-                <span className="template-card__label">Slider Text</span>
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-[11px] font-medium text-foreground text-center leading-tight">
+                  Slider Text
+                </span>
               </div>
             </button>
-            <button className="template-card" onClick={handleAddLast} type="button">
-              <div className="template-card__preview template-card__icon-preview">
+            <button className={templateCardBase} onClick={handleAddLast} type="button">
+              <div className="w-full aspect-square rounded overflow-hidden mb-1.5 flex items-center justify-center bg-background-alt [&>svg]:size-7 [&>svg]:text-foreground-muted">
                 <HiStop />
               </div>
-              <div className="template-card__info">
-                <span className="template-card__label">Slider Ende</span>
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-[11px] font-medium text-foreground text-center leading-tight">
+                  Slider Ende
+                </span>
               </div>
             </button>
           </>
         )}
       </div>
 
-      <div className="template-picker-flyout__divider" />
+      <div className="h-px bg-border my-3" />
 
-      <button className="template-picker-flyout__duplicate" onClick={handleDuplicate} type="button">
+      <button
+        className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-background-alt border border-border rounded-lg cursor-pointer text-[13px] font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-hover-alt hover:border-grey-400 dark:hover:border-grey-500 [&>svg]:size-[18px] [&>svg]:text-foreground-muted"
+        onClick={handleDuplicate}
+        type="button"
+      >
         <HiOutlineDuplicate />
         <span>Aktuelle Seite duplizieren</span>
       </button>
@@ -251,9 +260,6 @@ export function TemplatePickerFlyout({
   );
 }
 
-/**
- * AddPageButton - Button that triggers the template picker flyout
- */
 interface AddPageButtonProps {
   onSelectTemplate: (configId: CanvasConfigId) => void;
   onDuplicateCurrent: () => void;
