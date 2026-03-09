@@ -205,7 +205,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     return base;
   },
 
-  getAutoSwitchTab: (selectedElement) => (selectedElement?.includes('balken') ? 'settings' : null),
+  getAutoSwitchTab: (selectedElement) => {
+    if (selectedElement?.includes('balken')) return 'settings';
+    if (selectedElement?.startsWith('frame-')) return 'assets';
+    return null;
+  },
 
   getDisabledTabs: (state) =>
     isAlternativesEmpty(state, (s) => s.alternatives) ? ['alternatives'] : [],
