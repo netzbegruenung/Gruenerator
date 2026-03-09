@@ -1,13 +1,30 @@
 'use client';
 
+import { type MouseEvent, useCallback } from 'react';
 import {
   ThreadListItemPrimitive,
   ThreadListItemMorePrimitive,
   useThreadListItem,
+  useAui,
 } from '@assistant-ui/react';
 import { MessageSquare, MoreVertical, Pencil, Archive, Trash2, BookOpen } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useExternalThread } from '../../context/ExternalThreadContext';
+
+function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
+  const aui = useAui();
+  return useCallback(
+    (e: MouseEvent) => {
+      e.preventDefault();
+      Promise.resolve()
+        .then(() => aui.threadListItem()[action]())
+        .catch((err) => {
+          console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
+        });
+    },
+    [aui, action]
+  );
+}
 
 function ExternalThreadItem() {
   const { title, externalId } = useThreadListItem();
@@ -40,6 +57,9 @@ function ExternalThreadItem() {
 
 export function GrueneratorThreadListItem() {
   const { externalId } = useThreadListItem();
+  const handleSwitch = useSafeThreadAction('switchTo');
+  const handleArchive = useSafeThreadAction('archive');
+  const handleDelete = useSafeThreadAction('delete');
 
   if (externalId) {
     return <ExternalThreadItem />;
@@ -53,7 +73,10 @@ export function GrueneratorThreadListItem() {
         'data-[active]:bg-primary/10 data-[active]:text-primary'
       )}
     >
-      <ThreadListItemPrimitive.Trigger className="flex min-w-0 flex-1 items-center gap-2 text-left">
+      <ThreadListItemPrimitive.Trigger
+        onClick={handleSwitch}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+      >
         <MessageSquare className="h-4 w-4 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm">
@@ -75,11 +98,17 @@ export function GrueneratorThreadListItem() {
             Umbenennen
           </ThreadListItemMorePrimitive.Item>
           <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
-          <ThreadListItemPrimitive.Archive className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
+          <ThreadListItemPrimitive.Archive
+            onClick={handleArchive}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+          >
             <Archive className="h-3.5 w-3.5" />
             Archivieren
           </ThreadListItemPrimitive.Archive>
-          <ThreadListItemPrimitive.Delete className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-red-500/10 hover:text-red-500">
+          <ThreadListItemPrimitive.Delete
+            onClick={handleDelete}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-red-500/10 hover:text-red-500"
+          >
             <Trash2 className="h-3.5 w-3.5" />
             Löschen
           </ThreadListItemPrimitive.Delete>
@@ -90,6 +119,10 @@ export function GrueneratorThreadListItem() {
 }
 
 export function GrueneratorArchivedThreadListItem() {
+  const handleSwitch = useSafeThreadAction('switchTo');
+  const handleUnarchive = useSafeThreadAction('unarchive');
+  const handleDelete = useSafeThreadAction('delete');
+
   return (
     <ThreadListItemPrimitive.Root
       className={cn(
@@ -98,7 +131,10 @@ export function GrueneratorArchivedThreadListItem() {
         'data-[active]:bg-primary/10 data-[active]:text-primary data-[active]:opacity-100'
       )}
     >
-      <ThreadListItemPrimitive.Trigger className="flex min-w-0 flex-1 items-center gap-2 text-left">
+      <ThreadListItemPrimitive.Trigger
+        onClick={handleSwitch}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+      >
         <Archive className="h-4 w-4 flex-shrink-0 text-foreground-muted" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm">
@@ -115,12 +151,18 @@ export function GrueneratorArchivedThreadListItem() {
           <MoreVertical className="h-3.5 w-3.5" />
         </ThreadListItemMorePrimitive.Trigger>
         <ThreadListItemMorePrimitive.Content className="z-50 min-w-[10rem] rounded-xl border border-border bg-background p-1 shadow-lg">
-          <ThreadListItemPrimitive.Unarchive className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
+          <ThreadListItemPrimitive.Unarchive
+            onClick={handleUnarchive}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+          >
             <Archive className="h-3.5 w-3.5" />
             Wiederherstellen
           </ThreadListItemPrimitive.Unarchive>
           <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
-          <ThreadListItemPrimitive.Delete className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-red-500/10 hover:text-red-500">
+          <ThreadListItemPrimitive.Delete
+            onClick={handleDelete}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-red-500/10 hover:text-red-500"
+          >
             <Trash2 className="h-3.5 w-3.5" />
             Endgültig löschen
           </ThreadListItemPrimitive.Delete>

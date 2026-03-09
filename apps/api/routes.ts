@@ -84,7 +84,7 @@ const aiGenerationLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 60, // ~4 per minute average
+      max: 200, // ~13 per minute average — protects against abuse, not normal use
       standardHeaders: true,
       legacyHeaders: false,
       message: { error: 'Too many AI generation requests, please try again later.' },
@@ -214,7 +214,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_buergeranfragen', aiGenerationLimiter, buergeranfragenRouter);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
-  app.use('/api/chat-service', aiGenerationLimiter, chatServiceRouter);
+  app.use('/api/chat-service', standardMutationLimiter, chatServiceRouter);
   app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
   app.use('/api/chat-deep', aiGenerationLimiter, chatDeepRouter); // @experimental — DeepAgent route, not production-ready
   app.use('/api/gruen-o-mat', gruenOMatRouter);
