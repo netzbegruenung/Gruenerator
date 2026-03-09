@@ -13,6 +13,8 @@ import { lazy } from 'react';
 // =============================================================================
 
 export { FontSizeSection } from './FontSizeSection';
+export { FreeformTextSection } from './FreeformTextSection';
+export type { FreeformTextSectionProps } from './FreeformTextSection';
 export { UnifiedTextSection } from './UnifiedTextSection';
 export type { UnifiedTextSectionProps } from './UnifiedTextSection';
 export { AlternativesSection } from './AlternativesSection';
@@ -22,6 +24,8 @@ export { BadgeSection } from './BadgeSection';
 export type { BadgeSectionProps } from './BadgeSection';
 export { BalkenSection } from './BalkenSection';
 export type { BalkenSectionProps } from './BalkenSection';
+export { BalkenSettingsSection } from './BalkenSettingsSection';
+export type { BalkenSettingsSectionProps } from './BalkenSettingsSection';
 export { FormenSection } from './FormenSection';
 export type { FormenSectionProps } from './FormenSection';
 export * from './dreizeilen';
@@ -31,7 +35,7 @@ export * from './dreizeilen';
 // =============================================================================
 
 export const AssetsSection = lazy(() =>
-  import('./AssetsSection').then((m) => ({ default: m.AssetsSection }))
+  import('./assets').then((m) => ({ default: m.AssetsSection }))
 );
 
 export const BackgroundSection = lazy(() =>
