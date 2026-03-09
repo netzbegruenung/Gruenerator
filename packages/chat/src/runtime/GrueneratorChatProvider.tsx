@@ -352,6 +352,19 @@ export function GrueneratorChatProvider({
     useChatConfigStore.getState().configure(config);
   }
 
+  // Safety net: suppress "Thread not found" unhandled rejections from @assistant-ui
+  // internals (generateTitle, initialize, rename) that we can't intercept via onClick
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      if (event.reason instanceof Error && event.reason.message === 'Thread not found') {
+        event.preventDefault();
+        console.warn('[ThreadList] Suppressed unhandled "Thread not found" rejection');
+      }
+    };
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, []);
+
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
   const providerApiClient = useMemo(
