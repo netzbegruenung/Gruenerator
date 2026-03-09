@@ -16,7 +16,7 @@
 import type { SectionContext } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../primitives/CircleBadge';
-import type { ExtendedAssetsSectionProps } from '../sidebar/sections/AssetsSection';
+import type { ExtendedAssetsSectionProps } from '../sidebar/sections/assets';
 import type { FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';

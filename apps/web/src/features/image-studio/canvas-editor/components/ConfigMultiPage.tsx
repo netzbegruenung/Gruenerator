@@ -14,7 +14,6 @@ import { GenericCanvas } from './GenericCanvas';
 
 import type { GenericCanvasRef } from './GenericCanvas';
 import type { FullCanvasConfig } from '../configs/types';
-import './ConfigMultiPage.css';
 
 interface ConfigMultiPageProps {
   config: FullCanvasConfig;
@@ -88,9 +87,9 @@ export function ConfigMultiPage({
   );
 
   return (
-    <div className="config-multipage" data-canvas-type={canvasType}>
+    <div className="flex flex-col w-full" data-canvas-type={canvasType}>
       {pages.map((page, index) => (
-        <div key={page.id} className="config-multipage__page">
+        <div key={page.id} className="flex flex-col w-full">
           <GenericCanvas
             forwardedRef={canvasRefsRef.current[index]}
             key={page.id}
@@ -100,7 +99,6 @@ export function ConfigMultiPage({
             onCancel={onCancel}
             callbacks={callbacks}
             onAddPage={index === pages.length - 1 && canAddMore ? addPage : undefined}
-            bare={false}
             onDelete={pageCount > 1 && index > 0 ? () => removePage(page.id) : undefined}
             multiPageExport={index === 0 ? multiPageExportProps : undefined}
           />

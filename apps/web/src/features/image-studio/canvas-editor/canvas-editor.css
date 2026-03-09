@@ -1,0 +1,93 @@
+/**
+ * Canvas Editor — Residual CSS (~70 lines)
+ *
+ * Only styles that cannot be expressed in Tailwind:
+ * - ::after pseudo-element for CanvasStage border overlay (parent-controlled)
+ * - :has() body-level selectors
+ * - .sidebar-section mobile padding override (targets global class)
+ */
+
+/* ── CanvasStage border overlay (::after on Konva canvas container) ── */
+.canvas-stage-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid var(--primary-600);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Multi-page mode: border outside canvas, hidden by default */
+.heterogeneous-multipage__page-wrapper .canvas-stage-container::after {
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-color: transparent;
+  transition: border-color 0.15s ease;
+}
+
+.heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) .canvas-stage-container::after {
+  border-color: var(--border-color-hover, rgba(0, 0, 0, 0.15));
+}
+
+.heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
+  border-color: var(--tanne, #0a2b1e);
+}
+
+[data-theme="dark"] .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) .canvas-stage-container::after {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
+  border-color: var(--tanne-light, #1a5c40);
+}
+
+/* ── :has() body-level selectors ── */
+
+/* Override layout to use natural page scroll instead of nested scroll */
+.canvas-editor-layout:has(.heterogeneous-multipage__pages-container) {
+  height: auto;
+  min-height: 100vh;
+}
+
+.canvas-editor-layout__main:has(.heterogeneous-multipage__pages-container) {
+  overflow: visible;
+}
+
+.canvas-editor-layout__canvas:has(.heterogeneous-multipage__pages-container) {
+  flex: none;
+  overflow: visible;
+}
+
+/* Hide drag handle when subsection bar is active */
+body:has(#subsection-bar-portal:not(:empty)) .sidebar-panel__drag-handle {
+  display: none;
+}
+
+/* Hide shadow of main tab bar when subsection bar is present */
+body:has(#subsection-bar-portal:not(:empty)) .sidebar-tab-bar {
+  box-shadow: none;
+}
+
+/* ── Mobile sidebar section padding (overrides global sidebar.css) ── */
+@media (max-width: 899px) {
+  .sidebar-section {
+    padding: 0 var(--spacing-medium) 0 var(--spacing-small);
+  }
+}
+
+/* ── Number input spinner hiding ── */
+input[type="number"].hide-spinner::-webkit-outer-spin-button,
+input[type="number"].hide-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"].hide-spinner {
+  -moz-appearance: textfield;
+}

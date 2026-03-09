@@ -5,11 +5,11 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { HiCog, HiPhotograph } from 'react-icons/hi';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
-import { BalkenIcon } from '../icons';
-import { DreizeilenPositionSection, AssetsSection, ImageBackgroundSection } from '../sidebar';
+import { AssetsSection, ImageBackgroundSection } from '../sidebar';
+import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -186,37 +186,47 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       label: 'Hintergrund',
       ariaLabel: 'Hintergrundbild ändern',
     },
-    { id: 'position', icon: BalkenIcon, label: 'Balken', ariaLabel: 'Balken-Einstellungen' },
+    { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     alternativesTab,
     shareTab,
   ],
 
-  getVisibleTabs: (_state) => {
-    return ['image-background', 'position', 'assets', 'alternatives', 'share'];
+  getVisibleTabs: (_state, context) => {
+    const base: ('image-background' | 'settings' | 'assets' | 'alternatives' | 'share')[] = [
+      'image-background',
+      'assets',
+      'alternatives',
+      'share',
+    ];
+    if (context?.selectedElement?.includes('balken')) {
+      return ['image-background', 'settings', ...base.slice(1)];
+    }
+    return base;
   },
+
+  getAutoSwitchTab: (selectedElement) => (selectedElement?.includes('balken') ? 'settings' : null),
 
   getDisabledTabs: (state) =>
     isAlternativesEmpty(state, (s) => s.alternatives) ? ['alternatives'] : [],
 
   sections: {
-    position: {
-      component: DreizeilenPositionSection,
-      propsFactory: (state, actions) => ({
-        widthScale: state.balkenWidthScale,
-        onWidthScaleChange: actions.setBalkenWidthScale,
-        barOffsets: state.barOffsets,
-        onBarOffsetChange: (index: number, offset: number) => {
-          const newOffsets = [...state.barOffsets] as [number, number, number];
-          newOffsets[index] = offset;
-          actions.setBarOffsets(newOffsets);
-        },
-        colorScheme: getColorScheme(state.colorSchemeId),
-        colorSchemes: COLOR_SCHEMES,
-        activeSchemeId: state.colorSchemeId,
-        onSchemeChange: actions.setColorSchemeId,
-        onReset: actions.handleReset,
-      }),
+    settings: {
+      component: BalkenSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedBalken = selectedId
+          ? state.balkenInstances.find((b) => b.id === selectedId)
+          : null;
+        return {
+          selectedBalken: selectedBalken ?? createBalkenInstance(state),
+          onUpdateBalken: actions.updateBalken,
+          onRemoveBalken: actions.removeBalken,
+          onDuplicateBalken: actions.duplicateBalken,
+          colorSchemes: COLOR_SCHEMES,
+          isPrimary: (selectedId ?? 'dreizeilen-balken') === 'dreizeilen-balken',
+        };
+      },
     },
 
     'image-background': {
@@ -617,24 +627,31 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         debouncedSaveToHistory(getState());
       },
 
-      updateBalken: (_id: string, partial: Partial<BalkenInstance>) => {
-        setState((prev) => {
-          const updates: Partial<DreizeilenFullState> = {};
-          if (partial.offset !== undefined) {
-            updates.balkenOffset = partial.offset;
+      updateBalken: (id: string, partial: Partial<BalkenInstance>) => {
+        if (id === 'dreizeilen-balken') {
+          setState((prev) => {
+            const updates: Partial<DreizeilenFullState> = {};
+            if (partial.offset !== undefined) updates.balkenOffset = partial.offset;
+            if (partial.scale !== undefined) updates.balkenScale = partial.scale;
+            if (partial.rotation !== undefined) updates.balkenRotation = partial.rotation;
+            if (partial.opacity !== undefined) updates.balkenOpacity = partial.opacity;
+            if (partial.widthScale !== undefined) updates.balkenWidthScale = partial.widthScale;
+            if (partial.colorSchemeId !== undefined) updates.colorSchemeId = partial.colorSchemeId;
+            if (partial.barOffsets !== undefined) updates.barOffsets = partial.barOffsets;
+            const newState = { ...prev, ...updates };
+            return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          });
+          if (partial.colorSchemeId !== undefined) {
+            callbacks.onColorSchemeChange?.(partial.colorSchemeId);
           }
-          if (partial.scale !== undefined) {
-            updates.balkenScale = partial.scale;
-          }
-          if (partial.rotation !== undefined) {
-            updates.balkenRotation = partial.rotation;
-          }
-          if (partial.opacity !== undefined) {
-            updates.balkenOpacity = partial.opacity;
-          }
-          const newState = { ...prev, ...updates };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
-        });
+        } else {
+          setState((prev) => ({
+            ...prev,
+            balkenInstances: prev.balkenInstances.map((b) =>
+              b.id === id ? { ...b, ...partial } : b
+            ),
+          }));
+        }
         debouncedSaveToHistory(getState());
       },
 

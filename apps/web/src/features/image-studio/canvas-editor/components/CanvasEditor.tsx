@@ -1,5 +1,5 @@
 /**
- * HeterogeneousMultiPage - Multi-page canvas that supports different templates per page
+ * CanvasEditor - Canvas editor with shared sidebar and page management
  *
  * Architecture: SHARED SIDEBAR pattern
  * - ONE sidebar managed at this level (not per-page)
@@ -14,18 +14,10 @@
  * - content-visibility CSS for off-screen pages
  */
 
-import React, {
-  useCallback,
-  useRef,
-  useMemo,
-  useEffect,
-  useState,
-  Suspense,
-  memo,
-} from 'react';
+import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense, memo } from 'react';
 
 import Spinner from '../../../../components/common/Spinner';
-import { useHeterogeneousMultiPage, useMultiPageExport } from '../hooks';
+import { usePageManager, useMultiPageExport } from '../hooks';
 import { CanvasEditorLayout } from '../layouts';
 import { SidebarTabBar, SidebarPanel } from '../sidebar';
 
@@ -34,12 +26,11 @@ import { AddPageButton } from './TemplatePickerFlyout';
 import { ZoomableViewport } from './ZoomableViewport';
 
 import type { GenericCanvasRef } from './GenericCanvas';
-import type { InitialPageDef } from '../hooks/useHeterogeneousMultiPage';
 import type { CanvasConfigId, FullCanvasConfig } from '../configs/types';
+import type { InitialPageDef } from '../hooks/usePageManager';
 import type { SidebarTabId } from '../sidebar/types';
 
-import './ConfigMultiPage.css';
-import './HeterogeneousMultiPage.css';
+import { cn } from '@/utils/cn';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -56,12 +47,12 @@ const sidebarLoadingFallback = (
 );
 
 const pageLoadingIndicator = (
-  <div className="config-multipage config-multipage--loading">
-    <div className="config-multipage__loader">Lädt Vorlagen...</div>
+  <div className="flex flex-col w-full items-center justify-center min-h-[400px]">
+    <div className="text-sm text-foreground-muted">Lädt Vorlagen...</div>
   </div>
 );
 
-interface HeterogeneousMultiPageProps {
+interface CanvasEditorProps {
   initialConfigId: CanvasConfigId;
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
@@ -90,7 +81,12 @@ interface PageWrapperProps {
     isExporting: boolean;
     exportProgress: { current: number; total: number };
   };
-  onStateChange: (pageId: string, state: Record<string, unknown>, actions: Record<string, unknown>) => void;
+  onStateChange: (
+    pageId: string,
+    state: Record<string, unknown>,
+    actions: Record<string, unknown>,
+    selectedElement: string | null
+  ) => void;
 }
 
 /**
@@ -123,8 +119,9 @@ const PageWrapper = memo(function PageWrapper({
       if (ref && isActive) {
         const state = ref.getState?.();
         const actions = ref.getActions?.();
+        const selectedElement = ref.getSelectedElement?.() ?? null;
         if (state && actions) {
-          onStateChange(page.id, state, actions);
+          onStateChange(page.id, state, actions, selectedElement);
         }
       }
     };
@@ -164,7 +161,11 @@ const PageWrapper = memo(function PageWrapper({
 
   return (
     <div
-      className={`heterogeneous-multipage__page-wrapper ${isActive ? 'heterogeneous-multipage__page-wrapper--active' : ''}`}
+      className={cn(
+        'heterogeneous-multipage__page-wrapper group relative cursor-pointer overflow-hidden w-fit p-0.5 content-visibility-auto [contain-intrinsic-size:0_500px] focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
+        '[&_.zoomable-viewport-wrapper]:w-fit [&_.zoomable-viewport-container]:p-0 [&_.zoomable-viewport-container]:overflow-visible',
+        isActive && 'heterogeneous-multipage__page-wrapper--active'
+      )}
       onClick={handleSelect}
       role="button"
       tabIndex={0}
@@ -172,10 +173,9 @@ const PageWrapper = memo(function PageWrapper({
       aria-label={`Seite ${index + 1}${isActive ? ' (ausgewählt)' : ''}`}
       aria-pressed={isActive}
     >
-      {/* Delete button (except first page) */}
       {canDelete && (
         <button
-          className="heterogeneous-multipage__delete-btn"
+          className="absolute top-sm right-sm z-10 flex items-center justify-center size-7 border-none rounded-full bg-background-pure shadow-[0_2px_6px_rgba(0,0,0,0.15)] text-lg leading-none text-foreground-muted cursor-pointer opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-red-600 focus-visible:outline-offset-2 max-canvas-mobile:size-6 max-canvas-mobile:text-base max-canvas-mobile:top-xs max-canvas-mobile:right-xs max-canvas-mobile:opacity-100 dark:bg-grey-900 dark:text-grey-400 dark:hover:bg-red-950 dark:hover:text-red-400"
           onClick={handleDelete}
           type="button"
           aria-label={`Seite ${index + 1} löschen`}
@@ -196,7 +196,6 @@ const PageWrapper = memo(function PageWrapper({
           onExport={onExport}
           onCancel={onCancel}
           callbacks={callbacks}
-          bare={true}
           multiPageExport={multiPageExport}
         />
       </ZoomableViewport>
@@ -204,7 +203,7 @@ const PageWrapper = memo(function PageWrapper({
   );
 });
 
-export function HeterogeneousMultiPage({
+export function CanvasEditor({
   initialConfigId,
   initialProps,
   onExport,
@@ -212,7 +211,7 @@ export function HeterogeneousMultiPage({
   callbacks = {},
   maxPages = 10,
   initialPages,
-}: HeterogeneousMultiPageProps) {
+}: CanvasEditorProps) {
   const {
     pages,
     addPage,
@@ -223,7 +222,7 @@ export function HeterogeneousMultiPage({
     canAddMore,
     pageCount,
     getConfigForPage,
-  } = useHeterogeneousMultiPage({
+  } = usePageManager({
     initialConfigId,
     initialProps,
     maxPages,
@@ -237,12 +236,14 @@ export function HeterogeneousMultiPage({
 
   // Sidebar state - ONE shared sidebar for all pages
   const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
+  const prevTabRef = useRef<SidebarTabId | null>(null);
 
-  // Active page state/actions - synced via effect from PageWrapper
+  // Active page state/actions/selectedElement - synced via effect from PageWrapper
   const [activePageData, setActivePageData] = useState<{
     pageId: string;
     state: Record<string, unknown>;
     actions: Record<string, unknown>;
+    selectedElement: string | null;
   } | null>(null);
 
   // Create refs array for all canvas instances
@@ -344,13 +345,23 @@ export function HeterogeneousMultiPage({
 
   // Callback for PageWrapper to report state changes
   const handlePageStateChange = useCallback(
-    (pageId: string, state: Record<string, unknown>, actions: Record<string, unknown>) => {
+    (
+      pageId: string,
+      state: Record<string, unknown>,
+      actions: Record<string, unknown>,
+      selectedElement: string | null
+    ) => {
       setActivePageData((prev) => {
         // Only update if data actually changed (shallow compare)
-        if (prev?.pageId === pageId && prev?.state === state && prev?.actions === actions) {
+        if (
+          prev?.pageId === pageId &&
+          prev?.state === state &&
+          prev?.actions === actions &&
+          prev?.selectedElement === selectedElement
+        ) {
           return prev;
         }
-        return { pageId, state, actions };
+        return { pageId, state, actions, selectedElement };
       });
     },
     []
@@ -360,19 +371,23 @@ export function HeterogeneousMultiPage({
   const currentPage = pages[currentPageIndex];
   const activeConfig = currentPage ? loadedConfigs.get(currentPage.configId) : undefined;
 
-  // Use synced state/actions from PageWrapper
+  // Use synced state/actions/selectedElement from PageWrapper
   const activeState = activePageData?.pageId === currentPage?.id ? activePageData.state : null;
   const activeActions = activePageData?.pageId === currentPage?.id ? activePageData.actions : null;
+  const activeSelectedElement =
+    activePageData?.pageId === currentPage?.id ? activePageData.selectedElement : null;
 
   // Compute visible tabs for active config
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
     if (activeConfig.getVisibleTabs && activeState) {
-      const visibleIds = activeConfig.getVisibleTabs(activeState);
+      const visibleIds = activeConfig.getVisibleTabs(activeState, {
+        selectedElement: activeSelectedElement,
+      });
       return activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
     }
     return activeConfig.tabs;
-  }, [activeConfig, activeState]);
+  }, [activeConfig, activeState, activeSelectedElement]);
 
   // Compute disabled tabs for active config
   const disabledTabs = useMemo(() => {
@@ -382,6 +397,29 @@ export function HeterogeneousMultiPage({
     }
     return [];
   }, [activeConfig, activeState]);
+
+  // Auto-switch tabs based on config (e.g., switch to 'settings' when a balken is selected)
+  useEffect(() => {
+    if (!activeConfig?.getAutoSwitchTab) return;
+    const targetTab = activeConfig.getAutoSwitchTab(activeSelectedElement ?? null);
+    if (targetTab) {
+      setActiveTab((current) => {
+        if (current !== targetTab) {
+          prevTabRef.current = current;
+        }
+        return targetTab;
+      });
+    } else {
+      setActiveTab((current) => {
+        if (prevTabRef.current !== null && current !== prevTabRef.current) {
+          const restored = prevTabRef.current;
+          prevTabRef.current = null;
+          return restored;
+        }
+        return current;
+      });
+    }
+  }, [activeSelectedElement, activeConfig]);
 
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
@@ -444,7 +482,7 @@ export function HeterogeneousMultiPage({
 
     const SectionComponent = sectionConfig.component;
     const sectionProps = sectionConfig.propsFactory(activeState, activeActions, {
-      selectedElement: null,
+      selectedElement: activeSelectedElement,
       ...shareProps,
     });
 
@@ -491,7 +529,7 @@ export function HeterogeneousMultiPage({
 
   return (
     <CanvasEditorLayout sidebar={panel} tabBar={tabBar} actions={null}>
-      <div className="heterogeneous-multipage__pages-container">
+      <div className="heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs">
         {pages.map((page, index) => {
           const config = loadedConfigs.get(page.configId);
           if (!config) return null;
@@ -521,13 +559,15 @@ export function HeterogeneousMultiPage({
 
         {/* Add page button at the end */}
         {canAddMore && (
-          <div className="heterogeneous-multipage__add-page">
+          <div className="flex justify-center py-md px-sm mt-sm max-canvas-mobile:py-sm max-canvas-mobile:px-xs max-canvas-mobile:mt-xs">
             <AddPageButton
               onSelectTemplate={handleAddPage}
               onDuplicateCurrent={duplicateCurrentPage}
               currentTemplateId={pages[currentPageIndex]?.configId}
               disabled={!canAddMore}
-              onAddSliderVariant={pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined}
+              onAddSliderVariant={
+                pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined
+              }
             />
           </div>
         )}
@@ -536,4 +576,4 @@ export function HeterogeneousMultiPage({
   );
 }
 
-export default HeterogeneousMultiPage;
+export default CanvasEditor;

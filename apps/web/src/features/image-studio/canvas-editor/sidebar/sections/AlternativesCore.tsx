@@ -3,6 +3,21 @@ import { useState } from 'react';
 import { FaChevronDown } from 'react-icons/fa';
 
 import { SidebarHint } from '../components/SidebarHint';
+import {
+  SIDEBAR_SECTION,
+  SIDEBAR_SECTION_EMPTY,
+  ALTERNATIVES_LIST,
+  ALTERNATIVE_ITEM,
+  ALTERNATIVE_ITEM_ACTIVE,
+  CARD_GRID,
+  CARD_GRID_SINGLE_COL,
+  SELECTABLE_CARD_WITH_TEXT,
+  SELECTABLE_CARD_ACTIVE,
+  SECTION_TOGGLE,
+  SECTION_TOGGLE_OPEN,
+} from '../primitives';
+
+import { cn } from '@/utils/cn';
 
 interface AlternativesRendererProps<T> {
   alternatives: T[];
@@ -35,22 +50,25 @@ export function AlternativesRenderer<T>({
 
   if (alternatives.length === 0) {
     return (
-      <div className="sidebar-section sidebar-section--alternatives">
-        <p className="sidebar-section__empty">{emptyMessage}</p>
+      <div className={SIDEBAR_SECTION}>
+        <p className={SIDEBAR_SECTION_EMPTY}>{emptyMessage}</p>
       </div>
     );
   }
 
+  // Non-collapsible cards layout uses single-column grid with bordered cards (dreizeilen style)
+  const isDreizeilenCards = layout === 'cards' && !collapsible;
+
   const renderContent = () => {
     if (layout === 'pills') {
       return (
-        <div className="alternatives-list">
+        <div className={ALTERNATIVES_LIST}>
           {alternatives.map((alt, index) => {
             const active = isActive(alt, index);
             return (
               <button
                 key={index}
-                className={`alternative-item ${active ? 'alternative-item--active' : ''}`}
+                className={cn(ALTERNATIVE_ITEM, active && ALTERNATIVE_ITEM_ACTIVE)}
                 onClick={() => onSelect(alt, index)}
                 type="button"
                 title={getDisplayText(alt, index)}
@@ -63,7 +81,7 @@ export function AlternativesRenderer<T>({
       );
     } else {
       return (
-        <div className="sidebar-card-grid">
+        <div className={isDreizeilenCards ? CARD_GRID_SINGLE_COL : CARD_GRID}>
           {alternatives.map((alt, index) => {
             const active = isActive(alt, index);
             const displayText = getDisplayText(alt, index);
@@ -71,15 +89,24 @@ export function AlternativesRenderer<T>({
             return (
               <button
                 key={index}
-                className={`sidebar-selectable-card sidebar-selectable-card--with-text ${
-                  active ? 'sidebar-selectable-card--active' : ''
-                }`}
+                className={cn(
+                  SELECTABLE_CARD_WITH_TEXT,
+                  isDreizeilenCards && 'border-[var(--border-subtle)] bg-[var(--card-background)]',
+                  active &&
+                    (isDreizeilenCards ? 'bg-background-alt border-accent' : SELECTABLE_CARD_ACTIVE)
+                )}
                 onClick={() => onSelect(alt, index)}
                 type="button"
               >
-                <div className="sidebar-selectable-card__content">
-                  {isOriginal && <span className="sidebar-selectable-card__badge">Original</span>}
-                  <span className="sidebar-selectable-card__text">{displayText}</span>
+                <div className="flex-1 flex flex-col gap-[var(--spacing-xxsmall)] items-start">
+                  {isOriginal && (
+                    <span className="text-[length:var(--font-size-xxs)] font-semibold uppercase text-[var(--interactive-accent-color)] bg-background-alt py-0.5 px-1.5 rounded-[3px] tracking-[0.3px] max-canvas-mobile:text-[7px] max-canvas-mobile:py-px max-canvas-mobile:px-1">
+                      Original
+                    </span>
+                  )}
+                  <span className="flex-1 text-left text-[length:var(--font-size-small)] text-foreground leading-[1.4] max-canvas-mobile:text-[10px] max-canvas-mobile:leading-[1.3]">
+                    {displayText}
+                  </span>
                 </div>
                 {renderPreview && renderPreview(alt, index)}
               </button>
@@ -94,9 +121,9 @@ export function AlternativesRenderer<T>({
 
   if (collapsible) {
     return (
-      <div className="sidebar-section sidebar-section--alternatives">
+      <div className={SIDEBAR_SECTION}>
         <button
-          className={`sidebar-section-toggle ${isOpen ? 'sidebar-section-toggle--open' : ''}`}
+          className={cn(SECTION_TOGGLE, isOpen && SECTION_TOGGLE_OPEN)}
           onClick={() => setIsOpen(!isOpen)}
           type="button"
         >
@@ -123,7 +150,7 @@ export function AlternativesRenderer<T>({
   }
 
   return (
-    <div className="sidebar-section sidebar-section--dreizeilen-alternatives">
+    <div className={SIDEBAR_SECTION}>
       {content}
       {hintText && <SidebarHint>{hintText}</SidebarHint>}
     </div>
