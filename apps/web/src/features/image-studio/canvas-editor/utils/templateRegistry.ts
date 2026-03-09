@@ -60,6 +60,12 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Slider-Post mit Pill-Badge und Pfeil',
     previewImage: '/imagine/previews/slider-preview.webp',
   },
+  freeform: {
+    id: 'freeform',
+    label: 'Freies Design',
+    description: 'Leere Leinwand zum freien Gestalten',
+    previewImage: '/imagine/previews/freeform-preview.webp',
+  },
 };
 
 /**
@@ -81,12 +87,12 @@ export function getAllTemplates(): TemplateInfo[] {
  * Used to determine if background can be inherited
  */
 export function templateSupportsImageBackground(configId: CanvasConfigId): boolean {
-  return ['zitat', 'simple', 'veranstaltung', 'dreizeilen'].includes(configId);
+  return ['zitat', 'simple', 'veranstaltung', 'dreizeilen', 'freeform'].includes(configId);
 }
 
 /**
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure', 'slider'].includes(configId);
+  return ['info', 'zitat-pure', 'slider', 'freeform'].includes(configId);
 }

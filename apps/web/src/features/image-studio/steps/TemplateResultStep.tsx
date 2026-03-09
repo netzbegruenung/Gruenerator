@@ -7,8 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { DreizeilenCanvas } from '../canvas-editor';
-import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
+import { ControllableCanvasWrapper } from '../canvas-editor/CanvasEditorRouter';
 import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
 import { EditPanel } from '../components/EditPanel';
 import { Lightbox } from '../components/Lightbox';
@@ -30,8 +29,8 @@ import {
 } from '../utils/typeConfig';
 
 import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
-import type { InitialPageDef } from '../canvas-editor/hooks/useHeterogeneousMultiPage';
 import type { CanvasConfigId } from '../canvas-editor/configs/types';
+import type { InitialPageDef } from '../canvas-editor/hooks/usePageManager';
 import type {
   TemplateResultStepProps,
   SloganAlternativeWithIndex,
@@ -46,6 +45,7 @@ const CANVAS_SUPPORTED_TYPES = [
   IMAGE_STUDIO_TYPES.INFO,
   IMAGE_STUDIO_TYPES.VERANSTALTUNG,
   IMAGE_STUDIO_TYPES.SLIDER,
+  IMAGE_STUDIO_TYPES.FREEFORM,
 ] as const;
 
 import './TemplateResultStep.css';
@@ -242,19 +242,23 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     switch (type) {
       case IMAGE_STUDIO_TYPES.DREIZEILEN:
         return (
-          <DreizeilenCanvas
-            line1={line1 || ''}
-            line2={line2 || ''}
-            line3={line3 || ''}
+          <ControllableCanvasWrapper
+            type="dreizeilen"
+            initialState={{
+              line1: line1 || '',
+              line2: line2 || '',
+              line3: line3 || '',
+              currentImageSrc: uploadedImageUrl || '',
+              alternatives: sloganAlternatives.map(
+                (alt, index): DreizeilenAlternative => ({
+                  id: `alt-${index}`,
+                  line1: alt.line1 || '',
+                  line2: alt.line2 || '',
+                  line3: alt.line3 || '',
+                })
+              ),
+            }}
             imageSrc={uploadedImageUrl}
-            alternatives={sloganAlternatives.map(
-              (alt, index): DreizeilenAlternative => ({
-                id: `alt-${index}`,
-                line1: alt.line1 || '',
-                line2: alt.line2 || '',
-                line3: alt.line3 || '',
-              })
-            )}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
           />
@@ -349,14 +353,22 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
                           label: alt.label || 'Wusstest du?',
                           headline: alt.headline || '',
                           subtext: alt.subtext || '',
-                          slideVariant:
-                            index < sloganAlternatives.length - 2 ? 'content' : 'cover',
+                          slideVariant: index < sloganAlternatives.length - 2 ? 'content' : 'cover',
                         },
                       })
                     ),
                   ]
                 : undefined
             }
+          />
+        );
+      case IMAGE_STUDIO_TYPES.FREEFORM:
+        return (
+          <ControllableCanvasWrapper
+            type="freeform"
+            initialState={{}}
+            onExport={handleCanvasExport}
+            onCancel={handleCanvasCancel}
           />
         );
       default:
