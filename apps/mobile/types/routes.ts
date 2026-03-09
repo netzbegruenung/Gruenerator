@@ -26,7 +26,6 @@ export type AppRoute =
   | '/(tabs)/(tools)/barrierefreiheit'
   // Modal routes
   | '/(modals)/gruenerator-chat'
-  | '/(modals)/edit-chat'
   // Auth routes
   | '/(auth)/login'
   | '/auth/callback'
@@ -44,9 +43,6 @@ export type AppRoute =
  * Modal routes that accept parameters
  */
 export interface ModalRouteParams {
-  '/(modals)/edit-chat': {
-    componentName: string;
-  };
   '/(modals)/gruenerator-chat': {
     initialMessage?: string;
   };
