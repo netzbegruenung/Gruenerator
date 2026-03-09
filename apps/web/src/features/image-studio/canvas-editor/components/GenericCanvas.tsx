@@ -232,7 +232,10 @@ function GenericCanvasWithRef<
         return stageRef.current?.toDataURL(options);
       },
       captureCanvas: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        if (selectedElement) {
+          setSelectedElement(null);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
         return stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 }) ?? null;
       },
       getState: () => state as Record<string, unknown>,
@@ -259,7 +262,7 @@ function GenericCanvasWithRef<
 
   useEffect(() => {
     // Skip initial render, invalid states, and when already exporting
-    if (historyIndex < 0 || isExporting) return;
+    if (historyIndex < 0 || isExporting || selectedElement) return;
     // Skip if already saved for this history index
     if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
@@ -275,7 +278,7 @@ function GenericCanvasWithRef<
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [historyIndex, isExporting]);
+  }, [historyIndex, isExporting, selectedElement]);
 
   const elementHandlers = useCanvasElementHandlers({
     config,
