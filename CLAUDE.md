@@ -410,6 +410,26 @@ Affected utilities: `max-w-sm` (12px), `max-w-md` (16px), `max-w-lg` (24px), `ma
   ```
   Available semantic tokens: `text-foreground` (body), `text-foreground-heading` (headings), `bg-background`, `bg-background-alt`, `bg-background-pure`
 
+#### CSS Variable Names — Do NOT Invent Variables
+
+This project uses specific CSS variable names defined in `variables.css`. **Never use generic-sounding variable names that don't exist.** Common mistakes:
+
+| Wrong (undefined)       | Correct (defined)                                      |
+|-------------------------|--------------------------------------------------------|
+| `--text-primary`        | `--font-color` or Tailwind `text-foreground`           |
+| `--text-tertiary`       | `--font-color-muted` or Tailwind `text-grey-400`       |
+| `--border-default`      | `--border-subtle` or Tailwind `border-grey-200 dark:border-grey-700` |
+| `--border-color`        | `--card-border` / `--border-subtle` or Tailwind border tokens |
+| `--border-radius`       | Use Tailwind `rounded-lg` directly                     |
+| `--border-radius-medium`| Use Tailwind `rounded-lg` directly                     |
+| `--background-hover`    | `--hover-color-alt` or Tailwind `bg-hover-alt`         |
+| `--background-active`   | No variable — use Tailwind `bg-grey-100 dark:bg-grey-800` |
+| `--background-subtle`   | No variable — use Tailwind `bg-grey-100`               |
+| `--bg-color`            | `--background-color` or Tailwind `bg-background`       |
+| `--primary-color`       | `--primary-600` or Tailwind `text-primary-600`         |
+
+When in doubt, **prefer Tailwind utility classes** over CSS variables. Only use `var(--...)` for variables confirmed in `variables.css`.
+
 ### shadcn/ui Components
 
 **Prefer shadcn/ui** for new UI components whenever possible. Add components to the appropriate package (`packages/chat` for chat UI, `apps/web` for web-only UI). For chat features, **prefer Assistant UI (`@assistant-ui/react`)** primitives and components — use its built-in thread, composer, message, and runtime APIs before building custom alternatives.
