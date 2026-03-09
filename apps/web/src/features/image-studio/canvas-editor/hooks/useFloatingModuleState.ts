@@ -199,6 +199,12 @@ export function useFloatingModuleState<
           layout
         );
       }
+      if (!currentFill) {
+        const colorKey = (backgroundElement as { colorKey?: string }).colorKey;
+        if (colorKey) {
+          currentFill = getStateProperty<string>(state, colorKey);
+        }
+      }
 
       return {
         type: 'background' as const,
