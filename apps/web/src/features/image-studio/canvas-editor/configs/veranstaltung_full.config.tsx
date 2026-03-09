@@ -297,6 +297,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
 
   getVisibleTabs: () => ['image', 'assets', 'alternatives', 'share'],
 
+  getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
+
   getDisabledTabs: (state) =>
     isAlternativesEmpty(state, (s) => s.alternatives) ? ['alternatives'] : [],
 

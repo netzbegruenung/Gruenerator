@@ -119,6 +119,9 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
 
   getVisibleTabs: () => ['background', 'text', 'elements', 'share'],
 
+  getAutoSwitchTab: (selectedElement) =>
+    selectedElement?.startsWith('frame-') ? 'elements' : null,
+
   sections: {
     background: {
       component: BackgroundSection as unknown as React.ComponentType<Record<string, unknown>>,
