@@ -134,7 +134,11 @@ export async function getFieldValueCounts(
     }));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("doesn't exist") || message.includes('not found')) {
+    if (
+      message.includes("doesn't exist") ||
+      message.includes('not found') ||
+      message.includes('Bad Request')
+    ) {
       return [];
     }
     log.error(`Failed to get field value counts for ${fieldName} in ${collectionName}: ${message}`);
@@ -186,7 +190,11 @@ export async function getDateRange(
     return { min: extractDate(minResult), max: extractDate(maxResult) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("doesn't exist") || message.includes('not found')) {
+    if (
+      message.includes("doesn't exist") ||
+      message.includes('not found') ||
+      message.includes('Bad Request')
+    ) {
       return { min: null, max: null };
     }
     log.error(`Failed to get date range for ${fieldName} in ${collectionName}: ${message}`);
