@@ -13,7 +13,15 @@
 
 import type { FullCanvasConfig } from './types';
 
-type CanvasConfigType = 'zitat-pure' | 'info' | 'veranstaltung' | 'simple' | 'dreizeilen' | 'zitat' | 'slider';
+type CanvasConfigType =
+  | 'zitat-pure'
+  | 'info'
+  | 'veranstaltung'
+  | 'simple'
+  | 'dreizeilen'
+  | 'zitat'
+  | 'slider'
+  | 'freeform';
 
 // Use a flexible type that accepts any state/action types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +55,9 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'slider':
       return (await import('./slider_full.config')).sliderFullConfig;
 
+    case 'freeform':
+      return (await import('./freeform_full.config')).freeformFullConfig;
+
     default:
       throw new Error(`Unknown canvas type: ${type}`);
   }
@@ -56,5 +67,14 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
  * Check if a canvas type is valid
  */
 export function isValidCanvasType(type: string): type is CanvasConfigType {
-  return ['zitat-pure', 'info', 'veranstaltung', 'simple', 'dreizeilen', 'zitat', 'slider'].includes(type);
+  return [
+    'zitat-pure',
+    'info',
+    'veranstaltung',
+    'simple',
+    'dreizeilen',
+    'zitat',
+    'slider',
+    'freeform',
+  ].includes(type);
 }

@@ -64,9 +64,5 @@ export type {
   ExportProgress,
 } from './useMultiPageExport';
 
-export { useHeterogeneousMultiPage } from './useHeterogeneousMultiPage';
-export type {
-  InitialPageDef,
-  UseHeterogeneousMultiPageOptions,
-  UseHeterogeneousMultiPageReturn,
-} from './useHeterogeneousMultiPage';
+export { usePageManager } from './usePageManager';
+export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from './usePageManager';

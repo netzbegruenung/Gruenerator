@@ -8,6 +8,8 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
 export const TUS_UPLOAD_PATHS = ['/api/subtitler/upload'];
 
+const CUSTOM_BODY_PARSER_PATHS = ['/api/chat-graph/stream'];
+
 export interface BodyParserSkipConfig {
   skipPaths: string[];
 }
@@ -18,13 +20,16 @@ const defaultSkipConfig: BodyParserSkipConfig = {
 
 /**
  * Check if body parsing should be skipped for a request
- * Used for TUS uploads and other streaming endpoints that handle their own body parsing
+ * Used for TUS uploads, streaming endpoints, and routes with custom body size limits
  */
 export function shouldSkipBodyParser(
   req: Request,
   config: BodyParserSkipConfig = defaultSkipConfig
 ): boolean {
-  return config.skipPaths.some((path) => req.path.startsWith(path));
+  return (
+    config.skipPaths.some((path) => req.path.startsWith(path)) ||
+    CUSTOM_BODY_PARSER_PATHS.some((path) => req.path.startsWith(path))
+  );
 }
 
 /**

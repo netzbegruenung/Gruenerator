@@ -47,7 +47,11 @@ export function parseLabeledText(
   const allFields = [...upperFields, ...optionalFields.map((f) => f.toUpperCase())];
   const labelPattern = new RegExp(`^(${allFields.join('|')}):\\s*`, 'i');
 
-  const lines = cleanedContent.split('\n');
+  // Normalize: split mid-line labels onto their own lines
+  const splitPattern = new RegExp(`(\\S)\\s+(${allFields.join('|')}):\\s`, 'gi');
+  const normalizedContent = cleanedContent.replace(splitPattern, '$1\n$2: ');
+
+  const lines = normalizedContent.split('\n');
   let currentLabel: string | null = null;
   let currentValue: string[] = [];
 

@@ -132,6 +132,7 @@ export interface DreizeilenFullActions {
   addBalken: (mode: BalkenMode) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   removeBalken: (id: string) => void;
+  duplicateBalken: (id: string) => void;
 
   // === Pill Badge Actions ===
   addPillBadge: (preset?: string) => void;

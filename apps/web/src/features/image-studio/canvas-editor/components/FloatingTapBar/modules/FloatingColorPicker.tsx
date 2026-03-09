@@ -1,7 +1,8 @@
 import React from 'react';
 
 import { BRAND_COLORS } from '../../../utils/shapes';
-import '../FloatingTapBar.css';
+
+import { cn } from '@/utils/cn';
 
 interface FloatingColorPickerProps {
   currentColor: string;
@@ -10,6 +11,9 @@ interface FloatingColorPickerProps {
   onExpandChange?: (expanded: boolean) => void;
   colors?: typeof BRAND_COLORS;
 }
+
+const colorBtn =
+  'size-8 max-canvas-mobile:size-5 rounded-full border border-black/10 cursor-pointer p-0 relative transition-transform duration-150 shrink-0 hover:-translate-y-0.5 active:scale-90';
 
 export function FloatingColorPicker({
   currentColor,
@@ -24,7 +28,6 @@ export function FloatingColorPicker({
   const setIsExpanded = onExpandChange || setInternalExpanded;
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  // Auto-collapse on click outside
   React.useEffect(() => {
     if (!isExpanded) return;
 
@@ -48,14 +51,17 @@ export function FloatingColorPicker({
     };
   }, [isExpanded]);
 
-  // Reset state if current color changes externally (optional, but good for sync)
-  // Actually, we probably want to keep it as is unless explicitly closed.
-
   if (!isExpanded) {
     return (
-      <div className="floating-color-picker floating-color-picker--collapsed" ref={containerRef}>
+      <div
+        className="flex items-center gap-2 px-1 max-canvas-mobile:gap-1 max-canvas-mobile:px-0.5"
+        ref={containerRef}
+      >
         <button
-          className="floating-color-btn floating-color-trigger"
+          className={cn(
+            colorBtn,
+            'border-2 border-grey-200 dark:border-grey-700 shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
+          )}
           style={{ backgroundColor: currentColor }}
           onClick={(e) => {
             e.stopPropagation();
@@ -71,19 +77,22 @@ export function FloatingColorPicker({
   }
 
   return (
-    <div className="floating-color-picker floating-color-picker--expanded" ref={containerRef}>
+    <div
+      className="flex items-center gap-2 px-1 animate-canvas-expand-width max-canvas-mobile:gap-1 max-canvas-mobile:px-0.5"
+      ref={containerRef}
+    >
       {colorOptions.map((color) => (
         <button
           key={color.id}
-          className={`floating-color-btn ${currentColor === color.value ? 'floating-color-btn--active' : ''}`}
+          className={cn(
+            colorBtn,
+            currentColor === color.value &&
+              'scale-110 border-primary-600 z-[1] after:content-[""] after:absolute after:-inset-1 after:border-2 after:border-primary-600 after:rounded-full after:animate-[scaleIn_0.2s_ease-out]'
+          )}
           style={{ backgroundColor: color.value }}
           onClick={(e) => {
             e.stopPropagation();
             onColorSelect(color.value);
-            // Optional: Close on select? Or keep open for browsing?
-            // "Best Practice" usually allows rapid browsing, so keeping open is better.
-            // Can click trigger (which is now part of the list if we render it differently, or just the list itself) to close?
-            // Let's rely on click-outside to close for a better UX.
           }}
           title={color.name}
           type="button"

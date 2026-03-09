@@ -17,7 +17,6 @@ import { CanvasEditorLayout } from './layouts';
 import { SidebarTabBar } from './sidebar';
 
 import type Konva from 'konva';
-import './ProfilbildCanvas.css';
 
 interface ImageState {
   x: number;
@@ -144,8 +143,8 @@ export function ProfilbildCanvas({
 
   if (!image || !imageState) {
     return (
-      <div className="profilbild-canvas-loading">
-        <div className="loading-spinner" />
+      <div className="flex flex-col items-center justify-center gap-md min-h-[300px] text-foreground-secondary">
+        <div className="w-[40px] h-[40px] border-3 border-grey-300 border-t-primary-600 rounded-full animate-spin" />
         <p>Bild wird geladen...</p>
       </div>
     );
@@ -154,7 +153,7 @@ export function ProfilbildCanvas({
   return (
     <CanvasEditorLayout sidebar={null} tabBar={tabBar} actions={null}>
       <div
-        className="profilbild-canvas-wrapper"
+        className="rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.15)] cursor-grab active:cursor-grabbing"
         style={{ width: containerSize.width, height: containerSize.height }}
       >
         <Stage

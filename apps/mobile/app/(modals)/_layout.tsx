@@ -26,13 +26,6 @@ export default function ModalsLayout() {
       }}
     >
       <Stack.Screen
-        name="edit-chat"
-        options={{
-          headerShown: false,
-          presentation: 'fullScreenModal',
-        }}
-      />
-      <Stack.Screen
         name="gruenerator-chat"
         options={{
           headerShown: false,

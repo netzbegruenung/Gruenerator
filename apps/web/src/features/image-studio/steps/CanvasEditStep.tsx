@@ -3,13 +3,13 @@ import React, { useEffect } from 'react';
 
 import useSidebarStore from '../../../stores/sidebarStore';
 import { ProfilbildCanvas } from '../canvas-editor';
-import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
+import { ControllableCanvasWrapper } from '../canvas-editor/CanvasEditorRouter';
 import { slideVariants } from '../components/StepFlow';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 
 import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
-import type { InitialPageDef } from '../canvas-editor/hooks/useHeterogeneousMultiPage';
 import type { CanvasConfigId } from '../canvas-editor/configs/types';
+import type { InitialPageDef } from '../canvas-editor/hooks/usePageManager';
 
 interface CanvasEditTypeConfig {
   id?: string;
@@ -248,6 +248,26 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
         </motion.div>
       )}
 
+      {typeConfig?.id === IMAGE_STUDIO_TYPES.FREEFORM && (
+        <motion.div
+          key={currentStepId}
+          custom={direction}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="typeform-field typeform-field--canvas-edit"
+        >
+          <ControllableCanvasWrapper
+            type="freeform"
+            initialState={{}}
+            onExport={handleCanvasExport}
+            onCancel={handleBack}
+          />
+        </motion.div>
+      )}
+
       {typeConfig?.id === IMAGE_STUDIO_TYPES.SLIDER && (
         <motion.div
           key={currentStepId}
@@ -288,8 +308,7 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                           label: alt.label || 'Wusstest du?',
                           headline: alt.headline || '',
                           subtext: alt.subtext || '',
-                          slideVariant:
-                            index < sloganAlternatives.length - 2 ? 'content' : 'last',
+                          slideVariant: index < sloganAlternatives.length - 2 ? 'content' : 'last',
                         },
                       })
                     ),

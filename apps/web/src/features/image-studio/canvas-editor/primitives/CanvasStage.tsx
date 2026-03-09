@@ -19,7 +19,8 @@ import { Stage, Layer } from 'react-konva';
 
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
-import './CanvasStage.css';
+
+import { cn } from '@/utils/cn';
 
 export interface CanvasStageProps {
   width: number;
@@ -144,7 +145,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         {/* Display Stage - Visible, interactive, responsively scaled */}
         <div
           ref={containerDivRef}
-          className={`canvas-stage-container ${className || ''}`}
+          className={cn('canvas-stage-container relative', className)}
           style={{
             width: containerSize.width,
             height: containerSize.height,

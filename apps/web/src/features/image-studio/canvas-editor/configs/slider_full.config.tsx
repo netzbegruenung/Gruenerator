@@ -384,6 +384,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
 
   getVisibleTabs: () => ['background', 'assets', 'share'],
 
+  getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
+
   sections: {
     background: {
       component: BackgroundSection,

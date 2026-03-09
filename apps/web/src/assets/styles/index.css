@@ -269,7 +269,12 @@
   --color-relevance-medium: #ca8a04;
   --color-relevance-low: #dc2626;
 
+  /* Canvas Editor Layout */
+  --image-studio-tab-bar-width: 64px;
+  --mobile-tab-bar-height: 60px;
+
   /* Custom Breakpoints (xl: 1280px is Tailwind default) */
+  --breakpoint-canvas-mobile: 900px;
   --breakpoint-3xl: 1440px;
   --breakpoint-4xl: 1920px;
   --breakpoint-5xl: 2560px;
@@ -282,6 +287,15 @@
   --animate-bounce-gentle: bounce-gentle 0.5s ease infinite alternate;
   --animate-spin-slow: spin-slow 2s linear infinite;
   --animate-breathe: breathe 1.5s ease-in-out infinite;
+
+  /* Canvas Editor Animations */
+  --animate-canvas-slide-down-fade: slideDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-canvas-slide: canvas-slide 1.5s ease-in-out infinite;
+  --animate-canvas-pulse: canvas-pulse 1.5s ease-in-out infinite;
+  --animate-canvas-expand-width: expandWidth 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-auto-save-spin: auto-save-spin 0.8s linear infinite;
+  --animate-auto-save-check: auto-save-check-in 0.3s ease;
+  --animate-subsection-fade-in: subsectionFadeIn 0.15s ease-out;
 
   /* ── Standard shadcn semantic tokens (required by packages/chat UI primitives) ── */
   --color-primary-foreground: #ffffff;
@@ -387,4 +401,55 @@
 @keyframes breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
+}
+
+/* ── Canvas Editor Keyframe Animations ── */
+
+@keyframes slideDownFade {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes expandWidth {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes canvas-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+@keyframes canvas-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes auto-save-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes auto-save-check-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes subsectionFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sidebar-hint-popup-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes flyout-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }

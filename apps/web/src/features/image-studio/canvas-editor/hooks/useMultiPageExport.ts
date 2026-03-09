@@ -46,7 +46,7 @@ export function useMultiPageExport({
     for (let i = 0; i < canvasRefs.length; i++) {
       const ref = canvasRefs[i];
       if (ref.current) {
-        const dataUrl = ref.current.toDataURL({ format: 'png', pixelRatio: 2 });
+        const dataUrl = await ref.current.captureCanvas();
         if (dataUrl) {
           images.push(dataUrl);
         }

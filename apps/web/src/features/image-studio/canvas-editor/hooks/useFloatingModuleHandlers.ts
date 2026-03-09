@@ -109,8 +109,10 @@ export function useFloatingModuleHandlers<
         const elementConfig = config.elements.find((e) => e.id === id);
         if (elementConfig && elementConfig.type === 'background') {
           const fillStateKey = elementConfig.fillStateKey as string | undefined;
-          if (fillStateKey) {
-            const next = { ...state, [fillStateKey]: color };
+          const colorKey = (elementConfig as { colorKey?: string }).colorKey;
+          const stateKey = fillStateKey || colorKey;
+          if (stateKey) {
+            const next = { ...state, [stateKey]: color };
             setState(() => next);
             debouncedSaveToHistory(next);
           }

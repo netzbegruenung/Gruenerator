@@ -29,6 +29,7 @@ export type SidebarTabId =
   | 'assets'
   | 'image'
   | 'position'
+  | 'settings'
   | 'image-background';
 
 export interface SidebarTab {

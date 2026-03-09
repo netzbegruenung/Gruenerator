@@ -1,9 +1,8 @@
 /**
- * useHeterogeneousMultiPage - Hook for heterogeneous multi-page canvas management
+ * usePageManager - Hook for multi-page canvas management
  *
- * Unlike useMultiPageCanvas which requires all pages to share the same template/config,
- * this hook allows each page to have a different template type. This enables creating
- * documents that mix Zitat, Dreizeilen, Info slides, etc.
+ * Each page can have a different template type, enabling documents
+ * that mix Zitat, Dreizeilen, Info slides, etc.
  *
  * Key features:
  * - Each page stores its own configId (template type) + state
@@ -24,7 +23,7 @@ export interface InitialPageDef {
   state: Record<string, unknown>;
 }
 
-export interface UseHeterogeneousMultiPageOptions {
+export interface UsePageManagerOptions {
   initialConfigId: CanvasConfigId;
   initialProps: Record<string, unknown>;
   maxPages?: number;
@@ -32,12 +31,16 @@ export interface UseHeterogeneousMultiPageOptions {
   initialPages?: InitialPageDef[];
 }
 
-export interface UseHeterogeneousMultiPageReturn {
+export interface UsePageManagerReturn {
   pages: HeterogeneousPage[];
   currentPageIndex: number;
   setCurrentPageIndex: (index: number) => void;
   currentPage: HeterogeneousPage | undefined;
-  addPage: (configId: CanvasConfigId, inheritBackground?: boolean, stateOverrides?: Record<string, unknown>) => Promise<void>;
+  addPage: (
+    configId: CanvasConfigId,
+    inheritBackground?: boolean,
+    stateOverrides?: Record<string, unknown>
+  ) => Promise<void>;
   duplicateCurrentPage: () => void;
   removePage: (id: string) => void;
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
@@ -80,12 +83,12 @@ function extractInheritableBackground(state: Record<string, unknown>): Record<st
   return inheritableProps;
 }
 
-export function useHeterogeneousMultiPage({
+export function usePageManager({
   initialConfigId,
   initialProps,
   maxPages = 10,
   initialPages,
-}: UseHeterogeneousMultiPageOptions): UseHeterogeneousMultiPageReturn {
+}: UsePageManagerOptions): UsePageManagerReturn {
   // Config cache - loaded configs are stored here to avoid re-fetching
   const configCacheRef = useRef<Map<CanvasConfigId, FullCanvasConfig>>(new Map());
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
@@ -148,7 +151,11 @@ export function useHeterogeneousMultiPage({
    * @param inheritBackground - Whether to copy background from current page
    */
   const addPage = useCallback(
-    async (configId: CanvasConfigId, inheritBackground = true, stateOverrides?: Record<string, unknown>) => {
+    async (
+      configId: CanvasConfigId,
+      inheritBackground = true,
+      stateOverrides?: Record<string, unknown>
+    ) => {
       if (!canAddMore) return;
 
       // Load the config for the new page

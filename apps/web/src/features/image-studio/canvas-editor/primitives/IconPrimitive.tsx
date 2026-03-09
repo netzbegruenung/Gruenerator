@@ -61,12 +61,9 @@ function IconPrimitiveInner({
 
   if (!image) return null;
 
-  // Use initial scale to bring 200px down to reasonable default (e.g. 50px)
-  // 200 * 0.25 = 50.
-  // We multiply state.scale by this base factor.
   const BASE_SIZE = 200;
-  const TARGET_SIZE = 50;
-  const baseScale = TARGET_SIZE / BASE_SIZE; // 0.25
+  const TARGET_SIZE = 120;
+  const baseScale = TARGET_SIZE / BASE_SIZE;
 
   return (
     <>

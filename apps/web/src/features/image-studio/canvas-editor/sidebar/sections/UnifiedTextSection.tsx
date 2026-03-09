@@ -18,10 +18,11 @@ import { useCallback, useRef, useEffect } from 'react';
 import { FaMinus, FaPlus } from 'react-icons/fa';
 
 import { SidebarHint } from '../components/SidebarHint';
+import { SIDEBAR_SECTION } from '../primitives';
 
 import type { TextFieldConfig } from '../../configs/unifiedTabs';
 
-import './UnifiedTextSection.css';
+import { cn } from '@/utils/cn';
 
 // ============================================================================
 // TYPES
@@ -68,10 +69,10 @@ function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSizeStepp
   };
 
   return (
-    <div className="unified-font-size-stepper">
+    <div className="flex items-center gap-0.5 bg-grey-100 dark:bg-grey-800 rounded-full p-0.5 max-canvas-mobile:[&_button]:w-5 max-canvas-mobile:[&_button]:h-5">
       <button
         type="button"
-        className="unified-font-size-stepper__btn"
+        className="w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-grey-100 active:not-disabled:dark:bg-grey-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
         onClick={handleDecrement}
         disabled={value <= min}
         aria-label="Schriftgröße verringern"
@@ -80,7 +81,7 @@ function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSizeStepp
       </button>
       <input
         type="number"
-        className="unified-font-size-stepper__input"
+        className="w-9 h-6 border-none bg-transparent text-center text-[0.8125rem] font-semibold text-foreground tabular-nums p-0 [appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none max-canvas-mobile:w-8 max-canvas-mobile:h-5 max-canvas-mobile:text-xs"
         value={Math.round(value)}
         onChange={handleInputChange}
         min={min}
@@ -89,7 +90,7 @@ function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSizeStepp
       />
       <button
         type="button"
-        className="unified-font-size-stepper__btn"
+        className="w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-grey-100 active:not-disabled:dark:bg-grey-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
         onClick={handleIncrement}
         disabled={value >= max}
         aria-label="Schriftgröße erhöhen"
@@ -142,11 +143,11 @@ function AutoExpandTextarea({
   };
 
   return (
-    <div className="unified-textarea-wrapper">
+    <div className="relative">
       <textarea
         ref={textareaRef}
         id={id}
-        className="unified-textarea"
+        className="w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] text-[0.9375rem] font-[inherit] text-foreground bg-background border border-grey-200 dark:border-grey-700 rounded-lg outline-none resize-none overflow-hidden leading-relaxed transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted"
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
@@ -154,7 +155,7 @@ function AutoExpandTextarea({
         maxLength={maxLength}
       />
       {maxLength && (
-        <div className="unified-textarea__count">
+        <div className="absolute bottom-[var(--spacing-small)] right-[var(--spacing-small)] text-xs text-foreground-muted bg-background px-[var(--spacing-xxsmall)] rounded-[var(--border-radius-small)]">
           {value.length} / {maxLength}
         </div>
       )}
@@ -181,14 +182,12 @@ function TextField({ config, value, onChange, fontSize, onFontSizeChange }: Text
   const showFontSizeControl = fontSize !== undefined && onFontSizeChange !== undefined;
 
   return (
-    <div className="unified-text-field">
-      <div className="unified-text-field__header">
-        <label htmlFor={fieldId} className="unified-text-field__label">
+    <div className="flex flex-col gap-[var(--spacing-small)]">
+      <div className="flex justify-between items-center min-h-7 max-canvas-mobile:flex-wrap max-canvas-mobile:gap-[var(--spacing-small)]">
+        <label htmlFor={fieldId} className="text-sm font-semibold text-foreground">
           {label}
         </label>
-        {showFontSizeControl && (
-          <FontSizeStepper value={fontSize} onChange={onFontSizeChange} />
-        )}
+        {showFontSizeControl && <FontSizeStepper value={fontSize} onChange={onFontSizeChange} />}
       </div>
 
       {multiline ? (
@@ -204,7 +203,7 @@ function TextField({ config, value, onChange, fontSize, onFontSizeChange }: Text
         <input
           id={fieldId}
           type="text"
-          className="unified-text-input"
+          className="w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] text-[0.9375rem] font-[inherit] text-foreground bg-background border border-grey-200 dark:border-grey-700 rounded-lg outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted"
           value={value}
           onChange={(e) => {
             const newValue = e.target.value;
@@ -231,16 +230,22 @@ export function UnifiedTextSection({
   onFontSizeChange,
 }: UnifiedTextSectionProps) {
   return (
-    <div className="sidebar-section sidebar-section--unified-text">
-      <div className="unified-text-fields">
+    <div
+      className={cn(
+        SIDEBAR_SECTION,
+        'gap-[var(--spacing-medium)] p-[var(--spacing-medium)] max-canvas-mobile:p-[var(--spacing-small)]'
+      )}
+    >
+      <div className="flex flex-col gap-[var(--spacing-large)] max-canvas-mobile:gap-[var(--spacing-medium)]">
         {textFields.map((fieldConfig) => {
           const fontSize = fieldConfig.fontSizeStateKey
             ? fontSizes?.[fieldConfig.fontSizeStateKey]
             : undefined;
 
-          const handleFontSizeChange = fieldConfig.fontSizeStateKey && onFontSizeChange
-            ? (size: number) => onFontSizeChange(fieldConfig.fontSizeStateKey!, size)
-            : undefined;
+          const handleFontSizeChange =
+            fieldConfig.fontSizeStateKey && onFontSizeChange
+              ? (size: number) => onFontSizeChange(fieldConfig.fontSizeStateKey!, size)
+              : undefined;
 
           return (
             <TextField
@@ -256,8 +261,8 @@ export function UnifiedTextSection({
       </div>
 
       <SidebarHint>
-        Klicke auf den Text im Canvas, um ihn direkt zu bearbeiten.
-        Du kannst Texte auch per Drag & Drop verschieben.
+        Klicke auf den Text im Canvas, um ihn direkt zu bearbeiten. Du kannst Texte auch per Drag &
+        Drop verschieben.
       </SidebarHint>
     </div>
   );

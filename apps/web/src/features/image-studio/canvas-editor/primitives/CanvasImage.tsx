@@ -16,7 +16,6 @@ import Konva from 'konva';
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
 
-
 import { calculateElementSnapPosition } from '../utils/snapping';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
@@ -47,6 +46,10 @@ export interface CanvasImageProps {
   listening?: boolean;
   color?: string;
   constrainToBounds?: boolean;
+  /** Brightness adjustment (-1 to 1, default 0) */
+  brightness?: number;
+  /** Apply grayscale filter */
+  grayscale?: boolean;
 }
 
 const DEFAULT_IMAGE_ANCHORS: TransformAnchor[] = [
@@ -81,6 +84,8 @@ function CanvasImageInner({
   listening,
   color,
   constrainToBounds = true,
+  brightness = 0,
+  grayscale = false,
 }: CanvasImageProps) {
   const imageRef = useRef<Konva.Image>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -102,10 +107,9 @@ function CanvasImageInner({
 
   useEffect(() => {
     if (imageRef.current && image) {
-      // Small timeout to ensure image is ready or just cache
       imageRef.current.cache();
     }
-  }, [image, width, height, color]);
+  }, [image, width, height, color, brightness, grayscale]);
 
   // Handler for drag start - set dragging flag
   const handleDragStart = useCallback(() => {
@@ -317,10 +321,17 @@ function CanvasImageInner({
         onTransform={handleTransform}
         onTransformEnd={handleTransformEnd}
         listening={listening}
-        filters={color ? [Konva.Filters.RGB] : []}
+        filters={(() => {
+          const f: Array<((this: Konva.Node, imageData: ImageData) => void) | string> = [];
+          if (color) f.push(Konva.Filters.RGB);
+          if (brightness !== 0) f.push(Konva.Filters.Brighten);
+          if (grayscale) f.push(Konva.Filters.Grayscale);
+          return f;
+        })()}
         red={color ? parseInt(color.slice(1, 3), 16) : undefined}
         green={color ? parseInt(color.slice(3, 5), 16) : undefined}
         blue={color ? parseInt(color.slice(5, 7), 16) : undefined}
+        brightness={brightness !== 0 ? brightness : undefined}
       />
       {selected && (
         <Transformer
@@ -358,7 +369,9 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'snapToCenter',
     'listening',
     'constrainToBounds',
-    'color', // Include color for RGB filter changes
+    'color',
+    'brightness',
+    'grayscale',
   ];
 
   for (const key of keysToCompare) {
