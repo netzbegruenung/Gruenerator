@@ -4,7 +4,16 @@ import { FaCheck } from 'react-icons/fa';
 import Spinner from '../../../../../components/common/Spinner';
 import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
 import { ALL_ICONS } from '../../utils/canvasIcons';
-import './IconsSection.css';
+import {
+  CARD_GRID,
+  CARD_CHECK_SMALL,
+  CARD_PREVIEW,
+  SELECTABLE_CARD,
+  SELECTABLE_CARD_DISABLED,
+  SIDEBAR_SECTION,
+} from '../primitives';
+
+import { cn } from '@/utils/cn';
 
 export interface IconsSectionProps {
   selectedIcons: string[];
@@ -66,8 +75,8 @@ export function IconsSection({
   );
 
   return (
-    <div className="sidebar-section sidebar-section--icons">
-      <div className="sidebar-card-grid">
+    <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+      <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(48px,1fr))]')}>
         {icons.map((icon) => {
           if (!icon) return null;
           const IconComponent = icon.component;
@@ -78,15 +87,15 @@ export function IconsSection({
             <button
               key={icon.id}
               type="button"
-              className={`sidebar-selectable-card ${isDisabled ? 'sidebar-selectable-card--disabled' : ''}`}
+              className={cn(SELECTABLE_CARD, isDisabled && SELECTABLE_CARD_DISABLED)}
               onClick={() => handleIconClick(icon.id)}
               title={icon.name}
               disabled={isDisabled}
             >
-              <div className="sidebar-selectable-card__preview">
+              <div className={cn(CARD_PREVIEW, 'text-[var(--font-color)]')}>
                 <IconComponent size={24} />
                 {isSelected && (
-                  <span className="sidebar-selectable-card__check sidebar-selectable-card__check--small">
+                  <span className={CARD_CHECK_SMALL}>
                     <FaCheck size={8} />
                   </span>
                 )}
@@ -98,7 +107,7 @@ export function IconsSection({
 
       {isExpanded && (
         <>
-          <div ref={sentinelRef} className="icons-sentinel" />
+          <div ref={sentinelRef} className="h-px w-full" />
           {hasMore && <Spinner size="small" />}
         </>
       )}

@@ -2,7 +2,9 @@ import React from 'react';
 import { PiStarFill, PiHeartFill, PiCloudFill, PiArrowRightBold } from 'react-icons/pi';
 
 import { type ShapeType } from '../../utils/shapes';
-import './FormenSection.css';
+import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../primitives';
+
+import { cn } from '@/utils/cn';
 
 export interface FormenSectionProps {
   onAddShape: (type: ShapeType) => void;
@@ -19,17 +21,28 @@ const SHAPES: ShapeDefinition[] = [
   {
     id: 'rect',
     title: 'Rechteck hinzufügen',
-    renderPreview: () => <div className="formen-preview formen-preview--rect" />,
+    renderPreview: () => <div className="w-[24px] h-[24px] bg-[var(--font-color)] shrink-0" />,
   },
   {
     id: 'circle',
     title: 'Kreis hinzufügen',
-    renderPreview: () => <div className="formen-preview formen-preview--circle" />,
+    renderPreview: () => (
+      <div className="w-[24px] h-[24px] bg-[var(--font-color)] shrink-0 rounded-full" />
+    ),
   },
   {
     id: 'triangle',
     title: 'Dreieck hinzufügen',
-    renderPreview: () => <div className="formen-preview formen-preview--triangle" />,
+    renderPreview: () => (
+      <div
+        className="w-0 h-0 shrink-0"
+        style={{
+          borderLeft: '12px solid transparent',
+          borderRight: '12px solid transparent',
+          borderBottom: '24px solid var(--font-color)',
+        }}
+      />
+    ),
   },
   { id: 'arrow', title: 'Pfeil hinzufügen', renderPreview: () => <PiArrowRightBold size={24} /> },
   { id: 'star', title: 'Stern hinzufügen', renderPreview: () => <PiStarFill size={24} /> },
@@ -41,16 +54,16 @@ export function FormenSection({ onAddShape, isExpanded = false }: FormenSectionP
   const visibleShapes = isExpanded ? SHAPES : SHAPES.slice(0, 4);
 
   return (
-    <div className="sidebar-section sidebar-section--formen">
-      <div className="sidebar-card-grid">
+    <div className={cn(SIDEBAR_SECTION, 'gap-md max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+      <div className={CARD_GRID}>
         {visibleShapes.map((shape) => (
           <button
             key={shape.id}
-            className="sidebar-selectable-card"
+            className={SELECTABLE_CARD}
             onClick={() => onAddShape(shape.id)}
             title={shape.title}
           >
-            <div className="sidebar-selectable-card__preview">{shape.renderPreview()}</div>
+            <div className={CARD_PREVIEW}>{shape.renderPreview()}</div>
           </button>
         ))}
       </div>

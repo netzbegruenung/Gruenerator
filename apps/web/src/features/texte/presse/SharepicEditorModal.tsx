@@ -1,19 +1,12 @@
-import React, { useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useEffect, useCallback, useMemo, Suspense } from 'react';
 
 import Spinner from '../../../components/common/Spinner';
 import { useCanvasEditorStore } from '../../../stores/canvasEditorStore';
-import { ControllableCanvasWrapper } from '../../image-studio/canvas-editor/ControllableCanvasWrapper';
+import { ControllableCanvasWrapper } from '../../image-studio/canvas-editor/CanvasEditorRouter';
 
 import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
 import type { DreizeilenAlternative } from '../../image-studio/canvas-editor/configs/dreizeilen.types';
 import './SharepicEditorModal.css';
-
-// Lazy load DreizeilenCanvas (kept as special case)
-const DreizeilenCanvas = lazy(() =>
-  import('../../image-studio/canvas-editor/composed/DreizeilenCanvas').then((m) => ({
-    default: m.DreizeilenCanvas,
-  }))
-);
 
 type SharepicType = 'dreizeilen' | 'headline' | 'zitat' | 'zitat_pure' | 'info' | 'veranstaltung';
 
@@ -127,7 +120,6 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
       case 'headline': {
         const lines = parseLines(sharepic.text);
         const rawAlternatives = (sharepic.alternatives || []) as unknown[];
-        // Map alternatives to add required id field
         const alternatives: DreizeilenAlternative[] = rawAlternatives.map(
           (alt: unknown, index: number) => ({
             id: `alt-${index}`,
@@ -137,12 +129,16 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
           })
         );
         return (
-          <DreizeilenCanvas
-            line1={(sharepic.line1 as string) || lines[0] || ''}
-            line2={(sharepic.line2 as string) || lines[1] || ''}
-            line3={(sharepic.line3 as string) || lines[2] || ''}
+          <ControllableCanvasWrapper
+            type="dreizeilen"
+            initialState={{
+              line1: (sharepic.line1 as string) || lines[0] || '',
+              line2: (sharepic.line2 as string) || lines[1] || '',
+              line3: (sharepic.line3 as string) || lines[2] || '',
+              currentImageSrc: imageSrc,
+              alternatives,
+            }}
             imageSrc={imageSrc}
-            alternatives={alternatives}
             onExport={handleExport}
             onCancel={handleCancel}
           />
@@ -240,12 +236,16 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
       default: {
         const lines = parseLines(sharepic.text);
         return (
-          <DreizeilenCanvas
-            line1={lines[0] || ''}
-            line2={lines[1] || ''}
-            line3={lines[2] || ''}
+          <ControllableCanvasWrapper
+            type="dreizeilen"
+            initialState={{
+              line1: lines[0] || '',
+              line2: lines[1] || '',
+              line3: lines[2] || '',
+              currentImageSrc: imageSrc,
+              alternatives: [],
+            }}
             imageSrc={imageSrc}
-            alternatives={[]}
             onExport={handleExport}
             onCancel={handleCancel}
           />

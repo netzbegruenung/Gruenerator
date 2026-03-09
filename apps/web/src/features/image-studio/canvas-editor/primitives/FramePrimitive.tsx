@@ -149,8 +149,6 @@ function FramePrimitiveInner({
         ref={groupRef}
         x={frame.x}
         y={frame.y}
-        width={w}
-        height={h}
         rotation={frame.rotation}
         scaleX={frame.scaleX}
         scaleY={frame.scaleY}
@@ -169,18 +167,11 @@ function FramePrimitiveInner({
         {/* Clipped image area */}
         <Group clipFunc={clipFunc} clipX={0} clipY={0} clipWidth={w} clipHeight={h}>
           {image ? (
-            <KonvaImage
-              image={image}
-              x={imgX}
-              y={imgY}
-              width={scaledW}
-              height={scaledH}
-              listening={false}
-            />
+            <KonvaImage image={image} x={imgX} y={imgY} width={scaledW} height={scaledH} />
           ) : (
             <>
               {/* Empty placeholder background */}
-              <Rect x={0} y={0} width={w} height={h} fill="#f0f0f0" listening={false} />
+              <Rect x={0} y={0} width={w} height={h} fill="#f0f0f0" />
               <Text
                 text="Bild\nhinzufuegen"
                 x={0}

@@ -1,6 +1,6 @@
+import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SidebarTabId, SidebarTab } from '../sidebar/types';
-import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES
@@ -275,7 +275,8 @@ export type CanvasConfigId =
   | 'veranstaltung'
   | 'simple'
   | 'dreizeilen'
-  | 'slider';
+  | 'slider'
+  | 'freeform';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {
@@ -338,7 +339,10 @@ export interface FullCanvasConfig<
   /** Optional function to determine disabled tabs */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
   /** Optional function to determine visible tabs */
-  getVisibleTabs?: (state: TState) => SidebarTabId[];
+  getVisibleTabs?: (state: TState, context?: { selectedElement?: string | null }) => SidebarTabId[];
+  /** Optional function to auto-switch tabs when an element is selected/deselected.
+   *  Return the tab to switch to, or null to restore the previous tab. */
+  getAutoSwitchTab?: (selectedElement: string | null) => SidebarTabId | null;
   /** Additional assets/resources */
   assets?: {
     backgroundImages?: Record<string, string>;
@@ -410,5 +414,5 @@ export interface CanvasConfig<
   /** Optional function to determine disabled tabs based on state */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
   /** Optional function to determine visible tabs based on state/context */
-  getVisibleTabs?: (state: TState) => SidebarTabId[];
+  getVisibleTabs?: (state: TState, context?: { selectedElement?: string | null }) => SidebarTabId[];
 }
