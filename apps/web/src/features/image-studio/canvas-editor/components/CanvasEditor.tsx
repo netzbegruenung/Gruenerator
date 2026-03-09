@@ -162,7 +162,7 @@ const PageWrapper = memo(function PageWrapper({
   return (
     <div
       className={cn(
-        'heterogeneous-multipage__page-wrapper group relative cursor-pointer overflow-hidden w-fit p-0.5 content-visibility-auto [contain-intrinsic-size:0_500px] focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
+        'heterogeneous-multipage__page-wrapper group relative cursor-pointer overflow-hidden w-fit p-0.5 focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
         '[&_.zoomable-viewport-wrapper]:w-fit [&_.zoomable-viewport-container]:p-0 [&_.zoomable-viewport-container]:overflow-visible',
         isActive && 'heterogeneous-multipage__page-wrapper--active'
       )}
@@ -447,10 +447,10 @@ export function CanvasEditor({
       autoSaveStatus: 'idle' as const,
       shareToken: null,
       onCaptureCanvas: () => {},
-      onDownload: () => {
+      onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];
         if (ref?.current) {
-          const dataUrl = ref.current.toDataURL({ format: 'png', pixelRatio: 2 });
+          const dataUrl = await ref.current.captureCanvas();
           if (dataUrl) {
             const link = document.createElement('a');
             link.href = dataUrl;
