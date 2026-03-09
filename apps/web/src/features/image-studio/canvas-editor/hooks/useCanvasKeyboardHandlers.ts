@@ -67,6 +67,91 @@ export function useCanvasKeyboardHandlers<TState>(
       const currentState = stateRef.current;
       const currentActions = actionsRef.current;
 
+      // DUPLICATE (Ctrl+D) — copy + paste in one step
+      if (isCtrlOrCmd && e.key === 'd' && selectedElement) {
+        e.preventDefault();
+        const currentState = stateRef.current;
+        const offset = 20;
+        const newId = `dup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        setState((prev) => {
+          const newState = { ...prev } as Record<string, unknown>;
+          const prevState = prev as Record<string, unknown>;
+
+          // Try each element type
+          const shapes = getStateArray<ShapeInstance>(prevState, 'shapeInstances');
+          const shape = shapes.find((s) => s.id === selectedElement);
+          if (shape) {
+            (newState as Record<string, unknown>).shapeInstances = [
+              ...shapes,
+              { ...shape, id: newId, x: shape.x + offset, y: shape.y + offset },
+            ];
+            return newState as TState;
+          }
+
+          const texts = getStateArray<{ id: string; x: number; y: number }>(
+            prevState,
+            'additionalTexts'
+          );
+          const text = texts.find((t) => t.id === selectedElement);
+          if (text) {
+            (newState as Record<string, unknown>).additionalTexts = [
+              ...texts,
+              { ...text, id: newId, x: text.x + offset, y: text.y + offset },
+            ];
+            return newState as TState;
+          }
+
+          const balkens = getStateArray<BalkenInstance>(prevState, 'balkenInstances');
+          const balken = balkens.find((b) => b.id === selectedElement);
+          if (balken) {
+            (newState as Record<string, unknown>).balkenInstances = [
+              ...balkens,
+              {
+                ...balken,
+                id: newId,
+                offset: {
+                  x: (balken.offset?.x || 0) + offset,
+                  y: (balken.offset?.y || 0) + offset,
+                },
+              },
+            ];
+            return newState as TState;
+          }
+
+          const illustrations = getStateArray<{ id: string; x: number; y: number }>(
+            prevState,
+            'illustrationInstances'
+          );
+          const ill = illustrations.find((i) => i.id === selectedElement);
+          if (ill) {
+            (newState as Record<string, unknown>).illustrationInstances = [
+              ...illustrations,
+              { ...ill, id: newId, x: ill.x + offset, y: ill.y + offset },
+            ];
+            return newState as TState;
+          }
+
+          const assets = getStateArray<{ id: string; x: number; y: number }>(
+            prevState,
+            'assetInstances'
+          );
+          const asset = assets.find((a) => a.id === selectedElement);
+          if (asset) {
+            (newState as Record<string, unknown>).assetInstances = [
+              ...assets,
+              { ...asset, id: newId, x: asset.x + offset, y: asset.y + offset },
+            ];
+            return newState as TState;
+          }
+
+          return prev;
+        });
+
+        setTimeout(() => setSelectedElement(newId), 0);
+        return;
+      }
+
       // PASTE (Ctrl+V)
       if (isCtrlOrCmd && e.key === 'v') {
         const clipboardData = CanvasClipboard.paste();
