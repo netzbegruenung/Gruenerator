@@ -88,7 +88,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   return (
     <div
       className={cn(
-        'sidebar-tab-bar flex flex-col items-center gap-sm shrink-0 w-16 h-full bg-background shadow-[4px_0_12px_rgba(0,0,0,0.08)] pt-[60px] pb-md',
+        'sidebar-tab-bar flex flex-col items-center gap-sm shrink-0 w-16 h-full bg-background shadow-[4px_0_12px_rgba(0,0,0,0.08)] pt-[var(--header-height,48px)] pb-md',
         isHorizontal && 'flex-row',
         'max-canvas-mobile:fixed max-canvas-mobile:bottom-0 max-canvas-mobile:left-0 max-canvas-mobile:right-0 max-canvas-mobile:w-full max-canvas-mobile:h-[var(--mobile-tab-bar-height,60px)] max-canvas-mobile:flex-row max-canvas-mobile:overflow-x-auto max-canvas-mobile:overflow-y-hidden max-canvas-mobile:[-webkit-overflow-scrolling:touch] max-canvas-mobile:[scrollbar-width:none] max-canvas-mobile:bg-background max-canvas-mobile:border-t max-canvas-mobile:border-t-[var(--border-subtle)] max-canvas-mobile:shadow-[0_-2px_8px_rgba(0,0,0,0.08)] max-canvas-mobile:py-1 max-canvas-mobile:px-1.5 max-canvas-mobile:pb-[calc(4px+env(safe-area-inset-bottom))] max-canvas-mobile:gap-0.5 max-canvas-mobile:items-center max-canvas-mobile:justify-start max-canvas-mobile:z-[100] max-canvas-mobile:[&::-webkit-scrollbar]:hidden max-canvas-mobile:pt-0 max-canvas-mobile:border-r-0 max-canvas-mobile:shadow-none max-canvas-mobile:w-full max-canvas-mobile:h-[var(--mobile-tab-bar-height,60px)]'
       )}
