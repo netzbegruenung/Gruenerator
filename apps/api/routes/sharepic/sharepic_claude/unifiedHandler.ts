@@ -175,6 +175,7 @@ export async function handleUnifiedRequest(
       }
 
       const content = result.content || '';
+      log.debug(`[${type}] Raw AI response (${content.length} chars):\n${content}`);
 
       let mainData: Record<string, unknown> | string;
       let alternatives: Array<Record<string, unknown> | string> = [];

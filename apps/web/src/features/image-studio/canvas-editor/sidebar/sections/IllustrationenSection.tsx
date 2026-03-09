@@ -23,6 +23,15 @@ import {
   onThumbnailLeave,
 } from '../../utils/illustrations/svgCache';
 import { ILLUSTRATION_COLORS } from '../../utils/illustrations/types';
+import {
+  ACTION_BTN,
+  ACTION_BTN_DANGER,
+  CARD_GRID,
+  SELECTABLE_CARD,
+  SECTION_HEADER,
+  SECTION_TITLE,
+  SIDEBAR_SECTION,
+} from '../primitives';
 
 import type {
   IllustrationInstance,
@@ -33,8 +42,7 @@ import type {
   IllustrationDef,
 } from '../../utils/illustrations/types';
 
-
-import './IllustrationenSection.css';
+import { cn } from '@/utils/cn';
 
 const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.FunctionComponent<KawaiiProps>> = {
   planet: Planet,
@@ -131,8 +139,20 @@ export function IllustrationenSection({
   const thumbnailRefs = useIllustrationPrefetch(visibleIllustrations);
 
   return (
-    <div className="sidebar-section sidebar-section--illustrationen">
-      <div className="sidebar-card-grid">
+    <div
+      className={cn(
+        SIDEBAR_SECTION,
+        'gap-[var(--spacing-medium)] max-canvas-mobile:!p-0 max-canvas-mobile:!m-0'
+      )}
+    >
+      <div
+        className={cn(
+          CARD_GRID,
+          'grid-cols-[repeat(auto-fill,minmax(64px,1fr))]',
+          !isExpanded &&
+            'max-h-[400px] overflow-y-auto pr-1 scrollbar-thin scrollbar-color-[var(--grey-200)_transparent]'
+        )}
+      >
         {visibleIllustrations.map((illDef) => {
           if (illDef.source === 'kawaii') {
             const PreviewComponent = PREVIEW_COMPONENTS[illDef.id as KawaiiIllustrationType];
@@ -140,11 +160,11 @@ export function IllustrationenSection({
             return (
               <button
                 key={illDef.id}
-                className="sidebar-selectable-card"
+                className={SELECTABLE_CARD}
                 onClick={() => onAddIllustration(illDef.id)}
                 title={`${illDef.name} hinzufügen`}
               >
-                <div className="sidebar-selectable-card__preview illustration-preview">
+                <div className="flex items-center justify-center w-full h-full aspect-square">
                   <PreviewComponent size={40} mood="happy" color="#005437" />
                 </div>
               </button>
@@ -164,13 +184,13 @@ export function IllustrationenSection({
                 }
               }}
               data-ill-id={illDef.id}
-              className="sidebar-selectable-card"
+              className={SELECTABLE_CARD}
               onClick={() => onAddIllustration(illDef.id)}
               onMouseEnter={() => onThumbnailHover(svgDef.id, svgDef)}
               onMouseLeave={() => onThumbnailLeave()}
               title={`${illDef.name} hinzufügen`}
             >
-              <div className="sidebar-selectable-card__preview illustration-preview illustration-preview--svg">
+              <div className="flex items-center justify-center w-full h-full aspect-square [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain">
                 <img
                   src={getIllustrationPath(svgDef)}
                   alt={illDef.name}
@@ -192,14 +212,14 @@ export function IllustrationenSection({
 
       {/* Settings Panel */}
       {selectedIllustration && (
-        <div className="illustrationen-settings">
-          <div className="sidebar-section-header">
-            <span className="sidebar-section-title">
+        <div className="flex flex-col gap-[var(--spacing-small)] p-[var(--spacing-small)] bg-background-alt rounded-[var(--border-radius-md)] mt-auto">
+          <div className={SECTION_HEADER}>
+            <span className={SECTION_TITLE}>
               {isKawaiiSelected ? 'Charakter bearbeiten' : 'Illustration bearbeiten'}
             </span>
             {onDuplicateIllustration && (
               <button
-                className="sidebar-action-btn"
+                className={ACTION_BTN}
                 onClick={() => onDuplicateIllustration(selectedIllustration.id)}
                 title="Duplizieren"
               >
@@ -207,7 +227,7 @@ export function IllustrationenSection({
               </button>
             )}
             <button
-              className="sidebar-action-btn sidebar-action-btn--danger"
+              className={ACTION_BTN_DANGER}
               onClick={() => onRemoveIllustration(selectedIllustration.id)}
               title="Entfernen"
             >
@@ -217,13 +237,19 @@ export function IllustrationenSection({
 
           {/* Mood selector (only Kawaii) */}
           {kawaiiInstance && (
-            <div className="illustrationen-mood">
-              <span className="illustrationen-label">Stimmung</span>
-              <div className="illustrationen-mood-grid">
+            <div className="flex flex-col gap-xs">
+              <span className="text-[length:var(--font-size-sm)] text-foreground-muted mb-xs">
+                Stimmung
+              </span>
+              <div className="flex gap-xs flex-wrap">
                 {MOOD_OPTIONS.map((mood) => (
                   <button
                     key={mood.id}
-                    className={`illustrationen-mood-btn ${kawaiiInstance.mood === mood.id ? 'illustrationen-mood-btn--active' : ''}`}
+                    className={cn(
+                      'w-8 h-8 rounded-[var(--border-radius-md)] border border-[var(--border-default,rgba(0,0,0,0.1))] bg-background cursor-pointer text-lg flex items-center justify-center transition-all duration-150 p-0 hover:border-primary-600',
+                      kawaiiInstance.mood === mood.id &&
+                        'border-primary-600 bg-[var(--primary-50,#e8f5e9)]'
+                    )}
                     onClick={() => onUpdateIllustration(kawaiiInstance.id, { mood: mood.id })}
                     title={mood.id}
                   >
@@ -236,13 +262,19 @@ export function IllustrationenSection({
 
           {/* Color grid (All) */}
           {selectedIllustration && (
-            <div className="illustrationen-colors">
-              <span className="illustrationen-label">Farbe</span>
-              <div className="illustrationen-color-grid">
+            <div className="flex flex-col gap-xs">
+              <span className="text-[length:var(--font-size-sm)] text-foreground-muted mb-xs">
+                Farbe
+              </span>
+              <div className="flex gap-[var(--spacing-small)] flex-wrap">
                 {ILLUSTRATION_COLORS.map((color) => (
                   <button
                     key={color.id}
-                    className={`illustrationen-color-btn ${selectedIllustration.color === color.color ? 'illustrationen-color-btn--active' : ''}`}
+                    className={cn(
+                      'w-7 h-7 rounded-full border border-black/10 cursor-pointer transition-transform duration-150 relative p-0 hover:border-[var(--border-default,rgba(0,0,0,0.2))]',
+                      selectedIllustration.color === color.color &&
+                        'after:content-[""] after:absolute after:-top-1 after:-left-1 after:-right-1 after:-bottom-1 after:border-2 after:border-primary-600 after:rounded-full'
+                    )}
                     style={{ backgroundColor: color.color }}
                     onClick={() =>
                       onUpdateIllustration(selectedIllustration.id, { color: color.color })
@@ -255,8 +287,8 @@ export function IllustrationenSection({
           )}
 
           {/* Opacity slider (Both) */}
-          <div className="illustrationen-opacity">
-            <span className="illustrationen-label">
+          <div className="flex flex-col gap-xs">
+            <span className="text-[length:var(--font-size-sm)] text-foreground-muted mb-xs">
               Transparenz: {Math.round(selectedIllustration.opacity * 100)}%
             </span>
             <Slider.Root

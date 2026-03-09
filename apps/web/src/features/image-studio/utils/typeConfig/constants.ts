@@ -27,6 +27,7 @@ export const IMAGE_STUDIO_TYPES = {
   PROFILBILD: 'profilbild',
   SIMPLE: 'simple',
   SLIDER: 'slider',
+  FREEFORM: 'freeform',
 
   // KI types (FLUX API-based)
   GREEN_EDIT: 'green-edit',
@@ -59,6 +60,7 @@ export const URL_TYPE_MAP: Record<string, ImageStudioType> = {
   veranstaltung: IMAGE_STUDIO_TYPES.VERANSTALTUNG,
   profilbild: IMAGE_STUDIO_TYPES.PROFILBILD,
   slider: IMAGE_STUDIO_TYPES.SLIDER,
+  freeform: IMAGE_STUDIO_TYPES.FREEFORM,
   'green-edit': IMAGE_STUDIO_TYPES.GREEN_EDIT,
   'ally-maker': IMAGE_STUDIO_TYPES.ALLY_MAKER,
   'universal-edit': IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT,

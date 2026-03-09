@@ -4,13 +4,24 @@ import { FaCheck } from 'react-icons/fa';
 import Spinner from '../../../../../components/common/Spinner';
 import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
 import { ALL_ICONS } from '../../utils/canvasIcons';
-import './IconsSection.css';
+import { filterIcons } from '../../utils/filterUtils';
+import {
+  CARD_GRID,
+  CARD_CHECK_SMALL,
+  CARD_PREVIEW,
+  SELECTABLE_CARD,
+  SELECTABLE_CARD_DISABLED,
+  SIDEBAR_SECTION,
+} from '../primitives';
+
+import { cn } from '@/utils/cn';
 
 export interface IconsSectionProps {
   selectedIcons: string[];
   onIconToggle: (iconId: string, selected: boolean) => void;
   maxSelections?: number;
   isExpanded?: boolean;
+  searchQuery?: string;
 }
 
 const RECOMMENDED_ICON_IDS = ['pi-flowertulip', 'pi-heartfill', 'pi-sparklefill', 'pi-starfill'];
@@ -20,6 +31,7 @@ export function IconsSection({
   onIconToggle,
   maxSelections = 3,
   isExpanded = false,
+  searchQuery = '',
 }: IconsSectionProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +44,14 @@ export function IconsSection({
   const { visibleIcons, hasMore, loadMore, totalCount, loadedCount } =
     usePaginatedIcons(isExpanded);
 
-  const icons = isExpanded ? visibleIcons : recommendedIcons;
+  const hasSearch = searchQuery.trim().length > 0;
+
+  const searchResults = useMemo(
+    () => (hasSearch ? filterIcons(ALL_ICONS, searchQuery) : []),
+    [hasSearch, searchQuery]
+  );
+
+  const icons = hasSearch ? searchResults : isExpanded ? visibleIcons : recommendedIcons;
 
   useEffect(() => {
     if (!isExpanded || !hasMore) return;
@@ -66,8 +85,8 @@ export function IconsSection({
   );
 
   return (
-    <div className="sidebar-section sidebar-section--icons">
-      <div className="sidebar-card-grid">
+    <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+      <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
         {icons.map((icon) => {
           if (!icon) return null;
           const IconComponent = icon.component;
@@ -78,15 +97,15 @@ export function IconsSection({
             <button
               key={icon.id}
               type="button"
-              className={`sidebar-selectable-card ${isDisabled ? 'sidebar-selectable-card--disabled' : ''}`}
+              className={cn(SELECTABLE_CARD, isDisabled && SELECTABLE_CARD_DISABLED)}
               onClick={() => handleIconClick(icon.id)}
               title={icon.name}
               disabled={isDisabled}
             >
-              <div className="sidebar-selectable-card__preview">
-                <IconComponent size={24} />
+              <div className={cn(CARD_PREVIEW, 'text-[var(--font-color)]')}>
+                <IconComponent size={30} />
                 {isSelected && (
-                  <span className="sidebar-selectable-card__check sidebar-selectable-card__check--small">
+                  <span className={CARD_CHECK_SMALL}>
                     <FaCheck size={8} />
                   </span>
                 )}
@@ -96,9 +115,9 @@ export function IconsSection({
         })}
       </div>
 
-      {isExpanded && (
+      {isExpanded && !hasSearch && (
         <>
-          <div ref={sentinelRef} className="icons-sentinel" />
+          <div ref={sentinelRef} className="h-px w-full" />
           {hasMore && <Spinner size="small" />}
         </>
       )}

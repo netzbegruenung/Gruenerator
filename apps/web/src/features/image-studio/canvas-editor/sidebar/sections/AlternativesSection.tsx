@@ -1,6 +1,7 @@
 import { FaExchangeAlt, FaCheck } from 'react-icons/fa';
 
 import Spinner from '../../../../../components/common/Spinner';
+import { SIDEBAR_SECTION, SIDEBAR_SECTION_HINT } from '../primitives';
 
 import { AlternativesRenderer } from './AlternativesCore';
 
@@ -33,13 +34,13 @@ export function AlternativesSection(props: AlternativesSectionProps) {
 
   if (!alternatives || alternatives.length === 0) {
     return (
-      <div className="sidebar-section sidebar-section--alternatives">
-        <div className="sidebar-section__header">
+      <div className={SIDEBAR_SECTION}>
+        <div className="flex items-center gap-xs">
           <h3>Alternativen</h3>
         </div>
-        <div className="sidebar-section__loading">
+        <div className="flex flex-col items-center gap-sm py-md">
           <Spinner size="small" />
-          <p className="sidebar-section__hint">Weitere Varianten werden generiert...</p>
+          <p className={SIDEBAR_SECTION_HINT}>Weitere Varianten werden generiert...</p>
         </div>
       </div>
     );
@@ -76,7 +77,7 @@ export function AlternativesSection(props: AlternativesSectionProps) {
           const isActive =
             alt.line1 === currentLine1 && alt.line2 === currentLine2 && alt.line3 === currentLine3;
           return isActive ? (
-            <span className="sidebar-selectable-card__check">
+            <span className="size-[18px] flex items-center justify-center bg-[var(--interactive-accent-color)] text-background rounded-full shrink-0 self-start mt-0.5">
               <FaCheck size={10} />
             </span>
           ) : null;
@@ -104,7 +105,7 @@ export function AlternativesSection(props: AlternativesSectionProps) {
         renderPreview={(alt) => {
           const isActive = alt.headline === currentHeadline && alt.subtext === currentSubtext;
           return isActive ? (
-            <span className="sidebar-selectable-card__check">
+            <span className="size-[18px] flex items-center justify-center bg-[var(--interactive-accent-color)] text-background rounded-full shrink-0 self-start mt-0.5">
               <FaCheck size={10} />
             </span>
           ) : null;

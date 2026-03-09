@@ -82,6 +82,4 @@ export const API_ENDPOINTS = {
   AUTH_PROFILE_COLOR: '/auth/profile/message-color',
   AUTH_PROFILE_LOCALE: '/auth/locale',
   AUTH_PROFILE_IGEL: '/auth/profile/igel-modus',
-  // Edit
-  SUGGEST_EDITS: '/claude_suggest_edits',
 } as const;

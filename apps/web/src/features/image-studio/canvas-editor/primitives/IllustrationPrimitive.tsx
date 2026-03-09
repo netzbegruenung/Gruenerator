@@ -143,7 +143,7 @@ function IllustrationPrimitiveInner({
   if (!image) return null;
 
   const BASE_SIZE = 200;
-  const TARGET_SIZE = 100; // Larger default than icons
+  const TARGET_SIZE = 160;
   const baseScale = TARGET_SIZE / BASE_SIZE;
 
   return (

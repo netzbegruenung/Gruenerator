@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-import { ConfigMultiPage } from './components/ConfigMultiPage';
-import { GenericCanvas } from './components/GenericCanvas';
-import { HeterogeneousMultiPage } from './components/HeterogeneousMultiPage';
+import './canvas-editor.css';
+import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import { ProfilbildCanvas } from './ProfilbildCanvas';
 
-import type { InitialPageDef } from './hooks/useHeterogeneousMultiPage';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
+import type { InitialPageDef } from './hooks/usePageManager';
 
 type CanvasState = Record<string, unknown>;
 
@@ -78,6 +77,7 @@ export function ControllableCanvasWrapper({
       'simple',
       'dreizeilen',
       'slider',
+      'freeform',
     ].includes(type);
 
     if (needsConfig && isValidCanvasType(type)) {
@@ -198,6 +198,12 @@ export function ControllableCanvasWrapper({
             currentImageSrc: imageSrc || '',
             alternatives: internalState.alternatives || [],
           };
+        case 'freeform':
+          return {
+            backgroundMode: internalState.backgroundMode || 'color',
+            backgroundColor: internalState.backgroundColor || '#005538',
+            currentImageSrc: imageSrc || '',
+          };
         default:
           return internalState;
       }
@@ -219,6 +225,8 @@ export function ControllableCanvasWrapper({
           return createCallbacks(['label', 'headline', 'subtext']);
         case 'dreizeilen':
           return createCallbacks(['line1', 'line2', 'line3']);
+        case 'freeform':
+          return {};
         default:
           return {};
       }
@@ -233,48 +241,19 @@ export function ControllableCanvasWrapper({
       case 'simple':
       case 'slider':
       case 'dreizeilen':
+      case 'freeform':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
-        // Use HeterogeneousMultiPage for heterogeneous mode (different templates per page)
-        if (config.multiPage?.enabled && config.multiPage?.heterogeneous) {
-          return (
-            <HeterogeneousMultiPage
-              key={componentKey}
-              initialConfigId={type as CanvasConfigId}
-              initialProps={buildInitialProps()}
-              onExport={onExport}
-              onCancel={onCancel}
-              callbacks={buildCallbacks()}
-              maxPages={config.multiPage?.maxPages ?? 10}
-              initialPages={initialPages}
-            />
-          );
-        }
-
-        // Use ConfigMultiPage for homogeneous multiPage (same template)
-        if (config.multiPage?.enabled) {
-          return (
-            <ConfigMultiPage
-              key={componentKey}
-              config={config}
-              canvasType={type}
-              initialProps={buildInitialProps()}
-              onExport={onExport}
-              onCancel={onCancel}
-              callbacks={buildCallbacks()}
-            />
-          );
-        }
-
-        // Fall back to GenericCanvas for single-page canvases
         return (
-          <GenericCanvas
+          <CanvasEditor
             key={componentKey}
-            config={config}
+            initialConfigId={type as CanvasConfigId}
             initialProps={buildInitialProps()}
             onExport={onExport}
             onCancel={onCancel}
             callbacks={buildCallbacks()}
+            maxPages={config.multiPage?.maxPages ?? 10}
+            initialPages={initialPages}
           />
         );
 

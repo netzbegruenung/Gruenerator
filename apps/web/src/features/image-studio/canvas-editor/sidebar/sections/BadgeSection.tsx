@@ -7,8 +7,6 @@ import {
 
 import type { BalkenMode } from '../../primitives';
 
-import './BadgeSection.css';
-
 export interface BadgeSectionProps {
   onAddPillBadge?: (preset?: string) => void;
   onAddCircleBadge?: (preset?: string) => void;
@@ -17,16 +15,16 @@ export interface BadgeSectionProps {
 
 export function BadgeSection({ onAddPillBadge, onAddCircleBadge, onAddBalken }: BadgeSectionProps) {
   return (
-    <div className="sidebar-section sidebar-section--badges">
-      <div className="badge-preview-buttons">
+    <div className="flex flex-col gap-md max-canvas-mobile:!p-0 max-canvas-mobile:!m-0">
+      <div className="grid grid-cols-2 gap-[8px]">
         {onAddPillBadge && (
           <button
             type="button"
-            className="badge-preview-btn"
+            className="flex flex-col items-center gap-[6px] px-[6px] pt-[10px] pb-[8px] border border-transparent rounded-lg bg-transparent cursor-pointer transition-[border-color,background-color] duration-150 text-[11px] text-foreground hover:border-primary-400 hover:bg-hover-alt"
             onClick={() => onAddPillBadge()}
             title="Pill-Badge hinzufügen"
           >
-            <div className="badge-preview-icon">
+            <div className="flex items-center justify-center min-h-[36px]">
               <PillBadgePreviewIcon size={48} />
             </div>
             <span>Pill-Badge</span>
@@ -35,11 +33,11 @@ export function BadgeSection({ onAddPillBadge, onAddCircleBadge, onAddBalken }: 
         {onAddCircleBadge && (
           <button
             type="button"
-            className="badge-preview-btn"
+            className="flex flex-col items-center gap-[6px] px-[6px] pt-[10px] pb-[8px] border border-transparent rounded-lg bg-transparent cursor-pointer transition-[border-color,background-color] duration-150 text-[11px] text-foreground hover:border-primary-400 hover:bg-hover-alt"
             onClick={() => onAddCircleBadge()}
             title="Störer hinzufügen"
           >
-            <div className="badge-preview-icon">
+            <div className="flex items-center justify-center min-h-[36px]">
               <StorerPreviewIcon size={48} />
             </div>
             <span>Störer</span>
@@ -49,22 +47,22 @@ export function BadgeSection({ onAddPillBadge, onAddCircleBadge, onAddBalken }: 
           <>
             <button
               type="button"
-              className="badge-preview-btn"
+              className="flex flex-col items-center gap-[6px] px-[6px] pt-[10px] pb-[8px] border border-transparent rounded-lg bg-transparent cursor-pointer transition-[border-color,background-color] duration-150 text-[11px] text-foreground hover:border-primary-400 hover:bg-hover-alt"
               onClick={() => onAddBalken('single')}
               title="Einzelnen Balken hinzufügen"
             >
-              <div className="badge-preview-icon">
+              <div className="flex items-center justify-center min-h-[36px]">
                 <SingleBalkenPreviewIcon size={48} />
               </div>
               <span>1 Balken</span>
             </button>
             <button
               type="button"
-              className="badge-preview-btn"
+              className="flex flex-col items-center gap-[6px] px-[6px] pt-[10px] pb-[8px] border border-transparent rounded-lg bg-transparent cursor-pointer transition-[border-color,background-color] duration-150 text-[11px] text-foreground hover:border-primary-400 hover:bg-hover-alt"
               onClick={() => onAddBalken('triple')}
               title="Dreifach-Balken hinzufügen"
             >
-              <div className="badge-preview-icon">
+              <div className="flex items-center justify-center min-h-[36px]">
                 <TripleBalkenPreviewIcon size={48} />
               </div>
               <span>3 Balken</span>
