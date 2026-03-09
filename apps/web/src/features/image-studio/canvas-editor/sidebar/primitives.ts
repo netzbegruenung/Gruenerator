@@ -4,7 +4,7 @@
  */
 
 export const CARD_GRID =
-  'grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2 w-full max-canvas-mobile:grid-cols-[repeat(auto-fill,minmax(36px,1fr))] max-canvas-mobile:gap-1';
+  'grid grid-cols-[repeat(auto-fill,minmax(68px,1fr))] gap-2 w-full max-canvas-mobile:grid-cols-[repeat(auto-fill,minmax(44px,1fr))] max-canvas-mobile:gap-1';
 
 export const CARD_GRID_SINGLE_COL = 'grid grid-cols-1 gap-2 w-full';
 
@@ -79,8 +79,8 @@ export const FONT_SIZE_BUTTONS = 'flex gap-xs';
 export const FONT_SIZE_BTN =
   'w-8 h-8 flex items-center justify-center border border-[var(--border-color)] rounded-full bg-background text-foreground cursor-pointer transition-all duration-200 hover:bg-background-alt hover:border-primary-600 hover:text-primary-600 active:scale-95';
 
-/** Preview container inside a selectable card (centered, 44×44) */
-export const CARD_PREVIEW = 'relative size-[44px] flex items-center justify-center shrink-0';
+/** Preview container inside a selectable card (centered, fills parent) */
+export const CARD_PREVIEW = 'relative w-full h-full flex items-center justify-center shrink-0';
 
 /** Check badge overlaid on a card preview (small, bottom-right) */
 export const CARD_CHECK_SMALL =

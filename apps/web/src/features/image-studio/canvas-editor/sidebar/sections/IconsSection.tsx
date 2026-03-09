@@ -4,6 +4,7 @@ import { FaCheck } from 'react-icons/fa';
 import Spinner from '../../../../../components/common/Spinner';
 import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
 import { ALL_ICONS } from '../../utils/canvasIcons';
+import { filterIcons } from '../../utils/filterUtils';
 import {
   CARD_GRID,
   CARD_CHECK_SMALL,
@@ -20,6 +21,7 @@ export interface IconsSectionProps {
   onIconToggle: (iconId: string, selected: boolean) => void;
   maxSelections?: number;
   isExpanded?: boolean;
+  searchQuery?: string;
 }
 
 const RECOMMENDED_ICON_IDS = ['pi-flowertulip', 'pi-heartfill', 'pi-sparklefill', 'pi-starfill'];
@@ -29,6 +31,7 @@ export function IconsSection({
   onIconToggle,
   maxSelections = 3,
   isExpanded = false,
+  searchQuery = '',
 }: IconsSectionProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +44,14 @@ export function IconsSection({
   const { visibleIcons, hasMore, loadMore, totalCount, loadedCount } =
     usePaginatedIcons(isExpanded);
 
-  const icons = isExpanded ? visibleIcons : recommendedIcons;
+  const hasSearch = searchQuery.trim().length > 0;
+
+  const searchResults = useMemo(
+    () => (hasSearch ? filterIcons(ALL_ICONS, searchQuery) : []),
+    [hasSearch, searchQuery]
+  );
+
+  const icons = hasSearch ? searchResults : isExpanded ? visibleIcons : recommendedIcons;
 
   useEffect(() => {
     if (!isExpanded || !hasMore) return;
@@ -76,7 +86,7 @@ export function IconsSection({
 
   return (
     <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
-      <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(48px,1fr))]')}>
+      <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
         {icons.map((icon) => {
           if (!icon) return null;
           const IconComponent = icon.component;
@@ -93,7 +103,7 @@ export function IconsSection({
               disabled={isDisabled}
             >
               <div className={cn(CARD_PREVIEW, 'text-[var(--font-color)]')}>
-                <IconComponent size={24} />
+                <IconComponent size={30} />
                 {isSelected && (
                   <span className={CARD_CHECK_SMALL}>
                     <FaCheck size={8} />
@@ -105,7 +115,7 @@ export function IconsSection({
         })}
       </div>
 
-      {isExpanded && (
+      {isExpanded && !hasSearch && (
         <>
           <div ref={sentinelRef} className="h-px w-full" />
           {hasMore && <Spinner size="small" />}

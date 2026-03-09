@@ -142,7 +142,7 @@ export function IllustrationenSection({
     <div
       className={cn(
         SIDEBAR_SECTION,
-        'gap-[var(--spacing-medium)] h-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0 max-canvas-mobile:h-auto'
+        'gap-[var(--spacing-medium)] max-canvas-mobile:!p-0 max-canvas-mobile:!m-0'
       )}
     >
       <div

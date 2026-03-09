@@ -19,12 +19,10 @@ function FramePrimitiveInner({
   isSelected,
   onSelect,
   onChange,
-  onImageUpload,
   draggable = true,
 }: FramePrimitiveProps) {
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
 
@@ -51,33 +49,6 @@ function FramePrimitiveInner({
       trRef.current.getLayer()?.batchDraw();
     }
   }, [isSelected]);
-
-  // Create hidden file input on first render
-  useEffect(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.style.display = 'none';
-    input.addEventListener('change', () => {
-      const file = input.files?.[0];
-      if (file) {
-        const objectUrl = URL.createObjectURL(file);
-        onImageUpload(frame.id, file, objectUrl);
-      }
-      input.value = '';
-    });
-    document.body.appendChild(input);
-    fileInputRef.current = input;
-
-    return () => {
-      document.body.removeChild(input);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frame.id]);
-
-  const handleDblClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -158,8 +129,6 @@ function FramePrimitiveInner({
         draggable={draggable}
         onClick={handleSelect}
         onTap={handleSelect}
-        onDblClick={handleDblClick}
-        onDblTap={handleDblClick}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
         name={`frame-${frame.id}`}
