@@ -1,18 +1,24 @@
 import { useShareStore, type Share } from '@gruenerator/shared/share';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
-import { HiArrowLeft, HiArrowRight, HiX, HiPhotograph } from 'react-icons/hi';
+import { HiArrowLeft, HiArrowRight, HiX, HiPhotograph, HiSearch } from 'react-icons/hi';
 
 import Button from '../../../components/common/SubmitButton';
 import SegmentedControl from '../../../components/common/UI/SegmentedControl';
 import UnsplashAttribution from '../../../components/common/UnsplashAttribution';
+import useDebounce from '../../../components/hooks/useDebounce';
 import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { slideVariants } from '../components/StepFlow';
 import { useImageSourceStore } from '../hooks/useImageSourceStore';
+import { useUnsplashSearch } from '../hooks/useUnsplashSearch';
+import {
+  fetchUnsplashImageAsFile,
+  trackUnsplashDownloadLive,
+  type StockImage,
+} from '../services/imageSourceService';
 
 import StockImagesGrid from './StockImagesGrid';
-
 
 interface BackgroundRemovalProgress {
   phase: 'downloading' | 'processing' | 'compressing';
@@ -31,6 +37,7 @@ export interface ImageUploadStepProps {
 const IMAGE_SOURCE_TABS = [
   { value: 'upload', label: 'Hochladen' },
   { value: 'stock', label: 'Stock Bilder' },
+  { value: 'unsplash', label: '@unsplash' },
   { value: 'mediathek', label: 'Meine Bilder' },
 ];
 
@@ -168,6 +175,52 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
       fetchUserShares('image');
     }
   }, [imageSourceTab, shares.length, fetchUserShares]);
+
+  // Unsplash search state
+  const [unsplashQuery, setUnsplashQuery] = useState('');
+  const debouncedUnsplashQuery = useDebounce(unsplashQuery, 500);
+  const [isLoadingUnsplashSelect, setIsLoadingUnsplashSelect] = useState(false);
+  const {
+    searchResults: unsplashResults,
+    totalResults: unsplashTotal,
+    isLoadingSearch: isLoadingUnsplash,
+    searchError: unsplashError,
+    searchUnsplash,
+    loadMoreResults: loadMoreUnsplash,
+    clearSearch: clearUnsplash,
+  } = useUnsplashSearch();
+
+  useEffect(() => {
+    if (imageSourceTab !== 'unsplash') return;
+    if (debouncedUnsplashQuery.trim()) {
+      searchUnsplash(debouncedUnsplashQuery);
+    } else {
+      clearUnsplash();
+    }
+  }, [debouncedUnsplashQuery, searchUnsplash, clearUnsplash, imageSourceTab]);
+
+  const handleUnsplashImageSelect = useCallback(
+    async (image: StockImage) => {
+      setIsLoadingUnsplashSelect(true);
+      try {
+        const file = await fetchUnsplashImageAsFile(image);
+        if (image.attribution?.downloadLocation) {
+          await trackUnsplashDownloadLive(image.attribution.downloadLocation);
+        }
+        useImageSourceStore.setState({
+          selectedStockImage: image,
+          stockImageAttribution: image.attribution ?? null,
+        });
+        updateFormData({ uploadedImage: file });
+        setTimeout(() => onNext(), 50);
+      } catch (error) {
+        console.error('Failed to select Unsplash image:', error);
+      } finally {
+        setIsLoadingUnsplashSelect(false);
+      }
+    },
+    [updateFormData, onNext]
+  );
 
   const handleMediathekImageSelect = useCallback(
     async (share: Share) => {
@@ -386,12 +439,155 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
     </div>
   );
 
+  const renderUnsplashContent = () => (
+    <div className="typeform-stock-content">
+      {previewUrl ? (
+        <div className="typeform-upload-preview">
+          <img
+            src={previewUrl}
+            alt={selectedStockImage?.alt_text || 'Ausgewähltes Unsplash Bild'}
+            className="typeform-upload-preview__image"
+          />
+          <button
+            type="button"
+            className="typeform-upload-preview__remove"
+            onClick={handleRemoveImage}
+            aria-label="Bild entfernen"
+          >
+            <HiX />
+          </button>
+          {stockImageAttribution && (
+            <UnsplashAttribution
+              photographer={stockImageAttribution.photographer}
+              profileUrl={stockImageAttribution.profileUrl}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="stock-images-grid">
+          <div className="flex items-center gap-2 py-2 px-3 bg-background border border-grey-300 dark:border-grey-600 rounded-lg">
+            <HiSearch size={18} className="text-grey-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Suchen... (z.B. Natur, Politik, Stadt)"
+              value={unsplashQuery}
+              onChange={(e) => setUnsplashQuery(e.target.value)}
+              className="flex-1 border-none outline-none bg-transparent text-foreground text-sm"
+            />
+            {unsplashQuery && (
+              <button
+                type="button"
+                onClick={() => setUnsplashQuery('')}
+                aria-label="Suche löschen"
+                className="bg-transparent border-none cursor-pointer p-0 flex items-center text-grey-400 hover:text-foreground"
+              >
+                <HiX size={18} />
+              </button>
+            )}
+          </div>
+
+          {isLoadingUnsplash && unsplashResults.length === 0 && (
+            <div className="stock-images-grid__loading">
+              <div className="stock-images-grid__spinner" />
+              <p>Suche läuft...</p>
+            </div>
+          )}
+
+          {unsplashError && (
+            <div className="stock-images-grid__empty">
+              <p>{unsplashError}</p>
+              <button
+                type="button"
+                onClick={() => searchUnsplash(debouncedUnsplashQuery)}
+                className="mt-2 py-2 px-4 bg-primary-600 text-white border-none rounded-md cursor-pointer text-sm"
+              >
+                Erneut versuchen
+              </button>
+            </div>
+          )}
+
+          {unsplashResults.length > 0 && (
+            <>
+              <div className="stock-images-grid__grid">
+                <AnimatePresence mode="popLayout">
+                  {unsplashResults.map((image, index) => (
+                    <motion.div
+                      key={image.filename}
+                      className="stock-images-grid__card"
+                      onClick={() => handleUnsplashImageSelect(image)}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.2, delay: (index % 20) * 0.02 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      style={{ cursor: isLoadingUnsplashSelect ? 'wait' : 'pointer' }}
+                    >
+                      <img
+                        src={image.url}
+                        alt={image.alt_text || 'Unsplash Bild'}
+                        loading="lazy"
+                        className="stock-images-grid__image"
+                      />
+                      {image.attribution && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-1">
+                          <UnsplashAttribution
+                            photographer={image.attribution.photographer}
+                            profileUrl={image.attribution.profileUrl}
+                            compact={true}
+                          />
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+
+              {unsplashResults.length < unsplashTotal && (
+                <button
+                  type="button"
+                  onClick={loadMoreUnsplash}
+                  disabled={isLoadingUnsplash}
+                  className="w-full py-2.5 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                >
+                  {isLoadingUnsplash
+                    ? 'Lädt...'
+                    : `Mehr laden (${unsplashResults.length} von ${unsplashTotal})`}
+                </button>
+              )}
+            </>
+          )}
+
+          {debouncedUnsplashQuery &&
+            unsplashResults.length === 0 &&
+            !isLoadingUnsplash &&
+            !unsplashError && (
+              <div className="stock-images-grid__empty">
+                <p>Keine Ergebnisse für „{debouncedUnsplashQuery}"</p>
+              </div>
+            )}
+
+          {!debouncedUnsplashQuery && unsplashResults.length === 0 && !isLoadingUnsplash && (
+            <div className="stock-images-grid__empty">
+              <p>Suche nach Bildern auf Unsplash</p>
+              <p style={{ fontSize: '0.875rem', opacity: 0.7 }}>
+                Kostenlose, hochauflösende Fotos mit automatischer Fotografennennung.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (imageSourceTab) {
       case 'upload':
         return renderUploadContent();
       case 'stock':
         return renderStockContent();
+      case 'unsplash':
+        return renderUnsplashContent();
       case 'mediathek':
         return renderMediathekContent();
       default:
