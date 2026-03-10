@@ -66,3 +66,6 @@ export type {
 
 export { usePageManager } from './usePageManager';
 export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from './usePageManager';
+
+export { useMobileBridge } from './useMobileBridge';
+export type { MobileBridgeCallbacks, MobileBridgeProps } from './useMobileBridge';

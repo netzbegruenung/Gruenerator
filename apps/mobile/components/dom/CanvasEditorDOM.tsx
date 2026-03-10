@@ -5,12 +5,23 @@ import '@gruenerator/canvas-editor/styles/bundle';
 import { CanvasEditorProvider, MasterCanvasEditor } from '@gruenerator/canvas-editor';
 import { type DOMProps } from 'expo/dom';
 
+import type { MobileBridgeCallbacks, MobileBridgeProps } from '@gruenerator/canvas-editor';
+
 interface CanvasEditorDOMProps {
   type: string;
   initialState: Record<string, unknown>;
   imageSrc?: string;
   onExport: (base64: string) => Promise<void>;
   onCancel: () => Promise<void>;
+  onReady?: () => Promise<void>;
+  // Mobile bridge props
+  activeTab: string | null;
+  toolbarAction: { type: string; [key: string]: unknown } | null;
+  toolbarActionId: number;
+  onSelectedElementChange: (info: Record<string, unknown> | null) => Promise<void>;
+  onHistoryChange: (state: { canUndo: boolean; canRedo: boolean }) => Promise<void>;
+  onTabsChange: (tabs: Array<{ id: string; label: string; disabled: boolean }>) => Promise<void>;
+  onActiveTabChange: (tabId: string | null) => Promise<void>;
   dom?: DOMProps;
 }
 
@@ -20,7 +31,29 @@ export default function CanvasEditorDOM({
   imageSrc,
   onExport,
   onCancel,
+  onReady,
+  activeTab,
+  toolbarAction,
+  toolbarActionId,
+  onSelectedElementChange,
+  onHistoryChange,
+  onTabsChange,
+  onActiveTabChange,
 }: CanvasEditorDOMProps) {
+  // Build the mobileBridge prop for MasterCanvasEditor
+  const mobileBridge: MobileBridgeProps = {
+    callbacks: {
+      onSelectedElementChange:
+        onSelectedElementChange as MobileBridgeCallbacks['onSelectedElementChange'],
+      onHistoryChange: onHistoryChange as MobileBridgeCallbacks['onHistoryChange'],
+      onTabsChange: onTabsChange as MobileBridgeCallbacks['onTabsChange'],
+      onActiveTabChange: onActiveTabChange as MobileBridgeCallbacks['onActiveTabChange'],
+    },
+    activeTab: activeTab as MobileBridgeProps['activeTab'],
+    toolbarAction: toolbarAction as MobileBridgeProps['toolbarAction'],
+    toolbarActionId,
+  };
+
   return (
     <CanvasEditorProvider services={{}}>
       <div style={{ width: '100%', height: '100vh' }}>
@@ -30,6 +63,8 @@ export default function CanvasEditorDOM({
           imageSrc={imageSrc}
           onExport={onExport}
           onCancel={onCancel}
+          onReady={onReady}
+          mobileBridge={mobileBridge}
         />
       </div>
     </CanvasEditorProvider>

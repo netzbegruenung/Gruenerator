@@ -14,3 +14,6 @@ export * from './sidebar';
 export * from './layouts';
 
 export type { StockImage } from './common/imageSourceTypes';
+export type { MobileBridgeProps, MobileBridgeCallbacks } from './hooks/useMobileBridge';
+export type { CanvasConfigId } from './configs/types';
+export type { DreizeilenAlternative } from './configs/dreizeilen.types';
