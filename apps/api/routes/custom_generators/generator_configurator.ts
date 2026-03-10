@@ -67,6 +67,8 @@ interface AIWorkerRequest {
 
 const SYSTEM_PROMPT = `Du bist ein Assistent, der JSON-Konfigurationen für Grüneatoren erstellt. Verwende niemals das Wort "Generator", sondern immer "Grünerator".`;
 
+const MAX_AI_FIELDS = 2;
+
 function buildUserPrompt(description: string): string {
   return `Erstelle eine Grünerator-Konfiguration für folgende Beschreibung:
 "${description}"
@@ -81,15 +83,20 @@ RICHTIG: {"name": "...", "slug": "..."}
 Das JSON-Objekt muss folgende Schlüssel enthalten:
 1.  \`name\`: Ein kurzer, aussagekräftiger Name für den Grünerator (string).
 2.  \`slug\`: Ein URL-freundlicher Bezeichner (nur Kleinbuchstaben, Zahlen, Bindestriche) (string).
-3.  \`fields\`: Ein Array von Formularfeld-Objekten (maximal 5). Jedes Feld-Objekt muss enthalten:
+3.  \`fields\`: Ein Array von Formularfeld-Objekten (maximal ${MAX_AI_FIELDS}). Halte es einfach wie ChatGPT — ein Eingabefeld reicht meistens.
+    REGELN:
+    *   Das erste Feld ist IMMER ein \`textarea\` für die Haupteingabe (z.B. Thema, Inhalt, Beschreibung). Es ist immer \`required: true\`.
+    *   Ein zweites Feld (nur \`select\`) ist OPTIONAL — füge es NUR hinzu, wenn es den Grünerator deutlich verbessert (z.B. Tonalität, Zielgruppe, Format, Textlänge). Wenn kein Select sinnvoll ist, erstelle nur 1 Feld.
+    *   Erstelle NIEMALS mehr als ${MAX_AI_FIELDS} Felder. Erstelle KEINE zusätzlichen text/textarea-Felder.
+    Jedes Feld-Objekt muss enthalten:
     *   \`label\`: Der sichtbare Feldname (string).
     *   \`name\`: Technischer Name (Kleinbuchstaben, Zahlen, Unterstriche), vom Label abgeleitet (string).
-    *   \`type\`: 'text', 'textarea' oder 'select' (string).
+    *   \`type\`: 'textarea' oder 'select' (string).
     *   \`required\`: true oder false (boolean).
-    *   \`placeholder\`: Optionaler Hilfetext (string).
+    *   \`placeholder\`: Hilfetext, der zeigt was eingegeben werden soll (string).
     *   \`options\`: Wenn type='select', ein Array von Optionen mit {label: "Anzeige", value: "wert"} (array, nur bei select erforderlich).
-    *   Beispiel Text/Textarea: { "label": "Thema", "name": "thema", "type": "text", "required": true, "placeholder": "z.B. Klimawandel" }
-    *   Beispiel Select: { "label": "Kategorie", "name": "kategorie", "type": "select", "required": true, "placeholder": "Bitte wählen...", "options": [{"label": "Politik", "value": "politik"}, {"label": "Umwelt", "value": "umwelt"}] }
+    Beispiel mit 1 Feld: [{ "label": "Dein Thema", "name": "thema", "type": "textarea", "required": true, "placeholder": "Beschreibe hier, worüber du schreiben möchtest..." }]
+    Beispiel mit 2 Feldern: [{ "label": "Dein Thema", "name": "thema", "type": "textarea", "required": true, "placeholder": "Beschreibe hier, worüber du schreiben möchtest..." }, { "label": "Tonalität", "name": "tonalitaet", "type": "select", "required": false, "placeholder": "Bitte wählen...", "options": [{"label": "Sachlich", "value": "sachlich"}, {"label": "Emotional", "value": "emotional"}, {"label": "Aktivierend", "value": "aktivierend"}] }]
 4.  \`prompt\`: Die Kernanweisung für die spätere KI-Generierung. Formuliere einen klaren Auftrag. Die Platzhalter für die Felder (z.B. {{thema}}) werden später hinzugefügt, nenne sie hier NICHT. (string).
 5.  \`title\`: Ein ansprechender Titel für die Grünerator-Webseite (string).
 6.  \`description\`: Eine kurze Erklärung (1-2 Sätze), was der Grünerator tut (string).
@@ -97,7 +104,7 @@ Das JSON-Objekt muss folgende Schlüssel enthalten:
 Beachte:
 *   Der 'slug' darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten.
 *   Der 'name' jedes Feldes muss korrekt vom 'label' abgeleitet werden (Kleinbuchstaben, Unterstriche statt Leerzeichen, keine Sonderzeichen).
-*   Maximal 5 Felder definieren.
+*   Maximal ${MAX_AI_FIELDS} Felder. Weniger ist mehr — ein einzelnes Textarea-Feld ist oft die beste Lösung.
 *   Antworte ausschließlich mit dem JSON-Objekt, keine Markdown-Formatierung!
 `;
 }
@@ -137,7 +144,7 @@ function sanitizeFields(fields: AIGeneratedConfig['fields']): GeneratorField[] {
       const sanitizedName = generateSanitizedName(field.label);
       const fieldType = ['textarea', 'text', 'select'].includes(field.type || '')
         ? (field.type as 'text' | 'textarea' | 'select')
-        : 'text';
+        : 'textarea';
 
       const result: GeneratorField = {
         label: field.label.trim(),
@@ -196,9 +203,9 @@ function validateAndSanitizeConfig(raw: AIGeneratedConfig): GeneratorConfig {
       : `Ein Grünerator für: ${raw.name}`;
 
   let fields = sanitizeFields(raw.fields);
-  if (fields.length > 5) {
-    log.warn('[generator_configurator] AI generated more than 5 fields, trimming.');
-    fields = fields.slice(0, 5);
+  if (fields.length > MAX_AI_FIELDS) {
+    log.warn(`[generator_configurator] AI generated more than ${MAX_AI_FIELDS} fields, trimming.`);
+    fields = fields.slice(0, MAX_AI_FIELDS);
   }
 
   if (fields.some((f) => !f.name)) {

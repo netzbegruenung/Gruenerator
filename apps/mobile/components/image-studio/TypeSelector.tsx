@@ -4,7 +4,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
+import { IMAGE_STUDIO_TYPE_CONFIGS, STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
 import { Image, type ImageSource } from 'expo-image';
 import { useState } from 'react';
 import {
@@ -19,11 +19,16 @@ import {
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 
-import type { ImageStudioKiType, KiStyleVariant } from '@gruenerator/shared/image-studio';
+import type {
+  ImageStudioKiType,
+  ImageStudioTemplateType,
+  KiStyleVariant,
+} from '@gruenerator/shared/image-studio';
 
 interface TypeSelectorProps {
   onSelectVariant: (variant: KiStyleVariant) => void;
   onSelectEdit: (type: ImageStudioKiType) => void;
+  onSelectTemplate: (type: ImageStudioTemplateType) => void;
 }
 
 interface CardItem {
@@ -31,9 +36,11 @@ interface CardItem {
   label: string;
   description: string;
   image: ImageSource;
-  type: 'variant' | 'edit';
+  type: 'variant' | 'edit' | 'template';
   variant?: KiStyleVariant;
   kiType?: ImageStudioKiType;
+  templateType?: ImageStudioTemplateType;
+  fallbackIcon?: keyof typeof Ionicons.glyphMap;
 }
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -48,6 +55,33 @@ const EDIT_IMAGES: Record<string, ImageSource> = {
   'green-edit': require('../../images/imagine/green-street-example.webp'),
   'universal-edit': require('../../images/imagine/universal-edit.webp'),
 };
+
+const TEMPLATE_IMAGES: Partial<Record<ImageStudioTemplateType, ImageSource>> = {
+  dreizeilen: require('../../images/imagine/templates/dreizeilen-preview.webp'),
+  zitat: require('../../images/imagine/templates/zitat-preview.webp'),
+  'zitat-pure': require('../../images/imagine/templates/zitat-pure-preview.webp'),
+  info: require('../../images/imagine/templates/info-preview.webp'),
+  veranstaltung: require('../../images/imagine/templates/veranstaltung-preview.webp'),
+  simple: require('../../images/imagine/templates/simple-preview.webp'),
+};
+
+const TEMPLATE_ICONS: Partial<Record<ImageStudioTemplateType, keyof typeof Ionicons.glyphMap>> = {
+  dreizeilen: 'text-outline',
+  zitat: 'chatbox-outline',
+  'zitat-pure': 'chatbox-outline',
+  info: 'information-circle-outline',
+  veranstaltung: 'calendar-outline',
+  simple: 'image-outline',
+};
+
+const TEMPLATE_ORDER: ImageStudioTemplateType[] = [
+  'dreizeilen',
+  'zitat',
+  'zitat-pure',
+  'info',
+  'veranstaltung',
+  'simple',
+];
 
 function buildCardItems(): CardItem[] {
   const items: CardItem[] = [];
@@ -86,7 +120,28 @@ function buildCardItems(): CardItem[] {
 
 const CARD_ITEMS = buildCardItems();
 
-export function TypeSelector({ onSelectVariant, onSelectEdit }: TypeSelectorProps) {
+function buildTemplateItems(): CardItem[] {
+  return TEMPLATE_ORDER.map((id) => {
+    const config = IMAGE_STUDIO_TYPE_CONFIGS[id];
+    return {
+      key: `template-${id}`,
+      label: config.label,
+      description: config.description,
+      image: TEMPLATE_IMAGES[id] ?? {},
+      type: 'template' as const,
+      templateType: id,
+      fallbackIcon: TEMPLATE_ICONS[id],
+    };
+  });
+}
+
+const TEMPLATE_ITEMS = buildTemplateItems();
+
+export function TypeSelector({
+  onSelectVariant,
+  onSelectEdit,
+  onSelectTemplate,
+}: TypeSelectorProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const isDark = colorScheme === 'dark';
@@ -103,6 +158,8 @@ export function TypeSelector({ onSelectVariant, onSelectEdit }: TypeSelectorProp
       onSelectVariant(item.variant);
     } else if (item.type === 'edit' && item.kiType) {
       onSelectEdit(item.kiType);
+    } else if (item.type === 'template' && item.templateType) {
+      onSelectTemplate(item.templateType);
     }
   };
 
@@ -142,6 +199,62 @@ export function TypeSelector({ onSelectVariant, onSelectEdit }: TypeSelectorProp
                 >
                   <Ionicons
                     name={item.type === 'variant' ? 'color-wand-outline' : 'brush-outline'}
+                    size={32}
+                    color={colors.primary[500]}
+                  />
+                </View>
+              ) : (
+                <Image
+                  source={item.image}
+                  style={styles.cardImage}
+                  contentFit="cover"
+                  onError={() => handleImageError(item.key)}
+                />
+              )}
+
+              <View style={styles.gradientOverlay} />
+
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {item.label}
+                </Text>
+                <Text style={styles.cardDescription} numberOfLines={2}>
+                  {item.description}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Sharepic-Vorlagen</Text>
+        <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
+          Gestalte Sharepics mit dem Canvas-Editor
+        </Text>
+
+        <View style={styles.grid}>
+          {TEMPLATE_ITEMS.map((item) => (
+            <Pressable
+              key={item.key}
+              onPress={() => handlePress(item)}
+              style={({ pressed }) => [
+                styles.card,
+                {
+                  width: cardWidth,
+                  height: cardHeight,
+                  opacity: pressed ? 0.9 : 1,
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                },
+              ]}
+            >
+              {failedImages.has(item.key) ? (
+                <View
+                  style={[
+                    styles.fallbackContainer,
+                    { backgroundColor: isDark ? colors.grey[800] : colors.grey[200] },
+                  ]}
+                >
+                  <Ionicons
+                    name={item.fallbackIcon ?? 'document-outline'}
                     size={32}
                     color={colors.primary[500]}
                   />
@@ -259,6 +372,15 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    marginTop: spacing.medium,
+    marginBottom: spacing.xsmall,
+  },
+  sectionSubtitle: {
+    ...typography.body,
+    marginBottom: spacing.large,
   },
   rateLimitNote: {
     flexDirection: 'row',

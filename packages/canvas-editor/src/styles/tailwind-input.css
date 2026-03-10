@@ -1,0 +1,188 @@
+/**
+ * Canvas Editor — Tailwind v4 entry point
+ *
+ * Compiled by `@tailwindcss/cli` into dist/canvas-editor-bundle.css.
+ * This single bundle provides everything the DOM component needs:
+ *   1. CSS variable definitions (variables.css)
+ *   2. Tailwind preflight + all utility classes used by canvas-editor
+ *   3. canvas-editor.css pseudo-element / :has() rules
+ *   4. Theme token mappings (CSS vars → Tailwind utilities)
+ */
+
+@import "tailwindcss";
+@import "./variables.css";
+@import "./typography.css";
+@import "../canvas-editor.css" layer(components);
+
+/* Scan canvas-editor source for Tailwind class usage */
+@source "../**/*.{ts,tsx}";
+
+/**
+ * Theme Configuration
+ * Maps CSS variables to Tailwind's theme system.
+ * Mirrors the relevant subset of apps/web/src/assets/styles/index.css @theme block.
+ */
+@theme {
+  /* Primary Color System */
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
+  --color-primary-950: var(--primary-950);
+
+  /* Secondary Color System */
+  --color-secondary-50: var(--secondary-50);
+  --color-secondary-100: var(--secondary-100);
+  --color-secondary-200: var(--secondary-200);
+  --color-secondary-300: var(--secondary-300);
+  --color-secondary-400: var(--secondary-400);
+  --color-secondary-500: var(--secondary-500);
+  --color-secondary-600: var(--secondary-600);
+  --color-secondary-700: var(--secondary-700);
+  --color-secondary-800: var(--secondary-800);
+  --color-secondary-900: var(--secondary-900);
+  --color-secondary-950: var(--secondary-950);
+
+  /* Grey Color System */
+  --color-grey-50: var(--grey-50);
+  --color-grey-100: var(--grey-100);
+  --color-grey-200: var(--grey-200);
+  --color-grey-300: var(--grey-300);
+  --color-grey-400: var(--grey-400);
+  --color-grey-500: var(--grey-500);
+  --color-grey-600: var(--grey-600);
+  --color-grey-700: var(--grey-700);
+  --color-grey-800: var(--grey-800);
+  --color-grey-900: var(--grey-900);
+  --color-grey-950: var(--grey-950);
+
+  /* Neutral Color System (Sand) */
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+
+  /* Semantic Colors */
+  --color-background: var(--background-color);
+  --color-background-pure: var(--background-color-pure);
+  --color-background-alt: var(--background-color-alt);
+  --color-background-sand: var(--background-color-sand);
+  --color-foreground: var(--font-color);
+  --color-foreground-heading: var(--font-color-h);
+  --color-link: var(--link-color);
+  --color-error: var(--error-red);
+  --color-accent: var(--interactive-accent-color);
+  --color-disabled: var(--font-color-disabled);
+
+  /* Button Colors */
+  --color-button-bg: var(--button-background-color);
+  --color-button-text: var(--button-text-color);
+  --color-button-hover: var(--button-hover-color);
+
+  /* Form Input Colors */
+  --color-input-bg: var(--input-background);
+  --color-input-text: var(--input-text-color);
+  --color-input-placeholder: var(--input-placeholder-color);
+
+  /* Overlay Colors */
+  --color-overlay-sm: var(--overlay-dark-sm);
+  --color-overlay-md: var(--overlay-dark-md);
+  --color-overlay-lg: var(--overlay-dark-lg);
+
+  /* Additional Semantic Colors */
+  --color-text-green: var(--font-color-green);
+  --color-hover-alt: var(--hover-color-alt);
+
+  /* Spacing System */
+  --spacing-xxs: var(--spacing-xxsmall);
+  --spacing-xs: var(--spacing-xsmall);
+  --spacing-sm: var(--spacing-small);
+  --spacing-md: var(--spacing-medium);
+  --spacing-lg: var(--spacing-large);
+  --spacing-xl: var(--spacing-xlarge);
+  --spacing-2xl: var(--spacing-xxlarge);
+
+  /* Shadows */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+
+  /* Card Shadows */
+  --shadow-card-subtle: var(--card-shadow-subtle);
+  --shadow-card-elevated: var(--card-shadow-elevated);
+  --shadow-card-floating: var(--card-shadow-floating);
+  --shadow-card-dramatic: var(--card-shadow-dramatic);
+
+  /* Border Radius */
+  --radius-sm: var(--card-border-radius-small);
+  --radius-md: var(--card-border-radius-medium);
+  --radius-lg: var(--card-border-radius-large);
+
+  /* Canvas Editor Layout */
+  --image-studio-tab-bar-width: 64px;
+  --mobile-tab-bar-height: 44px;
+
+  /* Custom Breakpoints */
+  --breakpoint-canvas-mobile: 900px;
+
+  /* Canvas Editor Animations */
+  --animate-canvas-slide-down-fade: slideDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-canvas-slide: canvas-slide 1.5s ease-in-out infinite;
+  --animate-canvas-pulse: canvas-pulse 1.5s ease-in-out infinite;
+  --animate-canvas-expand-width: expandWidth 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-auto-save-spin: auto-save-spin 0.8s linear infinite;
+  --animate-auto-save-check: auto-save-check-in 0.3s ease;
+  --animate-subsection-fade-in: subsectionFadeIn 0.15s ease-out;
+}
+
+/* Canvas Editor Keyframe Animations */
+
+@keyframes slideDownFade {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes expandWidth {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes canvas-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+@keyframes canvas-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes auto-save-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes auto-save-check-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes subsectionFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sidebar-hint-popup-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes flyout-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

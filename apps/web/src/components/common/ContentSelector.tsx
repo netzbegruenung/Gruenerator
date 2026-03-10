@@ -32,7 +32,6 @@ const ContentSelector = ({
   attachedFiles = [],
   onOpenSelector,
 }: ContentSelectorProps): JSX.Element | null => {
-  console.debug('[ContentSelector] render');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { availableTexts, availableDocuments, isLoadingTexts, isLoadingDocuments, uiConfig } =
