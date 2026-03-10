@@ -1,6 +1,7 @@
+import { MasterCanvasEditor, CanvasEditorProvider } from '@gruenerator/canvas-editor';
 import { useState, useEffect, useCallback } from 'react';
 
-import { MasterCanvasEditor } from '../features/image-studio/canvas-editor/MasterCanvasEditor';
+import { webCanvasEditorServices } from '../features/image-studio/webCanvasEditorServices';
 import { useAuthStore } from '../stores/authStore';
 
 interface MobileEditorData {
@@ -84,13 +85,15 @@ export default function MobileEditorPage() {
   };
 
   return (
-    <MasterCanvasEditor
-      type={data.type}
-      initialState={initialState}
-      imageSrc={data.sourceImageBase64} // Pass the raw source image for editing
-      onExport={handleExport}
-      onCancel={handleCancel}
-    />
+    <CanvasEditorProvider services={webCanvasEditorServices}>
+      <MasterCanvasEditor
+        type={data.type}
+        initialState={initialState}
+        imageSrc={data.sourceImageBase64} // Pass the raw source image for editing
+        onExport={handleExport}
+        onCancel={handleCancel}
+      />
+    </CanvasEditorProvider>
   );
 }
 

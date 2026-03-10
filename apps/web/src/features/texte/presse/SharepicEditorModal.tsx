@@ -1,11 +1,12 @@
+import { ControllableCanvasWrapper, CanvasEditorProvider } from '@gruenerator/canvas-editor';
+import { useCanvasEditorStore } from '@gruenerator/canvas-editor/stores';
 import React, { useEffect, useCallback, useMemo, Suspense } from 'react';
 
 import Spinner from '../../../components/common/Spinner';
-import { useCanvasEditorStore } from '../../../stores/canvasEditorStore';
-import { ControllableCanvasWrapper } from '../../image-studio/canvas-editor/CanvasEditorRouter';
+import { webCanvasEditorServices } from '../../image-studio/webCanvasEditorServices';
 
 import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
-import type { DreizeilenAlternative } from '../../image-studio/canvas-editor/configs/dreizeilen.types';
+import type { DreizeilenAlternative } from '@gruenerator/canvas-editor/configs/dreizeilen.types';
 import './SharepicEditorModal.css';
 
 type SharepicType = 'dreizeilen' | 'headline' | 'zitat' | 'zitat_pure' | 'info' | 'veranstaltung';
@@ -261,16 +262,18 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
   return (
     <div className="sharepic-editor-modal-overlay">
       <div className="sharepic-editor-modal">
-        <Suspense
-          fallback={
-            <div className="canvas-loading">
-              <Spinner size="large" />
-              <span>Canvas wird geladen...</span>
-            </div>
-          }
-        >
-          {renderCanvas()}
-        </Suspense>
+        <CanvasEditorProvider services={webCanvasEditorServices}>
+          <Suspense
+            fallback={
+              <div className="canvas-loading">
+                <Spinner size="large" />
+                <span>Canvas wird geladen...</span>
+              </div>
+            }
+          >
+            {renderCanvas()}
+          </Suspense>
+        </CanvasEditorProvider>
       </div>
     </div>
   );

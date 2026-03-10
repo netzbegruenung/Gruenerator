@@ -1,0 +1,24 @@
+.unsplash-attribution {
+  font-size: 0.75rem;
+  color: var(--font-color);
+  opacity: 0.7;
+  text-align: center;
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  line-height: 1.4;
+}
+
+.unsplash-attribution a {
+  color: var(--link-color, var(--primary-500));
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.unsplash-attribution a:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.unsplash-attribution--compact {
+  display: inline;
+  padding: 0;
+}
