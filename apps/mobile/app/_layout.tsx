@@ -18,11 +18,13 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { useAppInitialization } from '../hooks/useAppInitialization';
+import { initSentry, Sentry } from '../services/sentry';
 import { lightTheme, darkTheme } from '../theme';
 
 SplashScreen.preventAutoHideAsync();
+initSentry();
 
-export default function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const segments = useSegments();
@@ -131,3 +133,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);

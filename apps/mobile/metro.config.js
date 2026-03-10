@@ -1,4 +1,5 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const { withSentryConfig } = require('@sentry/react-native/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
@@ -62,4 +63,4 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 // Ensure Metro can resolve packages hoisted to monorepo root
 config.resolver.disableHierarchicalLookup = true;
 
-module.exports = config;
+module.exports = withSentryConfig(config);
