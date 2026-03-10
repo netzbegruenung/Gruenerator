@@ -6,7 +6,7 @@ import Spinner from '../../../components/common/Spinner';
 import { webCanvasEditorServices } from '../../image-studio/webCanvasEditorServices';
 
 import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
-import type { DreizeilenAlternative } from '@gruenerator/canvas-editor/configs/dreizeilen.types';
+import type { DreizeilenAlternative } from '@gruenerator/canvas-editor';
 import './SharepicEditorModal.css';
 
 type SharepicType = 'dreizeilen' | 'headline' | 'zitat' | 'zitat_pure' | 'info' | 'veranstaltung';

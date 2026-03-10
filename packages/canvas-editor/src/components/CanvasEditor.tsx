@@ -14,12 +14,21 @@
  * - content-visibility CSS for off-screen pages
  */
 
-import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense, memo } from 'react';
+import React, {
+  useCallback,
+  useRef,
+  useMemo,
+  useEffect,
+  useState,
+  Suspense,
+  memo,
+  lazy,
+} from 'react';
 
 import Spinner from '../common/Spinner';
 import { usePageManager, useMultiPageExport } from '../hooks';
+import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
-import { SidebarTabBar, SidebarPanel } from '../sidebar';
 
 import { GenericCanvas } from './GenericCanvas';
 import { AddPageButton } from './TemplatePickerFlyout';
@@ -27,10 +36,18 @@ import { ZoomableViewport } from './ZoomableViewport';
 
 import type { GenericCanvasRef } from './GenericCanvas';
 import type { CanvasConfigId, FullCanvasConfig } from '../configs/types';
+import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 import type { InitialPageDef } from '../hooks/usePageManager';
 import type { SidebarTabId } from '../sidebar/types';
 
 import { cn } from '../utils/cn';
+
+const LazySidebarTabBar = lazy(() =>
+  import('../sidebar').then((m) => ({ default: m.SidebarTabBar }))
+);
+const LazySidebarPanel = lazy(() =>
+  import('../sidebar').then((m) => ({ default: m.SidebarPanel }))
+);
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -61,6 +78,8 @@ interface CanvasEditorProps {
   maxPages?: number;
   /** Pre-populated pages — overrides single-page initialization when provided */
   initialPages?: InitialPageDef[];
+  /** Mobile bridge — when provided, hides web tab bar + floating toolbar, uses native controls */
+  mobileBridge?: MobileBridgeProps;
 }
 
 interface PageWrapperProps {
@@ -87,6 +106,7 @@ interface PageWrapperProps {
     actions: Record<string, unknown>,
     selectedElement: string | null
   ) => void;
+  mobileBridge?: MobileBridgeProps;
 }
 
 /**
@@ -107,12 +127,13 @@ const PageWrapper = memo(function PageWrapper({
   callbacks,
   multiPageExport,
   onStateChange,
+  mobileBridge,
 }: PageWrapperProps) {
   // Report state/actions to parent when ref is ready or changes
   // This uses an effect to properly sync state up to the parent
   useEffect(() => {
     // Guard: canvasRef might be undefined during initialization
-    if (!canvasRef) return;
+    if (!canvasRef) return undefined;
 
     const checkRef = () => {
       const ref = canvasRef.current;
@@ -134,6 +155,7 @@ const PageWrapper = memo(function PageWrapper({
       const interval = setInterval(checkRef, 100);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [canvasRef, isActive, page.id, onStateChange]);
 
   // Functional setState callback (Rule 5.5: stable callback)
@@ -197,6 +219,7 @@ const PageWrapper = memo(function PageWrapper({
           onCancel={onCancel}
           callbacks={callbacks}
           multiPageExport={multiPageExport}
+          mobileBridge={mobileBridge}
         />
       </ZoomableViewport>
     </div>
@@ -211,7 +234,9 @@ export function CanvasEditor({
   callbacks = {},
   maxPages = 10,
   initialPages,
+  mobileBridge,
 }: CanvasEditorProps) {
+  const isMobileBridge = Boolean(mobileBridge);
   const {
     pages,
     addPage,
@@ -235,8 +260,11 @@ export function CanvasEditor({
   );
 
   // Sidebar state - ONE shared sidebar for all pages
-  const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
+  // In mobile bridge mode, activeTab is controlled by native via mobileBridge.activeTab
+  const [localActiveTab, setLocalActiveTab] = useState<SidebarTabId | null>('text');
   const prevTabRef = useRef<SidebarTabId | null>(null);
+  const activeTab = isMobileBridge ? (mobileBridge!.activeTab ?? null) : localActiveTab;
+  const setActiveTab = setLocalActiveTab;
 
   // Active page state/actions/selectedElement - synced via effect from PageWrapper
   const [activePageData, setActivePageData] = useState<{
@@ -421,6 +449,24 @@ export function CanvasEditor({
     }
   }, [activeSelectedElement, activeConfig]);
 
+  // Mobile bridge: report tab changes to native
+  useEffect(() => {
+    if (!mobileBridge) return;
+    const disabledSet = new Set(disabledTabs);
+    mobileBridge.callbacks.onTabsChange(
+      visibleTabs.map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+        disabled: disabledSet.has(tab.id),
+      }))
+    );
+  }, [mobileBridge, visibleTabs, disabledTabs]);
+
+  useEffect(() => {
+    if (!mobileBridge) return;
+    mobileBridge.callbacks.onActiveTabChange(activeTab);
+  }, [mobileBridge, activeTab]);
+
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
     const dataUrls = await exportAllPages();
@@ -511,24 +557,34 @@ export function CanvasEditor({
     return pageLoadingIndicator;
   }
 
-  // Build sidebar elements
-  const tabBar = (
-    <SidebarTabBar
-      tabs={visibleTabs}
-      activeTab={activeTab}
-      onTabClick={handleTabClick}
-      disabledTabs={disabledTabs}
-    />
+  // Build sidebar elements (lazy-loaded to reduce initial bundle)
+  // In mobile bridge mode, native handles the tab bar — only render the panel
+  const tabBar = isMobileBridge ? null : (
+    <Suspense fallback={null}>
+      <LazySidebarTabBar
+        tabs={visibleTabs}
+        activeTab={activeTab}
+        onTabClick={handleTabClick}
+        disabledTabs={disabledTabs}
+      />
+    </Suspense>
   );
 
   const panel = (
-    <SidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>
-      {renderActiveSection()}
-    </SidebarPanel>
+    <Suspense fallback={sidebarLoadingFallback}>
+      <LazySidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>
+        {renderActiveSection()}
+      </LazySidebarPanel>
+    </Suspense>
   );
 
   return (
-    <CanvasEditorLayout sidebar={panel} tabBar={tabBar} actions={null}>
+    <CanvasEditorLayout
+      sidebar={panel}
+      tabBar={tabBar}
+      actions={null}
+      hideMobileChrome={isMobileBridge}
+    >
       <div className="heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs">
         {pages.map((page, index) => {
           const config = loadedConfigs.get(page.configId);
@@ -553,6 +609,7 @@ export function CanvasEditor({
               callbacks={callbacks}
               multiPageExport={index === 0 ? multiPageExportProps : undefined}
               onStateChange={handlePageStateChange}
+              mobileBridge={isActive ? mobileBridge : undefined}
             />
           );
         })}

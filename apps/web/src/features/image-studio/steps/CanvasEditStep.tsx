@@ -1,15 +1,16 @@
+import {
+  ProfilbildCanvas,
+  ControllableCanvasWrapper,
+  type CanvasConfigId,
+  type DreizeilenAlternative,
+  type InitialPageDef,
+} from '@gruenerator/canvas-editor';
 import { motion } from 'motion/react';
 import React, { useEffect } from 'react';
 
 import useSidebarStore from '../../../stores/sidebarStore';
-import { ProfilbildCanvas } from '../canvas-editor';
-import { ControllableCanvasWrapper } from '../canvas-editor/CanvasEditorRouter';
 import { slideVariants } from '../components/StepFlow';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
-
-import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
-import type { CanvasConfigId } from '../canvas-editor/configs/types';
-import type { InitialPageDef } from '../canvas-editor/hooks/usePageManager';
 
 interface CanvasEditTypeConfig {
   id?: string;
