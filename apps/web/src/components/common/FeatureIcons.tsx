@@ -49,10 +49,6 @@ const SelectedContentBadges = React.memo(function SelectedContentBadges({
   toggleDocumentSelection,
   toggleTextSelection,
 }: SelectedContentBadgesProps) {
-  console.debug('[SelectedContentBadges] render', {
-    docs: selectedDocumentIds.length,
-    texts: selectedTextIds.length,
-  });
   if (selectedDocumentIds.length === 0 && selectedTextIds.length === 0) return null;
 
   return (
@@ -118,7 +114,6 @@ const ModeDropdownItems = React.memo(function ModeDropdownItems({
   onSelectPrivacy,
   onSelectPro,
 }: ModeDropdownItemsProps) {
-  console.debug('[ModeDropdownItems] render', { usePrivacyMode, useProMode });
   return (
     <>
       <button
@@ -178,8 +173,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
   open,
   onOpenChange,
 }: ContentSelectorDialogProps) {
-  console.debug('[ContentSelectorDialog] render', { open });
-
   const {
     availableTexts,
     selectedTextIds,
@@ -546,7 +539,10 @@ const FeatureIcons = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn('size-9 sm:size-10', useWebSearch && 'text-primary-500')}
+                className={cn(
+                  'size-9 sm:size-10 text-grey-600 dark:text-grey-400',
+                  useWebSearch && 'text-primary-500'
+                )}
                 onClick={toggleWebSearch}
                 aria-label="Websuche aktivieren"
                 tabIndex={tabIndex.webSearch}
@@ -573,7 +569,7 @@ const FeatureIcons = ({
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      'size-9 sm:size-10',
+                      'size-9 sm:size-10 text-grey-600 dark:text-grey-400',
                       (usePrivacyMode || useProMode) && 'text-primary-500'
                     )}
                     aria-label={usePrivacyMode ? 'Gruenerator-GPT' : useProMode ? 'Pro' : 'Kreativ'}
@@ -613,7 +609,7 @@ const FeatureIcons = ({
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    'size-9 sm:size-10 hover:bg-transparent',
+                    'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-transparent',
                     useAgentMode && 'text-primary-500'
                   )}
                   onClick={toggleAgentMode}
@@ -646,7 +642,7 @@ const FeatureIcons = ({
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      'size-9 sm:size-10',
+                      'size-9 sm:size-10 text-grey-600 dark:text-grey-400',
                       (totalContentCount > 0 || useAutomaticSearch) && 'text-primary-500'
                     )}
                     aria-label="Inhalt"
@@ -701,7 +697,10 @@ const FeatureIcons = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn('size-9 sm:size-10', interactiveModeActive && 'text-primary-500')}
+                  className={cn(
+                    'size-9 sm:size-10 text-grey-600 dark:text-grey-400',
+                    interactiveModeActive && 'text-primary-500'
+                  )}
                   onClick={onInteractiveModeClick}
                   aria-label="Interaktiver Modus"
                   tabIndex={tabIndex.interactiveMode}
