@@ -6,11 +6,9 @@ import useBaseForm from '../../components/common/Form/hooks/useBaseForm';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 import '../../assets/styles/components/ui/button.css';
-import useApiSubmit from '../../components/hooks/useApiSubmit';
 import apiClient from '../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
-import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 import DynamicFormFieldRenderer from './components/DynamicFormFieldRenderer';
 import { type GeneratorConfig, DEFAULT_FEATURE_TOGGLES } from './types/generatorTypes';
@@ -23,24 +21,12 @@ const CustomGeneratorPage: React.FC = memo(() => {
   const [generatorConfig, setGeneratorConfig] = useState<GeneratorConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [localGeneratedContent, setLocalGeneratedContent] = useState<string>('');
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const { setGeneratedText } = useGeneratedTextStore();
-
   // URL crawler hook for automatic link processing
   const { crawledUrls, isCrawling, detectAndCrawlUrls } = useUrlCrawler();
-
-  // API submission hook for loading state management
-  const {
-    submitForm,
-    loading: isSubmitting,
-    success: submissionSuccess,
-    resetSuccess,
-    error: submissionError,
-  } = useApiSubmit('/custom_generator');
 
   // Memoize default values for the form
   const defaultValues = useMemo<Record<string, unknown>>(() => {
@@ -96,8 +82,7 @@ const CustomGeneratorPage: React.FC = memo(() => {
       }
       setLoading(true);
       setError(null);
-      setLocalGeneratedContent('');
-      setGeneratedText('customGenerator', '');
+      form.generator?.handleGeneratedContentChange('');
       try {
         const response = await apiClient.get(`/custom_generator/${slug}`);
         const data = response.data;
@@ -126,6 +111,7 @@ const CustomGeneratorPage: React.FC = memo(() => {
     if (!authLoading) {
       void fetchGeneratorConfig();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, isAuthenticated, user?.id, authLoading]);
 
   const isCrawlingRef = useRef(isCrawling);
@@ -134,18 +120,18 @@ const CustomGeneratorPage: React.FC = memo(() => {
   const handleUrlsDetected = useCallback(
     async (urls: string[]) => {
       if (!isCrawlingRef.current && urls.length > 0 && form.generator) {
-        const { toggles } = form.generator as unknown as { toggles: { privacyMode: boolean } };
-        await detectAndCrawlUrls(urls.join(' '), toggles.privacyMode);
+        await detectAndCrawlUrls(urls.join(' '), form.generator.toggles.privacyMode);
       }
     },
     [detectAndCrawlUrls, form.generator]
   );
 
-  // Custom submission handler for dynamic generator configuration
+  // Custom submission handler for dynamic generator configuration (streaming via SSE)
   const customSubmit = useCallback(
     async (formData: Record<string, unknown>) => {
+      if (!form.generator) return;
+
       try {
-        // Create clean form data object - only include fields from generator config
         const cleanFormData: Record<string, unknown> = {};
         if (generatorConfig) {
           generatorConfig.form_schema.fields.forEach((field) => {
@@ -153,59 +139,37 @@ const CustomGeneratorPage: React.FC = memo(() => {
           });
         }
 
-        // Combine file attachments with crawled URLs
-        const allAttachments = form.generator
-          ? [...form.generator.attachedFiles, ...crawledUrls]
-          : crawledUrls;
+        const allAttachments = [...form.generator.attachedFiles, ...crawledUrls];
 
-        // Add feature flags and attachments to form data
-        if (form.generator) {
-          const { toggles } = form.generator as unknown as {
-            toggles: { webSearch: boolean; privacyMode: boolean; proMode: boolean };
-          };
-          cleanFormData.useWebSearchTool = toggles.webSearch;
-          cleanFormData.usePrivacyMode = toggles.privacyMode;
-          cleanFormData.useBedrock = toggles.proMode; // Pro mode flag for backend API
-        }
-        cleanFormData.attachments = allAttachments;
-
-        // Use submitForm instead of apiClient.post for automatic loading state management
-        const response = await submitForm({
+        const payload: Record<string, unknown> = {
           slug,
           formData: cleanFormData,
-        });
+          useWebSearchTool: form.generator.toggles.webSearch,
+          usePrivacyMode: form.generator.toggles.privacyMode,
+          useBedrock: form.generator.toggles.proMode,
+          attachments: allAttachments,
+        };
 
-        const content =
-          (response as { content?: string; data?: { content?: string } })?.content ||
-          (response as { data?: { content?: string } })?.data?.content ||
-          (response as { data?: string })?.data ||
-          response;
+        const response = await form.generator.submitForm(payload);
 
-        if (content) {
-          setLocalGeneratedContent(String(content));
-          if (form.generator) {
+        if (response) {
+          const content =
+            typeof response === 'string' ? response : (response as Record<string, unknown>).content;
+          if (content) {
             form.generator.handleGeneratedContentChange(String(content));
+            setTimeout(form.generator.resetSuccess, 3000);
           }
-          setTimeout(resetSuccess, 3000);
-        } else {
-          setLocalGeneratedContent('');
         }
       } catch (err) {
         console.error('Fehler bei der Generierung:', err);
-        setLocalGeneratedContent('');
+        if (err instanceof Error) {
+          form.handleSubmitError(err);
+        } else {
+          form.handleSubmitError(new Error(String(err)));
+        }
       }
     },
-    [submitForm, resetSuccess, generatorConfig, form, slug, crawledUrls]
-  );
-
-  const handleGeneratedContentChange = useCallback(
-    (content: string) => {
-      setLocalGeneratedContent(content);
-      if (form.generator) {
-        form.generator.handleGeneratedContentChange(content);
-      }
-    },
-    [form.generator]
+    [form.generator, generatorConfig, slug, crawledUrls]
   );
 
   // Handle saving generator to user's profile
@@ -261,19 +225,13 @@ const CustomGeneratorPage: React.FC = memo(() => {
       await customSubmit(data as unknown as Record<string, unknown>);
     });
     return submitHandler();
-  }, [form, customSubmit]);
+  }, [form.handleSubmit, customSubmit]);
 
-  // Memoize baseFormProps - use safe defaults when generatorConfig is null
   const baseFormProps = useMemo<BaseFormProps>(
     () => ({
       ...((form.generator?.baseFormProps as unknown as BaseFormProps) || {}),
       title: generatorConfig?.name || generatorConfig?.title || '',
       onSubmit: handleFormSubmit,
-      loading: isSubmitting,
-      success: submissionSuccess,
-      error: submissionError,
-      generatedContent: localGeneratedContent,
-      onGeneratedContentChange: handleGeneratedContentChange,
       submitButtonProps,
       showProfileSelector: false,
       firstExtrasChildren: saveButton,
@@ -283,11 +241,6 @@ const CustomGeneratorPage: React.FC = memo(() => {
       generatorConfig?.name,
       generatorConfig?.title,
       handleFormSubmit,
-      isSubmitting,
-      submissionSuccess,
-      submissionError,
-      localGeneratedContent,
-      handleGeneratedContentChange,
       submitButtonProps,
       saveButton,
     ]
