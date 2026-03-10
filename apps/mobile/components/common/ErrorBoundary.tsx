@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Component, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
+import { Sentry } from '../../services/sentry';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 
 interface Props {
@@ -24,6 +25,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[ErrorBoundary]', error.message, errorInfo.componentStack);
+    Sentry.captureException(error, {
+      extra: { componentStack: errorInfo.componentStack },
+    });
     this.props.onError?.(error, errorInfo);
   }
 

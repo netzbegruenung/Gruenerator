@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import useStreamingSubmit from '../../../../hooks/useStreamingSubmit';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
@@ -75,21 +75,38 @@ const useStreamingFormSubmission = (
     [setGeneratedText, componentName]
   );
 
-  return {
-    submitForm,
-    loading,
-    success,
-    error,
-    resetSuccess,
-    isStreaming,
-    streamingText,
-    streamingProgress,
-    abortStreaming,
-    setGeneratedText,
-    setStoreIsLoading,
-    generatedContent,
-    handleGeneratedContentChange,
-  };
+  return useMemo(
+    () => ({
+      submitForm,
+      loading,
+      success,
+      error,
+      resetSuccess,
+      isStreaming,
+      streamingText,
+      streamingProgress,
+      abortStreaming,
+      setGeneratedText,
+      setStoreIsLoading,
+      generatedContent,
+      handleGeneratedContentChange,
+    }),
+    [
+      submitForm,
+      loading,
+      success,
+      error,
+      resetSuccess,
+      isStreaming,
+      streamingText,
+      streamingProgress,
+      abortStreaming,
+      setGeneratedText,
+      setStoreIsLoading,
+      generatedContent,
+      handleGeneratedContentChange,
+    ]
+  );
 };
 
 export default useStreamingFormSubmission;

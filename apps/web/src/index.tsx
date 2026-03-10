@@ -25,6 +25,9 @@ if (sentryDsn) {
       'Failed to fetch dynamically imported module',
       'error loading dynamically imported module',
       "Can't find variable: EmptyRanges", // Safari ES2022 class field TDZ bug (fixed by safari15 build target)
+      'Thread not found', // @assistant-ui race condition on thread delete/switch — handled gracefully
+      /feature named `.+` was not found/, // DuckDuckGo browser internal privacy feature errors
+      'invalid origin', // DuckDuckGo iOS WKWebView internal error
     ],
   });
 } else {

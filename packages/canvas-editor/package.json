@@ -1,0 +1,48 @@
+{
+  "name": "@gruenerator/canvas-editor",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "require": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./styles": "./src/canvas-editor.css",
+    "./styles/bundle": "./dist/canvas-editor-bundle.css",
+    "./stores": {
+      "import": "./src/stores/index.ts",
+      "require": "./src/stores/index.ts"
+    },
+    "./configs/*": "./src/configs/*"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/styles/tailwind-input.css -o ./dist/canvas-editor-bundle.css --minify",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gruenerator/shared": "workspace:*",
+    "clsx": "^2.1.1",
+    "immer": "^10.1.1",
+    "konva": "^10.2.0",
+    "react-konva": "^19.2.3",
+    "react-icons": "^5.5.0",
+    "tailwind-merge": "^3.5.0",
+    "use-image": "^1.1.4",
+    "zustand": "^5.0.11",
+    "@radix-ui/react-slider": "^1.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

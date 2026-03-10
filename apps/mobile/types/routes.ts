@@ -33,6 +33,7 @@ export type AppRoute =
   | '/(focused)/chat-conversation'
   | '/(focused)/image-studio-create/image'
   | '/(focused)/image-studio-create/ki-input'
+  | '/(focused)/image-studio-create/template-input'
   | '/(focused)/image-studio-create/result'
   // Fullscreen routes
   | '/(fullscreen)/subtitle-editor'
