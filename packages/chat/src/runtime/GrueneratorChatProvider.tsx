@@ -365,6 +365,35 @@ export function GrueneratorChatProvider({
     return () => window.removeEventListener('unhandledrejection', handler);
   }, []);
 
+  if (!userId) {
+    return <>{children}</>;
+  }
+
+  return (
+    <GrueneratorChatRuntimeProvider
+      userId={userId}
+      getExternalThreads={getExternalThreads}
+      onExternalThreadClick={onExternalThreadClick}
+      activePath={activePath}
+    >
+      {children}
+    </GrueneratorChatRuntimeProvider>
+  );
+}
+
+function GrueneratorChatRuntimeProvider({
+  children,
+  userId,
+  getExternalThreads,
+  onExternalThreadClick,
+  activePath,
+}: {
+  children: ReactNode;
+  userId: string;
+  getExternalThreads?: () => ExternalThreadEntry[];
+  onExternalThreadClick?: (externalId: string) => void;
+  activePath?: string;
+}) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
   const providerApiClient = useMemo(
@@ -374,7 +403,6 @@ export function GrueneratorChatProvider({
 
   // Load user's custom prompts for @mention support
   useEffect(() => {
-    if (!userId) return;
     const loadCustomAgents = async () => {
       try {
         const [ownPrompts, savedPrompts] = await Promise.all([
