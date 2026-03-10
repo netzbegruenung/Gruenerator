@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 
-import { WebViewEditor } from '../../components/image-studio/WebViewEditor';
+import CanvasEditorDOM from '../../components/dom/CanvasEditorDOM';
 import { useImageStudioStore } from '../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../theme';
 
@@ -11,36 +11,42 @@ export default function WebViewEditorScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  const { type, formData, modifications, uploadedImageBase64, setGeneratedImage, setLoading } =
+  const { type, formData, modifications, uploadedImageBase64, setGeneratedImage } =
     useImageStudioStore();
 
-  const handleSave = useCallback(
-    (base64: string) => {
-      // Update the generated image in the store
+  const handleExport = useCallback(
+    async (base64: string) => {
       setGeneratedImage(base64);
-      // Go back to the result screen
       router.back();
     },
     [setGeneratedImage]
   );
 
-  const handleCancel = useCallback(() => {
+  const handleCancel = useCallback(async () => {
     router.back();
   }, []);
 
-  // Prepare the data payload
-  const initialData = {
-    type,
-    formData,
-    modifications,
-    generatedImageBase64: uploadedImageBase64, // The previously generated image
-    sourceImageBase64: uploadedImageBase64, // The original uploaded image for editing
-  };
+  const initialState = {
+    ...formData,
+    ...modifications,
+  } as Record<string, unknown>;
+
+  if (!type) {
+    router.back();
+    return null;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar hidden />
-      <WebViewEditor initialData={initialData} onSave={handleSave} onCancel={handleCancel} />
+      <CanvasEditorDOM
+        type={type}
+        initialState={initialState}
+        imageSrc={uploadedImageBase64 ?? undefined}
+        onExport={handleExport}
+        onCancel={handleCancel}
+        dom={{ matchContents: true }}
+      />
     </View>
   );
 }

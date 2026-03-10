@@ -13,12 +13,16 @@ import { useImageStudioStore } from '../../../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../../../theme';
 import { route } from '../../../../types/routes';
 
-import type { ImageStudioKiType, KiStyleVariant } from '@gruenerator/shared/image-studio';
+import type {
+  ImageStudioKiType,
+  ImageStudioTemplateType,
+  KiStyleVariant,
+} from '@gruenerator/shared/image-studio';
 
 export default function TypeSelectionScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const { setKiType, setKiVariant, reset } = useImageStudioStore();
+  const { setKiType, setKiVariant, setType, reset } = useImageStudioStore();
 
   const handleVariantSelect = (variant: KiStyleVariant) => {
     reset();
@@ -38,9 +42,19 @@ export default function TypeSelectionScreen() {
     }
   };
 
+  const handleTemplateSelect = (templateType: ImageStudioTemplateType) => {
+    reset();
+    setType(templateType);
+    router.push(route('/(focused)/image-studio-create/template-input'));
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
-      <TypeSelector onSelectVariant={handleVariantSelect} onSelectEdit={handleEditSelect} />
+      <TypeSelector
+        onSelectVariant={handleVariantSelect}
+        onSelectEdit={handleEditSelect}
+        onSelectTemplate={handleTemplateSelect}
+      />
     </SafeAreaView>
   );
 }

@@ -182,6 +182,16 @@ export function ResultDisplay({
           )}
         </Pressable>
 
+        <Pressable
+          onPress={() => router.push('/(fullscreen)/webview-editor')}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="create-outline" size={22} color={colors.primary[600]} />
+        </Pressable>
+
         {autoSaveStatus === 'saved' && shareToken && (
           <Pressable
             onPress={() => router.push('/(tabs)/(media)/image-studio/gallery')}
