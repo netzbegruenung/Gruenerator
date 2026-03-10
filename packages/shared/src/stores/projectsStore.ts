@@ -38,7 +38,7 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Projekte konnten nicht geladen werden';
-      console.error('[ProjectsStore] Failed to fetch projects:', error);
+      console.warn('[ProjectsStore] Failed to fetch projects:', errorMessage);
       set({
         error: errorMessage,
         isLoading: false,
@@ -60,7 +60,7 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Projekt konnte nicht geladen werden';
-      console.error('[ProjectsStore] Failed to load project:', error);
+      console.warn('[ProjectsStore] Failed to load project:', error);
       set({
         error: errorMessage,
         isLoading: false,
@@ -90,7 +90,7 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Projekt konnte nicht gespeichert werden';
-      console.error('[ProjectsStore] Failed to save project:', error);
+      console.warn('[ProjectsStore] Failed to save project:', error);
       set({
         error: errorMessage,
         isSaving: false,
@@ -120,7 +120,7 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Projekt konnte nicht aktualisiert werden';
-      console.error('[ProjectsStore] Failed to update project:', error);
+      console.warn('[ProjectsStore] Failed to update project:', error);
       set({
         error: errorMessage,
         isSaving: false,
@@ -140,7 +140,7 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Projekt konnte nicht gelöscht werden';
-      console.error('[ProjectsStore] Failed to delete project:', error);
+      console.warn('[ProjectsStore] Failed to delete project:', error);
       set({ error: errorMessage });
       throw error;
     }
