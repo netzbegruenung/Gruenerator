@@ -1,6 +1,7 @@
+import { MasterCanvasEditor, CanvasEditorProvider } from '@gruenerator/canvas-editor';
 import React, { lazy, Suspense, useCallback, useMemo } from 'react';
 
-import { MasterCanvasEditor } from '../features/image-studio/canvas-editor/MasterCanvasEditor';
+import { webCanvasEditorServices } from '../features/image-studio/webCanvasEditorServices';
 
 import type { SharepicDataItem } from './common/ImageDisplay';
 import type { ImageStudioTemplateType } from '@gruenerator/shared/image-studio';
@@ -100,13 +101,15 @@ export function SharepicMasterEditorModal({
   // A generic modal for the editor. Replace with your actual modal component.
   return (
     <GenericModal isOpen={isOpen} onClose={onCancel} title="Sharepic bearbeiten" size="fullscreen">
-      <MasterCanvasEditor
-        type={editorType}
-        initialState={initialState}
-        imageSrc={editorImageSrc} // Pass the appropriate image source
-        onExport={onExport}
-        onCancel={onCancel}
-      />
+      <CanvasEditorProvider services={webCanvasEditorServices}>
+        <MasterCanvasEditor
+          type={editorType}
+          initialState={initialState}
+          imageSrc={editorImageSrc} // Pass the appropriate image source
+          onExport={onExport}
+          onCancel={onCancel}
+        />
+      </CanvasEditorProvider>
     </GenericModal>
   );
 }

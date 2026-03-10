@@ -16,7 +16,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { useShallow } from 'zustand/shallow';
 
-import type { SnapTarget, SnapLine } from '../features/image-studio/canvas-editor/utils/snapping';
+import type { SnapTarget, SnapLine } from '@gruenerator/canvas-editor';
 import type {
   Layer,
   CanvasEditorConfig,

@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@assistant-ui/react": "^0.12.15",
+    "@gruenerator/canvas-editor": "workspace:*",
     "@gruenerator/chat": "workspace:*",
     "@gruenerator/docs": "workspace:*",
     "@gruenerator/voice": "workspace:*",
