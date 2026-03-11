@@ -20,6 +20,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/docs/package.json ./packages/docs/
 COPY packages/chat/package.json ./packages/chat/
 COPY packages/voice/package.json ./packages/voice/
+COPY packages/canvas-editor/package.json ./packages/canvas-editor/
 COPY apps/web/package.json ./apps/web/
 
 # Install only web + transitive workspace deps (not all ~6 workspaces)
@@ -31,6 +32,7 @@ COPY packages/shared ./packages/shared
 COPY packages/docs ./packages/docs
 COPY packages/chat ./packages/chat
 COPY packages/voice ./packages/voice
+COPY packages/canvas-editor ./packages/canvas-editor
 COPY apps/web ./apps/web
 COPY CHANGELOG.md ./
 
